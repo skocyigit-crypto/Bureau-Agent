@@ -183,13 +183,13 @@ export default function Home() {
             <div className="animate-marquee whitespace-nowrap flex items-center gap-16 md:gap-32 py-4">
               {Array.from({ length: 2 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-16 md:gap-32 opacity-40 grayscale group-hover:grayscale-0 group-hover:opacity-80 transition-all duration-500">
-                  <div className="text-2xl font-bold font-serif">L'Atelier Paris</div>
-                  <div className="text-2xl font-bold tracking-tighter">BUREAUX&CO</div>
-                  <div className="flex items-center gap-2 text-2xl font-extrabold italic"><Zap className="w-6 h-6 text-accent"/> Nexus</div>
-                  <div className="text-2xl font-bold">SYNERGIE</div>
-                  <div className="text-2xl font-bold uppercase tracking-widest border-2 border-current px-2 py-1">Aura</div>
-                  <div className="text-2xl font-medium tracking-wide">Espace<span className="font-bold">Pro</span></div>
-                  <div className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-foreground to-muted-foreground">KLEIN</div>
+                  <div className="text-2xl font-bold font-serif">Volantera</div>
+                  <div className="text-2xl font-bold tracking-tighter">ORBICORP</div>
+                  <div className="flex items-center gap-2 text-2xl font-extrabold italic"><Zap className="w-6 h-6 text-accent"/> Zephira</div>
+                  <div className="text-2xl font-bold">NOVAXIS</div>
+                  <div className="text-2xl font-bold uppercase tracking-widest border-2 border-current px-2 py-1">Lumara</div>
+                  <div className="text-2xl font-medium tracking-wide">Calyx<span className="font-bold">Hub</span></div>
+                  <div className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-foreground to-muted-foreground">PRISMEO</div>
                 </div>
               ))}
             </div>
@@ -659,23 +659,23 @@ export default function Home() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {[
                 {
-                  name: "Sophie Laurent",
+                  name: "A. Morel",
                   role: "Office Manager",
-                  company: "Nexus Paris",
+                  company: "Volantera Solutions",
                   image: testimonial1Path,
                   quote: "Agent de Bureau a complètement transformé notre façon de travailler. Fini les pertes d'informations entre la réception et les collaborateurs. L'interface est belle, rapide et surtout, pensée pour notre métier."
                 },
                 {
-                  name: "Marc Dubreuil",
+                  name: "R. Blanchard",
                   role: "Directeur Général",
-                  company: "Atelier Tech",
+                  company: "Zephira Tech",
                   image: testimonial2Path,
                   quote: "La qualité de l'accueil téléphonique est la première image de notre entreprise. Avec les analytiques d'Agent de Bureau, nous avons réduit notre temps de réponse moyen de 40% en un mois."
                 },
                 {
-                  name: "Claire Fontaine",
+                  name: "L. Duvernet",
                   role: "Responsable Réception",
-                  company: "Bureaux & Co",
+                  company: "Orbispace",
                   image: testimonial3Path,
                   quote: "Gérer 50 lignes différentes était un cauchemar quotidien. Le routage intelligent fait le travail à notre place. C'est de loin le meilleur investissement logiciel que nous ayons fait cette année."
                 }
