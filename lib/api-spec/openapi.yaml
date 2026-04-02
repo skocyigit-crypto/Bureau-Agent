@@ -3,20 +3,30 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Bureau Agent API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: calls
+    description: Call management
+  - name: contacts
+    description: Contact management
+  - name: tasks
+    description: Task management
+  - name: messages
+    description: Voicemail and message management
+  - name: dashboard
+    description: Dashboard analytics
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +34,558 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # === CALLS ===
+  /calls:
+    get:
+      operationId: listCalls
+      tags: [calls]
+      summary: List all calls
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [answered, missed, voicemail, outgoing, all]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of calls
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  calls:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Call"
+                  total:
+                    type: integer
+                required: [calls, total]
+    post:
+      operationId: createCall
+      tags: [calls]
+      summary: Create a new call record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCallBody"
+      responses:
+        "201":
+          description: Call created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Call"
+
+  /calls/{id}:
+    get:
+      operationId: getCall
+      tags: [calls]
+      summary: Get a single call
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Call details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Call"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateCall
+      tags: [calls]
+      summary: Update a call record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCallBody"
+      responses:
+        "200":
+          description: Updated call
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Call"
+    delete:
+      operationId: deleteCall
+      tags: [calls]
+      summary: Delete a call record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # === CONTACTS ===
+  /contacts:
+    get:
+      operationId: listContacts
+      tags: [contacts]
+      summary: List contacts
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [client, prospect, fournisseur, partenaire, autre, all]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of contacts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contacts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Contact"
+                  total:
+                    type: integer
+                required: [contacts, total]
+    post:
+      operationId: createContact
+      tags: [contacts]
+      summary: Create a contact
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateContactBody"
+      responses:
+        "201":
+          description: Contact created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contact"
+
+  /contacts/{id}:
+    get:
+      operationId: getContact
+      tags: [contacts]
+      summary: Get a single contact
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Contact details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contact"
+    patch:
+      operationId: updateContact
+      tags: [contacts]
+      summary: Update a contact
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateContactBody"
+      responses:
+        "200":
+          description: Updated contact
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contact"
+    delete:
+      operationId: deleteContact
+      tags: [contacts]
+      summary: Delete a contact
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # === TASKS ===
+  /tasks:
+    get:
+      operationId: listTasks
+      tags: [tasks]
+      summary: List tasks
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [en_attente, en_cours, termine, annule, all]
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [haute, moyenne, basse, all]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Task"
+                  total:
+                    type: integer
+                required: [tasks, total]
+    post:
+      operationId: createTask
+      tags: [tasks]
+      summary: Create a task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskBody"
+      responses:
+        "201":
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+
+  /tasks/{id}:
+    get:
+      operationId: getTask
+      tags: [tasks]
+      summary: Get a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Task detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+    patch:
+      operationId: updateTask
+      tags: [tasks]
+      summary: Update a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaskBody"
+      responses:
+        "200":
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+    delete:
+      operationId: deleteTask
+      tags: [tasks]
+      summary: Delete a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # === MESSAGES ===
+  /messages:
+    get:
+      operationId: listMessages
+      tags: [messages]
+      summary: List voicemail/messages
+      parameters:
+        - name: read
+          in: query
+          schema:
+            type: boolean
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Message"
+                  total:
+                    type: integer
+                required: [messages, total]
+    post:
+      operationId: createMessage
+      tags: [messages]
+      summary: Create a message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMessageBody"
+      responses:
+        "201":
+          description: Message created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+
+  /messages/{id}:
+    get:
+      operationId: getMessage
+      tags: [messages]
+      summary: Get a message
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Message detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+    patch:
+      operationId: updateMessage
+      tags: [messages]
+      summary: Update a message (mark as read, etc.)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMessageBody"
+      responses:
+        "200":
+          description: Updated message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+    delete:
+      operationId: deleteMessage
+      tags: [messages]
+      summary: Delete a message
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # === DASHBOARD / ANALYTICS ===
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Dashboard summary stats
+      responses:
+        "200":
+          description: Summary stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/call-analytics:
+    get:
+      operationId: getCallAnalytics
+      tags: [dashboard]
+      summary: Call analytics over time
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [today, week, month, year]
+            default: week
+      responses:
+        "200":
+          description: Call analytics data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallAnalytics"
+
+  /dashboard/recent-activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Recent activity feed
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Recent activity items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  activities:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ActivityItem"
+                required: [activities]
+
+  /dashboard/call-distribution:
+    get:
+      operationId: getCallDistribution
+      tags: [dashboard]
+      summary: Call distribution by status
+      responses:
+        "200":
+          description: Call distribution data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallDistribution"
+
+  /dashboard/top-contacts:
+    get:
+      operationId: getTopContacts
+      tags: [dashboard]
+      summary: Most active contacts
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 5
+      responses:
+        "200":
+          description: Top contacts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contacts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TopContact"
+                required: [contacts]
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +596,484 @@ components:
       required:
         - status
 
+    Call:
+      type: object
+      properties:
+        id:
+          type: integer
+        contactId:
+          type: integer
+          nullable: true
+        contactName:
+          type: string
+          nullable: true
+        phoneNumber:
+          type: string
+        direction:
+          type: string
+          enum: [entrant, sortant]
+        status:
+          type: string
+          enum: [repondu, manque, messagerie, en_cours]
+        duration:
+          type: integer
+          description: Duration in seconds
+        notes:
+          type: string
+          nullable: true
+        sentiment:
+          type: string
+          enum: [positif, neutre, negatif]
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, phoneNumber, direction, status, duration, tags, createdAt, updatedAt]
+
+    CreateCallBody:
+      type: object
+      properties:
+        contactId:
+          type: integer
+          nullable: true
+        phoneNumber:
+          type: string
+        direction:
+          type: string
+          enum: [entrant, sortant]
+        status:
+          type: string
+          enum: [repondu, manque, messagerie, en_cours]
+        duration:
+          type: integer
+        notes:
+          type: string
+          nullable: true
+        sentiment:
+          type: string
+          enum: [positif, neutre, negatif]
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+      required: [phoneNumber, direction, status, duration]
+
+    UpdateCallBody:
+      type: object
+      properties:
+        contactId:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          enum: [repondu, manque, messagerie, en_cours]
+        duration:
+          type: integer
+        notes:
+          type: string
+          nullable: true
+        sentiment:
+          type: string
+          enum: [positif, neutre, negatif]
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+
+    Contact:
+      type: object
+      properties:
+        id:
+          type: integer
+        firstName:
+          type: string
+        lastName:
+          type: string
+        company:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        phone:
+          type: string
+        mobile:
+          type: string
+          nullable: true
+        category:
+          type: string
+          enum: [client, prospect, fournisseur, partenaire, autre]
+        address:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        totalCalls:
+          type: integer
+        lastCallAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, firstName, lastName, phone, category, totalCalls, createdAt, updatedAt]
+
+    CreateContactBody:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        company:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        phone:
+          type: string
+        mobile:
+          type: string
+          nullable: true
+        category:
+          type: string
+          enum: [client, prospect, fournisseur, partenaire, autre]
+        address:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+      required: [firstName, lastName, phone, category]
+
+    UpdateContactBody:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        company:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        phone:
+          type: string
+        mobile:
+          type: string
+          nullable: true
+        category:
+          type: string
+          enum: [client, prospect, fournisseur, partenaire, autre]
+        address:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [en_attente, en_cours, termine, annule]
+        priority:
+          type: string
+          enum: [haute, moyenne, basse]
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+        assignedTo:
+          type: string
+          nullable: true
+        relatedContactId:
+          type: integer
+          nullable: true
+        relatedCallId:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, title, status, priority, createdAt, updatedAt]
+
+    CreateTaskBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [en_attente, en_cours, termine, annule]
+        priority:
+          type: string
+          enum: [haute, moyenne, basse]
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+        assignedTo:
+          type: string
+          nullable: true
+        relatedContactId:
+          type: integer
+          nullable: true
+        relatedCallId:
+          type: integer
+          nullable: true
+      required: [title, status, priority]
+
+    UpdateTaskBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [en_attente, en_cours, termine, annule]
+        priority:
+          type: string
+          enum: [haute, moyenne, basse]
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+        assignedTo:
+          type: string
+          nullable: true
+        relatedContactId:
+          type: integer
+          nullable: true
+        relatedCallId:
+          type: integer
+          nullable: true
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+        contactId:
+          type: integer
+          nullable: true
+        contactName:
+          type: string
+          nullable: true
+        phoneNumber:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [messagerie_vocale, note, rappel]
+        isRead:
+          type: boolean
+        priority:
+          type: string
+          enum: [haute, moyenne, basse]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, phoneNumber, content, type, isRead, priority, createdAt, updatedAt]
+
+    CreateMessageBody:
+      type: object
+      properties:
+        contactId:
+          type: integer
+          nullable: true
+        phoneNumber:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [messagerie_vocale, note, rappel]
+        priority:
+          type: string
+          enum: [haute, moyenne, basse]
+      required: [phoneNumber, content, type, priority]
+
+    UpdateMessageBody:
+      type: object
+      properties:
+        isRead:
+          type: boolean
+        content:
+          type: string
+        priority:
+          type: string
+          enum: [haute, moyenne, basse]
+
+    DashboardSummary:
+      type: object
+      properties:
+        totalCallsToday:
+          type: integer
+        answeredCallsToday:
+          type: integer
+        missedCallsToday:
+          type: integer
+        avgCallDuration:
+          type: number
+          description: Average duration in seconds
+        totalContacts:
+          type: integer
+        pendingTasks:
+          type: integer
+        unreadMessages:
+          type: integer
+        callsThisWeek:
+          type: integer
+        callsTrend:
+          type: number
+          description: Percentage change from previous period
+      required: [totalCallsToday, answeredCallsToday, missedCallsToday, avgCallDuration, totalContacts, pendingTasks, unreadMessages, callsThisWeek, callsTrend]
+
+    CallAnalytics:
+      type: object
+      properties:
+        period:
+          type: string
+        dataPoints:
+          type: array
+          items:
+            type: object
+            properties:
+              label:
+                type: string
+              answered:
+                type: integer
+              missed:
+                type: integer
+              voicemail:
+                type: integer
+              avgDuration:
+                type: number
+            required: [label, answered, missed, voicemail, avgDuration]
+        totalAnswered:
+          type: integer
+        totalMissed:
+          type: integer
+        totalVoicemail:
+          type: integer
+        answerRate:
+          type: number
+      required: [period, dataPoints, totalAnswered, totalMissed, totalVoicemail, answerRate]
+
+    ActivityItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [appel, contact, tache, message]
+        description:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties: true
+      required: [id, type, description, timestamp]
+
+    CallDistribution:
+      type: object
+      properties:
+        byStatus:
+          type: array
+          items:
+            type: object
+            properties:
+              status:
+                type: string
+              count:
+                type: integer
+              percentage:
+                type: number
+            required: [status, count, percentage]
+        byDirection:
+          type: array
+          items:
+            type: object
+            properties:
+              direction:
+                type: string
+              count:
+                type: integer
+              percentage:
+                type: number
+            required: [direction, count, percentage]
+        bySentiment:
+          type: array
+          items:
+            type: object
+            properties:
+              sentiment:
+                type: string
+              count:
+                type: integer
+              percentage:
+                type: number
+            required: [sentiment, count, percentage]
+      required: [byStatus, byDirection, bySentiment]
+
+    TopContact:
+      type: object
+      properties:
+        id:
+          type: integer
+        firstName:
+          type: string
+        lastName:
+          type: string
+        company:
+          type: string
+          nullable: true
+        totalCalls:
+          type: integer
+        lastCallAt:
+          type: string
+          format: date-time
+          nullable: true
+      required: [id, firstName, lastName, totalCalls]

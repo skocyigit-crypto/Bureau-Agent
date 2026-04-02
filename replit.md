@@ -15,6 +15,25 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
+- **Frontend**: React + Vite + Tailwind CSS + shadcn/ui
+
+## Application: Agent de Bureau
+
+A comprehensive French-language office/bureau agent application for managing phone calls, contacts, tasks, and messages. All UI is in French (France).
+
+### Features
+- **Tableau de bord** (Dashboard) — Overview with call stats, recent activity, top contacts
+- **Appels** (Calls) — Incoming/outgoing call management, status tracking, sentiment analysis
+- **Contacts** — Professional directory with categories (client, prospect, fournisseur, partenaire)
+- **Taches** (Tasks) — Office task management with priorities and statuses
+- **Messages** — Voicemail and notes management with read/unread tracking
+- **Analyse** (Analytics) — Call performance charts, distribution analysis, trends
+
+### Database Tables
+- `contacts` — Professional contact directory
+- `calls` — Call records with direction, status, duration, sentiment, tags
+- `tasks` — Office tasks with status, priority, assignments
+- `messages` — Voicemail, notes, reminders
 
 ## Key Commands
 
