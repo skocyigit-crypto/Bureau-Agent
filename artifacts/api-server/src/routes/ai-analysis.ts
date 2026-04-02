@@ -1,0 +1,177 @@
+import { Router } from "express";
+import { db, callsTable, contactsTable, tasksTable, messagesTable } from "@workspace/db";
+import { sql, eq, gte, and, count, avg, desc } from "drizzle-orm";
+
+const router = Router();
+
+async function gatherAnalyticsData() {
+  const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+  const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  const [
+    totalCallsResult,
+    thisWeekCalls,
+    lastWeekCalls,
+    callsByStatus,
+    callsBySentiment,
+    callsByDirection,
+    avgDurationResult,
+    totalContactsResult,
+    totalTasksResult,
+    tasksByStatus,
+    tasksByPriority,
+    unreadMessagesResult,
+    recentCalls,
+    hourlyDistribution,
+    topContactsList,
+    monthlyCallVolume,
+  ] = await Promise.all([
+    db.select({ count: count() }).from(callsTable),
+    db.select({ count: count() }).from(callsTable).where(gte(callsTable.createdAt, weekAgo)),
+    db.select({ count: count() }).from(callsTable).where(and(gte(callsTable.createdAt, twoWeeksAgo), sql`${callsTable.createdAt} < ${weekAgo.toISOString()}`)),
+    db.select({ status: callsTable.status, count: count() }).from(callsTable).where(gte(callsTable.createdAt, monthAgo)).groupBy(callsTable.status),
+    db.select({ sentiment: callsTable.sentiment, count: count() }).from(callsTable).where(gte(callsTable.createdAt, monthAgo)).groupBy(callsTable.sentiment),
+    db.select({ direction: callsTable.direction, count: count() }).from(callsTable).where(gte(callsTable.createdAt, monthAgo)).groupBy(callsTable.direction),
+    db.select({ avg: avg(callsTable.duration) }).from(callsTable).where(and(gte(callsTable.createdAt, monthAgo), eq(callsTable.status, "repondu"))),
+    db.select({ count: count() }).from(contactsTable),
+    db.select({ count: count() }).from(tasksTable),
+    db.select({ status: tasksTable.status, count: count() }).from(tasksTable).groupBy(tasksTable.status),
+    db.select({ priority: tasksTable.priority, count: count() }).from(tasksTable).groupBy(tasksTable.priority),
+    db.select({ count: count() }).from(messagesTable).where(eq(messagesTable.isRead, false)),
+    db.select({
+      contactName: callsTable.contactName,
+      status: callsTable.status,
+      direction: callsTable.direction,
+      sentiment: callsTable.sentiment,
+      duration: callsTable.duration,
+      createdAt: callsTable.createdAt,
+    }).from(callsTable).orderBy(desc(callsTable.createdAt)).limit(20),
+    db.select({
+      hour: sql<string>`extract(hour from ${callsTable.createdAt})`.as("hour"),
+      count: count(),
+    }).from(callsTable).where(gte(callsTable.createdAt, weekAgo)).groupBy(sql`extract(hour from ${callsTable.createdAt})`),
+    db.select({
+      firstName: contactsTable.firstName,
+      lastName: contactsTable.lastName,
+      company: contactsTable.company,
+      callCount: sql<number>`(SELECT COUNT(*) FROM calls WHERE calls.contact_id = ${contactsTable.id})`.as("call_count"),
+    }).from(contactsTable).orderBy(desc(sql`(SELECT COUNT(*) FROM calls WHERE calls.contact_id = ${contactsTable.id})`)).limit(5),
+    db.select({ count: count() }).from(callsTable).where(gte(callsTable.createdAt, monthAgo)),
+  ]);
+
+  const thisWeekCount = thisWeekCalls[0]?.count ?? 0;
+  const lastWeekCount = lastWeekCalls[0]?.count ?? 0;
+  const weekOverWeekChange = lastWeekCount > 0 ? Math.round(((Number(thisWeekCount) - Number(lastWeekCount)) / Number(lastWeekCount)) * 100) : 0;
+
+  const answeredCalls = callsByStatus.find(s => s.status === "repondu");
+  const totalMonthCalls = monthlyCallVolume[0]?.count ?? 0;
+  const answerRate = Number(totalMonthCalls) > 0 ? Math.round((Number(answeredCalls?.count ?? 0) / Number(totalMonthCalls)) * 100) : 0;
+
+  const peakHours = [...hourlyDistribution].sort((a, b) => Number(b.count) - Number(a.count)).slice(0, 3);
+  const quietHours = [...hourlyDistribution].sort((a, b) => Number(a.count) - Number(b.count)).slice(0, 3);
+
+  return {
+    overview: {
+      totalCalls: totalCallsResult[0]?.count ?? 0,
+      totalContacts: totalContactsResult[0]?.count ?? 0,
+      totalTasks: totalTasksResult[0]?.count ?? 0,
+      unreadMessages: unreadMessagesResult[0]?.count ?? 0,
+    },
+    callMetrics: {
+      thisWeekCalls: thisWeekCount,
+      lastWeekCalls: lastWeekCount,
+      weekOverWeekChange: `${weekOverWeekChange}%`,
+      answerRate: `${answerRate}%`,
+      avgDurationSeconds: Math.round(Number(avgDurationResult[0]?.avg ?? 0)),
+      byStatus: callsByStatus.map(s => ({ status: s.status, count: s.count })),
+      bySentiment: callsBySentiment.map(s => ({ sentiment: s.sentiment, count: s.count })),
+      byDirection: callsByDirection.map(d => ({ direction: d.direction, count: d.count })),
+    },
+    taskMetrics: {
+      byStatus: tasksByStatus.map(s => ({ status: s.status, count: s.count })),
+      byPriority: tasksByPriority.map(p => ({ priority: p.priority, count: p.count })),
+    },
+    patterns: {
+      peakHours: peakHours.map(h => ({ hour: `${h.hour}h`, calls: h.count })),
+      quietHours: quietHours.map(h => ({ hour: `${h.hour}h`, calls: h.count })),
+    },
+    recentCalls: recentCalls.map(c => ({
+      caller: c.contactName,
+      status: c.status,
+      direction: c.direction,
+      sentiment: c.sentiment,
+      duration: c.duration,
+      date: c.createdAt,
+    })),
+    topContacts: topContactsList.map(c => ({
+      name: `${c.firstName} ${c.lastName}`,
+      company: c.company,
+      callCount: c.callCount,
+    })),
+  };
+}
+
+router.post("/ai/analyze", async (req, res) => {
+  try {
+    const analyticsData = await gatherAnalyticsData();
+
+    const { ai } = await import("@workspace/integrations-gemini-ai");
+
+    const systemPrompt = `Tu es un analyste de bureau expert en gestion de secretariat et centre d'appels en France. Tu analyses les donnees de performance d'un bureau professionnel et fournis des insights actionnables.
+
+Ton analyse doit etre en francais (France) et doit inclure:
+1. **Resume executif** (2-3 phrases sur l'etat general)
+2. **Points forts** (3 elements positifs avec des chiffres precis)
+3. **Points d'attention** (3 domaines a ameliorer avec des recommandations concretes)
+4. **Tendances** (evolution semaine/semaine, patterns horaires)
+5. **Recommandations prioritaires** (3 actions concretes classees par priorite)
+
+Reponds en JSON avec cette structure exacte:
+{
+  "resumeExecutif": "string",
+  "pointsForts": [{"titre": "string", "detail": "string"}],
+  "pointsAttention": [{"titre": "string", "detail": "string", "recommandation": "string"}],
+  "tendances": [{"titre": "string", "detail": "string"}],
+  "recommandations": [{"priorite": "haute|moyenne|basse", "action": "string", "impact": "string"}],
+  "scoreGlobal": number (0-100)
+}`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [
+        {
+          role: "user",
+          parts: [{
+            text: `${systemPrompt}\n\nVoici les donnees du bureau a analyser:\n${JSON.stringify(analyticsData, null, 2)}`
+          }],
+        },
+      ],
+      config: {
+        maxOutputTokens: 8192,
+        responseMimeType: "application/json",
+      },
+    });
+
+    const text = response.text ?? "{}";
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = { resumeExecutif: text, pointsForts: [], pointsAttention: [], tendances: [], recommandations: [], scoreGlobal: 0 };
+    }
+
+    res.json(parsed);
+  } catch (error: any) {
+    console.error("AI Analysis error:", error);
+    res.status(500).json({ error: "Erreur lors de l'analyse IA", details: error.message });
+  }
+});
+
+router.get("/ai/status", (_req, res) => {
+  const hasGemini = !!(process.env.AI_INTEGRATIONS_GEMINI_BASE_URL && process.env.AI_INTEGRATIONS_GEMINI_API_KEY);
+  res.json({ available: hasGemini });
+});
+
+export default router;

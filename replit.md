@@ -27,13 +27,20 @@ A comprehensive French-language office/bureau agent application for managing pho
 - **Contacts** — Professional directory with creation/edit dialog, clickable rows, contact detail page (/contacts/:id) with call history + related tasks tabs
 - **Taches** (Tasks) — Task management with creation/edit dialogs, inline status changes, related contact links
 - **Messages** — Voicemail and notes with creation dialog, read/unread toggle, visual unread indicators
-- **Analyse** (Analytics) — Hourly volume chart, period volume chart, sentiment distribution, weekly comparison, task completion stats
+- **Analyse** (Analytics) — Comprehensive analytics with Gemini AI insights, area/bar/pie/radar charts, hourly volume, period volume, sentiment distribution, weekly comparison, task stats, call distribution by status/direction, performance radar
+
+### AI Integration
+- **Gemini AI** via Replit AI Integrations (no API key needed, billed to credits)
+- Endpoint: `POST /ai/analyze` — gathers all analytics data and sends to Gemini 2.5 Flash for structured insights
+- Returns: executive summary, strengths, attention points with recommendations, trends, prioritized actions, global score (0-100)
+- Frontend: Purple gradient "Analyse IA Gemini" button, results in tabbed card (Resume, Forces & Attention, Tendances, Actions)
 
 ### API Endpoints
 - CRUD: `/calls`, `/contacts`, `/tasks`, `/messages`
 - Contact sub-resources: `/contacts/:id/calls`, `/contacts/:id/tasks`
 - Dashboard: `/dashboard/summary`, `/dashboard/call-analytics`, `/dashboard/recent-activity`, `/dashboard/call-distribution`, `/dashboard/top-contacts`
 - Advanced dashboard: `/dashboard/hourly-performance`, `/dashboard/task-stats`, `/dashboard/weekly-report`, `/dashboard/notifications`
+- AI: `POST /ai/analyze`, `GET /ai/status`
 
 ### Database Tables
 - `contacts` — Professional contact directory (categories: client, prospect, fournisseur, partenaire, autre)
