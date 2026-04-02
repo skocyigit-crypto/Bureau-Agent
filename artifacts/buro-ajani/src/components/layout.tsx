@@ -2,9 +2,13 @@ import { Link, useLocation } from "wouter";
 import { Phone, Users, CheckSquare, MessageSquare, BarChart, Bell, Search, LayoutDashboard } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarTrigger, SidebarGroup, SidebarGroupLabel, SidebarGroupContent } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
+import { useGetNotifications } from "@workspace/api-client-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+  const { data: notifsData } = useGetNotifications({ query: { queryKey: ["notifications"] } });
 
   const navigation = [
     { name: "Tableau de bord", href: "/", icon: LayoutDashboard },
@@ -69,10 +73,42 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <button className="relative p-2 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-muted">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full border border-card"></span>
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="relative p-2 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-muted outline-none">
+                    <Bell className="w-5 h-5" />
+                    {notifsData && notifsData.unreadCount > 0 && (
+                      <span className="absolute top-0 right-0 w-4 h-4 bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center rounded-full border border-card">
+                        {notifsData.unreadCount}
+                      </span>
+                    )}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80">
+                  <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {notifsData?.notifications && notifsData.notifications.length > 0 ? (
+                     notifsData.notifications.map(notif => (
+                       <DropdownMenuItem key={notif.id} className={`flex flex-col items-start gap-1 p-3 cursor-pointer ${!notif.isRead ? 'bg-muted/50' : ''}`}>
+                          <div className="flex items-center justify-between w-full">
+                            <span className="font-medium text-sm">{notif.title}</span>
+                            {!notif.isRead && <div className="w-2 h-2 rounded-full bg-primary"></div>}
+                          </div>
+                          <span className="text-xs text-muted-foreground line-clamp-2">{notif.description}</span>
+                       </DropdownMenuItem>
+                     ))
+                  ) : (
+                    <div className="p-4 text-center text-sm text-muted-foreground">Aucune notification</div>
+                  )}
+                  {notifsData?.notifications && notifsData.notifications.length > 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="justify-center text-primary text-sm font-medium">Tout marquer comme lu</DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
               <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center text-sm font-medium border border-primary/30">
                 AB
               </div>

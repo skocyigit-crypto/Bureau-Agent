@@ -439,6 +439,65 @@ export interface TopContact {
   lastCallAt?: string | null;
 }
 
+export type TaskStatsByPriorityItem = {
+  priority: string;
+  count: number;
+};
+
+export interface TaskStats {
+  totalTasks: number;
+  completedTasks: number;
+  inProgressTasks: number;
+  pendingTasks: number;
+  cancelledTasks: number;
+  completionRate: number;
+  overdueTasks: number;
+  highPriorityPending: number;
+  byPriority: TaskStatsByPriorityItem[];
+}
+
+export type WeeklyReportComparisonPrevWeek = {
+  callsDiff: number;
+  answerRateDiff: number;
+  durationDiff: number;
+};
+
+export interface WeeklyReport {
+  weekLabel: string;
+  totalCalls: number;
+  answeredCalls: number;
+  missedCalls: number;
+  answerRate: number;
+  avgDuration: number;
+  newContacts: number;
+  completedTasks: number;
+  messagesReceived: number;
+  peakHour: number;
+  peakDay: string;
+  comparisonPrevWeek: WeeklyReportComparisonPrevWeek;
+}
+
+export type NotificationType =
+  (typeof NotificationType)[keyof typeof NotificationType];
+
+export const NotificationType = {
+  appel_manque: "appel_manque",
+  message_non_lu: "message_non_lu",
+  tache_urgente: "tache_urgente",
+  tache_echeance: "tache_echeance",
+  rappel: "rappel",
+} as const;
+
+export interface Notification {
+  id: number;
+  type: NotificationType;
+  title: string;
+  description: string;
+  isRead: boolean;
+  relatedId?: number | null;
+  createdAt: string;
+}
+
 export type ListCallsParams = {
   status?: ListCallsStatus;
   limit?: number;
@@ -530,6 +589,19 @@ export type ListMessages200 = {
   total: number;
 };
 
+export type GetContactCallsParams = {
+  limit?: number;
+};
+
+export type GetContactCalls200 = {
+  calls: Call[];
+  total: number;
+};
+
+export type GetContactTasks200 = {
+  tasks: Task[];
+};
+
 export type GetCallAnalyticsParams = {
   period?: GetCallAnalyticsPeriod;
 };
@@ -558,4 +630,20 @@ export type GetTopContactsParams = {
 
 export type GetTopContacts200 = {
   contacts: TopContact[];
+};
+
+export type GetHourlyPerformance200HoursItem = {
+  hour: number;
+  total: number;
+  answered: number;
+  missed: number;
+};
+
+export type GetHourlyPerformance200 = {
+  hours: GetHourlyPerformance200HoursItem[];
+};
+
+export type GetNotifications200 = {
+  notifications: Notification[];
+  unreadCount: number;
 };

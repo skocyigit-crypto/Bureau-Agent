@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { useListTasks, useCreateTask, useUpdateTask, useDeleteTask, getListTasksQueryKey } from "@workspace/api-client-react";
+import { useListTasks, useCreateTask, useUpdateTask, getListTasksQueryKey, useListContacts } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CheckSquare, Search, Filter, MoreHorizontal, Plus, Calendar, Clock, AlertCircle } from "lucide-react";
+import { CheckSquare, Search, Filter, MoreHorizontal, Plus, Calendar, Clock, AlertCircle, Edit, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,11 +11,32 @@ import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Textarea } from "@/components/ui/textarea";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useToast } from "@/hooks/use-toast";
+import { Link } from "wouter";
+
+const formSchema = z.object({
+  title: z.string().min(1, "Le titre est requis"),
+  description: z.string().optional().nullable(),
+  status: z.enum(["en_attente", "en_cours", "termine", "annule"]),
+  priority: z.enum(["haute", "moyenne", "basse"]),
+  dueDate: z.string().optional().nullable(),
+  assignedTo: z.string().optional().nullable(),
+  relatedContactId: z.string().transform(v => v === "none" ? null : parseInt(v)).optional().nullable(),
+});
 
 export default function Tasks() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<any>(null);
 
   const { data, isLoading } = useListTasks(
     { 
@@ -28,12 +49,83 @@ export default function Tasks() {
     }) } }
   );
 
+  const { data: contactsData } = useListContacts({ limit: 100 }, { query: { queryKey: ["contacts", "all"] } });
+
+  const createTask = useCreateTask();
   const updateTask = useUpdateTask();
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      status: "en_attente",
+      priority: "moyenne",
+      dueDate: "",
+      assignedTo: "",
+      relatedContactId: null as any,
+    }
+  });
+
+  const handleOpenEdit = (task: any) => {
+    setEditingTask(task);
+    form.reset({
+      title: task.title,
+      description: task.description || "",
+      status: task.status,
+      priority: task.priority,
+      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : "",
+      assignedTo: task.assignedTo || "",
+      relatedContactId: task.relatedContactId?.toString() || "none" as any,
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleOpenCreate = () => {
+    setEditingTask(null);
+    form.reset({
+      title: "",
+      description: "",
+      status: "en_attente",
+      priority: "moyenne",
+      dueDate: "",
+      assignedTo: "",
+      relatedContactId: null as any,
+    });
+    setIsDialogOpen(true);
+  };
+
+  const onSubmit = (values: any) => {
+    // If date is empty string, set it to null
+    if (values.dueDate === "") values.dueDate = null;
+    else if (values.dueDate) values.dueDate = new Date(values.dueDate).toISOString();
+
+    if (editingTask) {
+      updateTask.mutate({ id: editingTask.id, data: values }, {
+        onSuccess: () => {
+          toast({ title: "Tâche mise à jour" });
+          setIsDialogOpen(false);
+          queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+        },
+        onError: () => toast({ title: "Erreur", description: "Impossible de modifier la tâche", variant: "destructive" })
+      });
+    } else {
+      createTask.mutate({ data: values }, {
+        onSuccess: () => {
+          toast({ title: "Tâche créée" });
+          setIsDialogOpen(false);
+          queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+        },
+        onError: () => toast({ title: "Erreur", description: "Impossible de créer la tâche", variant: "destructive" })
+      });
+    }
+  };
 
   const handleStatusChange = (id: number, status: any) => {
     updateTask.mutate({ id, data: { status } }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+        toast({ title: "Statut mis à jour" });
       }
     });
   };
@@ -57,6 +149,12 @@ export default function Tasks() {
     }
   };
 
+  const getContactName = (contactId?: number | null) => {
+    if (!contactId || !contactsData) return null;
+    const contact = contactsData.contacts.find(c => c.id === contactId);
+    return contact ? `${contact.firstName} ${contact.lastName}` : null;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -65,10 +163,97 @@ export default function Tasks() {
           <p className="text-muted-foreground mt-1">Organisez et suivez les actions à réaliser au bureau.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-            <Plus className="w-4 h-4 mr-2" />
-            Nouvelle Tâche
-          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={handleOpenCreate} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                <Plus className="w-4 h-4 mr-2" />
+                Nouvelle Tâche
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>{editingTask ? "Modifier la tâche" : "Nouvelle tâche"}</DialogTitle>
+                <DialogDescription>Détails de l'action à effectuer.</DialogDescription>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField control={form.control} name="title" render={({ field }) => (
+                    <FormItem><FormLabel>Titre</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  <FormField control={form.control} name="description" render={({ field }) => (
+                    <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea className="resize-none" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
+                  )} />
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="status" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Statut</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                          <SelectContent>
+                            <SelectItem value="en_attente">En attente</SelectItem>
+                            <SelectItem value="en_cours">En cours</SelectItem>
+                            <SelectItem value="termine">Terminé</SelectItem>
+                            <SelectItem value="annule">Annulé</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="priority" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Priorité</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                          <SelectContent>
+                            <SelectItem value="haute">Haute</SelectItem>
+                            <SelectItem value="moyenne">Moyenne</SelectItem>
+                            <SelectItem value="basse">Basse</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="dueDate" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Date d'échéance</FormLabel>
+                        <FormControl><Input type="date" {...field} value={field.value || ""} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="assignedTo" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Assigné à</FormLabel>
+                        <FormControl><Input placeholder="Nom du collaborateur" {...field} value={field.value || ""} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  </div>
+
+                  <FormField control={form.control} name="relatedContactId" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Contact associé (Optionnel)</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value?.toString() || "none"}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Choisir un contact..."/></SelectTrigger></FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">Aucun</SelectItem>
+                          {contactsData?.contacts.map(c => (
+                            <SelectItem key={c.id} value={c.id.toString()}>{c.firstName} {c.lastName}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <DialogFooter><Button type="submit" disabled={updateTask.isPending || createTask.isPending}>{editingTask ? "Mettre à jour" : "Créer"}</Button></DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -133,17 +318,22 @@ export default function Tasks() {
                 </TableCell>
               </TableRow>
             ) : (
-              data?.tasks.map((task) => (
+              data?.tasks.map((task) => {
+                const contactName = getContactName(task.relatedContactId);
+                return (
                 <TableRow key={task.id} className="hover:bg-muted/30 transition-colors">
                   <TableCell>
                     <div className={`font-medium ${task.status === 'termine' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
                       {task.title}
                     </div>
-                    {task.description && (
-                      <div className="text-sm text-muted-foreground mt-1 max-w-md truncate">
-                        {task.description}
-                      </div>
-                    )}
+                    <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                      {task.description && <span className="max-w-xs truncate">{task.description}</span>}
+                      {contactName && (
+                        <Link href={`/contacts/${task.relatedContactId}`} className="flex items-center gap-1 text-primary hover:underline">
+                           <Users className="w-3 h-3" /> {contactName}
+                        </Link>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <span className="text-sm text-muted-foreground">{task.assignedTo || "Non assigné"}</span>
@@ -155,7 +345,17 @@ export default function Tasks() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {getStatusBadge(task.status)}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger className="outline-none">
+                        {getStatusBadge(task.status)}
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                         <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'en_attente')}>En attente</DropdownMenuItem>
+                         <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'en_cours')}>En cours</DropdownMenuItem>
+                         <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'termine')}>Terminé</DropdownMenuItem>
+                         <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'annule')}>Annulé</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                   <TableCell>
                     {getPriorityBadge(task.priority)}
@@ -170,23 +370,20 @@ export default function Tasks() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem>Éditer la tâche</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleOpenEdit(task)}>
+                           <Edit className="w-4 h-4 mr-2" /> Éditer la tâche
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         {task.status !== 'termine' && (
                           <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'termine')}>
-                            Marquer comme terminée
-                          </DropdownMenuItem>
-                        )}
-                        {task.status !== 'en_cours' && (
-                          <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'en_cours')}>
-                            Marquer en cours
+                            <CheckSquare className="w-4 h-4 mr-2" /> Marquer comme terminée
                           </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))
+              )})
             )}
           </TableBody>
         </Table>

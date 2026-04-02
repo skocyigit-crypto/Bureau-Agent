@@ -471,6 +471,64 @@ export const DeleteMessageParams = zod.object({
 });
 
 /**
+ * @summary Get call history for a contact
+ */
+export const GetContactCallsParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const getContactCallsQueryLimitDefault = 20;
+
+export const GetContactCallsQueryParams = zod.object({
+  limit: zod.coerce.number().default(getContactCallsQueryLimitDefault),
+});
+
+export const GetContactCallsResponse = zod.object({
+  calls: zod.array(
+    zod.object({
+      id: zod.number(),
+      contactId: zod.number().nullish(),
+      contactName: zod.string().nullish(),
+      phoneNumber: zod.string(),
+      direction: zod.enum(["entrant", "sortant"]),
+      status: zod.enum(["repondu", "manque", "messagerie", "en_cours"]),
+      duration: zod.number().describe("Duration in seconds"),
+      notes: zod.string().nullish(),
+      sentiment: zod.enum(["positif", "neutre", "negatif"]).nullish(),
+      tags: zod.array(zod.string()),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Get tasks related to a contact
+ */
+export const GetContactTasksParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetContactTasksResponse = zod.object({
+  tasks: zod.array(
+    zod.object({
+      id: zod.number(),
+      title: zod.string(),
+      description: zod.string().nullish(),
+      status: zod.enum(["en_attente", "en_cours", "termine", "annule"]),
+      priority: zod.enum(["haute", "moyenne", "basse"]),
+      dueDate: zod.coerce.date().nullish(),
+      assignedTo: zod.string().nullish(),
+      relatedContactId: zod.number().nullish(),
+      relatedCallId: zod.number().nullish(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
  * @summary Dashboard summary stats
  */
 export const GetDashboardSummaryResponse = zod.object({
@@ -581,4 +639,84 @@ export const GetTopContactsResponse = zod.object({
       lastCallAt: zod.coerce.date().nullish(),
     }),
   ),
+});
+
+/**
+ * @summary Call volume by hour of day
+ */
+export const GetHourlyPerformanceResponse = zod.object({
+  hours: zod.array(
+    zod.object({
+      hour: zod.number(),
+      total: zod.number(),
+      answered: zod.number(),
+      missed: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary Task completion statistics
+ */
+export const GetTaskStatsResponse = zod.object({
+  totalTasks: zod.number(),
+  completedTasks: zod.number(),
+  inProgressTasks: zod.number(),
+  pendingTasks: zod.number(),
+  cancelledTasks: zod.number(),
+  completionRate: zod.number(),
+  overdueTasks: zod.number(),
+  highPriorityPending: zod.number(),
+  byPriority: zod.array(
+    zod.object({
+      priority: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary Weekly performance report
+ */
+export const GetWeeklyReportResponse = zod.object({
+  weekLabel: zod.string(),
+  totalCalls: zod.number(),
+  answeredCalls: zod.number(),
+  missedCalls: zod.number(),
+  answerRate: zod.number(),
+  avgDuration: zod.number(),
+  newContacts: zod.number(),
+  completedTasks: zod.number(),
+  messagesReceived: zod.number(),
+  peakHour: zod.number(),
+  peakDay: zod.string(),
+  comparisonPrevWeek: zod.object({
+    callsDiff: zod.number(),
+    answerRateDiff: zod.number(),
+    durationDiff: zod.number(),
+  }),
+});
+
+/**
+ * @summary Get system notifications
+ */
+export const GetNotificationsResponse = zod.object({
+  notifications: zod.array(
+    zod.object({
+      id: zod.number(),
+      type: zod.enum([
+        "appel_manque",
+        "message_non_lu",
+        "tache_urgente",
+        "tache_echeance",
+        "rappel",
+      ]),
+      title: zod.string(),
+      description: zod.string(),
+      isRead: zod.boolean(),
+      relatedId: zod.number().nullish(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+  unreadCount: zod.number(),
 });

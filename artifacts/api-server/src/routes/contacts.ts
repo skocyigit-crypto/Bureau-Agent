@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, ilike, or, sql, and } from "drizzle-orm";
-import { db, contactsTable } from "@workspace/db";
+import { db, contactsTable, callsTable, tasksTable } from "@workspace/db";
 import {
   ListContactsQueryParams,
   CreateContactBody,
@@ -123,6 +123,49 @@ router.delete("/contacts/:id", async (req, res): Promise<void> => {
   }
 
   res.sendStatus(204);
+});
+
+router.get("/contacts/:id/calls", async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw!, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+
+  const limit = parseInt(req.query.limit as string || "20", 10);
+
+  const [calls, countResult] = await Promise.all([
+    db
+      .select()
+      .from(callsTable)
+      .where(eq(callsTable.contactId, id))
+      .orderBy(desc(callsTable.createdAt))
+      .limit(limit),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(callsTable)
+      .where(eq(callsTable.contactId, id)),
+  ]);
+
+  res.json({ calls, total: countResult[0]?.count ?? 0 });
+});
+
+router.get("/contacts/:id/tasks", async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw!, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+
+  const tasks = await db
+    .select()
+    .from(tasksTable)
+    .where(eq(tasksTable.relatedContactId, id))
+    .orderBy(desc(tasksTable.createdAt));
+
+  res.json({ tasks });
 });
 
 export default router;

@@ -27,6 +27,11 @@ import type {
   CreateTaskBody,
   DashboardSummary,
   GetCallAnalyticsParams,
+  GetContactCalls200,
+  GetContactCallsParams,
+  GetContactTasks200,
+  GetHourlyPerformance200,
+  GetNotifications200,
   GetRecentActivity200,
   GetRecentActivityParams,
   GetTopContacts200,
@@ -42,10 +47,12 @@ import type {
   ListTasksParams,
   Message,
   Task,
+  TaskStats,
   UpdateCallBody,
   UpdateContactBody,
   UpdateMessageBody,
   UpdateTaskBody,
+  WeeklyReport,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -1865,6 +1872,202 @@ export const useDeleteMessage = <
 };
 
 /**
+ * @summary Get call history for a contact
+ */
+export const getGetContactCallsUrl = (
+  id: number,
+  params?: GetContactCallsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/contacts/${id}/calls?${stringifiedParams}`
+    : `/api/contacts/${id}/calls`;
+};
+
+export const getContactCalls = async (
+  id: number,
+  params?: GetContactCallsParams,
+  options?: RequestInit,
+): Promise<GetContactCalls200> => {
+  return customFetch<GetContactCalls200>(getGetContactCallsUrl(id, params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetContactCallsQueryKey = (
+  id: number,
+  params?: GetContactCallsParams,
+) => {
+  return [`/api/contacts/${id}/calls`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetContactCallsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getContactCalls>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  params?: GetContactCallsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getContactCalls>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetContactCallsQueryKey(id, params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getContactCalls>>> = ({
+    signal,
+  }) => getContactCalls(id, params, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getContactCalls>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetContactCallsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getContactCalls>>
+>;
+export type GetContactCallsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get call history for a contact
+ */
+
+export function useGetContactCalls<
+  TData = Awaited<ReturnType<typeof getContactCalls>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  params?: GetContactCallsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getContactCalls>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetContactCallsQueryOptions(id, params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get tasks related to a contact
+ */
+export const getGetContactTasksUrl = (id: number) => {
+  return `/api/contacts/${id}/tasks`;
+};
+
+export const getContactTasks = async (
+  id: number,
+  options?: RequestInit,
+): Promise<GetContactTasks200> => {
+  return customFetch<GetContactTasks200>(getGetContactTasksUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetContactTasksQueryKey = (id: number) => {
+  return [`/api/contacts/${id}/tasks`] as const;
+};
+
+export const getGetContactTasksQueryOptions = <
+  TData = Awaited<ReturnType<typeof getContactTasks>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getContactTasks>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetContactTasksQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getContactTasks>>> = ({
+    signal,
+  }) => getContactTasks(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getContactTasks>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetContactTasksQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getContactTasks>>
+>;
+export type GetContactTasksQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get tasks related to a contact
+ */
+
+export function useGetContactTasks<
+  TData = Awaited<ReturnType<typeof getContactTasks>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getContactTasks>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetContactTasksQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Dashboard summary stats
  */
 export const getGetDashboardSummaryUrl = () => {
@@ -2300,6 +2503,306 @@ export function useGetTopContacts<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetTopContactsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Call volume by hour of day
+ */
+export const getGetHourlyPerformanceUrl = () => {
+  return `/api/dashboard/hourly-performance`;
+};
+
+export const getHourlyPerformance = async (
+  options?: RequestInit,
+): Promise<GetHourlyPerformance200> => {
+  return customFetch<GetHourlyPerformance200>(getGetHourlyPerformanceUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetHourlyPerformanceQueryKey = () => {
+  return [`/api/dashboard/hourly-performance`] as const;
+};
+
+export const getGetHourlyPerformanceQueryOptions = <
+  TData = Awaited<ReturnType<typeof getHourlyPerformance>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getHourlyPerformance>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetHourlyPerformanceQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getHourlyPerformance>>
+  > = ({ signal }) => getHourlyPerformance({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getHourlyPerformance>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetHourlyPerformanceQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getHourlyPerformance>>
+>;
+export type GetHourlyPerformanceQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Call volume by hour of day
+ */
+
+export function useGetHourlyPerformance<
+  TData = Awaited<ReturnType<typeof getHourlyPerformance>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getHourlyPerformance>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetHourlyPerformanceQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Task completion statistics
+ */
+export const getGetTaskStatsUrl = () => {
+  return `/api/dashboard/task-stats`;
+};
+
+export const getTaskStats = async (
+  options?: RequestInit,
+): Promise<TaskStats> => {
+  return customFetch<TaskStats>(getGetTaskStatsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetTaskStatsQueryKey = () => {
+  return [`/api/dashboard/task-stats`] as const;
+};
+
+export const getGetTaskStatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTaskStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getTaskStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetTaskStatsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getTaskStats>>> = ({
+    signal,
+  }) => getTaskStats({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getTaskStats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetTaskStatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getTaskStats>>
+>;
+export type GetTaskStatsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Task completion statistics
+ */
+
+export function useGetTaskStats<
+  TData = Awaited<ReturnType<typeof getTaskStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getTaskStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetTaskStatsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Weekly performance report
+ */
+export const getGetWeeklyReportUrl = () => {
+  return `/api/dashboard/weekly-report`;
+};
+
+export const getWeeklyReport = async (
+  options?: RequestInit,
+): Promise<WeeklyReport> => {
+  return customFetch<WeeklyReport>(getGetWeeklyReportUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetWeeklyReportQueryKey = () => {
+  return [`/api/dashboard/weekly-report`] as const;
+};
+
+export const getGetWeeklyReportQueryOptions = <
+  TData = Awaited<ReturnType<typeof getWeeklyReport>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWeeklyReport>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetWeeklyReportQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getWeeklyReport>>> = ({
+    signal,
+  }) => getWeeklyReport({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getWeeklyReport>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetWeeklyReportQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getWeeklyReport>>
+>;
+export type GetWeeklyReportQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Weekly performance report
+ */
+
+export function useGetWeeklyReport<
+  TData = Awaited<ReturnType<typeof getWeeklyReport>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWeeklyReport>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetWeeklyReportQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get system notifications
+ */
+export const getGetNotificationsUrl = () => {
+  return `/api/dashboard/notifications`;
+};
+
+export const getNotifications = async (
+  options?: RequestInit,
+): Promise<GetNotifications200> => {
+  return customFetch<GetNotifications200>(getGetNotificationsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetNotificationsQueryKey = () => {
+  return [`/api/dashboard/notifications`] as const;
+};
+
+export const getGetNotificationsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getNotifications>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getNotifications>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetNotificationsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getNotifications>>
+  > = ({ signal }) => getNotifications({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getNotifications>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetNotificationsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getNotifications>>
+>;
+export type GetNotificationsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get system notifications
+ */
+
+export function useGetNotifications<
+  TData = Awaited<ReturnType<typeof getNotifications>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getNotifications>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetNotificationsQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

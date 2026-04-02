@@ -489,6 +489,64 @@ paths:
         "204":
           description: Deleted
 
+  # === CONTACT DETAILS ===
+  /contacts/{id}/calls:
+    get:
+      operationId: getContactCalls
+      tags: [contacts]
+      summary: Get call history for a contact
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Contact call history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  calls:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Call"
+                  total:
+                    type: integer
+                required: [calls, total]
+
+  /contacts/{id}/tasks:
+    get:
+      operationId: getContactTasks
+      tags: [contacts]
+      summary: Get tasks related to a contact
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Contact related tasks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Task"
+                required: [tasks]
+
   # === DASHBOARD / ANALYTICS ===
   /dashboard/summary:
     get:
@@ -585,6 +643,82 @@ paths:
                     items:
                       $ref: "#/components/schemas/TopContact"
                 required: [contacts]
+
+  /dashboard/hourly-performance:
+    get:
+      operationId: getHourlyPerformance
+      tags: [dashboard]
+      summary: Call volume by hour of day
+      responses:
+        "200":
+          description: Hourly call performance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hours:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        hour:
+                          type: integer
+                        total:
+                          type: integer
+                        answered:
+                          type: integer
+                        missed:
+                          type: integer
+                      required: [hour, total, answered, missed]
+                required: [hours]
+
+  /dashboard/task-stats:
+    get:
+      operationId: getTaskStats
+      tags: [dashboard]
+      summary: Task completion statistics
+      responses:
+        "200":
+          description: Task stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskStats"
+
+  /dashboard/weekly-report:
+    get:
+      operationId: getWeeklyReport
+      tags: [dashboard]
+      summary: Weekly performance report
+      responses:
+        "200":
+          description: Weekly report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeeklyReport"
+
+  /dashboard/notifications:
+    get:
+      operationId: getNotifications
+      tags: [dashboard]
+      summary: Get system notifications
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Notification"
+                  unreadCount:
+                    type: integer
+                required: [notifications, unreadCount]
 
 components:
   schemas:
@@ -1077,3 +1211,93 @@ components:
           format: date-time
           nullable: true
       required: [id, firstName, lastName, totalCalls]
+
+    TaskStats:
+      type: object
+      properties:
+        totalTasks:
+          type: integer
+        completedTasks:
+          type: integer
+        inProgressTasks:
+          type: integer
+        pendingTasks:
+          type: integer
+        cancelledTasks:
+          type: integer
+        completionRate:
+          type: number
+        overdueTasks:
+          type: integer
+        highPriorityPending:
+          type: integer
+        byPriority:
+          type: array
+          items:
+            type: object
+            properties:
+              priority:
+                type: string
+              count:
+                type: integer
+            required: [priority, count]
+      required: [totalTasks, completedTasks, inProgressTasks, pendingTasks, cancelledTasks, completionRate, overdueTasks, highPriorityPending, byPriority]
+
+    WeeklyReport:
+      type: object
+      properties:
+        weekLabel:
+          type: string
+        totalCalls:
+          type: integer
+        answeredCalls:
+          type: integer
+        missedCalls:
+          type: integer
+        answerRate:
+          type: number
+        avgDuration:
+          type: number
+        newContacts:
+          type: integer
+        completedTasks:
+          type: integer
+        messagesReceived:
+          type: integer
+        peakHour:
+          type: integer
+        peakDay:
+          type: string
+        comparisonPrevWeek:
+          type: object
+          properties:
+            callsDiff:
+              type: number
+            answerRateDiff:
+              type: number
+            durationDiff:
+              type: number
+          required: [callsDiff, answerRateDiff, durationDiff]
+      required: [weekLabel, totalCalls, answeredCalls, missedCalls, answerRate, avgDuration, newContacts, completedTasks, messagesReceived, peakHour, peakDay, comparisonPrevWeek]
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [appel_manque, message_non_lu, tache_urgente, tache_echeance, rappel]
+        title:
+          type: string
+        description:
+          type: string
+        isRead:
+          type: boolean
+        relatedId:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, type, title, description, isRead, createdAt]

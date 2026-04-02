@@ -7,7 +7,9 @@ import NotFound from "@/pages/not-found";
 import { Layout } from "@/components/layout";
 import Dashboard from "@/pages/dashboard";
 import Calls from "@/pages/calls";
+import CallDetail from "@/pages/call-detail";
 import Contacts from "@/pages/contacts";
+import ContactDetail from "@/pages/contact-detail";
 import Tasks from "@/pages/tasks";
 import Messages from "@/pages/messages";
 import Analytics from "@/pages/analytics";
@@ -20,7 +22,9 @@ function Router() {
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/appels" component={Calls} />
+        <Route path="/appels/:id" component={CallDetail} />
         <Route path="/contacts" component={Contacts} />
+        <Route path="/contacts/:id" component={ContactDetail} />
         <Route path="/taches" component={Tasks} />
         <Route path="/messages" component={Messages} />
         <Route path="/analyse" component={Analytics} />
