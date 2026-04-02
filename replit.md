@@ -48,6 +48,10 @@ A comprehensive French-language office/bureau agent application for managing pho
 - Query hook options: `useGetCall(id, { query: { enabled: !!id } })`
 - Mutation onSuccess receives T directly
 
+## Promotional Landing Page (Site Vitrine)
+
+A separate React+Vite artifact at `/tanitim/` — a marketing landing page for Agent de Bureau. Presentation-first, no backend. Deep navy + amber brand colors, all text in French. Uses framer-motion for scroll animations, AI-generated product visuals.
+
 ## Key Commands
 
 - `pnpm run typecheck` — full typecheck across all packages

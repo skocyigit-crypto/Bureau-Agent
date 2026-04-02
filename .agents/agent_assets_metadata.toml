@@ -1,0 +1,26 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "rpsa-m4fCggFZjJRoLqO2"
+uri = "file://artifacts/tanitim/src/assets/images/hero-dashboard.png"
+type = "image"
+title = "SaaS dashboard UI"
+
+[[generated]]
+id = "YGYd1gg8S_U08ojCoo1PA"
+uri = "file://artifacts/tanitim/src/assets/images/feature-calls.png"
+type = "image"
+title = "Call routing illustration"
+
+[[generated]]
+id = "njPotCOI7jPp4WqdzqRj4"
+uri = "file://artifacts/tanitim/src/assets/images/feature-dashboard.png"
+type = "image"
+title = "Analytics charts illustration"
+
+[[generated]]
+id = "jevQ8obYJxzJIp8GTzOVR"
+uri = "file://artifacts/tanitim/src/assets/images/office-manager.png"
+type = "image"
+title = "Professional office manager"
