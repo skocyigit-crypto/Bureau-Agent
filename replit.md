@@ -50,7 +50,23 @@ A comprehensive French-language office/bureau agent application for managing pho
 
 ## Promotional Landing Page (Site Vitrine)
 
-A separate React+Vite artifact at `/tanitim/` — a marketing landing page for Agent de Bureau. Presentation-first, no backend. Deep navy + amber brand colors, all text in French. Uses framer-motion for scroll animations, AI-generated product visuals.
+A separate React+Vite artifact at `/tanitim/` — a premium SaaS marketing landing page for Agent de Bureau. Presentation-first, no backend. Deep navy (#1a2744) + amber (#f59e0b) brand colors, all text in French. Uses framer-motion for scroll animations, AI-generated product visuals and testimonial portraits.
+
+### Landing Page Sections (14 total)
+1. Hero with animated headline + dual CTA
+2. Dashboard preview mockup image
+3. Trust/social proof logo bar (CSS marquee scroll)
+4. Animated statistics counters (2500+ bureaux, 1.2M+ appels, 98.5% satisfaction, 24/7)
+5. Comprehensive features grid (8 feature cards)
+6. Feature deep-dive: Call management (split layout)
+7. Feature deep-dive: Analytics/dashboard (split layout)
+8. "Comment ca marche" — 4-step how-it-works with visual timeline
+9. Pricing section (3 tiers: Essentiel 29EUR, Professionnel 59EUR, Entreprise sur devis)
+10. Testimonials with AI-generated portrait images (3 Paris professionals)
+11. Integrations section (Outlook, Google, Teams, Salesforce, Slack, Zoom)
+12. FAQ accordion (6 questions)
+13. Security/compliance badges (RGPD, SSL, France hosting, ISO 27001)
+14. Final CTA + newsletter form
 
 ## Key Commands
 

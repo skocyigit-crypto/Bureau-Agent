@@ -1,48 +1,80 @@
 import { Link } from "wouter";
-import { PhoneCall } from "lucide-react";
+import { PhoneCall, Twitter, Linkedin, Facebook, Instagram, Github } from "lucide-react";
 
 export function Footer() {
   return (
     <footer className="bg-primary text-primary-foreground py-20 border-t border-primary-foreground/10">
       <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
-          <div className="space-y-4 col-span-1 md:col-span-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 mb-16">
+          <div className="space-y-6 lg:col-span-2">
             <Link href="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center text-accent-foreground">
-                <PhoneCall className="w-5 h-5" />
+              <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center text-accent-foreground">
+                <PhoneCall className="w-6 h-6" />
               </div>
-              <span className="font-bold text-xl tracking-tight">
+              <span className="font-bold text-2xl tracking-tight text-white">
                 Agent de Bureau
               </span>
             </Link>
-            <p className="text-primary-foreground/70 max-w-sm">
-              La plateforme de secrétariat et de gestion de bureau la plus complète pour les entreprises françaises. Paris, France.
+            <p className="text-primary-foreground/70 max-w-md text-base leading-relaxed">
+              Le centre nerveux professionnel pour les bureaux français. Une plateforme de secrétariat complète qui gère vos appels, vos contacts et vos tâches avec élégance et efficacité.
             </p>
+            <div className="flex items-center gap-4 pt-4">
+              <a href="#" className="w-10 h-10 rounded-full bg-primary-foreground/10 flex items-center justify-center hover:bg-accent hover:text-accent-foreground transition-colors text-primary-foreground/70">
+                <Twitter className="w-5 h-5" />
+              </a>
+              <a href="#" className="w-10 h-10 rounded-full bg-primary-foreground/10 flex items-center justify-center hover:bg-accent hover:text-accent-foreground transition-colors text-primary-foreground/70">
+                <Linkedin className="w-5 h-5" />
+              </a>
+              <a href="#" className="w-10 h-10 rounded-full bg-primary-foreground/10 flex items-center justify-center hover:bg-accent hover:text-accent-foreground transition-colors text-primary-foreground/70">
+                <Github className="w-5 h-5" />
+              </a>
+            </div>
           </div>
           
           <div>
-            <h4 className="font-semibold mb-4 text-accent">Produit</h4>
-            <ul className="space-y-3 text-primary-foreground/70 text-sm">
-              <li><a href="#" className="hover:text-white transition-colors">Fonctionnalités</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Tarifs</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Sécurité</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Intégrations</a></li>
+            <h4 className="font-bold mb-6 text-accent uppercase tracking-wider text-sm">Produit</h4>
+            <ul className="space-y-4 text-primary-foreground/70 font-medium">
+              <li><a href="#fonctionnalites" className="hover:text-white transition-colors">Fonctionnalités</a></li>
+              <li><a href="#analytique" className="hover:text-white transition-colors">Analytique</a></li>
+              <li><a href="#tarifs" className="hover:text-white transition-colors">Tarifs</a></li>
+              <li><a href="#integrations" className="hover:text-white transition-colors">Intégrations</a></li>
+              <li><a href="#" className="hover:text-white transition-colors">Nouveautés</a></li>
+              <li><a href="#" className="hover:text-white transition-colors">Roadmap</a></li>
             </ul>
           </div>
 
           <div>
-            <h4 className="font-semibold mb-4 text-accent">Entreprise</h4>
-            <ul className="space-y-3 text-primary-foreground/70 text-sm">
-              <li><a href="#" className="hover:text-white transition-colors">À propos</a></li>
+            <h4 className="font-bold mb-6 text-accent uppercase tracking-wider text-sm">Ressources</h4>
+            <ul className="space-y-4 text-primary-foreground/70 font-medium">
+              <li><a href="#" className="hover:text-white transition-colors">Centre d'aide</a></li>
+              <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
+              <li><a href="#" className="hover:text-white transition-colors">Tutoriels vidéo</a></li>
+              <li><a href="#faq" className="hover:text-white transition-colors">FAQ</a></li>
+              <li><a href="#" className="hover:text-white transition-colors">API & Docs</a></li>
+              <li><a href="#" className="hover:text-white transition-colors">Statut du système</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="font-bold mb-6 text-accent uppercase tracking-wider text-sm">Légal & Entreprise</h4>
+            <ul className="space-y-4 text-primary-foreground/70 font-medium">
+              <li><a href="#" className="hover:text-white transition-colors">À propos de nous</a></li>
               <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
+              <li><a href="#" className="hover:text-white transition-colors">Carrières</a></li>
               <li><a href="#" className="hover:text-white transition-colors">Mentions légales</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Confidentialité</a></li>
+              <li><a href="#" className="hover:text-white transition-colors">Politique de confidentialité</a></li>
+              <li><a href="#" className="hover:text-white transition-colors">Sécurité (RGPD)</a></li>
             </ul>
           </div>
         </div>
-        <div className="mt-20 pt-8 border-t border-primary-foreground/10 flex flex-col md:flex-row items-center justify-between text-sm text-primary-foreground/50">
+        
+        <div className="pt-8 border-t border-primary-foreground/10 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-primary-foreground/50 font-medium">
           <p>© {new Date().getFullYear()} Agent de Bureau. Tous droits réservés.</p>
-          <p>Fait avec passion à Paris.</p>
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-green-500"></span>
+            <span>Tous les systèmes sont opérationnels</span>
+          </div>
+          <p className="flex items-center gap-1">Fait avec passion à Paris</p>
         </div>
       </div>
     </footer>

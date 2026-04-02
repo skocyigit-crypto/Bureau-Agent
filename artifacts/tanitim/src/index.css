@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
@@ -65,7 +65,7 @@
   --app-font-sans: 'Inter', sans-serif;
   --app-font-serif: Georgia, serif;
   --app-font-mono: Menlo, monospace;
-  --radius: 0.5rem;
+  --radius: 0.75rem;
 
   /* Deep Navy: #1a2744 -> HSL 221, 45%, 18% */
   /* Warm Amber: #f59e0b -> HSL 38, 92%, 50% */
@@ -75,7 +75,7 @@
 
   --border: 221 20% 90%;
   --input: 221 20% 90%;
-  --ring: 221 45% 18%;
+  --ring: 38 92% 50%;
 
   --card: 0 0% 100%;
   --card-foreground: 221 45% 10%;
@@ -158,4 +158,13 @@
   body {
     @apply font-sans antialiased bg-background text-foreground selection:bg-accent selection:text-accent-foreground;
   }
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 40s linear infinite;
 }

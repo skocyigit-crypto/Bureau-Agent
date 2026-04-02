@@ -24,3 +24,21 @@ id = "jevQ8obYJxzJIp8GTzOVR"
 uri = "file://artifacts/tanitim/src/assets/images/office-manager.png"
 type = "image"
 title = "Professional office manager"
+
+[[generated]]
+id = "tcpT5VGVLIMYan89vet08"
+uri = "file://artifacts/tanitim/src/assets/images/testimonial-1.png"
+type = "image"
+title = "Portrait of a French office manager"
+
+[[generated]]
+id = "CYqhGZ_Ur5ZJ2ma8sCa5_"
+uri = "file://artifacts/tanitim/src/assets/images/testimonial-2.png"
+type = "image"
+title = "Portrait of a French tech CEO"
+
+[[generated]]
+id = "Dnxtrj0eKthihDXLl-3Xz"
+uri = "file://artifacts/tanitim/src/assets/images/testimonial-3.png"
+type = "image"
+title = "Portrait of a French receptionist"

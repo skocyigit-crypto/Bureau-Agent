@@ -1,4 +1,5 @@
-import { motion } from "framer-motion";
+import { useState, useEffect, useRef } from "react";
+import { motion, useScroll, useTransform, useInView } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -12,161 +13,299 @@ import {
   ArrowRight,
   ShieldCheck,
   Zap,
-  Headset,
-  MessageSquare
+  MessageSquare,
+  Building2,
+  CalendarCheck,
+  CheckCircle2,
+  ArrowUpRight,
+  Lock,
+  Server,
+  FileText,
+  Clock,
+  Briefcase,
+  Headset
 } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Input } from "@/components/ui/input";
 
 import heroDashboardPath from "@/assets/images/hero-dashboard.png";
 import featureCallsPath from "@/assets/images/feature-calls.png";
 import featureDashboardPath from "@/assets/images/feature-dashboard.png";
 import officeManagerPath from "@/assets/images/office-manager.png";
+import testimonial1Path from "@/assets/images/testimonial-1.png";
+import testimonial2Path from "@/assets/images/testimonial-2.png";
+import testimonial3Path from "@/assets/images/testimonial-3.png";
 
 const fadeInUp = {
-  hidden: { opacity: 0, y: 30 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
+  hidden: { opacity: 0, y: 40 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } }
 };
 
 const staggerContainer = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    transition: { staggerChildren: 0.1 }
+    transition: { staggerChildren: 0.15 }
   }
 };
 
-export default function Home() {
+function Counter({ end, suffix = "", duration = 2 }: { end: number, suffix?: string, duration?: number }) {
+  const [count, setCount] = useState(0);
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: "-50px" });
+
+  useEffect(() => {
+    if (isInView) {
+      let start = 0;
+      const stepTime = Math.abs(Math.floor(duration * 1000 / end));
+      
+      // if number is very large, step by larger amounts
+      const increment = end > 1000 ? Math.ceil(end / 100) : Math.ceil(end / 50);
+      
+      const timer = setInterval(() => {
+        start += increment;
+        if (start >= end) {
+          setCount(end);
+          clearInterval(timer);
+        } else {
+          setCount(start);
+        }
+      }, Math.max(stepTime, 20));
+
+      return () => clearInterval(timer);
+    }
+  }, [isInView, end, duration]);
+
+  const formattedCount = count > 1000 && count !== end 
+    ? count.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ") 
+    : end >= 1000 && count === end 
+      ? end.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")
+      : count;
+
   return (
-    <div className="min-h-screen bg-background flex flex-col overflow-x-hidden">
+    <span ref={ref}>
+      {count === end && end >= 1000000 ? "1.2M" : formattedCount}{suffix}
+    </span>
+  );
+}
+
+export default function Home() {
+  const { scrollYProgress } = useScroll();
+  const parallaxY = useTransform(scrollYProgress, [0, 1], [0, -100]);
+  
+  return (
+    <div className="min-h-screen bg-background flex flex-col overflow-x-hidden font-sans">
       <Navbar />
 
       <main className="flex-grow pt-20">
         {/* 1. HERO SECTION */}
-        <section className="relative pt-24 pb-32 md:pt-32 md:pb-40 overflow-hidden bg-primary text-primary-foreground">
-          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none"></div>
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-accent/50 to-transparent"></div>
+        <section className="relative pt-24 pb-32 md:pt-36 md:pb-48 overflow-hidden bg-[#1a2744] text-primary-foreground">
+          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-15 mix-blend-overlay pointer-events-none"></div>
+          
+          {/* Ambient Glows */}
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#f59e0b] rounded-full mix-blend-screen filter blur-[150px] opacity-20"></div>
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500 rounded-full mix-blend-screen filter blur-[150px] opacity-20"></div>
+          
           <div className="container mx-auto px-4 relative z-10">
-            <div className="max-w-4xl mx-auto text-center">
+            <div className="max-w-5xl mx-auto text-center">
               <motion.div 
                 initial="hidden" animate="visible" variants={staggerContainer}
               >
-                <motion.div variants={fadeInUp} className="mb-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-foreground/10 text-accent font-medium text-sm border border-primary-foreground/20">
-                  <span className="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
-                  Le centre nerveux de votre bureau
+                <motion.div variants={fadeInUp} className="mb-8 inline-flex items-center gap-3 px-4 py-2.5 rounded-full bg-white/5 border border-white/10 text-white font-medium text-sm backdrop-blur-md shadow-2xl">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#f59e0b] opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-[#f59e0b]"></span>
+                  </span>
+                  Le centre nerveux de votre bureau professionnel
+                  <span className="px-2 py-0.5 rounded-full bg-white/10 text-xs font-semibold uppercase tracking-wider ml-2">Nouveau</span>
                 </motion.div>
                 
-                <motion.h1 variants={fadeInUp} className="text-5xl md:text-7xl font-extrabold tracking-tight mb-8 leading-[1.1]">
-                  Enfin, un outil qui <br className="hidden md:block"/>
-                  <span className="text-accent">comprend notre travail.</span>
+                <motion.h1 variants={fadeInUp} className="text-5xl md:text-7xl lg:text-8xl font-extrabold tracking-tight mb-8 leading-[1.05] text-white">
+                  L'excellence de l'accueil, <br className="hidden md:block"/>
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#f59e0b] to-yellow-200">sans compromis.</span>
                 </motion.h1>
                 
-                <motion.p variants={fadeInUp} className="text-xl md:text-2xl text-primary-foreground/80 mb-12 max-w-2xl mx-auto leading-relaxed">
-                  Gérez vos appels, vos contacts et vos tâches depuis une interface unique, puissante et entièrement en français. Conçu pour les professionnels exigeants.
+                <motion.p variants={fadeInUp} className="text-xl md:text-2xl text-blue-100/80 mb-12 max-w-3xl mx-auto leading-relaxed font-medium">
+                  Centralisez vos appels, vos contacts et vos tâches sur une plateforme élégante, puissante et fièrement conçue pour le marché français.
                 </motion.p>
                 
                 <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                  <Button size="lg" className="h-14 px-8 text-lg bg-accent text-accent-foreground hover:bg-accent/90 rounded-full w-full sm:w-auto font-semibold">
-                    Démarrer gratuitement
+                  <Button size="lg" className="h-16 px-10 text-lg bg-[#f59e0b] text-[#1a2744] hover:bg-[#f59e0b]/90 rounded-full w-full sm:w-auto font-bold shadow-[0_0_40px_-10px_rgba(245,158,11,0.5)] transition-all hover:scale-105">
+                    Démarrer l'essai gratuit
+                    <ArrowRight className="ml-2 w-5 h-5" />
                   </Button>
-                  <Button size="lg" variant="outline" className="h-14 px-8 text-lg bg-transparent border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 rounded-full w-full sm:w-auto">
-                    Voir la démo
+                  <Button size="lg" variant="outline" className="h-16 px-10 text-lg bg-white/5 border-white/20 text-white hover:bg-white/10 rounded-full w-full sm:w-auto font-semibold transition-all hover:scale-105 backdrop-blur-sm">
+                    Planifier une démo
                   </Button>
                 </motion.div>
+                
+                <motion.p variants={fadeInUp} className="mt-8 text-sm text-white/50 font-medium">
+                  Plus de 2 500 bureaux gérés en France • Aucune carte bancaire requise
+                </motion.p>
               </motion.div>
             </div>
           </div>
         </section>
 
         {/* 2. DASHBOARD PREVIEW SECTION */}
-        <section className="relative -mt-20 md:-mt-32 z-20 px-4">
+        <section className="relative -mt-24 md:-mt-40 z-20 px-4 pb-12">
           <motion.div 
-            initial={{ opacity: 0, y: 50 }}
+            initial={{ opacity: 0, y: 80 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
+            transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
             className="container mx-auto max-w-6xl"
           >
-            <div className="rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl border border-border/50 bg-card p-2 md:p-4">
+            <div className="rounded-2xl md:rounded-[2rem] overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] border border-white/20 bg-white/10 p-2 md:p-4 backdrop-blur-xl">
               <img 
                 src={heroDashboardPath} 
                 alt="Interface d'Agent de Bureau" 
-                className="w-full h-auto rounded-xl md:rounded-2xl border border-border/50"
+                className="w-full h-auto rounded-xl md:rounded-3xl border border-border/10 shadow-inner"
               />
             </div>
           </motion.div>
         </section>
 
         {/* 3. LOGOS / TRUST SECTION */}
-        <section className="py-20 bg-background border-b border-border/40">
-          <div className="container mx-auto px-4 text-center">
-            <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest mb-8">
-              La confiance des meilleurs secrétariats en France
+        <section className="py-12 bg-background overflow-hidden border-b border-border/40">
+          <div className="container mx-auto px-4 text-center mb-8">
+            <p className="text-sm font-bold text-muted-foreground uppercase tracking-[0.2em]">
+              LA CONFIANCE DES MEILLEURS SECRÉTARIATS EN FRANCE
             </p>
-            <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16 opacity-50 grayscale">
-              <div className="text-xl font-bold font-serif">L'Atelier</div>
-              <div className="text-xl font-bold tracking-tighter">BUREAUX&CO</div>
-              <div className="text-xl font-extrabold italic">Nexus Paris</div>
-              <div className="text-xl font-bold">SYNERGIE</div>
-              <div className="text-xl font-bold uppercase tracking-widest">Aura</div>
+          </div>
+          
+          <div className="relative flex overflow-x-hidden group">
+            <div className="animate-marquee whitespace-nowrap flex items-center gap-16 md:gap-32 py-4">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-16 md:gap-32 opacity-40 grayscale group-hover:grayscale-0 group-hover:opacity-80 transition-all duration-500">
+                  <div className="text-2xl font-bold font-serif">L'Atelier Paris</div>
+                  <div className="text-2xl font-bold tracking-tighter">BUREAUX&CO</div>
+                  <div className="flex items-center gap-2 text-2xl font-extrabold italic"><Zap className="w-6 h-6 text-accent"/> Nexus</div>
+                  <div className="text-2xl font-bold">SYNERGIE</div>
+                  <div className="text-2xl font-bold uppercase tracking-widest border-2 border-current px-2 py-1">Aura</div>
+                  <div className="text-2xl font-medium tracking-wide">Espace<span className="font-bold">Pro</span></div>
+                  <div className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-foreground to-muted-foreground">KLEIN</div>
+                </div>
+              ))}
+            </div>
+            <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-background to-transparent pointer-events-none"></div>
+            <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-background to-transparent pointer-events-none"></div>
+          </div>
+        </section>
+
+        {/* 4. STATISTICS COUNTER SECTION */}
+        <section className="py-24 bg-primary/5">
+          <div className="container mx-auto px-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
+              {[
+                { label: "Bureaux gérés", value: 2500, suffix: "+" },
+                { label: "Appels traités", display: "1,2M+", value: 120, suffix: "" },
+                { label: "Taux de satisfaction", value: 98, suffix: ".5%" },
+                { label: "Disponibilité", value: 24, suffix: "/7" }
+              ].map((stat, i) => (
+                <motion.div 
+                  key={i}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1, duration: 0.5 }}
+                  className="text-center"
+                >
+                  <div className="text-4xl md:text-5xl lg:text-6xl font-black text-primary mb-2 tracking-tighter">
+                    {(stat as any).display ? (
+                      <span>{(stat as any).display}</span>
+                    ) : (
+                      <Counter end={stat.value} suffix={stat.suffix} duration={2.5} />
+                    )}
+                  </div>
+                  <div className="text-sm md:text-base font-semibold text-muted-foreground uppercase tracking-wider">
+                    {stat.label}
+                  </div>
+                </motion.div>
+              ))}
             </div>
           </div>
         </section>
 
-        {/* 4. FEATURES GRID */}
-        <section id="fonctionnalites" className="py-32 bg-muted/30">
+        {/* 5. COMPREHENSIVE FEATURES SECTION */}
+        <section id="fonctionnalites" className="py-32 bg-background relative">
+          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-border to-transparent"></div>
           <div className="container mx-auto px-4">
             <div className="text-center max-w-3xl mx-auto mb-20">
-              <h2 className="text-4xl md:text-5xl font-bold text-primary mb-6">Tout ce dont vous avez besoin, <br/>rien de superflu.</h2>
-              <p className="text-lg text-muted-foreground">
-                Une suite complète d'outils pensés spécifiquement pour la gestion de l'accueil et du secrétariat. Adieu les post-its perdus et les messages oubliés.
+              <span className="text-accent font-bold tracking-widest uppercase text-sm mb-4 block">Plateforme Unifiée</span>
+              <h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-primary mb-6 tracking-tight">
+                Tout ce dont vous avez besoin. <br/>
+                <span className="text-muted-foreground font-medium">Rien de superflu.</span>
+              </h2>
+              <p className="text-xl text-muted-foreground leading-relaxed">
+                Une suite complète d'outils pensés spécifiquement pour la gestion de l'accueil et du secrétariat français. L'élégance au service de la productivité.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
               {[
                 {
-                  icon: <PhoneCall className="w-6 h-6" />,
+                  icon: <PhoneCall className="w-7 h-7" />,
                   title: "Gestion des appels",
                   desc: "Routez, transférez et suivez les appels entrants et sortants avec une fluidité déconcertante."
                 },
                 {
-                  icon: <Users className="w-6 h-6" />,
+                  icon: <Users className="w-7 h-7" />,
                   title: "Annuaire professionnel",
-                  desc: "Un carnet de contacts intelligent avec historique complet des interactions et notes associées."
+                  desc: "Un carnet de contacts intelligent avec historique complet des interactions."
                 },
                 {
-                  icon: <CheckSquare className="w-6 h-6" />,
+                  icon: <CheckSquare className="w-7 h-7" />,
                   title: "Gestion des tâches",
                   desc: "Transformez une demande téléphonique en tâche assignable en un seul clic."
                 },
                 {
-                  icon: <Voicemail className="w-6 h-6" />,
+                  icon: <Voicemail className="w-7 h-7" />,
                   title: "Messagerie vocale",
                   desc: "Transcription automatique des messages vocaux et organisation par priorité."
                 },
                 {
-                  icon: <BarChart3 className="w-6 h-6" />,
+                  icon: <BarChart3 className="w-7 h-7" />,
                   title: "Analyses avancées",
-                  desc: "Tableaux de bord détaillés pour comprendre vos flux de communication et optimiser vos équipes."
+                  desc: "Tableaux de bord détaillés pour comprendre vos flux de communication."
                 },
                 {
-                  icon: <Globe className="w-6 h-6" />,
-                  title: "100% en Français",
-                  desc: "Une interface, un support et une documentation pensés pour le marché francophone."
+                  icon: <Zap className="w-7 h-7" />,
+                  title: "Notifications intelligentes",
+                  desc: "Soyez alerté instantanément des appels importants et des tâches urgentes."
+                },
+                {
+                  icon: <FileText className="w-7 h-7" />,
+                  title: "Rapports automatiques",
+                  desc: "Recevez des bilans d'activité détaillés chaque semaine dans votre boîte mail."
+                },
+                {
+                  icon: <Globe className="w-7 h-7" />,
+                  title: "Interface 100% Française",
+                  desc: "Une ergonomie et une documentation pensées exclusivement pour le marché francophone."
                 }
               ].map((feature, i) => (
                 <motion.div 
                   key={i}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 30 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ delay: i * 0.1, duration: 0.5 }}
-                  className="bg-card border border-border/50 p-8 rounded-3xl hover:shadow-xl transition-all duration-300 group"
+                  transition={{ delay: i * 0.05, duration: 0.5 }}
+                  className="bg-card border border-border/50 p-8 rounded-[2rem] hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] hover:-translate-y-2 transition-all duration-300 group relative overflow-hidden"
                 >
-                  <div className="w-14 h-14 rounded-2xl bg-primary/5 text-primary flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
+                  <div className="absolute top-0 right-0 p-6 opacity-5 transform translate-x-1/4 -translate-y-1/4 group-hover:scale-150 transition-transform duration-700">
                     {feature.icon}
                   </div>
-                  <h3 className="text-xl font-bold mb-3 text-foreground">{feature.title}</h3>
-                  <p className="text-muted-foreground leading-relaxed">
+                  <div className="w-16 h-16 rounded-2xl bg-primary/5 text-primary flex items-center justify-center mb-8 group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300 shadow-sm">
+                    {feature.icon}
+                  </div>
+                  <h3 className="text-xl font-bold mb-3 text-foreground tracking-tight">{feature.title}</h3>
+                  <p className="text-muted-foreground leading-relaxed font-medium">
                     {feature.desc}
                   </p>
                 </motion.div>
@@ -175,102 +314,207 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 5. FEATURE DEEP DIVE 1 */}
-        <section className="py-32 overflow-hidden bg-background">
+        {/* 6. FEATURE DEEP DIVE 1 */}
+        <section className="py-32 overflow-hidden bg-primary/5">
           <div className="container mx-auto px-4">
-            <div className="flex flex-col lg:flex-row items-center gap-16">
+            <div className="flex flex-col lg:flex-row items-center gap-16 lg:gap-24">
               <motion.div 
                 initial={{ opacity: 0, x: -50 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.7 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
                 className="flex-1 space-y-8"
               >
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/20 text-primary font-bold text-sm">
-                  <Zap className="w-4 h-4 text-accent" />
-                  Flux de travail optimisé
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-accent/10 border border-accent/20 text-accent font-bold text-sm tracking-wide uppercase">
+                  <Headset className="w-4 h-4" />
+                  Standard virtuel
                 </div>
-                <h2 className="text-4xl md:text-5xl font-bold text-primary leading-tight">
-                  Ne manquez plus jamais un appel important.
+                <h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-primary leading-[1.1] tracking-tight">
+                  Ne manquez plus <span className="text-accent">jamais</span> un appel important.
                 </h2>
-                <p className="text-lg text-muted-foreground leading-relaxed">
-                  Notre système de routage intelligent distribue les appels au bon interlocuteur instantanément. Visualisez en temps réel qui est en ligne, qui est disponible, et gérez les files d'attente avec une interface claire.
+                <p className="text-xl text-muted-foreground leading-relaxed font-medium">
+                  Notre système de routage intelligent distribue les appels au bon interlocuteur instantanément. Visualisez en temps réel qui est en ligne et gérez les files d'attente avec une interface claire et épurée.
                 </p>
-                <ul className="space-y-4">
+                <div className="space-y-5 pt-4">
                   {[
-                    "Transfert d'appel en un clic avec contexte",
-                    "Identification automatique de l'appelant",
-                    "Historique complet accessible instantanément"
+                    "Transfert d'appel en un clic avec contexte partagé",
+                    "Identification automatique de l'appelant via l'annuaire",
+                    "Historique complet accessible instantanément pendant l'appel"
                   ].map((item, i) => (
-                    <li key={i} className="flex items-center gap-3 text-foreground font-medium">
-                      <div className="w-6 h-6 rounded-full bg-accent flex items-center justify-center text-primary shrink-0">
-                        <CheckSquare className="w-3 h-3" />
+                    <div key={i} className="flex items-start gap-4">
+                      <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-primary shrink-0 mt-0.5 shadow-md">
+                        <CheckCircle2 className="w-5 h-5" />
                       </div>
-                      {item}
-                    </li>
+                      <p className="text-lg text-foreground font-semibold leading-snug">{item}</p>
+                    </div>
                   ))}
-                </ul>
-                <Button className="group gap-2 rounded-full h-12 px-6 bg-primary text-primary-foreground hover:bg-primary/90">
-                  Découvrir la téléphonie <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </Button>
+                </div>
+                <div className="pt-6">
+                  <Button className="group h-14 px-8 text-lg rounded-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold shadow-xl hover:shadow-primary/25 transition-all">
+                    Découvrir la téléphonie 
+                    <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                </div>
               </motion.div>
               
               <motion.div 
                 initial={{ opacity: 0, x: 50 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.7 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                style={{ y: parallaxY }}
                 className="flex-1 relative w-full max-w-xl lg:max-w-none mx-auto"
               >
-                <div className="absolute inset-0 bg-primary/5 rounded-3xl transform rotate-3"></div>
+                <div className="absolute inset-0 bg-gradient-to-br from-accent/20 to-primary/5 rounded-[2.5rem] transform rotate-3 scale-105 blur-lg"></div>
+                <div className="absolute inset-0 bg-background rounded-[2.5rem] transform rotate-3 border border-border shadow-2xl"></div>
                 <img 
                   src={featureCallsPath} 
                   alt="Illustration de routage d'appels" 
-                  className="rounded-3xl relative z-10 shadow-2xl border border-border"
+                  className="rounded-[2rem] relative z-10 shadow-2xl border border-border w-full object-cover"
+                />
+                
+                {/* Floating UI Elements */}
+                <motion.div 
+                  animate={{ y: [0, -15, 0] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute -right-12 top-24 z-20 bg-background border border-border shadow-xl rounded-2xl p-4 flex items-center gap-4"
+                >
+                  <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                    <PhoneCall className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold">Appel entrant</p>
+                    <p className="text-xs text-muted-foreground">Jean Dupont - En attente</p>
+                  </div>
+                </motion.div>
+              </motion.div>
+            </div>
+          </div>
+        </section>
+
+        {/* 7. FEATURE DEEP DIVE 2 */}
+        <section id="analytique" className="py-32 bg-[#1a2744] text-white overflow-hidden relative">
+          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-overlay pointer-events-none"></div>
+          <div className="container mx-auto px-4 relative z-10">
+            <div className="flex flex-col lg:flex-row-reverse items-center gap-16 lg:gap-24">
+              <motion.div 
+                initial={{ opacity: 0, x: 50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                className="flex-1 space-y-8"
+              >
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-accent/20 border border-accent/30 text-accent font-bold text-sm tracking-wide uppercase">
+                  <BarChart3 className="w-4 h-4" />
+                  Analyses en temps réel
+                </div>
+                <h2 className="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-[1.1] tracking-tight">
+                  Prenez des décisions basées sur <span className="text-accent">les données.</span>
+                </h2>
+                <p className="text-xl text-blue-100/80 leading-relaxed font-medium">
+                  Comprenez les pics d'activité, mesurez les temps de réponse et optimisez le planning de votre équipe grâce à nos tableaux de bord analytiques de niveau entreprise, conçus pour les managers exigeants.
+                </p>
+                <div className="space-y-6 pt-4">
+                  {[
+                    "Génération de rapports hebdomadaires automatiques",
+                    "Métriques de performance individuelles et d'équipe",
+                    "Analyse approfondie de la satisfaction client"
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-start gap-4">
+                      <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-accent shrink-0 mt-0.5 border border-white/10">
+                        <CheckCircle2 className="w-5 h-5" />
+                      </div>
+                      <p className="text-lg text-white font-semibold leading-snug">{item}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="pt-6">
+                  <Button className="group h-14 px-8 text-lg rounded-full bg-white text-primary hover:bg-white/90 font-bold shadow-xl transition-all">
+                    Explorer les analyses
+                    <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                </div>
+              </motion.div>
+              
+              <motion.div 
+                initial={{ opacity: 0, x: -50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                className="flex-1 relative w-full max-w-xl lg:max-w-none mx-auto"
+              >
+                <div className="absolute inset-0 bg-gradient-to-tr from-accent/30 to-blue-500/20 rounded-[2.5rem] transform -rotate-3 scale-105 blur-lg"></div>
+                <img 
+                  src={featureDashboardPath} 
+                  alt="Tableau de bord analytique" 
+                  className="rounded-[2rem] relative z-10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 w-full object-cover"
                 />
               </motion.div>
             </div>
           </div>
         </section>
 
-        {/* 6. HOW IT WORKS */}
-        <section className="py-32 bg-primary/5">
-          <div className="container mx-auto px-4 text-center">
-            <h2 className="text-4xl font-bold text-primary mb-16">Comment ça marche ?</h2>
+        {/* 8. COMMENT CA MARCHE */}
+        <section id="comment-ca-marche" className="py-32 bg-background">
+          <div className="container mx-auto px-4">
+            <div className="text-center max-w-3xl mx-auto mb-24">
+              <span className="text-accent font-bold tracking-widest uppercase text-sm mb-4 block">Déploiement Éclair</span>
+              <h2 className="text-4xl md:text-5xl font-extrabold text-primary mb-6">Comment ça marche ?</h2>
+              <p className="text-xl text-muted-foreground font-medium">
+                Mettez en place votre nouveau secrétariat virtuel en moins de temps qu'il n'en faut pour prendre un café.
+              </p>
+            </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
-              <div className="hidden md:block absolute top-12 left-1/6 right-1/6 h-0.5 bg-border z-0"></div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8 relative max-w-6xl mx-auto">
+              {/* Connector Line */}
+              <div className="hidden md:block absolute top-12 left-[12.5%] right-[12.5%] h-1 bg-border rounded-full z-0">
+                <motion.div 
+                  initial={{ width: "0%" }}
+                  whileInView={{ width: "100%" }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 1.5, ease: "easeInOut" }}
+                  className="h-full bg-accent rounded-full"
+                ></motion.div>
+              </div>
               
               {[
                 {
-                  step: "1",
+                  icon: <Building2 className="w-8 h-8" />,
+                  title: "Créez votre espace",
+                  desc: "Inscrivez-vous en 2 minutes et paramétrez l'identité de votre bureau."
+                },
+                {
+                  icon: <PhoneCall className="w-8 h-8" />,
                   title: "Connectez vos lignes",
-                  desc: "Importez vos numéros existants ou créez-en de nouveaux en quelques minutes."
+                  desc: "Importez vos numéros existants ou créez-en de nouveaux instantanément."
                 },
                 {
-                  step: "2",
+                  icon: <Clock className="w-8 h-8" />,
                   title: "Configurez le routage",
-                  desc: "Définissez vos règles de redirection, vos horaires et votre messagerie d'accueil."
+                  desc: "Définissez vos règles de redirection, vos horaires et votre message d'accueil."
                 },
                 {
-                  step: "3",
+                  icon: <Briefcase className="w-8 h-8" />,
                   title: "Gérez votre bureau",
                   desc: "Recevez des appels, assignez des tâches et collaborez avec votre équipe."
                 }
               ].map((item, i) => (
                 <motion.div 
                   key={i}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 40 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  transition={{ delay: i * 0.2, duration: 0.5 }}
-                  className="relative z-10 flex flex-col items-center"
+                  transition={{ delay: i * 0.2, duration: 0.6 }}
+                  className="relative z-10 flex flex-col items-center text-center group"
                 >
-                  <div className="w-24 h-24 rounded-full bg-card border-4 border-background shadow-xl flex items-center justify-center text-3xl font-extrabold text-primary mb-6">
-                    {item.step}
+                  <div className="w-24 h-24 rounded-full bg-card border-4 border-background shadow-[0_0_30px_-5px_rgba(0,0,0,0.1)] flex items-center justify-center text-primary mb-8 group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-accent group-hover:scale-110 transition-all duration-300">
+                    {item.icon}
                   </div>
-                  <h3 className="text-2xl font-bold mb-4 text-foreground">{item.title}</h3>
-                  <p className="text-muted-foreground text-center max-w-sm">
+                  <div className="bg-muted/50 rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold mb-4 border border-border">
+                    {i + 1}
+                  </div>
+                  <h3 className="text-xl font-bold mb-3 text-foreground">{item.title}</h3>
+                  <p className="text-muted-foreground font-medium leading-relaxed">
                     {item.desc}
                   </p>
                 </motion.div>
@@ -279,128 +523,325 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 7. FEATURE DEEP DIVE 2 */}
-        <section id="analytique" className="py-32 bg-primary text-primary-foreground overflow-hidden">
+        {/* 9. PRICING SECTION */}
+        <section id="tarifs" className="py-32 bg-primary/5">
           <div className="container mx-auto px-4">
-            <div className="flex flex-col lg:flex-row-reverse items-center gap-16">
+            <div className="text-center max-w-3xl mx-auto mb-20">
+              <span className="text-accent font-bold tracking-widest uppercase text-sm mb-4 block">Tarification Simple</span>
+              <h2 className="text-4xl md:text-5xl font-extrabold text-primary mb-6">Des tarifs clairs, sans surprise.</h2>
+              <p className="text-xl text-muted-foreground font-medium">
+                Choisissez le plan qui correspond à la taille et aux ambitions de votre bureau.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-center">
+              {/* Tier 1 */}
               <motion.div 
-                initial={{ opacity: 0, x: 50 }}
-                whileInView={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.7 }}
-                className="flex-1 space-y-8"
+                className="bg-card rounded-[2rem] p-10 border border-border shadow-lg"
               >
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/20 text-accent font-medium text-sm">
-                  <BarChart3 className="w-4 h-4 text-accent" />
-                  Analyses en temps réel
+                <h3 className="text-2xl font-bold text-foreground mb-2">Essentiel</h3>
+                <p className="text-muted-foreground mb-8 min-h-[48px]">Pour les petits secrétariats indépendants.</p>
+                <div className="mb-8">
+                  <span className="text-5xl font-extrabold text-primary">29€</span>
+                  <span className="text-muted-foreground font-medium">/mois</span>
                 </div>
-                <h2 className="text-4xl md:text-5xl font-bold leading-tight">
-                  Prenez des décisions basées sur des données.
-                </h2>
-                <p className="text-lg text-primary-foreground/80 leading-relaxed">
-                  Comprenez les pics d'activité, mesurez les temps de réponse et optimisez le planning de votre équipe grâce à nos tableaux de bord analytiques conçus pour les managers.
-                </p>
+                <Button variant="outline" className="w-full h-14 rounded-xl text-lg font-bold border-2 mb-8 hover:bg-primary/5">
+                  Commencer l'essai
+                </Button>
                 <ul className="space-y-4">
                   {[
-                    "Rapports hebdomadaires automatiques",
-                    "Métriques de performance de l'équipe",
-                    "Analyse de la satisfaction client"
-                  ].map((item, i) => (
-                    <li key={i} className="flex items-center gap-3 font-medium">
-                      <div className="w-6 h-6 rounded-full bg-primary-foreground/10 flex items-center justify-center text-accent shrink-0">
-                        <CheckSquare className="w-3 h-3" />
-                      </div>
-                      {item}
+                    "1 Numéro de téléphone",
+                    "Jusqu'à 3 utilisateurs",
+                    "Gestion des appels basique",
+                    "Annuaire 500 contacts",
+                    "Support par email"
+                  ].map((feature, i) => (
+                    <li key={i} className="flex items-center gap-3 text-foreground font-medium">
+                      <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+                      {feature}
                     </li>
                   ))}
                 </ul>
               </motion.div>
-              
+
+              {/* Tier 2 - POPULAR */}
               <motion.div 
-                initial={{ opacity: 0, x: -50 }}
-                whileInView={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.7 }}
-                className="flex-1 relative w-full max-w-xl lg:max-w-none mx-auto"
+                transition={{ delay: 0.1 }}
+                className="bg-primary rounded-[2rem] p-10 shadow-[0_30px_60px_-15px_rgba(26,39,68,0.5)] transform md:-translate-y-4 relative border border-accent/20"
               >
-                <div className="absolute inset-0 bg-primary-foreground/5 rounded-3xl transform -rotate-3"></div>
-                <img 
-                  src={featureDashboardPath} 
-                  alt="Tableau de bord analytique" 
-                  className="rounded-3xl relative z-10 shadow-2xl border border-primary-foreground/10"
-                />
+                <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                  <span className="bg-accent text-accent-foreground px-4 py-1 rounded-full text-sm font-bold uppercase tracking-wider shadow-lg">
+                    Le plus choisi
+                  </span>
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-2">Professionnel</h3>
+                <p className="text-blue-200/80 mb-8 min-h-[48px]">Pour les PME et bureaux en croissance.</p>
+                <div className="mb-8">
+                  <span className="text-5xl font-extrabold text-white">59€</span>
+                  <span className="text-blue-200/80 font-medium">/mois</span>
+                </div>
+                <Button className="w-full h-14 rounded-xl text-lg font-bold bg-accent text-accent-foreground hover:bg-accent/90 mb-8 shadow-xl">
+                  Commencer l'essai
+                </Button>
+                <ul className="space-y-4">
+                  {[
+                    "3 Numéros de téléphone",
+                    "Jusqu'à 10 utilisateurs",
+                    "Routage intelligent",
+                    "Annuaire illimité",
+                    "Analytique avancée",
+                    "Support prioritaire 24/7"
+                  ].map((feature, i) => (
+                    <li key={i} className="flex items-center gap-3 text-white font-medium">
+                      <CheckCircle2 className="w-5 h-5 text-accent shrink-0" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+
+              {/* Tier 3 */}
+              <motion.div 
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.2 }}
+                className="bg-card rounded-[2rem] p-10 border border-border shadow-lg"
+              >
+                <h3 className="text-2xl font-bold text-foreground mb-2">Entreprise</h3>
+                <p className="text-muted-foreground mb-8 min-h-[48px]">Pour les grands groupes et volumes massifs.</p>
+                <div className="mb-8">
+                  <span className="text-5xl font-extrabold text-primary text-xl">Sur devis</span>
+                </div>
+                <Button variant="outline" className="w-full h-14 rounded-xl text-lg font-bold border-2 mb-8 hover:bg-primary/5">
+                  Contacter les ventes
+                </Button>
+                <ul className="space-y-4">
+                  {[
+                    "Numéros illimités",
+                    "Utilisateurs illimités",
+                    "SLA Garanti 99.9%",
+                    "Intégrations sur mesure",
+                    "Account Manager dédié",
+                    "Formation sur site"
+                  ].map((feature, i) => (
+                    <li key={i} className="flex items-center gap-3 text-foreground font-medium">
+                      <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
               </motion.div>
             </div>
           </div>
         </section>
 
-        {/* 8. TESTIMONIAL */}
-        <section id="temoignages" className="py-32 bg-background">
-          <div className="container mx-auto px-4">
-            <motion.div 
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="max-w-5xl mx-auto bg-card border border-border rounded-[2.5rem] overflow-hidden shadow-2xl relative"
-            >
-              <div className="absolute top-0 right-0 p-8 text-accent opacity-20">
-                <MessageSquare className="w-32 h-32" />
-              </div>
-              <div className="flex flex-col md:flex-row relative z-10">
-                <div className="md:w-2/5 h-80 md:h-auto relative">
-                  <img 
-                    src={officeManagerPath} 
-                    alt="Office Manager" 
-                    className="absolute inset-0 w-full h-full object-cover"
-                  />
-                </div>
-                <div className="md:w-3/5 p-10 md:p-16 flex flex-col justify-center">
-                  <div className="mb-6 flex gap-1 text-accent">
+        {/* 10. TESTIMONIALS SECTION */}
+        <section id="temoignages" className="py-32 bg-background relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-32 text-accent opacity-5 pointer-events-none transform translate-x-1/4 -translate-y-1/4">
+            <MessageSquare className="w-96 h-96" />
+          </div>
+          
+          <div className="container mx-auto px-4 relative z-10">
+            <div className="text-center max-w-3xl mx-auto mb-20">
+              <h2 className="text-4xl md:text-5xl font-extrabold text-primary mb-6">Ils ont transformé leur accueil.</h2>
+              <p className="text-xl text-muted-foreground font-medium">
+                Découvrez pourquoi les meilleurs professionnels de l'administration choisissent Agent de Bureau.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {[
+                {
+                  name: "Sophie Laurent",
+                  role: "Office Manager",
+                  company: "Nexus Paris",
+                  image: testimonial1Path,
+                  quote: "Agent de Bureau a complètement transformé notre façon de travailler. Fini les pertes d'informations entre la réception et les collaborateurs. L'interface est belle, rapide et surtout, pensée pour notre métier."
+                },
+                {
+                  name: "Marc Dubreuil",
+                  role: "Directeur Général",
+                  company: "Atelier Tech",
+                  image: testimonial2Path,
+                  quote: "La qualité de l'accueil téléphonique est la première image de notre entreprise. Avec les analytiques d'Agent de Bureau, nous avons réduit notre temps de réponse moyen de 40% en un mois."
+                },
+                {
+                  name: "Claire Fontaine",
+                  role: "Responsable Réception",
+                  company: "Bureaux & Co",
+                  image: testimonial3Path,
+                  quote: "Gérer 50 lignes différentes était un cauchemar quotidien. Le routage intelligent fait le travail à notre place. C'est de loin le meilleur investissement logiciel que nous ayons fait cette année."
+                }
+              ].map((testimonial, i) => (
+                <motion.div 
+                  key={i}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.15 }}
+                  className="bg-card rounded-[2rem] p-8 border border-border shadow-lg flex flex-col h-full"
+                >
+                  <div className="flex gap-1 text-accent mb-6">
                     {[1,2,3,4,5].map(star => (
-                      <span key={star} className="text-2xl">★</span>
+                      <span key={star} className="text-xl">★</span>
                     ))}
                   </div>
-                  <blockquote className="text-2xl font-medium text-foreground leading-snug mb-8">
-                    "Agent de Bureau a complètement transformé notre façon de travailler. Fini les pertes d'informations entre la réception et les collaborateurs. L'interface est belle, rapide et surtout, pensée pour notre métier."
+                  <blockquote className="text-lg font-medium text-foreground leading-relaxed mb-8 flex-grow">
+                    "{testimonial.quote}"
                   </blockquote>
-                  <div>
-                    <div className="font-bold text-xl text-primary">Sophie Laurent</div>
-                    <div className="text-muted-foreground">Office Manager chez Nexus Paris</div>
+                  <div className="flex items-center gap-4 mt-auto">
+                    <img 
+                      src={testimonial.image} 
+                      alt={testimonial.name} 
+                      className="w-14 h-14 rounded-full object-cover border-2 border-primary/10"
+                    />
+                    <div>
+                      <div className="font-bold text-primary">{testimonial.name}</div>
+                      <div className="text-sm text-muted-foreground">{testimonial.role}, {testimonial.company}</div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </motion.div>
+                </motion.div>
+              ))}
+            </div>
           </div>
         </section>
 
-        {/* 9. CTA SECTION */}
-        <section className="py-32 bg-accent text-accent-foreground text-center relative overflow-hidden">
-          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-overlay pointer-events-none"></div>
+        {/* 11. INTEGRATIONS SECTION */}
+        <section id="integrations" className="py-24 bg-muted/30 border-y border-border">
+          <div className="container mx-auto px-4 text-center">
+            <h2 className="text-3xl font-extrabold text-primary mb-12">Connecté à vos outils préférés</h2>
+            <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16">
+              {['Outlook', 'Google Workspace', 'Microsoft Teams', 'Salesforce', 'Slack', 'Zoom'].map((integration, i) => (
+                <div key={i} className="px-6 py-3 bg-card border border-border rounded-xl shadow-sm font-bold text-muted-foreground hover:text-primary hover:border-primary hover:shadow-md transition-all cursor-pointer">
+                  {integration}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* 12. FAQ SECTION */}
+        <section id="faq" className="py-32 bg-background">
+          <div className="container mx-auto px-4 max-w-4xl">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl font-extrabold text-primary mb-6">Questions fréquentes</h2>
+              <p className="text-xl text-muted-foreground font-medium">Tout ce que vous devez savoir avant de vous lancer.</p>
+            </div>
+            
+            <Accordion type="single" collapsible className="w-full space-y-4">
+              {[
+                {
+                  q: "Combien de temps prend la mise en place?",
+                  a: "L'inscription et la configuration initiale prennent moins de 5 minutes. L'importation de vos lignes existantes (portabilité) peut prendre de 3 à 7 jours ouvrés selon votre opérateur actuel, mais nous vous fournissons des numéros temporaires utilisables immédiatement."
+                },
+                {
+                  q: "Puis-je garder mes numéros actuels?",
+                  a: "Absolument. Nous prenons en charge la portabilité gratuite de tous vos numéros fixes et mobiles français. La démarche est entièrement automatisée depuis votre espace client."
+                },
+                {
+                  q: "Comment fonctionne la période d'essai?",
+                  a: "Vous disposez de 14 jours d'essai gratuit sur le plan Professionnel, avec toutes les fonctionnalités débloquées. Aucune carte bancaire n'est requise pour commencer. À la fin de l'essai, vous choisissez le plan qui vous convient."
+                },
+                {
+                  q: "Mes données sont-elles sécurisées?",
+                  a: "La sécurité est notre priorité absolue. Toutes les données sont chiffrées de bout en bout et hébergées exclusivement sur des serveurs situés en France (Paris), en totale conformité avec le RGPD et certifiés ISO 27001."
+                },
+                {
+                  q: "Proposez-vous une formation pour mes équipes?",
+                  a: "L'interface est conçue pour être intuitive dès la première utilisation. Cependant, pour le plan Professionnel et supérieur, nous proposons une session de formation d'intégration (onboarding) gratuite de 45 minutes pour votre équipe."
+                },
+                {
+                  q: "Quelles intégrations sont disponibles?",
+                  a: "Nous nous intégrons nativement avec Google Workspace, Microsoft 365, Slack, et Teams. Notre API ouverte vous permet également de connecter Agent de Bureau à votre propre CRM ou ERP personnalisé."
+                }
+              ].map((faq, i) => (
+                <AccordionItem key={i} value={`item-${i}`} className="bg-card border border-border rounded-xl px-6 data-[state=open]:shadow-md transition-all">
+                  <AccordionTrigger className="text-lg font-bold hover:no-underline hover:text-primary text-left py-6">
+                    {faq.q}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground text-base leading-relaxed pb-6">
+                    {faq.a}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
+        </section>
+
+        {/* 13. SECURITY/COMPLIANCE SECTION */}
+        <section className="py-20 bg-primary/5 border-t border-border">
+          <div className="container mx-auto px-4">
+            <div className="flex flex-col md:flex-row justify-center items-center gap-8 md:gap-16">
+              <div className="flex items-center gap-3 text-foreground font-bold">
+                <ShieldCheck className="w-8 h-8 text-primary" />
+                <span>Conforme RGPD</span>
+              </div>
+              <div className="flex items-center gap-3 text-foreground font-bold">
+                <Lock className="w-8 h-8 text-primary" />
+                <span>Chiffrement SSL 256-bit</span>
+              </div>
+              <div className="flex items-center gap-3 text-foreground font-bold">
+                <Server className="w-8 h-8 text-primary" />
+                <span>Hébergement 100% France</span>
+              </div>
+              <div className="flex items-center gap-3 text-foreground font-bold">
+                <FileText className="w-8 h-8 text-primary" />
+                <span>Certifié ISO 27001</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 14. CTA & NEWSLETTER SECTION */}
+        <section className="py-32 bg-primary text-white text-center relative overflow-hidden">
+          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-15 mix-blend-overlay pointer-events-none"></div>
+          
+          <div className="absolute top-0 right-0 w-96 h-96 bg-accent rounded-full mix-blend-screen filter blur-[150px] opacity-20"></div>
+          
           <div className="container mx-auto px-4 relative z-10">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.6 }}
+              className="max-w-4xl mx-auto"
             >
-              <h2 className="text-4xl md:text-6xl font-extrabold mb-8 tracking-tight max-w-3xl mx-auto leading-tight text-primary">
-                Prêt à moderniser votre accueil ?
+              <h2 className="text-5xl md:text-7xl font-black mb-8 tracking-tight leading-tight">
+                Prêt à moderniser votre <span className="text-accent">accueil</span> ?
               </h2>
-              <p className="text-xl md:text-2xl mb-12 opacity-90 max-w-2xl mx-auto text-primary/80 font-medium">
-                Rejoignez des centaines d'entreprises françaises qui font confiance à Agent de Bureau pour gérer leur secrétariat.
+              <p className="text-xl md:text-2xl mb-12 text-blue-100/90 font-medium leading-relaxed">
+                Rejoignez les entreprises françaises qui ont fait le choix de l'excellence opérationnelle avec Agent de Bureau.
               </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Button size="lg" className="h-16 px-10 text-lg bg-primary text-primary-foreground hover:bg-primary/90 rounded-full w-full sm:w-auto font-bold shadow-2xl hover:shadow-primary/25 hover:-translate-y-1 transition-all">
-                  Commencer l'essai de 14 jours
+              
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-16">
+                <Button size="lg" className="h-16 px-12 text-xl bg-accent text-accent-foreground hover:bg-accent/90 rounded-full w-full sm:w-auto font-bold shadow-[0_0_40px_-10px_rgba(245,158,11,0.6)] hover:scale-105 transition-all">
+                  Commencer gratuitement
                 </Button>
-                <Button size="lg" variant="outline" className="h-16 px-10 text-lg border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground rounded-full w-full sm:w-auto font-bold transition-all">
-                  Contacter les ventes
+                <Button size="lg" variant="outline" className="h-16 px-12 text-xl border-2 border-white/20 text-white hover:bg-white/10 rounded-full w-full sm:w-auto font-bold hover:scale-105 transition-all backdrop-blur-sm">
+                  Parler à un expert
                 </Button>
               </div>
-              <p className="mt-8 text-sm text-primary/70 font-medium flex items-center justify-center gap-2">
-                <ShieldCheck className="w-4 h-4" />
-                Aucune carte de crédit requise. Installation en 2 minutes.
-              </p>
+
+              <div className="max-w-md mx-auto bg-white/5 p-6 rounded-3xl border border-white/10 backdrop-blur-md">
+                <h4 className="text-sm font-bold uppercase tracking-widest text-white/80 mb-4">Restez informé</h4>
+                <div className="flex gap-2">
+                  <Input 
+                    type="email" 
+                    placeholder="votre@email.fr" 
+                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 h-12 rounded-xl focus-visible:ring-accent"
+                  />
+                  <Button className="h-12 bg-white text-primary hover:bg-white/90 rounded-xl font-bold px-6">
+                    S'inscrire
+                  </Button>
+                </div>
+              </div>
             </motion.div>
           </div>
         </section>
