@@ -27,16 +27,21 @@ import type {
   Call,
   CallAnalytics,
   CallDistribution,
+  ConnectWorkspaceService200,
   Contact,
   CreateCallBody,
   CreateContactBody,
   CreateMessageBody,
   CreateTaskBody,
   DashboardSummary,
+  DisconnectWorkspaceService200,
+  GetCalendarEvents200,
   GetCallAnalyticsParams,
   GetContactCalls200,
   GetContactCallsParams,
   GetContactTasks200,
+  GetDriveFiles200,
+  GetGmailMessages200,
   GetHourlyPerformance200,
   GetNotifications200,
   GetRecentActivity200,
@@ -57,6 +62,7 @@ import type {
   RequestAiRecognitionBody,
   RequestAiSuggestionsBody,
   RequestAiValidationBody,
+  SyncWorkspace200,
   Task,
   TaskStats,
   UpdateCallBody,
@@ -64,6 +70,7 @@ import type {
   UpdateMessageBody,
   UpdateTaskBody,
   WeeklyReport,
+  WorkspaceStatus,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -3326,3 +3333,558 @@ export const useAskAiAssistant = <
 > => {
   return useMutation(getAskAiAssistantMutationOptions(options));
 };
+
+/**
+ * @summary Get Google Workspace connection status
+ */
+export const getGetWorkspaceStatusUrl = () => {
+  return `/api/workspace/status`;
+};
+
+export const getWorkspaceStatus = async (
+  options?: RequestInit,
+): Promise<WorkspaceStatus> => {
+  return customFetch<WorkspaceStatus>(getGetWorkspaceStatusUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetWorkspaceStatusQueryKey = () => {
+  return [`/api/workspace/status`] as const;
+};
+
+export const getGetWorkspaceStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getWorkspaceStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWorkspaceStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetWorkspaceStatusQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getWorkspaceStatus>>
+  > = ({ signal }) => getWorkspaceStatus({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getWorkspaceStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetWorkspaceStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getWorkspaceStatus>>
+>;
+export type GetWorkspaceStatusQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get Google Workspace connection status
+ */
+
+export function useGetWorkspaceStatus<
+  TData = Awaited<ReturnType<typeof getWorkspaceStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getWorkspaceStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetWorkspaceStatusQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Initiate Google service connection
+ */
+export const getConnectWorkspaceServiceUrl = (serviceId: string) => {
+  return `/api/workspace/connect/${serviceId}`;
+};
+
+export const connectWorkspaceService = async (
+  serviceId: string,
+  options?: RequestInit,
+): Promise<ConnectWorkspaceService200> => {
+  return customFetch<ConnectWorkspaceService200>(
+    getConnectWorkspaceServiceUrl(serviceId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getConnectWorkspaceServiceMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof connectWorkspaceService>>,
+    TError,
+    { serviceId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof connectWorkspaceService>>,
+  TError,
+  { serviceId: string },
+  TContext
+> => {
+  const mutationKey = ["connectWorkspaceService"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof connectWorkspaceService>>,
+    { serviceId: string }
+  > = (props) => {
+    const { serviceId } = props ?? {};
+
+    return connectWorkspaceService(serviceId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ConnectWorkspaceServiceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof connectWorkspaceService>>
+>;
+
+export type ConnectWorkspaceServiceMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Initiate Google service connection
+ */
+export const useConnectWorkspaceService = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof connectWorkspaceService>>,
+    TError,
+    { serviceId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof connectWorkspaceService>>,
+  TError,
+  { serviceId: string },
+  TContext
+> => {
+  return useMutation(getConnectWorkspaceServiceMutationOptions(options));
+};
+
+/**
+ * @summary Disconnect a Google service
+ */
+export const getDisconnectWorkspaceServiceUrl = (serviceId: string) => {
+  return `/api/workspace/disconnect/${serviceId}`;
+};
+
+export const disconnectWorkspaceService = async (
+  serviceId: string,
+  options?: RequestInit,
+): Promise<DisconnectWorkspaceService200> => {
+  return customFetch<DisconnectWorkspaceService200>(
+    getDisconnectWorkspaceServiceUrl(serviceId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getDisconnectWorkspaceServiceMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof disconnectWorkspaceService>>,
+    TError,
+    { serviceId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof disconnectWorkspaceService>>,
+  TError,
+  { serviceId: string },
+  TContext
+> => {
+  const mutationKey = ["disconnectWorkspaceService"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof disconnectWorkspaceService>>,
+    { serviceId: string }
+  > = (props) => {
+    const { serviceId } = props ?? {};
+
+    return disconnectWorkspaceService(serviceId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DisconnectWorkspaceServiceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof disconnectWorkspaceService>>
+>;
+
+export type DisconnectWorkspaceServiceMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Disconnect a Google service
+ */
+export const useDisconnectWorkspaceService = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof disconnectWorkspaceService>>,
+    TError,
+    { serviceId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof disconnectWorkspaceService>>,
+  TError,
+  { serviceId: string },
+  TContext
+> => {
+  return useMutation(getDisconnectWorkspaceServiceMutationOptions(options));
+};
+
+/**
+ * @summary Trigger workspace synchronization
+ */
+export const getSyncWorkspaceUrl = () => {
+  return `/api/workspace/sync`;
+};
+
+export const syncWorkspace = async (
+  options?: RequestInit,
+): Promise<SyncWorkspace200> => {
+  return customFetch<SyncWorkspace200>(getSyncWorkspaceUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getSyncWorkspaceMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncWorkspace>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof syncWorkspace>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["syncWorkspace"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof syncWorkspace>>,
+    void
+  > = () => {
+    return syncWorkspace(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SyncWorkspaceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof syncWorkspace>>
+>;
+
+export type SyncWorkspaceMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Trigger workspace synchronization
+ */
+export const useSyncWorkspace = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncWorkspace>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof syncWorkspace>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getSyncWorkspaceMutationOptions(options));
+};
+
+/**
+ * @summary List Google Calendar events
+ */
+export const getGetCalendarEventsUrl = () => {
+  return `/api/workspace/calendar/events`;
+};
+
+export const getCalendarEvents = async (
+  options?: RequestInit,
+): Promise<GetCalendarEvents200> => {
+  return customFetch<GetCalendarEvents200>(getGetCalendarEventsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCalendarEventsQueryKey = () => {
+  return [`/api/workspace/calendar/events`] as const;
+};
+
+export const getGetCalendarEventsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCalendarEvents>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCalendarEvents>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCalendarEventsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getCalendarEvents>>
+  > = ({ signal }) => getCalendarEvents({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCalendarEvents>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCalendarEventsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCalendarEvents>>
+>;
+export type GetCalendarEventsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List Google Calendar events
+ */
+
+export function useGetCalendarEvents<
+  TData = Awaited<ReturnType<typeof getCalendarEvents>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCalendarEvents>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCalendarEventsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List Gmail messages
+ */
+export const getGetGmailMessagesUrl = () => {
+  return `/api/workspace/gmail/messages`;
+};
+
+export const getGmailMessages = async (
+  options?: RequestInit,
+): Promise<GetGmailMessages200> => {
+  return customFetch<GetGmailMessages200>(getGetGmailMessagesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetGmailMessagesQueryKey = () => {
+  return [`/api/workspace/gmail/messages`] as const;
+};
+
+export const getGetGmailMessagesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getGmailMessages>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getGmailMessages>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetGmailMessagesQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getGmailMessages>>
+  > = ({ signal }) => getGmailMessages({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getGmailMessages>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetGmailMessagesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getGmailMessages>>
+>;
+export type GetGmailMessagesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List Gmail messages
+ */
+
+export function useGetGmailMessages<
+  TData = Awaited<ReturnType<typeof getGmailMessages>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getGmailMessages>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetGmailMessagesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List Google Drive files
+ */
+export const getGetDriveFilesUrl = () => {
+  return `/api/workspace/drive/files`;
+};
+
+export const getDriveFiles = async (
+  options?: RequestInit,
+): Promise<GetDriveFiles200> => {
+  return customFetch<GetDriveFiles200>(getGetDriveFilesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetDriveFilesQueryKey = () => {
+  return [`/api/workspace/drive/files`] as const;
+};
+
+export const getGetDriveFilesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDriveFiles>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getDriveFiles>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetDriveFilesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getDriveFiles>>> = ({
+    signal,
+  }) => getDriveFiles({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDriveFiles>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDriveFilesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDriveFiles>>
+>;
+export type GetDriveFilesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List Google Drive files
+ */
+
+export function useGetDriveFiles<
+  TData = Awaited<ReturnType<typeof getDriveFiles>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getDriveFiles>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDriveFilesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}

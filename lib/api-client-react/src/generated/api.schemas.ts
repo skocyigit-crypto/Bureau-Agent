@@ -671,6 +671,30 @@ export interface AiAssistantResponse {
   actions: AiAssistantResponseActionsItem[];
 }
 
+export type WorkspaceServiceStatus =
+  (typeof WorkspaceServiceStatus)[keyof typeof WorkspaceServiceStatus];
+
+export const WorkspaceServiceStatus = {
+  connecte: "connecte",
+  deconnecte: "deconnecte",
+  en_attente: "en_attente",
+} as const;
+
+export interface WorkspaceService {
+  id: string;
+  name: string;
+  status: WorkspaceServiceStatus;
+  lastSync?: string | null;
+  scope?: string;
+}
+
+export interface WorkspaceStatus {
+  connected: boolean;
+  services: WorkspaceService[];
+  syncEnabled: boolean;
+  lastGlobalSync?: string | null;
+}
+
 export type ListCallsParams = {
   status?: ListCallsStatus;
   limit?: number;
@@ -977,4 +1001,46 @@ export type RequestAiRecognitionBody = { [key: string]: unknown };
 export type AskAiAssistantBody = {
   question: string;
   currentPage?: string;
+};
+
+export type ConnectWorkspaceService200 = {
+  status?: string;
+  message?: string;
+  authUrl?: string;
+  service?: string;
+};
+
+export type DisconnectWorkspaceService200 = {
+  status?: string;
+  message?: string;
+};
+
+export type SyncWorkspace200 = {
+  status?: string;
+  message?: string;
+  startedAt?: string;
+};
+
+export type GetCalendarEvents200EventsItem = { [key: string]: unknown };
+
+export type GetCalendarEvents200 = {
+  events?: GetCalendarEvents200EventsItem[];
+  message?: string;
+  connected?: boolean;
+};
+
+export type GetGmailMessages200MessagesItem = { [key: string]: unknown };
+
+export type GetGmailMessages200 = {
+  messages?: GetGmailMessages200MessagesItem[];
+  message?: string;
+  connected?: boolean;
+};
+
+export type GetDriveFiles200FilesItem = { [key: string]: unknown };
+
+export type GetDriveFiles200 = {
+  files?: GetDriveFiles200FilesItem[];
+  message?: string;
+  connected?: boolean;
 };

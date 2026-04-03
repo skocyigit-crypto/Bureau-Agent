@@ -13,6 +13,7 @@ import ContactDetail from "@/pages/contact-detail";
 import Tasks from "@/pages/tasks";
 import Messages from "@/pages/messages";
 import Analytics from "@/pages/analytics";
+import SettingsPage from "@/pages/settings";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ function Router() {
         <Route path="/taches" component={Tasks} />
         <Route path="/messages" component={Messages} />
         <Route path="/analyse" component={Analytics} />
+        <Route path="/parametres" component={SettingsPage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

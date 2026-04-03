@@ -914,3 +914,83 @@ export const AskAiAssistantResponse = zod.object({
     }),
   ),
 });
+
+/**
+ * @summary Get Google Workspace connection status
+ */
+export const GetWorkspaceStatusResponse = zod.object({
+  connected: zod.boolean(),
+  services: zod.array(
+    zod.object({
+      id: zod.string(),
+      name: zod.string(),
+      status: zod.enum(["connecte", "deconnecte", "en_attente"]),
+      lastSync: zod.string().nullish(),
+      scope: zod.string().optional(),
+    }),
+  ),
+  syncEnabled: zod.boolean(),
+  lastGlobalSync: zod.string().nullish(),
+});
+
+/**
+ * @summary Initiate Google service connection
+ */
+export const ConnectWorkspaceServiceParams = zod.object({
+  serviceId: zod.coerce.string(),
+});
+
+export const ConnectWorkspaceServiceResponse = zod.object({
+  status: zod.string().optional(),
+  message: zod.string().optional(),
+  authUrl: zod.string().optional(),
+  service: zod.string().optional(),
+});
+
+/**
+ * @summary Disconnect a Google service
+ */
+export const DisconnectWorkspaceServiceParams = zod.object({
+  serviceId: zod.coerce.string(),
+});
+
+export const DisconnectWorkspaceServiceResponse = zod.object({
+  status: zod.string().optional(),
+  message: zod.string().optional(),
+});
+
+/**
+ * @summary Trigger workspace synchronization
+ */
+export const SyncWorkspaceResponse = zod.object({
+  status: zod.string().optional(),
+  message: zod.string().optional(),
+  startedAt: zod.string().optional(),
+});
+
+/**
+ * @summary List Google Calendar events
+ */
+export const GetCalendarEventsResponse = zod.object({
+  events: zod.array(zod.object({}).passthrough()).optional(),
+  message: zod.string().optional(),
+  connected: zod.boolean().optional(),
+});
+
+/**
+ * @summary List Gmail messages
+ */
+export const GetGmailMessagesResponse = zod.object({
+  messages: zod.array(zod.object({}).passthrough()).optional(),
+  message: zod.string().optional(),
+  connected: zod.boolean().optional(),
+});
+
+/**
+ * @summary List Google Drive files
+ */
+export const GetDriveFilesResponse = zod.object({
+  files: zod.array(zod.object({}).passthrough()).optional(),
+  message: zod.string().optional(),
+  connected: zod.boolean().optional(),
+});

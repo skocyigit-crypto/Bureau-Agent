@@ -6,6 +6,7 @@ import tasksRouter from "./tasks";
 import messagesRouter from "./messages";
 import dashboardRouter from "./dashboard";
 import aiAnalysisRouter from "./ai-analysis";
+import workspaceRouter from "./workspace";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(tasksRouter);
 router.use(messagesRouter);
 router.use(dashboardRouter);
 router.use(aiAnalysisRouter);
+router.use("/workspace", workspaceRouter);
 
 export default router;

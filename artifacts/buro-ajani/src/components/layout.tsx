@@ -1,16 +1,26 @@
+import { createContext, useContext } from "react";
 import { Link, useLocation } from "wouter";
-import { Phone, Users, CheckSquare, MessageSquare, BarChart, Bell, Search, LayoutDashboard } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, BarChart, Bell, Search, LayoutDashboard, Settings, PhoneIncoming } from "lucide-react";
 import { AiAssistantButton } from "@/components/ai-assistant";
 import { AiHealthBadge, RecognitionProvider } from "@/components/ai-recognition-panel";
+import { IncomingCallOverlay, useIncomingCall } from "@/components/incoming-call-overlay";
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarTrigger, SidebarGroup, SidebarGroupLabel, SidebarGroupContent } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { useGetNotifications } from "@workspace/api-client-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
+type IncomingCallContextType = { simulateIncomingCall: (phone?: string) => void };
+const IncomingCallContext = createContext<IncomingCallContextType>({ simulateIncomingCall: () => {} });
+export const useSimulateCall = () => useContext(IncomingCallContext);
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { data: notifsData } = useGetNotifications({ query: { queryKey: ["notifications"] } });
+
+  const incomingCall = useIncomingCall();
 
   const navigation = [
     { name: "Tableau de bord", href: "/", icon: LayoutDashboard },
@@ -19,9 +29,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { name: "Tâches", href: "/taches", icon: CheckSquare },
     { name: "Messages", href: "/messages", icon: MessageSquare },
     { name: "Analyse", href: "/analyse", icon: BarChart },
+    { name: "Parametres", href: "/parametres", icon: Settings },
   ];
 
   return (
+    <IncomingCallContext.Provider value={{ simulateIncomingCall: incomingCall.simulateIncomingCall }}>
     <RecognitionProvider>
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
@@ -76,6 +88,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
             <div className="flex items-center gap-4">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="relative text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                    onClick={() => incomingCall.simulateIncomingCall()}
+                  >
+                    <PhoneIncoming className="w-5 h-5" />
+                    <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Simuler un appel entrant</TooltipContent>
+              </Tooltip>
               <AiHealthBadge />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -129,5 +155,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </div>
     </SidebarProvider>
     </RecognitionProvider>
+    <IncomingCallOverlay
+      isVisible={incomingCall.isVisible}
+      callData={incomingCall.callData}
+      onClose={incomingCall.closeCall}
+    />
+    </IncomingCallContext.Provider>
   );
 }
