@@ -373,11 +373,9 @@ Rapports des agents:\n${JSON.stringify(reportsSummary, null, 2)}`
 
 router.post("/ai/agents/run", async (_req, res) => {
   try {
-    const childReports = [];
-    for (const agent of AGENTS) {
-      const report = await runSingleAgent(agent);
-      childReports.push(report);
-    }
+    const childReports = await Promise.all(
+      AGENTS.map(agent => runSingleAgent(agent))
+    );
 
     const superReport = await runSuperAgent(childReports);
 
