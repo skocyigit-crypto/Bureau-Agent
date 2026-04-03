@@ -5,7 +5,8 @@ import {
   Presentation, RefreshCw, PhoneIncoming, Clock, Lock, ShieldAlert,
   ShieldCheck, ShieldBan, FileWarning, Download, Upload, Bug, Eye, UserCog,
   AlertTriangle, Server, KeyRound, Fingerprint, ScanSearch, FileX, Ban,
-  TriangleAlert, CircleAlert
+  TriangleAlert, CircleAlert, Monitor, Laptop, Smartphone, Wifi, HardDrive,
+  CloudDownload, Apple, Share2, Package, Cpu, RefreshCcw, CheckCheck
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -183,7 +184,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
           <TabsTrigger value="google" className="gap-2">
             <Globe className="w-4 h-4" />
             Google Workspace
@@ -191,6 +192,10 @@ export default function SettingsPage() {
           <TabsTrigger value="appels" className="gap-2">
             <PhoneIncoming className="w-4 h-4" />
             Appels
+          </TabsTrigger>
+          <TabsTrigger value="installation" className="gap-2">
+            <Monitor className="w-4 h-4" />
+            Installation
           </TabsTrigger>
           <TabsTrigger value="notifications" className="gap-2">
             <Bell className="w-4 h-4" />
@@ -802,6 +807,432 @@ export default function SettingsPage() {
                 <div>
                   <Label>Detection des rappels necessaires</Label>
                   <p className="text-xs text-muted-foreground">L'IA detecte si un rappel est necessaire et cree la tache</p>
+                </div>
+                <Switch defaultChecked />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="installation" className="space-y-6 mt-6">
+          <Card className="border-blue-200 dark:border-blue-900/50">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Laptop className="w-5 h-5 text-blue-600" />
+                    Installation sur Mac
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    Installez Agent de Bureau et Google Workspace sur votre Mac pour une experience native.
+                    Toutes les fonctionnalites, la securite et les integrations sont preservees.
+                  </CardDescription>
+                </div>
+                <Badge variant="outline" className="text-xs gap-1">
+                  <Monitor className="w-3 h-3" />
+                  macOS compatible
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="border rounded-xl p-5 hover:border-blue-300 transition-colors relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 dark:bg-blue-950/20 rounded-bl-full" />
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2.5 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                        <Package className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-sm">Application native macOS</h3>
+                        <p className="text-[10px] text-muted-foreground">Application universelle (Apple Silicon + Intel)</p>
+                      </div>
+                    </div>
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <CheckCheck className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Fonctionne hors connexion (mode degrade)</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <CheckCheck className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Notifications natives macOS</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <CheckCheck className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Integration Dock et barre des menus</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <CheckCheck className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Raccourcis clavier Mac (Cmd+K, Cmd+N...)</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <CheckCheck className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Synchronisation automatique avec le cloud</span>
+                      </div>
+                    </div>
+                    <Button
+                      className="w-full gap-2"
+                      onClick={() => toast({
+                        title: "Telechargement en cours",
+                        description: "Le fichier AgentDeBureau-v2.4.dmg est en cours de telechargement...",
+                      })}
+                    >
+                      <CloudDownload className="w-4 h-4" />
+                      Telecharger pour Mac (.dmg)
+                    </Button>
+                    <p className="text-[10px] text-muted-foreground text-center mt-2">
+                      Version 2.4.0 - macOS 13 Ventura ou superieur - 89 Mo
+                    </p>
+                  </div>
+                </div>
+
+                <div className="border rounded-xl p-5 hover:border-emerald-300 transition-colors relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50 dark:bg-emerald-950/20 rounded-bl-full" />
+                  <div className="relative">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+                        <Globe className="w-5 h-5 text-emerald-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-sm">Application Web Progressive (PWA)</h3>
+                        <p className="text-[10px] text-muted-foreground">Installation directe depuis le navigateur</p>
+                      </div>
+                    </div>
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <CheckCheck className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Installation en un clic depuis Safari/Chrome</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <CheckCheck className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Mises a jour automatiques</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <CheckCheck className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Apparait dans le Launchpad Mac</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <CheckCheck className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Aucun telechargement supplementaire</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <CheckCheck className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Toujours la derniere version</span>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="w-full gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+                      onClick={() => toast({
+                        title: "Installation PWA",
+                        description: "Cliquez sur 'Partager' dans votre navigateur puis 'Ajouter au Dock' pour installer l'application.",
+                      })}
+                    >
+                      <Share2 className="w-4 h-4" />
+                      Installer comme application
+                    </Button>
+                    <p className="text-[10px] text-muted-foreground text-center mt-2">
+                      Safari : Partager &gt; Ajouter au Dock | Chrome : Menu &gt; Installer
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Globe className="w-5 h-5 text-blue-600" />
+                Migration Google Workspace vers Mac
+              </CardTitle>
+              <CardDescription>
+                Transferez l'ensemble de votre configuration Google Workspace sur votre Mac.
+                Tous les parametres, connexions et donnees de securite sont migres automatiquement.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-lg p-4">
+                <h4 className="font-semibold text-sm text-blue-800 dark:text-blue-300 mb-2">Elements migres automatiquement :</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-400">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Comptes Google connectes</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-400">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Parametres de securite</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-400">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Configuration antivirus</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-400">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Regles DLP et phishing</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-400">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Roles et permissions</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-400">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Historique des appels</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-400">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Contacts et taches</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-400">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Integrations logicielles</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium">Processus de migration</h4>
+
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 flex items-center justify-center text-sm font-bold shrink-0">1</div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <h5 className="text-sm font-medium">Exporter la configuration</h5>
+                        <Badge className="bg-emerald-100 text-emerald-700 border-0 text-[10px]">
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          Disponible
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Generer un fichier de configuration chiffre contenant tous vos parametres Workspace.</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 gap-2"
+                        onClick={() => toast({
+                          title: "Export en cours",
+                          description: "Generation du fichier agent-bureau-config.enc en cours...",
+                        })}
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Exporter (.enc)
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 flex items-center justify-center text-sm font-bold shrink-0">2</div>
+                    <div className="flex-1">
+                      <h5 className="text-sm font-medium">Installer sur Mac</h5>
+                      <p className="text-xs text-muted-foreground mt-1">Telecharger et installer l'application Agent de Bureau sur votre Mac.</p>
+                      <div className="flex gap-2 mt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-2"
+                          onClick={() => toast({
+                            title: "Telechargement",
+                            description: "AgentDeBureau-v2.4-arm64.dmg (Apple Silicon) en cours...",
+                          })}
+                        >
+                          <Cpu className="w-3.5 h-3.5" />
+                          Apple Silicon (M1/M2/M3/M4)
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-2"
+                          onClick={() => toast({
+                            title: "Telechargement",
+                            description: "AgentDeBureau-v2.4-x64.dmg (Intel) en cours...",
+                          })}
+                        >
+                          <HardDrive className="w-3.5 h-3.5" />
+                          Intel
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-start gap-4">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 flex items-center justify-center text-sm font-bold shrink-0">3</div>
+                    <div className="flex-1">
+                      <h5 className="text-sm font-medium">Importer la configuration</h5>
+                      <p className="text-xs text-muted-foreground mt-1">Ouvrez l'application sur Mac et importez le fichier de configuration chiffre. Vos identifiants Google seront automatiquement restaures.</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 gap-2"
+                        onClick={() => toast({
+                          title: "Import",
+                          description: "Selectionnez le fichier .enc exporte a l'etape 1 pour restaurer votre configuration.",
+                        })}
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        Importer (.enc)
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-4 border-emerald-200 dark:border-emerald-800 bg-emerald-50/30 dark:bg-emerald-950/10">
+                  <div className="flex items-start gap-4">
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 flex items-center justify-center text-sm font-bold shrink-0">4</div>
+                    <div className="flex-1">
+                      <h5 className="text-sm font-medium">Verification et synchronisation</h5>
+                      <p className="text-xs text-muted-foreground mt-1">L'application verifie la connexion Google Workspace, restaure les services et synchronise les donnees. Le processus est entierement automatique.</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                        onClick={() => toast({
+                          title: "Verification",
+                          description: "Test de connexion et synchronisation avec Google Workspace...",
+                        })}
+                      >
+                        <RefreshCcw className="w-3.5 h-3.5" />
+                        Verifier la migration
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Smartphone className="w-5 h-5" />
+                Compatibilite des appareils
+              </CardTitle>
+              <CardDescription>
+                Agent de Bureau est disponible sur toutes les plateformes. Google Workspace suit l'utilisateur.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="border rounded-lg p-4 text-center">
+                  <div className="mx-auto w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-3">
+                    <Laptop className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <h4 className="font-semibold text-sm">macOS</h4>
+                  <p className="text-xs text-muted-foreground mt-1">Application native ou PWA</p>
+                  <div className="mt-3 space-y-1">
+                    <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-600">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>Apple Silicon</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-600">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>Intel x86_64</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-600">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>macOS 13+</span>
+                    </div>
+                  </div>
+                  <Badge className="mt-3 bg-blue-100 text-blue-700 border-0 text-[10px]">Recommande</Badge>
+                </div>
+
+                <div className="border rounded-lg p-4 text-center">
+                  <div className="mx-auto w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-3">
+                    <Monitor className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <h4 className="font-semibold text-sm">Windows</h4>
+                  <p className="text-xs text-muted-foreground mt-1">Application desktop ou PWA</p>
+                  <div className="mt-3 space-y-1">
+                    <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-600">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>Windows 10/11</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-600">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>x86_64 / ARM</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-600">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>.msi installer</span>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="mt-3 text-[10px]">Disponible</Badge>
+                </div>
+
+                <div className="border rounded-lg p-4 text-center">
+                  <div className="mx-auto w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-3">
+                    <Smartphone className="w-6 h-6 text-amber-600" />
+                  </div>
+                  <h4 className="font-semibold text-sm">Mobile</h4>
+                  <p className="text-xs text-muted-foreground mt-1">iOS et Android</p>
+                  <div className="mt-3 space-y-1">
+                    <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-600">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>iPhone / iPad</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-600">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>Android 12+</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-600">
+                      <CheckCircle2 className="w-3 h-3" />
+                      <span>PWA ou App Store</span>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="mt-3 text-[10px]">Bientot</Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <RefreshCcw className="w-5 h-5" />
+                Synchronisation multi-appareils
+              </CardTitle>
+              <CardDescription>Vos donnees et parametres Google Workspace sont synchronises en temps reel entre tous vos appareils.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Synchronisation en temps reel</Label>
+                  <p className="text-xs text-muted-foreground">Les modifications sont propagees instantanement a tous les appareils connectes</p>
+                </div>
+                <Switch defaultChecked />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Mode hors connexion</Label>
+                  <p className="text-xs text-muted-foreground">Continuer a travailler sans Internet, synchronisation au retour du reseau</p>
+                </div>
+                <Switch defaultChecked />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Chiffrement de bout en bout</Label>
+                  <p className="text-xs text-muted-foreground">Les donnees transferees entre appareils sont chiffrees en AES-256</p>
+                </div>
+                <Switch defaultChecked />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Transfert automatique de session</Label>
+                  <p className="text-xs text-muted-foreground">Passez d'un appareil a l'autre sans vous reconnecter (meme compte Google)</p>
+                </div>
+                <Switch defaultChecked />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Conservation des preferences par appareil</Label>
+                  <p className="text-xs text-muted-foreground">Chaque appareil garde ses propres preferences d'affichage et de notifications</p>
                 </div>
                 <Switch defaultChecked />
               </div>
