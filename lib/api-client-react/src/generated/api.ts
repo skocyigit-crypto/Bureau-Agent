@@ -17,6 +17,7 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  ActivitySummary,
   AiAnalysisResult,
   AiAssistantResponse,
   AiEmailDraft,
@@ -34,7 +35,12 @@ import type {
   CreateContactBody,
   CreateMessageBody,
   CreateTaskBody,
+  DailyReport,
+  DailyReportRequest,
+  DailyReportResponse,
+  DailyReportsList,
   DashboardSummary,
+  DeleteDailyReport200,
   DisconnectWorkspaceService200,
   DraftAiEmailBody,
   GetCalendarEvents200,
@@ -55,6 +61,7 @@ import type {
   ListCallsParams,
   ListContacts200,
   ListContactsParams,
+  ListDailyReportsParams,
   ListMessages200,
   ListMessagesParams,
   ListTasks200,
@@ -3969,6 +3976,435 @@ export function useGetDriveFiles<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetDriveFilesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Generate AI daily report for a specific date
+ */
+export const getGenerateDailyReportUrl = () => {
+  return `/api/workspace/daily-report`;
+};
+
+export const generateDailyReport = async (
+  dailyReportRequest: DailyReportRequest,
+  options?: RequestInit,
+): Promise<DailyReportResponse> => {
+  return customFetch<DailyReportResponse>(getGenerateDailyReportUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(dailyReportRequest),
+  });
+};
+
+export const getGenerateDailyReportMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateDailyReport>>,
+    TError,
+    { data: BodyType<DailyReportRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateDailyReport>>,
+  TError,
+  { data: BodyType<DailyReportRequest> },
+  TContext
+> => {
+  const mutationKey = ["generateDailyReport"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateDailyReport>>,
+    { data: BodyType<DailyReportRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return generateDailyReport(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateDailyReportMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateDailyReport>>
+>;
+export type GenerateDailyReportMutationBody = BodyType<DailyReportRequest>;
+export type GenerateDailyReportMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Generate AI daily report for a specific date
+ */
+export const useGenerateDailyReport = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateDailyReport>>,
+    TError,
+    { data: BodyType<DailyReportRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof generateDailyReport>>,
+  TError,
+  { data: BodyType<DailyReportRequest> },
+  TContext
+> => {
+  return useMutation(getGenerateDailyReportMutationOptions(options));
+};
+
+/**
+ * @summary List all daily reports
+ */
+export const getListDailyReportsUrl = (params?: ListDailyReportsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/workspace/daily-reports?${stringifiedParams}`
+    : `/api/workspace/daily-reports`;
+};
+
+export const listDailyReports = async (
+  params?: ListDailyReportsParams,
+  options?: RequestInit,
+): Promise<DailyReportsList> => {
+  return customFetch<DailyReportsList>(getListDailyReportsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListDailyReportsQueryKey = (
+  params?: ListDailyReportsParams,
+) => {
+  return [`/api/workspace/daily-reports`, ...(params ? [params] : [])] as const;
+};
+
+export const getListDailyReportsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listDailyReports>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListDailyReportsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listDailyReports>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListDailyReportsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listDailyReports>>
+  > = ({ signal }) => listDailyReports(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listDailyReports>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListDailyReportsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listDailyReports>>
+>;
+export type ListDailyReportsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all daily reports
+ */
+
+export function useListDailyReports<
+  TData = Awaited<ReturnType<typeof listDailyReports>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListDailyReportsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listDailyReports>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListDailyReportsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get a specific daily report
+ */
+export const getGetDailyReportUrl = (id: number) => {
+  return `/api/workspace/daily-reports/${id}`;
+};
+
+export const getDailyReport = async (
+  id: number,
+  options?: RequestInit,
+): Promise<DailyReport> => {
+  return customFetch<DailyReport>(getGetDailyReportUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetDailyReportQueryKey = (id: number) => {
+  return [`/api/workspace/daily-reports/${id}`] as const;
+};
+
+export const getGetDailyReportQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDailyReport>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDailyReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetDailyReportQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getDailyReport>>> = ({
+    signal,
+  }) => getDailyReport(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDailyReport>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDailyReportQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDailyReport>>
+>;
+export type GetDailyReportQueryError = ErrorType<void>;
+
+/**
+ * @summary Get a specific daily report
+ */
+
+export function useGetDailyReport<
+  TData = Awaited<ReturnType<typeof getDailyReport>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDailyReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDailyReportQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Delete a daily report
+ */
+export const getDeleteDailyReportUrl = (id: number) => {
+  return `/api/workspace/daily-reports/${id}`;
+};
+
+export const deleteDailyReport = async (
+  id: number,
+  options?: RequestInit,
+): Promise<DeleteDailyReport200> => {
+  return customFetch<DeleteDailyReport200>(getDeleteDailyReportUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteDailyReportMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteDailyReport>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteDailyReport>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteDailyReport"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteDailyReport>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteDailyReport(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteDailyReportMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteDailyReport>>
+>;
+
+export type DeleteDailyReportMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete a daily report
+ */
+export const useDeleteDailyReport = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteDailyReport>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteDailyReport>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteDailyReportMutationOptions(options));
+};
+
+/**
+ * @summary Get workspace activity summary with today's data and weekly trends
+ */
+export const getGetActivitySummaryUrl = () => {
+  return `/api/workspace/activity-summary`;
+};
+
+export const getActivitySummary = async (
+  options?: RequestInit,
+): Promise<ActivitySummary> => {
+  return customFetch<ActivitySummary>(getGetActivitySummaryUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetActivitySummaryQueryKey = () => {
+  return [`/api/workspace/activity-summary`] as const;
+};
+
+export const getGetActivitySummaryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getActivitySummary>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getActivitySummary>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetActivitySummaryQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getActivitySummary>>
+  > = ({ signal }) => getActivitySummary({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getActivitySummary>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetActivitySummaryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getActivitySummary>>
+>;
+export type GetActivitySummaryQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get workspace activity summary with today's data and weekly trends
+ */
+
+export function useGetActivitySummary<
+  TData = Awaited<ReturnType<typeof getActivitySummary>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getActivitySummary>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetActivitySummaryQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

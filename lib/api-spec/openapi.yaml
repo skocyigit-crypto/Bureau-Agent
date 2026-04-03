@@ -1128,6 +1128,104 @@ paths:
                   connected:
                     type: boolean
 
+  /workspace/daily-report:
+    post:
+      operationId: generateDailyReport
+      tags: [workspace]
+      summary: Generate AI daily report for a specific date
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DailyReportRequest"
+      responses:
+        "200":
+          description: Generated daily report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyReportResponse"
+
+  /workspace/daily-reports:
+    get:
+      operationId: listDailyReports
+      tags: [workspace]
+      summary: List all daily reports
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 30
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of daily reports
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyReportsList"
+
+  /workspace/daily-reports/{id}:
+    get:
+      operationId: getDailyReport
+      tags: [workspace]
+      summary: Get a specific daily report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Daily report detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyReport"
+        "404":
+          description: Report not found
+    delete:
+      operationId: deleteDailyReport
+      tags: [workspace]
+      summary: Delete a daily report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Report deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+
+  /workspace/activity-summary:
+    get:
+      operationId: getActivitySummary
+      tags: [workspace]
+      summary: Get workspace activity summary with today's data and weekly trends
+      responses:
+        "200":
+          description: Activity summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivitySummary"
+
 components:
   schemas:
     HealthStatus:
@@ -1976,3 +2074,171 @@ components:
                 type: string
             required: [label, objet, corps]
       required: [objet, corps, destinataire, tonUtilise, resumeIA, suggestionsAlternatives]
+
+    DailyReportRequest:
+      type: object
+      properties:
+        date:
+          type: string
+          description: Date au format AAAA-MM-JJ. Par defaut aujourd'hui.
+
+    DailyReport:
+      type: object
+      properties:
+        id:
+          type: integer
+        reportDate:
+          type: string
+        summary:
+          type: string
+        highlights:
+          type: array
+          items:
+            type: string
+        metrics:
+          type: object
+        aiInsights:
+          type: string
+        aiRecommendations:
+          type: array
+          items:
+            type: object
+            properties:
+              titre:
+                type: string
+              description:
+                type: string
+              priorite:
+                type: string
+                enum: [haute, moyenne, basse]
+              categorie:
+                type: string
+                enum: [appels, taches, messages, contacts, general]
+            required: [titre, description, priorite, categorie]
+        callsCount:
+          type: integer
+        tasksCompleted:
+          type: integer
+        tasksCreated:
+          type: integer
+        messagesCount:
+          type: integer
+        contactsAdded:
+          type: integer
+        avgCallDuration:
+          type: integer
+        answerRate:
+          type: integer
+        score:
+          type: integer
+        status:
+          type: string
+        createdAt:
+          type: string
+      required: [id, reportDate, summary, score, status]
+
+    DailyReportResponse:
+      type: object
+      properties:
+        report:
+          $ref: "#/components/schemas/DailyReport"
+        aiAnalysis:
+          type: object
+          properties:
+            resume:
+              type: string
+            pointsForts:
+              type: array
+              items:
+                type: string
+            pointsAttention:
+              type: array
+              items:
+                type: string
+            recommandations:
+              type: array
+              items:
+                type: object
+                properties:
+                  titre:
+                    type: string
+                  description:
+                    type: string
+                  priorite:
+                    type: string
+                  categorie:
+                    type: string
+                required: [titre, description, priorite, categorie]
+            activites:
+              type: array
+              items:
+                type: object
+                properties:
+                  heure:
+                    type: string
+                  description:
+                    type: string
+                  categorie:
+                    type: string
+                required: [heure, description, categorie]
+            scorePerformance:
+              type: integer
+            tendance:
+              type: string
+              enum: [hausse, stable, baisse]
+            prochainePriorite:
+              type: string
+          required: [resume, scorePerformance, tendance]
+        rawData:
+          type: object
+      required: [report, aiAnalysis]
+
+    DailyReportsList:
+      type: object
+      properties:
+        reports:
+          type: array
+          items:
+            $ref: "#/components/schemas/DailyReport"
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+      required: [reports, total]
+
+    ActivitySummary:
+      type: object
+      properties:
+        today:
+          type: object
+        weekReports:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              date:
+                type: string
+              score:
+                type: integer
+              callsCount:
+                type: integer
+              tasksCompleted:
+                type: integer
+              messagesCount:
+                type: integer
+              summary:
+                type: string
+            required: [id, date, score]
+        weekStats:
+          type: object
+          properties:
+            avgScore:
+              type: integer
+            totalReports:
+              type: integer
+          required: [avgScore, totalReports]
+      required: [today, weekReports, weekStats]

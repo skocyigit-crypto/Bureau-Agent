@@ -1035,3 +1035,207 @@ export const GetDriveFilesResponse = zod.object({
   message: zod.string().optional(),
   connected: zod.boolean().optional(),
 });
+
+/**
+ * @summary Generate AI daily report for a specific date
+ */
+export const GenerateDailyReportBody = zod.object({
+  date: zod
+    .string()
+    .optional()
+    .describe("Date au format AAAA-MM-JJ. Par defaut aujourd'hui."),
+});
+
+export const GenerateDailyReportResponse = zod.object({
+  report: zod.object({
+    id: zod.number(),
+    reportDate: zod.string(),
+    summary: zod.string(),
+    highlights: zod.array(zod.string()).optional(),
+    metrics: zod.object({}).passthrough().optional(),
+    aiInsights: zod.string().optional(),
+    aiRecommendations: zod
+      .array(
+        zod.object({
+          titre: zod.string(),
+          description: zod.string(),
+          priorite: zod.enum(["haute", "moyenne", "basse"]),
+          categorie: zod.enum([
+            "appels",
+            "taches",
+            "messages",
+            "contacts",
+            "general",
+          ]),
+        }),
+      )
+      .optional(),
+    callsCount: zod.number().optional(),
+    tasksCompleted: zod.number().optional(),
+    tasksCreated: zod.number().optional(),
+    messagesCount: zod.number().optional(),
+    contactsAdded: zod.number().optional(),
+    avgCallDuration: zod.number().optional(),
+    answerRate: zod.number().optional(),
+    score: zod.number(),
+    status: zod.string(),
+    createdAt: zod.string().optional(),
+  }),
+  aiAnalysis: zod.object({
+    resume: zod.string(),
+    pointsForts: zod.array(zod.string()).optional(),
+    pointsAttention: zod.array(zod.string()).optional(),
+    recommandations: zod
+      .array(
+        zod.object({
+          titre: zod.string(),
+          description: zod.string(),
+          priorite: zod.string(),
+          categorie: zod.string(),
+        }),
+      )
+      .optional(),
+    activites: zod
+      .array(
+        zod.object({
+          heure: zod.string(),
+          description: zod.string(),
+          categorie: zod.string(),
+        }),
+      )
+      .optional(),
+    scorePerformance: zod.number(),
+    tendance: zod.enum(["hausse", "stable", "baisse"]),
+    prochainePriorite: zod.string().optional(),
+  }),
+  rawData: zod.object({}).passthrough().optional(),
+});
+
+/**
+ * @summary List all daily reports
+ */
+export const listDailyReportsQueryLimitDefault = 30;
+export const listDailyReportsQueryOffsetDefault = 0;
+
+export const ListDailyReportsQueryParams = zod.object({
+  limit: zod.coerce.number().default(listDailyReportsQueryLimitDefault),
+  offset: zod.coerce.number().default(listDailyReportsQueryOffsetDefault),
+});
+
+export const ListDailyReportsResponse = zod.object({
+  reports: zod.array(
+    zod.object({
+      id: zod.number(),
+      reportDate: zod.string(),
+      summary: zod.string(),
+      highlights: zod.array(zod.string()).optional(),
+      metrics: zod.object({}).passthrough().optional(),
+      aiInsights: zod.string().optional(),
+      aiRecommendations: zod
+        .array(
+          zod.object({
+            titre: zod.string(),
+            description: zod.string(),
+            priorite: zod.enum(["haute", "moyenne", "basse"]),
+            categorie: zod.enum([
+              "appels",
+              "taches",
+              "messages",
+              "contacts",
+              "general",
+            ]),
+          }),
+        )
+        .optional(),
+      callsCount: zod.number().optional(),
+      tasksCompleted: zod.number().optional(),
+      tasksCreated: zod.number().optional(),
+      messagesCount: zod.number().optional(),
+      contactsAdded: zod.number().optional(),
+      avgCallDuration: zod.number().optional(),
+      answerRate: zod.number().optional(),
+      score: zod.number(),
+      status: zod.string(),
+      createdAt: zod.string().optional(),
+    }),
+  ),
+  total: zod.number(),
+  limit: zod.number().optional(),
+  offset: zod.number().optional(),
+});
+
+/**
+ * @summary Get a specific daily report
+ */
+export const GetDailyReportParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetDailyReportResponse = zod.object({
+  id: zod.number(),
+  reportDate: zod.string(),
+  summary: zod.string(),
+  highlights: zod.array(zod.string()).optional(),
+  metrics: zod.object({}).passthrough().optional(),
+  aiInsights: zod.string().optional(),
+  aiRecommendations: zod
+    .array(
+      zod.object({
+        titre: zod.string(),
+        description: zod.string(),
+        priorite: zod.enum(["haute", "moyenne", "basse"]),
+        categorie: zod.enum([
+          "appels",
+          "taches",
+          "messages",
+          "contacts",
+          "general",
+        ]),
+      }),
+    )
+    .optional(),
+  callsCount: zod.number().optional(),
+  tasksCompleted: zod.number().optional(),
+  tasksCreated: zod.number().optional(),
+  messagesCount: zod.number().optional(),
+  contactsAdded: zod.number().optional(),
+  avgCallDuration: zod.number().optional(),
+  answerRate: zod.number().optional(),
+  score: zod.number(),
+  status: zod.string(),
+  createdAt: zod.string().optional(),
+});
+
+/**
+ * @summary Delete a daily report
+ */
+export const DeleteDailyReportParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteDailyReportResponse = zod.object({
+  success: zod.boolean().optional(),
+  message: zod.string().optional(),
+});
+
+/**
+ * @summary Get workspace activity summary with today's data and weekly trends
+ */
+export const GetActivitySummaryResponse = zod.object({
+  today: zod.object({}).passthrough(),
+  weekReports: zod.array(
+    zod.object({
+      id: zod.number(),
+      date: zod.string(),
+      score: zod.number(),
+      callsCount: zod.number().optional(),
+      tasksCompleted: zod.number().optional(),
+      messagesCount: zod.number().optional(),
+      summary: zod.string().optional(),
+    }),
+  ),
+  weekStats: zod.object({
+    avgScore: zod.number(),
+    totalReports: zod.number(),
+  }),
+});

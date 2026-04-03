@@ -58,12 +58,14 @@ A comprehensive French-language office/bureau agent application for managing pho
 - Advanced dashboard: `/dashboard/hourly-performance`, `/dashboard/task-stats`, `/dashboard/weekly-report`, `/dashboard/notifications`
 - AI: `POST /ai/analyze`, `POST /ai/suggest`, `POST /ai/validate`, `POST /ai/assistant`, `POST /ai/recognize`, `POST /ai/draft-email`, `GET /ai/status`
 - Workspace: `GET /workspace/status`, `POST /workspace/connect/:serviceId`, `POST /workspace/disconnect/:serviceId`, `POST /workspace/sync`, `GET /workspace/calendar/events`, `GET /workspace/gmail/messages`, `GET /workspace/drive/files`
+- Daily Reports: `POST /workspace/daily-report` (AI-generated), `GET /workspace/daily-reports`, `GET /workspace/daily-reports/:id`, `DELETE /workspace/daily-reports/:id`, `GET /workspace/activity-summary`
 
 ### Database Tables
 - `contacts` — Professional contact directory (categories: client, prospect, fournisseur, partenaire, autre)
 - `calls` — Call records with direction, status (repondu/manque/messagerie), duration, sentiment, tags
 - `tasks` — Office tasks with status (en_attente/en_cours/termine/annule), priority (haute/moyenne/basse)
 - `messages` — Voicemail, notes, reminders with read/unread and priority
+- `daily_reports` — AI-generated daily reports with score, metrics, highlights, recommendations
 
 ### Security Hardening
 - **Helmet** — Full security headers: CSP, HSTS (1yr+preload), X-Content-Type-Options, X-Frame-Options, Referrer-Policy, COOP/CORP

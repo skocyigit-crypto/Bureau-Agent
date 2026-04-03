@@ -710,6 +710,131 @@ export interface AiEmailDraft {
   suggestionsAlternatives: AiEmailDraftSuggestionsAlternativesItem[];
 }
 
+export interface DailyReportRequest {
+  /** Date au format AAAA-MM-JJ. Par defaut aujourd'hui. */
+  date?: string;
+}
+
+export type DailyReportMetrics = { [key: string]: unknown };
+
+export type DailyReportAiRecommendationsItemPriorite =
+  (typeof DailyReportAiRecommendationsItemPriorite)[keyof typeof DailyReportAiRecommendationsItemPriorite];
+
+export const DailyReportAiRecommendationsItemPriorite = {
+  haute: "haute",
+  moyenne: "moyenne",
+  basse: "basse",
+} as const;
+
+export type DailyReportAiRecommendationsItemCategorie =
+  (typeof DailyReportAiRecommendationsItemCategorie)[keyof typeof DailyReportAiRecommendationsItemCategorie];
+
+export const DailyReportAiRecommendationsItemCategorie = {
+  appels: "appels",
+  taches: "taches",
+  messages: "messages",
+  contacts: "contacts",
+  general: "general",
+} as const;
+
+export type DailyReportAiRecommendationsItem = {
+  titre: string;
+  description: string;
+  priorite: DailyReportAiRecommendationsItemPriorite;
+  categorie: DailyReportAiRecommendationsItemCategorie;
+};
+
+export interface DailyReport {
+  id: number;
+  reportDate: string;
+  summary: string;
+  highlights?: string[];
+  metrics?: DailyReportMetrics;
+  aiInsights?: string;
+  aiRecommendations?: DailyReportAiRecommendationsItem[];
+  callsCount?: number;
+  tasksCompleted?: number;
+  tasksCreated?: number;
+  messagesCount?: number;
+  contactsAdded?: number;
+  avgCallDuration?: number;
+  answerRate?: number;
+  score: number;
+  status: string;
+  createdAt?: string;
+}
+
+export type DailyReportResponseAiAnalysisRecommandationsItem = {
+  titre: string;
+  description: string;
+  priorite: string;
+  categorie: string;
+};
+
+export type DailyReportResponseAiAnalysisActivitesItem = {
+  heure: string;
+  description: string;
+  categorie: string;
+};
+
+export type DailyReportResponseAiAnalysisTendance =
+  (typeof DailyReportResponseAiAnalysisTendance)[keyof typeof DailyReportResponseAiAnalysisTendance];
+
+export const DailyReportResponseAiAnalysisTendance = {
+  hausse: "hausse",
+  stable: "stable",
+  baisse: "baisse",
+} as const;
+
+export type DailyReportResponseAiAnalysis = {
+  resume: string;
+  pointsForts?: string[];
+  pointsAttention?: string[];
+  recommandations?: DailyReportResponseAiAnalysisRecommandationsItem[];
+  activites?: DailyReportResponseAiAnalysisActivitesItem[];
+  scorePerformance: number;
+  tendance: DailyReportResponseAiAnalysisTendance;
+  prochainePriorite?: string;
+};
+
+export type DailyReportResponseRawData = { [key: string]: unknown };
+
+export interface DailyReportResponse {
+  report: DailyReport;
+  aiAnalysis: DailyReportResponseAiAnalysis;
+  rawData?: DailyReportResponseRawData;
+}
+
+export interface DailyReportsList {
+  reports: DailyReport[];
+  total: number;
+  limit?: number;
+  offset?: number;
+}
+
+export type ActivitySummaryToday = { [key: string]: unknown };
+
+export type ActivitySummaryWeekReportsItem = {
+  id: number;
+  date: string;
+  score: number;
+  callsCount?: number;
+  tasksCompleted?: number;
+  messagesCount?: number;
+  summary?: string;
+};
+
+export type ActivitySummaryWeekStats = {
+  avgScore: number;
+  totalReports: number;
+};
+
+export interface ActivitySummary {
+  today: ActivitySummaryToday;
+  weekReports: ActivitySummaryWeekReportsItem[];
+  weekStats: ActivitySummaryWeekStats;
+}
+
 export type ListCallsParams = {
   status?: ListCallsStatus;
   limit?: number;
@@ -1096,4 +1221,14 @@ export type GetDriveFiles200 = {
   files?: GetDriveFiles200FilesItem[];
   message?: string;
   connected?: boolean;
+};
+
+export type ListDailyReportsParams = {
+  limit?: number;
+  offset?: number;
+};
+
+export type DeleteDailyReport200 = {
+  success?: boolean;
+  message?: string;
 };
