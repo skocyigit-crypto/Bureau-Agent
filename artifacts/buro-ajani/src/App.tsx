@@ -16,6 +16,7 @@ import Analytics from "@/pages/analytics";
 import SettingsPage from "@/pages/settings";
 import Reports from "@/pages/reports";
 import Software from "@/pages/software";
+import UsersPage from "@/pages/users";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ function Router() {
         <Route path="/rapports" component={Reports} />
         <Route path="/logiciels" component={Software} />
         <Route path="/analyse" component={Analytics} />
+        <Route path="/utilisateurs" component={UsersPage} />
         <Route path="/parametres" component={SettingsPage} />
         <Route component={NotFound} />
       </Switch>
