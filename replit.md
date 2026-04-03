@@ -48,6 +48,16 @@ A comprehensive French-language office/bureau agent application for managing pho
 - `tasks` — Office tasks with status (en_attente/en_cours/termine/annule), priority (haute/moyenne/basse)
 - `messages` — Voicemail, notes, reminders with read/unread and priority
 
+### Security Hardening
+- **Helmet** — Full security headers: CSP, HSTS (1yr+preload), X-Content-Type-Options, X-Frame-Options, Referrer-Policy, COOP/CORP
+- **Rate limiting** — General: 200 req/15min, AI endpoints: 5 req/min, Write operations: 50 req/15min
+- **CORS** — Restricted methods/headers, credentials support, configurable origins via ALLOWED_ORIGINS env var
+- **HPP** — HTTP Parameter Pollution protection
+- **Input validation** — Zod schemas on all endpoints, body size limit (1MB)
+- **Error handling** — Production mode hides internal error details, structured logging via pino
+- **SQL injection** — Drizzle ORM parameterized queries throughout
+- **X-Powered-By** — Disabled (no tech stack disclosure)
+
 ### Important Patterns
 - When using Drizzle SQL template literals with `to_char`, do NOT pass format strings as parameters — use inline SQL template literals like `sql\`to_char(col, 'Dy')\`` to avoid parameterized query issues with PostgreSQL
 - Import hooks from `@workspace/api-client-react`, never relative paths

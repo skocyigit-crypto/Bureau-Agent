@@ -165,7 +165,11 @@ Reponds en JSON avec cette structure exacte:
     res.json(parsed);
   } catch (error: any) {
     console.error("AI Analysis error:", error);
-    res.status(500).json({ error: "Erreur lors de l'analyse IA", details: error.message });
+    const isProduction = process.env.NODE_ENV === "production";
+    res.status(500).json({
+      error: "Erreur lors de l'analyse IA",
+      ...(isProduction ? {} : { details: error.message }),
+    });
   }
 });
 
