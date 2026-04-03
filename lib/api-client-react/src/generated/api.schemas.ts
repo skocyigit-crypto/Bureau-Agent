@@ -596,6 +596,65 @@ export interface AiValidationResult {
   suggestions: AiValidationResultSuggestionsItem[];
 }
 
+export type AiDetectionCategorie =
+  (typeof AiDetectionCategorie)[keyof typeof AiDetectionCategorie];
+
+export const AiDetectionCategorie = {
+  appels: "appels",
+  contacts: "contacts",
+  taches: "taches",
+  messages: "messages",
+  performance: "performance",
+  reconnaissance: "reconnaissance",
+} as const;
+
+export type AiDetectionSeverite =
+  (typeof AiDetectionSeverite)[keyof typeof AiDetectionSeverite];
+
+export const AiDetectionSeverite = {
+  critique: "critique",
+  alerte: "alerte",
+  attention: "attention",
+  info: "info",
+  positif: "positif",
+} as const;
+
+export interface AiDetection {
+  id: string;
+  categorie: AiDetectionCategorie;
+  type: string;
+  severite: AiDetectionSeverite;
+  titre: string;
+  description: string;
+  valeur: string;
+  icone: string;
+  lien?: string;
+}
+
+export type AiRecognitionResumeNiveauSante =
+  (typeof AiRecognitionResumeNiveauSante)[keyof typeof AiRecognitionResumeNiveauSante];
+
+export const AiRecognitionResumeNiveauSante = {
+  excellent: "excellent",
+  bon: "bon",
+  moyen: "moyen",
+  critique: "critique",
+} as const;
+
+export interface AiRecognitionResume {
+  scoreGlobal: number;
+  niveauSante: AiRecognitionResumeNiveauSante;
+  totalDetections: number;
+  critiques: number;
+  alertes: number;
+  positifs: number;
+}
+
+export interface AiRecognitionResult {
+  resume: AiRecognitionResume;
+  detections: AiDetection[];
+}
+
 export type AiAssistantResponseDonneesItem = {
   label: string;
   valeur: string;
@@ -912,6 +971,8 @@ export type RequestAiValidationBody = {
   entityType: RequestAiValidationBodyEntityType;
   data: RequestAiValidationBodyData;
 };
+
+export type RequestAiRecognitionBody = { [key: string]: unknown };
 
 export type AskAiAssistantBody = {
   question: string;

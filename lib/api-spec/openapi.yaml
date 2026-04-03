@@ -885,6 +885,24 @@ paths:
               schema:
                 $ref: "#/components/schemas/AiValidationResult"
 
+  /ai/recognize:
+    post:
+      operationId: requestAiRecognition
+      tags: [ai]
+      summary: AI-powered comprehensive pattern recognition and detection
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Recognition detections and health score
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiRecognitionResult"
+
   /ai/assistant:
     post:
       operationId: askAiAssistant
@@ -1617,6 +1635,60 @@ components:
                 type: string
             required: [champ, suggestion]
       required: [isValid, errors, warnings, suggestions]
+
+    AiDetection:
+      type: object
+      properties:
+        id:
+          type: string
+        categorie:
+          type: string
+          enum: [appels, contacts, taches, messages, performance, reconnaissance]
+        type:
+          type: string
+        severite:
+          type: string
+          enum: [critique, alerte, attention, info, positif]
+        titre:
+          type: string
+        description:
+          type: string
+        valeur:
+          type: string
+        icone:
+          type: string
+        lien:
+          type: string
+      required: [id, categorie, type, severite, titre, description, valeur, icone]
+
+    AiRecognitionResume:
+      type: object
+      properties:
+        scoreGlobal:
+          type: integer
+        niveauSante:
+          type: string
+          enum: [excellent, bon, moyen, critique]
+        totalDetections:
+          type: integer
+        critiques:
+          type: integer
+        alertes:
+          type: integer
+        positifs:
+          type: integer
+      required: [scoreGlobal, niveauSante, totalDetections, critiques, alertes, positifs]
+
+    AiRecognitionResult:
+      type: object
+      properties:
+        resume:
+          $ref: "#/components/schemas/AiRecognitionResume"
+        detections:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiDetection"
+      required: [resume, detections]
 
     AiAssistantResponse:
       type: object

@@ -483,4 +483,205 @@ Sois precis, base-toi sur les donnees reelles. Si la question n'a pas de rapport
   }
 });
 
+router.post("/ai/recognize", async (req, res) => {
+  try {
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+
+    const [
+      totalCalls,
+      missedCallsThisWeek,
+      answeredCallsThisWeek,
+      negativeCallsThisWeek,
+      callsWithoutContact,
+      repeatCallers,
+      overdueTasks,
+      highPriorityPending,
+      unreadMessages,
+      urgentUnread,
+      inactiveContacts,
+      contactsNoEmail,
+      vipContacts,
+      recentCallPatterns,
+      taskCompletionRate,
+      avgCallDuration,
+      longCallsToday,
+    ] = await Promise.all([
+      db.select({ count: count() }).from(callsTable).where(gte(callsTable.createdAt, weekAgo)),
+      db.select({ count: count() }).from(callsTable).where(and(eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(eq(callsTable.status, "repondu"), gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(eq(callsTable.sentiment, "negatif"), gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(isNull(callsTable.contactId), gte(callsTable.createdAt, weekAgo))),
+      db.select({
+        phoneNumber: callsTable.phoneNumber,
+        contactName: callsTable.contactName,
+        callCount: count(),
+      }).from(callsTable).where(gte(callsTable.createdAt, weekAgo)).groupBy(callsTable.phoneNumber, callsTable.contactName).having(sql`count(*) >= 3`).orderBy(desc(count())).limit(5),
+      db.select({ count: count() }).from(tasksTable).where(and(lt(tasksTable.dueDate, now), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))),
+      db.select({ count: count() }).from(tasksTable).where(and(eq(tasksTable.priority, "haute"), eq(tasksTable.status, "en_attente"))),
+      db.select({ count: count() }).from(messagesTable).where(eq(messagesTable.isRead, false)),
+      db.select({ count: count() }).from(messagesTable).where(and(eq(messagesTable.isRead, false), eq(messagesTable.priority, "haute"))),
+      db.select({ count: count() }).from(contactsTable).where(sql`${contactsTable.id} NOT IN (SELECT DISTINCT contact_id FROM calls WHERE contact_id IS NOT NULL AND created_at >= ${monthAgo.toISOString()})`),
+      db.select({ count: count() }).from(contactsTable).where(isNull(contactsTable.email)),
+      db.select({
+        id: contactsTable.id,
+        firstName: contactsTable.firstName,
+        lastName: contactsTable.lastName,
+        company: contactsTable.company,
+        category: contactsTable.category,
+        callCount: sql<number>`(SELECT COUNT(*) FROM calls WHERE calls.contact_id = ${contactsTable.id})`.as("cc"),
+      }).from(contactsTable).orderBy(desc(sql`(SELECT COUNT(*) FROM calls WHERE calls.contact_id = ${contactsTable.id})`)).limit(3),
+      db.select({
+        hour: sql<string>`extract(hour from ${callsTable.createdAt})`.as("hour"),
+        count: count(),
+      }).from(callsTable).where(gte(callsTable.createdAt, threeDaysAgo)).groupBy(sql`extract(hour from ${callsTable.createdAt})`).orderBy(desc(count())).limit(3),
+      db.select({
+        total: count(),
+        completed: sql<number>`SUM(CASE WHEN status = 'termine' THEN 1 ELSE 0 END)`,
+      }).from(tasksTable),
+      db.select({ avg: avg(callsTable.duration) }).from(callsTable).where(and(eq(callsTable.status, "repondu"), gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(gte(callsTable.createdAt, threeDaysAgo), sql`${callsTable.duration} > 600`)),
+    ]);
+
+    const totalWeekCalls = Number(totalCalls[0]?.count ?? 0);
+    const missedCount = Number(missedCallsThisWeek[0]?.count ?? 0);
+    const answeredCount = Number(answeredCallsThisWeek[0]?.count ?? 0);
+    const answerRate = totalWeekCalls > 0 ? Math.round((answeredCount / totalWeekCalls) * 100) : 100;
+    const overdueCount = Number(overdueTasks[0]?.count ?? 0);
+    const unreadCount = Number(unreadMessages[0]?.count ?? 0);
+    const urgentCount = Number(urgentUnread[0]?.count ?? 0);
+    const negativeCount = Number(negativeCallsThisWeek[0]?.count ?? 0);
+    const noContactCount = Number(callsWithoutContact[0]?.count ?? 0);
+    const inactiveCount = Number(inactiveContacts[0]?.count ?? 0);
+    const noEmailCount = Number(contactsNoEmail[0]?.count ?? 0);
+    const highPriCount = Number(highPriorityPending[0]?.count ?? 0);
+    const completionTotal = Number(taskCompletionRate[0]?.total ?? 0);
+    const completionDone = Number(taskCompletionRate[0]?.completed ?? 0);
+    const taskRate = completionTotal > 0 ? Math.round((completionDone / completionTotal) * 100) : 0;
+    const avgDur = Math.round(Number(avgCallDuration[0]?.avg ?? 0));
+    const longCallCount = Number(longCallsToday[0]?.count ?? 0);
+
+    const detections: {
+      id: string;
+      categorie: string;
+      type: string;
+      severite: string;
+      titre: string;
+      description: string;
+      valeur: string;
+      icone: string;
+      lien?: string;
+    }[] = [];
+
+    let detId = 0;
+    const addDetection = (categorie: string, type: string, severite: string, titre: string, description: string, valeur: string, icone: string, lien?: string) => {
+      detections.push({ id: `det-${++detId}`, categorie, type, severite, titre, description, valeur, icone, lien });
+    };
+
+    if (missedCount > 0) {
+      const sev = missedCount > 5 ? "critique" : missedCount > 2 ? "alerte" : "info";
+      addDetection("appels", "appels_manques", sev, "Appels manques detectes", `${missedCount} appel(s) manque(s) cette semaine necessitant un rappel.`, `${missedCount}`, "phone-missed", "/appels");
+    }
+
+    if (negativeCount > 0) {
+      addDetection("appels", "sentiment_negatif", negativeCount > 3 ? "alerte" : "attention", "Sentiment negatif detecte", `${negativeCount} appel(s) avec sentiment negatif cette semaine. Suivi recommande.`, `${negativeCount}`, "alert-triangle", "/appels");
+    }
+
+    if (noContactCount > 0) {
+      addDetection("appels", "sans_contact", "attention", "Appels sans fiche contact", `${noContactCount} appel(s) non associe(s) a un contact existant.`, `${noContactCount}`, "user-x", "/appels");
+    }
+
+    if (answerRate < 80) {
+      addDetection("performance", "taux_reponse", answerRate < 60 ? "critique" : "alerte", "Taux de reponse faible", `Le taux de reponse est de ${answerRate}%. Objectif: 80% minimum.`, `${answerRate}%`, "trending-down");
+    }
+
+    if (avgDur > 0) {
+      const avgMin = Math.floor(avgDur / 60);
+      const avgSec = avgDur % 60;
+      addDetection("performance", "duree_moyenne", "info", "Duree moyenne des appels", `Duree moyenne: ${avgMin}m ${avgSec}s cette semaine.`, `${avgMin}m${avgSec}s`, "clock");
+    }
+
+    if (longCallCount > 0) {
+      addDetection("performance", "appels_longs", "attention", "Appels prolonges detectes", `${longCallCount} appel(s) de plus de 10 minutes ces 3 derniers jours.`, `${longCallCount}`, "timer");
+    }
+
+    repeatCallers.forEach(rc => {
+      addDetection("reconnaissance", "appelant_frequent", "info", `Appelant frequent: ${rc.contactName || rc.phoneNumber}`, `${Number(rc.callCount)} appels cette semaine. Contact a privilegier.`, `${rc.callCount}x`, "repeat", "/contacts");
+    });
+
+    if (overdueCount > 0) {
+      addDetection("taches", "retard", overdueCount > 3 ? "critique" : "alerte", "Taches en retard", `${overdueCount} tache(s) en retard necessitant une action immediate.`, `${overdueCount}`, "alert-circle", "/taches");
+    }
+
+    if (highPriCount > 0) {
+      addDetection("taches", "haute_priorite", "alerte", "Taches haute priorite en attente", `${highPriCount} tache(s) haute priorite en attente de traitement.`, `${highPriCount}`, "flag", "/taches");
+    }
+
+    addDetection("taches", "progression", taskRate >= 80 ? "positif" : taskRate >= 50 ? "info" : "attention", "Progression des taches", `Taux d'achevement global: ${taskRate}%.`, `${taskRate}%`, "check-circle", "/taches");
+
+    if (urgentCount > 0) {
+      addDetection("messages", "urgent_non_lu", "critique", "Messages urgents non lus", `${urgentCount} message(s) urgent(s) en attente de lecture.`, `${urgentCount}`, "mail-warning", "/messages");
+    }
+
+    if (unreadCount > 3) {
+      addDetection("messages", "non_lus", "attention", "Messages en attente", `${unreadCount} message(s) non lu(s) a traiter.`, `${unreadCount}`, "mail", "/messages");
+    }
+
+    if (inactiveCount > 5) {
+      addDetection("contacts", "inactifs", "attention", "Contacts inactifs", `${inactiveCount} contact(s) sans activite depuis 30 jours. Relance recommandee.`, `${inactiveCount}`, "user-minus", "/contacts");
+    }
+
+    if (noEmailCount > 0) {
+      addDetection("contacts", "incomplets", "info", "Fiches contacts incompletes", `${noEmailCount} contact(s) sans adresse email renseignee.`, `${noEmailCount}`, "file-warning", "/contacts");
+    }
+
+    vipContacts.filter(v => Number(v.callCount) > 3).forEach(vip => {
+      addDetection("reconnaissance", "contact_vip", "positif", `Contact VIP: ${vip.firstName} ${vip.lastName}`, `${Number(vip.callCount)} interactions. ${vip.company ? `Entreprise: ${vip.company}.` : ""} Categorie: ${vip.category}.`, `${vip.callCount} appels`, "star", `/contacts/${vip.id}`);
+    });
+
+    if (recentCallPatterns.length > 0) {
+      const peakH = recentCallPatterns[0];
+      addDetection("reconnaissance", "heure_pointe", "info", `Heure de pointe: ${peakH.hour}h00`, `${Number(peakH.count)} appels a cette heure sur 3 jours. Planifiez vos ressources.`, `${peakH.hour}h`, "clock");
+    }
+
+    detections.sort((a, b) => {
+      const sevOrder: Record<string, number> = { critique: 0, alerte: 1, attention: 2, info: 3, positif: 4 };
+      return (sevOrder[a.severite] ?? 5) - (sevOrder[b.severite] ?? 5);
+    });
+
+    const scoreBase = 100;
+    let penalty = 0;
+    penalty += missedCount * 3;
+    penalty += overdueCount * 4;
+    penalty += urgentCount * 5;
+    penalty += negativeCount * 3;
+    penalty += noContactCount;
+    penalty += (answerRate < 80 ? (80 - answerRate) : 0);
+    penalty += (taskRate < 50 ? (50 - taskRate) / 2 : 0);
+    const scoreGlobal = Math.max(0, Math.min(100, Math.round(scoreBase - penalty)));
+
+    const niveauSante = scoreGlobal >= 85 ? "excellent" : scoreGlobal >= 70 ? "bon" : scoreGlobal >= 50 ? "moyen" : "critique";
+
+    const resume = {
+      scoreGlobal,
+      niveauSante,
+      totalDetections: detections.length,
+      critiques: detections.filter(d => d.severite === "critique").length,
+      alertes: detections.filter(d => d.severite === "alerte").length,
+      positifs: detections.filter(d => d.severite === "positif").length,
+    };
+
+    res.json({ resume, detections });
+  } catch (error: any) {
+    console.error("AI Recognize error:", error);
+    const isProduction = process.env.NODE_ENV === "production";
+    res.status(500).json({
+      error: "Erreur lors de la reconnaissance IA",
+      ...(isProduction ? {} : { details: error.message }),
+    });
+  }
+});
+
 export default router;

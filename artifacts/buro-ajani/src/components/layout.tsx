@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Phone, Users, CheckSquare, MessageSquare, BarChart, Bell, Search, LayoutDashboard } from "lucide-react";
 import { AiAssistantButton } from "@/components/ai-assistant";
+import { AiHealthBadge, RecognitionProvider } from "@/components/ai-recognition-panel";
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarTrigger, SidebarGroup, SidebarGroupLabel, SidebarGroupContent } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
 import { useGetNotifications } from "@workspace/api-client-react";
@@ -21,6 +22,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   ];
 
   return (
+    <RecognitionProvider>
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
         <Sidebar className="border-r border-sidebar-border">
@@ -74,6 +76,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
             <div className="flex items-center gap-4">
+              <AiHealthBadge />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="relative p-2 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-muted outline-none">
@@ -125,5 +128,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <AiAssistantButton />
       </div>
     </SidebarProvider>
+    </RecognitionProvider>
   );
 }

@@ -850,6 +850,48 @@ export const RequestAiValidationResponse = zod.object({
 });
 
 /**
+ * @summary AI-powered comprehensive pattern recognition and detection
+ */
+export const RequestAiRecognitionBody = zod.object({}).passthrough();
+
+export const RequestAiRecognitionResponse = zod.object({
+  resume: zod.object({
+    scoreGlobal: zod.number(),
+    niveauSante: zod.enum(["excellent", "bon", "moyen", "critique"]),
+    totalDetections: zod.number(),
+    critiques: zod.number(),
+    alertes: zod.number(),
+    positifs: zod.number(),
+  }),
+  detections: zod.array(
+    zod.object({
+      id: zod.string(),
+      categorie: zod.enum([
+        "appels",
+        "contacts",
+        "taches",
+        "messages",
+        "performance",
+        "reconnaissance",
+      ]),
+      type: zod.string(),
+      severite: zod.enum([
+        "critique",
+        "alerte",
+        "attention",
+        "info",
+        "positif",
+      ]),
+      titre: zod.string(),
+      description: zod.string(),
+      valeur: zod.string(),
+      icone: zod.string(),
+      lien: zod.string().optional(),
+    }),
+  ),
+});
+
+/**
  * @summary Ask the AI assistant a question
  */
 export const AskAiAssistantBody = zod.object({

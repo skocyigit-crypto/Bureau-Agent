@@ -3,6 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Phone, Users, CheckSquare, MessageSquare, ArrowUpRight, ArrowDownRight, PhoneIncoming, PhoneOutgoing, PhoneMissed, Calendar as CalendarIcon, Clock, Plus, TrendingUp, Activity, BarChart3 } from "lucide-react";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
+import { AiRecognitionPanel } from "@/components/ai-recognition-panel";
 import { useGetDashboardSummary, useGetRecentActivity, useGetTopContacts, useGetWeeklyReport, useGetHourlyPerformance, useGetTaskStats } from "@workspace/api-client-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -122,6 +123,8 @@ export default function Dashboard() {
           </Link>
         ))}
       </div>
+
+      <AiRecognitionPanel />
 
       <AiSuggestionsCard page="dashboard" title="Briefing IA du jour" />
 

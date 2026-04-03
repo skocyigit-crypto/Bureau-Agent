@@ -19,6 +19,7 @@ import type {
 import type {
   AiAnalysisResult,
   AiAssistantResponse,
+  AiRecognitionResult,
   AiStatus,
   AiSuggestionsResult,
   AiValidationResult,
@@ -53,6 +54,7 @@ import type {
   ListTasksParams,
   Message,
   RequestAiAnalysisBody,
+  RequestAiRecognitionBody,
   RequestAiSuggestionsBody,
   RequestAiValidationBody,
   Task,
@@ -3150,6 +3152,93 @@ export const useRequestAiValidation = <
   TContext
 > => {
   return useMutation(getRequestAiValidationMutationOptions(options));
+};
+
+/**
+ * @summary AI-powered comprehensive pattern recognition and detection
+ */
+export const getRequestAiRecognitionUrl = () => {
+  return `/api/ai/recognize`;
+};
+
+export const requestAiRecognition = async (
+  requestAiRecognitionBody: RequestAiRecognitionBody,
+  options?: RequestInit,
+): Promise<AiRecognitionResult> => {
+  return customFetch<AiRecognitionResult>(getRequestAiRecognitionUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(requestAiRecognitionBody),
+  });
+};
+
+export const getRequestAiRecognitionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestAiRecognition>>,
+    TError,
+    { data: BodyType<RequestAiRecognitionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof requestAiRecognition>>,
+  TError,
+  { data: BodyType<RequestAiRecognitionBody> },
+  TContext
+> => {
+  const mutationKey = ["requestAiRecognition"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof requestAiRecognition>>,
+    { data: BodyType<RequestAiRecognitionBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return requestAiRecognition(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RequestAiRecognitionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof requestAiRecognition>>
+>;
+export type RequestAiRecognitionMutationBody =
+  BodyType<RequestAiRecognitionBody>;
+export type RequestAiRecognitionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary AI-powered comprehensive pattern recognition and detection
+ */
+export const useRequestAiRecognition = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestAiRecognition>>,
+    TError,
+    { data: BodyType<RequestAiRecognitionBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof requestAiRecognition>>,
+  TError,
+  { data: BodyType<RequestAiRecognitionBody> },
+  TContext
+> => {
+  return useMutation(getRequestAiRecognitionMutationOptions(options));
 };
 
 /**

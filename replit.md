@@ -40,14 +40,18 @@ A comprehensive French-language office/bureau agent application for managing pho
 - **Global AI Assistant Panel**: Floating purple brain button (bottom-right), opens chat panel with quick questions, contextual Q&A, real-time data responses with structured data cards and suggested actions
 - **Per-page AI Suggestions**: Each page has an "Intelligence IA disponible" card that triggers page-specific analysis (dashboard briefing, call follow-ups, contact outreach, task priorities, message recommendations)
 - **AI Form Validation**: Every create/edit dialog includes a "Verifier IA" button for AI-powered pre-submission checks (duplicate detection, data quality, logical consistency)
-- Components: `ai-assistant.tsx` (global panel), `ai-suggestions-card.tsx` (per-page cards), `ai-validation-feedback.tsx` (form feedback), `use-ai-validation.ts` (hook)
+- Endpoint: `POST /ai/recognize` — comprehensive pattern recognition: cross-entity detection (missed calls, overdue tasks, VIP contacts, repeat callers, inactive contacts, sentiment analysis, response rate, task completion, urgent messages), health score (0-100), severity-sorted detections
+- **AI Recognition Panel**: Auto-loading dashboard panel with dark gradient header, health score gauge, severity summary badges, category filter tabs, scrollable detection list with severity-colored rows, per-detection icons + values + navigation links
+- **AI Health Badge**: Persistent header indicator showing global score and critical alert count across all pages
+- **Shared Recognition Context**: `RecognitionProvider` wraps layout to share single `/ai/recognize` call between panel and header badge
+- Components: `ai-assistant.tsx` (global panel), `ai-suggestions-card.tsx` (per-page cards), `ai-validation-feedback.tsx` (form feedback), `use-ai-validation.ts` (hook), `ai-recognition-panel.tsx` (recognition panel + health badge + context provider)
 
 ### API Endpoints
 - CRUD: `/calls`, `/contacts`, `/tasks`, `/messages`
 - Contact sub-resources: `/contacts/:id/calls`, `/contacts/:id/tasks`
 - Dashboard: `/dashboard/summary`, `/dashboard/call-analytics`, `/dashboard/recent-activity`, `/dashboard/call-distribution`, `/dashboard/top-contacts`
 - Advanced dashboard: `/dashboard/hourly-performance`, `/dashboard/task-stats`, `/dashboard/weekly-report`, `/dashboard/notifications`
-- AI: `POST /ai/analyze`, `POST /ai/suggest`, `POST /ai/validate`, `POST /ai/assistant`, `GET /ai/status`
+- AI: `POST /ai/analyze`, `POST /ai/suggest`, `POST /ai/validate`, `POST /ai/assistant`, `POST /ai/recognize`, `GET /ai/status`
 
 ### Database Tables
 - `contacts` — Professional contact directory (categories: client, prospect, fournisseur, partenaire, autre)
