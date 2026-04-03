@@ -4,7 +4,8 @@ import { Phone, Users, CheckSquare, MessageSquare, BarChart, Bell, Search, Layou
 import { AiAssistantButton } from "@/components/ai-assistant";
 import { AiHealthBadge, RecognitionProvider } from "@/components/ai-recognition-panel";
 import { IncomingCallOverlay, useIncomingCall } from "@/components/incoming-call-overlay";
-import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarTrigger, SidebarGroup, SidebarGroupLabel, SidebarGroupContent } from "@/components/ui/sidebar";
+import { WorkspaceUserProvider, UserProfileButton, WorkspaceUserSidebarInfo } from "@/components/workspace-user";
+import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarTrigger, SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarFooter } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useGetNotifications } from "@workspace/api-client-react";
@@ -36,6 +37,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <IncomingCallContext.Provider value={{ simulateIncomingCall: incomingCall.simulateIncomingCall }}>
+    <WorkspaceUserProvider>
     <RecognitionProvider>
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
@@ -74,6 +76,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </SidebarGroupContent>
             </SidebarGroup>
           </SidebarContent>
+          <SidebarFooter className="p-0">
+            <WorkspaceUserSidebarInfo />
+          </SidebarFooter>
         </Sidebar>
 
         <div className="flex-1 flex flex-col min-w-0">
@@ -89,7 +94,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 />
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -141,9 +146,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </DropdownMenuContent>
               </DropdownMenu>
               
-              <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center text-sm font-medium border border-primary/30">
-                AB
-              </div>
+              <UserProfileButton />
             </div>
           </header>
           
@@ -157,6 +160,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </div>
     </SidebarProvider>
     </RecognitionProvider>
+    </WorkspaceUserProvider>
     <IncomingCallOverlay
       isVisible={incomingCall.isVisible}
       callData={incomingCall.callData}
