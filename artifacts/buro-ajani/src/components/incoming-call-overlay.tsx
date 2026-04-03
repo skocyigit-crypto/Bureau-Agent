@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { Phone, PhoneOff, Voicemail, Clock, User, Building, Star, PhoneIncoming, MessageSquare, Calendar, AlertTriangle, Brain, Loader2, X, Volume2, Mic, MicOff, Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +28,7 @@ interface IncomingCallOverlayProps {
 
 const RING_DURATION = 30;
 
-const pulseVariants = {
+const pulseVariants: Variants = {
   pulse: {
     scale: [1, 1.15, 1],
     opacity: [0.7, 0.3, 0.7],
@@ -37,15 +37,15 @@ const pulseVariants = {
 };
 
 const slideUp = {
-  initial: { y: "100%", opacity: 0 },
-  animate: { y: 0, opacity: 1, transition: { type: "spring", damping: 25, stiffness: 200 } },
-  exit: { y: "100%", opacity: 0, transition: { duration: 0.3, ease: "easeIn" } }
+  initial: { y: "100%", opacity: 0 } as const,
+  animate: { y: 0, opacity: 1, transition: { type: "spring", damping: 25, stiffness: 200 } } as const,
+  exit: { y: "100%", opacity: 0, transition: { duration: 0.3, ease: "easeIn" } } as const,
 };
 
 const fadeIn = {
-  initial: { opacity: 0, scale: 0.9 },
-  animate: { opacity: 1, scale: 1, transition: { delay: 0.2, duration: 0.4 } },
-  exit: { opacity: 0, scale: 0.9, transition: { duration: 0.2 } }
+  initial: { opacity: 0, scale: 0.9 } as const,
+  animate: { opacity: 1, scale: 1, transition: { delay: 0.2, duration: 0.4 } } as const,
+  exit: { opacity: 0, scale: 0.9, transition: { duration: 0.2 } } as const,
 };
 
 export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCallOverlayProps) {
@@ -112,13 +112,11 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
       data: {
         phoneNumber: callData.phoneNumber,
         contactId: callData.contactId ?? null,
-        contactName: callData.contactName || null,
         direction: "entrant",
         status,
         duration: status === "repondu" ? callTimer : 0,
-        notes: notes || null,
+        notes: notes || (callData.contactName ? `Contact: ${callData.contactName}` : null),
         sentiment: null,
-        tags: null,
       }
     }, {
       onSuccess: () => {
@@ -444,7 +442,7 @@ export function useIncomingCall() {
       contactId: matchedContact?.id,
       company: matchedContact?.company || undefined,
       category: matchedContact?.category,
-      previousCalls: matchedContact?.callCount ? Number(matchedContact.callCount) : undefined,
+      previousCalls: matchedContact?.totalCalls ? Number(matchedContact.totalCalls) : undefined,
     });
 
     setIsVisible(true);

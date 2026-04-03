@@ -3,17 +3,22 @@ import { Brain, Sparkles, AlertTriangle, Lightbulb, Info, Zap, Loader2, ChevronD
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useRequestAiSuggestions } from "@workspace/api-client-react";
+import { useRequestAiSuggestions, type RequestAiSuggestionsBodyPage } from "@workspace/api-client-react";
+
+const VALID_PAGES: Record<string, RequestAiSuggestionsBodyPage> = {
+  dashboard: "dashboard", calls: "calls", contacts: "contacts",
+  tasks: "tasks", messages: "messages", rapports: "rapports", logiciels: "logiciels",
+};
 
 interface AiSuggestionsCardProps {
-  page?: "dashboard" | "calls" | "contacts" | "tasks" | "messages" | "rapports" | "logiciels";
+  page?: string;
   pageContext?: string;
   title?: string;
   compact?: boolean;
 }
 
 export function AiSuggestionsCard({ page, pageContext, title, compact = false }: AiSuggestionsCardProps) {
-  const resolvedPage = page || pageContext || "dashboard";
+  const resolvedPage: RequestAiSuggestionsBodyPage = VALID_PAGES[page || pageContext || "dashboard"] ?? "dashboard";
   const [isExpanded, setIsExpanded] = useState(!compact);
 
   const suggestions = useRequestAiSuggestions();

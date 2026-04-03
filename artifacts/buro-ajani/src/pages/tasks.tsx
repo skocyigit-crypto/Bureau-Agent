@@ -384,6 +384,8 @@ export default function Tasks() {
       </div>
 
       {viewMode === "kanban" ? (
+        <div className="space-y-4">
+        <AiSuggestionsCard page="tasks" title="Recommandations IA - Taches" compact />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {KANBAN_COLUMNS.map(col => (
             <div key={col.key} className="space-y-3">
@@ -444,6 +446,7 @@ export default function Tasks() {
               </div>
             </div>
           ))}
+        </div>
         </div>
       ) : (
         <>
