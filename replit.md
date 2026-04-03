@@ -44,14 +44,20 @@ A comprehensive French-language office/bureau agent application for managing pho
 - **AI Recognition Panel**: Auto-loading dashboard panel with dark gradient header, health score gauge, severity summary badges, category filter tabs, scrollable detection list with severity-colored rows, per-detection icons + values + navigation links
 - **AI Health Badge**: Persistent header indicator showing global score and critical alert count across all pages
 - **Shared Recognition Context**: `RecognitionProvider` wraps layout to share single `/ai/recognize` call between panel and header badge
-- Components: `ai-assistant.tsx` (global panel), `ai-suggestions-card.tsx` (per-page cards), `ai-validation-feedback.tsx` (form feedback), `use-ai-validation.ts` (hook), `ai-recognition-panel.tsx` (recognition panel + health badge + context provider)
+- Endpoint: `POST /ai/draft-email` — AI email drafting with 10 purpose types (suivi_appel, relance_prospect, confirmation_rdv, remerciement, rappel_paiement, information, presentation, excuses, bienvenue, personnalise), 4 tone options, contact history context, alternative suggestions
+- **Email Composer**: Full 3-step email workflow: Configure (contact, purpose, tone, context) -> AI Generation -> Preview & Approve. Accessible from Dashboard, Messages, and Contact Detail pages. Features: editable subject/body, AI alternatives, copy to clipboard, approval confirmation
+- **Incoming Call Overlay**: Animated full-screen overlay for incoming calls with ringing/active/ended/missed phases, contact identification, mute/hold/notes controls, auto-save to database
+- **Settings Page**: 4 tabs — Google Workspace (6 services with connect buttons), Appels (ring duration, sound, AI features), Notifications, Securite (RGPD compliance)
+- Components: `ai-assistant.tsx` (global panel), `ai-suggestions-card.tsx` (per-page cards), `ai-validation-feedback.tsx` (form feedback), `use-ai-validation.ts` (hook), `ai-recognition-panel.tsx` (recognition panel + health badge + context provider), `email-composer.tsx` (AI email drafting), `incoming-call-overlay.tsx` (call handling)
+- Google Workspace integration: User dismissed Google Calendar connector; integration not active. Connectors available but not authorized: Google Calendar, Gmail, Google Drive, Google Docs, Google Sheets, Google Slides
 
 ### API Endpoints
 - CRUD: `/calls`, `/contacts`, `/tasks`, `/messages`
 - Contact sub-resources: `/contacts/:id/calls`, `/contacts/:id/tasks`
 - Dashboard: `/dashboard/summary`, `/dashboard/call-analytics`, `/dashboard/recent-activity`, `/dashboard/call-distribution`, `/dashboard/top-contacts`
 - Advanced dashboard: `/dashboard/hourly-performance`, `/dashboard/task-stats`, `/dashboard/weekly-report`, `/dashboard/notifications`
-- AI: `POST /ai/analyze`, `POST /ai/suggest`, `POST /ai/validate`, `POST /ai/assistant`, `POST /ai/recognize`, `GET /ai/status`
+- AI: `POST /ai/analyze`, `POST /ai/suggest`, `POST /ai/validate`, `POST /ai/assistant`, `POST /ai/recognize`, `POST /ai/draft-email`, `GET /ai/status`
+- Workspace: `GET /workspace/status`, `POST /workspace/connect/:serviceId`, `POST /workspace/disconnect/:serviceId`, `POST /workspace/sync`, `GET /workspace/calendar/events`, `GET /workspace/gmail/messages`, `GET /workspace/drive/files`
 
 ### Database Tables
 - `contacts` — Professional contact directory (categories: client, prospect, fournisseur, partenaire, autre)

@@ -930,6 +930,53 @@ paths:
               schema:
                 $ref: "#/components/schemas/AiAssistantResponse"
 
+  /ai/draft-email:
+    post:
+      operationId: draftAiEmail
+      tags: [ai]
+      summary: AI-powered email drafting with context
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                contactId:
+                  type: string
+                  nullable: true
+                contactName:
+                  type: string
+                  nullable: true
+                contactEmail:
+                  type: string
+                  nullable: true
+                company:
+                  type: string
+                  nullable: true
+                category:
+                  type: string
+                  nullable: true
+                purpose:
+                  type: string
+                  enum: [suivi_appel, relance_prospect, confirmation_rdv, remerciement, rappel_paiement, information, presentation, excuses, bienvenue, personnalise]
+                tone:
+                  type: string
+                  enum: [formel, cordial, direct, empathique]
+                language:
+                  type: string
+                additionalContext:
+                  type: string
+                  nullable: true
+              required: [purpose]
+      responses:
+        "200":
+          description: AI-generated email draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiEmailDraft"
+
   /workspace/status:
     get:
       operationId: getWorkspaceStatus
@@ -1902,3 +1949,30 @@ components:
         scope:
           type: string
       required: [id, name, status]
+
+    AiEmailDraft:
+      type: object
+      properties:
+        objet:
+          type: string
+        corps:
+          type: string
+        destinataire:
+          type: string
+        tonUtilise:
+          type: string
+        resumeIA:
+          type: string
+        suggestionsAlternatives:
+          type: array
+          items:
+            type: object
+            properties:
+              label:
+                type: string
+              objet:
+                type: string
+              corps:
+                type: string
+            required: [label, objet, corps]
+      required: [objet, corps, destinataire, tonUtilise, resumeIA, suggestionsAlternatives]

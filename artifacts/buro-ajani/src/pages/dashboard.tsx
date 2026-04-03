@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Phone, Users, CheckSquare, MessageSquare, ArrowUpRight, ArrowDownRight, PhoneIncoming, PhoneOutgoing, PhoneMissed, Calendar as CalendarIcon, Clock, Plus, TrendingUp, Activity, BarChart3 } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, ArrowUpRight, ArrowDownRight, PhoneIncoming, PhoneOutgoing, PhoneMissed, Calendar as CalendarIcon, Clock, Plus, TrendingUp, Activity, BarChart3, Send } from "lucide-react";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { AiRecognitionPanel } from "@/components/ai-recognition-panel";
+import { EmailComposer } from "@/components/email-composer";
 import { useGetDashboardSummary, useGetRecentActivity, useGetTopContacts, useGetWeeklyReport, useGetHourlyPerformance, useGetTaskStats } from "@workspace/api-client-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +15,7 @@ import { fr } from "date-fns/locale";
 import { Link } from "wouter";
 
 export default function Dashboard() {
+  const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
   const { data: summary, isLoading: isLoadingSummary } = useGetDashboardSummary({ query: { queryKey: ["dashboardSummary"] } });
   const { data: recentActivity, isLoading: isLoadingActivity } = useGetRecentActivity({ limit: 6 }, { query: { queryKey: ["recentActivity"] } });
   const { data: topContacts, isLoading: isLoadingContacts } = useGetTopContacts({ limit: 5 }, { query: { queryKey: ["topContacts"] } });
@@ -83,6 +86,10 @@ export default function Dashboard() {
               Tache
             </Button>
           </Link>
+          <Button size="sm" onClick={() => setIsEmailComposerOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+            <Send className="w-4 h-4 mr-2" />
+            E-mail IA
+          </Button>
           <Link href="/analyse">
             <Button size="sm" className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700">
               <BarChart3 className="w-4 h-4 mr-2" />
@@ -321,6 +328,10 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+      <EmailComposer
+        isOpen={isEmailComposerOpen}
+        onClose={() => setIsEmailComposerOpen(false)}
+      />
     </div>
   );
 }

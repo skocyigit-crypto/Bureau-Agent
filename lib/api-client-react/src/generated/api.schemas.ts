@@ -695,6 +695,21 @@ export interface WorkspaceStatus {
   lastGlobalSync?: string | null;
 }
 
+export type AiEmailDraftSuggestionsAlternativesItem = {
+  label: string;
+  objet: string;
+  corps: string;
+};
+
+export interface AiEmailDraft {
+  objet: string;
+  corps: string;
+  destinataire: string;
+  tonUtilise: string;
+  resumeIA: string;
+  suggestionsAlternatives: AiEmailDraftSuggestionsAlternativesItem[];
+}
+
 export type ListCallsParams = {
   status?: ListCallsStatus;
   limit?: number;
@@ -1001,6 +1016,44 @@ export type RequestAiRecognitionBody = { [key: string]: unknown };
 export type AskAiAssistantBody = {
   question: string;
   currentPage?: string;
+};
+
+export type DraftAiEmailBodyPurpose =
+  (typeof DraftAiEmailBodyPurpose)[keyof typeof DraftAiEmailBodyPurpose];
+
+export const DraftAiEmailBodyPurpose = {
+  suivi_appel: "suivi_appel",
+  relance_prospect: "relance_prospect",
+  confirmation_rdv: "confirmation_rdv",
+  remerciement: "remerciement",
+  rappel_paiement: "rappel_paiement",
+  information: "information",
+  presentation: "presentation",
+  excuses: "excuses",
+  bienvenue: "bienvenue",
+  personnalise: "personnalise",
+} as const;
+
+export type DraftAiEmailBodyTone =
+  (typeof DraftAiEmailBodyTone)[keyof typeof DraftAiEmailBodyTone];
+
+export const DraftAiEmailBodyTone = {
+  formel: "formel",
+  cordial: "cordial",
+  direct: "direct",
+  empathique: "empathique",
+} as const;
+
+export type DraftAiEmailBody = {
+  contactId?: string | null;
+  contactName?: string | null;
+  contactEmail?: string | null;
+  company?: string | null;
+  category?: string | null;
+  purpose: DraftAiEmailBodyPurpose;
+  tone?: DraftAiEmailBodyTone;
+  language?: string;
+  additionalContext?: string | null;
 };
 
 export type ConnectWorkspaceService200 = {

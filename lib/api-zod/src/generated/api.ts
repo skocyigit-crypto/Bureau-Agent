@@ -916,6 +916,47 @@ export const AskAiAssistantResponse = zod.object({
 });
 
 /**
+ * @summary AI-powered email drafting with context
+ */
+export const DraftAiEmailBody = zod.object({
+  contactId: zod.string().nullish(),
+  contactName: zod.string().nullish(),
+  contactEmail: zod.string().nullish(),
+  company: zod.string().nullish(),
+  category: zod.string().nullish(),
+  purpose: zod.enum([
+    "suivi_appel",
+    "relance_prospect",
+    "confirmation_rdv",
+    "remerciement",
+    "rappel_paiement",
+    "information",
+    "presentation",
+    "excuses",
+    "bienvenue",
+    "personnalise",
+  ]),
+  tone: zod.enum(["formel", "cordial", "direct", "empathique"]).optional(),
+  language: zod.string().optional(),
+  additionalContext: zod.string().nullish(),
+});
+
+export const DraftAiEmailResponse = zod.object({
+  objet: zod.string(),
+  corps: zod.string(),
+  destinataire: zod.string(),
+  tonUtilise: zod.string(),
+  resumeIA: zod.string(),
+  suggestionsAlternatives: zod.array(
+    zod.object({
+      label: zod.string(),
+      objet: zod.string(),
+      corps: zod.string(),
+    }),
+  ),
+});
+
+/**
  * @summary Get Google Workspace connection status
  */
 export const GetWorkspaceStatusResponse = zod.object({

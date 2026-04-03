@@ -684,4 +684,139 @@ router.post("/ai/recognize", async (req, res) => {
   }
 });
 
+router.post("/ai/draft-email", async (req, res) => {
+  try {
+    const { contactId, contactName, contactEmail, company, category, purpose, tone, language, additionalContext } = req.body;
+
+    if (!purpose) {
+      return res.status(400).json({ error: "Le parametre 'purpose' est requis." });
+    }
+
+    let contactHistory = "";
+    if (contactId) {
+      const [recentCalls, recentTasks, contactInfo] = await Promise.all([
+        db.select({
+          direction: callsTable.direction,
+          status: callsTable.status,
+          sentiment: callsTable.sentiment,
+          duration: callsTable.duration,
+          notes: callsTable.notes,
+          createdAt: callsTable.createdAt,
+        }).from(callsTable).where(eq(callsTable.contactId, parseInt(contactId))).orderBy(desc(callsTable.createdAt)).limit(5),
+        db.select({
+          title: tasksTable.title,
+          status: tasksTable.status,
+          priority: tasksTable.priority,
+          dueDate: tasksTable.dueDate,
+        }).from(tasksTable).where(eq(tasksTable.contactId, parseInt(contactId))).orderBy(desc(tasksTable.createdAt)).limit(5),
+        db.select({
+          firstName: contactsTable.firstName,
+          lastName: contactsTable.lastName,
+          company: contactsTable.company,
+          category: contactsTable.category,
+          notes: contactsTable.notes,
+          email: contactsTable.email,
+        }).from(contactsTable).where(eq(contactsTable.id, parseInt(contactId))).limit(1),
+      ]);
+
+      if (contactInfo.length > 0) {
+        contactHistory += `\nInformations du contact: ${JSON.stringify(contactInfo[0])}`;
+      }
+      if (recentCalls.length > 0) {
+        contactHistory += `\nDerniers appels (${recentCalls.length}): ${JSON.stringify(recentCalls)}`;
+      }
+      if (recentTasks.length > 0) {
+        contactHistory += `\nTaches liees (${recentTasks.length}): ${JSON.stringify(recentTasks)}`;
+      }
+    }
+
+    const { ai } = await import("@workspace/integrations-gemini-ai");
+
+    const purposeLabels: Record<string, string> = {
+      suivi_appel: "Suivi apres un appel telephonique",
+      relance_prospect: "Relance commerciale d'un prospect",
+      confirmation_rdv: "Confirmation de rendez-vous",
+      remerciement: "Remerciement apres une reunion ou un echange",
+      rappel_paiement: "Rappel de paiement ou de facture",
+      information: "Transmission d'informations ou de documents",
+      presentation: "Presentation de services ou de l'entreprise",
+      excuses: "Excuses pour un desagrement ou un retard",
+      bienvenue: "Message de bienvenue pour un nouveau contact",
+      personnalise: "E-mail personnalise selon les instructions",
+    };
+
+    const toneLabels: Record<string, string> = {
+      formel: "Formel et professionnel",
+      cordial: "Cordial et chaleureux",
+      direct: "Direct et concis",
+      empathique: "Empathique et attentionne",
+    };
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{
+        role: "user",
+        parts: [{
+          text: `Tu es un assistant IA professionnel specialise dans la redaction d'e-mails d'affaires en francais pour un bureau professionnel en France. 
+
+Redige un e-mail complet et professionnel selon les parametres suivants:
+
+Objectif: ${purposeLabels[purpose] || purpose}
+Destinataire: ${contactName || "Non specifie"}
+Entreprise du destinataire: ${company || "Non specifiee"}
+Categorie du contact: ${category || "Non specifiee"}
+Ton souhaite: ${toneLabels[tone] || tone || "Professionnel et cordial"}
+Langue: ${language || "Francais"}
+${additionalContext ? `Instructions supplementaires: ${additionalContext}` : ""}
+${contactHistory ? `\nHistorique avec ce contact:${contactHistory}` : ""}
+
+IMPORTANT: 
+- Utilise des noms fictifs si aucun nom n'est fourni
+- N'utilise JAMAIS de noms de personnes reelles
+- L'e-mail doit etre pret a envoyer
+- Inclus une formule de politesse appropriee
+- Le contenu doit etre pertinent par rapport a l'historique du contact si disponible
+
+Reponds en JSON avec cette structure exacte:
+{
+  "objet": "string (sujet de l'e-mail)",
+  "corps": "string (corps complet de l'e-mail avec sauts de ligne \\n)",
+  "destinataire": "string (nom du destinataire)",
+  "tonUtilise": "string",
+  "resumeIA": "string (explication courte de pourquoi l'IA a choisi ce contenu)",
+  "suggestionsAlternatives": [
+    {
+      "label": "string (description courte de l'alternative)",
+      "objet": "string",
+      "corps": "string"
+    }
+  ]
+}`
+        }],
+      }],
+      config: {
+        maxOutputTokens: 4096,
+        responseMimeType: "application/json",
+      },
+    });
+
+    const text = response.text ?? "{}";
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = { objet: "", corps: text, destinataire: contactName || "", tonUtilise: tone || "cordial", resumeIA: "", suggestionsAlternatives: [] };
+    }
+
+    res.json(parsed);
+  } catch (error: any) {
+    console.error("AI Draft Email error:", error);
+    const isProduction = process.env.NODE_ENV === "production";
+    res.status(500).json({
+      error: "Erreur lors de la generation de l'e-mail IA",
+      ...(isProduction ? {} : { details: error.message }),
+    });
+  }
+});
+
 export default router;

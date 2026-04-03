@@ -19,6 +19,7 @@ import type {
 import type {
   AiAnalysisResult,
   AiAssistantResponse,
+  AiEmailDraft,
   AiRecognitionResult,
   AiStatus,
   AiSuggestionsResult,
@@ -35,6 +36,7 @@ import type {
   CreateTaskBody,
   DashboardSummary,
   DisconnectWorkspaceService200,
+  DraftAiEmailBody,
   GetCalendarEvents200,
   GetCallAnalyticsParams,
   GetContactCalls200,
@@ -3332,6 +3334,92 @@ export const useAskAiAssistant = <
   TContext
 > => {
   return useMutation(getAskAiAssistantMutationOptions(options));
+};
+
+/**
+ * @summary AI-powered email drafting with context
+ */
+export const getDraftAiEmailUrl = () => {
+  return `/api/ai/draft-email`;
+};
+
+export const draftAiEmail = async (
+  draftAiEmailBody: DraftAiEmailBody,
+  options?: RequestInit,
+): Promise<AiEmailDraft> => {
+  return customFetch<AiEmailDraft>(getDraftAiEmailUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(draftAiEmailBody),
+  });
+};
+
+export const getDraftAiEmailMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof draftAiEmail>>,
+    TError,
+    { data: BodyType<DraftAiEmailBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof draftAiEmail>>,
+  TError,
+  { data: BodyType<DraftAiEmailBody> },
+  TContext
+> => {
+  const mutationKey = ["draftAiEmail"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof draftAiEmail>>,
+    { data: BodyType<DraftAiEmailBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return draftAiEmail(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DraftAiEmailMutationResult = NonNullable<
+  Awaited<ReturnType<typeof draftAiEmail>>
+>;
+export type DraftAiEmailMutationBody = BodyType<DraftAiEmailBody>;
+export type DraftAiEmailMutationError = ErrorType<unknown>;
+
+/**
+ * @summary AI-powered email drafting with context
+ */
+export const useDraftAiEmail = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof draftAiEmail>>,
+    TError,
+    { data: BodyType<DraftAiEmailBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof draftAiEmail>>,
+  TError,
+  { data: BodyType<DraftAiEmailBody> },
+  TContext
+> => {
+  return useMutation(getDraftAiEmailMutationOptions(options));
 };
 
 /**

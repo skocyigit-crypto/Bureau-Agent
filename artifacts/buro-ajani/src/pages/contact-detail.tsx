@@ -3,7 +3,9 @@ import { useGetContact, useGetContactCalls, useGetContactTasks, getGetContactQue
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Phone, Mail, Building, MapPin, Calendar, Clock, Edit, FileText, Plus, PhoneCall, ArrowLeft, MoreHorizontal, Voicemail, PhoneMissed, CheckSquare, AlertCircle } from "lucide-react";
+import { useState } from "react";
+import { Phone, Mail, Building, MapPin, Calendar, Clock, Edit, FileText, Plus, PhoneCall, ArrowLeft, MoreHorizontal, Voicemail, PhoneMissed, CheckSquare, AlertCircle, Send } from "lucide-react";
+import { EmailComposer } from "@/components/email-composer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +23,6 @@ import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { AiValidationFeedback } from "@/components/ai-validation-feedback";
 import { useAiValidation } from "@/hooks/use-ai-validation";
-import { useState } from "react";
 
 const formSchema = z.object({
   firstName: z.string().min(1, "Le prénom est requis"),
@@ -41,6 +42,7 @@ export default function ContactDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
   const aiValidation = useAiValidation("contact");
 
   const { data: contact, isLoading: isContactLoading } = useGetContact(contactId, {
@@ -150,8 +152,8 @@ export default function ContactDetail() {
         </Button>
         <h1 className="text-3xl font-bold tracking-tight flex-1">{contact.firstName} {contact.lastName}</h1>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <Mail className="w-4 h-4 mr-2" /> Email
+          <Button variant="outline" onClick={() => setIsEmailComposerOpen(true)} className="gap-2">
+            <Send className="w-4 h-4" /> E-mail IA
           </Button>
           <Button className="bg-primary text-primary-foreground">
             <PhoneCall className="w-4 h-4 mr-2" /> Appeler
@@ -372,6 +374,11 @@ export default function ContactDetail() {
           </Tabs>
         </div>
       </div>
+      <EmailComposer
+        isOpen={isEmailComposerOpen}
+        onClose={() => setIsEmailComposerOpen(false)}
+        preselectedContactId={contactId}
+      />
     </div>
   );
 }
