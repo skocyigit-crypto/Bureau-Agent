@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, ilike, or, sql, and } from "drizzle-orm";
+import { eq, desc, asc, ilike, or, sql, and } from "drizzle-orm";
 import { db, contactsTable, callsTable, tasksTable } from "@workspace/db";
 import {
   ListContactsQueryParams,
@@ -12,6 +12,14 @@ import {
 
 const router: IRouter = Router();
 
+const contactSortColumns: Record<string, any> = {
+  createdAt: contactsTable.createdAt,
+  firstName: contactsTable.firstName,
+  lastName: contactsTable.lastName,
+  company: contactsTable.company,
+  totalCalls: contactsTable.totalCalls,
+};
+
 router.get("/contacts", async (req, res): Promise<void> => {
   const query = ListContactsQueryParams.safeParse(req.query);
   if (!query.success) {
@@ -19,7 +27,7 @@ router.get("/contacts", async (req, res): Promise<void> => {
     return;
   }
 
-  const { search, category, limit, offset } = query.data;
+  const { search, category, limit, offset, sortBy, sortOrder } = query.data;
 
   const conditions = [];
   if (category && category !== "all") {
@@ -39,12 +47,15 @@ router.get("/contacts", async (req, res): Promise<void> => {
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
+  const sortCol = contactSortColumns[sortBy ?? "createdAt"] ?? contactsTable.createdAt;
+  const orderFn = sortOrder === "asc" ? asc : desc;
+
   const [contacts, countResult] = await Promise.all([
     db
       .select()
       .from(contactsTable)
       .where(whereClause)
-      .orderBy(desc(contactsTable.createdAt))
+      .orderBy(orderFn(sortCol))
       .limit(limit ?? 50)
       .offset(offset ?? 0),
     db

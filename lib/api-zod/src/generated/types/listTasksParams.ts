@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ListTasksPriority } from "./listTasksPriority";
+import type { ListTasksSortBy } from "./listTasksSortBy";
+import type { ListTasksSortOrder } from "./listTasksSortOrder";
 import type { ListTasksStatus } from "./listTasksStatus";
 
 export type ListTasksParams = {
@@ -13,4 +15,7 @@ export type ListTasksParams = {
   priority?: ListTasksPriority;
   limit?: number;
   offset?: number;
+  search?: string;
+  sortBy?: ListTasksSortBy;
+  sortOrder?: ListTasksSortOrder;
 };

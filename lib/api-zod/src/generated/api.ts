@@ -19,6 +19,8 @@ export const HealthCheckResponse = zod.object({
  */
 export const listCallsQueryLimitDefault = 50;
 export const listCallsQueryOffsetDefault = 0;
+export const listCallsQuerySortByDefault = `createdAt`;
+export const listCallsQuerySortOrderDefault = `desc`;
 
 export const ListCallsQueryParams = zod.object({
   status: zod
@@ -27,6 +29,13 @@ export const ListCallsQueryParams = zod.object({
   limit: zod.coerce.number().default(listCallsQueryLimitDefault),
   offset: zod.coerce.number().default(listCallsQueryOffsetDefault),
   search: zod.coerce.string().optional(),
+  sortBy: zod
+    .enum(["createdAt", "duration", "status", "contactName"])
+    .default(listCallsQuerySortByDefault),
+  sortOrder: zod.enum(["asc", "desc"]).default(listCallsQuerySortOrderDefault),
+  dateFrom: zod.date().optional(),
+  dateTo: zod.date().optional(),
+  direction: zod.enum(["entrant", "sortant", "all"]).optional(),
 });
 
 export const ListCallsResponse = zod.object({
@@ -128,6 +137,8 @@ export const DeleteCallParams = zod.object({
  */
 export const listContactsQueryLimitDefault = 50;
 export const listContactsQueryOffsetDefault = 0;
+export const listContactsQuerySortByDefault = `createdAt`;
+export const listContactsQuerySortOrderDefault = `desc`;
 
 export const ListContactsQueryParams = zod.object({
   search: zod.coerce.string().optional(),
@@ -136,6 +147,12 @@ export const ListContactsQueryParams = zod.object({
     .optional(),
   limit: zod.coerce.number().default(listContactsQueryLimitDefault),
   offset: zod.coerce.number().default(listContactsQueryOffsetDefault),
+  sortBy: zod
+    .enum(["createdAt", "firstName", "lastName", "company", "totalCalls"])
+    .default(listContactsQuerySortByDefault),
+  sortOrder: zod
+    .enum(["asc", "desc"])
+    .default(listContactsQuerySortOrderDefault),
 });
 
 export const ListContactsResponse = zod.object({
@@ -273,6 +290,8 @@ export const DeleteContactParams = zod.object({
  */
 export const listTasksQueryLimitDefault = 50;
 export const listTasksQueryOffsetDefault = 0;
+export const listTasksQuerySortByDefault = `createdAt`;
+export const listTasksQuerySortOrderDefault = `desc`;
 
 export const ListTasksQueryParams = zod.object({
   status: zod
@@ -281,6 +300,11 @@ export const ListTasksQueryParams = zod.object({
   priority: zod.enum(["haute", "moyenne", "basse", "all"]).optional(),
   limit: zod.coerce.number().default(listTasksQueryLimitDefault),
   offset: zod.coerce.number().default(listTasksQueryOffsetDefault),
+  search: zod.coerce.string().optional(),
+  sortBy: zod
+    .enum(["createdAt", "dueDate", "priority", "status", "title"])
+    .default(listTasksQuerySortByDefault),
+  sortOrder: zod.enum(["asc", "desc"]).default(listTasksQuerySortOrderDefault),
 });
 
 export const ListTasksResponse = zod.object({
@@ -381,11 +405,22 @@ export const DeleteTaskParams = zod.object({
  */
 export const listMessagesQueryLimitDefault = 50;
 export const listMessagesQueryOffsetDefault = 0;
+export const listMessagesQuerySortByDefault = `createdAt`;
+export const listMessagesQuerySortOrderDefault = `desc`;
 
 export const ListMessagesQueryParams = zod.object({
   read: zod.coerce.boolean().optional(),
   limit: zod.coerce.number().default(listMessagesQueryLimitDefault),
   offset: zod.coerce.number().default(listMessagesQueryOffsetDefault),
+  search: zod.coerce.string().optional(),
+  type: zod.enum(["messagerie_vocale", "note", "rappel", "all"]).optional(),
+  priority: zod.enum(["haute", "moyenne", "basse", "all"]).optional(),
+  sortBy: zod
+    .enum(["createdAt", "priority", "type"])
+    .default(listMessagesQuerySortByDefault),
+  sortOrder: zod
+    .enum(["asc", "desc"])
+    .default(listMessagesQuerySortOrderDefault),
 });
 
 export const ListMessagesResponse = zod.object({

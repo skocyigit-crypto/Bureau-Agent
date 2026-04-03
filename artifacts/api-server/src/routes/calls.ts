@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, ilike, or, sql, and } from "drizzle-orm";
+import { eq, desc, asc, ilike, or, sql, and, gte, lte } from "drizzle-orm";
 import { db, callsTable, contactsTable } from "@workspace/db";
 import {
   ListCallsQueryParams,
@@ -12,6 +12,13 @@ import {
 
 const router: IRouter = Router();
 
+const callSortColumns: Record<string, any> = {
+  createdAt: callsTable.createdAt,
+  duration: callsTable.duration,
+  status: callsTable.status,
+  contactName: callsTable.contactName,
+};
+
 router.get("/calls", async (req, res): Promise<void> => {
   const query = ListCallsQueryParams.safeParse(req.query);
   if (!query.success) {
@@ -19,7 +26,7 @@ router.get("/calls", async (req, res): Promise<void> => {
     return;
   }
 
-  const { status, limit, offset, search } = query.data;
+  const { status, limit, offset, search, sortBy, sortOrder, dateFrom, dateTo, direction } = query.data;
 
   const conditions = [];
   if (status && status !== "all") {
@@ -28,6 +35,9 @@ router.get("/calls", async (req, res): Promise<void> => {
     else if (status === "voicemail") conditions.push(eq(callsTable.status, "messagerie"));
     else if (status === "outgoing") conditions.push(eq(callsTable.direction, "sortant"));
     else conditions.push(eq(callsTable.status, status));
+  }
+  if (direction && direction !== "all") {
+    conditions.push(eq(callsTable.direction, direction));
   }
   if (search) {
     conditions.push(
@@ -38,15 +48,24 @@ router.get("/calls", async (req, res): Promise<void> => {
       )
     );
   }
+  if (dateFrom) {
+    conditions.push(gte(callsTable.createdAt, new Date(dateFrom)));
+  }
+  if (dateTo) {
+    conditions.push(lte(callsTable.createdAt, new Date(dateTo)));
+  }
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const sortCol = callSortColumns[sortBy ?? "createdAt"] ?? callsTable.createdAt;
+  const orderFn = sortOrder === "asc" ? asc : desc;
 
   const [calls, countResult] = await Promise.all([
     db
       .select()
       .from(callsTable)
       .where(whereClause)
-      .orderBy(desc(callsTable.createdAt))
+      .orderBy(orderFn(sortCol))
       .limit(limit ?? 50)
       .offset(offset ?? 0),
     db

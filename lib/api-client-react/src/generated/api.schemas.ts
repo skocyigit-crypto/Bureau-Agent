@@ -503,6 +503,11 @@ export type ListCallsParams = {
   limit?: number;
   offset?: number;
   search?: string;
+  sortBy?: ListCallsSortBy;
+  sortOrder?: ListCallsSortOrder;
+  dateFrom?: string;
+  dateTo?: string;
+  direction?: ListCallsDirection;
 };
 
 export type ListCallsStatus =
@@ -516,6 +521,33 @@ export const ListCallsStatus = {
   all: "all",
 } as const;
 
+export type ListCallsSortBy =
+  (typeof ListCallsSortBy)[keyof typeof ListCallsSortBy];
+
+export const ListCallsSortBy = {
+  createdAt: "createdAt",
+  duration: "duration",
+  status: "status",
+  contactName: "contactName",
+} as const;
+
+export type ListCallsSortOrder =
+  (typeof ListCallsSortOrder)[keyof typeof ListCallsSortOrder];
+
+export const ListCallsSortOrder = {
+  asc: "asc",
+  desc: "desc",
+} as const;
+
+export type ListCallsDirection =
+  (typeof ListCallsDirection)[keyof typeof ListCallsDirection];
+
+export const ListCallsDirection = {
+  entrant: "entrant",
+  sortant: "sortant",
+  all: "all",
+} as const;
+
 export type ListCalls200 = {
   calls: Call[];
   total: number;
@@ -526,6 +558,8 @@ export type ListContactsParams = {
   category?: ListContactsCategory;
   limit?: number;
   offset?: number;
+  sortBy?: ListContactsSortBy;
+  sortOrder?: ListContactsSortOrder;
 };
 
 export type ListContactsCategory =
@@ -540,6 +574,25 @@ export const ListContactsCategory = {
   all: "all",
 } as const;
 
+export type ListContactsSortBy =
+  (typeof ListContactsSortBy)[keyof typeof ListContactsSortBy];
+
+export const ListContactsSortBy = {
+  createdAt: "createdAt",
+  firstName: "firstName",
+  lastName: "lastName",
+  company: "company",
+  totalCalls: "totalCalls",
+} as const;
+
+export type ListContactsSortOrder =
+  (typeof ListContactsSortOrder)[keyof typeof ListContactsSortOrder];
+
+export const ListContactsSortOrder = {
+  asc: "asc",
+  desc: "desc",
+} as const;
+
 export type ListContacts200 = {
   contacts: Contact[];
   total: number;
@@ -550,6 +603,9 @@ export type ListTasksParams = {
   priority?: ListTasksPriority;
   limit?: number;
   offset?: number;
+  search?: string;
+  sortBy?: ListTasksSortBy;
+  sortOrder?: ListTasksSortOrder;
 };
 
 export type ListTasksStatus =
@@ -573,6 +629,25 @@ export const ListTasksPriority = {
   all: "all",
 } as const;
 
+export type ListTasksSortBy =
+  (typeof ListTasksSortBy)[keyof typeof ListTasksSortBy];
+
+export const ListTasksSortBy = {
+  createdAt: "createdAt",
+  dueDate: "dueDate",
+  priority: "priority",
+  status: "status",
+  title: "title",
+} as const;
+
+export type ListTasksSortOrder =
+  (typeof ListTasksSortOrder)[keyof typeof ListTasksSortOrder];
+
+export const ListTasksSortOrder = {
+  asc: "asc",
+  desc: "desc",
+} as const;
+
 export type ListTasks200 = {
   tasks: Task[];
   total: number;
@@ -582,7 +657,49 @@ export type ListMessagesParams = {
   read?: boolean;
   limit?: number;
   offset?: number;
+  search?: string;
+  type?: ListMessagesType;
+  priority?: ListMessagesPriority;
+  sortBy?: ListMessagesSortBy;
+  sortOrder?: ListMessagesSortOrder;
 };
+
+export type ListMessagesType =
+  (typeof ListMessagesType)[keyof typeof ListMessagesType];
+
+export const ListMessagesType = {
+  messagerie_vocale: "messagerie_vocale",
+  note: "note",
+  rappel: "rappel",
+  all: "all",
+} as const;
+
+export type ListMessagesPriority =
+  (typeof ListMessagesPriority)[keyof typeof ListMessagesPriority];
+
+export const ListMessagesPriority = {
+  haute: "haute",
+  moyenne: "moyenne",
+  basse: "basse",
+  all: "all",
+} as const;
+
+export type ListMessagesSortBy =
+  (typeof ListMessagesSortBy)[keyof typeof ListMessagesSortBy];
+
+export const ListMessagesSortBy = {
+  createdAt: "createdAt",
+  priority: "priority",
+  type: "type",
+} as const;
+
+export type ListMessagesSortOrder =
+  (typeof ListMessagesSortOrder)[keyof typeof ListMessagesSortOrder];
+
+export const ListMessagesSortOrder = {
+  asc: "asc",
+  desc: "desc",
+} as const;
 
 export type ListMessages200 = {
   messages: Message[];

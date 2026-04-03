@@ -5,6 +5,9 @@
  * Bureau Agent API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ListCallsDirection } from "./listCallsDirection";
+import type { ListCallsSortBy } from "./listCallsSortBy";
+import type { ListCallsSortOrder } from "./listCallsSortOrder";
 import type { ListCallsStatus } from "./listCallsStatus";
 
 export type ListCallsParams = {
@@ -12,4 +15,9 @@ export type ListCallsParams = {
   limit?: number;
   offset?: number;
   search?: string;
+  sortBy?: ListCallsSortBy;
+  sortOrder?: ListCallsSortOrder;
+  dateFrom?: Date;
+  dateTo?: Date;
+  direction?: ListCallsDirection;
 };

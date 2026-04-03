@@ -61,6 +61,33 @@ paths:
           in: query
           schema:
             type: string
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [createdAt, duration, status, contactName]
+            default: createdAt
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [entrant, sortant, all]
       responses:
         "200":
           description: List of calls
@@ -177,6 +204,18 @@ paths:
           schema:
             type: integer
             default: 0
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [createdAt, firstName, lastName, company, totalCalls]
+            default: createdAt
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
       responses:
         "200":
           description: List of contacts
@@ -292,6 +331,22 @@ paths:
           schema:
             type: integer
             default: 0
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [createdAt, dueDate, priority, status, title]
+            default: createdAt
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
       responses:
         "200":
           description: List of tasks
@@ -401,6 +456,32 @@ paths:
           schema:
             type: integer
             default: 0
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [messagerie_vocale, note, rappel, all]
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [haute, moyenne, basse, all]
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [createdAt, priority, type]
+            default: createdAt
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
       responses:
         "200":
           description: List of messages

@@ -6,10 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ListContactsCategory } from "./listContactsCategory";
+import type { ListContactsSortBy } from "./listContactsSortBy";
+import type { ListContactsSortOrder } from "./listContactsSortOrder";
 
 export type ListContactsParams = {
   search?: string;
   category?: ListContactsCategory;
   limit?: number;
   offset?: number;
+  sortBy?: ListContactsSortBy;
+  sortOrder?: ListContactsSortOrder;
 };

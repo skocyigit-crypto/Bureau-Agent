@@ -5,9 +5,18 @@
  * Bureau Agent API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { ListMessagesPriority } from "./listMessagesPriority";
+import type { ListMessagesSortBy } from "./listMessagesSortBy";
+import type { ListMessagesSortOrder } from "./listMessagesSortOrder";
+import type { ListMessagesType } from "./listMessagesType";
 
 export type ListMessagesParams = {
   read?: boolean;
   limit?: number;
   offset?: number;
+  search?: string;
+  type?: ListMessagesType;
+  priority?: ListMessagesPriority;
+  sortBy?: ListMessagesSortBy;
+  sortOrder?: ListMessagesSortOrder;
 };

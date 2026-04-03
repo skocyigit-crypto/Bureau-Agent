@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { useListMessages, useUpdateMessage, useCreateMessage, getListMessagesQueryKey, useListContacts } from "@workspace/api-client-react";
+import { useListMessages, useUpdateMessage, useCreateMessage, useDeleteMessage, getListMessagesQueryKey, useListContacts } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { MessageSquare, Voicemail, FileText, Bell, Search, Filter, MoreHorizontal, MailOpen, Mail, Plus } from "lucide-react";
+import { MessageSquare, Voicemail, FileText, Bell, Search, Filter, MoreHorizontal, MailOpen, Mail, Plus, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,9 +21,11 @@ import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 
+const PAGE_SIZE = 15;
+
 const formSchema = z.object({
   contactId: z.string().transform(v => v === "none" ? null : parseInt(v)).optional().nullable(),
-  phoneNumber: z.string().min(1, "Le numéro est requis"),
+  phoneNumber: z.string().min(1, "Le numero est requis"),
   content: z.string().min(1, "Le message est requis"),
   type: z.enum(["messagerie_vocale", "note", "rappel"]),
   priority: z.enum(["haute", "moyenne", "basse"]),
@@ -32,28 +35,40 @@ export default function Messages() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [readFilter, setReadFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
-  const { data, isLoading } = useListMessages(
-    { read: readFilter === "all" ? undefined : readFilter === "read" },
-    { query: { queryKey: getListMessagesQueryKey({ read: readFilter === "all" ? undefined : readFilter === "read" }) } }
-  );
+  const queryParams = {
+    read: readFilter === "all" ? undefined : readFilter === "read",
+    type: typeFilter !== "all" ? typeFilter as any : undefined,
+    priority: priorityFilter !== "all" ? priorityFilter as any : undefined,
+    search: search || undefined,
+    limit: PAGE_SIZE,
+    offset: page * PAGE_SIZE,
+  };
+
+  const { data, isLoading } = useListMessages(queryParams, {
+    query: { queryKey: getListMessagesQueryKey(queryParams) }
+  });
 
   const { data: contactsData } = useListContacts({ limit: 100 }, { query: { queryKey: ["contacts", "all"] } });
 
   const updateMessage = useUpdateMessage();
   const createMessage = useCreateMessage();
+  const deleteMessage = useDeleteMessage();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      contactId: null as any,
-      phoneNumber: "",
-      content: "",
-      type: "note",
-      priority: "moyenne",
+      contactId: null as any, phoneNumber: "", content: "", type: "note", priority: "moyenne",
     }
   });
+
+  const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
 
   const handleReadToggle = (id: number, isRead: boolean) => {
     updateMessage.mutate({ id, data: { isRead } }, {
@@ -65,10 +80,53 @@ export default function Messages() {
     });
   };
 
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (!data?.messages) return;
+    if (selectedIds.size === data.messages.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(data.messages.map(m => m.id)));
+    }
+  };
+
+  const handleBulkMarkRead = async () => {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    for (const id of ids) {
+      await new Promise<void>((resolve) => {
+        updateMessage.mutate({ id, data: { isRead: true } }, { onSuccess: () => resolve(), onError: () => resolve() });
+      });
+    }
+    setSelectedIds(new Set());
+    queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() });
+    toast({ title: `${ids.length} message(s) marque(s) comme lu(s)` });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    for (const id of ids) {
+      await new Promise<void>((resolve) => {
+        deleteMessage.mutate({ id }, { onSuccess: () => resolve(), onError: () => resolve() });
+      });
+    }
+    setSelectedIds(new Set());
+    queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() });
+    toast({ title: `${ids.length} message(s) supprime(s)` });
+  };
+
   const onSubmit = (values: any) => {
     createMessage.mutate({ data: values }, {
       onSuccess: () => {
-        toast({ title: "Message enregistré" });
+        toast({ title: "Message enregistre" });
         setIsDialogOpen(false);
         form.reset();
         queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() });
@@ -88,11 +146,20 @@ export default function Messages() {
     }
   };
 
+  const getTypeBadge = (type: string) => {
+    switch (type) {
+      case 'messagerie_vocale': return <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 border-amber-500/20">Vocal</Badge>;
+      case 'note': return <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 border-blue-500/20">Note</Badge>;
+      case 'rappel': return <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">Rappel</Badge>;
+      default: return <Badge variant="outline">{type}</Badge>;
+    }
+  };
+
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
       case 'haute': return <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">Haute</Badge>;
       case 'moyenne': return <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-amber-500/20 text-amber-700">Moyenne</Badge>;
-      case 'basse': return null; 
+      case 'basse': return <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-muted text-muted-foreground">Basse</Badge>;
       default: return null;
     }
   };
@@ -102,9 +169,21 @@ export default function Messages() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Messages & Notes</h1>
-          <p className="text-muted-foreground mt-1">Consultez les messages vocaux et notes laissés par les appelants.</p>
+          <p className="text-muted-foreground mt-1">Consultez les messages vocaux et notes laisses par les appelants.</p>
         </div>
         <div className="flex items-center gap-2">
+          {selectedIds.size > 0 && (
+            <>
+              <Button variant="outline" size="sm" onClick={handleBulkMarkRead}>
+                <CheckCheck className="w-4 h-4 mr-2" />
+                Tout lire ({selectedIds.size})
+              </Button>
+              <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Supprimer ({selectedIds.size})
+              </Button>
+            </>
+          )}
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
@@ -136,7 +215,7 @@ export default function Messages() {
                     )} />
                     <FormField control={form.control} name="priority" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Priorité</FormLabel>
+                        <FormLabel>Priorite</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                           <SelectContent>
@@ -152,7 +231,7 @@ export default function Messages() {
                   
                   <FormField control={form.control} name="phoneNumber" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Numéro de téléphone</FormLabel>
+                      <FormLabel>Numero de telephone</FormLabel>
                       <FormControl><Input placeholder="+33 6..." {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -160,7 +239,7 @@ export default function Messages() {
 
                   <FormField control={form.control} name="contactId" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Associer à un contact (Optionnel)</FormLabel>
+                      <FormLabel>Associer a un contact (Optionnel)</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value?.toString() || "none"}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Choisir un contact..."/></SelectTrigger></FormControl>
                         <SelectContent>
@@ -192,18 +271,36 @@ export default function Messages() {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-card p-4 border border-border rounded-lg shadow-sm">
-        <div className="flex-1 w-full sm:max-w-sm" />
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Filter className="w-4 h-4 text-muted-foreground" />
-          <Select value={readFilter} onValueChange={setReadFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="État de lecture" />
-            </SelectTrigger>
+      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-card p-4 border border-border rounded-lg shadow-sm">
+        <div className="relative w-full sm:max-w-xs">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Rechercher un message..." className="pl-9 w-full" value={search} onChange={(e) => { setSearch(e.target.value); setPage(0); }} />
+        </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+          <Select value={readFilter} onValueChange={(v) => { setReadFilter(v); setPage(0); }}>
+            <SelectTrigger className="w-[140px]"><SelectValue placeholder="Lecture" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tous les messages</SelectItem>
+              <SelectItem value="all">Tous</SelectItem>
               <SelectItem value="unread">Non lus</SelectItem>
               <SelectItem value="read">Lus</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(0); }}>
+            <SelectTrigger className="w-[140px]"><SelectValue placeholder="Type" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous types</SelectItem>
+              <SelectItem value="messagerie_vocale">Vocal</SelectItem>
+              <SelectItem value="note">Note</SelectItem>
+              <SelectItem value="rappel">Rappel</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={priorityFilter} onValueChange={(v) => { setPriorityFilter(v); setPage(0); }}>
+            <SelectTrigger className="w-[140px]"><SelectValue placeholder="Priorite" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes</SelectItem>
+              <SelectItem value="haute">Haute</SelectItem>
+              <SelectItem value="moyenne">Moyenne</SelectItem>
+              <SelectItem value="basse">Basse</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -213,11 +310,18 @@ export default function Messages() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
+              <TableHead className="w-[40px]">
+                <Checkbox
+                  checked={data?.messages?.length ? selectedIds.size === data.messages.length : false}
+                  onCheckedChange={toggleSelectAll}
+                />
+              </TableHead>
               <TableHead className="w-[50px]"></TableHead>
               <TableHead>De</TableHead>
               <TableHead>Type</TableHead>
-              <TableHead className="w-1/2">Contenu</TableHead>
-              <TableHead>Reçu le</TableHead>
+              <TableHead>Priorite</TableHead>
+              <TableHead className="w-1/3">Contenu</TableHead>
+              <TableHead>Date</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -225,9 +329,11 @@ export default function Messages() {
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
+                  <TableCell><Skeleton className="w-4 h-4" /></TableCell>
                   <TableCell><Skeleton className="w-6 h-6 rounded-full" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-32 mb-1" /><Skeleton className="h-3 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-6 w-24 rounded-full" /></TableCell>
+                  <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-14 rounded-full" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-full" /></TableCell>
                   <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                   <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
@@ -235,15 +341,18 @@ export default function Messages() {
               ))
             ) : data?.messages.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                  Aucun message trouvé.
+                <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                  Aucun message trouve.
                 </TableCell>
               </TableRow>
             ) : (
               data?.messages.map((message) => (
-                <TableRow key={message.id} className={`hover:bg-muted/30 transition-colors ${!message.isRead ? 'bg-primary/5' : ''}`}>
+                <TableRow key={message.id} className={`hover:bg-muted/30 transition-colors ${!message.isRead ? 'bg-primary/5' : ''} ${selectedIds.has(message.id) ? 'ring-1 ring-inset ring-primary/20' : ''}`}>
                   <TableCell>
-                    <div className="flex items-center justify-center p-2 bg-background border border-border rounded-full shadow-sm">
+                    <Checkbox checked={selectedIds.has(message.id)} onCheckedChange={() => toggleSelect(message.id)} />
+                  </TableCell>
+                  <TableCell>
+                    <div className={`flex items-center justify-center p-2 rounded-full ${!message.isRead ? 'bg-primary/10' : 'bg-muted'}`}>
                       {getTypeIcon(message.type)}
                     </div>
                   </TableCell>
@@ -260,10 +369,10 @@ export default function Messages() {
                     <div className="text-sm text-muted-foreground">{message.phoneNumber}</div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm capitalize">{message.type.replace('_', ' ')}</span>
-                      {getPriorityBadge(message.priority)}
-                    </div>
+                    {getTypeBadge(message.type)}
+                  </TableCell>
+                  <TableCell>
+                    {getPriorityBadge(message.priority)}
                   </TableCell>
                   <TableCell>
                     <p className={`text-sm line-clamp-2 ${!message.isRead ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
@@ -282,7 +391,6 @@ export default function Messages() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Ouvrir le menu</span>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -290,9 +398,9 @@ export default function Messages() {
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => handleReadToggle(message.id, !message.isRead)}>
                           {message.isRead ? (
-                            <><Mail className="w-4 h-4 mr-2" /> Marquer comme non lu</>
+                            <><Mail className="w-4 h-4 mr-2" /> Marquer non lu</>
                           ) : (
-                            <><MailOpen className="w-4 h-4 mr-2" /> Marquer comme lu</>
+                            <><MailOpen className="w-4 h-4 mr-2" /> Marquer lu</>
                           )}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -303,6 +411,18 @@ export default function Messages() {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          {data ? `${data.total} message(s) - Page ${page + 1} sur ${totalPages}` : ""}
+        </p>
+        <div className="flex items-center gap-1">
+          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(0)}><ChevronsLeft className="h-4 w-4" /></Button>
+          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(p => p - 1)}><ChevronLeft className="h-4 w-4" /></Button>
+          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}><ChevronRight className="h-4 w-4" /></Button>
+          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)}><ChevronsRight className="h-4 w-4" /></Button>
+        </div>
       </div>
     </div>
   );

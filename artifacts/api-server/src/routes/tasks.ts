@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, sql, and } from "drizzle-orm";
+import { eq, desc, asc, ilike, or, sql, and } from "drizzle-orm";
 import { db, tasksTable } from "@workspace/db";
 import {
   ListTasksQueryParams,
@@ -12,6 +12,14 @@ import {
 
 const router: IRouter = Router();
 
+const taskSortColumns: Record<string, any> = {
+  createdAt: tasksTable.createdAt,
+  dueDate: tasksTable.dueDate,
+  priority: tasksTable.priority,
+  status: tasksTable.status,
+  title: tasksTable.title,
+};
+
 router.get("/tasks", async (req, res): Promise<void> => {
   const query = ListTasksQueryParams.safeParse(req.query);
   if (!query.success) {
@@ -19,7 +27,7 @@ router.get("/tasks", async (req, res): Promise<void> => {
     return;
   }
 
-  const { status, priority, limit, offset } = query.data;
+  const { status, priority, limit, offset, search, sortBy, sortOrder } = query.data;
 
   const conditions = [];
   if (status && status !== "all") {
@@ -28,15 +36,27 @@ router.get("/tasks", async (req, res): Promise<void> => {
   if (priority && priority !== "all") {
     conditions.push(eq(tasksTable.priority, priority));
   }
+  if (search) {
+    conditions.push(
+      or(
+        ilike(tasksTable.title, `%${search}%`),
+        ilike(tasksTable.description, `%${search}%`),
+        ilike(tasksTable.assignedTo, `%${search}%`)
+      )
+    );
+  }
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const sortCol = taskSortColumns[sortBy ?? "createdAt"] ?? tasksTable.createdAt;
+  const orderFn = sortOrder === "asc" ? asc : desc;
 
   const [tasks, countResult] = await Promise.all([
     db
       .select()
       .from(tasksTable)
       .where(whereClause)
-      .orderBy(desc(tasksTable.createdAt))
+      .orderBy(orderFn(sortCol))
       .limit(limit ?? 50)
       .offset(offset ?? 0),
     db

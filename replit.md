@@ -22,11 +22,11 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 A comprehensive French-language office/bureau agent application for managing phone calls, contacts, tasks, and messages. All UI is in French (France). Design: deep navy sidebar, warm amber accents.
 
 ### Features
-- **Tableau de bord** (Dashboard) — Overview with call stats, weekly report, hourly performance heatmap, notification bell, recent activity, top contacts
-- **Appels** (Calls) — Call management with creation dialog, clickable rows, call detail page (/appels/:id), sentiment badges
-- **Contacts** — Professional directory with creation/edit dialog, clickable rows, contact detail page (/contacts/:id) with call history + related tasks tabs
-- **Taches** (Tasks) — Task management with creation/edit dialogs, inline status changes, related contact links
-- **Messages** — Voicemail and notes with creation dialog, read/unread toggle, visual unread indicators
+- **Tableau de bord** (Dashboard) — KPI cards with trend indicators, weekly stats row (answer rate, avg duration, peak hour, weekly calls), hourly performance bar chart, task completion stats with priority breakdown, top contacts list, recent activity feed, quick action buttons (+ Appel, + Tache, Analyse)
+- **Appels** (Calls) — Full-featured call log with search, status/direction filters, date range picker, sortable columns (contact, date, status, duration), bulk selection + bulk delete, CSV export, pagination with page controls, color-coded status badges, sentiment badges, creation dialog
+- **Contacts** — Professional directory with search, category filter, sortable columns, table/grid view toggle, bulk selection + bulk delete, CSV export, pagination, avatar initials, color-coded category badges, creation dialog
+- **Taches** (Tasks) — Dual view: table + Kanban board toggle, search, status/priority filters, sortable columns, bulk selection + bulk delete, overdue highlighting (red), inline status change via dropdown, priority color dots, related contact links, edit dialog, pagination
+- **Messages** — Search, read/type/priority filters, bulk mark-read + bulk delete, color-coded type badges (Vocal/Note/Rappel), priority badges, bold unread rows, pagination, creation dialog
 - **Analyse** (Analytics) — Comprehensive analytics with Gemini AI insights, area/bar/pie/radar charts, hourly volume, period volume, sentiment distribution, weekly comparison, task stats, call distribution by status/direction, performance radar
 
 ### AI Integration
@@ -50,7 +50,7 @@ A comprehensive French-language office/bureau agent application for managing pho
 
 ### Security Hardening
 - **Helmet** — Full security headers: CSP, HSTS (1yr+preload), X-Content-Type-Options, X-Frame-Options, Referrer-Policy, COOP/CORP
-- **Rate limiting** — General: 200 req/15min, AI endpoints: 5 req/min, Write operations: 50 req/15min
+- **Rate limiting** — General: 200 req/15min, AI endpoints: 5 req/min, Write operations: 50 req/15min; uses library ipKeyGenerator for proper IPv6 subnet handling
 - **CORS** — Restricted methods/headers, credentials support, configurable origins via ALLOWED_ORIGINS env var
 - **HPP** — HTTP Parameter Pollution protection
 - **Input validation** — Zod schemas on all endpoints, body size limit (1MB)
