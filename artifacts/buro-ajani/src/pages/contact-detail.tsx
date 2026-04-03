@@ -19,6 +19,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { AiValidationFeedback } from "@/components/ai-validation-feedback";
+import { useAiValidation } from "@/hooks/use-ai-validation";
 import { useState } from "react";
 
 const formSchema = z.object({
@@ -39,6 +41,7 @@ export default function ContactDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const aiValidation = useAiValidation("contact");
 
   const { data: contact, isLoading: isContactLoading } = useGetContact(contactId, {
     query: { enabled: !!contactId, queryKey: getGetContactQueryKey(contactId) }
@@ -221,7 +224,11 @@ export default function ContactDetail() {
                       <FormField control={form.control} name="notes" render={({ field }) => (
                         <FormItem><FormLabel>Notes</FormLabel><FormControl><Textarea className="resize-none" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
                       )} />
-                      <DialogFooter><Button type="submit" disabled={updateContact.isPending}>Enregistrer</Button></DialogFooter>
+                      <AiValidationFeedback result={aiValidation.result} isValidating={aiValidation.isValidating} />
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => aiValidation.validate(form.getValues())} disabled={aiValidation.isValidating} className="mr-auto">Verifier IA</Button>
+                        <Button type="submit" disabled={updateContact.isPending}>Enregistrer</Button>
+                      </DialogFooter>
                     </form>
                   </Form>
                 </DialogContent>

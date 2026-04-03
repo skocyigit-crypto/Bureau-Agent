@@ -19,6 +19,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
+import { AiValidationFeedback } from "@/components/ai-validation-feedback";
+import { useAiValidation } from "@/hooks/use-ai-validation";
 
 const PAGE_SIZE = 15;
 
@@ -68,6 +71,7 @@ export default function Calls() {
   const updateCall = useUpdateCall();
   const createCall = useCreateCall();
   const deleteCall = useDeleteCall();
+  const aiValidation = useAiValidation("call");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -314,7 +318,18 @@ export default function Calls() {
                     )} />
                   </div>
 
+                  <AiValidationFeedback result={aiValidation.result} isValidating={aiValidation.isValidating} />
+
                   <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => aiValidation.validate(form.getValues())}
+                      disabled={aiValidation.isValidating}
+                      className="mr-auto"
+                    >
+                      Verifier IA
+                    </Button>
                     <Button type="submit" disabled={createCall.isPending}>Enregistrer l'appel</Button>
                   </DialogFooter>
                 </form>
@@ -481,6 +496,8 @@ export default function Calls() {
           </TableBody>
         </Table>
       </div>
+
+      <AiSuggestionsCard page="calls" title="Recommandations IA - Appels" compact />
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">

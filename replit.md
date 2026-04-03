@@ -32,15 +32,22 @@ A comprehensive French-language office/bureau agent application for managing pho
 ### AI Integration
 - **Gemini AI** via Replit AI Integrations (no API key needed, billed to credits)
 - Endpoint: `POST /ai/analyze` — gathers all analytics data and sends to Gemini 2.5 Flash for structured insights
-- Returns: executive summary, strengths, attention points with recommendations, trends, prioritized actions, global score (0-100)
-- Frontend: Purple gradient "Analyse IA Gemini" button, results in tabbed card (Resume, Forces & Attention, Tendances, Actions)
+- Endpoint: `POST /ai/suggest` — page-level contextual suggestions (urgence/amelioration/information/action)
+- Endpoint: `POST /ai/validate` — AI-powered form validation with duplicate detection, returns errors/warnings/suggestions per field
+- Endpoint: `POST /ai/assistant` — natural language Q&A about office data with real-time DB context
+- Endpoint: `GET /ai/status` — check if Gemini AI is available
+- Returns (analyze): executive summary, strengths, attention points with recommendations, trends, prioritized actions, global score (0-100)
+- **Global AI Assistant Panel**: Floating purple brain button (bottom-right), opens chat panel with quick questions, contextual Q&A, real-time data responses with structured data cards and suggested actions
+- **Per-page AI Suggestions**: Each page has an "Intelligence IA disponible" card that triggers page-specific analysis (dashboard briefing, call follow-ups, contact outreach, task priorities, message recommendations)
+- **AI Form Validation**: Every create/edit dialog includes a "Verifier IA" button for AI-powered pre-submission checks (duplicate detection, data quality, logical consistency)
+- Components: `ai-assistant.tsx` (global panel), `ai-suggestions-card.tsx` (per-page cards), `ai-validation-feedback.tsx` (form feedback), `use-ai-validation.ts` (hook)
 
 ### API Endpoints
 - CRUD: `/calls`, `/contacts`, `/tasks`, `/messages`
 - Contact sub-resources: `/contacts/:id/calls`, `/contacts/:id/tasks`
 - Dashboard: `/dashboard/summary`, `/dashboard/call-analytics`, `/dashboard/recent-activity`, `/dashboard/call-distribution`, `/dashboard/top-contacts`
 - Advanced dashboard: `/dashboard/hourly-performance`, `/dashboard/task-stats`, `/dashboard/weekly-report`, `/dashboard/notifications`
-- AI: `POST /ai/analyze`, `GET /ai/status`
+- AI: `POST /ai/analyze`, `POST /ai/suggest`, `POST /ai/validate`, `POST /ai/assistant`, `GET /ai/status`
 
 ### Database Tables
 - `contacts` — Professional contact directory (categories: client, prospect, fournisseur, partenaire, autre)

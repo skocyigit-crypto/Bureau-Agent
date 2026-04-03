@@ -498,6 +498,120 @@ export interface Notification {
   createdAt: string;
 }
 
+export interface AiStatus {
+  available: boolean;
+}
+
+export type AiAnalysisResultPointsFortsItem = {
+  titre: string;
+  detail: string;
+};
+
+export type AiAnalysisResultPointsAttentionItem = {
+  titre: string;
+  detail: string;
+  recommandation: string;
+};
+
+export type AiAnalysisResultTendancesItem = {
+  titre: string;
+  detail: string;
+};
+
+export type AiAnalysisResultRecommandationsItemPriorite =
+  (typeof AiAnalysisResultRecommandationsItemPriorite)[keyof typeof AiAnalysisResultRecommandationsItemPriorite];
+
+export const AiAnalysisResultRecommandationsItemPriorite = {
+  haute: "haute",
+  moyenne: "moyenne",
+  basse: "basse",
+} as const;
+
+export type AiAnalysisResultRecommandationsItem = {
+  priorite: AiAnalysisResultRecommandationsItemPriorite;
+  action: string;
+  impact: string;
+};
+
+export interface AiAnalysisResult {
+  resumeExecutif: string;
+  pointsForts: AiAnalysisResultPointsFortsItem[];
+  pointsAttention: AiAnalysisResultPointsAttentionItem[];
+  tendances: AiAnalysisResultTendancesItem[];
+  recommandations: AiAnalysisResultRecommandationsItem[];
+  scoreGlobal: number;
+}
+
+export type AiSuggestionType =
+  (typeof AiSuggestionType)[keyof typeof AiSuggestionType];
+
+export const AiSuggestionType = {
+  urgence: "urgence",
+  amelioration: "amelioration",
+  information: "information",
+  action: "action",
+} as const;
+
+export type AiSuggestionPriorite =
+  (typeof AiSuggestionPriorite)[keyof typeof AiSuggestionPriorite];
+
+export const AiSuggestionPriorite = {
+  haute: "haute",
+  moyenne: "moyenne",
+  basse: "basse",
+} as const;
+
+export interface AiSuggestion {
+  type: AiSuggestionType;
+  titre: string;
+  description: string;
+  priorite: AiSuggestionPriorite;
+  actionLabel: string;
+}
+
+export interface AiSuggestionsResult {
+  suggestions: AiSuggestion[];
+  resumeCourt: string;
+}
+
+export type AiValidationResultErrorsItem = {
+  champ: string;
+  message: string;
+};
+
+export type AiValidationResultWarningsItem = {
+  champ: string;
+  message: string;
+};
+
+export type AiValidationResultSuggestionsItem = {
+  champ: string;
+  suggestion: string;
+};
+
+export interface AiValidationResult {
+  isValid: boolean;
+  errors: AiValidationResultErrorsItem[];
+  warnings: AiValidationResultWarningsItem[];
+  suggestions: AiValidationResultSuggestionsItem[];
+}
+
+export type AiAssistantResponseDonneesItem = {
+  label: string;
+  valeur: string;
+};
+
+export type AiAssistantResponseActionsItem = {
+  label: string;
+  description: string;
+};
+
+export interface AiAssistantResponse {
+  reponse: string;
+  donnees: AiAssistantResponseDonneesItem[];
+  actions: AiAssistantResponseActionsItem[];
+}
+
 export type ListCallsParams = {
   status?: ListCallsStatus;
   limit?: number;
@@ -763,4 +877,43 @@ export type GetHourlyPerformance200 = {
 export type GetNotifications200 = {
   notifications: Notification[];
   unreadCount: number;
+};
+
+export type RequestAiAnalysisBody = { [key: string]: unknown };
+
+export type RequestAiSuggestionsBodyPage =
+  (typeof RequestAiSuggestionsBodyPage)[keyof typeof RequestAiSuggestionsBodyPage];
+
+export const RequestAiSuggestionsBodyPage = {
+  dashboard: "dashboard",
+  calls: "calls",
+  contacts: "contacts",
+  tasks: "tasks",
+  messages: "messages",
+} as const;
+
+export type RequestAiSuggestionsBody = {
+  page: RequestAiSuggestionsBodyPage;
+};
+
+export type RequestAiValidationBodyEntityType =
+  (typeof RequestAiValidationBodyEntityType)[keyof typeof RequestAiValidationBodyEntityType];
+
+export const RequestAiValidationBodyEntityType = {
+  call: "call",
+  contact: "contact",
+  task: "task",
+  message: "message",
+} as const;
+
+export type RequestAiValidationBodyData = { [key: string]: unknown };
+
+export type RequestAiValidationBody = {
+  entityType: RequestAiValidationBodyEntityType;
+  data: RequestAiValidationBodyData;
+};
+
+export type AskAiAssistantBody = {
+  question: string;
+  currentPage?: string;
 };

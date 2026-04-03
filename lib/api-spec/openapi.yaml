@@ -20,6 +20,8 @@ tags:
     description: Voicemail and message management
   - name: dashboard
     description: Dashboard analytics
+  - name: ai
+    description: AI-powered intelligence
 
 paths:
   /healthz:
@@ -801,6 +803,113 @@ paths:
                     type: integer
                 required: [notifications, unreadCount]
 
+  # === AI ===
+  /ai/status:
+    get:
+      operationId: getAiStatus
+      tags: [ai]
+      summary: Check AI availability
+      responses:
+        "200":
+          description: AI status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiStatus"
+
+  /ai/analyze:
+    post:
+      operationId: requestAiAnalysis
+      tags: [ai]
+      summary: Request comprehensive AI analysis
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: AI analysis result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiAnalysisResult"
+
+  /ai/suggest:
+    post:
+      operationId: requestAiSuggestions
+      tags: [ai]
+      summary: Get AI suggestions for a specific page
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                page:
+                  type: string
+                  enum: [dashboard, calls, contacts, tasks, messages]
+              required: [page]
+      responses:
+        "200":
+          description: AI suggestions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiSuggestionsResult"
+
+  /ai/validate:
+    post:
+      operationId: requestAiValidation
+      tags: [ai]
+      summary: AI-powered form validation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                entityType:
+                  type: string
+                  enum: [call, contact, task, message]
+                data:
+                  type: object
+              required: [entityType, data]
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiValidationResult"
+
+  /ai/assistant:
+    post:
+      operationId: askAiAssistant
+      tags: [ai]
+      summary: Ask the AI assistant a question
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                question:
+                  type: string
+                currentPage:
+                  type: string
+              required: [question]
+      responses:
+        "200":
+          description: AI assistant response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiAssistantResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -1382,3 +1491,156 @@ components:
           type: string
           format: date-time
       required: [id, type, title, description, isRead, createdAt]
+
+    AiStatus:
+      type: object
+      properties:
+        available:
+          type: boolean
+      required: [available]
+
+    AiAnalysisResult:
+      type: object
+      properties:
+        resumeExecutif:
+          type: string
+        pointsForts:
+          type: array
+          items:
+            type: object
+            properties:
+              titre:
+                type: string
+              detail:
+                type: string
+            required: [titre, detail]
+        pointsAttention:
+          type: array
+          items:
+            type: object
+            properties:
+              titre:
+                type: string
+              detail:
+                type: string
+              recommandation:
+                type: string
+            required: [titre, detail, recommandation]
+        tendances:
+          type: array
+          items:
+            type: object
+            properties:
+              titre:
+                type: string
+              detail:
+                type: string
+            required: [titre, detail]
+        recommandations:
+          type: array
+          items:
+            type: object
+            properties:
+              priorite:
+                type: string
+                enum: [haute, moyenne, basse]
+              action:
+                type: string
+              impact:
+                type: string
+            required: [priorite, action, impact]
+        scoreGlobal:
+          type: number
+      required: [resumeExecutif, pointsForts, pointsAttention, tendances, recommandations, scoreGlobal]
+
+    AiSuggestion:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [urgence, amelioration, information, action]
+        titre:
+          type: string
+        description:
+          type: string
+        priorite:
+          type: string
+          enum: [haute, moyenne, basse]
+        actionLabel:
+          type: string
+      required: [type, titre, description, priorite, actionLabel]
+
+    AiSuggestionsResult:
+      type: object
+      properties:
+        suggestions:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiSuggestion"
+        resumeCourt:
+          type: string
+      required: [suggestions, resumeCourt]
+
+    AiValidationResult:
+      type: object
+      properties:
+        isValid:
+          type: boolean
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              champ:
+                type: string
+              message:
+                type: string
+            required: [champ, message]
+        warnings:
+          type: array
+          items:
+            type: object
+            properties:
+              champ:
+                type: string
+              message:
+                type: string
+            required: [champ, message]
+        suggestions:
+          type: array
+          items:
+            type: object
+            properties:
+              champ:
+                type: string
+              suggestion:
+                type: string
+            required: [champ, suggestion]
+      required: [isValid, errors, warnings, suggestions]
+
+    AiAssistantResponse:
+      type: object
+      properties:
+        reponse:
+          type: string
+        donnees:
+          type: array
+          items:
+            type: object
+            properties:
+              label:
+                type: string
+              valeur:
+                type: string
+            required: [label, valeur]
+        actions:
+          type: array
+          items:
+            type: object
+            properties:
+              label:
+                type: string
+              description:
+                type: string
+            required: [label, description]
+      required: [reponse, donnees, actions]

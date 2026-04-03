@@ -20,6 +20,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
+import { AiValidationFeedback } from "@/components/ai-validation-feedback";
+import { useAiValidation } from "@/hooks/use-ai-validation";
 import { Link } from "wouter";
 
 const PAGE_SIZE = 20;
@@ -74,6 +77,7 @@ export default function Tasks() {
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
+  const aiValidation = useAiValidation("task");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -310,7 +314,11 @@ export default function Tasks() {
                 <FormMessage />
               </FormItem>
             )} />
-            <DialogFooter><Button type="submit" disabled={updateTask.isPending || createTask.isPending}>{editingTask ? "Mettre a jour" : "Creer"}</Button></DialogFooter>
+            <AiValidationFeedback result={aiValidation.result} isValidating={aiValidation.isValidating} />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => aiValidation.validate(form.getValues())} disabled={aiValidation.isValidating} className="mr-auto">Verifier IA</Button>
+              <Button type="submit" disabled={updateTask.isPending || createTask.isPending}>{editingTask ? "Mettre a jour" : "Creer"}</Button>
+            </DialogFooter>
           </form>
         </Form>
       </DialogContent>
@@ -560,6 +568,8 @@ export default function Tasks() {
               </TableBody>
             </Table>
           </div>
+
+          <AiSuggestionsCard page="tasks" title="Recommandations IA - Taches" compact />
 
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">

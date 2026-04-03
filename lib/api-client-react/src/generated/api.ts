@@ -17,6 +17,12 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  AiAnalysisResult,
+  AiAssistantResponse,
+  AiStatus,
+  AiSuggestionsResult,
+  AiValidationResult,
+  AskAiAssistantBody,
   Call,
   CallAnalytics,
   CallDistribution,
@@ -46,6 +52,9 @@ import type {
   ListTasks200,
   ListTasksParams,
   Message,
+  RequestAiAnalysisBody,
+  RequestAiSuggestionsBody,
+  RequestAiValidationBody,
   Task,
   TaskStats,
   UpdateCallBody,
@@ -2810,3 +2819,421 @@ export function useGetNotifications<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Check AI availability
+ */
+export const getGetAiStatusUrl = () => {
+  return `/api/ai/status`;
+};
+
+export const getAiStatus = async (options?: RequestInit): Promise<AiStatus> => {
+  return customFetch<AiStatus>(getGetAiStatusUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAiStatusQueryKey = () => {
+  return [`/api/ai/status`] as const;
+};
+
+export const getGetAiStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAiStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAiStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAiStatusQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAiStatus>>> = ({
+    signal,
+  }) => getAiStatus({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAiStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAiStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAiStatus>>
+>;
+export type GetAiStatusQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Check AI availability
+ */
+
+export function useGetAiStatus<
+  TData = Awaited<ReturnType<typeof getAiStatus>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAiStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAiStatusQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Request comprehensive AI analysis
+ */
+export const getRequestAiAnalysisUrl = () => {
+  return `/api/ai/analyze`;
+};
+
+export const requestAiAnalysis = async (
+  requestAiAnalysisBody: RequestAiAnalysisBody,
+  options?: RequestInit,
+): Promise<AiAnalysisResult> => {
+  return customFetch<AiAnalysisResult>(getRequestAiAnalysisUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(requestAiAnalysisBody),
+  });
+};
+
+export const getRequestAiAnalysisMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestAiAnalysis>>,
+    TError,
+    { data: BodyType<RequestAiAnalysisBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof requestAiAnalysis>>,
+  TError,
+  { data: BodyType<RequestAiAnalysisBody> },
+  TContext
+> => {
+  const mutationKey = ["requestAiAnalysis"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof requestAiAnalysis>>,
+    { data: BodyType<RequestAiAnalysisBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return requestAiAnalysis(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RequestAiAnalysisMutationResult = NonNullable<
+  Awaited<ReturnType<typeof requestAiAnalysis>>
+>;
+export type RequestAiAnalysisMutationBody = BodyType<RequestAiAnalysisBody>;
+export type RequestAiAnalysisMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Request comprehensive AI analysis
+ */
+export const useRequestAiAnalysis = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestAiAnalysis>>,
+    TError,
+    { data: BodyType<RequestAiAnalysisBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof requestAiAnalysis>>,
+  TError,
+  { data: BodyType<RequestAiAnalysisBody> },
+  TContext
+> => {
+  return useMutation(getRequestAiAnalysisMutationOptions(options));
+};
+
+/**
+ * @summary Get AI suggestions for a specific page
+ */
+export const getRequestAiSuggestionsUrl = () => {
+  return `/api/ai/suggest`;
+};
+
+export const requestAiSuggestions = async (
+  requestAiSuggestionsBody: RequestAiSuggestionsBody,
+  options?: RequestInit,
+): Promise<AiSuggestionsResult> => {
+  return customFetch<AiSuggestionsResult>(getRequestAiSuggestionsUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(requestAiSuggestionsBody),
+  });
+};
+
+export const getRequestAiSuggestionsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestAiSuggestions>>,
+    TError,
+    { data: BodyType<RequestAiSuggestionsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof requestAiSuggestions>>,
+  TError,
+  { data: BodyType<RequestAiSuggestionsBody> },
+  TContext
+> => {
+  const mutationKey = ["requestAiSuggestions"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof requestAiSuggestions>>,
+    { data: BodyType<RequestAiSuggestionsBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return requestAiSuggestions(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RequestAiSuggestionsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof requestAiSuggestions>>
+>;
+export type RequestAiSuggestionsMutationBody =
+  BodyType<RequestAiSuggestionsBody>;
+export type RequestAiSuggestionsMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Get AI suggestions for a specific page
+ */
+export const useRequestAiSuggestions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestAiSuggestions>>,
+    TError,
+    { data: BodyType<RequestAiSuggestionsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof requestAiSuggestions>>,
+  TError,
+  { data: BodyType<RequestAiSuggestionsBody> },
+  TContext
+> => {
+  return useMutation(getRequestAiSuggestionsMutationOptions(options));
+};
+
+/**
+ * @summary AI-powered form validation
+ */
+export const getRequestAiValidationUrl = () => {
+  return `/api/ai/validate`;
+};
+
+export const requestAiValidation = async (
+  requestAiValidationBody: RequestAiValidationBody,
+  options?: RequestInit,
+): Promise<AiValidationResult> => {
+  return customFetch<AiValidationResult>(getRequestAiValidationUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(requestAiValidationBody),
+  });
+};
+
+export const getRequestAiValidationMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestAiValidation>>,
+    TError,
+    { data: BodyType<RequestAiValidationBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof requestAiValidation>>,
+  TError,
+  { data: BodyType<RequestAiValidationBody> },
+  TContext
+> => {
+  const mutationKey = ["requestAiValidation"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof requestAiValidation>>,
+    { data: BodyType<RequestAiValidationBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return requestAiValidation(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RequestAiValidationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof requestAiValidation>>
+>;
+export type RequestAiValidationMutationBody = BodyType<RequestAiValidationBody>;
+export type RequestAiValidationMutationError = ErrorType<unknown>;
+
+/**
+ * @summary AI-powered form validation
+ */
+export const useRequestAiValidation = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestAiValidation>>,
+    TError,
+    { data: BodyType<RequestAiValidationBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof requestAiValidation>>,
+  TError,
+  { data: BodyType<RequestAiValidationBody> },
+  TContext
+> => {
+  return useMutation(getRequestAiValidationMutationOptions(options));
+};
+
+/**
+ * @summary Ask the AI assistant a question
+ */
+export const getAskAiAssistantUrl = () => {
+  return `/api/ai/assistant`;
+};
+
+export const askAiAssistant = async (
+  askAiAssistantBody: AskAiAssistantBody,
+  options?: RequestInit,
+): Promise<AiAssistantResponse> => {
+  return customFetch<AiAssistantResponse>(getAskAiAssistantUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(askAiAssistantBody),
+  });
+};
+
+export const getAskAiAssistantMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof askAiAssistant>>,
+    TError,
+    { data: BodyType<AskAiAssistantBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof askAiAssistant>>,
+  TError,
+  { data: BodyType<AskAiAssistantBody> },
+  TContext
+> => {
+  const mutationKey = ["askAiAssistant"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof askAiAssistant>>,
+    { data: BodyType<AskAiAssistantBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return askAiAssistant(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AskAiAssistantMutationResult = NonNullable<
+  Awaited<ReturnType<typeof askAiAssistant>>
+>;
+export type AskAiAssistantMutationBody = BodyType<AskAiAssistantBody>;
+export type AskAiAssistantMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Ask the AI assistant a question
+ */
+export const useAskAiAssistant = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof askAiAssistant>>,
+    TError,
+    { data: BodyType<AskAiAssistantBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof askAiAssistant>>,
+  TError,
+  { data: BodyType<AskAiAssistantBody> },
+  TContext
+> => {
+  return useMutation(getAskAiAssistantMutationOptions(options));
+};

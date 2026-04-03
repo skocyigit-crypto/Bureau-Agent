@@ -755,3 +755,120 @@ export const GetNotificationsResponse = zod.object({
   ),
   unreadCount: zod.number(),
 });
+
+/**
+ * @summary Check AI availability
+ */
+export const GetAiStatusResponse = zod.object({
+  available: zod.boolean(),
+});
+
+/**
+ * @summary Request comprehensive AI analysis
+ */
+export const RequestAiAnalysisBody = zod.object({}).passthrough();
+
+export const RequestAiAnalysisResponse = zod.object({
+  resumeExecutif: zod.string(),
+  pointsForts: zod.array(
+    zod.object({
+      titre: zod.string(),
+      detail: zod.string(),
+    }),
+  ),
+  pointsAttention: zod.array(
+    zod.object({
+      titre: zod.string(),
+      detail: zod.string(),
+      recommandation: zod.string(),
+    }),
+  ),
+  tendances: zod.array(
+    zod.object({
+      titre: zod.string(),
+      detail: zod.string(),
+    }),
+  ),
+  recommandations: zod.array(
+    zod.object({
+      priorite: zod.enum(["haute", "moyenne", "basse"]),
+      action: zod.string(),
+      impact: zod.string(),
+    }),
+  ),
+  scoreGlobal: zod.number(),
+});
+
+/**
+ * @summary Get AI suggestions for a specific page
+ */
+export const RequestAiSuggestionsBody = zod.object({
+  page: zod.enum(["dashboard", "calls", "contacts", "tasks", "messages"]),
+});
+
+export const RequestAiSuggestionsResponse = zod.object({
+  suggestions: zod.array(
+    zod.object({
+      type: zod.enum(["urgence", "amelioration", "information", "action"]),
+      titre: zod.string(),
+      description: zod.string(),
+      priorite: zod.enum(["haute", "moyenne", "basse"]),
+      actionLabel: zod.string(),
+    }),
+  ),
+  resumeCourt: zod.string(),
+});
+
+/**
+ * @summary AI-powered form validation
+ */
+export const RequestAiValidationBody = zod.object({
+  entityType: zod.enum(["call", "contact", "task", "message"]),
+  data: zod.object({}).passthrough(),
+});
+
+export const RequestAiValidationResponse = zod.object({
+  isValid: zod.boolean(),
+  errors: zod.array(
+    zod.object({
+      champ: zod.string(),
+      message: zod.string(),
+    }),
+  ),
+  warnings: zod.array(
+    zod.object({
+      champ: zod.string(),
+      message: zod.string(),
+    }),
+  ),
+  suggestions: zod.array(
+    zod.object({
+      champ: zod.string(),
+      suggestion: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary Ask the AI assistant a question
+ */
+export const AskAiAssistantBody = zod.object({
+  question: zod.string(),
+  currentPage: zod.string().optional(),
+});
+
+export const AskAiAssistantResponse = zod.object({
+  reponse: zod.string(),
+  donnees: zod.array(
+    zod.object({
+      label: zod.string(),
+      valeur: zod.string(),
+    }),
+  ),
+  actions: zod.array(
+    zod.object({
+      label: zod.string(),
+      description: zod.string(),
+    }),
+  ),
+});

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable } from "@workspace/db";
-import { sql, eq, gte, and, count, avg, desc } from "drizzle-orm";
+import { sql, eq, gte, lte, and, count, avg, desc, lt, ne, isNull, isNotNull } from "drizzle-orm";
 
 const router = Router();
 
@@ -176,6 +176,311 @@ Reponds en JSON avec cette structure exacte:
 router.get("/ai/status", (_req, res) => {
   const hasGemini = !!(process.env.AI_INTEGRATIONS_GEMINI_BASE_URL && process.env.AI_INTEGRATIONS_GEMINI_API_KEY);
   res.json({ available: hasGemini });
+});
+
+async function gatherContextForPage(page: string) {
+  const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  switch (page) {
+    case "dashboard": {
+      const [missedCalls, pendingTasks, overdueTasks, unread, recentNegative] = await Promise.all([
+        db.select({ count: count() }).from(callsTable).where(and(eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))),
+        db.select({ count: count() }).from(tasksTable).where(eq(tasksTable.status, "en_attente")),
+        db.select({ id: tasksTable.id, title: tasksTable.title, dueDate: tasksTable.dueDate }).from(tasksTable).where(and(lt(tasksTable.dueDate, now), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))).limit(5),
+        db.select({ count: count() }).from(messagesTable).where(eq(messagesTable.isRead, false)),
+        db.select({ contactName: callsTable.contactName, phoneNumber: callsTable.phoneNumber, createdAt: callsTable.createdAt }).from(callsTable).where(and(eq(callsTable.sentiment, "negatif"), gte(callsTable.createdAt, weekAgo))).orderBy(desc(callsTable.createdAt)).limit(5),
+      ]);
+      return { missedCallsThisWeek: missedCalls[0]?.count ?? 0, pendingTasks: pendingTasks[0]?.count ?? 0, overdueTasks: overdueTasks.map(t => ({ id: t.id, title: t.title, dueDate: t.dueDate })), unreadMessages: unread[0]?.count ?? 0, recentNegativeCalls: recentNegative };
+    }
+    case "calls": {
+      const [missedNoCallback, longCalls, negativeSentiment, noContact] = await Promise.all([
+        db.select({ id: callsTable.id, phoneNumber: callsTable.phoneNumber, contactName: callsTable.contactName, createdAt: callsTable.createdAt }).from(callsTable).where(and(eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))).orderBy(desc(callsTable.createdAt)).limit(10),
+        db.select({ id: callsTable.id, contactName: callsTable.contactName, duration: callsTable.duration }).from(callsTable).where(and(gte(callsTable.duration, 600), gte(callsTable.createdAt, weekAgo))).orderBy(desc(callsTable.duration)).limit(5),
+        db.select({ id: callsTable.id, contactName: callsTable.contactName, phoneNumber: callsTable.phoneNumber }).from(callsTable).where(and(eq(callsTable.sentiment, "negatif"), gte(callsTable.createdAt, weekAgo))).limit(5),
+        db.select({ count: count() }).from(callsTable).where(isNull(callsTable.contactId)),
+      ]);
+      return { missedCallsNoCallback: missedNoCallback, longCalls, negativeSentimentCalls: negativeSentiment, callsWithoutContact: noContact[0]?.count ?? 0 };
+    }
+    case "contacts": {
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const [noRecentActivity, highCallVolume, noEmail] = await Promise.all([
+        db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName, company: contactsTable.company }).from(contactsTable).where(sql`${contactsTable.id} NOT IN (SELECT DISTINCT contact_id FROM calls WHERE contact_id IS NOT NULL AND created_at >= ${thirtyDaysAgo.toISOString()})`).limit(10),
+        db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName, callCount: sql<number>`(SELECT COUNT(*) FROM calls WHERE calls.contact_id = ${contactsTable.id} AND calls.created_at >= ${weekAgo.toISOString()})`.as("cnt") }).from(contactsTable).orderBy(desc(sql`(SELECT COUNT(*) FROM calls WHERE calls.contact_id = ${contactsTable.id} AND calls.created_at >= ${weekAgo.toISOString()})`)).limit(5),
+        db.select({ count: count() }).from(contactsTable).where(isNull(contactsTable.email)),
+      ]);
+      return { inactiveContacts: noRecentActivity, highActivityContacts: highCallVolume.filter(c => Number(c.callCount) > 0), contactsWithoutEmail: noEmail[0]?.count ?? 0 };
+    }
+    case "tasks": {
+      const [overdue, highPriorityPending, unassigned, recentlyCompleted] = await Promise.all([
+        db.select({ id: tasksTable.id, title: tasksTable.title, dueDate: tasksTable.dueDate, priority: tasksTable.priority }).from(tasksTable).where(and(lt(tasksTable.dueDate, now), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))).orderBy(desc(tasksTable.priority)).limit(10),
+        db.select({ id: tasksTable.id, title: tasksTable.title, dueDate: tasksTable.dueDate }).from(tasksTable).where(and(eq(tasksTable.priority, "haute"), eq(tasksTable.status, "en_attente"))).limit(10),
+        db.select({ count: count() }).from(tasksTable).where(and(isNull(tasksTable.assignedTo), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))),
+        db.select({ count: count() }).from(tasksTable).where(and(eq(tasksTable.status, "termine"), gte(tasksTable.updatedAt, weekAgo))),
+      ]);
+      return { overdueTasks: overdue, highPriorityPendingTasks: highPriorityPending, unassignedTasks: unassigned[0]?.count ?? 0, completedThisWeek: recentlyCompleted[0]?.count ?? 0 };
+    }
+    case "messages": {
+      const [unreadHigh, oldUnread, byType] = await Promise.all([
+        db.select({ id: messagesTable.id, contactName: messagesTable.contactName, content: messagesTable.content, createdAt: messagesTable.createdAt }).from(messagesTable).where(and(eq(messagesTable.isRead, false), eq(messagesTable.priority, "haute"))).orderBy(desc(messagesTable.createdAt)).limit(5),
+        db.select({ count: count() }).from(messagesTable).where(and(eq(messagesTable.isRead, false), lt(messagesTable.createdAt, new Date(now.getTime() - 48 * 60 * 60 * 1000)))),
+        db.select({ type: messagesTable.type, count: count() }).from(messagesTable).where(eq(messagesTable.isRead, false)).groupBy(messagesTable.type),
+      ]);
+      return { urgentUnread: unreadHigh, staleUnreadCount: oldUnread[0]?.count ?? 0, unreadByType: byType };
+    }
+    default:
+      return {};
+  }
+}
+
+router.post("/ai/suggest", async (req, res) => {
+  try {
+    const { page } = req.body;
+    if (!page || !["dashboard", "calls", "contacts", "tasks", "messages"].includes(page)) {
+      return res.status(400).json({ error: "Le parametre 'page' est requis (dashboard, calls, contacts, tasks, messages)." });
+    }
+
+    const contextData = await gatherContextForPage(page);
+    const { ai } = await import("@workspace/integrations-gemini-ai");
+
+    const pagePrompts: Record<string, string> = {
+      dashboard: `Tu es un assistant IA de bureau intelligent. A partir des donnees suivantes, genere un briefing matinal concis et actionnable pour le gestionnaire de bureau. Identifie les priorites urgentes, les problemes potentiels et les actions a entreprendre immediatement. Sois direct et precis.`,
+      calls: `Tu es un assistant IA specialise dans la gestion des appels telephoniques. Analyse les donnees des appels et fournis des recommandations concretes: appels manques a rappeler, tendances de sentiment a surveiller, contacts sans fiche a creer, et optimisations de performance.`,
+      contacts: `Tu es un assistant IA specialise dans la gestion de la relation client. Analyse les donnees des contacts et fournis des recommandations: contacts inactifs a relancer, contacts avec forte activite a privilegier, fiches incompletes a enrichir, et strategies de suivi.`,
+      tasks: `Tu es un assistant IA specialise dans la gestion des taches de bureau. Analyse les donnees des taches et fournis des recommandations: taches en retard a prioriser, redistribution de charge de travail, et suggestions d'organisation.`,
+      messages: `Tu es un assistant IA specialise dans la gestion des messages de bureau. Analyse les messages et fournis des recommandations: messages urgents non lus, messages anciens a traiter, et categorisation automatique.`,
+    };
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{
+        role: "user",
+        parts: [{
+          text: `${pagePrompts[page]}
+
+Reponds en JSON avec cette structure exacte:
+{
+  "suggestions": [
+    {
+      "type": "urgence|amelioration|information|action",
+      "titre": "string (court, 5-10 mots)",
+      "description": "string (detail en 1-2 phrases)",
+      "priorite": "haute|moyenne|basse",
+      "actionLabel": "string (texte du bouton d'action, ex: 'Rappeler maintenant')" 
+    }
+  ],
+  "resumeCourt": "string (1 phrase resumant la situation)"
+}
+
+Genere entre 3 et 6 suggestions pertinentes, classees par priorite. Sois precis avec les chiffres des donnees fournies.
+
+Donnees:\n${JSON.stringify(contextData, null, 2)}`
+        }],
+      }],
+      config: {
+        maxOutputTokens: 4096,
+        responseMimeType: "application/json",
+      },
+    });
+
+    const text = response.text ?? "{}";
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = { suggestions: [], resumeCourt: text };
+    }
+
+    res.json(parsed);
+  } catch (error: any) {
+    console.error("AI Suggest error:", error);
+    const isProduction = process.env.NODE_ENV === "production";
+    res.status(500).json({
+      error: "Erreur lors de la generation de suggestions IA",
+      ...(isProduction ? {} : { details: error.message }),
+    });
+  }
+});
+
+router.post("/ai/validate", async (req, res) => {
+  try {
+    const { entityType, data } = req.body;
+    if (!entityType || !data) {
+      return res.status(400).json({ error: "Les parametres 'entityType' et 'data' sont requis." });
+    }
+
+    let contextInfo = "";
+
+    if (entityType === "contact" && data.phone) {
+      const existingContacts = await db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName, phone: contactsTable.phone, email: contactsTable.email }).from(contactsTable).where(eq(contactsTable.phone, data.phone)).limit(3);
+      if (existingContacts.length > 0) {
+        contextInfo += `\nATTENTION: Il existe deja ${existingContacts.length} contact(s) avec ce numero: ${existingContacts.map(c => `${c.firstName} ${c.lastName}`).join(", ")}`;
+      }
+    }
+
+    if (entityType === "contact" && data.email) {
+      const existingEmail = await db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName }).from(contactsTable).where(eq(contactsTable.email, data.email)).limit(3);
+      if (existingEmail.length > 0) {
+        contextInfo += `\nATTENTION: Il existe deja ${existingEmail.length} contact(s) avec cet email: ${existingEmail.map(c => `${c.firstName} ${c.lastName}`).join(", ")}`;
+      }
+    }
+
+    if (entityType === "task" && data.dueDate) {
+      const dueDate = new Date(data.dueDate);
+      const now = new Date();
+      if (dueDate < now) {
+        contextInfo += `\nATTENTION: La date d'echeance est dans le passe (${dueDate.toLocaleDateString('fr-FR')}).`;
+      }
+      const threeDays = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+      if (dueDate <= threeDays && data.priority !== "haute") {
+        contextInfo += `\nATTENTION: L'echeance est dans moins de 3 jours mais la priorite n'est pas haute.`;
+      }
+    }
+
+    const { ai } = await import("@workspace/integrations-gemini-ai");
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{
+        role: "user",
+        parts: [{
+          text: `Tu es un assistant IA de validation de donnees pour un bureau professionnel en France. Analyse les donnees soumises et fournis des retours de validation.
+
+Type d'entite: ${entityType}
+Donnees soumises: ${JSON.stringify(data, null, 2)}
+${contextInfo ? `\nContexte supplementaire: ${contextInfo}` : ""}
+
+Verifie:
+- Format du numero de telephone (doit etre au format francais: +33, 01-09, ou international)
+- Coherence des donnees (email valide, noms corrects, dates logiques)
+- Doublons potentiels
+- Suggestions d'amelioration
+
+Reponds en JSON avec cette structure exacte:
+{
+  "isValid": boolean,
+  "errors": [{"champ": "string", "message": "string"}],
+  "warnings": [{"champ": "string", "message": "string"}],
+  "suggestions": [{"champ": "string", "suggestion": "string"}]
+}
+
+Si tout est correct, errors et warnings seront vides. Sois utile mais pas trop strict.`
+        }],
+      }],
+      config: {
+        maxOutputTokens: 2048,
+        responseMimeType: "application/json",
+      },
+    });
+
+    const text = response.text ?? "{}";
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = { isValid: true, errors: [], warnings: [], suggestions: [] };
+    }
+
+    res.json(parsed);
+  } catch (error: any) {
+    console.error("AI Validate error:", error);
+    const isProduction = process.env.NODE_ENV === "production";
+    res.status(500).json({
+      error: "Erreur lors de la validation IA",
+      ...(isProduction ? {} : { details: error.message }),
+    });
+  }
+});
+
+router.post("/ai/assistant", async (req, res) => {
+  try {
+    const { question, currentPage } = req.body;
+    if (!question) {
+      return res.status(400).json({ error: "Le parametre 'question' est requis." });
+    }
+
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const [
+      callStats,
+      contactStats,
+      taskStats,
+      messageStats,
+      recentCalls,
+      overdueTasks,
+      missedCalls,
+    ] = await Promise.all([
+      db.select({ total: count(), answered: sql<number>`SUM(CASE WHEN status = 'repondu' THEN 1 ELSE 0 END)`, missed: sql<number>`SUM(CASE WHEN status = 'manque' THEN 1 ELSE 0 END)`, avgDuration: avg(callsTable.duration) }).from(callsTable).where(gte(callsTable.createdAt, weekAgo)),
+      db.select({ total: count() }).from(contactsTable),
+      db.select({ total: count(), pending: sql<number>`SUM(CASE WHEN status = 'en_attente' THEN 1 ELSE 0 END)`, inProgress: sql<number>`SUM(CASE WHEN status = 'en_cours' THEN 1 ELSE 0 END)`, completed: sql<number>`SUM(CASE WHEN status = 'termine' THEN 1 ELSE 0 END)` }).from(tasksTable),
+      db.select({ total: count(), unread: sql<number>`SUM(CASE WHEN is_read = false THEN 1 ELSE 0 END)` }).from(messagesTable),
+      db.select({ contactName: callsTable.contactName, status: callsTable.status, sentiment: callsTable.sentiment, duration: callsTable.duration, createdAt: callsTable.createdAt }).from(callsTable).orderBy(desc(callsTable.createdAt)).limit(10),
+      db.select({ title: tasksTable.title, dueDate: tasksTable.dueDate, priority: tasksTable.priority }).from(tasksTable).where(and(lt(tasksTable.dueDate, now), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))).limit(5),
+      db.select({ contactName: callsTable.contactName, phoneNumber: callsTable.phoneNumber, createdAt: callsTable.createdAt }).from(callsTable).where(and(eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))).limit(10),
+    ]);
+
+    const dbContext = {
+      semaineCourante: {
+        appels: { total: callStats[0]?.total ?? 0, repondus: Number(callStats[0]?.answered ?? 0), manques: Number(callStats[0]?.missed ?? 0), dureeMoyenne: Math.round(Number(callStats[0]?.avgDuration ?? 0)) },
+        contacts: { total: contactStats[0]?.total ?? 0 },
+        taches: { total: taskStats[0]?.total ?? 0, enAttente: Number(taskStats[0]?.pending ?? 0), enCours: Number(taskStats[0]?.inProgress ?? 0), terminees: Number(taskStats[0]?.completed ?? 0) },
+        messages: { total: messageStats[0]?.total ?? 0, nonLus: Number(messageStats[0]?.unread ?? 0) },
+      },
+      derniersAppels: recentCalls,
+      tachesEnRetard: overdueTasks,
+      appelsManques: missedCalls,
+    };
+
+    const { ai } = await import("@workspace/integrations-gemini-ai");
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{
+        role: "user",
+        parts: [{
+          text: `Tu es l'assistant IA intelligent du logiciel "Agent de Bureau", un outil de gestion de bureau et centre d'appels en France. Tu reponds aux questions de l'utilisateur en francais, de facon professionnelle, concise et utile. Tu as acces aux donnees en temps reel du bureau.
+
+Page actuelle de l'utilisateur: ${currentPage || "tableau de bord"}
+
+Donnees du bureau en temps reel:
+${JSON.stringify(dbContext, null, 2)}
+
+Question de l'utilisateur: "${question}"
+
+Reponds en JSON avec cette structure:
+{
+  "reponse": "string (reponse principale, claire et concise, 2-4 phrases max)",
+  "donnees": [{"label": "string", "valeur": "string"}] (donnees chiffrees pertinentes, max 4),
+  "actions": [{"label": "string", "description": "string"}] (actions suggerees, max 3)
+}
+
+Sois precis, base-toi sur les donnees reelles. Si la question n'a pas de rapport avec le bureau, reponds poliment que tu es specialise dans la gestion de bureau.`
+        }],
+      }],
+      config: {
+        maxOutputTokens: 2048,
+        responseMimeType: "application/json",
+      },
+    });
+
+    const text = response.text ?? "{}";
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = { reponse: text, donnees: [], actions: [] };
+    }
+
+    res.json(parsed);
+  } catch (error: any) {
+    console.error("AI Assistant error:", error);
+    const isProduction = process.env.NODE_ENV === "production";
+    res.status(500).json({
+      error: "Erreur de l'assistant IA",
+      ...(isProduction ? {} : { details: error.message }),
+    });
+  }
 });
 
 export default router;

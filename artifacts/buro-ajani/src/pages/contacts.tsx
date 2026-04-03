@@ -18,6 +18,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
+import { AiValidationFeedback } from "@/components/ai-validation-feedback";
+import { useAiValidation } from "@/hooks/use-ai-validation";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -63,6 +66,7 @@ export default function Contacts() {
 
   const createContact = useCreateContact();
   const deleteContact = useDeleteContact();
+  const aiValidation = useAiValidation("contact");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -227,7 +231,11 @@ export default function Contacts() {
                       <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} value={field.value || ""} /></FormControl><FormMessage /></FormItem>
                     )} />
                   </div>
-                  <DialogFooter><Button type="submit" disabled={createContact.isPending}>Creer le contact</Button></DialogFooter>
+                  <AiValidationFeedback result={aiValidation.result} isValidating={aiValidation.isValidating} />
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => aiValidation.validate(form.getValues())} disabled={aiValidation.isValidating} className="mr-auto">Verifier IA</Button>
+                    <Button type="submit" disabled={createContact.isPending}>Creer le contact</Button>
+                  </DialogFooter>
                 </form>
               </Form>
             </DialogContent>
@@ -410,6 +418,8 @@ export default function Contacts() {
           )}
         </div>
       )}
+
+      <AiSuggestionsCard page="contacts" title="Recommandations IA - Contacts" compact />
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">

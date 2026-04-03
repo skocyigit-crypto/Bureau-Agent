@@ -19,6 +19,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
+import { AiValidationFeedback } from "@/components/ai-validation-feedback";
+import { useAiValidation } from "@/hooks/use-ai-validation";
 import { Link } from "wouter";
 
 const PAGE_SIZE = 15;
@@ -60,6 +63,7 @@ export default function Messages() {
   const updateMessage = useUpdateMessage();
   const createMessage = useCreateMessage();
   const deleteMessage = useDeleteMessage();
+  const aiValidation = useAiValidation("message");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -261,7 +265,9 @@ export default function Messages() {
                     </FormItem>
                   )} />
 
+                  <AiValidationFeedback result={aiValidation.result} isValidating={aiValidation.isValidating} />
                   <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => aiValidation.validate(form.getValues())} disabled={aiValidation.isValidating} className="mr-auto">Verifier IA</Button>
                     <Button type="submit" disabled={createMessage.isPending}>Enregistrer</Button>
                   </DialogFooter>
                 </form>
@@ -412,6 +418,8 @@ export default function Messages() {
           </TableBody>
         </Table>
       </div>
+
+      <AiSuggestionsCard page="messages" title="Recommandations IA - Messages" compact />
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">

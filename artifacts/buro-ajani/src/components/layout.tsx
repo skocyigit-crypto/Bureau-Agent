@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Phone, Users, CheckSquare, MessageSquare, BarChart, Bell, Search, LayoutDashboard } from "lucide-react";
+import { AiAssistantButton } from "@/components/ai-assistant";
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarTrigger, SidebarGroup, SidebarGroupLabel, SidebarGroupContent } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
 import { useGetNotifications } from "@workspace/api-client-react";
@@ -121,6 +122,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </main>
         </div>
+        <AiAssistantButton />
       </div>
     </SidebarProvider>
   );
