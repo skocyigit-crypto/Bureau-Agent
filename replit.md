@@ -56,6 +56,9 @@ The application's UI is entirely in French (France), featuring a deep navy sideb
     - **Phone Simulator:** Interactive mobile phone mockup component (`phone-simulator.tsx`) with 6 navigable screens (Accueil, Appels, Contacts, Taches, Messages, Agents IA), phone frame with status bar/nav bar, expandable full-screen dialog mode.
 - **Promotional Landing Page (`/tanitim/`):** A separate React+Vite artifact for marketing, featuring deep navy and amber branding, `framer-motion` for animations, AI-generated visuals, and a comprehensive overview of the product.
 
+## Integration Notes
+- **Google Drive**: Connector available (`ccfg_google-drive_0F6D7EF5E22543468DB221F94F`) but user has not completed OAuth authorization. Integration is not active. To connect in the future, the user must approve the Google Drive authorization popup when prompted.
+
 ## External Dependencies
 
 - **Database:** PostgreSQL
