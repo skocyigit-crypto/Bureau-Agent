@@ -40,6 +40,7 @@ import type {
   CreateCheckinBody,
   CreateContactBody,
   CreateMessageBody,
+  CreateStockArticleBody,
   CreateTaskBody,
   DailyReport,
   DailyReportRequest,
@@ -67,9 +68,11 @@ import type {
   GetNotifications200,
   GetRecentActivity200,
   GetRecentActivityParams,
+  GetStockStats200,
   GetTopContacts200,
   GetTopContactsParams,
   HealthStatus,
+  ImportStockPdfBody,
   IntegrationsCatalog,
   ListCalls200,
   ListCallsParams,
@@ -80,6 +83,7 @@ import type {
   ListDailyReportsParams,
   ListMessages200,
   ListMessagesParams,
+  ListStockArticlesParams,
   ListTasks200,
   ListTasksParams,
   Message,
@@ -89,6 +93,9 @@ import type {
   RequestAiValidationBody,
   RunAllAiAgents200,
   StartAiAgentsAutoRun200,
+  StockArticle,
+  StockListResponse,
+  StockPdfImportResponse,
   StopAiAgentsAutoRun200,
   SyncWorkspace200,
   Task,
@@ -98,6 +105,7 @@ import type {
   UpdateCheckinBody,
   UpdateContactBody,
   UpdateMessageBody,
+  UpdateStockArticleBody,
   UpdateTaskBody,
   WeeklyReport,
   WorkspaceStatus,
@@ -5172,6 +5180,696 @@ export function useGetActivitySummary<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetActivitySummaryQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List stock articles
+ */
+export const getListStockArticlesUrl = (params?: ListStockArticlesParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/stock?${stringifiedParams}`
+    : `/api/stock`;
+};
+
+export const listStockArticles = async (
+  params?: ListStockArticlesParams,
+  options?: RequestInit,
+): Promise<StockListResponse> => {
+  return customFetch<StockListResponse>(getListStockArticlesUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListStockArticlesQueryKey = (
+  params?: ListStockArticlesParams,
+) => {
+  return [`/api/stock`, ...(params ? [params] : [])] as const;
+};
+
+export const getListStockArticlesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listStockArticles>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListStockArticlesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listStockArticles>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListStockArticlesQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listStockArticles>>
+  > = ({ signal }) => listStockArticles(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listStockArticles>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListStockArticlesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listStockArticles>>
+>;
+export type ListStockArticlesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List stock articles
+ */
+
+export function useListStockArticles<
+  TData = Awaited<ReturnType<typeof listStockArticles>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListStockArticlesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listStockArticles>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListStockArticlesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a stock article
+ */
+export const getCreateStockArticleUrl = () => {
+  return `/api/stock`;
+};
+
+export const createStockArticle = async (
+  createStockArticleBody: CreateStockArticleBody,
+  options?: RequestInit,
+): Promise<StockArticle> => {
+  return customFetch<StockArticle>(getCreateStockArticleUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createStockArticleBody),
+  });
+};
+
+export const getCreateStockArticleMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createStockArticle>>,
+    TError,
+    { data: BodyType<CreateStockArticleBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createStockArticle>>,
+  TError,
+  { data: BodyType<CreateStockArticleBody> },
+  TContext
+> => {
+  const mutationKey = ["createStockArticle"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createStockArticle>>,
+    { data: BodyType<CreateStockArticleBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createStockArticle(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateStockArticleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createStockArticle>>
+>;
+export type CreateStockArticleMutationBody = BodyType<CreateStockArticleBody>;
+export type CreateStockArticleMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a stock article
+ */
+export const useCreateStockArticle = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createStockArticle>>,
+    TError,
+    { data: BodyType<CreateStockArticleBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createStockArticle>>,
+  TError,
+  { data: BodyType<CreateStockArticleBody> },
+  TContext
+> => {
+  return useMutation(getCreateStockArticleMutationOptions(options));
+};
+
+/**
+ * @summary Get a stock article
+ */
+export const getGetStockArticleUrl = (id: number) => {
+  return `/api/stock/${id}`;
+};
+
+export const getStockArticle = async (
+  id: number,
+  options?: RequestInit,
+): Promise<StockArticle> => {
+  return customFetch<StockArticle>(getGetStockArticleUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetStockArticleQueryKey = (id: number) => {
+  return [`/api/stock/${id}`] as const;
+};
+
+export const getGetStockArticleQueryOptions = <
+  TData = Awaited<ReturnType<typeof getStockArticle>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getStockArticle>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetStockArticleQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getStockArticle>>> = ({
+    signal,
+  }) => getStockArticle(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getStockArticle>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetStockArticleQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getStockArticle>>
+>;
+export type GetStockArticleQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get a stock article
+ */
+
+export function useGetStockArticle<
+  TData = Awaited<ReturnType<typeof getStockArticle>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getStockArticle>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetStockArticleQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update a stock article
+ */
+export const getUpdateStockArticleUrl = (id: number) => {
+  return `/api/stock/${id}`;
+};
+
+export const updateStockArticle = async (
+  id: number,
+  updateStockArticleBody: UpdateStockArticleBody,
+  options?: RequestInit,
+): Promise<StockArticle> => {
+  return customFetch<StockArticle>(getUpdateStockArticleUrl(id), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateStockArticleBody),
+  });
+};
+
+export const getUpdateStockArticleMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStockArticle>>,
+    TError,
+    { id: number; data: BodyType<UpdateStockArticleBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateStockArticle>>,
+  TError,
+  { id: number; data: BodyType<UpdateStockArticleBody> },
+  TContext
+> => {
+  const mutationKey = ["updateStockArticle"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateStockArticle>>,
+    { id: number; data: BodyType<UpdateStockArticleBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateStockArticle(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateStockArticleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateStockArticle>>
+>;
+export type UpdateStockArticleMutationBody = BodyType<UpdateStockArticleBody>;
+export type UpdateStockArticleMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update a stock article
+ */
+export const useUpdateStockArticle = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateStockArticle>>,
+    TError,
+    { id: number; data: BodyType<UpdateStockArticleBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateStockArticle>>,
+  TError,
+  { id: number; data: BodyType<UpdateStockArticleBody> },
+  TContext
+> => {
+  return useMutation(getUpdateStockArticleMutationOptions(options));
+};
+
+/**
+ * @summary Delete a stock article
+ */
+export const getDeleteStockArticleUrl = (id: number) => {
+  return `/api/stock/${id}`;
+};
+
+export const deleteStockArticle = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteStockArticleUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteStockArticleMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteStockArticle>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteStockArticle>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteStockArticle"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteStockArticle>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteStockArticle(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteStockArticleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteStockArticle>>
+>;
+
+export type DeleteStockArticleMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete a stock article
+ */
+export const useDeleteStockArticle = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteStockArticle>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteStockArticle>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteStockArticleMutationOptions(options));
+};
+
+/**
+ * @summary Find article by barcode/QR code
+ */
+export const getScanStockBarcodeUrl = (barcode: string) => {
+  return `/api/stock/scan/${barcode}`;
+};
+
+export const scanStockBarcode = async (
+  barcode: string,
+  options?: RequestInit,
+): Promise<StockArticle> => {
+  return customFetch<StockArticle>(getScanStockBarcodeUrl(barcode), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getScanStockBarcodeQueryKey = (barcode: string) => {
+  return [`/api/stock/scan/${barcode}`] as const;
+};
+
+export const getScanStockBarcodeQueryOptions = <
+  TData = Awaited<ReturnType<typeof scanStockBarcode>>,
+  TError = ErrorType<void>,
+>(
+  barcode: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof scanStockBarcode>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getScanStockBarcodeQueryKey(barcode);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof scanStockBarcode>>
+  > = ({ signal }) => scanStockBarcode(barcode, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!barcode,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof scanStockBarcode>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ScanStockBarcodeQueryResult = NonNullable<
+  Awaited<ReturnType<typeof scanStockBarcode>>
+>;
+export type ScanStockBarcodeQueryError = ErrorType<void>;
+
+/**
+ * @summary Find article by barcode/QR code
+ */
+
+export function useScanStockBarcode<
+  TData = Awaited<ReturnType<typeof scanStockBarcode>>,
+  TError = ErrorType<void>,
+>(
+  barcode: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof scanStockBarcode>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getScanStockBarcodeQueryOptions(barcode, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Import stock articles from PDF using AI
+ */
+export const getImportStockPdfUrl = () => {
+  return `/api/stock/import/pdf`;
+};
+
+export const importStockPdf = async (
+  importStockPdfBody: ImportStockPdfBody,
+  options?: RequestInit,
+): Promise<StockPdfImportResponse> => {
+  return customFetch<StockPdfImportResponse>(getImportStockPdfUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(importStockPdfBody),
+  });
+};
+
+export const getImportStockPdfMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof importStockPdf>>,
+    TError,
+    { data: BodyType<ImportStockPdfBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof importStockPdf>>,
+  TError,
+  { data: BodyType<ImportStockPdfBody> },
+  TContext
+> => {
+  const mutationKey = ["importStockPdf"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof importStockPdf>>,
+    { data: BodyType<ImportStockPdfBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return importStockPdf(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ImportStockPdfMutationResult = NonNullable<
+  Awaited<ReturnType<typeof importStockPdf>>
+>;
+export type ImportStockPdfMutationBody = BodyType<ImportStockPdfBody>;
+export type ImportStockPdfMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Import stock articles from PDF using AI
+ */
+export const useImportStockPdf = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof importStockPdf>>,
+    TError,
+    { data: BodyType<ImportStockPdfBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof importStockPdf>>,
+  TError,
+  { data: BodyType<ImportStockPdfBody> },
+  TContext
+> => {
+  return useMutation(getImportStockPdfMutationOptions(options));
+};
+
+/**
+ * @summary Get stock statistics
+ */
+export const getGetStockStatsUrl = () => {
+  return `/api/stock/stats`;
+};
+
+export const getStockStats = async (
+  options?: RequestInit,
+): Promise<GetStockStats200> => {
+  return customFetch<GetStockStats200>(getGetStockStatsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetStockStatsQueryKey = () => {
+  return [`/api/stock/stats`] as const;
+};
+
+export const getGetStockStatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getStockStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getStockStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetStockStatsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getStockStats>>> = ({
+    signal,
+  }) => getStockStats({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getStockStats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetStockStatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getStockStats>>
+>;
+export type GetStockStatsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get stock statistics
+ */
+
+export function useGetStockStats<
+  TData = Awaited<ReturnType<typeof getStockStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getStockStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetStockStatsQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

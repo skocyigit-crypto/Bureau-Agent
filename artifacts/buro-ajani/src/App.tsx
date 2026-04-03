@@ -19,6 +19,7 @@ import Software from "@/pages/software";
 import UsersPage from "@/pages/users";
 import CheckinsPage from "@/pages/checkins";
 import AiAgentsPage from "@/pages/ai-agents";
+import StockPage from "@/pages/stock";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,7 @@ function Router() {
         <Route path="/analyse" component={Analytics} />
         <Route path="/utilisateurs" component={UsersPage} />
         <Route path="/pointage" component={CheckinsPage} />
+        <Route path="/stock" component={StockPage} />
         <Route path="/agents-ia" component={AiAgentsPage} />
         <Route path="/parametres" component={SettingsPage} />
         <Route component={NotFound} />

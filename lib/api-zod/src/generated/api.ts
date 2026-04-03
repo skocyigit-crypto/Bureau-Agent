@@ -1492,6 +1492,295 @@ export const GetActivitySummaryResponse = zod.object({
 });
 
 /**
+ * @summary List stock articles
+ */
+export const listStockArticlesQueryLimitDefault = 50;
+export const listStockArticlesQueryOffsetDefault = 0;
+export const listStockArticlesQuerySortByDefault = `createdAt`;
+export const listStockArticlesQuerySortOrderDefault = `desc`;
+
+export const ListStockArticlesQueryParams = zod.object({
+  search: zod.coerce.string().optional(),
+  category: zod.coerce.string().optional(),
+  status: zod.coerce.string().optional(),
+  limit: zod.coerce.number().default(listStockArticlesQueryLimitDefault),
+  offset: zod.coerce.number().default(listStockArticlesQueryOffsetDefault),
+  sortBy: zod.coerce.string().default(listStockArticlesQuerySortByDefault),
+  sortOrder: zod
+    .enum(["asc", "desc"])
+    .default(listStockArticlesQuerySortOrderDefault),
+});
+
+export const ListStockArticlesResponse = zod.object({
+  articles: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      reference: zod.string(),
+      barcode: zod.string().nullish(),
+      description: zod.string().nullish(),
+      category: zod.enum([
+        "general",
+        "fourniture",
+        "informatique",
+        "mobilier",
+        "consommable",
+        "papeterie",
+        "hygiene",
+        "alimentaire",
+        "autre",
+      ]),
+      quantity: zod.number(),
+      minQuantity: zod.number(),
+      unitPrice: zod.string().nullish(),
+      supplier: zod.string().nullish(),
+      location: zod.string().nullish(),
+      unit: zod.enum([
+        "piece",
+        "boite",
+        "carton",
+        "paquet",
+        "litre",
+        "kg",
+        "lot",
+      ]),
+      status: zod.enum(["en_stock", "stock_faible", "rupture", "commande"]),
+      notes: zod.string().nullish(),
+      createdAt: zod.coerce.date().optional(),
+      updatedAt: zod.coerce.date().optional(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Create a stock article
+ */
+export const CreateStockArticleBody = zod.object({
+  name: zod.string(),
+  reference: zod.string(),
+  barcode: zod.string().optional(),
+  description: zod.string().optional(),
+  category: zod
+    .enum([
+      "general",
+      "fourniture",
+      "informatique",
+      "mobilier",
+      "consommable",
+      "papeterie",
+      "hygiene",
+      "alimentaire",
+      "autre",
+    ])
+    .optional(),
+  quantity: zod.number().optional(),
+  minQuantity: zod.number().optional(),
+  unitPrice: zod.string().optional(),
+  supplier: zod.string().optional(),
+  location: zod.string().optional(),
+  unit: zod
+    .enum(["piece", "boite", "carton", "paquet", "litre", "kg", "lot"])
+    .optional(),
+  status: zod
+    .enum(["en_stock", "stock_faible", "rupture", "commande"])
+    .optional(),
+  notes: zod.string().optional(),
+});
+
+/**
+ * @summary Get a stock article
+ */
+export const GetStockArticleParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetStockArticleResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  reference: zod.string(),
+  barcode: zod.string().nullish(),
+  description: zod.string().nullish(),
+  category: zod.enum([
+    "general",
+    "fourniture",
+    "informatique",
+    "mobilier",
+    "consommable",
+    "papeterie",
+    "hygiene",
+    "alimentaire",
+    "autre",
+  ]),
+  quantity: zod.number(),
+  minQuantity: zod.number(),
+  unitPrice: zod.string().nullish(),
+  supplier: zod.string().nullish(),
+  location: zod.string().nullish(),
+  unit: zod.enum(["piece", "boite", "carton", "paquet", "litre", "kg", "lot"]),
+  status: zod.enum(["en_stock", "stock_faible", "rupture", "commande"]),
+  notes: zod.string().nullish(),
+  createdAt: zod.coerce.date().optional(),
+  updatedAt: zod.coerce.date().optional(),
+});
+
+/**
+ * @summary Update a stock article
+ */
+export const UpdateStockArticleParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateStockArticleBody = zod.object({
+  name: zod.string().optional(),
+  reference: zod.string().optional(),
+  barcode: zod.string().optional(),
+  description: zod.string().optional(),
+  category: zod.string().optional(),
+  quantity: zod.number().optional(),
+  minQuantity: zod.number().optional(),
+  unitPrice: zod.string().optional(),
+  supplier: zod.string().optional(),
+  location: zod.string().optional(),
+  unit: zod.string().optional(),
+  status: zod.string().optional(),
+  notes: zod.string().optional(),
+});
+
+export const UpdateStockArticleResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  reference: zod.string(),
+  barcode: zod.string().nullish(),
+  description: zod.string().nullish(),
+  category: zod.enum([
+    "general",
+    "fourniture",
+    "informatique",
+    "mobilier",
+    "consommable",
+    "papeterie",
+    "hygiene",
+    "alimentaire",
+    "autre",
+  ]),
+  quantity: zod.number(),
+  minQuantity: zod.number(),
+  unitPrice: zod.string().nullish(),
+  supplier: zod.string().nullish(),
+  location: zod.string().nullish(),
+  unit: zod.enum(["piece", "boite", "carton", "paquet", "litre", "kg", "lot"]),
+  status: zod.enum(["en_stock", "stock_faible", "rupture", "commande"]),
+  notes: zod.string().nullish(),
+  createdAt: zod.coerce.date().optional(),
+  updatedAt: zod.coerce.date().optional(),
+});
+
+/**
+ * @summary Delete a stock article
+ */
+export const DeleteStockArticleParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary Find article by barcode/QR code
+ */
+export const ScanStockBarcodeParams = zod.object({
+  barcode: zod.coerce.string(),
+});
+
+export const ScanStockBarcodeResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  reference: zod.string(),
+  barcode: zod.string().nullish(),
+  description: zod.string().nullish(),
+  category: zod.enum([
+    "general",
+    "fourniture",
+    "informatique",
+    "mobilier",
+    "consommable",
+    "papeterie",
+    "hygiene",
+    "alimentaire",
+    "autre",
+  ]),
+  quantity: zod.number(),
+  minQuantity: zod.number(),
+  unitPrice: zod.string().nullish(),
+  supplier: zod.string().nullish(),
+  location: zod.string().nullish(),
+  unit: zod.enum(["piece", "boite", "carton", "paquet", "litre", "kg", "lot"]),
+  status: zod.enum(["en_stock", "stock_faible", "rupture", "commande"]),
+  notes: zod.string().nullish(),
+  createdAt: zod.coerce.date().optional(),
+  updatedAt: zod.coerce.date().optional(),
+});
+
+/**
+ * @summary Import stock articles from PDF using AI
+ */
+export const ImportStockPdfBody = zod.object({
+  pdfContent: zod.string().describe("Base64-encoded PDF content"),
+});
+
+export const ImportStockPdfResponse = zod.object({
+  imported: zod.number(),
+  articles: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      reference: zod.string(),
+      barcode: zod.string().nullish(),
+      description: zod.string().nullish(),
+      category: zod.enum([
+        "general",
+        "fourniture",
+        "informatique",
+        "mobilier",
+        "consommable",
+        "papeterie",
+        "hygiene",
+        "alimentaire",
+        "autre",
+      ]),
+      quantity: zod.number(),
+      minQuantity: zod.number(),
+      unitPrice: zod.string().nullish(),
+      supplier: zod.string().nullish(),
+      location: zod.string().nullish(),
+      unit: zod.enum([
+        "piece",
+        "boite",
+        "carton",
+        "paquet",
+        "litre",
+        "kg",
+        "lot",
+      ]),
+      status: zod.enum(["en_stock", "stock_faible", "rupture", "commande"]),
+      notes: zod.string().nullish(),
+      createdAt: zod.coerce.date().optional(),
+      updatedAt: zod.coerce.date().optional(),
+    }),
+  ),
+  errors: zod.array(zod.string()),
+});
+
+/**
+ * @summary Get stock statistics
+ */
+export const GetStockStatsResponse = zod.object({
+  totalArticles: zod.number().optional(),
+  totalValue: zod.number().optional(),
+  lowStockCount: zod.number().optional(),
+  outOfStockCount: zod.number().optional(),
+  categoryCounts: zod.record(zod.string(), zod.number()).optional(),
+});
+
+/**
  * @summary List check-in records
  */
 export const listCheckinsQueryLimitDefault = 50;

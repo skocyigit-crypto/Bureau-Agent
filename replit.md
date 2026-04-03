@@ -52,6 +52,7 @@ The application's UI is entirely in French (France), featuring a deep navy sideb
     - **Software Integrations:** Catalog of 21 business software integrations with configuration and AI recommendations.
     - **Analytics:** Comprehensive reports with various charts and Gemini AI insights.
     - **Incoming Call Overlay:** Real-time call handling interface.
+    - **Stock Management:** Full inventory management with article CRUD, QR/barcode scanning (camera + manual input), AI-powered PDF import (invoices, delivery notes, catalogs), auto-status calculation (en_stock/stock_faible/rupture), category filters, statistics dashboard.
     - **Settings Page:** Extensive configuration for Google Workspace, call features, application installation (with interactive phone simulator for mobile app preview, App Store/Google Play download buttons), notifications, and security.
     - **Phone Simulator:** Interactive mobile phone mockup component (`phone-simulator.tsx`) with 6 navigable screens (Accueil, Appels, Contacts, Taches, Messages, Agents IA), phone frame with status bar/nav bar, expandable full-screen dialog mode.
 - **Promotional Landing Page (`/tanitim/`):** A separate React+Vite artifact for marketing, featuring deep navy and amber branding, `framer-motion` for animations, AI-generated visuals, and a comprehensive overview of the product.

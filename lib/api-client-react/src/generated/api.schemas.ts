@@ -1026,6 +1026,144 @@ export interface CheckinStats {
   terminatedCount: number;
 }
 
+export type StockArticleCategory =
+  (typeof StockArticleCategory)[keyof typeof StockArticleCategory];
+
+export const StockArticleCategory = {
+  general: "general",
+  fourniture: "fourniture",
+  informatique: "informatique",
+  mobilier: "mobilier",
+  consommable: "consommable",
+  papeterie: "papeterie",
+  hygiene: "hygiene",
+  alimentaire: "alimentaire",
+  autre: "autre",
+} as const;
+
+export type StockArticleUnit =
+  (typeof StockArticleUnit)[keyof typeof StockArticleUnit];
+
+export const StockArticleUnit = {
+  piece: "piece",
+  boite: "boite",
+  carton: "carton",
+  paquet: "paquet",
+  litre: "litre",
+  kg: "kg",
+  lot: "lot",
+} as const;
+
+export type StockArticleStatus =
+  (typeof StockArticleStatus)[keyof typeof StockArticleStatus];
+
+export const StockArticleStatus = {
+  en_stock: "en_stock",
+  stock_faible: "stock_faible",
+  rupture: "rupture",
+  commande: "commande",
+} as const;
+
+export interface StockArticle {
+  id: number;
+  name: string;
+  reference: string;
+  barcode?: string | null;
+  description?: string | null;
+  category: StockArticleCategory;
+  quantity: number;
+  minQuantity: number;
+  unitPrice?: string | null;
+  supplier?: string | null;
+  location?: string | null;
+  unit: StockArticleUnit;
+  status: StockArticleStatus;
+  notes?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type CreateStockArticleBodyCategory =
+  (typeof CreateStockArticleBodyCategory)[keyof typeof CreateStockArticleBodyCategory];
+
+export const CreateStockArticleBodyCategory = {
+  general: "general",
+  fourniture: "fourniture",
+  informatique: "informatique",
+  mobilier: "mobilier",
+  consommable: "consommable",
+  papeterie: "papeterie",
+  hygiene: "hygiene",
+  alimentaire: "alimentaire",
+  autre: "autre",
+} as const;
+
+export type CreateStockArticleBodyUnit =
+  (typeof CreateStockArticleBodyUnit)[keyof typeof CreateStockArticleBodyUnit];
+
+export const CreateStockArticleBodyUnit = {
+  piece: "piece",
+  boite: "boite",
+  carton: "carton",
+  paquet: "paquet",
+  litre: "litre",
+  kg: "kg",
+  lot: "lot",
+} as const;
+
+export type CreateStockArticleBodyStatus =
+  (typeof CreateStockArticleBodyStatus)[keyof typeof CreateStockArticleBodyStatus];
+
+export const CreateStockArticleBodyStatus = {
+  en_stock: "en_stock",
+  stock_faible: "stock_faible",
+  rupture: "rupture",
+  commande: "commande",
+} as const;
+
+export interface CreateStockArticleBody {
+  name: string;
+  reference: string;
+  barcode?: string;
+  description?: string;
+  category?: CreateStockArticleBodyCategory;
+  quantity?: number;
+  minQuantity?: number;
+  unitPrice?: string;
+  supplier?: string;
+  location?: string;
+  unit?: CreateStockArticleBodyUnit;
+  status?: CreateStockArticleBodyStatus;
+  notes?: string;
+}
+
+export interface UpdateStockArticleBody {
+  name?: string;
+  reference?: string;
+  barcode?: string;
+  description?: string;
+  category?: string;
+  quantity?: number;
+  minQuantity?: number;
+  unitPrice?: string;
+  supplier?: string;
+  location?: string;
+  unit?: string;
+  status?: string;
+  notes?: string;
+}
+
+export interface StockListResponse {
+  articles: StockArticle[];
+  total: number;
+}
+
+export interface StockPdfImportResponse {
+  imported: number;
+  articles: StockArticle[];
+  errors: string[];
+}
+
 export type ListCallsParams = {
   status?: ListCallsStatus;
   limit?: number;
@@ -1463,6 +1601,39 @@ export type ListDailyReportsParams = {
 export type DeleteDailyReport200 = {
   success?: boolean;
   message?: string;
+};
+
+export type ListStockArticlesParams = {
+  search?: string;
+  category?: string;
+  status?: string;
+  limit?: number;
+  offset?: number;
+  sortBy?: string;
+  sortOrder?: ListStockArticlesSortOrder;
+};
+
+export type ListStockArticlesSortOrder =
+  (typeof ListStockArticlesSortOrder)[keyof typeof ListStockArticlesSortOrder];
+
+export const ListStockArticlesSortOrder = {
+  asc: "asc",
+  desc: "desc",
+} as const;
+
+export type ImportStockPdfBody = {
+  /** Base64-encoded PDF content */
+  pdfContent: string;
+};
+
+export type GetStockStats200CategoryCounts = { [key: string]: number };
+
+export type GetStockStats200 = {
+  totalArticles?: number;
+  totalValue?: number;
+  lowStockCount?: number;
+  outOfStockCount?: number;
+  categoryCounts?: GetStockStats200CategoryCounts;
 };
 
 export type ListCheckinsParams = {

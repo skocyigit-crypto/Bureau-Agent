@@ -26,6 +26,8 @@ tags:
     description: Google Workspace integration
   - name: checkins
     description: Check-in / attendance tracking (pointage)
+  - name: stock
+    description: Stock and inventory management
 
 paths:
   /healthz:
@@ -1410,6 +1412,197 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ActivitySummary"
+
+  # === STOCK ===
+  /stock:
+    get:
+      operationId: listStockArticles
+      tags: [stock]
+      summary: List stock articles
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            default: createdAt
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        "200":
+          description: Stock articles list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockListResponse"
+    post:
+      operationId: createStockArticle
+      tags: [stock]
+      summary: Create a stock article
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStockArticleBody"
+      responses:
+        "201":
+          description: Article created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockArticle"
+
+  /stock/{id}:
+    get:
+      operationId: getStockArticle
+      tags: [stock]
+      summary: Get a stock article
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Article details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockArticle"
+    put:
+      operationId: updateStockArticle
+      tags: [stock]
+      summary: Update a stock article
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStockArticleBody"
+      responses:
+        "200":
+          description: Article updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockArticle"
+    delete:
+      operationId: deleteStockArticle
+      tags: [stock]
+      summary: Delete a stock article
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Article deleted
+
+  /stock/scan/{barcode}:
+    get:
+      operationId: scanStockBarcode
+      tags: [stock]
+      summary: Find article by barcode/QR code
+      parameters:
+        - name: barcode
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Article found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockArticle"
+        "404":
+          description: Article not found
+
+  /stock/import/pdf:
+    post:
+      operationId: importStockPdf
+      tags: [stock]
+      summary: Import stock articles from PDF using AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pdfContent:
+                  type: string
+                  description: Base64-encoded PDF content
+              required: [pdfContent]
+      responses:
+        "200":
+          description: Import results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockPdfImportResponse"
+
+  /stock/stats:
+    get:
+      operationId: getStockStats
+      tags: [stock]
+      summary: Get stock statistics
+      responses:
+        "200":
+          description: Stock statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalArticles:
+                    type: integer
+                  totalValue:
+                    type: number
+                  lowStockCount:
+                    type: integer
+                  outOfStockCount:
+                    type: integer
+                  categoryCounts:
+                    type: object
+                    additionalProperties:
+                      type: integer
 
   # === CHECKINS (POINTAGE) ===
   /checkins:
@@ -2980,3 +3173,141 @@ components:
         terminatedCount:
           type: integer
       required: [totalSessions, totalMinutes, totalBreakMinutes, avgSessionMinutes, bureauCount, distanceCount, terrainCount, presentCount, enPauseCount, terminatedCount]
+
+    StockArticle:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        reference:
+          type: string
+        barcode:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        category:
+          type: string
+          enum: [general, fourniture, informatique, mobilier, consommable, papeterie, hygiene, alimentaire, autre]
+        quantity:
+          type: integer
+        minQuantity:
+          type: integer
+        unitPrice:
+          type: string
+          nullable: true
+        supplier:
+          type: string
+          nullable: true
+        location:
+          type: string
+          nullable: true
+        unit:
+          type: string
+          enum: [piece, boite, carton, paquet, litre, kg, lot]
+        status:
+          type: string
+          enum: [en_stock, stock_faible, rupture, commande]
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, name, reference, category, quantity, minQuantity, unit, status]
+
+    CreateStockArticleBody:
+      type: object
+      properties:
+        name:
+          type: string
+        reference:
+          type: string
+        barcode:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          enum: [general, fourniture, informatique, mobilier, consommable, papeterie, hygiene, alimentaire, autre]
+        quantity:
+          type: integer
+        minQuantity:
+          type: integer
+        unitPrice:
+          type: string
+        supplier:
+          type: string
+        location:
+          type: string
+        unit:
+          type: string
+          enum: [piece, boite, carton, paquet, litre, kg, lot]
+        status:
+          type: string
+          enum: [en_stock, stock_faible, rupture, commande]
+        notes:
+          type: string
+      required: [name, reference]
+
+    UpdateStockArticleBody:
+      type: object
+      properties:
+        name:
+          type: string
+        reference:
+          type: string
+        barcode:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        quantity:
+          type: integer
+        minQuantity:
+          type: integer
+        unitPrice:
+          type: string
+        supplier:
+          type: string
+        location:
+          type: string
+        unit:
+          type: string
+        status:
+          type: string
+        notes:
+          type: string
+
+    StockListResponse:
+      type: object
+      properties:
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockArticle"
+        total:
+          type: integer
+      required: [articles, total]
+
+    StockPdfImportResponse:
+      type: object
+      properties:
+        imported:
+          type: integer
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockArticle"
+        errors:
+          type: array
+          items:
+            type: string
+      required: [imported, articles, errors]

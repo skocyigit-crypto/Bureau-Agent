@@ -10,6 +10,7 @@ import workspaceRouter from "./workspace";
 import integrationsRouter from "./integrations";
 import checkinsRouter from "./checkins";
 import aiAgentsRouter from "./ai-agents";
+import stockRouter from "./stock";
 
 const router: IRouter = Router();
 
@@ -21,6 +22,7 @@ router.use(messagesRouter);
 router.use(dashboardRouter);
 router.use(aiAnalysisRouter);
 router.use(aiAgentsRouter);
+router.use(stockRouter);
 router.use("/workspace", workspaceRouter);
 router.use("/integrations", integrationsRouter);
 router.use(checkinsRouter);
