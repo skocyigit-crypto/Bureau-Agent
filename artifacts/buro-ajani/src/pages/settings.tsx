@@ -6,7 +6,10 @@ import {
   ShieldCheck, ShieldBan, FileWarning, Download, Upload, Bug, Eye, UserCog,
   AlertTriangle, Server, KeyRound, Fingerprint, ScanSearch, FileX, Ban,
   TriangleAlert, CircleAlert, Monitor, Laptop, Smartphone, Wifi, HardDrive,
-  CloudDownload, Apple, Share2, Package, Cpu, RefreshCcw, CheckCheck
+  CloudDownload, Share2, Package, Cpu, RefreshCcw, CheckCheck,
+  Video, MessageCircle, MapPin, StickyNote, ListChecks, Users, Image,
+  BarChart3, Megaphone, Search, Cloud, Settings, BookOpen, Bookmark,
+  Languages, ShieldQuestion, Radio, Store, ClipboardList
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,28 +30,26 @@ interface GoogleService {
   icon: React.ElementType;
   status: "connecte" | "deconnecte" | "en_attente";
   features: string[];
+  categorie: "productivite" | "communication" | "stockage" | "analyse" | "marketing" | "administration";
 }
 
+const GOOGLE_CATEGORIES: Record<string, { label: string; couleur: string }> = {
+  productivite: { label: "Productivite", couleur: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
+  communication: { label: "Communication", couleur: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
+  stockage: { label: "Stockage", couleur: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
+  analyse: { label: "Analyse", couleur: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
+  marketing: { label: "Marketing", couleur: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
+  administration: { label: "Administration", couleur: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400" },
+};
+
 const GOOGLE_SERVICES: GoogleService[] = [
-  {
-    id: "calendar",
-    name: "Google Calendar",
-    description: "Synchroniser les rendez-vous, planifier des appels de suivi et consulter la disponibilite des contacts.",
-    icon: Calendar,
-    status: "deconnecte",
-    features: [
-      "Planification automatique des rappels",
-      "Synchronisation bidirectionnelle des evenements",
-      "Verification de disponibilite avant appel",
-      "Rappels de suivi intelligents",
-    ],
-  },
   {
     id: "gmail",
     name: "Gmail",
     description: "Envoyer et recevoir des e-mails directement depuis l'application. Synchroniser les messages avec les contacts.",
     icon: Mail,
     status: "deconnecte",
+    categorie: "communication",
     features: [
       "Envoi d'e-mails depuis la fiche contact",
       "Synchronisation des conversations",
@@ -57,11 +58,26 @@ const GOOGLE_SERVICES: GoogleService[] = [
     ],
   },
   {
+    id: "calendar",
+    name: "Google Calendar",
+    description: "Synchroniser les rendez-vous, planifier des appels de suivi et consulter la disponibilite des contacts.",
+    icon: Calendar,
+    status: "deconnecte",
+    categorie: "productivite",
+    features: [
+      "Planification automatique des rappels",
+      "Synchronisation bidirectionnelle des evenements",
+      "Verification de disponibilite avant appel",
+      "Rappels de suivi intelligents",
+    ],
+  },
+  {
     id: "drive",
     name: "Google Drive",
     description: "Joindre des documents aux appels et contacts. Stocker les comptes rendus automatiquement.",
     icon: FolderOpen,
     status: "deconnecte",
+    categorie: "stockage",
     features: [
       "Pieces jointes aux fiches contact",
       "Stockage des comptes rendus d'appel",
@@ -75,6 +91,7 @@ const GOOGLE_SERVICES: GoogleService[] = [
     description: "Creer des comptes rendus de reunion et rapports d'activite directement depuis l'application.",
     icon: FileText,
     status: "deconnecte",
+    categorie: "productivite",
     features: [
       "Generation de comptes rendus IA",
       "Modeles de rapports",
@@ -88,6 +105,7 @@ const GOOGLE_SERVICES: GoogleService[] = [
     description: "Exporter des donnees vers des feuilles de calcul et importer des listes de contacts.",
     icon: Table2,
     status: "deconnecte",
+    categorie: "productivite",
     features: [
       "Export des rapports d'activite",
       "Import de contacts en masse",
@@ -101,11 +119,292 @@ const GOOGLE_SERVICES: GoogleService[] = [
     description: "Generer des presentations de performance et de synthese pour les reunions d'equipe.",
     icon: Presentation,
     status: "deconnecte",
+    categorie: "productivite",
     features: [
       "Rapports de performance hebdomadaires",
       "Presentations client automatisees",
       "Graphiques integres",
       "Export pour reunions",
+    ],
+  },
+  {
+    id: "meet",
+    name: "Google Meet",
+    description: "Lancer des visioconferences directement depuis l'application. Planifier des reunions avec les contacts.",
+    icon: Video,
+    status: "deconnecte",
+    categorie: "communication",
+    features: [
+      "Visioconference depuis la fiche contact",
+      "Planification automatique des reunions",
+      "Enregistrement des reunions",
+      "Transcription IA des echanges",
+    ],
+  },
+  {
+    id: "chat",
+    name: "Google Chat",
+    description: "Messagerie instantanee avec les equipes et contacts. Espaces de travail collaboratifs.",
+    icon: MessageCircle,
+    status: "deconnecte",
+    categorie: "communication",
+    features: [
+      "Messages directs aux collegues",
+      "Espaces de travail par projet",
+      "Partage de fichiers en temps reel",
+      "Notifications d'activite bureau",
+    ],
+  },
+  {
+    id: "contacts",
+    name: "Google Contacts",
+    description: "Synchroniser le repertoire Google avec la base de contacts de l'agent. Import et export automatiques.",
+    icon: Users,
+    status: "deconnecte",
+    categorie: "productivite",
+    features: [
+      "Synchronisation bidirectionnelle",
+      "Fusion des doublons automatique",
+      "Import par groupes et labels",
+      "Mise a jour des coordonnees",
+    ],
+  },
+  {
+    id: "tasks",
+    name: "Google Tasks",
+    description: "Synchroniser les taches Google avec les taches de l'agent. Suivi unifie des actions a realiser.",
+    icon: ListChecks,
+    status: "deconnecte",
+    categorie: "productivite",
+    features: [
+      "Synchronisation des taches",
+      "Dates limites partagees",
+      "Sous-taches et priorites",
+      "Integration avec Calendar",
+    ],
+  },
+  {
+    id: "keep",
+    name: "Google Keep",
+    description: "Prendre des notes rapides pendant les appels. Synchroniser les notes avec les fiches contact.",
+    icon: StickyNote,
+    status: "deconnecte",
+    categorie: "productivite",
+    features: [
+      "Notes rapides pendant l'appel",
+      "Listes de verification",
+      "Notes vocales transcrites",
+      "Organisation par labels",
+    ],
+  },
+  {
+    id: "forms",
+    name: "Google Forms",
+    description: "Creer des formulaires de satisfaction, enquetes et questionnaires pour les clients et contacts.",
+    icon: ClipboardList,
+    status: "deconnecte",
+    categorie: "productivite",
+    features: [
+      "Enquetes de satisfaction client",
+      "Formulaires de feedback post-appel",
+      "Collecte automatique des reponses",
+      "Analyse des resultats",
+    ],
+  },
+  {
+    id: "maps",
+    name: "Google Maps",
+    description: "Localiser les contacts et clients sur la carte. Planifier les deplacements et visites terrain.",
+    icon: MapPin,
+    status: "deconnecte",
+    categorie: "productivite",
+    features: [
+      "Geolocalisation des contacts",
+      "Planification des visites",
+      "Calcul d'itineraires optimises",
+      "Zones de couverture commerciale",
+    ],
+  },
+  {
+    id: "photos",
+    name: "Google Photos",
+    description: "Stocker et partager les photos de documents, cartes de visite et preuves visuelles.",
+    icon: Image,
+    status: "deconnecte",
+    categorie: "stockage",
+    features: [
+      "Scan de cartes de visite",
+      "Photos de documents",
+      "Partage securise d'images",
+      "Reconnaissance OCR IA",
+    ],
+  },
+  {
+    id: "analytics",
+    name: "Google Analytics",
+    description: "Analyser le trafic du site web de l'entreprise. Mesurer les conversions et la performance digitale.",
+    icon: BarChart3,
+    status: "deconnecte",
+    categorie: "analyse",
+    features: [
+      "Suivi du trafic web",
+      "Analyse des conversions",
+      "Rapports de performance",
+      "Attribution des leads",
+    ],
+  },
+  {
+    id: "ads",
+    name: "Google Ads",
+    description: "Gerer les campagnes publicitaires. Suivre les performances et le retour sur investissement.",
+    icon: Megaphone,
+    status: "deconnecte",
+    categorie: "marketing",
+    features: [
+      "Suivi des campagnes actives",
+      "Performance des annonces",
+      "Budget et depenses en temps reel",
+      "Integration des leads entrants",
+    ],
+  },
+  {
+    id: "search-console",
+    name: "Google Search Console",
+    description: "Surveiller la presence de l'entreprise dans les resultats de recherche Google.",
+    icon: Search,
+    status: "deconnecte",
+    categorie: "analyse",
+    features: [
+      "Position dans les resultats",
+      "Analyse des requetes",
+      "Alertes de problemes",
+      "Performance mobile",
+    ],
+  },
+  {
+    id: "my-business",
+    name: "Google Business Profile",
+    description: "Gerer la fiche d'entreprise Google. Repondre aux avis et mettre a jour les informations.",
+    icon: Store,
+    status: "deconnecte",
+    categorie: "marketing",
+    features: [
+      "Gestion des avis clients",
+      "Mise a jour des horaires",
+      "Photos et publications",
+      "Statistiques de visibilite",
+    ],
+  },
+  {
+    id: "youtube",
+    name: "YouTube",
+    description: "Gerer la chaine YouTube de l'entreprise. Integrer les videos dans les communications.",
+    icon: Radio,
+    status: "deconnecte",
+    categorie: "marketing",
+    features: [
+      "Gestion de la chaine",
+      "Statistiques des videos",
+      "Integration dans les e-mails",
+      "Alertes sur les commentaires",
+    ],
+  },
+  {
+    id: "cloud",
+    name: "Google Cloud Platform",
+    description: "Infrastructure cloud pour l'hebergement, le stockage et les services IA avances.",
+    icon: Cloud,
+    status: "deconnecte",
+    categorie: "administration",
+    features: [
+      "Hebergement des donnees",
+      "Services IA et Machine Learning",
+      "Stockage securise",
+      "Monitoring et alertes",
+    ],
+  },
+  {
+    id: "voice",
+    name: "Google Voice",
+    description: "Telephonie cloud integree. Numeros virtuels et transfert d'appels professionnel.",
+    icon: PhoneIncoming,
+    status: "deconnecte",
+    categorie: "communication",
+    features: [
+      "Numeros virtuels francais",
+      "Transfert d'appels intelligent",
+      "Messagerie vocale transcrite",
+      "Historique d'appels unifie",
+    ],
+  },
+  {
+    id: "translate",
+    name: "Google Translate",
+    description: "Traduction automatique des e-mails, documents et conversations avec les contacts internationaux.",
+    icon: Languages,
+    status: "deconnecte",
+    categorie: "productivite",
+    features: [
+      "Traduction d'e-mails entrants",
+      "Traduction de documents",
+      "Detection automatique de langue",
+      "Support de 133 langues",
+    ],
+  },
+  {
+    id: "admin",
+    name: "Google Workspace Admin",
+    description: "Administration centralisee du domaine Google Workspace. Gestion des utilisateurs et des politiques.",
+    icon: Settings,
+    status: "deconnecte",
+    categorie: "administration",
+    features: [
+      "Gestion des utilisateurs",
+      "Politiques de securite",
+      "Rapports d'audit",
+      "Configuration du domaine",
+    ],
+  },
+  {
+    id: "sites",
+    name: "Google Sites",
+    description: "Creer des sites web internes pour l'equipe. Documentation et portail collaborateur.",
+    icon: BookOpen,
+    status: "deconnecte",
+    categorie: "productivite",
+    features: [
+      "Portail interne d'equipe",
+      "Documentation partagee",
+      "Pages de projet",
+      "Integration Workspace native",
+    ],
+  },
+  {
+    id: "vault",
+    name: "Google Vault",
+    description: "Archivage et conservation legale des donnees. Recherche et export pour conformite.",
+    icon: ShieldQuestion,
+    status: "deconnecte",
+    categorie: "administration",
+    features: [
+      "Archivage des e-mails",
+      "Conservation legale",
+      "Recherche dans les archives",
+      "Export pour audit et conformite",
+    ],
+  },
+  {
+    id: "classroom",
+    name: "Google Classroom",
+    description: "Formation et integration des nouveaux agents. Modules de formation et evaluations.",
+    icon: Bookmark,
+    status: "deconnecte",
+    categorie: "productivite",
+    features: [
+      "Modules de formation agent",
+      "Evaluations et quiz",
+      "Suivi de progression",
+      "Ressources pedagogiques",
     ],
   },
 ];
@@ -133,6 +432,9 @@ export default function SettingsPage() {
   const [notifTaches, setNotifTaches] = useState(true);
   const [notifMessages, setNotifMessages] = useState(true);
   const [notifIA, setNotifIA] = useState(true);
+
+  const [googleFilter, setGoogleFilter] = useState<string>("tous");
+  const [googleSearch, setGoogleSearch] = useState("");
 
   const [blockExternalDownloads, setBlockExternalDownloads] = useState(true);
   const [superAdminOnlyDownload, setSuperAdminOnlyDownload] = useState(true);
@@ -214,20 +516,63 @@ export default function SettingsPage() {
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <Globe className="w-5 h-5 text-blue-600" />
-                    Google Workspace
+                    Google Workspace - Toutes les applications
                   </CardTitle>
                   <CardDescription className="mt-1">
-                    Connectez vos services Google pour une experience integree. L'agent travaille directement avec votre Workspace.
+                    L'agent est compatible avec l'ensemble de l'ecosysteme Google. Connectez chaque service pour une integration complete.
                   </CardDescription>
                 </div>
-                <Badge variant="outline" className="text-xs">
-                  0 / {GOOGLE_SERVICES.length} connecte(s)
+                <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-0 text-xs">
+                  {GOOGLE_SERVICES.length} applications disponibles
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="grid gap-4">
-                {GOOGLE_SERVICES.map((service) => (
+            <CardContent className="space-y-4">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Rechercher une application Google..."
+                  className="pl-9"
+                  value={googleSearch}
+                  onChange={(e) => setGoogleSearch(e.target.value)}
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={googleFilter === "tous" ? "default" : "outline"}
+                  size="sm"
+                  className="text-xs h-7"
+                  onClick={() => setGoogleFilter("tous")}
+                >
+                  Tous ({GOOGLE_SERVICES.length})
+                </Button>
+                {Object.entries(GOOGLE_CATEGORIES).map(([key, cat]) => {
+                  const count = GOOGLE_SERVICES.filter(s => s.categorie === key).length;
+                  return (
+                    <Button
+                      key={key}
+                      variant={googleFilter === key ? "default" : "outline"}
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={() => setGoogleFilter(key)}
+                    >
+                      {cat.label} ({count})
+                    </Button>
+                  );
+                })}
+              </div>
+
+              <div className="grid gap-3">
+                {GOOGLE_SERVICES
+                  .filter(s => googleFilter === "tous" || s.categorie === googleFilter)
+                  .filter(s => {
+                    if (!googleSearch) return true;
+                    const q = googleSearch.toLowerCase();
+                    return s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q);
+                  })
+                  .map((service) => (
                   <div key={service.id} className="border rounded-xl p-4 hover:border-primary/30 transition-colors">
                     <div className="flex items-start justify-between">
                       <div className="flex items-start gap-4">
@@ -237,6 +582,9 @@ export default function SettingsPage() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className="font-semibold text-sm">{service.name}</h3>
+                            <Badge className={GOOGLE_CATEGORIES[service.categorie].couleur + " border-0 text-[10px]"}>
+                              {GOOGLE_CATEGORIES[service.categorie].label}
+                            </Badge>
                             {service.status === "connecte" ? (
                               <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-[10px]">
                                 <CheckCircle2 className="w-3 h-3 mr-1" />
@@ -244,7 +592,6 @@ export default function SettingsPage() {
                               </Badge>
                             ) : (
                               <Badge variant="secondary" className="text-[10px]">
-                                <XCircle className="w-3 h-3 mr-1" />
                                 Non connecte
                               </Badge>
                             )}
