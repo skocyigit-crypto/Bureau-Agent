@@ -228,6 +228,21 @@ async function gatherContextForPage(page: string) {
       ]);
       return { urgentUnread: unreadHigh, staleUnreadCount: oldUnread[0]?.count ?? 0, unreadByType: byType };
     }
+    case "rapports": {
+      const [totalReports, recentReports] = await Promise.all([
+        db.select({ count: count() }).from(callsTable),
+        db.select({ count: count() }).from(tasksTable).where(eq(tasksTable.status, "termine")),
+      ]);
+      return { totalCalls: totalReports[0]?.count ?? 0, completedTasks: recentReports[0]?.count ?? 0 };
+    }
+    case "logiciels": {
+      const [totalContacts, totalCalls, totalTasks] = await Promise.all([
+        db.select({ count: count() }).from(contactsTable),
+        db.select({ count: count() }).from(callsTable),
+        db.select({ count: count() }).from(tasksTable),
+      ]);
+      return { totalContacts: totalContacts[0]?.count ?? 0, totalCalls: totalCalls[0]?.count ?? 0, totalTasks: totalTasks[0]?.count ?? 0 };
+    }
     default:
       return {};
   }
@@ -236,8 +251,8 @@ async function gatherContextForPage(page: string) {
 router.post("/ai/suggest", async (req, res) => {
   try {
     const { page } = req.body;
-    if (!page || !["dashboard", "calls", "contacts", "tasks", "messages"].includes(page)) {
-      return res.status(400).json({ error: "Le parametre 'page' est requis (dashboard, calls, contacts, tasks, messages)." });
+    if (!page || !["dashboard", "calls", "contacts", "tasks", "messages", "rapports", "logiciels"].includes(page)) {
+      return res.status(400).json({ error: "Le parametre 'page' est requis." });
     }
 
     const contextData = await gatherContextForPage(page);
@@ -249,6 +264,8 @@ router.post("/ai/suggest", async (req, res) => {
       contacts: `Tu es un assistant IA specialise dans la gestion de la relation client. Analyse les donnees des contacts et fournis des recommandations: contacts inactifs a relancer, contacts avec forte activite a privilegier, fiches incompletes a enrichir, et strategies de suivi.`,
       tasks: `Tu es un assistant IA specialise dans la gestion des taches de bureau. Analyse les donnees des taches et fournis des recommandations: taches en retard a prioriser, redistribution de charge de travail, et suggestions d'organisation.`,
       messages: `Tu es un assistant IA specialise dans la gestion des messages de bureau. Analyse les messages et fournis des recommandations: messages urgents non lus, messages anciens a traiter, et categorisation automatique.`,
+      rapports: `Tu es un assistant IA specialise dans l'analyse des rapports de performance de bureau. Fournis des recommandations sur la frequence de generation des rapports, les tendances de performance a surveiller, et les metriques cles a ameliorer.`,
+      logiciels: `Tu es un assistant IA specialise dans l'integration de logiciels professionnels. En fonction des donnees du bureau, recommande quels logiciels connecter en priorite (CRM, communication, gestion de projet, comptabilite) pour maximiser la productivite de l'equipe.`,
     };
 
     const response = await ai.models.generateContent({

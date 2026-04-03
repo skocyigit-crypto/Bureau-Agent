@@ -803,7 +803,15 @@ export const RequestAiAnalysisResponse = zod.object({
  * @summary Get AI suggestions for a specific page
  */
 export const RequestAiSuggestionsBody = zod.object({
-  page: zod.enum(["dashboard", "calls", "contacts", "tasks", "messages"]),
+  page: zod.enum([
+    "dashboard",
+    "calls",
+    "contacts",
+    "tasks",
+    "messages",
+    "rapports",
+    "logiciels",
+  ]),
 });
 
 export const RequestAiSuggestionsResponse = zod.object({
@@ -1238,4 +1246,80 @@ export const GetActivitySummaryResponse = zod.object({
     avgScore: zod.number(),
     totalReports: zod.number(),
   }),
+});
+
+/**
+ * @summary Get software integrations catalog
+ */
+export const GetIntegrationsCatalogResponse = zod.object({
+  integrations: zod.array(
+    zod.object({
+      id: zod.string(),
+      name: zod.string(),
+      category: zod.string(),
+      description: zod.string(),
+      status: zod.enum(["connecte", "deconnecte", "en_attente"]),
+      version: zod.string().nullish(),
+      lastSync: zod.string().nullish(),
+      features: zod.array(zod.string()),
+      configFields: zod.array(
+        zod.object({
+          key: zod.string(),
+          label: zod.string(),
+          type: zod.enum(["text", "password", "url"]),
+          required: zod.boolean(),
+        }),
+      ),
+    }),
+  ),
+  categories: zod.array(
+    zod.object({
+      id: zod.string(),
+      label: zod.string(),
+    }),
+  ),
+  totalAvailable: zod.number(),
+  totalConnected: zod.number(),
+});
+
+/**
+ * @summary Connect a software integration
+ */
+export const ConnectIntegrationParams = zod.object({
+  integrationId: zod.coerce.string(),
+});
+
+export const ConnectIntegrationBody = zod.record(zod.string(), zod.string());
+
+export const ConnectIntegrationResponse = zod.object({
+  status: zod.string().optional(),
+  message: zod.string().optional(),
+  integrationId: zod.string().optional(),
+  integrationName: zod.string().optional(),
+});
+
+/**
+ * @summary Disconnect a software integration
+ */
+export const DisconnectIntegrationParams = zod.object({
+  integrationId: zod.coerce.string(),
+});
+
+export const DisconnectIntegrationResponse = zod.object({
+  status: zod.string().optional(),
+  message: zod.string().optional(),
+  integrationId: zod.string().optional(),
+});
+
+/**
+ * @summary Test a software integration connection
+ */
+export const TestIntegrationParams = zod.object({
+  integrationId: zod.coerce.string(),
+});
+
+export const TestIntegrationResponse = zod.object({
+  status: zod.string().optional(),
+  message: zod.string().optional(),
+  latency: zod.number().optional(),
 });

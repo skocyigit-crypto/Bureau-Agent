@@ -15,6 +15,7 @@ import Messages from "@/pages/messages";
 import Analytics from "@/pages/analytics";
 import SettingsPage from "@/pages/settings";
 import Reports from "@/pages/reports";
+import Software from "@/pages/software";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ function Router() {
         <Route path="/taches" component={Tasks} />
         <Route path="/messages" component={Messages} />
         <Route path="/rapports" component={Reports} />
+        <Route path="/logiciels" component={Software} />
         <Route path="/analyse" component={Analytics} />
         <Route path="/parametres" component={SettingsPage} />
         <Route component={NotFound} />

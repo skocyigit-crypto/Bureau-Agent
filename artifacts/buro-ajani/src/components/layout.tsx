@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 import { Link, useLocation } from "wouter";
-import { Phone, Users, CheckSquare, MessageSquare, BarChart, Bell, Search, LayoutDashboard, Settings, PhoneIncoming, FileText } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, BarChart, Bell, Search, LayoutDashboard, Settings, PhoneIncoming, FileText, Puzzle } from "lucide-react";
 import { AiAssistantButton } from "@/components/ai-assistant";
 import { AiHealthBadge, RecognitionProvider } from "@/components/ai-recognition-panel";
 import { IncomingCallOverlay, useIncomingCall } from "@/components/incoming-call-overlay";
@@ -29,6 +29,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { name: "Tâches", href: "/taches", icon: CheckSquare },
     { name: "Messages", href: "/messages", icon: MessageSquare },
     { name: "Rapports", href: "/rapports", icon: FileText },
+    { name: "Logiciels", href: "/logiciels", icon: Puzzle },
     { name: "Analyse", href: "/analyse", icon: BarChart },
     { name: "Parametres", href: "/parametres", icon: Settings },
   ];

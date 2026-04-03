@@ -851,7 +851,7 @@ paths:
               properties:
                 page:
                   type: string
-                  enum: [dashboard, calls, contacts, tasks, messages]
+                  enum: [dashboard, calls, contacts, tasks, messages, rapports, logiciels]
               required: [page]
       responses:
         "200":
@@ -1225,6 +1225,106 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ActivitySummary"
+
+  /integrations/catalog:
+    get:
+      operationId: getIntegrationsCatalog
+      tags: [integrations]
+      summary: Get software integrations catalog
+      responses:
+        "200":
+          description: Integrations catalog
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntegrationsCatalog"
+
+  /integrations/{integrationId}/connect:
+    post:
+      operationId: connectIntegration
+      tags: [integrations]
+      summary: Connect a software integration
+      parameters:
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+      responses:
+        "200":
+          description: Connection result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  integrationId:
+                    type: string
+                  integrationName:
+                    type: string
+
+  /integrations/{integrationId}/disconnect:
+    post:
+      operationId: disconnectIntegration
+      tags: [integrations]
+      summary: Disconnect a software integration
+      parameters:
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Disconnection result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  integrationId:
+                    type: string
+
+  /integrations/{integrationId}/test:
+    post:
+      operationId: testIntegration
+      tags: [integrations]
+      summary: Test a software integration connection
+      parameters:
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Test result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  latency:
+                    type: integer
 
 components:
   schemas:
@@ -2242,3 +2342,70 @@ components:
               type: integer
           required: [avgScore, totalReports]
       required: [today, weekReports, weekStats]
+
+    IntegrationConfigField:
+      type: object
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        type:
+          type: string
+          enum: [text, password, url]
+        required:
+          type: boolean
+      required: [key, label, type, required]
+
+    SoftwareIntegration:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [connecte, deconnecte, en_attente]
+        version:
+          type: string
+          nullable: true
+        lastSync:
+          type: string
+          nullable: true
+        features:
+          type: array
+          items:
+            type: string
+        configFields:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntegrationConfigField"
+      required: [id, name, category, description, status, features, configFields]
+
+    IntegrationsCatalog:
+      type: object
+      properties:
+        integrations:
+          type: array
+          items:
+            $ref: "#/components/schemas/SoftwareIntegration"
+        categories:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              label:
+                type: string
+            required: [id, label]
+        totalAvailable:
+          type: integer
+        totalConnected:
+          type: integer
+      required: [integrations, categories, totalAvailable, totalConnected]

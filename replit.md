@@ -27,6 +27,7 @@ A comprehensive French-language office/bureau agent application for managing pho
 - **Contacts** — Professional directory with search, category filter, sortable columns, table/grid view toggle, bulk selection + bulk delete, CSV export, pagination, avatar initials, color-coded category badges, creation dialog
 - **Taches** (Tasks) — Dual view: table + Kanban board toggle, search, status/priority filters, sortable columns, bulk selection + bulk delete, overdue highlighting (red), inline status change via dropdown, priority color dots, related contact links, edit dialog, pagination
 - **Messages** — Search, read/type/priority filters, bulk mark-read + bulk delete, color-coded type badges (Vocal/Note/Rappel), priority badges, bold unread rows, pagination, creation dialog
+- **Logiciels** (Software Integrations) — 21 business software integrations across 9 categories (CRM: Salesforce/HubSpot/Pipedrive, Communication: Slack/Teams/Zoom, Gestion de projet: Trello/Asana/Notion/Jira, Comptabilite: Sage/QuickBooks, Documents: DocuSign/Dropbox, Messagerie: Outlook, Marketing: Mailchimp/Brevo, Automatisation: Zapier/Make, Support: Intercom/Zendesk). Catalog loaded from backend API, category filters, search, configuration dialogs with credential fields, test/connect actions, AI suggestions for integration recommendations
 - **Analyse** (Analytics) — Comprehensive analytics with Gemini AI insights, area/bar/pie/radar charts, hourly volume, period volume, sentiment distribution, weekly comparison, task stats, call distribution by status/direction, performance radar
 
 ### AI Integration
@@ -56,9 +57,10 @@ A comprehensive French-language office/bureau agent application for managing pho
 - Contact sub-resources: `/contacts/:id/calls`, `/contacts/:id/tasks`
 - Dashboard: `/dashboard/summary`, `/dashboard/call-analytics`, `/dashboard/recent-activity`, `/dashboard/call-distribution`, `/dashboard/top-contacts`
 - Advanced dashboard: `/dashboard/hourly-performance`, `/dashboard/task-stats`, `/dashboard/weekly-report`, `/dashboard/notifications`
-- AI: `POST /ai/analyze`, `POST /ai/suggest`, `POST /ai/validate`, `POST /ai/assistant`, `POST /ai/recognize`, `POST /ai/draft-email`, `GET /ai/status`
+- AI: `POST /ai/analyze`, `POST /ai/suggest` (pages: dashboard, calls, contacts, tasks, messages, rapports, logiciels), `POST /ai/validate`, `POST /ai/assistant`, `POST /ai/recognize`, `POST /ai/draft-email`, `GET /ai/status`
 - Workspace: `GET /workspace/status`, `POST /workspace/connect/:serviceId`, `POST /workspace/disconnect/:serviceId`, `POST /workspace/sync`, `GET /workspace/calendar/events`, `GET /workspace/gmail/messages`, `GET /workspace/drive/files`
 - Daily Reports: `POST /workspace/daily-report` (AI-generated), `GET /workspace/daily-reports`, `GET /workspace/daily-reports/:id`, `DELETE /workspace/daily-reports/:id`, `GET /workspace/activity-summary`
+- Integrations: `GET /integrations/catalog`, `POST /integrations/:id/connect`, `POST /integrations/:id/disconnect`, `POST /integrations/:id/test`, `POST /integrations/:id/sync`
 
 ### Database Tables
 - `contacts` — Professional contact directory (categories: client, prospect, fournisseur, partenaire, autre)

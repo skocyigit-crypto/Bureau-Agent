@@ -6,18 +6,20 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useRequestAiSuggestions } from "@workspace/api-client-react";
 
 interface AiSuggestionsCardProps {
-  page: "dashboard" | "calls" | "contacts" | "tasks" | "messages";
+  page?: "dashboard" | "calls" | "contacts" | "tasks" | "messages" | "rapports" | "logiciels";
+  pageContext?: string;
   title?: string;
   compact?: boolean;
 }
 
-export function AiSuggestionsCard({ page, title, compact = false }: AiSuggestionsCardProps) {
+export function AiSuggestionsCard({ page, pageContext, title, compact = false }: AiSuggestionsCardProps) {
+  const resolvedPage = page || pageContext || "dashboard";
   const [isExpanded, setIsExpanded] = useState(!compact);
 
   const suggestions = useRequestAiSuggestions();
 
   const handleLoad = () => {
-    suggestions.mutate({ data: { page } });
+    suggestions.mutate({ data: { page: resolvedPage } });
   };
 
   const getSuggestionIcon = (type: string) => {

@@ -21,7 +21,10 @@ const PAGE_MAP: Record<string, string> = {
   "/contacts": "contacts",
   "/taches": "tasks",
   "/messages": "messages",
+  "/rapports": "rapports",
+  "/logiciels": "logiciels",
   "/analyse": "dashboard",
+  "/parametres": "dashboard",
 };
 
 export function AiAssistantButton() {

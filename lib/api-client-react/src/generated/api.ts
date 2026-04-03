@@ -29,6 +29,8 @@ import type {
   Call,
   CallAnalytics,
   CallDistribution,
+  ConnectIntegration200,
+  ConnectIntegrationBody,
   ConnectWorkspaceService200,
   Contact,
   CreateCallBody,
@@ -41,6 +43,7 @@ import type {
   DailyReportsList,
   DashboardSummary,
   DeleteDailyReport200,
+  DisconnectIntegration200,
   DisconnectWorkspaceService200,
   DraftAiEmailBody,
   GetCalendarEvents200,
@@ -57,6 +60,7 @@ import type {
   GetTopContacts200,
   GetTopContactsParams,
   HealthStatus,
+  IntegrationsCatalog,
   ListCalls200,
   ListCallsParams,
   ListContacts200,
@@ -74,6 +78,7 @@ import type {
   SyncWorkspace200,
   Task,
   TaskStats,
+  TestIntegration200,
   UpdateCallBody,
   UpdateContactBody,
   UpdateMessageBody,
@@ -4412,3 +4417,340 @@ export function useGetActivitySummary<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Get software integrations catalog
+ */
+export const getGetIntegrationsCatalogUrl = () => {
+  return `/api/integrations/catalog`;
+};
+
+export const getIntegrationsCatalog = async (
+  options?: RequestInit,
+): Promise<IntegrationsCatalog> => {
+  return customFetch<IntegrationsCatalog>(getGetIntegrationsCatalogUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetIntegrationsCatalogQueryKey = () => {
+  return [`/api/integrations/catalog`] as const;
+};
+
+export const getGetIntegrationsCatalogQueryOptions = <
+  TData = Awaited<ReturnType<typeof getIntegrationsCatalog>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getIntegrationsCatalog>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetIntegrationsCatalogQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getIntegrationsCatalog>>
+  > = ({ signal }) => getIntegrationsCatalog({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getIntegrationsCatalog>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetIntegrationsCatalogQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getIntegrationsCatalog>>
+>;
+export type GetIntegrationsCatalogQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get software integrations catalog
+ */
+
+export function useGetIntegrationsCatalog<
+  TData = Awaited<ReturnType<typeof getIntegrationsCatalog>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getIntegrationsCatalog>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetIntegrationsCatalogQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Connect a software integration
+ */
+export const getConnectIntegrationUrl = (integrationId: string) => {
+  return `/api/integrations/${integrationId}/connect`;
+};
+
+export const connectIntegration = async (
+  integrationId: string,
+  connectIntegrationBody: ConnectIntegrationBody,
+  options?: RequestInit,
+): Promise<ConnectIntegration200> => {
+  return customFetch<ConnectIntegration200>(
+    getConnectIntegrationUrl(integrationId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(connectIntegrationBody),
+    },
+  );
+};
+
+export const getConnectIntegrationMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof connectIntegration>>,
+    TError,
+    { integrationId: string; data: BodyType<ConnectIntegrationBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof connectIntegration>>,
+  TError,
+  { integrationId: string; data: BodyType<ConnectIntegrationBody> },
+  TContext
+> => {
+  const mutationKey = ["connectIntegration"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof connectIntegration>>,
+    { integrationId: string; data: BodyType<ConnectIntegrationBody> }
+  > = (props) => {
+    const { integrationId, data } = props ?? {};
+
+    return connectIntegration(integrationId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ConnectIntegrationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof connectIntegration>>
+>;
+export type ConnectIntegrationMutationBody = BodyType<ConnectIntegrationBody>;
+export type ConnectIntegrationMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Connect a software integration
+ */
+export const useConnectIntegration = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof connectIntegration>>,
+    TError,
+    { integrationId: string; data: BodyType<ConnectIntegrationBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof connectIntegration>>,
+  TError,
+  { integrationId: string; data: BodyType<ConnectIntegrationBody> },
+  TContext
+> => {
+  return useMutation(getConnectIntegrationMutationOptions(options));
+};
+
+/**
+ * @summary Disconnect a software integration
+ */
+export const getDisconnectIntegrationUrl = (integrationId: string) => {
+  return `/api/integrations/${integrationId}/disconnect`;
+};
+
+export const disconnectIntegration = async (
+  integrationId: string,
+  options?: RequestInit,
+): Promise<DisconnectIntegration200> => {
+  return customFetch<DisconnectIntegration200>(
+    getDisconnectIntegrationUrl(integrationId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getDisconnectIntegrationMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof disconnectIntegration>>,
+    TError,
+    { integrationId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof disconnectIntegration>>,
+  TError,
+  { integrationId: string },
+  TContext
+> => {
+  const mutationKey = ["disconnectIntegration"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof disconnectIntegration>>,
+    { integrationId: string }
+  > = (props) => {
+    const { integrationId } = props ?? {};
+
+    return disconnectIntegration(integrationId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DisconnectIntegrationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof disconnectIntegration>>
+>;
+
+export type DisconnectIntegrationMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Disconnect a software integration
+ */
+export const useDisconnectIntegration = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof disconnectIntegration>>,
+    TError,
+    { integrationId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof disconnectIntegration>>,
+  TError,
+  { integrationId: string },
+  TContext
+> => {
+  return useMutation(getDisconnectIntegrationMutationOptions(options));
+};
+
+/**
+ * @summary Test a software integration connection
+ */
+export const getTestIntegrationUrl = (integrationId: string) => {
+  return `/api/integrations/${integrationId}/test`;
+};
+
+export const testIntegration = async (
+  integrationId: string,
+  options?: RequestInit,
+): Promise<TestIntegration200> => {
+  return customFetch<TestIntegration200>(getTestIntegrationUrl(integrationId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getTestIntegrationMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof testIntegration>>,
+    TError,
+    { integrationId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof testIntegration>>,
+  TError,
+  { integrationId: string },
+  TContext
+> => {
+  const mutationKey = ["testIntegration"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof testIntegration>>,
+    { integrationId: string }
+  > = (props) => {
+    const { integrationId } = props ?? {};
+
+    return testIntegration(integrationId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TestIntegrationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof testIntegration>>
+>;
+
+export type TestIntegrationMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Test a software integration connection
+ */
+export const useTestIntegration = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof testIntegration>>,
+    TError,
+    { integrationId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof testIntegration>>,
+  TError,
+  { integrationId: string },
+  TContext
+> => {
+  return useMutation(getTestIntegrationMutationOptions(options));
+};

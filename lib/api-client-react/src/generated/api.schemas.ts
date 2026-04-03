@@ -835,6 +835,55 @@ export interface ActivitySummary {
   weekStats: ActivitySummaryWeekStats;
 }
 
+export type IntegrationConfigFieldType =
+  (typeof IntegrationConfigFieldType)[keyof typeof IntegrationConfigFieldType];
+
+export const IntegrationConfigFieldType = {
+  text: "text",
+  password: "password",
+  url: "url",
+} as const;
+
+export interface IntegrationConfigField {
+  key: string;
+  label: string;
+  type: IntegrationConfigFieldType;
+  required: boolean;
+}
+
+export type SoftwareIntegrationStatus =
+  (typeof SoftwareIntegrationStatus)[keyof typeof SoftwareIntegrationStatus];
+
+export const SoftwareIntegrationStatus = {
+  connecte: "connecte",
+  deconnecte: "deconnecte",
+  en_attente: "en_attente",
+} as const;
+
+export interface SoftwareIntegration {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  status: SoftwareIntegrationStatus;
+  version?: string | null;
+  lastSync?: string | null;
+  features: string[];
+  configFields: IntegrationConfigField[];
+}
+
+export type IntegrationsCatalogCategoriesItem = {
+  id: string;
+  label: string;
+};
+
+export interface IntegrationsCatalog {
+  integrations: SoftwareIntegration[];
+  categories: IntegrationsCatalogCategoriesItem[];
+  totalAvailable: number;
+  totalConnected: number;
+}
+
 export type ListCallsParams = {
   status?: ListCallsStatus;
   limit?: number;
@@ -1113,6 +1162,8 @@ export const RequestAiSuggestionsBodyPage = {
   contacts: "contacts",
   tasks: "tasks",
   messages: "messages",
+  rapports: "rapports",
+  logiciels: "logiciels",
 } as const;
 
 export type RequestAiSuggestionsBody = {
@@ -1231,4 +1282,25 @@ export type ListDailyReportsParams = {
 export type DeleteDailyReport200 = {
   success?: boolean;
   message?: string;
+};
+
+export type ConnectIntegrationBody = { [key: string]: string };
+
+export type ConnectIntegration200 = {
+  status?: string;
+  message?: string;
+  integrationId?: string;
+  integrationName?: string;
+};
+
+export type DisconnectIntegration200 = {
+  status?: string;
+  message?: string;
+  integrationId?: string;
+};
+
+export type TestIntegration200 = {
+  status?: string;
+  message?: string;
+  latency?: number;
 };
