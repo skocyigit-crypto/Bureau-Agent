@@ -9,8 +9,9 @@ import {
   CloudDownload, Share2, Package, Cpu, RefreshCcw, CheckCheck,
   Video, MessageCircle, MapPin, StickyNote, ListChecks, Users, Image,
   BarChart3, Megaphone, Search, Cloud, Settings, BookOpen, Bookmark,
-  Languages, ShieldQuestion, Radio, Store, ClipboardList
+  Languages, ShieldQuestion, Radio, Store, ClipboardList, Play
 } from "lucide-react";
+import { PhoneSimulator, PhoneSimulatorDialog } from "@/components/phone-simulator";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -460,6 +461,7 @@ export default function SettingsPage() {
   const [aiThreatDetection, setAiThreatDetection] = useState(true);
   const [realTimeProtection, setRealTimeProtection] = useState(true);
   const [zeroTrustMode, setZeroTrustMode] = useState(true);
+  const [phoneDialogOpen, setPhoneDialogOpen] = useState(false);
 
   const { simulateIncomingCall } = useSimulateCall();
   const { toast } = useToast();
@@ -1509,7 +1511,7 @@ export default function SettingsPage() {
                   <Badge variant="outline" className="mt-3 text-[10px]">Disponible</Badge>
                 </div>
 
-                <div className="border rounded-lg p-4 text-center">
+                <div className="border rounded-lg p-4 text-center border-amber-200 dark:border-amber-800 bg-gradient-to-b from-amber-50/50 to-transparent dark:from-amber-950/10">
                   <div className="mx-auto w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-3">
                     <Smartphone className="w-6 h-6 text-amber-600" />
                   </div>
@@ -1529,7 +1531,88 @@ export default function SettingsPage() {
                       <span>PWA ou App Store</span>
                     </div>
                   </div>
-                  <Badge variant="outline" className="mt-3 text-[10px]">Bientot</Badge>
+                  <Button
+                    size="sm"
+                    className="mt-3 gap-1.5 bg-amber-600 hover:bg-amber-700 text-white"
+                    onClick={() => setPhoneDialogOpen(true)}
+                  >
+                    <Play className="w-3 h-3" />
+                    Apercu mobile
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-amber-200 dark:border-amber-900/50">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Smartphone className="w-5 h-5 text-amber-600" />
+                    Application mobile - Apercu interactif
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    Decouvrez l'experience Agent de Bureau sur mobile. Naviguez entre les ecrans pour voir toutes les fonctionnalites.
+                  </CardDescription>
+                </div>
+                <Badge className="bg-amber-100 text-amber-700 border-0 text-[10px] gap-1">
+                  <Smartphone className="w-3 h-3" />
+                  iOS / Android
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col lg:flex-row items-start gap-8">
+                <PhoneSimulator className="shrink-0" />
+                <div className="flex-1 space-y-4">
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold">Fonctionnalites mobiles</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {[
+                        { label: "Tableau de bord en temps reel", desc: "KPIs, activite recente, score IA" },
+                        { label: "Gestion des appels", desc: "Journal d'appels, filtres, rappels rapides" },
+                        { label: "Repertoire contacts", desc: "Recherche, categories, fiches completes" },
+                        { label: "Suivi des taches", desc: "Statuts, priorites, echeances" },
+                        { label: "Messages et notifications", desc: "Vocaux, notes, rappels, priorites" },
+                        { label: "Agents IA embarques", desc: "Scores, alertes, suggestions en mobilite" },
+                        { label: "Notifications push", desc: "Appels manques, taches urgentes, alertes IA" },
+                        { label: "Mode hors connexion", desc: "Acces aux donnees sans connexion Internet" },
+                      ].map((f, i) => (
+                        <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-muted/30">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-amber-600 mt-0.5 shrink-0" />
+                          <div>
+                            <p className="text-xs font-medium">{f.label}</p>
+                            <p className="text-[10px] text-muted-foreground">{f.desc}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <Separator />
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold">Telecharger l'application</h4>
+                    <div className="flex flex-wrap gap-3">
+                      <Button
+                        className="gap-2 bg-black hover:bg-gray-800 text-white"
+                        onClick={() => toast({ title: "App Store", description: "Redirection vers l'App Store pour telecharger Agent de Bureau..." })}
+                      >
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 22 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 22C7.79 22.05 6.8 20.68 5.96 19.47C4.25 16.56 2.93 11.3 4.7 7.72C5.57 5.94 7.36 4.86 9.28 4.84C10.56 4.82 11.78 5.72 12.55 5.72C13.33 5.72 14.81 4.65 16.38 4.82C17.08 4.85 18.92 5.1 20.12 6.82C20.01 6.89 17.78 8.17 17.8 10.94C17.83 14.22 20.65 15.31 20.68 15.32C20.66 15.38 20.23 16.89 19.16 18.44L18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z"/></svg>
+                        App Store
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="gap-2"
+                        onClick={() => toast({ title: "Google Play", description: "Redirection vers Google Play pour telecharger Agent de Bureau..." })}
+                      >
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M3 20.5V3.5C3 2.91 3.34 2.39 3.84 2.15L13.69 12L3.84 21.85C3.34 21.61 3 21.09 3 20.5ZM16.81 15.12L6.05 21.34L14.54 12.85L16.81 15.12ZM20.16 10.81C20.5 11.08 20.75 11.5 20.75 12C20.75 12.5 20.5 12.92 20.16 13.19L17.89 14.5L15.39 12L17.89 9.5L20.16 10.81ZM6.05 2.66L16.81 8.88L14.54 11.15L6.05 2.66Z"/></svg>
+                        Google Play
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Compatible iOS 16+ et Android 12+. Synchronisation automatique avec votre compte Google Workspace.
+                    </p>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -2004,6 +2087,8 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <PhoneSimulatorDialog open={phoneDialogOpen} onOpenChange={setPhoneDialogOpen} />
     </div>
   );
 }

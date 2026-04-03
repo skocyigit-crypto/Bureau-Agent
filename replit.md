@@ -2,127 +2,71 @@
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+This project is a pnpm workspace monorepo using TypeScript, designed to be a comprehensive French-language office/bureau agent application called "Agent de Bureau." Its primary purpose is to manage phone calls, contacts, tasks, and messages for businesses. The application aims to streamline office operations, enhance productivity, and provide insightful analytics through advanced AI integration.
 
-## Stack
+The project includes a robust backend API, a React-based frontend with a distinctive French UI (deep navy and warm amber accents), and a separate promotional landing page. Key capabilities include:
+- Full-featured management of calls, contacts, tasks, and messages.
+- Extensive AI integration for analysis, suggestions, validation, and a global AI assistant.
+- Integration with 21 popular business software across various categories.
+- Comprehensive analytics powered by Gemini AI, offering actionable insights.
+- A multi-agent AI system for specialized domain analysis and a Super Agent IA for cross-analysis.
+- Advanced security features and robust user management with role-based permissions.
+- Multi-device compatibility and Google Workspace integration.
 
-- **Monorepo tool**: pnpm workspaces
-- **Node.js version**: 24
-- **Package manager**: pnpm
-- **TypeScript version**: 5.9
-- **API framework**: Express 5
-- **Database**: PostgreSQL + Drizzle ORM
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
-- **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
-- **Frontend**: React + Vite + Tailwind CSS + shadcn/ui + Recharts
+The business vision is to provide a premium, efficient, and intelligent office management solution tailored for French-speaking markets, leveraging cutting-edge AI to automate and optimize daily administrative tasks.
 
-## Application: Agent de Bureau
+## User Preferences
 
-A comprehensive French-language office/bureau agent application for managing phone calls, contacts, tasks, and messages. All UI is in French (France). Design: deep navy sidebar, warm amber accents.
+I want iterative development.
+Ask before making major changes.
+I prefer detailed explanations.
+Do not make changes to the folder `/tanitim/`.
+Do not make changes to the file `pnpm-workspace.yaml`.
 
-### Features
-- **Tableau de bord** (Dashboard) — KPI cards with trend indicators, weekly stats row (answer rate, avg duration, peak hour, weekly calls), hourly performance bar chart, task completion stats with priority breakdown, top contacts list, recent activity feed, quick action buttons (+ Appel, + Tache, Analyse)
-- **Appels** (Calls) — Full-featured call log with search, status/direction filters, date range picker, sortable columns (contact, date, status, duration), bulk selection + bulk delete, CSV export, pagination with page controls, color-coded status badges, sentiment badges, creation dialog
-- **Contacts** — Professional directory with search, category filter, sortable columns, table/grid view toggle, bulk selection + bulk delete, CSV export, pagination, avatar initials, color-coded category badges, creation dialog
-- **Taches** (Tasks) — Dual view: table + Kanban board toggle, search, status/priority filters, sortable columns, bulk selection + bulk delete, overdue highlighting (red), inline status change via dropdown, priority color dots, related contact links, edit dialog, pagination
-- **Messages** — Search, read/type/priority filters, bulk mark-read + bulk delete, color-coded type badges (Vocal/Note/Rappel), priority badges, bold unread rows, pagination, creation dialog
-- **Logiciels** (Software Integrations) — 21 business software integrations across 9 categories (CRM: Salesforce/HubSpot/Pipedrive, Communication: Slack/Teams/Zoom, Gestion de projet: Trello/Asana/Notion/Jira, Comptabilite: Sage/QuickBooks, Documents: DocuSign/Dropbox, Messagerie: Outlook, Marketing: Mailchimp/Brevo, Automatisation: Zapier/Make, Support: Intercom/Zendesk). Catalog loaded from backend API, category filters, search, configuration dialogs with credential fields, test/connect actions, AI suggestions for integration recommendations
-- **Analyse** (Analytics) — Comprehensive analytics with Gemini AI insights, area/bar/pie/radar charts, hourly volume, period volume, sentiment distribution, weekly comparison, task stats, call distribution by status/direction, performance radar
+## System Architecture
 
-### AI Integration
-- **Gemini AI** via Replit AI Integrations (no API key needed, billed to credits)
-- Endpoint: `POST /ai/analyze` — gathers all analytics data and sends to Gemini 2.5 Flash for structured insights
-- Endpoint: `POST /ai/suggest` — page-level contextual suggestions (urgence/amelioration/information/action)
-- Endpoint: `POST /ai/validate` — AI-powered form validation with duplicate detection, returns errors/warnings/suggestions per field
-- Endpoint: `POST /ai/assistant` — natural language Q&A about office data with real-time DB context
-- Endpoint: `GET /ai/status` — check if Gemini AI is available
-- Returns (analyze): executive summary, strengths, attention points with recommendations, trends, prioritized actions, global score (0-100)
-- **Global AI Assistant Panel**: Floating purple brain button (bottom-right), opens chat panel with quick questions, contextual Q&A, real-time data responses with structured data cards and suggested actions
-- **Per-page AI Suggestions**: Every page has an "Intelligence IA disponible" card that triggers page-specific analysis (dashboard briefing, call follow-ups, contact outreach, task priorities, message recommendations, check-in/attendance patterns, team management)
-- **AI Call Analysis**: Call detail pages feature an "Analyse IA de l'appel" card for per-call summary, observations, and recommended follow-up actions
-- **AI Form Validation**: Every create/edit dialog includes a "Verifier IA" button for AI-powered pre-submission checks (duplicate detection, data quality, logical consistency)
-- Endpoint: `POST /ai/recognize` — comprehensive pattern recognition: cross-entity detection (missed calls, overdue tasks, VIP contacts, repeat callers, inactive contacts, sentiment analysis, response rate, task completion, urgent messages), health score (0-100), severity-sorted detections
-- **AI Recognition Panel**: Auto-loading dashboard panel with dark gradient header, health score gauge, severity summary badges, category filter tabs, scrollable detection list with severity-colored rows, per-detection icons + values + navigation links
-- **AI Health Badge**: Persistent header indicator showing global score and critical alert count across all pages
-- **Shared Recognition Context**: `RecognitionProvider` wraps layout to share single `/ai/recognize` call between panel and header badge
-- Endpoint: `POST /ai/draft-email` — AI email drafting with 10 purpose types (suivi_appel, relance_prospect, confirmation_rdv, remerciement, rappel_paiement, information, presentation, excuses, bienvenue, personnalise), 4 tone options, contact history context, alternative suggestions
-- **Email Composer**: Full 3-step email workflow: Configure (contact, purpose, tone, context) -> AI Generation -> Preview & Approve. Accessible from Dashboard, Messages, and Contact Detail pages. Features: editable subject/body, AI alternatives, copy to clipboard, approval confirmation
-- **Incoming Call Overlay**: Animated full-screen overlay for incoming calls with ringing/active/ended/missed phases, contact identification, mute/hold/notes controls, auto-save to database
-- **Settings Page**: 5 tabs — Google Workspace (6 services + Securite Workspace: file download blocking with super admin only access, antivirus/anti-malware scanning with stats dashboard, blocked file types with 30+ extensions, anti-phishing/spoofing with SPF/DKIM/DMARC, DLP with sensitive data blocking), Appels (ring duration, sound, AI features), Installation (Mac native app .dmg download for Apple Silicon + Intel, PWA install, Google Workspace migration 4-step process with encrypted config export/import, multi-device compatibility cards for macOS/Windows/Mobile, multi-device sync with offline mode and E2E encryption), Notifications (including security alerts and daily security reports), Securite (Zero Trust mode, MFA, session timeout, re-authentication for sensitive actions, 4-tier role system: Super Admin/Administrateur/Agent/Lecture seule, RGPD compliance with data retention and consent, emergency lockdown and session revocation)
-- **Workspace User System**: Automatic Google Workspace user identification with `WorkspaceUserProvider` context. User profile button in header (name, role, dropdown with org info, MFA status, security score, session expiry), sidebar footer with user info. 4-tier role-based permissions: Super Admin (all access + file downloads), Administrateur (management, no security settings), Agent (operations only), Lecture seule (read-only). Full profile dialog with permissions matrix. `useWorkspaceUser()` hook provides `hasPermission()`, `isSuperAdmin()`, `isAtLeast()` for role-gated features.
-- **Utilisateurs** (User Management) — Seat-based licensing with 3 plans (Essentiel 29 EUR/3 sieges, Professionnel 59 EUR/10 sieges, Entreprise sur devis/illimite). User table with role badges, status, department, call/task stats, MFA indicator, last access. Add user dialog with invitation. Suspend/reactivate/remove users. Role filter + search. Licences tab with plan comparison cards, cost calculator, billing history. Upgrade dialog for seat limit.
-- Components: `ai-assistant.tsx` (global panel), `ai-suggestions-card.tsx` (per-page cards), `ai-validation-feedback.tsx` (form feedback), `use-ai-validation.ts` (hook), `ai-recognition-panel.tsx` (recognition panel + health badge + context provider), `email-composer.tsx` (AI email drafting), `incoming-call-overlay.tsx` (call handling), `workspace-user.tsx` (user identification + roles + permissions)
-- Google Workspace integration: 26 Google apps supported across 6 categories (Productivite: Calendar, Docs, Sheets, Slides, Contacts, Tasks, Keep, Forms, Maps, Translate, Sites, Classroom; Communication: Gmail, Meet, Chat, Voice; Stockage: Drive, Photos; Analyse: Analytics, Search Console; Marketing: Ads, Business Profile, YouTube; Administration: Cloud Platform, Workspace Admin, Vault). Category filter buttons and search bar. User dismissed Google Calendar connector; integration not active
+The project is structured as a pnpm workspace monorepo, utilizing Node.js 24 and TypeScript 5.9.
 
-### Multi-Agent AI System
-- **7 specialist agents**: Appels, Contacts, Taches, Messages, Pointage, Securite, Performance — each analyzes its domain and produces a scored report with errors, warnings, suggestions, and corrections
-- **Super Agent IA**: Orchestrator that synthesizes all 7 agent reports into a cross-analysis with unified action plan
-- **Auto-execution**: Configurable 2-hour interval automatic runs (start/stop via API)
-- **Frontend dashboard**: `/agents-ia` page with score rings, summary cards, 4 tabs (Vue d'ensemble, Super Agent, Agents, Historique), expandable agent cards with detailed findings
-- **DB table**: `ai_agent_reports` stores all reports with agent ID, scores, errors, warnings, suggestions, corrections, details JSON
-- **API endpoints**: `POST /ai/agents/run-all`, `POST /ai/agents/run/:agentId`, `POST /ai/agents/run-super`, `GET /ai/agents/reports`, `GET /ai/agents/latest`, `GET /ai/agents/config`, `POST /ai/agents/auto-start`, `POST /ai/agents/auto-stop`
+**UI/UX Decisions:**
+The application's UI is entirely in French (France), featuring a deep navy sidebar and warm amber accents to create a professional yet inviting aesthetic. The design emphasizes clarity, ease of navigation, and intuitive workflows. Components like `shadcn/ui` and `Recharts` are used for a modern and responsive user experience.
 
-### API Endpoints
-- CRUD: `/calls`, `/contacts`, `/tasks`, `/messages`
-- Contact sub-resources: `/contacts/:id/calls`, `/contacts/:id/tasks`
-- Dashboard: `/dashboard/summary`, `/dashboard/call-analytics`, `/dashboard/recent-activity`, `/dashboard/call-distribution`, `/dashboard/top-contacts`
-- Advanced dashboard: `/dashboard/hourly-performance`, `/dashboard/task-stats`, `/dashboard/weekly-report`, `/dashboard/notifications`
-- AI: `POST /ai/analyze`, `POST /ai/suggest` (pages: dashboard, calls, contacts, tasks, messages, rapports, logiciels, pointage, utilisateurs), `POST /ai/validate`, `POST /ai/assistant`, `POST /ai/recognize`, `POST /ai/draft-email`, `GET /ai/status`
-- Workspace: `GET /workspace/status`, `POST /workspace/connect/:serviceId`, `POST /workspace/disconnect/:serviceId`, `POST /workspace/sync`, `GET /workspace/calendar/events`, `GET /workspace/gmail/messages`, `GET /workspace/drive/files`
-- Daily Reports: `POST /workspace/daily-report` (AI-generated), `GET /workspace/daily-reports`, `GET /workspace/daily-reports/:id`, `DELETE /workspace/daily-reports/:id`, `GET /workspace/activity-summary`
-- Integrations: `GET /integrations/catalog`, `POST /integrations/:id/connect`, `POST /integrations/:id/disconnect`, `POST /integrations/:id/test`, `POST /integrations/:id/sync`
+**Technical Implementations:**
+- **Backend:** Built with Express 5, using PostgreSQL as the database and Drizzle ORM for database interactions. Zod is used for schema validation. API codegen is handled by Orval from an OpenAPI specification. `esbuild` is used for CJS bundling.
+- **Frontend:** Developed with React, Vite, Tailwind CSS, shadcn/ui, and Recharts.
+- **AI Integration:** Leverages Gemini AI via Replit AI Integrations for various functionalities:
+    - **Analytics:** `POST /ai/analyze` for structured insights.
+    - **Contextual Suggestions:** `POST /ai/suggest` for page-level recommendations.
+    - **Form Validation:** `POST /ai/validate` for AI-powered pre-submission checks, including duplicate detection.
+    - **Q&A Assistant:** `POST /ai/assistant` for natural language queries with real-time database context.
+    - **Pattern Recognition:** `POST /ai/recognize` for cross-entity detection and health scores.
+    - **Email Drafting:** `POST /ai/draft-email` for AI-powered email generation with context.
+- **Multi-Agent AI System:** Comprises 7 specialist agents (Calls, Contacts, Tasks, Messages, Attendance, Security, Performance) that generate scored reports. A "Super Agent IA" orchestrates these reports for a unified action plan. This system can run automatically at configurable intervals.
+- **User Management:** A robust role-based access control system with four tiers: Super Admin, Administrateur, Agent, and Lecture seule (Read-only). Features include Google Workspace user identification, seat-based licensing, and comprehensive user management functionalities.
+- **Security Hardening:** Implements Helmet for security headers, rate limiting, strict CORS policies, HPP protection, Zod-based input validation, Drizzle ORM for SQL injection prevention, and structured error handling.
+- **Features:**
+    - **Dashboard:** KPI cards, weekly stats, performance charts, task completion, top contacts, activity feed.
+    - **Call Management:** Full-featured call log with search, filters, bulk actions, CSV export, and AI analysis.
+    - **Contact Management:** Professional directory with search, filters, table/grid views, and bulk actions.
+    - **Task Management:** Dual view (table/Kanban), filters, bulk actions, and overdue highlighting.
+    - **Message Management:** Search, filters, bulk actions, and color-coded badges.
+    - **Software Integrations:** Catalog of 21 business software integrations with configuration and AI recommendations.
+    - **Analytics:** Comprehensive reports with various charts and Gemini AI insights.
+    - **Incoming Call Overlay:** Real-time call handling interface.
+    - **Settings Page:** Extensive configuration for Google Workspace, call features, application installation (with interactive phone simulator for mobile app preview, App Store/Google Play download buttons), notifications, and security.
+    - **Phone Simulator:** Interactive mobile phone mockup component (`phone-simulator.tsx`) with 6 navigable screens (Accueil, Appels, Contacts, Taches, Messages, Agents IA), phone frame with status bar/nav bar, expandable full-screen dialog mode.
+- **Promotional Landing Page (`/tanitim/`):** A separate React+Vite artifact for marketing, featuring deep navy and amber branding, `framer-motion` for animations, AI-generated visuals, and a comprehensive overview of the product.
 
-### Database Tables
-- `contacts` — Professional contact directory (categories: client, prospect, fournisseur, partenaire, autre)
-- `calls` — Call records with direction, status (repondu/manque/messagerie), duration, sentiment, tags
-- `tasks` — Office tasks with status (en_attente/en_cours/termine/annule), priority (haute/moyenne/basse)
-- `messages` — Voicemail, notes, reminders with read/unread and priority
-- `daily_reports` — AI-generated daily reports with score, metrics, highlights, recommendations
+## External Dependencies
 
-### Security Hardening
-- **Helmet** — Full security headers: CSP, HSTS (1yr+preload), X-Content-Type-Options, X-Frame-Options, Referrer-Policy, COOP/CORP
-- **Rate limiting** — General: 200 req/15min, AI endpoints: 5 req/min, Write operations: 50 req/15min; uses library ipKeyGenerator for proper IPv6 subnet handling
-- **CORS** — Restricted methods/headers, credentials support, configurable origins via ALLOWED_ORIGINS env var
-- **HPP** — HTTP Parameter Pollution protection
-- **Input validation** — Zod schemas on all endpoints, body size limit (1MB)
-- **Error handling** — Production mode hides internal error details, structured logging via pino
-- **SQL injection** — Drizzle ORM parameterized queries throughout
-- **X-Powered-By** — Disabled (no tech stack disclosure)
-
-### Important Patterns
-- When using Drizzle SQL template literals with `to_char`, do NOT pass format strings as parameters — use inline SQL template literals like `sql\`to_char(col, 'Dy')\`` to avoid parameterized query issues with PostgreSQL
-- Import hooks from `@workspace/api-client-react`, never relative paths
-- Hooks return T directly (not wrapped in { data: T })
-- Query hook options: `useGetCall(id, { query: { enabled: !!id } })`
-- Mutation onSuccess receives T directly
-
-## Promotional Landing Page (Site Vitrine)
-
-A separate React+Vite artifact at `/tanitim/` — a premium SaaS marketing landing page for Agent de Bureau. Presentation-first, no backend. Deep navy (#1a2744) + amber (#f59e0b) brand colors, all text in French. Uses framer-motion for scroll animations, AI-generated product visuals and testimonial portraits.
-
-### Landing Page Sections (14 total)
-1. Hero with animated headline + dual CTA
-2. Dashboard preview mockup image
-3. Trust/social proof logo bar (CSS marquee scroll)
-4. Animated statistics counters (2500+ bureaux, 1.2M+ appels, 98.5% satisfaction, 24/7)
-5. Comprehensive features grid (8 feature cards)
-6. Feature deep-dive: Call management (split layout)
-7. Feature deep-dive: Analytics/dashboard (split layout)
-8. "Comment ca marche" — 4-step how-it-works with visual timeline
-9. Pricing section (3 tiers: Essentiel 29EUR, Professionnel 59EUR, Entreprise sur devis)
-10. Testimonials with AI-generated portrait images (3 Paris professionals)
-11. Integrations section (Outlook, Google, Teams, Salesforce, Slack, Zoom)
-12. FAQ accordion (6 questions)
-13. Security/compliance badges (RGPD, SSL, France hosting, ISO 27001)
-14. Final CTA + newsletter form
-
-## Key Commands
-
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- `pnpm --filter @workspace/api-server run dev` — run API server locally
-
-See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
+- **Database:** PostgreSQL
+- **ORM:** Drizzle ORM
+- **AI Service:** Gemini AI (via Replit AI Integrations)
+- **API Framework:** Express 5
+- **Frontend Libraries:** React, Vite, Tailwind CSS, shadcn/ui, Recharts, framer-motion
+- **Validation:** Zod, drizzle-zod
+- **API Codegen:** Orval
+- **Build Tool:** esbuild
+- **Security Middleware:** Helmet
+- **Logging:** Pino
+- **Google Workspace Services:** Gmail, Calendar, Drive, Contacts, Tasks, Keep, Forms, Maps, Translate, Sites, Classroom, Meet, Chat, Voice, Photos, Analytics, Search Console, Ads, Business Profile, YouTube, Cloud Platform, Workspace Admin, Vault.
+- **Third-party Business Software Integrations:** Salesforce, HubSpot, Pipedrive, Slack, Microsoft Teams, Zoom, Trello, Asana, Notion, Jira, Sage, QuickBooks, DocuSign, Dropbox, Outlook, Mailchimp, Brevo, Zapier, Make, Intercom, Zendesk.
