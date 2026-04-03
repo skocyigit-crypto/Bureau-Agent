@@ -55,6 +55,14 @@ A comprehensive French-language office/bureau agent application for managing pho
 - Components: `ai-assistant.tsx` (global panel), `ai-suggestions-card.tsx` (per-page cards), `ai-validation-feedback.tsx` (form feedback), `use-ai-validation.ts` (hook), `ai-recognition-panel.tsx` (recognition panel + health badge + context provider), `email-composer.tsx` (AI email drafting), `incoming-call-overlay.tsx` (call handling), `workspace-user.tsx` (user identification + roles + permissions)
 - Google Workspace integration: 26 Google apps supported across 6 categories (Productivite: Calendar, Docs, Sheets, Slides, Contacts, Tasks, Keep, Forms, Maps, Translate, Sites, Classroom; Communication: Gmail, Meet, Chat, Voice; Stockage: Drive, Photos; Analyse: Analytics, Search Console; Marketing: Ads, Business Profile, YouTube; Administration: Cloud Platform, Workspace Admin, Vault). Category filter buttons and search bar. User dismissed Google Calendar connector; integration not active
 
+### Multi-Agent AI System
+- **7 specialist agents**: Appels, Contacts, Taches, Messages, Pointage, Securite, Performance — each analyzes its domain and produces a scored report with errors, warnings, suggestions, and corrections
+- **Super Agent IA**: Orchestrator that synthesizes all 7 agent reports into a cross-analysis with unified action plan
+- **Auto-execution**: Configurable 2-hour interval automatic runs (start/stop via API)
+- **Frontend dashboard**: `/agents-ia` page with score rings, summary cards, 4 tabs (Vue d'ensemble, Super Agent, Agents, Historique), expandable agent cards with detailed findings
+- **DB table**: `ai_agent_reports` stores all reports with agent ID, scores, errors, warnings, suggestions, corrections, details JSON
+- **API endpoints**: `POST /ai/agents/run-all`, `POST /ai/agents/run/:agentId`, `POST /ai/agents/run-super`, `GET /ai/agents/reports`, `GET /ai/agents/latest`, `GET /ai/agents/config`, `POST /ai/agents/auto-start`, `POST /ai/agents/auto-stop`
+
 ### API Endpoints
 - CRUD: `/calls`, `/contacts`, `/tasks`, `/messages`
 - Contact sub-resources: `/contacts/:id/calls`, `/contacts/:id/tasks`

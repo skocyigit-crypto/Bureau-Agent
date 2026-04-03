@@ -967,6 +967,247 @@ export const DraftAiEmailResponse = zod.object({
 });
 
 /**
+ * @summary Run all AI agents and generate reports with Super AI synthesis
+ */
+export const RunAllAiAgentsResponse = zod.object({
+  superReport: zod
+    .object({
+      id: zod.number(),
+      agentId: zod.string(),
+      agentName: zod.string(),
+      agentIcon: zod.string().optional(),
+      reportDate: zod.string(),
+      status: zod.string(),
+      score: zod.number(),
+      errorsFound: zod.number().optional(),
+      warningsFound: zod.number().optional(),
+      suggestionsCount: zod.number().optional(),
+      summary: zod.string(),
+      details: zod.object({}).passthrough().optional(),
+      errors: zod.array(zod.object({}).passthrough()).optional(),
+      warnings: zod.array(zod.object({}).passthrough()).optional(),
+      suggestions: zod.array(zod.object({}).passthrough()).optional(),
+      corrections: zod.array(zod.object({}).passthrough()).optional(),
+      isSuperReport: zod.boolean().optional(),
+      childReportIds: zod.array(zod.number()).optional(),
+      executionTimeMs: zod.number().optional(),
+      createdAt: zod.string().optional(),
+    })
+    .optional(),
+  agentReports: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        agentId: zod.string(),
+        agentName: zod.string(),
+        agentIcon: zod.string().optional(),
+        reportDate: zod.string(),
+        status: zod.string(),
+        score: zod.number(),
+        errorsFound: zod.number().optional(),
+        warningsFound: zod.number().optional(),
+        suggestionsCount: zod.number().optional(),
+        summary: zod.string(),
+        details: zod.object({}).passthrough().optional(),
+        errors: zod.array(zod.object({}).passthrough()).optional(),
+        warnings: zod.array(zod.object({}).passthrough()).optional(),
+        suggestions: zod.array(zod.object({}).passthrough()).optional(),
+        corrections: zod.array(zod.object({}).passthrough()).optional(),
+        isSuperReport: zod.boolean().optional(),
+        childReportIds: zod.array(zod.number()).optional(),
+        executionTimeMs: zod.number().optional(),
+        createdAt: zod.string().optional(),
+      }),
+    )
+    .optional(),
+  totalExecutionTimeMs: zod.number().optional(),
+});
+
+/**
+ * @summary Run a single AI agent
+ */
+export const RunSingleAiAgentParams = zod.object({
+  agentId: zod.coerce.string(),
+});
+
+export const RunSingleAiAgentResponse = zod.object({
+  id: zod.number(),
+  agentId: zod.string(),
+  agentName: zod.string(),
+  agentIcon: zod.string().optional(),
+  reportDate: zod.string(),
+  status: zod.string(),
+  score: zod.number(),
+  errorsFound: zod.number().optional(),
+  warningsFound: zod.number().optional(),
+  suggestionsCount: zod.number().optional(),
+  summary: zod.string(),
+  details: zod.object({}).passthrough().optional(),
+  errors: zod.array(zod.object({}).passthrough()).optional(),
+  warnings: zod.array(zod.object({}).passthrough()).optional(),
+  suggestions: zod.array(zod.object({}).passthrough()).optional(),
+  corrections: zod.array(zod.object({}).passthrough()).optional(),
+  isSuperReport: zod.boolean().optional(),
+  childReportIds: zod.array(zod.number()).optional(),
+  executionTimeMs: zod.number().optional(),
+  createdAt: zod.string().optional(),
+});
+
+/**
+ * @summary Run Super AI agent to synthesize today reports
+ */
+export const RunSuperAiAgentResponse = zod.object({
+  id: zod.number(),
+  agentId: zod.string(),
+  agentName: zod.string(),
+  agentIcon: zod.string().optional(),
+  reportDate: zod.string(),
+  status: zod.string(),
+  score: zod.number(),
+  errorsFound: zod.number().optional(),
+  warningsFound: zod.number().optional(),
+  suggestionsCount: zod.number().optional(),
+  summary: zod.string(),
+  details: zod.object({}).passthrough().optional(),
+  errors: zod.array(zod.object({}).passthrough()).optional(),
+  warnings: zod.array(zod.object({}).passthrough()).optional(),
+  suggestions: zod.array(zod.object({}).passthrough()).optional(),
+  corrections: zod.array(zod.object({}).passthrough()).optional(),
+  isSuperReport: zod.boolean().optional(),
+  childReportIds: zod.array(zod.number()).optional(),
+  executionTimeMs: zod.number().optional(),
+  createdAt: zod.string().optional(),
+});
+
+/**
+ * @summary Get AI agent reports with optional filters
+ */
+export const GetAiAgentReportsQueryParams = zod.object({
+  date: zod.coerce.string().optional(),
+  agentId: zod.coerce.string().optional(),
+  superOnly: zod.coerce.string().optional(),
+});
+
+export const GetAiAgentReportsResponseItem = zod.object({
+  id: zod.number(),
+  agentId: zod.string(),
+  agentName: zod.string(),
+  agentIcon: zod.string().optional(),
+  reportDate: zod.string(),
+  status: zod.string(),
+  score: zod.number(),
+  errorsFound: zod.number().optional(),
+  warningsFound: zod.number().optional(),
+  suggestionsCount: zod.number().optional(),
+  summary: zod.string(),
+  details: zod.object({}).passthrough().optional(),
+  errors: zod.array(zod.object({}).passthrough()).optional(),
+  warnings: zod.array(zod.object({}).passthrough()).optional(),
+  suggestions: zod.array(zod.object({}).passthrough()).optional(),
+  corrections: zod.array(zod.object({}).passthrough()).optional(),
+  isSuperReport: zod.boolean().optional(),
+  childReportIds: zod.array(zod.number()).optional(),
+  executionTimeMs: zod.number().optional(),
+  createdAt: zod.string().optional(),
+});
+export const GetAiAgentReportsResponse = zod.array(
+  GetAiAgentReportsResponseItem,
+);
+
+/**
+ * @summary Get a specific AI agent report
+ */
+export const GetAiAgentReportParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetAiAgentReportResponse = zod.object({
+  id: zod.number(),
+  agentId: zod.string(),
+  agentName: zod.string(),
+  agentIcon: zod.string().optional(),
+  reportDate: zod.string(),
+  status: zod.string(),
+  score: zod.number(),
+  errorsFound: zod.number().optional(),
+  warningsFound: zod.number().optional(),
+  suggestionsCount: zod.number().optional(),
+  summary: zod.string(),
+  details: zod.object({}).passthrough().optional(),
+  errors: zod.array(zod.object({}).passthrough()).optional(),
+  warnings: zod.array(zod.object({}).passthrough()).optional(),
+  suggestions: zod.array(zod.object({}).passthrough()).optional(),
+  corrections: zod.array(zod.object({}).passthrough()).optional(),
+  isSuperReport: zod.boolean().optional(),
+  childReportIds: zod.array(zod.number()).optional(),
+  executionTimeMs: zod.number().optional(),
+  createdAt: zod.string().optional(),
+});
+
+/**
+ * @summary Get latest report for each agent
+ */
+export const GetLatestAiAgentReportsResponse = zod.record(
+  zod.string(),
+  zod.object({
+    id: zod.number(),
+    agentId: zod.string(),
+    agentName: zod.string(),
+    agentIcon: zod.string().optional(),
+    reportDate: zod.string(),
+    status: zod.string(),
+    score: zod.number(),
+    errorsFound: zod.number().optional(),
+    warningsFound: zod.number().optional(),
+    suggestionsCount: zod.number().optional(),
+    summary: zod.string(),
+    details: zod.object({}).passthrough().optional(),
+    errors: zod.array(zod.object({}).passthrough()).optional(),
+    warnings: zod.array(zod.object({}).passthrough()).optional(),
+    suggestions: zod.array(zod.object({}).passthrough()).optional(),
+    corrections: zod.array(zod.object({}).passthrough()).optional(),
+    isSuperReport: zod.boolean().optional(),
+    childReportIds: zod.array(zod.number()).optional(),
+    executionTimeMs: zod.number().optional(),
+    createdAt: zod.string().optional(),
+  }),
+);
+
+/**
+ * @summary Get AI agents configuration
+ */
+export const GetAiAgentsConfigResponse = zod.object({
+  agents: zod
+    .array(
+      zod.object({
+        id: zod.string().optional(),
+        name: zod.string().optional(),
+        icon: zod.string().optional(),
+        domain: zod.string().optional(),
+      }),
+    )
+    .optional(),
+  autoRunEnabled: zod.boolean().optional(),
+  autoRunIntervalMinutes: zod.number().optional(),
+});
+
+/**
+ * @summary Start automatic AI agents execution every 2 hours
+ */
+export const StartAiAgentsAutoRunResponse = zod.object({
+  message: zod.string().optional(),
+  status: zod.string().optional(),
+});
+
+/**
+ * @summary Stop automatic AI agents execution
+ */
+export const StopAiAgentsAutoRunResponse = zod.object({
+  message: zod.string().optional(),
+  status: zod.string().optional(),
+});
+
+/**
  * @summary Get Google Workspace connection status
  */
 export const GetWorkspaceStatusResponse = zod.object({

@@ -710,6 +710,39 @@ export interface AiEmailDraft {
   suggestionsAlternatives: AiEmailDraftSuggestionsAlternativesItem[];
 }
 
+export type AiAgentReportDetails = { [key: string]: unknown };
+
+export type AiAgentReportErrorsItem = { [key: string]: unknown };
+
+export type AiAgentReportWarningsItem = { [key: string]: unknown };
+
+export type AiAgentReportSuggestionsItem = { [key: string]: unknown };
+
+export type AiAgentReportCorrectionsItem = { [key: string]: unknown };
+
+export interface AiAgentReport {
+  id: number;
+  agentId: string;
+  agentName: string;
+  agentIcon?: string;
+  reportDate: string;
+  status: string;
+  score: number;
+  errorsFound?: number;
+  warningsFound?: number;
+  suggestionsCount?: number;
+  summary: string;
+  details?: AiAgentReportDetails;
+  errors?: AiAgentReportErrorsItem[];
+  warnings?: AiAgentReportWarningsItem[];
+  suggestions?: AiAgentReportSuggestionsItem[];
+  corrections?: AiAgentReportCorrectionsItem[];
+  isSuperReport?: boolean;
+  childReportIds?: number[];
+  executionTimeMs?: number;
+  createdAt?: string;
+}
+
 export interface DailyReportRequest {
   /** Date au format AAAA-MM-JJ. Par defaut aujourd'hui. */
   date?: string;
@@ -1341,6 +1374,43 @@ export type DraftAiEmailBody = {
   tone?: DraftAiEmailBodyTone;
   language?: string;
   additionalContext?: string | null;
+};
+
+export type RunAllAiAgents200 = {
+  superReport?: AiAgentReport;
+  agentReports?: AiAgentReport[];
+  totalExecutionTimeMs?: number;
+};
+
+export type GetAiAgentReportsParams = {
+  date?: string;
+  agentId?: string;
+  superOnly?: string;
+};
+
+export type GetLatestAiAgentReports200 = { [key: string]: AiAgentReport };
+
+export type GetAiAgentsConfig200AgentsItem = {
+  id?: string;
+  name?: string;
+  icon?: string;
+  domain?: string;
+};
+
+export type GetAiAgentsConfig200 = {
+  agents?: GetAiAgentsConfig200AgentsItem[];
+  autoRunEnabled?: boolean;
+  autoRunIntervalMinutes?: number;
+};
+
+export type StartAiAgentsAutoRun200 = {
+  message?: string;
+  status?: string;
+};
+
+export type StopAiAgentsAutoRun200 = {
+  message?: string;
+  status?: string;
 };
 
 export type ConnectWorkspaceService200 = {

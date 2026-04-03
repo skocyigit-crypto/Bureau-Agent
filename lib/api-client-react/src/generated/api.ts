@@ -18,6 +18,7 @@ import type {
 
 import type {
   ActivitySummary,
+  AiAgentReport,
   AiAnalysisResult,
   AiAssistantResponse,
   AiEmailDraft,
@@ -49,6 +50,8 @@ import type {
   DisconnectIntegration200,
   DisconnectWorkspaceService200,
   DraftAiEmailBody,
+  GetAiAgentReportsParams,
+  GetAiAgentsConfig200,
   GetCalendarEvents200,
   GetCallAnalyticsParams,
   GetCheckinStatsParams,
@@ -60,6 +63,7 @@ import type {
   GetDriveFiles200,
   GetGmailMessages200,
   GetHourlyPerformance200,
+  GetLatestAiAgentReports200,
   GetNotifications200,
   GetRecentActivity200,
   GetRecentActivityParams,
@@ -83,6 +87,9 @@ import type {
   RequestAiRecognitionBody,
   RequestAiSuggestionsBody,
   RequestAiValidationBody,
+  RunAllAiAgents200,
+  StartAiAgentsAutoRun200,
+  StopAiAgentsAutoRun200,
   SyncWorkspace200,
   Task,
   TaskStats,
@@ -3441,6 +3448,752 @@ export const useDraftAiEmail = <
   TContext
 > => {
   return useMutation(getDraftAiEmailMutationOptions(options));
+};
+
+/**
+ * @summary Run all AI agents and generate reports with Super AI synthesis
+ */
+export const getRunAllAiAgentsUrl = () => {
+  return `/api/ai/agents/run`;
+};
+
+export const runAllAiAgents = async (
+  options?: RequestInit,
+): Promise<RunAllAiAgents200> => {
+  return customFetch<RunAllAiAgents200>(getRunAllAiAgentsUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRunAllAiAgentsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof runAllAiAgents>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof runAllAiAgents>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["runAllAiAgents"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof runAllAiAgents>>,
+    void
+  > = () => {
+    return runAllAiAgents(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RunAllAiAgentsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof runAllAiAgents>>
+>;
+
+export type RunAllAiAgentsMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Run all AI agents and generate reports with Super AI synthesis
+ */
+export const useRunAllAiAgents = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof runAllAiAgents>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof runAllAiAgents>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getRunAllAiAgentsMutationOptions(options));
+};
+
+/**
+ * @summary Run a single AI agent
+ */
+export const getRunSingleAiAgentUrl = (agentId: string) => {
+  return `/api/ai/agents/run/${agentId}`;
+};
+
+export const runSingleAiAgent = async (
+  agentId: string,
+  options?: RequestInit,
+): Promise<AiAgentReport> => {
+  return customFetch<AiAgentReport>(getRunSingleAiAgentUrl(agentId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRunSingleAiAgentMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof runSingleAiAgent>>,
+    TError,
+    { agentId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof runSingleAiAgent>>,
+  TError,
+  { agentId: string },
+  TContext
+> => {
+  const mutationKey = ["runSingleAiAgent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof runSingleAiAgent>>,
+    { agentId: string }
+  > = (props) => {
+    const { agentId } = props ?? {};
+
+    return runSingleAiAgent(agentId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RunSingleAiAgentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof runSingleAiAgent>>
+>;
+
+export type RunSingleAiAgentMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Run a single AI agent
+ */
+export const useRunSingleAiAgent = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof runSingleAiAgent>>,
+    TError,
+    { agentId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof runSingleAiAgent>>,
+  TError,
+  { agentId: string },
+  TContext
+> => {
+  return useMutation(getRunSingleAiAgentMutationOptions(options));
+};
+
+/**
+ * @summary Run Super AI agent to synthesize today reports
+ */
+export const getRunSuperAiAgentUrl = () => {
+  return `/api/ai/agents/super`;
+};
+
+export const runSuperAiAgent = async (
+  options?: RequestInit,
+): Promise<AiAgentReport> => {
+  return customFetch<AiAgentReport>(getRunSuperAiAgentUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRunSuperAiAgentMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof runSuperAiAgent>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof runSuperAiAgent>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["runSuperAiAgent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof runSuperAiAgent>>,
+    void
+  > = () => {
+    return runSuperAiAgent(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RunSuperAiAgentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof runSuperAiAgent>>
+>;
+
+export type RunSuperAiAgentMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Run Super AI agent to synthesize today reports
+ */
+export const useRunSuperAiAgent = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof runSuperAiAgent>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof runSuperAiAgent>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getRunSuperAiAgentMutationOptions(options));
+};
+
+/**
+ * @summary Get AI agent reports with optional filters
+ */
+export const getGetAiAgentReportsUrl = (params?: GetAiAgentReportsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/ai/agents/reports?${stringifiedParams}`
+    : `/api/ai/agents/reports`;
+};
+
+export const getAiAgentReports = async (
+  params?: GetAiAgentReportsParams,
+  options?: RequestInit,
+): Promise<AiAgentReport[]> => {
+  return customFetch<AiAgentReport[]>(getGetAiAgentReportsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAiAgentReportsQueryKey = (
+  params?: GetAiAgentReportsParams,
+) => {
+  return [`/api/ai/agents/reports`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetAiAgentReportsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAiAgentReports>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAiAgentReportsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAiAgentReports>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetAiAgentReportsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAiAgentReports>>
+  > = ({ signal }) => getAiAgentReports(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAiAgentReports>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAiAgentReportsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAiAgentReports>>
+>;
+export type GetAiAgentReportsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get AI agent reports with optional filters
+ */
+
+export function useGetAiAgentReports<
+  TData = Awaited<ReturnType<typeof getAiAgentReports>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAiAgentReportsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAiAgentReports>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAiAgentReportsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get a specific AI agent report
+ */
+export const getGetAiAgentReportUrl = (id: number) => {
+  return `/api/ai/agents/reports/${id}`;
+};
+
+export const getAiAgentReport = async (
+  id: number,
+  options?: RequestInit,
+): Promise<AiAgentReport> => {
+  return customFetch<AiAgentReport>(getGetAiAgentReportUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAiAgentReportQueryKey = (id: number) => {
+  return [`/api/ai/agents/reports/${id}`] as const;
+};
+
+export const getGetAiAgentReportQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAiAgentReport>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAiAgentReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAiAgentReportQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAiAgentReport>>
+  > = ({ signal }) => getAiAgentReport(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAiAgentReport>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAiAgentReportQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAiAgentReport>>
+>;
+export type GetAiAgentReportQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get a specific AI agent report
+ */
+
+export function useGetAiAgentReport<
+  TData = Awaited<ReturnType<typeof getAiAgentReport>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAiAgentReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAiAgentReportQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get latest report for each agent
+ */
+export const getGetLatestAiAgentReportsUrl = () => {
+  return `/api/ai/agents/latest`;
+};
+
+export const getLatestAiAgentReports = async (
+  options?: RequestInit,
+): Promise<GetLatestAiAgentReports200> => {
+  return customFetch<GetLatestAiAgentReports200>(
+    getGetLatestAiAgentReportsUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetLatestAiAgentReportsQueryKey = () => {
+  return [`/api/ai/agents/latest`] as const;
+};
+
+export const getGetLatestAiAgentReportsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLatestAiAgentReports>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getLatestAiAgentReports>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetLatestAiAgentReportsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getLatestAiAgentReports>>
+  > = ({ signal }) => getLatestAiAgentReports({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getLatestAiAgentReports>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetLatestAiAgentReportsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLatestAiAgentReports>>
+>;
+export type GetLatestAiAgentReportsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get latest report for each agent
+ */
+
+export function useGetLatestAiAgentReports<
+  TData = Awaited<ReturnType<typeof getLatestAiAgentReports>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getLatestAiAgentReports>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetLatestAiAgentReportsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get AI agents configuration
+ */
+export const getGetAiAgentsConfigUrl = () => {
+  return `/api/ai/agents/config`;
+};
+
+export const getAiAgentsConfig = async (
+  options?: RequestInit,
+): Promise<GetAiAgentsConfig200> => {
+  return customFetch<GetAiAgentsConfig200>(getGetAiAgentsConfigUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAiAgentsConfigQueryKey = () => {
+  return [`/api/ai/agents/config`] as const;
+};
+
+export const getGetAiAgentsConfigQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAiAgentsConfig>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAiAgentsConfig>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAiAgentsConfigQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAiAgentsConfig>>
+  > = ({ signal }) => getAiAgentsConfig({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAiAgentsConfig>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAiAgentsConfigQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAiAgentsConfig>>
+>;
+export type GetAiAgentsConfigQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get AI agents configuration
+ */
+
+export function useGetAiAgentsConfig<
+  TData = Awaited<ReturnType<typeof getAiAgentsConfig>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAiAgentsConfig>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAiAgentsConfigQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Start automatic AI agents execution every 2 hours
+ */
+export const getStartAiAgentsAutoRunUrl = () => {
+  return `/api/ai/agents/auto-start`;
+};
+
+export const startAiAgentsAutoRun = async (
+  options?: RequestInit,
+): Promise<StartAiAgentsAutoRun200> => {
+  return customFetch<StartAiAgentsAutoRun200>(getStartAiAgentsAutoRunUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getStartAiAgentsAutoRunMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof startAiAgentsAutoRun>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof startAiAgentsAutoRun>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["startAiAgentsAutoRun"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof startAiAgentsAutoRun>>,
+    void
+  > = () => {
+    return startAiAgentsAutoRun(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type StartAiAgentsAutoRunMutationResult = NonNullable<
+  Awaited<ReturnType<typeof startAiAgentsAutoRun>>
+>;
+
+export type StartAiAgentsAutoRunMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Start automatic AI agents execution every 2 hours
+ */
+export const useStartAiAgentsAutoRun = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof startAiAgentsAutoRun>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof startAiAgentsAutoRun>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getStartAiAgentsAutoRunMutationOptions(options));
+};
+
+/**
+ * @summary Stop automatic AI agents execution
+ */
+export const getStopAiAgentsAutoRunUrl = () => {
+  return `/api/ai/agents/auto-stop`;
+};
+
+export const stopAiAgentsAutoRun = async (
+  options?: RequestInit,
+): Promise<StopAiAgentsAutoRun200> => {
+  return customFetch<StopAiAgentsAutoRun200>(getStopAiAgentsAutoRunUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getStopAiAgentsAutoRunMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof stopAiAgentsAutoRun>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof stopAiAgentsAutoRun>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["stopAiAgentsAutoRun"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof stopAiAgentsAutoRun>>,
+    void
+  > = () => {
+    return stopAiAgentsAutoRun(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type StopAiAgentsAutoRunMutationResult = NonNullable<
+  Awaited<ReturnType<typeof stopAiAgentsAutoRun>>
+>;
+
+export type StopAiAgentsAutoRunMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Stop automatic AI agents execution
+ */
+export const useStopAiAgentsAutoRun = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof stopAiAgentsAutoRun>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof stopAiAgentsAutoRun>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getStopAiAgentsAutoRunMutationOptions(options));
 };
 
 /**

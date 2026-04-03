@@ -9,6 +9,7 @@ import aiAnalysisRouter from "./ai-analysis";
 import workspaceRouter from "./workspace";
 import integrationsRouter from "./integrations";
 import checkinsRouter from "./checkins";
+import aiAgentsRouter from "./ai-agents";
 
 const router: IRouter = Router();
 
@@ -19,6 +20,7 @@ router.use(tasksRouter);
 router.use(messagesRouter);
 router.use(dashboardRouter);
 router.use(aiAnalysisRouter);
+router.use(aiAgentsRouter);
 router.use("/workspace", workspaceRouter);
 router.use("/integrations", integrationsRouter);
 router.use(checkinsRouter);

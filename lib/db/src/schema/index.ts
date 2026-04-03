@@ -4,3 +4,4 @@ export * from "./tasks";
 export * from "./messages";
 export * from "./daily-reports";
 export * from "./checkins";
+export * from "./ai-agent-reports";

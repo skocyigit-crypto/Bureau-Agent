@@ -979,6 +979,189 @@ paths:
               schema:
                 $ref: "#/components/schemas/AiEmailDraft"
 
+  /ai/agents/run:
+    post:
+      operationId: runAllAiAgents
+      tags: [ai-agents]
+      summary: Run all AI agents and generate reports with Super AI synthesis
+      responses:
+        "200":
+          description: All agent reports and super report
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  superReport:
+                    $ref: "#/components/schemas/AiAgentReport"
+                  agentReports:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AiAgentReport"
+                  totalExecutionTimeMs:
+                    type: integer
+
+  /ai/agents/run/{agentId}:
+    post:
+      operationId: runSingleAiAgent
+      tags: [ai-agents]
+      summary: Run a single AI agent
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Agent report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiAgentReport"
+
+  /ai/agents/super:
+    post:
+      operationId: runSuperAiAgent
+      tags: [ai-agents]
+      summary: Run Super AI agent to synthesize today reports
+      responses:
+        "200":
+          description: Super agent report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiAgentReport"
+
+  /ai/agents/reports:
+    get:
+      operationId: getAiAgentReports
+      tags: [ai-agents]
+      summary: Get AI agent reports with optional filters
+      parameters:
+        - name: date
+          in: query
+          schema:
+            type: string
+        - name: agentId
+          in: query
+          schema:
+            type: string
+        - name: superOnly
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of agent reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AiAgentReport"
+
+  /ai/agents/reports/{id}:
+    get:
+      operationId: getAiAgentReport
+      tags: [ai-agents]
+      summary: Get a specific AI agent report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Agent report detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiAgentReport"
+
+  /ai/agents/latest:
+    get:
+      operationId: getLatestAiAgentReports
+      tags: [ai-agents]
+      summary: Get latest report for each agent
+      responses:
+        "200":
+          description: Latest reports by agent
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: "#/components/schemas/AiAgentReport"
+
+  /ai/agents/config:
+    get:
+      operationId: getAiAgentsConfig
+      tags: [ai-agents]
+      summary: Get AI agents configuration
+      responses:
+        "200":
+          description: Agents config
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agents:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        icon:
+                          type: string
+                        domain:
+                          type: string
+                  autoRunEnabled:
+                    type: boolean
+                  autoRunIntervalMinutes:
+                    type: integer
+
+  /ai/agents/auto-start:
+    post:
+      operationId: startAiAgentsAutoRun
+      tags: [ai-agents]
+      summary: Start automatic AI agents execution every 2 hours
+      responses:
+        "200":
+          description: Auto-run started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  status:
+                    type: string
+
+  /ai/agents/auto-stop:
+    post:
+      operationId: stopAiAgentsAutoRun
+      tags: [ai-agents]
+      summary: Stop automatic AI agents execution
+      responses:
+        "200":
+          description: Auto-run stopped
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  status:
+                    type: string
+
   /workspace/status:
     get:
       operationId: getWorkspaceStatus
@@ -2374,6 +2557,61 @@ components:
                 type: string
             required: [label, objet, corps]
       required: [objet, corps, destinataire, tonUtilise, resumeIA, suggestionsAlternatives]
+
+    AiAgentReport:
+      type: object
+      properties:
+        id:
+          type: integer
+        agentId:
+          type: string
+        agentName:
+          type: string
+        agentIcon:
+          type: string
+        reportDate:
+          type: string
+        status:
+          type: string
+        score:
+          type: integer
+        errorsFound:
+          type: integer
+        warningsFound:
+          type: integer
+        suggestionsCount:
+          type: integer
+        summary:
+          type: string
+        details:
+          type: object
+        errors:
+          type: array
+          items:
+            type: object
+        warnings:
+          type: array
+          items:
+            type: object
+        suggestions:
+          type: array
+          items:
+            type: object
+        corrections:
+          type: array
+          items:
+            type: object
+        isSuperReport:
+          type: boolean
+        childReportIds:
+          type: array
+          items:
+            type: integer
+        executionTimeMs:
+          type: integer
+        createdAt:
+          type: string
+      required: [id, agentId, agentName, reportDate, status, score, summary]
 
     DailyReportRequest:
       type: object
