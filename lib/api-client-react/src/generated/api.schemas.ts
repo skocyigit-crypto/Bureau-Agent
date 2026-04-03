@@ -884,6 +884,115 @@ export interface IntegrationsCatalog {
   totalConnected: number;
 }
 
+export type CheckinType = (typeof CheckinType)[keyof typeof CheckinType];
+
+export const CheckinType = {
+  bureau: "bureau",
+  distance: "distance",
+  terrain: "terrain",
+} as const;
+
+export type CheckinStatus = (typeof CheckinStatus)[keyof typeof CheckinStatus];
+
+export const CheckinStatus = {
+  present: "present",
+  en_pause: "en_pause",
+  termine: "termine",
+  absent: "absent",
+} as const;
+
+export interface Checkin {
+  id: number;
+  employeeName: string;
+  employeeRole?: string | null;
+  type: CheckinType;
+  status: CheckinStatus;
+  location?: string | null;
+  notes?: string | null;
+  ipAddress?: string | null;
+  checkInAt: string;
+  checkOutAt?: string | null;
+  breakMinutes: number;
+  totalMinutes?: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreateCheckinBodyType =
+  (typeof CreateCheckinBodyType)[keyof typeof CreateCheckinBodyType];
+
+export const CreateCheckinBodyType = {
+  bureau: "bureau",
+  distance: "distance",
+  terrain: "terrain",
+} as const;
+
+export type CreateCheckinBodyStatus =
+  (typeof CreateCheckinBodyStatus)[keyof typeof CreateCheckinBodyStatus];
+
+export const CreateCheckinBodyStatus = {
+  present: "present",
+  en_pause: "en_pause",
+  termine: "termine",
+  absent: "absent",
+} as const;
+
+export interface CreateCheckinBody {
+  employeeName: string;
+  employeeRole?: string | null;
+  type: CreateCheckinBodyType;
+  status: CreateCheckinBodyStatus;
+  location?: string | null;
+  notes?: string | null;
+  checkInAt?: string;
+  checkOutAt?: string | null;
+  breakMinutes?: number;
+  totalMinutes?: number | null;
+}
+
+export type UpdateCheckinBodyStatus =
+  (typeof UpdateCheckinBodyStatus)[keyof typeof UpdateCheckinBodyStatus];
+
+export const UpdateCheckinBodyStatus = {
+  present: "present",
+  en_pause: "en_pause",
+  termine: "termine",
+  absent: "absent",
+} as const;
+
+export type UpdateCheckinBodyType =
+  (typeof UpdateCheckinBodyType)[keyof typeof UpdateCheckinBodyType];
+
+export const UpdateCheckinBodyType = {
+  bureau: "bureau",
+  distance: "distance",
+  terrain: "terrain",
+} as const;
+
+export interface UpdateCheckinBody {
+  status?: UpdateCheckinBodyStatus;
+  checkOutAt?: string | null;
+  checkInAt?: string;
+  breakMinutes?: number;
+  totalMinutes?: number | null;
+  notes?: string | null;
+  location?: string | null;
+  type?: UpdateCheckinBodyType;
+}
+
+export interface CheckinStats {
+  totalSessions: number;
+  totalMinutes: number;
+  totalBreakMinutes: number;
+  avgSessionMinutes: number;
+  bureauCount: number;
+  distanceCount: number;
+  terrainCount: number;
+  presentCount: number;
+  enPauseCount: number;
+  terminatedCount: number;
+}
+
 export type ListCallsParams = {
   status?: ListCallsStatus;
   limit?: number;
@@ -1164,6 +1273,8 @@ export const RequestAiSuggestionsBodyPage = {
   messages: "messages",
   rapports: "rapports",
   logiciels: "logiciels",
+  pointage: "pointage",
+  utilisateurs: "utilisateurs",
 } as const;
 
 export type RequestAiSuggestionsBody = {
@@ -1282,6 +1393,76 @@ export type ListDailyReportsParams = {
 export type DeleteDailyReport200 = {
   success?: boolean;
   message?: string;
+};
+
+export type ListCheckinsParams = {
+  status?: ListCheckinsStatus;
+  type?: ListCheckinsType;
+  employeeName?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  limit?: number;
+  offset?: number;
+  sortBy?: ListCheckinsSortBy;
+  sortOrder?: ListCheckinsSortOrder;
+};
+
+export type ListCheckinsStatus =
+  (typeof ListCheckinsStatus)[keyof typeof ListCheckinsStatus];
+
+export const ListCheckinsStatus = {
+  present: "present",
+  en_pause: "en_pause",
+  termine: "termine",
+  absent: "absent",
+} as const;
+
+export type ListCheckinsType =
+  (typeof ListCheckinsType)[keyof typeof ListCheckinsType];
+
+export const ListCheckinsType = {
+  bureau: "bureau",
+  distance: "distance",
+  terrain: "terrain",
+} as const;
+
+export type ListCheckinsSortBy =
+  (typeof ListCheckinsSortBy)[keyof typeof ListCheckinsSortBy];
+
+export const ListCheckinsSortBy = {
+  checkInAt: "checkInAt",
+  employeeName: "employeeName",
+  type: "type",
+  status: "status",
+  totalMinutes: "totalMinutes",
+} as const;
+
+export type ListCheckinsSortOrder =
+  (typeof ListCheckinsSortOrder)[keyof typeof ListCheckinsSortOrder];
+
+export const ListCheckinsSortOrder = {
+  asc: "asc",
+  desc: "desc",
+} as const;
+
+export type ListCheckins200 = {
+  checkins: Checkin[];
+  total: number;
+};
+
+export type GetCheckinStatsParams = {
+  employeeName?: string;
+  dateFrom?: string;
+  dateTo?: string;
+};
+
+export type GetCurrentCheckinsParams = {
+  employeeName?: string;
+};
+
+export type GetCurrentCheckins200 = {
+  active: Checkin[];
+  paused: Checkin[];
 };
 
 export type ConnectIntegrationBody = { [key: string]: string };

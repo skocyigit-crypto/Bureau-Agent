@@ -25,6 +25,8 @@ const PAGE_MAP: Record<string, string> = {
   "/logiciels": "logiciels",
   "/analyse": "dashboard",
   "/parametres": "dashboard",
+  "/pointage": "pointage",
+  "/utilisateurs": "utilisateurs",
 };
 
 export function AiAssistantButton() {

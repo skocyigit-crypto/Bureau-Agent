@@ -1,9 +1,9 @@
 import { useRoute } from "wouter";
-import { useGetCall, getGetCallQueryKey, useUpdateCall, useGetContact, getGetContactQueryKey } from "@workspace/api-client-react";
+import { useGetCall, getGetCallQueryKey, useUpdateCall, useGetContact, getGetContactQueryKey, useAskAiAssistant } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Phone, Clock, Calendar, ArrowLeft, Building, User, Edit, PhoneIncoming, PhoneOutgoing, PhoneMissed, Voicemail, Check } from "lucide-react";
+import { Phone, Clock, Calendar, ArrowLeft, Building, User, Edit, PhoneIncoming, PhoneOutgoing, PhoneMissed, Voicemail, Check, Brain, Sparkles, Loader2, Send, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,84 @@ import { Textarea } from "@/components/ui/textarea";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+function AiCallInsights({ call, contactName }: { call: any; contactName?: string | null }) {
+  const askAi = useAskAiAssistant();
+  const [analysis, setAnalysis] = useState<{ reponse: string; actions?: { label: string; description: string }[] } | null>(null);
+
+  const handleAnalyze = () => {
+    const question = `Analyse cet appel en detail: Direction: ${call.direction}, Statut: ${call.status}, Duree: ${call.duration}s, Numero: ${call.phoneNumber}${contactName ? `, Contact: ${contactName}` : ''}, Sentiment: ${call.sentiment || 'non defini'}, Notes: ${call.notes || 'aucune'}. Donne un resume, des observations et des actions recommandees.`;
+    askAi.mutate(
+      { data: { question, currentPage: "calls" } },
+      { onSuccess: (res) => setAnalysis(res) }
+    );
+  };
+
+  if (!analysis && !askAi.isPending) {
+    return (
+      <Card className="border-dashed border-purple-300/50 bg-gradient-to-br from-purple-50/50 to-indigo-50/30 dark:from-purple-950/20 dark:to-indigo-950/10">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-100 to-indigo-100 dark:from-purple-900/40 dark:to-indigo-900/30 flex items-center justify-center">
+              <Brain className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">Analyse IA de l'appel</p>
+              <p className="text-xs text-muted-foreground">Resume, observations et actions suggerees</p>
+            </div>
+          </div>
+          <Button size="sm" variant="outline" onClick={handleAnalyze} className="w-full border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-300">
+            <Sparkles className="w-4 h-4 mr-1.5" />
+            Analyser cet appel
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="border-purple-200/50 bg-gradient-to-br from-purple-50/30 to-indigo-50/20 dark:from-purple-950/10 dark:to-indigo-950/5">
+      <CardHeader className="pb-2">
+        <div className="flex items-center gap-2">
+          <Brain className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+          <CardTitle className="text-base">Analyse IA</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {askAi.isPending ? (
+          <div className="flex items-center justify-center gap-2 py-6">
+            <Loader2 className="w-5 h-5 animate-spin text-purple-500" />
+            <span className="text-sm text-muted-foreground">Analyse en cours...</span>
+          </div>
+        ) : analysis ? (
+          <div className="space-y-3">
+            <p className="text-sm text-foreground leading-relaxed">{analysis.reponse}</p>
+            {analysis.actions && analysis.actions.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-border/50">
+                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                  <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+                  Actions recommandees
+                </p>
+                {analysis.actions.map((a, i) => (
+                  <div key={i} className="flex items-start gap-2 text-xs p-2 rounded-lg bg-muted/50">
+                    <Send className="w-3 h-3 text-purple-500 mt-0.5 shrink-0" />
+                    <div>
+                      <span className="font-medium">{a.label}</span>
+                      <span className="text-muted-foreground"> - {a.description}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <Button size="sm" variant="ghost" onClick={handleAnalyze} className="w-full text-xs text-purple-600">
+              <Sparkles className="w-3.5 h-3.5 mr-1" /> Relancer l'analyse
+            </Button>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function CallDetail() {
   const [, params] = useRoute("/appels/:id");
@@ -217,9 +295,10 @@ export default function CallDetail() {
         </div>
 
         <div className="space-y-6 md:col-span-1">
+          <AiCallInsights call={call} contactName={contact ? `${contact.firstName} ${contact.lastName}` : call.contactName} />
           <Card>
             <CardHeader>
-              <CardTitle>Contact Associé</CardTitle>
+              <CardTitle>Contact Associe</CardTitle>
             </CardHeader>
             <CardContent>
               {contact ? (

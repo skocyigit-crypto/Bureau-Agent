@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, callsTable, contactsTable, tasksTable, messagesTable } from "@workspace/db";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable } from "@workspace/db";
 import { sql, eq, gte, lte, and, count, avg, desc, lt, ne, isNull, isNotNull } from "drizzle-orm";
 
 const router = Router();
@@ -243,6 +243,24 @@ async function gatherContextForPage(page: string) {
       ]);
       return { totalContacts: totalContacts[0]?.count ?? 0, totalCalls: totalCalls[0]?.count ?? 0, totalTasks: totalTasks[0]?.count ?? 0 };
     }
+    case "pointage": {
+      const [totalSessions, activeSessions, avgMinutes, lateArrivals] = await Promise.all([
+        db.select({ count: count() }).from(checkinsTable).where(gte(checkinsTable.checkInAt, weekAgo)),
+        db.select({ count: count() }).from(checkinsTable).where(eq(checkinsTable.status, "present")),
+        db.select({ avg: sql<number>`coalesce(avg(${checkinsTable.totalMinutes}), 0)::int` }).from(checkinsTable).where(and(eq(checkinsTable.status, "termine"), gte(checkinsTable.checkInAt, weekAgo))),
+        db.select({ count: count() }).from(checkinsTable).where(and(gte(checkinsTable.checkInAt, weekAgo), sql`extract(hour from ${checkinsTable.checkInAt}) >= 10`)),
+      ]);
+      return { sessionsThisWeek: totalSessions[0]?.count ?? 0, currentlyActive: activeSessions[0]?.count ?? 0, avgSessionMinutes: avgMinutes[0]?.avg ?? 0, lateArrivalsThisWeek: lateArrivals[0]?.count ?? 0 };
+    }
+    case "utilisateurs": {
+      const [totalCalls, totalTasks, totalContacts, completedTasks] = await Promise.all([
+        db.select({ count: count() }).from(callsTable),
+        db.select({ count: count() }).from(tasksTable),
+        db.select({ count: count() }).from(contactsTable),
+        db.select({ count: count() }).from(tasksTable).where(eq(tasksTable.status, "termine")),
+      ]);
+      return { totalCalls: totalCalls[0]?.count ?? 0, totalTasks: totalTasks[0]?.count ?? 0, totalContacts: totalContacts[0]?.count ?? 0, completedTasks: completedTasks[0]?.count ?? 0 };
+    }
     default:
       return {};
   }
@@ -251,7 +269,7 @@ async function gatherContextForPage(page: string) {
 router.post("/ai/suggest", async (req, res) => {
   try {
     const { page } = req.body;
-    if (!page || !["dashboard", "calls", "contacts", "tasks", "messages", "rapports", "logiciels"].includes(page)) {
+    if (!page || !["dashboard", "calls", "contacts", "tasks", "messages", "rapports", "logiciels", "pointage", "utilisateurs"].includes(page)) {
       return res.status(400).json({ error: "Le parametre 'page' est requis." });
     }
 
@@ -266,6 +284,8 @@ router.post("/ai/suggest", async (req, res) => {
       messages: `Tu es un assistant IA specialise dans la gestion des messages de bureau. Analyse les messages et fournis des recommandations: messages urgents non lus, messages anciens a traiter, et categorisation automatique.`,
       rapports: `Tu es un assistant IA specialise dans l'analyse des rapports de performance de bureau. Fournis des recommandations sur la frequence de generation des rapports, les tendances de performance a surveiller, et les metriques cles a ameliorer.`,
       logiciels: `Tu es un assistant IA specialise dans l'integration de logiciels professionnels. En fonction des donnees du bureau, recommande quels logiciels connecter en priorite (CRM, communication, gestion de projet, comptabilite) pour maximiser la productivite de l'equipe.`,
+      pointage: `Tu es un assistant IA specialise dans la gestion du temps et des presences. Analyse les donnees de pointage et fournis des recommandations: retards frequents a signaler, temps de travail anormalement court ou long, equilibre bureau/distance/terrain, pauses excessives, et optimisations d'organisation des horaires de l'equipe.`,
+      utilisateurs: `Tu es un assistant IA specialise dans la gestion des equipes et des licences. Analyse les donnees des utilisateurs et fournis des recommandations: utilisateurs inactifs a desactiver, repartition des roles a optimiser, licences inutilisees a recuperer, securite MFA a renforcer, et productivite par utilisateur a analyser.`,
     };
 
     const response = await ai.models.generateContent({

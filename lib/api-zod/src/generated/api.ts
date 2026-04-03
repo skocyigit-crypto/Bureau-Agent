@@ -811,6 +811,8 @@ export const RequestAiSuggestionsBody = zod.object({
     "messages",
     "rapports",
     "logiciels",
+    "pointage",
+    "utilisateurs",
   ]),
 });
 
@@ -1246,6 +1248,203 @@ export const GetActivitySummaryResponse = zod.object({
     avgScore: zod.number(),
     totalReports: zod.number(),
   }),
+});
+
+/**
+ * @summary List check-in records
+ */
+export const listCheckinsQueryLimitDefault = 50;
+export const listCheckinsQueryOffsetDefault = 0;
+export const listCheckinsQuerySortOrderDefault = `desc`;
+
+export const ListCheckinsQueryParams = zod.object({
+  status: zod.enum(["present", "en_pause", "termine", "absent"]).optional(),
+  type: zod.enum(["bureau", "distance", "terrain"]).optional(),
+  employeeName: zod.coerce.string().optional(),
+  dateFrom: zod.coerce.string().optional(),
+  dateTo: zod.coerce.string().optional(),
+  limit: zod.coerce.number().default(listCheckinsQueryLimitDefault),
+  offset: zod.coerce.number().default(listCheckinsQueryOffsetDefault),
+  sortBy: zod
+    .enum(["checkInAt", "employeeName", "type", "status", "totalMinutes"])
+    .optional(),
+  sortOrder: zod
+    .enum(["asc", "desc"])
+    .default(listCheckinsQuerySortOrderDefault),
+});
+
+export const ListCheckinsResponse = zod.object({
+  checkins: zod.array(
+    zod.object({
+      id: zod.number(),
+      employeeName: zod.string(),
+      employeeRole: zod.string().nullish(),
+      type: zod.enum(["bureau", "distance", "terrain"]),
+      status: zod.enum(["present", "en_pause", "termine", "absent"]),
+      location: zod.string().nullish(),
+      notes: zod.string().nullish(),
+      ipAddress: zod.string().nullish(),
+      checkInAt: zod.coerce.date(),
+      checkOutAt: zod.coerce.date().nullish(),
+      breakMinutes: zod.number(),
+      totalMinutes: zod.number().nullish(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Create a new check-in record
+ */
+export const createCheckinBodyBreakMinutesDefault = 0;
+
+export const CreateCheckinBody = zod.object({
+  employeeName: zod.string(),
+  employeeRole: zod.string().nullish(),
+  type: zod.enum(["bureau", "distance", "terrain"]),
+  status: zod.enum(["present", "en_pause", "termine", "absent"]),
+  location: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  checkInAt: zod.coerce.date().optional(),
+  checkOutAt: zod.coerce.date().nullish(),
+  breakMinutes: zod.number().default(createCheckinBodyBreakMinutesDefault),
+  totalMinutes: zod.number().nullish(),
+});
+
+/**
+ * @summary Get check-in statistics
+ */
+export const GetCheckinStatsQueryParams = zod.object({
+  employeeName: zod.coerce.string().optional(),
+  dateFrom: zod.coerce.string().optional(),
+  dateTo: zod.coerce.string().optional(),
+});
+
+export const GetCheckinStatsResponse = zod.object({
+  totalSessions: zod.number(),
+  totalMinutes: zod.number(),
+  totalBreakMinutes: zod.number(),
+  avgSessionMinutes: zod.number(),
+  bureauCount: zod.number(),
+  distanceCount: zod.number(),
+  terrainCount: zod.number(),
+  presentCount: zod.number(),
+  enPauseCount: zod.number(),
+  terminatedCount: zod.number(),
+});
+
+/**
+ * @summary Get currently active check-ins
+ */
+export const GetCurrentCheckinsQueryParams = zod.object({
+  employeeName: zod.coerce.string().optional(),
+});
+
+export const GetCurrentCheckinsResponse = zod.object({
+  active: zod.array(
+    zod.object({
+      id: zod.number(),
+      employeeName: zod.string(),
+      employeeRole: zod.string().nullish(),
+      type: zod.enum(["bureau", "distance", "terrain"]),
+      status: zod.enum(["present", "en_pause", "termine", "absent"]),
+      location: zod.string().nullish(),
+      notes: zod.string().nullish(),
+      ipAddress: zod.string().nullish(),
+      checkInAt: zod.coerce.date(),
+      checkOutAt: zod.coerce.date().nullish(),
+      breakMinutes: zod.number(),
+      totalMinutes: zod.number().nullish(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+  paused: zod.array(
+    zod.object({
+      id: zod.number(),
+      employeeName: zod.string(),
+      employeeRole: zod.string().nullish(),
+      type: zod.enum(["bureau", "distance", "terrain"]),
+      status: zod.enum(["present", "en_pause", "termine", "absent"]),
+      location: zod.string().nullish(),
+      notes: zod.string().nullish(),
+      ipAddress: zod.string().nullish(),
+      checkInAt: zod.coerce.date(),
+      checkOutAt: zod.coerce.date().nullish(),
+      breakMinutes: zod.number(),
+      totalMinutes: zod.number().nullish(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Get a check-in by ID
+ */
+export const GetCheckinParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetCheckinResponse = zod.object({
+  id: zod.number(),
+  employeeName: zod.string(),
+  employeeRole: zod.string().nullish(),
+  type: zod.enum(["bureau", "distance", "terrain"]),
+  status: zod.enum(["present", "en_pause", "termine", "absent"]),
+  location: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  ipAddress: zod.string().nullish(),
+  checkInAt: zod.coerce.date(),
+  checkOutAt: zod.coerce.date().nullish(),
+  breakMinutes: zod.number(),
+  totalMinutes: zod.number().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Update a check-in record
+ */
+export const UpdateCheckinParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateCheckinBody = zod.object({
+  status: zod.enum(["present", "en_pause", "termine", "absent"]).optional(),
+  checkOutAt: zod.coerce.date().nullish(),
+  checkInAt: zod.coerce.date().optional(),
+  breakMinutes: zod.number().optional(),
+  totalMinutes: zod.number().nullish(),
+  notes: zod.string().nullish(),
+  location: zod.string().nullish(),
+  type: zod.enum(["bureau", "distance", "terrain"]).optional(),
+});
+
+export const UpdateCheckinResponse = zod.object({
+  id: zod.number(),
+  employeeName: zod.string(),
+  employeeRole: zod.string().nullish(),
+  type: zod.enum(["bureau", "distance", "terrain"]),
+  status: zod.enum(["present", "en_pause", "termine", "absent"]),
+  location: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  ipAddress: zod.string().nullish(),
+  checkInAt: zod.coerce.date(),
+  checkOutAt: zod.coerce.date().nullish(),
+  breakMinutes: zod.number(),
+  totalMinutes: zod.number().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a check-in record
+ */
+export const DeleteCheckinParams = zod.object({
+  id: zod.coerce.number(),
 });
 
 /**

@@ -39,7 +39,8 @@ A comprehensive French-language office/bureau agent application for managing pho
 - Endpoint: `GET /ai/status` — check if Gemini AI is available
 - Returns (analyze): executive summary, strengths, attention points with recommendations, trends, prioritized actions, global score (0-100)
 - **Global AI Assistant Panel**: Floating purple brain button (bottom-right), opens chat panel with quick questions, contextual Q&A, real-time data responses with structured data cards and suggested actions
-- **Per-page AI Suggestions**: Each page has an "Intelligence IA disponible" card that triggers page-specific analysis (dashboard briefing, call follow-ups, contact outreach, task priorities, message recommendations)
+- **Per-page AI Suggestions**: Every page has an "Intelligence IA disponible" card that triggers page-specific analysis (dashboard briefing, call follow-ups, contact outreach, task priorities, message recommendations, check-in/attendance patterns, team management)
+- **AI Call Analysis**: Call detail pages feature an "Analyse IA de l'appel" card for per-call summary, observations, and recommended follow-up actions
 - **AI Form Validation**: Every create/edit dialog includes a "Verifier IA" button for AI-powered pre-submission checks (duplicate detection, data quality, logical consistency)
 - Endpoint: `POST /ai/recognize` — comprehensive pattern recognition: cross-entity detection (missed calls, overdue tasks, VIP contacts, repeat callers, inactive contacts, sentiment analysis, response rate, task completion, urgent messages), health score (0-100), severity-sorted detections
 - **AI Recognition Panel**: Auto-loading dashboard panel with dark gradient header, health score gauge, severity summary badges, category filter tabs, scrollable detection list with severity-colored rows, per-detection icons + values + navigation links
@@ -59,7 +60,7 @@ A comprehensive French-language office/bureau agent application for managing pho
 - Contact sub-resources: `/contacts/:id/calls`, `/contacts/:id/tasks`
 - Dashboard: `/dashboard/summary`, `/dashboard/call-analytics`, `/dashboard/recent-activity`, `/dashboard/call-distribution`, `/dashboard/top-contacts`
 - Advanced dashboard: `/dashboard/hourly-performance`, `/dashboard/task-stats`, `/dashboard/weekly-report`, `/dashboard/notifications`
-- AI: `POST /ai/analyze`, `POST /ai/suggest` (pages: dashboard, calls, contacts, tasks, messages, rapports, logiciels), `POST /ai/validate`, `POST /ai/assistant`, `POST /ai/recognize`, `POST /ai/draft-email`, `GET /ai/status`
+- AI: `POST /ai/analyze`, `POST /ai/suggest` (pages: dashboard, calls, contacts, tasks, messages, rapports, logiciels, pointage, utilisateurs), `POST /ai/validate`, `POST /ai/assistant`, `POST /ai/recognize`, `POST /ai/draft-email`, `GET /ai/status`
 - Workspace: `GET /workspace/status`, `POST /workspace/connect/:serviceId`, `POST /workspace/disconnect/:serviceId`, `POST /workspace/sync`, `GET /workspace/calendar/events`, `GET /workspace/gmail/messages`, `GET /workspace/drive/files`
 - Daily Reports: `POST /workspace/daily-report` (AI-generated), `GET /workspace/daily-reports`, `GET /workspace/daily-reports/:id`, `DELETE /workspace/daily-reports/:id`, `GET /workspace/activity-summary`
 - Integrations: `GET /integrations/catalog`, `POST /integrations/:id/connect`, `POST /integrations/:id/disconnect`, `POST /integrations/:id/test`, `POST /integrations/:id/sync`

@@ -29,11 +29,14 @@ import type {
   Call,
   CallAnalytics,
   CallDistribution,
+  Checkin,
+  CheckinStats,
   ConnectIntegration200,
   ConnectIntegrationBody,
   ConnectWorkspaceService200,
   Contact,
   CreateCallBody,
+  CreateCheckinBody,
   CreateContactBody,
   CreateMessageBody,
   CreateTaskBody,
@@ -48,9 +51,12 @@ import type {
   DraftAiEmailBody,
   GetCalendarEvents200,
   GetCallAnalyticsParams,
+  GetCheckinStatsParams,
   GetContactCalls200,
   GetContactCallsParams,
   GetContactTasks200,
+  GetCurrentCheckins200,
+  GetCurrentCheckinsParams,
   GetDriveFiles200,
   GetGmailMessages200,
   GetHourlyPerformance200,
@@ -63,6 +69,8 @@ import type {
   IntegrationsCatalog,
   ListCalls200,
   ListCallsParams,
+  ListCheckins200,
+  ListCheckinsParams,
   ListContacts200,
   ListContactsParams,
   ListDailyReportsParams,
@@ -80,6 +88,7 @@ import type {
   TaskStats,
   TestIntegration200,
   UpdateCallBody,
+  UpdateCheckinBody,
   UpdateContactBody,
   UpdateMessageBody,
   UpdateTaskBody,
@@ -4417,6 +4426,635 @@ export function useGetActivitySummary<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary List check-in records
+ */
+export const getListCheckinsUrl = (params?: ListCheckinsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/checkins?${stringifiedParams}`
+    : `/api/checkins`;
+};
+
+export const listCheckins = async (
+  params?: ListCheckinsParams,
+  options?: RequestInit,
+): Promise<ListCheckins200> => {
+  return customFetch<ListCheckins200>(getListCheckinsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListCheckinsQueryKey = (params?: ListCheckinsParams) => {
+  return [`/api/checkins`, ...(params ? [params] : [])] as const;
+};
+
+export const getListCheckinsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listCheckins>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListCheckinsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listCheckins>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListCheckinsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listCheckins>>> = ({
+    signal,
+  }) => listCheckins(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listCheckins>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListCheckinsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listCheckins>>
+>;
+export type ListCheckinsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List check-in records
+ */
+
+export function useListCheckins<
+  TData = Awaited<ReturnType<typeof listCheckins>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListCheckinsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listCheckins>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListCheckinsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a new check-in record
+ */
+export const getCreateCheckinUrl = () => {
+  return `/api/checkins`;
+};
+
+export const createCheckin = async (
+  createCheckinBody: CreateCheckinBody,
+  options?: RequestInit,
+): Promise<Checkin> => {
+  return customFetch<Checkin>(getCreateCheckinUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createCheckinBody),
+  });
+};
+
+export const getCreateCheckinMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createCheckin>>,
+    TError,
+    { data: BodyType<CreateCheckinBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createCheckin>>,
+  TError,
+  { data: BodyType<CreateCheckinBody> },
+  TContext
+> => {
+  const mutationKey = ["createCheckin"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createCheckin>>,
+    { data: BodyType<CreateCheckinBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createCheckin(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateCheckinMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createCheckin>>
+>;
+export type CreateCheckinMutationBody = BodyType<CreateCheckinBody>;
+export type CreateCheckinMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a new check-in record
+ */
+export const useCreateCheckin = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createCheckin>>,
+    TError,
+    { data: BodyType<CreateCheckinBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createCheckin>>,
+  TError,
+  { data: BodyType<CreateCheckinBody> },
+  TContext
+> => {
+  return useMutation(getCreateCheckinMutationOptions(options));
+};
+
+/**
+ * @summary Get check-in statistics
+ */
+export const getGetCheckinStatsUrl = (params?: GetCheckinStatsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/checkins/stats?${stringifiedParams}`
+    : `/api/checkins/stats`;
+};
+
+export const getCheckinStats = async (
+  params?: GetCheckinStatsParams,
+  options?: RequestInit,
+): Promise<CheckinStats> => {
+  return customFetch<CheckinStats>(getGetCheckinStatsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCheckinStatsQueryKey = (params?: GetCheckinStatsParams) => {
+  return [`/api/checkins/stats`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetCheckinStatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCheckinStats>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetCheckinStatsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCheckinStats>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCheckinStatsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getCheckinStats>>> = ({
+    signal,
+  }) => getCheckinStats(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCheckinStats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCheckinStatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCheckinStats>>
+>;
+export type GetCheckinStatsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get check-in statistics
+ */
+
+export function useGetCheckinStats<
+  TData = Awaited<ReturnType<typeof getCheckinStats>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetCheckinStatsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCheckinStats>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCheckinStatsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get currently active check-ins
+ */
+export const getGetCurrentCheckinsUrl = (params?: GetCurrentCheckinsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/checkins/current?${stringifiedParams}`
+    : `/api/checkins/current`;
+};
+
+export const getCurrentCheckins = async (
+  params?: GetCurrentCheckinsParams,
+  options?: RequestInit,
+): Promise<GetCurrentCheckins200> => {
+  return customFetch<GetCurrentCheckins200>(getGetCurrentCheckinsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCurrentCheckinsQueryKey = (
+  params?: GetCurrentCheckinsParams,
+) => {
+  return [`/api/checkins/current`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetCurrentCheckinsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCurrentCheckins>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetCurrentCheckinsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCurrentCheckins>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetCurrentCheckinsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getCurrentCheckins>>
+  > = ({ signal }) => getCurrentCheckins(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCurrentCheckins>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCurrentCheckinsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCurrentCheckins>>
+>;
+export type GetCurrentCheckinsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get currently active check-ins
+ */
+
+export function useGetCurrentCheckins<
+  TData = Awaited<ReturnType<typeof getCurrentCheckins>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetCurrentCheckinsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCurrentCheckins>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCurrentCheckinsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get a check-in by ID
+ */
+export const getGetCheckinUrl = (id: number) => {
+  return `/api/checkins/${id}`;
+};
+
+export const getCheckin = async (
+  id: number,
+  options?: RequestInit,
+): Promise<Checkin> => {
+  return customFetch<Checkin>(getGetCheckinUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCheckinQueryKey = (id: number) => {
+  return [`/api/checkins/${id}`] as const;
+};
+
+export const getGetCheckinQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCheckin>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCheckin>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCheckinQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getCheckin>>> = ({
+    signal,
+  }) => getCheckin(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCheckin>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCheckinQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCheckin>>
+>;
+export type GetCheckinQueryError = ErrorType<void>;
+
+/**
+ * @summary Get a check-in by ID
+ */
+
+export function useGetCheckin<
+  TData = Awaited<ReturnType<typeof getCheckin>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCheckin>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCheckinQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update a check-in record
+ */
+export const getUpdateCheckinUrl = (id: number) => {
+  return `/api/checkins/${id}`;
+};
+
+export const updateCheckin = async (
+  id: number,
+  updateCheckinBody: UpdateCheckinBody,
+  options?: RequestInit,
+): Promise<Checkin> => {
+  return customFetch<Checkin>(getUpdateCheckinUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateCheckinBody),
+  });
+};
+
+export const getUpdateCheckinMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateCheckin>>,
+    TError,
+    { id: number; data: BodyType<UpdateCheckinBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateCheckin>>,
+  TError,
+  { id: number; data: BodyType<UpdateCheckinBody> },
+  TContext
+> => {
+  const mutationKey = ["updateCheckin"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateCheckin>>,
+    { id: number; data: BodyType<UpdateCheckinBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateCheckin(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateCheckinMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateCheckin>>
+>;
+export type UpdateCheckinMutationBody = BodyType<UpdateCheckinBody>;
+export type UpdateCheckinMutationError = ErrorType<void>;
+
+/**
+ * @summary Update a check-in record
+ */
+export const useUpdateCheckin = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateCheckin>>,
+    TError,
+    { id: number; data: BodyType<UpdateCheckinBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateCheckin>>,
+  TError,
+  { id: number; data: BodyType<UpdateCheckinBody> },
+  TContext
+> => {
+  return useMutation(getUpdateCheckinMutationOptions(options));
+};
+
+/**
+ * @summary Delete a check-in record
+ */
+export const getDeleteCheckinUrl = (id: number) => {
+  return `/api/checkins/${id}`;
+};
+
+export const deleteCheckin = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteCheckinUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteCheckinMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteCheckin>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteCheckin>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteCheckin"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteCheckin>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteCheckin(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteCheckinMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteCheckin>>
+>;
+
+export type DeleteCheckinMutationError = ErrorType<void>;
+
+/**
+ * @summary Delete a check-in record
+ */
+export const useDeleteCheckin = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteCheckin>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteCheckin>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteCheckinMutationOptions(options));
+};
 
 /**
  * @summary Get software integrations catalog

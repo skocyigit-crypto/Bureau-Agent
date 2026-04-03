@@ -8,6 +8,7 @@ import dashboardRouter from "./dashboard";
 import aiAnalysisRouter from "./ai-analysis";
 import workspaceRouter from "./workspace";
 import integrationsRouter from "./integrations";
+import checkinsRouter from "./checkins";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(dashboardRouter);
 router.use(aiAnalysisRouter);
 router.use("/workspace", workspaceRouter);
 router.use("/integrations", integrationsRouter);
+router.use(checkinsRouter);
 
 export default router;

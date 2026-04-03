@@ -26,6 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { useWorkspaceUser } from "@/components/workspace-user";
+import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 
 type UserRole = "super_admin" | "administrateur" | "agent" | "lecture_seule";
 type UserStatus = "actif" | "inactif" | "invite" | "suspendu";
@@ -718,6 +719,8 @@ export default function UsersPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <AiSuggestionsCard page="utilisateurs" title="Recommandations IA - Equipe" compact />
 
       <Dialog open={showAddUser} onOpenChange={setShowAddUser}>
         <DialogContent>

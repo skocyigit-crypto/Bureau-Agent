@@ -24,6 +24,8 @@ tags:
     description: AI-powered intelligence
   - name: workspace
     description: Google Workspace integration
+  - name: checkins
+    description: Check-in / attendance tracking (pointage)
 
 paths:
   /healthz:
@@ -851,7 +853,7 @@ paths:
               properties:
                 page:
                   type: string
-                  enum: [dashboard, calls, contacts, tasks, messages, rapports, logiciels]
+                  enum: [dashboard, calls, contacts, tasks, messages, rapports, logiciels, pointage, utilisateurs]
               required: [page]
       responses:
         "200":
@@ -1225,6 +1227,204 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ActivitySummary"
+
+  # === CHECKINS (POINTAGE) ===
+  /checkins:
+    get:
+      operationId: listCheckins
+      tags: [checkins]
+      summary: List check-in records
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [present, en_pause, termine, absent]
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [bureau, distance, terrain]
+        - name: employeeName
+          in: query
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [checkInAt, employeeName, type, status, totalMinutes]
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        "200":
+          description: List of check-in records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  checkins:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Checkin"
+                  total:
+                    type: integer
+                required: [checkins, total]
+    post:
+      operationId: createCheckin
+      tags: [checkins]
+      summary: Create a new check-in record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCheckinBody"
+      responses:
+        "201":
+          description: Created check-in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Checkin"
+
+  /checkins/stats:
+    get:
+      operationId: getCheckinStats
+      tags: [checkins]
+      summary: Get check-in statistics
+      parameters:
+        - name: employeeName
+          in: query
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Check-in statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckinStats"
+
+  /checkins/current:
+    get:
+      operationId: getCurrentCheckins
+      tags: [checkins]
+      summary: Get currently active check-ins
+      parameters:
+        - name: employeeName
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Active check-ins
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  active:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Checkin"
+                  paused:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Checkin"
+                required: [active, paused]
+
+  /checkins/{id}:
+    get:
+      operationId: getCheckin
+      tags: [checkins]
+      summary: Get a check-in by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Check-in details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Checkin"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateCheckin
+      tags: [checkins]
+      summary: Update a check-in record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCheckinBody"
+      responses:
+        "200":
+          description: Updated check-in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Checkin"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteCheckin
+      tags: [checkins]
+      summary: Delete a check-in record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
 
   /integrations/catalog:
     get:
@@ -2409,3 +2609,136 @@ components:
         totalConnected:
           type: integer
       required: [integrations, categories, totalAvailable, totalConnected]
+
+    Checkin:
+      type: object
+      properties:
+        id:
+          type: integer
+        employeeName:
+          type: string
+        employeeRole:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [bureau, distance, terrain]
+        status:
+          type: string
+          enum: [present, en_pause, termine, absent]
+        location:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        ipAddress:
+          type: string
+          nullable: true
+        checkInAt:
+          type: string
+          format: date-time
+        checkOutAt:
+          type: string
+          format: date-time
+          nullable: true
+        breakMinutes:
+          type: integer
+        totalMinutes:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, employeeName, type, status, checkInAt, breakMinutes, createdAt, updatedAt]
+
+    CreateCheckinBody:
+      type: object
+      properties:
+        employeeName:
+          type: string
+        employeeRole:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [bureau, distance, terrain]
+        status:
+          type: string
+          enum: [present, en_pause, termine, absent]
+        location:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        checkInAt:
+          type: string
+          format: date-time
+        checkOutAt:
+          type: string
+          format: date-time
+          nullable: true
+        breakMinutes:
+          type: integer
+          default: 0
+        totalMinutes:
+          type: integer
+          nullable: true
+      required: [employeeName, type, status]
+
+    UpdateCheckinBody:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [present, en_pause, termine, absent]
+        checkOutAt:
+          type: string
+          format: date-time
+          nullable: true
+        checkInAt:
+          type: string
+          format: date-time
+        breakMinutes:
+          type: integer
+        totalMinutes:
+          type: integer
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        location:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [bureau, distance, terrain]
+
+    CheckinStats:
+      type: object
+      properties:
+        totalSessions:
+          type: integer
+        totalMinutes:
+          type: integer
+        totalBreakMinutes:
+          type: integer
+        avgSessionMinutes:
+          type: integer
+        bureauCount:
+          type: integer
+        distanceCount:
+          type: integer
+        terrainCount:
+          type: integer
+        presentCount:
+          type: integer
+        enPauseCount:
+          type: integer
+        terminatedCount:
+          type: integer
+      required: [totalSessions, totalMinutes, totalBreakMinutes, avgSessionMinutes, bureauCount, distanceCount, terrainCount, presentCount, enPauseCount, terminatedCount]
