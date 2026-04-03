@@ -106,7 +106,16 @@ function AgentCard({ report, onRunAgent }: { report: any; onRunAgent?: (id: stri
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground">{report.summary}</p>
+        <p className="text-sm text-muted-foreground">{(() => {
+          const s = report.summary;
+          if (typeof s === "string" && s.trim().startsWith("{")) {
+            try {
+              const parsed = JSON.parse(s);
+              return parsed.summary || s;
+            } catch { return s; }
+          }
+          return s;
+        })()}</p>
 
         <div className="flex items-center gap-3 text-xs">
           {report.errorsFound > 0 && (

@@ -312,15 +312,32 @@ Sois strategique, concret et actionnable. Identifie les correlations entre les d
 Rapports des agents:\n${JSON.stringify(reportsSummary, null, 2)}`
         }],
       }],
-      config: { maxOutputTokens: 8192, responseMimeType: "application/json" },
+      config: { maxOutputTokens: 16384, responseMimeType: "application/json" },
     });
 
     const text = response.text ?? "{}";
     let parsed;
     try {
       parsed = JSON.parse(text);
+      if (typeof parsed.summary === "object") {
+        parsed.summary = JSON.stringify(parsed.summary);
+      }
     } catch {
-      parsed = { score: 50, summary: text, errors: [], warnings: [], suggestions: [], corrections: [], actionPlan: [], crossAnalysis: [], agentScores: [] };
+      let extractedSummary = "Analyse terminee - voir les rapports individuels pour les details.";
+      let extractedScore = 50;
+      const summaryMatch = text.match(/"summary"\s*:\s*"([^"]+)"/);
+      if (summaryMatch) extractedSummary = summaryMatch[1];
+      const scoreMatch = text.match(/"score"\s*:\s*(\d+)/);
+      if (scoreMatch) extractedScore = parseInt(scoreMatch[1], 10);
+      const errorsArray: any[] = [];
+      const errTitleMatches = text.match(/"titre"\s*:\s*"([^"]+)"/g);
+      if (errTitleMatches) {
+        for (const m of errTitleMatches.slice(0, 5)) {
+          const t = m.match(/"titre"\s*:\s*"([^"]+)"/);
+          if (t) errorsArray.push({ titre: t[1], description: "Voir le rapport complet", severity: "haute", action: "Consulter les agents" });
+        }
+      }
+      parsed = { score: extractedScore, summary: extractedSummary, errors: errorsArray, warnings: [], suggestions: [], corrections: [], actionPlan: [], crossAnalysis: [], agentScores: [] };
     }
 
     const executionTimeMs = Date.now() - startTime;
