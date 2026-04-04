@@ -53,7 +53,7 @@ The application's UI is entirely in French (France), featuring a deep navy sideb
     - **Analytics:** Comprehensive reports with various charts and Gemini AI insights.
     - **Incoming Call Overlay:** Real-time call handling interface.
     - **Stock Management:** Full inventory management with article CRUD, QR/barcode scanning (camera + manual input), AI-powered PDF import (invoices, delivery notes, catalogs), auto-status calculation (en_stock/stock_faible/rupture), category filters, statistics dashboard.
-    - **Settings Page:** Extensive configuration for Google Workspace, call features, application installation (with interactive phone simulator for mobile app preview, App Store/Google Play download buttons), notifications, and security.
+    - **Settings Page:** Extensive configuration with multi-platform integrations (Google Workspace 26 services, Microsoft 365 19 services, Apple/iCloud 13 services = 58 total), call features, application installation (with interactive phone simulator for mobile app preview, App Store/Google Play download buttons), notifications, and security. Platform switcher UI with search and category filters per ecosystem.
     - **Phone Simulator:** Interactive mobile phone mockup component (`phone-simulator.tsx`) with 6 navigable screens (Accueil, Appels, Contacts, Taches, Messages, Agents IA), phone frame with status bar/nav bar, expandable full-screen dialog mode.
 - **Promotional Landing Page (`/tanitim/`):** A separate React+Vite artifact for marketing, featuring deep navy and amber branding, `framer-motion` for animations, AI-generated visuals, and a comprehensive overview of the product.
 
@@ -72,5 +72,7 @@ The application's UI is entirely in French (France), featuring a deep navy sideb
 - **Build Tool:** esbuild
 - **Security Middleware:** Helmet
 - **Logging:** Pino
-- **Google Workspace Services:** Gmail, Calendar, Drive, Contacts, Tasks, Keep, Forms, Maps, Translate, Sites, Classroom, Meet, Chat, Voice, Photos, Analytics, Search Console, Ads, Business Profile, YouTube, Cloud Platform, Workspace Admin, Vault.
-- **Third-party Business Software Integrations:** Salesforce, HubSpot, Pipedrive, Slack, Microsoft Teams, Zoom, Trello, Asana, Notion, Jira, Sage, QuickBooks, DocuSign, Dropbox, Outlook, Mailchimp, Brevo, Zapier, Make, Intercom, Zendesk.
+- **Google Workspace Services (26):** Gmail, Calendar, Drive, Docs, Sheets, Slides, Meet, Chat, Contacts, Tasks, Keep, Forms, Maps, Photos, Analytics, Ads, Search Console, Business Profile, YouTube, Cloud Platform, Voice, Translate, Workspace Admin, Sites, Vault, Classroom.
+- **Microsoft 365 Services (19):** Outlook, Teams, OneDrive, Word, Excel, PowerPoint, SharePoint, OneNote, Planner, Power Automate, Power BI, Dynamics 365, Intune, Defender, Entra ID, Forms, Bookings, Viva Engage, 365 Admin.
+- **Apple/iCloud Services (13):** iCloud Mail, Calendrier iCloud, iCloud Drive, Contacts iCloud, Pages, Numbers, Keynote, FaceTime, iMessage, Notes, Rappels, Localiser, Apple Business Manager.
+- **Third-party Business Software Integrations (21):** Salesforce, HubSpot, Pipedrive, Slack, Microsoft Teams, Zoom, Trello, Asana, Notion, Jira, Sage, QuickBooks, DocuSign, Dropbox, Outlook, Mailchimp, Brevo, Zapier, Make, Intercom, Zendesk.

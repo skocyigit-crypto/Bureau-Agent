@@ -9,7 +9,9 @@ import {
   CloudDownload, Share2, Package, Cpu, RefreshCcw, CheckCheck,
   Video, MessageCircle, MapPin, StickyNote, ListChecks, Users, Image,
   BarChart3, Megaphone, Search, Cloud, Settings, BookOpen, Bookmark,
-  Languages, ShieldQuestion, Radio, Store, ClipboardList, Play
+  Languages, ShieldQuestion, Radio, Store, ClipboardList, Play,
+  Building2, Headphones, Database, PenTool, Layout, Kanban, Newspaper,
+  Workflow, AppWindow, HardDriveDownload, Layers
 } from "lucide-react";
 import { PhoneSimulator, PhoneSimulatorDialog } from "@/components/phone-simulator";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -410,6 +412,488 @@ const GOOGLE_SERVICES: GoogleService[] = [
   },
 ];
 
+interface PlatformService {
+  id: string;
+  name: string;
+  description: string;
+  icon: React.ElementType;
+  status: "connecte" | "deconnecte" | "en_attente";
+  features: string[];
+  categorie: string;
+}
+
+const MICROSOFT_CATEGORIES: Record<string, { label: string; couleur: string }> = {
+  productivite: { label: "Productivite", couleur: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
+  communication: { label: "Communication", couleur: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
+  stockage: { label: "Stockage", couleur: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
+  securite: { label: "Securite", couleur: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
+  analyse: { label: "Analyse", couleur: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
+  administration: { label: "Administration", couleur: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400" },
+  collaboration: { label: "Collaboration", couleur: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400" },
+};
+
+const MICROSOFT_SERVICES: PlatformService[] = [
+  {
+    id: "outlook",
+    name: "Microsoft Outlook",
+    description: "Messagerie professionnelle, calendrier et gestion des contacts. Synchronisation complete avec l'agent.",
+    icon: Mail,
+    status: "deconnecte",
+    categorie: "communication",
+    features: [
+      "Synchronisation bidirectionnelle des e-mails",
+      "Calendrier partage avec l'equipe",
+      "Gestion des contacts Outlook",
+      "Regles de tri automatique des messages",
+    ],
+  },
+  {
+    id: "teams",
+    name: "Microsoft Teams",
+    description: "Communication d'equipe, appels video et collaboration en temps reel integres a l'agent.",
+    icon: Video,
+    status: "deconnecte",
+    categorie: "communication",
+    features: [
+      "Appels video depuis la fiche contact",
+      "Channels par projet ou equipe",
+      "Partage d'ecran pendant les appels",
+      "Notifications d'activite en temps reel",
+    ],
+  },
+  {
+    id: "onedrive",
+    name: "Microsoft OneDrive",
+    description: "Stockage cloud et partage de documents. Synchronisation des fichiers avec l'agent de bureau.",
+    icon: Cloud,
+    status: "deconnecte",
+    categorie: "stockage",
+    features: [
+      "Stockage des comptes rendus d'appel",
+      "Partage securise de documents",
+      "Versioning automatique des fichiers",
+      "Acces hors ligne aux documents cles",
+    ],
+  },
+  {
+    id: "word",
+    name: "Microsoft Word",
+    description: "Creer et editer des documents professionnels, rapports et comptes rendus directement.",
+    icon: FileText,
+    status: "deconnecte",
+    categorie: "productivite",
+    features: [
+      "Generation automatique de rapports",
+      "Modeles de documents professionnels",
+      "Co-edition en temps reel",
+      "Export PDF et impression",
+    ],
+  },
+  {
+    id: "excel",
+    name: "Microsoft Excel",
+    description: "Tableurs et analyses de donnees. Export des statistiques d'appels et rapports financiers.",
+    icon: Table2,
+    status: "deconnecte",
+    categorie: "productivite",
+    features: [
+      "Export des donnees d'appels",
+      "Tableaux croises dynamiques",
+      "Graphiques de performance",
+      "Import de listes de contacts",
+    ],
+  },
+  {
+    id: "powerpoint",
+    name: "Microsoft PowerPoint",
+    description: "Presentations professionnelles pour les reunions d'equipe et les bilans de performance.",
+    icon: Presentation,
+    status: "deconnecte",
+    categorie: "productivite",
+    features: [
+      "Rapports hebdomadaires automatises",
+      "Modeles de presentation",
+      "Graphiques integres depuis Excel",
+      "Partage en reunion Teams",
+    ],
+  },
+  {
+    id: "sharepoint",
+    name: "Microsoft SharePoint",
+    description: "Portail intranet et gestion documentaire. Base de connaissances partagee pour l'equipe.",
+    icon: Layout,
+    status: "deconnecte",
+    categorie: "collaboration",
+    features: [
+      "Portail intranet d'equipe",
+      "Bibliotheques de documents partagees",
+      "Workflows d'approbation",
+      "Sites d'equipe par departement",
+    ],
+  },
+  {
+    id: "onenote",
+    name: "Microsoft OneNote",
+    description: "Prise de notes structuree pendant les appels. Carnets de notes partages avec l'equipe.",
+    icon: StickyNote,
+    status: "deconnecte",
+    categorie: "productivite",
+    features: [
+      "Notes d'appel en temps reel",
+      "Carnets partages par equipe",
+      "Capture d'ecran dans les notes",
+      "Recherche dans toutes les notes",
+    ],
+  },
+  {
+    id: "planner",
+    name: "Microsoft Planner",
+    description: "Gestion de taches et de projets. Tableaux Kanban et suivi des actions de l'equipe.",
+    icon: Kanban,
+    status: "deconnecte",
+    categorie: "productivite",
+    features: [
+      "Synchronisation des taches",
+      "Tableaux Kanban par projet",
+      "Attribution et suivi des actions",
+      "Integration avec Teams",
+    ],
+  },
+  {
+    id: "power-automate",
+    name: "Microsoft Power Automate",
+    description: "Automatisation des flux de travail. Declencheurs bases sur les appels et les evenements.",
+    icon: Workflow,
+    status: "deconnecte",
+    categorie: "administration",
+    features: [
+      "Automatisation post-appel",
+      "Declencheurs personnalises",
+      "Integration multi-services",
+      "Notifications automatiques",
+    ],
+  },
+  {
+    id: "power-bi",
+    name: "Microsoft Power BI",
+    description: "Tableaux de bord analytiques avances. Visualisation des KPI et performance de l'equipe.",
+    icon: BarChart3,
+    status: "deconnecte",
+    categorie: "analyse",
+    features: [
+      "Dashboards en temps reel",
+      "Rapports de performance KPI",
+      "Visualisations interactives",
+      "Partage des rapports avec la direction",
+    ],
+  },
+  {
+    id: "dynamics",
+    name: "Microsoft Dynamics 365",
+    description: "CRM et ERP integres. Gestion des relations client et suivi commercial complet.",
+    icon: Users,
+    status: "deconnecte",
+    categorie: "analyse",
+    features: [
+      "Synchronisation des contacts CRM",
+      "Historique d'appels dans Dynamics",
+      "Suivi du pipeline commercial",
+      "Rapports de ventes automatises",
+    ],
+  },
+  {
+    id: "intune",
+    name: "Microsoft Intune",
+    description: "Gestion des appareils et securite. Politiques de conformite pour les postes de travail.",
+    icon: Laptop,
+    status: "deconnecte",
+    categorie: "securite",
+    features: [
+      "Gestion des appareils de l'equipe",
+      "Politiques de securite centralisees",
+      "Deploiement d'applications",
+      "Conformite et rapports",
+    ],
+  },
+  {
+    id: "defender",
+    name: "Microsoft Defender",
+    description: "Protection avancee contre les menaces. Securite des e-mails, fichiers et postes de travail.",
+    icon: ShieldCheck,
+    status: "deconnecte",
+    categorie: "securite",
+    features: [
+      "Protection anti-malware en temps reel",
+      "Detection des menaces avancees",
+      "Securite des e-mails Outlook",
+      "Rapports de securite centralises",
+    ],
+  },
+  {
+    id: "azure-ad",
+    name: "Microsoft Entra ID",
+    description: "Gestion des identites et acces. Authentification unique (SSO) pour tous les services.",
+    icon: KeyRound,
+    status: "deconnecte",
+    categorie: "securite",
+    features: [
+      "Authentification unique (SSO)",
+      "Gestion des groupes et roles",
+      "Politiques d'acces conditionnel",
+      "Audit des connexions",
+    ],
+  },
+  {
+    id: "forms",
+    name: "Microsoft Forms",
+    description: "Formulaires et enquetes. Recueillir les avis des clients et les retours de l'equipe.",
+    icon: ClipboardList,
+    status: "deconnecte",
+    categorie: "productivite",
+    features: [
+      "Enquetes de satisfaction client",
+      "Formulaires de feedback interne",
+      "Quiz de formation",
+      "Analyse des reponses",
+    ],
+  },
+  {
+    id: "bookings",
+    name: "Microsoft Bookings",
+    description: "Planification de rendez-vous en ligne. Les clients reservent des creneaux automatiquement.",
+    icon: Calendar,
+    status: "deconnecte",
+    categorie: "communication",
+    features: [
+      "Page de reservation publique",
+      "Synchronisation avec le calendrier",
+      "Rappels automatiques par e-mail",
+      "Gestion des disponibilites",
+    ],
+  },
+  {
+    id: "yammer",
+    name: "Microsoft Viva Engage",
+    description: "Reseau social d'entreprise. Communication interne et partage de connaissances.",
+    icon: MessageCircle,
+    status: "deconnecte",
+    categorie: "collaboration",
+    features: [
+      "Fil d'actualite d'entreprise",
+      "Communautes par centre d'interet",
+      "Partage de connaissances",
+      "Sondages et annonces",
+    ],
+  },
+  {
+    id: "admin-365",
+    name: "Microsoft 365 Admin",
+    description: "Administration centralisee de tous les services Microsoft 365. Gestion des licences et utilisateurs.",
+    icon: Settings,
+    status: "deconnecte",
+    categorie: "administration",
+    features: [
+      "Gestion des licences utilisateurs",
+      "Rapports d'utilisation",
+      "Configuration des services",
+      "Alertes de sante des services",
+    ],
+  },
+];
+
+const APPLE_CATEGORIES: Record<string, { label: string; couleur: string }> = {
+  productivite: { label: "Productivite", couleur: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
+  communication: { label: "Communication", couleur: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
+  stockage: { label: "Stockage", couleur: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
+  creativite: { label: "Creativite", couleur: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400" },
+  securite: { label: "Securite", couleur: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
+};
+
+const APPLE_SERVICES: PlatformService[] = [
+  {
+    id: "icloud-mail",
+    name: "iCloud Mail",
+    description: "Messagerie Apple professionnelle. Synchronisation des e-mails avec l'agent de bureau.",
+    icon: Mail,
+    status: "deconnecte",
+    categorie: "communication",
+    features: [
+      "Envoi d'e-mails depuis la fiche contact",
+      "Synchronisation des boites de reception",
+      "Filtres et regles automatiques",
+      "Alias de messagerie",
+    ],
+  },
+  {
+    id: "icloud-calendar",
+    name: "Calendrier iCloud",
+    description: "Gestion des rendez-vous et planification. Synchronisation avec tous les appareils Apple.",
+    icon: Calendar,
+    status: "deconnecte",
+    categorie: "productivite",
+    features: [
+      "Synchronisation des evenements",
+      "Calendriers partages",
+      "Invitations et reponses automatiques",
+      "Rappels avant les appels",
+    ],
+  },
+  {
+    id: "icloud-drive",
+    name: "iCloud Drive",
+    description: "Stockage cloud Apple. Partage et synchronisation des documents entre appareils.",
+    icon: Cloud,
+    status: "deconnecte",
+    categorie: "stockage",
+    features: [
+      "Stockage et partage de fichiers",
+      "Synchronisation multi-appareils",
+      "Dossiers partages avec l'equipe",
+      "Acces depuis iPhone, iPad et Mac",
+    ],
+  },
+  {
+    id: "icloud-contacts",
+    name: "Contacts iCloud",
+    description: "Repertoire de contacts Apple. Synchronisation bidirectionnelle avec la base de contacts.",
+    icon: Users,
+    status: "deconnecte",
+    categorie: "communication",
+    features: [
+      "Import automatique des contacts Apple",
+      "Synchronisation bidirectionnelle",
+      "Groupes et categories",
+      "Cartes de visite partagees",
+    ],
+  },
+  {
+    id: "pages",
+    name: "Apple Pages",
+    description: "Creation de documents et rapports professionnels. Compatible avec les formats Word.",
+    icon: FileText,
+    status: "deconnecte",
+    categorie: "productivite",
+    features: [
+      "Documents et rapports professionnels",
+      "Modeles pre-concus",
+      "Export PDF et Word",
+      "Collaboration en temps reel",
+    ],
+  },
+  {
+    id: "numbers",
+    name: "Apple Numbers",
+    description: "Tableurs et analyses de donnees. Export des statistiques et rapports financiers.",
+    icon: Table2,
+    status: "deconnecte",
+    categorie: "productivite",
+    features: [
+      "Export de donnees en tableur",
+      "Graphiques interactifs",
+      "Formules et calculs avances",
+      "Compatible Excel",
+    ],
+  },
+  {
+    id: "keynote",
+    name: "Apple Keynote",
+    description: "Presentations professionnelles elegantes pour les reunions et bilans d'equipe.",
+    icon: Presentation,
+    status: "deconnecte",
+    categorie: "productivite",
+    features: [
+      "Presentations de qualite cinema",
+      "Animations et transitions",
+      "Export PowerPoint et PDF",
+      "Presentation a distance",
+    ],
+  },
+  {
+    id: "facetime",
+    name: "FaceTime",
+    description: "Appels video de qualite professionnelle. Conferences avec les clients et l'equipe.",
+    icon: Video,
+    status: "deconnecte",
+    categorie: "communication",
+    features: [
+      "Appels video HD avec les contacts",
+      "Conferences de groupe",
+      "Partage d'ecran integre",
+      "Liens d'appel partageables",
+    ],
+  },
+  {
+    id: "imessage",
+    name: "iMessage",
+    description: "Messagerie instantanee securisee. Communication rapide avec les contacts professionnels.",
+    icon: MessageCircle,
+    status: "deconnecte",
+    categorie: "communication",
+    features: [
+      "Messages chiffres de bout en bout",
+      "Partage de fichiers et photos",
+      "Reponses rapides",
+      "Indicateurs de lecture",
+    ],
+  },
+  {
+    id: "notes",
+    name: "Apple Notes",
+    description: "Prise de notes pendant les appels. Synchronisation avec tous les appareils Apple.",
+    icon: StickyNote,
+    status: "deconnecte",
+    categorie: "productivite",
+    features: [
+      "Notes rapides pendant l'appel",
+      "Dossiers organises",
+      "Scan de documents integre",
+      "Recherche dans les notes",
+    ],
+  },
+  {
+    id: "reminders",
+    name: "Apple Rappels",
+    description: "Gestion des taches et rappels. Synchronisation avec les taches de l'agent.",
+    icon: ListChecks,
+    status: "deconnecte",
+    categorie: "productivite",
+    features: [
+      "Synchronisation des taches",
+      "Rappels bases sur la localisation",
+      "Listes partagees",
+      "Priorites et dates limites",
+    ],
+  },
+  {
+    id: "find-my",
+    name: "Localiser (Find My)",
+    description: "Localisation des appareils de l'equipe. Securite et suivi des equipements professionnels.",
+    icon: MapPin,
+    status: "deconnecte",
+    categorie: "securite",
+    features: [
+      "Localisation des appareils d'equipe",
+      "Verrouillage a distance",
+      "Alerte en cas de perte",
+      "Historique de localisation",
+    ],
+  },
+  {
+    id: "apple-business",
+    name: "Apple Business Manager",
+    description: "Gestion centralisee des appareils Apple de l'entreprise. Deploiement et configuration.",
+    icon: Building2,
+    status: "deconnecte",
+    categorie: "securite",
+    features: [
+      "Deploiement automatique des appareils",
+      "Gestion des licences d'applications",
+      "Inscription automatique MDM",
+      "Comptes Apple geres",
+    ],
+  },
+];
+
 const BLOCKED_EXTENSIONS = [
   ".exe", ".bat", ".cmd", ".com", ".scr", ".pif", ".vbs", ".vbe", ".js",
   ".jse", ".wsf", ".wsh", ".msi", ".msp", ".mst", ".cpl", ".hta", ".inf",
@@ -436,6 +920,11 @@ export default function SettingsPage() {
 
   const [googleFilter, setGoogleFilter] = useState<string>("tous");
   const [googleSearch, setGoogleSearch] = useState("");
+  const [activePlatform, setActivePlatform] = useState<"google" | "microsoft" | "apple">("google");
+  const [msFilter, setMsFilter] = useState<string>("tous");
+  const [msSearch, setMsSearch] = useState("");
+  const [appleFilter, setAppleFilter] = useState<string>("tous");
+  const [appleSearch, setAppleSearch] = useState("");
 
   const [blockExternalDownloads, setBlockExternalDownloads] = useState(true);
   const [superAdminOnlyDownload, setSuperAdminOnlyDownload] = useState(true);
@@ -467,9 +956,10 @@ export default function SettingsPage() {
   const { toast } = useToast();
 
   const handleConnect = (serviceId: string) => {
+    const platformName = activePlatform === "google" ? "Google" : activePlatform === "microsoft" ? "Microsoft" : "Apple";
     toast({
       title: "Connexion en cours",
-      description: `Redirection vers Google pour autoriser ${serviceId}...`,
+      description: `Redirection vers ${platformName} pour autoriser ${serviceId}...`,
     });
   };
 
@@ -490,8 +980,8 @@ export default function SettingsPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
           <TabsTrigger value="google" className="gap-2">
-            <Globe className="w-4 h-4" />
-            Google Workspace
+            <Layers className="w-4 h-4" />
+            Plateformes
           </TabsTrigger>
           <TabsTrigger value="appels" className="gap-2">
             <PhoneIncoming className="w-4 h-4" />
@@ -512,20 +1002,93 @@ export default function SettingsPage() {
         </TabsList>
 
         <TabsContent value="google" className="space-y-6 mt-6">
+          <div className="grid grid-cols-3 gap-3">
+            <button
+              onClick={() => { setActivePlatform("google"); setGoogleFilter("tous"); setGoogleSearch(""); }}
+              className={`relative border rounded-xl p-4 text-left transition-all ${activePlatform === "google" ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 ring-1 ring-blue-500/30" : "hover:border-muted-foreground/30"}`}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className={`p-2 rounded-lg ${activePlatform === "google" ? "bg-blue-100 dark:bg-blue-900/30" : "bg-muted"}`}>
+                  <Globe className={`w-5 h-5 ${activePlatform === "google" ? "text-blue-600" : "text-muted-foreground"}`} />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm">Google Workspace</h3>
+                  <p className="text-[10px] text-muted-foreground">{GOOGLE_SERVICES.length} services disponibles</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <Badge variant="outline" className="text-[10px]">Gmail</Badge>
+                <Badge variant="outline" className="text-[10px]">Drive</Badge>
+                <Badge variant="outline" className="text-[10px]">Calendar</Badge>
+                <Badge variant="outline" className="text-[10px]">+{GOOGLE_SERVICES.length - 3}</Badge>
+              </div>
+            </button>
+
+            <button
+              onClick={() => { setActivePlatform("microsoft"); setMsFilter("tous"); setMsSearch(""); }}
+              className={`relative border rounded-xl p-4 text-left transition-all ${activePlatform === "microsoft" ? "border-[#0078D4] bg-[#0078D4]/5 dark:bg-[#0078D4]/10 ring-1 ring-[#0078D4]/30" : "hover:border-muted-foreground/30"}`}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className={`p-2 rounded-lg ${activePlatform === "microsoft" ? "bg-[#0078D4]/10" : "bg-muted"}`}>
+                  <AppWindow className={`w-5 h-5 ${activePlatform === "microsoft" ? "text-[#0078D4]" : "text-muted-foreground"}`} />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm">Microsoft 365</h3>
+                  <p className="text-[10px] text-muted-foreground">{MICROSOFT_SERVICES.length} services disponibles</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <Badge variant="outline" className="text-[10px]">Outlook</Badge>
+                <Badge variant="outline" className="text-[10px]">Teams</Badge>
+                <Badge variant="outline" className="text-[10px]">OneDrive</Badge>
+                <Badge variant="outline" className="text-[10px]">+{MICROSOFT_SERVICES.length - 3}</Badge>
+              </div>
+            </button>
+
+            <button
+              onClick={() => { setActivePlatform("apple"); setAppleFilter("tous"); setAppleSearch(""); }}
+              className={`relative border rounded-xl p-4 text-left transition-all ${activePlatform === "apple" ? "border-gray-800 bg-gray-50 dark:bg-gray-900/30 ring-1 ring-gray-800/30" : "hover:border-muted-foreground/30"}`}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className={`p-2 rounded-lg ${activePlatform === "apple" ? "bg-gray-200 dark:bg-gray-800" : "bg-muted"}`}>
+                  <Smartphone className={`w-5 h-5 ${activePlatform === "apple" ? "text-gray-800 dark:text-gray-200" : "text-muted-foreground"}`} />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm">Apple / iCloud</h3>
+                  <p className="text-[10px] text-muted-foreground">{APPLE_SERVICES.length} services disponibles</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <Badge variant="outline" className="text-[10px]">iCloud</Badge>
+                <Badge variant="outline" className="text-[10px]">FaceTime</Badge>
+                <Badge variant="outline" className="text-[10px]">Pages</Badge>
+                <Badge variant="outline" className="text-[10px]">+{APPLE_SERVICES.length - 3}</Badge>
+              </div>
+            </button>
+          </div>
+
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2">
-                    <Globe className="w-5 h-5 text-blue-600" />
-                    Google Workspace - Toutes les applications
+                    {activePlatform === "google" && <Globe className="w-5 h-5 text-blue-600" />}
+                    {activePlatform === "microsoft" && <AppWindow className="w-5 h-5 text-[#0078D4]" />}
+                    {activePlatform === "apple" && <Smartphone className="w-5 h-5 text-gray-800 dark:text-gray-200" />}
+                    {activePlatform === "google" && "Google Workspace - Toutes les applications"}
+                    {activePlatform === "microsoft" && "Microsoft 365 - Toutes les applications"}
+                    {activePlatform === "apple" && "Apple / iCloud - Toutes les applications"}
                   </CardTitle>
                   <CardDescription className="mt-1">
-                    L'agent est compatible avec l'ensemble de l'ecosysteme Google. Connectez chaque service pour une integration complete.
+                    {activePlatform === "google" && "L'agent est compatible avec l'ensemble de l'ecosysteme Google. Connectez chaque service pour une integration complete."}
+                    {activePlatform === "microsoft" && "Integration complete avec Microsoft 365. Connectez Outlook, Teams, OneDrive et tous les outils de productivite Microsoft."}
+                    {activePlatform === "apple" && "Compatibilite avec l'ecosysteme Apple. Synchronisez iCloud, Calendrier, Contacts et tous les services Apple professionnels."}
                   </CardDescription>
                 </div>
-                <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-0 text-xs">
-                  {GOOGLE_SERVICES.length} applications disponibles
+                <Badge className={`border-0 text-xs ${activePlatform === "google" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" : activePlatform === "microsoft" ? "bg-[#0078D4]/10 text-[#0078D4]" : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"}`}>
+                  {activePlatform === "google" && `${GOOGLE_SERVICES.length} applications`}
+                  {activePlatform === "microsoft" && `${MICROSOFT_SERVICES.length} applications`}
+                  {activePlatform === "apple" && `${APPLE_SERVICES.length} applications`}
                 </Badge>
               </div>
             </CardHeader>
@@ -534,103 +1097,120 @@ export default function SettingsPage() {
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Rechercher une application Google..."
+                  placeholder={`Rechercher une application ${activePlatform === "google" ? "Google" : activePlatform === "microsoft" ? "Microsoft" : "Apple"}...`}
                   className="pl-9"
-                  value={googleSearch}
-                  onChange={(e) => setGoogleSearch(e.target.value)}
+                  value={activePlatform === "google" ? googleSearch : activePlatform === "microsoft" ? msSearch : appleSearch}
+                  onChange={(e) => {
+                    if (activePlatform === "google") setGoogleSearch(e.target.value);
+                    else if (activePlatform === "microsoft") setMsSearch(e.target.value);
+                    else setAppleSearch(e.target.value);
+                  }}
                 />
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={googleFilter === "tous" ? "default" : "outline"}
-                  size="sm"
-                  className="text-xs h-7"
-                  onClick={() => setGoogleFilter("tous")}
-                >
-                  Tous ({GOOGLE_SERVICES.length})
-                </Button>
-                {Object.entries(GOOGLE_CATEGORIES).map(([key, cat]) => {
-                  const count = GOOGLE_SERVICES.filter(s => s.categorie === key).length;
-                  return (
-                    <Button
-                      key={key}
-                      variant={googleFilter === key ? "default" : "outline"}
-                      size="sm"
-                      className="text-xs h-7"
-                      onClick={() => setGoogleFilter(key)}
-                    >
-                      {cat.label} ({count})
-                    </Button>
-                  );
-                })}
-              </div>
+              {(() => {
+                const services = activePlatform === "google" ? GOOGLE_SERVICES : activePlatform === "microsoft" ? MICROSOFT_SERVICES : APPLE_SERVICES;
+                const categories = activePlatform === "google" ? GOOGLE_CATEGORIES : activePlatform === "microsoft" ? MICROSOFT_CATEGORIES : APPLE_CATEGORIES;
+                const filter = activePlatform === "google" ? googleFilter : activePlatform === "microsoft" ? msFilter : appleFilter;
+                const setFilter = activePlatform === "google" ? setGoogleFilter : activePlatform === "microsoft" ? setMsFilter : setAppleFilter;
+                const search = activePlatform === "google" ? googleSearch : activePlatform === "microsoft" ? msSearch : appleSearch;
 
-              <div className="grid gap-3">
-                {GOOGLE_SERVICES
-                  .filter(s => googleFilter === "tous" || s.categorie === googleFilter)
-                  .filter(s => {
-                    if (!googleSearch) return true;
-                    const q = googleSearch.toLowerCase();
-                    return s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q);
-                  })
-                  .map((service) => (
-                  <div key={service.id} className="border rounded-xl p-4 hover:border-primary/30 transition-colors">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-4">
-                        <div className={`p-2.5 rounded-lg ${service.status === "connecte" ? "bg-emerald-100 dark:bg-emerald-900/30" : "bg-muted"}`}>
-                          <service.icon className={`w-5 h-5 ${service.status === "connecte" ? "text-emerald-600" : "text-muted-foreground"}`} />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-semibold text-sm">{service.name}</h3>
-                            <Badge className={GOOGLE_CATEGORIES[service.categorie].couleur + " border-0 text-[10px]"}>
-                              {GOOGLE_CATEGORIES[service.categorie].label}
-                            </Badge>
-                            {service.status === "connecte" ? (
-                              <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-[10px]">
-                                <CheckCircle2 className="w-3 h-3 mr-1" />
-                                Connecte
-                              </Badge>
-                            ) : (
-                              <Badge variant="secondary" className="text-[10px]">
-                                Non connecte
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground mb-3">{service.description}</p>
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {service.features.map((feature, i) => (
-                              <div key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                <div className="w-1 h-1 rounded-full bg-primary/50" />
-                                {feature}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
+                return (
+                  <>
+                    <div className="flex flex-wrap gap-2">
                       <Button
-                        variant={service.status === "connecte" ? "outline" : "default"}
+                        variant={filter === "tous" ? "default" : "outline"}
                         size="sm"
-                        className="shrink-0"
-                        onClick={() => handleConnect(service.id)}
+                        className="text-xs h-7"
+                        onClick={() => setFilter("tous")}
                       >
-                        {service.status === "connecte" ? (
-                          <>
-                            <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-                            Reconnecter
-                          </>
-                        ) : (
-                          <>
-                            <Link2 className="w-3.5 h-3.5 mr-1.5" />
-                            Connecter
-                          </>
-                        )}
+                        Tous ({services.length})
                       </Button>
+                      {Object.entries(categories).map(([key, cat]) => {
+                        const cnt = services.filter(s => s.categorie === key).length;
+                        if (cnt === 0) return null;
+                        return (
+                          <Button
+                            key={key}
+                            variant={filter === key ? "default" : "outline"}
+                            size="sm"
+                            className="text-xs h-7"
+                            onClick={() => setFilter(key)}
+                          >
+                            {cat.label} ({cnt})
+                          </Button>
+                        );
+                      })}
                     </div>
-                  </div>
-                ))}
-              </div>
+
+                    <div className="grid gap-3">
+                      {services
+                        .filter(s => filter === "tous" || s.categorie === filter)
+                        .filter(s => {
+                          if (!search) return true;
+                          const q = search.toLowerCase();
+                          return s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q);
+                        })
+                        .map((service) => (
+                        <div key={service.id} className="border rounded-xl p-4 hover:border-primary/30 transition-colors">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start gap-4">
+                              <div className={`p-2.5 rounded-lg ${service.status === "connecte" ? "bg-emerald-100 dark:bg-emerald-900/30" : "bg-muted"}`}>
+                                <service.icon className={`w-5 h-5 ${service.status === "connecte" ? "text-emerald-600" : "text-muted-foreground"}`} />
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h3 className="font-semibold text-sm">{service.name}</h3>
+                                  <Badge className={(categories[service.categorie]?.couleur || "bg-gray-100 text-gray-700") + " border-0 text-[10px]"}>
+                                    {categories[service.categorie]?.label || service.categorie}
+                                  </Badge>
+                                  {service.status === "connecte" ? (
+                                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-[10px]">
+                                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                                      Connecte
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="secondary" className="text-[10px]">
+                                      Non connecte
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground mb-3">{service.description}</p>
+                                <div className="grid grid-cols-2 gap-1.5">
+                                  {service.features.map((feature, i) => (
+                                    <div key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                      <div className="w-1 h-1 rounded-full bg-primary/50" />
+                                      {feature}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                            <Button
+                              variant={service.status === "connecte" ? "outline" : "default"}
+                              size="sm"
+                              className="shrink-0"
+                              onClick={() => handleConnect(service.id)}
+                            >
+                              {service.status === "connecte" ? (
+                                <>
+                                  <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                                  Reconnecter
+                                </>
+                              ) : (
+                                <>
+                                  <Link2 className="w-3.5 h-3.5 mr-1.5" />
+                                  Connecter
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
             </CardContent>
           </Card>
 
@@ -1027,7 +1607,7 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Synchronisation bidirectionnelle</Label>
-                  <p className="text-xs text-muted-foreground">Les modifications dans Google se refletent ici et inversement</p>
+                  <p className="text-xs text-muted-foreground">Les modifications dans les plateformes connectees se refletent ici et inversement</p>
                 </div>
                 <Switch defaultChecked />
               </div>
@@ -1035,7 +1615,7 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Import automatique des contacts</Label>
-                  <p className="text-xs text-muted-foreground">Importer les nouveaux contacts Google automatiquement</p>
+                  <p className="text-xs text-muted-foreground">Importer les nouveaux contacts depuis les plateformes automatiquement</p>
                 </div>
                 <Switch />
               </div>

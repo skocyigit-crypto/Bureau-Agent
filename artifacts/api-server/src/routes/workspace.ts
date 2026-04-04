@@ -13,6 +13,44 @@ const GOOGLE_SERVICES = [
   { id: "slides", name: "Google Slides", scope: "https://www.googleapis.com/auth/presentations" },
 ];
 
+const MICROSOFT_SERVICES = [
+  { id: "outlook", name: "Microsoft Outlook", scope: "Mail.ReadWrite Calendars.ReadWrite" },
+  { id: "teams", name: "Microsoft Teams", scope: "Team.ReadBasic.All Channel.ReadBasic.All" },
+  { id: "onedrive", name: "Microsoft OneDrive", scope: "Files.ReadWrite.All" },
+  { id: "word", name: "Microsoft Word", scope: "Files.ReadWrite.All" },
+  { id: "excel", name: "Microsoft Excel", scope: "Files.ReadWrite.All" },
+  { id: "powerpoint", name: "Microsoft PowerPoint", scope: "Files.ReadWrite.All" },
+  { id: "sharepoint", name: "Microsoft SharePoint", scope: "Sites.ReadWrite.All" },
+  { id: "onenote", name: "Microsoft OneNote", scope: "Notes.ReadWrite.All" },
+  { id: "planner", name: "Microsoft Planner", scope: "Tasks.ReadWrite" },
+  { id: "power-automate", name: "Power Automate", scope: "Flows.Manage.All" },
+  { id: "power-bi", name: "Power BI", scope: "Dataset.ReadWrite.All" },
+  { id: "dynamics", name: "Dynamics 365", scope: "user_impersonation" },
+  { id: "intune", name: "Microsoft Intune", scope: "DeviceManagementManagedDevices.Read.All" },
+  { id: "defender", name: "Microsoft Defender", scope: "ThreatAssessment.ReadWrite.All" },
+  { id: "azure-ad", name: "Microsoft Entra ID", scope: "User.ReadWrite.All Directory.ReadWrite.All" },
+  { id: "forms", name: "Microsoft Forms", scope: "Forms.Read" },
+  { id: "bookings", name: "Microsoft Bookings", scope: "Bookings.ReadWrite.All" },
+  { id: "yammer", name: "Viva Engage", scope: "Group.ReadWrite.All" },
+  { id: "admin-365", name: "Microsoft 365 Admin", scope: "Organization.ReadWrite.All" },
+];
+
+const APPLE_SERVICES = [
+  { id: "icloud-mail", name: "iCloud Mail", scope: "email" },
+  { id: "icloud-calendar", name: "Calendrier iCloud", scope: "calendar" },
+  { id: "icloud-drive", name: "iCloud Drive", scope: "cloudkit" },
+  { id: "icloud-contacts", name: "Contacts iCloud", scope: "contacts" },
+  { id: "pages", name: "Apple Pages", scope: "documents" },
+  { id: "numbers", name: "Apple Numbers", scope: "documents" },
+  { id: "keynote", name: "Apple Keynote", scope: "documents" },
+  { id: "facetime", name: "FaceTime", scope: "communication" },
+  { id: "imessage", name: "iMessage", scope: "messaging" },
+  { id: "notes", name: "Apple Notes", scope: "notes" },
+  { id: "reminders", name: "Apple Rappels", scope: "reminders" },
+  { id: "find-my", name: "Localiser", scope: "location" },
+  { id: "apple-business", name: "Apple Business Manager", scope: "mdm" },
+];
+
 router.get("/status", (_req, res) => {
   const services = GOOGLE_SERVICES.map(svc => ({
     id: svc.id,
@@ -28,6 +66,80 @@ router.get("/status", (_req, res) => {
     syncEnabled: false,
     lastGlobalSync: null,
   });
+});
+
+router.get("/platforms", (_req, res) => {
+  const mapServices = (svcs: typeof GOOGLE_SERVICES) =>
+    svcs.map(svc => ({ id: svc.id, name: svc.name, status: "deconnecte" as const, lastSync: null, scope: svc.scope }));
+
+  res.json({
+    platforms: [
+      { id: "google", name: "Google Workspace", connected: false, services: mapServices(GOOGLE_SERVICES), totalServices: GOOGLE_SERVICES.length },
+      { id: "microsoft", name: "Microsoft 365", connected: false, services: mapServices(MICROSOFT_SERVICES), totalServices: MICROSOFT_SERVICES.length },
+      { id: "apple", name: "Apple / iCloud", connected: false, services: mapServices(APPLE_SERVICES), totalServices: APPLE_SERVICES.length },
+    ],
+    totalServices: GOOGLE_SERVICES.length + MICROSOFT_SERVICES.length + APPLE_SERVICES.length,
+  });
+});
+
+router.get("/microsoft/status", (_req, res) => {
+  const services = MICROSOFT_SERVICES.map(svc => ({
+    id: svc.id,
+    name: svc.name,
+    status: "deconnecte" as const,
+    lastSync: null,
+    scope: svc.scope,
+  }));
+  res.json({ connected: false, services, syncEnabled: false, lastGlobalSync: null });
+});
+
+router.post("/microsoft/connect/:serviceId", (req, res) => {
+  const { serviceId } = req.params;
+  const service = MICROSOFT_SERVICES.find(s => s.id === serviceId);
+  if (!service) return res.status(404).json({ error: "Service Microsoft inconnu." });
+  res.json({
+    status: "redirect",
+    message: `Redirection vers Microsoft pour autoriser ${service.name}.`,
+    authUrl: `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?scope=${encodeURIComponent(service.scope)}&response_type=code&client_id=CONFIGURE_CLIENT_ID`,
+    service: service.name,
+  });
+});
+
+router.post("/microsoft/disconnect/:serviceId", (req, res) => {
+  const { serviceId } = req.params;
+  const service = MICROSOFT_SERVICES.find(s => s.id === serviceId);
+  if (!service) return res.status(404).json({ error: "Service Microsoft inconnu." });
+  res.json({ status: "deconnecte", message: `${service.name} a ete deconnecte.` });
+});
+
+router.get("/apple/status", (_req, res) => {
+  const services = APPLE_SERVICES.map(svc => ({
+    id: svc.id,
+    name: svc.name,
+    status: "deconnecte" as const,
+    lastSync: null,
+    scope: svc.scope,
+  }));
+  res.json({ connected: false, services, syncEnabled: false, lastGlobalSync: null });
+});
+
+router.post("/apple/connect/:serviceId", (req, res) => {
+  const { serviceId } = req.params;
+  const service = APPLE_SERVICES.find(s => s.id === serviceId);
+  if (!service) return res.status(404).json({ error: "Service Apple inconnu." });
+  res.json({
+    status: "redirect",
+    message: `Redirection vers Apple pour autoriser ${service.name}.`,
+    authUrl: `https://appleid.apple.com/auth/authorize?scope=${encodeURIComponent(service.scope)}&response_type=code&client_id=CONFIGURE_CLIENT_ID`,
+    service: service.name,
+  });
+});
+
+router.post("/apple/disconnect/:serviceId", (req, res) => {
+  const { serviceId } = req.params;
+  const service = APPLE_SERVICES.find(s => s.id === serviceId);
+  if (!service) return res.status(404).json({ error: "Service Apple inconnu." });
+  res.json({ status: "deconnecte", message: `${service.name} a ete deconnecte.` });
 });
 
 router.post("/connect/:serviceId", (req, res) => {
@@ -88,6 +200,22 @@ router.get("/drive/files", (_req, res) => {
     message: "Connectez Google Drive pour voir vos fichiers.",
     connected: false,
   });
+});
+
+router.get("/outlook/messages", (_req, res) => {
+  res.json({ messages: [], message: "Connectez Microsoft Outlook pour voir vos e-mails.", connected: false });
+});
+
+router.get("/onedrive/files", (_req, res) => {
+  res.json({ files: [], message: "Connectez Microsoft OneDrive pour voir vos fichiers.", connected: false });
+});
+
+router.get("/teams/channels", (_req, res) => {
+  res.json({ channels: [], message: "Connectez Microsoft Teams pour voir vos channels.", connected: false });
+});
+
+router.get("/icloud/files", (_req, res) => {
+  res.json({ files: [], message: "Connectez iCloud Drive pour voir vos fichiers.", connected: false });
 });
 
 async function gatherDailyData(dateStr: string) {
