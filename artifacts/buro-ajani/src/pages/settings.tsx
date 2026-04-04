@@ -2387,7 +2387,9 @@ export default function SettingsPage() {
                         { label: "Repertoire contacts", desc: "Recherche, categories, fiches completes" },
                         { label: "Suivi des taches", desc: "Statuts, priorites, echeances" },
                         { label: "Messages et notifications", desc: "Vocaux, notes, rappels, priorites" },
-                        { label: "Agents IA embarques", desc: "Scores, alertes, suggestions en mobilite" },
+                        { label: "Gestion de stock", desc: "Inventaire, alertes seuils, categories" },
+                        { label: "7 Agents IA embarques", desc: "Scores, alertes, suggestions en mobilite" },
+                        { label: "58 integrations natives", desc: "Google, Microsoft, Apple synchronises" },
                         { label: "Notifications push", desc: "Appels manques, taches urgentes, alertes IA" },
                         { label: "Mode hors connexion", desc: "Acces aux donnees sans connexion Internet" },
                       ].map((f, i) => (

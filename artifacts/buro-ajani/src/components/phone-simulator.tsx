@@ -2,13 +2,14 @@ import { useState } from "react";
 import {
   Phone, Users, CheckSquare, MessageSquare, BarChart3, Brain, X, Maximize2,
   Minimize2, Wifi, Battery, Signal, ChevronLeft, Home, LayoutDashboard,
-  PhoneCall, Clock, Bell, TrendingUp, AlertCircle, CheckCircle2, Star, Search
+  PhoneCall, Clock, Bell, TrendingUp, AlertCircle, CheckCircle2, Star, Search,
+  Package, Plug, ShieldCheck, Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-type MobileScreen = "accueil" | "appels" | "contacts" | "taches" | "messages" | "agents-ia" | "stats";
+type MobileScreen = "accueil" | "appels" | "contacts" | "taches" | "messages" | "agents-ia" | "stock" | "stats";
 
 const NAV_ITEMS = [
   { id: "accueil" as MobileScreen, icon: Home, label: "Accueil" },
@@ -63,36 +64,63 @@ function ScreenAccueil({ onNavigate }: { onNavigate: (s: MobileScreen) => void }
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-2.5">
-          <Phone className="w-3.5 h-3.5 text-blue-600 mb-1" />
-          <p className="text-sm font-bold text-blue-900 dark:text-blue-200">44</p>
-          <p className="text-[8px] text-blue-600">Appels aujourd'hui</p>
-        </div>
-        <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-lg p-2.5">
-          <CheckSquare className="w-3.5 h-3.5 text-emerald-600 mb-1" />
-          <p className="text-sm font-bold text-emerald-900 dark:text-emerald-200">12</p>
-          <p className="text-[8px] text-emerald-600">Taches en cours</p>
-        </div>
-        <div className="bg-purple-50 dark:bg-purple-950/30 rounded-lg p-2.5">
-          <MessageSquare className="w-3.5 h-3.5 text-purple-600 mb-1" />
-          <p className="text-sm font-bold text-purple-900 dark:text-purple-200">8</p>
-          <p className="text-[8px] text-purple-600">Messages non lus</p>
-        </div>
-        <div className="bg-amber-50 dark:bg-amber-950/30 rounded-lg p-2.5">
-          <Users className="w-3.5 h-3.5 text-amber-600 mb-1" />
-          <p className="text-sm font-bold text-amber-900 dark:text-amber-200">156</p>
-          <p className="text-[8px] text-amber-600">Contacts</p>
-        </div>
+      <div className="grid grid-cols-3 gap-1.5">
+        <button onClick={() => onNavigate("appels")} className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-2 text-left">
+          <Phone className="w-3 h-3 text-blue-600 mb-0.5" />
+          <p className="text-xs font-bold text-blue-900 dark:text-blue-200">44</p>
+          <p className="text-[7px] text-blue-600">Appels</p>
+        </button>
+        <button onClick={() => onNavigate("taches")} className="bg-emerald-50 dark:bg-emerald-950/30 rounded-lg p-2 text-left">
+          <CheckSquare className="w-3 h-3 text-emerald-600 mb-0.5" />
+          <p className="text-xs font-bold text-emerald-900 dark:text-emerald-200">12</p>
+          <p className="text-[7px] text-emerald-600">Taches</p>
+        </button>
+        <button onClick={() => onNavigate("messages")} className="bg-purple-50 dark:bg-purple-950/30 rounded-lg p-2 text-left">
+          <MessageSquare className="w-3 h-3 text-purple-600 mb-0.5" />
+          <p className="text-xs font-bold text-purple-900 dark:text-purple-200">8</p>
+          <p className="text-[7px] text-purple-600">Messages</p>
+        </button>
+        <button onClick={() => onNavigate("contacts")} className="bg-amber-50 dark:bg-amber-950/30 rounded-lg p-2 text-left">
+          <Users className="w-3 h-3 text-amber-600 mb-0.5" />
+          <p className="text-xs font-bold text-amber-900 dark:text-amber-200">156</p>
+          <p className="text-[7px] text-amber-600">Contacts</p>
+        </button>
+        <button onClick={() => onNavigate("stock")} className="bg-cyan-50 dark:bg-cyan-950/30 rounded-lg p-2 text-left">
+          <Package className="w-3 h-3 text-cyan-600 mb-0.5" />
+          <p className="text-xs font-bold text-cyan-900 dark:text-cyan-200">247</p>
+          <p className="text-[7px] text-cyan-600">Stock</p>
+        </button>
+        <button onClick={() => onNavigate("agents-ia")} className="bg-indigo-50 dark:bg-indigo-950/30 rounded-lg p-2 text-left">
+          <Brain className="w-3 h-3 text-indigo-600 mb-0.5" />
+          <p className="text-xs font-bold text-indigo-900 dark:text-indigo-200">7</p>
+          <p className="text-[7px] text-indigo-600">Agents IA</p>
+        </button>
       </div>
 
       <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/10 rounded-lg p-2.5 border border-purple-100 dark:border-purple-900/30">
-        <div className="flex items-center gap-1.5 mb-1">
-          <Brain className="w-3 h-3 text-purple-600" />
-          <span className="text-[9px] font-semibold text-purple-700">Intelligence IA</span>
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-1.5">
+            <Brain className="w-3 h-3 text-purple-600" />
+            <span className="text-[9px] font-semibold text-purple-700">Intelligence IA</span>
+          </div>
+          <span className="text-[10px] font-bold text-purple-700">82/100</span>
         </div>
-        <p className="text-[8px] text-purple-600">Score global: 82/100</p>
-        <p className="text-[8px] text-muted-foreground mt-0.5">3 alertes detectees, 5 suggestions</p>
+        <div className="h-1 bg-purple-200 rounded-full overflow-hidden">
+          <div className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full" style={{ width: "82%" }} />
+        </div>
+        <p className="text-[7px] text-muted-foreground mt-1">3 alertes, 5 suggestions</p>
+      </div>
+
+      <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-lg p-2.5 border border-emerald-100 dark:border-emerald-900/30">
+        <div className="flex items-center gap-1.5 mb-1">
+          <Plug className="w-3 h-3 text-emerald-600" />
+          <span className="text-[9px] font-semibold text-emerald-700">Plateformes connectees</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[7px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">Google 26</span>
+          <span className="text-[7px] px-1.5 py-0.5 bg-blue-50 text-[#0078D4] rounded">Microsoft 19</span>
+          <span className="text-[7px] px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded">Apple 13</span>
+        </div>
       </div>
 
       <div className="space-y-1.5">
@@ -100,8 +128,8 @@ function ScreenAccueil({ onNavigate }: { onNavigate: (s: MobileScreen) => void }
         {[
           { icon: PhoneCall, text: "Appel entrant - Marie Dupont", time: "il y a 5 min", color: "text-blue-600" },
           { icon: CheckCircle2, text: "Tache terminee - Rapport Q2", time: "il y a 15 min", color: "text-emerald-600" },
+          { icon: Package, text: "Stock faible - Papier A4", time: "il y a 25 min", color: "text-cyan-600" },
           { icon: AlertCircle, text: "Message urgent de J. Martin", time: "il y a 30 min", color: "text-amber-600" },
-          { icon: Star, text: "Nouveau contact VIP ajoute", time: "il y a 1h", color: "text-purple-600" },
         ].map((item, i) => (
           <div key={i} className="flex items-center gap-2 p-1.5 rounded-md bg-muted/30">
             <item.icon className={`w-3 h-3 ${item.color} shrink-0`} />
@@ -283,13 +311,65 @@ function ScreenMessages() {
   );
 }
 
+function ScreenStock() {
+  const articles = [
+    { nom: "Papier A4 (ramette)", qte: 12, seuil: 20, cat: "Fournitures" },
+    { nom: "Cartouches encre HP", qte: 3, seuil: 5, cat: "Impression" },
+    { nom: "Classeurs A4", qte: 45, seuil: 10, cat: "Fournitures" },
+    { nom: "Cle USB 32Go", qte: 8, seuil: 5, cat: "Informatique" },
+    { nom: "Post-it colores", qte: 2, seuil: 10, cat: "Fournitures" },
+    { nom: "Stylos bille (lot 50)", qte: 6, seuil: 3, cat: "Fournitures" },
+  ];
+
+  return (
+    <div className="p-3 space-y-2 overflow-y-auto" style={{ maxHeight: "calc(100% - 44px)" }}>
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-[10px] font-semibold">Gestion de stock</p>
+        <Badge variant="destructive" className="text-[7px] h-4">2 alertes</Badge>
+      </div>
+      <div className="grid grid-cols-2 gap-1.5 mb-2">
+        <div className="bg-cyan-50 dark:bg-cyan-950/30 rounded-lg p-2 text-center">
+          <p className="text-sm font-bold text-cyan-700">247</p>
+          <p className="text-[7px] text-cyan-600">Articles total</p>
+        </div>
+        <div className="bg-red-50 dark:bg-red-950/30 rounded-lg p-2 text-center">
+          <p className="text-sm font-bold text-red-700">2</p>
+          <p className="text-[7px] text-red-600">Stock faible</p>
+        </div>
+      </div>
+      {articles.map((a, i) => {
+        const faible = a.qte < a.seuil;
+        return (
+          <div key={i} className={cn("flex items-center gap-2 p-2 rounded-lg border border-border/30", faible ? "bg-red-50/50 dark:bg-red-950/10" : "bg-muted/20")}>
+            <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center shrink-0", faible ? "bg-red-100" : "bg-cyan-100")}>
+              <Package className={cn("w-3 h-3", faible ? "text-red-600" : "text-cyan-600")} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] font-semibold truncate">{a.nom}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <Badge variant={faible ? "destructive" : "secondary"} className="text-[6px] h-3 px-1">
+                  {a.qte}/{a.seuil}
+                </Badge>
+                <span className="text-[7px] text-muted-foreground">{a.cat}</span>
+              </div>
+            </div>
+            {faible && <AlertCircle className="w-3 h-3 text-red-500 shrink-0" />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function ScreenAgentsIA() {
   const agents = [
     { nom: "Appels", score: 87, icon: Phone, couleur: "text-blue-600" },
     { nom: "Contacts", score: 92, icon: Users, couleur: "text-emerald-600" },
     { nom: "Taches", score: 74, icon: CheckSquare, couleur: "text-amber-600" },
     { nom: "Messages", score: 81, icon: MessageSquare, couleur: "text-purple-600" },
-    { nom: "Securite", score: 95, icon: Brain, couleur: "text-red-600" },
+    { nom: "Stock", score: 88, icon: Package, couleur: "text-cyan-600" },
+    { nom: "Pointage", score: 91, icon: Clock, couleur: "text-orange-600" },
+    { nom: "Securite", score: 95, icon: ShieldCheck, couleur: "text-red-600" },
   ];
 
   return (
@@ -353,6 +433,7 @@ export function PhoneSimulator({ className, defaultScreen = "accueil", expanded 
     contacts: "Contacts",
     taches: "Taches",
     messages: "Messages",
+    stock: "Stock",
     "agents-ia": "Agents IA",
     stats: "Statistiques",
   };
@@ -364,6 +445,7 @@ export function PhoneSimulator({ className, defaultScreen = "accueil", expanded 
       case "contacts": return <ScreenContacts />;
       case "taches": return <ScreenTaches />;
       case "messages": return <ScreenMessages />;
+      case "stock": return <ScreenStock />;
       case "agents-ia": return <ScreenAgentsIA />;
       default: return <ScreenAccueil onNavigate={setCurrentScreen} />;
     }
