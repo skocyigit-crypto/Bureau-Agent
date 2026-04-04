@@ -23,7 +23,11 @@ import {
   FileText,
   Clock,
   Briefcase,
-  Headset
+  Headset,
+  Package,
+  Bot,
+  Plug,
+  Brain
 } from "lucide-react";
 import {
   Accordion,
@@ -105,7 +109,7 @@ export default function Home() {
       <main className="flex-grow pt-20">
         {/* 1. HERO SECTION */}
         <section className="relative pt-24 pb-32 md:pt-36 md:pb-48 overflow-hidden bg-[#1a2744] text-primary-foreground">
-          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-15 mix-blend-overlay pointer-events-none"></div>
+          <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay pointer-events-none" style={{backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.65\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")'}}></div>
           
           {/* Ambient Glows */}
           <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#f59e0b] rounded-full mix-blend-screen filter blur-[150px] opacity-20"></div>
@@ -275,19 +279,24 @@ export default function Home() {
                   desc: "Tableaux de bord détaillés pour comprendre vos flux de communication."
                 },
                 {
-                  icon: <Zap className="w-7 h-7" />,
-                  title: "Notifications intelligentes",
-                  desc: "Soyez alerté instantanément des appels importants et des tâches urgentes."
+                  icon: <Package className="w-7 h-7" />,
+                  title: "Gestion de stock",
+                  desc: "Inventaire complet avec scan QR/code-barres, import IA de factures et suivi automatique des niveaux."
                 },
                 {
-                  icon: <FileText className="w-7 h-7" />,
-                  title: "Rapports automatiques",
-                  desc: "Recevez des bilans d'activité détaillés chaque semaine dans votre boîte mail."
+                  icon: <Brain className="w-7 h-7" />,
+                  title: "Multi-Agent IA",
+                  desc: "7 agents IA specialises analysent vos donnees en continu et proposent des actions concretes."
+                },
+                {
+                  icon: <Plug className="w-7 h-7" />,
+                  title: "58 integrations natives",
+                  desc: "Google Workspace, Microsoft 365, Apple/iCloud : connectez vos outils en un clic."
                 },
                 {
                   icon: <Globe className="w-7 h-7" />,
-                  title: "Interface 100% Française",
-                  desc: "Une ergonomie et une documentation pensées exclusivement pour le marché francophone."
+                  title: "Interface 100% Francaise",
+                  desc: "Une ergonomie et une documentation pensees exclusivement pour le marche francophone."
                 }
               ].map((feature, i) => (
                 <motion.div 
@@ -394,7 +403,7 @@ export default function Home() {
 
         {/* 7. FEATURE DEEP DIVE 2 */}
         <section id="analytique" className="py-32 bg-[#1a2744] text-white overflow-hidden relative">
-          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-overlay pointer-events-none"></div>
+          <div className="absolute inset-0 opacity-[0.02] mix-blend-overlay pointer-events-none" style={{backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.65\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")'}}></div>
           <div className="container mx-auto px-4 relative z-10">
             <div className="flex flex-col lg:flex-row-reverse items-center gap-16 lg:gap-24">
               <motion.div 
@@ -553,10 +562,11 @@ export default function Home() {
                 </Button>
                 <ul className="space-y-4">
                   {[
-                    "1 Numéro de téléphone",
-                    "Jusqu'à 3 utilisateurs",
+                    "1 Numero de telephone",
+                    "Jusqu'a 3 utilisateurs",
                     "Gestion des appels basique",
                     "Annuaire 500 contacts",
+                    "Gestion de stock",
                     "Support par email"
                   ].map((feature, i) => (
                     <li key={i} className="flex items-center gap-3 text-foreground font-medium">
@@ -591,11 +601,11 @@ export default function Home() {
                 </Button>
                 <ul className="space-y-4">
                   {[
-                    "3 Numéros de téléphone",
-                    "Jusqu'à 10 utilisateurs",
-                    "Routage intelligent",
-                    "Annuaire illimité",
-                    "Analytique avancée",
+                    "3 Numeros de telephone",
+                    "Jusqu'a 10 utilisateurs",
+                    "58 integrations natives",
+                    "Multi-Agent IA (7 agents)",
+                    "Analytique avancee",
                     "Support prioritaire 24/7"
                   ].map((feature, i) => (
                     <li key={i} className="flex items-center gap-3 text-white font-medium">
@@ -624,11 +634,11 @@ export default function Home() {
                 </Button>
                 <ul className="space-y-4">
                   {[
-                    "Numéros illimités",
-                    "Utilisateurs illimités",
+                    "Numeros illimites",
+                    "Utilisateurs illimites",
                     "SLA Garanti 99.9%",
-                    "Intégrations sur mesure",
-                    "Account Manager dédié",
+                    "IA sur mesure + API ouverte",
+                    "Account Manager dedie",
                     "Formation sur site"
                   ].map((feature, i) => (
                     <li key={i} className="flex items-center gap-3 text-foreground font-medium">
@@ -716,13 +726,45 @@ export default function Home() {
         {/* 11. INTEGRATIONS SECTION */}
         <section id="integrations" className="py-24 bg-muted/30 border-y border-border">
           <div className="container mx-auto px-4 text-center">
-            <h2 className="text-3xl font-extrabold text-primary mb-12">Connecté à vos outils préférés</h2>
-            <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16">
-              {['Outlook', 'Google Workspace', 'Microsoft Teams', 'Salesforce', 'Slack', 'Zoom'].map((integration, i) => (
-                <div key={i} className="px-6 py-3 bg-card border border-border rounded-xl shadow-sm font-bold text-muted-foreground hover:text-primary hover:border-primary hover:shadow-md transition-all cursor-pointer">
+            <span className="text-accent font-bold tracking-widest uppercase text-sm mb-4 block">Ecosysteme Complet</span>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-primary mb-4">58 integrations natives</h2>
+            <p className="text-lg text-muted-foreground mb-12 max-w-2xl mx-auto">Connectez l'ensemble de vos outils professionnels en un clic. Trois ecosystemes, une seule plateforme.</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto mb-12">
+              {[
+                { name: "Google Workspace", count: 26, color: "bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800", tools: ["Gmail", "Calendar", "Drive", "Meet", "Docs", "Sheets"] },
+                { name: "Microsoft 365", count: 19, color: "bg-[#0078D4]/5 border-[#0078D4]/20", tools: ["Outlook", "Teams", "OneDrive", "Word", "Excel", "SharePoint"] },
+                { name: "Apple / iCloud", count: 13, color: "bg-gray-50 border-gray-200 dark:bg-gray-900/20 dark:border-gray-700", tools: ["iCloud Mail", "Calendrier", "iCloud Drive", "FaceTime", "Pages", "Notes"] },
+              ].map((platform, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                  className={`rounded-2xl border p-8 ${platform.color} text-left`}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-lg text-foreground">{platform.name}</h3>
+                    <span className="text-sm font-bold text-accent">{platform.count} services</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {platform.tools.map((tool, j) => (
+                      <span key={j} className="px-3 py-1 bg-background/80 border border-border rounded-lg text-xs font-medium text-muted-foreground">{tool}</span>
+                    ))}
+                    <span className="px-3 py-1 bg-accent/10 border border-accent/20 rounded-lg text-xs font-bold text-accent">+{platform.count - platform.tools.length}</span>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap justify-center items-center gap-4 md:gap-6">
+              {['Salesforce', 'Slack', 'Zoom', 'HubSpot', 'Notion', 'Zapier'].map((integration, i) => (
+                <div key={i} className="px-5 py-2.5 bg-card border border-border rounded-xl shadow-sm font-bold text-sm text-muted-foreground hover:text-primary hover:border-primary hover:shadow-md transition-all cursor-pointer">
                   {integration}
                 </div>
               ))}
+              <span className="text-sm text-muted-foreground font-medium">+ 15 autres</span>
             </div>
           </div>
         </section>
@@ -758,8 +800,8 @@ export default function Home() {
                   a: "L'interface est conçue pour être intuitive dès la première utilisation. Cependant, pour le plan Professionnel et supérieur, nous proposons une session de formation d'intégration (onboarding) gratuite de 45 minutes pour votre équipe."
                 },
                 {
-                  q: "Quelles intégrations sont disponibles?",
-                  a: "Nous nous intégrons nativement avec Google Workspace, Microsoft 365, Slack, et Teams. Notre API ouverte vous permet également de connecter Agent de Bureau à votre propre CRM ou ERP personnalisé."
+                  q: "Quelles integrations sont disponibles?",
+                  a: "Agent de Bureau propose 58 integrations natives reparties sur trois ecosystemes : Google Workspace (26 services), Microsoft 365 (19 services) et Apple/iCloud (13 services). Nous integrons egalement Salesforce, HubSpot, Slack, Notion, Zapier et bien d'autres. Notre API ouverte vous permet de connecter vos propres outils."
                 }
               ].map((faq, i) => (
                 <AccordionItem key={i} value={`item-${i}`} className="bg-card border border-border rounded-xl px-6 data-[state=open]:shadow-md transition-all">
@@ -801,7 +843,7 @@ export default function Home() {
 
         {/* 14. CTA & NEWSLETTER SECTION */}
         <section className="py-32 bg-primary text-white text-center relative overflow-hidden">
-          <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-15 mix-blend-overlay pointer-events-none"></div>
+          <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay pointer-events-none" style={{backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.65\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")'}}></div>
           
           <div className="absolute top-0 right-0 w-96 h-96 bg-accent rounded-full mix-blend-screen filter blur-[150px] opacity-20"></div>
           
