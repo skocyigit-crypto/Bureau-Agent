@@ -89,7 +89,8 @@ router.get("/platforms", async (_req, res) => {
     const connLookup = new Map(connections.map(c => [`${c.platform}:${c.serviceId}`, c]));
 
     const platforms = Object.entries(ALL_PLATFORM_SERVICES).map(([platformId, services]) => {
-      const platformConns = connections.filter(c => c.platform === platformId && c.status === "connecte");
+      const validServiceIds = new Set(services.map(s => s.id));
+      const platformConns = connections.filter(c => c.platform === platformId && c.status === "connecte" && validServiceIds.has(c.serviceId));
       return {
         id: platformId,
         name: PLATFORM_NAMES[platformId],
@@ -115,7 +116,9 @@ router.get("/platforms", async (_req, res) => {
       };
     });
 
-    const totalConnected = connections.filter(c => c.status === "connecte").length;
+    const allValidIds = new Set<string>();
+    Object.entries(ALL_PLATFORM_SERVICES).forEach(([pid, svcs]) => svcs.forEach(s => allValidIds.add(`${pid}:${s.id}`)));
+    const totalConnected = connections.filter(c => c.status === "connecte" && allValidIds.has(`${c.platform}:${c.serviceId}`)).length;
     const totalServices = Object.values(ALL_PLATFORM_SERVICES).reduce((sum, s) => sum + s.length, 0);
 
     res.json({ platforms, totalServices, totalConnected });
