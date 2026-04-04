@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Globe, Shield, Bell, Link2, CheckCircle2,
   XCircle, ExternalLink, Calendar, Mail, FolderOpen, FileText, Table2,
@@ -11,7 +11,7 @@ import {
   BarChart3, Megaphone, Search, Cloud, Settings, BookOpen, Bookmark,
   Languages, ShieldQuestion, Radio, Store, ClipboardList, Play,
   Building2, Headphones, Database, PenTool, Layout, Kanban, Newspaper,
-  Workflow, AppWindow, HardDriveDownload, Layers
+  Workflow, AppWindow, HardDriveDownload, Layers, Loader2, Unplug, Plug, Zap, History
 } from "lucide-react";
 import { PhoneSimulator, PhoneSimulatorDialog } from "@/components/phone-simulator";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -908,6 +908,41 @@ const SCAN_STATS = {
   lastScan: "03/04/2026 14:32",
 };
 
+interface PlatformData {
+  id: string;
+  name: string;
+  connected: boolean;
+  connectedCount: number;
+  totalServices: number;
+  lastSync: string | null;
+  services: Array<{
+    id: string;
+    name: string;
+    status: string;
+    lastSync: string | null;
+    connectedAt: string | null;
+  }>;
+}
+
+interface SyncLog {
+  id: number;
+  platform: string;
+  serviceId: string;
+  action: string;
+  status: string;
+  details: string | null;
+  itemsProcessed: string | null;
+  createdAt: string;
+}
+
+const PLATFORM_NAMES_MAP: Record<string, string> = {
+  google: "Google",
+  microsoft: "Microsoft",
+  apple: "Apple",
+};
+
+const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/workspace";
+
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("google");
   const [callRingDuration, setCallRingDuration] = useState("30");
@@ -925,6 +960,15 @@ export default function SettingsPage() {
   const [msSearch, setMsSearch] = useState("");
   const [appleFilter, setAppleFilter] = useState<string>("tous");
   const [appleSearch, setAppleSearch] = useState("");
+
+  const [platformsData, setPlatformsData] = useState<PlatformData[]>([]);
+  const [syncLogs, setSyncLogs] = useState<SyncLog[]>([]);
+  const [loadingPlatforms, setLoadingPlatforms] = useState(true);
+  const [connectingService, setConnectingService] = useState<string | null>(null);
+  const [syncingPlatform, setSyncingPlatform] = useState<string | null>(null);
+  const [connectingAll, setConnectingAll] = useState<string | null>(null);
+  const [showLogs, setShowLogs] = useState(false);
+  const [totalConnected, setTotalConnected] = useState(0);
 
   const [blockExternalDownloads, setBlockExternalDownloads] = useState(true);
   const [superAdminOnlyDownload, setSuperAdminOnlyDownload] = useState(true);
@@ -955,12 +999,104 @@ export default function SettingsPage() {
   const { simulateIncomingCall } = useSimulateCall();
   const { toast } = useToast();
 
-  const handleConnect = (serviceId: string) => {
-    const platformName = activePlatform === "google" ? "Google" : activePlatform === "microsoft" ? "Microsoft" : "Apple";
-    toast({
-      title: "Connexion en cours",
-      description: `Redirection vers ${platformName} pour autoriser ${serviceId}...`,
-    });
+  const fetchPlatforms = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/platforms`);
+      if (res.ok) {
+        const data = await res.json();
+        setPlatformsData(data.platforms || []);
+        setTotalConnected(data.totalConnected || 0);
+      }
+    } catch (err) {
+      console.error("Fetch platforms error:", err);
+    } finally {
+      setLoadingPlatforms(false);
+    }
+  }, []);
+
+  const fetchLogs = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/sync-logs`);
+      if (res.ok) {
+        const data = await res.json();
+        setSyncLogs(data.logs || []);
+      }
+    } catch (err) {
+      console.error("Fetch logs error:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPlatforms();
+  }, [fetchPlatforms]);
+
+  const handleConnect = async (serviceId: string, serviceName: string) => {
+    setConnectingService(`${activePlatform}:${serviceId}`);
+    try {
+      const currentPlatform = platformsData.find(p => p.id === activePlatform);
+      const currentService = currentPlatform?.services.find(s => s.id === serviceId);
+      const isConnected = currentService?.status === "connecte";
+      const endpoint = isConnected ? "disconnect" : "connect";
+
+      const res = await fetch(`${API_BASE}/${endpoint}/${activePlatform}/${serviceId}`, { method: "POST" });
+      if (res.ok) {
+        toast({
+          title: isConnected ? "Service deconnecte" : "Service connecte",
+          description: isConnected
+            ? `${serviceName} a ete deconnecte.`
+            : `${serviceName} a ete connecte avec succes.`,
+        });
+        await fetchPlatforms();
+      } else {
+        toast({ title: "Erreur", description: "Impossible de modifier la connexion.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Erreur reseau.", variant: "destructive" });
+    } finally {
+      setConnectingService(null);
+    }
+  };
+
+  const handleConnectAll = async () => {
+    setConnectingAll(activePlatform);
+    try {
+      const currentPlatform = platformsData.find(p => p.id === activePlatform);
+      const allConnected = currentPlatform && currentPlatform.connectedCount === currentPlatform.totalServices;
+      const endpoint = allConnected ? "disconnect-all" : "connect-all";
+
+      const res = await fetch(`${API_BASE}/${endpoint}/${activePlatform}`, { method: "POST" });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        toast({ title: "Erreur", description: errData?.error || "Impossible de modifier les connexions.", variant: "destructive" });
+        return;
+      }
+      const data = await res.json();
+      toast({ title: allConnected ? "Tous deconnectes" : "Tous connectes", description: data.message });
+      await fetchPlatforms();
+    } catch {
+      toast({ title: "Erreur", description: "Erreur reseau.", variant: "destructive" });
+    } finally {
+      setConnectingAll(null);
+    }
+  };
+
+  const handleSync = async () => {
+    setSyncingPlatform(activePlatform);
+    try {
+      const res = await fetch(`${API_BASE}/sync/${activePlatform}`, { method: "POST" });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        toast({ title: "Erreur", description: errData?.error || "Echec de la synchronisation.", variant: "destructive" });
+        return;
+      }
+      const data = await res.json();
+      toast({ title: "Synchronisation terminee", description: data.message });
+      await fetchPlatforms();
+    } catch {
+      toast({ title: "Erreur", description: "Erreur de synchronisation.", variant: "destructive" });
+    } finally {
+      setSyncingPlatform(null);
+    }
   };
 
   const handleSecurityAction = (action: string) => {
@@ -968,6 +1104,14 @@ export default function SettingsPage() {
       title: "Action de securite",
       description: action,
     });
+  };
+
+  const currentPlatformData = platformsData.find(p => p.id === activePlatform);
+  const getServiceStatus = (serviceId: string): string => {
+    return currentPlatformData?.services.find(s => s.id === serviceId)?.status || "deconnecte";
+  };
+  const getServiceLastSync = (serviceId: string): string | null => {
+    return currentPlatformData?.services.find(s => s.id === serviceId)?.lastSync || null;
   };
 
   return (
@@ -1002,69 +1146,110 @@ export default function SettingsPage() {
         </TabsList>
 
         <TabsContent value="google" className="space-y-6 mt-6">
+          {totalConnected > 0 && (
+            <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+                    <Zap className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm text-emerald-800 dark:text-emerald-300">{totalConnected} service{totalConnected > 1 ? "s" : ""} connecte{totalConnected > 1 ? "s" : ""} au total</p>
+                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400">
+                      {platformsData.filter(p => p.connectedCount > 0).map(p => `${p.name}: ${p.connectedCount}/${p.totalServices}`).join(" | ")}
+                    </p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" className="text-xs" onClick={() => { setShowLogs(!showLogs); if (!showLogs) fetchLogs(); }}>
+                  <History className="w-3.5 h-3.5 mr-1.5" />
+                  {showLogs ? "Masquer" : "Journal"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {showLogs && syncLogs.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2"><History className="w-4 h-4" /> Journal des connexions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {syncLogs.slice(0, 20).map(log => (
+                    <div key={log.id} className="flex items-center gap-3 text-xs border-b pb-2 last:border-0">
+                      <Badge variant="outline" className={`text-[9px] ${log.status === "succes" ? "text-emerald-600 border-emerald-300" : "text-red-600 border-red-300"}`}>
+                        {log.status}
+                      </Badge>
+                      <Badge variant="secondary" className="text-[9px]">
+                        {PLATFORM_NAMES_MAP[log.platform] || log.platform}
+                      </Badge>
+                      <span className="text-muted-foreground flex-1">{log.details}</span>
+                      <span className="text-muted-foreground text-[10px] shrink-0">
+                        {new Date(log.createdAt).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <div className="grid grid-cols-3 gap-3">
-            <button
-              onClick={() => { setActivePlatform("google"); setGoogleFilter("tous"); setGoogleSearch(""); }}
-              className={`relative border rounded-xl p-4 text-left transition-all ${activePlatform === "google" ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 ring-1 ring-blue-500/30" : "hover:border-muted-foreground/30"}`}
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className={`p-2 rounded-lg ${activePlatform === "google" ? "bg-blue-100 dark:bg-blue-900/30" : "bg-muted"}`}>
-                  <Globe className={`w-5 h-5 ${activePlatform === "google" ? "text-blue-600" : "text-muted-foreground"}`} />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm">Google Workspace</h3>
-                  <p className="text-[10px] text-muted-foreground">{GOOGLE_SERVICES.length} services disponibles</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 mt-2">
-                <Badge variant="outline" className="text-[10px]">Gmail</Badge>
-                <Badge variant="outline" className="text-[10px]">Drive</Badge>
-                <Badge variant="outline" className="text-[10px]">Calendar</Badge>
-                <Badge variant="outline" className="text-[10px]">+{GOOGLE_SERVICES.length - 3}</Badge>
-              </div>
-            </button>
+            {([
+              { id: "google" as const, name: "Google Workspace", icon: Globe, color: "blue", badges: ["Gmail", "Drive", "Calendar"], services: GOOGLE_SERVICES },
+              { id: "microsoft" as const, name: "Microsoft 365", icon: AppWindow, color: "[#0078D4]", badges: ["Outlook", "Teams", "OneDrive"], services: MICROSOFT_SERVICES },
+              { id: "apple" as const, name: "Apple / iCloud", icon: Smartphone, color: "gray-800", badges: ["iCloud", "FaceTime", "Pages"], services: APPLE_SERVICES },
+            ]).map(plat => {
+              const pd = platformsData.find(p => p.id === plat.id);
+              const connCount = pd?.connectedCount || 0;
+              const isActive = activePlatform === plat.id;
+              const activeColors = plat.id === "google"
+                ? "border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 ring-1 ring-blue-500/30"
+                : plat.id === "microsoft"
+                  ? "border-[#0078D4] bg-[#0078D4]/5 dark:bg-[#0078D4]/10 ring-1 ring-[#0078D4]/30"
+                  : "border-gray-800 bg-gray-50 dark:bg-gray-900/30 ring-1 ring-gray-800/30";
+              const iconBg = plat.id === "google"
+                ? (isActive ? "bg-blue-100 dark:bg-blue-900/30" : "bg-muted")
+                : plat.id === "microsoft"
+                  ? (isActive ? "bg-[#0078D4]/10" : "bg-muted")
+                  : (isActive ? "bg-gray-200 dark:bg-gray-800" : "bg-muted");
+              const iconColor = plat.id === "google"
+                ? (isActive ? "text-blue-600" : "text-muted-foreground")
+                : plat.id === "microsoft"
+                  ? (isActive ? "text-[#0078D4]" : "text-muted-foreground")
+                  : (isActive ? "text-gray-800 dark:text-gray-200" : "text-muted-foreground");
 
-            <button
-              onClick={() => { setActivePlatform("microsoft"); setMsFilter("tous"); setMsSearch(""); }}
-              className={`relative border rounded-xl p-4 text-left transition-all ${activePlatform === "microsoft" ? "border-[#0078D4] bg-[#0078D4]/5 dark:bg-[#0078D4]/10 ring-1 ring-[#0078D4]/30" : "hover:border-muted-foreground/30"}`}
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className={`p-2 rounded-lg ${activePlatform === "microsoft" ? "bg-[#0078D4]/10" : "bg-muted"}`}>
-                  <AppWindow className={`w-5 h-5 ${activePlatform === "microsoft" ? "text-[#0078D4]" : "text-muted-foreground"}`} />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm">Microsoft 365</h3>
-                  <p className="text-[10px] text-muted-foreground">{MICROSOFT_SERVICES.length} services disponibles</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 mt-2">
-                <Badge variant="outline" className="text-[10px]">Outlook</Badge>
-                <Badge variant="outline" className="text-[10px]">Teams</Badge>
-                <Badge variant="outline" className="text-[10px]">OneDrive</Badge>
-                <Badge variant="outline" className="text-[10px]">+{MICROSOFT_SERVICES.length - 3}</Badge>
-              </div>
-            </button>
-
-            <button
-              onClick={() => { setActivePlatform("apple"); setAppleFilter("tous"); setAppleSearch(""); }}
-              className={`relative border rounded-xl p-4 text-left transition-all ${activePlatform === "apple" ? "border-gray-800 bg-gray-50 dark:bg-gray-900/30 ring-1 ring-gray-800/30" : "hover:border-muted-foreground/30"}`}
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className={`p-2 rounded-lg ${activePlatform === "apple" ? "bg-gray-200 dark:bg-gray-800" : "bg-muted"}`}>
-                  <Smartphone className={`w-5 h-5 ${activePlatform === "apple" ? "text-gray-800 dark:text-gray-200" : "text-muted-foreground"}`} />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm">Apple / iCloud</h3>
-                  <p className="text-[10px] text-muted-foreground">{APPLE_SERVICES.length} services disponibles</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 mt-2">
-                <Badge variant="outline" className="text-[10px]">iCloud</Badge>
-                <Badge variant="outline" className="text-[10px]">FaceTime</Badge>
-                <Badge variant="outline" className="text-[10px]">Pages</Badge>
-                <Badge variant="outline" className="text-[10px]">+{APPLE_SERVICES.length - 3}</Badge>
-              </div>
-            </button>
+              return (
+                <button
+                  key={plat.id}
+                  onClick={() => { setActivePlatform(plat.id); }}
+                  className={`relative border rounded-xl p-4 text-left transition-all ${isActive ? activeColors : "hover:border-muted-foreground/30"}`}
+                >
+                  {connCount > 0 && (
+                    <div className="absolute top-2 right-2">
+                      <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-[9px]">
+                        {connCount}/{plat.services.length}
+                      </Badge>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`p-2 rounded-lg ${iconBg}`}>
+                      <plat.icon className={`w-5 h-5 ${iconColor}`} />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-sm">{plat.name}</h3>
+                      <p className="text-[10px] text-muted-foreground">
+                        {connCount > 0 ? `${connCount} connecte${connCount > 1 ? "s" : ""}` : `${plat.services.length} services`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    {plat.badges.map(b => <Badge key={b} variant="outline" className="text-[10px]">{b}</Badge>)}
+                    <Badge variant="outline" className="text-[10px]">+{plat.services.length - 3}</Badge>
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
           <Card>
@@ -1085,12 +1270,49 @@ export default function SettingsPage() {
                     {activePlatform === "apple" && "Compatibilite avec l'ecosysteme Apple. Synchronisez iCloud, Calendrier, Contacts et tous les services Apple professionnels."}
                   </CardDescription>
                 </div>
-                <Badge className={`border-0 text-xs ${activePlatform === "google" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" : activePlatform === "microsoft" ? "bg-[#0078D4]/10 text-[#0078D4]" : "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"}`}>
-                  {activePlatform === "google" && `${GOOGLE_SERVICES.length} applications`}
-                  {activePlatform === "microsoft" && `${MICROSOFT_SERVICES.length} applications`}
-                  {activePlatform === "apple" && `${APPLE_SERVICES.length} applications`}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  {currentPlatformData && currentPlatformData.connectedCount > 0 && (
+                    <Button variant="outline" size="sm" className="text-xs" onClick={handleSync} disabled={syncingPlatform !== null}>
+                      {syncingPlatform === activePlatform ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1.5" />}
+                      Synchroniser
+                    </Button>
+                  )}
+                  <Button
+                    variant={currentPlatformData && currentPlatformData.connectedCount === currentPlatformData.totalServices ? "outline" : "default"}
+                    size="sm"
+                    className="text-xs"
+                    onClick={handleConnectAll}
+                    disabled={connectingAll !== null}
+                  >
+                    {connectingAll === activePlatform ? (
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    ) : currentPlatformData && currentPlatformData.connectedCount === currentPlatformData.totalServices ? (
+                      <Unplug className="w-3.5 h-3.5 mr-1.5" />
+                    ) : (
+                      <Plug className="w-3.5 h-3.5 mr-1.5" />
+                    )}
+                    {currentPlatformData && currentPlatformData.connectedCount === currentPlatformData.totalServices ? "Tout deconnecter" : "Tout connecter"}
+                  </Button>
+                </div>
               </div>
+              {currentPlatformData && currentPlatformData.connectedCount > 0 && (
+                <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    {currentPlatformData.connectedCount} connecte{currentPlatformData.connectedCount > 1 ? "s" : ""}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <XCircle className="w-3.5 h-3.5 text-muted-foreground" />
+                    {currentPlatformData.totalServices - currentPlatformData.connectedCount} non connecte{(currentPlatformData.totalServices - currentPlatformData.connectedCount) > 1 ? "s" : ""}
+                  </span>
+                  {currentPlatformData.lastSync && (
+                    <span className="flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5" />
+                      Derniere sync: {new Date(currentPlatformData.lastSync).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  )}
+                </div>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="relative">
@@ -1151,12 +1373,17 @@ export default function SettingsPage() {
                           const q = search.toLowerCase();
                           return s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q);
                         })
-                        .map((service) => (
-                        <div key={service.id} className="border rounded-xl p-4 hover:border-primary/30 transition-colors">
+                        .map((service) => {
+                          const svcStatus = getServiceStatus(service.id);
+                          const isConnected = svcStatus === "connecte";
+                          const isLoading = connectingService === `${activePlatform}:${service.id}`;
+                          const lastSyncTime = getServiceLastSync(service.id);
+                          return (
+                        <div key={service.id} className={`border rounded-xl p-4 transition-colors ${isConnected ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50/30 dark:bg-emerald-950/10" : "hover:border-primary/30"}`}>
                           <div className="flex items-start justify-between">
                             <div className="flex items-start gap-4">
-                              <div className={`p-2.5 rounded-lg ${service.status === "connecte" ? "bg-emerald-100 dark:bg-emerald-900/30" : "bg-muted"}`}>
-                                <service.icon className={`w-5 h-5 ${service.status === "connecte" ? "text-emerald-600" : "text-muted-foreground"}`} />
+                              <div className={`p-2.5 rounded-lg ${isConnected ? "bg-emerald-100 dark:bg-emerald-900/30" : "bg-muted"}`}>
+                                <service.icon className={`w-5 h-5 ${isConnected ? "text-emerald-600" : "text-muted-foreground"}`} />
                               </div>
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
@@ -1164,7 +1391,7 @@ export default function SettingsPage() {
                                   <Badge className={(categories[service.categorie]?.couleur || "bg-gray-100 text-gray-700") + " border-0 text-[10px]"}>
                                     {categories[service.categorie]?.label || service.categorie}
                                   </Badge>
-                                  {service.status === "connecte" ? (
+                                  {isConnected ? (
                                     <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-[10px]">
                                       <CheckCircle2 className="w-3 h-3 mr-1" />
                                       Connecte
@@ -1175,11 +1402,17 @@ export default function SettingsPage() {
                                     </Badge>
                                   )}
                                 </div>
-                                <p className="text-xs text-muted-foreground mb-3">{service.description}</p>
+                                <p className="text-xs text-muted-foreground mb-2">{service.description}</p>
+                                {isConnected && lastSyncTime && (
+                                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    Derniere sync: {new Date(lastSyncTime).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                                  </p>
+                                )}
                                 <div className="grid grid-cols-2 gap-1.5">
                                   {service.features.map((feature, i) => (
                                     <div key={i} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                      <div className="w-1 h-1 rounded-full bg-primary/50" />
+                                      <div className={`w-1 h-1 rounded-full ${isConnected ? "bg-emerald-500" : "bg-primary/50"}`} />
                                       {feature}
                                     </div>
                                   ))}
@@ -1187,26 +1420,25 @@ export default function SettingsPage() {
                               </div>
                             </div>
                             <Button
-                              variant={service.status === "connecte" ? "outline" : "default"}
+                              variant={isConnected ? "outline" : "default"}
                               size="sm"
-                              className="shrink-0"
-                              onClick={() => handleConnect(service.id)}
+                              className={`shrink-0 ${isConnected ? "text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" : ""}`}
+                              onClick={() => handleConnect(service.id, service.name)}
+                              disabled={isLoading}
                             >
-                              {service.status === "connecte" ? (
-                                <>
-                                  <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-                                  Reconnecter
-                                </>
+                              {isLoading ? (
+                                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                              ) : isConnected ? (
+                                <Unplug className="w-3.5 h-3.5 mr-1.5" />
                               ) : (
-                                <>
-                                  <Link2 className="w-3.5 h-3.5 mr-1.5" />
-                                  Connecter
-                                </>
+                                <Link2 className="w-3.5 h-3.5 mr-1.5" />
                               )}
+                              {isLoading ? "En cours..." : isConnected ? "Deconnecter" : "Connecter"}
                             </Button>
                           </div>
                         </div>
-                      ))}
+                          );
+                        })}
                     </div>
                   </>
                 );
