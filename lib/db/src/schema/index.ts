@@ -7,3 +7,4 @@ export * from "./checkins";
 export * from "./ai-agent-reports";
 export * from "./stock";
 export * from "./platform-connections";
+export * from "./auto-backups";

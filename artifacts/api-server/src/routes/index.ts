@@ -11,6 +11,7 @@ import integrationsRouter from "./integrations";
 import checkinsRouter from "./checkins";
 import aiAgentsRouter from "./ai-agents";
 import stockRouter from "./stock";
+import backupsRouter from "./backups";
 
 const router: IRouter = Router();
 
@@ -24,6 +25,7 @@ router.use(aiAnalysisRouter);
 router.use(aiAgentsRouter);
 router.use(stockRouter);
 router.use("/workspace", workspaceRouter);
+router.use("/workspace", backupsRouter);
 router.use("/integrations", integrationsRouter);
 router.use(checkinsRouter);
 

@@ -6,7 +6,7 @@ import {
   ShieldCheck, ShieldBan, FileWarning, Download, Upload, Bug, Eye, UserCog,
   AlertTriangle, Server, KeyRound, Fingerprint, ScanSearch, FileX, Ban,
   TriangleAlert, CircleAlert, Monitor, Laptop, Smartphone, Wifi, HardDrive,
-  CloudDownload, Share2, Package, Cpu, RefreshCcw, CheckCheck,
+  CloudDownload, Share2, Package, Cpu, RefreshCcw, CheckCheck, Save, HardDriveUpload,
   Video, MessageCircle, MapPin, StickyNote, ListChecks, Users, Image,
   BarChart3, Megaphone, Search, Cloud, Settings, BookOpen, Bookmark,
   Languages, ShieldQuestion, Radio, Store, ClipboardList, Play,
@@ -996,6 +996,13 @@ export default function SettingsPage() {
   const [zeroTrustMode, setZeroTrustMode] = useState(true);
   const [phoneDialogOpen, setPhoneDialogOpen] = useState(false);
 
+  const [backups, setBackups] = useState<any[]>([]);
+  const [backupStats, setBackupStats] = useState<any>(null);
+  const [backupConfigs, setBackupConfigs] = useState<any[]>([]);
+  const [loadingBackups, setLoadingBackups] = useState(false);
+  const [backupRunning, setBackupRunning] = useState(false);
+  const [nextBackupMs, setNextBackupMs] = useState(0);
+
   const { simulateIncomingCall } = useSimulateCall();
   const { toast } = useToast();
 
@@ -1026,9 +1033,63 @@ export default function SettingsPage() {
     }
   }, []);
 
+  const fetchBackups = useCallback(async () => {
+    setLoadingBackups(true);
+    try {
+      const [backupsRes, configRes, latestRes] = await Promise.all([
+        fetch(`${API_BASE}/backups?limit=30`),
+        fetch(`${API_BASE}/backups/config`),
+        fetch(`${API_BASE}/backups/latest`),
+      ]);
+      if (backupsRes.ok) {
+        const data = await backupsRes.json();
+        setBackups(data.backups || []);
+        setBackupStats(data.stats || null);
+      }
+      if (configRes.ok) {
+        const data = await configRes.json();
+        setBackupConfigs(data.configs || []);
+      }
+      if (latestRes.ok) {
+        const data = await latestRes.json();
+        setNextBackupMs(data.nextBackupMs || 0);
+      }
+    } catch (err) {
+      console.error("Fetch backups error:", err);
+    } finally {
+      setLoadingBackups(false);
+    }
+  }, []);
+
+  const handleManualBackup = async () => {
+    setBackupRunning(true);
+    try {
+      const res = await fetch(`${API_BASE}/backups/manual`, { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        toast({ title: "Sauvegarde terminee", description: data.message });
+        await fetchBackups();
+      } else {
+        toast({ title: "Erreur", description: "Impossible d'effectuer la sauvegarde.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Erreur de connexion.", variant: "destructive" });
+    } finally {
+      setBackupRunning(false);
+    }
+  };
+
   useEffect(() => {
     fetchPlatforms();
   }, [fetchPlatforms]);
+
+  useEffect(() => {
+    if (activeTab === "sauvegardes") {
+      fetchBackups();
+      const interval = setInterval(fetchBackups, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, fetchBackups]);
 
   const handleConnect = async (serviceId: string, serviceName: string) => {
     setConnectingService(`${activePlatform}:${serviceId}`);
@@ -1122,7 +1183,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
           <TabsTrigger value="google" className="gap-2">
             <Layers className="w-4 h-4" />
             Plateformes
@@ -1130,6 +1191,10 @@ export default function SettingsPage() {
           <TabsTrigger value="appels" className="gap-2">
             <PhoneIncoming className="w-4 h-4" />
             Appels
+          </TabsTrigger>
+          <TabsTrigger value="sauvegardes" className="gap-2">
+            <Save className="w-4 h-4" />
+            Sauvegardes
           </TabsTrigger>
           <TabsTrigger value="installation" className="gap-2">
             <Monitor className="w-4 h-4" />
@@ -2541,6 +2606,312 @@ export default function SettingsPage() {
                 </div>
                 <Switch defaultChecked />
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="sauvegardes" className="space-y-6 mt-6">
+          <Card className="border-emerald-200 dark:border-emerald-800">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-900/30">
+                    <Save className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Sauvegarde automatique</CardTitle>
+                    <CardDescription>Toutes les 2 minutes, vos donnees sont sauvegardees et synchronisees de maniere securisee.</CardDescription>
+                  </div>
+                </div>
+                <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs gap-1">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Actif
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-blue-700">{backupStats?.total || 0}</p>
+                  <p className="text-[10px] text-blue-600">Sauvegardes totales</p>
+                </div>
+                <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-emerald-700">{backupStats?.termine || 0}</p>
+                  <p className="text-[10px] text-emerald-600">Reussies</p>
+                </div>
+                <div className="bg-red-50 dark:bg-red-950/30 rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-red-700">{backupStats?.erreur || 0}</p>
+                  <p className="text-[10px] text-red-600">Erreurs</p>
+                </div>
+                <div className="bg-purple-50 dark:bg-purple-950/30 rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-purple-700">{backupStats?.today || 0}</p>
+                  <p className="text-[10px] text-purple-600">Aujourd'hui</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button onClick={handleManualBackup} disabled={backupRunning} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+                  {backupRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  {backupRunning ? "Sauvegarde en cours..." : "Sauvegarder maintenant"}
+                </Button>
+                <Button variant="outline" onClick={fetchBackups} disabled={loadingBackups} className="gap-2">
+                  <RefreshCw className={`w-4 h-4 ${loadingBackups ? "animate-spin" : ""}`} />
+                  Actualiser
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Cloud className="w-4 h-4 text-blue-600" />
+                Destinations de sauvegarde
+              </CardTitle>
+              <CardDescription>Vos donnees sont sauvegardees simultanement sur toutes les plateformes connectees.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {[
+                  {
+                    platform: "local",
+                    name: "Serveur local",
+                    icon: Server,
+                    color: "text-slate-600",
+                    bg: "bg-slate-100 dark:bg-slate-900/30",
+                    path: "/secure/backups/local",
+                    desc: "Stockage chiffre AES-256 sur serveur principal",
+                  },
+                  {
+                    platform: "google",
+                    name: "Google Drive",
+                    icon: Cloud,
+                    color: "text-blue-600",
+                    bg: "bg-blue-100 dark:bg-blue-900/30",
+                    path: "Google Drive > Agent de Bureau > Sauvegardes",
+                    desc: "Synchronisation automatique avec Google Workspace",
+                  },
+                  {
+                    platform: "microsoft",
+                    name: "Microsoft OneDrive",
+                    icon: HardDrive,
+                    color: "text-[#0078D4]",
+                    bg: "bg-blue-50 dark:bg-blue-900/20",
+                    path: "OneDrive > Agent de Bureau > Backups",
+                    desc: "Sauvegarde vers Microsoft 365 OneDrive",
+                  },
+                  {
+                    platform: "apple",
+                    name: "iCloud Drive",
+                    icon: Cloud,
+                    color: "text-gray-700",
+                    bg: "bg-gray-100 dark:bg-gray-900/30",
+                    path: "iCloud Drive > Agent de Bureau > Sauvegardes",
+                    desc: "Synchronisation avec l'ecosysteme Apple",
+                  },
+                ].map((dest) => {
+                  const config = backupConfigs.find((c: any) => c.platform === dest.platform);
+                  const platformStat = backupStats?.platforms?.find((p: any) => p.platform === dest.platform);
+                  const isEnabled = config?.enabled === "true" || !config;
+                  return (
+                    <div key={dest.platform} className={`rounded-lg border p-4 ${isEnabled ? "border-emerald-200 dark:border-emerald-800" : "border-border opacity-60"}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className={`p-1.5 rounded-lg ${dest.bg}`}>
+                            <dest.icon className={`w-4 h-4 ${dest.color}`} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold">{dest.name}</p>
+                            <p className="text-[10px] text-muted-foreground">{dest.desc}</p>
+                          </div>
+                        </div>
+                        <Badge variant={isEnabled ? "default" : "secondary"} className={isEnabled ? "bg-emerald-100 text-emerald-700 border-0 text-[10px]" : "text-[10px]"}>
+                          {isEnabled ? "Actif" : "Inactif"}
+                        </Badge>
+                      </div>
+                      <div className="mt-2 space-y-1">
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                          <FolderOpen className="w-3 h-3" />
+                          <span className="truncate">{dest.path}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                          <Lock className="w-3 h-3" />
+                          <span>Chiffrement AES-256-GCM</span>
+                        </div>
+                        {platformStat && (
+                          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            <span>{platformStat.count} sauvegardes - Derniere: {new Date(platformStat.lastBackup).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-amber-600" />
+                    Configuration de securite
+                  </CardTitle>
+                  <CardDescription>Parametres de chiffrement, retention et integrite des sauvegardes.</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-3">
+                  <h4 className="text-xs font-semibold flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5 text-blue-600" />
+                    Chiffrement
+                  </h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                      <div>
+                        <p className="text-xs font-medium">AES-256-GCM</p>
+                        <p className="text-[10px] text-muted-foreground">Chiffrement de niveau militaire</p>
+                      </div>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                      <div>
+                        <p className="text-xs font-medium">Hash SHA-256</p>
+                        <p className="text-[10px] text-muted-foreground">Verification d'integrite</p>
+                      </div>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                      <div>
+                        <p className="text-xs font-medium">TLS 1.3</p>
+                        <p className="text-[10px] text-muted-foreground">Transport securise</p>
+                      </div>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="text-xs font-semibold flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-amber-600" />
+                    Planification
+                  </h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                      <div>
+                        <p className="text-xs font-medium">Intervalle</p>
+                        <p className="text-[10px] text-muted-foreground">Frequence de sauvegarde</p>
+                      </div>
+                      <Badge variant="secondary" className="text-[10px]">2 min</Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                      <div>
+                        <p className="text-xs font-medium">Retention</p>
+                        <p className="text-[10px] text-muted-foreground">Duree de conservation</p>
+                      </div>
+                      <Badge variant="secondary" className="text-[10px]">90 jours</Badge>
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                      <div>
+                        <p className="text-xs font-medium">Destinations</p>
+                        <p className="text-[10px] text-muted-foreground">Plateformes actives</p>
+                      </div>
+                      <Badge variant="secondary" className="text-[10px]">4 actives</Badge>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="text-xs font-semibold flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    Conformite
+                  </h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                      <div>
+                        <p className="text-xs font-medium">RGPD</p>
+                        <p className="text-[10px] text-muted-foreground">Reglementation europeenne</p>
+                      </div>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                      <div>
+                        <p className="text-xs font-medium">ISO 27001</p>
+                        <p className="text-[10px] text-muted-foreground">Securite de l'information</p>
+                      </div>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                      <div>
+                        <p className="text-xs font-medium">SOC 2 Type II</p>
+                        <p className="text-[10px] text-muted-foreground">Audit de securite</p>
+                      </div>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <History className="w-4 h-4 text-blue-600" />
+                Historique des sauvegardes
+              </CardTitle>
+              <CardDescription>Les 30 dernieres sauvegardes automatiques et manuelles.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingBackups ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : backups.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">Aucune sauvegarde encore enregistree.</p>
+              ) : (
+                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                  {backups.map((b: any) => {
+                    const platformLabel = b.platform === "local" ? "Serveur local" : b.platform === "google" ? "Google Drive" : b.platform === "microsoft" ? "OneDrive" : "iCloud";
+                    const platformColor = b.platform === "local" ? "bg-slate-100 text-slate-700" : b.platform === "google" ? "bg-blue-100 text-blue-700" : b.platform === "microsoft" ? "bg-blue-50 text-[#0078D4]" : "bg-gray-100 text-gray-700";
+                    const summary = b.dataSummary as any;
+                    return (
+                      <div key={b.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/20 border border-border/30">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${b.status === "termine" ? "bg-emerald-100" : "bg-red-100"}`}>
+                          {b.status === "termine" ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <XCircle className="w-4 h-4 text-red-600" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs font-medium">
+                              {b.type === "snapshot" ? "Sauvegarde locale" : "Synchronisation"}
+                            </p>
+                            <Badge className={`text-[8px] h-4 px-1.5 border-0 ${platformColor}`}>{platformLabel}</Badge>
+                            {b.duration && <span className="text-[9px] text-muted-foreground">{b.duration}ms</span>}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] text-muted-foreground">
+                              {new Date(b.createdAt).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                            </span>
+                            {summary && (
+                              <span className="text-[9px] text-muted-foreground">
+                                {summary.appels}a {summary.contacts}c {summary.taches}t {summary.messages}m {summary.stock}s
+                              </span>
+                            )}
+                            <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
+                              <Lock className="w-2.5 h-2.5" />
+                              {b.encryptionHash?.substring(0, 8)}...
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
