@@ -12,3 +12,4 @@ export * from "./prospects";
 export * from "./devis";
 export * from "./factures";
 export * from "./chantiers";
+export * from "./situations";
