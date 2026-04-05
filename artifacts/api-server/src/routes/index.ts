@@ -12,6 +12,10 @@ import checkinsRouter from "./checkins";
 import aiAgentsRouter from "./ai-agents";
 import stockRouter from "./stock";
 import backupsRouter from "./backups";
+import prospectsRouter from "./prospects";
+import devisRouter from "./devis";
+import facturesRouter from "./factures";
+import chantiersRouter from "./chantiers";
 
 const router: IRouter = Router();
 
@@ -28,5 +32,9 @@ router.use("/workspace", workspaceRouter);
 router.use("/workspace", backupsRouter);
 router.use("/integrations", integrationsRouter);
 router.use(checkinsRouter);
+router.use(prospectsRouter);
+router.use(devisRouter);
+router.use(facturesRouter);
+router.use(chantiersRouter);
 
 export default router;

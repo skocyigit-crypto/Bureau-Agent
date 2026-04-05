@@ -8,3 +8,7 @@ export * from "./ai-agent-reports";
 export * from "./stock";
 export * from "./platform-connections";
 export * from "./auto-backups";
+export * from "./prospects";
+export * from "./devis";
+export * from "./factures";
+export * from "./chantiers";

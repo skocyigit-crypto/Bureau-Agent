@@ -2052,3 +2052,623 @@ export const TestIntegrationResponse = zod.object({
   message: zod.string().optional(),
   latency: zod.number().optional(),
 });
+
+/**
+ * @summary List all prospects
+ */
+export const listProspectsQueryLimitDefault = 50;
+export const listProspectsQueryOffsetDefault = 0;
+export const listProspectsQuerySortByDefault = `createdAt`;
+export const listProspectsQuerySortOrderDefault = `desc`;
+
+export const ListProspectsQueryParams = zod.object({
+  statut: zod.enum(["prospect", "client", "all"]).optional(),
+  limit: zod.coerce.number().default(listProspectsQueryLimitDefault),
+  offset: zod.coerce.number().default(listProspectsQueryOffsetDefault),
+  search: zod.coerce.string().optional(),
+  sortBy: zod
+    .enum(["createdAt", "nom", "societe", "statut"])
+    .default(listProspectsQuerySortByDefault),
+  sortOrder: zod
+    .enum(["asc", "desc"])
+    .default(listProspectsQuerySortOrderDefault),
+});
+
+export const ListProspectsResponse = zod.object({
+  prospects: zod.array(
+    zod.object({
+      id: zod.number(),
+      prenom: zod.string(),
+      nom: zod.string(),
+      societe: zod.string().nullish(),
+      email: zod.string().nullish(),
+      telephone: zod.string(),
+      mobile: zod.string().nullish(),
+      adresse: zod.string().nullish(),
+      ville: zod.string().nullish(),
+      codePostal: zod.string().nullish(),
+      source: zod.string(),
+      statut: zod.enum(["prospect", "client"]),
+      notes: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Create a prospect
+ */
+export const CreateProspectBody = zod.object({
+  prenom: zod.string(),
+  nom: zod.string(),
+  societe: zod.string().optional(),
+  email: zod.string().optional(),
+  telephone: zod.string(),
+  mobile: zod.string().optional(),
+  adresse: zod.string().optional(),
+  ville: zod.string().optional(),
+  codePostal: zod.string().optional(),
+  source: zod.string().optional(),
+  notes: zod.string().optional(),
+});
+
+/**
+ * @summary Get a prospect by ID
+ */
+export const GetProspectParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetProspectResponse = zod.object({
+  id: zod.number(),
+  prenom: zod.string(),
+  nom: zod.string(),
+  societe: zod.string().nullish(),
+  email: zod.string().nullish(),
+  telephone: zod.string(),
+  mobile: zod.string().nullish(),
+  adresse: zod.string().nullish(),
+  ville: zod.string().nullish(),
+  codePostal: zod.string().nullish(),
+  source: zod.string(),
+  statut: zod.enum(["prospect", "client"]),
+  notes: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Update a prospect
+ */
+export const UpdateProspectParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateProspectBody = zod.object({
+  prenom: zod.string().optional(),
+  nom: zod.string().optional(),
+  societe: zod.string().optional(),
+  email: zod.string().optional(),
+  telephone: zod.string().optional(),
+  mobile: zod.string().optional(),
+  adresse: zod.string().optional(),
+  ville: zod.string().optional(),
+  codePostal: zod.string().optional(),
+  source: zod.string().optional(),
+  statut: zod.string().optional(),
+  notes: zod.string().optional(),
+});
+
+export const UpdateProspectResponse = zod.object({
+  id: zod.number(),
+  prenom: zod.string(),
+  nom: zod.string(),
+  societe: zod.string().nullish(),
+  email: zod.string().nullish(),
+  telephone: zod.string(),
+  mobile: zod.string().nullish(),
+  adresse: zod.string().nullish(),
+  ville: zod.string().nullish(),
+  codePostal: zod.string().nullish(),
+  source: zod.string(),
+  statut: zod.enum(["prospect", "client"]),
+  notes: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a prospect
+ */
+export const DeleteProspectParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary List all devis
+ */
+export const listDevisQueryLimitDefault = 50;
+export const listDevisQueryOffsetDefault = 0;
+export const listDevisQuerySortByDefault = `createdAt`;
+export const listDevisQuerySortOrderDefault = `desc`;
+
+export const ListDevisQueryParams = zod.object({
+  statut: zod
+    .enum(["brouillon", "envoye", "accepte", "refuse", "expire", "all"])
+    .optional(),
+  limit: zod.coerce.number().default(listDevisQueryLimitDefault),
+  offset: zod.coerce.number().default(listDevisQueryOffsetDefault),
+  search: zod.coerce.string().optional(),
+  sortBy: zod
+    .enum(["createdAt", "numero", "montantTtc", "statut", "dateCreation"])
+    .default(listDevisQuerySortByDefault),
+  sortOrder: zod.enum(["asc", "desc"]).default(listDevisQuerySortOrderDefault),
+});
+
+export const ListDevisResponse = zod.object({
+  devis: zod.array(
+    zod.object({
+      id: zod.number(),
+      numero: zod.string(),
+      prospectId: zod.number(),
+      objet: zod.string(),
+      description: zod.string().nullish(),
+      dateCreation: zod.coerce.date().optional(),
+      dateValidite: zod.coerce.date().nullish(),
+      statut: zod.enum(["brouillon", "envoye", "accepte", "refuse", "expire"]),
+      montantHt: zod.string(),
+      tva: zod.string(),
+      montantTtc: zod.string(),
+      conditions: zod.string().nullish(),
+      notes: zod.string().nullish(),
+      prospectNom: zod.string().nullish(),
+      prospectPrenom: zod.string().nullish(),
+      prospectSociete: zod.string().nullish(),
+      lignes: zod
+        .array(
+          zod.object({
+            id: zod.number(),
+            devisId: zod.number(),
+            description: zod.string(),
+            metier: zod.string().nullish(),
+            quantite: zod.string(),
+            unite: zod.string(),
+            prixUnitaire: zod.string(),
+            montantHt: zod.string(),
+            ordre: zod.number(),
+            createdAt: zod.coerce.date().optional(),
+          }),
+        )
+        .optional(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Create a devis
+ */
+export const CreateDevisBody = zod.object({
+  prospectId: zod.number(),
+  objet: zod.string(),
+  description: zod.string().optional(),
+  dateValidite: zod.coerce.date().optional(),
+  conditions: zod.string().optional(),
+  notes: zod.string().optional(),
+  lignes: zod
+    .array(
+      zod.object({
+        description: zod.string(),
+        metier: zod.string().optional(),
+        quantite: zod.number().optional(),
+        unite: zod.string().optional(),
+        prixUnitaire: zod.number().optional(),
+      }),
+    )
+    .optional(),
+});
+
+/**
+ * @summary Get a devis by ID
+ */
+export const GetDevisParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetDevisResponse = zod.object({
+  id: zod.number(),
+  numero: zod.string(),
+  prospectId: zod.number(),
+  objet: zod.string(),
+  description: zod.string().nullish(),
+  dateCreation: zod.coerce.date().optional(),
+  dateValidite: zod.coerce.date().nullish(),
+  statut: zod.enum(["brouillon", "envoye", "accepte", "refuse", "expire"]),
+  montantHt: zod.string(),
+  tva: zod.string(),
+  montantTtc: zod.string(),
+  conditions: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  prospectNom: zod.string().nullish(),
+  prospectPrenom: zod.string().nullish(),
+  prospectSociete: zod.string().nullish(),
+  lignes: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        devisId: zod.number(),
+        description: zod.string(),
+        metier: zod.string().nullish(),
+        quantite: zod.string(),
+        unite: zod.string(),
+        prixUnitaire: zod.string(),
+        montantHt: zod.string(),
+        ordre: zod.number(),
+        createdAt: zod.coerce.date().optional(),
+      }),
+    )
+    .optional(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Update a devis (set statut to accepte to trigger auto-creation)
+ */
+export const UpdateDevisParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateDevisBody = zod.object({
+  objet: zod.string().optional(),
+  description: zod.string().optional(),
+  dateValidite: zod.coerce.date().optional(),
+  statut: zod
+    .enum(["brouillon", "envoye", "accepte", "refuse", "expire"])
+    .optional(),
+  conditions: zod.string().optional(),
+  notes: zod.string().optional(),
+  lignes: zod
+    .array(
+      zod.object({
+        description: zod.string(),
+        metier: zod.string().optional(),
+        quantite: zod.number().optional(),
+        unite: zod.string().optional(),
+        prixUnitaire: zod.number().optional(),
+      }),
+    )
+    .optional(),
+});
+
+export const UpdateDevisResponse = zod.object({
+  id: zod.number(),
+  numero: zod.string(),
+  prospectId: zod.number(),
+  objet: zod.string(),
+  description: zod.string().nullish(),
+  dateCreation: zod.coerce.date().optional(),
+  dateValidite: zod.coerce.date().nullish(),
+  statut: zod.enum(["brouillon", "envoye", "accepte", "refuse", "expire"]),
+  montantHt: zod.string(),
+  tva: zod.string(),
+  montantTtc: zod.string(),
+  conditions: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  prospectNom: zod.string().nullish(),
+  prospectPrenom: zod.string().nullish(),
+  prospectSociete: zod.string().nullish(),
+  lignes: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        devisId: zod.number(),
+        description: zod.string(),
+        metier: zod.string().nullish(),
+        quantite: zod.string(),
+        unite: zod.string(),
+        prixUnitaire: zod.string(),
+        montantHt: zod.string(),
+        ordre: zod.number(),
+        createdAt: zod.coerce.date().optional(),
+      }),
+    )
+    .optional(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a devis
+ */
+export const DeleteDevisParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary List all factures
+ */
+export const listFacturesQueryLimitDefault = 50;
+export const listFacturesQueryOffsetDefault = 0;
+export const listFacturesQuerySortByDefault = `createdAt`;
+export const listFacturesQuerySortOrderDefault = `desc`;
+
+export const ListFacturesQueryParams = zod.object({
+  statut: zod
+    .enum(["en_attente", "payee", "en_retard", "annulee", "all"])
+    .optional(),
+  type: zod
+    .enum(["acompte", "intermediaire", "finale", "avoir", "all"])
+    .optional(),
+  limit: zod.coerce.number().default(listFacturesQueryLimitDefault),
+  offset: zod.coerce.number().default(listFacturesQueryOffsetDefault),
+  search: zod.coerce.string().optional(),
+  sortBy: zod
+    .enum(["createdAt", "numero", "montantTtc", "statut", "dateEmission"])
+    .default(listFacturesQuerySortByDefault),
+  sortOrder: zod
+    .enum(["asc", "desc"])
+    .default(listFacturesQuerySortOrderDefault),
+});
+
+export const ListFacturesResponse = zod.object({
+  factures: zod.array(
+    zod.object({
+      id: zod.number(),
+      numero: zod.string(),
+      devisId: zod.number().nullish(),
+      prospectId: zod.number().nullish(),
+      type: zod.enum(["acompte", "intermediaire", "finale", "avoir"]),
+      objet: zod.string(),
+      dateEmission: zod.coerce.date().optional(),
+      dateEcheance: zod.coerce.date().nullish(),
+      montantHt: zod.string(),
+      tva: zod.string(),
+      montantTtc: zod.string(),
+      pourcentageAcompte: zod.string().nullish(),
+      montantPaye: zod.string(),
+      statut: zod.enum(["en_attente", "payee", "en_retard", "annulee"]),
+      notes: zod.string().nullish(),
+      prospectNom: zod.string().nullish(),
+      prospectPrenom: zod.string().nullish(),
+      prospectSociete: zod.string().nullish(),
+      devisNumero: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Get a facture by ID
+ */
+export const GetFactureParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetFactureResponse = zod.object({
+  id: zod.number(),
+  numero: zod.string(),
+  devisId: zod.number().nullish(),
+  prospectId: zod.number().nullish(),
+  type: zod.enum(["acompte", "intermediaire", "finale", "avoir"]),
+  objet: zod.string(),
+  dateEmission: zod.coerce.date().optional(),
+  dateEcheance: zod.coerce.date().nullish(),
+  montantHt: zod.string(),
+  tva: zod.string(),
+  montantTtc: zod.string(),
+  pourcentageAcompte: zod.string().nullish(),
+  montantPaye: zod.string(),
+  statut: zod.enum(["en_attente", "payee", "en_retard", "annulee"]),
+  notes: zod.string().nullish(),
+  prospectNom: zod.string().nullish(),
+  prospectPrenom: zod.string().nullish(),
+  prospectSociete: zod.string().nullish(),
+  devisNumero: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Update a facture
+ */
+export const UpdateFactureParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateFactureBody = zod.object({
+  statut: zod.enum(["en_attente", "payee", "en_retard", "annulee"]).optional(),
+  montantPaye: zod.string().optional(),
+  notes: zod.string().optional(),
+  dateEcheance: zod.coerce.date().optional(),
+});
+
+export const UpdateFactureResponse = zod.object({
+  id: zod.number(),
+  numero: zod.string(),
+  devisId: zod.number().nullish(),
+  prospectId: zod.number().nullish(),
+  type: zod.enum(["acompte", "intermediaire", "finale", "avoir"]),
+  objet: zod.string(),
+  dateEmission: zod.coerce.date().optional(),
+  dateEcheance: zod.coerce.date().nullish(),
+  montantHt: zod.string(),
+  tva: zod.string(),
+  montantTtc: zod.string(),
+  pourcentageAcompte: zod.string().nullish(),
+  montantPaye: zod.string(),
+  statut: zod.enum(["en_attente", "payee", "en_retard", "annulee"]),
+  notes: zod.string().nullish(),
+  prospectNom: zod.string().nullish(),
+  prospectPrenom: zod.string().nullish(),
+  prospectSociete: zod.string().nullish(),
+  devisNumero: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a facture
+ */
+export const DeleteFactureParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary List all chantiers
+ */
+export const listChantiersQueryLimitDefault = 50;
+export const listChantiersQueryOffsetDefault = 0;
+export const listChantiersQuerySortByDefault = `createdAt`;
+export const listChantiersQuerySortOrderDefault = `desc`;
+
+export const ListChantiersQueryParams = zod.object({
+  statut: zod
+    .enum(["planifie", "en_cours", "en_pause", "termine", "annule", "all"])
+    .optional(),
+  metier: zod.coerce.string().optional(),
+  limit: zod.coerce.number().default(listChantiersQueryLimitDefault),
+  offset: zod.coerce.number().default(listChantiersQueryOffsetDefault),
+  search: zod.coerce.string().optional(),
+  sortBy: zod
+    .enum(["createdAt", "nom", "metier", "statut", "dateDebut"])
+    .default(listChantiersQuerySortByDefault),
+  sortOrder: zod
+    .enum(["asc", "desc"])
+    .default(listChantiersQuerySortOrderDefault),
+});
+
+export const ListChantiersResponse = zod.object({
+  chantiers: zod.array(
+    zod.object({
+      id: zod.number(),
+      nom: zod.string(),
+      devisId: zod.number().nullish(),
+      prospectId: zod.number().nullish(),
+      metier: zod.string(),
+      adresse: zod.string().nullish(),
+      description: zod.string().nullish(),
+      dateDebut: zod.coerce.date().nullish(),
+      dateFinPrevue: zod.coerce.date().nullish(),
+      dateFinReelle: zod.coerce.date().nullish(),
+      statut: zod.enum([
+        "planifie",
+        "en_cours",
+        "en_pause",
+        "termine",
+        "annule",
+      ]),
+      responsable: zod.string().nullish(),
+      notes: zod.string().nullish(),
+      prospectNom: zod.string().nullish(),
+      prospectPrenom: zod.string().nullish(),
+      prospectSociete: zod.string().nullish(),
+      devisNumero: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Create a chantier
+ */
+export const CreateChantierBody = zod.object({
+  nom: zod.string(),
+  devisId: zod.number().optional(),
+  prospectId: zod.number().optional(),
+  metier: zod.string(),
+  adresse: zod.string().optional(),
+  description: zod.string().optional(),
+  dateDebut: zod.coerce.date().optional(),
+  dateFinPrevue: zod.coerce.date().optional(),
+  responsable: zod.string().optional(),
+  notes: zod.string().optional(),
+});
+
+/**
+ * @summary Get a chantier by ID
+ */
+export const GetChantierParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetChantierResponse = zod.object({
+  id: zod.number(),
+  nom: zod.string(),
+  devisId: zod.number().nullish(),
+  prospectId: zod.number().nullish(),
+  metier: zod.string(),
+  adresse: zod.string().nullish(),
+  description: zod.string().nullish(),
+  dateDebut: zod.coerce.date().nullish(),
+  dateFinPrevue: zod.coerce.date().nullish(),
+  dateFinReelle: zod.coerce.date().nullish(),
+  statut: zod.enum(["planifie", "en_cours", "en_pause", "termine", "annule"]),
+  responsable: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  prospectNom: zod.string().nullish(),
+  prospectPrenom: zod.string().nullish(),
+  prospectSociete: zod.string().nullish(),
+  devisNumero: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Update a chantier
+ */
+export const UpdateChantierParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateChantierBody = zod.object({
+  nom: zod.string().optional(),
+  metier: zod.string().optional(),
+  adresse: zod.string().optional(),
+  description: zod.string().optional(),
+  dateDebut: zod.coerce.date().optional(),
+  dateFinPrevue: zod.coerce.date().optional(),
+  dateFinReelle: zod.coerce.date().optional(),
+  statut: zod
+    .enum(["planifie", "en_cours", "en_pause", "termine", "annule"])
+    .optional(),
+  responsable: zod.string().optional(),
+  notes: zod.string().optional(),
+});
+
+export const UpdateChantierResponse = zod.object({
+  id: zod.number(),
+  nom: zod.string(),
+  devisId: zod.number().nullish(),
+  prospectId: zod.number().nullish(),
+  metier: zod.string(),
+  adresse: zod.string().nullish(),
+  description: zod.string().nullish(),
+  dateDebut: zod.coerce.date().nullish(),
+  dateFinPrevue: zod.coerce.date().nullish(),
+  dateFinReelle: zod.coerce.date().nullish(),
+  statut: zod.enum(["planifie", "en_cours", "en_pause", "termine", "annule"]),
+  responsable: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  prospectNom: zod.string().nullish(),
+  prospectPrenom: zod.string().nullish(),
+  prospectSociete: zod.string().nullish(),
+  devisNumero: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a chantier
+ */
+export const DeleteChantierParams = zod.object({
+  id: zod.coerce.number(),
+});
