@@ -8,6 +8,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Icon3D } from "@/components/icon-3d";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -322,7 +323,7 @@ export default function UsersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Gestion des utilisateurs</h1>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={Users} variant="teal" size="md" /> Gestion des utilisateurs</h1>
           <p className="text-muted-foreground">Gerez votre equipe, les licences et les permissions d'acces.</p>
         </div>
         <div className="flex items-center gap-3">

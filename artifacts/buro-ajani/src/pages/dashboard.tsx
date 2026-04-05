@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Phone, Users, CheckSquare, MessageSquare, ArrowUpRight, ArrowDownRight, PhoneIncoming, PhoneOutgoing, PhoneMissed, Calendar as CalendarIcon, Clock, Plus, TrendingUp, Activity, BarChart3, Send } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, ArrowUpRight, ArrowDownRight, PhoneIncoming, PhoneOutgoing, PhoneMissed, Calendar as CalendarIcon, Clock, Plus, TrendingUp, Activity, BarChart3, Send, LayoutDashboard } from "lucide-react";
+import { Icon3D, type Icon3DVariant } from "@/components/icon-3d";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { AiRecognitionPanel } from "@/components/ai-recognition-panel";
 import { EmailComposer } from "@/components/email-composer";
@@ -37,7 +38,7 @@ export default function Dashboard() {
 
   const maxHourlyCalls = hourlyPerf?.hours.reduce((max, h) => Math.max(max, h.total), 0) || 1;
 
-  const kpiCards = [
+  const kpiCards: { title: string; value: number; icon: typeof Phone; trend?: number; trendLabel?: string; href: string; variant: Icon3DVariant }[] = [
     {
       title: "Appels Aujourd'hui",
       value: summary?.totalCallsToday || 0,
@@ -45,24 +46,28 @@ export default function Dashboard() {
       trend: summary?.callsTrend,
       trendLabel: "depuis hier",
       href: "/appels",
+      variant: "blue",
     },
     {
       title: "Contacts",
       value: summary?.totalContacts || 0,
       icon: Users,
       href: "/contacts",
+      variant: "indigo",
     },
     {
       title: "Taches en attente",
       value: summary?.pendingTasks || 0,
       icon: CheckSquare,
       href: "/taches",
+      variant: "emerald",
     },
     {
       title: "Messages non lus",
       value: summary?.unreadMessages || 0,
       icon: MessageSquare,
       href: "/messages",
+      variant: "amber",
     },
   ];
 
@@ -70,7 +75,7 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Tableau de bord</h1>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={LayoutDashboard} variant="navy" size="md" /> Tableau de bord</h1>
           <p className="text-muted-foreground mt-1">Vue d'ensemble de l'activite du bureau aujourd'hui.</p>
         </div>
         <div className="flex items-center gap-2">
@@ -105,7 +110,7 @@ export default function Dashboard() {
             <Card className="hover:shadow-md transition-shadow cursor-pointer">
               <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                 <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.title}</CardTitle>
-                <kpi.icon className="w-4 h-4 text-muted-foreground" />
+                <Icon3D icon={kpi.icon} variant={kpi.variant} size="sm" animate />
               </CardHeader>
               <CardContent>
                 {isLoadingSummary ? <Skeleton className="h-8 w-20" /> : (
@@ -177,7 +182,7 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Clock className="w-5 h-5 text-primary"/> Performance Horaire (Aujourd'hui)</CardTitle>
+            <CardTitle className="flex items-center gap-2"><Icon3D icon={Clock} variant="blue" size="xs" /> Performance Horaire (Aujourd'hui)</CardTitle>
             <CardDescription>Volume d'appels selon l'heure de la journee</CardDescription>
           </CardHeader>
           <CardContent>
@@ -211,7 +216,7 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Activity className="w-5 h-5 text-primary" />Etat des Taches</CardTitle>
+            <CardTitle className="flex items-center gap-2"><Icon3D icon={Activity} variant="emerald" size="xs" /> Etat des Taches</CardTitle>
             <CardDescription>Progression globale</CardDescription>
           </CardHeader>
           <CardContent>
@@ -306,11 +311,11 @@ export default function Dashboard() {
               <div className="space-y-4">
                 {recentActivity?.activities?.slice(0,5).map((activity) => (
                   <div key={activity.id} className="flex items-start gap-3">
-                    <div className="bg-muted p-2 rounded-full mt-0.5 shrink-0">
-                      {activity.type === 'appel' && <Phone className="w-4 h-4 text-primary" />}
-                      {activity.type === 'contact' && <Users className="w-4 h-4 text-blue-500" />}
-                      {activity.type === 'tache' && <CheckSquare className="w-4 h-4 text-emerald-500" />}
-                      {activity.type === 'message' && <MessageSquare className="w-4 h-4 text-amber-500" />}
+                    <div className="mt-0.5 shrink-0">
+                      {activity.type === 'appel' && <Icon3D icon={Phone} variant="blue" size="xs" />}
+                      {activity.type === 'contact' && <Icon3D icon={Users} variant="indigo" size="xs" />}
+                      {activity.type === 'tache' && <Icon3D icon={CheckSquare} variant="emerald" size="xs" />}
+                      {activity.type === 'message' && <Icon3D icon={MessageSquare} variant="amber" size="xs" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium leading-none truncate">{activity.description}</p>

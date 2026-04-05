@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useListContacts, useCreateContact, useDeleteContact, getListContactsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Users, Search, Filter, MoreHorizontal, Phone, Mail, Building, Plus, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, LayoutGrid, LayoutList } from "lucide-react";
+import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -166,7 +167,7 @@ export default function Contacts() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Annuaire des Contacts</h1>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={Users} variant="indigo" size="md" /> Annuaire des Contacts</h1>
           <p className="text-muted-foreground mt-1">Gerez votre base de donnees professionnelle.</p>
         </div>
         <div className="flex items-center gap-2">

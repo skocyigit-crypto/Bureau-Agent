@@ -3,6 +3,7 @@ import { FileText, Calendar, TrendingUp, TrendingDown, Minus, Phone, CheckSquare
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Icon3D } from "@/components/icon-3d";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -175,7 +176,7 @@ export default function Reports() {
     <div className="p-4 lg:p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Rapports Journaliers</h1>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-3"><Icon3D icon={FileText} variant="rose" size="md" /> Rapports Journaliers</h1>
           <p className="text-muted-foreground mt-1">Suivi des activites et rapports IA generes automatiquement.</p>
         </div>
         <div className="flex items-center gap-3">

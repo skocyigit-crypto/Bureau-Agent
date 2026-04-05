@@ -1,6 +1,7 @@
 import { createContext, useContext } from "react";
 import { Link, useLocation } from "wouter";
 import { Phone, Users, CheckSquare, MessageSquare, BarChart, Bell, Search, LayoutDashboard, Settings, PhoneIncoming, FileText, Puzzle, UserCog, Clock, Brain, Package } from "lucide-react";
+import { SidebarIcon3D, Icon3D } from "@/components/icon-3d";
 import { AiAssistantButton } from "@/components/ai-assistant";
 import { AiHealthBadge, RecognitionProvider } from "@/components/ai-recognition-panel";
 import { IncomingCallOverlay, useIncomingCall } from "@/components/incoming-call-overlay";
@@ -48,9 +49,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Sidebar className="border-r border-sidebar-border">
           <SidebarHeader className="p-4">
             <div className="flex items-center gap-3 px-2 py-1">
-              <div className="bg-primary text-primary-foreground rounded-md p-1.5 flex items-center justify-center">
-                <Phone className="w-5 h-5" />
-              </div>
+              <Icon3D icon={Phone} variant="navy" size="sm" />
               <div>
                 <h1 className="text-sidebar-foreground font-semibold text-base leading-none">Agent de Bureau</h1>
                 <p className="text-sidebar-foreground/60 text-xs mt-1">Paris HQ</p>
@@ -70,7 +69,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                         tooltip={item.name}
                       >
                         <Link href={item.href} className="flex items-center gap-3">
-                          <item.icon className="w-4 h-4" />
+                          <SidebarIcon3D icon={item.icon} href={item.href} />
                           <span>{item.name}</span>
                         </Link>
                       </SidebarMenuButton>

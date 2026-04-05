@@ -8,6 +8,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Icon3D } from "@/components/icon-3d";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -358,7 +359,7 @@ export default function AiAgentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Agents IA</h1>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={Brain} variant="purple" size="md" /> Agents IA</h1>
           <p className="text-muted-foreground mt-1">
             7 agents specialises + Super IA qui analysent, corrigent et ameliorent votre bureau en continu.
           </p>

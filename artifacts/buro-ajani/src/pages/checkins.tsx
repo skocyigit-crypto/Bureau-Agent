@@ -8,6 +8,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Icon3D } from "@/components/icon-3d";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -222,7 +223,7 @@ export default function CheckinsPage() {
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Pointage & Presence</h1>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={Clock} variant="slate" size="md" /> Pointage & Presence</h1>
           <p className="text-muted-foreground">Gerez vos heures d'arrivee, de depart et votre temps de travail.</p>
         </div>
         <div className="flex gap-2">

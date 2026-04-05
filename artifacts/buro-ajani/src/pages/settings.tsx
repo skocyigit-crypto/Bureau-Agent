@@ -14,6 +14,7 @@ import {
   Workflow, AppWindow, HardDriveDownload, Layers, Loader2, Unplug, Plug, Zap, History
 } from "lucide-react";
 import { PhoneSimulator, PhoneSimulatorDialog } from "@/components/phone-simulator";
+import { Icon3D } from "@/components/icon-3d";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -1178,7 +1179,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Parametres</h1>
+        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={Settings} variant="slate" size="md" /> Parametres</h1>
         <p className="text-muted-foreground">Configuration de l'application et integrations.</p>
       </div>
 

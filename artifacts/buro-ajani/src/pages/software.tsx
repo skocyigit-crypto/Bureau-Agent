@@ -3,6 +3,7 @@ import { Puzzle, Search, CheckCircle2, Settings2, Zap, RefreshCw, BarChart3, Mes
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Icon3D } from "@/components/icon-3d";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -173,7 +174,7 @@ export default function Software() {
     <div className="p-4 lg:p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Logiciels & Integrations</h1>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-3"><Icon3D icon={Puzzle} variant="purple" size="md" /> Logiciels & Integrations</h1>
           <p className="text-muted-foreground mt-1">
             Connectez vos outils professionnels pour que l'agent travaille dans votre ecosysteme.
           </p>

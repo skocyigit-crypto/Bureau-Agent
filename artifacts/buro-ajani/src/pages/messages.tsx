@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { MessageSquare, Voicemail, FileText, Bell, Search, Filter, MoreHorizontal, MailOpen, Mail, Plus, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CheckCheck, Send } from "lucide-react";
+import { Icon3D } from "@/components/icon-3d";
 import { EmailComposer } from "@/components/email-composer";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -174,7 +175,7 @@ export default function Messages() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Messages & Notes</h1>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={MessageSquare} variant="amber" size="md" /> Messages & Notes</h1>
           <p className="text-muted-foreground mt-1">Consultez les messages vocaux et notes laisses par les appelants.</p>
         </div>
         <div className="flex items-center gap-2">

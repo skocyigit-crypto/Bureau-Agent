@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format, isPast, isToday } from "date-fns";
 import { fr } from "date-fns/locale";
 import { CheckSquare, Search, Filter, MoreHorizontal, Plus, Calendar, Clock, AlertCircle, Edit, Users, LayoutList, Columns3, ArrowUpDown, ArrowUp, ArrowDown, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertTriangle, GripVertical } from "lucide-react";
+import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -330,7 +331,7 @@ export default function Tasks() {
       {taskDialog}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Gestion des Taches</h1>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={CheckSquare} variant="emerald" size="md" /> Gestion des Taches</h1>
           <p className="text-muted-foreground mt-1">Organisez et suivez les actions a realiser au bureau.</p>
         </div>
         <div className="flex items-center gap-2">

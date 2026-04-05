@@ -28,7 +28,7 @@ Do not make changes to the file `pnpm-workspace.yaml`.
 The project is structured as a pnpm workspace monorepo, utilizing Node.js 24 and TypeScript 5.9.
 
 **UI/UX Decisions:**
-The application's UI is entirely in French (France), featuring a deep navy sidebar and warm amber accents to create a professional yet inviting aesthetic. The design emphasizes clarity, ease of navigation, and intuitive workflows. Components like `shadcn/ui` and `Recharts` are used for a modern and responsive user experience.
+The application's UI is entirely in French (France), featuring a deep navy sidebar and warm amber accents to create a professional yet inviting aesthetic. The design emphasizes clarity, ease of navigation, and intuitive workflows. Components like `shadcn/ui` and `Recharts` are used for a modern and responsive user experience. **3D Icon System:** A centralized `Icon3D` component (`components/icon-3d.tsx`) provides CSS-based 3D icons with gradient backgrounds, inset shadows, specular highlights, and optional hover animations. Used across all sidebar items (via `SidebarIcon3D`), page title headers, KPI cards, and activity feed items. Supports 12 color variants (blue, emerald, amber, purple, rose, indigo, cyan, orange, slate, navy, teal, red) and 5 sizes (xs, sm, md, lg, xl).
 
 **Technical Implementations:**
 - **Backend:** Built with Express 5, using PostgreSQL as the database and Drizzle ORM for database interactions. Zod is used for schema validation. API codegen is handled by Orval from an OpenAPI specification. `esbuild` is used for CJS bundling.

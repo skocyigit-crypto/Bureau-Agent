@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Search, Filter, MoreHorizontal, Check, Clock, Voicemail, Plus, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CalendarIcon } from "lucide-react";
+import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -210,7 +211,7 @@ export default function Calls() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Journal des Appels</h1>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={Phone} variant="blue" size="md" /> Journal des Appels</h1>
           <p className="text-muted-foreground mt-1">Gerez et suivez toutes les communications telephoniques.</p>
         </div>
         <div className="flex items-center gap-2">

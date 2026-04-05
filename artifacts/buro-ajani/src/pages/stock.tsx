@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { Icon3D } from "@/components/icon-3d";
 import {
   useListStockArticles,
   useCreateStockArticle,
@@ -638,7 +639,7 @@ export default function StockPage() {
     <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Gestion du Stock</h1>
+          <h1 className="text-2xl font-bold flex items-center gap-3"><Icon3D icon={Package} variant="orange" size="md" /> Gestion du Stock</h1>
           <p className="text-muted-foreground">Gerez vos articles, scannez les codes et importez depuis vos documents.</p>
         </div>
         <div className="flex items-center gap-2">
