@@ -4,6 +4,8 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import hpp from "hpp";
 import pinoHttp from "pino-http";
+import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
@@ -110,6 +112,28 @@ app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(hpp());
 
 app.disable("x-powered-by");
+
+const PgStore = connectPgSimple(session);
+
+app.use(session({
+  store: new PgStore({
+    conString: process.env.DATABASE_URL,
+    tableName: "user_sessions",
+    createTableIfMissing: true,
+    pruneSessionInterval: 300,
+  }),
+  name: "adb.sid",
+  secret: process.env.SESSION_SECRET || "agent-de-bureau-secret-dev-key-2024",
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 24 * 60 * 60 * 1000,
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "strict" : "lax",
+    path: "/",
+  },
+}));
 
 app.use("/api/ai", aiLimiter);
 app.use("/api", (req: Request, _res: Response, next: NextFunction) => {

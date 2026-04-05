@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import {
   Shield, ShieldCheck, User, UserCog, Eye, LogOut, ChevronDown, Clock,
   Building2, Mail, Globe, Fingerprint, KeyRound, CheckCircle2, AlertTriangle,
@@ -19,7 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 export type UserRole = "super_admin" | "administrateur" | "agent" | "lecture_seule";
 
 export interface WorkspaceUser {
-  id: string;
+  id: number;
   email: string;
   nom: string;
   prenom: string;
@@ -147,31 +147,32 @@ const ROLE_CONFIG: Record<UserRole, {
   },
 };
 
-function detectUserFromWorkspace(): WorkspaceUser {
+function buildWorkspaceUser(apiUser: any): WorkspaceUser {
+  const role = apiUser.role as UserRole;
   const now = new Date();
-  const sessionExpire = new Date(now.getTime() + 30 * 60 * 1000);
+  const sessionExpire = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
   return {
-    id: "usr_gw_001",
-    email: "a.benoit@agentdebureau.fr",
-    nom: "Benoit",
-    prenom: "Aurelie",
-    avatar: "AB",
-    role: "super_admin",
-    departement: "Direction",
-    organisation: "Agent de Bureau SAS",
-    domaine: "agentdebureau.fr",
+    id: apiUser.id,
+    email: apiUser.email,
+    nom: apiUser.nom,
+    prenom: apiUser.prenom,
+    avatar: apiUser.avatar || `${apiUser.prenom[0]}${apiUser.nom[0]}`.toUpperCase(),
+    role,
+    departement: apiUser.departement || "General",
+    organisation: apiUser.organisation || "Agent de Bureau SAS",
+    domaine: apiUser.email.split("@")[1] || "agentdebureau.fr",
     dernierAcces: now.toLocaleString("fr-FR", {
       day: "2-digit", month: "2-digit", year: "numeric",
       hour: "2-digit", minute: "2-digit"
     }),
-    mfaActif: true,
+    mfaActif: apiUser.mfaActif || false,
     sessionExpire: sessionExpire.toLocaleString("fr-FR", {
       hour: "2-digit", minute: "2-digit"
     }),
-    permissions: ROLE_CONFIG.super_admin.permissions,
-    securiteScore: 96,
-    googleConnected: true,
+    permissions: ROLE_CONFIG[role].permissions,
+    securiteScore: role === "super_admin" ? 96 : role === "administrateur" ? 85 : 70,
+    googleConnected: false,
     locale: "fr-FR",
     fuseau: "Europe/Paris",
   };
@@ -183,6 +184,7 @@ interface WorkspaceUserContextType {
   hasPermission: (perm: keyof UserPermissions) => boolean;
   isSuperAdmin: () => boolean;
   isAtLeast: (role: UserRole) => boolean;
+  logout: () => void;
 }
 
 const WorkspaceUserContext = createContext<WorkspaceUserContextType | null>(null);
@@ -193,25 +195,41 @@ export function useWorkspaceUser() {
   return ctx;
 }
 
-export function WorkspaceUserProvider({ children }: { children: ReactNode }) {
-  const [user] = useState<WorkspaceUser>(() => detectUserFromWorkspace());
+interface WorkspaceUserProviderProps {
+  children: ReactNode;
+  apiUser: any;
+  onLogout: () => void;
+}
+
+export function WorkspaceUserProvider({ children, apiUser, onLogout }: WorkspaceUserProviderProps) {
+  const [user] = useState<WorkspaceUser>(() => buildWorkspaceUser(apiUser));
   const roleConfig = ROLE_CONFIG[user.role];
 
   const hasPermission = (perm: keyof UserPermissions) => user.permissions[perm];
   const isSuperAdmin = () => user.role === "super_admin";
   const isAtLeast = (role: UserRole) => ROLE_CONFIG[user.role].niveau >= ROLE_CONFIG[role].niveau;
 
+  const logout = useCallback(async () => {
+    try {
+      const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+      await fetch(`${baseUrl}/api/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {}
+    onLogout();
+  }, [onLogout]);
+
   return (
-    <WorkspaceUserContext.Provider value={{ user, roleConfig, hasPermission, isSuperAdmin, isAtLeast }}>
+    <WorkspaceUserContext.Provider value={{ user, roleConfig, hasPermission, isSuperAdmin, isAtLeast, logout }}>
       {children}
     </WorkspaceUserContext.Provider>
   );
 }
 
 export function UserProfileButton() {
-  const { user, roleConfig } = useWorkspaceUser();
+  const { user, roleConfig, logout } = useWorkspaceUser();
   const [showProfile, setShowProfile] = useState(false);
-  const { toast } = useToast();
 
   return (
     <>
@@ -247,12 +265,6 @@ export function UserProfileButton() {
               <Badge variant="outline" className="text-[10px]">
                 Niveau {roleConfig.niveau}
               </Badge>
-              {user.googleConnected && (
-                <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-200">
-                  <Globe className="w-2.5 h-2.5 mr-1" />
-                  Workspace
-                </Badge>
-              )}
             </div>
           </div>
           <DropdownMenuSeparator />
@@ -277,7 +289,9 @@ export function UserProfileButton() {
                 <Fingerprint className="w-3 h-3 text-emerald-500" />
                 <span>MFA</span>
               </div>
-              <Badge className="bg-emerald-100 text-emerald-700 border-0 text-[10px]">Actif</Badge>
+              <Badge className={user.mfaActif ? "bg-emerald-100 text-emerald-700 border-0 text-[10px]" : "bg-gray-100 text-gray-500 border-0 text-[10px]"}>
+                {user.mfaActif ? "Actif" : "Inactif"}
+              </Badge>
             </div>
             <div className="flex items-center justify-between mt-1.5">
               <div className="flex items-center gap-2 text-xs">
@@ -303,7 +317,7 @@ export function UserProfileButton() {
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="gap-2 text-red-600 focus:text-red-600 cursor-pointer"
-            onClick={() => toast({ title: "Deconnexion", description: "Fermeture de la session en cours..." })}
+            onClick={() => logout()}
           >
             <LogOut className="w-4 h-4" />
             Se deconnecter
@@ -316,10 +330,10 @@ export function UserProfileButton() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserCog className="w-5 h-5" />
-              Profil utilisateur Workspace
+              Profil utilisateur
             </DialogTitle>
             <DialogDescription>
-              Identifie automatiquement via Google Workspace
+              Informations de votre compte
             </DialogDescription>
           </DialogHeader>
 
@@ -404,7 +418,7 @@ export function UserProfileButton() {
               </div>
               <div className="flex items-center gap-2">
                 <Fingerprint className="w-3 h-3 text-emerald-500" />
-                <span>MFA actif</span>
+                <span>MFA {user.mfaActif ? "actif" : "inactif"}</span>
               </div>
             </div>
           </div>
@@ -434,9 +448,6 @@ export function WorkspaceUserSidebarInfo() {
             <span className="text-sidebar-foreground/60 text-[10px]">{roleConfig.label}</span>
           </div>
         </div>
-        {user.googleConnected && (
-          <Globe className="w-3.5 h-3.5 text-sidebar-foreground/40" />
-        )}
       </div>
     </div>
   );

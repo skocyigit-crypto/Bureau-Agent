@@ -1,8 +1,11 @@
+import { useState, useEffect, useCallback } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
+import LoginPage from "@/pages/login";
+import { WorkspaceUserProvider } from "@/components/workspace-user";
 
 import { Layout } from "@/components/layout";
 import Dashboard from "@/pages/dashboard";
@@ -28,7 +31,7 @@ import AjandaPage from "@/pages/ajanda";
 
 const queryClient = new QueryClient();
 
-function Router() {
+function AppRoutes() {
   return (
     <Layout>
       <Switch>
@@ -59,11 +62,65 @@ function Router() {
 }
 
 function App() {
+  const [authState, setAuthState] = useState<"loading" | "login" | "authenticated">("loading");
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  const checkSession = useCallback(async () => {
+    try {
+      const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${baseUrl}/api/auth/me`, {
+        credentials: "include",
+      });
+
+      if (res.ok) {
+        const user = await res.json();
+        setCurrentUser(user);
+        setAuthState("authenticated");
+      } else {
+        setAuthState("login");
+      }
+    } catch {
+      setAuthState("login");
+    }
+  }, []);
+
+  useEffect(() => {
+    checkSession();
+  }, [checkSession]);
+
+  const handleLogin = (user: any) => {
+    setCurrentUser(user);
+    setAuthState("authenticated");
+  };
+
+  const handleLogout = useCallback(() => {
+    setCurrentUser(null);
+    setAuthState("login");
+    queryClient.clear();
+  }, []);
+
+  if (authState === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f1729] via-[#1a2744] to-[#0f1729]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-3 border-amber-400/30 border-t-amber-400 rounded-full animate-spin mx-auto" />
+          <p className="text-white/60 mt-4 text-sm">Chargement...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
+          {authState === "login" ? (
+            <LoginPage onLogin={handleLogin} />
+          ) : (
+            <WorkspaceUserProvider apiUser={currentUser} onLogout={handleLogout}>
+              <AppRoutes />
+            </WorkspaceUserProvider>
+          )}
         </WouterRouter>
         <Toaster />
       </TooltipProvider>

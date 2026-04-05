@@ -5,7 +5,7 @@ import { SidebarIcon3D, Icon3D } from "@/components/icon-3d";
 import { AiAssistantButton } from "@/components/ai-assistant";
 import { AiHealthBadge, RecognitionProvider } from "@/components/ai-recognition-panel";
 import { IncomingCallOverlay, useIncomingCall } from "@/components/incoming-call-overlay";
-import { WorkspaceUserProvider, UserProfileButton, WorkspaceUserSidebarInfo } from "@/components/workspace-user";
+import { UserProfileButton, WorkspaceUserSidebarInfo } from "@/components/workspace-user";
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarTrigger, SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarFooter } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -50,7 +50,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <IncomingCallContext.Provider value={{ simulateIncomingCall: incomingCall.simulateIncomingCall }}>
-    <WorkspaceUserProvider>
     <RecognitionProvider>
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
@@ -192,7 +191,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </div>
     </SidebarProvider>
     </RecognitionProvider>
-    </WorkspaceUserProvider>
     <IncomingCallOverlay
       isVisible={incomingCall.isVisible}
       callData={incomingCall.callData}
