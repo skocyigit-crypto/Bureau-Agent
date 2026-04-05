@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Icon3D } from "@/components/icon-3d";
+import stockWarehouseImg from "@/assets/images/stock-warehouse.png";
 import {
   useListStockArticles,
   useCreateStockArticle,
@@ -657,6 +658,19 @@ export default function StockPage() {
           </Button>
         </div>
       </div>
+
+      <Card className="overflow-hidden border-0 shadow-lg">
+        <div className="relative h-28">
+          <img src={stockWarehouseImg} alt="Gestion du stock" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          <div className="absolute inset-0 bg-gradient-to-r from-orange-900/80 via-orange-800/50 to-transparent" />
+          <div className="absolute inset-0 flex items-center px-6">
+            <div className="text-white">
+              <h3 className="text-lg font-bold">Gestion d'inventaire</h3>
+              <p className="text-white/80 text-sm mt-1">Suivi des articles, scan de codes-barres et import intelligent par IA.</p>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       <div className="grid grid-cols-4 gap-4">
         <Card>

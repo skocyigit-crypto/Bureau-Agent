@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Icon3D } from "@/components/icon-3d";
+import officeTeamImg from "@/assets/images/office-team.png";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -185,6 +186,19 @@ export default function Software() {
           </Badge>
         </div>
       </div>
+
+      <Card className="overflow-hidden border-0 shadow-lg">
+        <div className="relative h-28">
+          <img src={officeTeamImg} alt="Integrations logicielles" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-900/80 via-purple-800/50 to-transparent" />
+          <div className="absolute inset-0 flex items-center px-6">
+            <div className="text-white">
+              <h3 className="text-lg font-bold">Ecosysteme connecte</h3>
+              <p className="text-white/80 text-sm mt-1">21 integrations professionnelles pour unifier vos outils de travail.</p>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       <div className="relative flex-1">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />

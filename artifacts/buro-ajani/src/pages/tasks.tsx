@@ -5,6 +5,7 @@ import { format, isPast, isToday } from "date-fns";
 import { fr } from "date-fns/locale";
 import { CheckSquare, Search, Filter, MoreHorizontal, Plus, Calendar, Clock, AlertCircle, Edit, Users, LayoutList, Columns3, ArrowUpDown, ArrowUp, ArrowDown, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertTriangle, GripVertical } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
+import taskManagementImg from "@/assets/images/task-management.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -347,6 +348,19 @@ export default function Tasks() {
           </Button>
         </div>
       </div>
+
+      <Card className="overflow-hidden border-0 shadow-lg">
+        <div className="relative h-28">
+          <img src={taskManagementImg} alt="Gestion des taches" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-900/80 via-emerald-800/50 to-transparent" />
+          <div className="absolute inset-0 flex items-center px-6">
+            <div className="text-white">
+              <h3 className="text-lg font-bold">Planification intelligente</h3>
+              <p className="text-white/80 text-sm mt-1">Organisation et suivi des actions avec priorisation automatique par l'IA.</p>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-card p-4 border border-border rounded-lg shadow-sm">
         <div className="relative w-full sm:max-w-xs">

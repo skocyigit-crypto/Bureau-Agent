@@ -5,10 +5,12 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { MessageSquare, Voicemail, FileText, Bell, Search, Filter, MoreHorizontal, MailOpen, Mail, Plus, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CheckCheck, Send } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
+import messagingImg from "@/assets/images/messaging-center.png";
 import { EmailComposer } from "@/components/email-composer";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -283,6 +285,19 @@ export default function Messages() {
           </Dialog>
         </div>
       </div>
+
+      <Card className="overflow-hidden border-0 shadow-lg">
+        <div className="relative h-28">
+          <img src={messagingImg} alt="Centre de messagerie" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          <div className="absolute inset-0 bg-gradient-to-r from-amber-900/80 via-amber-800/50 to-transparent" />
+          <div className="absolute inset-0 flex items-center px-6">
+            <div className="text-white">
+              <h3 className="text-lg font-bold">Centre de messagerie</h3>
+              <p className="text-white/80 text-sm mt-1">Messages vocaux, notes et rappels — tout centralise en un seul endroit.</p>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-card p-4 border border-border rounded-lg shadow-sm">
         <div className="relative w-full sm:max-w-xs">

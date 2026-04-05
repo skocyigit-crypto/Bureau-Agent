@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Icon3D } from "@/components/icon-3d";
+import receptionImg from "@/assets/images/reception-desk.png";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -250,6 +251,19 @@ export default function CheckinsPage() {
           )}
         </div>
       </div>
+
+      <Card className="overflow-hidden border-0 shadow-lg">
+        <div className="relative h-28">
+          <img src={receptionImg} alt="Pointage et presence" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-800/50 to-transparent" />
+          <div className="absolute inset-0 flex items-center px-6">
+            <div className="text-white">
+              <h3 className="text-lg font-bold">Suivi du temps de travail</h3>
+              <p className="text-white/80 text-sm mt-1">Enregistrez vos arrivees, pauses et departs en un clic.</p>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       {currentSession && (
         <Card className="border-2 border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50">

@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Icon3D } from "@/components/icon-3d";
+import analyticsWorkImg from "@/assets/images/analytics-work.png";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -201,6 +202,19 @@ export default function Reports() {
           </Button>
         </div>
       </div>
+
+      <Card className="overflow-hidden border-0 shadow-lg">
+        <div className="relative h-28">
+          <img src={analyticsWorkImg} alt="Rapports et analyses" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          <div className="absolute inset-0 bg-gradient-to-r from-rose-900/80 via-rose-800/50 to-transparent" />
+          <div className="absolute inset-0 flex items-center px-6">
+            <div className="text-white">
+              <h3 className="text-lg font-bold">Rapports automatises</h3>
+              <p className="text-white/80 text-sm mt-1">Bilans quotidiens generes par l'IA avec indicateurs de performance.</p>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       {todayData && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
