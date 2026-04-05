@@ -5,12 +5,14 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Search, Filter, MoreHorizontal, Check, Clock, Voicemail, Plus, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CalendarIcon } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
+import callCenterImg from "@/assets/images/call-center.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Link, useLocation } from "wouter";
@@ -339,6 +341,19 @@ export default function Calls() {
           </Dialog>
         </div>
       </div>
+
+      <Card className="overflow-hidden border-0 shadow-lg">
+        <div className="relative h-28">
+          <img src={callCenterImg} alt="Centre d'appels" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-900/80 via-blue-800/50 to-transparent" />
+          <div className="absolute inset-0 flex items-center px-6">
+            <div className="text-white">
+              <h3 className="text-lg font-bold">Centre de communication</h3>
+              <p className="text-white/80 text-sm mt-1">Suivi en temps reel de toutes les communications entrantes et sortantes.</p>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       <div className="flex flex-col gap-3 bg-card p-4 border border-border rounded-lg shadow-sm">
         <div className="flex flex-col sm:flex-row gap-3 items-center">

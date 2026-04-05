@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { PhoneSimulator, PhoneSimulatorDialog } from "@/components/phone-simulator";
 import { Icon3D } from "@/components/icon-3d";
+import securityServerImg from "@/assets/images/security-server.png";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -2918,6 +2919,21 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="securite" className="space-y-6 mt-6">
+          <Card className="overflow-hidden border-0 shadow-lg">
+            <div className="relative h-36">
+              <img src={securityServerImg} alt="Infrastructure de securite" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+              <div className="absolute inset-0 bg-gradient-to-r from-emerald-900/80 via-emerald-800/60 to-transparent" />
+              <div className="absolute inset-0 flex flex-col sm:flex-row items-start sm:items-center justify-center sm:justify-between gap-2 px-6">
+                <div className="text-white">
+                  <h3 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-emerald-300" /> Infrastructure securisee</h3>
+                  <p className="text-white/80 text-sm mt-1">Protection multi-couches, chiffrement de bout en bout, conformite RGPD</p>
+                </div>
+                <Badge className="bg-emerald-500/20 text-emerald-200 border-emerald-400/30 shrink-0">
+                  Toutes les protections actives
+                </Badge>
+              </div>
+            </div>
+          </Card>
           <Card className="border-emerald-200 dark:border-emerald-900/50">
             <CardHeader>
               <div className="flex items-center justify-between">

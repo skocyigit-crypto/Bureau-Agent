@@ -3,6 +3,7 @@ import { useListContacts, useCreateContact, useDeleteContact, getListContactsQue
 import { useQueryClient } from "@tanstack/react-query";
 import { Users, Search, Filter, MoreHorizontal, Phone, Mail, Building, Plus, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, LayoutGrid, LayoutList } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
+import receptionImg from "@/assets/images/reception-desk.png";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -243,6 +244,19 @@ export default function Contacts() {
           </Dialog>
         </div>
       </div>
+
+      <Card className="overflow-hidden border-0 shadow-lg">
+        <div className="relative h-28">
+          <img src={receptionImg} alt="Accueil et reception" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          <div className="absolute inset-0 bg-gradient-to-r from-indigo-900/80 via-indigo-800/50 to-transparent" />
+          <div className="absolute inset-0 flex items-center px-6">
+            <div className="text-white">
+              <h3 className="text-lg font-bold">Annuaire professionnel</h3>
+              <p className="text-white/80 text-sm mt-1">Gestion centralisee de vos contacts, clients et partenaires.</p>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-card p-4 border border-border rounded-lg shadow-sm">
         <div className="relative w-full sm:max-w-sm">

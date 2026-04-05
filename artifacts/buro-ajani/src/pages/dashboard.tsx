@@ -7,6 +7,7 @@ import { Icon3D, type Icon3DVariant } from "@/components/icon-3d";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { AiRecognitionPanel } from "@/components/ai-recognition-panel";
 import { EmailComposer } from "@/components/email-composer";
+import officeTeamImg from "@/assets/images/office-team.png";
 import { useGetDashboardSummary, useGetRecentActivity, useGetTopContacts, useGetWeeklyReport, useGetHourlyPerformance, useGetTaskStats } from "@workspace/api-client-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -103,6 +104,26 @@ export default function Dashboard() {
           </Link>
         </div>
       </div>
+
+      <Card className="overflow-hidden border-0 shadow-lg">
+        <div className="relative h-40 md:h-48">
+          <img src={officeTeamImg} alt="Equipe professionnelle au bureau" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#1a2744]/80 via-[#1a2744]/50 to-transparent" />
+          <div className="absolute inset-0 flex items-center p-6 md:p-8">
+            <div className="text-white">
+              <h2 className="text-xl md:text-2xl font-bold">Bienvenue, Aurelie</h2>
+              <p className="text-white/80 text-sm mt-1">Votre bureau est operationnel. Consultez les indicateurs du jour.</p>
+              <div className="flex items-center gap-4 mt-3">
+                <div className="flex items-center gap-1.5 text-sm text-emerald-300">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  Systeme actif
+                </div>
+                <div className="text-sm text-amber-300">Paris HQ</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {kpiCards.map((kpi) => (

@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Icon3D } from "@/components/icon-3d";
+import analyticsWorkImg from "@/assets/images/analytics-work.png";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -145,6 +146,19 @@ export default function Analytics() {
           </Select>
         </div>
       </div>
+
+      <Card className="overflow-hidden border-0 shadow-lg">
+        <div className="relative h-32">
+          <img src={analyticsWorkImg} alt="Analyse des donnees" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          <div className="absolute inset-0 bg-gradient-to-r from-cyan-900/80 via-cyan-800/50 to-transparent" />
+          <div className="absolute inset-0 flex items-center px-6">
+            <div className="text-white">
+              <h3 className="text-lg font-bold">Centre d'analyse intelligent</h3>
+              <p className="text-white/80 text-sm mt-1">Rapports detailles, tendances et recommandations pilotes par l'IA Gemini.</p>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       {(aiAnalysis || aiLoading || aiError) && (
         <Card className="border-violet-200 bg-gradient-to-br from-violet-50/50 to-indigo-50/50 dark:from-violet-950/20 dark:to-indigo-950/20 dark:border-violet-800">
