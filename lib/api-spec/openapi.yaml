@@ -36,6 +36,8 @@ tags:
     description: Factures (invoices) management
   - name: chantiers
     description: Chantiers (job sites) management
+  - name: rendez-vous
+    description: Rendez-vous and agenda management
 
 paths:
   /healthz:
@@ -2374,6 +2376,139 @@ paths:
         "204":
           description: Chantier deleted
 
+  # === RENDEZ-VOUS ===
+  /rendez-vous:
+    get:
+      operationId: listRendezVous
+      tags: [rendez-vous]
+      summary: List all rendez-vous
+      parameters:
+        - name: statut
+          in: query
+          schema:
+            type: string
+            enum: [planifie, confirme, annule, termine, all]
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [rdv, appel, visite, reunion, all]
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [dateDebut, titre, statut]
+            default: dateDebut
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+      responses:
+        "200":
+          description: Rendez-vous list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RendezVousListResponse"
+    post:
+      operationId: createRendezVous
+      tags: [rendez-vous]
+      summary: Create a rendez-vous
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRendezVousBody"
+      responses:
+        "201":
+          description: Rendez-vous created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RendezVousItem"
+
+  /rendez-vous/{id}:
+    get:
+      operationId: getRendezVous
+      tags: [rendez-vous]
+      summary: Get a rendez-vous by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Rendez-vous details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RendezVousItem"
+    patch:
+      operationId: updateRendezVous
+      tags: [rendez-vous]
+      summary: Update a rendez-vous
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRendezVousBody"
+      responses:
+        "200":
+          description: Rendez-vous updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RendezVousItem"
+    delete:
+      operationId: deleteRendezVous
+      tags: [rendez-vous]
+      summary: Delete a rendez-vous
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Rendez-vous deleted
+
 components:
   schemas:
     HealthStatus:
@@ -4260,6 +4395,136 @@ components:
           type: string
           enum: [planifie, en_cours, en_pause, termine, annule]
         responsable:
+          type: string
+        notes:
+          type: string
+
+    RendezVousItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        titre:
+          type: string
+        description:
+          type: string
+          nullable: true
+        prospectId:
+          type: integer
+          nullable: true
+        contactNom:
+          type: string
+          nullable: true
+        telephone:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [rdv, appel, visite, reunion]
+        dateDebut:
+          type: string
+          format: date-time
+        dateFin:
+          type: string
+          format: date-time
+        lieu:
+          type: string
+          nullable: true
+        statut:
+          type: string
+          enum: [planifie, confirme, annule, termine]
+        rappel:
+          type: string
+          nullable: true
+        callId:
+          type: integer
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        prospectNom:
+          type: string
+          nullable: true
+        prospectPrenom:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, titre, type, dateDebut, dateFin, statut, createdAt, updatedAt]
+
+    RendezVousListResponse:
+      type: object
+      properties:
+        rendezVous:
+          type: array
+          items:
+            $ref: "#/components/schemas/RendezVousItem"
+        total:
+          type: integer
+      required: [rendezVous, total]
+
+    CreateRendezVousBody:
+      type: object
+      properties:
+        titre:
+          type: string
+        description:
+          type: string
+        prospectId:
+          type: integer
+        contactNom:
+          type: string
+        telephone:
+          type: string
+        type:
+          type: string
+          enum: [rdv, appel, visite, reunion]
+        dateDebut:
+          type: string
+          format: date-time
+        dateFin:
+          type: string
+          format: date-time
+        lieu:
+          type: string
+        rappel:
+          type: string
+        callId:
+          type: integer
+        notes:
+          type: string
+      required: [titre, dateDebut, dateFin]
+
+    UpdateRendezVousBody:
+      type: object
+      properties:
+        titre:
+          type: string
+        description:
+          type: string
+        contactNom:
+          type: string
+        telephone:
+          type: string
+        type:
+          type: string
+          enum: [rdv, appel, visite, reunion]
+        dateDebut:
+          type: string
+          format: date-time
+        dateFin:
+          type: string
+          format: date-time
+        lieu:
+          type: string
+        statut:
+          type: string
+          enum: [planifie, confirme, annule, termine]
+        rappel:
           type: string
         notes:
           type: string

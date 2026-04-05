@@ -2672,3 +2672,150 @@ export const UpdateChantierResponse = zod.object({
 export const DeleteChantierParams = zod.object({
   id: zod.coerce.number(),
 });
+
+/**
+ * @summary List all rendez-vous
+ */
+export const listRendezVousQueryLimitDefault = 50;
+export const listRendezVousQueryOffsetDefault = 0;
+export const listRendezVousQuerySortByDefault = `dateDebut`;
+export const listRendezVousQuerySortOrderDefault = `asc`;
+
+export const ListRendezVousQueryParams = zod.object({
+  statut: zod
+    .enum(["planifie", "confirme", "annule", "termine", "all"])
+    .optional(),
+  type: zod.enum(["rdv", "appel", "visite", "reunion", "all"]).optional(),
+  dateFrom: zod.date().optional(),
+  dateTo: zod.date().optional(),
+  limit: zod.coerce.number().default(listRendezVousQueryLimitDefault),
+  offset: zod.coerce.number().default(listRendezVousQueryOffsetDefault),
+  search: zod.coerce.string().optional(),
+  sortBy: zod
+    .enum(["dateDebut", "titre", "statut"])
+    .default(listRendezVousQuerySortByDefault),
+  sortOrder: zod
+    .enum(["asc", "desc"])
+    .default(listRendezVousQuerySortOrderDefault),
+});
+
+export const ListRendezVousResponse = zod.object({
+  rendezVous: zod.array(
+    zod.object({
+      id: zod.number(),
+      titre: zod.string(),
+      description: zod.string().nullish(),
+      prospectId: zod.number().nullish(),
+      contactNom: zod.string().nullish(),
+      telephone: zod.string().nullish(),
+      type: zod.enum(["rdv", "appel", "visite", "reunion"]),
+      dateDebut: zod.coerce.date(),
+      dateFin: zod.coerce.date(),
+      lieu: zod.string().nullish(),
+      statut: zod.enum(["planifie", "confirme", "annule", "termine"]),
+      rappel: zod.string().nullish(),
+      callId: zod.number().nullish(),
+      notes: zod.string().nullish(),
+      prospectNom: zod.string().nullish(),
+      prospectPrenom: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Create a rendez-vous
+ */
+export const CreateRendezVousBody = zod.object({
+  titre: zod.string(),
+  description: zod.string().optional(),
+  prospectId: zod.number().optional(),
+  contactNom: zod.string().optional(),
+  telephone: zod.string().optional(),
+  type: zod.enum(["rdv", "appel", "visite", "reunion"]).optional(),
+  dateDebut: zod.coerce.date(),
+  dateFin: zod.coerce.date(),
+  lieu: zod.string().optional(),
+  rappel: zod.string().optional(),
+  callId: zod.number().optional(),
+  notes: zod.string().optional(),
+});
+
+/**
+ * @summary Get a rendez-vous by ID
+ */
+export const GetRendezVousParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetRendezVousResponse = zod.object({
+  id: zod.number(),
+  titre: zod.string(),
+  description: zod.string().nullish(),
+  prospectId: zod.number().nullish(),
+  contactNom: zod.string().nullish(),
+  telephone: zod.string().nullish(),
+  type: zod.enum(["rdv", "appel", "visite", "reunion"]),
+  dateDebut: zod.coerce.date(),
+  dateFin: zod.coerce.date(),
+  lieu: zod.string().nullish(),
+  statut: zod.enum(["planifie", "confirme", "annule", "termine"]),
+  rappel: zod.string().nullish(),
+  callId: zod.number().nullish(),
+  notes: zod.string().nullish(),
+  prospectNom: zod.string().nullish(),
+  prospectPrenom: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Update a rendez-vous
+ */
+export const UpdateRendezVousParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateRendezVousBody = zod.object({
+  titre: zod.string().optional(),
+  description: zod.string().optional(),
+  contactNom: zod.string().optional(),
+  telephone: zod.string().optional(),
+  type: zod.enum(["rdv", "appel", "visite", "reunion"]).optional(),
+  dateDebut: zod.coerce.date().optional(),
+  dateFin: zod.coerce.date().optional(),
+  lieu: zod.string().optional(),
+  statut: zod.enum(["planifie", "confirme", "annule", "termine"]).optional(),
+  rappel: zod.string().optional(),
+  notes: zod.string().optional(),
+});
+
+export const UpdateRendezVousResponse = zod.object({
+  id: zod.number(),
+  titre: zod.string(),
+  description: zod.string().nullish(),
+  prospectId: zod.number().nullish(),
+  contactNom: zod.string().nullish(),
+  telephone: zod.string().nullish(),
+  type: zod.enum(["rdv", "appel", "visite", "reunion"]),
+  dateDebut: zod.coerce.date(),
+  dateFin: zod.coerce.date(),
+  lieu: zod.string().nullish(),
+  statut: zod.enum(["planifie", "confirme", "annule", "termine"]),
+  rappel: zod.string().nullish(),
+  callId: zod.number().nullish(),
+  notes: zod.string().nullish(),
+  prospectNom: zod.string().nullish(),
+  prospectPrenom: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a rendez-vous
+ */
+export const DeleteRendezVousParams = zod.object({
+  id: zod.coerce.number(),
+});

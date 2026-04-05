@@ -16,6 +16,7 @@ import prospectsRouter from "./prospects";
 import devisRouter from "./devis";
 import facturesRouter from "./factures";
 import chantiersRouter from "./chantiers";
+import rendezVousRouter from "./rendez-vous";
 
 const router: IRouter = Router();
 
@@ -36,5 +37,6 @@ router.use(prospectsRouter);
 router.use(devisRouter);
 router.use(facturesRouter);
 router.use(chantiersRouter);
+router.use(rendezVousRouter);
 
 export default router;

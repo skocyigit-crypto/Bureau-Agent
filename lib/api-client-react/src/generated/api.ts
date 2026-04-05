@@ -45,6 +45,7 @@ import type {
   CreateDevisBody,
   CreateMessageBody,
   CreateProspectBody,
+  CreateRendezVousBody,
   CreateStockArticleBody,
   CreateTaskBody,
   DailyReport,
@@ -96,12 +97,15 @@ import type {
   ListMessages200,
   ListMessagesParams,
   ListProspectsParams,
+  ListRendezVousParams,
   ListStockArticlesParams,
   ListTasks200,
   ListTasksParams,
   Message,
   Prospect,
   ProspectListResponse,
+  RendezVousItem,
+  RendezVousListResponse,
   RequestAiAnalysisBody,
   RequestAiRecognitionBody,
   RequestAiSuggestionsBody,
@@ -124,6 +128,7 @@ import type {
   UpdateFactureBody,
   UpdateMessageBody,
   UpdateProspectBody,
+  UpdateRendezVousBody,
   UpdateStockArticleBody,
   UpdateTaskBody,
   WeeklyReport,
@@ -8525,4 +8530,442 @@ export const useDeleteChantier = <
   TContext
 > => {
   return useMutation(getDeleteChantierMutationOptions(options));
+};
+
+/**
+ * @summary List all rendez-vous
+ */
+export const getListRendezVousUrl = (params?: ListRendezVousParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/rendez-vous?${stringifiedParams}`
+    : `/api/rendez-vous`;
+};
+
+export const listRendezVous = async (
+  params?: ListRendezVousParams,
+  options?: RequestInit,
+): Promise<RendezVousListResponse> => {
+  return customFetch<RendezVousListResponse>(getListRendezVousUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListRendezVousQueryKey = (params?: ListRendezVousParams) => {
+  return [`/api/rendez-vous`, ...(params ? [params] : [])] as const;
+};
+
+export const getListRendezVousQueryOptions = <
+  TData = Awaited<ReturnType<typeof listRendezVous>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListRendezVousParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listRendezVous>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListRendezVousQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listRendezVous>>> = ({
+    signal,
+  }) => listRendezVous(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listRendezVous>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListRendezVousQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listRendezVous>>
+>;
+export type ListRendezVousQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all rendez-vous
+ */
+
+export function useListRendezVous<
+  TData = Awaited<ReturnType<typeof listRendezVous>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListRendezVousParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listRendezVous>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListRendezVousQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a rendez-vous
+ */
+export const getCreateRendezVousUrl = () => {
+  return `/api/rendez-vous`;
+};
+
+export const createRendezVous = async (
+  createRendezVousBody: CreateRendezVousBody,
+  options?: RequestInit,
+): Promise<RendezVousItem> => {
+  return customFetch<RendezVousItem>(getCreateRendezVousUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createRendezVousBody),
+  });
+};
+
+export const getCreateRendezVousMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createRendezVous>>,
+    TError,
+    { data: BodyType<CreateRendezVousBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createRendezVous>>,
+  TError,
+  { data: BodyType<CreateRendezVousBody> },
+  TContext
+> => {
+  const mutationKey = ["createRendezVous"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createRendezVous>>,
+    { data: BodyType<CreateRendezVousBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createRendezVous(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateRendezVousMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createRendezVous>>
+>;
+export type CreateRendezVousMutationBody = BodyType<CreateRendezVousBody>;
+export type CreateRendezVousMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a rendez-vous
+ */
+export const useCreateRendezVous = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createRendezVous>>,
+    TError,
+    { data: BodyType<CreateRendezVousBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createRendezVous>>,
+  TError,
+  { data: BodyType<CreateRendezVousBody> },
+  TContext
+> => {
+  return useMutation(getCreateRendezVousMutationOptions(options));
+};
+
+/**
+ * @summary Get a rendez-vous by ID
+ */
+export const getGetRendezVousUrl = (id: number) => {
+  return `/api/rendez-vous/${id}`;
+};
+
+export const getRendezVous = async (
+  id: number,
+  options?: RequestInit,
+): Promise<RendezVousItem> => {
+  return customFetch<RendezVousItem>(getGetRendezVousUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRendezVousQueryKey = (id: number) => {
+  return [`/api/rendez-vous/${id}`] as const;
+};
+
+export const getGetRendezVousQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRendezVous>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRendezVous>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRendezVousQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRendezVous>>> = ({
+    signal,
+  }) => getRendezVous(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRendezVous>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRendezVousQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRendezVous>>
+>;
+export type GetRendezVousQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get a rendez-vous by ID
+ */
+
+export function useGetRendezVous<
+  TData = Awaited<ReturnType<typeof getRendezVous>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRendezVous>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRendezVousQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Update a rendez-vous
+ */
+export const getUpdateRendezVousUrl = (id: number) => {
+  return `/api/rendez-vous/${id}`;
+};
+
+export const updateRendezVous = async (
+  id: number,
+  updateRendezVousBody: UpdateRendezVousBody,
+  options?: RequestInit,
+): Promise<RendezVousItem> => {
+  return customFetch<RendezVousItem>(getUpdateRendezVousUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateRendezVousBody),
+  });
+};
+
+export const getUpdateRendezVousMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateRendezVous>>,
+    TError,
+    { id: number; data: BodyType<UpdateRendezVousBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateRendezVous>>,
+  TError,
+  { id: number; data: BodyType<UpdateRendezVousBody> },
+  TContext
+> => {
+  const mutationKey = ["updateRendezVous"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateRendezVous>>,
+    { id: number; data: BodyType<UpdateRendezVousBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateRendezVous(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateRendezVousMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateRendezVous>>
+>;
+export type UpdateRendezVousMutationBody = BodyType<UpdateRendezVousBody>;
+export type UpdateRendezVousMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update a rendez-vous
+ */
+export const useUpdateRendezVous = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateRendezVous>>,
+    TError,
+    { id: number; data: BodyType<UpdateRendezVousBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateRendezVous>>,
+  TError,
+  { id: number; data: BodyType<UpdateRendezVousBody> },
+  TContext
+> => {
+  return useMutation(getUpdateRendezVousMutationOptions(options));
+};
+
+/**
+ * @summary Delete a rendez-vous
+ */
+export const getDeleteRendezVousUrl = (id: number) => {
+  return `/api/rendez-vous/${id}`;
+};
+
+export const deleteRendezVous = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteRendezVousUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteRendezVousMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteRendezVous>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteRendezVous>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteRendezVous"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteRendezVous>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteRendezVous(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteRendezVousMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteRendezVous>>
+>;
+
+export type DeleteRendezVousMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete a rendez-vous
+ */
+export const useDeleteRendezVous = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteRendezVous>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteRendezVous>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteRendezVousMutationOptions(options));
 };

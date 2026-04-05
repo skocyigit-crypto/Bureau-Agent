@@ -1452,6 +1452,111 @@ export interface UpdateChantierBody {
   notes?: string;
 }
 
+export type RendezVousItemType =
+  (typeof RendezVousItemType)[keyof typeof RendezVousItemType];
+
+export const RendezVousItemType = {
+  rdv: "rdv",
+  appel: "appel",
+  visite: "visite",
+  reunion: "reunion",
+} as const;
+
+export type RendezVousItemStatut =
+  (typeof RendezVousItemStatut)[keyof typeof RendezVousItemStatut];
+
+export const RendezVousItemStatut = {
+  planifie: "planifie",
+  confirme: "confirme",
+  annule: "annule",
+  termine: "termine",
+} as const;
+
+export interface RendezVousItem {
+  id: number;
+  titre: string;
+  description?: string | null;
+  prospectId?: number | null;
+  contactNom?: string | null;
+  telephone?: string | null;
+  type: RendezVousItemType;
+  dateDebut: string;
+  dateFin: string;
+  lieu?: string | null;
+  statut: RendezVousItemStatut;
+  rappel?: string | null;
+  callId?: number | null;
+  notes?: string | null;
+  prospectNom?: string | null;
+  prospectPrenom?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RendezVousListResponse {
+  rendezVous: RendezVousItem[];
+  total: number;
+}
+
+export type CreateRendezVousBodyType =
+  (typeof CreateRendezVousBodyType)[keyof typeof CreateRendezVousBodyType];
+
+export const CreateRendezVousBodyType = {
+  rdv: "rdv",
+  appel: "appel",
+  visite: "visite",
+  reunion: "reunion",
+} as const;
+
+export interface CreateRendezVousBody {
+  titre: string;
+  description?: string;
+  prospectId?: number;
+  contactNom?: string;
+  telephone?: string;
+  type?: CreateRendezVousBodyType;
+  dateDebut: string;
+  dateFin: string;
+  lieu?: string;
+  rappel?: string;
+  callId?: number;
+  notes?: string;
+}
+
+export type UpdateRendezVousBodyType =
+  (typeof UpdateRendezVousBodyType)[keyof typeof UpdateRendezVousBodyType];
+
+export const UpdateRendezVousBodyType = {
+  rdv: "rdv",
+  appel: "appel",
+  visite: "visite",
+  reunion: "reunion",
+} as const;
+
+export type UpdateRendezVousBodyStatut =
+  (typeof UpdateRendezVousBodyStatut)[keyof typeof UpdateRendezVousBodyStatut];
+
+export const UpdateRendezVousBodyStatut = {
+  planifie: "planifie",
+  confirme: "confirme",
+  annule: "annule",
+  termine: "termine",
+} as const;
+
+export interface UpdateRendezVousBody {
+  titre?: string;
+  description?: string;
+  contactNom?: string;
+  telephone?: string;
+  type?: UpdateRendezVousBodyType;
+  dateDebut?: string;
+  dateFin?: string;
+  lieu?: string;
+  statut?: UpdateRendezVousBodyStatut;
+  rappel?: string;
+  notes?: string;
+}
+
 export type ListCallsParams = {
   status?: ListCallsStatus;
   limit?: number;
@@ -2179,6 +2284,57 @@ export type ListChantiersSortOrder =
   (typeof ListChantiersSortOrder)[keyof typeof ListChantiersSortOrder];
 
 export const ListChantiersSortOrder = {
+  asc: "asc",
+  desc: "desc",
+} as const;
+
+export type ListRendezVousParams = {
+  statut?: ListRendezVousStatut;
+  type?: ListRendezVousType;
+  dateFrom?: string;
+  dateTo?: string;
+  limit?: number;
+  offset?: number;
+  search?: string;
+  sortBy?: ListRendezVousSortBy;
+  sortOrder?: ListRendezVousSortOrder;
+};
+
+export type ListRendezVousStatut =
+  (typeof ListRendezVousStatut)[keyof typeof ListRendezVousStatut];
+
+export const ListRendezVousStatut = {
+  planifie: "planifie",
+  confirme: "confirme",
+  annule: "annule",
+  termine: "termine",
+  all: "all",
+} as const;
+
+export type ListRendezVousType =
+  (typeof ListRendezVousType)[keyof typeof ListRendezVousType];
+
+export const ListRendezVousType = {
+  rdv: "rdv",
+  appel: "appel",
+  visite: "visite",
+  reunion: "reunion",
+  all: "all",
+} as const;
+
+export type ListRendezVousSortBy =
+  (typeof ListRendezVousSortBy)[keyof typeof ListRendezVousSortBy];
+
+export const ListRendezVousSortBy = {
+  dateDebut: "dateDebut",
+  titre: "titre",
+  statut: "statut",
+} as const;
+
+export type ListRendezVousSortOrder =
+  (typeof ListRendezVousSortOrder)[keyof typeof ListRendezVousSortOrder];
+
+export const ListRendezVousSortOrder = {
   asc: "asc",
   desc: "desc",
 } as const;
