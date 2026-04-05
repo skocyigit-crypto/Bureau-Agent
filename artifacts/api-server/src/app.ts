@@ -1,13 +1,15 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
-import rateLimit, { ipKeyGenerator as erlIpKeyGen } from "express-rate-limit";
+import rateLimit from "express-rate-limit";
 import hpp from "hpp";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
+
+app.set("trust proxy", 1);
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -69,14 +71,12 @@ app.use(cors({
 }));
 
 const getClientKey = (req: Request): string => {
-  const forwarded = req.headers["x-forwarded-for"];
-  const raw = typeof forwarded === "string" ? forwarded.split(",")[0].trim() : req.ip || "unknown";
-  return erlIpKeyGen(raw);
+  return req.ip || "unknown";
 };
 
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Trop de requetes. Veuillez reessayer plus tard." },
@@ -86,7 +86,7 @@ const generalLimiter = rateLimit({
 
 const aiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 5,
+  max: 15,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Limite d'analyse IA atteinte. Veuillez reessayer dans une minute." },
@@ -96,7 +96,7 @@ const aiLimiter = rateLimit({
 
 const strictLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50,
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Trop de requetes d'ecriture. Veuillez reessayer plus tard." },

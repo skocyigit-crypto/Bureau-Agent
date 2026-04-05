@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Phone, Users, CheckSquare, MessageSquare, ArrowUpRight, ArrowDownRight, PhoneIncoming, PhoneOutgoing, PhoneMissed, Calendar as CalendarIcon, Clock, Plus, TrendingUp, Activity, BarChart3, Send, LayoutDashboard } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, ArrowUpRight, ArrowDownRight, Clock, Plus, Activity, BarChart3, Send, LayoutDashboard, Shield, HardDriveDownload, Zap } from "lucide-react";
 import { Icon3D, type Icon3DVariant } from "@/components/icon-3d";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { AiRecognitionPanel } from "@/components/ai-recognition-panel";
@@ -292,7 +292,7 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="space-y-4">
-                {topContacts?.contacts?.map((contact, idx) => (
+                {topContacts?.contacts?.map((contact) => (
                   <Link key={contact.id} href={`/contacts/${contact.id}`}>
                     <div className="flex items-center justify-between hover:bg-muted/50 rounded-lg p-2 -mx-2 transition-colors cursor-pointer">
                       <div className="flex items-center gap-3">
@@ -354,6 +354,43 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+      <Card className="bg-gradient-to-r from-[#1a2744] to-[#2d3a54] text-white border-0 shadow-lg">
+        <CardContent className="p-4 md:p-6">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-emerald-500/20">
+                <Shield className="w-5 h-5 text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-xs text-white/60">Securite</p>
+                <p className="font-semibold text-emerald-300">Protege</p>
+                <p className="text-xs text-white/50">RGPD / ISO 27001</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-blue-500/20">
+                <HardDriveDownload className="w-5 h-5 text-blue-400" />
+              </div>
+              <div>
+                <p className="text-xs text-white/60">Sauvegarde auto</p>
+                <p className="font-semibold text-blue-300">Active</p>
+                <p className="text-xs text-white/50">Toutes les 2 minutes</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-500/20">
+                <Zap className="w-5 h-5 text-amber-400" />
+              </div>
+              <div>
+                <p className="text-xs text-white/60">Systeme IA</p>
+                <p className="font-semibold text-amber-300">7 agents actifs</p>
+                <p className="text-xs text-white/50">Surveillance continue</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <EmailComposer
         isOpen={isEmailComposerOpen}
         onClose={() => setIsEmailComposerOpen(false)}

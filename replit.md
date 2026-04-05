@@ -42,9 +42,9 @@ The application's UI is entirely in French (France), featuring a deep navy sideb
     - **Email Drafting:** `POST /ai/draft-email` for AI-powered email generation with context.
 - **Multi-Agent AI System:** Comprises 7 specialist agents (Calls, Contacts, Tasks, Messages, Attendance, Security, Performance) that generate scored reports. A "Super Agent IA" orchestrates these reports for a unified action plan. This system can run automatically at configurable intervals.
 - **User Management:** A robust role-based access control system with four tiers: Super Admin, Administrateur, Agent, and Lecture seule (Read-only). Features include Google Workspace user identification, seat-based licensing, and comprehensive user management functionalities.
-- **Security Hardening:** Implements Helmet for security headers, rate limiting, strict CORS policies, HPP protection, Zod-based input validation, Drizzle ORM for SQL injection prevention, and structured error handling.
+- **Security Hardening:** Implements Helmet for security headers, rate limiting (general 1000/15min, AI 15/min, write 200/15min) with `trust proxy` and `req.ip`-based key generation, strict CORS policies, HPP protection, Zod-based input validation, Drizzle ORM for SQL injection prevention, and structured error handling.
 - **Features:**
-    - **Dashboard:** KPI cards, weekly stats, performance charts, task completion, top contacts, activity feed.
+    - **Dashboard:** KPI cards, weekly stats, performance charts, task completion, top contacts, activity feed, system status bar (security/backup/AI status).
     - **Call Management:** Full-featured call log with search, filters, bulk actions, CSV export, and AI analysis.
     - **Contact Management:** Professional directory with search, filters, table/grid views, and bulk actions.
     - **Task Management:** Dual view (table/Kanban), filters, bulk actions, and overdue highlighting.
