@@ -72,18 +72,13 @@ app.use(cors({
   maxAge: 86400,
 }));
 
-const getClientKey = (req: Request): string => {
-  return req.ip || "unknown";
-};
-
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Trop de requetes. Veuillez reessayer plus tard." },
-  keyGenerator: getClientKey,
-  validate: { xForwardedForHeader: false },
+  validate: { xForwardedForHeader: false, ip: false },
 });
 
 const aiLimiter = rateLimit({
@@ -92,8 +87,7 @@ const aiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Limite d'analyse IA atteinte. Veuillez reessayer dans une minute." },
-  keyGenerator: getClientKey,
-  validate: { xForwardedForHeader: false },
+  validate: { xForwardedForHeader: false, ip: false },
 });
 
 const strictLimiter = rateLimit({
@@ -102,8 +96,7 @@ const strictLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Trop de requetes d'ecriture. Veuillez reessayer plus tard." },
-  keyGenerator: getClientKey,
-  validate: { xForwardedForHeader: false },
+  validate: { xForwardedForHeader: false, ip: false },
 });
 
 app.use(express.json({ limit: "1mb" }));
