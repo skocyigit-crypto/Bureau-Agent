@@ -73,14 +73,14 @@ router.post("/auth/login", async (req: Request, res: Response): Promise<void> =>
 });
 
 router.post("/auth/logout", (req: Request, res: Response): void => {
-  req.session.destroy((err) => {
-    if (err) {
-      res.status(500).json({ error: "Erreur lors de la deconnexion." });
-      return;
-    }
-    res.clearCookie("adb.sid");
+  res.clearCookie("adb.sid", { path: "/" });
+  if (req.session) {
+    req.session.destroy(() => {
+      res.json({ message: "Deconnecte avec succes." });
+    });
+  } else {
     res.json({ message: "Deconnecte avec succes." });
-  });
+  }
 });
 
 router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
