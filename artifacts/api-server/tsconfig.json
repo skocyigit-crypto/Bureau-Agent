@@ -15,6 +15,12 @@
     },
     {
       "path": "../../lib/integrations-gemini-ai"
+    },
+    {
+      "path": "../../lib/integrations-openai-ai-server"
+    },
+    {
+      "path": "../../lib/integrations-anthropic-ai"
     }
   ]
 }

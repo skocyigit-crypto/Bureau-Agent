@@ -175,7 +175,16 @@ Reponds en JSON avec cette structure exacte:
 
 router.get("/ai/status", (_req, res) => {
   const hasGemini = !!(process.env.AI_INTEGRATIONS_GEMINI_BASE_URL && process.env.AI_INTEGRATIONS_GEMINI_API_KEY);
-  res.json({ available: hasGemini });
+  const hasOpenAI = !!(process.env.AI_INTEGRATIONS_OPENAI_BASE_URL && process.env.AI_INTEGRATIONS_OPENAI_API_KEY);
+  const hasAnthropic = !!(process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL && process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY);
+  res.json({
+    available: hasGemini || hasOpenAI || hasAnthropic,
+    providers: {
+      gemini: { available: hasGemini, model: "gemini-2.5-flash", role: "Analyse principale" },
+      openai: { available: hasOpenAI, model: "gpt-5.2", role: "Verification et synthese" },
+      anthropic: { available: hasAnthropic, model: "claude-sonnet-4-6", role: "Raisonnement avance" },
+    },
+  });
 });
 
 async function gatherContextForPage(page: string) {

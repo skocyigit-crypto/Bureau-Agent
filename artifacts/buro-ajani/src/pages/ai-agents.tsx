@@ -263,6 +263,75 @@ function AgentCard({ report, onRunAgent }: { report: any; onRunAgent?: (id: stri
               </div>
             )}
 
+            {report.details && (report.details as any).multiAI && (
+              <div className="space-y-3">
+                <Separator />
+                <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                  <Brain className="w-3.5 h-3.5" /> Analyse multi-IA
+                </h4>
+                {(report.details as any).multiAI.providersUsed && (
+                  <div className="flex gap-1.5 flex-wrap">
+                    {((report.details as any).multiAI.providersUsed as string[]).map((p: string, i: number) => (
+                      <Badge key={i} variant="outline" className="text-[10px]">{p}</Badge>
+                    ))}
+                  </div>
+                )}
+                {(report.details as any).multiAI.openaiVerification && (
+                  <div className="p-2.5 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200/50 text-xs space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Target className="w-3.5 h-3.5 text-green-600" />
+                      <span className="font-semibold text-green-700">Verification OpenAI (GPT 5.2)</span>
+                    </div>
+                    <p className="text-muted-foreground">{(report.details as any).multiAI.openaiVerification.verification}</p>
+                    {(report.details as any).multiAI.openaiVerification.incoherences?.length > 0 && (
+                      <div className="space-y-1 mt-1">
+                        <p className="text-[11px] font-medium text-amber-700">Incoherences detectees:</p>
+                        {((report.details as any).multiAI.openaiVerification.incoherences as any[]).map((inc: any, j: number) => (
+                          <p key={j} className="text-[11px] text-muted-foreground pl-2 border-l-2 border-amber-300">{inc.description}</p>
+                        ))}
+                      </div>
+                    )}
+                    {(report.details as any).multiAI.openaiVerification.pointsManques?.length > 0 && (
+                      <div className="space-y-1 mt-1">
+                        <p className="text-[11px] font-medium text-blue-700">Points manques:</p>
+                        {((report.details as any).multiAI.openaiVerification.pointsManques as any[]).map((pm: any, j: number) => (
+                          <p key={j} className="text-[11px] text-muted-foreground pl-2 border-l-2 border-blue-300">{pm.description}</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {(report.details as any).multiAI.anthropicStrategie && (
+                  <div className="p-2.5 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-200/50 text-xs space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5 text-orange-600" />
+                      <span className="font-semibold text-orange-700">Strategie Anthropic (Claude Sonnet 4.6)</span>
+                    </div>
+                    <p className="text-muted-foreground">{(report.details as any).multiAI.anthropicStrategie.strategieGlobale}</p>
+                    {(report.details as any).multiAI.anthropicStrategie.prioritesStrategiques?.length > 0 && (
+                      <div className="space-y-1 mt-1">
+                        <p className="text-[11px] font-medium text-orange-700">Priorites strategiques:</p>
+                        {((report.details as any).multiAI.anthropicStrategie.prioritesStrategiques as any[]).map((ps: any, j: number) => (
+                          <div key={j} className="text-[11px] pl-2 border-l-2 border-orange-300">
+                            <span className="font-medium">{ps.titre}</span>
+                            <span className="text-muted-foreground"> - {ps.description}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {(report.details as any).multiAI.anthropicStrategie.risques?.length > 0 && (
+                      <div className="space-y-1 mt-1">
+                        <p className="text-[11px] font-medium text-red-700">Risques identifies:</p>
+                        {((report.details as any).multiAI.anthropicStrategie.risques as any[]).map((r: any, j: number) => (
+                          <p key={j} className="text-[11px] text-muted-foreground pl-2 border-l-2 border-red-300">{r.description} (Mitigation: {r.mitigation})</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {report.executionTimeMs > 0 && (
               <p className="text-[10px] text-muted-foreground text-right">
                 Execute en {(report.executionTimeMs / 1000).toFixed(1)}s
@@ -391,11 +460,56 @@ export default function AiAgentsPage() {
           <div className="absolute inset-0 flex items-center px-6">
             <div className="text-white">
               <h3 className="text-lg font-bold">Systeme multi-agents IA</h3>
-              <p className="text-white/80 text-sm mt-1">7 agents specialises et un Super Agent orchestrateur pour une analyse continue.</p>
+              <p className="text-white/80 text-sm mt-1">7 agents specialises et un Super Agent orchestrateur avec 3 moteurs IA.</p>
             </div>
           </div>
         </div>
       </Card>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <Card className="border-emerald-200/50 bg-gradient-to-br from-emerald-50/30 to-teal-50/20 dark:from-emerald-950/10 dark:to-teal-950/5">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                <Brain className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold">Gemini 2.5 Flash</p>
+                <p className="text-[11px] text-muted-foreground">Analyse principale et rapports</p>
+              </div>
+              <Badge variant="outline" className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-300">Actif</Badge>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-violet-200/50 bg-gradient-to-br from-violet-50/30 to-purple-50/20 dark:from-violet-950/10 dark:to-purple-950/5">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+                <Target className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold">GPT 5.2</p>
+                <p className="text-[11px] text-muted-foreground">Verification et synthese</p>
+              </div>
+              <Badge variant="outline" className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-300">Actif</Badge>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-orange-200/50 bg-gradient-to-br from-orange-50/30 to-amber-50/20 dark:from-orange-950/10 dark:to-amber-950/5">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
+                <Zap className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold">Claude Sonnet 4.6</p>
+                <p className="text-[11px] text-muted-foreground">Raisonnement avance</p>
+              </div>
+              <Badge variant="outline" className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-300">Actif</Badge>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/10 border-purple-200/50">

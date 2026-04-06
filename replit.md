@@ -35,14 +35,14 @@ The application's UI is entirely in French (France), featuring a deep navy sideb
 **Technical Implementations:**
 - **Backend:** Built with Express 5, using PostgreSQL as the database and Drizzle ORM for database interactions. Zod is used for schema validation. API codegen is handled by Orval from an OpenAPI specification. `esbuild` is used for CJS bundling.
 - **Frontend:** Developed with React, Vite, Tailwind CSS, shadcn/ui, and Recharts.
-- **AI Integration:** Leverages Gemini AI via Replit AI Integrations for various functionalities:
+- **AI Integration:** Leverages 3 AI providers (Gemini, OpenAI, Anthropic) via Replit AI Integrations for various functionalities:
     - **Analytics:** `POST /ai/analyze` for structured insights.
     - **Contextual Suggestions:** `POST /ai/suggest` for page-level recommendations.
     - **Form Validation:** `POST /ai/validate` for AI-powered pre-submission checks, including duplicate detection.
     - **Q&A Assistant:** `POST /ai/assistant` for natural language queries with real-time database context.
     - **Pattern Recognition:** `POST /ai/recognize` for cross-entity detection and health scores.
     - **Email Drafting:** `POST /ai/draft-email` for AI-powered email generation with context.
-- **Multi-Agent AI System:** Comprises 7 specialist agents (Calls, Contacts, Tasks, Messages, Attendance, Security, Performance) that generate scored reports. A "Super Agent IA" orchestrates these reports for a unified action plan. This system can run automatically at configurable intervals.
+- **Multi-Agent AI System:** Comprises 7 specialist agents (Calls, Contacts, Tasks, Messages, Attendance, Security, Performance) that generate scored reports via Gemini. A "Super Agent IA" orchestrates these reports using all 3 AI providers in parallel: Gemini for main analysis, OpenAI GPT-5.2 for verification/inconsistency detection, and Anthropic Claude Sonnet 4.6 for strategic recommendations. Results are stored in `details.multiAI`. This system can run automatically at configurable intervals.
 - **Authentication & User Management:** Real database-backed authentication system with bcryptjs password hashing, PostgreSQL session store (connect-pg-simple), and cookie-based sessions (24h expiry). DB table: `users` (email, password_hash, role, departement, organisation, actif, mfa_actif, tentatives_echouees, verrouille_jusqua). Account lockout after 5 failed attempts (15min). Four role tiers: Super Admin, Administrateur, Agent, Lecture seule. Auth API routes: `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`, `POST /auth/change-password`, CRUD on `/auth/users` (super_admin only). Login page with professional deep navy gradient UI. Default Super Admin: `admin@agentdebureau.fr` / `Admin2024!`. Seed script: `artifacts/api-server/src/seed-admin.ts`.
 - **Security Hardening:** Implements Helmet for security headers, rate limiting (general 1000/15min, AI 15/min, write 200/15min) with `trust proxy` and `req.ip`-based key generation, strict CORS policies, HPP protection, Zod-based input validation, Drizzle ORM for SQL injection prevention, and structured error handling.
 - **Features:**
@@ -76,7 +76,7 @@ The application's UI is entirely in French (France), featuring a deep navy sideb
 
 - **Database:** PostgreSQL
 - **ORM:** Drizzle ORM
-- **AI Service:** Gemini AI (via Replit AI Integrations)
+- **AI Services:** Gemini AI (primary analysis), OpenAI GPT-5.2 (verification/synthesis), Anthropic Claude Sonnet 4.6 (advanced reasoning) - all via Replit AI Integrations
 - **API Framework:** Express 5
 - **Frontend Libraries:** React, Vite, Tailwind CSS, shadcn/ui, Recharts, framer-motion
 - **Validation:** Zod, drizzle-zod

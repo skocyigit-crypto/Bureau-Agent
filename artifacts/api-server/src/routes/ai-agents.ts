@@ -259,6 +259,55 @@ async function runSingleAgent(agent: typeof AGENTS[0]): Promise<any> {
   }
 }
 
+async function getOpenAIReview(reportsSummary: any[]): Promise<any> {
+  try {
+    const { openai } = await import("@workspace/integrations-openai-ai-server");
+    const response = await openai.chat.completions.create({
+      model: "gpt-5.2",
+      max_completion_tokens: 8192,
+      messages: [
+        {
+          role: "system",
+          content: `Tu es un verificateur IA senior. Tu recois les rapports d'agents IA et tu dois les verifier pour detecter les incoherences, les erreurs de raisonnement et les points manques. Reponds en JSON: {"verification": "string (resume de ta verification)", "incoherences": [{"description": "string", "agents": ["string"]}], "pointsManques": [{"description": "string", "importance": "haute|moyenne"}]}`,
+        },
+        {
+          role: "user",
+          content: `Verifie ces rapports d'agents IA:\n${JSON.stringify(reportsSummary, null, 2)}`,
+        },
+      ],
+    });
+    const text = response.choices[0]?.message?.content ?? "{}";
+    return JSON.parse(text);
+  } catch (error: any) {
+    console.error("OpenAI review error:", error.message);
+    return { verification: "Verification OpenAI non disponible", incoherences: [], pointsManques: [] };
+  }
+}
+
+async function getAnthropicStrategy(reportsSummary: any[]): Promise<any> {
+  try {
+    const { anthropic } = await import("@workspace/integrations-anthropic-ai");
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 8192,
+      messages: [
+        {
+          role: "user",
+          content: `Tu es un stratege IA senior pour un bureau professionnel en France. A partir des rapports suivants, fournis des recommandations strategiques de haut niveau. Reponds en JSON: {"strategieGlobale": "string (3-5 phrases)", "prioritesStrategiques": [{"titre": "string", "description": "string", "impact": "fort|moyen|faible", "delai": "string"}], "risques": [{"description": "string", "probabilite": "haute|moyenne|basse", "mitigation": "string"}], "opportunites": [{"description": "string", "benefice": "string"}]}
+
+Rapports:\n${JSON.stringify(reportsSummary, null, 2)}`,
+        },
+      ],
+    });
+    const block = message.content[0];
+    const text = block.type === "text" ? block.text : "{}";
+    return JSON.parse(text);
+  } catch (error: any) {
+    console.error("Anthropic strategy error:", error.message);
+    return { strategieGlobale: "Strategie Anthropic non disponible", prioritesStrategiques: [], risques: [], opportunites: [] };
+  }
+}
+
 async function runSuperAgent(childReports: any[]): Promise<any> {
   const startTime = Date.now();
   const today = new Date().toISOString().split("T")[0];
@@ -280,12 +329,13 @@ async function runSuperAgent(childReports: any[]): Promise<any> {
       corrections: r.corrections,
     }));
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [{
-        role: "user",
-        parts: [{
-          text: `Tu es le Super Agent IA, le directeur strategique d'un bureau professionnel en France. Tu recois les rapports de 7 agents IA specialises.
+    const [geminiResponse, openaiReview, anthropicStrategy] = await Promise.all([
+      ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: [{
+          role: "user",
+          parts: [{
+            text: `Tu es le Super Agent IA, le directeur strategique d'un bureau professionnel en France. Tu recois les rapports de 7 agents IA specialises.
 
 Ton role:
 1. ANALYSER tous les rapports et identifier les problemes transversaux
@@ -310,12 +360,15 @@ Reponds en JSON avec cette structure exacte:
 Sois strategique, concret et actionnable. Identifie les correlations entre les differents domaines.
 
 Rapports des agents:\n${JSON.stringify(reportsSummary, null, 2)}`
+          }],
         }],
-      }],
-      config: { maxOutputTokens: 16384, responseMimeType: "application/json" },
-    });
+        config: { maxOutputTokens: 16384, responseMimeType: "application/json" },
+      }),
+      getOpenAIReview(reportsSummary),
+      getAnthropicStrategy(reportsSummary),
+    ]);
 
-    const text = response.text ?? "{}";
+    const text = geminiResponse.text ?? "{}";
     let parsed;
     try {
       parsed = JSON.parse(text);
@@ -353,7 +406,16 @@ Rapports des agents:\n${JSON.stringify(reportsSummary, null, 2)}`
       warningsFound: parsed.warnings?.length || 0,
       suggestionsCount: parsed.suggestions?.length || 0,
       summary: parsed.summary || "Aucun resume disponible",
-      details: { actionPlan: parsed.actionPlan || [], crossAnalysis: parsed.crossAnalysis || [], agentScores: parsed.agentScores || [] },
+      details: {
+        actionPlan: parsed.actionPlan || [],
+        crossAnalysis: parsed.crossAnalysis || [],
+        agentScores: parsed.agentScores || [],
+        multiAI: {
+          openaiVerification: openaiReview,
+          anthropicStrategie: anthropicStrategy,
+          providersUsed: ["gemini-2.5-flash", "gpt-5.2", "claude-sonnet-4-6"],
+        },
+      },
       errors: parsed.errors || [],
       warnings: parsed.warnings || [],
       suggestions: parsed.suggestions || [],
