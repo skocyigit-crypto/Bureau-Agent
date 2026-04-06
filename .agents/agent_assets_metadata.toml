@@ -96,3 +96,9 @@ id = "C5sS1HFL5PiQt7YU53Mas"
 uri = "file://artifacts/buro-ajani/src/assets/images/ai-technology.png"
 type = "image"
 title = "generated_image"
+
+[[generated]]
+id = "mQfu3fUEtzh6As-K3_x3i"
+uri = "file://artifacts/mobile/assets/images/icon.png"
+type = "image"
+title = "generated_image"

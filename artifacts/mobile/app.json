@@ -1,22 +1,29 @@
 {
   "expo": {
-    "name": "Agent de Bureau - Mobile",
+    "name": "Agent de Bureau",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
+    "scheme": "agentdebureau",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0f1729"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": true,
+      "bundleIdentifier": "fr.agentdebureau.mobile"
     },
-    "android": {},
+    "android": {
+      "package": "fr.agentdebureau.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#0f1729"
+      }
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },

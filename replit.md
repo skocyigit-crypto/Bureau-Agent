@@ -13,6 +13,7 @@ The project includes a robust backend API, a React-based frontend with a distinc
 - Advanced security features and robust user management with role-based permissions.
 - Multi-device compatibility and Google Workspace integration.
 - **PWA (Progressive Web App):** Installable on all platforms (Windows, Mac, iOS, Android) from the browser. Manifest at `public/manifest.json`, service worker at `public/sw.js`, SVG icons in `public/icons/`. Apple meta tags for iOS home screen support. Stale-while-revalidate caching strategy for static assets, network-first for navigation.
+- **Native Mobile App (Expo):** Full companion mobile app under `artifacts/mobile/`. Deep navy + amber theme matching web app. 5-tab layout: Accueil (Dashboard), Appels, Contacts, Taches, Plus. Auth via existing API sessions stored in AsyncStorage. Login screen with the same credentials as web app.
 
 The business vision is to provide a premium, efficient, and intelligent office management solution tailored for French-speaking markets, leveraging cutting-edge AI to automate and optimize daily administrative tasks.
 
