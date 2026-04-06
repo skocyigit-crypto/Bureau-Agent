@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 import { Link, useLocation } from "wouter";
-import { Phone, Users, CheckSquare, MessageSquare, BarChart, Bell, Search, LayoutDashboard, Settings, PhoneIncoming, FileText, Puzzle, UserCog, Clock, Brain, Package, UserPlus, FileSignature, Receipt, HardHat, CalendarDays } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, BarChart, Bell, Search, LayoutDashboard, Settings, PhoneIncoming, FileText, Puzzle, UserCog, Clock, Brain, Package } from "lucide-react";
 import { SidebarIcon3D, Icon3D } from "@/components/icon-3d";
 import { AiAssistantButton } from "@/components/ai-assistant";
 import { AiHealthBadge, RecognitionProvider } from "@/components/ai-recognition-panel";
@@ -40,13 +40,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { name: "Parametres", href: "/parametres", icon: Settings },
   ];
 
-  const crmNavigation = [
-    { name: "Prospects", href: "/prospects", icon: UserPlus },
-    { name: "Devis", href: "/devis", icon: FileSignature },
-    { name: "Factures", href: "/factures", icon: Receipt },
-    { name: "Chantiers", href: "/chantiers", icon: HardHat },
-    { name: "Ajanda", href: "/ajanda", icon: CalendarDays },
-  ];
 
   return (
     <IncomingCallContext.Provider value={{ simulateIncomingCall: incomingCall.simulateIncomingCall }}>
@@ -69,27 +62,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <SidebarGroupContent>
                 <SidebarMenu>
                   {navigation.map((item) => (
-                    <SidebarMenuItem key={item.name}>
-                      <SidebarMenuButton 
-                        asChild 
-                        isActive={location === item.href}
-                        tooltip={item.name}
-                      >
-                        <Link href={item.href} className="flex items-center gap-3">
-                          <SidebarIcon3D icon={item.icon} href={item.href} />
-                          <span>{item.name}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-            <SidebarGroup>
-              <SidebarGroupLabel>CRM / Gestion</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {crmNavigation.map((item) => (
                     <SidebarMenuItem key={item.name}>
                       <SidebarMenuButton 
                         asChild 

@@ -22,11 +22,6 @@ import UsersPage from "@/pages/users";
 import CheckinsPage from "@/pages/checkins";
 import AiAgentsPage from "@/pages/ai-agents";
 import StockPage from "@/pages/stock";
-import ProspectsPage from "@/pages/prospects";
-import DevisPage from "@/pages/devis";
-import FacturesPage from "@/pages/factures";
-import ChantiersPage from "@/pages/chantiers";
-import AjandaPage from "@/pages/ajanda";
 
 const queryClient = new QueryClient();
 
@@ -48,11 +43,6 @@ function AppRoutes() {
         <Route path="/pointage" component={CheckinsPage} />
         <Route path="/stock" component={StockPage} />
         <Route path="/agents-ia" component={AiAgentsPage} />
-        <Route path="/prospects" component={ProspectsPage} />
-        <Route path="/devis" component={DevisPage} />
-        <Route path="/factures" component={FacturesPage} />
-        <Route path="/chantiers" component={ChantiersPage} />
-        <Route path="/ajanda" component={AjandaPage} />
         <Route path="/parametres" component={SettingsPage} />
         <Route component={NotFound} />
       </Switch>
