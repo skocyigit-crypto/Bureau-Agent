@@ -37,7 +37,7 @@ The application features a French UI with a deep navy and warm amber aesthetic, 
     - **Intelligence Centrale / Assistant Executif:** An executive assistant for specific roles, offering crisis management (RECONNAISSANCE IA), communication drafting (COMMUNICATION), logistics management (LOGISTIQUE), and fiscal alerts (FISCAL & FLASH).
 - **Multi-Agent AI System:** Seven specialist agents generate scored reports via Gemini, orchestrated by a "Super Agent IA" using Gemini, OpenAI GPT-5.2, and Anthropic Claude Sonnet 4.6 for comprehensive analysis, verification, and strategic recommendations.
 - **Authentication & User Management:** Database-backed system with bcryptjs hashing, PostgreSQL session store, cookie-based sessions, role-based access (Super Admin, Administrateur, Agent, Lecture seule), and account lockout mechanisms.
-- **Security Hardening:** Implements Helmet, rate limiting, strict CORS, HPP protection, Zod validation, Drizzle ORM, and structured error handling.
+- **Security Hardening:** Global `requireAuth` middleware in `artifacts/api-server/src/middleware/auth.ts` protects all API routes except `/healthz` and `/auth/*`. Implements Helmet, rate limiting, strict CORS, HPP protection, Zod validation, Drizzle ORM, and structured error handling.
 - **Features:**
     - **Core Modules:** Dashboard, Call Management, Contact Management, Task Management, Message Management.
     - **Advanced AI:** Incoming Call Overlay with AI Call Processor (appointment/task creation, sentiment analysis), AI-powered Stock Management (QR/barcode scanning, PDF import, auto-status), and Automation Engine (task/event reminders, inactive contact detection).
