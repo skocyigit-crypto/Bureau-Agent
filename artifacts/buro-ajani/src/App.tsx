@@ -26,6 +26,7 @@ import StockPage from "@/pages/stock";
 import CalendarPage from "@/pages/calendar";
 import AuditLogPage from "@/pages/audit-log";
 import AutomationsPage from "@/pages/automations";
+import PerformancePage from "@/pages/performance";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +51,7 @@ function AppRoutes() {
         <Route path="/calendrier" component={CalendarPage} />
         <Route path="/audit" component={AuditLogPage} />
         <Route path="/automatisations" component={AutomationsPage} />
+        <Route path="/performance" component={PerformancePage} />
         <Route path="/parametres" component={SettingsPage} />
         <Route component={NotFound} />
       </Switch>

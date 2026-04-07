@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 import { Link, useLocation } from "wouter";
-import { Phone, Users, CheckSquare, MessageSquare, BarChart, Search, LayoutDashboard, Settings, PhoneIncoming, FileText, Puzzle, UserCog, Clock, Brain, Package, Calendar, Shield, Zap } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, BarChart, Search, LayoutDashboard, Settings, PhoneIncoming, FileText, Puzzle, UserCog, Clock, Brain, Package, Calendar, Shield, Zap, BarChart3 } from "lucide-react";
 import { SidebarIcon3D, Icon3D } from "@/components/icon-3d";
 import { AiAssistantButton } from "@/components/ai-assistant";
 import { AiHealthBadge, RecognitionProvider } from "@/components/ai-recognition-panel";
@@ -36,6 +36,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { name: "Stock", href: "/stock", icon: Package },
     { name: "Pointage", href: "/pointage", icon: Clock },
     { name: "Agents IA", href: "/agents-ia", icon: Brain },
+    { name: "Performance", href: "/performance", icon: BarChart3 },
     { name: "Automatisations", href: "/automatisations", icon: Zap },
     { name: "Audit", href: "/audit", icon: Shield },
     { name: "Parametres", href: "/parametres", icon: Settings },

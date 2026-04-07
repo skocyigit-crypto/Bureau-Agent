@@ -19,6 +19,7 @@ import auditRouter from "./audit";
 import searchRouter from "./search";
 import exportRouter from "./export";
 import automationsRouter from "./automations";
+import performanceRouter from "./performance";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -41,5 +42,6 @@ router.use("/workspace", backupsRouter);
 router.use("/integrations", integrationsRouter);
 router.use("/google-oauth", googleOAuthRouter);
 router.use(checkinsRouter);
+router.use(performanceRouter);
 
 export default router;
