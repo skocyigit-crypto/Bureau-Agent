@@ -8,7 +8,9 @@ const router = Router();
 
 const ALLOWED_UPDATE_FIELDS = new Set([
   "title", "description", "type", "startDate", "endDate", "allDay",
-  "location", "color", "relatedContactId", "relatedTaskId", "reminder", "recurrence"
+  "location", "color", "relatedContactId", "relatedTaskId", "reminder", "recurrence",
+  "contactName", "contactPhone", "contactEmail", "contactCompany", "contactNotes",
+  "status", "priority"
 ]);
 
 router.get("/calendar/events", async (req: Request, res: Response): Promise<void> => {
@@ -68,7 +70,11 @@ router.post("/calendar/events", async (req: Request, res: Response): Promise<voi
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
-  const parsed = insertCalendarEventSchema.safeParse(req.body);
+  const body = { ...req.body };
+  if (body.startDate && typeof body.startDate === "string") body.startDate = new Date(body.startDate);
+  if (body.endDate && typeof body.endDate === "string") body.endDate = new Date(body.endDate);
+
+  const parsed = insertCalendarEventSchema.safeParse(body);
   if (!parsed.success) {
     res.status(400).json({ error: "Donnees invalides.", details: parsed.error.issues });
     return;
