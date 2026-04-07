@@ -27,13 +27,40 @@ interface CallAnalysis {
   joke: string | null;
 }
 
+const processingCalls = new Set<number>();
+
 export async function processCallWithAI(callId: number): Promise<{
+  analysis: CallAnalysis;
+  createdTasks: any[];
+  createdAppointment: any | null;
+}> {
+  if (processingCalls.has(callId)) {
+    throw new Error("Cet appel est deja en cours de traitement.");
+  }
+  processingCalls.add(callId);
+
+  try {
+    return await _processCallInternal(callId);
+  } finally {
+    processingCalls.delete(callId);
+  }
+}
+
+async function _processCallInternal(callId: number): Promise<{
   analysis: CallAnalysis;
   createdTasks: any[];
   createdAppointment: any | null;
 }> {
   const [call] = await db.select().from(callsTable).where(eq(callsTable.id, callId));
   if (!call) throw new Error("Appel non trouve");
+
+  if (call.sentiment && call.sentiment !== "neutre") {
+    throw new Error("Cet appel a deja ete traite par l'IA.");
+  }
+  const existingTasks = await db.select({ id: tasksTable.id }).from(tasksTable).where(eq(tasksTable.relatedCallId, callId)).limit(1);
+  if (existingTasks.length > 0) {
+    throw new Error("Cet appel a deja ete traite par l'IA.");
+  }
 
   const { ai } = await import("@workspace/integrations-gemini-ai");
 

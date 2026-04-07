@@ -19,6 +19,14 @@ export function startAutomationEngine() {
 
   runAllAutomations();
   intervalHandle = setInterval(runAllAutomations, 60 * 1000);
+
+  const shutdown = () => {
+    console.log("[Automation] Arret du moteur d'automatisation");
+    stopAutomationEngine();
+    process.exit(0);
+  };
+  process.once("SIGTERM", shutdown);
+  process.once("SIGINT", shutdown);
 }
 
 export function stopAutomationEngine() {

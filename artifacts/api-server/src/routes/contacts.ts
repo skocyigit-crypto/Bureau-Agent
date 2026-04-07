@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, asc, ilike, or, sql, and } from "drizzle-orm";
-import { db, contactsTable, callsTable, tasksTable } from "@workspace/db";
+import { db, contactsTable, callsTable, tasksTable, calendarEventsTable } from "@workspace/db";
 import {
   ListContactsQueryParams,
   CreateContactBody,
@@ -132,6 +132,9 @@ router.delete("/contacts/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Contact not found" });
     return;
   }
+
+  await db.update(tasksTable).set({ relatedContactId: null }).where(eq(tasksTable.relatedContactId, params.data.id));
+  await db.update(calendarEventsTable).set({ relatedContactId: null }).where(eq(calendarEventsTable.relatedContactId, params.data.id));
 
   res.sendStatus(204);
 });

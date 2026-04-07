@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, asc, ilike, or, sql, and, gte, lte } from "drizzle-orm";
-import { db, callsTable, contactsTable } from "@workspace/db";
+import { db, callsTable, contactsTable, tasksTable } from "@workspace/db";
 import {
   ListCallsQueryParams,
   CreateCallBody,
@@ -108,7 +108,9 @@ router.post("/calls", async (req, res): Promise<void> => {
   logAudit((req.session as any)?.userId, (req.session as any)?.userEmail, "create", "call", String(call.id), { contactName: call.contactName, direction: call.direction });
 
   if (call.status === "repondu" && call.notes && call.notes.trim().length > 5) {
-    processCallWithAI(call.id).catch(() => {});
+    processCallWithAI(call.id).catch((err) => {
+      console.error(`[AI] Erreur traitement appel #${call.id}:`, err?.message || err);
+    });
   }
 
   res.status(201).json(call);
@@ -189,6 +191,8 @@ router.delete("/calls/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Call not found" });
     return;
   }
+
+  await db.delete(tasksTable).where(eq(tasksTable.relatedCallId, params.data.id));
 
   res.sendStatus(204);
 });
