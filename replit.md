@@ -72,7 +72,7 @@ The application's UI is entirely in French (France), featuring a deep navy sideb
 - **Promotional Landing Page (`/tanitim/`):** A separate React+Vite artifact for marketing, featuring deep navy and amber branding, `framer-motion` for animations, AI-generated visuals, and a comprehensive overview of the product.
 
 ## Integration Notes
-- **Google Workspace**: All 6 connectors (Gmail, Calendar, Drive, Docs, Sheets, Slides) were attempted but user is on free tier which does not support third-party connectors. Manual Google Cloud OAuth credentials (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET) are needed to integrate Google Workspace services. Pending user action to provide credentials or upgrade plan.
+- **Google Workspace OAuth Integration**: Full OAuth2 flow built into the app. Routes: `GET/POST /api/google-oauth/config` (Super Admin credential management), `POST /api/google-oauth/auth-url` (generates Google OAuth URL with requested scopes), `GET /api/google-oauth/callback` (handles OAuth callback, stores tokens, updates platform connections), `POST /api/google-oauth/disconnect` (revokes tokens), `POST /api/google-oauth/refresh` (token refresh). DB table: `google_oauth_tokens` (userId, accessToken, refreshToken, scope, expiresAt). Super Admin can configure GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET directly from the Settings > Integrations > Google Workspace panel (no env var access needed). Frontend: OAuth config panel with Client ID/Secret inputs, "Connecter Google OAuth" button triggers real OAuth redirect, callback redirects back to `/parametres?google_success=true`. Self-service for future clients -- each deployment configures their own Google Cloud credentials. Package: `googleapis` installed in api-server.
 
 ## External Dependencies
 

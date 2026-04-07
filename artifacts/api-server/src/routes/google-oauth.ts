@@ -299,4 +299,60 @@ router.post("/refresh", async (req, res) => {
   }
 });
 
+router.get("/config", async (req, res) => {
+  try {
+    const userId = (req.session as any)?.userId;
+    if (!userId) return res.status(401).json({ error: "Non authentifie." });
+
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+    res.json({
+      configured: !!(clientId && clientSecret),
+      hasClientId: !!clientId,
+      hasClientSecret: !!clientSecret,
+      clientIdPreview: clientId ? clientId.slice(0, 12) + "..." : null,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: "Erreur." });
+  }
+});
+
+router.post("/config", async (req, res) => {
+  try {
+    const userId = (req.session as any)?.userId;
+    const userRole = (req.session as any)?.userRole;
+    if (!userId) return res.status(401).json({ error: "Non authentifie." });
+    if (userRole !== "super_admin") return res.status(403).json({ error: "Acces reserve au Super Administrateur." });
+
+    const { clientId, clientSecret } = req.body;
+    if (!clientId || typeof clientId !== "string" || clientId.length < 10) {
+      return res.status(400).json({ error: "Client ID invalide." });
+    }
+    if (!clientSecret || typeof clientSecret !== "string" || clientSecret.length < 5) {
+      return res.status(400).json({ error: "Client Secret invalide." });
+    }
+
+    process.env.GOOGLE_CLIENT_ID = clientId.trim();
+    process.env.GOOGLE_CLIENT_SECRET = clientSecret.trim();
+
+    await db.insert(platformSyncLogsTable).values({
+      platform: "google",
+      serviceId: "config",
+      action: "configuration_oauth",
+      status: "succes",
+      details: "Identifiants Google OAuth configures par l'administrateur.",
+    });
+
+    res.json({
+      status: "configure",
+      message: "Identifiants Google OAuth enregistres avec succes. Vous pouvez maintenant connecter vos services Google Workspace.",
+      configured: true,
+    });
+  } catch (error: any) {
+    console.error("Google OAuth config error:", error);
+    res.status(500).json({ error: "Erreur lors de la configuration." });
+  }
+});
+
 export default router;
