@@ -1,20 +1,17 @@
 import { createContext, useContext } from "react";
 import { Link, useLocation } from "wouter";
-import { Phone, Users, CheckSquare, MessageSquare, BarChart, Bell, Search, LayoutDashboard, Settings, PhoneIncoming, FileText, Puzzle, UserCog, Clock, Brain, Package, Calendar, Shield } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, BarChart, Search, LayoutDashboard, Settings, PhoneIncoming, FileText, Puzzle, UserCog, Clock, Brain, Package, Calendar, Shield, Zap } from "lucide-react";
 import { SidebarIcon3D, Icon3D } from "@/components/icon-3d";
 import { AiAssistantButton } from "@/components/ai-assistant";
 import { AiHealthBadge, RecognitionProvider } from "@/components/ai-recognition-panel";
 import { IncomingCallOverlay, useIncomingCall } from "@/components/incoming-call-overlay";
 import { UserProfileButton, WorkspaceUserSidebarInfo } from "@/components/workspace-user";
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarTrigger, SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarFooter } from "@/components/ui/sidebar";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { GlobalSearch } from "@/components/global-search";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ExportMenu } from "@/components/export-menu";
-import { useGetNotifications } from "@workspace/api-client-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
+import { NotificationBell } from "@/components/notification-bell";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 type IncomingCallContextType = { simulateIncomingCall: (phone?: string) => void };
@@ -23,8 +20,6 @@ export const useSimulateCall = () => useContext(IncomingCallContext);
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  const { data: notifsData } = useGetNotifications({ query: { queryKey: ["notifications"] } });
-
   const incomingCall = useIncomingCall();
 
   const navigation = [
@@ -41,6 +36,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { name: "Stock", href: "/stock", icon: Package },
     { name: "Pointage", href: "/pointage", icon: Clock },
     { name: "Agents IA", href: "/agents-ia", icon: Brain },
+    { name: "Automatisations", href: "/automatisations", icon: Zap },
     { name: "Audit", href: "/audit", icon: Shield },
     { name: "Parametres", href: "/parametres", icon: Settings },
   ];
@@ -113,41 +109,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <ThemeToggle />
               <ExportMenu />
               <AiHealthBadge />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="relative p-2 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-muted outline-none">
-                    <Bell className="w-5 h-5" />
-                    {notifsData && notifsData.unreadCount > 0 && (
-                      <span className="absolute top-0 right-0 w-4 h-4 bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center rounded-full border border-card">
-                        {notifsData.unreadCount}
-                      </span>
-                    )}
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-80">
-                  <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {notifsData?.notifications && notifsData.notifications.length > 0 ? (
-                     notifsData.notifications.map(notif => (
-                       <DropdownMenuItem key={notif.id} className={`flex flex-col items-start gap-1 p-3 cursor-pointer ${!notif.isRead ? 'bg-muted/50' : ''}`}>
-                          <div className="flex items-center justify-between w-full">
-                            <span className="font-medium text-sm">{notif.title}</span>
-                            {!notif.isRead && <div className="w-2 h-2 rounded-full bg-primary"></div>}
-                          </div>
-                          <span className="text-xs text-muted-foreground line-clamp-2">{notif.description}</span>
-                       </DropdownMenuItem>
-                     ))
-                  ) : (
-                    <div className="p-4 text-center text-sm text-muted-foreground">Aucune notification</div>
-                  )}
-                  {notifsData?.notifications && notifsData.notifications.length > 0 && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="justify-center text-primary text-sm font-medium">Tout marquer comme lu</DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <NotificationBell />
               
               <UserProfileButton />
             </div>

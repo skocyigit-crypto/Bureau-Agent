@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { contactsTable, callsTable, tasksTable, messagesTable } from "@workspace/db/schema";
 import { desc } from "drizzle-orm";
+import { logAudit } from "./audit";
 
 const router = Router();
 
@@ -18,8 +19,18 @@ function toCsv(data: any[], columns: { key: string; label: string }[]): string {
   return [header, ...rows].join("\n");
 }
 
+const VALID_ENTITIES = ["contacts", "appels", "taches", "messages"] as const;
+
 router.get("/export/:entity", async (req: Request, res: Response): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+
   const { entity } = req.params;
+
+  if (!VALID_ENTITIES.includes(entity as any)) {
+    res.status(400).json({ error: "Entite non supportee." });
+    return;
+  }
 
   let data: any[] = [];
   let columns: { key: string; label: string }[] = [];
@@ -82,11 +93,9 @@ router.get("/export/:entity", async (req: Request, res: Response): Promise<void>
       ];
       filename = "messages";
       break;
-
-    default:
-      res.status(400).json({ error: "Entite non supportee." });
-      return;
   }
+
+  logAudit(userId, (req.session as any)?.userEmail, "export", entity, undefined, { count: data.length });
 
   const csv = toCsv(data, columns);
   const date = new Date().toISOString().split("T")[0];

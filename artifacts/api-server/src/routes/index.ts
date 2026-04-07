@@ -18,6 +18,7 @@ import calendarRouter from "./calendar";
 import auditRouter from "./audit";
 import searchRouter from "./search";
 import exportRouter from "./export";
+import automationsRouter from "./automations";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -34,6 +35,7 @@ router.use(calendarRouter);
 router.use(auditRouter);
 router.use(searchRouter);
 router.use(exportRouter);
+router.use(automationsRouter);
 router.use("/workspace", workspaceRouter);
 router.use("/workspace", backupsRouter);
 router.use("/integrations", integrationsRouter);

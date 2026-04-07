@@ -12,3 +12,4 @@ export * from "./users";
 export * from "./google-oauth";
 export * from "./calendar-events";
 export * from "./audit-logs";
+export * from "./automations";

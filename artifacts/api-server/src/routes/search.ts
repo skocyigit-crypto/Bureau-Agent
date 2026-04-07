@@ -6,15 +6,19 @@ import { ilike, or, desc } from "drizzle-orm";
 const router = Router();
 
 router.get("/search", async (req: Request, res: Response): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+
   const { q, limit = "5" } = req.query;
 
-  if (!q || (q as string).trim().length < 2) {
-    res.json({ contacts: [], calls: [], tasks: [], messages: [] });
+  if (!q || typeof q !== "string" || q.trim().length < 2) {
+    res.json({ contacts: [], calls: [], tasks: [], messages: [], totalResults: 0 });
     return;
   }
 
-  const term = `%${(q as string).trim()}%`;
-  const maxResults = Math.min(parseInt(limit as string), 10);
+  const term = `%${q.trim()}%`;
+  const parsedLimit = parseInt(limit as string);
+  const maxResults = isNaN(parsedLimit) ? 5 : Math.min(Math.max(parsedLimit, 1), 10);
 
   const [contacts, calls, tasks, messages] = await Promise.all([
     db.select()

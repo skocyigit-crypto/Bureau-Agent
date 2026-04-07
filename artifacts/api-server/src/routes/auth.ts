@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
+import { logAudit } from "./audit";
 
 const router: IRouter = Router();
 
@@ -59,6 +60,8 @@ router.post("/auth/login", async (req: Request, res: Response): Promise<void> =>
   (req.session as any).userId = user.id;
   (req.session as any).userRole = user.role;
 
+  logAudit(user.id, user.email, "login", "auth", undefined, { role: user.role }, req.ip, req.get("user-agent"));
+
   res.json({
     id: user.id,
     email: user.email,
@@ -73,6 +76,9 @@ router.post("/auth/login", async (req: Request, res: Response): Promise<void> =>
 });
 
 router.post("/auth/logout", (req: Request, res: Response): void => {
+  const userId = (req.session as any)?.userId;
+  const userEmail = (req.session as any)?.userEmail;
+  if (userId) logAudit(userId, userEmail, "logout", "auth");
   res.clearCookie("adb.sid", { path: "/" });
   if (req.session) {
     req.session.destroy(() => {
