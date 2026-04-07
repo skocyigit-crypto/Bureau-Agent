@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 import { Link, useLocation } from "wouter";
-import { Phone, Users, CheckSquare, MessageSquare, BarChart, Bell, Search, LayoutDashboard, Settings, PhoneIncoming, FileText, Puzzle, UserCog, Clock, Brain, Package } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, BarChart, Bell, Search, LayoutDashboard, Settings, PhoneIncoming, FileText, Puzzle, UserCog, Clock, Brain, Package, Calendar, Shield } from "lucide-react";
 import { SidebarIcon3D, Icon3D } from "@/components/icon-3d";
 import { AiAssistantButton } from "@/components/ai-assistant";
 import { AiHealthBadge, RecognitionProvider } from "@/components/ai-recognition-panel";
@@ -9,6 +9,9 @@ import { UserProfileButton, WorkspaceUserSidebarInfo } from "@/components/worksp
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarTrigger, SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarFooter } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { GlobalSearch } from "@/components/global-search";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { ExportMenu } from "@/components/export-menu";
 import { useGetNotifications } from "@workspace/api-client-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +33,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { name: "Contacts", href: "/contacts", icon: Users },
     { name: "Tâches", href: "/taches", icon: CheckSquare },
     { name: "Messages", href: "/messages", icon: MessageSquare },
+    { name: "Calendrier", href: "/calendrier", icon: Calendar },
     { name: "Rapports", href: "/rapports", icon: FileText },
     { name: "Logiciels", href: "/logiciels", icon: Puzzle },
     { name: "Analyse", href: "/analyse", icon: BarChart },
@@ -37,6 +41,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { name: "Stock", href: "/stock", icon: Package },
     { name: "Pointage", href: "/pointage", icon: Clock },
     { name: "Agents IA", href: "/agents-ia", icon: Brain },
+    { name: "Audit", href: "/audit", icon: Shield },
     { name: "Parametres", href: "/parametres", icon: Settings },
   ];
 
@@ -88,14 +93,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4 lg:px-6 sticky top-0 z-10">
             <div className="flex items-center gap-4">
               <SidebarTrigger />
-              <div className="relative w-64 hidden md:block">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Rechercher..."
-                  className="w-full bg-muted/50 border-none pl-9 h-9"
-                />
-              </div>
+              <GlobalSearch />
             </div>
             <div className="flex items-center gap-3">
               <Tooltip>
@@ -112,6 +110,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </TooltipTrigger>
                 <TooltipContent>Simuler un appel entrant</TooltipContent>
               </Tooltip>
+              <ThemeToggle />
+              <ExportMenu />
               <AiHealthBadge />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

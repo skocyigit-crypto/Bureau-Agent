@@ -23,6 +23,8 @@ import UsersPage from "@/pages/users";
 import CheckinsPage from "@/pages/checkins";
 import AiAgentsPage from "@/pages/ai-agents";
 import StockPage from "@/pages/stock";
+import CalendarPage from "@/pages/calendar";
+import AuditLogPage from "@/pages/audit-log";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +46,8 @@ function AppRoutes() {
         <Route path="/pointage" component={CheckinsPage} />
         <Route path="/stock" component={StockPage} />
         <Route path="/agents-ia" component={AiAgentsPage} />
+        <Route path="/calendrier" component={CalendarPage} />
+        <Route path="/audit" component={AuditLogPage} />
         <Route path="/parametres" component={SettingsPage} />
         <Route component={NotFound} />
       </Switch>

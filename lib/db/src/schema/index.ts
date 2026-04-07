@@ -10,3 +10,5 @@ export * from "./platform-connections";
 export * from "./auto-backups";
 export * from "./users";
 export * from "./google-oauth";
+export * from "./calendar-events";
+export * from "./audit-logs";

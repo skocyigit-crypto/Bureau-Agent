@@ -69,6 +69,11 @@ The application's UI is entirely in French (France), featuring a deep navy sideb
     - **Ajanda (Agenda):** Rendez-vous management with creation dialog. Types: rdv, appel, visite, reunion. Statuts: planifie, confirme, annule, termine. Linked to prospects and calls. Rappel options. Timeline view with date grouping.
     - **DB Tables:** `prospects`, `devis`, `devis_lignes`, `factures`, `chantiers`, `rendez_vous`. All with full CRUD API routes and OpenAPI specs.
     - **Metiers:** electricite, plomberie, maconnerie, peinture, menuiserie, carrelage, chauffage, toiture, isolation, climatisation, serrurerie, vitrerie, demolition, terrassement, charpente, platrerie, revetement_sol, facade, etancheite, general.
+- **Calendar Module:** Full calendar with month/week views, event creation/editing/deletion. DB table: `calendar_events`. Types: reunion, appel, echeance, rendez_vous, personnel. Backend CRUD routes at `/api/calendar/events`. Frontend page at `/calendrier`.
+- **Global Search:** Cross-entity search across contacts, calls, tasks, messages via `/api/search?q=`. Frontend component `GlobalSearch` with Command palette (Ctrl+K).
+- **Theme Toggle:** Dark/light mode toggle in header using CSS class strategy. Full dark mode CSS variables defined in index.css.
+- **Export Menu:** CSV download for contacts, appels, taches, messages via `/api/export/:entity`. Export dropdown in header.
+- **Audit Log:** Admin-only audit trail. DB table: `audit_logs`. Backend routes `/api/audit/logs` and `/api/audit/stats`. Frontend page at `/audit` with filterable log list and statistics cards.
 - **Promotional Landing Page (`/tanitim/`):** A separate React+Vite artifact for marketing, featuring deep navy and amber branding, `framer-motion` for animations, AI-generated visuals, and a comprehensive overview of the product.
 
 ## Integration Notes
