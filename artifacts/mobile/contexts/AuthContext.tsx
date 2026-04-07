@@ -80,7 +80,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await AsyncStorage.setItem("adb_session", JSON.stringify({ cookie: cookieValue }));
       }
 
-      setUser(data.user);
+      const userData = data.user || data;
+      setUser(userData);
       return { success: true };
     } catch {
       return { success: false, error: "Erreur de connexion au serveur." };
