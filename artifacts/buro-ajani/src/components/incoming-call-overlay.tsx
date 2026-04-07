@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
-import { Phone, PhoneOff, Voicemail, Clock, User, Building, Star, PhoneIncoming, MessageSquare, Calendar, AlertTriangle, Brain, Loader2, X, Volume2, Mic, MicOff, Pause, Play, CheckSquare, Sparkles, CalendarPlus } from "lucide-react";
+import { Phone, PhoneOff, Voicemail, Clock, User, Building, Star, PhoneIncoming, MessageSquare, Calendar, AlertTriangle, Brain, Loader2, X, Volume2, Mic, MicOff, Pause, Play, CheckSquare, Sparkles, CalendarPlus, Smile } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -517,6 +517,23 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                             </div>
                           ))}
                         </div>
+                      </motion.div>
+                    )}
+
+                    {aiResult.analysis?.joke && (
+                      <motion.div
+                        className="bg-pink-50 dark:bg-pink-950/30 rounded-xl p-4 border border-pink-200 dark:border-pink-800"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.3 }}
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <Smile className="w-4 h-4 text-pink-600 dark:text-pink-400" />
+                          <span className="text-sm font-medium">Petite blague du jour</span>
+                        </div>
+                        <p className="text-xs text-pink-800 dark:text-pink-300 leading-relaxed italic">
+                          "{aiResult.analysis.joke}"
+                        </p>
                       </motion.div>
                     )}
                   </motion.div>

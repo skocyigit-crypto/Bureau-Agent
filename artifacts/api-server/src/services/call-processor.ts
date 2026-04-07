@@ -24,6 +24,7 @@ interface CallAnalysis {
   followUpNeeded: boolean;
   followUpReason: string | null;
   tags: string[];
+  joke: string | null;
 }
 
 export async function processCallWithAI(callId: number): Promise<{
@@ -58,6 +59,12 @@ INSTRUCTIONS:
    - Pour chaque tache, donne un titre, description, priorite (haute/moyenne/basse), et delai en jours.
 5. Determine si un suivi est necessaire.
 6. Propose des tags pertinents.
+7. Genere une petite blague legere et professionnelle en rapport avec le sujet de l'appel.
+   - La blague doit etre courte (1-2 phrases max), bienveillante et adaptee au milieu professionnel.
+   - Elle peut etre un jeu de mots, une observation amusante, ou un trait d'humour leger.
+   - Exemples: "Pourquoi les comptables ne jouent jamais a cache-cache? Parce qu'ils finissent toujours par se faire retrouver dans les comptes!", "Un devis bien fait, c'est comme un bon cafe: ca reveille tout le monde!"
+   - Adapte la blague au contexte de l'appel (comptabilite, rendez-vous, devis, chantier, etc.)
+   - Toujours en francais, toujours respectueuse et legere.
 
 IMPORTANT:
 - Les dates suggerees doivent etre au format ISO 8601 (YYYY-MM-DD).
@@ -89,7 +96,8 @@ Reponds UNIQUEMENT en JSON avec cette structure:
   ],
   "followUpNeeded": boolean,
   "followUpReason": "string|null",
-  "tags": ["string"]
+  "tags": ["string"],
+  "joke": "string"
 }`;
 
   const response = await ai.models.generateContent({
@@ -115,6 +123,7 @@ Reponds UNIQUEMENT en JSON avec cette structure:
       followUpNeeded: false,
       followUpReason: null,
       tags: [],
+      joke: null,
     };
   }
 
