@@ -1097,12 +1097,14 @@ router.post("/ai/central-intelligence", async (req, res) => {
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const fifteenDaysAgo = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const next48h = new Date(now.getTime() + 48 * 60 * 60 * 1000);
 
     const { stockArticlesTable } = await import("@workspace/db");
 
     const [
       overdueTasks,
       highPriorityPending,
+      upcomingTasks48h,
       unreadMessages,
       missedCallsWeek,
       answeredCallsWeek,
@@ -1110,6 +1112,7 @@ router.post("/ai/central-intelligence", async (req, res) => {
       callsWithoutContact,
       totalCallsWeek,
       callsToday,
+      recentMissedCalls,
       staleContacts,
       stockAlerts,
       todayCheckins,
@@ -1137,6 +1140,20 @@ router.post("/ai/central-intelligence", async (req, res) => {
       ).limit(5),
 
       db.select({
+        id: tasksTable.id,
+        title: tasksTable.title,
+        priority: tasksTable.priority,
+        dueDate: tasksTable.dueDate,
+      }).from(tasksTable).where(
+        and(
+          gte(tasksTable.dueDate, now),
+          lt(tasksTable.dueDate, next48h),
+          ne(tasksTable.status, "termine"),
+          ne(tasksTable.status, "annule")
+        )
+      ).orderBy(asc(tasksTable.dueDate)).limit(8),
+
+      db.select({
         id: messagesTable.id,
         contactName: messagesTable.contactName,
         phoneNumber: messagesTable.phoneNumber,
@@ -1144,7 +1161,7 @@ router.post("/ai/central-intelligence", async (req, res) => {
         type: messagesTable.type,
         priority: messagesTable.priority,
         createdAt: messagesTable.createdAt,
-      }).from(messagesTable).where(eq(messagesTable.isRead, false)).orderBy(desc(messagesTable.createdAt)).limit(10),
+      }).from(messagesTable).where(eq(messagesTable.isRead, false)).orderBy(desc(messagesTable.createdAt)).limit(15),
 
       db.select({ count: count() }).from(callsTable).where(and(eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))),
       db.select({ count: count() }).from(callsTable).where(and(eq(callsTable.status, "repondu"), gte(callsTable.createdAt, weekAgo))),
@@ -1152,6 +1169,17 @@ router.post("/ai/central-intelligence", async (req, res) => {
       db.select({ count: count() }).from(callsTable).where(and(isNull(callsTable.contactId), gte(callsTable.createdAt, weekAgo))),
       db.select({ count: count() }).from(callsTable).where(gte(callsTable.createdAt, weekAgo)),
       db.select({ count: count() }).from(callsTable).where(gte(callsTable.createdAt, todayStart)),
+
+      db.select({
+        id: callsTable.id,
+        contactName: callsTable.contactName,
+        phoneNumber: callsTable.phoneNumber,
+        direction: callsTable.direction,
+        notes: callsTable.notes,
+        createdAt: callsTable.createdAt,
+      }).from(callsTable).where(
+        and(eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))
+      ).orderBy(desc(callsTable.createdAt)).limit(5),
 
       db.select({
         id: contactsTable.id,
@@ -1178,14 +1206,14 @@ router.post("/ai/central-intelligence", async (req, res) => {
         supplier: stockArticlesTable.supplier,
       }).from(stockArticlesTable).where(
         sql`${stockArticlesTable.quantity} <= ${stockArticlesTable.minQuantity}`
-      ).limit(5),
+      ).limit(8),
 
       db.select({ count: count() }).from(checkinsTable).where(gte(checkinsTable.checkInAt, todayStart)),
 
       db.select({
         hour: sql<string>`extract(hour from ${callsTable.createdAt})`.as("hour"),
         callCount: count(),
-      }).from(callsTable).where(gte(callsTable.createdAt, weekAgo)).groupBy(sql`extract(hour from ${callsTable.createdAt})`).orderBy(desc(count())).limit(3),
+      }).from(callsTable).where(gte(callsTable.createdAt, weekAgo)).groupBy(sql`extract(hour from ${callsTable.createdAt})`).orderBy(desc(count())).limit(5),
       db.select({
         total: count(),
         completed: sql<number>`SUM(CASE WHEN status = 'termine' THEN 1 ELSE 0 END)`,
@@ -1215,6 +1243,7 @@ router.post("/ai/central-intelligence", async (req, res) => {
     penalty += (taskRate < 50 ? (50 - taskRate) / 2 : 0);
     penalty += stockAlerts.length * 2;
     const scoreGlobal = Math.max(0, Math.min(100, Math.round(scoreBase - penalty)));
+    const modeCommando = scoreGlobal < 90;
 
     const maskPhone = (phone: string) => phone.length > 4 ? phone.slice(0, -4).replace(/./g, "*") + phone.slice(-4) : "****";
 
@@ -1222,23 +1251,35 @@ router.post("/ai/central-intelligence", async (req, res) => {
 
     const contextForAI = {
       scoreSante: scoreGlobal,
+      modeCommando,
       tachesEnRetard: overdueTasks.map(t => ({
         titre: t.title,
         priorite: t.priority,
         echeance: t.dueDate,
         assigneA: t.assignedTo || "Non assigne",
+        status: t.status,
       })),
       tachesHautePriorite: highPriorityPending.map(t => ({
         titre: t.title,
         echeance: t.dueDate,
         assigneA: t.assignedTo || "Non assigne",
       })),
+      tachesProchaines48h: upcomingTasks48h.map(t => ({
+        titre: t.title,
+        priorite: t.priority,
+        echeance: t.dueDate,
+      })),
       messagesNonLus: unreadMessages.map((m, i) => ({
         index: i + 1,
         expediteur: m.contactName || "Inconnu",
-        resume: m.content.slice(0, 100),
+        resume: m.content.slice(0, 150),
         priorite: m.priority,
         type: m.type,
+      })),
+      appelsManquesRecents: recentMissedCalls.map(c => ({
+        contact: c.contactName || "Inconnu",
+        date: c.createdAt,
+        direction: c.direction,
       })),
       appels: {
         totalSemaine: totalWeekCalls,
@@ -1257,8 +1298,10 @@ router.post("/ai/central-intelligence", async (req, res) => {
       })),
       alertesStock: stockAlerts.map(s => ({
         article: s.name,
+        reference: s.reference,
         quantite: s.quantity,
         seuilMin: s.minQuantity,
+        categorie: s.category,
       })),
       pointage: {
         arrivesAujourdhui: todayCheckinCount,
@@ -1277,61 +1320,78 @@ router.post("/ai/central-intelligence", async (req, res) => {
       contents: [{
         role: "user",
         parts: [{
-          text: `Tu es l'Intelligence Centrale du logiciel "Agent de Bureau", l'assistant IA personnel d'Aurelie, gestionnaire de bureau en France.
-
-TON OBJECTIF : Reduire la charge mentale d'Aurelie de 80% en produisant un briefing actionnable, pas de longs paragraphes.
+          text: `Tu es l'Assistant Executif de Haute Performance integre a "Agent de Bureau".
+TON OBJECTIF UNIQUE : Zero perte de temps pour Aurelie. Score de Sante a 100/100.
 
 DONNEES EN TEMPS REEL :
 ${JSON.stringify(contextForAI, null, 2)}
 
-INSTRUCTIONS STRICTES :
+=== MODULE 1 : RECONNAISSANCE IA (GESTION DE CRISE) ===
+Score actuel: ${scoreGlobal}/100 | Mode: ${modeCommando ? "COMMANDO" : "NORMAL"}
+${modeCommando ? "MODE COMMANDO ACTIF : Identifie CHAQUE probleme et propose une resolution IMMEDIATE." : ""}
 
-1. URGENCES (Score de Sante: ${scoreGlobal}/100)
-   - Si score < 50: identifie les 3 actions prioritaires IMMEDIATES avec solution concrete
-   - Si score 50-75: identifie les 2 actions a planifier dans la journee
-   - Si score > 75: resume bref de la situation
+Pour CHAQUE probleme detecte, structure en :
+[PROBLEME] -> [SOLUTION PROPOSEE] -> [TYPE ACTION: naviguer/copier/valider]
 
-2. MESSAGES NON LUS (${unreadMessages.length} messages)
-   - Pour chaque message non lu, genere un brouillon de reponse (2-3 phrases max) en ton professionnel chaleureux
-   - Categorise: CRITIQUE / A_PLANIFIER / INFO
+- Taches en retard (${overdueTasks.length}) : Propose un nouvel horaire OU genere un message d'excuse pre-rempli
+- Messages critiques (${unreadMessages.filter(m => m.priority === "haute").length}) : Redige un brouillon de reponse a 90% finalise
+- Appels manques (${missedCount} semaine) : Pour chaque appel manque recent, identifie le client et prepare la fiche de rappel
 
-3. ANTICIPATION
-   - Si appels aujourd'hui = ${todayCallCount}: analyse les contacts a relancer (15j+ sans appel) et prepare une liste de rappel intelligente avec raison
-   - Si stock en alerte: croise avec les taches prevues et alerte si conflit
+=== MODULE 2 : COMMUNICATION & CONTACTS (AUTOMATISATION) ===
+- TRI EISENHOWER de chaque message : Urgent+Important / Urgent / Important / Ni-ni
+- Si un message depasse 100 caracteres, resume en 1 ligne + action a valider
+- Periodes 0 appels : Suggere 3 relances strategiques basees sur potentiel de conversion
 
-4. TRI INTELLIGENT de TOUTES les notifications en categories:
-   - CRITIQUE: actions immediates requises
-   - A_PLANIFIER: a traiter dans la journee
-   - INFO: pour information, pas d'action urgente
+=== MODULE 3 : LOGISTIQUE & STOCK (ANTICIPATION) ===
+- FLUX TENDU : Croise stocks en alerte (${stockAlerts.length}) avec taches des 48h (${upcomingTasks48h.length})
+- Si rupture prevue sous 48h, prepare les details du bon de commande
+- PRODUCTIVITE : Calcule ecarts et suggere optimisations de planning
 
-Reponds en JSON avec cette structure exacte :
+=== FORMAT DE REPONSE (ZERO BLABLA) ===
+Ne demande JAMAIS "Comment puis-je aider". Que des solutions.
+
+JSON exact :
 {
   "scoreSante": number,
-  "niveauSante": "critique|alerte|bon|excellent",
-  "briefingMatinal": "string (3-5 lignes max, style telegraphique avec puces)",
-  "urgences": [
+  "niveauSante": "critique|alerte|vigilance|bon|excellent",
+  "modeCommando": boolean,
+  "briefingExecutif": "string (max 5 lignes, style militaire telegraphique)",
+  "resolutions": [
     {
-      "titre": "string (court)",
-      "action": "string (verbe infinitif + solution concrete)",
+      "probleme": "string (1 ligne, factuel)",
+      "solution": "string (action concrete, solution pre-remplie si possible)",
       "categorie": "CRITIQUE|A_PLANIFIER|INFO",
-      "lien": "string (/taches, /appels, /messages, /stock, /contacts, /pointage)"
+      "module": "reconnaissance|communication|logistique",
+      "lien": "/taches|/appels|/messages|/stock|/contacts|/pointage",
+      "actionType": "naviguer|copier|valider"
     }
   ],
   "brouillonsReponses": [
     {
-      "index": number (index du message dans la liste messagesNonLus),
+      "index": number,
       "expediteur": "string",
-      "categorie": "CRITIQUE|A_PLANIFIER|INFO",
-      "brouillon": "string (2-3 phrases, ton pro chaleureux)",
-      "sujetResume": "string (5 mots max)"
+      "eisenhower": "urgent_important|urgent|important|info",
+      "brouillon": "string (reponse a 90% finalisee, ton pro chaleureux, 2-4 phrases)",
+      "sujetResume": "string (5 mots max)",
+      "actionSuggestion": "string (que doit faire Aurelie apres envoi)"
     }
   ],
-  "contactsARelancer": [
+  "fichesRappel": [
+    {
+      "contact": "string",
+      "motif": "string (pourquoi rappeler)",
+      "priorite": "haute|moyenne|basse",
+      "scriptAppel": "string (2 phrases d'accroche pour le rappel)",
+      "lien": "/appels"
+    }
+  ],
+  "relancesStrategiques": [
     {
       "nom": "string",
       "entreprise": "string",
       "joursDepuisDernierAppel": number,
-      "raison": "string (pourquoi relancer)",
+      "potentiel": "string (pourquoi relancer maintenant)",
+      "scriptRelance": "string (1 phrase d'accroche)",
       "prioriteRelance": "haute|moyenne|basse"
     }
   ],
@@ -1341,7 +1401,15 @@ Reponds en JSON avec cette structure exacte :
       "quantiteActuelle": number,
       "seuilMin": number,
       "urgence": "CRITIQUE|A_PLANIFIER|INFO",
-      "action": "string (commander, verifier, etc)"
+      "action": "string",
+      "rupturePrevue48h": boolean,
+      "bonCommande": "string (si rupture prevue: details du bon de commande)"
+    }
+  ],
+  "optimisationsPlanning": [
+    {
+      "constat": "string (ecart detecte)",
+      "suggestion": "string (optimisation proposee)"
     }
   ],
   "metriquesExpress": {
@@ -1351,14 +1419,14 @@ Reponds en JSON avec cette structure exacte :
     "contactsARelancer": number,
     "articlesEnAlerte": number
   },
-  "conseilDuJour": "string (1 phrase actionnable basee sur les donnees)"
+  "directiveStrategique": "string (1 phrase, la priorite numero 1 du moment)"
 }
 
-IMPORTANT: Sois concis, actionnable, factuel. Pas de formules de politesse. Pas de paragraphes. Que des actions.`
+IMPORTANT: Sois un commandant operationnel. Zero blabla. Que des solutions pretes. Chaque resolution doit etre actionnable IMMEDIATEMENT.`
         }],
       }],
       config: {
-        maxOutputTokens: 4096,
+        maxOutputTokens: 8192,
         responseMimeType: "application/json",
       },
     });
@@ -1366,29 +1434,44 @@ IMPORTANT: Sois concis, actionnable, factuel. Pas de formules de politesse. Pas 
     const text = response.text ?? "{}";
     const SAFE_LINKS = new Set(["/taches", "/appels", "/messages", "/stock", "/contacts", "/pointage"]);
     const VALID_CATEGORIES = new Set(["CRITIQUE", "A_PLANIFIER", "INFO"]);
+    const VALID_EISENHOWER = new Set(["urgent_important", "urgent", "important", "info"]);
+    const VALID_ACTION_TYPES = new Set(["naviguer", "copier", "valider"]);
+    const VALID_MODULES = new Set(["reconnaissance", "communication", "logistique"]);
     let parsed;
     try {
       const raw = JSON.parse(text);
 
-      const sanitizedUrgences = Array.isArray(raw.urgences) ? raw.urgences.slice(0, 8).map((u: any) => ({
-        action: typeof u.action === "string" ? u.action.slice(0, 300) : "",
-        categorie: VALID_CATEGORIES.has(u.categorie) ? u.categorie : "INFO",
-        lien: SAFE_LINKS.has(u.lien) ? u.lien : "/taches",
+      const sanitizedResolutions = Array.isArray(raw.resolutions) ? raw.resolutions.slice(0, 12).map((r: any) => ({
+        probleme: typeof r.probleme === "string" ? r.probleme.slice(0, 200) : "",
+        solution: typeof r.solution === "string" ? r.solution.slice(0, 400) : "",
+        categorie: VALID_CATEGORIES.has(r.categorie) ? r.categorie : "INFO",
+        module: VALID_MODULES.has(r.module) ? r.module : "reconnaissance",
+        lien: SAFE_LINKS.has(r.lien) ? r.lien : "/taches",
+        actionType: VALID_ACTION_TYPES.has(r.actionType) ? r.actionType : "naviguer",
       })) : [];
 
-      const sanitizedDrafts = Array.isArray(raw.brouillonsReponses) ? raw.brouillonsReponses.slice(0, 10).map((d: any) => {
+      const sanitizedDrafts = Array.isArray(raw.brouillonsReponses) ? raw.brouillonsReponses.slice(0, 15).map((d: any) => {
         const idx = typeof d.index === "number" ? d.index : 0;
         const mapped = messageIdMap.find(m => m.index === idx);
         return {
           messageId: mapped ? mapped.id : null,
           expediteur: typeof d.expediteur === "string" ? d.expediteur.slice(0, 100) : "Inconnu",
-          categorie: VALID_CATEGORIES.has(d.categorie) ? d.categorie : "INFO",
-          brouillon: typeof d.brouillon === "string" ? d.brouillon.slice(0, 500) : "",
+          eisenhower: VALID_EISENHOWER.has(d.eisenhower) ? d.eisenhower : "info",
+          brouillon: typeof d.brouillon === "string" ? d.brouillon.slice(0, 600) : "",
           sujetResume: typeof d.sujetResume === "string" ? d.sujetResume.slice(0, 80) : "",
+          actionSuggestion: typeof d.actionSuggestion === "string" ? d.actionSuggestion.slice(0, 200) : "",
         };
       }) : [];
 
-      const sanitizedContacts = Array.isArray(raw.contactsARelancer) ? raw.contactsARelancer.slice(0, 8).map((c: any) => {
+      const sanitizedFichesRappel = Array.isArray(raw.fichesRappel) ? raw.fichesRappel.slice(0, 5).map((f: any) => ({
+        contact: typeof f.contact === "string" ? f.contact.slice(0, 100) : "",
+        motif: typeof f.motif === "string" ? f.motif.slice(0, 200) : "",
+        priorite: ["haute", "moyenne", "basse"].includes(f.priorite) ? f.priorite : "moyenne",
+        scriptAppel: typeof f.scriptAppel === "string" ? f.scriptAppel.slice(0, 300) : "",
+        lien: "/appels",
+      })) : [];
+
+      const sanitizedRelances = Array.isArray(raw.relancesStrategiques) ? raw.relancesStrategiques.slice(0, 8).map((c: any) => {
         const matchedContact = staleContacts.find(sc =>
           `${sc.firstName} ${sc.lastName}` === c.nom
         );
@@ -1397,27 +1480,38 @@ IMPORTANT: Sois concis, actionnable, factuel. Pas de formules de politesse. Pas 
           entreprise: typeof c.entreprise === "string" ? c.entreprise.slice(0, 100) : "",
           telephone: matchedContact ? maskPhone(matchedContact.phone || "") : "",
           joursDepuisDernierAppel: typeof c.joursDepuisDernierAppel === "number" ? c.joursDepuisDernierAppel : 0,
-          raison: typeof c.raison === "string" ? c.raison.slice(0, 200) : "",
+          potentiel: typeof c.potentiel === "string" ? c.potentiel.slice(0, 200) : "",
+          scriptRelance: typeof c.scriptRelance === "string" ? c.scriptRelance.slice(0, 300) : "",
           prioriteRelance: ["haute", "moyenne", "basse"].includes(c.prioriteRelance) ? c.prioriteRelance : "moyenne",
         };
       }) : [];
 
-      const sanitizedStock = Array.isArray(raw.alertesStock) ? raw.alertesStock.slice(0, 5).map((s: any) => ({
+      const sanitizedStock = Array.isArray(raw.alertesStock) ? raw.alertesStock.slice(0, 8).map((s: any) => ({
         article: typeof s.article === "string" ? s.article.slice(0, 100) : "",
         quantiteActuelle: typeof s.quantiteActuelle === "number" ? s.quantiteActuelle : 0,
         seuilMin: typeof s.seuilMin === "number" ? s.seuilMin : 0,
         urgence: VALID_CATEGORIES.has(s.urgence) ? s.urgence : "INFO",
         action: typeof s.action === "string" ? s.action.slice(0, 200) : "",
+        rupturePrevue48h: typeof s.rupturePrevue48h === "boolean" ? s.rupturePrevue48h : false,
+        bonCommande: typeof s.bonCommande === "string" ? s.bonCommande.slice(0, 300) : "",
+      })) : [];
+
+      const sanitizedOptimisations = Array.isArray(raw.optimisationsPlanning) ? raw.optimisationsPlanning.slice(0, 4).map((o: any) => ({
+        constat: typeof o.constat === "string" ? o.constat.slice(0, 200) : "",
+        suggestion: typeof o.suggestion === "string" ? o.suggestion.slice(0, 300) : "",
       })) : [];
 
       parsed = {
         scoreSante: typeof raw.scoreSante === "number" ? raw.scoreSante : scoreGlobal,
-        niveauSante: typeof raw.niveauSante === "string" ? raw.niveauSante : (scoreGlobal >= 75 ? "bon" : scoreGlobal >= 50 ? "alerte" : "critique"),
-        briefingMatinal: typeof raw.briefingMatinal === "string" ? raw.briefingMatinal : "",
-        urgences: sanitizedUrgences,
+        niveauSante: ["critique", "alerte", "vigilance", "bon", "excellent"].includes(raw.niveauSante) ? raw.niveauSante : (scoreGlobal >= 90 ? "excellent" : scoreGlobal >= 75 ? "bon" : scoreGlobal >= 50 ? "vigilance" : scoreGlobal >= 30 ? "alerte" : "critique"),
+        modeCommando,
+        briefingExecutif: typeof raw.briefingExecutif === "string" ? raw.briefingExecutif : "",
+        resolutions: sanitizedResolutions,
         brouillonsReponses: sanitizedDrafts,
-        contactsARelancer: sanitizedContacts,
+        fichesRappel: sanitizedFichesRappel,
+        relancesStrategiques: sanitizedRelances,
         alertesStock: sanitizedStock,
+        optimisationsPlanning: sanitizedOptimisations,
         metriquesExpress: raw.metriquesExpress && typeof raw.metriquesExpress === "object" ? {
           tauxReponse: String(raw.metriquesExpress.tauxReponse ?? `${answerRate}%`),
           tachesEnRetard: Number(raw.metriquesExpress.tachesEnRetard ?? overdueTasks.length),
@@ -1431,17 +1525,20 @@ IMPORTANT: Sois concis, actionnable, factuel. Pas de formules de politesse. Pas 
           contactsARelancer: staleContacts.length,
           articlesEnAlerte: stockAlerts.length,
         },
-        conseilDuJour: typeof raw.conseilDuJour === "string" ? raw.conseilDuJour : "",
+        directiveStrategique: typeof raw.directiveStrategique === "string" ? raw.directiveStrategique : "",
       };
     } catch {
       parsed = {
         scoreSante: scoreGlobal,
-        niveauSante: scoreGlobal >= 75 ? "bon" : scoreGlobal >= 50 ? "alerte" : "critique",
-        briefingMatinal: "",
-        urgences: [],
+        niveauSante: scoreGlobal >= 90 ? "excellent" : scoreGlobal >= 75 ? "bon" : scoreGlobal >= 50 ? "vigilance" : scoreGlobal >= 30 ? "alerte" : "critique",
+        modeCommando,
+        briefingExecutif: "",
+        resolutions: [],
         brouillonsReponses: [],
-        contactsARelancer: [],
+        fichesRappel: [],
+        relancesStrategiques: [],
         alertesStock: [],
+        optimisationsPlanning: [],
         metriquesExpress: {
           tauxReponse: `${answerRate}%`,
           tachesEnRetard: overdueTasks.length,
@@ -1449,7 +1546,7 @@ IMPORTANT: Sois concis, actionnable, factuel. Pas de formules de politesse. Pas 
           contactsARelancer: staleContacts.length,
           articlesEnAlerte: stockAlerts.length,
         },
-        conseilDuJour: "",
+        directiveStrategique: "",
       };
     }
 
