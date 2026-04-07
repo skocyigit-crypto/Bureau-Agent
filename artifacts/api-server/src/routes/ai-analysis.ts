@@ -1313,6 +1313,16 @@ router.post("/ai/central-intelligence", async (req, res) => {
       progressionTaches: { tauxAchevement: taskRate, total: completionTotal, terminees: completionDone },
     };
 
+    const currentHour = now.getHours();
+    const currentMonth = now.getMonth() + 1;
+    const echeancesFiscalesProches: string[] = [];
+    const jourDuMois = now.getDate();
+    if (jourDuMois >= 10 && jourDuMois <= 20) echeancesFiscalesProches.push("TVA mensuelle (entre le 15 et le 24)");
+    if (currentMonth === 1 || currentMonth === 4 || currentMonth === 7 || currentMonth === 10) echeancesFiscalesProches.push("TVA trimestrielle");
+    if (jourDuMois >= 1 && jourDuMois <= 10) echeancesFiscalesProches.push("URSSAF (entre le 5 et le 15)");
+    if (currentMonth === 5 && jourDuMois <= 20) echeancesFiscalesProches.push("Liasse fiscale (2e quinzaine de mai)");
+    if (currentMonth === 12 && jourDuMois >= 15) echeancesFiscalesProches.push("CFE (15 decembre)");
+
     const { ai } = await import("@workspace/integrations-gemini-ai");
 
     const response = await ai.models.generateContent({
@@ -1320,48 +1330,73 @@ router.post("/ai/central-intelligence", async (req, res) => {
       contents: [{
         role: "user",
         parts: [{
-          text: `Tu es l'Assistant Executif de Haute Performance integre a "Agent de Bureau".
-TON OBJECTIF UNIQUE : Zero perte de temps pour Aurelie. Score de Sante a 100/100.
+          text: `Tu es l'Assistant Executif d'Aurelie, Comptable & Secretaire en gestion autonome (sans assistant humain).
+TON ROLE : Remplacer un assistant humain. Filtrer, prioriser, rediger, anticiper. Zero perte de temps.
+
+PROFIL AURELIE :
+- Cumul Comptable + Secretaire (seule au poste)
+- Objectif : Reduire la gestion administrative de 4h a 30min/jour
+- Planning optimal : Appels et urgences le matin / Saisie comptable et travail de fond l'apres-midi
 
 DONNEES EN TEMPS REEL :
 ${JSON.stringify(contextForAI, null, 2)}
 
+Heure actuelle : ${currentHour}h | Jour du mois : ${jourDuMois}
+Echeances fiscales proches : ${echeancesFiscalesProches.length > 0 ? echeancesFiscalesProches.join(", ") : "Aucune"}
+
 === MODULE 1 : RECONNAISSANCE IA (GESTION DE CRISE) ===
-Score actuel: ${scoreGlobal}/100 | Mode: ${modeCommando ? "COMMANDO" : "NORMAL"}
-${modeCommando ? "MODE COMMANDO ACTIF : Identifie CHAQUE probleme et propose une resolution IMMEDIATE." : ""}
+Score: ${scoreGlobal}/100 | Mode: ${modeCommando ? "COMMANDO" : "NORMAL"}
+${modeCommando ? "MODE COMMANDO ACTIF." : ""}
 
-Pour CHAQUE probleme detecte, structure en :
-[PROBLEME] -> [SOLUTION PROPOSEE] -> [TYPE ACTION: naviguer/copier/valider]
+Pour CHAQUE probleme : [PROBLEME] -> [SOLUTION] -> [ACTION]
 
-- Taches en retard (${overdueTasks.length}) : Propose un nouvel horaire OU genere un message d'excuse pre-rempli
-- Messages critiques (${unreadMessages.filter(m => m.priority === "haute").length}) : Redige un brouillon de reponse a 90% finalise
-- Appels manques (${missedCount} semaine) : Pour chaque appel manque recent, identifie le client et prepare la fiche de rappel
+MISSIONS COMPTABLES (prioritaires) :
+- Taches en retard (${overdueTasks.length}) : Si relance paiement ou saisie comptable = CRITIQUE
+- Rapprochement : Si pieces manquantes detectees, liste-les
+- Echeances fiscales : ${echeancesFiscalesProches.length > 0 ? "ALERTES ACTIVES - Prevenir 5 jours avant, lister documents a preparer" : "RAS"}
 
-=== MODULE 2 : COMMUNICATION & CONTACTS (AUTOMATISATION) ===
-- TRI EISENHOWER de chaque message : Urgent+Important / Urgent / Important / Ni-ni
-- Si un message depasse 100 caracteres, resume en 1 ligne + action a valider
-- Periodes 0 appels : Suggere 3 relances strategiques basees sur potentiel de conversion
+MISSIONS SECRETARIAT :
+- Messages critiques (${unreadMessages.filter(m => m.priority === "haute").length}) : Brouillon 90% finalise
+- Appels manques (${missedCount} semaine) : Fiche de rappel avec script
+
+=== MODULE 2 : COMMUNICATION & CONTACTS ===
+TRI EISENHOWER de chaque message + ton adapte :
+- Si expediteur contient "client" ou contexte client : Ton professionnel et rassurant
+- Si expediteur contient "fournisseur" ou contexte achat : Ton ferme et factuel
+- Sinon (interne) : Ton direct et efficace
+
+FILTRE SOLO : Ne presente que ce qui necessite une decision humaine. Les resolutions automatisables = marquer comme "valider" directement.
+
+Periodes 0 appels (${todayCallCount === 0 ? "ACTIF - 0 appels aujourd'hui" : todayCallCount + " appels"}) : Suggere 3 relances strategiques
 
 === MODULE 3 : LOGISTIQUE & STOCK (ANTICIPATION) ===
-- FLUX TENDU : Croise stocks en alerte (${stockAlerts.length}) avec taches des 48h (${upcomingTasks48h.length})
-- Si rupture prevue sous 48h, prepare les details du bon de commande
-- PRODUCTIVITE : Calcule ecarts et suggere optimisations de planning
+- FLUX TENDU : Croise stocks (${stockAlerts.length} alertes) avec taches 48h (${upcomingTasks48h.length})
+- Si stock fournitures/timbres baisse : Prepare le panier d'achat SANS ATTENDRE
+- Si rupture prevue 48h : Bon de commande pre-rempli
+- PLANNING : Si ${currentHour < 12 ? "matin" : "apres-midi"}, verifie que les taches sont adaptees au creneau
 
-=== FORMAT DE REPONSE (ZERO BLABLA) ===
-Ne demande JAMAIS "Comment puis-je aider". Que des solutions.
+=== MODULE 4 : FLASH INFO QUOTIDIEN ===
+Genere un resume synthetique :
+- Ce qui a ete fait (taches terminees, messages traites)
+- Ce qui reste a faire demain
+- Evolution du Score de Sante
+${echeancesFiscalesProches.length > 0 ? "- ALERTES FISCALES avec documents a preparer" : ""}
+
+=== FORMAT (ZERO BLABLA) ===
+Ne demande JAMAIS "Comment puis-je aider". Tableaux pour les chiffres. Listes d'actions pour le reste.
 
 JSON exact :
 {
   "scoreSante": number,
   "niveauSante": "critique|alerte|vigilance|bon|excellent",
   "modeCommando": boolean,
-  "briefingExecutif": "string (max 5 lignes, style militaire telegraphique)",
+  "briefingExecutif": "string (max 5 lignes, style telegraphique)",
   "resolutions": [
     {
       "probleme": "string (1 ligne, factuel)",
-      "solution": "string (action concrete, solution pre-remplie si possible)",
+      "solution": "string (action concrete, pre-remplie si possible)",
       "categorie": "CRITIQUE|A_PLANIFIER|INFO",
-      "module": "reconnaissance|communication|logistique",
+      "module": "comptabilite|secretariat|logistique",
       "lien": "/taches|/appels|/messages|/stock|/contacts|/pointage",
       "actionType": "naviguer|copier|valider"
     }
@@ -1371,17 +1406,18 @@ JSON exact :
       "index": number,
       "expediteur": "string",
       "eisenhower": "urgent_important|urgent|important|info",
-      "brouillon": "string (reponse a 90% finalisee, ton pro chaleureux, 2-4 phrases)",
+      "tonMessage": "client|fournisseur|interne",
+      "brouillon": "string (reponse 90% finalisee, ton adapte au type)",
       "sujetResume": "string (5 mots max)",
-      "actionSuggestion": "string (que doit faire Aurelie apres envoi)"
+      "actionSuggestion": "string (que faire apres envoi)"
     }
   ],
   "fichesRappel": [
     {
       "contact": "string",
-      "motif": "string (pourquoi rappeler)",
+      "motif": "string",
       "priorite": "haute|moyenne|basse",
-      "scriptAppel": "string (2 phrases d'accroche pour le rappel)",
+      "scriptAppel": "string (2 phrases d'accroche)",
       "lien": "/appels"
     }
   ],
@@ -1403,7 +1439,15 @@ JSON exact :
       "urgence": "CRITIQUE|A_PLANIFIER|INFO",
       "action": "string",
       "rupturePrevue48h": boolean,
-      "bonCommande": "string (si rupture prevue: details du bon de commande)"
+      "bonCommande": "string (si rupture: details bon de commande)"
+    }
+  ],
+  "alertesFiscales": [
+    {
+      "echeance": "string (nom de l'echeance)",
+      "dateButoir": "string (date approximative)",
+      "documentsAPreparer": ["string"],
+      "urgence": "CRITIQUE|A_PLANIFIER|INFO"
     }
   ],
   "optimisationsPlanning": [
@@ -1412,6 +1456,11 @@ JSON exact :
       "suggestion": "string (optimisation proposee)"
     }
   ],
+  "flashInfo": {
+    "fait": ["string (taches/actions completees)"],
+    "resteDemain": ["string (a faire demain)"],
+    "evolutionScore": "string (tendance du score)"
+  },
   "metriquesExpress": {
     "tauxReponse": "string (ex: 85%)",
     "tachesEnRetard": number,
@@ -1419,10 +1468,10 @@ JSON exact :
     "contactsARelancer": number,
     "articlesEnAlerte": number
   },
-  "directiveStrategique": "string (1 phrase, la priorite numero 1 du moment)"
+  "directiveStrategique": "string (la priorite numero 1)"
 }
 
-IMPORTANT: Sois un commandant operationnel. Zero blabla. Que des solutions pretes. Chaque resolution doit etre actionnable IMMEDIATEMENT.`
+IMPORTANT: Tu ES l'assistant d'Aurelie. Agis, ne suggere pas. Chaque resolution = solution prete.`
         }],
       }],
       config: {
@@ -1436,7 +1485,8 @@ IMPORTANT: Sois un commandant operationnel. Zero blabla. Que des solutions prete
     const VALID_CATEGORIES = new Set(["CRITIQUE", "A_PLANIFIER", "INFO"]);
     const VALID_EISENHOWER = new Set(["urgent_important", "urgent", "important", "info"]);
     const VALID_ACTION_TYPES = new Set(["naviguer", "copier", "valider"]);
-    const VALID_MODULES = new Set(["reconnaissance", "communication", "logistique"]);
+    const VALID_MODULES = new Set(["comptabilite", "secretariat", "logistique"]);
+    const VALID_TONS = new Set(["client", "fournisseur", "interne"]);
     let parsed;
     try {
       const raw = JSON.parse(text);
@@ -1445,7 +1495,7 @@ IMPORTANT: Sois un commandant operationnel. Zero blabla. Que des solutions prete
         probleme: typeof r.probleme === "string" ? r.probleme.slice(0, 200) : "",
         solution: typeof r.solution === "string" ? r.solution.slice(0, 400) : "",
         categorie: VALID_CATEGORIES.has(r.categorie) ? r.categorie : "INFO",
-        module: VALID_MODULES.has(r.module) ? r.module : "reconnaissance",
+        module: VALID_MODULES.has(r.module) ? r.module : "comptabilite",
         lien: SAFE_LINKS.has(r.lien) ? r.lien : "/taches",
         actionType: VALID_ACTION_TYPES.has(r.actionType) ? r.actionType : "naviguer",
       })) : [];
@@ -1457,6 +1507,7 @@ IMPORTANT: Sois un commandant operationnel. Zero blabla. Que des solutions prete
           messageId: mapped ? mapped.id : null,
           expediteur: typeof d.expediteur === "string" ? d.expediteur.slice(0, 100) : "Inconnu",
           eisenhower: VALID_EISENHOWER.has(d.eisenhower) ? d.eisenhower : "info",
+          tonMessage: VALID_TONS.has(d.tonMessage) ? d.tonMessage : "interne",
           brouillon: typeof d.brouillon === "string" ? d.brouillon.slice(0, 600) : "",
           sujetResume: typeof d.sujetResume === "string" ? d.sujetResume.slice(0, 80) : "",
           actionSuggestion: typeof d.actionSuggestion === "string" ? d.actionSuggestion.slice(0, 200) : "",
@@ -1501,6 +1552,19 @@ IMPORTANT: Sois un commandant operationnel. Zero blabla. Que des solutions prete
         suggestion: typeof o.suggestion === "string" ? o.suggestion.slice(0, 300) : "",
       })) : [];
 
+      const sanitizedFiscal = Array.isArray(raw.alertesFiscales) ? raw.alertesFiscales.slice(0, 4).map((a: any) => ({
+        echeance: typeof a.echeance === "string" ? a.echeance.slice(0, 100) : "",
+        dateButoir: typeof a.dateButoir === "string" ? a.dateButoir.slice(0, 50) : "",
+        documentsAPreparer: Array.isArray(a.documentsAPreparer) ? a.documentsAPreparer.filter((d: any) => typeof d === "string").map((d: string) => d.slice(0, 100)).slice(0, 6) : [],
+        urgence: VALID_CATEGORIES.has(a.urgence) ? a.urgence : "A_PLANIFIER",
+      })) : [];
+
+      const sanitizedFlash = raw.flashInfo && typeof raw.flashInfo === "object" ? {
+        fait: Array.isArray(raw.flashInfo.fait) ? raw.flashInfo.fait.filter((f: any) => typeof f === "string").map((f: string) => f.slice(0, 150)).slice(0, 5) : [],
+        resteDemain: Array.isArray(raw.flashInfo.resteDemain) ? raw.flashInfo.resteDemain.filter((r: any) => typeof r === "string").map((r: string) => r.slice(0, 150)).slice(0, 5) : [],
+        evolutionScore: typeof raw.flashInfo.evolutionScore === "string" ? raw.flashInfo.evolutionScore.slice(0, 150) : "",
+      } : { fait: [], resteDemain: [], evolutionScore: "" };
+
       parsed = {
         scoreSante: typeof raw.scoreSante === "number" ? raw.scoreSante : scoreGlobal,
         niveauSante: ["critique", "alerte", "vigilance", "bon", "excellent"].includes(raw.niveauSante) ? raw.niveauSante : (scoreGlobal >= 90 ? "excellent" : scoreGlobal >= 75 ? "bon" : scoreGlobal >= 50 ? "vigilance" : scoreGlobal >= 30 ? "alerte" : "critique"),
@@ -1511,7 +1575,9 @@ IMPORTANT: Sois un commandant operationnel. Zero blabla. Que des solutions prete
         fichesRappel: sanitizedFichesRappel,
         relancesStrategiques: sanitizedRelances,
         alertesStock: sanitizedStock,
+        alertesFiscales: sanitizedFiscal,
         optimisationsPlanning: sanitizedOptimisations,
+        flashInfo: sanitizedFlash,
         metriquesExpress: raw.metriquesExpress && typeof raw.metriquesExpress === "object" ? {
           tauxReponse: String(raw.metriquesExpress.tauxReponse ?? `${answerRate}%`),
           tachesEnRetard: Number(raw.metriquesExpress.tachesEnRetard ?? overdueTasks.length),
@@ -1538,7 +1604,9 @@ IMPORTANT: Sois un commandant operationnel. Zero blabla. Que des solutions prete
         fichesRappel: [],
         relancesStrategiques: [],
         alertesStock: [],
+        alertesFiscales: [],
         optimisationsPlanning: [],
+        flashInfo: { fait: [], resteDemain: [], evolutionScore: "" },
         metriquesExpress: {
           tauxReponse: `${answerRate}%`,
           tachesEnRetard: overdueTasks.length,

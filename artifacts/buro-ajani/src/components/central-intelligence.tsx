@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import {
   Brain, AlertTriangle, CheckCircle2, Clock, Phone, MessageSquare,
   Package, Users, ArrowRight, ChevronDown, ChevronUp, Loader2,
-  Flame, CalendarClock, Info, Copy, ExternalLink, RefreshCw,
-  Zap, Shield, Target, Crosshair, FileText, TrendingUp,
-  CircleAlert, Siren, BarChart3, ClipboardCheck, Send
+  Flame, CalendarClock, Info, Copy, RefreshCw,
+  Zap, Target, FileText, TrendingUp,
+  CircleAlert, Siren, BarChart3, Send, Calculator,
+  Briefcase, Calendar, ListChecks, BookOpen
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ interface BrouillonReponse {
   messageId: number | null;
   expediteur: string;
   eisenhower: string;
+  tonMessage: string;
   brouillon: string;
   sujetResume: string;
   actionSuggestion: string;
@@ -59,9 +61,22 @@ interface AlerteStock {
   bonCommande: string;
 }
 
+interface AlerteFiscale {
+  echeance: string;
+  dateButoir: string;
+  documentsAPreparer: string[];
+  urgence: string;
+}
+
 interface OptimisationPlanning {
   constat: string;
   suggestion: string;
+}
+
+interface FlashInfo {
+  fait: string[];
+  resteDemain: string[];
+  evolutionScore: string;
 }
 
 interface CentralIntelligenceData {
@@ -74,7 +89,9 @@ interface CentralIntelligenceData {
   fichesRappel: FicheRappel[];
   relancesStrategiques: RelanceStrategique[];
   alertesStock: AlerteStock[];
+  alertesFiscales: AlerteFiscale[];
   optimisationsPlanning: OptimisationPlanning[];
+  flashInfo: FlashInfo;
   metriquesExpress: {
     tauxReponse: string;
     tachesEnRetard: number;
@@ -98,18 +115,24 @@ const EISENHOWER_CONFIG: Record<string, { label: string; color: string; bg: stri
   info: { label: "Information", color: "text-slate-600", bg: "bg-slate-100 border-slate-300" },
 };
 
-const MODULE_CONFIG: Record<string, { icon: typeof Shield; label: string; color: string }> = {
-  reconnaissance: { icon: Crosshair, label: "Reconnaissance", color: "text-red-500" },
-  communication: { icon: MessageSquare, label: "Communication", color: "text-blue-500" },
+const TON_CONFIG: Record<string, { label: string; color: string; icon: typeof Users }> = {
+  client: { label: "Client", color: "text-emerald-600", icon: Users },
+  fournisseur: { label: "Fournisseur", color: "text-orange-600", icon: Package },
+  interne: { label: "Interne", color: "text-slate-600", icon: Briefcase },
+};
+
+const MODULE_CONFIG: Record<string, { icon: typeof Calculator; label: string; color: string }> = {
+  comptabilite: { icon: Calculator, label: "Comptabilite", color: "text-violet-500" },
+  secretariat: { icon: Briefcase, label: "Secretariat", color: "text-blue-500" },
   logistique: { icon: Package, label: "Logistique", color: "text-emerald-500" },
 };
 
-const SANTE_CONFIG: Record<string, { color: string; stroke: string; bg: string; textColor: string }> = {
-  critique: { color: "text-red-600", stroke: "stroke-red-500", bg: "bg-red-500", textColor: "text-red-50" },
-  alerte: { color: "text-orange-600", stroke: "stroke-orange-500", bg: "bg-orange-500", textColor: "text-orange-50" },
-  vigilance: { color: "text-amber-600", stroke: "stroke-amber-500", bg: "bg-amber-500", textColor: "text-amber-50" },
-  bon: { color: "text-emerald-600", stroke: "stroke-emerald-500", bg: "bg-emerald-500", textColor: "text-emerald-50" },
-  excellent: { color: "text-emerald-600", stroke: "stroke-emerald-500", bg: "bg-emerald-500", textColor: "text-emerald-50" },
+const SANTE_CONFIG: Record<string, { color: string; stroke: string }> = {
+  critique: { color: "text-red-600", stroke: "stroke-red-500" },
+  alerte: { color: "text-orange-600", stroke: "stroke-orange-500" },
+  vigilance: { color: "text-amber-600", stroke: "stroke-amber-500" },
+  bon: { color: "text-emerald-600", stroke: "stroke-emerald-500" },
+  excellent: { color: "text-emerald-600", stroke: "stroke-emerald-500" },
 };
 
 function ScoreGauge({ score, niveau, commando }: { score: number; niveau: string; commando: boolean }) {
@@ -162,20 +185,14 @@ function EisenhowerTag({ eisenhower }: { eisenhower: string }) {
   );
 }
 
-function ActionButton({ type, lien, text, onCopy }: { type: string; lien: string; text?: string; onCopy?: () => void }) {
-  if (type === "copier" && onCopy) {
-    return (
-      <Button variant="default" size="sm" className="h-7 text-[10px] gap-1 bg-indigo-600 hover:bg-indigo-700" onClick={onCopy}>
-        <ClipboardCheck className="w-3 h-3" /> Valider
-      </Button>
-    );
-  }
+function TonTag({ ton }: { ton: string }) {
+  const cfg = TON_CONFIG[ton] || TON_CONFIG.interne;
+  const Icon = cfg.icon;
   return (
-    <Link href={lien}>
-      <Button variant="default" size="sm" className="h-7 text-[10px] gap-1 bg-indigo-600 hover:bg-indigo-700">
-        <ArrowRight className="w-3 h-3" /> {type === "valider" ? "Valider" : "Traiter"}
-      </Button>
-    </Link>
+    <Badge variant="outline" className={`text-[9px] h-5 gap-0.5 bg-white/80 ${cfg.color} border shrink-0`}>
+      <Icon className="w-2.5 h-2.5" />
+      {cfg.label}
+    </Badge>
   );
 }
 
@@ -184,7 +201,7 @@ export function CentralIntelligence() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
-  const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("resolutions");
 
   useEffect(() => {
@@ -229,9 +246,9 @@ export function CentralIntelligence() {
     }
   };
 
-  const handleCopy = (id: number | null, text: string) => {
+  const handleCopy = (key: string, text: string) => {
     navigator.clipboard.writeText(text);
-    setCopiedId(id);
+    setCopiedId(key);
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -244,7 +261,7 @@ export function CentralIntelligence() {
           </div>
           <div>
             <p className="text-sm font-medium">Assistant Executif en analyse...</p>
-            <p className="text-[11px] text-muted-foreground">Scan complet : taches, messages, appels, stock, contacts, planning</p>
+            <p className="text-[11px] text-muted-foreground">Scan : comptabilite, messages, appels, stock, echeances fiscales</p>
           </div>
         </CardContent>
       </Card>
@@ -279,12 +296,14 @@ export function CentralIntelligence() {
   const critiques = data.resolutions.filter(r => r.categorie === "CRITIQUE");
   const aPlanifier = data.resolutions.filter(r => r.categorie === "A_PLANIFIER");
   const infos = data.resolutions.filter(r => r.categorie === "INFO");
+  const hasFlash = data.flashInfo && (data.flashInfo.fait.length > 0 || data.flashInfo.resteDemain.length > 0 || data.flashInfo.evolutionScore);
+  const hasFiscal = data.alertesFiscales && data.alertesFiscales.length > 0;
 
   const tabCounts = {
     resolutions: data.resolutions.length,
     messages: data.brouillonsReponses.length,
     appels: data.fichesRappel.length + data.relancesStrategiques.length,
-    stock: data.alertesStock.length + data.optimisationsPlanning.length,
+    logistique: data.alertesStock.length + (data.alertesFiscales?.length || 0) + data.optimisationsPlanning.length,
   };
 
   return (
@@ -311,7 +330,7 @@ export function CentralIntelligence() {
                 </Badge>
               </CardTitle>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                {data.modeCommando ? "Interventions prioritaires en cours" : "Briefing executif en temps reel"}
+                Comptabilite & Secretariat | Gestion autonome
               </p>
             </div>
           </div>
@@ -363,17 +382,17 @@ export function CentralIntelligence() {
                   <Target className="w-3 h-3" /> Resolutions ({tabCounts.resolutions})
                 </TabsTrigger>
                 <TabsTrigger value="messages" className="text-[11px] h-6 gap-1">
-                  <MessageSquare className="w-3 h-3" /> Reponses ({tabCounts.messages})
+                  <MessageSquare className="w-3 h-3" /> Courrier ({tabCounts.messages})
                 </TabsTrigger>
                 <TabsTrigger value="appels" className="text-[11px] h-6 gap-1">
                   <Phone className="w-3 h-3" /> Appels ({tabCounts.appels})
                 </TabsTrigger>
-                <TabsTrigger value="stock" className="text-[11px] h-6 gap-1">
-                  <Package className="w-3 h-3" /> Logistique ({tabCounts.stock})
+                <TabsTrigger value="logistique" className="text-[11px] h-6 gap-1">
+                  <Calculator className="w-3 h-3" /> Gestion ({tabCounts.logistique})
                 </TabsTrigger>
               </TabsList>
 
-              {/* === MODULE 1: RESOLUTIONS (GESTION DE CRISE) === */}
+              {/* === TAB 1: RESOLUTIONS === */}
               <TabsContent value="resolutions" className="mt-2 space-y-1.5">
                 {data.resolutions.length === 0 ? (
                   <div className="text-center py-4">
@@ -382,32 +401,20 @@ export function CentralIntelligence() {
                   </div>
                 ) : (
                   <>
-                    {critiques.length > 0 && (
-                      <div className="space-y-1.5">
-                        {critiques.map((r, i) => (
-                          <ResolutionCard key={`c-${i}`} resolution={r} onCopy={() => handleCopy(i, r.solution)} />
-                        ))}
-                      </div>
-                    )}
-                    {aPlanifier.length > 0 && (
-                      <div className="space-y-1.5">
-                        {aPlanifier.map((r, i) => (
-                          <ResolutionCard key={`p-${i}`} resolution={r} onCopy={() => handleCopy(100 + i, r.solution)} />
-                        ))}
-                      </div>
-                    )}
-                    {infos.length > 0 && (
-                      <div className="space-y-1.5">
-                        {infos.map((r, i) => (
-                          <ResolutionCard key={`i-${i}`} resolution={r} onCopy={() => handleCopy(200 + i, r.solution)} />
-                        ))}
-                      </div>
-                    )}
+                    {critiques.length > 0 && critiques.map((r, i) => (
+                      <ResolutionCard key={`c-${i}`} resolution={r} onCopy={() => handleCopy(`res-c-${i}`, r.solution)} copiedId={copiedId} idx={`res-c-${i}`} />
+                    ))}
+                    {aPlanifier.length > 0 && aPlanifier.map((r, i) => (
+                      <ResolutionCard key={`p-${i}`} resolution={r} onCopy={() => handleCopy(`res-p-${i}`, r.solution)} copiedId={copiedId} idx={`res-p-${i}`} />
+                    ))}
+                    {infos.length > 0 && infos.map((r, i) => (
+                      <ResolutionCard key={`i-${i}`} resolution={r} onCopy={() => handleCopy(`res-i-${i}`, r.solution)} copiedId={copiedId} idx={`res-i-${i}`} />
+                    ))}
                   </>
                 )}
               </TabsContent>
 
-              {/* === MODULE 2: COMMUNICATION & CONTACTS === */}
+              {/* === TAB 2: COURRIER (MESSAGES + EISENHOWER + TON) === */}
               <TabsContent value="messages" className="mt-2 space-y-1.5">
                 {data.brouillonsReponses.length === 0 ? (
                   <div className="text-center py-4">
@@ -417,15 +424,24 @@ export function CentralIntelligence() {
                 ) : (
                   data.brouillonsReponses.map((br, i) => (
                     <div key={i} className="p-3 rounded-lg bg-white/80 border text-xs space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <EisenhowerTag eisenhower={br.eisenhower} />
+                          <TonTag ton={br.tonMessage} />
                           <span className="font-semibold text-slate-800">{br.expediteur}</span>
                         </div>
-                        <span className="text-[10px] text-muted-foreground italic">{br.sujetResume}</span>
+                        <span className="text-[10px] text-muted-foreground italic shrink-0">{br.sujetResume}</span>
                       </div>
-                      <div className="p-2.5 rounded-lg bg-indigo-50/60 border border-indigo-100">
-                        <p className="text-[11px] text-indigo-900 leading-relaxed">{br.brouillon}</p>
+                      <div className={`p-2.5 rounded-lg border ${
+                        br.tonMessage === "client" ? "bg-emerald-50/60 border-emerald-100" :
+                        br.tonMessage === "fournisseur" ? "bg-orange-50/60 border-orange-100" :
+                        "bg-indigo-50/60 border-indigo-100"
+                      }`}>
+                        <p className={`text-[11px] leading-relaxed ${
+                          br.tonMessage === "client" ? "text-emerald-900" :
+                          br.tonMessage === "fournisseur" ? "text-orange-900" :
+                          "text-indigo-900"
+                        }`}>{br.brouillon}</p>
                       </div>
                       {br.actionSuggestion && (
                         <p className="text-[10px] text-slate-500 flex items-center gap-1">
@@ -438,10 +454,10 @@ export function CentralIntelligence() {
                           variant="outline"
                           size="sm"
                           className="h-6 text-[10px] gap-1"
-                          onClick={() => handleCopy(br.messageId, br.brouillon)}
+                          onClick={() => handleCopy(`draft-${i}`, br.brouillon)}
                         >
-                          {copiedId === br.messageId ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                          {copiedId === br.messageId ? "Copie" : "Copier"}
+                          {copiedId === `draft-${i}` ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                          {copiedId === `draft-${i}` ? "Copie" : "Copier"}
                         </Button>
                         <Link href="/messages">
                           <Button variant="default" size="sm" className="h-6 text-[10px] gap-1 bg-indigo-600 hover:bg-indigo-700">
@@ -454,7 +470,7 @@ export function CentralIntelligence() {
                 )}
               </TabsContent>
 
-              {/* === MODULE : APPELS (FICHES RAPPEL + RELANCES STRATEGIQUES) === */}
+              {/* === TAB 3: APPELS (FICHES RAPPEL + RELANCES) === */}
               <TabsContent value="appels" className="mt-2 space-y-3">
                 {data.fichesRappel.length > 0 && (
                   <div className="space-y-1.5">
@@ -489,8 +505,8 @@ export function CentralIntelligence() {
                           </div>
                         )}
                         <div className="flex justify-end gap-1.5">
-                          <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1" onClick={() => handleCopy(300 + i, f.scriptAppel)}>
-                            {copiedId === 300 + i ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                          <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1" onClick={() => handleCopy(`rappel-${i}`, f.scriptAppel)}>
+                            {copiedId === `rappel-${i}` ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
                             Script
                           </Button>
                           <Link href="/appels">
@@ -527,9 +543,7 @@ export function CentralIntelligence() {
                               )}
                             </div>
                           </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-[10px] text-muted-foreground">{c.joursDepuisDernierAppel}j sans contact</p>
-                          </div>
+                          <p className="text-[10px] text-muted-foreground shrink-0">{c.joursDepuisDernierAppel}j sans contact</p>
                         </div>
                         <p className="text-muted-foreground">{c.potentiel}</p>
                         {c.scriptRelance && (
@@ -538,8 +552,8 @@ export function CentralIntelligence() {
                           </div>
                         )}
                         <div className="flex justify-end gap-1.5">
-                          <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1" onClick={() => handleCopy(400 + i, c.scriptRelance)}>
-                            {copiedId === 400 + i ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                          <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1" onClick={() => handleCopy(`relance-${i}`, c.scriptRelance)}>
+                            {copiedId === `relance-${i}` ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
                             Script
                           </Button>
                           <Link href="/contacts">
@@ -561,12 +575,53 @@ export function CentralIntelligence() {
                 )}
               </TabsContent>
 
-              {/* === MODULE 3: LOGISTIQUE & STOCK === */}
-              <TabsContent value="stock" className="mt-2 space-y-3">
+              {/* === TAB 4: GESTION (STOCK + FISCAL + PLANNING) === */}
+              <TabsContent value="logistique" className="mt-2 space-y-3">
+                {hasFiscal && (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                      <Calendar className="w-3 h-3" /> Echeances fiscales
+                    </p>
+                    {data.alertesFiscales.map((a, i) => (
+                      <div key={i} className={`p-3 rounded-lg border text-xs space-y-1.5 ${a.urgence === "CRITIQUE" ? "bg-red-50/50 border-red-200" : "bg-amber-50/30 border-amber-200/50"}`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <CategorieTag categorie={a.urgence} />
+                            <span className="font-semibold">{a.echeance}</span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground font-mono">{a.dateButoir}</span>
+                        </div>
+                        {a.documentsAPreparer.length > 0 && (
+                          <div className="p-2 rounded-lg bg-white/80 border border-slate-100">
+                            <p className="text-[10px] font-medium text-slate-600 mb-1 flex items-center gap-1">
+                              <BookOpen className="w-3 h-3" /> Documents a preparer :
+                            </p>
+                            <ul className="space-y-0.5">
+                              {a.documentsAPreparer.map((doc, j) => (
+                                <li key={j} className="text-[10px] text-slate-700 flex items-center gap-1">
+                                  <span className="w-1 h-1 rounded-full bg-slate-400 shrink-0" />
+                                  {doc}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        <div className="flex justify-end">
+                          <Link href="/taches">
+                            <Button variant="default" size="sm" className="h-6 text-[10px] gap-1 bg-indigo-600 hover:bg-indigo-700">
+                              <ArrowRight className="w-3 h-3" /> Preparer
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {data.alertesStock.length > 0 && (
                   <div className="space-y-1.5">
                     <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                      <Package className="w-3 h-3" /> Alertes stock
+                      <Package className="w-3 h-3" /> Alertes stock & fournitures
                     </p>
                     {data.alertesStock.map((s, i) => (
                       <div key={i} className={`p-3 rounded-lg border text-xs space-y-1.5 ${s.rupturePrevue48h ? "bg-red-50/50 border-red-200" : "bg-white/80"}`}>
@@ -598,8 +653,8 @@ export function CentralIntelligence() {
                         )}
                         <div className="flex justify-end gap-1.5">
                           {s.bonCommande && (
-                            <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1" onClick={() => handleCopy(500 + i, s.bonCommande)}>
-                              {copiedId === 500 + i ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                            <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1" onClick={() => handleCopy(`stock-${i}`, s.bonCommande)}>
+                              {copiedId === `stock-${i}` ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
                               Copier BC
                             </Button>
                           )}
@@ -631,22 +686,69 @@ export function CentralIntelligence() {
                   </div>
                 )}
 
-                {data.alertesStock.length === 0 && data.optimisationsPlanning.length === 0 && (
+                {data.alertesStock.length === 0 && !hasFiscal && data.optimisationsPlanning.length === 0 && (
                   <div className="text-center py-4">
                     <CheckCircle2 className="w-8 h-8 mx-auto text-emerald-400 mb-1" />
-                    <p className="text-xs text-muted-foreground">Stock et planning sous controle.</p>
+                    <p className="text-xs text-muted-foreground">Stock, echeances et planning sous controle.</p>
                   </div>
                 )}
               </TabsContent>
             </Tabs>
 
+            {/* === FLASH INFO QUOTIDIEN === */}
+            {hasFlash && (
+              <>
+                <Separator />
+                <div className="p-3 rounded-lg bg-gradient-to-r from-slate-50 to-indigo-50/30 border border-slate-200/60">
+                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1 mb-2">
+                    <ListChecks className="w-3 h-3" /> Flash Info
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {data.flashInfo.fait.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-medium text-emerald-700 mb-1">Fait</p>
+                        <ul className="space-y-0.5">
+                          {data.flashInfo.fait.map((f, i) => (
+                            <li key={i} className="text-[10px] text-slate-600 flex items-start gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-400 mt-0.5 shrink-0" />
+                              {f}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {data.flashInfo.resteDemain.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-medium text-amber-700 mb-1">Reste a faire</p>
+                        <ul className="space-y-0.5">
+                          {data.flashInfo.resteDemain.map((r, i) => (
+                            <li key={i} className="text-[10px] text-slate-600 flex items-start gap-1">
+                              <Clock className="w-3 h-3 text-amber-400 mt-0.5 shrink-0" />
+                              {r}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                  {data.flashInfo.evolutionScore && (
+                    <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1 border-t border-slate-100 pt-2">
+                      <BarChart3 className="w-3 h-3" />
+                      {data.flashInfo.evolutionScore}
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* === DIRECTIVE STRATEGIQUE === */}
             {data.directiveStrategique && (
               <>
                 <Separator />
                 <div className={`flex items-start gap-2 p-3 rounded-lg border ${data.modeCommando ? "bg-gradient-to-r from-red-50/50 to-amber-50/30 border-red-200/50" : "bg-gradient-to-r from-amber-50/50 to-orange-50/30 border-amber-100/50"}`}>
                   <Zap className={`w-4 h-4 mt-0.5 shrink-0 ${data.modeCommando ? "text-red-500" : "text-amber-500"}`} />
                   <div>
-                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Directive strategique</p>
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Priorite numero 1</p>
                     <p className={`text-xs font-medium ${data.modeCommando ? "text-red-800" : "text-amber-900"}`}>{data.directiveStrategique}</p>
                   </div>
                 </div>
@@ -659,31 +761,35 @@ export function CentralIntelligence() {
   );
 }
 
-function ResolutionCard({ resolution, onCopy }: { resolution: Resolution; onCopy: () => void }) {
-  const modCfg = MODULE_CONFIG[resolution.module] || MODULE_CONFIG.reconnaissance;
+function ResolutionCard({ resolution, onCopy, copiedId, idx }: { resolution: Resolution; onCopy: () => void; copiedId: string | null; idx: string }) {
+  const modCfg = MODULE_CONFIG[resolution.module] || MODULE_CONFIG.comptabilite;
   const ModIcon = modCfg.icon;
 
   return (
     <div className="p-3 rounded-lg bg-white/80 border text-xs space-y-1.5">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <CategorieTag categorie={resolution.categorie} />
-          <ModIcon className={`w-3.5 h-3.5 shrink-0 ${modCfg.color}`} />
-        </div>
+      <div className="flex items-center gap-2">
+        <CategorieTag categorie={resolution.categorie} />
+        <Badge variant="outline" className={`text-[9px] h-5 gap-0.5 bg-white/80 ${modCfg.color} border shrink-0`}>
+          <ModIcon className="w-2.5 h-2.5" />
+          {modCfg.label}
+        </Badge>
       </div>
-      <div className="space-y-1">
-        <p className="font-semibold text-slate-800">{resolution.probleme}</p>
-        <div className="p-2 rounded-lg bg-emerald-50/60 border border-emerald-100">
-          <p className="text-[11px] text-emerald-800">{resolution.solution}</p>
-        </div>
+      <p className="font-semibold text-slate-800">{resolution.probleme}</p>
+      <div className="p-2 rounded-lg bg-emerald-50/60 border border-emerald-100">
+        <p className="text-[11px] text-emerald-800">{resolution.solution}</p>
       </div>
       <div className="flex justify-end gap-1.5">
-        {resolution.actionType === "copier" && (
+        {(resolution.actionType === "copier" || resolution.solution.length > 50) && (
           <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1" onClick={onCopy}>
-            <Copy className="w-3 h-3" /> Copier
+            {copiedId === idx ? <CheckCircle2 className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+            {copiedId === idx ? "Copie" : "Copier"}
           </Button>
         )}
-        <ActionButton type={resolution.actionType} lien={resolution.lien} onCopy={onCopy} />
+        <Link href={resolution.lien}>
+          <Button variant="default" size="sm" className="h-6 text-[10px] gap-1 bg-indigo-600 hover:bg-indigo-700">
+            <ArrowRight className="w-3 h-3" /> {resolution.actionType === "valider" ? "Valider" : "Traiter"}
+          </Button>
+        </Link>
       </div>
     </div>
   );
