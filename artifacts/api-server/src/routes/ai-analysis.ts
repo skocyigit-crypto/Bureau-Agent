@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable } from "@workspace/db";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, platformConnectionsTable } from "@workspace/db";
 import { sql, eq, gte, lte, and, count, avg, desc, lt, ne, isNull, isNotNull } from "drizzle-orm";
 
 const router = Router();
@@ -860,6 +860,226 @@ Reponds en JSON avec cette structure exacte:
     const isProduction = process.env.NODE_ENV === "production";
     res.status(500).json({
       error: "Erreur lors de la generation de l'e-mail IA",
+      ...(isProduction ? {} : { details: error.message }),
+    });
+  }
+});
+
+router.post("/ai/discovery", async (req, res) => {
+  try {
+    const userId = (req.session as any)?.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Non authentifie." });
+      return;
+    }
+
+    const { usersTable } = await import("@workspace/db");
+
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    if (!user) {
+      res.status(404).json({ error: "Utilisateur introuvable." });
+      return;
+    }
+
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const [
+      connectedApps,
+      userCallStats,
+      userTaskStats,
+      userMessageStats,
+      userContacts,
+      userCheckins,
+      allUsers,
+    ] = await Promise.all([
+      db.select().from(platformConnectionsTable).where(eq(platformConnectionsTable.status, "connecte")),
+      db.select({
+        total: count(),
+        answered: sql<number>`SUM(CASE WHEN status = 'repondu' THEN 1 ELSE 0 END)`,
+        missed: sql<number>`SUM(CASE WHEN status = 'manque' THEN 1 ELSE 0 END)`,
+        avgDuration: sql<number>`coalesce(avg(duration), 0)::int`,
+      }).from(callsTable).where(gte(callsTable.createdAt, weekAgo)),
+      db.select({
+        total: count(),
+        pending: sql<number>`SUM(CASE WHEN status = 'en_attente' THEN 1 ELSE 0 END)`,
+        overdue: sql<number>`SUM(CASE WHEN status != 'termine' AND status != 'annule' AND due_date < NOW() THEN 1 ELSE 0 END)`,
+      }).from(tasksTable),
+      db.select({
+        total: count(),
+        unread: sql<number>`SUM(CASE WHEN is_read = false THEN 1 ELSE 0 END)`,
+      }).from(messagesTable),
+      db.select({ count: count() }).from(contactsTable),
+      db.select({ count: count() }).from(checkinsTable).where(gte(checkinsTable.checkInAt, monthAgo)),
+      db.select({ count: count() }).from(usersTable),
+    ]);
+
+    const userProfile = {
+      prenom: user.prenom,
+      role: user.role,
+      departement: user.departement || null,
+      organisation: user.organisation || null,
+      profilComplet: !!(user.nom && user.prenom && user.email && user.telephone && user.departement),
+      champsManquants: [
+        !user.telephone ? "telephone" : null,
+        !user.departement ? "departement" : null,
+      ].filter(Boolean),
+      securite: { mfaActif: user.mfaActif },
+    };
+
+    const connectedAppsList = connectedApps.map(a => ({
+      platform: a.platform,
+      service: a.serviceName,
+      syncEnabled: a.syncEnabled,
+      lastSync: a.lastSync,
+    }));
+
+    const activitySnapshot = {
+      appels: {
+        totalSemaine: Number(userCallStats[0]?.total ?? 0),
+        repondus: Number(userCallStats[0]?.answered ?? 0),
+        manques: Number(userCallStats[0]?.missed ?? 0),
+        dureeMoyenne: Number(userCallStats[0]?.avgDuration ?? 0),
+      },
+      taches: {
+        total: Number(userTaskStats[0]?.total ?? 0),
+        enAttente: Number(userTaskStats[0]?.pending ?? 0),
+        enRetard: Number(userTaskStats[0]?.overdue ?? 0),
+      },
+      messages: {
+        total: Number(userMessageStats[0]?.total ?? 0),
+        nonLus: Number(userMessageStats[0]?.unread ?? 0),
+      },
+      contacts: Number(userContacts[0]?.count ?? 0),
+      pointagesMois: Number(userCheckins[0]?.count ?? 0),
+      utilisateursEquipe: Number(allUsers[0]?.count ?? 0),
+    };
+
+    const { ai } = await import("@workspace/integrations-gemini-ai");
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{
+        role: "user",
+        parts: [{
+          text: `Tu es l'Agent IA personnel de l'utilisateur "${userProfile.prenom} ${userProfile.nom}" dans le logiciel Agent de Bureau (gestion de bureau et centre d'appels professionnel en France).
+
+PROFIL UTILISATEUR:
+${JSON.stringify(userProfile, null, 2)}
+
+APPLICATIONS CONNECTEES:
+${connectedAppsList.length > 0 ? JSON.stringify(connectedAppsList, null, 2) : "Aucune application connectee pour le moment."}
+
+ACTIVITE RECENTE:
+${JSON.stringify(activitySnapshot, null, 2)}
+
+APPLICATIONS DISPONIBLES (non connectees):
+- Google Workspace: Gmail, Calendar, Drive, Docs, Sheets, Slides, Meet, Chat, Contacts, Tasks, Keep, Forms
+- Microsoft 365: Outlook, Teams, OneDrive, Word, Excel, PowerPoint, SharePoint, OneNote, Planner
+- Apple/iCloud: iCloud Mail, Calendrier, iCloud Drive, Contacts, Pages, Numbers
+- Logiciels tiers: Salesforce, HubSpot, Pipedrive, Slack, Zoom, Trello, Asana, Notion, Jira, Sage, QuickBooks, DocuSign, Dropbox, Mailchimp, Brevo, Zapier, Make, Intercom, Zendesk
+
+TON ROLE:
+1. Analyser le profil de l'utilisateur et identifier les champs manquants
+2. Examiner les applications connectees et leur utilisation
+3. Detecter les habitudes de travail (appels, taches, messages, pointage)
+4. Recommander les meilleures applications a connecter selon son role et activite
+5. Proposer des actions concretes pour ameliorer sa productivite
+6. Si le profil est incomplet, le signaler gentiment
+
+Reponds en JSON avec cette structure exacte:
+{
+  "salutation": "string (message de bienvenue personnalise avec le prenom, 1-2 phrases, chaleureux et professionnel)",
+  "profilStatus": {
+    "complet": boolean,
+    "champsManquants": ["string (champs a remplir)"],
+    "conseil": "string (conseil pour completer le profil si besoin)"
+  },
+  "appsConnectees": {
+    "count": number,
+    "resume": "string (resume des apps connectees)",
+    "optimisations": ["string (amelioration possible pour chaque app connectee)"]
+  },
+  "appsRecommandees": [
+    {
+      "nom": "string",
+      "raison": "string (pourquoi cette app serait utile pour cet utilisateur)",
+      "priorite": "haute|moyenne|basse",
+      "benefice": "string (benefice concret)"
+    }
+  ],
+  "habituesTravail": {
+    "resume": "string (resume des habitudes de travail detectees, 2-3 phrases)",
+    "points_forts": ["string"],
+    "axes_amelioration": ["string"]
+  },
+  "actionsSuggerees": [
+    {
+      "titre": "string (action courte)",
+      "description": "string (detail)",
+      "type": "profil|integration|productivite|securite",
+      "priorite": "haute|moyenne|basse",
+      "lien": "string (page cible: /parametres, /logiciels, etc)"
+    }
+  ],
+  "question": "string (une question a poser a l'utilisateur pour mieux l'aider, par exemple: Utilisez-vous Google Workspace ou Microsoft 365 au quotidien?)"
+}
+
+Sois concret, personnalise, et adapte tes recommandations au role (${userProfile.role}) et departement (${userProfile.departement || 'non renseigne'}) de l'utilisateur. Limite a 3-5 apps recommandees et 3-5 actions.`
+        }],
+      }],
+      config: {
+        maxOutputTokens: 4096,
+        responseMimeType: "application/json",
+      },
+    });
+
+    const text = response.text ?? "{}";
+    const defaultResult = {
+      salutation: `Bienvenue ${userProfile.prenom} !`,
+      profilStatus: { complet: userProfile.profilComplet, champsManquants: userProfile.champsManquants, conseil: "" },
+      appsConnectees: { count: connectedAppsList.length, resume: connectedAppsList.length > 0 ? `${connectedAppsList.length} application(s) connectee(s).` : "Aucune application connectee.", optimisations: [] },
+      appsRecommandees: [],
+      habituesTravail: { resume: "", points_forts: [], axes_amelioration: [] },
+      actionsSuggerees: [],
+      question: "",
+    };
+
+    let parsed;
+    try {
+      const raw = JSON.parse(text);
+      parsed = {
+        salutation: typeof raw.salutation === "string" ? raw.salutation : defaultResult.salutation,
+        profilStatus: raw.profilStatus && typeof raw.profilStatus === "object" ? {
+          complet: typeof raw.profilStatus.complet === "boolean" ? raw.profilStatus.complet : defaultResult.profilStatus.complet,
+          champsManquants: Array.isArray(raw.profilStatus.champsManquants) ? raw.profilStatus.champsManquants : defaultResult.profilStatus.champsManquants,
+          conseil: typeof raw.profilStatus.conseil === "string" ? raw.profilStatus.conseil : "",
+        } : defaultResult.profilStatus,
+        appsConnectees: raw.appsConnectees && typeof raw.appsConnectees === "object" ? {
+          count: typeof raw.appsConnectees.count === "number" ? raw.appsConnectees.count : defaultResult.appsConnectees.count,
+          resume: typeof raw.appsConnectees.resume === "string" ? raw.appsConnectees.resume : defaultResult.appsConnectees.resume,
+          optimisations: Array.isArray(raw.appsConnectees.optimisations) ? raw.appsConnectees.optimisations : [],
+        } : defaultResult.appsConnectees,
+        appsRecommandees: Array.isArray(raw.appsRecommandees) ? raw.appsRecommandees.slice(0, 5) : [],
+        habituesTravail: raw.habituesTravail && typeof raw.habituesTravail === "object" ? {
+          resume: typeof raw.habituesTravail.resume === "string" ? raw.habituesTravail.resume : "",
+          points_forts: Array.isArray(raw.habituesTravail.points_forts) ? raw.habituesTravail.points_forts : [],
+          axes_amelioration: Array.isArray(raw.habituesTravail.axes_amelioration) ? raw.habituesTravail.axes_amelioration : [],
+        } : defaultResult.habituesTravail,
+        actionsSuggerees: Array.isArray(raw.actionsSuggerees) ? raw.actionsSuggerees.slice(0, 5) : [],
+        question: typeof raw.question === "string" ? raw.question : "",
+      };
+    } catch {
+      parsed = defaultResult;
+    }
+
+    res.json(parsed);
+  } catch (error: any) {
+    console.error("AI Discovery error:", error);
+    const isProduction = process.env.NODE_ENV === "production";
+    res.status(500).json({
+      error: "Erreur lors de la decouverte IA",
       ...(isProduction ? {} : { details: error.message }),
     });
   }
