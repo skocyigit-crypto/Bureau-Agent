@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, platformConnectionsTable } from "@workspace/db";
-import { sql, eq, gte, lte, and, count, avg, desc, lt, ne, isNull, isNotNull } from "drizzle-orm";
+import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNull } from "drizzle-orm";
 
 const router = Router();
 
@@ -1080,6 +1080,385 @@ Sois concret, personnalise, et adapte tes recommandations au role (${userProfile
     const isProduction = process.env.NODE_ENV === "production";
     res.status(500).json({
       error: "Erreur lors de la decouverte IA",
+      ...(isProduction ? {} : { details: error.message }),
+    });
+  }
+});
+
+router.post("/ai/central-intelligence", async (req, res) => {
+  try {
+    const userId = (req.session as any)?.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Non authentifie." });
+      return;
+    }
+
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const fifteenDaysAgo = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const { stockArticlesTable } = await import("@workspace/db");
+
+    const [
+      overdueTasks,
+      highPriorityPending,
+      unreadMessages,
+      missedCallsWeek,
+      answeredCallsWeek,
+      negativeCallsWeek,
+      callsWithoutContact,
+      totalCallsWeek,
+      callsToday,
+      staleContacts,
+      stockAlerts,
+      todayCheckins,
+      recentCallPatterns,
+      taskCompletionRate,
+    ] = await Promise.all([
+      db.select({
+        id: tasksTable.id,
+        title: tasksTable.title,
+        priority: tasksTable.priority,
+        dueDate: tasksTable.dueDate,
+        assignedTo: tasksTable.assignedTo,
+        status: tasksTable.status,
+      }).from(tasksTable).where(
+        and(lt(tasksTable.dueDate, now), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))
+      ).orderBy(asc(tasksTable.dueDate)).limit(10),
+
+      db.select({
+        id: tasksTable.id,
+        title: tasksTable.title,
+        dueDate: tasksTable.dueDate,
+        assignedTo: tasksTable.assignedTo,
+      }).from(tasksTable).where(
+        and(eq(tasksTable.priority, "haute"), eq(tasksTable.status, "en_attente"))
+      ).limit(5),
+
+      db.select({
+        id: messagesTable.id,
+        contactName: messagesTable.contactName,
+        phoneNumber: messagesTable.phoneNumber,
+        content: messagesTable.content,
+        type: messagesTable.type,
+        priority: messagesTable.priority,
+        createdAt: messagesTable.createdAt,
+      }).from(messagesTable).where(eq(messagesTable.isRead, false)).orderBy(desc(messagesTable.createdAt)).limit(10),
+
+      db.select({ count: count() }).from(callsTable).where(and(eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(eq(callsTable.status, "repondu"), gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(eq(callsTable.sentiment, "negatif"), gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(isNull(callsTable.contactId), gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(gte(callsTable.createdAt, weekAgo)),
+      db.select({ count: count() }).from(callsTable).where(gte(callsTable.createdAt, todayStart)),
+
+      db.select({
+        id: contactsTable.id,
+        firstName: contactsTable.firstName,
+        lastName: contactsTable.lastName,
+        company: contactsTable.company,
+        phone: contactsTable.phone,
+        category: contactsTable.category,
+        lastCallAt: contactsTable.lastCallAt,
+      }).from(contactsTable).where(
+        and(
+          isNotNull(contactsTable.lastCallAt),
+          lt(contactsTable.lastCallAt, fifteenDaysAgo)
+        )
+      ).orderBy(asc(contactsTable.lastCallAt)).limit(8),
+
+      db.select({
+        id: stockArticlesTable.id,
+        name: stockArticlesTable.name,
+        reference: stockArticlesTable.reference,
+        quantity: stockArticlesTable.quantity,
+        minQuantity: stockArticlesTable.minQuantity,
+        category: stockArticlesTable.category,
+        supplier: stockArticlesTable.supplier,
+      }).from(stockArticlesTable).where(
+        sql`${stockArticlesTable.quantity} <= ${stockArticlesTable.minQuantity}`
+      ).limit(5),
+
+      db.select({ count: count() }).from(checkinsTable).where(gte(checkinsTable.checkInAt, todayStart)),
+
+      db.select({
+        hour: sql<string>`extract(hour from ${callsTable.createdAt})`.as("hour"),
+        callCount: count(),
+      }).from(callsTable).where(gte(callsTable.createdAt, weekAgo)).groupBy(sql`extract(hour from ${callsTable.createdAt})`).orderBy(desc(count())).limit(3),
+      db.select({
+        total: count(),
+        completed: sql<number>`SUM(CASE WHEN status = 'termine' THEN 1 ELSE 0 END)`,
+      }).from(tasksTable),
+    ]);
+
+    const totalWeekCalls = Number(totalCallsWeek[0]?.count ?? 0);
+    const missedCount = Number(missedCallsWeek[0]?.count ?? 0);
+    const answeredCount = Number(answeredCallsWeek[0]?.count ?? 0);
+    const negativeCount = Number(negativeCallsWeek[0]?.count ?? 0);
+    const noContactCount = Number(callsWithoutContact[0]?.count ?? 0);
+    const todayCallCount = Number(callsToday[0]?.count ?? 0);
+    const answerRate = totalWeekCalls > 0 ? Math.round((answeredCount / totalWeekCalls) * 100) : 100;
+    const completionTotal = Number(taskCompletionRate[0]?.total ?? 0);
+    const completionDone = Number(taskCompletionRate[0]?.completed ?? 0);
+    const taskRate = completionTotal > 0 ? Math.round((completionDone / completionTotal) * 100) : 0;
+    const todayCheckinCount = Number(todayCheckins[0]?.count ?? 0);
+
+    let scoreBase = 100;
+    let penalty = 0;
+    penalty += missedCount * 3;
+    penalty += overdueTasks.length * 4;
+    penalty += unreadMessages.filter(m => m.priority === "haute").length * 5;
+    penalty += negativeCount * 3;
+    penalty += noContactCount;
+    penalty += (answerRate < 80 ? (80 - answerRate) : 0);
+    penalty += (taskRate < 50 ? (50 - taskRate) / 2 : 0);
+    penalty += stockAlerts.length * 2;
+    const scoreGlobal = Math.max(0, Math.min(100, Math.round(scoreBase - penalty)));
+
+    const maskPhone = (phone: string) => phone.length > 4 ? phone.slice(0, -4).replace(/./g, "*") + phone.slice(-4) : "****";
+
+    const messageIdMap = unreadMessages.map((m, i) => ({ index: i + 1, id: m.id }));
+
+    const contextForAI = {
+      scoreSante: scoreGlobal,
+      tachesEnRetard: overdueTasks.map(t => ({
+        titre: t.title,
+        priorite: t.priority,
+        echeance: t.dueDate,
+        assigneA: t.assignedTo || "Non assigne",
+      })),
+      tachesHautePriorite: highPriorityPending.map(t => ({
+        titre: t.title,
+        echeance: t.dueDate,
+        assigneA: t.assignedTo || "Non assigne",
+      })),
+      messagesNonLus: unreadMessages.map((m, i) => ({
+        index: i + 1,
+        expediteur: m.contactName || "Inconnu",
+        resume: m.content.slice(0, 100),
+        priorite: m.priority,
+        type: m.type,
+      })),
+      appels: {
+        totalSemaine: totalWeekCalls,
+        repondus: answeredCount,
+        manques: missedCount,
+        negatifs: negativeCount,
+        sansContact: noContactCount,
+        tauxReponse: answerRate,
+        aujourdhui: todayCallCount,
+      },
+      contactsARelancer: staleContacts.map(c => ({
+        nom: `${c.firstName} ${c.lastName}`,
+        entreprise: c.company || "N/A",
+        categorie: c.category,
+        dernierAppel: c.lastCallAt,
+      })),
+      alertesStock: stockAlerts.map(s => ({
+        article: s.name,
+        quantite: s.quantity,
+        seuilMin: s.minQuantity,
+      })),
+      pointage: {
+        arrivesAujourdhui: todayCheckinCount,
+      },
+      heuresPointe: recentCallPatterns.map(p => ({
+        heure: `${p.hour}h`,
+        nbAppels: Number(p.callCount),
+      })),
+      progressionTaches: { tauxAchevement: taskRate, total: completionTotal, terminees: completionDone },
+    };
+
+    const { ai } = await import("@workspace/integrations-gemini-ai");
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{
+        role: "user",
+        parts: [{
+          text: `Tu es l'Intelligence Centrale du logiciel "Agent de Bureau", l'assistant IA personnel d'Aurelie, gestionnaire de bureau en France.
+
+TON OBJECTIF : Reduire la charge mentale d'Aurelie de 80% en produisant un briefing actionnable, pas de longs paragraphes.
+
+DONNEES EN TEMPS REEL :
+${JSON.stringify(contextForAI, null, 2)}
+
+INSTRUCTIONS STRICTES :
+
+1. URGENCES (Score de Sante: ${scoreGlobal}/100)
+   - Si score < 50: identifie les 3 actions prioritaires IMMEDIATES avec solution concrete
+   - Si score 50-75: identifie les 2 actions a planifier dans la journee
+   - Si score > 75: resume bref de la situation
+
+2. MESSAGES NON LUS (${unreadMessages.length} messages)
+   - Pour chaque message non lu, genere un brouillon de reponse (2-3 phrases max) en ton professionnel chaleureux
+   - Categorise: CRITIQUE / A_PLANIFIER / INFO
+
+3. ANTICIPATION
+   - Si appels aujourd'hui = ${todayCallCount}: analyse les contacts a relancer (15j+ sans appel) et prepare une liste de rappel intelligente avec raison
+   - Si stock en alerte: croise avec les taches prevues et alerte si conflit
+
+4. TRI INTELLIGENT de TOUTES les notifications en categories:
+   - CRITIQUE: actions immediates requises
+   - A_PLANIFIER: a traiter dans la journee
+   - INFO: pour information, pas d'action urgente
+
+Reponds en JSON avec cette structure exacte :
+{
+  "scoreSante": number,
+  "niveauSante": "critique|alerte|bon|excellent",
+  "briefingMatinal": "string (3-5 lignes max, style telegraphique avec puces)",
+  "urgences": [
+    {
+      "titre": "string (court)",
+      "action": "string (verbe infinitif + solution concrete)",
+      "categorie": "CRITIQUE|A_PLANIFIER|INFO",
+      "lien": "string (/taches, /appels, /messages, /stock, /contacts, /pointage)"
+    }
+  ],
+  "brouillonsReponses": [
+    {
+      "index": number (index du message dans la liste messagesNonLus),
+      "expediteur": "string",
+      "categorie": "CRITIQUE|A_PLANIFIER|INFO",
+      "brouillon": "string (2-3 phrases, ton pro chaleureux)",
+      "sujetResume": "string (5 mots max)"
+    }
+  ],
+  "contactsARelancer": [
+    {
+      "nom": "string",
+      "entreprise": "string",
+      "joursDepuisDernierAppel": number,
+      "raison": "string (pourquoi relancer)",
+      "prioriteRelance": "haute|moyenne|basse"
+    }
+  ],
+  "alertesStock": [
+    {
+      "article": "string",
+      "quantiteActuelle": number,
+      "seuilMin": number,
+      "urgence": "CRITIQUE|A_PLANIFIER|INFO",
+      "action": "string (commander, verifier, etc)"
+    }
+  ],
+  "metriquesExpress": {
+    "tauxReponse": "string (ex: 85%)",
+    "tachesEnRetard": number,
+    "messagesUrgents": number,
+    "contactsARelancer": number,
+    "articlesEnAlerte": number
+  },
+  "conseilDuJour": "string (1 phrase actionnable basee sur les donnees)"
+}
+
+IMPORTANT: Sois concis, actionnable, factuel. Pas de formules de politesse. Pas de paragraphes. Que des actions.`
+        }],
+      }],
+      config: {
+        maxOutputTokens: 4096,
+        responseMimeType: "application/json",
+      },
+    });
+
+    const text = response.text ?? "{}";
+    const SAFE_LINKS = new Set(["/taches", "/appels", "/messages", "/stock", "/contacts", "/pointage"]);
+    const VALID_CATEGORIES = new Set(["CRITIQUE", "A_PLANIFIER", "INFO"]);
+    let parsed;
+    try {
+      const raw = JSON.parse(text);
+
+      const sanitizedUrgences = Array.isArray(raw.urgences) ? raw.urgences.slice(0, 8).map((u: any) => ({
+        action: typeof u.action === "string" ? u.action.slice(0, 300) : "",
+        categorie: VALID_CATEGORIES.has(u.categorie) ? u.categorie : "INFO",
+        lien: SAFE_LINKS.has(u.lien) ? u.lien : "/taches",
+      })) : [];
+
+      const sanitizedDrafts = Array.isArray(raw.brouillonsReponses) ? raw.brouillonsReponses.slice(0, 10).map((d: any) => {
+        const idx = typeof d.index === "number" ? d.index : 0;
+        const mapped = messageIdMap.find(m => m.index === idx);
+        return {
+          messageId: mapped ? mapped.id : null,
+          expediteur: typeof d.expediteur === "string" ? d.expediteur.slice(0, 100) : "Inconnu",
+          categorie: VALID_CATEGORIES.has(d.categorie) ? d.categorie : "INFO",
+          brouillon: typeof d.brouillon === "string" ? d.brouillon.slice(0, 500) : "",
+          sujetResume: typeof d.sujetResume === "string" ? d.sujetResume.slice(0, 80) : "",
+        };
+      }) : [];
+
+      const sanitizedContacts = Array.isArray(raw.contactsARelancer) ? raw.contactsARelancer.slice(0, 8).map((c: any) => {
+        const matchedContact = staleContacts.find(sc =>
+          `${sc.firstName} ${sc.lastName}` === c.nom
+        );
+        return {
+          nom: typeof c.nom === "string" ? c.nom.slice(0, 100) : "",
+          entreprise: typeof c.entreprise === "string" ? c.entreprise.slice(0, 100) : "",
+          telephone: matchedContact ? maskPhone(matchedContact.phone || "") : "",
+          joursDepuisDernierAppel: typeof c.joursDepuisDernierAppel === "number" ? c.joursDepuisDernierAppel : 0,
+          raison: typeof c.raison === "string" ? c.raison.slice(0, 200) : "",
+          prioriteRelance: ["haute", "moyenne", "basse"].includes(c.prioriteRelance) ? c.prioriteRelance : "moyenne",
+        };
+      }) : [];
+
+      const sanitizedStock = Array.isArray(raw.alertesStock) ? raw.alertesStock.slice(0, 5).map((s: any) => ({
+        article: typeof s.article === "string" ? s.article.slice(0, 100) : "",
+        quantiteActuelle: typeof s.quantiteActuelle === "number" ? s.quantiteActuelle : 0,
+        seuilMin: typeof s.seuilMin === "number" ? s.seuilMin : 0,
+        urgence: VALID_CATEGORIES.has(s.urgence) ? s.urgence : "INFO",
+        action: typeof s.action === "string" ? s.action.slice(0, 200) : "",
+      })) : [];
+
+      parsed = {
+        scoreSante: typeof raw.scoreSante === "number" ? raw.scoreSante : scoreGlobal,
+        niveauSante: typeof raw.niveauSante === "string" ? raw.niveauSante : (scoreGlobal >= 75 ? "bon" : scoreGlobal >= 50 ? "alerte" : "critique"),
+        briefingMatinal: typeof raw.briefingMatinal === "string" ? raw.briefingMatinal : "",
+        urgences: sanitizedUrgences,
+        brouillonsReponses: sanitizedDrafts,
+        contactsARelancer: sanitizedContacts,
+        alertesStock: sanitizedStock,
+        metriquesExpress: raw.metriquesExpress && typeof raw.metriquesExpress === "object" ? {
+          tauxReponse: String(raw.metriquesExpress.tauxReponse ?? `${answerRate}%`),
+          tachesEnRetard: Number(raw.metriquesExpress.tachesEnRetard ?? overdueTasks.length),
+          messagesUrgents: Number(raw.metriquesExpress.messagesUrgents ?? unreadMessages.filter(m => m.priority === "haute").length),
+          contactsARelancer: Number(raw.metriquesExpress.contactsARelancer ?? staleContacts.length),
+          articlesEnAlerte: Number(raw.metriquesExpress.articlesEnAlerte ?? stockAlerts.length),
+        } : {
+          tauxReponse: `${answerRate}%`,
+          tachesEnRetard: overdueTasks.length,
+          messagesUrgents: unreadMessages.filter(m => m.priority === "haute").length,
+          contactsARelancer: staleContacts.length,
+          articlesEnAlerte: stockAlerts.length,
+        },
+        conseilDuJour: typeof raw.conseilDuJour === "string" ? raw.conseilDuJour : "",
+      };
+    } catch {
+      parsed = {
+        scoreSante: scoreGlobal,
+        niveauSante: scoreGlobal >= 75 ? "bon" : scoreGlobal >= 50 ? "alerte" : "critique",
+        briefingMatinal: "",
+        urgences: [],
+        brouillonsReponses: [],
+        contactsARelancer: [],
+        alertesStock: [],
+        metriquesExpress: {
+          tauxReponse: `${answerRate}%`,
+          tachesEnRetard: overdueTasks.length,
+          messagesUrgents: unreadMessages.filter(m => m.priority === "haute").length,
+          contactsARelancer: staleContacts.length,
+          articlesEnAlerte: stockAlerts.length,
+        },
+        conseilDuJour: "",
+      };
+    }
+
+    res.json(parsed);
+  } catch (error: any) {
+    console.error("AI Central Intelligence error:", error);
+    const isProduction = process.env.NODE_ENV === "production";
+    res.status(500).json({
+      error: "Erreur de l'Intelligence Centrale",
       ...(isProduction ? {} : { details: error.message }),
     });
   }

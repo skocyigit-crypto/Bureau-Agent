@@ -7,6 +7,7 @@ import { Icon3D, type Icon3DVariant } from "@/components/icon-3d";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { AiRecognitionPanel } from "@/components/ai-recognition-panel";
 import { AiDiscoveryPanel } from "@/components/ai-discovery-panel";
+import { CentralIntelligence } from "@/components/central-intelligence";
 import { EmailComposer } from "@/components/email-composer";
 import officeTeamImg from "@/assets/images/office-team.png";
 import { useGetDashboardSummary, useGetRecentActivity, useGetTopContacts, useGetWeeklyReport, useGetHourlyPerformance, useGetTaskStats } from "@workspace/api-client-react";
@@ -126,7 +127,7 @@ export default function Dashboard() {
         </div>
       </Card>
 
-      <AiDiscoveryPanel />
+      <CentralIntelligence />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {kpiCards.map((kpi) => (
