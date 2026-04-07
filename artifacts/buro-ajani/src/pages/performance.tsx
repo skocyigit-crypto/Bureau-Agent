@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Users, TrendingUp, Clock, Award, BarChart3, Brain, Loader2,
   Target, Phone, CheckSquare, Mail, Calendar, UserCheck,
-  ArrowUpRight, ArrowDownRight, Minus, Smile, RefreshCw, History
+  ArrowUpRight, ArrowDownRight, Minus, Smile, RefreshCw, History,
+  Shield, AlertTriangle, Lightbulb, Sparkles, Compass, Zap, Eye, Heart
 } from "lucide-react";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -273,8 +274,8 @@ export default function PerformancePage() {
               <Brain className="w-6 h-6 text-indigo-600 animate-pulse" />
             </div>
             <div>
-              <p className="font-medium">Analyse IA en cours...</p>
-              <p className="text-sm text-muted-foreground">Gemini analyse les performances de l'equipe</p>
+              <p className="font-medium">Analyse multi-IA en cours...</p>
+              <p className="text-sm text-muted-foreground">Gemini + OpenAI + Anthropic analysent les performances</p>
             </div>
           </CardContent>
         </Card>
@@ -423,6 +424,204 @@ export default function PerformancePage() {
               <CardContent className="pt-6 flex items-start gap-3">
                 <Smile className="w-5 h-5 text-pink-600 shrink-0 mt-0.5" />
                 <p className="text-sm italic text-pink-800 dark:text-pink-300">"{rapport.analyseIA.blague}"</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {rapport.analyseIA.sourcesIA && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-muted-foreground">Sources IA :</span>
+              {rapport.analyseIA.sourcesIA.map((s: string) => (
+                <Badge key={s} variant="outline" className={`text-[10px] ${
+                  s === "Gemini" ? "border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950/30" :
+                  s === "OpenAI" ? "border-emerald-300 text-emerald-700 bg-emerald-50 dark:bg-emerald-950/30" :
+                  "border-orange-300 text-orange-700 bg-orange-50 dark:bg-orange-950/30"
+                }`}>
+                  <Sparkles className="w-2.5 h-2.5 mr-1" />
+                  {s}
+                </Badge>
+              ))}
+              {rapport.analyseIA.analyseMultiIA && (
+                <Badge className="text-[10px] bg-gradient-to-r from-blue-500 via-emerald-500 to-orange-500 text-white border-0">
+                  Multi-IA
+                </Badge>
+              )}
+            </div>
+          )}
+
+          {rapport.analyseIA.perspectiveOpenAI && (
+            <Card className="border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Eye className="w-4 h-4 text-emerald-600" />
+                  Perspective OpenAI
+                  <Badge variant="outline" className="text-[10px] border-emerald-300 text-emerald-700">GPT</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm leading-relaxed">{rapport.analyseIA.perspectiveOpenAI}</p>
+
+                {rapport.analyseIA.conseilDirection && (
+                  <div className="bg-emerald-100/50 dark:bg-emerald-900/20 rounded-lg p-3">
+                    <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300 mb-1">Conseil a la direction</p>
+                    <p className="text-xs text-emerald-700 dark:text-emerald-400">{rapport.analyseIA.conseilDirection}</p>
+                  </div>
+                )}
+
+                {rapport.analyseIA.scoreMoralEquipe != null && (
+                  <div className="flex items-center gap-2">
+                    <Heart className="w-4 h-4 text-emerald-600" />
+                    <span className="text-xs text-muted-foreground">Moral de l'equipe :</span>
+                    <span className="text-sm font-bold text-emerald-700">{rapport.analyseIA.scoreMoralEquipe}/100</span>
+                  </div>
+                )}
+
+                {rapport.analyseIA.risquesIdentifies?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-red-700 dark:text-red-400 mb-2 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" /> Risques identifies
+                    </p>
+                    <div className="space-y-2">
+                      {rapport.analyseIA.risquesIdentifies.map((r: any, i: number) => (
+                        <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-red-50/50 dark:bg-red-950/20">
+                          <Badge className={`shrink-0 text-[10px] ${
+                            r.severite === "haute" ? "bg-red-100 text-red-700 border-red-200" :
+                            r.severite === "moyenne" ? "bg-amber-100 text-amber-700 border-amber-200" :
+                            "bg-green-100 text-green-700 border-green-200"
+                          }`}>{r.severite}</Badge>
+                          <div>
+                            <p className="text-xs font-medium">{r.employe}</p>
+                            <p className="text-xs text-muted-foreground">{r.risque}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {rapport.analyseIA.opportunitesDeveloppement?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 mb-2 flex items-center gap-1">
+                      <Lightbulb className="w-3 h-3" /> Opportunites de developpement
+                    </p>
+                    <div className="space-y-2">
+                      {rapport.analyseIA.opportunitesDeveloppement.map((o: any, i: number) => (
+                        <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-emerald-50/50 dark:bg-emerald-950/20">
+                          <Zap className="w-3 h-3 text-emerald-600 mt-0.5 shrink-0" />
+                          <div>
+                            <p className="text-xs font-medium">{o.employe}: {o.formation}</p>
+                            <p className="text-xs text-muted-foreground">{o.beneficeAttendu}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {rapport.analyseIA.alertes?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mb-2 flex items-center gap-1">
+                      <Shield className="w-3 h-3" /> Alertes
+                    </p>
+                    <div className="space-y-1">
+                      {rapport.analyseIA.alertes.map((a: any, i: number) => (
+                        <div key={i} className="flex items-start gap-2 text-xs p-2 rounded bg-amber-50/50 dark:bg-amber-950/20">
+                          <AlertTriangle className="w-3 h-3 text-amber-500 mt-0.5 shrink-0" />
+                          <span><strong>{a.type}:</strong> {a.description}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {rapport.analyseIA.perspectiveAnthropic && (
+            <Card className="border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-950/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Compass className="w-4 h-4 text-orange-600" />
+                  Vision strategique Anthropic
+                  <Badge variant="outline" className="text-[10px] border-orange-300 text-orange-700">Claude</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm leading-relaxed">{rapport.analyseIA.perspectiveAnthropic}</p>
+
+                {rapport.analyseIA.dynamiqueEquipe && (
+                  <div className="bg-orange-100/50 dark:bg-orange-900/20 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Users className="w-3.5 h-3.5 text-orange-600" />
+                      <p className="text-xs font-medium text-orange-800 dark:text-orange-300">Dynamique d'equipe</p>
+                      <Badge className={`text-[10px] ${
+                        rapport.analyseIA.dynamiqueEquipe.cohesion === "forte" ? "bg-emerald-100 text-emerald-700" :
+                        rapport.analyseIA.dynamiqueEquipe.cohesion === "moyenne" ? "bg-amber-100 text-amber-700" :
+                        "bg-red-100 text-red-700"
+                      }`}>{rapport.analyseIA.dynamiqueEquipe.cohesion}</Badge>
+                    </div>
+                    <p className="text-xs text-orange-700 dark:text-orange-400">{rapport.analyseIA.dynamiqueEquipe.analyse}</p>
+                    {rapport.analyseIA.dynamiqueEquipe.recommandations?.length > 0 && (
+                      <ul className="mt-2 space-y-1">
+                        {rapport.analyseIA.dynamiqueEquipe.recommandations.map((r: string, i: number) => (
+                          <li key={i} className="text-xs flex items-start gap-1.5">
+                            <ArrowUpRight className="w-3 h-3 text-orange-500 mt-0.5 shrink-0" />
+                            {r}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+
+                {rapport.analyseIA.profilsComportementaux?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-orange-700 dark:text-orange-400 mb-2">Profils comportementaux</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {rapport.analyseIA.profilsComportementaux.map((p: any, i: number) => (
+                        <div key={i} className="p-3 rounded-lg bg-orange-50/50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900">
+                          <p className="text-xs font-medium">{p.employe}</p>
+                          <p className="text-xs text-orange-700 dark:text-orange-400 mt-0.5">{p.profil}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{p.motivation}</p>
+                          <p className="text-xs italic text-orange-600 mt-1">{p.conseil}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {rapport.analyseIA.planAction30Jours?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-orange-700 dark:text-orange-400 mb-2 flex items-center gap-1">
+                      <Calendar className="w-3 h-3" /> Plan d'action 30 jours
+                    </p>
+                    <div className="space-y-2">
+                      {rapport.analyseIA.planAction30Jours.map((a: any, i: number) => (
+                        <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-orange-50/30 dark:bg-orange-950/10">
+                          <Badge className="shrink-0 text-[10px] bg-orange-100 text-orange-700 border-orange-200">S{a.semaine}</Badge>
+                          <div>
+                            <p className="text-xs font-medium">{a.action}</p>
+                            <p className="text-xs text-muted-foreground">{a.responsable} - {a.objectif}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {rapport.analyseIA.benchmarkSectoriel && (
+                  <div className="bg-orange-100/50 dark:bg-orange-900/20 rounded-lg p-3">
+                    <p className="text-xs font-medium text-orange-800 dark:text-orange-300 mb-1">Benchmark sectoriel</p>
+                    <p className="text-xs text-orange-700 dark:text-orange-400">{rapport.analyseIA.benchmarkSectoriel}</p>
+                  </div>
+                )}
+
+                {rapport.analyseIA.citationMotivante && (
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border border-orange-200/50 dark:border-orange-800/50">
+                    <Sparkles className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
+                    <p className="text-sm italic text-orange-800 dark:text-orange-300">"{rapport.analyseIA.citationMotivante}"</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

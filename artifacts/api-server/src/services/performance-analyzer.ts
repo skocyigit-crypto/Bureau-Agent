@@ -193,13 +193,65 @@ export async function generatePerformanceReport(
     };
   }
 
-  const { ai } = await import("@workspace/integrations-gemini-ai");
+  const metricsJSON = JSON.stringify(allMetrics, null, 2);
+  const periodeStr = `${dateDebut.toLocaleDateString("fr-FR")} au ${now.toLocaleDateString("fr-FR")}`;
 
-  const prompt = `Tu es le directeur des ressources humaines d'un bureau professionnel en France (Agent de Bureau).
-Tu analyses les performances de l'equipe sur la periode du ${dateDebut.toLocaleDateString("fr-FR")} au ${now.toLocaleDateString("fr-FR")}.
+  const [geminiResult, openaiResult, anthropicResult] = await Promise.all([
+    analyzeWithGemini(metricsJSON, periodeStr),
+    analyzeWithOpenAI(metricsJSON, periodeStr),
+    analyzeWithAnthropic(metricsJSON, periodeStr),
+  ]);
+
+  const sourcesUtilisees: string[] = [];
+  if (geminiResult) sourcesUtilisees.push("Gemini");
+  if (openaiResult) sourcesUtilisees.push("OpenAI");
+  if (anthropicResult) sourcesUtilisees.push("Anthropic");
+
+  const analyseIA = fusionnerAnalyses(geminiResult, openaiResult, anthropicResult, sourcesUtilisees);
+
+  for (const empAnalysis of (analyseIA.employes || [])) {
+    const empMetrics = allMetrics.find(m => m.userId === empAnalysis.userId);
+    if (!empMetrics) continue;
+
+    await db.insert(performanceReportsTable).values({
+      userId: empMetrics.userId,
+      userEmail: empMetrics.email,
+      userName: `${empMetrics.prenom} ${empMetrics.nom}`,
+      periode,
+      dateDebut,
+      dateFin: now,
+      scoreGlobal: empAnalysis.score || 0,
+      metriques: empMetrics as any,
+      analyseIA: empAnalysis.recommandation || "",
+      pointsForts: empAnalysis.pointsForts || [],
+      pointsAmelioration: empAnalysis.pointsAmelioration || [],
+      recommandations: analyseIA.recommandationsEquipe || [],
+      comparaison: analyseIA.comparaison || null,
+    });
+  }
+
+  return {
+    periode,
+    dateDebut: dateDebut.toISOString(),
+    dateFin: now.toISOString(),
+    metriques: allMetrics,
+    analyseIA,
+  };
+}
+
+export async function getPerformanceHistory(limit = 20): Promise<any[]> {
+  return db
+    .select()
+    .from(performanceReportsTable)
+    .orderBy(desc(performanceReportsTable.createdAt))
+    .limit(limit);
+}
+
+const GEMINI_PROMPT = (metricsJSON: string, periodeStr: string) => `Tu es le directeur des ressources humaines d'un bureau professionnel en France (Agent de Bureau).
+Tu analyses les performances de l'equipe sur la periode du ${periodeStr}.
 
 DONNEES DES EMPLOYES:
-${JSON.stringify(allMetrics, null, 2)}
+${metricsJSON}
 
 ANALYSE DEMANDEE:
 1. Pour chaque employe, attribue un score de performance sur 100 base sur:
@@ -244,64 +296,117 @@ Reponds UNIQUEMENT en JSON:
   "blague": "string"
 }`;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    config: {
-      maxOutputTokens: 8192,
-      responseMimeType: "application/json",
-    },
-  });
-
-  const text = response.text ?? "{}";
-  let analyseIA: any;
+async function analyzeWithGemini(metricsJSON: string, periodeStr: string): Promise<any | null> {
   try {
-    analyseIA = JSON.parse(text);
-  } catch {
-    analyseIA = {
-      resumeExecutif: "Analyse non disponible.",
-      employes: [],
-      recommandationsEquipe: [],
-      comparaison: null,
-      tendances: [],
-      blague: null,
-    };
-  }
-
-  for (const empAnalysis of (analyseIA.employes || [])) {
-    const empMetrics = allMetrics.find(m => m.userId === empAnalysis.userId);
-    if (!empMetrics) continue;
-
-    await db.insert(performanceReportsTable).values({
-      userId: empMetrics.userId,
-      userEmail: empMetrics.email,
-      userName: `${empMetrics.prenom} ${empMetrics.nom}`,
-      periode,
-      dateDebut,
-      dateFin: now,
-      scoreGlobal: empAnalysis.score || 0,
-      metriques: empMetrics as any,
-      analyseIA: empAnalysis.recommandation || "",
-      pointsForts: empAnalysis.pointsForts || [],
-      pointsAmelioration: empAnalysis.pointsAmelioration || [],
-      recommandations: analyseIA.recommandationsEquipe || [],
-      comparaison: analyseIA.comparaison || null,
+    const { ai } = await import("@workspace/integrations-gemini-ai");
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{ role: "user", parts: [{ text: GEMINI_PROMPT(metricsJSON, periodeStr) }] }],
+      config: { maxOutputTokens: 8192, responseMimeType: "application/json" },
     });
+    return JSON.parse(response.text ?? "{}");
+  } catch (error: any) {
+    console.error("[Performance] Gemini analysis error:", error.message);
+    return null;
   }
-
-  return {
-    periode,
-    dateDebut: dateDebut.toISOString(),
-    dateFin: now.toISOString(),
-    metriques: allMetrics,
-    analyseIA,
-  };
 }
 
-export async function getPerformanceHistory(limit = 20): Promise<any[]> {
-  return db
-    .select()
-    .from(performanceReportsTable)
-    .orderBy(desc(performanceReportsTable.createdAt))
-    .limit(limit);
+async function analyzeWithOpenAI(metricsJSON: string, periodeStr: string): Promise<any | null> {
+  try {
+    const { openai } = await import("@workspace/integrations-openai-ai-server");
+    const response = await openai.chat.completions.create({
+      model: "gpt-5.2",
+      max_completion_tokens: 8192,
+      messages: [
+        {
+          role: "system",
+          content: `Tu es un analyste RH senior specialise dans l'evaluation de la performance des employes en France. Tu fournis une seconde opinion independante, en te concentrant sur les risques, les anomalies et les opportunites de developpement. Reponds en JSON: {"perspectiveOpenAI": "string (resume en 3-4 phrases)", "risquesIdentifies": [{"employe": "string", "risque": "string", "severite": "haute|moyenne|basse"}], "opportunitesDeveloppement": [{"employe": "string", "formation": "string", "beneficeAttendu": "string"}], "alertes": [{"type": "string", "description": "string"}], "scoreMoralEquipe": number, "conseilDirection": "string"}`,
+        },
+        {
+          role: "user",
+          content: `Analyse ces donnees de performance des employes pour la periode du ${periodeStr}:\n${metricsJSON}`,
+        },
+      ],
+    });
+    const text = response.choices[0]?.message?.content ?? "{}";
+    return JSON.parse(text);
+  } catch (error: any) {
+    console.error("[Performance] OpenAI analysis error:", error.message);
+    return null;
+  }
+}
+
+async function analyzeWithAnthropic(metricsJSON: string, periodeStr: string): Promise<any | null> {
+  try {
+    const { anthropic } = await import("@workspace/integrations-anthropic-ai");
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 8192,
+      messages: [
+        {
+          role: "user",
+          content: `Tu es un coach d'equipe professionnel et stratege RH en France. Tu fournis une analyse strategique complementaire sur la performance de l'equipe d'un bureau professionnel (Agent de Bureau) pour la periode du ${periodeStr}.
+
+DONNEES DES EMPLOYES:
+${metricsJSON}
+
+Fournis une analyse strategique en JSON:
+{
+  "perspectiveAnthropic": "string (vision strategique en 3-4 phrases)",
+  "profilsComportementaux": [{"employe": "string", "profil": "string", "motivation": "string", "conseil": "string"}],
+  "dynamiqueEquipe": {"cohesion": "forte|moyenne|faible", "analyse": "string", "recommandations": ["string"]},
+  "planAction30Jours": [{"semaine": number, "action": "string", "responsable": "string", "objectif": "string"}],
+  "benchmarkSectoriel": "string",
+  "citationMotivante": "string"
+}`,
+        },
+      ],
+    });
+    const block = message.content[0];
+    const text = block.type === "text" ? block.text : "{}";
+    const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    return JSON.parse(cleaned);
+  } catch (error: any) {
+    console.error("[Performance] Anthropic analysis error:", error.message);
+    return null;
+  }
+}
+
+function fusionnerAnalyses(
+  gemini: any | null,
+  openai: any | null,
+  anthropic: any | null,
+  sources: string[]
+): any {
+  const base = gemini || {
+    resumeExecutif: "Analyse de performance generee.",
+    employes: [],
+    recommandationsEquipe: [],
+    comparaison: null,
+    tendances: [],
+    blague: null,
+  };
+
+  base.sourcesIA = sources;
+  base.analyseMultiIA = sources.length > 1;
+
+  if (openai) {
+    base.perspectiveOpenAI = openai.perspectiveOpenAI || null;
+    base.risquesIdentifies = openai.risquesIdentifies || [];
+    base.opportunitesDeveloppement = openai.opportunitesDeveloppement || [];
+    base.alertes = openai.alertes || [];
+    base.scoreMoralEquipe = openai.scoreMoralEquipe ?? null;
+    base.conseilDirection = openai.conseilDirection || null;
+  }
+
+  if (anthropic) {
+    base.perspectiveAnthropic = anthropic.perspectiveAnthropic || null;
+    base.profilsComportementaux = anthropic.profilsComportementaux || [];
+    base.dynamiqueEquipe = anthropic.dynamiqueEquipe || null;
+    base.planAction30Jours = anthropic.planAction30Jours || [];
+    base.benchmarkSectoriel = anthropic.benchmarkSectoriel || null;
+    base.citationMotivante = anthropic.citationMotivante || null;
+  }
+
+  return base;
 }
