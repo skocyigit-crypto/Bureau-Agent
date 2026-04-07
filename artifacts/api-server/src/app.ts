@@ -112,7 +112,7 @@ app.use(session({
   store: new PgStore({
     conString: process.env.DATABASE_URL,
     tableName: "user_sessions",
-    createTableIfMissing: false,
+    createTableIfMissing: true,
     pruneSessionInterval: 15 * 60,
   }),
   name: "adb.sid",
