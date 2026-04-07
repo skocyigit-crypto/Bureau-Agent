@@ -112,8 +112,8 @@ app.use(session({
   store: new PgStore({
     conString: process.env.DATABASE_URL,
     tableName: "user_sessions",
-    createTableIfMissing: true,
-    pruneSessionInterval: 300,
+    createTableIfMissing: false,
+    pruneSessionInterval: false,
   }),
   name: "adb.sid",
   secret: process.env.SESSION_SECRET || "agent-de-bureau-secret-dev-key-2024",
@@ -140,6 +140,10 @@ app.use("/api", router);
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   logger.error({ err: err.message }, "Unhandled error");
+
+  if (res.headersSent) {
+    return;
+  }
 
   if (isProduction) {
     res.status(500).json({ error: "Une erreur interne est survenue." });
