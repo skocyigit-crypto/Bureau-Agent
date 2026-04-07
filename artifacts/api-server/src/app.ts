@@ -113,7 +113,7 @@ app.use(session({
     conString: process.env.DATABASE_URL,
     tableName: "user_sessions",
     createTableIfMissing: false,
-    pruneSessionInterval: false,
+    pruneSessionInterval: 15 * 60,
   }),
   name: "adb.sid",
   secret: process.env.SESSION_SECRET || "agent-de-bureau-secret-dev-key-2024",

@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -26,7 +26,12 @@ export const calendarEventsTable = pgTable("calendar_events", {
   createdBy: integer("created_by"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (table) => [
+  index("cal_events_start_date_idx").on(table.startDate),
+  index("cal_events_end_date_idx").on(table.endDate),
+  index("cal_events_related_contact_idx").on(table.relatedContactId),
+  index("cal_events_type_idx").on(table.type),
+]);
 
 export const insertCalendarEventSchema = createInsertSchema(calendarEventsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertCalendarEvent = z.infer<typeof insertCalendarEventSchema>;

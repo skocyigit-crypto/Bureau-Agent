@@ -49,6 +49,12 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
   const weekStart = getStartOfWeek();
   const prevWeekStart = getPreviousWeekStart();
 
+  const safeQuery = <T>(promise: Promise<T>, fallback: T): Promise<T> =>
+    promise.catch(() => fallback);
+
+  const defaultCount = [{ count: 0 }];
+  const defaultAvg = [{ avg: 0 }];
+
   const [
     todayCalls,
     answeredToday,
@@ -60,15 +66,15 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
     callsThisWeek,
     callsLastWeek,
   ] = await Promise.all([
-    db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(gte(callsTable.createdAt, todayStart)),
-    db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(gte(callsTable.createdAt, todayStart), eq(callsTable.status, "repondu"))),
-    db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(gte(callsTable.createdAt, todayStart), eq(callsTable.status, "manque"))),
-    db.select({ avg: sql<number>`coalesce(avg(${callsTable.duration}), 0)::float` }).from(callsTable),
-    db.select({ count: sql<number>`count(*)::int` }).from(contactsTable),
-    db.select({ count: sql<number>`count(*)::int` }).from(tasksTable).where(eq(tasksTable.status, "en_attente")),
-    db.select({ count: sql<number>`count(*)::int` }).from(messagesTable).where(eq(messagesTable.isRead, false)),
-    db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(gte(callsTable.createdAt, weekStart)),
-    db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(gte(callsTable.createdAt, prevWeekStart), sql`${callsTable.createdAt} < ${weekStart}`)),
+    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(gte(callsTable.createdAt, todayStart)), defaultCount),
+    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(gte(callsTable.createdAt, todayStart), eq(callsTable.status, "repondu"))), defaultCount),
+    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(gte(callsTable.createdAt, todayStart), eq(callsTable.status, "manque"))), defaultCount),
+    safeQuery(db.select({ avg: sql<number>`coalesce(avg(${callsTable.duration}), 0)::float` }).from(callsTable), defaultAvg),
+    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(contactsTable), defaultCount),
+    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(tasksTable).where(eq(tasksTable.status, "en_attente")), defaultCount),
+    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(messagesTable).where(eq(messagesTable.isRead, false)), defaultCount),
+    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(gte(callsTable.createdAt, weekStart)), defaultCount),
+    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(gte(callsTable.createdAt, prevWeekStart), sql`${callsTable.createdAt} < ${weekStart}`)), defaultCount),
   ]);
 
   const thisWeekCount = callsThisWeek[0]?.count ?? 0;
