@@ -9,3 +9,4 @@ export * from "./stock";
 export * from "./platform-connections";
 export * from "./auto-backups";
 export * from "./users";
+export * from "./google-oauth";

@@ -13,6 +13,7 @@ import checkinsRouter from "./checkins";
 import aiAgentsRouter from "./ai-agents";
 import stockRouter from "./stock";
 import backupsRouter from "./backups";
+import googleOAuthRouter from "./google-oauth";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -28,6 +29,7 @@ router.use(stockRouter);
 router.use("/workspace", workspaceRouter);
 router.use("/workspace", backupsRouter);
 router.use("/integrations", integrationsRouter);
+router.use("/google-oauth", googleOAuthRouter);
 router.use(checkinsRouter);
 
 export default router;
