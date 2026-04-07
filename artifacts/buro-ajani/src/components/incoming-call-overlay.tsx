@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
-import { Phone, PhoneOff, Voicemail, Clock, User, Building, Star, PhoneIncoming, MessageSquare, Calendar, AlertTriangle, Brain, Loader2, X, Volume2, Mic, MicOff, Pause, Play } from "lucide-react";
+import { Phone, PhoneOff, Voicemail, Clock, User, Building, Star, PhoneIncoming, MessageSquare, Calendar, AlertTriangle, Brain, Loader2, X, Volume2, Mic, MicOff, Pause, Play, CheckSquare, Sparkles, CalendarPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,7 +26,7 @@ interface IncomingCallOverlayProps {
   onClose: () => void;
 }
 
-const RING_DURATION = 30;
+const RING_DURATION = 60;
 
 const pulseVariants: Variants = {
   pulse: {
@@ -56,9 +56,12 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
   const [isMuted, setIsMuted] = useState(false);
   const [isOnHold, setIsOnHold] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const [aiProcessing, setAiProcessing] = useState(false);
+  const [aiResult, setAiResult] = useState<any>(null);
   const createCall = useCreateCall();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 
   useEffect(() => {
     if (!isVisible) {
@@ -119,16 +122,40 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
         sentiment: null,
       }
     }, {
-      onSuccess: () => {
+      onSuccess: (data: any) => {
         queryClient.invalidateQueries({ queryKey: ["calls"] });
-        toast({ title: status === "repondu" ? "Appel enregistre" : status === "manque" ? "Appel manque enregistre" : "Message vocal enregistre" });
-        onClose();
+        const toastMsg = status === "repondu" ? "Appel enregistre" : status === "manque" ? "Appel manque enregistre" : "Message vocal enregistre";
+        toast({ title: toastMsg });
+
+        if (status === "repondu" && notes && notes.trim().length > 5 && data?.id) {
+          setAiProcessing(true);
+          fetch(`${baseUrl}/api/calls/${data.id}/process`, { method: "POST", credentials: "include" })
+            .then(r => r.json())
+            .then(result => {
+              setAiResult(result);
+              setAiProcessing(false);
+              queryClient.invalidateQueries({ queryKey: ["tasks"] });
+              queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+              queryClient.invalidateQueries({ queryKey: ["notifications"] });
+              if (result.tasksCreated > 0 || result.appointmentCreated) {
+                toast({
+                  title: "Analyse IA terminee",
+                  description: `${result.tasksCreated || 0} tache(s) et ${result.appointmentCreated ? "1 rendez-vous" : "0 rendez-vous"} cree(s).`,
+                });
+              }
+            })
+            .catch(() => {
+              setAiProcessing(false);
+            });
+        } else if (status !== "repondu") {
+          onClose();
+        }
       },
       onError: () => {
         toast({ title: "Erreur d'enregistrement", variant: "destructive" });
       }
     });
-  }, [callData, callTimer, notes, createCall, queryClient, toast, onClose]);
+  }, [callData, callTimer, notes, createCall, queryClient, toast, onClose, baseUrl]);
 
   const getCategoryColor = (cat?: string) => {
     switch (cat) {
@@ -356,7 +383,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
 
             {(phase === "ended" || phase === "missed") && (
               <motion.div
-                className="bg-card text-foreground"
+                className="bg-card text-foreground max-h-[85vh] overflow-y-auto"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
               >
@@ -378,35 +405,156 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                   </p>
                 </div>
 
-                {phase === "ended" && (
+                {phase === "ended" && !aiResult && (
                   <div className="px-8 pb-4">
                     <Textarea
-                      placeholder="Ajouter des notes sur cet appel..."
+                      placeholder="Notes de l'appel (l'IA analysera automatiquement)..."
                       className="resize-none h-20"
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                     />
+                    <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
+                      <Sparkles className="w-3 h-3" />
+                      L'IA detectera les rendez-vous et creera les taches automatiquement
+                    </p>
                   </div>
                 )}
 
+                {aiProcessing && (
+                  <motion.div
+                    className="px-8 pb-4"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <div className="bg-gradient-to-r from-violet-50 to-blue-50 dark:from-violet-950/30 dark:to-blue-950/30 rounded-xl p-4 border border-violet-200 dark:border-violet-800">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-900/50 flex items-center justify-center">
+                          <Brain className="w-4 h-4 text-violet-600 dark:text-violet-400 animate-pulse" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Analyse IA en cours...</p>
+                          <p className="text-xs text-muted-foreground">Detection de rendez-vous et creation de taches</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Loader2 className="w-3 h-3 animate-spin text-violet-500" />
+                        <span className="text-xs text-violet-600 dark:text-violet-400">Traitement Gemini...</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {aiResult && (
+                  <motion.div
+                    className="px-8 pb-4 space-y-3"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 rounded-xl p-4 border border-emerald-200 dark:border-emerald-800">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <span className="text-sm font-medium">Analyse IA</span>
+                        {aiResult.analysis?.sentiment && (
+                          <Badge className={`ml-auto text-[10px] ${
+                            aiResult.analysis.sentiment === "positif" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400 border-emerald-200" :
+                            aiResult.analysis.sentiment === "negatif" ? "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400 border-red-200" :
+                            "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400 border-gray-200"
+                          }`}>
+                            {aiResult.analysis.sentiment}
+                          </Badge>
+                        )}
+                      </div>
+                      {aiResult.analysis?.summary && (
+                        <p className="text-xs text-muted-foreground leading-relaxed">{aiResult.analysis.summary}</p>
+                      )}
+                    </div>
+
+                    {aiResult.appointmentCreated && aiResult.appointment && (
+                      <motion.div
+                        className="bg-blue-50 dark:bg-blue-950/30 rounded-xl p-4 border border-blue-200 dark:border-blue-800"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.1 }}
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <CalendarPlus className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                          <span className="text-sm font-medium">Rendez-vous cree</span>
+                        </div>
+                        <p className="text-sm font-medium text-blue-900 dark:text-blue-200">{aiResult.appointment.title}</p>
+                        {aiResult.appointment.startDate && (
+                          <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                            {new Date(aiResult.appointment.startDate).toLocaleDateString("fr-FR", {
+                              weekday: "long", day: "numeric", month: "long", year: "numeric",
+                              hour: "2-digit", minute: "2-digit"
+                            })}
+                          </p>
+                        )}
+                        {aiResult.appointment.location && (
+                          <p className="text-xs text-muted-foreground mt-0.5">{aiResult.appointment.location}</p>
+                        )}
+                      </motion.div>
+                    )}
+
+                    {aiResult.tasksCreated > 0 && aiResult.tasks && (
+                      <motion.div
+                        className="bg-amber-50 dark:bg-amber-950/30 rounded-xl p-4 border border-amber-200 dark:border-amber-800"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.2 }}
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckSquare className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                          <span className="text-sm font-medium">{aiResult.tasksCreated} tache(s) creee(s)</span>
+                        </div>
+                        <div className="space-y-1.5">
+                          {aiResult.tasks.map((task: any, i: number) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <div className={`w-1.5 h-1.5 rounded-full ${
+                                task.priority === "haute" ? "bg-red-500" :
+                                task.priority === "moyenne" ? "bg-amber-500" : "bg-green-500"
+                              }`} />
+                              <span className="text-xs">{task.title}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </motion.div>
+                )}
+
                 <div className="px-8 pb-8 flex gap-3">
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={onClose}
-                  >
-                    Fermer
-                  </Button>
-                  <Button
-                    className="flex-1"
-                    onClick={() => saveCall(phase === "ended" ? "repondu" : "manque")}
-                    disabled={createCall.isPending}
-                  >
-                    {createCall.isPending ? (
+                  {!aiResult && !aiProcessing && (
+                    <>
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={onClose}
+                      >
+                        Fermer
+                      </Button>
+                      <Button
+                        className="flex-1"
+                        onClick={() => saveCall(phase === "ended" ? "repondu" : "manque")}
+                        disabled={createCall.isPending}
+                      >
+                        {createCall.isPending ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : null}
+                        Enregistrer
+                      </Button>
+                    </>
+                  )}
+                  {aiProcessing && (
+                    <Button variant="outline" className="flex-1" disabled>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : null}
-                    Enregistrer
-                  </Button>
+                      Analyse en cours...
+                    </Button>
+                  )}
+                  {aiResult && (
+                    <Button className="flex-1" onClick={onClose}>
+                      Terminer
+                    </Button>
+                  )}
                 </div>
               </motion.div>
             )}

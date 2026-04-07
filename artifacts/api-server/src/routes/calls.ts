@@ -9,6 +9,8 @@ import {
   UpdateCallBody,
   DeleteCallParams,
 } from "@workspace/api-zod";
+import { processCallWithAI } from "../services/call-processor";
+import { logAudit } from "./audit";
 
 const router: IRouter = Router();
 
@@ -103,7 +105,34 @@ router.post("/calls", async (req, res): Promise<void> => {
     tags: data.tags ?? [],
   }).returning();
 
+  logAudit((req.session as any)?.userId, (req.session as any)?.userEmail, "create", "call", String(call.id), { contactName: call.contactName, direction: call.direction });
+
+  if (call.status === "repondu" && call.notes && call.notes.trim().length > 5) {
+    processCallWithAI(call.id).catch(() => {});
+  }
+
   res.status(201).json(call);
+});
+
+router.post("/calls/:id/process", async (req, res): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+
+  try {
+    const result = await processCallWithAI(id);
+    res.json({
+      analysis: result.analysis,
+      tasksCreated: result.createdTasks.length,
+      tasks: result.createdTasks,
+      appointmentCreated: !!result.createdAppointment,
+      appointment: result.createdAppointment,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Erreur lors du traitement IA." });
+  }
 });
 
 router.get("/calls/:id", async (req, res): Promise<void> => {
