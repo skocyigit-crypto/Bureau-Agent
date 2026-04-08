@@ -7,6 +7,7 @@ import pinoHttp from "pino-http";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import router from "./routes";
+import crypto from "crypto";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -116,7 +117,17 @@ app.use(session({
     pruneSessionInterval: 15 * 60,
   }),
   name: "adb.sid",
-  secret: process.env.SESSION_SECRET || "agent-de-bureau-secret-dev-key-2024",
+  secret: (() => {
+    const s = process.env.SESSION_SECRET;
+    if (s) return s;
+    if (isProduction) {
+      console.error("FATAL: SESSION_SECRET est requis en production.");
+      process.exit(1);
+    }
+    const devSecret = crypto.randomBytes(32).toString("hex");
+    console.warn("[Security] SESSION_SECRET non defini — cle aleatoire generee (dev uniquement).");
+    return devSecret;
+  })(),
   resave: false,
   saveUninitialized: false,
   cookie: {

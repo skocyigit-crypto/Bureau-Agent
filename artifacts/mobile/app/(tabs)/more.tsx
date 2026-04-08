@@ -23,9 +23,10 @@ interface MenuItemProps {
   color?: string;
   onPress?: () => void;
   danger?: boolean;
+  badge?: number;
 }
 
-function MenuItem({ icon, label, sublabel, color, onPress, danger }: MenuItemProps) {
+function MenuItem({ icon, label, sublabel, color, onPress, danger, badge }: MenuItemProps) {
   const colors = useColors();
   const iconColor = danger ? colors.destructive : color ?? colors.foreground;
 
@@ -56,6 +57,11 @@ function MenuItem({ icon, label, sublabel, color, onPress, danger }: MenuItemPro
           <Text style={[styles.menuSublabel, { color: colors.mutedForeground }]}>{sublabel}</Text>
         ) : null}
       </View>
+      {badge && badge > 0 ? (
+        <View style={[styles.badge, { backgroundColor: colors.destructive }]}>
+          <Text style={styles.badgeText}>{badge > 99 ? "99+" : badge}</Text>
+        </View>
+      ) : null}
       <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
     </Pressable>
   );
@@ -83,6 +89,10 @@ export default function MoreScreen() {
     router.replace("/login");
   }
 
+  function nav(route: string) {
+    router.push(route as any);
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View
@@ -102,7 +112,14 @@ export default function MoreScreen() {
         showsVerticalScrollIndicator={false}
       >
         {user ? (
-          <View style={[styles.profileCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Pressable
+            onPress={() => nav("/settings")}
+            style={({ pressed }) => [
+              styles.profileCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+              pressed && { opacity: 0.7 },
+            ]}
+          >
             <View style={[styles.profileAvatar, { backgroundColor: colors.primary }]}>
               <Text style={[styles.profileInitials, { color: colors.primaryForeground }]}>
                 {(user.prenom[0] + user.nom[0]).toUpperCase()}
@@ -117,30 +134,29 @@ export default function MoreScreen() {
               </Text>
               <View style={[styles.roleBadge, { backgroundColor: colors.primary + "20" }]}>
                 <Text style={[styles.roleText, { color: colors.primary }]}>
-                  {user.role === "admin" ? "Administrateur" : "Utilisateur"}
+                  {user.role === "super_admin" ? "Super Admin" : user.role === "admin" ? "Administrateur" : user.role === "agent" ? "Agent" : "Lecture seule"}
                 </Text>
               </View>
             </View>
-          </View>
+            <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+          </Pressable>
         ) : null}
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>COMMUNICATION</Text>
-          <MenuItem icon="message-square" label="Messages" sublabel="Messagerie vocale et notes" color="#3b82f6" />
-          <MenuItem icon="mail" label="E-mails" sublabel="Boite de reception" color="#8b5cf6" />
+          <MenuItem icon="message-square" label="Messages" sublabel="Messagerie vocale et notes" color="#3b82f6" onPress={() => nav("/messages")} />
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>OUTILS</Text>
-          <MenuItem icon="bar-chart-2" label="Analytique" sublabel="Rapports et statistiques" color="#f59e0b" />
-          <MenuItem icon="cpu" label="Agent IA" sublabel="Intelligence artificielle" color="#22c55e" />
-          <MenuItem icon="calendar" label="Calendrier" sublabel="Evenements et rendez-vous" color="#ec4899" />
-          <MenuItem icon="package" label="Stock" sublabel="Gestion des stocks" color="#6366f1" />
+          <MenuItem icon="bar-chart-2" label="Analytique" sublabel="Rapports et statistiques" color="#f59e0b" onPress={() => nav("/analytics")} />
+          <MenuItem icon="calendar" label="Calendrier" sublabel="Evenements et rendez-vous" color="#ec4899" onPress={() => nav("/calendar")} />
+          <MenuItem icon="package" label="Stock" sublabel="Gestion des stocks" color="#6366f1" onPress={() => nav("/stock")} />
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>COMPTE</Text>
-          <MenuItem icon="settings" label="Parametres" color="#64748b" />
+          <MenuItem icon="settings" label="Parametres" sublabel="Profil et abonnement" color="#64748b" onPress={() => nav("/settings")} />
           <MenuItem icon="log-out" label="Se deconnecter" onPress={handleLogout} danger />
         </View>
 
@@ -154,18 +170,9 @@ export default function MoreScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontFamily: "Inter_700Bold",
-    color: "#ffffff",
-  },
-  scrollContent: {
-    padding: 16,
-  },
+  header: { paddingHorizontal: 20, paddingBottom: 16 },
+  headerTitle: { fontSize: 22, fontFamily: "Inter_700Bold", color: "#ffffff" },
+  scrollContent: { padding: 16 },
   profileCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -182,47 +189,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: 14,
   },
-  profileInitials: {
-    fontSize: 18,
-    fontFamily: "Inter_700Bold",
-  },
-  profileInfo: {
-    flex: 1,
-  },
-  profileName: {
-    fontSize: 16,
-    fontFamily: "Inter_600SemiBold",
-  },
-  profileEmail: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    marginTop: 2,
-  },
-  roleBadge: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 12,
-    marginTop: 6,
-  },
-  roleText: {
-    fontSize: 11,
-    fontFamily: "Inter_600SemiBold",
-  },
-  section: {
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 16,
-    overflow: "hidden",
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontFamily: "Inter_600SemiBold",
-    letterSpacing: 0.5,
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 8,
-  },
+  profileInitials: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  profileInfo: { flex: 1 },
+  profileName: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  profileEmail: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  roleBadge: { alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12, marginTop: 6 },
+  roleText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  section: { borderRadius: 12, borderWidth: 1, marginBottom: 16, overflow: "hidden" },
+  sectionTitle: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.5, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -230,30 +204,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  menuIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  menuContent: {
-    flex: 1,
-  },
-  menuLabel: {
-    fontSize: 15,
-    fontFamily: "Inter_500Medium",
-  },
-  menuSublabel: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    marginTop: 1,
-  },
-  version: {
-    textAlign: "center",
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    marginTop: 8,
-  },
+  menuIcon: { width: 34, height: 34, borderRadius: 8, alignItems: "center", justifyContent: "center", marginRight: 12 },
+  menuContent: { flex: 1 },
+  menuLabel: { fontSize: 15, fontFamily: "Inter_500Medium" },
+  menuSublabel: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 1 },
+  badge: { minWidth: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center", paddingHorizontal: 6, marginRight: 8 },
+  badgeText: { color: "#ffffff", fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  version: { textAlign: "center", fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 8 },
 });

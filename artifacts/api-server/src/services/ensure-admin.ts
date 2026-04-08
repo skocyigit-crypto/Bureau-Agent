@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, usersTable, organisationsTable, subscriptionsTable } from "@workspace/db";
 
 const SUPER_ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@agentdebureau.fr";
-const SUPER_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Admin2024!";
+const SUPER_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 async function ensureDefaultOrganisation(): Promise<number> {
   const [existing] = await db.select({ id: organisationsTable.id }).from(organisationsTable).limit(1);
@@ -48,6 +48,12 @@ export async function ensureSuperAdmin() {
       await db.update(usersTable).set({ organisationId: orgId }).where(eq(usersTable.id, existing[0].id));
       console.log("[Seed] Super Admin: organisationId mis a jour.");
     }
+    return;
+  }
+
+  if (!SUPER_ADMIN_PASSWORD || SUPER_ADMIN_PASSWORD.length < 8) {
+    console.warn("[Seed] ADMIN_PASSWORD non defini ou trop court (min 8 car.). Super Admin non cree.");
+    console.warn("[Seed] Definissez ADMIN_PASSWORD dans les variables d'environnement pour creer le compte admin.");
     return;
   }
 
