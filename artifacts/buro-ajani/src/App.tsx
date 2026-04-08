@@ -8,6 +8,7 @@ import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
 import { WorkspaceUserProvider } from "@/components/workspace-user";
 import { PwaInstallButton } from "@/components/pwa-install";
+import { UpdateBanner } from "@/components/update-banner";
 
 import { Layout } from "@/components/layout";
 import Dashboard from "@/pages/dashboard";
@@ -128,6 +129,7 @@ function App() {
               <LoginPage onLogin={handleLogin} />
             ) : (
               <WorkspaceUserProvider apiUser={currentUser} onLogout={handleLogout}>
+                <UpdateBanner />
                 <AppRoutes />
               </WorkspaceUserProvider>
             )}
