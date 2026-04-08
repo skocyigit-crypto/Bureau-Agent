@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
-import { Phone, PhoneOff, Voicemail, Clock, User, Building, Star, PhoneIncoming, MessageSquare, Calendar, AlertTriangle, Brain, Loader2, X, Volume2, Mic, MicOff, Pause, Play, CheckSquare, Sparkles, CalendarPlus, Smile } from "lucide-react";
+import { Phone, PhoneOff, Voicemail, Clock, User, Building, Star, PhoneIncoming, MessageSquare, Calendar, AlertTriangle, Brain, Loader2, X, Volume2, Mic, MicOff, Pause, Play, CheckSquare, Sparkles, CalendarPlus, Smile, Zap, Target, MessageCircle, Shield, Send, Lightbulb, ArrowRight, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,6 +18,24 @@ interface IncomingCallData {
   category?: string;
   previousCalls?: number;
   lastCallDate?: string;
+}
+
+interface AIBriefing {
+  relationSummary: string;
+  keyPoints: string[];
+  suggestedPhrases: string[];
+  alerts: string[];
+  callerMood: string;
+  priority: string;
+}
+
+interface AICoaching {
+  suggestions: string[];
+  detectedIntents: string[];
+  proposedResponse: string;
+  actionItems: { type: string; description: string }[];
+  urgencyLevel: string;
+  tips: string;
 }
 
 interface IncomingCallOverlayProps {
@@ -58,6 +76,13 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
   const [showNotes, setShowNotes] = useState(false);
   const [aiProcessing, setAiProcessing] = useState(false);
   const [aiResult, setAiResult] = useState<any>(null);
+  const [briefing, setBriefing] = useState<AIBriefing | null>(null);
+  const [briefingLoading, setBriefingLoading] = useState(false);
+  const [briefingContext, setBriefingContext] = useState<any>(null);
+  const [coaching, setCoaching] = useState<AICoaching | null>(null);
+  const [coachingLoading, setCoachingLoading] = useState(false);
+  const [showAiPanel, setShowAiPanel] = useState(true);
+  const coachingDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const createCall = useCreateCall();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -72,8 +97,36 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
       setIsMuted(false);
       setIsOnHold(false);
       setShowNotes(false);
+      setBriefing(null);
+      setBriefingContext(null);
+      setCoaching(null);
+      setAiResult(null);
+      setAiProcessing(false);
+      setShowAiPanel(true);
     }
   }, [isVisible]);
+
+  useEffect(() => {
+    if (!isVisible || phase !== "ringing") return;
+    setBriefingLoading(true);
+    fetch(`${baseUrl}/api/calls/ai-briefing`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        phoneNumber: callData.phoneNumber,
+        contactId: callData.contactId,
+        contactName: callData.contactName,
+      }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        setBriefing(data.briefing);
+        setBriefingContext(data.context);
+      })
+      .catch(() => {})
+      .finally(() => setBriefingLoading(false));
+  }, [isVisible, callData.phoneNumber]);
 
   useEffect(() => {
     if (phase !== "ringing") return;
@@ -91,6 +144,37 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
     return () => clearInterval(interval);
   }, [phase]);
 
+  const requestCoaching = useCallback((currentNotes: string) => {
+    if (coachingDebounce.current) clearTimeout(coachingDebounce.current);
+    coachingDebounce.current = setTimeout(() => {
+      if (!currentNotes || currentNotes.trim().length < 5) return;
+      setCoachingLoading(true);
+      fetch(`${baseUrl}/api/calls/ai-coaching`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          notes: currentNotes,
+          contactName: callData.contactName,
+          phoneNumber: callData.phoneNumber,
+          callDuration: callTimer,
+          contactCategory: callData.category,
+        }),
+      })
+        .then(r => r.json())
+        .then(data => setCoaching(data))
+        .catch(() => {})
+        .finally(() => setCoachingLoading(false));
+    }, 2000);
+  }, [baseUrl, callData, callTimer]);
+
+  const handleNotesChange = useCallback((value: string) => {
+    setNotes(value);
+    if (phase === "active") {
+      requestCoaching(value);
+    }
+  }, [phase, requestCoaching]);
+
   const formatTimer = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -100,6 +184,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
   const handleAnswer = useCallback(() => {
     setPhase("active");
     setCallTimer(0);
+    setShowNotes(true);
   }, []);
 
   const handleReject = useCallback(() => {
@@ -139,8 +224,8 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
               queryClient.invalidateQueries({ queryKey: ["notifications"] });
               if (result.tasksCreated > 0 || result.appointmentCreated) {
                 toast({
-                  title: "Analyse IA terminee",
-                  description: `${result.tasksCreated || 0} tache(s) et ${result.appointmentCreated ? "1 rendez-vous" : "0 rendez-vous"} cree(s).`,
+                  title: "IA : Actions creees",
+                  description: `${result.tasksCreated || 0} tache(s) et ${result.appointmentCreated ? "1 rendez-vous" : "0 rendez-vous"} cree(s) automatiquement.`,
                 });
               }
             })
@@ -177,6 +262,26 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
     }
   };
 
+  const intentIcons: Record<string, any> = {
+    rdv: Calendar,
+    devis: FileText,
+    facture: FileText,
+    rappel: Phone,
+    reclamation: AlertTriangle,
+    information: MessageCircle,
+    urgence: Zap,
+  };
+
+  const intentLabels: Record<string, string> = {
+    rdv: "Rendez-vous",
+    devis: "Devis",
+    facture: "Facture",
+    rappel: "Rappel",
+    reclamation: "Reclamation",
+    information: "Information",
+    urgence: "Urgence",
+  };
+
   return (
     <AnimatePresence>
       {isVisible && (
@@ -194,16 +299,15 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
           />
 
           <motion.div
-            className="relative w-full max-w-md mx-4 mb-4 sm:mb-0 rounded-3xl overflow-hidden shadow-2xl"
+            className="relative w-full max-w-lg mx-4 mb-4 sm:mb-0 rounded-3xl overflow-hidden shadow-2xl max-h-[92vh] overflow-y-auto"
             {...slideUp}
           >
             {phase === "ringing" && (
               <div className="bg-gradient-to-br from-emerald-600 via-emerald-500 to-teal-500 text-white">
-                <div className="relative px-8 pt-10 pb-6 text-center">
+                <div className="relative px-8 pt-10 pb-4 text-center">
                   <div className="absolute inset-0 overflow-hidden">
                     <motion.div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full bg-white/10" variants={pulseVariants} animate="pulse" />
                     <motion.div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full bg-white/5" variants={pulseVariants} animate="pulse" style={{ animationDelay: "0.5s" }} />
-                    <motion.div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full bg-white/[0.03]" variants={pulseVariants} animate="pulse" style={{ animationDelay: "1s" }} />
                   </div>
 
                   <motion.div className="relative" {...fadeIn}>
@@ -214,7 +318,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                       </Badge>
                     </div>
 
-                    <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm mx-auto mb-4 flex items-center justify-center border-2 border-white/30">
+                    <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm mx-auto mb-3 flex items-center justify-center border-2 border-white/30">
                       {callData.contactName ? (
                         <span className="text-2xl font-bold">{callData.contactName.split(" ").map(n => n[0]).join("").slice(0, 2)}</span>
                       ) : (
@@ -223,24 +327,23 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                     </div>
 
                     <h2 className="text-2xl font-bold mb-1">{callData.contactName || "Numero inconnu"}</h2>
-                    <p className="text-white/80 text-lg mb-3 tabular-nums">{callData.phoneNumber}</p>
+                    <p className="text-white/80 text-lg mb-2 tabular-nums">{callData.phoneNumber}</p>
 
-                    {callData.company && (
-                      <div className="flex items-center justify-center gap-2 mb-2">
-                        <Building className="w-4 h-4 text-white/70" />
-                        <span className="text-white/80 text-sm">{callData.company}</span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-center gap-2 mb-4">
+                    <div className="flex items-center justify-center gap-2 mb-3 flex-wrap">
+                      {callData.company && (
+                        <Badge className="bg-white/15 text-white border-white/20 text-xs">
+                          <Building className="w-3 h-3 mr-1" />
+                          {callData.company}
+                        </Badge>
+                      )}
                       {callData.category && (
                         <Badge className={`${getCategoryColor(callData.category)} text-white border-0 text-xs`}>
                           {getCategoryLabel(callData.category)}
                         </Badge>
                       )}
                       {callData.previousCalls !== undefined && callData.previousCalls > 0 && (
-                        <Badge className="bg-white/20 text-white border-0 text-xs">
-                          {callData.previousCalls} appel(s) precedent(s)
+                        <Badge className="bg-white/15 text-white border-white/20 text-xs">
+                          {callData.previousCalls} appel(s)
                         </Badge>
                       )}
                     </div>
@@ -250,6 +353,76 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                     </div>
                   </motion.div>
                 </div>
+
+                {(briefing || briefingLoading) && (
+                  <motion.div
+                    className="mx-6 mb-4 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 p-4"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <Brain className="w-4 h-4 text-amber-300" />
+                      <span className="text-sm font-semibold text-amber-200">Brifing IA</span>
+                      {briefing?.priority === "haute" && (
+                        <Badge className="bg-red-500/30 text-red-200 border-red-400/30 text-[10px] ml-auto">Priorite haute</Badge>
+                      )}
+                    </div>
+
+                    {briefingLoading ? (
+                      <div className="flex items-center gap-2 text-white/60 text-xs">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Preparation du brifing...
+                      </div>
+                    ) : briefing ? (
+                      <div className="space-y-2">
+                        <p className="text-xs text-white/80 leading-relaxed">{briefing.relationSummary}</p>
+
+                        {briefing.alerts.length > 0 && (
+                          <div className="space-y-1">
+                            {briefing.alerts.map((alert, i) => (
+                              <div key={i} className="flex items-start gap-1.5 text-[11px] text-amber-200">
+                                <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+                                <span>{alert}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {briefing.keyPoints.length > 0 && (
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-medium text-white/50 uppercase tracking-wider">Points cles</p>
+                            {briefing.keyPoints.slice(0, 3).map((point, i) => (
+                              <div key={i} className="flex items-start gap-1.5 text-[11px] text-white/70">
+                                <Target className="w-3 h-3 mt-0.5 shrink-0 text-emerald-300" />
+                                <span>{point}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {briefing.suggestedPhrases.length > 0 && (
+                          <div className="space-y-1 pt-1 border-t border-white/10">
+                            <p className="text-[10px] font-medium text-white/50 uppercase tracking-wider">Phrases suggerees</p>
+                            {briefing.suggestedPhrases.slice(0, 2).map((phrase, i) => (
+                              <div key={i} className="flex items-start gap-1.5 text-[11px] text-white/80 bg-white/5 rounded-lg px-2 py-1.5">
+                                <MessageCircle className="w-3 h-3 mt-0.5 shrink-0 text-blue-300" />
+                                <span className="italic">"{phrase}"</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {briefingContext && (
+                          <div className="flex gap-3 pt-1 text-[10px] text-white/50">
+                            {briefingContext.openTasks > 0 && <span>{briefingContext.openTasks} tache(s) ouvertes</span>}
+                            {briefingContext.upcomingEvents > 0 && <span>{briefingContext.upcomingEvents} RDV a venir</span>}
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
+                  </motion.div>
+                )}
 
                 <div className="px-8 pb-8">
                   <div className="flex items-center justify-center gap-6">
@@ -293,58 +466,75 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
 
             {phase === "active" && (
               <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
-                <div className="px-8 pt-8 pb-4 text-center">
-                  <div className="flex justify-center mb-2">
+                <div className="px-6 pt-6 pb-3 text-center">
+                  <div className="flex justify-between items-center mb-2">
                     <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs animate-pulse">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 mr-1.5 inline-block" />
                       En cours
                     </Badge>
+                    <button
+                      onClick={() => setShowAiPanel(!showAiPanel)}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] transition-colors ${showAiPanel ? "bg-violet-500/20 text-violet-400 border border-violet-500/30" : "bg-white/5 text-white/40 border border-white/10"}`}
+                    >
+                      <Brain className="w-3 h-3" />
+                      IA Coach
+                    </button>
                   </div>
 
-                  <div className="w-16 h-16 rounded-full bg-white/10 mx-auto mb-3 flex items-center justify-center border border-white/20">
-                    {callData.contactName ? (
-                      <span className="text-xl font-bold">{callData.contactName.split(" ").map(n => n[0]).join("").slice(0, 2)}</span>
-                    ) : (
-                      <User className="w-7 h-7" />
-                    )}
-                  </div>
-
-                  <h2 className="text-xl font-bold">{callData.contactName || "Numero inconnu"}</h2>
-                  <p className="text-white/60 text-sm mb-2">{callData.phoneNumber}</p>
-
-                  <div className="text-3xl font-mono font-light text-emerald-400 tabular-nums mb-4">
-                    {formatTimer(callTimer)}
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center border border-white/20">
+                      {callData.contactName ? (
+                        <span className="text-lg font-bold">{callData.contactName.split(" ").map(n => n[0]).join("").slice(0, 2)}</span>
+                      ) : (
+                        <User className="w-5 h-5" />
+                      )}
+                    </div>
+                    <div className="text-left flex-1">
+                      <h2 className="text-lg font-bold leading-tight">{callData.contactName || "Numero inconnu"}</h2>
+                      <p className="text-white/50 text-xs">{callData.phoneNumber}</p>
+                    </div>
+                    <div className="text-2xl font-mono font-light text-emerald-400 tabular-nums">
+                      {formatTimer(callTimer)}
+                    </div>
                   </div>
 
                   {isOnHold && (
-                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-3">
+                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-2">
                       <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">En attente</Badge>
                     </motion.div>
                   )}
                 </div>
 
-                <div className="px-8 pb-4">
-                  <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="px-6 pb-3">
+                  <div className="grid grid-cols-4 gap-2 mb-3">
                     <button
-                      className={`flex flex-col items-center gap-1.5 p-3 rounded-xl transition-colors ${isMuted ? "bg-red-500/20 text-red-400" : "bg-white/5 hover:bg-white/10 text-white/70"}`}
+                      className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors ${isMuted ? "bg-red-500/20 text-red-400" : "bg-white/5 hover:bg-white/10 text-white/70"}`}
                       onClick={() => setIsMuted(!isMuted)}
                     >
-                      {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                      <span className="text-[11px]">{isMuted ? "Active" : "Muet"}</span>
+                      {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                      <span className="text-[10px]">{isMuted ? "Active" : "Muet"}</span>
                     </button>
                     <button
-                      className={`flex flex-col items-center gap-1.5 p-3 rounded-xl transition-colors ${isOnHold ? "bg-amber-500/20 text-amber-400" : "bg-white/5 hover:bg-white/10 text-white/70"}`}
+                      className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors ${isOnHold ? "bg-amber-500/20 text-amber-400" : "bg-white/5 hover:bg-white/10 text-white/70"}`}
                       onClick={() => setIsOnHold(!isOnHold)}
                     >
-                      {isOnHold ? <Play className="w-5 h-5" /> : <Pause className="w-5 h-5" />}
-                      <span className="text-[11px]">{isOnHold ? "Reprendre" : "Attente"}</span>
+                      {isOnHold ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+                      <span className="text-[10px]">{isOnHold ? "Reprendre" : "Attente"}</span>
                     </button>
                     <button
-                      className={`flex flex-col items-center gap-1.5 p-3 rounded-xl transition-colors ${showNotes ? "bg-blue-500/20 text-blue-400" : "bg-white/5 hover:bg-white/10 text-white/70"}`}
+                      className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-colors ${showNotes ? "bg-blue-500/20 text-blue-400" : "bg-white/5 hover:bg-white/10 text-white/70"}`}
                       onClick={() => setShowNotes(!showNotes)}
                     >
-                      <MessageSquare className="w-5 h-5" />
-                      <span className="text-[11px]">Notes</span>
+                      <MessageSquare className="w-4 h-4" />
+                      <span className="text-[10px]">Notes</span>
+                    </button>
+                    <button
+                      className="flex flex-col items-center gap-1 p-2 rounded-xl bg-violet-500/15 hover:bg-violet-500/25 text-violet-400 transition-colors"
+                      onClick={() => requestCoaching(notes)}
+                      disabled={coachingLoading || notes.length < 5}
+                    >
+                      {coachingLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                      <span className="text-[10px]">Analyser</span>
                     </button>
                   </div>
 
@@ -354,20 +544,115 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden mb-4"
+                        className="overflow-hidden mb-3"
                       >
                         <Textarea
-                          placeholder="Notes de l'appel..."
-                          className="bg-white/5 border-white/10 text-white placeholder:text-white/30 resize-none h-20"
+                          placeholder="Tapez vos notes ici... L'IA analysera en temps reel et vous proposera des suggestions."
+                          className="bg-white/5 border-white/10 text-white placeholder:text-white/30 resize-none h-20 text-sm"
                           value={notes}
-                          onChange={(e) => setNotes(e.target.value)}
+                          onChange={(e) => handleNotesChange(e.target.value)}
                         />
+                        <p className="text-[10px] text-white/30 mt-1 flex items-center gap-1">
+                          <Brain className="w-2.5 h-2.5" />
+                          L'IA analyse vos notes automatiquement apres 2 secondes de pause
+                        </p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <AnimatePresence>
+                    {showAiPanel && coaching && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden mb-3"
+                      >
+                        <div className="bg-gradient-to-br from-violet-900/40 to-blue-900/40 rounded-xl p-3 border border-violet-500/20 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <Brain className="w-3.5 h-3.5 text-violet-400" />
+                              <span className="text-xs font-semibold text-violet-300">Coach IA</span>
+                            </div>
+                            {coaching.urgencyLevel && (
+                              <Badge className={`text-[9px] border-0 ${
+                                coaching.urgencyLevel === "haute" ? "bg-red-500/20 text-red-300" :
+                                coaching.urgencyLevel === "basse" ? "bg-green-500/20 text-green-300" :
+                                "bg-blue-500/20 text-blue-300"
+                              }`}>
+                                {coaching.urgencyLevel}
+                              </Badge>
+                            )}
+                          </div>
+
+                          {coaching.detectedIntents.length > 0 && (
+                            <div className="flex gap-1.5 flex-wrap">
+                              {coaching.detectedIntents.map((intent, i) => {
+                                const Icon = intentIcons[intent] || Zap;
+                                return (
+                                  <Badge key={i} className="bg-white/10 text-white/80 border-white/20 text-[9px] gap-1">
+                                    <Icon className="w-2.5 h-2.5" />
+                                    {intentLabels[intent] || intent}
+                                  </Badge>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {coaching.proposedResponse && (
+                            <div className="bg-white/5 rounded-lg p-2 border border-white/10">
+                              <p className="text-[10px] text-white/40 mb-1 flex items-center gap-1">
+                                <Send className="w-2.5 h-2.5" />
+                                Reponse suggeree
+                              </p>
+                              <p className="text-xs text-white/90 italic leading-relaxed">"{coaching.proposedResponse}"</p>
+                            </div>
+                          )}
+
+                          {coaching.suggestions.length > 0 && (
+                            <div className="space-y-1">
+                              <p className="text-[10px] text-white/40 flex items-center gap-1">
+                                <Lightbulb className="w-2.5 h-2.5" />
+                                Prochaines actions
+                              </p>
+                              {coaching.suggestions.map((s, i) => (
+                                <div key={i} className="flex items-start gap-1.5 text-[11px] text-white/70">
+                                  <ArrowRight className="w-3 h-3 mt-0.5 shrink-0 text-violet-400" />
+                                  <span>{s}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {coaching.actionItems.length > 0 && (
+                            <div className="space-y-1 pt-1 border-t border-white/10">
+                              <p className="text-[10px] text-white/40 flex items-center gap-1">
+                                <CheckSquare className="w-2.5 h-2.5" />
+                                Actions detectees (seront creees automatiquement)
+                              </p>
+                              {coaching.actionItems.map((item, i) => (
+                                <div key={i} className="flex items-center gap-1.5 text-[11px] text-amber-300/80">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                                  <span className="capitalize">{item.type}:</span>
+                                  <span className="text-white/60">{item.description}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {coaching.tips && (
+                            <div className="text-[10px] text-violet-300/60 italic flex items-start gap-1 pt-1 border-t border-white/10">
+                              <Shield className="w-3 h-3 mt-0.5 shrink-0" />
+                              <span>{coaching.tips}</span>
+                            </div>
+                          )}
+                        </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
                 </div>
 
-                <div className="px-8 pb-8">
+                <div className="px-6 pb-6">
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -415,7 +700,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                     />
                     <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
                       <Sparkles className="w-3 h-3" />
-                      L'IA detectera les rendez-vous et creera les taches automatiquement
+                      L'IA detectera les rendez-vous, creera les taches et coordonnera les agents automatiquement
                     </p>
                   </div>
                 )}
@@ -432,13 +717,19 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                           <Brain className="w-4 h-4 text-violet-600 dark:text-violet-400 animate-pulse" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium">Analyse IA en cours...</p>
-                          <p className="text-xs text-muted-foreground">Detection de rendez-vous et creation de taches</p>
+                          <p className="text-sm font-medium">Analyse IA & coordination agents...</p>
+                          <p className="text-xs text-muted-foreground">Detection RDV, creation taches, dispatch agents</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Loader2 className="w-3 h-3 animate-spin text-violet-500" />
-                        <span className="text-xs text-violet-600 dark:text-violet-400">Traitement Gemini...</span>
+                      <div className="space-y-1.5 mt-2">
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="w-3 h-3 animate-spin text-violet-500" />
+                          <span className="text-xs text-violet-600 dark:text-violet-400">Traitement Gemini...</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="w-3 h-3 animate-spin text-blue-500" />
+                          <span className="text-xs text-blue-600 dark:text-blue-400">Coordination avec les agents IA...</span>
+                        </div>
                       </div>
                     </div>
                   </motion.div>
