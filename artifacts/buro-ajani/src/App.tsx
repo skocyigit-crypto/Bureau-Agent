@@ -28,6 +28,7 @@ import CalendarPage from "@/pages/calendar";
 import AuditLogPage from "@/pages/audit-log";
 import AutomationsPage from "@/pages/automations";
 import PerformancePage from "@/pages/performance";
+import OrganisationsPage from "@/pages/organisations";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,7 @@ function AppRoutes() {
         <Route path="/automatisations" component={AutomationsPage} />
         <Route path="/performance" component={PerformancePage} />
         <Route path="/parametres" component={SettingsPage} />
+        <Route path="/organisations" component={OrganisationsPage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
