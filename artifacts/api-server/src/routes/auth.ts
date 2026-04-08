@@ -1,8 +1,10 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { eq, and } from "drizzle-orm";
-import { db, usersTable } from "@workspace/db";
+import { db, usersTable, organisationsTable } from "@workspace/db";
 import { logAudit } from "./audit";
+import { sendCredentialsEmail } from "../services/email";
 
 const router: IRouter = Router();
 
@@ -310,6 +312,164 @@ router.delete("/auth/users/:id", async (req: Request, res: Response): Promise<vo
   const [deleted] = await db.delete(usersTable).where(eq(usersTable.id, id)).returning();
   if (!deleted) { res.status(404).json({ error: "Utilisateur non trouve." }); return; }
   res.status(204).send();
+});
+
+function generateSecurePassword(): string {
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghjkmnpqrstuvwxyz";
+  const digits = "23456789";
+  const special = "!@#$%&*";
+  const all = upper + lower + digits + special;
+
+  let pw = "";
+  pw += upper[crypto.randomInt(upper.length)];
+  pw += lower[crypto.randomInt(lower.length)];
+  pw += digits[crypto.randomInt(digits.length)];
+  pw += special[crypto.randomInt(special.length)];
+
+  for (let i = 4; i < 12; i++) {
+    pw += all[crypto.randomInt(all.length)];
+  }
+
+  return pw.split("").sort(() => crypto.randomInt(3) - 1).join("");
+}
+
+router.post("/auth/users/:id/send-credentials", async (req: Request, res: Response): Promise<void> => {
+  const userRole = (req.session as any)?.userRole;
+  const organisationId = (req.session as any)?.organisationId;
+  const sessionUserId = (req.session as any)?.userId;
+
+  if (userRole !== "super_admin" && userRole !== "administrateur") {
+    res.status(403).json({ error: "Acces interdit." });
+    return;
+  }
+
+  const id = Number(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+
+  const conditions = [eq(usersTable.id, id)];
+  if (organisationId && userRole !== "super_admin") {
+    conditions.push(eq(usersTable.organisationId, organisationId));
+  }
+
+  const [user] = await db.select().from(usersTable).where(and(...conditions));
+  if (!user) { res.status(404).json({ error: "Utilisateur non trouve." }); return; }
+
+  const newPassword = generateSecurePassword();
+  const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
+  await db.update(usersTable).set({
+    passwordHash,
+    tentativesEchouees: 0,
+    verrouilleJusqua: null,
+    updatedAt: new Date(),
+  }).where(eq(usersTable.id, id));
+
+  let orgName = user.organisation || "Agent de Bureau";
+  if (user.organisationId) {
+    const [org] = await db.select({ name: organisationsTable.name }).from(organisationsTable).where(eq(organisationsTable.id, user.organisationId));
+    if (org) orgName = org.name;
+  }
+
+  const emailResult = await sendCredentialsEmail({
+    to: user.email,
+    prenom: user.prenom,
+    nom: user.nom,
+    password: newPassword,
+    orgName,
+    role: user.role,
+  });
+
+  logAudit(sessionUserId, (req.session as any)?.userEmail, "send_credentials", "user", id, { targetEmail: user.email }, req.ip, req.get("user-agent"));
+
+  if (emailResult.success) {
+    res.json({
+      message: `Nouveau mot de passe genere et envoye a ${user.email}.`,
+      preview: emailResult.preview,
+    });
+  } else {
+    res.status(500).json({ error: `Mot de passe mis a jour mais erreur d'envoi email: ${emailResult.error}` });
+  }
+});
+
+router.post("/auth/users/create-and-send", async (req: Request, res: Response): Promise<void> => {
+  const userRole = (req.session as any)?.userRole;
+  const organisationId = (req.session as any)?.organisationId;
+  const sessionUserId = (req.session as any)?.userId;
+
+  if (userRole !== "super_admin" && userRole !== "administrateur") {
+    res.status(403).json({ error: "Seuls les administrateurs peuvent creer des utilisateurs." });
+    return;
+  }
+
+  const { email, nom, prenom, role, departement, organisation, telephone } = req.body;
+
+  if (!email || !nom || !prenom) {
+    res.status(400).json({ error: "Email, nom et prenom sont obligatoires." });
+    return;
+  }
+
+  const validRoles = ["super_admin", "administrateur", "agent", "lecture_seule"];
+  if (role && !validRoles.includes(role)) {
+    res.status(400).json({ error: "Role invalide." });
+    return;
+  }
+
+  const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim()));
+  if (existing.length > 0) {
+    res.status(409).json({ error: "Un utilisateur avec cet email existe deja." });
+    return;
+  }
+
+  const generatedPassword = generateSecurePassword();
+  const passwordHash = await bcrypt.hash(generatedPassword, SALT_ROUNDS);
+  const avatar = `${(prenom as string)[0]}${(nom as string)[0]}`.toUpperCase();
+
+  const [newUser] = await db.insert(usersTable).values({
+    email: email.toLowerCase().trim(),
+    passwordHash,
+    nom,
+    prenom,
+    role: role || "agent",
+    departement,
+    organisation: organisation || "Agent de Bureau SAS",
+    organisationId: organisationId || null,
+    telephone,
+    avatar,
+  }).returning({
+    id: usersTable.id,
+    email: usersTable.email,
+    nom: usersTable.nom,
+    prenom: usersTable.prenom,
+    role: usersTable.role,
+    departement: usersTable.departement,
+    organisation: usersTable.organisation,
+    actif: usersTable.actif,
+    createdAt: usersTable.createdAt,
+  });
+
+  let orgName = organisation || "Agent de Bureau";
+  if (organisationId) {
+    const [org] = await db.select({ name: organisationsTable.name }).from(organisationsTable).where(eq(organisationsTable.id, organisationId));
+    if (org) orgName = org.name;
+  }
+
+  const emailResult = await sendCredentialsEmail({
+    to: email.toLowerCase().trim(),
+    prenom,
+    nom,
+    password: generatedPassword,
+    orgName,
+    role: role || "agent",
+  });
+
+  logAudit(sessionUserId, (req.session as any)?.userEmail, "create_and_send_credentials", "user", newUser.id, { targetEmail: email }, req.ip, req.get("user-agent"));
+
+  res.status(201).json({
+    ...newUser,
+    emailSent: emailResult.success,
+    emailNote: emailResult.preview || (emailResult.success ? "Identifiants envoyes par email." : `Erreur email: ${emailResult.error}`),
+  });
 });
 
 export default router;

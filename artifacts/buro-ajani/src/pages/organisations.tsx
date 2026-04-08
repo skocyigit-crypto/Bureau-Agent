@@ -72,6 +72,9 @@ export default function OrganisationsPage() {
   const [formAddress, setFormAddress] = useState("");
   const [formPlan, setFormPlan] = useState("essai");
   const [formActif, setFormActif] = useState(true);
+  const [formAdminPrenom, setFormAdminPrenom] = useState("");
+  const [formAdminNom, setFormAdminNom] = useState("");
+  const [formAdminEmail, setFormAdminEmail] = useState("");
 
   const loadOrganisations = async () => {
     try {
@@ -93,6 +96,7 @@ export default function OrganisationsPage() {
 
   const resetForm = () => {
     setFormName(""); setFormEmail(""); setFormPhone(""); setFormAddress(""); setFormPlan("essai"); setFormActif(true);
+    setFormAdminPrenom(""); setFormAdminNom(""); setFormAdminEmail("");
   };
 
   const openCreate = () => { resetForm(); setShowCreate(true); };
@@ -115,17 +119,29 @@ export default function OrganisationsPage() {
 
   const handleCreate = async () => {
     if (!formName.trim()) { toast({ title: "Erreur", description: "Le nom est requis.", variant: "destructive" }); return; }
+    if (formAdminPrenom || formAdminNom || formAdminEmail) {
+      if (!formAdminPrenom || !formAdminNom || !formAdminEmail) {
+        toast({ title: "Erreur", description: "Pour creer un administrateur, remplissez prenom, nom et email.", variant: "destructive" });
+        return;
+      }
+    }
     setSaving(true);
     try {
       const res = await fetch(`${BASE}api/organisations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ name: formName, email: formEmail, phone: formPhone, address: formAddress, plan: formPlan }),
+        body: JSON.stringify({
+          name: formName, email: formEmail, phone: formPhone, address: formAddress, plan: formPlan,
+          adminPrenom: formAdminPrenom || undefined,
+          adminNom: formAdminNom || undefined,
+          adminEmail: formAdminEmail || undefined,
+        }),
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Organisation creee", description: `${formName} avec le plan ${data.subscription?.plan || formPlan}. Cle de licence: ${data.licenseKey}` });
+        const adminMsg = data.adminUser ? ` Identifiants envoyes a ${data.adminUser.email}.` : "";
+        toast({ title: "Organisation creee", description: `${formName} avec le plan ${data.subscription?.plan || formPlan}.${adminMsg}` });
         setShowCreate(false);
         loadOrganisations();
       } else {
@@ -219,16 +235,19 @@ export default function OrganisationsPage() {
 
   const [sendingEmail, setSendingEmail] = useState<number | null>(null);
 
-  const resendLicense = async (org: Organisation) => {
+  const resendLicense = async (org: Organisation, resetPassword = false) => {
     if (!org.email) {
       toast({ title: "Erreur", description: "Aucun email associe a cette organisation.", variant: "destructive" });
       return;
     }
+    if (resetPassword && !confirm(`Reinitialiser le mot de passe de l'administrateur de ${org.name} et envoyer les nouveaux identifiants ?`)) return;
     setSendingEmail(org.id);
     try {
       const res = await fetch(`${BASE}api/organisations/${org.id}/resend-license`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
+        body: JSON.stringify({ resetPassword }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -445,16 +464,28 @@ export default function OrganisationsPage() {
 
                 <div className="flex items-center justify-end gap-2 flex-wrap">
                   {org.email && org.subscription?.licenseKey && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => resendLicense(org)}
-                      disabled={sendingEmail === org.id}
-                      className="text-amber-600 hover:text-amber-700"
-                    >
-                      {sendingEmail === org.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-1" />}
-                      Envoyer la licence
-                    </Button>
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => resendLicense(org)}
+                        disabled={sendingEmail === org.id}
+                        className="text-amber-600 hover:text-amber-700"
+                      >
+                        {sendingEmail === org.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-1" />}
+                        Envoyer la licence
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => resendLicense(org, true)}
+                        disabled={sendingEmail === org.id}
+                        className="text-blue-600 hover:text-blue-700"
+                      >
+                        {sendingEmail === org.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Key className="w-3.5 h-3.5 mr-1" />}
+                        Reinitialiser MDP
+                      </Button>
+                    </>
                   )}
                   <Button variant="outline" size="sm" onClick={() => openPlanChange(org)}>
                     <Shield className="w-3.5 h-3.5 mr-1" />
@@ -477,49 +508,73 @@ export default function OrganisationsPage() {
       )}
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="w-5 h-5" />
               Nouvelle Organisation
             </DialogTitle>
-            <DialogDescription>Creez une organisation et attribuez un plan de licence.</DialogDescription>
+            <DialogDescription>Creez une organisation, attribuez un plan et un administrateur.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label>Nom de l'organisation *</Label>
-              <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Ex: Societe ABC" />
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground"><Building2 className="w-4 h-4" /> Organisation</h4>
+              <div>
+                <Label>Nom de l'organisation *</Label>
+                <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Ex: Societe ABC" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Telephone</Label>
+                  <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="+33 1 23 45 67 89" />
+                </div>
+                <div>
+                  <Label>Email de contact</Label>
+                  <Input type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder="contact@societe.fr" />
+                </div>
+              </div>
+              <div>
+                <Label>Adresse</Label>
+                <Input value={formAddress} onChange={(e) => setFormAddress(e.target.value)} placeholder="123 rue de Paris, 75001 Paris" />
+              </div>
+              <div>
+                <Label>Plan de licence</Label>
+                <Select value={formPlan} onValueChange={setFormPlan}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="essai">Essai Gratuit (14 jours)</SelectItem>
+                    <SelectItem value="starter">Starter (29 EUR/mois)</SelectItem>
+                    <SelectItem value="professionnel">Professionnel (79 EUR/mois)</SelectItem>
+                    <SelectItem value="entreprise">Entreprise (199 EUR/mois)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div>
-              <Label>Email</Label>
-              <Input type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder="contact@societe.fr" />
-            </div>
-            <div>
-              <Label>Telephone</Label>
-              <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="+33 1 23 45 67 89" />
-            </div>
-            <div>
-              <Label>Adresse</Label>
-              <Input value={formAddress} onChange={(e) => setFormAddress(e.target.value)} placeholder="123 rue de Paris, 75001 Paris" />
-            </div>
-            <div>
-              <Label>Plan de licence</Label>
-              <Select value={formPlan} onValueChange={setFormPlan}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="essai">Essai Gratuit (14 jours)</SelectItem>
-                  <SelectItem value="starter">Starter (29 EUR/mois)</SelectItem>
-                  <SelectItem value="professionnel">Professionnel (79 EUR/mois)</SelectItem>
-                  <SelectItem value="entreprise">Entreprise (199 EUR/mois)</SelectItem>
-                </SelectContent>
-              </Select>
+            <Separator />
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground"><Crown className="w-4 h-4" /> Administrateur (mot de passe genere et envoye par email)</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Prenom *</Label>
+                  <Input value={formAdminPrenom} onChange={(e) => setFormAdminPrenom(e.target.value)} placeholder="Jean" />
+                </div>
+                <div>
+                  <Label>Nom *</Label>
+                  <Input value={formAdminNom} onChange={(e) => setFormAdminNom(e.target.value)} placeholder="Dupont" />
+                </div>
+              </div>
+              <div>
+                <Label>Email de connexion *</Label>
+                <Input type="email" value={formAdminEmail} onChange={(e) => setFormAdminEmail(e.target.value)} placeholder="jean.dupont@societe.fr" />
+              </div>
+              <p className="text-[11px] text-muted-foreground">Un mot de passe securise sera genere automatiquement et envoye avec la licence par email.</p>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Annuler</Button>
-            <Button onClick={handleCreate} disabled={saving}>
-              {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              Creer l'organisation
+            <Button onClick={handleCreate} disabled={saving} className="gap-2">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              Creer et envoyer
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,9 +1,29 @@
 import { Router, type Request, type Response } from "express";
 import { eq, sql, desc } from "drizzle-orm";
+import bcrypt from "bcryptjs";
 import { db, organisationsTable, subscriptionsTable, usersTable } from "@workspace/db";
 import { PLANS, type PlanKey } from "@workspace/db/schema";
 import crypto from "crypto";
 import { sendLicenseEmail } from "../services/email";
+
+const SALT_ROUNDS = 12;
+
+function generateSecurePassword(): string {
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghjkmnpqrstuvwxyz";
+  const digits = "23456789";
+  const special = "!@#$%&*";
+  const all = upper + lower + digits + special;
+  let pw = "";
+  pw += upper[crypto.randomInt(upper.length)];
+  pw += lower[crypto.randomInt(lower.length)];
+  pw += digits[crypto.randomInt(digits.length)];
+  pw += special[crypto.randomInt(special.length)];
+  for (let i = 4; i < 12; i++) {
+    pw += all[crypto.randomInt(all.length)];
+  }
+  return pw.split("").sort(() => crypto.randomInt(3) - 1).join("");
+}
 
 const router = Router();
 
@@ -71,7 +91,7 @@ router.get("/organisations/:id", async (req: Request, res: Response): Promise<vo
 });
 
 router.post("/organisations", async (req: Request, res: Response): Promise<void> => {
-  const { name, email, phone, address, plan, maxUsers } = req.body;
+  const { name, email, phone, address, plan, maxUsers, adminPrenom, adminNom, adminEmail } = req.body;
 
   if (!name || name.trim().length < 2) {
     res.status(400).json({ error: "Le nom de l'organisation est requis (min 2 caracteres)." });
@@ -82,6 +102,16 @@ router.post("/organisations", async (req: Request, res: Response): Promise<void>
   if (!PLANS[planKey]) {
     res.status(400).json({ error: "Plan invalide.", validPlans: Object.keys(PLANS) });
     return;
+  }
+
+  const contactEmail = adminEmail || email;
+
+  if (adminEmail) {
+    const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, adminEmail.toLowerCase().trim()));
+    if (existing.length > 0) {
+      res.status(409).json({ error: "Un utilisateur avec cet email existe deja." });
+      return;
+    }
   }
 
   const slug = name.trim().toLowerCase()
@@ -96,12 +126,17 @@ router.post("/organisations", async (req: Request, res: Response): Promise<void>
   const planConfig = PLANS[planKey];
   const licenseKey = `ADB-${planKey.toUpperCase().substring(0, 3)}-${crypto.randomBytes(8).toString("hex").toUpperCase()}`;
 
+  let generatedPassword: string | null = null;
+  if (adminEmail && adminPrenom && adminNom) {
+    generatedPassword = generateSecurePassword();
+  }
+
   try {
     const result = await db.transaction(async (tx) => {
       const [org] = await tx.insert(organisationsTable).values({
         name: name.trim(),
         slug: finalSlug,
-        email: email || null,
+        email: contactEmail || null,
         phone: phone || null,
         address: address || null,
         maxUsers: maxUsers || planConfig.maxUsers,
@@ -127,26 +162,52 @@ router.post("/organisations", async (req: Request, res: Response): Promise<void>
         currentPeriodEnd: trialEnd || new Date(Date.now() + 30 * 86400000),
       }).returning();
 
-      return { organisation: org, subscription: sub };
+      let adminUser = null;
+      if (generatedPassword && adminEmail && adminPrenom && adminNom) {
+        const passwordHash = await bcrypt.hash(generatedPassword, SALT_ROUNDS);
+        const avatar = `${adminPrenom[0]}${adminNom[0]}`.toUpperCase();
+        [adminUser] = await tx.insert(usersTable).values({
+          email: adminEmail.toLowerCase().trim(),
+          passwordHash,
+          nom: adminNom,
+          prenom: adminPrenom,
+          role: "administrateur",
+          organisation: name.trim(),
+          organisationId: org.id,
+          avatar,
+        }).returning({
+          id: usersTable.id,
+          email: usersTable.email,
+          nom: usersTable.nom,
+          prenom: usersTable.prenom,
+          role: usersTable.role,
+        });
+      }
+
+      return { organisation: org, subscription: sub, adminUser };
     });
 
     let emailResult = null;
-    if (email) {
+    const sendTo = adminEmail || email;
+    if (sendTo) {
       emailResult = await sendLicenseEmail({
-        to: email,
+        to: sendTo,
         orgName: name.trim(),
         plan: planConfig.name,
         licenseKey,
         trialEndsAt: result.subscription.trialEndsAt ? new Date(result.subscription.trialEndsAt) : null,
+        adminName: (adminPrenom && adminNom) ? `${adminPrenom} ${adminNom}` : undefined,
+        adminEmail: adminEmail || undefined,
+        adminPassword: generatedPassword || undefined,
       });
     }
 
     res.status(201).json({
-      message: `Organisation "${name}" creee avec le plan ${planConfig.name}.`,
+      message: `Organisation "${name}" creee avec le plan ${planConfig.name}.${result.adminUser ? ` Administrateur ${result.adminUser.prenom} ${result.adminUser.nom} cree.` : ""}`,
       ...result,
       licenseKey,
       emailSent: emailResult ? emailResult.success : false,
-      emailNote: !email ? "Aucun email fourni." : emailResult?.preview || (emailResult?.success ? "Email envoye." : `Erreur: ${emailResult?.error}`),
+      emailNote: !sendTo ? "Aucun email fourni." : emailResult?.preview || (emailResult?.success ? "Email envoye avec licence et identifiants." : `Erreur: ${emailResult?.error}`),
     });
   } catch (err: any) {
     console.error("Erreur creation organisation:", err);
@@ -172,6 +233,30 @@ router.post("/organisations/:id/resend-license", async (req: Request, res: Respo
     return;
   }
 
+  const { resetPassword } = req.body || {};
+
+  let adminPassword: string | undefined;
+  let adminUser: any = null;
+
+  const [existingAdmin] = await db.select({
+    id: usersTable.id,
+    email: usersTable.email,
+    prenom: usersTable.prenom,
+    nom: usersTable.nom,
+  }).from(usersTable).where(eq(usersTable.organisationId, id));
+
+  if (existingAdmin && resetPassword) {
+    adminPassword = generateSecurePassword();
+    const passwordHash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
+    await db.update(usersTable).set({
+      passwordHash,
+      tentativesEchouees: 0,
+      verrouilleJusqua: null,
+      updatedAt: new Date(),
+    }).where(eq(usersTable.id, existingAdmin.id));
+    adminUser = existingAdmin;
+  }
+
   const plan = PLANS[sub.plan as PlanKey];
   const result = await sendLicenseEmail({
     to: org.email,
@@ -179,10 +264,16 @@ router.post("/organisations/:id/resend-license", async (req: Request, res: Respo
     plan: plan?.name || sub.plan,
     licenseKey: sub.licenseKey,
     trialEndsAt: sub.trialEndsAt,
+    adminName: adminUser ? `${adminUser.prenom} ${adminUser.nom}` : undefined,
+    adminEmail: adminUser?.email,
+    adminPassword,
   });
 
   if (result.success) {
-    res.json({ message: `Licence renvoyee a ${org.email}.`, preview: result.preview });
+    res.json({
+      message: `Licence renvoyee a ${org.email}.${adminPassword ? ` Nouveau mot de passe genere pour ${adminUser.email}.` : ""}`,
+      preview: result.preview,
+    });
   } else {
     res.status(500).json({ error: `Erreur d'envoi: ${result.error}` });
   }

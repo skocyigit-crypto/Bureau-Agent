@@ -3,7 +3,7 @@ import {
   Users, UserPlus, Crown, ShieldCheck, Eye, Trash2, MoreHorizontal,
   Mail, Clock, CheckCircle2, XCircle, AlertTriangle, Search,
   Lock, Unlock, Edit, UserCog, Phone,
-  Loader2, ShieldAlert, RefreshCw
+  Loader2, ShieldAlert, RefreshCw, KeyRound, Send
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -203,6 +203,65 @@ export default function UsersPage() {
       }
     } catch {
       toast({ title: "Erreur", description: "Erreur lors du changement de role.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSendCredentials = async (user: ApiUser) => {
+    if (!confirm(`Generer un nouveau mot de passe et l'envoyer par email a ${user.prenom} ${user.nom} (${user.email}) ?`)) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`${BASE}api/auth/users/${user.id}/send-credentials`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Identifiants envoyes", description: data.message || `Mot de passe envoye a ${user.email}.` });
+      } else {
+        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Erreur lors de l'envoi des identifiants.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCreateAndSend = async () => {
+    if (!newUser.prenom || !newUser.nom || !newUser.email) {
+      toast({ title: "Erreur", description: "Prenom, nom et email sont obligatoires.", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch(`${BASE}api/auth/users/create-and-send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          email: newUser.email,
+          nom: newUser.nom,
+          prenom: newUser.prenom,
+          role: newUser.role,
+          departement: newUser.departement,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({
+          title: "Utilisateur cree",
+          description: `${newUser.prenom} ${newUser.nom} a ete cree. ${data.emailSent ? "Identifiants envoyes par email." : data.emailNote}`,
+        });
+        setNewUser({ prenom: "", nom: "", email: "", password: "", role: "agent", departement: "" });
+        setShowAddUser(false);
+        loadUsers();
+      } else {
+        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Erreur lors de la creation.", variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -414,6 +473,10 @@ export default function UsersPage() {
                               <UserCog className="w-4 h-4" />
                               Changer le role
                             </DropdownMenuItem>
+                            <DropdownMenuItem className="gap-2 cursor-pointer text-blue-600" onClick={() => handleSendCredentials(user)}>
+                              <KeyRound className="w-4 h-4" />
+                              Envoyer mot de passe
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             {user.role !== "super_admin" && (
                               <>
@@ -489,8 +552,9 @@ export default function UsersPage() {
               <Input type="email" placeholder="utilisateur@entreprise.fr" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} />
             </div>
             <div className="space-y-2">
-              <Label>Mot de passe * (min 8 caracteres)</Label>
-              <Input type="password" placeholder="Mot de passe securise" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} />
+              <Label>Mot de passe (min 8 caracteres)</Label>
+              <Input type="password" placeholder="Laisser vide pour generer automatiquement" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} />
+              <p className="text-[11px] text-muted-foreground">Laissez vide pour generer un mot de passe securise automatiquement et l'envoyer par email.</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -512,9 +576,15 @@ export default function UsersPage() {
               </div>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setShowAddUser(false)}>Annuler</Button>
-            <Button onClick={handleAddUser} disabled={saving} className="gap-2">
+            {!newUser.password && (
+              <Button variant="secondary" onClick={handleCreateAndSend} disabled={saving} className="gap-2">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                Creer et envoyer par email
+              </Button>
+            )}
+            <Button onClick={handleAddUser} disabled={saving || !newUser.password} className="gap-2">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
               Creer l'utilisateur
             </Button>
