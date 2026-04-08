@@ -3,7 +3,6 @@ import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList,
   Platform,
   Pressable,
   RefreshControl,
@@ -20,35 +19,38 @@ import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
 interface AutomationRule {
-  id: number | string;
+  id: number;
   name: string;
-  description: string;
+  description?: string;
   type: string;
-  isActive: boolean;
-  isSystem?: boolean;
+  trigger: string;
   schedule?: string;
+  enabled: boolean;
+  builtIn?: boolean;
   lastRun?: string;
-  executionCount?: number;
-  successRate?: number;
+  runCount?: number;
 }
 
 interface ExecutionLog {
   id: number;
+  ruleId: number;
   ruleName: string;
   status: string;
+  details?: any;
   itemsProcessed: number;
-  duration: number;
-  timestamp: string;
+  duration?: number;
   error?: string;
+  createdAt: string;
 }
 
 const TYPE_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
+  systeme: "settings",
   task_overdue: "clock",
   calendar_reminder: "bell",
   unread_messages: "mail",
   stock_alert: "package",
   call_followup: "phone",
-  custom: "settings",
+  custom: "sliders",
 };
 
 export default function AutomationsScreen() {
@@ -70,8 +72,7 @@ export default function AutomationsScreen() {
       ]);
       if (rulesRes.ok) {
         const data = await rulesRes.json();
-        const rawRules = data.rules ?? data.automations ?? [];
-        setRules(rawRules.map((r: any) => ({ ...r, isActive: r.enabled ?? r.isActive ?? false })));
+        setRules(data.rules ?? []);
       }
       if (logsRes.ok) {
         const data = await logsRes.json();
@@ -88,18 +89,21 @@ export default function AutomationsScreen() {
   function onRefresh() { setRefreshing(true); fetchData(); }
 
   async function toggleRule(rule: AutomationRule) {
+    if (rule.builtIn || rule.id < 0) return;
     try {
-      await fetchAuth(`${API_BASE}/api/automations/${rule.id}`, {
+      const res = await fetchAuth(`${API_BASE}/api/automations/${rule.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled: !rule.isActive }),
+        body: JSON.stringify({ enabled: !rule.enabled }),
       });
-      setRules(prev => prev.map(r => r.id === rule.id ? { ...r, isActive: !r.isActive } : r));
+      if (res.ok) {
+        setRules(prev => prev.map(r => r.id === rule.id ? { ...r, enabled: !r.enabled } : r));
+      }
     } catch {}
   }
 
   const executionsToday = logs.filter(l => {
-    const d = new Date(l.timestamp);
+    const d = new Date(l.createdAt);
     const today = new Date();
     return d.toDateString() === today.toDateString();
   }).length;
@@ -151,7 +155,7 @@ export default function AutomationsScreen() {
             </View>
             <View style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Feather name="toggle-right" size={18} color="#3b82f6" />
-              <Text style={[styles.statVal, { color: colors.foreground }]}>{rules.filter(r => r.isActive).length}</Text>
+              <Text style={[styles.statVal, { color: colors.foreground }]}>{rules.filter(r => r.enabled).length}</Text>
               <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Actives</Text>
             </View>
           </View>
@@ -163,30 +167,40 @@ export default function AutomationsScreen() {
               rules.map(rule => (
                 <View key={String(rule.id)} style={[styles.ruleCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <View style={styles.ruleHeader}>
-                    <View style={[styles.ruleIcon, { backgroundColor: (rule.isActive ? "#22c55e" : "#64748b") + "18" }]}>
-                      <Feather name={TYPE_ICONS[rule.type] || "settings"} size={18} color={rule.isActive ? "#22c55e" : "#64748b"} />
+                    <View style={[styles.ruleIcon, { backgroundColor: (rule.enabled ? "#22c55e" : "#64748b") + "18" }]}>
+                      <Feather name={TYPE_ICONS[rule.type] || "settings"} size={18} color={rule.enabled ? "#22c55e" : "#64748b"} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.ruleName, { color: colors.foreground }]}>{rule.name}</Text>
-                      <Text style={[styles.ruleDesc, { color: colors.mutedForeground }]} numberOfLines={2}>{rule.description}</Text>
+                      {rule.description ? (
+                        <Text style={[styles.ruleDesc, { color: colors.mutedForeground }]} numberOfLines={2}>{rule.description}</Text>
+                      ) : null}
                     </View>
-                    <Switch
-                      value={rule.isActive}
-                      onValueChange={() => toggleRule(rule)}
-                      trackColor={{ false: colors.muted, true: "#22c55e80" }}
-                      thumbColor={rule.isActive ? "#22c55e" : "#94a3b8"}
-                    />
+                    {rule.builtIn ? (
+                      <View style={[styles.systemBadge, { backgroundColor: "#3b82f618" }]}>
+                        <Text style={[styles.systemBadgeText, { color: "#3b82f6" }]}>Systeme</Text>
+                      </View>
+                    ) : (
+                      <Switch
+                        value={rule.enabled}
+                        onValueChange={() => toggleRule(rule)}
+                        trackColor={{ false: colors.muted, true: "#22c55e80" }}
+                        thumbColor={rule.enabled ? "#22c55e" : "#94a3b8"}
+                      />
+                    )}
                   </View>
-                  {rule.lastRun && (
-                    <Text style={[styles.ruleLastRun, { color: colors.mutedForeground }]}>
-                      Derniere execution: {new Date(rule.lastRun).toLocaleString("fr-FR")}
-                    </Text>
-                  )}
-                  {rule.isSystem && (
-                    <View style={[styles.systemBadge, { backgroundColor: "#3b82f618" }]}>
-                      <Text style={[styles.systemBadgeText, { color: "#3b82f6" }]}>Systeme</Text>
-                    </View>
-                  )}
+                  <View style={styles.ruleFooter}>
+                    {rule.lastRun && (
+                      <Text style={[styles.ruleLastRun, { color: colors.mutedForeground }]}>
+                        Derniere: {new Date(rule.lastRun).toLocaleString("fr-FR")}
+                      </Text>
+                    )}
+                    {(rule.runCount ?? 0) > 0 && (
+                      <Text style={[styles.ruleLastRun, { color: colors.mutedForeground }]}>
+                        {rule.runCount} execution(s)
+                      </Text>
+                    )}
+                  </View>
                 </View>
               ))
             )
@@ -200,12 +214,12 @@ export default function AutomationsScreen() {
                     <View style={[styles.logDot, { backgroundColor: log.status === "success" ? "#22c55e" : "#ef4444" }]} />
                     <Text style={[styles.logName, { color: colors.foreground }]} numberOfLines={1}>{log.ruleName}</Text>
                     <Text style={[styles.logTime, { color: colors.mutedForeground }]}>
-                      {new Date(log.timestamp).toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" })}
+                      {new Date(log.createdAt).toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" })}
                     </Text>
                   </View>
                   <View style={styles.logMeta}>
                     <Text style={[styles.logMetaText, { color: colors.mutedForeground }]}>
-                      {log.itemsProcessed} element(s) • {log.duration}ms
+                      {log.itemsProcessed} element(s){log.duration ? ` • ${log.duration}ms` : ""}
                     </Text>
                     <View style={[styles.statusBadge, { backgroundColor: (log.status === "success" ? "#22c55e" : "#ef4444") + "18" }]}>
                       <Text style={[styles.statusBadgeText, { color: log.status === "success" ? "#22c55e" : "#ef4444" }]}>
@@ -245,8 +259,9 @@ const styles = StyleSheet.create({
   ruleIcon: { width: 40, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   ruleName: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   ruleDesc: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
-  ruleLastRun: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 8, paddingLeft: 52 },
-  systemBadge: { alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, marginTop: 8, marginLeft: 52 },
+  ruleFooter: { flexDirection: "row", gap: 12, paddingLeft: 52, marginTop: 6 },
+  ruleLastRun: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  systemBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
   systemBadgeText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
   logCard: { borderRadius: 12, borderWidth: 1, padding: 14, marginBottom: 8 },
   logHeader: { flexDirection: "row", alignItems: "center", gap: 8 },

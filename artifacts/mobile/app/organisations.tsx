@@ -25,7 +25,7 @@ interface Organisation {
   email?: string;
   phone?: string;
   address?: string;
-  isActive: boolean;
+  actif: boolean;
   createdAt: string;
   subscription?: {
     plan: string;
@@ -33,6 +33,8 @@ interface Organisation {
     licenseKey: string;
     maxUsers: number;
     maxContacts: number;
+    planDetails?: any;
+    isTrialExpired?: boolean;
   };
   userCount?: number;
 }
@@ -81,7 +83,7 @@ export default function OrganisationsScreen() {
       if (res.ok) {
         const data = await res.json();
         const rawOrgs = data.organisations ?? data ?? [];
-        setOrgs(rawOrgs.map((o: any) => ({ ...o, isActive: o.actif ?? o.isActive ?? true })));
+        setOrgs(rawOrgs.map((o: any) => ({ ...o, actif: o.actif ?? true })));
       }
     } catch {} finally {
       setLoading(false);
@@ -130,14 +132,14 @@ export default function OrganisationsScreen() {
       await fetchAuth(`${API_BASE}/api/organisations/${org.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: org.name, actif: !org.isActive }),
+        body: JSON.stringify({ name: org.name, actif: !org.actif }),
       });
       fetchOrgs();
     } catch {}
   }
 
   const totalOrgs = orgs.length;
-  const activeOrgs = orgs.filter(o => o.isActive).length;
+  const activeOrgs = orgs.filter(o => o.actif).length;
   const trialOrgs = orgs.filter(o => o.subscription?.plan === "essai").length;
 
   return (
@@ -208,7 +210,7 @@ export default function OrganisationsScreen() {
                     <View style={{ flex: 1 }}>
                       <View style={styles.orgNameRow}>
                         <Text style={[styles.orgName, { color: colors.foreground }]}>{item.name}</Text>
-                        <View style={[styles.activeDot, { backgroundColor: item.isActive ? "#22c55e" : "#ef4444" }]} />
+                        <View style={[styles.activeDot, { backgroundColor: item.actif ? "#22c55e" : "#ef4444" }]} />
                       </View>
                       {item.email && <Text style={[styles.orgEmail, { color: colors.mutedForeground }]}>{item.email}</Text>}
                       <View style={styles.orgBadges}>
@@ -268,11 +270,11 @@ export default function OrganisationsScreen() {
                         </Pressable>
                         <Pressable
                           onPress={() => toggleActive(item)}
-                          style={[styles.orgActionBtn, { backgroundColor: (item.isActive ? "#ef4444" : "#22c55e") + "18" }]}
+                          style={[styles.orgActionBtn, { backgroundColor: (item.actif ? "#ef4444" : "#22c55e") + "18" }]}
                         >
-                          <Feather name={item.isActive ? "x-circle" : "check-circle"} size={14} color={item.isActive ? "#ef4444" : "#22c55e"} />
-                          <Text style={[styles.orgActionText, { color: item.isActive ? "#ef4444" : "#22c55e" }]}>
-                            {item.isActive ? "Desact." : "Activer"}
+                          <Feather name={item.actif ? "x-circle" : "check-circle"} size={14} color={item.actif ? "#ef4444" : "#22c55e"} />
+                          <Text style={[styles.orgActionText, { color: item.actif ? "#ef4444" : "#22c55e" }]}>
+                            {item.actif ? "Desact." : "Activer"}
                           </Text>
                         </Pressable>
                       </View>

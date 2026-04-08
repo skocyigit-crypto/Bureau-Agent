@@ -22,10 +22,11 @@ interface CheckinSession {
   id: number;
   type: string;
   status: string;
-  startTime: string;
-  endTime?: string;
-  pauseStart?: string;
-  totalPause?: number;
+  checkInAt: string;
+  checkOutAt?: string;
+  breakMinutes?: number;
+  totalMinutes?: number;
+  employeeName?: string;
   location?: string;
   notes?: string;
 }
@@ -39,7 +40,7 @@ const TYPE_MAP: Record<string, { label: string; color: string; icon: keyof typeo
 export default function CheckinsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { fetchAuth } = useAuth();
+  const { fetchAuth, user: currentUser } = useAuth();
   const isWeb = Platform.OS === "web";
   const [activeSession, setActiveSession] = useState<CheckinSession | null>(null);
   const [history, setHistory] = useState<CheckinSession[]>([]);
@@ -57,9 +58,9 @@ export default function CheckinsScreen() {
       ]);
       if (activeRes.ok) {
         const data = await activeRes.json();
-        const active = data.active?.[0] || data.checkin || null;
+        const active = data.active?.[0] || null;
         const paused = data.paused?.[0] || null;
-        setActiveSession(active ? { ...active, status: "active" } : paused ? { ...paused, status: "paused" } : null);
+        setActiveSession(active || paused || null);
       } else {
         setActiveSession(null);
       }
@@ -76,17 +77,19 @@ export default function CheckinsScreen() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   useEffect(() => {
-    if (activeSession?.status === "active") {
+    if (activeSession && activeSession.status === "present") {
       timerRef.current = setInterval(() => {
-        const start = new Date(activeSession.startTime).getTime();
+        const start = new Date(activeSession.checkInAt).getTime();
         const now = Date.now();
-        const pauseMs = (activeSession.totalPause || 0) * 1000;
-        const diff = Math.max(0, Math.floor((now - start - pauseMs) / 1000));
+        const breakMs = (activeSession.breakMinutes || 0) * 60 * 1000;
+        const diff = Math.max(0, Math.floor((now - start - breakMs) / 1000));
         const h = String(Math.floor(diff / 3600)).padStart(2, "0");
         const m = String(Math.floor((diff % 3600) / 60)).padStart(2, "0");
         const s = String(diff % 60).padStart(2, "0");
         setElapsed(`${h}:${m}:${s}`);
       }, 1000);
+    } else if (activeSession && activeSession.status === "en_pause") {
+      setElapsed("En pause");
     } else {
       setElapsed("00:00:00");
     }
@@ -98,10 +101,16 @@ export default function CheckinsScreen() {
   async function checkin(type: string) {
     setActing(true);
     try {
+      const employeeName = currentUser ? `${currentUser.prenom || ""} ${currentUser.nom || ""}`.trim() : "Utilisateur";
       const res = await fetchAuth(`${API_BASE}/api/checkins`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type }),
+        body: JSON.stringify({
+          type,
+          status: "present",
+          employeeName,
+          employeeRole: currentUser?.role || "agent",
+        }),
       });
       if (res.ok) fetchData();
     } catch {} finally { setActing(false); }
@@ -124,7 +133,7 @@ export default function CheckinsScreen() {
     if (!activeSession) return;
     setActing(true);
     try {
-      const newStatus = activeSession.status === "paused" ? "present" : "en_pause";
+      const newStatus = activeSession.status === "en_pause" ? "present" : "en_pause";
       const res = await fetchAuth(`${API_BASE}/api/checkins/${activeSession.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -142,15 +151,24 @@ export default function CheckinsScreen() {
     ]);
   }
 
-  function formatDuration(startStr: string, endStr?: string) {
-    const start = new Date(startStr).getTime();
-    const end = endStr ? new Date(endStr).getTime() : Date.now();
-    const diff = Math.max(0, Math.floor((end - start) / 1000));
-    const h = Math.floor(diff / 3600);
-    const m = Math.floor((diff % 3600) / 60);
+  function formatDuration(checkInAt: string, checkOutAt?: string, totalMinutes?: number) {
+    if (totalMinutes && totalMinutes > 0) {
+      const h = Math.floor(totalMinutes / 60);
+      const m = totalMinutes % 60;
+      if (h > 0) return `${h}h ${m}min`;
+      return `${m}min`;
+    }
+    const start = new Date(checkInAt).getTime();
+    const end = checkOutAt ? new Date(checkOutAt).getTime() : Date.now();
+    const diff = Math.max(0, Math.floor((end - start) / 60000));
+    const h = Math.floor(diff / 60);
+    const m = diff % 60;
     if (h > 0) return `${h}h ${m}min`;
     return `${m}min`;
   }
+
+  const isPaused = activeSession?.status === "en_pause";
+  const isActive = activeSession?.status === "present";
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -176,10 +194,10 @@ export default function CheckinsScreen() {
         ) : (
           <>
             {activeSession ? (
-              <View style={[styles.activeCard, { backgroundColor: colors.card, borderColor: "#22c55e" }]}>
-                <View style={[styles.statusDot, { backgroundColor: activeSession.status === "paused" ? "#f59e0b" : "#22c55e" }]} />
+              <View style={[styles.activeCard, { backgroundColor: colors.card, borderColor: isPaused ? "#f59e0b" : "#22c55e" }]}>
+                <View style={[styles.statusDot, { backgroundColor: isPaused ? "#f59e0b" : "#22c55e" }]} />
                 <Text style={[styles.activeLabel, { color: colors.mutedForeground }]}>
-                  {activeSession.status === "paused" ? "En pause" : "Session active"}
+                  {isPaused ? "En pause" : "Session active"}
                 </Text>
                 <Text style={[styles.timerText, { color: colors.foreground }]}>{elapsed}</Text>
                 <View style={styles.activeTypeBadge}>
@@ -193,7 +211,7 @@ export default function CheckinsScreen() {
                   </Text>
                 </View>
                 <Text style={[styles.startedAt, { color: colors.mutedForeground }]}>
-                  Debut: {new Date(activeSession.startTime).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                  Debut: {new Date(activeSession.checkInAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                 </Text>
                 <View style={styles.actionRow}>
                   <Pressable
@@ -203,9 +221,9 @@ export default function CheckinsScreen() {
                   >
                     {acting ? <ActivityIndicator size="small" color="#f59e0b" /> : (
                       <>
-                        <Feather name={activeSession.status === "paused" ? "play" : "pause"} size={18} color="#f59e0b" />
+                        <Feather name={isPaused ? "play" : "pause"} size={18} color="#f59e0b" />
                         <Text style={[styles.actionBtnText, { color: "#f59e0b" }]}>
-                          {activeSession.status === "paused" ? "Reprendre" : "Pause"}
+                          {isPaused ? "Reprendre" : "Pause"}
                         </Text>
                       </>
                     )}
@@ -268,14 +286,14 @@ export default function CheckinsScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.historyName, { color: colors.foreground }]}>{typeInfo.label}</Text>
                       <Text style={[styles.historyMeta, { color: colors.mutedForeground }]}>
-                        {new Date(session.startTime).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                        {new Date(session.checkInAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
                         {" • "}
-                        {new Date(session.startTime).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                        {session.endTime && ` - ${new Date(session.endTime).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`}
+                        {new Date(session.checkInAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                        {session.checkOutAt && ` - ${new Date(session.checkOutAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`}
                       </Text>
                     </View>
                     <Text style={[styles.historyDuration, { color: typeInfo.color }]}>
-                      {formatDuration(session.startTime, session.endTime)}
+                      {formatDuration(session.checkInAt, session.checkOutAt, session.totalMinutes)}
                     </Text>
                   </View>
                 );

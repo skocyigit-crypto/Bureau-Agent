@@ -19,27 +19,27 @@ import { useColors } from "@/hooks/useColors";
 interface AgentConfig {
   id: string;
   name: string;
-  description: string;
+  domain: string;
   icon: string;
-  color: string;
 }
 
 interface AgentReport {
+  id: number;
   agentId: string;
   agentName: string;
+  agentIcon?: string;
   score: number;
+  status: string;
+  summary?: string;
+  errorsFound: number;
+  warningsFound?: number;
+  suggestionsCount?: number;
   errors: any[];
   warnings: any[];
   suggestions: any[];
   corrections: any[];
-  actionPlan: any[];
-  timestamp: string;
-}
-
-interface SuperReport {
-  summary: string;
-  recommendations: string[];
-  timestamp: string;
+  createdAt: string;
+  isSuperReport?: boolean;
 }
 
 export default function AiAgentsScreen() {
@@ -48,8 +48,7 @@ export default function AiAgentsScreen() {
   const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
   const [agents, setAgents] = useState<AgentConfig[]>([]);
-  const [reports, setReports] = useState<AgentReport[]>([]);
-  const [superReport, setSuperReport] = useState<SuperReport | null>(null);
+  const [latestReports, setLatestReports] = useState<Record<string, AgentReport>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [runningAll, setRunningAll] = useState(false);
@@ -58,18 +57,17 @@ export default function AiAgentsScreen() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [configRes, reportsRes] = await Promise.all([
+      const [configRes, latestRes] = await Promise.all([
         fetchAuth(`${API_BASE}/api/ai/agents/config`),
-        fetchAuth(`${API_BASE}/api/ai/agents/reports`),
+        fetchAuth(`${API_BASE}/api/ai/agents/latest`),
       ]);
       if (configRes.ok) {
         const data = await configRes.json();
         setAgents(data.agents ?? []);
       }
-      if (reportsRes.ok) {
-        const data = await reportsRes.json();
-        setReports(data.reports ?? []);
-        if (data.superReport) setSuperReport(data.superReport);
+      if (latestRes.ok) {
+        const data = await latestRes.json();
+        setLatestReports(data ?? {});
       }
     } catch {} finally {
       setLoading(false);
@@ -109,25 +107,48 @@ export default function AiAgentsScreen() {
     return "#ef4444";
   }
 
-  function getReportForAgent(agentId: string) {
-    return reports.find(r => r.agentId === agentId);
-  }
-
   const ICON_MAP: Record<string, keyof typeof Feather.glyphMap> = {
     phone: "phone",
     users: "users",
+    clipboard: "clipboard",
+    mail: "mail",
+    clock: "clock",
+    shield: "shield",
+    "trending-up": "trending-up",
+    cpu: "cpu",
     "check-square": "check-square",
     "message-square": "message-square",
     package: "package",
     calendar: "calendar",
     "bar-chart-2": "bar-chart-2",
-    cpu: "cpu",
   };
 
-  const totalErrors = reports.reduce((s, r) => s + (r.errors?.length ?? 0), 0);
-  const totalWarnings = reports.reduce((s, r) => s + (r.warnings?.length ?? 0), 0);
-  const totalSuggestions = reports.reduce((s, r) => s + (r.suggestions?.length ?? 0), 0);
+  const AGENT_COLORS: Record<string, string> = {
+    agent_appels: "#3b82f6",
+    agent_contacts: "#8b5cf6",
+    agent_taches: "#22c55e",
+    agent_messages: "#f59e0b",
+    agent_pointage: "#ec4899",
+    agent_securite: "#ef4444",
+    agent_performance: "#6366f1",
+  };
+
+  const reports = Object.values(latestReports).filter(r => !r.isSuperReport);
+  const superReport = latestReports["super_agent"] || null;
+
+  const totalErrors = reports.reduce((s, r) => s + (r.errorsFound ?? r.errors?.length ?? 0), 0);
+  const totalWarnings = reports.reduce((s, r) => s + (r.warningsFound ?? r.warnings?.length ?? 0), 0);
+  const totalSuggestions = reports.reduce((s, r) => s + (r.suggestionsCount ?? r.suggestions?.length ?? 0), 0);
   const avgScore = reports.length > 0 ? Math.round(reports.reduce((s, r) => s + (r.score ?? 0), 0) / reports.length) : 0;
+
+  function renderFinding(item: any, i: number, bgColor: string, textColor: string) {
+    const text = typeof item === "string" ? item : item.titre || item.description || item.message || JSON.stringify(item);
+    return (
+      <View key={i} style={[styles.findingItem, { backgroundColor: bgColor }]}>
+        <Text style={[styles.findingText, { color: textColor }]}>{text}</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -201,22 +222,24 @@ export default function AiAgentsScreen() {
                     <Text style={[styles.cardTitle, { color: colors.foreground }]}>Super Agent IA</Text>
                     <Text style={[styles.cardSubtitle, { color: colors.mutedForeground }]}>Synthese strategique</Text>
                   </View>
+                  {superReport.score > 0 && (
+                    <View style={[styles.scoreBadge, { backgroundColor: getScoreColor(superReport.score) + "18" }]}>
+                      <Text style={[styles.scoreBadgeText, { color: getScoreColor(superReport.score) }]}>{superReport.score}</Text>
+                    </View>
+                  )}
                 </View>
-                <Text style={[styles.summaryText, { color: colors.foreground }]}>{superReport.summary}</Text>
-                {superReport.recommendations?.map((rec, i) => (
-                  <View key={i} style={styles.recRow}>
-                    <Feather name="chevron-right" size={14} color={colors.primary} />
-                    <Text style={[styles.recText, { color: colors.foreground }]}>{rec}</Text>
-                  </View>
-                ))}
+                {superReport.summary && (
+                  <Text style={[styles.summaryText, { color: colors.foreground }]}>{superReport.summary}</Text>
+                )}
               </View>
             )}
 
             {agents.map((agent) => {
-              const report = getReportForAgent(agent.id);
+              const report = latestReports[agent.id];
               const isExpanded = expandedAgent === agent.id;
               const isRunning = runningAgent === agent.id;
               const iconName = ICON_MAP[agent.icon] || "cpu";
+              const agentColor = AGENT_COLORS[agent.id] || "#3b82f6";
 
               return (
                 <Pressable
@@ -225,12 +248,12 @@ export default function AiAgentsScreen() {
                   style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
                 >
                   <View style={styles.cardHeader}>
-                    <View style={[styles.agentIcon, { backgroundColor: (agent.color || "#3b82f6") + "18" }]}>
-                      <Feather name={iconName} size={18} color={agent.color || "#3b82f6"} />
+                    <View style={[styles.agentIcon, { backgroundColor: agentColor + "18" }]}>
+                      <Feather name={iconName} size={18} color={agentColor} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.cardTitle, { color: colors.foreground }]}>{agent.name}</Text>
-                      <Text style={[styles.cardSubtitle, { color: colors.mutedForeground }]} numberOfLines={1}>{agent.description}</Text>
+                      <Text style={[styles.cardSubtitle, { color: colors.mutedForeground }]} numberOfLines={1}>{agent.domain}</Text>
                     </View>
                     {report && (
                       <View style={[styles.scoreBadge, { backgroundColor: getScoreColor(report.score) + "18" }]}>
@@ -253,51 +276,32 @@ export default function AiAgentsScreen() {
 
                   {isExpanded && report && (
                     <View style={[styles.expandedContent, { borderTopColor: colors.border }]}>
+                      {report.summary && (
+                        <Text style={[styles.reportSummary, { color: colors.foreground }]}>{report.summary}</Text>
+                      )}
                       {report.errors?.length > 0 && (
                         <View style={styles.findingSection}>
                           <Text style={[styles.findingTitle, { color: "#ef4444" }]}>Erreurs ({report.errors.length})</Text>
-                          {report.errors.map((err: any, i: number) => (
-                            <View key={i} style={[styles.findingItem, { backgroundColor: "#ef444410" }]}>
-                              <Text style={[styles.findingText, { color: colors.foreground }]}>{typeof err === "string" ? err : err.message || err.description || JSON.stringify(err)}</Text>
-                            </View>
-                          ))}
+                          {report.errors.map((err: any, i: number) => renderFinding(err, i, "#ef444410", colors.foreground))}
                         </View>
                       )}
                       {report.warnings?.length > 0 && (
                         <View style={styles.findingSection}>
                           <Text style={[styles.findingTitle, { color: "#f59e0b" }]}>Alertes ({report.warnings.length})</Text>
-                          {report.warnings.map((w: any, i: number) => (
-                            <View key={i} style={[styles.findingItem, { backgroundColor: "#f59e0b10" }]}>
-                              <Text style={[styles.findingText, { color: colors.foreground }]}>{typeof w === "string" ? w : w.message || w.description || JSON.stringify(w)}</Text>
-                            </View>
-                          ))}
+                          {report.warnings.map((w: any, i: number) => renderFinding(w, i, "#f59e0b10", colors.foreground))}
                         </View>
                       )}
                       {report.suggestions?.length > 0 && (
                         <View style={styles.findingSection}>
                           <Text style={[styles.findingTitle, { color: "#3b82f6" }]}>Suggestions ({report.suggestions.length})</Text>
-                          {report.suggestions.map((s: any, i: number) => (
-                            <View key={i} style={[styles.findingItem, { backgroundColor: "#3b82f610" }]}>
-                              <Text style={[styles.findingText, { color: colors.foreground }]}>{typeof s === "string" ? s : s.message || s.description || JSON.stringify(s)}</Text>
-                            </View>
-                          ))}
+                          {report.suggestions.map((s: any, i: number) => renderFinding(s, i, "#3b82f610", colors.foreground))}
                         </View>
                       )}
-                      {report.actionPlan?.length > 0 && (
-                        <View style={styles.findingSection}>
-                          <Text style={[styles.findingTitle, { color: "#22c55e" }]}>Plan d'action ({report.actionPlan.length})</Text>
-                          {report.actionPlan.map((a: any, i: number) => (
-                            <View key={i} style={[styles.findingItem, { backgroundColor: "#22c55e10" }]}>
-                              <Text style={[styles.findingText, { color: colors.foreground }]}>{typeof a === "string" ? a : a.task || a.description || JSON.stringify(a)}</Text>
-                            </View>
-                          ))}
-                        </View>
-                      )}
-                      {(!report.errors?.length && !report.warnings?.length && !report.suggestions?.length && !report.actionPlan?.length) && (
-                        <Text style={[styles.noFindings, { color: colors.mutedForeground }]}>Aucun resultat pour cet agent. Lancez une analyse.</Text>
+                      {(!report.errors?.length && !report.warnings?.length && !report.suggestions?.length) && (
+                        <Text style={[styles.noFindings, { color: colors.mutedForeground }]}>Aucun resultat. Lancez une analyse.</Text>
                       )}
                       <Text style={[styles.timestamp, { color: colors.mutedForeground }]}>
-                        Derniere analyse: {new Date(report.timestamp).toLocaleString("fr-FR")}
+                        Derniere analyse: {new Date(report.createdAt).toLocaleString("fr-FR")}
                       </Text>
                     </View>
                   )}
@@ -344,6 +348,7 @@ const styles = StyleSheet.create({
   scoreBadgeText: { fontSize: 14, fontFamily: "Inter_700Bold" },
   runBtn: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   expandedContent: { borderTopWidth: 1, padding: 14 },
+  reportSummary: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19, marginBottom: 10 },
   findingSection: { marginBottom: 12 },
   findingTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold", marginBottom: 6 },
   findingItem: { padding: 10, borderRadius: 8, marginBottom: 4 },
@@ -351,6 +356,4 @@ const styles = StyleSheet.create({
   noFindings: { fontSize: 13, fontFamily: "Inter_400Regular", textAlign: "center", padding: 16 },
   timestamp: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 8, textAlign: "right" },
   summaryText: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 20, paddingHorizontal: 14, marginBottom: 10 },
-  recRow: { flexDirection: "row", alignItems: "flex-start", gap: 6, paddingHorizontal: 14, marginBottom: 6 },
-  recText: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
 });

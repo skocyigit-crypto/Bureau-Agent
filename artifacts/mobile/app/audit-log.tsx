@@ -9,7 +9,6 @@ import {
   RefreshControl,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -25,7 +24,7 @@ interface AuditEntry {
   action: string;
   resource: string;
   resourceId?: string;
-  details?: string;
+  details?: any;
   ipAddress?: string;
   createdAt: string;
 }
@@ -50,6 +49,7 @@ const RESOURCE_MAP: Record<string, string> = {
   organisation: "Organisation",
   calendar: "Calendrier",
   checkin: "Pointage",
+  automation_rule: "Automation",
 };
 
 export default function AuditLogScreen() {
@@ -58,26 +58,26 @@ export default function AuditLogScreen() {
   const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
   const [entries, setEntries] = useState<AuditEntry[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [search, setSearch] = useState("");
   const [actionFilter, setActionFilter] = useState("all");
 
   const fetchLogs = useCallback(async () => {
     try {
-      const params = new URLSearchParams({ limit: "50", sortOrder: "desc" });
-      if (search) params.set("search", search);
+      const params = new URLSearchParams({ limit: "50", page: "1" });
       if (actionFilter !== "all") params.set("action", actionFilter);
       const res = await fetchAuth(`${API_BASE}/api/audit/logs?${params}`);
       if (res.ok) {
         const data = await res.json();
         setEntries(data.logs ?? []);
+        setTotalCount(data.total ?? 0);
       }
     } catch {} finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [fetchAuth, search, actionFilter]);
+  }, [fetchAuth, actionFilter]);
 
   useEffect(() => { setLoading(true); fetchLogs(); }, [fetchLogs]);
 
@@ -91,6 +91,17 @@ export default function AuditLogScreen() {
     if (diff < 3600000) return `${Math.floor(diff / 60000)}min`;
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
     return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  }
+
+  function formatDetails(details: any): string | null {
+    if (!details) return null;
+    if (typeof details === "string") return details;
+    if (typeof details === "object") {
+      const keys = Object.keys(details);
+      if (keys.length === 0) return null;
+      return keys.map(k => `${k}: ${JSON.stringify(details[k])}`).join(", ");
+    }
+    return null;
   }
 
   const todayActions = entries.filter(e => new Date(e.createdAt).toDateString() === new Date().toDateString()).length;
@@ -113,17 +124,6 @@ export default function AuditLogScreen() {
           </Pressable>
           <Text style={styles.headerTitle}>Journal d'audit</Text>
           <View style={{ width: 22 }} />
-        </View>
-        <View style={[styles.searchContainer, { backgroundColor: "rgba(255,255,255,0.1)" }]}>
-          <Feather name="search" size={16} color="rgba(255,255,255,0.5)" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Rechercher..."
-            placeholderTextColor="rgba(255,255,255,0.4)"
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search ? <Feather name="x" size={16} color="rgba(255,255,255,0.5)" onPress={() => setSearch("")} /> : null}
         </View>
         <View style={styles.filterRow}>
           {filters.map(f => (
@@ -158,7 +158,7 @@ export default function AuditLogScreen() {
               </View>
               <View style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Feather name="list" size={16} color="#8b5cf6" />
-                <Text style={[styles.statVal, { color: colors.foreground }]}>{entries.length}</Text>
+                <Text style={[styles.statVal, { color: colors.foreground }]}>{totalCount}</Text>
                 <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Total</Text>
               </View>
             </View>
@@ -167,6 +167,7 @@ export default function AuditLogScreen() {
           renderItem={({ item }) => {
             const action = ACTION_MAP[item.action] || { label: item.action, color: "#64748b", icon: "activity" as const };
             const resource = RESOURCE_MAP[item.resource] || item.resource;
+            const detailsStr = formatDetails(item.details);
             return (
               <View style={[styles.logCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={[styles.logIcon, { backgroundColor: action.color + "18" }]}>
@@ -179,10 +180,10 @@ export default function AuditLogScreen() {
                     </View>
                     <Text style={[styles.resourceBadge, { color: colors.mutedForeground }]}>{resource}</Text>
                   </View>
-                  <Text style={[styles.logEmail, { color: colors.foreground }]}>{item.userEmail}</Text>
-                  {item.details && (
+                  <Text style={[styles.logEmail, { color: colors.foreground }]}>{item.userEmail || "Systeme"}</Text>
+                  {detailsStr && (
                     <Text style={[styles.logDetails, { color: colors.mutedForeground }]} numberOfLines={2}>
-                      {item.details.length > 100 ? item.details.substring(0, 100) + "..." : item.details}
+                      {detailsStr.length > 120 ? detailsStr.substring(0, 120) + "..." : detailsStr}
                     </Text>
                   )}
                 </View>
@@ -201,8 +202,6 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingBottom: 14 },
   headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 },
   headerTitle: { fontSize: 22, fontFamily: "Inter_700Bold", color: "#ffffff" },
-  searchContainer: { flexDirection: "row", alignItems: "center", borderRadius: 10, paddingHorizontal: 12, height: 40, gap: 8, marginBottom: 12 },
-  searchInput: { flex: 1, color: "#ffffff", fontSize: 14, fontFamily: "Inter_400Regular" },
   filterRow: { flexDirection: "row", gap: 6 },
   filterChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
   filterText: { fontSize: 12, fontFamily: "Inter_500Medium" },

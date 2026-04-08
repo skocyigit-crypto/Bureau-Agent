@@ -27,9 +27,9 @@ interface User {
   email: string;
   role: string;
   departement?: string;
-  isActive: boolean;
-  lastLogin?: string;
-  mfaEnabled?: boolean;
+  actif: boolean;
+  dernierAcces?: string;
+  mfaActif?: boolean;
 }
 
 const ROLE_MAP: Record<string, { label: string; color: string }> = {
@@ -75,7 +75,12 @@ export default function UsersScreen() {
       if (res.ok) {
         const data = await res.json();
         const rawUsers = data.users ?? data ?? [];
-        setUsers(rawUsers.map((u: any) => ({ ...u, isActive: u.actif ?? u.isActive ?? true })));
+        setUsers(rawUsers.map((u: any) => ({
+          ...u,
+          actif: u.actif ?? true,
+          dernierAcces: u.dernierAcces || null,
+          mfaActif: u.mfaActif ?? false,
+        })));
       }
     } catch {} finally {
       setLoading(false);
@@ -187,7 +192,7 @@ export default function UsersScreen() {
       await fetchAuth(`${API_BASE}/api/auth/users/${user.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actif: !user.isActive }),
+        body: JSON.stringify({ actif: !user.actif }),
       });
       fetchUsers();
     } catch {}
@@ -236,13 +241,13 @@ export default function UsersScreen() {
                 <View style={styles.userHeader}>
                   <View style={[styles.avatar, { backgroundColor: role.color + "20" }]}>
                     <Text style={[styles.avatarText, { color: role.color }]}>
-                      {(item.prenom[0] + item.nom[0]).toUpperCase()}
+                      {((item.prenom?.[0] || "") + (item.nom?.[0] || "")).toUpperCase()}
                     </Text>
                   </View>
                   <View style={{ flex: 1 }}>
                     <View style={styles.nameRow}>
                       <Text style={[styles.userName, { color: colors.foreground }]}>{item.prenom} {item.nom}</Text>
-                      <View style={[styles.statusIndicator, { backgroundColor: item.isActive ? "#22c55e" : "#ef4444" }]} />
+                      <View style={[styles.statusIndicator, { backgroundColor: item.actif ? "#22c55e" : "#ef4444" }]} />
                     </View>
                     <Text style={[styles.userEmail, { color: colors.mutedForeground }]}>{item.email}</Text>
                     <View style={styles.badgeRow}>
@@ -252,6 +257,11 @@ export default function UsersScreen() {
                       {item.departement && (
                         <View style={[styles.deptBadge, { backgroundColor: colors.muted }]}>
                           <Text style={[styles.deptBadgeText, { color: colors.mutedForeground }]}>{item.departement}</Text>
+                        </View>
+                      )}
+                      {item.mfaActif && (
+                        <View style={[styles.deptBadge, { backgroundColor: "#22c55e18" }]}>
+                          <Text style={[styles.deptBadgeText, { color: "#22c55e" }]}>MFA</Text>
                         </View>
                       )}
                     </View>
@@ -273,9 +283,9 @@ export default function UsersScreen() {
                     )}
                   </Pressable>
                   <Pressable onPress={() => toggleActive(item)} style={styles.userActionBtn}>
-                    <Feather name={item.isActive ? "user-x" : "user-check"} size={14} color={item.isActive ? "#ef4444" : "#22c55e"} />
-                    <Text style={[styles.userActionText, { color: item.isActive ? "#ef4444" : "#22c55e" }]}>
-                      {item.isActive ? "Desactiver" : "Activer"}
+                    <Feather name={item.actif ? "user-x" : "user-check"} size={14} color={item.actif ? "#ef4444" : "#22c55e"} />
+                    <Text style={[styles.userActionText, { color: item.actif ? "#ef4444" : "#22c55e" }]}>
+                      {item.actif ? "Desactiver" : "Activer"}
                     </Text>
                   </Pressable>
                   {currentUser?.role === "super_admin" && item.id !== currentUser.id && (

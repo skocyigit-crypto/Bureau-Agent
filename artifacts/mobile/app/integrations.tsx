@@ -23,22 +23,27 @@ interface Integration {
   name: string;
   description: string;
   category: string;
-  icon?: string;
-  isConnected: boolean;
-  isAvailable: boolean;
-  status?: string;
-  lastSync?: string;
+  status: "connecte" | "deconnecte" | "en_attente";
+  version: string | null;
+  lastSync: string | null;
+  features: string[];
 }
 
-const CATEGORY_MAP: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  crm: { label: "CRM", color: "#3b82f6", icon: "briefcase" },
-  communication: { label: "Communication", color: "#8b5cf6", icon: "message-circle" },
-  productivity: { label: "Productivite", color: "#22c55e", icon: "zap" },
-  project: { label: "Gestion de projet", color: "#f59e0b", icon: "trello" },
-  storage: { label: "Stockage", color: "#ec4899", icon: "hard-drive" },
-  analytics: { label: "Analytique", color: "#6366f1", icon: "bar-chart" },
-  finance: { label: "Finance", color: "#14b8a6", icon: "dollar-sign" },
-  other: { label: "Autre", color: "#64748b", icon: "grid" },
+interface ApiCategory {
+  id: string;
+  label: string;
+}
+
+const CATEGORY_COLORS: Record<string, { color: string; icon: keyof typeof Feather.glyphMap }> = {
+  crm: { color: "#3b82f6", icon: "briefcase" },
+  communication: { color: "#8b5cf6", icon: "message-circle" },
+  gestion_projet: { color: "#f59e0b", icon: "trello" },
+  comptabilite: { color: "#14b8a6", icon: "dollar-sign" },
+  documents: { color: "#ec4899", icon: "file-text" },
+  messagerie: { color: "#6366f1", icon: "mail" },
+  marketing: { color: "#f97316", icon: "target" },
+  automatisation: { color: "#22c55e", icon: "zap" },
+  support: { color: "#ef4444", icon: "headphones" },
 };
 
 export default function IntegrationsScreen() {
@@ -47,6 +52,7 @@ export default function IntegrationsScreen() {
   const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
   const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [categories, setCategories] = useState<ApiCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
@@ -57,7 +63,8 @@ export default function IntegrationsScreen() {
       const res = await fetchAuth(`${API_BASE}/api/integrations/catalog`);
       if (res.ok) {
         const data = await res.json();
-        setIntegrations(data.integrations ?? data.catalog ?? []);
+        setIntegrations(data.integrations ?? []);
+        setCategories(data.categories ?? []);
       }
     } catch {} finally {
       setLoading(false);
@@ -75,36 +82,47 @@ export default function IntegrationsScreen() {
     return matchSearch && matchCategory;
   });
 
-  const connected = integrations.filter(i => i.isConnected).length;
-  const categories = [...new Set(integrations.map(i => i.category))];
+  const connected = integrations.filter(i => i.status === "connecte").length;
 
   const ICON_MAP: Record<string, keyof typeof Feather.glyphMap> = {
     salesforce: "cloud",
     hubspot: "target",
+    pipedrive: "trending-up",
     slack: "message-square",
     teams: "video",
-    google: "mail",
-    microsoft: "monitor",
+    zoom: "video",
     trello: "trello",
     asana: "check-square",
-    jira: "clipboard",
     notion: "book",
+    jira: "clipboard",
+    sage: "database",
+    quickbooks: "credit-card",
+    docusign: "edit-3",
     dropbox: "droplet",
-    drive: "hard-drive",
-    stripe: "credit-card",
-    zoom: "video",
-    discord: "message-circle",
-    github: "github",
-    gitlab: "gitlab",
+    outlook: "mail",
+    mailchimp: "send",
+    sendinblue: "send",
+    brevo: "send",
     zapier: "zap",
+    make: "repeat",
+    intercom: "message-circle",
+    zendesk: "headphones",
+    github: "github",
   };
 
   function getIntegrationIcon(integration: Integration): keyof typeof Feather.glyphMap {
-    const lower = integration.name.toLowerCase();
+    const lower = integration.id.toLowerCase();
+    if (ICON_MAP[lower]) return ICON_MAP[lower];
+    const nameLower = integration.name.toLowerCase();
     for (const [key, icon] of Object.entries(ICON_MAP)) {
-      if (lower.includes(key)) return icon;
+      if (nameLower.includes(key)) return icon;
     }
-    return CATEGORY_MAP[integration.category]?.icon || "grid";
+    return CATEGORY_COLORS[integration.category]?.icon || "grid";
+  }
+
+  function getCategoryLabel(catId: string): string {
+    const cat = categories.find(c => c.id === catId);
+    return cat?.label || catId;
   }
 
   return (
@@ -155,33 +173,43 @@ export default function IntegrationsScreen() {
                 </View>
                 <View style={[styles.stat, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Feather name="layers" size={16} color="#8b5cf6" />
-                  <Text style={[styles.statVal, { color: colors.foreground }]}>{categories.length}</Text>
+                  <Text style={[styles.statVal, { color: colors.foreground }]}>{categories.filter(c => c.id !== "all").length}</Text>
                   <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Categories</Text>
                 </View>
               </View>
-              <ScrollableCategories
-                categories={categories}
-                selected={categoryFilter}
-                onSelect={setCategoryFilter}
-                colors={colors}
-              />
+              <View style={catStyles.container}>
+                {categories.map(cat => {
+                  const catColor = cat.id === "all" ? colors.primary : (CATEGORY_COLORS[cat.id]?.color || "#64748b");
+                  return (
+                    <Pressable
+                      key={cat.id}
+                      onPress={() => setCategoryFilter(cat.id)}
+                      style={[catStyles.chip, { backgroundColor: categoryFilter === cat.id ? catColor + "20" : colors.muted }]}
+                    >
+                      <Text style={[catStyles.chipText, { color: categoryFilter === cat.id ? catColor : colors.mutedForeground }]}>{cat.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </>
           }
-          ListEmptyComponent={<EmptyState icon="grid" title="Aucune integration" subtitle="Aucune integration disponible" />}
+          ListEmptyComponent={<EmptyState icon="grid" title="Aucune integration" subtitle="Aucune integration trouvee" />}
           renderItem={({ item }) => {
-            const catInfo = CATEGORY_MAP[item.category] || CATEGORY_MAP.other;
+            const catColor = CATEGORY_COLORS[item.category]?.color || "#64748b";
             const iconName = getIntegrationIcon(item);
+            const isConnected = item.status === "connecte";
+            const isPending = item.status === "en_attente";
             return (
               <View style={[styles.intCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <View style={[styles.intIcon, { backgroundColor: catInfo.color + "18" }]}>
-                  <Feather name={iconName} size={20} color={catInfo.color} />
+                <View style={[styles.intIcon, { backgroundColor: catColor + "18" }]}>
+                  <Feather name={iconName} size={20} color={catColor} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.intName, { color: colors.foreground }]}>{item.name}</Text>
                   <Text style={[styles.intDesc, { color: colors.mutedForeground }]} numberOfLines={2}>{item.description}</Text>
                   <View style={styles.intMeta}>
-                    <View style={[styles.catBadge, { backgroundColor: catInfo.color + "15" }]}>
-                      <Text style={[styles.catBadgeText, { color: catInfo.color }]}>{catInfo.label}</Text>
+                    <View style={[styles.catBadge, { backgroundColor: catColor + "15" }]}>
+                      <Text style={[styles.catBadgeText, { color: catColor }]}>{getCategoryLabel(item.category)}</Text>
                     </View>
                     {item.lastSync && (
                       <Text style={[styles.syncText, { color: colors.mutedForeground }]}>
@@ -190,10 +218,16 @@ export default function IntegrationsScreen() {
                     )}
                   </View>
                 </View>
-                <View style={[styles.statusBadge, { backgroundColor: item.isConnected ? "#22c55e18" : colors.muted }]}>
-                  <View style={[styles.statusDot, { backgroundColor: item.isConnected ? "#22c55e" : "#94a3b8" }]} />
-                  <Text style={[styles.statusText, { color: item.isConnected ? "#22c55e" : colors.mutedForeground }]}>
-                    {item.isConnected ? "Connecte" : "Disponible"}
+                <View style={[styles.statusBadge, {
+                  backgroundColor: isConnected ? "#22c55e18" : isPending ? "#f59e0b18" : colors.muted,
+                }]}>
+                  <View style={[styles.statusDot, {
+                    backgroundColor: isConnected ? "#22c55e" : isPending ? "#f59e0b" : "#94a3b8",
+                  }]} />
+                  <Text style={[styles.statusText, {
+                    color: isConnected ? "#22c55e" : isPending ? "#f59e0b" : colors.mutedForeground,
+                  }]}>
+                    {isConnected ? "Connecte" : isPending ? "En attente" : "Disponible"}
                   </Text>
                 </View>
               </View>
@@ -201,31 +235,6 @@ export default function IntegrationsScreen() {
           }}
         />
       )}
-    </View>
-  );
-}
-
-function ScrollableCategories({ categories, selected, onSelect, colors }: {
-  categories: string[];
-  selected: string;
-  onSelect: (cat: string) => void;
-  colors: any;
-}) {
-  const allCats = ["all", ...categories];
-  return (
-    <View style={catStyles.container}>
-      {allCats.map(cat => {
-        const info = cat === "all" ? { label: "Toutes", color: colors.primary } : (CATEGORY_MAP[cat] || CATEGORY_MAP.other);
-        return (
-          <Pressable
-            key={cat}
-            onPress={() => onSelect(cat)}
-            style={[catStyles.chip, { backgroundColor: selected === cat ? info.color + "20" : colors.muted }]}
-          >
-            <Text style={[catStyles.chipText, { color: selected === cat ? info.color : colors.mutedForeground }]}>{info.label}</Text>
-          </Pressable>
-        );
-      })}
     </View>
   );
 }
