@@ -152,7 +152,26 @@ export default function MoreScreen() {
           <MenuItem icon="bar-chart-2" label="Analytique" sublabel="Rapports et statistiques" color="#f59e0b" onPress={() => nav("/analytics")} />
           <MenuItem icon="calendar" label="Calendrier" sublabel="Evenements et rendez-vous" color="#ec4899" onPress={() => nav("/calendar")} />
           <MenuItem icon="package" label="Stock" sublabel="Gestion des stocks" color="#6366f1" onPress={() => nav("/stock")} />
+          <MenuItem icon="clock" label="Pointage" sublabel="Gestion de presence" color="#14b8a6" onPress={() => nav("/checkins")} />
         </View>
+
+        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>INTELLIGENCE ARTIFICIELLE</Text>
+          <MenuItem icon="cpu" label="Agents IA" sublabel="Analyse et recommandations" color="#8b5cf6" onPress={() => nav("/ai-agents")} />
+          <MenuItem icon="zap" label="Automations" sublabel="Regles et executions" color="#f97316" onPress={() => nav("/automations")} />
+        </View>
+
+        {(user?.role === "super_admin" || user?.role === "administrateur") ? (
+          <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>ADMINISTRATION</Text>
+            <MenuItem icon="users" label="Utilisateurs" sublabel="Gestion de l'equipe" color="#3b82f6" onPress={() => nav("/users")} />
+            <MenuItem icon="shield" label="Journal d'audit" sublabel="Securite et historique" color="#ef4444" onPress={() => nav("/audit-log")} />
+            <MenuItem icon="grid" label="Integrations" sublabel="Logiciels connectes" color="#22c55e" onPress={() => nav("/integrations")} />
+            {user?.role === "super_admin" ? (
+              <MenuItem icon="home" label="Organisations" sublabel="Gestion des licences" color="#f59e0b" onPress={() => nav("/organisations")} />
+            ) : null}
+          </View>
+        ) : null}
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>COMPTE</Text>

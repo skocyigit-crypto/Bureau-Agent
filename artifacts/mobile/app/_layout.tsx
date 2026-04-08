@@ -33,6 +33,13 @@ function RootLayoutNav() {
       <Stack.Screen name="stock" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="settings" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="analytics" options={{ headerShown: false, presentation: "modal" }} />
+      <Stack.Screen name="ai-agents" options={{ headerShown: false, presentation: "modal" }} />
+      <Stack.Screen name="automations" options={{ headerShown: false, presentation: "modal" }} />
+      <Stack.Screen name="checkins" options={{ headerShown: false, presentation: "modal" }} />
+      <Stack.Screen name="users" options={{ headerShown: false, presentation: "modal" }} />
+      <Stack.Screen name="audit-log" options={{ headerShown: false, presentation: "modal" }} />
+      <Stack.Screen name="integrations" options={{ headerShown: false, presentation: "modal" }} />
+      <Stack.Screen name="organisations" options={{ headerShown: false, presentation: "modal" }} />
     </Stack>
   );
 }
