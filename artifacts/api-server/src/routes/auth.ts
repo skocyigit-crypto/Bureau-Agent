@@ -190,8 +190,8 @@ router.post("/auth/users", async (req: Request, res: Response): Promise<void> =>
   const userRole = (req.session as any)?.userRole;
   const organisationId = (req.session as any)?.organisationId;
 
-  if (userRole !== "super_admin") {
-    res.status(403).json({ error: "Seul le super administrateur peut creer des utilisateurs." });
+  if (userRole !== "super_admin" && userRole !== "administrateur") {
+    res.status(403).json({ error: "Seuls les administrateurs peuvent creer des utilisateurs." });
     return;
   }
 
@@ -250,7 +250,7 @@ router.post("/auth/users", async (req: Request, res: Response): Promise<void> =>
 
 router.patch("/auth/users/:id", async (req: Request, res: Response): Promise<void> => {
   const userRole = (req.session as any)?.userRole;
-  if (userRole !== "super_admin") {
+  if (userRole !== "super_admin" && userRole !== "administrateur") {
     res.status(403).json({ error: "Acces interdit." });
     return;
   }
@@ -294,7 +294,7 @@ router.patch("/auth/users/:id", async (req: Request, res: Response): Promise<voi
 router.delete("/auth/users/:id", async (req: Request, res: Response): Promise<void> => {
   const userId = (req.session as any)?.userId;
   const userRole = (req.session as any)?.userRole;
-  if (userRole !== "super_admin") {
+  if (userRole !== "super_admin" && userRole !== "administrateur") {
     res.status(403).json({ error: "Acces interdit." });
     return;
   }
