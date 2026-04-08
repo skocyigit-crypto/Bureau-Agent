@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import {
   Building2, Plus, Edit, Trash2, Crown, Users, Phone, Mail,
   MapPin, CheckCircle2, XCircle, Loader2, Key, AlertTriangle,
-  Package, Shield, Zap, Brain, Search, RefreshCw, Copy, Check,
+  Package, Shield, Zap, Brain, Search, RefreshCw, Copy, Check, Send,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -217,6 +217,32 @@ export default function OrganisationsPage() {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
+  const [sendingEmail, setSendingEmail] = useState<number | null>(null);
+
+  const resendLicense = async (org: Organisation) => {
+    if (!org.email) {
+      toast({ title: "Erreur", description: "Aucun email associe a cette organisation.", variant: "destructive" });
+      return;
+    }
+    setSendingEmail(org.id);
+    try {
+      const res = await fetch(`${BASE}api/organisations/${org.id}/resend-license`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Email envoye", description: data.message || `Licence envoyee a ${org.email}` });
+      } else {
+        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Erreur lors de l'envoi.", variant: "destructive" });
+    } finally {
+      setSendingEmail(null);
+    }
+  };
+
   const filtered = organisations.filter(o =>
     o.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     o.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -417,7 +443,19 @@ export default function OrganisationsPage() {
 
                 <Separator />
 
-                <div className="flex items-center justify-end gap-2">
+                <div className="flex items-center justify-end gap-2 flex-wrap">
+                  {org.email && org.subscription?.licenseKey && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => resendLicense(org)}
+                      disabled={sendingEmail === org.id}
+                      className="text-amber-600 hover:text-amber-700"
+                    >
+                      {sendingEmail === org.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-1" />}
+                      Envoyer la licence
+                    </Button>
+                  )}
                   <Button variant="outline" size="sm" onClick={() => openPlanChange(org)}>
                     <Shield className="w-3.5 h-3.5 mr-1" />
                     Changer le plan

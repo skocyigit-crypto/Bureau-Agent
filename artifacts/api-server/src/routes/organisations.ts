@@ -3,6 +3,7 @@ import { eq, sql, desc } from "drizzle-orm";
 import { db, organisationsTable, subscriptionsTable, usersTable } from "@workspace/db";
 import { PLANS, type PlanKey } from "@workspace/db/schema";
 import crypto from "crypto";
+import { sendLicenseEmail } from "../services/email";
 
 const router = Router();
 
@@ -129,14 +130,61 @@ router.post("/organisations", async (req: Request, res: Response): Promise<void>
       return { organisation: org, subscription: sub };
     });
 
+    let emailResult = null;
+    if (email) {
+      emailResult = await sendLicenseEmail({
+        to: email,
+        orgName: name.trim(),
+        plan: planConfig.name,
+        licenseKey,
+        trialEndsAt: result.subscription.trialEndsAt ? new Date(result.subscription.trialEndsAt) : null,
+      });
+    }
+
     res.status(201).json({
       message: `Organisation "${name}" creee avec le plan ${planConfig.name}.`,
       ...result,
       licenseKey,
+      emailSent: emailResult ? emailResult.success : false,
+      emailNote: !email ? "Aucun email fourni." : emailResult?.preview || (emailResult?.success ? "Email envoye." : `Erreur: ${emailResult?.error}`),
     });
   } catch (err: any) {
     console.error("Erreur creation organisation:", err);
     res.status(500).json({ error: "Erreur lors de la creation de l'organisation." });
+  }
+});
+
+router.post("/organisations/:id/resend-license", async (req: Request, res: Response): Promise<void> => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+
+  const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, id));
+  if (!org) { res.status(404).json({ error: "Organisation non trouvee." }); return; }
+
+  if (!org.email) {
+    res.status(400).json({ error: "Aucune adresse email associee a cette organisation." });
+    return;
+  }
+
+  const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, id));
+  if (!sub || !sub.licenseKey) {
+    res.status(404).json({ error: "Aucune licence trouvee pour cette organisation." });
+    return;
+  }
+
+  const plan = PLANS[sub.plan as PlanKey];
+  const result = await sendLicenseEmail({
+    to: org.email,
+    orgName: org.name,
+    plan: plan?.name || sub.plan,
+    licenseKey: sub.licenseKey,
+    trialEndsAt: sub.trialEndsAt,
+  });
+
+  if (result.success) {
+    res.json({ message: `Licence renvoyee a ${org.email}.`, preview: result.preview });
+  } else {
+    res.status(500).json({ error: `Erreur d'envoi: ${result.error}` });
   }
 });
 

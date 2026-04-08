@@ -7,6 +7,7 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
 import { WorkspaceUserProvider } from "@/components/workspace-user";
+import { PwaInstallButton } from "@/components/pwa-install";
 
 import { Layout } from "@/components/layout";
 import Dashboard from "@/pages/dashboard";
@@ -131,6 +132,7 @@ function App() {
               </WorkspaceUserProvider>
             )}
           </WouterRouter>
+          <PwaInstallButton />
           <Toaster />
         </TooltipProvider>
       </QueryClientProvider>
