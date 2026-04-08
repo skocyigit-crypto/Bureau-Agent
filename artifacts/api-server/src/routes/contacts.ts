@@ -9,6 +9,7 @@ import {
   UpdateContactBody,
   DeleteContactParams,
 } from "@workspace/api-zod";
+import { getOrgId } from "../middleware/tenant";
 
 const router: IRouter = Router();
 
@@ -27,9 +28,10 @@ router.get("/contacts", async (req, res): Promise<void> => {
     return;
   }
 
+  const orgId = getOrgId(req);
   const { search, category, limit, offset, sortBy, sortOrder } = query.data;
 
-  const conditions = [];
+  const conditions = [eq(contactsTable.organisationId, orgId)];
   if (category && category !== "all") {
     conditions.push(eq(contactsTable.category, category));
   }
@@ -41,11 +43,11 @@ router.get("/contacts", async (req, res): Promise<void> => {
         ilike(contactsTable.company, `%${search}%`),
         ilike(contactsTable.phone, `%${search}%`),
         ilike(contactsTable.email, `%${search}%`)
-      )
+      )!
     );
   }
 
-  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  const whereClause = and(...conditions);
 
   const sortCol = contactSortColumns[sortBy ?? "createdAt"] ?? contactsTable.createdAt;
   const orderFn = sortOrder === "asc" ? asc : desc;
@@ -74,7 +76,8 @@ router.post("/contacts", async (req, res): Promise<void> => {
     return;
   }
 
-  const [contact] = await db.insert(contactsTable).values(parsed.data).returning();
+  const orgId = getOrgId(req);
+  const [contact] = await db.insert(contactsTable).values({ ...parsed.data, organisationId: orgId }).returning();
   res.status(201).json(contact);
 });
 
@@ -85,7 +88,8 @@ router.get("/contacts/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [contact] = await db.select().from(contactsTable).where(eq(contactsTable.id, params.data.id));
+  const orgId = getOrgId(req);
+  const [contact] = await db.select().from(contactsTable).where(and(eq(contactsTable.id, params.data.id), eq(contactsTable.organisationId, orgId)));
   if (!contact) {
     res.status(404).json({ error: "Contact not found" });
     return;
@@ -107,9 +111,10 @@ router.patch("/contacts/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const orgId = getOrgId(req);
   const [contact] = await db.update(contactsTable)
     .set(parsed.data)
-    .where(eq(contactsTable.id, params.data.id))
+    .where(and(eq(contactsTable.id, params.data.id), eq(contactsTable.organisationId, orgId)))
     .returning();
 
   if (!contact) {
@@ -127,7 +132,8 @@ router.delete("/contacts/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [contact] = await db.delete(contactsTable).where(eq(contactsTable.id, params.data.id)).returning();
+  const orgId = getOrgId(req);
+  const [contact] = await db.delete(contactsTable).where(and(eq(contactsTable.id, params.data.id), eq(contactsTable.organisationId, orgId))).returning();
   if (!contact) {
     res.status(404).json({ error: "Contact not found" });
     return;
@@ -147,19 +153,20 @@ router.get("/contacts/:id/calls", async (req, res): Promise<void> => {
     return;
   }
 
+  const orgId = getOrgId(req);
   const limit = parseInt(req.query.limit as string || "20", 10);
 
   const [calls, countResult] = await Promise.all([
     db
       .select()
       .from(callsTable)
-      .where(eq(callsTable.contactId, id))
+      .where(and(eq(callsTable.contactId, id), eq(callsTable.organisationId, orgId)))
       .orderBy(desc(callsTable.createdAt))
       .limit(limit),
     db
       .select({ count: sql<number>`count(*)::int` })
       .from(callsTable)
-      .where(eq(callsTable.contactId, id)),
+      .where(and(eq(callsTable.contactId, id), eq(callsTable.organisationId, orgId))),
   ]);
 
   res.json({ calls, total: countResult[0]?.count ?? 0 });
@@ -173,10 +180,11 @@ router.get("/contacts/:id/tasks", async (req, res): Promise<void> => {
     return;
   }
 
+  const orgId = getOrgId(req);
   const tasks = await db
     .select()
     .from(tasksTable)
-    .where(eq(tasksTable.relatedContactId, id))
+    .where(and(eq(tasksTable.relatedContactId, id), eq(tasksTable.organisationId, orgId)))
     .orderBy(desc(tasksTable.createdAt));
 
   res.json({ tasks });

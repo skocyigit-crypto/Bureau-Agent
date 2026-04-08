@@ -946,7 +946,74 @@ const PLATFORM_NAMES_MAP: Record<string, string> = {
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/workspace";
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState("google");
+  const [activeTab, setActiveTab] = useState("abonnement");
+  const [subscription, setSubscription] = useState<any>(null);
+  const [usage, setUsage] = useState<any>(null);
+  const [plans, setPlans] = useState<any[]>([]);
+  const [subLoading, setSubLoading] = useState(true);
+  const [subError, setSubError] = useState<string | null>(null);
+  const [upgrading, setUpgrading] = useState(false);
+
+  useEffect(() => {
+    const loadSubscription = async () => {
+      try {
+        const BASE = import.meta.env.BASE_URL || "/";
+        const [subRes, usageRes, plansRes] = await Promise.all([
+          fetch(`${BASE}api/subscription`, { credentials: "include" }),
+          fetch(`${BASE}api/subscription/usage`, { credentials: "include" }),
+          fetch(`${BASE}api/subscription/plans`, { credentials: "include" }),
+        ]);
+        if (subRes.ok) {
+          setSubscription(await subRes.json());
+        } else if (subRes.status === 403) {
+          setSubError("Votre compte n'est pas associe a une organisation. Contactez l'administrateur.");
+        } else if (subRes.status === 404) {
+          setSubError("Aucun abonnement configure pour votre organisation.");
+        }
+        if (usageRes.ok) setUsage(await usageRes.json());
+        if (plansRes.ok) {
+          const data = await plansRes.json();
+          setPlans(data.plans || []);
+        }
+      } catch (e) {
+        console.error("Erreur chargement abonnement:", e);
+        setSubError("Impossible de charger les informations d'abonnement. Verifiez votre connexion.");
+      } finally {
+        setSubLoading(false);
+      }
+    };
+    loadSubscription();
+  }, []);
+
+  const handleUpgrade = async (planId: string) => {
+    setUpgrading(true);
+    try {
+      const BASE = import.meta.env.BASE_URL || "/";
+      const res = await fetch(`${BASE}api/subscription/upgrade`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ plan: planId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        toast({ title: "Abonnement mis a jour", description: data.message });
+        const [subRes, usageRes] = await Promise.all([
+          fetch(`${BASE}api/subscription`, { credentials: "include" }),
+          fetch(`${BASE}api/subscription/usage`, { credentials: "include" }),
+        ]);
+        if (subRes.ok) setSubscription(await subRes.json());
+        if (usageRes.ok) setUsage(await usageRes.json());
+      } else {
+        const err = await res.json();
+        toast({ title: "Erreur", description: err.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de mettre a jour l'abonnement.", variant: "destructive" });
+    } finally {
+      setUpgrading(false);
+    }
+  };
   const [callRingDuration, setCallRingDuration] = useState("30");
   const [autoAnswer, setAutoAnswer] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -1297,7 +1364,11 @@ export default function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
+          <TabsTrigger value="abonnement" className="gap-2">
+            <Package className="w-4 h-4" />
+            Abonnement
+          </TabsTrigger>
           <TabsTrigger value="google" className="gap-2">
             <Layers className="w-4 h-4" />
             Plateformes
@@ -1323,6 +1394,192 @@ export default function SettingsPage() {
             Securite
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="abonnement" className="space-y-6 mt-6">
+          {subLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : subError ? (
+            <Card className="border-amber-200 dark:border-amber-800">
+              <CardContent className="flex items-center gap-4 py-8">
+                <AlertTriangle className="w-10 h-10 text-amber-500 shrink-0" />
+                <div>
+                  <h3 className="font-semibold text-lg mb-1">Abonnement indisponible</h3>
+                  <p className="text-muted-foreground">{subError}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {subscription?.subscription && (
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          <Package className="w-5 h-5" />
+                          Plan actuel : {subscription.subscription.planDetails?.name || subscription.subscription.plan}
+                        </CardTitle>
+                        <CardDescription>
+                          {subscription.subscription.isTrialExpired
+                            ? "Votre periode d'essai est terminee. Choisissez un plan pour continuer."
+                            : subscription.subscription.plan === "essai"
+                              ? `Periode d'essai - expire le ${new Date(subscription.subscription.trialEndsAt).toLocaleDateString("fr-FR")}`
+                              : `${subscription.subscription.price} EUR / mois`
+                          }
+                        </CardDescription>
+                      </div>
+                      <Badge variant={subscription.subscription.isTrialExpired ? "destructive" : subscription.subscription.status === "active" ? "default" : "secondary"}>
+                        {subscription.subscription.isTrialExpired ? "Expire" : subscription.subscription.status === "active" ? "Actif" : subscription.subscription.status}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                </Card>
+              )}
+
+              {usage && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Utilisation</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="p-4 rounded-lg border">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">Utilisateurs</span>
+                          <span className="text-sm text-muted-foreground">{usage.users.current} / {usage.users.max}</span>
+                        </div>
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                          <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${Math.min(100, (usage.users.current / usage.users.max) * 100)}%` }} />
+                        </div>
+                      </div>
+                      <div className="p-4 rounded-lg border">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">Contacts</span>
+                          <span className="text-sm text-muted-foreground">{usage.contacts.current} / {usage.contacts.max}</span>
+                        </div>
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                          <div className="bg-emerald-600 h-2 rounded-full" style={{ width: `${Math.min(100, (usage.contacts.current / usage.contacts.max) * 100)}%` }} />
+                        </div>
+                      </div>
+                      <div className="p-4 rounded-lg border">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">Appels ce mois</span>
+                          <span className="text-sm text-muted-foreground">{usage.callsThisMonth.current} / {usage.callsThisMonth.max}</span>
+                        </div>
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                          <div className="bg-amber-600 h-2 rounded-full" style={{ width: `${Math.min(100, (usage.callsThisMonth.current / usage.callsThisMonth.max) * 100)}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      <Badge variant={usage.features.aiEnabled ? "default" : "outline"}>
+                        {usage.features.aiEnabled ? <CheckCircle2 className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
+                        IA
+                      </Badge>
+                      <Badge variant={usage.features.stockEnabled ? "default" : "outline"}>
+                        {usage.features.stockEnabled ? <CheckCircle2 className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
+                        Stock
+                      </Badge>
+                      <Badge variant={usage.features.automationEnabled ? "default" : "outline"}>
+                        {usage.features.automationEnabled ? <CheckCircle2 className="w-3 h-3 mr-1" /> : <XCircle className="w-3 h-3 mr-1" />}
+                        Automatisations
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Plans disponibles</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {plans.map((plan) => {
+                    const isCurrent = subscription?.subscription?.plan === plan.id;
+                    return (
+                      <Card key={plan.id} className={isCurrent ? "border-blue-500 ring-2 ring-blue-200 dark:ring-blue-800" : ""}>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base">{plan.name}</CardTitle>
+                          <div className="text-2xl font-bold">
+                            {plan.price === 0 ? "Gratuit" : `${plan.price} EUR`}
+                            {plan.price > 0 && <span className="text-sm font-normal text-muted-foreground"> / mois</span>}
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-2 text-sm">
+                          <div className="flex items-center gap-2">
+                            <Users className="w-4 h-4 text-muted-foreground" />
+                            {plan.maxUsers} utilisateurs
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Building2 className="w-4 h-4 text-muted-foreground" />
+                            {plan.maxContacts.toLocaleString()} contacts
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <PhoneIncoming className="w-4 h-4 text-muted-foreground" />
+                            {plan.maxCallsPerMonth.toLocaleString()} appels/mois
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {plan.aiEnabled ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <XCircle className="w-4 h-4 text-muted-foreground" />}
+                            Intelligence artificielle
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {plan.stockEnabled ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <XCircle className="w-4 h-4 text-muted-foreground" />}
+                            Gestion de stock
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {plan.automationEnabled ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <XCircle className="w-4 h-4 text-muted-foreground" />}
+                            Automatisations
+                          </div>
+                          <Separator className="my-3" />
+                          <Button
+                            className="w-full"
+                            variant={isCurrent ? "outline" : "default"}
+                            disabled={isCurrent || upgrading}
+                            onClick={() => handleUpgrade(plan.id)}
+                          >
+                            {upgrading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                            {isCurrent ? "Plan actuel" : "Choisir ce plan"}
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {subscription?.organisation && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Building2 className="w-5 h-5" />
+                      Organisation
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Nom :</span>{" "}
+                        <span className="font-medium">{subscription.organisation.name}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Email :</span>{" "}
+                        <span className="font-medium">{subscription.organisation.email || "—"}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Slug :</span>{" "}
+                        <span className="font-mono text-xs">{subscription.organisation.slug}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Utilisateurs max :</span>{" "}
+                        <span className="font-medium">{subscription.organisation.maxUsers}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          )}
+        </TabsContent>
 
         <TabsContent value="google" className="space-y-6 mt-6">
           {totalConnected > 0 && (

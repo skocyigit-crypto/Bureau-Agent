@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middleware/auth";
+import { requireTenant } from "../middleware/tenant";
 import healthRouter from "./health";
 import authRouter from "./auth";
 import callsRouter from "./calls";
@@ -21,12 +22,14 @@ import searchRouter from "./search";
 import exportRouter from "./export";
 import automationsRouter from "./automations";
 import performanceRouter from "./performance";
+import subscriptionsRouter from "./subscriptions";
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
 
 router.use(requireAuth);
+router.use(requireTenant);
 
 router.use(callsRouter);
 router.use(contactsRouter);
@@ -41,6 +44,7 @@ router.use(auditRouter);
 router.use(searchRouter);
 router.use(exportRouter);
 router.use(automationsRouter);
+router.use(subscriptionsRouter);
 router.use("/workspace", workspaceRouter);
 router.use("/workspace", backupsRouter);
 router.use("/integrations", integrationsRouter);

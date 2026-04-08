@@ -11,6 +11,7 @@ import {
   ScanStockBarcodeParams,
   ImportStockPdfBody,
 } from "@workspace/api-zod";
+import { getOrgId } from "../middleware/tenant";
 
 const router: IRouter = Router();
 
@@ -30,9 +31,10 @@ router.get("/stock", async (req, res): Promise<void> => {
     return;
   }
 
+  const orgId = getOrgId(req);
   const { search, category, status, limit, offset, sortBy, sortOrder } = query.data;
 
-  const conditions = [];
+  const conditions: any[] = [eq(stockArticlesTable.organisationId, orgId)];
   if (category && category !== "all") {
     conditions.push(eq(stockArticlesTable.category, category));
   }
@@ -47,11 +49,11 @@ router.get("/stock", async (req, res): Promise<void> => {
         ilike(stockArticlesTable.barcode, `%${search}%`),
         ilike(stockArticlesTable.supplier, `%${search}%`),
         ilike(stockArticlesTable.description, `%${search}%`)
-      )
+      )!
     );
   }
 
-  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  const whereClause = and(...conditions);
   const sortCol = stockSortColumns[sortBy ?? "createdAt"] ?? stockArticlesTable.createdAt;
   const orderFn = sortOrder === "asc" ? asc : desc;
 
@@ -70,10 +72,11 @@ router.post("/stock", async (req, res): Promise<void> => {
     return;
   }
 
+  const orgId = getOrgId(req);
   const VALID_CATEGORIES = ["general", "fourniture", "informatique", "mobilier", "consommable", "papeterie", "hygiene", "alimentaire", "autre"];
   const VALID_UNITS = ["piece", "boite", "carton", "paquet", "litre", "kg", "lot"];
 
-  const insertData = { ...body.data };
+  const insertData: any = { ...body.data, organisationId: orgId };
   if (insertData.category && !VALID_CATEGORIES.includes(insertData.category)) {
     insertData.category = "general";
   }
@@ -90,16 +93,19 @@ router.post("/stock", async (req, res): Promise<void> => {
   res.status(201).json(article);
 });
 
-router.get("/stock/stats", async (_req, res): Promise<void> => {
-  const [totalResult] = await db.select({ count: sql<number>`count(*)::int` }).from(stockArticlesTable);
-  const [valueResult] = await db.select({ total: sql<number>`COALESCE(SUM(quantity * COALESCE(unit_price::numeric, 0)), 0)::float` }).from(stockArticlesTable);
-  const [lowStockResult] = await db.select({ count: sql<number>`count(*)::int` }).from(stockArticlesTable).where(eq(stockArticlesTable.status, "stock_faible"));
-  const [outResult] = await db.select({ count: sql<number>`count(*)::int` }).from(stockArticlesTable).where(eq(stockArticlesTable.status, "rupture"));
+router.get("/stock/stats", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  const orgFilter = eq(stockArticlesTable.organisationId, orgId);
+
+  const [totalResult] = await db.select({ count: sql<number>`count(*)::int` }).from(stockArticlesTable).where(orgFilter);
+  const [valueResult] = await db.select({ total: sql<number>`COALESCE(SUM(quantity * COALESCE(unit_price::numeric, 0)), 0)::float` }).from(stockArticlesTable).where(orgFilter);
+  const [lowStockResult] = await db.select({ count: sql<number>`count(*)::int` }).from(stockArticlesTable).where(and(orgFilter, eq(stockArticlesTable.status, "stock_faible")));
+  const [outResult] = await db.select({ count: sql<number>`count(*)::int` }).from(stockArticlesTable).where(and(orgFilter, eq(stockArticlesTable.status, "rupture")));
 
   const categoryRows = await db.select({
     category: stockArticlesTable.category,
     count: sql<number>`count(*)::int`,
-  }).from(stockArticlesTable).groupBy(stockArticlesTable.category);
+  }).from(stockArticlesTable).where(orgFilter).groupBy(stockArticlesTable.category);
 
   const categoryCounts: Record<string, number> = {};
   for (const row of categoryRows) {
@@ -122,10 +128,14 @@ router.get("/stock/scan/:barcode", async (req, res): Promise<void> => {
     return;
   }
 
+  const orgId = getOrgId(req);
   const [article] = await db.select().from(stockArticlesTable)
-    .where(or(
-      eq(stockArticlesTable.barcode, params.data.barcode),
-      eq(stockArticlesTable.reference, params.data.barcode)
+    .where(and(
+      eq(stockArticlesTable.organisationId, orgId),
+      or(
+        eq(stockArticlesTable.barcode, params.data.barcode),
+        eq(stockArticlesTable.reference, params.data.barcode)
+      )
     ))
     .limit(1);
 
@@ -143,6 +153,8 @@ router.post("/stock/import/pdf", async (req, res): Promise<void> => {
     res.status(400).json({ error: body.error.message });
     return;
   }
+
+  const orgId = getOrgId(req);
 
   try {
     const { ai } = await import("@workspace/integrations-gemini-ai");
@@ -217,6 +229,7 @@ Sois precis et exhaustif. Extrais TOUS les articles du document.`,
           location: item.location || null,
           unit: item.unit || "piece",
           status: (parseInt(item.quantity) || 0) === 0 ? "rupture" : (parseInt(item.quantity) || 0) <= (parseInt(item.minQuantity) || 5) ? "stock_faible" : "en_stock",
+          organisationId: orgId,
         }).returning();
 
         importedArticles.push(article);
@@ -238,7 +251,8 @@ router.get("/stock/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [article] = await db.select().from(stockArticlesTable).where(eq(stockArticlesTable.id, params.data.id)).limit(1);
+  const orgId = getOrgId(req);
+  const [article] = await db.select().from(stockArticlesTable).where(and(eq(stockArticlesTable.id, params.data.id), eq(stockArticlesTable.organisationId, orgId))).limit(1);
   if (!article) {
     res.status(404).json({ error: "Article non trouve" });
     return;
@@ -260,6 +274,7 @@ router.put("/stock/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const orgId = getOrgId(req);
   const updateData = { ...body.data };
   if (updateData.quantity !== undefined) {
     const minQty = updateData.minQuantity;
@@ -268,7 +283,7 @@ router.put("/stock/:id", async (req, res): Promise<void> => {
     } else if (minQty !== undefined && updateData.quantity <= minQty) {
       updateData.status = "stock_faible";
     } else {
-      const [existing] = await db.select().from(stockArticlesTable).where(eq(stockArticlesTable.id, params.data.id)).limit(1);
+      const [existing] = await db.select().from(stockArticlesTable).where(and(eq(stockArticlesTable.id, params.data.id), eq(stockArticlesTable.organisationId, orgId))).limit(1);
       if (existing && updateData.quantity <= existing.minQuantity) {
         updateData.status = "stock_faible";
       } else {
@@ -279,7 +294,7 @@ router.put("/stock/:id", async (req, res): Promise<void> => {
 
   const [article] = await db.update(stockArticlesTable)
     .set(updateData)
-    .where(eq(stockArticlesTable.id, params.data.id))
+    .where(and(eq(stockArticlesTable.id, params.data.id), eq(stockArticlesTable.organisationId, orgId)))
     .returning();
 
   if (!article) {
@@ -297,7 +312,8 @@ router.delete("/stock/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [deleted] = await db.delete(stockArticlesTable).where(eq(stockArticlesTable.id, params.data.id)).returning();
+  const orgId = getOrgId(req);
+  const [deleted] = await db.delete(stockArticlesTable).where(and(eq(stockArticlesTable.id, params.data.id), eq(stockArticlesTable.organisationId, orgId))).returning();
   if (!deleted) {
     res.status(404).json({ error: "Article non trouve" });
     return;

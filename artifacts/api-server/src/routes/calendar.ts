@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { calendarEventsTable, insertCalendarEventSchema, tasksTable } from "@workspace/db/schema";
 import { eq, and, gte, lte } from "drizzle-orm";
 import { logAudit } from "./audit";
+import { getOrgId } from "../middleware/tenant";
 
 const router = Router();
 
@@ -17,9 +18,10 @@ router.get("/calendar/events", async (req: Request, res: Response): Promise<void
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
+  const orgId = getOrgId(req);
   const { start, end, type } = req.query;
 
-  let conditions: any[] = [];
+  let conditions: any[] = [eq(calendarEventsTable.organisationId, orgId)];
   if (start && typeof start === "string") {
     const d = new Date(start);
     if (!isNaN(d.getTime())) conditions.push(gte(calendarEventsTable.startDate, d));
@@ -33,20 +35,19 @@ router.get("/calendar/events", async (req: Request, res: Response): Promise<void
   const events = await db
     .select()
     .from(calendarEventsTable)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .where(and(...conditions))
     .orderBy(calendarEventsTable.startDate);
+
+  const taskConditions: any[] = [eq(tasksTable.organisationId, orgId)];
+  if (start && end) {
+    taskConditions.push(gte(tasksTable.dueDate, new Date(start as string)));
+    taskConditions.push(lte(tasksTable.dueDate, new Date(end as string)));
+  }
 
   const tasks = await db
     .select()
     .from(tasksTable)
-    .where(
-      start && end
-        ? and(
-            gte(tasksTable.dueDate, new Date(start as string)),
-            lte(tasksTable.dueDate, new Date(end as string))
-          )
-        : undefined
-    );
+    .where(taskConditions.length > 1 ? and(...taskConditions) : taskConditions[0]);
 
   const taskEvents = tasks
     .filter(t => t.dueDate)
@@ -70,6 +71,7 @@ router.post("/calendar/events", async (req: Request, res: Response): Promise<voi
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
+  const orgId = getOrgId(req);
   const body = { ...req.body };
   if (body.startDate && typeof body.startDate === "string") body.startDate = new Date(body.startDate);
   if (body.endDate && typeof body.endDate === "string") body.endDate = new Date(body.endDate);
@@ -82,6 +84,7 @@ router.post("/calendar/events", async (req: Request, res: Response): Promise<voi
 
   const [event] = await db.insert(calendarEventsTable).values({
     ...parsed.data,
+    organisationId: orgId,
     createdBy: userId,
   }).returning();
 
@@ -93,6 +96,7 @@ router.patch("/calendar/events/:id", async (req: Request, res: Response): Promis
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
+  const orgId = getOrgId(req);
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
@@ -111,7 +115,7 @@ router.patch("/calendar/events/:id", async (req: Request, res: Response): Promis
   const [updated] = await db
     .update(calendarEventsTable)
     .set(updateData)
-    .where(eq(calendarEventsTable.id, id))
+    .where(and(eq(calendarEventsTable.id, id), eq(calendarEventsTable.organisationId, orgId)))
     .returning();
 
   if (!updated) { res.status(404).json({ error: "Evenement non trouve." }); return; }
@@ -123,10 +127,11 @@ router.delete("/calendar/events/:id", async (req: Request, res: Response): Promi
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
+  const orgId = getOrgId(req);
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
-  await db.delete(calendarEventsTable).where(eq(calendarEventsTable.id, id));
+  await db.delete(calendarEventsTable).where(and(eq(calendarEventsTable.id, id), eq(calendarEventsTable.organisationId, orgId)));
   logAudit(userId, (req.session as any)?.userEmail, "delete", "calendar_event", String(id));
   res.json({ success: true });
 });

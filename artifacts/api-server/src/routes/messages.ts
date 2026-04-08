@@ -9,6 +9,7 @@ import {
   UpdateMessageBody,
   DeleteMessageParams,
 } from "@workspace/api-zod";
+import { getOrgId } from "../middleware/tenant";
 
 const router: IRouter = Router();
 
@@ -25,9 +26,10 @@ router.get("/messages", async (req, res): Promise<void> => {
     return;
   }
 
+  const orgId = getOrgId(req);
   const { read, limit, offset, search, type, priority, sortBy, sortOrder } = query.data;
 
-  const conditions = [];
+  const conditions: any[] = [eq(messagesTable.organisationId, orgId)];
   if (read !== undefined) {
     conditions.push(eq(messagesTable.isRead, read));
   }
@@ -43,11 +45,11 @@ router.get("/messages", async (req, res): Promise<void> => {
         ilike(messagesTable.content, `%${search}%`),
         ilike(messagesTable.contactName, `%${search}%`),
         ilike(messagesTable.phoneNumber, `%${search}%`)
-      )
+      )!
     );
   }
 
-  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  const whereClause = and(...conditions);
 
   const sortCol = messageSortColumns[sortBy ?? "createdAt"] ?? messagesTable.createdAt;
   const orderFn = sortOrder === "asc" ? asc : desc;
@@ -76,7 +78,8 @@ router.post("/messages", async (req, res): Promise<void> => {
     return;
   }
 
-  const [message] = await db.insert(messagesTable).values(parsed.data).returning();
+  const orgId = getOrgId(req);
+  const [message] = await db.insert(messagesTable).values({ ...parsed.data, organisationId: orgId }).returning();
   res.status(201).json(message);
 });
 
@@ -87,7 +90,8 @@ router.get("/messages/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [message] = await db.select().from(messagesTable).where(eq(messagesTable.id, params.data.id));
+  const orgId = getOrgId(req);
+  const [message] = await db.select().from(messagesTable).where(and(eq(messagesTable.id, params.data.id), eq(messagesTable.organisationId, orgId)));
   if (!message) {
     res.status(404).json({ error: "Message not found" });
     return;
@@ -109,9 +113,10 @@ router.patch("/messages/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const orgId = getOrgId(req);
   const [message] = await db.update(messagesTable)
     .set(parsed.data)
-    .where(eq(messagesTable.id, params.data.id))
+    .where(and(eq(messagesTable.id, params.data.id), eq(messagesTable.organisationId, orgId)))
     .returning();
 
   if (!message) {
@@ -129,7 +134,8 @@ router.delete("/messages/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [message] = await db.delete(messagesTable).where(eq(messagesTable.id, params.data.id)).returning();
+  const orgId = getOrgId(req);
+  const [message] = await db.delete(messagesTable).where(and(eq(messagesTable.id, params.data.id), eq(messagesTable.organisationId, orgId))).returning();
   if (!message) {
     res.status(404).json({ error: "Message not found" });
     return;

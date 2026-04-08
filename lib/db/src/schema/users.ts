@@ -1,4 +1,5 @@
-import { pgTable, serial, varchar, text, timestamp, boolean, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, text, timestamp, boolean, integer, index } from "drizzle-orm/pg-core";
+import { organisationsTable } from "./organisations";
 
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -9,6 +10,7 @@ export const usersTable = pgTable("users", {
   role: varchar("role", { length: 30 }).notNull().default("agent"),
   departement: varchar("departement", { length: 100 }),
   organisation: varchar("organisation", { length: 200 }).default("Agent de Bureau SAS"),
+  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "set null" }),
   telephone: varchar("telephone", { length: 30 }),
   avatar: varchar("avatar", { length: 10 }),
   actif: boolean("actif").notNull().default(true),
@@ -18,4 +20,6 @@ export const usersTable = pgTable("users", {
   verrouilleJusqua: timestamp("verrouille_jusqua"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("users_organisation_id_idx").on(table.organisationId),
+]);

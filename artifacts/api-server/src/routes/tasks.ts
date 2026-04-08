@@ -9,6 +9,7 @@ import {
   UpdateTaskBody,
   DeleteTaskParams,
 } from "@workspace/api-zod";
+import { getOrgId } from "../middleware/tenant";
 
 const router: IRouter = Router();
 
@@ -27,9 +28,10 @@ router.get("/tasks", async (req, res): Promise<void> => {
     return;
   }
 
+  const orgId = getOrgId(req);
   const { status, priority, limit, offset, search, sortBy, sortOrder } = query.data;
 
-  const conditions = [];
+  const conditions: any[] = [eq(tasksTable.organisationId, orgId)];
   if (status && status !== "all") {
     conditions.push(eq(tasksTable.status, status));
   }
@@ -42,11 +44,11 @@ router.get("/tasks", async (req, res): Promise<void> => {
         ilike(tasksTable.title, `%${search}%`),
         ilike(tasksTable.description, `%${search}%`),
         ilike(tasksTable.assignedTo, `%${search}%`)
-      )
+      )!
     );
   }
 
-  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  const whereClause = and(...conditions);
 
   const sortCol = taskSortColumns[sortBy ?? "createdAt"] ?? tasksTable.createdAt;
   const orderFn = sortOrder === "asc" ? asc : desc;
@@ -75,7 +77,8 @@ router.post("/tasks", async (req, res): Promise<void> => {
     return;
   }
 
-  const [task] = await db.insert(tasksTable).values(parsed.data).returning();
+  const orgId = getOrgId(req);
+  const [task] = await db.insert(tasksTable).values({ ...parsed.data, organisationId: orgId }).returning();
   res.status(201).json(task);
 });
 
@@ -86,7 +89,8 @@ router.get("/tasks/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [task] = await db.select().from(tasksTable).where(eq(tasksTable.id, params.data.id));
+  const orgId = getOrgId(req);
+  const [task] = await db.select().from(tasksTable).where(and(eq(tasksTable.id, params.data.id), eq(tasksTable.organisationId, orgId)));
   if (!task) {
     res.status(404).json({ error: "Task not found" });
     return;
@@ -108,9 +112,10 @@ router.patch("/tasks/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const orgId = getOrgId(req);
   const [task] = await db.update(tasksTable)
     .set(parsed.data)
-    .where(eq(tasksTable.id, params.data.id))
+    .where(and(eq(tasksTable.id, params.data.id), eq(tasksTable.organisationId, orgId)))
     .returning();
 
   if (!task) {
@@ -128,7 +133,8 @@ router.delete("/tasks/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [task] = await db.delete(tasksTable).where(eq(tasksTable.id, params.data.id)).returning();
+  const orgId = getOrgId(req);
+  const [task] = await db.delete(tasksTable).where(and(eq(tasksTable.id, params.data.id), eq(tasksTable.organisationId, orgId))).returning();
   if (!task) {
     res.status(404).json({ error: "Task not found" });
     return;

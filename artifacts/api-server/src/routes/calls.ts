@@ -11,6 +11,7 @@ import {
 } from "@workspace/api-zod";
 import { processCallWithAI } from "../services/call-processor";
 import { logAudit } from "./audit";
+import { getOrgId } from "../middleware/tenant";
 
 const router: IRouter = Router();
 
@@ -28,9 +29,10 @@ router.get("/calls", async (req, res): Promise<void> => {
     return;
   }
 
+  const orgId = getOrgId(req);
   const { status, limit, offset, search, sortBy, sortOrder, dateFrom, dateTo, direction } = query.data;
 
-  const conditions = [];
+  const conditions: any[] = [eq(callsTable.organisationId, orgId)];
   if (status && status !== "all") {
     if (status === "answered") conditions.push(eq(callsTable.status, "repondu"));
     else if (status === "missed") conditions.push(eq(callsTable.status, "manque"));
@@ -47,7 +49,7 @@ router.get("/calls", async (req, res): Promise<void> => {
         ilike(callsTable.phoneNumber, `%${search}%`),
         ilike(callsTable.contactName, `%${search}%`),
         ilike(callsTable.notes, `%${search}%`)
-      )
+      )!
     );
   }
   if (dateFrom) {
@@ -57,7 +59,7 @@ router.get("/calls", async (req, res): Promise<void> => {
     conditions.push(lte(callsTable.createdAt, new Date(dateTo)));
   }
 
-  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  const whereClause = and(...conditions);
 
   const sortCol = callSortColumns[sortBy ?? "createdAt"] ?? callsTable.createdAt;
   const orderFn = sortOrder === "asc" ? asc : desc;
@@ -86,10 +88,11 @@ router.post("/calls", async (req, res): Promise<void> => {
     return;
   }
 
+  const orgId = getOrgId(req);
   const data = parsed.data;
 
   if (data.contactId) {
-    const [contact] = await db.select().from(contactsTable).where(eq(contactsTable.id, data.contactId));
+    const [contact] = await db.select().from(contactsTable).where(and(eq(contactsTable.id, data.contactId), eq(contactsTable.organisationId, orgId)));
     if (contact) {
       await db.update(contactsTable)
         .set({
@@ -103,6 +106,7 @@ router.post("/calls", async (req, res): Promise<void> => {
   const [call] = await db.insert(callsTable).values({
     ...data,
     tags: data.tags ?? [],
+    organisationId: orgId,
   }).returning();
 
   logAudit((req.session as any)?.userId, (req.session as any)?.userEmail, "create", "call", String(call.id), { contactName: call.contactName, direction: call.direction });
@@ -144,7 +148,8 @@ router.get("/calls/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [call] = await db.select().from(callsTable).where(eq(callsTable.id, params.data.id));
+  const orgId = getOrgId(req);
+  const [call] = await db.select().from(callsTable).where(and(eq(callsTable.id, params.data.id), eq(callsTable.organisationId, orgId)));
   if (!call) {
     res.status(404).json({ error: "Call not found" });
     return;
@@ -166,9 +171,10 @@ router.patch("/calls/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const orgId = getOrgId(req);
   const [call] = await db.update(callsTable)
     .set(parsed.data)
-    .where(eq(callsTable.id, params.data.id))
+    .where(and(eq(callsTable.id, params.data.id), eq(callsTable.organisationId, orgId)))
     .returning();
 
   if (!call) {
@@ -186,7 +192,8 @@ router.delete("/calls/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [call] = await db.delete(callsTable).where(eq(callsTable.id, params.data.id)).returning();
+  const orgId = getOrgId(req);
+  const [call] = await db.delete(callsTable).where(and(eq(callsTable.id, params.data.id), eq(callsTable.organisationId, orgId))).returning();
   if (!call) {
     res.status(404).json({ error: "Call not found" });
     return;

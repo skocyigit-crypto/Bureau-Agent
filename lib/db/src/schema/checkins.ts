@@ -1,9 +1,11 @@
-import { pgTable, serial, text, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { organisationsTable } from "./organisations";
 
 export const checkinsTable = pgTable("checkins", {
   id: serial("id").primaryKey(),
+  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
   employeeName: text("employee_name").notNull(),
   employeeRole: text("employee_role"),
   type: text("type").notNull(),
@@ -17,7 +19,9 @@ export const checkinsTable = pgTable("checkins", {
   totalMinutes: integer("total_minutes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (table) => [
+  index("checkins_org_id_idx").on(table.organisationId),
+]);
 
 export const insertCheckinSchema = createInsertSchema(checkinsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertCheckin = z.infer<typeof insertCheckinSchema>;

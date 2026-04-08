@@ -16,7 +16,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   fetchAuth: (url: string, options?: RequestInit) => Promise<Response>;
 }
@@ -31,7 +31,6 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
-const AUTO_LOGIN_EMAIL = "admin@agentdebureau.fr";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -75,18 +74,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function login(email: string, password?: string) {
+  async function login(email: string, password: string) {
     try {
-      const isAutoLogin = email.toLowerCase().trim() === AUTO_LOGIN_EMAIL;
-      const body: Record<string, string> = { email: email.trim() };
-      if (!isAutoLogin && password) {
-        body.password = password;
-      }
-
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
 
       if (!res.ok) {

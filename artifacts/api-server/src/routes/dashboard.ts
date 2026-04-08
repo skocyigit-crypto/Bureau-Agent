@@ -6,6 +6,7 @@ import {
   GetRecentActivityQueryParams,
   GetTopContactsQueryParams,
 } from "@workspace/api-zod";
+import { getOrgId } from "../middleware/tenant";
 
 const router: IRouter = Router();
 
@@ -44,10 +45,16 @@ function getPreviousWeekStart(): Date {
   return d;
 }
 
-router.get("/dashboard/summary", async (_req, res): Promise<void> => {
+router.get("/dashboard/summary", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
   const todayStart = getStartOfDay();
   const weekStart = getStartOfWeek();
   const prevWeekStart = getPreviousWeekStart();
+
+  const oc = eq(callsTable.organisationId, orgId);
+  const oContact = eq(contactsTable.organisationId, orgId);
+  const oTask = eq(tasksTable.organisationId, orgId);
+  const oMsg = eq(messagesTable.organisationId, orgId);
 
   const safeQuery = <T>(promise: Promise<T>, fallback: T): Promise<T> =>
     promise.catch(() => fallback);
@@ -66,15 +73,15 @@ router.get("/dashboard/summary", async (_req, res): Promise<void> => {
     callsThisWeek,
     callsLastWeek,
   ] = await Promise.all([
-    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(gte(callsTable.createdAt, todayStart)), defaultCount),
-    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(gte(callsTable.createdAt, todayStart), eq(callsTable.status, "repondu"))), defaultCount),
-    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(gte(callsTable.createdAt, todayStart), eq(callsTable.status, "manque"))), defaultCount),
-    safeQuery(db.select({ avg: sql<number>`coalesce(avg(${callsTable.duration}), 0)::float` }).from(callsTable), defaultAvg),
-    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(contactsTable), defaultCount),
-    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(tasksTable).where(eq(tasksTable.status, "en_attente")), defaultCount),
-    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(messagesTable).where(eq(messagesTable.isRead, false)), defaultCount),
-    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(gte(callsTable.createdAt, weekStart)), defaultCount),
-    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(gte(callsTable.createdAt, prevWeekStart), sql`${callsTable.createdAt} < ${weekStart}`)), defaultCount),
+    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, todayStart))), defaultCount),
+    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, todayStart), eq(callsTable.status, "repondu"))), defaultCount),
+    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, todayStart), eq(callsTable.status, "manque"))), defaultCount),
+    safeQuery(db.select({ avg: sql<number>`coalesce(avg(${callsTable.duration}), 0)::float` }).from(callsTable).where(oc), defaultAvg),
+    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(contactsTable).where(oContact), defaultCount),
+    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(tasksTable).where(and(oTask, eq(tasksTable.status, "en_attente"))), defaultCount),
+    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(messagesTable).where(and(oMsg, eq(messagesTable.isRead, false))), defaultCount),
+    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, weekStart))), defaultCount),
+    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, prevWeekStart), sql`${callsTable.createdAt} < ${weekStart}`)), defaultCount),
   ]);
 
   const thisWeekCount = callsThisWeek[0]?.count ?? 0;
@@ -101,10 +108,11 @@ router.get("/dashboard/call-analytics", async (req, res): Promise<void> => {
     return;
   }
 
+  const orgId = getOrgId(req);
+  const oc = eq(callsTable.organisationId, orgId);
   const period = query.data.period ?? "week";
 
   let startDate: Date;
-
   let groupExpr: ReturnType<typeof sql>;
   switch (period) {
     case "today":
@@ -137,7 +145,7 @@ router.get("/dashboard/call-analytics", async (req, res): Promise<void> => {
       avgDuration: sql<number>`coalesce(avg(${callsTable.duration}), 0)::float`,
     })
     .from(callsTable)
-    .where(gte(callsTable.createdAt, startDate))
+    .where(and(oc, gte(callsTable.createdAt, startDate)))
     .groupBy(groupExpr)
     .orderBy(sql`min(${callsTable.createdAt})`);
 
@@ -149,7 +157,7 @@ router.get("/dashboard/call-analytics", async (req, res): Promise<void> => {
       total: sql<number>`count(*)::int`,
     })
     .from(callsTable)
-    .where(gte(callsTable.createdAt, startDate));
+    .where(and(oc, gte(callsTable.createdAt, startDate)));
 
   const total = totals[0]?.total ?? 0;
   const totalAnswered = totals[0]?.totalAnswered ?? 0;
@@ -171,12 +179,13 @@ router.get("/dashboard/recent-activity", async (req, res): Promise<void> => {
     return;
   }
 
+  const orgId = getOrgId(req);
   const limit = query.data.limit ?? 20;
 
   const [recentCalls, recentTasks, recentMessages] = await Promise.all([
-    db.select().from(callsTable).orderBy(desc(callsTable.createdAt)).limit(limit),
-    db.select().from(tasksTable).orderBy(desc(tasksTable.createdAt)).limit(limit),
-    db.select().from(messagesTable).orderBy(desc(messagesTable.createdAt)).limit(limit),
+    db.select().from(callsTable).where(eq(callsTable.organisationId, orgId)).orderBy(desc(callsTable.createdAt)).limit(limit),
+    db.select().from(tasksTable).where(eq(tasksTable.organisationId, orgId)).orderBy(desc(tasksTable.createdAt)).limit(limit),
+    db.select().from(messagesTable).where(eq(messagesTable.organisationId, orgId)).orderBy(desc(messagesTable.createdAt)).limit(limit),
   ]);
 
   const activities = [
@@ -208,48 +217,36 @@ router.get("/dashboard/recent-activity", async (req, res): Promise<void> => {
   res.json({ activities: activities.slice(0, limit) });
 });
 
-router.get("/dashboard/call-distribution", async (_req, res): Promise<void> => {
-  const total = await db.select({ count: sql<number>`count(*)::int` }).from(callsTable);
+router.get("/dashboard/call-distribution", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  const oc = eq(callsTable.organisationId, orgId);
+
+  const total = await db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(oc);
   const totalCount = total[0]?.count ?? 0;
 
   const byStatus = await db
-    .select({
-      status: callsTable.status,
-      count: sql<number>`count(*)::int`,
-    })
-    .from(callsTable)
-    .groupBy(callsTable.status);
+    .select({ status: callsTable.status, count: sql<number>`count(*)::int` })
+    .from(callsTable).where(oc).groupBy(callsTable.status);
 
   const byDirection = await db
-    .select({
-      direction: callsTable.direction,
-      count: sql<number>`count(*)::int`,
-    })
-    .from(callsTable)
-    .groupBy(callsTable.direction);
+    .select({ direction: callsTable.direction, count: sql<number>`count(*)::int` })
+    .from(callsTable).where(oc).groupBy(callsTable.direction);
 
   const bySentiment = await db
-    .select({
-      sentiment: sql<string>`coalesce(${callsTable.sentiment}, 'inconnu')`,
-      count: sql<number>`count(*)::int`,
-    })
-    .from(callsTable)
-    .groupBy(sql`coalesce(${callsTable.sentiment}, 'inconnu')`);
+    .select({ sentiment: sql<string>`coalesce(${callsTable.sentiment}, 'inconnu')`, count: sql<number>`count(*)::int` })
+    .from(callsTable).where(oc).groupBy(sql`coalesce(${callsTable.sentiment}, 'inconnu')`);
 
   res.json({
     byStatus: byStatus.map((s) => ({
-      status: s.status,
-      count: s.count,
+      status: s.status, count: s.count,
       percentage: totalCount > 0 ? Math.round((s.count / totalCount) * 1000) / 10 : 0,
     })),
     byDirection: byDirection.map((d) => ({
-      direction: d.direction,
-      count: d.count,
+      direction: d.direction, count: d.count,
       percentage: totalCount > 0 ? Math.round((d.count / totalCount) * 1000) / 10 : 0,
     })),
     bySentiment: bySentiment.map((s) => ({
-      sentiment: s.sentiment,
-      count: s.count,
+      sentiment: s.sentiment, count: s.count,
       percentage: totalCount > 0 ? Math.round((s.count / totalCount) * 1000) / 10 : 0,
     })),
   });
@@ -262,6 +259,7 @@ router.get("/dashboard/top-contacts", async (req, res): Promise<void> => {
     return;
   }
 
+  const orgId = getOrgId(req);
   const limit = query.data.limit ?? 5;
 
   const contacts = await db
@@ -274,13 +272,17 @@ router.get("/dashboard/top-contacts", async (req, res): Promise<void> => {
       lastCallAt: contactsTable.lastCallAt,
     })
     .from(contactsTable)
+    .where(eq(contactsTable.organisationId, orgId))
     .orderBy(desc(contactsTable.totalCalls))
     .limit(limit);
 
   res.json({ contacts });
 });
 
-router.get("/dashboard/hourly-performance", async (_req, res): Promise<void> => {
+router.get("/dashboard/hourly-performance", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  const oc = eq(callsTable.organisationId, orgId);
+
   const hours = [];
   for (let h = 0; h < 24; h++) {
     const result = await db
@@ -290,7 +292,7 @@ router.get("/dashboard/hourly-performance", async (_req, res): Promise<void> => 
         missed: sql<number>`count(*) filter (where ${callsTable.status} = 'manque')::int`,
       })
       .from(callsTable)
-      .where(sql`extract(hour from ${callsTable.createdAt}) = ${h}`);
+      .where(and(oc, sql`extract(hour from ${callsTable.createdAt}) = ${h}`));
 
     hours.push({
       hour: h,
@@ -303,26 +305,24 @@ router.get("/dashboard/hourly-performance", async (_req, res): Promise<void> => 
   res.json({ hours });
 });
 
-router.get("/dashboard/task-stats", async (_req, res): Promise<void> => {
+router.get("/dashboard/task-stats", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  const ot = eq(tasksTable.organisationId, orgId);
   const now = new Date();
 
   const [total, completed, inProgress, pending, cancelled, overdue, highPriority, byPriority] = await Promise.all([
-    db.select({ count: sql<number>`count(*)::int` }).from(tasksTable),
-    db.select({ count: sql<number>`count(*)::int` }).from(tasksTable).where(eq(tasksTable.status, "termine")),
-    db.select({ count: sql<number>`count(*)::int` }).from(tasksTable).where(eq(tasksTable.status, "en_cours")),
-    db.select({ count: sql<number>`count(*)::int` }).from(tasksTable).where(eq(tasksTable.status, "en_attente")),
-    db.select({ count: sql<number>`count(*)::int` }).from(tasksTable).where(eq(tasksTable.status, "annule")),
+    db.select({ count: sql<number>`count(*)::int` }).from(tasksTable).where(ot),
+    db.select({ count: sql<number>`count(*)::int` }).from(tasksTable).where(and(ot, eq(tasksTable.status, "termine"))),
+    db.select({ count: sql<number>`count(*)::int` }).from(tasksTable).where(and(ot, eq(tasksTable.status, "en_cours"))),
+    db.select({ count: sql<number>`count(*)::int` }).from(tasksTable).where(and(ot, eq(tasksTable.status, "en_attente"))),
+    db.select({ count: sql<number>`count(*)::int` }).from(tasksTable).where(and(ot, eq(tasksTable.status, "annule"))),
     db.select({ count: sql<number>`count(*)::int` }).from(tasksTable).where(
-      and(
-        sql`${tasksTable.status} != 'termine'`,
-        sql`${tasksTable.status} != 'annule'`,
-        sql`${tasksTable.dueDate} < ${now}`
-      )
+      and(ot, sql`${tasksTable.status} != 'termine'`, sql`${tasksTable.status} != 'annule'`, sql`${tasksTable.dueDate} < ${now}`)
     ),
     db.select({ count: sql<number>`count(*)::int` }).from(tasksTable).where(
-      and(eq(tasksTable.priority, "haute"), sql`${tasksTable.status} != 'termine'`, sql`${tasksTable.status} != 'annule'`)
+      and(ot, eq(tasksTable.priority, "haute"), sql`${tasksTable.status} != 'termine'`, sql`${tasksTable.status} != 'annule'`)
     ),
-    db.select({ priority: tasksTable.priority, count: sql<number>`count(*)::int` }).from(tasksTable).groupBy(tasksTable.priority),
+    db.select({ priority: tasksTable.priority, count: sql<number>`count(*)::int` }).from(tasksTable).where(ot).groupBy(tasksTable.priority),
   ]);
 
   const totalCount = total[0]?.count ?? 0;
@@ -341,37 +341,35 @@ router.get("/dashboard/task-stats", async (_req, res): Promise<void> => {
   });
 });
 
-router.get("/dashboard/weekly-report", async (_req, res): Promise<void> => {
+router.get("/dashboard/weekly-report", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
   const weekStart = getStartOfWeek();
   const prevWeekStart = getPreviousWeekStart();
   const prevWeekEnd = weekStart;
 
+  const oc = eq(callsTable.organisationId, orgId);
+  const oContact = eq(contactsTable.organisationId, orgId);
+  const oTask = eq(tasksTable.organisationId, orgId);
+  const oMsg = eq(messagesTable.organisationId, orgId);
+
   const [
-    thisWeekCalls,
-    thisWeekAnswered,
-    thisWeekMissed,
-    thisWeekDuration,
-    prevWeekCalls,
-    prevWeekAnswered,
-    prevWeekDuration,
-    newContacts,
-    completedTasks,
-    messagesReceived,
-    peakHourResult,
-    peakDayResult,
+    thisWeekCalls, thisWeekAnswered, thisWeekMissed, thisWeekDuration,
+    prevWeekCalls, prevWeekAnswered, prevWeekDuration,
+    newContacts, completedTasks, messagesReceived,
+    peakHourResult, peakDayResult,
   ] = await Promise.all([
-    db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(gte(callsTable.createdAt, weekStart)),
-    db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(gte(callsTable.createdAt, weekStart), eq(callsTable.status, "repondu"))),
-    db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(gte(callsTable.createdAt, weekStart), eq(callsTable.status, "manque"))),
-    db.select({ avg: sql<number>`coalesce(avg(${callsTable.duration}), 0)::float` }).from(callsTable).where(gte(callsTable.createdAt, weekStart)),
-    db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(gte(callsTable.createdAt, prevWeekStart), sql`${callsTable.createdAt} < ${prevWeekEnd}`)),
-    db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(gte(callsTable.createdAt, prevWeekStart), sql`${callsTable.createdAt} < ${prevWeekEnd}`, eq(callsTable.status, "repondu"))),
-    db.select({ avg: sql<number>`coalesce(avg(${callsTable.duration}), 0)::float` }).from(callsTable).where(and(gte(callsTable.createdAt, prevWeekStart), sql`${callsTable.createdAt} < ${prevWeekEnd}`)),
-    db.select({ count: sql<number>`count(*)::int` }).from(contactsTable).where(gte(contactsTable.createdAt, weekStart)),
-    db.select({ count: sql<number>`count(*)::int` }).from(tasksTable).where(and(gte(tasksTable.updatedAt, weekStart), eq(tasksTable.status, "termine"))),
-    db.select({ count: sql<number>`count(*)::int` }).from(messagesTable).where(gte(messagesTable.createdAt, weekStart)),
-    db.select({ hour: sql<number>`extract(hour from ${callsTable.createdAt})::int`, count: sql<number>`count(*)::int` }).from(callsTable).where(gte(callsTable.createdAt, weekStart)).groupBy(sql`extract(hour from ${callsTable.createdAt})`).orderBy(sql`count(*) desc`).limit(1),
-    db.select({ day: sql<string>`to_char(${callsTable.createdAt}, 'Dy')`, count: sql<number>`count(*)::int` }).from(callsTable).where(gte(callsTable.createdAt, weekStart)).groupBy(sql`to_char(${callsTable.createdAt}, 'Dy')`).orderBy(sql`count(*) desc`).limit(1),
+    db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, weekStart))),
+    db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, weekStart), eq(callsTable.status, "repondu"))),
+    db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, weekStart), eq(callsTable.status, "manque"))),
+    db.select({ avg: sql<number>`coalesce(avg(${callsTable.duration}), 0)::float` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, weekStart))),
+    db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, prevWeekStart), sql`${callsTable.createdAt} < ${prevWeekEnd}`)),
+    db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, prevWeekStart), sql`${callsTable.createdAt} < ${prevWeekEnd}`, eq(callsTable.status, "repondu"))),
+    db.select({ avg: sql<number>`coalesce(avg(${callsTable.duration}), 0)::float` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, prevWeekStart), sql`${callsTable.createdAt} < ${prevWeekEnd}`)),
+    db.select({ count: sql<number>`count(*)::int` }).from(contactsTable).where(and(oContact, gte(contactsTable.createdAt, weekStart))),
+    db.select({ count: sql<number>`count(*)::int` }).from(tasksTable).where(and(oTask, gte(tasksTable.updatedAt, weekStart), eq(tasksTable.status, "termine"))),
+    db.select({ count: sql<number>`count(*)::int` }).from(messagesTable).where(and(oMsg, gte(messagesTable.createdAt, weekStart))),
+    db.select({ hour: sql<number>`extract(hour from ${callsTable.createdAt})::int`, count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, weekStart))).groupBy(sql`extract(hour from ${callsTable.createdAt})`).orderBy(sql`count(*) desc`).limit(1),
+    db.select({ day: sql<string>`to_char(${callsTable.createdAt}, 'Dy')`, count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, weekStart))).groupBy(sql`to_char(${callsTable.createdAt}, 'Dy')`).orderBy(sql`count(*) desc`).limit(1),
   ]);
 
   const twc = thisWeekCalls[0]?.count ?? 0;
@@ -406,7 +404,8 @@ router.get("/dashboard/weekly-report", async (_req, res): Promise<void> => {
   });
 });
 
-router.get("/dashboard/notifications", async (_req, res): Promise<void> => {
+router.get("/dashboard/notifications", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
   const notifications: Array<{
     id: number;
     type: string;
@@ -420,7 +419,7 @@ router.get("/dashboard/notifications", async (_req, res): Promise<void> => {
   let notifId = 1;
 
   const missedCalls = await db.select().from(callsTable)
-    .where(eq(callsTable.status, "manque"))
+    .where(and(eq(callsTable.organisationId, orgId), eq(callsTable.status, "manque")))
     .orderBy(desc(callsTable.createdAt))
     .limit(5);
 
@@ -437,7 +436,7 @@ router.get("/dashboard/notifications", async (_req, res): Promise<void> => {
   }
 
   const unreadMessages = await db.select().from(messagesTable)
-    .where(eq(messagesTable.isRead, false))
+    .where(and(eq(messagesTable.organisationId, orgId), eq(messagesTable.isRead, false)))
     .orderBy(desc(messagesTable.createdAt))
     .limit(5);
 
@@ -454,7 +453,7 @@ router.get("/dashboard/notifications", async (_req, res): Promise<void> => {
   }
 
   const urgentTasks = await db.select().from(tasksTable)
-    .where(and(eq(tasksTable.priority, "haute"), eq(tasksTable.status, "en_attente")))
+    .where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.priority, "haute"), eq(tasksTable.status, "en_attente")))
     .orderBy(desc(tasksTable.createdAt))
     .limit(5);
 

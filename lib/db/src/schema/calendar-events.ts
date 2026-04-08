@@ -1,9 +1,11 @@
 import { pgTable, serial, integer, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { organisationsTable } from "./organisations";
 
 export const calendarEventsTable = pgTable("calendar_events", {
   id: serial("id").primaryKey(),
+  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   description: text("description"),
   type: text("type").notNull().default("rendez_vous"),
@@ -31,6 +33,7 @@ export const calendarEventsTable = pgTable("calendar_events", {
   index("cal_events_end_date_idx").on(table.endDate),
   index("cal_events_related_contact_idx").on(table.relatedContactId),
   index("cal_events_type_idx").on(table.type),
+  index("cal_events_org_id_idx").on(table.organisationId),
 ]);
 
 export const insertCalendarEventSchema = createInsertSchema(calendarEventsTable).omit({ id: true, createdAt: true, updatedAt: true });

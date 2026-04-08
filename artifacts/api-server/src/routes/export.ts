@@ -1,8 +1,9 @@
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { contactsTable, callsTable, tasksTable, messagesTable } from "@workspace/db/schema";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { logAudit } from "./audit";
+import { getOrgId } from "../middleware/tenant";
 
 const router = Router();
 
@@ -25,6 +26,7 @@ router.get("/export/:entity", async (req: Request, res: Response): Promise<void>
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
+  const orgId = getOrgId(req);
   const { entity } = req.params;
 
   if (!VALID_ENTITIES.includes(entity as any)) {
@@ -38,7 +40,7 @@ router.get("/export/:entity", async (req: Request, res: Response): Promise<void>
 
   switch (entity) {
     case "contacts":
-      data = await db.select().from(contactsTable).orderBy(desc(contactsTable.updatedAt));
+      data = await db.select().from(contactsTable).where(eq(contactsTable.organisationId, orgId)).orderBy(desc(contactsTable.updatedAt));
       columns = [
         { key: "lastName", label: "Nom" },
         { key: "firstName", label: "Prenom" },
@@ -53,7 +55,7 @@ router.get("/export/:entity", async (req: Request, res: Response): Promise<void>
       break;
 
     case "appels":
-      data = await db.select().from(callsTable).orderBy(desc(callsTable.createdAt));
+      data = await db.select().from(callsTable).where(eq(callsTable.organisationId, orgId)).orderBy(desc(callsTable.createdAt));
       columns = [
         { key: "contactName", label: "Contact" },
         { key: "phoneNumber", label: "Telephone" },
@@ -68,7 +70,7 @@ router.get("/export/:entity", async (req: Request, res: Response): Promise<void>
       break;
 
     case "taches":
-      data = await db.select().from(tasksTable).orderBy(desc(tasksTable.updatedAt));
+      data = await db.select().from(tasksTable).where(eq(tasksTable.organisationId, orgId)).orderBy(desc(tasksTable.updatedAt));
       columns = [
         { key: "title", label: "Titre" },
         { key: "description", label: "Description" },
@@ -82,7 +84,7 @@ router.get("/export/:entity", async (req: Request, res: Response): Promise<void>
       break;
 
     case "messages":
-      data = await db.select().from(messagesTable).orderBy(desc(messagesTable.createdAt));
+      data = await db.select().from(messagesTable).where(eq(messagesTable.organisationId, orgId)).orderBy(desc(messagesTable.createdAt));
       columns = [
         { key: "contactName", label: "Contact" },
         { key: "content", label: "Contenu" },

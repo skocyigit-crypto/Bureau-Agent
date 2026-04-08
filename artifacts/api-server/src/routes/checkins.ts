@@ -9,6 +9,7 @@ import {
   UpdateCheckinBody,
   DeleteCheckinParams,
 } from "@workspace/api-zod";
+import { getOrgId } from "../middleware/tenant";
 
 const router: IRouter = Router();
 
@@ -27,8 +28,9 @@ router.get("/checkins", async (req, res): Promise<void> => {
     return;
   }
 
+  const orgId = getOrgId(req);
   const { status, type, employeeName, limit, offset, sortBy, sortOrder, dateFrom, dateTo } = query.data;
-  const conditions = [];
+  const conditions: any[] = [eq(checkinsTable.organisationId, orgId)];
 
   if (status) conditions.push(eq(checkinsTable.status, status));
   if (type) conditions.push(eq(checkinsTable.type, type));
@@ -36,7 +38,7 @@ router.get("/checkins", async (req, res): Promise<void> => {
   if (dateFrom) conditions.push(gte(checkinsTable.checkInAt, new Date(dateFrom)));
   if (dateTo) conditions.push(lte(checkinsTable.checkInAt, new Date(dateTo)));
 
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const where = and(...conditions);
 
   const sortCol = checkinSortColumns[sortBy ?? "checkInAt"] ?? checkinsTable.checkInAt;
   const order = sortOrder === "asc" ? asc(sortCol) : desc(sortCol);
@@ -56,8 +58,10 @@ router.post("/checkins", async (req, res): Promise<void> => {
     return;
   }
 
+  const orgId = getOrgId(req);
   const [checkin] = await db.insert(checkinsTable).values({
     ...body.data,
+    organisationId: orgId,
     checkInAt: body.data.checkInAt ? new Date(body.data.checkInAt) : new Date(),
     checkOutAt: body.data.checkOutAt ? new Date(body.data.checkOutAt) : null,
     ipAddress: req.ip || null,
@@ -67,8 +71,9 @@ router.post("/checkins", async (req, res): Promise<void> => {
 });
 
 router.get("/checkins/stats", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
   const { employeeName, dateFrom, dateTo } = req.query as Record<string, string>;
-  const conditions = [];
+  const conditions: any[] = [eq(checkinsTable.organisationId, orgId)];
 
   if (employeeName) conditions.push(eq(checkinsTable.employeeName, String(employeeName)));
   if (dateFrom) {
@@ -80,7 +85,7 @@ router.get("/checkins/stats", async (req, res): Promise<void> => {
     if (!isNaN(d.getTime())) conditions.push(lte(checkinsTable.checkInAt, d));
   }
 
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const where = and(...conditions);
 
   const [stats] = await db.select({
     totalSessions: sql<number>`count(*)::int`,
@@ -99,8 +104,10 @@ router.get("/checkins/stats", async (req, res): Promise<void> => {
 });
 
 router.get("/checkins/current", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
   const { employeeName } = req.query as Record<string, string>;
-  const conditions = [
+  const conditions: any[] = [
+    eq(checkinsTable.organisationId, orgId),
     eq(checkinsTable.status, "present"),
   ];
   if (employeeName) conditions.push(eq(checkinsTable.employeeName, employeeName));
@@ -111,7 +118,7 @@ router.get("/checkins/current", async (req, res): Promise<void> => {
     .orderBy(desc(checkinsTable.checkInAt))
     .limit(10);
 
-  const pauseConditions = [eq(checkinsTable.status, "en_pause")];
+  const pauseConditions: any[] = [eq(checkinsTable.organisationId, orgId), eq(checkinsTable.status, "en_pause")];
   if (employeeName) pauseConditions.push(eq(checkinsTable.employeeName, employeeName));
 
   const pausedCheckins = await db.select()
@@ -130,7 +137,8 @@ router.get("/checkins/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [checkin] = await db.select().from(checkinsTable).where(eq(checkinsTable.id, params.data.id));
+  const orgId = getOrgId(req);
+  const [checkin] = await db.select().from(checkinsTable).where(and(eq(checkinsTable.id, params.data.id), eq(checkinsTable.organisationId, orgId)));
   if (!checkin) {
     res.status(404).json({ error: "Pointage introuvable" });
     return;
@@ -151,7 +159,8 @@ router.patch("/checkins/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [existing] = await db.select().from(checkinsTable).where(eq(checkinsTable.id, params.data.id));
+  const orgId = getOrgId(req);
+  const [existing] = await db.select().from(checkinsTable).where(and(eq(checkinsTable.id, params.data.id), eq(checkinsTable.organisationId, orgId)));
   if (!existing) {
     res.status(404).json({ error: "Pointage introuvable" });
     return;
@@ -177,7 +186,7 @@ router.patch("/checkins/:id", async (req, res): Promise<void> => {
 
   const [updated] = await db.update(checkinsTable)
     .set(updateData)
-    .where(eq(checkinsTable.id, params.data.id))
+    .where(and(eq(checkinsTable.id, params.data.id), eq(checkinsTable.organisationId, orgId)))
     .returning();
 
   if (!updated) {
@@ -194,7 +203,8 @@ router.delete("/checkins/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  const [deleted] = await db.delete(checkinsTable).where(eq(checkinsTable.id, params.data.id)).returning();
+  const orgId = getOrgId(req);
+  const [deleted] = await db.delete(checkinsTable).where(and(eq(checkinsTable.id, params.data.id), eq(checkinsTable.organisationId, orgId))).returning();
   if (!deleted) {
     res.status(404).json({ error: "Pointage introuvable" });
     return;

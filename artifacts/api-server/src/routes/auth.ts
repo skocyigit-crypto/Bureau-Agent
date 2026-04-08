@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { logAudit } from "./audit";
 
@@ -10,13 +10,11 @@ const SALT_ROUNDS = 12;
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
 
-const AUTO_LOGIN_EMAIL = "admin@agentdebureau.fr";
-
 router.post("/auth/login", async (req: Request, res: Response): Promise<void> => {
   const { email, password } = req.body;
 
-  if (!email) {
-    res.status(400).json({ error: "Email est obligatoire." });
+  if (!email || !password) {
+    res.status(400).json({ error: "Email et mot de passe sont obligatoires." });
     return;
   }
 
@@ -38,28 +36,19 @@ router.post("/auth/login", async (req: Request, res: Response): Promise<void> =>
     return;
   }
 
-  const isAutoLogin = email.toLowerCase().trim() === AUTO_LOGIN_EMAIL;
+  const isValid = await bcrypt.compare(password, user.passwordHash);
 
-  if (!isAutoLogin) {
-    if (!password) {
-      res.status(400).json({ error: "Mot de passe est obligatoire." });
-      return;
+  if (!isValid) {
+    const newAttempts = user.tentativesEchouees + 1;
+    const updateData: Record<string, any> = { tentativesEchouees: newAttempts };
+
+    if (newAttempts >= MAX_FAILED_ATTEMPTS) {
+      updateData.verrouilleJusqua = new Date(Date.now() + LOCKOUT_DURATION_MS);
     }
 
-    const isValid = await bcrypt.compare(password, user.passwordHash);
-
-    if (!isValid) {
-      const newAttempts = user.tentativesEchouees + 1;
-      const updateData: Record<string, any> = { tentativesEchouees: newAttempts };
-
-      if (newAttempts >= MAX_FAILED_ATTEMPTS) {
-        updateData.verrouilleJusqua = new Date(Date.now() + LOCKOUT_DURATION_MS);
-      }
-
-      await db.update(usersTable).set(updateData).where(eq(usersTable.id, user.id));
-      res.status(401).json({ error: "Identifiants invalides." });
-      return;
-    }
+    await db.update(usersTable).set(updateData).where(eq(usersTable.id, user.id));
+    res.status(401).json({ error: "Identifiants invalides." });
+    return;
   }
 
   await db.update(usersTable).set({
@@ -70,6 +59,8 @@ router.post("/auth/login", async (req: Request, res: Response): Promise<void> =>
 
   (req.session as any).userId = user.id;
   (req.session as any).userRole = user.role;
+  (req.session as any).organisationId = user.organisationId;
+  (req.session as any).userEmail = user.email;
 
   logAudit(user.id, user.email, "login", "auth", undefined, { role: user.role }, req.ip, req.get("user-agent"));
 
@@ -81,6 +72,7 @@ router.post("/auth/login", async (req: Request, res: Response): Promise<void> =>
     role: user.role,
     departement: user.departement,
     organisation: user.organisation,
+    organisationId: user.organisationId,
     avatar: user.avatar,
     mfaActif: user.mfaActif,
   });
@@ -116,6 +108,7 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
     role: usersTable.role,
     departement: usersTable.departement,
     organisation: usersTable.organisation,
+    organisationId: usersTable.organisationId,
     telephone: usersTable.telephone,
     avatar: usersTable.avatar,
     mfaActif: usersTable.mfaActif,
@@ -163,10 +156,16 @@ router.post("/auth/change-password", async (req: Request, res: Response): Promis
 router.get("/auth/users", async (req: Request, res: Response): Promise<void> => {
   const userId = (req.session as any)?.userId;
   const userRole = (req.session as any)?.userRole;
+  const organisationId = (req.session as any)?.organisationId;
 
   if (!userId || (userRole !== "super_admin" && userRole !== "administrateur")) {
     res.status(403).json({ error: "Acces interdit." });
     return;
+  }
+
+  const conditions = [];
+  if (organisationId) {
+    conditions.push(eq(usersTable.organisationId, organisationId));
   }
 
   const users = await db.select({
@@ -177,17 +176,19 @@ router.get("/auth/users", async (req: Request, res: Response): Promise<void> => 
     role: usersTable.role,
     departement: usersTable.departement,
     organisation: usersTable.organisation,
+    organisationId: usersTable.organisationId,
     actif: usersTable.actif,
     mfaActif: usersTable.mfaActif,
     dernierAcces: usersTable.dernierAcces,
     createdAt: usersTable.createdAt,
-  }).from(usersTable);
+  }).from(usersTable).where(conditions.length > 0 ? and(...conditions) : undefined);
 
   res.json({ users, total: users.length });
 });
 
 router.post("/auth/users", async (req: Request, res: Response): Promise<void> => {
   const userRole = (req.session as any)?.userRole;
+  const organisationId = (req.session as any)?.organisationId;
 
   if (userRole !== "super_admin") {
     res.status(403).json({ error: "Seul le super administrateur peut creer des utilisateurs." });
@@ -229,6 +230,7 @@ router.post("/auth/users", async (req: Request, res: Response): Promise<void> =>
     role: role || "agent",
     departement,
     organisation: organisation || "Agent de Bureau SAS",
+    organisationId: organisationId || null,
     telephone,
     avatar,
   }).returning({

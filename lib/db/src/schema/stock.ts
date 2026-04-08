@@ -1,9 +1,11 @@
-import { pgTable, serial, integer, text, timestamp, numeric } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, numeric, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { organisationsTable } from "./organisations";
 
 export const stockArticlesTable = pgTable("stock_articles", {
   id: serial("id").primaryKey(),
+  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   reference: text("reference").notNull(),
   barcode: text("barcode"),
@@ -19,7 +21,9 @@ export const stockArticlesTable = pgTable("stock_articles", {
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (table) => [
+  index("stock_org_id_idx").on(table.organisationId),
+]);
 
 export const insertStockArticleSchema = createInsertSchema(stockArticlesTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertStockArticle = z.infer<typeof insertStockArticleSchema>;
