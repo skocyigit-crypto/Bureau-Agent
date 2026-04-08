@@ -9,9 +9,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface LoginPageProps {
   onLogin: (user: any) => void;
+  onRegister?: () => void;
 }
 
-export default function LoginPage({ onLogin }: LoginPageProps) {
+export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -146,6 +147,20 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
               </div>
             </div>
           </div>
+
+          {onRegister && (
+            <div className="mt-4 text-center">
+              <p className="text-sm text-muted-foreground mb-2">Vous n'avez pas encore de compte ?</p>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={onRegister}
+              >
+                Creer un compte gratuit
+              </Button>
+            </div>
+          )}
 
           <div className="mt-4 text-center">
             <p className="text-xs text-muted-foreground">

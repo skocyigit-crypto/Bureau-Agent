@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/error-boundary";
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
+import RegisterPage from "@/pages/register";
 import { WorkspaceUserProvider } from "@/components/workspace-user";
 import { PwaInstallButton } from "@/components/pwa-install";
 import { UpdateBanner } from "@/components/update-banner";
@@ -65,7 +66,7 @@ function AppRoutes() {
 }
 
 function App() {
-  const [authState, setAuthState] = useState<"loading" | "login" | "authenticated">("loading");
+  const [authState, setAuthState] = useState<"loading" | "login" | "register" | "authenticated">("loading");
   const [currentUser, setCurrentUser] = useState<any>(null);
 
   const checkSession = useCallback(async () => {
@@ -126,7 +127,9 @@ function App() {
         <TooltipProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
             {authState === "login" ? (
-              <LoginPage onLogin={handleLogin} />
+              <LoginPage onLogin={handleLogin} onRegister={() => setAuthState("register")} />
+            ) : authState === "register" ? (
+              <RegisterPage onLogin={handleLogin} onBack={() => setAuthState("login")} />
             ) : (
               <WorkspaceUserProvider apiUser={currentUser} onLogout={handleLogout}>
                 <UpdateBanner />

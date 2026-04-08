@@ -3,6 +3,7 @@ import { requireAuth } from "../middleware/auth";
 import { requireTenant } from "../middleware/tenant";
 import healthRouter from "./health";
 import authRouter from "./auth";
+import registerRouter from "./register";
 import callsRouter from "./calls";
 import contactsRouter from "./contacts";
 import tasksRouter from "./tasks";
@@ -28,6 +29,7 @@ const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
+router.use(registerRouter);
 
 router.use(requireAuth);
 router.use(requireTenant);
