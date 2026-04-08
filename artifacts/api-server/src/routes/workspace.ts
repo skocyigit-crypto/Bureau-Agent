@@ -344,9 +344,14 @@ router.get("/sync-logs/:platform", async (req, res) => {
   }
 });
 
-async function gatherDailyData(dateStr: string) {
+async function gatherDailyData(dateStr: string, orgId: number) {
   const dayStart = new Date(`${dateStr}T00:00:00.000Z`);
   const dayEnd = new Date(`${dateStr}T23:59:59.999Z`);
+
+  const orgCall = eq(callsTable.organisationId, orgId);
+  const orgTask = eq(tasksTable.organisationId, orgId);
+  const orgMsg = eq(messagesTable.organisationId, orgId);
+  const orgContact = eq(contactsTable.organisationId, orgId);
 
   const [
     callsResult,
@@ -370,20 +375,20 @@ async function gatherDailyData(dateStr: string) {
     sentimentNegative,
     sentimentNeutral,
   ] = await Promise.all([
-    db.select({ count: count() }).from(callsTable).where(and(gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd))),
-    db.select({ count: count() }).from(callsTable).where(and(gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.status, "repondu"))),
-    db.select({ count: count() }).from(callsTable).where(and(gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.status, "manque"))),
-    db.select({ avg: avg(callsTable.duration) }).from(callsTable).where(and(gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.status, "repondu"))),
-    db.select({ count: count() }).from(callsTable).where(and(gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.direction, "entrant"))),
-    db.select({ count: count() }).from(callsTable).where(and(gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.direction, "sortant"))),
-    db.select({ count: count() }).from(tasksTable).where(and(gte(tasksTable.updatedAt, dayStart), lte(tasksTable.updatedAt, dayEnd), eq(tasksTable.status, "termine"))),
-    db.select({ count: count() }).from(tasksTable).where(and(gte(tasksTable.createdAt, dayStart), lte(tasksTable.createdAt, dayEnd))),
-    db.select({ count: count() }).from(tasksTable).where(and(eq(tasksTable.status, "en_attente"), eq(tasksTable.priority, "haute"))), // high priority pending
-    db.select({ count: count() }).from(tasksTable).where(and(gte(tasksTable.createdAt, dayStart), lte(tasksTable.createdAt, dayEnd), eq(tasksTable.priority, "haute"))),
-    db.select({ count: count() }).from(messagesTable).where(and(gte(messagesTable.createdAt, dayStart), lte(messagesTable.createdAt, dayEnd))),
-    db.select({ count: count() }).from(messagesTable).where(and(gte(messagesTable.createdAt, dayStart), lte(messagesTable.createdAt, dayEnd), eq(messagesTable.isRead, false))),
-    db.select({ count: count() }).from(messagesTable).where(and(gte(messagesTable.createdAt, dayStart), lte(messagesTable.createdAt, dayEnd), eq(messagesTable.priority, "haute"))),
-    db.select({ count: count() }).from(contactsTable).where(and(gte(contactsTable.createdAt, dayStart), lte(contactsTable.createdAt, dayEnd))),
+    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd))),
+    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.status, "repondu"))),
+    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.status, "manque"))),
+    db.select({ avg: avg(callsTable.duration) }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.status, "repondu"))),
+    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.direction, "entrant"))),
+    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.direction, "sortant"))),
+    db.select({ count: count() }).from(tasksTable).where(and(orgTask, gte(tasksTable.updatedAt, dayStart), lte(tasksTable.updatedAt, dayEnd), eq(tasksTable.status, "termine"))),
+    db.select({ count: count() }).from(tasksTable).where(and(orgTask, gte(tasksTable.createdAt, dayStart), lte(tasksTable.createdAt, dayEnd))),
+    db.select({ count: count() }).from(tasksTable).where(and(orgTask, eq(tasksTable.status, "en_attente"), eq(tasksTable.priority, "haute"))),
+    db.select({ count: count() }).from(tasksTable).where(and(orgTask, gte(tasksTable.createdAt, dayStart), lte(tasksTable.createdAt, dayEnd), eq(tasksTable.priority, "haute"))),
+    db.select({ count: count() }).from(messagesTable).where(and(orgMsg, gte(messagesTable.createdAt, dayStart), lte(messagesTable.createdAt, dayEnd))),
+    db.select({ count: count() }).from(messagesTable).where(and(orgMsg, gte(messagesTable.createdAt, dayStart), lte(messagesTable.createdAt, dayEnd), eq(messagesTable.isRead, false))),
+    db.select({ count: count() }).from(messagesTable).where(and(orgMsg, gte(messagesTable.createdAt, dayStart), lte(messagesTable.createdAt, dayEnd), eq(messagesTable.priority, "haute"))),
+    db.select({ count: count() }).from(contactsTable).where(and(orgContact, gte(contactsTable.createdAt, dayStart), lte(contactsTable.createdAt, dayEnd))),
     db.select({
       contactName: callsTable.contactName,
       phoneNumber: callsTable.phoneNumber,
@@ -392,21 +397,21 @@ async function gatherDailyData(dateStr: string) {
       duration: callsTable.duration,
       sentiment: callsTable.sentiment,
       notes: callsTable.notes,
-    }).from(callsTable).where(and(gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd))).orderBy(desc(callsTable.createdAt)).limit(15),
+    }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd))).orderBy(desc(callsTable.createdAt)).limit(15),
     db.select({
       title: tasksTable.title,
       status: tasksTable.status,
       priority: tasksTable.priority,
-    }).from(tasksTable).where(and(gte(tasksTable.createdAt, dayStart), lte(tasksTable.createdAt, dayEnd))).orderBy(desc(tasksTable.createdAt)).limit(15),
+    }).from(tasksTable).where(and(orgTask, gte(tasksTable.createdAt, dayStart), lte(tasksTable.createdAt, dayEnd))).orderBy(desc(tasksTable.createdAt)).limit(15),
     db.select({
       content: messagesTable.content,
       type: messagesTable.type,
       priority: messagesTable.priority,
       contactName: messagesTable.contactName,
-    }).from(messagesTable).where(and(gte(messagesTable.createdAt, dayStart), lte(messagesTable.createdAt, dayEnd))).orderBy(desc(messagesTable.createdAt)).limit(15),
-    db.select({ count: count() }).from(callsTable).where(and(gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.sentiment, "positif"))),
-    db.select({ count: count() }).from(callsTable).where(and(gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.sentiment, "negatif"))),
-    db.select({ count: count() }).from(callsTable).where(and(gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.sentiment, "neutre"))),
+    }).from(messagesTable).where(and(orgMsg, gte(messagesTable.createdAt, dayStart), lte(messagesTable.createdAt, dayEnd))).orderBy(desc(messagesTable.createdAt)).limit(15),
+    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.sentiment, "positif"))),
+    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.sentiment, "negatif"))),
+    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.sentiment, "neutre"))),
   ]);
 
   const totalCalls = Number(callsResult[0]?.count ?? 0);
@@ -465,6 +470,8 @@ async function gatherDailyData(dateStr: string) {
 
 router.post("/daily-report", async (req, res) => {
   try {
+    const orgId = (req.session as any)?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const body = req.body || {};
     const date = typeof body.date === "string" ? body.date.trim() : "";
     const reportDate = date || new Date().toISOString().split("T")[0];
@@ -474,7 +481,7 @@ router.post("/daily-report", async (req, res) => {
       return res.status(400).json({ error: "Format de date invalide. Utilisez AAAA-MM-JJ." });
     }
 
-    const dailyData = await gatherDailyData(reportDate);
+    const dailyData = await gatherDailyData(reportDate, orgId);
 
     const { ai } = await import("@workspace/integrations-gemini-ai");
 

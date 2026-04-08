@@ -4,11 +4,16 @@ import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNul
 
 const router = Router();
 
-async function gatherAnalyticsData() {
+async function gatherAnalyticsData(orgId: number) {
   const now = new Date();
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
   const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  const orgCall = eq(callsTable.organisationId, orgId);
+  const orgContact = eq(contactsTable.organisationId, orgId);
+  const orgTask = eq(tasksTable.organisationId, orgId);
+  const orgMsg = eq(messagesTable.organisationId, orgId);
 
   const [
     totalCallsResult,
@@ -28,18 +33,18 @@ async function gatherAnalyticsData() {
     topContactsList,
     monthlyCallVolume,
   ] = await Promise.all([
-    db.select({ count: count() }).from(callsTable),
-    db.select({ count: count() }).from(callsTable).where(gte(callsTable.createdAt, weekAgo)),
-    db.select({ count: count() }).from(callsTable).where(and(gte(callsTable.createdAt, twoWeeksAgo), sql`${callsTable.createdAt} < ${weekAgo.toISOString()}`)),
-    db.select({ status: callsTable.status, count: count() }).from(callsTable).where(gte(callsTable.createdAt, monthAgo)).groupBy(callsTable.status),
-    db.select({ sentiment: callsTable.sentiment, count: count() }).from(callsTable).where(gte(callsTable.createdAt, monthAgo)).groupBy(callsTable.sentiment),
-    db.select({ direction: callsTable.direction, count: count() }).from(callsTable).where(gte(callsTable.createdAt, monthAgo)).groupBy(callsTable.direction),
-    db.select({ avg: avg(callsTable.duration) }).from(callsTable).where(and(gte(callsTable.createdAt, monthAgo), eq(callsTable.status, "repondu"))),
-    db.select({ count: count() }).from(contactsTable),
-    db.select({ count: count() }).from(tasksTable),
-    db.select({ status: tasksTable.status, count: count() }).from(tasksTable).groupBy(tasksTable.status),
-    db.select({ priority: tasksTable.priority, count: count() }).from(tasksTable).groupBy(tasksTable.priority),
-    db.select({ count: count() }).from(messagesTable).where(eq(messagesTable.isRead, false)),
+    db.select({ count: count() }).from(callsTable).where(orgCall),
+    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))),
+    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, twoWeeksAgo), sql`${callsTable.createdAt} < ${weekAgo.toISOString()}`)),
+    db.select({ status: callsTable.status, count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, monthAgo))).groupBy(callsTable.status),
+    db.select({ sentiment: callsTable.sentiment, count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, monthAgo))).groupBy(callsTable.sentiment),
+    db.select({ direction: callsTable.direction, count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, monthAgo))).groupBy(callsTable.direction),
+    db.select({ avg: avg(callsTable.duration) }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, monthAgo), eq(callsTable.status, "repondu"))),
+    db.select({ count: count() }).from(contactsTable).where(orgContact),
+    db.select({ count: count() }).from(tasksTable).where(orgTask),
+    db.select({ status: tasksTable.status, count: count() }).from(tasksTable).where(orgTask).groupBy(tasksTable.status),
+    db.select({ priority: tasksTable.priority, count: count() }).from(tasksTable).where(orgTask).groupBy(tasksTable.priority),
+    db.select({ count: count() }).from(messagesTable).where(and(orgMsg, eq(messagesTable.isRead, false))),
     db.select({
       contactName: callsTable.contactName,
       status: callsTable.status,
@@ -47,18 +52,18 @@ async function gatherAnalyticsData() {
       sentiment: callsTable.sentiment,
       duration: callsTable.duration,
       createdAt: callsTable.createdAt,
-    }).from(callsTable).orderBy(desc(callsTable.createdAt)).limit(20),
+    }).from(callsTable).where(orgCall).orderBy(desc(callsTable.createdAt)).limit(20),
     db.select({
       hour: sql<string>`extract(hour from ${callsTable.createdAt})`.as("hour"),
       count: count(),
-    }).from(callsTable).where(gte(callsTable.createdAt, weekAgo)).groupBy(sql`extract(hour from ${callsTable.createdAt})`),
+    }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))).groupBy(sql`extract(hour from ${callsTable.createdAt})`),
     db.select({
       firstName: contactsTable.firstName,
       lastName: contactsTable.lastName,
       company: contactsTable.company,
-      callCount: sql<number>`(SELECT COUNT(*) FROM calls WHERE calls.contact_id = ${contactsTable.id})`.as("call_count"),
-    }).from(contactsTable).orderBy(desc(sql`(SELECT COUNT(*) FROM calls WHERE calls.contact_id = ${contactsTable.id})`)).limit(5),
-    db.select({ count: count() }).from(callsTable).where(gte(callsTable.createdAt, monthAgo)),
+      callCount: sql<number>`(SELECT COUNT(*) FROM calls WHERE calls.contact_id = ${contactsTable.id} AND calls.organisation_id = ${orgId})`.as("call_count"),
+    }).from(contactsTable).where(orgContact).orderBy(desc(sql`(SELECT COUNT(*) FROM calls WHERE calls.contact_id = ${contactsTable.id} AND calls.organisation_id = ${orgId})`)).limit(5),
+    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, monthAgo))),
   ]);
 
   const thisWeekCount = thisWeekCalls[0]?.count ?? 0;
@@ -115,7 +120,9 @@ async function gatherAnalyticsData() {
 
 router.post("/ai/analyze", async (req, res) => {
   try {
-    const analyticsData = await gatherAnalyticsData();
+    const orgId = (req.session as any)?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+    const analyticsData = await gatherAnalyticsData(orgId);
 
     const { ai } = await import("@workspace/integrations-gemini-ai");
 
@@ -187,86 +194,92 @@ router.get("/ai/status", (_req, res) => {
   });
 });
 
-async function gatherContextForPage(page: string) {
+async function gatherContextForPage(page: string, orgId: number) {
   const now = new Date();
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const orgCall = eq(callsTable.organisationId, orgId);
+  const orgContact = eq(contactsTable.organisationId, orgId);
+  const orgTask = eq(tasksTable.organisationId, orgId);
+  const orgMsg = eq(messagesTable.organisationId, orgId);
+  const orgCheckin = eq(checkinsTable.organisationId, orgId);
 
   switch (page) {
     case "dashboard": {
       const [missedCalls, pendingTasks, overdueTasks, unread, recentNegative] = await Promise.all([
-        db.select({ count: count() }).from(callsTable).where(and(eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))),
-        db.select({ count: count() }).from(tasksTable).where(eq(tasksTable.status, "en_attente")),
-        db.select({ id: tasksTable.id, title: tasksTable.title, dueDate: tasksTable.dueDate }).from(tasksTable).where(and(lt(tasksTable.dueDate, now), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))).limit(5),
-        db.select({ count: count() }).from(messagesTable).where(eq(messagesTable.isRead, false)),
-        db.select({ contactName: callsTable.contactName, phoneNumber: callsTable.phoneNumber, createdAt: callsTable.createdAt }).from(callsTable).where(and(eq(callsTable.sentiment, "negatif"), gte(callsTable.createdAt, weekAgo))).orderBy(desc(callsTable.createdAt)).limit(5),
+        db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))),
+        db.select({ count: count() }).from(tasksTable).where(and(orgTask, eq(tasksTable.status, "en_attente"))),
+        db.select({ id: tasksTable.id, title: tasksTable.title, dueDate: tasksTable.dueDate }).from(tasksTable).where(and(orgTask, lt(tasksTable.dueDate, now), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))).limit(5),
+        db.select({ count: count() }).from(messagesTable).where(and(orgMsg, eq(messagesTable.isRead, false))),
+        db.select({ contactName: callsTable.contactName, phoneNumber: callsTable.phoneNumber, createdAt: callsTable.createdAt }).from(callsTable).where(and(orgCall, eq(callsTable.sentiment, "negatif"), gte(callsTable.createdAt, weekAgo))).orderBy(desc(callsTable.createdAt)).limit(5),
       ]);
       return { missedCallsThisWeek: missedCalls[0]?.count ?? 0, pendingTasks: pendingTasks[0]?.count ?? 0, overdueTasks: overdueTasks.map(t => ({ id: t.id, title: t.title, dueDate: t.dueDate })), unreadMessages: unread[0]?.count ?? 0, recentNegativeCalls: recentNegative };
     }
     case "calls": {
       const [missedNoCallback, longCalls, negativeSentiment, noContact] = await Promise.all([
-        db.select({ id: callsTable.id, phoneNumber: callsTable.phoneNumber, contactName: callsTable.contactName, createdAt: callsTable.createdAt }).from(callsTable).where(and(eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))).orderBy(desc(callsTable.createdAt)).limit(10),
-        db.select({ id: callsTable.id, contactName: callsTable.contactName, duration: callsTable.duration }).from(callsTable).where(and(gte(callsTable.duration, 600), gte(callsTable.createdAt, weekAgo))).orderBy(desc(callsTable.duration)).limit(5),
-        db.select({ id: callsTable.id, contactName: callsTable.contactName, phoneNumber: callsTable.phoneNumber }).from(callsTable).where(and(eq(callsTable.sentiment, "negatif"), gte(callsTable.createdAt, weekAgo))).limit(5),
-        db.select({ count: count() }).from(callsTable).where(isNull(callsTable.contactId)),
+        db.select({ id: callsTable.id, phoneNumber: callsTable.phoneNumber, contactName: callsTable.contactName, createdAt: callsTable.createdAt }).from(callsTable).where(and(orgCall, eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))).orderBy(desc(callsTable.createdAt)).limit(10),
+        db.select({ id: callsTable.id, contactName: callsTable.contactName, duration: callsTable.duration }).from(callsTable).where(and(orgCall, gte(callsTable.duration, 600), gte(callsTable.createdAt, weekAgo))).orderBy(desc(callsTable.duration)).limit(5),
+        db.select({ id: callsTable.id, contactName: callsTable.contactName, phoneNumber: callsTable.phoneNumber }).from(callsTable).where(and(orgCall, eq(callsTable.sentiment, "negatif"), gte(callsTable.createdAt, weekAgo))).limit(5),
+        db.select({ count: count() }).from(callsTable).where(and(orgCall, isNull(callsTable.contactId))),
       ]);
       return { missedCallsNoCallback: missedNoCallback, longCalls, negativeSentimentCalls: negativeSentiment, callsWithoutContact: noContact[0]?.count ?? 0 };
     }
     case "contacts": {
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       const [noRecentActivity, highCallVolume, noEmail] = await Promise.all([
-        db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName, company: contactsTable.company }).from(contactsTable).where(sql`${contactsTable.id} NOT IN (SELECT DISTINCT contact_id FROM calls WHERE contact_id IS NOT NULL AND created_at >= ${thirtyDaysAgo.toISOString()})`).limit(10),
-        db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName, callCount: sql<number>`(SELECT COUNT(*) FROM calls WHERE calls.contact_id = ${contactsTable.id} AND calls.created_at >= ${weekAgo.toISOString()})`.as("cnt") }).from(contactsTable).orderBy(desc(sql`(SELECT COUNT(*) FROM calls WHERE calls.contact_id = ${contactsTable.id} AND calls.created_at >= ${weekAgo.toISOString()})`)).limit(5),
-        db.select({ count: count() }).from(contactsTable).where(isNull(contactsTable.email)),
+        db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName, company: contactsTable.company }).from(contactsTable).where(and(orgContact, sql`${contactsTable.id} NOT IN (SELECT DISTINCT contact_id FROM calls WHERE contact_id IS NOT NULL AND organisation_id = ${orgId} AND created_at >= ${thirtyDaysAgo.toISOString()})`)).limit(10),
+        db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName, callCount: sql<number>`(SELECT COUNT(*) FROM calls WHERE calls.contact_id = ${contactsTable.id} AND calls.organisation_id = ${orgId} AND calls.created_at >= ${weekAgo.toISOString()})`.as("cnt") }).from(contactsTable).where(orgContact).orderBy(desc(sql`(SELECT COUNT(*) FROM calls WHERE calls.contact_id = ${contactsTable.id} AND calls.organisation_id = ${orgId} AND calls.created_at >= ${weekAgo.toISOString()})`)).limit(5),
+        db.select({ count: count() }).from(contactsTable).where(and(orgContact, isNull(contactsTable.email))),
       ]);
       return { inactiveContacts: noRecentActivity, highActivityContacts: highCallVolume.filter(c => Number(c.callCount) > 0), contactsWithoutEmail: noEmail[0]?.count ?? 0 };
     }
     case "tasks": {
       const [overdue, highPriorityPending, unassigned, recentlyCompleted] = await Promise.all([
-        db.select({ id: tasksTable.id, title: tasksTable.title, dueDate: tasksTable.dueDate, priority: tasksTable.priority }).from(tasksTable).where(and(lt(tasksTable.dueDate, now), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))).orderBy(desc(tasksTable.priority)).limit(10),
-        db.select({ id: tasksTable.id, title: tasksTable.title, dueDate: tasksTable.dueDate }).from(tasksTable).where(and(eq(tasksTable.priority, "haute"), eq(tasksTable.status, "en_attente"))).limit(10),
-        db.select({ count: count() }).from(tasksTable).where(and(isNull(tasksTable.assignedTo), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))),
-        db.select({ count: count() }).from(tasksTable).where(and(eq(tasksTable.status, "termine"), gte(tasksTable.updatedAt, weekAgo))),
+        db.select({ id: tasksTable.id, title: tasksTable.title, dueDate: tasksTable.dueDate, priority: tasksTable.priority }).from(tasksTable).where(and(orgTask, lt(tasksTable.dueDate, now), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))).orderBy(desc(tasksTable.priority)).limit(10),
+        db.select({ id: tasksTable.id, title: tasksTable.title, dueDate: tasksTable.dueDate }).from(tasksTable).where(and(orgTask, eq(tasksTable.priority, "haute"), eq(tasksTable.status, "en_attente"))).limit(10),
+        db.select({ count: count() }).from(tasksTable).where(and(orgTask, isNull(tasksTable.assignedTo), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))),
+        db.select({ count: count() }).from(tasksTable).where(and(orgTask, eq(tasksTable.status, "termine"), gte(tasksTable.updatedAt, weekAgo))),
       ]);
       return { overdueTasks: overdue, highPriorityPendingTasks: highPriorityPending, unassignedTasks: unassigned[0]?.count ?? 0, completedThisWeek: recentlyCompleted[0]?.count ?? 0 };
     }
     case "messages": {
       const [unreadHigh, oldUnread, byType] = await Promise.all([
-        db.select({ id: messagesTable.id, contactName: messagesTable.contactName, content: messagesTable.content, createdAt: messagesTable.createdAt }).from(messagesTable).where(and(eq(messagesTable.isRead, false), eq(messagesTable.priority, "haute"))).orderBy(desc(messagesTable.createdAt)).limit(5),
-        db.select({ count: count() }).from(messagesTable).where(and(eq(messagesTable.isRead, false), lt(messagesTable.createdAt, new Date(now.getTime() - 48 * 60 * 60 * 1000)))),
-        db.select({ type: messagesTable.type, count: count() }).from(messagesTable).where(eq(messagesTable.isRead, false)).groupBy(messagesTable.type),
+        db.select({ id: messagesTable.id, contactName: messagesTable.contactName, content: messagesTable.content, createdAt: messagesTable.createdAt }).from(messagesTable).where(and(orgMsg, eq(messagesTable.isRead, false), eq(messagesTable.priority, "haute"))).orderBy(desc(messagesTable.createdAt)).limit(5),
+        db.select({ count: count() }).from(messagesTable).where(and(orgMsg, eq(messagesTable.isRead, false), lt(messagesTable.createdAt, new Date(now.getTime() - 48 * 60 * 60 * 1000)))),
+        db.select({ type: messagesTable.type, count: count() }).from(messagesTable).where(and(orgMsg, eq(messagesTable.isRead, false))).groupBy(messagesTable.type),
       ]);
       return { urgentUnread: unreadHigh, staleUnreadCount: oldUnread[0]?.count ?? 0, unreadByType: byType };
     }
     case "rapports": {
       const [totalReports, recentReports] = await Promise.all([
-        db.select({ count: count() }).from(callsTable),
-        db.select({ count: count() }).from(tasksTable).where(eq(tasksTable.status, "termine")),
+        db.select({ count: count() }).from(callsTable).where(orgCall),
+        db.select({ count: count() }).from(tasksTable).where(and(orgTask, eq(tasksTable.status, "termine"))),
       ]);
       return { totalCalls: totalReports[0]?.count ?? 0, completedTasks: recentReports[0]?.count ?? 0 };
     }
     case "logiciels": {
       const [totalContacts, totalCalls, totalTasks] = await Promise.all([
-        db.select({ count: count() }).from(contactsTable),
-        db.select({ count: count() }).from(callsTable),
-        db.select({ count: count() }).from(tasksTable),
+        db.select({ count: count() }).from(contactsTable).where(orgContact),
+        db.select({ count: count() }).from(callsTable).where(orgCall),
+        db.select({ count: count() }).from(tasksTable).where(orgTask),
       ]);
       return { totalContacts: totalContacts[0]?.count ?? 0, totalCalls: totalCalls[0]?.count ?? 0, totalTasks: totalTasks[0]?.count ?? 0 };
     }
     case "pointage": {
       const [totalSessions, activeSessions, avgMinutes, lateArrivals] = await Promise.all([
-        db.select({ count: count() }).from(checkinsTable).where(gte(checkinsTable.checkInAt, weekAgo)),
-        db.select({ count: count() }).from(checkinsTable).where(eq(checkinsTable.status, "present")),
-        db.select({ avg: sql<number>`coalesce(avg(${checkinsTable.totalMinutes}), 0)::int` }).from(checkinsTable).where(and(eq(checkinsTable.status, "termine"), gte(checkinsTable.checkInAt, weekAgo))),
-        db.select({ count: count() }).from(checkinsTable).where(and(gte(checkinsTable.checkInAt, weekAgo), sql`extract(hour from ${checkinsTable.checkInAt}) >= 10`)),
+        db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, weekAgo))),
+        db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, eq(checkinsTable.status, "present"))),
+        db.select({ avg: sql<number>`coalesce(avg(${checkinsTable.totalMinutes}), 0)::int` }).from(checkinsTable).where(and(orgCheckin, eq(checkinsTable.status, "termine"), gte(checkinsTable.checkInAt, weekAgo))),
+        db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, weekAgo), sql`extract(hour from ${checkinsTable.checkInAt}) >= 10`)),
       ]);
       return { sessionsThisWeek: totalSessions[0]?.count ?? 0, currentlyActive: activeSessions[0]?.count ?? 0, avgSessionMinutes: avgMinutes[0]?.avg ?? 0, lateArrivalsThisWeek: lateArrivals[0]?.count ?? 0 };
     }
     case "utilisateurs": {
       const [totalCalls, totalTasks, totalContacts, completedTasks] = await Promise.all([
-        db.select({ count: count() }).from(callsTable),
-        db.select({ count: count() }).from(tasksTable),
-        db.select({ count: count() }).from(contactsTable),
-        db.select({ count: count() }).from(tasksTable).where(eq(tasksTable.status, "termine")),
+        db.select({ count: count() }).from(callsTable).where(orgCall),
+        db.select({ count: count() }).from(tasksTable).where(orgTask),
+        db.select({ count: count() }).from(contactsTable).where(orgContact),
+        db.select({ count: count() }).from(tasksTable).where(and(orgTask, eq(tasksTable.status, "termine"))),
       ]);
       return { totalCalls: totalCalls[0]?.count ?? 0, totalTasks: totalTasks[0]?.count ?? 0, totalContacts: totalContacts[0]?.count ?? 0, completedTasks: completedTasks[0]?.count ?? 0 };
     }
@@ -277,12 +290,14 @@ async function gatherContextForPage(page: string) {
 
 router.post("/ai/suggest", async (req, res) => {
   try {
+    const orgId = (req.session as any)?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const { page } = req.body;
     if (!page || !["dashboard", "calls", "contacts", "tasks", "messages", "rapports", "logiciels", "pointage", "utilisateurs"].includes(page)) {
       return res.status(400).json({ error: "Le parametre 'page' est requis." });
     }
 
-    const contextData = await gatherContextForPage(page);
+    const contextData = await gatherContextForPage(page, orgId);
     const { ai } = await import("@workspace/integrations-gemini-ai");
 
     const pagePrompts: Record<string, string> = {
@@ -350,6 +365,8 @@ Donnees:\n${JSON.stringify(contextData, null, 2)}`
 
 router.post("/ai/validate", async (req, res) => {
   try {
+    const orgId = (req.session as any)?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const { entityType, data } = req.body;
     if (!entityType || !data) {
       return res.status(400).json({ error: "Les parametres 'entityType' et 'data' sont requis." });
@@ -358,14 +375,14 @@ router.post("/ai/validate", async (req, res) => {
     let contextInfo = "";
 
     if (entityType === "contact" && data.phone) {
-      const existingContacts = await db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName, phone: contactsTable.phone, email: contactsTable.email }).from(contactsTable).where(eq(contactsTable.phone, data.phone)).limit(3);
+      const existingContacts = await db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName, phone: contactsTable.phone, email: contactsTable.email }).from(contactsTable).where(and(eq(contactsTable.organisationId, orgId), eq(contactsTable.phone, data.phone))).limit(3);
       if (existingContacts.length > 0) {
         contextInfo += `\nATTENTION: Il existe deja ${existingContacts.length} contact(s) avec ce numero: ${existingContacts.map(c => `${c.firstName} ${c.lastName}`).join(", ")}`;
       }
     }
 
     if (entityType === "contact" && data.email) {
-      const existingEmail = await db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName }).from(contactsTable).where(eq(contactsTable.email, data.email)).limit(3);
+      const existingEmail = await db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName }).from(contactsTable).where(and(eq(contactsTable.organisationId, orgId), eq(contactsTable.email, data.email))).limit(3);
       if (existingEmail.length > 0) {
         contextInfo += `\nATTENTION: Il existe deja ${existingEmail.length} contact(s) avec cet email: ${existingEmail.map(c => `${c.firstName} ${c.lastName}`).join(", ")}`;
       }
@@ -440,6 +457,8 @@ Si tout est correct, errors et warnings seront vides. Sois utile mais pas trop s
 
 router.post("/ai/assistant", async (req, res) => {
   try {
+    const orgId = (req.session as any)?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const { question, currentPage } = req.body;
     if (!question) {
       return res.status(400).json({ error: "Le parametre 'question' est requis." });
@@ -447,6 +466,11 @@ router.post("/ai/assistant", async (req, res) => {
 
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const orgCall = eq(callsTable.organisationId, orgId);
+    const orgContact = eq(contactsTable.organisationId, orgId);
+    const orgTask = eq(tasksTable.organisationId, orgId);
+    const orgMsg = eq(messagesTable.organisationId, orgId);
 
     const [
       callStats,
@@ -457,13 +481,13 @@ router.post("/ai/assistant", async (req, res) => {
       overdueTasks,
       missedCalls,
     ] = await Promise.all([
-      db.select({ total: count(), answered: sql<number>`SUM(CASE WHEN status = 'repondu' THEN 1 ELSE 0 END)`, missed: sql<number>`SUM(CASE WHEN status = 'manque' THEN 1 ELSE 0 END)`, avgDuration: avg(callsTable.duration) }).from(callsTable).where(gte(callsTable.createdAt, weekAgo)),
-      db.select({ total: count() }).from(contactsTable),
-      db.select({ total: count(), pending: sql<number>`SUM(CASE WHEN status = 'en_attente' THEN 1 ELSE 0 END)`, inProgress: sql<number>`SUM(CASE WHEN status = 'en_cours' THEN 1 ELSE 0 END)`, completed: sql<number>`SUM(CASE WHEN status = 'termine' THEN 1 ELSE 0 END)` }).from(tasksTable),
-      db.select({ total: count(), unread: sql<number>`SUM(CASE WHEN is_read = false THEN 1 ELSE 0 END)` }).from(messagesTable),
-      db.select({ contactName: callsTable.contactName, status: callsTable.status, sentiment: callsTable.sentiment, duration: callsTable.duration, createdAt: callsTable.createdAt }).from(callsTable).orderBy(desc(callsTable.createdAt)).limit(10),
-      db.select({ title: tasksTable.title, dueDate: tasksTable.dueDate, priority: tasksTable.priority }).from(tasksTable).where(and(lt(tasksTable.dueDate, now), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))).limit(5),
-      db.select({ contactName: callsTable.contactName, phoneNumber: callsTable.phoneNumber, createdAt: callsTable.createdAt }).from(callsTable).where(and(eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))).limit(10),
+      db.select({ total: count(), answered: sql<number>`SUM(CASE WHEN status = 'repondu' THEN 1 ELSE 0 END)`, missed: sql<number>`SUM(CASE WHEN status = 'manque' THEN 1 ELSE 0 END)`, avgDuration: avg(callsTable.duration) }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))),
+      db.select({ total: count() }).from(contactsTable).where(orgContact),
+      db.select({ total: count(), pending: sql<number>`SUM(CASE WHEN status = 'en_attente' THEN 1 ELSE 0 END)`, inProgress: sql<number>`SUM(CASE WHEN status = 'en_cours' THEN 1 ELSE 0 END)`, completed: sql<number>`SUM(CASE WHEN status = 'termine' THEN 1 ELSE 0 END)` }).from(tasksTable).where(orgTask),
+      db.select({ total: count(), unread: sql<number>`SUM(CASE WHEN is_read = false THEN 1 ELSE 0 END)` }).from(messagesTable).where(orgMsg),
+      db.select({ contactName: callsTable.contactName, status: callsTable.status, sentiment: callsTable.sentiment, duration: callsTable.duration, createdAt: callsTable.createdAt }).from(callsTable).where(orgCall).orderBy(desc(callsTable.createdAt)).limit(10),
+      db.select({ title: tasksTable.title, dueDate: tasksTable.dueDate, priority: tasksTable.priority }).from(tasksTable).where(and(orgTask, lt(tasksTable.dueDate, now), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))).limit(5),
+      db.select({ contactName: callsTable.contactName, phoneNumber: callsTable.phoneNumber, createdAt: callsTable.createdAt }).from(callsTable).where(and(orgCall, eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))).limit(10),
     ]);
 
     const dbContext = {
@@ -531,10 +555,17 @@ Sois precis, base-toi sur les donnees reelles. Si la question n'a pas de rapport
 
 router.post("/ai/recognize", async (req, res) => {
   try {
+    const orgId = (req.session as any)?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+
+    const orgCall = eq(callsTable.organisationId, orgId);
+    const orgContact = eq(contactsTable.organisationId, orgId);
+    const orgTask = eq(tasksTable.organisationId, orgId);
+    const orgMsg = eq(messagesTable.organisationId, orgId);
 
     const [
       totalCalls,
@@ -555,40 +586,40 @@ router.post("/ai/recognize", async (req, res) => {
       avgCallDuration,
       longCallsToday,
     ] = await Promise.all([
-      db.select({ count: count() }).from(callsTable).where(gte(callsTable.createdAt, weekAgo)),
-      db.select({ count: count() }).from(callsTable).where(and(eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))),
-      db.select({ count: count() }).from(callsTable).where(and(eq(callsTable.status, "repondu"), gte(callsTable.createdAt, weekAgo))),
-      db.select({ count: count() }).from(callsTable).where(and(eq(callsTable.sentiment, "negatif"), gte(callsTable.createdAt, weekAgo))),
-      db.select({ count: count() }).from(callsTable).where(and(isNull(callsTable.contactId), gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.status, "repondu"), gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.sentiment, "negatif"), gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, isNull(callsTable.contactId), gte(callsTable.createdAt, weekAgo))),
       db.select({
         phoneNumber: callsTable.phoneNumber,
         contactName: callsTable.contactName,
         callCount: count(),
-      }).from(callsTable).where(gte(callsTable.createdAt, weekAgo)).groupBy(callsTable.phoneNumber, callsTable.contactName).having(sql`count(*) >= 3`).orderBy(desc(count())).limit(5),
-      db.select({ count: count() }).from(tasksTable).where(and(lt(tasksTable.dueDate, now), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))),
-      db.select({ count: count() }).from(tasksTable).where(and(eq(tasksTable.priority, "haute"), eq(tasksTable.status, "en_attente"))),
-      db.select({ count: count() }).from(messagesTable).where(eq(messagesTable.isRead, false)),
-      db.select({ count: count() }).from(messagesTable).where(and(eq(messagesTable.isRead, false), eq(messagesTable.priority, "haute"))),
-      db.select({ count: count() }).from(contactsTable).where(sql`${contactsTable.id} NOT IN (SELECT DISTINCT contact_id FROM calls WHERE contact_id IS NOT NULL AND created_at >= ${monthAgo.toISOString()})`),
-      db.select({ count: count() }).from(contactsTable).where(isNull(contactsTable.email)),
+      }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))).groupBy(callsTable.phoneNumber, callsTable.contactName).having(sql`count(*) >= 3`).orderBy(desc(count())).limit(5),
+      db.select({ count: count() }).from(tasksTable).where(and(orgTask, lt(tasksTable.dueDate, now), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))),
+      db.select({ count: count() }).from(tasksTable).where(and(orgTask, eq(tasksTable.priority, "haute"), eq(tasksTable.status, "en_attente"))),
+      db.select({ count: count() }).from(messagesTable).where(and(orgMsg, eq(messagesTable.isRead, false))),
+      db.select({ count: count() }).from(messagesTable).where(and(orgMsg, eq(messagesTable.isRead, false), eq(messagesTable.priority, "haute"))),
+      db.select({ count: count() }).from(contactsTable).where(and(orgContact, sql`${contactsTable.id} NOT IN (SELECT DISTINCT contact_id FROM calls WHERE contact_id IS NOT NULL AND organisation_id = ${orgId} AND created_at >= ${monthAgo.toISOString()})`)),
+      db.select({ count: count() }).from(contactsTable).where(and(orgContact, isNull(contactsTable.email))),
       db.select({
         id: contactsTable.id,
         firstName: contactsTable.firstName,
         lastName: contactsTable.lastName,
         company: contactsTable.company,
         category: contactsTable.category,
-        callCount: sql<number>`(SELECT COUNT(*) FROM calls WHERE calls.contact_id = ${contactsTable.id})`.as("cc"),
-      }).from(contactsTable).orderBy(desc(sql`(SELECT COUNT(*) FROM calls WHERE calls.contact_id = ${contactsTable.id})`)).limit(3),
+        callCount: sql<number>`(SELECT COUNT(*) FROM calls WHERE calls.contact_id = ${contactsTable.id} AND calls.organisation_id = ${orgId})`.as("cc"),
+      }).from(contactsTable).where(orgContact).orderBy(desc(sql`(SELECT COUNT(*) FROM calls WHERE calls.contact_id = ${contactsTable.id} AND calls.organisation_id = ${orgId})`)).limit(3),
       db.select({
         hour: sql<string>`extract(hour from ${callsTable.createdAt})`.as("hour"),
         count: count(),
-      }).from(callsTable).where(gte(callsTable.createdAt, threeDaysAgo)).groupBy(sql`extract(hour from ${callsTable.createdAt})`).orderBy(desc(count())).limit(3),
+      }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, threeDaysAgo))).groupBy(sql`extract(hour from ${callsTable.createdAt})`).orderBy(desc(count())).limit(3),
       db.select({
         total: count(),
         completed: sql<number>`SUM(CASE WHEN status = 'termine' THEN 1 ELSE 0 END)`,
-      }).from(tasksTable),
-      db.select({ avg: avg(callsTable.duration) }).from(callsTable).where(and(eq(callsTable.status, "repondu"), gte(callsTable.createdAt, weekAgo))),
-      db.select({ count: count() }).from(callsTable).where(and(gte(callsTable.createdAt, threeDaysAgo), sql`${callsTable.duration} > 600`)),
+      }).from(tasksTable).where(orgTask),
+      db.select({ avg: avg(callsTable.duration) }).from(callsTable).where(and(orgCall, eq(callsTable.status, "repondu"), gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, threeDaysAgo), sql`${callsTable.duration} > 600`)),
     ]);
 
     const totalWeekCalls = Number(totalCalls[0]?.count ?? 0);
@@ -732,6 +763,8 @@ router.post("/ai/recognize", async (req, res) => {
 
 router.post("/ai/draft-email", async (req, res) => {
   try {
+    const orgId = (req.session as any)?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const { contactId, contactName, contactEmail, company, category, purpose, tone, language, additionalContext } = req.body;
 
     if (!purpose) {
@@ -748,13 +781,13 @@ router.post("/ai/draft-email", async (req, res) => {
           duration: callsTable.duration,
           notes: callsTable.notes,
           createdAt: callsTable.createdAt,
-        }).from(callsTable).where(eq(callsTable.contactId, parseInt(contactId))).orderBy(desc(callsTable.createdAt)).limit(5),
+        }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), eq(callsTable.contactId, parseInt(contactId)))).orderBy(desc(callsTable.createdAt)).limit(5),
         db.select({
           title: tasksTable.title,
           status: tasksTable.status,
           priority: tasksTable.priority,
           dueDate: tasksTable.dueDate,
-        }).from(tasksTable).where(eq(tasksTable.contactId, parseInt(contactId))).orderBy(desc(tasksTable.createdAt)).limit(5),
+        }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.relatedContactId, parseInt(contactId)))).orderBy(desc(tasksTable.createdAt)).limit(5),
         db.select({
           firstName: contactsTable.firstName,
           lastName: contactsTable.lastName,
@@ -762,7 +795,7 @@ router.post("/ai/draft-email", async (req, res) => {
           category: contactsTable.category,
           notes: contactsTable.notes,
           email: contactsTable.email,
-        }).from(contactsTable).where(eq(contactsTable.id, parseInt(contactId))).limit(1),
+        }).from(contactsTable).where(and(eq(contactsTable.organisationId, orgId), eq(contactsTable.id, parseInt(contactId)))).limit(1),
       ]);
 
       if (contactInfo.length > 0) {
@@ -885,6 +918,15 @@ router.post("/ai/discovery", async (req, res) => {
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
+    const userOrgId = user.organisationId;
+    if (!userOrgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+
+    const orgCall = eq(callsTable.organisationId, userOrgId);
+    const orgTask = eq(tasksTable.organisationId, userOrgId);
+    const orgMsg = eq(messagesTable.organisationId, userOrgId);
+    const orgContact = eq(contactsTable.organisationId, userOrgId);
+    const orgCheckin = eq(checkinsTable.organisationId, userOrgId);
+
     const [
       connectedApps,
       userCallStats,
@@ -900,19 +942,19 @@ router.post("/ai/discovery", async (req, res) => {
         answered: sql<number>`SUM(CASE WHEN status = 'repondu' THEN 1 ELSE 0 END)`,
         missed: sql<number>`SUM(CASE WHEN status = 'manque' THEN 1 ELSE 0 END)`,
         avgDuration: sql<number>`coalesce(avg(duration), 0)::int`,
-      }).from(callsTable).where(gte(callsTable.createdAt, weekAgo)),
+      }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))),
       db.select({
         total: count(),
         pending: sql<number>`SUM(CASE WHEN status = 'en_attente' THEN 1 ELSE 0 END)`,
         overdue: sql<number>`SUM(CASE WHEN status != 'termine' AND status != 'annule' AND due_date < NOW() THEN 1 ELSE 0 END)`,
-      }).from(tasksTable),
+      }).from(tasksTable).where(orgTask),
       db.select({
         total: count(),
         unread: sql<number>`SUM(CASE WHEN is_read = false THEN 1 ELSE 0 END)`,
-      }).from(messagesTable),
-      db.select({ count: count() }).from(contactsTable),
-      db.select({ count: count() }).from(checkinsTable).where(gte(checkinsTable.checkInAt, monthAgo)),
-      db.select({ count: count() }).from(usersTable),
+      }).from(messagesTable).where(orgMsg),
+      db.select({ count: count() }).from(contactsTable).where(orgContact),
+      db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, monthAgo))),
+      db.select({ count: count() }).from(usersTable).where(eq(usersTable.organisationId, userOrgId)),
     ]);
 
     const userProfile = {
@@ -1088,10 +1130,12 @@ Sois concret, personnalise, et adapte tes recommandations au role (${userProfile
 router.post("/ai/central-intelligence", async (req, res) => {
   try {
     const userId = (req.session as any)?.userId;
+    const orgId = (req.session as any)?.organisationId;
     if (!userId) {
       res.status(401).json({ error: "Non authentifie." });
       return;
     }
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
 
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -1100,6 +1144,13 @@ router.post("/ai/central-intelligence", async (req, res) => {
     const next48h = new Date(now.getTime() + 48 * 60 * 60 * 1000);
 
     const { stockArticlesTable } = await import("@workspace/db");
+
+    const orgCall = eq(callsTable.organisationId, orgId);
+    const orgTask = eq(tasksTable.organisationId, orgId);
+    const orgMsg = eq(messagesTable.organisationId, orgId);
+    const orgContact = eq(contactsTable.organisationId, orgId);
+    const orgCheckin = eq(checkinsTable.organisationId, orgId);
+    const orgStock = eq(stockArticlesTable.organisationId, orgId);
 
     const [
       overdueTasks,
@@ -1127,7 +1178,7 @@ router.post("/ai/central-intelligence", async (req, res) => {
         assignedTo: tasksTable.assignedTo,
         status: tasksTable.status,
       }).from(tasksTable).where(
-        and(lt(tasksTable.dueDate, now), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))
+        and(orgTask, lt(tasksTable.dueDate, now), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))
       ).orderBy(asc(tasksTable.dueDate)).limit(10),
 
       db.select({
@@ -1136,7 +1187,7 @@ router.post("/ai/central-intelligence", async (req, res) => {
         dueDate: tasksTable.dueDate,
         assignedTo: tasksTable.assignedTo,
       }).from(tasksTable).where(
-        and(eq(tasksTable.priority, "haute"), eq(tasksTable.status, "en_attente"))
+        and(orgTask, eq(tasksTable.priority, "haute"), eq(tasksTable.status, "en_attente"))
       ).limit(5),
 
       db.select({
@@ -1146,6 +1197,7 @@ router.post("/ai/central-intelligence", async (req, res) => {
         dueDate: tasksTable.dueDate,
       }).from(tasksTable).where(
         and(
+          orgTask,
           gte(tasksTable.dueDate, now),
           lt(tasksTable.dueDate, next48h),
           ne(tasksTable.status, "termine"),
@@ -1161,14 +1213,14 @@ router.post("/ai/central-intelligence", async (req, res) => {
         type: messagesTable.type,
         priority: messagesTable.priority,
         createdAt: messagesTable.createdAt,
-      }).from(messagesTable).where(eq(messagesTable.isRead, false)).orderBy(desc(messagesTable.createdAt)).limit(15),
+      }).from(messagesTable).where(and(orgMsg, eq(messagesTable.isRead, false))).orderBy(desc(messagesTable.createdAt)).limit(15),
 
-      db.select({ count: count() }).from(callsTable).where(and(eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))),
-      db.select({ count: count() }).from(callsTable).where(and(eq(callsTable.status, "repondu"), gte(callsTable.createdAt, weekAgo))),
-      db.select({ count: count() }).from(callsTable).where(and(eq(callsTable.sentiment, "negatif"), gte(callsTable.createdAt, weekAgo))),
-      db.select({ count: count() }).from(callsTable).where(and(isNull(callsTable.contactId), gte(callsTable.createdAt, weekAgo))),
-      db.select({ count: count() }).from(callsTable).where(gte(callsTable.createdAt, weekAgo)),
-      db.select({ count: count() }).from(callsTable).where(gte(callsTable.createdAt, todayStart)),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.status, "repondu"), gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.sentiment, "negatif"), gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, isNull(callsTable.contactId), gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, todayStart))),
 
       db.select({
         id: callsTable.id,
@@ -1178,7 +1230,7 @@ router.post("/ai/central-intelligence", async (req, res) => {
         notes: callsTable.notes,
         createdAt: callsTable.createdAt,
       }).from(callsTable).where(
-        and(eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))
+        and(orgCall, eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))
       ).orderBy(desc(callsTable.createdAt)).limit(5),
 
       db.select({
@@ -1191,6 +1243,7 @@ router.post("/ai/central-intelligence", async (req, res) => {
         lastCallAt: contactsTable.lastCallAt,
       }).from(contactsTable).where(
         and(
+          orgContact,
           isNotNull(contactsTable.lastCallAt),
           lt(contactsTable.lastCallAt, fifteenDaysAgo)
         )
@@ -1205,19 +1258,19 @@ router.post("/ai/central-intelligence", async (req, res) => {
         category: stockArticlesTable.category,
         supplier: stockArticlesTable.supplier,
       }).from(stockArticlesTable).where(
-        sql`${stockArticlesTable.quantity} <= ${stockArticlesTable.minQuantity}`
+        and(orgStock, sql`${stockArticlesTable.quantity} <= ${stockArticlesTable.minQuantity}`)
       ).limit(8),
 
-      db.select({ count: count() }).from(checkinsTable).where(gte(checkinsTable.checkInAt, todayStart)),
+      db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, todayStart))),
 
       db.select({
         hour: sql<string>`extract(hour from ${callsTable.createdAt})`.as("hour"),
         callCount: count(),
-      }).from(callsTable).where(gte(callsTable.createdAt, weekAgo)).groupBy(sql`extract(hour from ${callsTable.createdAt})`).orderBy(desc(count())).limit(5),
+      }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))).groupBy(sql`extract(hour from ${callsTable.createdAt})`).orderBy(desc(count())).limit(5),
       db.select({
         total: count(),
         completed: sql<number>`SUM(CASE WHEN status = 'termine' THEN 1 ELSE 0 END)`,
-      }).from(tasksTable),
+      }).from(tasksTable).where(orgTask),
     ]);
 
     const totalWeekCalls = Number(totalCallsWeek[0]?.count ?? 0);
