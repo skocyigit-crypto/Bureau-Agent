@@ -2,7 +2,7 @@ import { db, autoBackupsTable, backupConfigTable, callsTable, contactsTable, tas
 import { count, eq, desc } from "drizzle-orm";
 import crypto from "crypto";
 
-const BACKUP_INTERVAL_MS = 2 * 60 * 1000;
+const BACKUP_INTERVAL_MS = 60 * 60 * 1000;
 const PLATFORMS = ["local", "google", "microsoft", "apple"] as const;
 
 async function collectDataSnapshot() {
@@ -58,46 +58,26 @@ async function performBackup() {
     const dataStr = JSON.stringify(snapshot);
     const encryptionHash = generateEncryptionHash(dataStr + Date.now().toString());
     const sizeBytes = estimateSize(snapshot);
+    const duration = Date.now() - startTime;
 
-    const results = [];
-
-    for (const platform of enabledPlatforms) {
-      try {
-        const duration = Date.now() - startTime;
-        const [backup] = await db.insert(autoBackupsTable).values({
-          type: platform === "local" ? "snapshot" : "sync",
-          status: "termine",
-          platform,
-          dataSummary: {
-            ...snapshot,
-            plateforme: platform,
-            chiffrement: "AES-256-GCM",
-            integrite: encryptionHash.substring(0, 16),
-          },
-          sizeBytes,
-          encryptionHash,
-          duration,
-        }).returning();
-
-        results.push({ platform, status: "termine", id: backup.id });
-      } catch (err: any) {
-        await db.insert(autoBackupsTable).values({
-          type: platform === "local" ? "snapshot" : "sync",
-          status: "erreur",
-          platform,
-          dataSummary: snapshot,
-          sizeBytes,
-          encryptionHash,
-          duration: Date.now() - startTime,
-          errorMessage: err.message,
-        });
-        results.push({ platform, status: "erreur", error: err.message });
-      }
-    }
+    const [backup] = await db.insert(autoBackupsTable).values({
+      type: "snapshot",
+      status: "termine",
+      platform: "local",
+      dataSummary: {
+        ...snapshot,
+        plateformes: enabledPlatforms,
+        chiffrement: "AES-256-GCM",
+        integrite: encryptionHash.substring(0, 16),
+      },
+      sizeBytes,
+      encryptionHash,
+      duration,
+    }).returning();
 
     await cleanupOldBackups();
 
-    return { success: true, results, duration: Date.now() - startTime };
+    return { success: true, results: [{ platform: "local", status: "termine", id: backup.id }], duration: Date.now() - startTime };
   } catch (error: any) {
     console.error("[AutoBackup] Erreur critique:", error.message);
     return { success: false, error: error.message, duration: Date.now() - startTime };

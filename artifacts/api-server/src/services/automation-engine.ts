@@ -18,7 +18,7 @@ export function startAutomationEngine() {
   console.log("[Automation] Moteur d'automatisation demarre");
 
   runAllAutomations();
-  intervalHandle = setInterval(runAllAutomations, 60 * 1000);
+  intervalHandle = setInterval(runAllAutomations, 5 * 60 * 1000);
 
   const shutdown = () => {
     console.log("[Automation] Arret du moteur d'automatisation");
