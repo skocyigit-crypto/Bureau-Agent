@@ -1,6 +1,7 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, useMemo } from "react";
 import { Link, useLocation } from "wouter";
-import { Phone, Users, CheckSquare, MessageSquare, BarChart, Search, LayoutDashboard, Settings, PhoneIncoming, FileText, Puzzle, UserCog, Clock, Brain, Package, Calendar, Shield, Zap, BarChart3, Building2 } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, BarChart, Search, LayoutDashboard, Settings, PhoneIncoming, FileText, Puzzle, UserCog, Clock, Brain, Package, Calendar, Shield, Zap, BarChart3, KeyRound } from "lucide-react";
+import { useWorkspaceUser } from "@/components/workspace-user";
 import { SidebarIcon3D, Icon3D } from "@/components/icon-3d";
 import { AiAssistantButton } from "@/components/ai-assistant";
 import { AiHealthBadge, RecognitionProvider } from "@/components/ai-recognition-panel";
@@ -21,27 +22,31 @@ export const useSimulateCall = () => useContext(IncomingCallContext);
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const incomingCall = useIncomingCall();
+  const { user } = useWorkspaceUser();
 
-  const navigation = [
-    { name: "Tableau de bord", href: "/", icon: LayoutDashboard },
-    { name: "Appels", href: "/appels", icon: Phone },
-    { name: "Contacts", href: "/contacts", icon: Users },
-    { name: "Tâches", href: "/taches", icon: CheckSquare },
-    { name: "Messages", href: "/messages", icon: MessageSquare },
-    { name: "Calendrier", href: "/calendrier", icon: Calendar },
-    { name: "Rapports", href: "/rapports", icon: FileText },
-    { name: "Logiciels", href: "/logiciels", icon: Puzzle },
-    { name: "Analyse", href: "/analyse", icon: BarChart },
-    { name: "Utilisateurs", href: "/utilisateurs", icon: UserCog },
-    { name: "Stock", href: "/stock", icon: Package },
-    { name: "Pointage", href: "/pointage", icon: Clock },
-    { name: "Agents IA", href: "/agents-ia", icon: Brain },
-    { name: "Performance", href: "/performance", icon: BarChart3 },
-    { name: "Automatisations", href: "/automatisations", icon: Zap },
-    { name: "Organisations", href: "/organisations", icon: Building2 },
-    { name: "Audit", href: "/audit", icon: Shield },
-    { name: "Parametres", href: "/parametres", icon: Settings },
-  ];
+  const navigation = useMemo(() => {
+    const items = [
+      { name: "Tableau de bord", href: "/", icon: LayoutDashboard },
+      { name: "Appels", href: "/appels", icon: Phone },
+      { name: "Contacts", href: "/contacts", icon: Users },
+      { name: "Tâches", href: "/taches", icon: CheckSquare },
+      { name: "Messages", href: "/messages", icon: MessageSquare },
+      { name: "Calendrier", href: "/calendrier", icon: Calendar },
+      { name: "Rapports", href: "/rapports", icon: FileText },
+      { name: "Logiciels", href: "/logiciels", icon: Puzzle },
+      { name: "Analyse", href: "/analyse", icon: BarChart },
+      { name: "Utilisateurs", href: "/utilisateurs", icon: UserCog },
+      { name: "Stock", href: "/stock", icon: Package },
+      { name: "Pointage", href: "/pointage", icon: Clock },
+      { name: "Agents IA", href: "/agents-ia", icon: Brain },
+      { name: "Performance", href: "/performance", icon: BarChart3 },
+      { name: "Automatisations", href: "/automatisations", icon: Zap },
+      ...(user.role === "super_admin" ? [{ name: "Lisans", href: "/organisations", icon: KeyRound }] : []),
+      { name: "Audit", href: "/audit", icon: Shield },
+      { name: "Parametres", href: "/parametres", icon: Settings },
+    ];
+    return items;
+  }, [user.role]);
 
 
   return (

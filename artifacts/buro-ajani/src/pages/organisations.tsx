@@ -238,7 +238,7 @@ export default function OrganisationsPage() {
           <div className="flex items-center gap-4">
             <Icon3D icon={Building2} variant="amber" size="lg" />
             <div>
-              <h1 className="text-2xl font-bold text-white">Gestion des Organisations</h1>
+              <h1 className="text-2xl font-bold text-white">Lisans Yonetimi</h1>
               <p className="text-white/60 mt-1">Creez et gerez les licences de vos clients</p>
             </div>
           </div>
