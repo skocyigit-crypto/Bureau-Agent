@@ -47,7 +47,7 @@ import testimonial3Path from "@/assets/images/testimonial-3.png";
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 40 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } }
+  visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] } }
 };
 
 const staggerContainer = {
@@ -83,6 +83,7 @@ function Counter({ end, suffix = "", duration = 2 }: { end: number, suffix?: str
 
       return () => clearInterval(timer);
     }
+    return undefined;
   }, [isInView, end, duration]);
 
   const formattedCount = count > 1000 && count !== end 
