@@ -52,6 +52,7 @@ The application features a French UI with a deep navy and warm amber aesthetic, 
     - **Utilities:** Global Search, Theme Toggle (dark/light mode), CSV Export Menu, and an Admin-only Audit Log.
     - **Visuals:** Real Photo Banners integrated across all pages with gradient overlays.
 - **Google Workspace OAuth Integration:** Full OAuth2 flow enabling Super Admin credential management, dynamic authorization URL generation, token handling, and self-service configuration.
+- **Google Agenda → Pointage Sync:** `POST /api/checkins/sync-google` fetches Google Calendar events for a date range, groups them by local day (timezone-aware using calendar timezone), and creates completed checkin records. Skips days that already have pointage entries. UI: "Sync Google" button on Pointage page opens a dialog with date range picker and import results. Service: `artifacts/api-server/src/services/google-calendar-sync.ts`. Sanitized error messages prevent internal detail leakage.
 
 ## External Dependencies
 

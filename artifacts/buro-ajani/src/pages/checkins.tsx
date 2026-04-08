@@ -3,7 +3,8 @@ import {
   Clock, LogIn, LogOut, Coffee, MapPin, Building2, Wifi, Map, CalendarDays,
   Timer, Users, BarChart3, Loader2, Play, Pause, Square, Plus, ChevronLeft,
   ChevronRight, ChevronsLeft, ChevronsRight, MoreHorizontal, Trash2, Eye,
-  RefreshCw, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Sparkles
+  RefreshCw, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Sparkles,
+  Download, CheckCircle2, AlertCircle, CloudDownload
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -97,11 +98,19 @@ export default function CheckinsPage() {
 
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [showGoogleSyncDialog, setShowGoogleSyncDialog] = useState(false);
   const [selectedCheckin, setSelectedCheckin] = useState<any>(null);
   const [newCheckin, setNewCheckin] = useState({
     type: "bureau" as "bureau" | "distance" | "terrain",
     location: "",
     notes: "",
+  });
+  const [googleSync, setGoogleSync] = useState({
+    dateFrom: new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10),
+    dateTo: new Date().toISOString().slice(0, 10),
+    loading: false,
+    result: null as null | { message: string; imported: number; skipped: number; errors: number; details: string[] },
+    error: null as string | null,
   });
 
   const { data: listData, isLoading } = useListCheckins({
@@ -209,6 +218,31 @@ export default function CheckinsPage() {
     });
   };
 
+  const handleGoogleSync = async () => {
+    setGoogleSync(p => ({ ...p, loading: true, result: null, error: null }));
+    try {
+      const baseUrl = import.meta.env.BASE_URL || "/";
+      const res = await fetch(`${baseUrl}api/checkins/sync-google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ dateFrom: googleSync.dateFrom, dateTo: googleSync.dateTo }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setGoogleSync(p => ({ ...p, loading: false, error: data.error || "Erreur inconnue" }));
+        return;
+      }
+      setGoogleSync(p => ({ ...p, loading: false, result: data }));
+      if (data.imported > 0) {
+        invalidateAll();
+        toast({ title: "Synchronisation reussie", description: data.message });
+      }
+    } catch (err: any) {
+      setGoogleSync(p => ({ ...p, loading: false, error: err.message || "Erreur reseau" }));
+    }
+  };
+
   const handleSort = (col: string) => {
     if (sortBy === col) setSortOrder(o => o === "asc" ? "desc" : "asc");
     else { setSortBy(col); setSortOrder("desc"); }
@@ -228,6 +262,9 @@ export default function CheckinsPage() {
           <p className="text-muted-foreground">Gerez vos heures d'arrivee, de depart et votre temps de travail.</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" className="border-blue-300 text-blue-700 hover:bg-blue-50" onClick={() => { setGoogleSync(p => ({ ...p, result: null, error: null })); setShowGoogleSyncDialog(true); }}>
+            <CloudDownload className="w-4 h-4 mr-2" /> Sync Google
+          </Button>
           {!currentSession ? (
             <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setShowNewDialog(true)}>
               <LogIn className="w-4 h-4 mr-2" /> Pointer mon arrivee
@@ -727,6 +764,105 @@ export default function CheckinsPage() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDetailDialog(false)}>Fermer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showGoogleSyncDialog} onOpenChange={setShowGoogleSyncDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CloudDownload className="w-5 h-5 text-blue-600" />
+              Synchroniser Google Agenda
+            </DialogTitle>
+            <DialogDescription>
+              Importez vos heures de travail depuis Google Agenda vers le pointage.
+              Les evenements de la periode selectionnee seront regroupes par jour.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="sync-from">Date de debut</Label>
+                <Input
+                  id="sync-from"
+                  type="date"
+                  value={googleSync.dateFrom}
+                  onChange={e => setGoogleSync(p => ({ ...p, dateFrom: e.target.value }))}
+                  max={googleSync.dateTo}
+                />
+              </div>
+              <div>
+                <Label htmlFor="sync-to">Date de fin</Label>
+                <Input
+                  id="sync-to"
+                  type="date"
+                  value={googleSync.dateTo}
+                  onChange={e => setGoogleSync(p => ({ ...p, dateTo: e.target.value }))}
+                  min={googleSync.dateFrom}
+                  max={new Date().toISOString().slice(0, 10)}
+                />
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-sm text-blue-800">
+                <strong>Fonctionnement :</strong> Les evenements Google Agenda avec des horaires de debut et fin
+                seront regroupes par jour. Le premier evenement marque l'arrivee, le dernier marque le depart.
+                Les jours deja pointes seront ignores.
+              </p>
+            </div>
+
+            {googleSync.error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 shrink-0" />
+                <p className="text-sm text-red-700">{googleSync.error}</p>
+              </div>
+            )}
+
+            {googleSync.result && (
+              <div className="space-y-3">
+                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+                  <div className="text-sm text-emerald-800">
+                    <p className="font-medium">{googleSync.result.message}</p>
+                    <div className="flex gap-4 mt-1 text-xs">
+                      <span>{googleSync.result.imported} importe(s)</span>
+                      <span>{googleSync.result.skipped} ignore(s)</span>
+                      {googleSync.result.errors > 0 && <span className="text-red-600">{googleSync.result.errors} erreur(s)</span>}
+                    </div>
+                  </div>
+                </div>
+
+                {googleSync.result.details.length > 0 && (
+                  <div className="max-h-40 overflow-y-auto space-y-1 bg-muted/50 rounded-lg p-3">
+                    {googleSync.result.details.map((d, i) => (
+                      <p key={i} className="text-xs text-muted-foreground font-mono">{d}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowGoogleSyncDialog(false)}>
+              {googleSync.result ? "Fermer" : "Annuler"}
+            </Button>
+            {!googleSync.result && (
+              <Button
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={handleGoogleSync}
+                disabled={googleSync.loading || !googleSync.dateFrom || !googleSync.dateTo}
+              >
+                {googleSync.loading ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Synchronisation...</>
+                ) : (
+                  <><CloudDownload className="w-4 h-4 mr-2" /> Synchroniser</>
+                )}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

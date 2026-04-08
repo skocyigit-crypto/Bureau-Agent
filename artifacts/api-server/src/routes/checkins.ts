@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, asc, and, gte, lte, sql } from "drizzle-orm";
-import { db, checkinsTable } from "@workspace/db";
+import { db, checkinsTable, usersTable } from "@workspace/db";
 import {
   ListCheckinsQueryParams,
   CreateCheckinBody,
@@ -10,6 +10,7 @@ import {
   DeleteCheckinParams,
 } from "@workspace/api-zod";
 import { getOrgId } from "../middleware/tenant";
+import { syncGoogleCalendarToCheckins } from "../services/google-calendar-sync";
 
 const router: IRouter = Router();
 
@@ -210,6 +211,77 @@ router.delete("/checkins/:id", async (req, res): Promise<void> => {
     return;
   }
   res.sendStatus(204);
+});
+
+router.post("/checkins/sync-google", async (req, res): Promise<void> => {
+  try {
+    const userId = (req.session as any)?.userId;
+    if (!userId) {
+      res.status(401).json({ error: "Non authentifie." });
+      return;
+    }
+
+    const orgId = getOrgId(req);
+    const { dateFrom, dateTo } = req.body;
+
+    if (!dateFrom || !dateTo) {
+      res.status(400).json({ error: "Les dates de debut et fin sont requises." });
+      return;
+    }
+
+    const from = new Date(dateFrom);
+    const to = new Date(dateTo);
+    if (isNaN(from.getTime()) || isNaN(to.getTime())) {
+      res.status(400).json({ error: "Format de date invalide." });
+      return;
+    }
+
+    const diffDays = (to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24);
+    if (diffDays > 90) {
+      res.status(400).json({ error: "La periode ne peut pas depasser 90 jours." });
+      return;
+    }
+    if (diffDays < 0) {
+      res.status(400).json({ error: "La date de fin doit etre apres la date de debut." });
+      return;
+    }
+
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    if (!user) {
+      res.status(404).json({ error: "Utilisateur introuvable." });
+      return;
+    }
+
+    const employeeName = `${user.prenom} ${user.nom}`;
+    const employeeRole = user.role;
+
+    const result = await syncGoogleCalendarToCheckins({
+      userId,
+      organisationId: orgId,
+      dateFrom,
+      dateTo,
+      employeeName,
+      employeeRole,
+    });
+
+    res.json({
+      message: `Synchronisation terminee: ${result.imported} jour(s) importes, ${result.skipped} ignore(s).`,
+      ...result,
+    });
+  } catch (err: any) {
+    console.error("Google Calendar sync error:", err);
+    const safeMessages = [
+      "Aucun compte Google connecte",
+      "Google Workspace n'est pas configure",
+      "Token Google expire",
+      "Impossible de rafraichir",
+      "Reconnectez votre compte",
+    ];
+    const isSafeMessage = safeMessages.some(m => err.message?.includes(m));
+    res.status(500).json({
+      error: isSafeMessage ? err.message : "Erreur lors de la synchronisation avec Google Agenda.",
+    });
+  }
 });
 
 export default router;
