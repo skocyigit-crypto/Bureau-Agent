@@ -13,9 +13,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/EmptyState";
 import { ListItem } from "@/components/ListItem";
+import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
-
-const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
 
 interface Contact {
   id: number;
@@ -39,6 +38,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 export default function ContactsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +48,7 @@ export default function ContactsScreen() {
     try {
       const params = new URLSearchParams({ limit: "50", sortBy: "lastName", sortOrder: "asc" });
       if (search) params.set("search", search);
-      const res = await fetch(`${API_BASE}/api/contacts?${params}`);
+      const res = await fetchAuth(`${API_BASE}/api/contacts?${params}`);
       if (res.ok) {
         const data = await res.json();
         setContacts(data.contacts ?? []);
@@ -57,7 +57,7 @@ export default function ContactsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [search]);
+  }, [search, fetchAuth]);
 
   useEffect(() => {
     setLoading(true);

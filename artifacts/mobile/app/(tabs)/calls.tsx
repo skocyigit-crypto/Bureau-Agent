@@ -14,9 +14,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/EmptyState";
 import { ListItem } from "@/components/ListItem";
+import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
-
-const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
 
 interface Call {
   id: number;
@@ -38,6 +37,7 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 export default function CallsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
   const [calls, setCalls] = useState<Call[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,7 +49,7 @@ export default function CallsScreen() {
       const params = new URLSearchParams({ limit: "50", sortOrder: "desc" });
       if (filter !== "all") params.set("status", filter);
       if (search) params.set("search", search);
-      const res = await fetch(`${API_BASE}/api/calls?${params}`);
+      const res = await fetchAuth(`${API_BASE}/api/calls?${params}`);
       if (res.ok) {
         const data = await res.json();
         setCalls(data.calls ?? []);
@@ -58,7 +58,7 @@ export default function CallsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [filter, search]);
+  }, [filter, search, fetchAuth]);
 
   useEffect(() => {
     setLoading(true);

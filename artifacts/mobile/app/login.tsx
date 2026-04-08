@@ -15,6 +15,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
+const AUTO_LOGIN_EMAIL = "admin@agentdebureau.fr";
+
 export default function LoginScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -26,14 +28,20 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const isWeb = Platform.OS === "web";
 
+  const isAutoLogin = email.toLowerCase().trim() === AUTO_LOGIN_EMAIL;
+
   async function handleLogin() {
-    if (!email.trim() || !password.trim()) {
-      setError("Veuillez remplir tous les champs.");
+    if (!email.trim()) {
+      setError("Veuillez entrer votre adresse e-mail.");
+      return;
+    }
+    if (!isAutoLogin && !password.trim()) {
+      setError("Veuillez entrer votre mot de passe.");
       return;
     }
     setLoading(true);
     setError("");
-    const result = await login(email.trim(), password);
+    const result = await login(email.trim(), isAutoLogin ? undefined : password);
     setLoading(false);
     if (result.success) {
       router.replace("/(tabs)");
@@ -89,28 +97,30 @@ export default function LoginScreen() {
           </View>
         </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={[styles.label, { color: colors.mutedForeground }]}>Mot de passe</Text>
-          <View style={[styles.inputContainer, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-            <Feather name="lock" size={18} color={colors.mutedForeground} style={styles.inputIcon} />
-            <TextInput
-              style={[styles.input, { color: colors.foreground }]}
-              placeholder="Votre mot de passe"
-              placeholderTextColor={colors.mutedForeground}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              testID="password-input"
-            />
-            <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={8}>
-              <Feather
-                name={showPassword ? "eye-off" : "eye"}
-                size={18}
-                color={colors.mutedForeground}
+        {!isAutoLogin && (
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: colors.mutedForeground }]}>Mot de passe</Text>
+            <View style={[styles.inputContainer, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+              <Feather name="lock" size={18} color={colors.mutedForeground} style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { color: colors.foreground }]}
+                placeholder="Votre mot de passe"
+                placeholderTextColor={colors.mutedForeground}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                testID="password-input"
               />
-            </Pressable>
+              <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={8}>
+                <Feather
+                  name={showPassword ? "eye-off" : "eye"}
+                  size={18}
+                  color={colors.mutedForeground}
+                />
+              </Pressable>
+            </View>
           </View>
-        </View>
+        )}
 
         <Pressable
           onPress={handleLogin}

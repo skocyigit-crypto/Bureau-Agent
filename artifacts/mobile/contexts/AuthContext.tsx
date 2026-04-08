@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 interface User {
   id: number;
@@ -7,14 +7,18 @@ interface User {
   nom: string;
   prenom: string;
   role: string;
+  departement?: string;
+  organisation?: string;
+  avatar?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
+  fetchAuth: (url: string, options?: RequestInit) => Promise<Response>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -23,14 +27,26 @@ const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   login: async () => ({ success: false }),
   logout: async () => {},
+  fetchAuth: async () => new Response(),
 });
 
 const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
+const AUTO_LOGIN_EMAIL = "admin@agentdebureau.fr";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [sessionCookie, setSessionCookie] = useState<string | null>(null);
+
+  const fetchAuth = useCallback(async (url: string, options: RequestInit = {}): Promise<Response> => {
+    const headers: Record<string, string> = {
+      ...(options.headers as Record<string, string> || {}),
+    };
+    if (sessionCookie) {
+      headers["Cookie"] = sessionCookie;
+    }
+    return fetch(url, { ...options, headers });
+  }, [sessionCookie]);
 
   useEffect(() => {
     restoreSession();
@@ -47,7 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         if (res.ok) {
           const data = await res.json();
-          setUser(data.user);
+          setUser(data);
         } else {
           await AsyncStorage.removeItem("adb_session");
           setSessionCookie(null);
@@ -59,29 +75,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function login(email: string, password: string) {
+  async function login(email: string, password?: string) {
     try {
+      const isAutoLogin = email.toLowerCase().trim() === AUTO_LOGIN_EMAIL;
+      const body: Record<string, string> = { email: email.trim() };
+      if (!isAutoLogin && password) {
+        body.password = password;
+      }
+
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
-        return { success: false, error: "Identifiants invalides." };
+        const errData = await res.json().catch(() => ({}));
+        return { success: false, error: errData.error || "Identifiants invalides." };
       }
 
-      const setCookie = res.headers.get("set-cookie");
+      const setCookieHeader = res.headers.get("set-cookie");
       const data = await res.json();
 
-      if (setCookie) {
-        const cookieValue = setCookie.split(";")[0];
+      if (setCookieHeader) {
+        const cookieValue = setCookieHeader.split(";")[0];
         setSessionCookie(cookieValue);
         await AsyncStorage.setItem("adb_session", JSON.stringify({ cookie: cookieValue }));
       }
 
-      const userData = data.user || data;
-      setUser(userData);
+      setUser(data);
       return { success: true };
     } catch {
       return { success: false, error: "Erreur de connexion au serveur." };
@@ -105,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, isAuthenticated: !!user, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, isAuthenticated: !!user, login, logout, fetchAuth }}>
       {children}
     </AuthContext.Provider>
   );
@@ -114,3 +136,5 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   return useContext(AuthContext);
 }
+
+export { API_BASE };

@@ -13,10 +13,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/EmptyState";
 import { StatCard } from "@/components/StatCard";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
-
-const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
 
 interface DashboardData {
   totalCalls: number;
@@ -31,7 +29,7 @@ interface DashboardData {
 export default function DashboardScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,7 +37,7 @@ export default function DashboardScreen() {
 
   const fetchDashboard = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/dashboard/summary`);
+      const res = await fetchAuth(`${API_BASE}/api/dashboard/summary`);
       if (res.ok) {
         const json = await res.json();
         setData({
@@ -57,7 +55,7 @@ export default function DashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [fetchAuth]);
 
   React.useEffect(() => {
     fetchDashboard();

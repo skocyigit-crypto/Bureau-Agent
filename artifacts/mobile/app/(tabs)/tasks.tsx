@@ -13,9 +13,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/EmptyState";
 import { ListItem } from "@/components/ListItem";
+import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
-
-const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
 
 interface Task {
   id: number;
@@ -43,6 +42,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 export default function TasksScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,7 +52,7 @@ export default function TasksScreen() {
     try {
       const params = new URLSearchParams({ limit: "50", sortOrder: "desc" });
       if (filter !== "all") params.set("status", filter);
-      const res = await fetch(`${API_BASE}/api/tasks?${params}`);
+      const res = await fetchAuth(`${API_BASE}/api/tasks?${params}`);
       if (res.ok) {
         const data = await res.json();
         setTasks(data.tasks ?? []);
@@ -61,7 +61,7 @@ export default function TasksScreen() {
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [filter, fetchAuth]);
 
   useEffect(() => {
     setLoading(true);
