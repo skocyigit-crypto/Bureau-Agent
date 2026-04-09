@@ -1085,6 +1085,10 @@ export default function SettingsPage() {
   const [driveBackupStats, setDriveBackupStats] = useState<any>(null);
   const [driveBackupFiles, setDriveBackupFiles] = useState<any[]>([]);
   const [driveFilesLoading, setDriveFilesLoading] = useState(false);
+  const [driveConfig, setDriveConfig] = useState<any>(null);
+  const [driveConfigSaving, setDriveConfigSaving] = useState(false);
+  const [driveConfigEditing, setDriveConfigEditing] = useState(false);
+  const [driveConfigForm, setDriveConfigForm] = useState({ enabled: "true", intervalMinutes: 360, retentionDays: 90, encryptionEnabled: "true" });
 
   const { simulateIncomingCall } = useSimulateCall();
   const { toast } = useToast();
@@ -1255,15 +1259,56 @@ export default function SettingsPage() {
     }
   };
 
+  const fetchDriveConfig = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/google-drive-backup/config`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setDriveConfig(data);
+        setDriveConfigForm({
+          enabled: data.enabled || "true",
+          intervalMinutes: data.intervalMinutes || 360,
+          retentionDays: data.retentionDays || 90,
+          encryptionEnabled: data.encryptionEnabled || "true",
+        });
+      }
+    } catch {}
+  }, []);
+
+  const saveDriveConfig = async () => {
+    setDriveConfigSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/google-drive-backup/config`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(driveConfigForm),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Configuration sauvegardee", description: "Les parametres de sauvegarde Google Drive ont ete mis a jour." });
+        setDriveConfig(data.config);
+        setDriveConfigEditing(false);
+      } else {
+        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de sauvegarder la configuration.", variant: "destructive" });
+    } finally {
+      setDriveConfigSaving(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "sauvegardes") {
       fetchBackups();
       fetchDriveBackupStatus();
       fetchDriveBackupHistory();
+      fetchDriveConfig();
       const interval = setInterval(fetchBackups, 30000);
       return () => clearInterval(interval);
     }
-  }, [activeTab, fetchBackups, fetchDriveBackupStatus, fetchDriveBackupHistory]);
+  }, [activeTab, fetchBackups, fetchDriveBackupStatus, fetchDriveBackupHistory, fetchDriveConfig]);
 
   const handleGoogleOAuthConnect = async (services?: string[]) => {
     setGoogleConnecting(true);
@@ -3357,28 +3402,119 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="p-3 rounded-lg bg-muted/30 border">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Lock className="w-3.5 h-3.5 text-blue-600" />
-                    <p className="text-xs font-semibold">Chiffrement</p>
+              <div className="p-4 rounded-xl bg-muted/20 border space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Settings className="w-4 h-4 text-blue-600" />
+                    <p className="text-sm font-semibold">Configuration</p>
                   </div>
-                  <p className="text-[10px] text-muted-foreground">AES-256-GCM avec cle derivee SHA-256. Verification d'integrite par hash SHA-256 sur les donnees originales et chiffrees.</p>
+                  {!driveConfigEditing ? (
+                    <Button variant="outline" size="sm" onClick={() => setDriveConfigEditing(true)} className="gap-1.5 h-7 text-xs">
+                      <PenTool className="w-3 h-3" /> Modifier
+                    </Button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => { setDriveConfigEditing(false); if (driveConfig) setDriveConfigForm({ enabled: driveConfig.enabled, intervalMinutes: driveConfig.intervalMinutes, retentionDays: driveConfig.retentionDays, encryptionEnabled: driveConfig.encryptionEnabled }); }} className="h-7 text-xs">
+                        Annuler
+                      </Button>
+                      <Button size="sm" onClick={saveDriveConfig} disabled={driveConfigSaving} className="gap-1.5 h-7 text-xs bg-blue-600 hover:bg-blue-700">
+                        {driveConfigSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                        Enregistrer
+                      </Button>
+                    </div>
+                  )}
                 </div>
-                <div className="p-3 rounded-lg bg-muted/30 border">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Shield className="w-3.5 h-3.5 text-amber-600" />
-                    <p className="text-xs font-semibold">Protection</p>
+
+                {driveConfigEditing ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium">Sauvegarde automatique</label>
+                      <select
+                        className="w-full h-9 rounded-md border bg-background px-3 text-sm"
+                        value={driveConfigForm.enabled}
+                        onChange={e => setDriveConfigForm(f => ({ ...f, enabled: e.target.value }))}
+                      >
+                        <option value="true">Activee</option>
+                        <option value="false">Desactivee</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium">Frequence (minutes)</label>
+                      <select
+                        className="w-full h-9 rounded-md border bg-background px-3 text-sm"
+                        value={driveConfigForm.intervalMinutes}
+                        onChange={e => setDriveConfigForm(f => ({ ...f, intervalMinutes: Number(e.target.value) }))}
+                      >
+                        <option value={60}>Toutes les heures (60 min)</option>
+                        <option value={120}>Toutes les 2 heures</option>
+                        <option value={180}>Toutes les 3 heures</option>
+                        <option value={360}>Toutes les 6 heures</option>
+                        <option value={720}>Toutes les 12 heures</option>
+                        <option value={1440}>Une fois par jour</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium">Retention (jours)</label>
+                      <select
+                        className="w-full h-9 rounded-md border bg-background px-3 text-sm"
+                        value={driveConfigForm.retentionDays}
+                        onChange={e => setDriveConfigForm(f => ({ ...f, retentionDays: Number(e.target.value) }))}
+                      >
+                        <option value={7}>7 jours</option>
+                        <option value={14}>14 jours</option>
+                        <option value={30}>30 jours</option>
+                        <option value={60}>60 jours</option>
+                        <option value={90}>90 jours</option>
+                        <option value={180}>180 jours</option>
+                        <option value={365}>365 jours (1 an)</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium">Chiffrement</label>
+                      <select
+                        className="w-full h-9 rounded-md border bg-background px-3 text-sm"
+                        value={driveConfigForm.encryptionEnabled}
+                        onChange={e => setDriveConfigForm(f => ({ ...f, encryptionEnabled: e.target.value }))}
+                      >
+                        <option value="true">AES-256-GCM (recommande)</option>
+                        <option value="false">Desactive</option>
+                      </select>
+                    </div>
                   </div>
-                  <p className="text-[10px] text-muted-foreground">Dossier dedie sur Google Drive. Nettoyage automatique apres 90 jours. Export complet de 16 tables de donnees.</p>
-                </div>
-                <div className="p-3 rounded-lg bg-muted/30 border">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Clock className="w-3.5 h-3.5 text-emerald-600" />
-                    <p className="text-xs font-semibold">Planification</p>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="p-3 rounded-lg bg-background border">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Zap className="w-3 h-3 text-blue-600" />
+                        <p className="text-[10px] font-semibold text-muted-foreground">Statut</p>
+                      </div>
+                      <p className="text-xs font-medium">{driveConfig?.enabled === "true" ? "Active" : "Desactive"}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-background border">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Clock className="w-3 h-3 text-emerald-600" />
+                        <p className="text-[10px] font-semibold text-muted-foreground">Frequence</p>
+                      </div>
+                      <p className="text-xs font-medium">
+                        {driveConfig?.intervalMinutes ? (driveConfig.intervalMinutes >= 60 ? `${driveConfig.intervalMinutes / 60}h` : `${driveConfig.intervalMinutes} min`) : "6h"}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-background border">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Calendar className="w-3 h-3 text-amber-600" />
+                        <p className="text-[10px] font-semibold text-muted-foreground">Retention</p>
+                      </div>
+                      <p className="text-xs font-medium">{driveConfig?.retentionDays || 90} jours</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-background border">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Lock className="w-3 h-3 text-purple-600" />
+                        <p className="text-[10px] font-semibold text-muted-foreground">Chiffrement</p>
+                      </div>
+                      <p className="text-xs font-medium">{driveConfig?.encryptionEnabled === "true" ? "AES-256-GCM" : "Desactive"}</p>
+                    </div>
                   </div>
-                  <p className="text-[10px] text-muted-foreground">Sauvegarde automatique toutes les 6 heures. Format de fichier .adb.enc avec enveloppe JSON securisee.</p>
-                </div>
+                )}
               </div>
 
               {driveBackupFiles.length > 0 && (
