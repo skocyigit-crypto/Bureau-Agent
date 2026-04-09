@@ -4,7 +4,7 @@ import {
   Play, Loader2, AlertCircle, AlertTriangle, Lightbulb, CheckCircle2, RefreshCw,
   ChevronDown, ChevronUp, Zap, Target, ArrowRight, Settings, Power, PowerOff,
   Activity, BarChart3, FileText, Rocket, Eye, Wrench, MessageSquare, Cpu,
-  HeartPulse, Radar, Sparkles, CircleDot
+  HeartPulse, Radar, Sparkles, CircleDot, Receipt, Package, UserCog
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,7 @@ import { useQueryClient } from "@tanstack/react-query";
 const AGENT_ICONS: Record<string, any> = {
   phone: Phone, users: Users, clipboard: ClipboardList, mail: Mail,
   clock: Clock, shield: Shield, "trending-up": TrendingUp, crown: Crown,
-  brain: Brain,
+  brain: Brain, receipt: Receipt, package: Package, "user-cog": UserCog,
 };
 
 function getScoreColor(score: number) {
@@ -404,7 +404,7 @@ export default function AiAgentsPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={Brain} variant="purple" size="md" /> Agents IA</h1>
           <p className="text-muted-foreground mt-1">
-            7 agents specialises + Super IA qui analysent, corrigent et ameliorent votre bureau en continu.
+            10 agents specialises + Super IA qui gerent, analysent et ameliorent chaque aspect de votre bureau.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -422,7 +422,7 @@ export default function AiAgentsPage() {
           <div className="absolute inset-0 flex items-center px-6">
             <div className="text-white">
               <h3 className="text-lg font-bold">Systeme multi-agents IA</h3>
-              <p className="text-white/80 text-sm mt-1">7 agents specialises et un Super Agent orchestrateur avec 3 moteurs IA.</p>
+              <p className="text-white/80 text-sm mt-1">10 agents specialises couvrant chaque role du bureau, orchestres par un Super Agent avec 3 moteurs IA.</p>
             </div>
           </div>
         </div>
@@ -487,7 +487,7 @@ export default function AiAgentsPage() {
             <div>
               <p className="font-semibold">Analyse en cours...</p>
               <p className="text-sm text-muted-foreground">
-                Les 7 agents IA analysent votre bureau. Le Super Agent synthetisera ensuite les resultats.
+                Les 10 agents IA analysent votre bureau. Le Super Agent synthetisera ensuite les resultats.
               </p>
             </div>
           </CardContent>
@@ -500,7 +500,7 @@ export default function AiAgentsPage() {
             <BarChart3 className="w-4 h-4" /> Vue d'ensemble
           </TabsTrigger>
           <TabsTrigger value="agents" className="flex items-center gap-1.5">
-            <Brain className="w-4 h-4" /> Agents ({agentReports.length})
+            <Brain className="w-4 h-4" /> Agents (10)
           </TabsTrigger>
           <TabsTrigger value="historique" className="flex items-center gap-1.5">
             <FileText className="w-4 h-4" /> Historique
