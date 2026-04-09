@@ -408,7 +408,7 @@ export async function sendLicenseEmail(params: {
   const { to, orgName, plan, licenseKey, trialEndsAt, adminName, adminEmail, adminPassword } = params;
 
   const trialInfo = trialEndsAt
-    ? `<p style="color:#e67e22;font-size:14px;">Votre periode d'essai se termine le <strong>${new Date(trialEndsAt).toLocaleDateString("fr-FR")}</strong>.</p>`
+    ? `<p style="color:#e67e22;font-size:14px;margin:16px 0 0;">Votre periode d'essai se termine le <strong>${new Date(trialEndsAt).toLocaleDateString("fr-FR")}</strong>.</p>`
     : "";
 
   const credentialsSection = (adminEmail && adminPassword) ? `
@@ -420,7 +420,7 @@ export async function sendLicenseEmail(params: {
             <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${adminName || adminEmail}</td>
           </tr>
           <tr>
-            <td style="padding:8px 0;color:#92400e;font-size:13px;">Email de connexion</td>
+            <td style="padding:8px 0;color:#92400e;font-size:13px;">Email</td>
             <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${adminEmail}</td>
           </tr>
           <tr>
@@ -455,37 +455,16 @@ export async function sendLicenseEmail(params: {
     <div style="padding:32px;">
       <h2 style="color:#0f1729;font-size:20px;margin:0 0 8px;">Bienvenue${adminName ? `, ${adminName}` : `, ${orgName}`} !</h2>
       <p style="color:#64748b;font-size:15px;line-height:1.6;">
-        Votre licence <strong>Agent de Bureau</strong> pour <strong>${orgName}</strong> a ete creee avec succes. 
-        Voici toutes vos informations d'acces :
+        Votre compte <strong>Agent de Bureau</strong> pour <strong>${orgName}</strong> (plan <strong>${plan}</strong>) a ete cree avec succes.
       </p>
-
-      ${credentialsSection}
-
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:24px;margin:24px 0;">
-        <h3 style="color:#0f1729;font-size:16px;margin:0 0 16px;">&#128188; Licence</h3>
-        <table style="width:100%;border-collapse:collapse;">
-          <tr>
-            <td style="padding:8px 0;color:#64748b;font-size:13px;width:140px;">Organisation</td>
-            <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${orgName}</td>
-          </tr>
-          <tr>
-            <td style="padding:8px 0;color:#64748b;font-size:13px;">Plan</td>
-            <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${plan}</td>
-          </tr>
-          <tr>
-            <td style="padding:8px 0;color:#64748b;font-size:13px;">Cle de licence</td>
-            <td style="padding:8px 0;">
-              <span style="background:#0f1729;color:#f59e0b;padding:6px 14px;border-radius:8px;font-family:monospace;font-size:14px;font-weight:700;letter-spacing:1px;">${licenseKey}</span>
-            </td>
-          </tr>
-        </table>
-      </div>
 
       ${trialInfo}
 
+      ${credentialsSection}
+
       <div style="text-align:center;margin:32px 0 16px;">
         <a href="${APP_URL}" style="display:inline-block;background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);color:#0f1729;text-decoration:none;padding:16px 48px;border-radius:12px;font-size:16px;font-weight:700;box-shadow:0 4px 14px rgba(245,158,11,0.4);">
-          &#127775; Acceder a l'application
+          Acceder a l'application
         </a>
       </div>
 
@@ -513,28 +492,12 @@ export async function sendLicenseEmail(params: {
         </table>
       </div>
 
-      <div style="background:linear-gradient(135deg,#f0fdf4 0%,#ecfdf5 100%);border:1px solid #bbf7d0;border-radius:12px;padding:24px;margin:24px 0;">
-        <h3 style="color:#166534;font-size:16px;margin:0 0 12px;">&#9889; Configuration automatique</h3>
-        <p style="color:#15803d;font-size:13px;line-height:1.6;margin:0;">
-          Lors de votre premiere connexion, un <strong>assistant de configuration</strong> vous guidera pour connecter vos outils existants 
-          (Google, Microsoft, Slack, CRM, etc.) en quelques clics. Aucune installation supplementaire requise !
-        </p>
-      </div>
-
-      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px;margin-top:24px;">
-        <p style="margin:0;color:#92400e;font-size:13px;">
-          <strong>&#128274; Important :</strong> Conservez cet email en lieu sur. 
-          Il contient votre cle de licence${adminPassword ? " et votre code de connexion temporaire" : ""}.
-        </p>
-      </div>
-
       <div style="margin-top:24px;padding:20px;background:#f8fafc;border-radius:10px;">
         <h3 style="color:#0f1729;font-size:14px;margin:0 0 12px;">&#128640; Pour commencer</h3>
         <ol style="color:#64748b;font-size:13px;line-height:2;margin:0;padding-left:20px;">
-          <li>Cliquez sur le bouton ci-dessus pour acceder a l'application</li>
-          <li>Connectez-vous avec vos identifiants</li>
-          <li>Suivez l'assistant de configuration pour connecter vos outils</li>
-          <li>Installez l'application sur vos appareils</li>
+          <li>Connectez-vous avec votre email et le code temporaire</li>
+          <li>Changez votre mot de passe dans les parametres</li>
+          <li>Suivez l'assistant de configuration</li>
           <li>Ajoutez vos contacts et invitez vos collaborateurs</li>
         </ol>
       </div>
@@ -554,7 +517,7 @@ export async function sendLicenseEmail(params: {
 
   const credText = (adminEmail && adminPassword) ? `\nCODE DE CONNEXION TEMPORAIRE:\n- Administrateur: ${adminName || adminEmail}\n- Email: ${adminEmail}\n- Code temporaire: ${adminPassword}\n- ATTENTION: Ce code est temporaire. Changez votre mot de passe des votre premiere connexion.\n` : "";
 
-  const text = `Bienvenue${adminName ? ` ${adminName}` : ` ${orgName}`} !\n\nVotre licence Agent de Bureau pour ${orgName}:\n- Plan: ${plan}\n- Cle de licence: ${licenseKey}\n${credText}\nAccedez a l'application: ${APP_URL}\n\nPOUR COMMENCER:\n1. Connectez-vous sur ${APP_URL}\n2. Changez votre mot de passe\n3. Ajoutez vos premiers contacts\n4. Gerez vos appels et taches\n5. Invitez vos collaborateurs\n\nConservez cet email en lieu sur.\n\nSupport: support@agentdebureau.fr\nAgent de Bureau SAS`;
+  const text = `Bienvenue${adminName ? ` ${adminName}` : ` ${orgName}`} !\n\nVotre compte Agent de Bureau pour ${orgName} (plan ${plan}) a ete cree.\n${credText}\nAccedez a l'application: ${APP_URL}\n\nPOUR COMMENCER:\n1. Connectez-vous avec votre code temporaire\n2. Changez votre mot de passe\n3. Ajoutez vos premiers contacts\n4. Invitez vos collaborateurs\n\nSupport: support@agentdebureau.fr\nAgent de Bureau SAS`;
 
-  return sendEmail(to, `Votre licence Agent de Bureau - ${orgName}`, html, text);
+  return sendEmail(to, `Bienvenue sur Agent de Bureau - ${orgName}`, html, text);
 }
