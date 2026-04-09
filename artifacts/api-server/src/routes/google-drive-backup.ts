@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { performGoogleDriveBackup, listGoogleDriveBackups } from "../services/google-drive-backup";
+import { performGoogleDriveBackup, listGoogleDriveBackups, isConnectorAvailable } from "../services/google-drive-backup";
 import { db, autoBackupsTable } from "@workspace/db";
 import { eq, desc, sql } from "drizzle-orm";
 
@@ -67,9 +67,7 @@ router.get("/google-drive-backup/history", async (_req: Request, res: Response):
 });
 
 router.get("/google-drive-backup/status", async (_req: Request, res: Response): Promise<void> => {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const configured = !!(clientId && clientSecret);
+  const configured = await isConnectorAvailable();
 
   const lastBackup = await db.select().from(autoBackupsTable)
     .where(eq(autoBackupsTable.platform, "google"))

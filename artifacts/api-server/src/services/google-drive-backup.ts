@@ -152,7 +152,7 @@ async function cleanupOldDriveBackups(folderId: string, retentionDays: number) {
   }
 }
 
-async function isConnectorAvailable(): Promise<boolean> {
+export async function isConnectorAvailable(): Promise<boolean> {
   try {
     const connectors = getConnectors();
     const response = await connectors.proxy("google-drive", "/drive/v3/about?fields=user", { method: "GET" });
