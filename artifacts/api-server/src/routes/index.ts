@@ -28,6 +28,7 @@ import organisationsRouter from "./organisations";
 import adminReportsRouter from "./admin-reports";
 import billingRouter from "./billing";
 import legalRouter from "./legal";
+import googleDriveBackupRouter from "./google-drive-backup";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -61,5 +62,6 @@ router.use(organisationsRouter);
 router.use(adminReportsRouter);
 router.use(billingRouter);
 router.use(legalRouter);
+router.use(googleDriveBackupRouter);
 
 export default router;

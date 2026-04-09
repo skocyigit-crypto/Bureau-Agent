@@ -1079,6 +1079,12 @@ export default function SettingsPage() {
   const [loadingBackups, setLoadingBackups] = useState(false);
   const [backupRunning, setBackupRunning] = useState(false);
   const [nextBackupMs, setNextBackupMs] = useState(0);
+  const [driveBackupRunning, setDriveBackupRunning] = useState(false);
+  const [driveBackupStatus, setDriveBackupStatus] = useState<any>(null);
+  const [driveBackupHistory, setDriveBackupHistory] = useState<any[]>([]);
+  const [driveBackupStats, setDriveBackupStats] = useState<any>(null);
+  const [driveBackupFiles, setDriveBackupFiles] = useState<any[]>([]);
+  const [driveFilesLoading, setDriveFilesLoading] = useState(false);
 
   const { simulateIncomingCall } = useSimulateCall();
   const { toast } = useToast();
@@ -1195,13 +1201,69 @@ export default function SettingsPage() {
     }
   }, [fetchPlatforms, fetchGoogleOAuthStatus]);
 
+  const fetchDriveBackupStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/google-drive-backup/status`, { credentials: "include" });
+      if (res.ok) setDriveBackupStatus(await res.json());
+    } catch {}
+  }, []);
+
+  const fetchDriveBackupHistory = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/google-drive-backup/history`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setDriveBackupHistory(data.backups || []);
+        setDriveBackupStats(data.stats || null);
+      }
+    } catch {}
+  }, []);
+
+  const fetchDriveFiles = async () => {
+    setDriveFilesLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/google-drive-backup/files`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setDriveBackupFiles(data.files || []);
+      }
+    } catch {} finally {
+      setDriveFilesLoading(false);
+    }
+  };
+
+  const handleDriveBackup = async () => {
+    setDriveBackupRunning(true);
+    try {
+      const res = await fetch(`${API_BASE}/google-drive-backup/run`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Sauvegarde Google Drive reussie", description: `${data.fileName} (${(data.fileSize / 1024).toFixed(1)} Ko) uploade en ${data.duration}ms` });
+        fetchDriveBackupHistory();
+        fetchDriveBackupStatus();
+        fetchDriveFiles();
+      } else {
+        toast({ title: "Erreur Google Drive", description: data.error || data.message, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Erreur de connexion au service Google Drive.", variant: "destructive" });
+    } finally {
+      setDriveBackupRunning(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "sauvegardes") {
       fetchBackups();
+      fetchDriveBackupStatus();
+      fetchDriveBackupHistory();
       const interval = setInterval(fetchBackups, 30000);
       return () => clearInterval(interval);
     }
-  }, [activeTab, fetchBackups]);
+  }, [activeTab, fetchBackups, fetchDriveBackupStatus, fetchDriveBackupHistory]);
 
   const handleGoogleOAuthConnect = async (services?: string[]) => {
     setGoogleConnecting(true);
@@ -3213,6 +3275,183 @@ export default function SettingsPage() {
                   );
                 })}
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-blue-200 dark:border-blue-800">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-blue-100 dark:bg-blue-900/30">
+                    <Cloud className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Sauvegarde Google Drive</CardTitle>
+                    <CardDescription>Sauvegarde chiffree AES-256-GCM vers Google Drive. Automatique toutes les 6 heures.</CardDescription>
+                  </div>
+                </div>
+                <Badge className={driveBackupStatus?.configured
+                  ? "bg-emerald-100 text-emerald-700 border-0 text-xs gap-1"
+                  : "bg-gray-100 text-gray-600 border-0 text-xs"
+                }>
+                  {driveBackupStatus?.configured ? (
+                    <><div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Actif</>
+                  ) : "Non configure"}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-blue-700">{driveBackupStats?.total || 0}</p>
+                  <p className="text-[10px] text-blue-600">Sauvegardes Drive</p>
+                </div>
+                <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-emerald-700">{driveBackupStats?.success || 0}</p>
+                  <p className="text-[10px] text-emerald-600">Reussies</p>
+                </div>
+                <div className="bg-red-50 dark:bg-red-950/30 rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-red-700">{driveBackupStats?.errors || 0}</p>
+                  <p className="text-[10px] text-red-600">Erreurs</p>
+                </div>
+                <div className="bg-purple-50 dark:bg-purple-950/30 rounded-lg p-3 text-center">
+                  <p className="text-xl font-bold text-purple-700">
+                    {driveBackupStats?.totalSizeBytes ? `${(driveBackupStats.totalSizeBytes / 1024 / 1024).toFixed(1)} Mo` : "0"}
+                  </p>
+                  <p className="text-[10px] text-purple-600">Taille totale</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Button onClick={handleDriveBackup} disabled={driveBackupRunning} className="gap-2 bg-blue-600 hover:bg-blue-700">
+                  {driveBackupRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Cloud className="w-4 h-4" />}
+                  {driveBackupRunning ? "Upload en cours..." : "Sauvegarder vers Google Drive"}
+                </Button>
+                <Button variant="outline" onClick={() => { fetchDriveBackupHistory(); fetchDriveBackupStatus(); }} className="gap-2">
+                  <RefreshCw className="w-4 h-4" />
+                  Actualiser
+                </Button>
+                <Button variant="outline" onClick={fetchDriveFiles} disabled={driveFilesLoading} className="gap-2">
+                  {driveFilesLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FolderOpen className="w-4 h-4" />}
+                  Voir les fichiers Drive
+                </Button>
+              </div>
+
+              {driveBackupStatus?.lastSuccessfulBackup && (
+                <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-xs font-semibold text-emerald-700">Derniere sauvegarde reussie</p>
+                      <p className="text-[10px] text-emerald-600">
+                        {new Date(driveBackupStatus.lastSuccessfulBackup.createdAt).toLocaleString("fr-FR", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        {" | "}
+                        {((driveBackupStatus.lastSuccessfulBackup.sizeBytes || 0) / 1024).toFixed(1)} Ko
+                        {" | "}
+                        Chiffrement AES-256-GCM
+                        {" | "}
+                        SHA-256: {driveBackupStatus.lastSuccessfulBackup.encryptionHash?.substring(0, 12)}...
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="p-3 rounded-lg bg-muted/30 border">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Lock className="w-3.5 h-3.5 text-blue-600" />
+                    <p className="text-xs font-semibold">Chiffrement</p>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">AES-256-GCM avec cle derivee SHA-256. Verification d'integrite par hash SHA-256 sur les donnees originales et chiffrees.</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/30 border">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Shield className="w-3.5 h-3.5 text-amber-600" />
+                    <p className="text-xs font-semibold">Protection</p>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Dossier dedie sur Google Drive. Nettoyage automatique apres 90 jours. Export complet de 16 tables de donnees.</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/30 border">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                    <p className="text-xs font-semibold">Planification</p>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Sauvegarde automatique toutes les 6 heures. Format de fichier .adb.enc avec enveloppe JSON securisee.</p>
+                </div>
+              </div>
+
+              {driveBackupFiles.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold flex items-center gap-1.5">
+                    <FolderOpen className="w-3.5 h-3.5 text-blue-600" />
+                    Fichiers sur Google Drive ({driveBackupFiles.length})
+                  </p>
+                  <div className="space-y-1.5 max-h-[250px] overflow-y-auto">
+                    {driveBackupFiles.map((file: any) => (
+                      <div key={file.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/20 border border-border/30">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-100 shrink-0">
+                          <Cloud className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium truncate">{file.name}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {new Date(file.createdTime).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                            {file.size && ` | ${(Number(file.size) / 1024).toFixed(1)} Ko`}
+                          </p>
+                        </div>
+                        {file.webViewLink && (
+                          <a href={file.webViewLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700">
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {driveBackupHistory.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold flex items-center gap-1.5">
+                    <History className="w-3.5 h-3.5 text-blue-600" />
+                    Historique Drive ({driveBackupHistory.length})
+                  </p>
+                  <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
+                    {driveBackupHistory.slice(0, 10).map((b: any) => {
+                      const summary = b.dataSummary as any;
+                      return (
+                        <div key={b.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/20 border border-border/30">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${b.status === "termine" ? "bg-emerald-100" : "bg-red-100"}`}>
+                            {b.status === "termine" ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <XCircle className="w-4 h-4 text-red-600" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs font-medium">{summary?.fileName || "Sauvegarde Drive"}</p>
+                              <Badge className="text-[8px] h-4 px-1.5 border-0 bg-blue-100 text-blue-700">Google Drive</Badge>
+                              {b.duration && <span className="text-[9px] text-muted-foreground">{b.duration}ms</span>}
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[10px] text-muted-foreground">
+                                {new Date(b.createdAt).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                              {b.sizeBytes && <span className="text-[9px] text-muted-foreground">{(b.sizeBytes / 1024).toFixed(1)} Ko</span>}
+                              {b.encryptionHash && (
+                                <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
+                                  <Lock className="w-2.5 h-2.5" /> {b.encryptionHash.substring(0, 8)}...
+                                </span>
+                              )}
+                              {b.status === "erreur" && b.errorMessage && (
+                                <span className="text-[9px] text-red-600 truncate max-w-[200px]">{b.errorMessage}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 

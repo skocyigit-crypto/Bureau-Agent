@@ -4,6 +4,7 @@ import { startAutoBackup } from "./services/auto-backup";
 import { startAutomationEngine } from "./services/automation-engine";
 import { ensureSuperAdmin } from "./services/ensure-admin";
 import { startGoogleAutoPointage } from "./services/google-auto-pointage";
+import { startGoogleDriveBackupScheduler } from "./services/google-drive-backup";
 
 const rawPort = process.env["PORT"];
 
@@ -31,4 +32,5 @@ app.listen(port, (err) => {
   startAutoBackup();
   startAutomationEngine();
   startGoogleAutoPointage();
+  startGoogleDriveBackupScheduler();
 });

@@ -57,6 +57,14 @@ The application features a French UI with a deep navy and warm amber color schem
     - **Document detail dialog:** Accept/revoke individual documents per org, accept all at once, full audit trail (signer name, date, IP).
     - **Legal document catalog:** Visual reference of all required documents with categories and mandatory/optional badges.
     - API routes: `GET/POST /api/legal/*` (super_admin only). Schema: `legal-agreements.ts`.
+- **Google Drive Secure Backup:** Encrypted backup service that uploads full database exports to Google Drive with military-grade security. Features:
+    - **AES-256-GCM encryption:** All data is encrypted before upload with a derived key (SHA-256). Each backup includes IV, auth tag, and dual integrity checksums (original + encrypted).
+    - **Full database export:** 16 tables exported (organisations, users, contacts, calls, tasks, messages, checkins, stock, automations, invoices, payments, legal_agreements, etc.).
+    - **Envelope format:** `.adb.enc` files with JSON envelope containing encryption metadata, integrity hashes, and base64-encoded encrypted data.
+    - **Automatic scheduling:** Runs every 6 hours when Google OAuth is configured. Gracefully disabled when not configured.
+    - **Google Drive folder management:** Auto-creates "Agent de Bureau - Sauvegardes" folder. Auto-cleans files older than retention period (90 days).
+    - **Frontend UI:** Dedicated "Sauvegarde Google Drive" card in Settings > Sauvegardes tab with manual trigger, Drive file listing, backup history, stats, and security info.
+    - API routes: `GET/POST /api/google-drive-backup/*` (super_admin only). Service: `google-drive-backup.ts`.
 
 # External Dependencies
 
