@@ -39,6 +39,9 @@ function requireSuperAdmin(req: Request, res: Response, next: () => void): void 
 router.use(requireSuperAdmin);
 
 router.get("/organisations", async (_req: Request, res: Response): Promise<void> => {
+  const { contactsTable, callsTable } = await import("@workspace/db");
+  const { gte, and } = await import("drizzle-orm");
+
   const orgs = await db.select().from(organisationsTable).orderBy(desc(organisationsTable.createdAt));
 
   const orgIds = orgs.map(o => o.id);
@@ -53,9 +56,29 @@ router.get("/organisations", async (_req: Request, res: Response): Promise<void>
       }).from(usersTable).where(sql`${usersTable.organisationId} IN (${sql.join(orgIds.map(id => sql`${id}`), sql`, `)})`).groupBy(usersTable.organisationId)
     : [];
 
+  const contactCounts = orgIds.length > 0
+    ? await db.select({
+        organisationId: contactsTable.organisationId,
+        count: sql<number>`count(*)::int`,
+      }).from(contactsTable).where(sql`${contactsTable.organisationId} IN (${sql.join(orgIds.map(id => sql`${id}`), sql`, `)})`).groupBy(contactsTable.organisationId)
+    : [];
+
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+
+  const callCounts = orgIds.length > 0
+    ? await db.select({
+        organisationId: callsTable.organisationId,
+        count: sql<number>`count(*)::int`,
+      }).from(callsTable).where(sql`${callsTable.organisationId} IN (${sql.join(orgIds.map(id => sql`${id}`), sql`, `)}) AND ${callsTable.createdAt} >= ${monthStart}`).groupBy(callsTable.organisationId)
+    : [];
+
   const result = orgs.map(org => {
     const sub = subscriptions.find(s => s.organisationId === org.id);
     const uc = userCounts.find(u => u.organisationId === org.id);
+    const cc = contactCounts.find(c => c.organisationId === org.id);
+    const ac = callCounts.find(a => a.organisationId === org.id);
     const plan = sub ? PLANS[sub.plan as PlanKey] : null;
     return {
       ...org,
@@ -65,6 +88,8 @@ router.get("/organisations", async (_req: Request, res: Response): Promise<void>
         isTrialExpired: sub.plan === "essai" && sub.trialEndsAt && new Date(sub.trialEndsAt) < new Date(),
       } : null,
       userCount: uc?.count ?? 0,
+      contactCount: cc?.count ?? 0,
+      callCount: ac?.count ?? 0,
     };
   });
 

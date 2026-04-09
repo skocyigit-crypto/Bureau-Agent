@@ -17,3 +17,4 @@ export * from "./audit-logs";
 export * from "./automations";
 export * from "./performance-reports";
 export * from "./admin-reports";
+export * from "./invoices";
