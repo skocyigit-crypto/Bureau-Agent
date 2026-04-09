@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
 const SMTP_HOST = process.env.SMTP_HOST || "";
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || "587");
@@ -8,7 +9,46 @@ const SMTP_FROM = process.env.SMTP_FROM || "noreply@agentdebureau.fr";
 const APP_URL = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "agentdebureau.fr"}`;
 const MOBILE_APP_URL = process.env.MOBILE_APP_URL || "";
 
-function createTransport() {
+let resendConnectionSettings: any = null;
+
+async function getResendCredentials(): Promise<{ apiKey: string; fromEmail: string } | null> {
+  try {
+    const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
+    if (!hostname) return null;
+
+    const xReplitToken = process.env.REPL_IDENTITY
+      ? "repl " + process.env.REPL_IDENTITY
+      : process.env.WEB_REPL_RENEWAL
+        ? "depl " + process.env.WEB_REPL_RENEWAL
+        : null;
+
+    if (!xReplitToken) return null;
+
+    const response = await fetch(
+      "https://" + hostname + "/api/v2/connection?include_secrets=true&connector_names=resend",
+      {
+        headers: {
+          "Accept": "application/json",
+          "X-Replit-Token": xReplitToken,
+        },
+      }
+    );
+
+    const data = await response.json();
+    resendConnectionSettings = data.items?.[0];
+
+    if (!resendConnectionSettings?.settings?.api_key) return null;
+
+    return {
+      apiKey: resendConnectionSettings.settings.api_key,
+      fromEmail: resendConnectionSettings.settings.from_email || "Agent de Bureau <onboarding@resend.dev>",
+    };
+  } catch {
+    return null;
+  }
+}
+
+function createSmtpTransport() {
   if (!SMTP_HOST) return null;
   return nodemailer.createTransport({
     host: SMTP_HOST,
@@ -19,29 +59,53 @@ function createTransport() {
 }
 
 async function sendEmail(to: string, subject: string, html: string, text: string): Promise<{ success: boolean; error?: string; preview?: string }> {
-  const transport = createTransport();
+  const resendCreds = await getResendCredentials();
+  if (resendCreds) {
+    try {
+      const resend = new Resend(resendCreds.apiKey);
+      const result = await resend.emails.send({
+        from: resendCreds.fromEmail,
+        to: [to],
+        subject,
+        html,
+        text,
+      });
 
-  if (!transport) {
-    console.log(`[Email] SMTP non configure. Email pour ${to}:`);
-    console.log(`  Sujet: ${subject}`);
-    console.log(`  Contenu texte: ${text.substring(0, 300)}...`);
-    return { success: true, preview: "SMTP non configure - email enregistre en log." };
+      if (result.error) {
+        console.error(`[Email/Resend] Erreur envoi a ${to}:`, result.error.message);
+        return { success: false, error: result.error.message };
+      }
+
+      console.log(`[Email/Resend] Envoye a ${to}: ${result.data?.id}`);
+      return { success: true };
+    } catch (err: any) {
+      console.error(`[Email/Resend] Erreur envoi a ${to}:`, err.message);
+      return { success: false, error: err.message };
+    }
   }
 
-  try {
-    const info = await transport.sendMail({
-      from: `"Agent de Bureau" <${SMTP_FROM}>`,
-      to,
-      subject,
-      text,
-      html,
-    });
-    console.log(`[Email] Envoye a ${to}: ${info.messageId}`);
-    return { success: true };
-  } catch (err: any) {
-    console.error(`[Email] Erreur envoi a ${to}:`, err.message);
-    return { success: false, error: err.message };
+  const transport = createSmtpTransport();
+  if (transport) {
+    try {
+      const info = await transport.sendMail({
+        from: `"Agent de Bureau" <${SMTP_FROM}>`,
+        to,
+        subject,
+        text,
+        html,
+      });
+      console.log(`[Email/SMTP] Envoye a ${to}: ${info.messageId}`);
+      return { success: true };
+    } catch (err: any) {
+      console.error(`[Email/SMTP] Erreur envoi a ${to}:`, err.message);
+      return { success: false, error: err.message };
+    }
   }
+
+  console.log(`[Email] Aucun service configure. Email pour ${to}:`);
+  console.log(`  Sujet: ${subject}`);
+  console.log(`  Contenu texte: ${text.substring(0, 300)}...`);
+  return { success: false, error: "Aucun service email configure (ni Resend, ni SMTP)." };
 }
 
 export async function sendWelcomeEmail(params: {
