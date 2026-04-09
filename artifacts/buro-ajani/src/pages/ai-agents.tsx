@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Brain, Crown, Phone, Users, ClipboardList, Mail, Clock, Shield, TrendingUp,
   Play, Loader2, AlertCircle, AlertTriangle, Lightbulb, CheckCircle2, RefreshCw,
   ChevronDown, ChevronUp, Zap, Target, ArrowRight, Settings, Power, PowerOff,
-  Activity, BarChart3, FileText
+  Activity, BarChart3, FileText, Rocket, Eye, Wrench, MessageSquare, Cpu,
+  HeartPulse, Radar, Sparkles, CircleDot
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -591,6 +592,9 @@ export default function AiAgentsPage() {
           <TabsTrigger value="historique" className="flex items-center gap-1.5">
             <FileText className="w-4 h-4" /> Historique
           </TabsTrigger>
+          <TabsTrigger value="autopilot" className="flex items-center gap-1.5">
+            <Rocket className="w-4 h-4" /> Oto-Pilot
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="space-y-6">
@@ -735,7 +739,434 @@ export default function AiAgentsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="autopilot" className="space-y-6">
+          <AutopilotPanel />
+        </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function AutopilotPanel() {
+  const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+  const [status, setStatus] = useState<any>(null);
+  const [cycleResult, setCycleResult] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [stopping, setStopping] = useState(false);
+  const { toast } = useToast();
+
+  const fetchStatus = useCallback(async () => {
+    try {
+      const r = await fetch(`${baseUrl}/api/ai/autopilot/status`, { credentials: "include" });
+      if (r.ok) setStatus(await r.json());
+    } catch {}
+  }, [baseUrl]);
+
+  useEffect(() => {
+    fetchStatus();
+    const poll = setInterval(fetchStatus, 15000);
+    return () => clearInterval(poll);
+  }, [fetchStatus]);
+
+  const runCycle = async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(`${baseUrl}/api/ai/autopilot/run`, { method: "POST", credentials: "include" });
+      if (!r.ok) { const err = await r.json().catch(() => ({})); throw new Error(err.error || err.details || "Echec du cycle"); }
+      const data = await r.json();
+      setCycleResult(data);
+      toast({ title: "Cycle Oto-Pilot termine", description: `Score: ${data.consensusScore}/100 — ${data.issues?.length || 0} problemes, ${data.autoFixes?.length || 0} corrections` });
+      fetchStatus();
+    } catch (e: any) {
+      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+    } finally { setLoading(false); }
+  };
+
+  const startAutopilot = async () => {
+    setStarting(true);
+    try {
+      const r = await fetch(`${baseUrl}/api/ai/autopilot/start`, { method: "POST", credentials: "include" });
+      if (!r.ok) { const err = await r.json().catch(() => ({})); throw new Error(err.error || "Echec activation"); }
+      const data = await r.json();
+      if (data.firstCycle) setCycleResult(data.firstCycle);
+      toast({ title: "Oto-Pilot active", description: "Surveillance continue toutes les 30 minutes" });
+      fetchStatus();
+    } catch (e: any) {
+      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+    } finally { setStarting(false); }
+  };
+
+  const stopAutopilot = async () => {
+    setStopping(true);
+    try {
+      await fetch(`${baseUrl}/api/ai/autopilot/stop`, { method: "POST", credentials: "include" });
+      toast({ title: "Oto-Pilot desactive" });
+      fetchStatus();
+    } catch (e: any) {
+      toast({ title: "Erreur", description: e.message, variant: "destructive" });
+    } finally { setStopping(false); }
+  };
+
+  const severityColor = (s: string) => {
+    switch (s) {
+      case "critique": return "bg-red-500";
+      case "haute": return "bg-orange-500";
+      case "moyenne": return "bg-amber-500";
+      default: return "bg-gray-400";
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center text-white shadow-lg">
+            <Rocket className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
+              Oto-Pilot IA
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Systeme auto-correctif multi-IA — Surveillance, diagnostic et correction automatique
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button onClick={runCycle} disabled={loading} variant="outline" className="gap-2">
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+            Cycle manuel
+          </Button>
+          {status?.active ? (
+            <Button onClick={stopAutopilot} disabled={stopping} variant="destructive" className="gap-2">
+              {stopping ? <Loader2 className="w-4 h-4 animate-spin" /> : <PowerOff className="w-4 h-4" />}
+              Arreter
+            </Button>
+          ) : (
+            <Button onClick={startAutopilot} disabled={starting} className="gap-2 bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:from-violet-600 hover:to-fuchsia-700">
+              {starting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Power className="w-4 h-4" />}
+              Activer
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-4 gap-4">
+        <Card className={`${status?.active ? 'border-emerald-300 dark:border-emerald-700' : 'border-muted'}`}>
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${status?.active ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600' : 'bg-muted text-muted-foreground'}`}>
+                <HeartPulse className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Statut</p>
+                <p className={`text-sm font-bold ${status?.active ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                  {status?.active ? "Actif" : "Inactif"}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-600">
+                <Radar className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Cycles</p>
+                <p className="text-sm font-bold">{status?.cycleCount ?? 0}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-fuchsia-100 dark:bg-fuchsia-900/30 flex items-center justify-center text-fuchsia-600">
+                <Wrench className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Corrections</p>
+                <p className="text-sm font-bold">{status?.fixesApplied ?? 0}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600">
+                <Eye className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Problemes detectes</p>
+                <p className="text-sm font-bold">{status?.issuesFound ?? 0}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {cycleResult && (
+        <>
+          <Card className="border-violet-200 dark:border-violet-800 bg-gradient-to-br from-violet-50/30 to-fuchsia-50/20 dark:from-violet-950/10 dark:to-fuchsia-950/5">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white flex items-center justify-center">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-sm">Diagnostic Multi-IA — Cycle #{cycleResult.cycleNumber}</CardTitle>
+                    <CardDescription className="text-xs">
+                      {cycleResult.durationMs ? `${(cycleResult.durationMs / 1000).toFixed(1)}s` : ""} — Score consensus: {cycleResult.consensusScore}/100
+                    </CardDescription>
+                  </div>
+                </div>
+                <AgentScoreRing score={cycleResult.consensusScore || 50} size={64} />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: "Gemini", data: cycleResult.aiDiagnostics?.gemini, color: "from-blue-500 to-cyan-500", icon: Cpu },
+                  { label: "OpenAI", data: cycleResult.aiDiagnostics?.openai, color: "from-green-500 to-emerald-500", icon: Brain },
+                  { label: "Anthropic", data: cycleResult.aiDiagnostics?.anthropic, color: "from-orange-500 to-red-500", icon: MessageSquare },
+                ].map(({ label, data, color, icon: AiIcon }) => (
+                  <div key={label} className="p-3 rounded-xl border border-border/50 bg-background/80 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center text-white`}>
+                        <AiIcon className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold">{label}</p>
+                        {data ? (
+                          <p className={`text-lg font-bold ${getScoreColor(data.score || 50)}`}>{data.score}/100</p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">Non disponible</p>
+                        )}
+                      </div>
+                    </div>
+                    {data?.diagnosis && (
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">{data.diagnosis.substring(0, 120)}{data.diagnosis.length > 120 ? "..." : ""}</p>
+                    )}
+                    {data && (
+                      <div className="flex gap-1.5">
+                        <Badge variant="outline" className="text-[9px] h-4">{data.actions || 0} actions</Badge>
+                        <Badge variant="outline" className="text-[9px] h-4">{data.improvements || 0} amelior.</Badge>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {cycleResult.consensus && (
+                <div className="p-4 rounded-xl bg-gradient-to-r from-violet-100/50 to-fuchsia-100/50 dark:from-violet-900/20 dark:to-fuchsia-900/20 border border-violet-200/50 space-y-3">
+                  <h4 className="text-xs font-bold text-violet-700 dark:text-violet-400 flex items-center gap-1.5">
+                    <Crown className="w-3.5 h-3.5" /> Consensus Multi-IA
+                  </h4>
+                  <p className="text-sm text-foreground/90 leading-relaxed">{cycleResult.consensus.consensus}</p>
+
+                  {cycleResult.consensus.agreements?.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-[11px] font-semibold text-emerald-600">Points d'accord:</p>
+                      {cycleResult.consensus.agreements.map((a: string, i: number) => (
+                        <div key={i} className="flex items-start gap-2 text-[11px]">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                          <span>{a}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {cycleResult.consensus.topActions?.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-[11px] font-semibold text-violet-600">Actions prioritaires:</p>
+                      {cycleResult.consensus.topActions.slice(0, 5).map((a: any, i: number) => (
+                        <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-background/60 text-[11px]">
+                          <div className="w-5 h-5 rounded-full bg-violet-500 text-white flex items-center justify-center text-[9px] font-bold shrink-0">
+                            {i + 1}
+                          </div>
+                          <div className="flex-1">
+                            <span className="font-medium">{a.action}</span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {a.agreedBy?.map((src: string) => (
+                                <Badge key={src} variant="outline" className="text-[8px] h-3.5">{src}</Badge>
+                              ))}
+                              <Badge className={`text-[8px] h-3.5 ${a.urgency === "immediate" ? "bg-red-500" : a.urgency === "court_terme" ? "bg-amber-500" : "bg-blue-500"}`}>
+                                {a.urgency}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {cycleResult.consensus.nextCycleRecommendation && (
+                    <div className="flex items-start gap-2 p-2 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200/50 text-[11px]">
+                      <ArrowRight className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
+                      <span className="text-blue-700 dark:text-blue-400">{cycleResult.consensus.nextCycleRecommendation}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {cycleResult.issues?.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-500" />
+                  Problemes detectes ({cycleResult.issues.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {cycleResult.issues.map((issue: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-2.5 h-2.5 rounded-full ${severityColor(issue.severity)}`} />
+                        <div>
+                          <p className="text-sm font-medium">{issue.title}</p>
+                          <p className="text-[10px] text-muted-foreground">{issue.category}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="text-[10px]">{issue.count}</Badge>
+                        <Badge className={`text-[10px] ${severityColor(issue.severity)} text-white`}>{issue.severity}</Badge>
+                        {issue.autoFixable && (
+                          <Badge className="text-[10px] bg-emerald-500 text-white">
+                            <Wrench className="w-2.5 h-2.5 mr-0.5" /> Auto-corrige
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {cycleResult.autoFixes?.length > 0 && (
+            <Card className="border-emerald-200 dark:border-emerald-800">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2 text-emerald-600">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Corrections automatiques ({cycleResult.autoFixes.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {cycleResult.autoFixes.map((fix: any, i: number) => (
+                    <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/50">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">{fix.description}</p>
+                        <p className="text-[10px] text-muted-foreground">{fix.action} — {fix.result}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {cycleResult.allPredictions?.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-indigo-500" />
+                  Predictions IA
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-2">
+                  {cycleResult.allPredictions.slice(0, 6).map((pred: any, i: number) => (
+                    <div key={i} className="p-3 rounded-lg border border-border/50 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Badge variant="outline" className="text-[9px] h-4">{pred.source}</Badge>
+                        <Badge className={`text-[9px] h-4 ${pred.probability === "haute" ? "bg-red-500" : pred.probability === "moyenne" ? "bg-amber-500" : "bg-blue-500"} text-white`}>
+                          {pred.probability}
+                        </Badge>
+                      </div>
+                      <p className="text-xs font-medium">{pred.trend}</p>
+                      {pred.recommendation && <p className="text-[10px] text-muted-foreground">{pred.recommendation}</p>}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+
+      {status?.recentLogs?.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Activity className="w-4 h-4" />
+              Journal Oto-Pilot
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[300px]">
+              <div className="space-y-1.5 font-mono text-[11px]">
+                {status.recentLogs.map((log: any, i: number) => (
+                  <div key={i} className={`flex items-start gap-2 p-2 rounded ${
+                    log.type === "error" ? "bg-red-50 dark:bg-red-950/20" :
+                    log.type === "fix" ? "bg-emerald-50 dark:bg-emerald-950/20" :
+                    log.type === "ai" ? "bg-violet-50 dark:bg-violet-950/20" :
+                    "bg-muted/30"
+                  }`}>
+                    <CircleDot className={`w-3 h-3 mt-0.5 shrink-0 ${
+                      log.type === "error" ? "text-red-500" :
+                      log.type === "fix" ? "text-emerald-500" :
+                      log.type === "ai" ? "text-violet-500" :
+                      "text-muted-foreground"
+                    }`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">{new Date(log.timestamp).toLocaleTimeString("fr-FR")}</span>
+                        {log.provider && <Badge variant="outline" className="text-[8px] h-3.5">{log.provider}</Badge>}
+                      </div>
+                      <p className="text-foreground break-words">{log.message}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
+
+      {!cycleResult && !status?.recentLogs?.length && (
+        <Card className="border-dashed">
+          <CardContent className="py-16 text-center">
+            <Rocket className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Oto-Pilot pret</h3>
+            <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
+              Le systeme auto-correctif multi-IA est pret. Lancez un cycle manuel ou activez la surveillance continue
+              pour que 3 IA (Gemini, OpenAI, Anthropic) analysent et corrigent automatiquement votre systeme.
+            </p>
+            <div className="flex items-center justify-center gap-3">
+              <Button onClick={runCycle} disabled={loading} variant="outline" className="gap-2">
+                <Play className="w-4 h-4" /> Cycle manuel
+              </Button>
+              <Button onClick={startAutopilot} disabled={starting} className="gap-2 bg-gradient-to-r from-violet-500 to-fuchsia-600">
+                <Power className="w-4 h-4" /> Activer Oto-Pilot
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

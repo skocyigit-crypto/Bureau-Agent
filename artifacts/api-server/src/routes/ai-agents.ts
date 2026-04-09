@@ -612,4 +612,376 @@ router.post("/ai/agents/auto-stop", async (_req, res) => {
   res.json({ message: "Execution automatique arretee", status: "inactive" });
 });
 
+const autopilotState = new Map<number, {
+  interval: ReturnType<typeof setInterval> | null;
+  log: Array<{ timestamp: string; type: string; message: string; provider?: string; severity?: string }>;
+  status: { active: boolean; lastRun?: string; cycleCount: number; fixesApplied: number; issuesFound: number };
+}>();
+
+function getOrgAutopilot(orgId: number) {
+  if (!autopilotState.has(orgId)) {
+    autopilotState.set(orgId, {
+      interval: null,
+      log: [],
+      status: { active: false, cycleCount: 0, fixesApplied: 0, issuesFound: 0 },
+    });
+  }
+  return autopilotState.get(orgId)!;
+}
+
+function addAutopilotLog(orgId: number, type: string, message: string, provider?: string, severity?: string) {
+  const state = getOrgAutopilot(orgId);
+  state.log.push({ timestamp: new Date().toISOString(), type, message, provider, severity });
+  if (state.log.length > 200) state.log = state.log.slice(-200);
+}
+
+async function runAutopilotCycle(orgId: number) {
+  const cycleStart = Date.now();
+  addAutopilotLog(orgId, "cycle", "Demarrage du cycle Oto-Pilot");
+
+  try {
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const orgContact = eq(contactsTable.organisationId, orgId);
+    const orgCall = eq(callsTable.organisationId, orgId);
+    const orgTask = eq(tasksTable.organisationId, orgId);
+    const orgMsg = eq(messagesTable.organisationId, orgId);
+
+    const [contactsNoEmail, contactsNoPhone, duplicatePhones, callsNoContact, callsNoNotes, tasksOverdue, tasksStuck, unreadMessages] = await Promise.all([
+      db.select({ count: count() }).from(contactsTable).where(and(orgContact, isNull(contactsTable.email))),
+      db.select({ count: count() }).from(contactsTable).where(and(orgContact, isNull(contactsTable.phone))),
+      db.select({ phone: contactsTable.phone, cnt: count() }).from(contactsTable).where(and(orgContact, isNotNull(contactsTable.phone))).groupBy(contactsTable.phone).having(sql`count(*) > 1`),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, isNull(callsTable.contactId), gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, isNull(callsTable.notes), eq(callsTable.status, "repondu"), gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(tasksTable).where(and(orgTask, ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"), sql`${tasksTable.dueDate} < NOW()`)),
+      db.select({ count: count() }).from(tasksTable).where(and(orgTask, eq(tasksTable.status, "en_cours"), sql`${tasksTable.updatedAt} < NOW() - INTERVAL '7 days'`)),
+      db.select({ count: count() }).from(messagesTable).where(and(orgMsg, eq(messagesTable.isRead, false))),
+    ]);
+
+    const systemHealth = {
+      contactsWithoutEmail: contactsNoEmail[0]?.count ?? 0,
+      contactsWithoutPhone: contactsNoPhone[0]?.count ?? 0,
+      duplicatePhoneNumbers: duplicatePhones.length,
+      callsWithoutContact: callsNoContact[0]?.count ?? 0,
+      answeredCallsWithoutNotes: callsNoNotes[0]?.count ?? 0,
+      overdueTasks: tasksOverdue[0]?.count ?? 0,
+      stuckTasks: tasksStuck[0]?.count ?? 0,
+      unreadMessages: unreadMessages[0]?.count ?? 0,
+    };
+
+    const issues: Array<{ category: string; title: string; count: number; severity: "critique" | "haute" | "moyenne" | "basse"; autoFixable: boolean }> = [];
+    const autoFixes: Array<{ action: string; description: string; result: string }> = [];
+
+    if (systemHealth.duplicatePhoneNumbers > 0) issues.push({ category: "contacts", title: "Numeros de telephone en doublon", count: systemHealth.duplicatePhoneNumbers, severity: "haute", autoFixable: false });
+    if (systemHealth.contactsWithoutEmail > 10) issues.push({ category: "contacts", title: "Contacts sans email", count: systemHealth.contactsWithoutEmail, severity: "moyenne", autoFixable: false });
+    if (systemHealth.contactsWithoutPhone > 10) issues.push({ category: "contacts", title: "Contacts sans telephone", count: systemHealth.contactsWithoutPhone, severity: "moyenne", autoFixable: false });
+    if (systemHealth.callsWithoutContact > 5) issues.push({ category: "appels", title: "Appels sans contact associe", count: systemHealth.callsWithoutContact, severity: "haute", autoFixable: true });
+    if (systemHealth.answeredCallsWithoutNotes > 3) issues.push({ category: "appels", title: "Appels repondus sans notes", count: systemHealth.answeredCallsWithoutNotes, severity: "moyenne", autoFixable: false });
+    if (systemHealth.overdueTasks > 0) issues.push({ category: "taches", title: "Taches en retard", count: systemHealth.overdueTasks, severity: "critique", autoFixable: true });
+    if (systemHealth.stuckTasks > 0) issues.push({ category: "taches", title: "Taches bloquees (>7j sans mise a jour)", count: systemHealth.stuckTasks, severity: "haute", autoFixable: true });
+    if (systemHealth.unreadMessages > 20) issues.push({ category: "messages", title: "Messages non lus accumules", count: systemHealth.unreadMessages, severity: "moyenne", autoFixable: false });
+
+    if (systemHealth.callsWithoutContact > 0) {
+      try {
+        const orphanCalls = await db.select({ id: callsTable.id, phoneNumber: callsTable.phoneNumber })
+          .from(callsTable)
+          .where(and(orgCall, isNull(callsTable.contactId), gte(callsTable.createdAt, weekAgo)))
+          .limit(20);
+
+        let matched = 0;
+        for (const call of orphanCalls) {
+          if (!call.phoneNumber) continue;
+          const cleanPhone = call.phoneNumber.replace(/\s/g, "");
+          const [contact] = await db.select({ id: contactsTable.id }).from(contactsTable)
+            .where(and(orgContact, sql`replace(${contactsTable.phone}, ' ', '') = ${cleanPhone}`))
+            .limit(1);
+          if (contact) {
+            await db.update(callsTable).set({ contactId: contact.id }).where(eq(callsTable.id, call.id));
+            matched++;
+          }
+        }
+        if (matched > 0) {
+          autoFixes.push({ action: "auto_link_calls", description: `${matched} appels associes automatiquement a leurs contacts`, result: "succes" });
+          addAutopilotLog(orgId, "fix", `${matched} appels orphelins associes a leurs contacts`, "system", "info");
+        }
+      } catch (e: any) {
+        addAutopilotLog(orgId, "error", `Echec association appels: ${e.message}`, "system", "haute");
+      }
+    }
+
+    if (systemHealth.overdueTasks > 0) {
+      try {
+        const overdueList = await db.select({ id: tasksTable.id, title: tasksTable.title, priority: tasksTable.priority })
+          .from(tasksTable)
+          .where(and(orgTask, ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"), sql`${tasksTable.dueDate} < NOW()`))
+          .limit(10);
+
+        let escalated = 0;
+        for (const task of overdueList) {
+          if (task.priority !== "haute" && task.priority !== "urgente") {
+            await db.update(tasksTable).set({ priority: "haute" }).where(eq(tasksTable.id, task.id));
+            escalated++;
+          }
+        }
+        if (escalated > 0) {
+          autoFixes.push({ action: "escalate_overdue", description: `${escalated} taches en retard escaladees en priorite haute`, result: "succes" });
+          addAutopilotLog(orgId, "fix", `${escalated} taches en retard escaladees`, "system", "info");
+        }
+      } catch (e: any) {
+        addAutopilotLog(orgId, "error", `Echec escalade taches: ${e.message}`, "system", "haute");
+      }
+    }
+
+    if (systemHealth.stuckTasks > 0) {
+      try {
+        const stuckList = await db.select({ id: tasksTable.id, title: tasksTable.title })
+          .from(tasksTable)
+          .where(and(orgTask, eq(tasksTable.status, "en_cours"), sql`${tasksTable.updatedAt} < NOW() - INTERVAL '7 days'`))
+          .limit(10);
+
+        if (stuckList.length > 0) {
+          for (const task of stuckList) {
+            await db.update(tasksTable).set({ notes: sql`COALESCE(${tasksTable.notes}, '') || E'\n[Oto-Pilot] Tache bloquee detectee - necessite attention'` }).where(eq(tasksTable.id, task.id));
+          }
+          autoFixes.push({ action: "flag_stuck_tasks", description: `${stuckList.length} taches bloquees marquees pour attention`, result: "succes" });
+          addAutopilotLog(orgId, "fix", `${stuckList.length} taches bloquees flaggees`, "system", "info");
+        }
+      } catch (e: any) {
+        addAutopilotLog(orgId, "error", `Echec marquage taches: ${e.message}`, "system", "haute");
+      }
+    }
+
+    let geminiDiag: any = null;
+    let openaiDiag: any = null;
+    let anthropicDiag: any = null;
+
+    const diagPrompt = `Tu es un diagnostic IA pour un systeme de bureau professionnel.
+Analyse cet etat du systeme et donne des recommandations specifiques. Reponds en JSON:
+{
+  "healthScore": number (0-100),
+  "diagnosis": "string (resume en 2-3 phrases)",
+  "criticalActions": [{"action": "string", "reason": "string", "priority": "critique|haute|moyenne"}],
+  "improvements": [{"area": "string", "suggestion": "string", "impact": "fort|moyen|faible"}],
+  "predictions": [{"trend": "string", "probability": "haute|moyenne|basse", "recommendation": "string"}]
+}
+
+Etat du systeme:\n${JSON.stringify({ ...systemHealth, issuesCount: issues.length, autoFixesApplied: autoFixes.length }, null, 2)}`;
+
+    try {
+      const [geminiRes, openaiRes, anthropicRes] = await Promise.allSettled([
+        (async () => {
+          const { ai } = await import("@workspace/integrations-gemini-ai");
+          const r = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: [{ role: "user", parts: [{ text: diagPrompt + "\n\nFocus: detection d'anomalies et patterns de donnees" }] }],
+            config: { maxOutputTokens: 2048, responseMimeType: "application/json" },
+          });
+          return JSON.parse(r.text ?? "{}");
+        })(),
+        (async () => {
+          const { openai } = await import("@workspace/integrations-openai-ai-server");
+          const r = await openai.chat.completions.create({
+            model: "gpt-5.2",
+            max_completion_tokens: 2048,
+            messages: [
+              { role: "system", content: "Tu es un expert en optimisation de processus metier. Reponds en JSON." },
+              { role: "user", content: diagPrompt + "\n\nFocus: optimisation des processus et amelioration continue" },
+            ],
+          });
+          return JSON.parse(r.choices[0]?.message?.content ?? "{}");
+        })(),
+        (async () => {
+          const { anthropic } = await import("@workspace/integrations-anthropic-ai");
+          const m = await anthropic.messages.create({
+            model: "claude-sonnet-4-6",
+            max_tokens: 2048,
+            messages: [
+              { role: "user", content: diagPrompt + "\n\nFocus: risques strategiques et recommandations de securite" },
+            ],
+          });
+          const block = m.content[0];
+          return JSON.parse(block.type === "text" ? block.text : "{}");
+        })(),
+      ]);
+
+      geminiDiag = geminiRes.status === "fulfilled" ? geminiRes.value : null;
+      openaiDiag = openaiRes.status === "fulfilled" ? openaiRes.value : null;
+      anthropicDiag = anthropicRes.status === "fulfilled" ? anthropicRes.value : null;
+
+      if (geminiDiag) addAutopilotLog(orgId, "ai", `Gemini: score ${geminiDiag.healthScore}/100 - ${geminiDiag.diagnosis?.substring(0, 80)}`, "gemini");
+      if (openaiDiag) addAutopilotLog(orgId, "ai", `OpenAI: score ${openaiDiag.healthScore}/100 - ${openaiDiag.diagnosis?.substring(0, 80)}`, "openai");
+      if (anthropicDiag) addAutopilotLog(orgId, "ai", `Anthropic: score ${anthropicDiag.healthScore}/100 - ${anthropicDiag.diagnosis?.substring(0, 80)}`, "anthropic");
+    } catch (e: any) {
+      addAutopilotLog(orgId, "error", `Erreur diagnostic multi-AI: ${e.message}`, "system", "haute");
+    }
+
+    const scores = [geminiDiag?.healthScore, openaiDiag?.healthScore, anthropicDiag?.healthScore].filter((s): s is number => typeof s === "number" && s > 0);
+    const consensusScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 50;
+
+    const allActions = [
+      ...(geminiDiag?.criticalActions || []).map((a: any) => ({ ...a, source: "Gemini" })),
+      ...(openaiDiag?.criticalActions || []).map((a: any) => ({ ...a, source: "OpenAI" })),
+      ...(anthropicDiag?.criticalActions || []).map((a: any) => ({ ...a, source: "Anthropic" })),
+    ];
+    const allImprovements = [
+      ...(geminiDiag?.improvements || []).map((i: any) => ({ ...i, source: "Gemini" })),
+      ...(openaiDiag?.improvements || []).map((i: any) => ({ ...i, source: "OpenAI" })),
+      ...(anthropicDiag?.improvements || []).map((i: any) => ({ ...i, source: "Anthropic" })),
+    ];
+    const allPredictions = [
+      ...(geminiDiag?.predictions || []).map((p: any) => ({ ...p, source: "Gemini" })),
+      ...(openaiDiag?.predictions || []).map((p: any) => ({ ...p, source: "OpenAI" })),
+      ...(anthropicDiag?.predictions || []).map((p: any) => ({ ...p, source: "Anthropic" })),
+    ];
+
+    let consensusSummary = "";
+    try {
+      const { ai } = await import("@workspace/integrations-gemini-ai");
+      const consensusRes = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: [{ role: "user", parts: [{ text: `Tu es le coordinateur de 3 IA (Gemini, OpenAI, Anthropic) qui analysent un systeme de bureau.
+
+Synthétise leurs diagnostics en un rapport de consensus. Identifie:
+1. Les points d'accord (tous recommandent la meme chose)
+2. Les points de divergence (opinions differentes)
+3. La synthese finale et les 3 actions prioritaires
+
+Gemini dit: ${JSON.stringify(geminiDiag?.diagnosis || "non disponible")}
+OpenAI dit: ${JSON.stringify(openaiDiag?.diagnosis || "non disponible")}
+Anthropic dit: ${JSON.stringify(anthropicDiag?.diagnosis || "non disponible")}
+
+Actions Gemini: ${JSON.stringify(geminiDiag?.criticalActions?.slice(0, 3) || [])}
+Actions OpenAI: ${JSON.stringify(openaiDiag?.criticalActions?.slice(0, 3) || [])}
+Actions Anthropic: ${JSON.stringify(anthropicDiag?.criticalActions?.slice(0, 3) || [])}
+
+Reponds en JSON:
+{
+  "consensus": "synthese en 3-4 phrases",
+  "agreements": ["point d'accord 1", "point d'accord 2"],
+  "divergences": [{"topic": "sujet", "gemini": "avis", "openai": "avis", "anthropic": "avis"}],
+  "topActions": [{"action": "string", "agreedBy": ["Gemini", "OpenAI", "Anthropic"], "urgency": "immediate|court_terme|moyen_terme"}],
+  "nextCycleRecommendation": "ce que le prochain cycle devrait verifier"
+}` }] }],
+        config: { maxOutputTokens: 2048, responseMimeType: "application/json" },
+      });
+      consensusSummary = consensusRes.text || "";
+    } catch (e: any) {
+      addAutopilotLog(orgId, "error", `Erreur consensus: ${e.message}`, "gemini", "moyenne");
+    }
+
+    let parsedConsensus: any = null;
+    try { parsedConsensus = consensusSummary ? JSON.parse(consensusSummary) : null; } catch {}
+
+    const orgState = getOrgAutopilot(orgId);
+    orgState.status.cycleCount++;
+    orgState.status.fixesApplied += autoFixes.length;
+    orgState.status.issuesFound += issues.length;
+    orgState.status.lastRun = new Date().toISOString();
+
+    const cycleResult = {
+      cycleNumber: orgState.status.cycleCount,
+      timestamp: new Date().toISOString(),
+      durationMs: Date.now() - cycleStart,
+      systemHealth,
+      issues,
+      autoFixes,
+      aiDiagnostics: {
+        gemini: geminiDiag ? { score: geminiDiag.healthScore, diagnosis: geminiDiag.diagnosis, actions: geminiDiag.criticalActions?.length || 0, improvements: geminiDiag.improvements?.length || 0 } : null,
+        openai: openaiDiag ? { score: openaiDiag.healthScore, diagnosis: openaiDiag.diagnosis, actions: openaiDiag.criticalActions?.length || 0, improvements: openaiDiag.improvements?.length || 0 } : null,
+        anthropic: anthropicDiag ? { score: anthropicDiag.healthScore, diagnosis: anthropicDiag.diagnosis, actions: anthropicDiag.criticalActions?.length || 0, improvements: anthropicDiag.improvements?.length || 0 } : null,
+      },
+      consensusScore,
+      consensus: parsedConsensus,
+      allActions: allActions.slice(0, 10),
+      allImprovements: allImprovements.slice(0, 10),
+      allPredictions: allPredictions.slice(0, 8),
+    };
+
+    addAutopilotLog(orgId, "cycle", `Cycle termine - Score: ${consensusScore}/100, ${issues.length} problemes, ${autoFixes.length} corrections`, "system");
+    return cycleResult;
+  } catch (err: any) {
+    addAutopilotLog(orgId, "error", `Erreur critique cycle: ${err.message}`, "system", "critique");
+    throw err;
+  }
+}
+
+router.post("/ai/autopilot/run", async (req, res): Promise<void> => {
+  const orgId = (req.session as any)?.organisationId;
+  if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
+  try {
+    const result = await runAutopilotCycle(orgId);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: "Erreur cycle Oto-Pilot", details: err.message });
+  }
+});
+
+router.post("/ai/autopilot/start", async (req, res): Promise<void> => {
+  const orgId = (req.session as any)?.organisationId;
+  if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
+
+  const state = getOrgAutopilot(orgId);
+  if (state.interval) {
+    res.json({ status: "active", message: "Oto-Pilot deja actif", ...state.status });
+    return;
+  }
+
+  state.status.active = true;
+  addAutopilotLog(orgId, "system", "Oto-Pilot active - mode surveillance continue");
+
+  const firstResult = await runAutopilotCycle(orgId).catch((e) => {
+    addAutopilotLog(orgId, "error", `Premier cycle echoue: ${e.message}`, "system", "haute");
+    return null;
+  });
+
+  state.interval = setInterval(async () => {
+    try {
+      await runAutopilotCycle(orgId);
+    } catch (e: any) {
+      addAutopilotLog(orgId, "error", `Cycle automatique echoue: ${e.message}`, "system", "haute");
+    }
+  }, 30 * 60 * 1000);
+
+  res.json({
+    status: "active",
+    message: "Oto-Pilot active - cycles toutes les 30 minutes",
+    ...state.status,
+    firstCycle: firstResult,
+  });
+});
+
+router.post("/ai/autopilot/stop", async (req, res): Promise<void> => {
+  const orgId = (req.session as any)?.organisationId;
+  if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
+
+  const state = getOrgAutopilot(orgId);
+  if (state.interval) {
+    clearInterval(state.interval);
+    state.interval = null;
+  }
+  state.status.active = false;
+  addAutopilotLog(orgId, "system", "Oto-Pilot desactive");
+  res.json({ status: "inactive", message: "Oto-Pilot desactive", ...state.status });
+});
+
+router.get("/ai/autopilot/status", async (req, res): Promise<void> => {
+  const orgId = (req.session as any)?.organisationId;
+  if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
+
+  const state = getOrgAutopilot(orgId);
+  res.json({
+    ...state.status,
+    recentLogs: state.log.slice(-30),
+  });
+});
+
+router.get("/ai/autopilot/logs", async (req, res): Promise<void> => {
+  const orgId = (req.session as any)?.organisationId;
+  if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
+
+  const state = getOrgAutopilot(orgId);
+  res.json({ logs: state.log, total: state.log.length });
+});
+
 export default router;
