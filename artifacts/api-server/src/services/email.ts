@@ -493,9 +493,41 @@ export async function sendLicenseEmail(params: {
       ${trialInfo}
 
       <div style="text-align:center;margin:32px 0 16px;">
-        <a href="${APP_URL}" style="display:inline-block;background:#0f1729;color:#ffffff;text-decoration:none;padding:14px 40px;border-radius:10px;font-size:15px;font-weight:600;">
-          &#128187; Acceder a l'application
+        <a href="${APP_URL}" style="display:inline-block;background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);color:#0f1729;text-decoration:none;padding:16px 48px;border-radius:12px;font-size:16px;font-weight:700;box-shadow:0 4px 14px rgba(245,158,11,0.4);">
+          &#127775; Acceder a l'application
         </a>
+      </div>
+
+      <div style="background:linear-gradient(135deg,#eff6ff 0%,#f0f9ff 100%);border:1px solid #bfdbfe;border-radius:12px;padding:24px;margin:24px 0;">
+        <h3 style="color:#1e40af;font-size:16px;margin:0 0 16px;">&#128241; Installez l'application</h3>
+        <table style="width:100%;border-collapse:collapse;">
+          <tr>
+            <td style="padding:10px 0;vertical-align:top;width:40px;">
+              <span style="display:inline-block;background:#dbeafe;border-radius:8px;padding:8px;font-size:18px;">&#128187;</span>
+            </td>
+            <td style="padding:10px 12px;vertical-align:top;">
+              <strong style="color:#1e40af;font-size:13px;">Desktop / Navigateur</strong>
+              <p style="color:#3b82f6;font-size:12px;margin:4px 0 0;">Ouvrez l'application dans Chrome ou Edge, puis cliquez sur "Installer" dans la barre d'adresse pour l'ajouter a votre bureau.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:10px 0;vertical-align:top;">
+              <span style="display:inline-block;background:#dbeafe;border-radius:8px;padding:8px;font-size:18px;">&#128241;</span>
+            </td>
+            <td style="padding:10px 12px;vertical-align:top;">
+              <strong style="color:#1e40af;font-size:13px;">Mobile (iOS / Android)</strong>
+              <p style="color:#3b82f6;font-size:12px;margin:4px 0 0;">Ouvrez l'application sur votre telephone, puis utilisez "Ajouter a l'ecran d'accueil" dans le menu du navigateur.</p>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="background:linear-gradient(135deg,#f0fdf4 0%,#ecfdf5 100%);border:1px solid #bbf7d0;border-radius:12px;padding:24px;margin:24px 0;">
+        <h3 style="color:#166534;font-size:16px;margin:0 0 12px;">&#9889; Configuration automatique</h3>
+        <p style="color:#15803d;font-size:13px;line-height:1.6;margin:0;">
+          Lors de votre premiere connexion, un <strong>assistant de configuration</strong> vous guidera pour connecter vos outils existants 
+          (Google, Microsoft, Slack, CRM, etc.) en quelques clics. Aucune installation supplementaire requise !
+        </p>
       </div>
 
       <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px;margin-top:24px;">
@@ -508,11 +540,11 @@ export async function sendLicenseEmail(params: {
       <div style="margin-top:24px;padding:20px;background:#f8fafc;border-radius:10px;">
         <h3 style="color:#0f1729;font-size:14px;margin:0 0 12px;">&#128640; Pour commencer</h3>
         <ol style="color:#64748b;font-size:13px;line-height:2;margin:0;padding-left:20px;">
-          <li>Connectez-vous avec vos identifiants ci-dessus</li>
-          <li>Changez votre mot de passe dans les parametres</li>
-          <li>Ajoutez vos premiers contacts</li>
-          <li>Commencez a gerer vos appels et taches</li>
-          <li>Invitez vos collaborateurs depuis la gestion des utilisateurs</li>
+          <li>Cliquez sur le bouton ci-dessus pour acceder a l'application</li>
+          <li>Connectez-vous avec vos identifiants</li>
+          <li>Suivez l'assistant de configuration pour connecter vos outils</li>
+          <li>Installez l'application sur vos appareils</li>
+          <li>Ajoutez vos contacts et invitez vos collaborateurs</li>
         </ol>
       </div>
     </div>

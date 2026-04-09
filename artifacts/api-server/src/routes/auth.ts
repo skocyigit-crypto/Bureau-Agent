@@ -80,6 +80,12 @@ router.post("/auth/login", async (req: Request, res: Response): Promise<void> =>
   });
 });
 
+router.post("/auth/complete-onboarding", (req: Request, res: Response): void => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  res.json({ success: true });
+});
+
 router.post("/auth/logout", (req: Request, res: Response): void => {
   const userId = (req.session as any)?.userId;
   const userEmail = (req.session as any)?.userEmail;

@@ -12,6 +12,7 @@ import { PwaInstallButton } from "@/components/pwa-install";
 import { UpdateBanner } from "@/components/update-banner";
 
 import { Layout } from "@/components/layout";
+import OnboardingPage from "@/pages/onboarding";
 import Dashboard from "@/pages/dashboard";
 import Calls from "@/pages/calls";
 import CallDetail from "@/pages/call-detail";
@@ -92,8 +93,14 @@ function App() {
     checkSession();
   }, [checkSession]);
 
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
   const handleLogin = (user: any) => {
     setCurrentUser(user);
+    const onboardingKey = `adb-onboarding-done-${user.id}`;
+    if (!localStorage.getItem(onboardingKey)) {
+      setShowOnboarding(true);
+    }
     setAuthState("authenticated");
   };
 
@@ -132,8 +139,17 @@ function App() {
               <RegisterPage onLogin={handleLogin} onBack={() => setAuthState("login")} />
             ) : (
               <WorkspaceUserProvider apiUser={currentUser} onLogout={handleLogout}>
-                <UpdateBanner />
-                <AppRoutes />
+                {showOnboarding ? (
+                  <OnboardingPage onComplete={() => {
+                    if (currentUser?.id) localStorage.setItem(`adb-onboarding-done-${currentUser.id}`, "1");
+                    setShowOnboarding(false);
+                  }} />
+                ) : (
+                  <>
+                    <UpdateBanner />
+                    <AppRoutes />
+                  </>
+                )}
               </WorkspaceUserProvider>
             )}
           </WouterRouter>
