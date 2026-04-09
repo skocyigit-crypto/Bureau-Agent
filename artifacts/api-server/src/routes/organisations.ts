@@ -267,7 +267,7 @@ router.post("/organisations/:id/resend-license", async (req: Request, res: Respo
     return;
   }
 
-  let adminPassword: string | undefined;
+  let adminPassword: string = generateTempCode();
   let adminUser: any = null;
 
   const [existingAdmin] = await db.select({
@@ -278,7 +278,6 @@ router.post("/organisations/:id/resend-license", async (req: Request, res: Respo
   }).from(usersTable).where(eq(usersTable.organisationId, id));
 
   if (existingAdmin) {
-    adminPassword = generateTempCode();
     const passwordHash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
     await db.update(usersTable).set({
       passwordHash,
@@ -287,6 +286,28 @@ router.post("/organisations/:id/resend-license", async (req: Request, res: Respo
       updatedAt: new Date(),
     }).where(eq(usersTable.id, existingAdmin.id));
     adminUser = existingAdmin;
+  } else {
+    const passwordHash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
+    const orgNameParts = org.name.trim().split(" ");
+    const prenom = orgNameParts[0] || "Admin";
+    const nom = orgNameParts.slice(1).join(" ") || org.name;
+    const avatar = `${prenom[0]}${nom[0]}`.toUpperCase();
+    const [newAdmin] = await db.insert(usersTable).values({
+      email: org.email!.toLowerCase().trim(),
+      passwordHash,
+      nom,
+      prenom,
+      role: "administrateur",
+      organisation: org.name,
+      organisationId: id,
+      avatar,
+    }).returning({
+      id: usersTable.id,
+      email: usersTable.email,
+      nom: usersTable.nom,
+      prenom: usersTable.prenom,
+    });
+    adminUser = newAdmin;
   }
 
   const plan = PLANS[sub.plan as PlanKey];
@@ -296,14 +317,14 @@ router.post("/organisations/:id/resend-license", async (req: Request, res: Respo
     plan: plan?.name || sub.plan,
     licenseKey: sub.licenseKey,
     trialEndsAt: sub.trialEndsAt,
-    adminName: adminUser ? `${adminUser.prenom} ${adminUser.nom}` : undefined,
-    adminEmail: adminUser?.email,
+    adminName: `${adminUser.prenom} ${adminUser.nom}`,
+    adminEmail: adminUser.email,
     adminPassword,
   });
 
   if (result.success) {
     res.json({
-      message: `Licence renvoyee a ${org.email}.${adminPassword ? ` Nouveau mot de passe genere pour ${adminUser.email}.` : ""}`,
+      message: `Email envoye a ${org.email} avec le code de connexion temporaire pour ${adminUser.email}.`,
       preview: result.preview,
     });
   } else {
