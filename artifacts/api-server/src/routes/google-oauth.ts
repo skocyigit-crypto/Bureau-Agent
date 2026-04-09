@@ -341,13 +341,19 @@ router.post("/config", async (req, res) => {
       serviceId: "config",
       action: "configuration_oauth",
       status: "succes",
-      details: "Identifiants Google OAuth configures par l'administrateur.",
+      details: JSON.stringify({
+        message: "Identifiants Google OAuth configures par l'administrateur.",
+        clientIdPrefix: clientId.trim().substring(0, 8) + "...",
+        configuredAt: new Date().toISOString(),
+        note: "Configuration volatile — sera perdue au redemarrage du serveur. Definir GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET comme variables d'environnement pour la persistance.",
+      }),
     });
 
     res.json({
       status: "configure",
-      message: "Identifiants Google OAuth enregistres avec succes. Vous pouvez maintenant connecter vos services Google Workspace.",
+      message: "Identifiants Google OAuth enregistres avec succes. Attention : cette configuration est temporaire et sera perdue au redemarrage du serveur. Pour une configuration permanente, definissez les variables d'environnement GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET.",
       configured: true,
+      warning: "volatile_config",
     });
   } catch (error: any) {
     console.error("Google OAuth config error:", error);

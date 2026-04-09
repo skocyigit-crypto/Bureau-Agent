@@ -2,11 +2,12 @@ import { pgTable, serial, integer, text, boolean, timestamp, index } from "drizz
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { organisationsTable } from "./organisations";
+import { contactsTable } from "./contacts";
 
 export const messagesTable = pgTable("messages", {
   id: serial("id").primaryKey(),
   organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
-  contactId: integer("contact_id"),
+  contactId: integer("contact_id").references(() => contactsTable.id, { onDelete: "set null" }),
   contactName: text("contact_name"),
   phoneNumber: text("phone_number").notNull(),
   content: text("content").notNull(),
@@ -17,6 +18,7 @@ export const messagesTable = pgTable("messages", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [
   index("messages_org_id_idx").on(table.organisationId),
+  index("messages_contact_id_idx").on(table.contactId),
 ]);
 
 export const insertMessageSchema = createInsertSchema(messagesTable).omit({ id: true, createdAt: true, updatedAt: true });

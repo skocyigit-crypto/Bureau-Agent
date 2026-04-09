@@ -22,8 +22,10 @@ interface UserMetrics {
   derniereActivite: string | null;
 }
 
-export async function gatherUserMetrics(dateDebut: Date, dateFin: Date): Promise<UserMetrics[]> {
-  const users = await db.select().from(usersTable).where(eq(usersTable.actif, true));
+export async function gatherUserMetrics(dateDebut: Date, dateFin: Date, orgId: number): Promise<UserMetrics[]> {
+  const conditions: any[] = [eq(usersTable.actif, true), eq(usersTable.organisationId, orgId)];
+
+  const users = await db.select().from(usersTable).where(and(...conditions));
 
   const metrics: UserMetrics[] = [];
 
@@ -60,15 +62,18 @@ export async function gatherUserMetrics(dateDebut: Date, dateFin: Date): Promise
         lte(auditLogsTable.createdAt, dateFin)
       ));
 
+    const taskConditions: any[] = [
+      sql`${tasksTable.assignedTo} ILIKE ${`%${fullName}%`}`,
+      eq(tasksTable.status, "terminee"),
+      gte(tasksTable.updatedAt, dateDebut),
+      lte(tasksTable.updatedAt, dateFin),
+    ];
+    if (orgId) taskConditions.push(eq(tasksTable.organisationId, orgId));
+
     const [tachesTerminees] = await db
       .select({ count: count() })
       .from(tasksTable)
-      .where(and(
-        sql`${tasksTable.assignedTo} ILIKE ${`%${fullName}%`}`,
-        eq(tasksTable.status, "terminee"),
-        gte(tasksTable.updatedAt, dateDebut),
-        lte(tasksTable.updatedAt, dateFin)
-      ));
+      .where(and(...taskConditions));
 
     const [appelsResult] = await db
       .select({ count: count() })
@@ -114,14 +119,17 @@ export async function gatherUserMetrics(dateDebut: Date, dateFin: Date): Promise
         lte(auditLogsTable.createdAt, dateFin)
       ));
 
+    const checkinConditions: any[] = [
+      sql`${checkinsTable.employeeName} ILIKE ${`%${fullName}%`}`,
+      gte(checkinsTable.checkInAt, dateDebut),
+      lte(checkinsTable.checkInAt, dateFin),
+    ];
+    if (orgId) checkinConditions.push(eq(checkinsTable.organisationId, orgId));
+
     const pointagesData = await db
       .select()
       .from(checkinsTable)
-      .where(and(
-        sql`${checkinsTable.employeeName} ILIKE ${`%${fullName}%`}`,
-        gte(checkinsTable.checkInAt, dateDebut),
-        lte(checkinsTable.checkInAt, dateFin)
-      ));
+      .where(and(...checkinConditions));
 
     const heuresTravaillees = pointagesData.reduce((sum, p) => sum + (p.totalMinutes || 0), 0) / 60;
     const pausesMinutes = pointagesData.reduce((sum, p) => sum + (p.breakMinutes || 0), 0);
@@ -160,6 +168,7 @@ export async function gatherUserMetrics(dateDebut: Date, dateFin: Date): Promise
 
 export async function generatePerformanceReport(
   periode: "jour" | "semaine" | "mois",
+  orgId: number,
   userId?: number
 ): Promise<any> {
   const now = new Date();
@@ -176,7 +185,7 @@ export async function generatePerformanceReport(
     dateDebut.setMonth(dateDebut.getMonth() - 1);
   }
 
-  let allMetrics = await gatherUserMetrics(dateDebut, now);
+  let allMetrics = await gatherUserMetrics(dateDebut, now, orgId);
 
   if (userId) {
     allMetrics = allMetrics.filter(m => m.userId === userId);
@@ -217,6 +226,7 @@ export async function generatePerformanceReport(
       userId: empMetrics.userId,
       userEmail: empMetrics.email,
       userName: `${empMetrics.prenom} ${empMetrics.nom}`,
+      organisationId: orgId || null,
       periode,
       dateDebut,
       dateFin: now,
@@ -239,10 +249,11 @@ export async function generatePerformanceReport(
   };
 }
 
-export async function getPerformanceHistory(limit = 20): Promise<any[]> {
+export async function getPerformanceHistory(limit = 20, orgId: number): Promise<any[]> {
   return db
     .select()
     .from(performanceReportsTable)
+    .where(eq(performanceReportsTable.organisationId, orgId))
     .orderBy(desc(performanceReportsTable.createdAt))
     .limit(limit);
 }

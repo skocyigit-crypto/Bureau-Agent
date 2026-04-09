@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, integer, jsonb, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, jsonb, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -24,7 +24,12 @@ export const aiAgentReportsTable = pgTable("ai_agent_reports", {
   childReportIds: jsonb("child_report_ids").notNull().default([]),
   executionTimeMs: integer("execution_time_ms").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  index("ai_reports_org_id_idx").on(table.organisationId),
+  index("ai_reports_agent_id_idx").on(table.agentId),
+  index("ai_reports_report_date_idx").on(table.reportDate),
+  index("ai_reports_created_at_idx").on(table.createdAt),
+]);
 
 export const insertAiAgentReportSchema = createInsertSchema(aiAgentReportsTable).omit({ id: true, createdAt: true });
 export type InsertAiAgentReport = z.infer<typeof insertAiAgentReportSchema>;

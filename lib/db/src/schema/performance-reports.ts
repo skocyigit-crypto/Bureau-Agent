@@ -1,10 +1,12 @@
-import { pgTable, serial, integer, text, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import { usersTable } from "./users";
 
 export const performanceReportsTable = pgTable("performance_reports", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id"),
+  userId: integer("user_id").references(() => usersTable.id, { onDelete: "set null" }),
   userEmail: text("user_email"),
   userName: text("user_name"),
+  organisationId: integer("organisation_id"),
   periode: text("periode").notNull(),
   dateDebut: timestamp("date_debut", { withTimezone: true }).notNull(),
   dateFin: timestamp("date_fin", { withTimezone: true }).notNull(),
@@ -16,6 +18,11 @@ export const performanceReportsTable = pgTable("performance_reports", {
   recommandations: jsonb("recommandations"),
   comparaison: jsonb("comparaison"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  index("perf_reports_user_id_idx").on(table.userId),
+  index("perf_reports_org_id_idx").on(table.organisationId),
+  index("perf_reports_periode_idx").on(table.periode),
+  index("perf_reports_created_at_idx").on(table.createdAt),
+]);
 
 export type PerformanceReport = typeof performanceReportsTable.$inferSelect;

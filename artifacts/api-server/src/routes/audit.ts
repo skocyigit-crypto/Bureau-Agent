@@ -127,5 +127,7 @@ export async function logAudit(
       ipAddress: ipAddress || null,
       userAgent: userAgent || null,
     });
-  } catch {}
+  } catch (err: any) {
+    console.error("[AuditLog] Failed to write audit log:", err.message, { action, resource, resourceId });
+  }
 }

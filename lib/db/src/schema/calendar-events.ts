@@ -2,6 +2,9 @@ import { pgTable, serial, integer, text, timestamp, boolean, index } from "drizz
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { organisationsTable } from "./organisations";
+import { contactsTable } from "./contacts";
+import { tasksTable } from "./tasks";
+import { usersTable } from "./users";
 
 export const calendarEventsTable = pgTable("calendar_events", {
   id: serial("id").primaryKey(),
@@ -14,8 +17,8 @@ export const calendarEventsTable = pgTable("calendar_events", {
   allDay: boolean("all_day").notNull().default(false),
   location: text("location"),
   color: text("color").default("#f59e0b"),
-  relatedContactId: integer("related_contact_id"),
-  relatedTaskId: integer("related_task_id"),
+  relatedContactId: integer("related_contact_id").references(() => contactsTable.id, { onDelete: "set null" }),
+  relatedTaskId: integer("related_task_id").references(() => tasksTable.id, { onDelete: "set null" }),
   reminder: text("reminder").default("15min"),
   recurrence: text("recurrence"),
   contactName: text("contact_name"),
@@ -25,7 +28,7 @@ export const calendarEventsTable = pgTable("calendar_events", {
   contactNotes: text("contact_notes"),
   status: text("status").default("confirme"),
   priority: text("priority").default("normale"),
-  createdBy: integer("created_by"),
+  createdBy: integer("created_by").references(() => usersTable.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [
@@ -34,6 +37,7 @@ export const calendarEventsTable = pgTable("calendar_events", {
   index("cal_events_related_contact_idx").on(table.relatedContactId),
   index("cal_events_type_idx").on(table.type),
   index("cal_events_org_id_idx").on(table.organisationId),
+  index("cal_events_created_by_idx").on(table.createdBy),
 ]);
 
 export const insertCalendarEventSchema = createInsertSchema(calendarEventsTable).omit({ id: true, createdAt: true, updatedAt: true });
