@@ -56,26 +56,6 @@ async function getGmailClient() {
   }
 }
 
-function buildRawEmail(to: string, subject: string, html: string, fromEmail: string): string {
-  const boundary = "boundary_" + Date.now().toString(36);
-  const lines = [
-    `From: "Agent de Bureau" <${fromEmail}>`,
-    `To: ${to}`,
-    `Subject: =?UTF-8?B?${Buffer.from(subject).toString("base64")}?=`,
-    `MIME-Version: 1.0`,
-    `Content-Type: multipart/alternative; boundary="${boundary}"`,
-    ``,
-    `--${boundary}`,
-    `Content-Type: text/html; charset=UTF-8`,
-    `Content-Transfer-Encoding: base64`,
-    ``,
-    Buffer.from(html).toString("base64"),
-    ``,
-    `--${boundary}--`,
-  ];
-  return lines.join("\r\n");
-}
-
 function createSmtpTransport() {
   if (!SMTP_HOST) return null;
   return nodemailer.createTransport({
@@ -90,9 +70,15 @@ async function sendEmail(to: string, subject: string, html: string, text: string
   const gmail = await getGmailClient();
   if (gmail) {
     try {
-      const profile = await gmail.users.getProfile({ userId: "me" });
-      const fromEmail = profile.data.emailAddress || "noreply@agentdebureau.fr";
-      const raw = buildRawEmail(to, subject, html, fromEmail);
+      const rawLines = [
+        `To: ${to}`,
+        `Subject: =?UTF-8?B?${Buffer.from(subject).toString("base64")}?=`,
+        `MIME-Version: 1.0`,
+        `Content-Type: text/html; charset=UTF-8`,
+        ``,
+        html,
+      ];
+      const raw = rawLines.join("\r\n");
       const encodedMessage = Buffer.from(raw).toString("base64url");
 
       const result = await gmail.users.messages.send({
