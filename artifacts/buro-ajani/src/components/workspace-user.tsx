@@ -91,7 +91,7 @@ const ROLE_CONFIG: Record<UserRole, {
       telechargerFichiers: false,
       supprimerDonnees: true,
       exporterDonnees: true,
-      gererUtilisateurs: false,
+      gererUtilisateurs: true,
       modifierSecurite: false,
       accesAudit: true,
       accesAdmin: true,

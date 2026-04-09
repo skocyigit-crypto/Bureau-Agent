@@ -27,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useSimulateCall } from "@/components/layout";
 import { useToast } from "@/hooks/use-toast";
+import { useWorkspaceUser } from "@/components/workspace-user";
 
 interface GoogleService {
   id: string;
@@ -946,7 +947,10 @@ const PLATFORM_NAMES_MAP: Record<string, string> = {
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/workspace";
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState("abonnement");
+  const { user: wsUser, isSuperAdmin, isAtLeast } = useWorkspaceUser();
+  const isAdmin = isAtLeast("administrateur");
+  const defaultTab = isAdmin ? "abonnement" : "appels";
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const [subscription, setSubscription] = useState<any>(null);
   const [usage, setUsage] = useState<any>(null);
   const [plans, setPlans] = useState<any[]>([]);
@@ -1471,23 +1475,29 @@ export default function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
-          <TabsTrigger value="abonnement" className="gap-2">
-            <Package className="w-4 h-4" />
-            Abonnement
-          </TabsTrigger>
-          <TabsTrigger value="google" className="gap-2">
-            <Layers className="w-4 h-4" />
-            Plateformes
-          </TabsTrigger>
+        <TabsList className={`grid w-full lg:w-auto lg:inline-grid ${isAdmin ? "grid-cols-7" : "grid-cols-3"}`}>
+          {isAdmin && (
+            <TabsTrigger value="abonnement" className="gap-2">
+              <Package className="w-4 h-4" />
+              Abonnement
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="google" className="gap-2">
+              <Layers className="w-4 h-4" />
+              Plateformes
+            </TabsTrigger>
+          )}
           <TabsTrigger value="appels" className="gap-2">
             <PhoneIncoming className="w-4 h-4" />
             Appels
           </TabsTrigger>
-          <TabsTrigger value="sauvegardes" className="gap-2">
-            <Save className="w-4 h-4" />
-            Sauvegardes
-          </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="sauvegardes" className="gap-2">
+              <Save className="w-4 h-4" />
+              Sauvegardes
+            </TabsTrigger>
+          )}
           <TabsTrigger value="installation" className="gap-2">
             <Monitor className="w-4 h-4" />
             Installation
@@ -1496,10 +1506,12 @@ export default function SettingsPage() {
             <Bell className="w-4 h-4" />
             Notifications
           </TabsTrigger>
-          <TabsTrigger value="securite" className="gap-2">
-            <Shield className="w-4 h-4" />
-            Securite
-          </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="securite" className="gap-2">
+              <Shield className="w-4 h-4" />
+              Securite
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="abonnement" className="space-y-6 mt-6">

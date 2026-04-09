@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Icon3D } from "@/components/icon-3d";
+import { useWorkspaceUser } from "@/components/workspace-user";
 import orgBanner from "@/assets/images/security-server.png";
 
 const BASE = import.meta.env.BASE_URL || "/";
@@ -158,7 +159,22 @@ interface LegalSummary {
   totalDocuments: number;
 }
 
+function AccessDenied() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center">
+      <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+        <Shield className="w-8 h-8 text-red-500" />
+      </div>
+      <h2 className="text-xl font-bold">Acces restreint</h2>
+      <p className="text-muted-foreground max-w-md">
+        Cette section est reservee aux super administrateurs. Contactez votre administrateur pour plus d'informations.
+      </p>
+    </div>
+  );
+}
+
 export default function OrganisationsPage() {
+  const { isSuperAdmin } = useWorkspaceUser();
   const { toast } = useToast();
   const [organisations, setOrganisations] = useState<Organisation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -654,6 +670,8 @@ export default function OrganisationsPage() {
       </div>
     );
   }
+
+  if (!isSuperAdmin()) return <AccessDenied />;
 
   return (
     <div className="space-y-6 p-6">

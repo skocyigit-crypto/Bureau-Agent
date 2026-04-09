@@ -25,6 +25,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { user } = useWorkspaceUser();
 
   const navigation = useMemo(() => {
+    const isAdmin = user.role === "super_admin" || user.role === "administrateur";
     const items = [
       { name: "Tableau de bord", href: "/", icon: LayoutDashboard },
       { name: "Appels", href: "/appels", icon: Phone },
@@ -35,14 +36,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
       { name: "Rapports", href: "/rapports", icon: FileText },
       { name: "Logiciels", href: "/logiciels", icon: Puzzle },
       { name: "Analyse", href: "/analyse", icon: BarChart },
-      { name: "Utilisateurs", href: "/utilisateurs", icon: UserCog },
+      ...(isAdmin ? [{ name: "Utilisateurs", href: "/utilisateurs", icon: UserCog }] : []),
       { name: "Stock", href: "/stock", icon: Package },
       { name: "Pointage", href: "/pointage", icon: Clock },
       { name: "Agents IA", href: "/agents-ia", icon: Brain },
       { name: "Performance", href: "/performance", icon: BarChart3 },
-      { name: "Automatisations", href: "/automatisations", icon: Zap },
+      ...(isAdmin ? [{ name: "Automatisations", href: "/automatisations", icon: Zap }] : []),
       ...(user.role === "super_admin" ? [{ name: "Lisans", href: "/organisations", icon: KeyRound }] : []),
-      { name: "Audit", href: "/audit", icon: Shield },
+      ...(isAdmin ? [{ name: "Audit", href: "/audit", icon: Shield }] : []),
       { name: "Parametres", href: "/parametres", icon: Settings },
     ];
     return items;
