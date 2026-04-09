@@ -34,7 +34,7 @@ The application features a French UI with a deep navy and warm amber color schem
 - **Security Hardening:** Global `requireAuth` and `requireTenant` middleware protect API routes. Implementations include Helmet, rate limiting, strict CORS, HPP protection, Zod validation, Drizzle ORM, structured error handling, mutex locks for AI processing, session pruning, database indexing, resilient dashboard queries, and frontend ErrorBoundary. Production environments enforce strict secret management. All AI routes enforce organization-scoped queries.
 - **Features:**
     - **Core Modules:** Dashboard, Call, Contact, Task, and Message Management.
-    - **Advanced AI:** Incoming Call Overlay with AI Call Processor, AI-powered Stock Management, and Automation Engine.
+    - **Advanced AI:** Incoming Call Overlay with AI Call Processor, AI Phone Agent "Sophie" (auto-answer with Gemini AI conversation, intent detection, auto-task/appointment creation), AI-powered Stock Management, and Automation Engine.
     - **Productivity Tools:** Software Integrations catalog, comprehensive Analytics, Settings with multi-platform integrations (Google Workspace, Microsoft 365, Apple/iCloud), Phone Simulator, and Auto-Backup.
     - **Business Workflow (CRM / Gestion):** Modules for Prospects, Devis (quotes), Factures (invoicing), Chantiers (job site management), and Agenda (appointments).
     - **Performance de l'equipe:** Employee performance analytics page with AI-powered Gemini analysis generating scores and recommendations.

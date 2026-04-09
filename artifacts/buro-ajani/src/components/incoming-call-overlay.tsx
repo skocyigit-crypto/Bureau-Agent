@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
-import { Phone, PhoneOff, Voicemail, Clock, User, Building, Star, PhoneIncoming, MessageSquare, Calendar, AlertTriangle, Brain, Loader2, X, Volume2, Mic, MicOff, Pause, Play, CheckSquare, Sparkles, CalendarPlus, Smile, Zap, Target, MessageCircle, Shield, Send, Lightbulb, ArrowRight, FileText } from "lucide-react";
+import { Phone, PhoneOff, Voicemail, Clock, User, Building, Star, PhoneIncoming, MessageSquare, Calendar, AlertTriangle, Brain, Loader2, X, Volume2, Mic, MicOff, Pause, Play, CheckSquare, Sparkles, CalendarPlus, Smile, Zap, Target, MessageCircle, Shield, Send, Lightbulb, ArrowRight, FileText, Bot, Headphones } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,7 +8,7 @@ import { useCreateCall, useListContacts } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
-type CallPhase = "ringing" | "active" | "ended" | "missed";
+type CallPhase = "ringing" | "active" | "ended" | "missed" | "ai_active" | "ai_ended";
 
 interface IncomingCallData {
   phoneNumber: string;
@@ -83,6 +83,17 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
   const [coachingLoading, setCoachingLoading] = useState(false);
   const [showAiPanel, setShowAiPanel] = useState(true);
   const coachingDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [aiConversation, setAiConversation] = useState<{role: "agent"|"client"; text: string; time: string; intent?: string}[]>([]);
+  const [aiTyping, setAiTyping] = useState(false);
+  const [aiClientInput, setAiClientInput] = useState("");
+  const [aiSummary, setAiSummary] = useState("");
+  const [aiDetectedIntents, setAiDetectedIntents] = useState<string[]>([]);
+  const [aiActions, setAiActions] = useState<any[]>([]);
+  const [aiSaveResult, setAiSaveResult] = useState<any>(null);
+  const [aiSaving, setAiSaving] = useState(false);
+  const [aiCallTimer, setAiCallTimer] = useState(0);
+  const aiChatEndRef = useRef<HTMLDivElement>(null);
   const createCall = useCreateCall();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -103,6 +114,15 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
       setAiResult(null);
       setAiProcessing(false);
       setShowAiPanel(true);
+      setAiConversation([]);
+      setAiTyping(false);
+      setAiClientInput("");
+      setAiSummary("");
+      setAiDetectedIntents([]);
+      setAiActions([]);
+      setAiSaveResult(null);
+      setAiSaving(false);
+      setAiCallTimer(0);
     }
   }, [isVisible]);
 
@@ -139,10 +159,17 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
   }, [phase, ringTimer]);
 
   useEffect(() => {
-    if (phase !== "active") return;
-    const interval = setInterval(() => setCallTimer(t => t + 1), 1000);
+    if (phase !== "active" && phase !== "ai_active") return;
+    const interval = setInterval(() => {
+      if (phase === "active") setCallTimer(t => t + 1);
+      if (phase === "ai_active") setAiCallTimer(t => t + 1);
+    }, 1000);
     return () => clearInterval(interval);
   }, [phase]);
+
+  useEffect(() => {
+    aiChatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [aiConversation, aiTyping]);
 
   const requestCoaching = useCallback((currentNotes: string) => {
     if (coachingDebounce.current) clearTimeout(coachingDebounce.current);
@@ -194,6 +221,98 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
   const handleHangup = useCallback(() => {
     setPhase("ended");
   }, []);
+
+  const sendAiAgentMessage = useCallback(async (history: typeof aiConversation, phaseStr: string) => {
+    setAiTyping(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/calls/ai-agent-respond`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phoneNumber: callData.phoneNumber,
+          contactId: callData.contactId,
+          contactName: callData.contactName,
+          contactCompany: callData.company,
+          contactCategory: callData.category,
+          conversationHistory: history,
+          callPhase: phaseStr,
+        }),
+      });
+      if (!res.ok) throw new Error("AI respond failed");
+      const data = await res.json();
+      const now = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      setAiConversation(prev => [...prev, { role: "agent", text: data.response, time: now, intent: data.detectedIntent }]);
+      if (data.summary) setAiSummary(data.summary);
+      if (data.detectedIntent && data.detectedIntent !== "salutation" && data.detectedIntent !== "autre") {
+        setAiDetectedIntents(prev => prev.includes(data.detectedIntent) ? prev : [...prev, data.detectedIntent]);
+      }
+      if (data.suggestedActions?.length > 0) {
+        setAiActions(prev => [...prev, ...data.suggestedActions]);
+      }
+      if (data.shouldEscalate) {
+        toast({ title: "Escalade requise", description: data.escalateReason || "L'agent IA recommande un transfert a un agent humain." });
+      }
+    } catch {
+      const now = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      setAiConversation(prev => [...prev, { role: "agent", text: "Excusez-moi, puis-je prendre votre message ?", time: now }]);
+    } finally {
+      setAiTyping(false);
+    }
+  }, [baseUrl, callData, toast]);
+
+  const handleAiAnswer = useCallback(() => {
+    setPhase("ai_active");
+    setAiCallTimer(0);
+    setAiConversation([]);
+    sendAiAgentMessage([], "greeting");
+  }, [sendAiAgentMessage]);
+
+  const handleAiClientSend = useCallback(() => {
+    if (!aiClientInput.trim()) return;
+    const now = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    const newMsg = { role: "client" as const, text: aiClientInput.trim(), time: now };
+    const updatedHistory = [...aiConversation, newMsg];
+    setAiConversation(updatedHistory);
+    setAiClientInput("");
+    sendAiAgentMessage(updatedHistory, "conversation");
+  }, [aiClientInput, aiConversation, sendAiAgentMessage]);
+
+  const handleAiHangup = useCallback(() => {
+    setPhase("ai_ended");
+  }, []);
+
+  const handleAiSave = useCallback(async () => {
+    setAiSaving(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/calls/ai-agent-save`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phoneNumber: callData.phoneNumber,
+          contactId: callData.contactId,
+          contactName: callData.contactName,
+          duration: aiCallTimer,
+          transcript: aiConversation,
+          summary: aiSummary,
+          detectedIntents: aiDetectedIntents,
+          suggestedActions: aiActions,
+        }),
+      });
+      if (!res.ok) throw new Error("Save failed");
+      const data = await res.json();
+      setAiSaveResult(data);
+      queryClient.invalidateQueries({ queryKey: ["calls"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+      toast({ title: "Appel IA enregistre", description: data.message });
+    } catch {
+      toast({ title: "Erreur", description: "Impossible d'enregistrer l'appel IA.", variant: "destructive" });
+    } finally {
+      setAiSaving(false);
+    }
+  }, [baseUrl, callData, aiCallTimer, aiConversation, aiSummary, aiDetectedIntents, aiActions, queryClient, toast]);
 
   const saveCall = useCallback((status: "repondu" | "manque" | "messagerie") => {
     createCall.mutate({
@@ -424,7 +543,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                   </motion.div>
                 )}
 
-                <div className="px-8 pb-8">
+                <div className="px-8 pb-4">
                   <div className="flex items-center justify-center gap-6">
                     <motion.button
                       whileHover={{ scale: 1.1 }}
@@ -461,6 +580,22 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                     <span>Messagerie</span>
                   </div>
                 </div>
+
+                <motion.div
+                  className="px-8 pb-8"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 }}
+                >
+                  <button
+                    onClick={handleAiAnswer}
+                    className="w-full py-3 rounded-2xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-medium text-sm flex items-center justify-center gap-2 shadow-lg shadow-violet-500/30 transition-all"
+                  >
+                    <Bot className="w-5 h-5" />
+                    Sophie IA repond
+                    <Badge className="bg-white/20 text-white border-0 text-[10px] ml-1">Auto</Badge>
+                  </button>
+                </motion.div>
               </div>
             )}
 
@@ -664,6 +799,216 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                   <p className="text-center text-white/40 text-xs mt-2">Raccrocher</p>
                 </div>
               </div>
+            )}
+
+            {phase === "ai_active" && (
+              <div className="bg-gradient-to-br from-violet-950 via-slate-900 to-slate-900 text-white flex flex-col max-h-[85vh]">
+                <div className="px-6 pt-5 pb-3 text-center border-b border-violet-500/20">
+                  <div className="flex justify-between items-center mb-2">
+                    <Badge className="bg-violet-500/20 text-violet-300 border-violet-500/30 text-xs animate-pulse">
+                      <Bot className="w-3 h-3 mr-1" />
+                      Sophie IA
+                    </Badge>
+                    <span className="text-xs text-white/50 font-mono">{formatTimer(aiCallTimer)}</span>
+                    <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1 inline-block animate-pulse" />
+                      Active
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-white/70 flex items-center justify-center gap-2">
+                    <Headphones className="w-4 h-4" />
+                    {callData.contactName || callData.phoneNumber}
+                    {callData.company && <span className="text-white/40">• {callData.company}</span>}
+                  </p>
+                  {aiDetectedIntents.length > 0 && (
+                    <div className="flex flex-wrap gap-1 justify-center mt-2">
+                      {aiDetectedIntents.map((i, idx) => (
+                        <Badge key={idx} className="bg-violet-500/10 text-violet-300 border-violet-500/20 text-[10px]">
+                          {i === "rdv" ? "Rendez-vous" : i === "devis" ? "Devis" : i === "reclamation" ? "Reclamation" : i === "urgence" ? "Urgence" : i === "rappel" ? "Rappel" : i === "information" ? "Information" : i}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-[200px] max-h-[45vh]">
+                  {aiConversation.map((msg, idx) => (
+                    <motion.div
+                      key={idx}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`flex ${msg.role === "agent" ? "justify-start" : "justify-end"}`}
+                    >
+                      <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
+                        msg.role === "agent"
+                          ? "bg-violet-500/20 text-violet-100 rounded-bl-md"
+                          : "bg-white/10 text-white rounded-br-md"
+                      }`}>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          {msg.role === "agent" ? <Bot className="w-3 h-3 text-violet-400" /> : <User className="w-3 h-3 text-white/50" />}
+                          <span className="text-[10px] text-white/40">{msg.time}</span>
+                          {msg.intent && msg.intent !== "autre" && msg.intent !== "salutation" && (
+                            <Badge className="bg-violet-400/10 text-violet-300 border-0 text-[9px] py-0">{msg.intent}</Badge>
+                          )}
+                        </div>
+                        <p>{msg.text}</p>
+                      </div>
+                    </motion.div>
+                  ))}
+                  {aiTyping && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
+                      <div className="bg-violet-500/20 rounded-2xl rounded-bl-md px-4 py-3">
+                        <div className="flex items-center gap-1">
+                          <Bot className="w-3 h-3 text-violet-400 mr-1" />
+                          <motion.span animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.2, repeat: Infinity }} className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                          <motion.span animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.2, repeat: Infinity, delay: 0.2 }} className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                          <motion.span animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.2, repeat: Infinity, delay: 0.4 }} className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                  <div ref={aiChatEndRef} />
+                </div>
+
+                <div className="px-4 py-3 border-t border-violet-500/20">
+                  <p className="text-[10px] text-white/30 mb-2 text-center">Simulez la reponse du client pour tester l'agent IA</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={aiClientInput}
+                      onChange={e => setAiClientInput(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && handleAiClientSend()}
+                      placeholder="Ecrivez comme le client..."
+                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:border-violet-500/50"
+                      disabled={aiTyping}
+                    />
+                    <button
+                      onClick={handleAiClientSend}
+                      disabled={aiTyping || !aiClientInput.trim()}
+                      className="w-10 h-10 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-30 flex items-center justify-center transition-colors"
+                    >
+                      <Send className="w-4 h-4 text-white" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="px-6 pb-5 pt-2 flex items-center justify-center gap-4">
+                  <button
+                    onClick={() => { setPhase("active"); setCallTimer(aiCallTimer); }}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium flex items-center gap-1.5 transition-colors"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    Reprendre
+                  </button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleAiHangup}
+                    className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-lg shadow-red-500/30 transition-colors"
+                  >
+                    <PhoneOff className="w-6 h-6 text-white" />
+                  </motion.button>
+                  <div className="w-[72px]" />
+                </div>
+              </div>
+            )}
+
+            {phase === "ai_ended" && (
+              <motion.div
+                className="bg-card text-foreground max-h-[85vh] overflow-y-auto"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+              >
+                <div className="px-8 pt-8 pb-4 text-center">
+                  <div className="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center bg-violet-100 dark:bg-violet-900/30">
+                    <Bot className="w-7 h-7 text-violet-600 dark:text-violet-400" />
+                  </div>
+                  <h3 className="text-lg font-bold">Appel gere par Sophie IA</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Duree: {formatTimer(aiCallTimer)} • {aiConversation.length} messages
+                  </p>
+                </div>
+
+                {aiSummary && (
+                  <div className="mx-6 mb-3 p-3 rounded-xl bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800">
+                    <p className="text-xs font-medium text-violet-700 dark:text-violet-300 mb-1 flex items-center gap-1">
+                      <Brain className="w-3 h-3" /> Resume IA
+                    </p>
+                    <p className="text-sm text-violet-900 dark:text-violet-100">{aiSummary}</p>
+                  </div>
+                )}
+
+                {aiDetectedIntents.length > 0 && (
+                  <div className="mx-6 mb-3">
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Intentions detectees</p>
+                    <div className="flex flex-wrap gap-1">
+                      {aiDetectedIntents.map((i, idx) => (
+                        <Badge key={idx} variant="outline" className="text-xs">
+                          {i === "rdv" ? "Rendez-vous" : i === "devis" ? "Devis" : i === "reclamation" ? "Reclamation" : i === "urgence" ? "Urgence" : i === "rappel" ? "Rappel" : i === "information" ? "Information" : i}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {aiActions.length > 0 && (
+                  <div className="mx-6 mb-3">
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">Actions suggerees</p>
+                    <div className="space-y-1.5">
+                      {aiActions.map((a, idx) => (
+                        <div key={idx} className="flex items-start gap-2 p-2 rounded-lg bg-muted/50 text-sm">
+                          {a.type === "task" || a.type === "callback" ? <CheckSquare className="w-3.5 h-3.5 text-blue-500 mt-0.5" /> :
+                           a.type === "appointment" ? <CalendarPlus className="w-3.5 h-3.5 text-emerald-500 mt-0.5" /> :
+                           <MessageSquare className="w-3.5 h-3.5 text-orange-500 mt-0.5" />}
+                          <div>
+                            <p className="font-medium text-xs">{a.description}</p>
+                            <p className="text-[10px] text-muted-foreground">{a.type} • {a.priority}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="mx-6 mb-3">
+                  <details className="group">
+                    <summary className="text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground flex items-center gap-1">
+                      <MessageCircle className="w-3 h-3" />
+                      Transcription ({aiConversation.length} messages)
+                    </summary>
+                    <div className="mt-2 space-y-2 max-h-[200px] overflow-y-auto">
+                      {aiConversation.map((msg, idx) => (
+                        <div key={idx} className={`text-xs p-2 rounded-lg ${msg.role === "agent" ? "bg-violet-50 dark:bg-violet-900/10" : "bg-muted/50"}`}>
+                          <span className="font-medium">{msg.role === "agent" ? "Sophie IA" : "Client"}</span>
+                          <span className="text-muted-foreground ml-1">{msg.time}</span>
+                          <p className="mt-0.5">{msg.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                </div>
+
+                <div className="px-6 pb-6 space-y-2">
+                  {!aiSaveResult ? (
+                    <Button
+                      onClick={handleAiSave}
+                      disabled={aiSaving}
+                      className="w-full bg-violet-600 hover:bg-violet-700"
+                    >
+                      {aiSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckSquare className="w-4 h-4 mr-2" />}
+                      Enregistrer l'appel et creer les taches
+                    </Button>
+                  ) : (
+                    <div className="text-center p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                      <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">{aiSaveResult.message}</p>
+                    </div>
+                  )}
+                  <Button variant="outline" onClick={() => onClose?.()} className="w-full">
+                    <X className="w-4 h-4 mr-2" />
+                    Fermer
+                  </Button>
+                </div>
+              </motion.div>
             )}
 
             {(phase === "ended" || phase === "missed") && (
