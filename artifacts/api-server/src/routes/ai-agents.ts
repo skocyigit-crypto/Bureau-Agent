@@ -102,7 +102,7 @@ async function gatherAgentData(agentId: string, orgId: number) {
         db.select({ count: count() }).from(contactsTable).where(and(orgContact, gte(contactsTable.totalCalls, 5))),
         db.select({ count: count() }).from(contactsTable).where(and(orgContact, gte(contactsTable.createdAt, twoWeeksAgo), lt(contactsTable.createdAt, weekAgo))),
         db.select({ count: count() }).from(contactsTable).where(and(orgContact, sql`${contactsTable.id} IN (SELECT DISTINCT contact_id FROM calls WHERE contact_id IS NOT NULL AND organisation_id = ${orgId} AND created_at >= ${weekAgo.toISOString()})`)),
-        db.select({ count: count() }).from(contactsTable).where(and(orgContact, sql`${contactsTable.id} IN (SELECT DISTINCT contact_id FROM tasks WHERE contact_id IS NOT NULL AND organisation_id = ${orgId})`)),
+        db.select({ count: count() }).from(contactsTable).where(and(orgContact, sql`${contactsTable.id} IN (SELECT DISTINCT related_contact_id FROM tasks WHERE related_contact_id IS NOT NULL AND organisation_id = ${orgId})`)),
         db.select({ company: contactsTable.company, cnt: count() }).from(contactsTable).where(and(orgContact, isNotNull(contactsTable.company))).groupBy(contactsTable.company).having(sql`count(*) >= 2`),
       ]);
       const totalC = total[0]?.count ?? 0;
@@ -1110,52 +1110,75 @@ router.get("/ai/agents/latest", async (req, res) => {
   res.json(latestByAgent);
 });
 
-router.get("/ai/agents/config", async (_req, res) => {
-  res.json({ agents: AGENTS, autoRunEnabled: !!autoRunInterval, autoRunIntervalMinutes: 120 });
+router.get("/ai/agents/config", async (req, res) => {
+  const orgId = (req.session as any)?.organisationId;
+  res.json({ agents: AGENTS, autoRunEnabled: orgId ? autoRunState.has(orgId) : false, autoRunIntervalMinutes: 120 });
 });
 
-let autoRunInterval: ReturnType<typeof setInterval> | null = null;
+const autoRunState = new Map<number, { interval: ReturnType<typeof setInterval>; running: boolean }>();
 
 router.post("/ai/agents/auto-start", async (_req, res) => {
   const orgId = (_req.session as any)?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
 
-  if (autoRunInterval) {
+  const existing = autoRunState.get(orgId);
+  if (existing) {
     res.json({ message: "L'execution automatique est deja active", status: "active" });
     return;
   }
 
-  autoRunInterval = setInterval(async () => {
-    console.log("[AI Agents] Execution automatique demarree:", new Date().toISOString());
+  const interval = setInterval(async () => {
+    const state = autoRunState.get(orgId);
+    if (state?.running) return;
+    if (state) state.running = true;
+    console.log(`[AI Agents] Execution automatique org ${orgId} demarree:`, new Date().toISOString());
     try {
       const childReports = await Promise.all(AGENTS.map(a => runSingleAgent(a, orgId)));
       await runSuperAgent(childReports, orgId);
-      console.log("[AI Agents] Execution automatique terminee:", new Date().toISOString());
+      console.log(`[AI Agents] Execution automatique org ${orgId} terminee:`, new Date().toISOString());
     } catch (error) {
-      console.error("[AI Agents] Erreur execution automatique:", error);
+      console.error(`[AI Agents] Erreur execution automatique org ${orgId}:`, error);
+    } finally {
+      const s = autoRunState.get(orgId);
+      if (s) s.running = false;
     }
   }, 2 * 60 * 60 * 1000);
 
-  const childReports = await Promise.all(AGENTS.map(a => runSingleAgent(a, orgId)));
-  const superReport = await runSuperAgent(childReports, orgId);
+  autoRunState.set(orgId, { interval, running: true });
 
-  res.json({
-    message: "Execution automatique activee (toutes les 2 heures)",
-    status: "active",
-    firstRun: { superReport, agentReports: childReports },
-  });
+  try {
+    const childReports = await Promise.all(AGENTS.map(a => runSingleAgent(a, orgId)));
+    const superReport = await runSuperAgent(childReports, orgId);
+    const state = autoRunState.get(orgId);
+    if (state) state.running = false;
+
+    res.json({
+      message: "Execution automatique activee (toutes les 2 heures)",
+      status: "active",
+      firstRun: { superReport, agentReports: childReports },
+    });
+  } catch (error: any) {
+    const state = autoRunState.get(orgId);
+    if (state) state.running = false;
+    res.status(500).json({ error: "Erreur lors du premier cycle", details: error.message });
+  }
 });
 
 router.post("/ai/agents/auto-stop", async (_req, res) => {
-  if (autoRunInterval) {
-    clearInterval(autoRunInterval);
-    autoRunInterval = null;
+  const orgId = (_req.session as any)?.organisationId;
+  if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+
+  const state = autoRunState.get(orgId);
+  if (state) {
+    clearInterval(state.interval);
+    autoRunState.delete(orgId);
   }
   res.json({ message: "Execution automatique arretee", status: "inactive" });
 });
 
 const autopilotState = new Map<number, {
   interval: ReturnType<typeof setInterval> | null;
+  running: boolean;
   log: Array<{ timestamp: string; type: string; message: string; provider?: string; severity?: string }>;
   status: { active: boolean; lastRun?: string; cycleCount: number; fixesApplied: number; issuesFound: number };
 }>();
@@ -1164,6 +1187,7 @@ function getOrgAutopilot(orgId: number) {
   if (!autopilotState.has(orgId)) {
     autopilotState.set(orgId, {
       interval: null,
+      running: false,
       log: [],
       status: { active: false, cycleCount: 0, fixesApplied: 0, issuesFound: 0 },
     });
@@ -1296,13 +1320,14 @@ async function runAutopilotCycle(orgId: number) {
 
     if (systemHealth.stuckTasks > 0) {
       try {
-        const stuckList = await db.select({ id: tasksTable.id, title: tasksTable.title })
+        const stuckList = await db.select({ id: tasksTable.id, title: tasksTable.title, description: tasksTable.description })
           .from(tasksTable)
           .where(and(orgTask, eq(tasksTable.status, "en_cours"), sql`${tasksTable.updatedAt} < NOW() - INTERVAL '7 days'`))
           .limit(10);
 
         if (stuckList.length > 0) {
           for (const task of stuckList) {
+            if (task.description && task.description.includes("[Oto-Pilot] Tache bloquee")) continue;
             await db.update(tasksTable).set({ description: sql`COALESCE(${tasksTable.description}, '') || E'\n[Oto-Pilot] Tache bloquee detectee - necessite attention'` }).where(eq(tasksTable.id, task.id));
           }
           autoFixes.push({ action: "flag_stuck_tasks", description: `${stuckList.length} taches bloquees marquees pour attention`, result: "succes" });
@@ -1497,10 +1522,15 @@ router.post("/ai/autopilot/start", async (req, res): Promise<void> => {
   });
 
   state.interval = setInterval(async () => {
+    const s = getOrgAutopilot(orgId);
+    if (s.running) return;
+    s.running = true;
     try {
       await runAutopilotCycle(orgId);
     } catch (e: any) {
       addAutopilotLog(orgId, "error", `Cycle automatique echoue: ${e.message}`, "system", "haute");
+    } finally {
+      s.running = false;
     }
   }, 30 * 60 * 1000);
 
