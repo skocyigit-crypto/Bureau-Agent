@@ -21,6 +21,7 @@ import {
   useRunSingleAiAgent
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useWorkspaceUser } from "@/components/workspace-user";
 
 const AGENT_ICONS: Record<string, any> = {
   phone: Phone, users: Users, clipboard: ClipboardList, mail: Mail,
@@ -413,6 +414,8 @@ export default function AiAgentsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("dashboard");
+  const { isAtLeast } = useWorkspaceUser();
+  const canRunAgents = isAtLeast("administrateur");
 
   const runAll = useRunAllAiAgents();
   const runSingle = useRunSingleAiAgent();
@@ -473,10 +476,16 @@ export default function AiAgentsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={handleRunAll} disabled={isRunning} className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700">
-            {isRunning ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
-            Lancer tous les agents
-          </Button>
+          {canRunAgents ? (
+            <Button onClick={handleRunAll} disabled={isRunning} className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700">
+              {isRunning ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
+              Lancer tous les agents
+            </Button>
+          ) : (
+            <Badge variant="secondary" className="py-1.5 px-3 text-xs">
+              <Eye className="w-3 h-3 mr-1.5" /> Mode lecture
+            </Badge>
+          )}
         </div>
       </div>
 
@@ -636,10 +645,12 @@ export default function AiAgentsPage() {
                 <p className="text-sm text-muted-foreground mb-4">
                   Lancez les agents IA pour obtenir une analyse complete de votre bureau.
                 </p>
-                <Button onClick={handleRunAll} disabled={isRunning} className="bg-gradient-to-r from-purple-600 to-indigo-600">
-                  {isRunning ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
-                  Lancer l'analyse
-                </Button>
+                {canRunAgents && (
+                  <Button onClick={handleRunAll} disabled={isRunning} className="bg-gradient-to-r from-purple-600 to-indigo-600">
+                    {isRunning ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
+                    Lancer l'analyse
+                  </Button>
+                )}
               </CardContent>
             </Card>
           )}
@@ -648,7 +659,7 @@ export default function AiAgentsPage() {
         <TabsContent value="agents" className="space-y-4">
           {agentReports.length > 0 ? (
             agentReports.map((report: any) => (
-              <AgentCard key={report.agentId} report={report} onRunAgent={handleRunSingle} />
+              <AgentCard key={report.agentId} report={report} onRunAgent={canRunAgents ? handleRunSingle : undefined} />
             ))
           ) : (
             <Card className="border-dashed">
@@ -721,6 +732,8 @@ function AutopilotPanel() {
   const [starting, setStarting] = useState(false);
   const [stopping, setStopping] = useState(false);
   const { toast } = useToast();
+  const { isAtLeast } = useWorkspaceUser();
+  const canRunAgents = isAtLeast("administrateur");
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -800,20 +813,28 @@ function AutopilotPanel() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={runCycle} disabled={loading} variant="outline" className="gap-2">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-            Cycle manuel
-          </Button>
-          {status?.active ? (
-            <Button onClick={stopAutopilot} disabled={stopping} variant="destructive" className="gap-2">
-              {stopping ? <Loader2 className="w-4 h-4 animate-spin" /> : <PowerOff className="w-4 h-4" />}
-              Arreter
-            </Button>
+          {canRunAgents ? (
+            <>
+              <Button onClick={runCycle} disabled={loading} variant="outline" className="gap-2">
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                Cycle manuel
+              </Button>
+              {status?.active ? (
+                <Button onClick={stopAutopilot} disabled={stopping} variant="destructive" className="gap-2">
+                  {stopping ? <Loader2 className="w-4 h-4 animate-spin" /> : <PowerOff className="w-4 h-4" />}
+                  Arreter
+                </Button>
+              ) : (
+                <Button onClick={startAutopilot} disabled={starting} className="gap-2 bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:from-violet-600 hover:to-fuchsia-700">
+                  {starting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Power className="w-4 h-4" />}
+                  Activer
+                </Button>
+              )}
+            </>
           ) : (
-            <Button onClick={startAutopilot} disabled={starting} className="gap-2 bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:from-violet-600 hover:to-fuchsia-700">
-              {starting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Power className="w-4 h-4" />}
-              Activer
-            </Button>
+            <Badge variant="secondary" className="py-1.5 px-3 text-xs">
+              <Eye className="w-3 h-3 mr-1.5" /> Mode lecture
+            </Badge>
           )}
         </div>
       </div>
@@ -1121,14 +1142,16 @@ function AutopilotPanel() {
               Le systeme auto-correctif multi-IA est pret. Lancez un cycle manuel ou activez la surveillance continue
               pour que 3 IA (Gemini, OpenAI, Anthropic) analysent et corrigent automatiquement votre systeme.
             </p>
-            <div className="flex items-center justify-center gap-3">
-              <Button onClick={runCycle} disabled={loading} variant="outline" className="gap-2">
-                <Play className="w-4 h-4" /> Cycle manuel
-              </Button>
-              <Button onClick={startAutopilot} disabled={starting} className="gap-2 bg-gradient-to-r from-violet-500 to-fuchsia-600">
-                <Power className="w-4 h-4" /> Activer Oto-Pilot
-              </Button>
-            </div>
+            {canRunAgents && (
+              <div className="flex items-center justify-center gap-3">
+                <Button onClick={runCycle} disabled={loading} variant="outline" className="gap-2">
+                  <Play className="w-4 h-4" /> Cycle manuel
+                </Button>
+                <Button onClick={startAutopilot} disabled={starting} className="gap-2 bg-gradient-to-r from-violet-500 to-fuchsia-600">
+                  <Power className="w-4 h-4" /> Activer Oto-Pilot
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

@@ -1,8 +1,12 @@
 import { Router } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, aiAgentReportsTable, stockArticlesTable, invoicesTable, paymentsTable, subscriptionsTable, usersTable, automationRulesTable, notificationsTable, auditLogsTable, calendarEventsTable } from "@workspace/db";
 import { sql, eq, gte, lte, and, count, desc, lt, ne, isNull, isNotNull, or, sum, avg } from "drizzle-orm";
+import { requireRole } from "../middleware/auth";
 
 const router = Router();
+
+const requireAdmin = requireRole("super_admin", "administrateur");
+const requireMinAgent = requireRole("super_admin", "administrateur", "agent");
 
 const AGENTS = [
   { id: "agent_appels", name: "Agent Appels", icon: "phone", domain: "Gestion des appels telephoniques et suivi client" },
@@ -993,7 +997,7 @@ Rapports des agents:\n${JSON.stringify(reportsSummary, null, 2)}`
   }
 }
 
-router.post("/ai/agents/run", async (_req, res) => {
+router.post("/ai/agents/run", requireAdmin, async (_req, res) => {
   try {
     const orgId = (_req.session as any)?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
@@ -1014,7 +1018,7 @@ router.post("/ai/agents/run", async (_req, res) => {
   }
 });
 
-router.post("/ai/agents/run/:agentId", async (req, res) => {
+router.post("/ai/agents/run/:agentId", requireAdmin, async (req, res) => {
   try {
     const orgId = (req.session as any)?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
@@ -1032,7 +1036,7 @@ router.post("/ai/agents/run/:agentId", async (req, res) => {
   }
 });
 
-router.post("/ai/agents/super", async (req, res) => {
+router.post("/ai/agents/super", requireAdmin, async (req, res) => {
   try {
     const orgId = (req.session as any)?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
@@ -1055,7 +1059,7 @@ router.post("/ai/agents/super", async (req, res) => {
   }
 });
 
-router.get("/ai/agents/reports", async (req, res) => {
+router.get("/ai/agents/reports", requireMinAgent, async (req, res) => {
   const orgId = (req.session as any)?.organisationId;
   const { date, agentId, superOnly } = req.query as Record<string, string>;
   const conditions = [];
@@ -1075,7 +1079,7 @@ router.get("/ai/agents/reports", async (req, res) => {
   res.json(reports);
 });
 
-router.get("/ai/agents/reports/:id", async (req, res): Promise<void> => {
+router.get("/ai/agents/reports/:id", requireMinAgent, async (req, res): Promise<void> => {
   const orgId = (req.session as any)?.organisationId;
   const id = parseInt(req.params.id);
   if (isNaN(id)) {
@@ -1092,7 +1096,7 @@ router.get("/ai/agents/reports/:id", async (req, res): Promise<void> => {
   res.json(report);
 });
 
-router.get("/ai/agents/latest", async (req, res) => {
+router.get("/ai/agents/latest", requireMinAgent, async (req, res) => {
   const orgId = (req.session as any)?.organisationId;
   const latestByAgent: Record<string, any> = {};
   const allAgentIds = [...AGENTS.map(a => a.id), "super_agent"];
@@ -1110,14 +1114,14 @@ router.get("/ai/agents/latest", async (req, res) => {
   res.json(latestByAgent);
 });
 
-router.get("/ai/agents/config", async (req, res) => {
+router.get("/ai/agents/config", requireMinAgent, async (req, res) => {
   const orgId = (req.session as any)?.organisationId;
   res.json({ agents: AGENTS, autoRunEnabled: orgId ? autoRunState.has(orgId) : false, autoRunIntervalMinutes: 120 });
 });
 
 const autoRunState = new Map<number, { interval: ReturnType<typeof setInterval>; running: boolean }>();
 
-router.post("/ai/agents/auto-start", async (_req, res) => {
+router.post("/ai/agents/auto-start", requireAdmin, async (_req, res) => {
   const orgId = (_req.session as any)?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
 
@@ -1164,7 +1168,7 @@ router.post("/ai/agents/auto-start", async (_req, res) => {
   }
 });
 
-router.post("/ai/agents/auto-stop", async (_req, res) => {
+router.post("/ai/agents/auto-stop", requireAdmin, async (_req, res) => {
   const orgId = (_req.session as any)?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
 
@@ -1492,7 +1496,7 @@ Reponds en JSON:
   }
 }
 
-router.post("/ai/autopilot/run", async (req, res): Promise<void> => {
+router.post("/ai/autopilot/run", requireAdmin, async (req, res): Promise<void> => {
   const orgId = (req.session as any)?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
   try {
@@ -1503,7 +1507,7 @@ router.post("/ai/autopilot/run", async (req, res): Promise<void> => {
   }
 });
 
-router.post("/ai/autopilot/start", async (req, res): Promise<void> => {
+router.post("/ai/autopilot/start", requireAdmin, async (req, res): Promise<void> => {
   const orgId = (req.session as any)?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
 
@@ -1542,7 +1546,7 @@ router.post("/ai/autopilot/start", async (req, res): Promise<void> => {
   });
 });
 
-router.post("/ai/autopilot/stop", async (req, res): Promise<void> => {
+router.post("/ai/autopilot/stop", requireAdmin, async (req, res): Promise<void> => {
   const orgId = (req.session as any)?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
 
@@ -1556,7 +1560,7 @@ router.post("/ai/autopilot/stop", async (req, res): Promise<void> => {
   res.json({ status: "inactive", message: "Oto-Pilot desactive", ...state.status });
 });
 
-router.get("/ai/autopilot/status", async (req, res): Promise<void> => {
+router.get("/ai/autopilot/status", requireMinAgent, async (req, res): Promise<void> => {
   const orgId = (req.session as any)?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
 
@@ -1567,7 +1571,7 @@ router.get("/ai/autopilot/status", async (req, res): Promise<void> => {
   });
 });
 
-router.get("/ai/autopilot/logs", async (req, res): Promise<void> => {
+router.get("/ai/autopilot/logs", requireMinAgent, async (req, res): Promise<void> => {
   const orgId = (req.session as any)?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
 

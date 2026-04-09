@@ -39,7 +39,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       ...(isAdmin ? [{ name: "Utilisateurs", href: "/utilisateurs", icon: UserCog }] : []),
       { name: "Stock", href: "/stock", icon: Package },
       { name: "Pointage", href: "/pointage", icon: Clock },
-      { name: "Agents IA", href: "/agents-ia", icon: Brain },
+      ...(user.role !== "lecture_seule" ? [{ name: "Agents IA", href: "/agents-ia", icon: Brain }] : []),
       { name: "Performance", href: "/performance", icon: BarChart3 },
       ...(isAdmin ? [{ name: "Automatisations", href: "/automatisations", icon: Zap }] : []),
       ...(user.role === "super_admin" ? [{ name: "Lisans", href: "/organisations", icon: KeyRound }] : []),
