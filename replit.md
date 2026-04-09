@@ -48,8 +48,15 @@ The application features a French UI with a deep navy and warm amber color schem
     - **Per-org billing detail:** Dialog showing invoice history, usage bars, overage breakdown, and manual status updates (payee/retard/annulee).
     - **Bank statement import:** Super Admin can paste bank statement lines (CSV format) to import payments.
     - **Automatic payment matching:** Algorithm matches payments to invoices based on amount, payer name, and reference similarity.
-    - **Usage bars in org cards:** Visual progress bars showing current usage vs. forfait limits directly in each organisation card.
+    - **Usage bars in org cards:** Visual progress bars showing current usage vs. forfait limits directly in each organisation card (real-time contact/call counts from DB).
     - API routes: `GET/POST /api/billing/*` (super_admin only). Service: `billing-engine.ts`.
+- **Legal Compliance System:** Full legal rights management for licensed customers, integrated as a "Juridique" tab in the Organisations page (Super Admin). Features:
+    - **7 legal documents** tracked: CGU, CGV, RGPD, DPA, SLA, Propriete Intellectuelle, Securite. 5 mandatory, 2 optional.
+    - **Per-org compliance tracking:** DB table `legal_agreements` records who accepted which document, when, from which IP, with version tracking.
+    - **Compliance dashboard:** KPI cards (compliant/non-compliant/rate/documents), alert banner for non-compliant orgs, progress bars per org.
+    - **Document detail dialog:** Accept/revoke individual documents per org, accept all at once, full audit trail (signer name, date, IP).
+    - **Legal document catalog:** Visual reference of all required documents with categories and mandatory/optional badges.
+    - API routes: `GET/POST /api/legal/*` (super_admin only). Schema: `legal-agreements.ts`.
 
 # External Dependencies
 

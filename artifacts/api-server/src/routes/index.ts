@@ -27,6 +27,7 @@ import subscriptionsRouter from "./subscriptions";
 import organisationsRouter from "./organisations";
 import adminReportsRouter from "./admin-reports";
 import billingRouter from "./billing";
+import legalRouter from "./legal";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -59,5 +60,6 @@ router.use(performanceRouter);
 router.use(organisationsRouter);
 router.use(adminReportsRouter);
 router.use(billingRouter);
+router.use(legalRouter);
 
 export default router;

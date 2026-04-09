@@ -4,7 +4,7 @@ import {
   MapPin, CheckCircle2, XCircle, Loader2, Key, AlertTriangle,
   Package, Shield, Zap, Brain, Search, RefreshCw, Copy, Check, Send,
   Receipt, CreditCard, Upload, TrendingUp, Clock, FileText, ArrowUpDown,
-  BarChart3, CircleDollarSign, AlertCircle,
+  BarChart3, CircleDollarSign, AlertCircle, Scale, ShieldCheck, Lock, Eye, FileCheck, BookOpen,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -117,6 +117,47 @@ interface OrgBilling {
   lastInvoice: Invoice | null;
 }
 
+interface LegalDocument {
+  code: string;
+  title: string;
+  description: string;
+  version: string;
+  mandatory: boolean;
+  category: string;
+  status: "accepted" | "pending";
+  agreement: {
+    id: number;
+    acceptedAt: string;
+    acceptedBy: string;
+    acceptedIp: string;
+    documentVersion: string;
+    expiresAt: string | null;
+    notes: string | null;
+  } | null;
+}
+
+interface LegalCompliance {
+  id: number;
+  name: string;
+  actif: boolean;
+  agreements: { id: number; documentType: string; acceptedAt: string; acceptedBy: string }[];
+  missingDocuments: string[];
+  acceptedCount: number;
+  totalDocuments: number;
+  mandatoryTotal: number;
+  isCompliant: boolean;
+  compliancePercent: number;
+}
+
+interface LegalSummary {
+  totalOrgs: number;
+  compliantOrgs: number;
+  nonCompliantOrgs: number;
+  complianceRate: number;
+  mandatoryDocuments: number;
+  totalDocuments: number;
+}
+
 export default function OrganisationsPage() {
   const { toast } = useToast();
   const [organisations, setOrganisations] = useState<Organisation[]>([]);
@@ -152,6 +193,16 @@ export default function OrganisationsPage() {
   const [matching, setMatching] = useState(false);
   const [activeTab, setActiveTab] = useState("organisations");
 
+  const [legalCompliance, setLegalCompliance] = useState<LegalCompliance[]>([]);
+  const [legalSummary, setLegalSummary] = useState<LegalSummary | null>(null);
+  const [legalLoading, setLegalLoading] = useState(false);
+  const [showLegalDetail, setShowLegalDetail] = useState(false);
+  const [legalDetailOrg, setLegalDetailOrg] = useState<LegalCompliance | null>(null);
+  const [legalDetailDocs, setLegalDetailDocs] = useState<LegalDocument[]>([]);
+  const [legalDetailLoading, setLegalDetailLoading] = useState(false);
+  const [acceptingLegal, setAcceptingLegal] = useState<string | null>(null);
+  const [acceptingAll, setAcceptingAll] = useState(false);
+
   const loadOrganisations = async () => {
     try {
       const res = await fetch(`${BASE}api/organisations`, { credentials: "include" });
@@ -177,7 +228,109 @@ export default function OrganisationsPage() {
     } catch {}
   }, []);
 
-  useEffect(() => { loadOrganisations(); loadBillingSummary(); }, [loadBillingSummary]);
+  const loadLegalCompliance = useCallback(async () => {
+    setLegalLoading(true);
+    try {
+      const res = await fetch(`${BASE}api/legal/compliance`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setLegalCompliance(data.compliance || []);
+        setLegalSummary(data.summary || null);
+      }
+    } catch {} finally {
+      setLegalLoading(false);
+    }
+  }, []);
+
+  const openLegalDetail = async (org: LegalCompliance) => {
+    setLegalDetailOrg(org);
+    setShowLegalDetail(true);
+    setLegalDetailLoading(true);
+    try {
+      const res = await fetch(`${BASE}api/legal/org/${org.id}`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setLegalDetailDocs(data.documents || []);
+      }
+    } catch {} finally {
+      setLegalDetailLoading(false);
+    }
+  };
+
+  const handleAcceptDocument = async (orgId: number, documentType: string) => {
+    setAcceptingLegal(documentType);
+    try {
+      const res = await fetch(`${BASE}api/legal/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ organisationId: orgId, documentType }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Document accepte", description: data.message });
+        loadLegalCompliance().then(() => {
+          if (legalDetailOrg) openLegalDetail({ ...legalDetailOrg, id: legalDetailOrg.id });
+        });
+      } else {
+        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Erreur lors de l'acceptation.", variant: "destructive" });
+    } finally {
+      setAcceptingLegal(null);
+    }
+  };
+
+  const handleAcceptAll = async (orgId: number) => {
+    setAcceptingAll(true);
+    try {
+      const res = await fetch(`${BASE}api/legal/accept-all`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ organisationId: orgId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Tous les documents acceptes", description: data.message });
+        loadLegalCompliance().then(() => {
+          if (legalDetailOrg) openLegalDetail({ ...legalDetailOrg, id: legalDetailOrg.id });
+        });
+      } else {
+        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Erreur.", variant: "destructive" });
+    } finally {
+      setAcceptingAll(false);
+    }
+  };
+
+  const handleRevokeLegal = async (agreementId: number, docTitle: string) => {
+    if (!confirm(`Revoquer l'acceptation de "${docTitle}" ? Cette action peut affecter la conformite de l'organisation.`)) return;
+    try {
+      const res = await fetch(`${BASE}api/legal/revoke`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ agreementId, reason: "Revocation manuelle par l'administrateur" }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Accord revoque", description: data.message });
+        loadLegalCompliance().then(() => {
+          if (legalDetailOrg) openLegalDetail({ ...legalDetailOrg, id: legalDetailOrg.id });
+        });
+      } else {
+        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Erreur.", variant: "destructive" });
+    }
+  };
+
+  useEffect(() => { loadOrganisations(); loadBillingSummary(); loadLegalCompliance(); }, [loadBillingSummary, loadLegalCompliance]);
 
   const resetForm = () => {
     setFormName(""); setFormEmail(""); setFormPhone(""); setFormAddress(""); setFormPlan("essai"); setFormActif(true);
@@ -531,6 +684,7 @@ export default function OrganisationsPage() {
         <TabsList>
           <TabsTrigger value="organisations" className="gap-2"><Building2 className="w-4 h-4" />Organisations</TabsTrigger>
           <TabsTrigger value="facturation" className="gap-2"><Receipt className="w-4 h-4" />Facturation</TabsTrigger>
+          <TabsTrigger value="juridique" className="gap-2"><Scale className="w-4 h-4" />Juridique</TabsTrigger>
         </TabsList>
 
         <TabsContent value="organisations" className="space-y-4 mt-4">
@@ -845,7 +999,280 @@ export default function OrganisationsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="juridique" className="space-y-4 mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="flex items-center gap-3 py-4">
+                <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30"><ShieldCheck className="w-5 h-5 text-emerald-600" /></div>
+                <div>
+                  <p className="text-2xl font-bold">{legalSummary?.compliantOrgs ?? 0}</p>
+                  <p className="text-xs text-muted-foreground">Conformes</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="flex items-center gap-3 py-4">
+                <div className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30"><AlertTriangle className="w-5 h-5 text-red-600" /></div>
+                <div>
+                  <p className="text-2xl font-bold">{legalSummary?.nonCompliantOrgs ?? 0}</p>
+                  <p className="text-xs text-muted-foreground">Non conformes</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="flex items-center gap-3 py-4">
+                <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30"><Scale className="w-5 h-5 text-blue-600" /></div>
+                <div>
+                  <p className="text-2xl font-bold">{legalSummary?.complianceRate ?? 0}%</p>
+                  <p className="text-xs text-muted-foreground">Taux de conformite</p>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="flex items-center gap-3 py-4">
+                <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30"><FileCheck className="w-5 h-5 text-purple-600" /></div>
+                <div>
+                  <p className="text-2xl font-bold">{legalSummary?.mandatoryDocuments ?? 0}/{legalSummary?.totalDocuments ?? 0}</p>
+                  <p className="text-xs text-muted-foreground">Documents obligatoires</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {legalSummary && legalSummary.nonCompliantOrgs > 0 && (
+            <Card className="border-red-200 dark:border-red-900 bg-red-50/50 dark:bg-red-950/10">
+              <CardContent className="py-4">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-red-700 dark:text-red-400">
+                      {legalSummary.nonCompliantOrgs} organisation(s) ne sont pas en conformite juridique
+                    </p>
+                    <p className="text-xs text-red-600/80 dark:text-red-400/60 mt-0.5">
+                      Des documents obligatoires n'ont pas ete acceptes. Cliquez sur une organisation pour gerer ses accords.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Scale className="w-5 h-5" />
+                Conformite juridique par organisation
+              </CardTitle>
+              <CardDescription>
+                Suivi des documents legaux acceptes par chaque client. Les documents obligatoires doivent etre acceptes pour une conformite totale.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {legalLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {legalCompliance.map(org => (
+                    <div
+                      key={org.id}
+                      className={`border rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow ${
+                        org.isCompliant
+                          ? "border-emerald-200 dark:border-emerald-900 bg-emerald-50/30 dark:bg-emerald-950/10"
+                          : "border-red-200 dark:border-red-900 bg-red-50/30 dark:bg-red-950/10"
+                      }`}
+                      onClick={() => openLegalDetail(org)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-full ${org.isCompliant ? "bg-emerald-100 dark:bg-emerald-900/30" : "bg-red-100 dark:bg-red-900/30"}`}>
+                            {org.isCompliant
+                              ? <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                              : <AlertTriangle className="w-5 h-5 text-red-600" />
+                            }
+                          </div>
+                          <div>
+                            <p className="font-semibold text-sm">{org.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {org.acceptedCount}/{org.totalDocuments} documents acceptes
+                              {org.missingDocuments.length > 0 && (
+                                <span className="text-red-600 ml-2">
+                                  ({org.missingDocuments.length} obligatoire(s) manquant(s))
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <Badge className={org.isCompliant
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                              : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                            }>
+                              {org.isCompliant ? "Conforme" : "Non conforme"}
+                            </Badge>
+                          </div>
+                          <div className="w-16">
+                            <Progress value={org.compliancePercent} className={`h-2 ${org.isCompliant ? "" : "[&>div]:bg-red-500"}`} />
+                            <p className="text-[10px] text-center text-muted-foreground mt-0.5">{org.compliancePercent}%</p>
+                          </div>
+                          <Eye className="w-4 h-4 text-muted-foreground" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {legalCompliance.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-8">Aucune organisation trouvee.</p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <BookOpen className="w-5 h-5" />
+                Documents juridiques requis
+              </CardTitle>
+              <CardDescription>
+                Liste des documents contractuels et reglementaires integres a la plateforme.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {[
+                  { code: "cgu", title: "CGU", desc: "Conditions Generales d'Utilisation", icon: FileText, cat: "Usage", mandatory: true },
+                  { code: "cgv", title: "CGV", desc: "Conditions Generales de Vente", icon: Receipt, cat: "Commercial", mandatory: true },
+                  { code: "rgpd", title: "RGPD", desc: "Politique de Confidentialite", icon: Lock, cat: "Confidentialite", mandatory: true },
+                  { code: "dpa", title: "DPA", desc: "Accord de Traitement des Donnees", icon: Shield, cat: "Confidentialite", mandatory: true },
+                  { code: "sla", title: "SLA", desc: "Contrat de Niveau de Service", icon: Clock, cat: "Service", mandatory: false },
+                  { code: "propriete", title: "Propriete Intellectuelle", desc: "Licence de Propriete Intellectuelle", icon: Key, cat: "Legal", mandatory: true },
+                  { code: "securite", title: "Securite", desc: "Politique de Securite des Donnees", icon: ShieldCheck, cat: "Securite", mandatory: false },
+                ].map(doc => (
+                  <div key={doc.code} className="border rounded-lg p-3 flex items-start gap-3">
+                    <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30 shrink-0">
+                      <doc.icon className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-sm">{doc.title}</p>
+                        {doc.mandatory ? (
+                          <Badge variant="outline" className="text-[10px] border-red-300 text-red-600">Obligatoire</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px]">Optionnel</Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{doc.desc}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">Categorie : {doc.cat} | Version 1.0</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      {/* Legal Detail Dialog */}
+      <Dialog open={showLegalDetail} onOpenChange={setShowLegalDetail}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Scale className="w-5 h-5" />
+              Conformite juridique : {legalDetailOrg?.name}
+            </DialogTitle>
+            <DialogDescription>
+              {legalDetailOrg?.isCompliant
+                ? "Cette organisation est en conformite avec tous les documents obligatoires."
+                : `${legalDetailOrg?.missingDocuments.length} document(s) obligatoire(s) manquant(s).`
+              }
+            </DialogDescription>
+          </DialogHeader>
+
+          {legalDetailLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                <div className="flex items-center gap-2">
+                  {legalDetailOrg?.isCompliant
+                    ? <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                    : <AlertTriangle className="w-5 h-5 text-red-600" />
+                  }
+                  <span className="text-sm font-semibold">
+                    {legalDetailDocs.filter(d => d.status === "accepted").length}/{legalDetailDocs.length} documents acceptes
+                  </span>
+                </div>
+                {!legalDetailOrg?.isCompliant && legalDetailOrg && (
+                  <Button size="sm" onClick={() => handleAcceptAll(legalDetailOrg.id)} disabled={acceptingAll}>
+                    {acceptingAll ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <FileCheck className="w-3.5 h-3.5 mr-1" />}
+                    Accepter tous
+                  </Button>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                {legalDetailDocs.map(doc => (
+                  <div key={doc.code} className={`border rounded-lg p-4 ${
+                    doc.status === "accepted"
+                      ? "border-emerald-200 dark:border-emerald-900 bg-emerald-50/30 dark:bg-emerald-950/10"
+                      : doc.mandatory
+                        ? "border-red-200 dark:border-red-900 bg-red-50/30 dark:bg-red-950/10"
+                        : "border-gray-200 dark:border-gray-800"
+                  }`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold text-sm">{doc.title}</p>
+                          {doc.mandatory && (
+                            <Badge variant="outline" className="text-[10px] border-red-300 text-red-600">Obligatoire</Badge>
+                          )}
+                          <Badge className={doc.status === "accepted"
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                            : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                          }>
+                            {doc.status === "accepted" ? "Accepte" : "En attente"}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">{doc.description}</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">Version {doc.version} | Categorie : {doc.category}</p>
+
+                        {doc.agreement && (
+                          <div className="mt-2 p-2 rounded bg-emerald-50 dark:bg-emerald-950/20 text-xs space-y-0.5">
+                            <p className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-600" /> Accepte par : <strong>{doc.agreement.acceptedBy}</strong></p>
+                            <p>Date : {new Date(doc.agreement.acceptedAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+                            <p>Adresse IP : {doc.agreement.acceptedIp}</p>
+                            {doc.agreement.notes && <p>Notes : {doc.agreement.notes}</p>}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="shrink-0">
+                        {doc.status === "accepted" ? (
+                          <Button size="sm" variant="outline" className="text-red-600 text-xs" onClick={() => doc.agreement && handleRevokeLegal(doc.agreement.id, doc.title)}>
+                            <XCircle className="w-3.5 h-3.5 mr-1" />
+                            Revoquer
+                          </Button>
+                        ) : legalDetailOrg && (
+                          <Button size="sm" className="text-xs" onClick={() => handleAcceptDocument(legalDetailOrg.id, doc.code)} disabled={acceptingLegal === doc.code}>
+                            {acceptingLegal === doc.code ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5 mr-1" />}
+                            Accepter
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Billing Detail Dialog */}
       <Dialog open={showBilling} onOpenChange={setShowBilling}>
