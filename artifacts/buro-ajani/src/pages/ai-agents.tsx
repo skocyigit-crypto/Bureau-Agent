@@ -162,9 +162,13 @@ function AgentCard({ report, onRunAgent }: { report: any; onRunAgent?: (id: stri
                   <div key={i} className="p-2.5 rounded-lg bg-destructive/5 border border-destructive/10 text-xs space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-destructive">{e.titre}</span>
-                      {e.severity && getSeverityBadge(e.severity)}
+                      <div className="flex items-center gap-1">
+                        {e.deadline && <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">{e.deadline}</span>}
+                        {e.severity && getSeverityBadge(e.severity)}
+                      </div>
                     </div>
                     <p className="text-muted-foreground">{e.description}</p>
+                    {e.rootCause && <p className="text-amber-600 text-[11px]">Cause racine: {e.rootCause}</p>}
                     {e.action && (
                       <p className="text-foreground flex items-center gap-1 mt-1">
                         <ArrowRight className="w-3 h-3 text-destructive shrink-0" /> {e.action}
@@ -185,6 +189,7 @@ function AgentCard({ report, onRunAgent }: { report: any; onRunAgent?: (id: stri
                     <span className="font-medium text-amber-700">{w.titre}</span>
                     <p className="text-muted-foreground">{w.description}</p>
                     {w.impact && <p className="text-amber-600 text-[11px]">Impact: {w.impact}</p>}
+                    {w.threshold && <p className="text-muted-foreground text-[11px]">Seuil critique: {w.threshold}</p>}
                   </div>
                 ))}
               </div>
@@ -203,6 +208,8 @@ function AgentCard({ report, onRunAgent }: { report: any; onRunAgent?: (id: stri
                     </div>
                     <p className="text-muted-foreground">{s.description}</p>
                     {s.benefice && <p className="text-blue-600 text-[11px]">Benefice: {s.benefice}</p>}
+                    {s.roi && <p className="text-emerald-600 text-[11px]">ROI: {s.roi}</p>}
+                    {s.effort && <p className="text-muted-foreground text-[11px]">Effort: {s.effort}</p>}
                   </div>
                 ))}
               </div>
@@ -223,6 +230,64 @@ function AgentCard({ report, onRunAgent }: { report: any; onRunAgent?: (id: stri
                     <p className="text-foreground flex items-center gap-1">
                       <Target className="w-3 h-3 text-purple-500 shrink-0" /> {c.solution}
                     </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {report.details && (report.details as any).trendAnalysis && (
+              <div className="p-3 rounded-lg bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950/20 dark:to-blue-950/20 border border-cyan-200/50 text-xs space-y-1">
+                <h4 className="font-semibold text-cyan-700 flex items-center gap-1.5">
+                  <TrendingUp className="w-3.5 h-3.5" /> Analyse des tendances
+                </h4>
+                <p className="text-muted-foreground">{(report.details as any).trendAnalysis}</p>
+              </div>
+            )}
+
+            {report.details && (report.details as any).detectedPatterns && (report.details as any).detectedPatterns.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-xs font-semibold text-violet-600 flex items-center gap-1.5">
+                  <Eye className="w-3.5 h-3.5" /> Patterns detectes automatiquement
+                </h4>
+                {((report.details as any).detectedPatterns as any[]).map((p: any, i: number) => (
+                  <div key={i} className="p-2.5 rounded-lg bg-violet-50 dark:bg-violet-950/20 border border-violet-200/50 text-xs space-y-1">
+                    <span className="font-medium text-violet-700">{p.pattern}</span>
+                    {p.evidence && <p className="text-muted-foreground text-[11px]">Preuve: {p.evidence}</p>}
+                    {p.risk && <p className="text-amber-600 text-[11px]">Risque: {p.risk}</p>}
+                    {p.recommendation && <p className="text-violet-600 text-[11px] flex items-center gap-1"><ArrowRight className="w-3 h-3 shrink-0" />{p.recommendation}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {report.details && (report.details as any).predictions && (report.details as any).predictions.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-xs font-semibold text-orange-600 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" /> Predictions
+                </h4>
+                {((report.details as any).predictions as any[]).map((p: any, i: number) => (
+                  <div key={i} className="p-2.5 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-200/50 text-xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-orange-700">{p.scenario}</span>
+                      {p.horizon && <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-600">{p.horizon === '7_jours' ? '7 jours' : '30 jours'}</span>}
+                    </div>
+                    {p.impact && <p className="text-muted-foreground text-[11px]">Impact: {p.impact}</p>}
+                    {p.prevention && <p className="text-emerald-600 text-[11px] flex items-center gap-1"><Shield className="w-3 h-3 shrink-0" />Prevention: {p.prevention}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {report.details && (report.details as any).automations && (report.details as any).automations.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-xs font-semibold text-teal-600 flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5" /> Automatisations recommandees
+                </h4>
+                {((report.details as any).automations as any[]).map((a: any, i: number) => (
+                  <div key={i} className="p-2.5 rounded-lg bg-teal-50 dark:bg-teal-950/20 border border-teal-200/50 text-xs space-y-1">
+                    <span className="font-medium text-teal-700">{a.action}</span>
+                    {a.gain && <p className="text-muted-foreground text-[11px]">Gain: {a.gain}</p>}
+                    {a.faisabilite && <span className="text-[10px] px-1.5 py-0.5 rounded bg-teal-100 dark:bg-teal-900/30 text-teal-600">Faisabilite: {a.faisabilite}</span>}
                   </div>
                 ))}
               </div>

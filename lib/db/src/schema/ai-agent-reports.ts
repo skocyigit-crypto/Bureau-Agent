@@ -7,6 +7,7 @@ export const aiAgentReportsTable = pgTable("ai_agent_reports", {
   agentId: text("agent_id").notNull(),
   agentName: text("agent_name").notNull(),
   agentIcon: text("agent_icon").notNull().default("brain"),
+  organisationId: integer("organisation_id"),
   reportDate: text("report_date").notNull(),
   status: text("status").notNull().default("en_cours"),
   score: integer("score").notNull().default(0),

@@ -20,6 +20,7 @@ const AGENTS = [
 async function gatherAgentData(agentId: string, orgId: number) {
   const now = new Date();
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
   const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
   const orgCall = eq(callsTable.organisationId, orgId);
@@ -31,7 +32,10 @@ async function gatherAgentData(agentId: string, orgId: number) {
   switch (agentId) {
     case "agent_appels": {
       const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      const [total, missed, answered, avgDuration, noContact, negativeSentiment, noNotes, longCalls, recentCalls, incomingCalls, outgoingCalls, positiveSentiment, shortCalls, todayCalls, callsByDirection] = await Promise.all([
+      const [total, missed, answered, avgDuration, noContact, negativeSentiment, noNotes, longCalls, recentCalls, incomingCalls, outgoingCalls, positiveSentiment, shortCalls, todayCalls, callsByDirection,
+        prevTotal, prevMissed, prevAnswered, prevNegSentiment, prevAvgDuration,
+        bySentiment, byHour, repeatedCallers
+      ] = await Promise.all([
         db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))),
         db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))),
         db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.status, "repondu"), gte(callsTable.createdAt, weekAgo))),
@@ -47,27 +51,45 @@ async function gatherAgentData(agentId: string, orgId: number) {
         db.select({ count: count() }).from(callsTable).where(and(orgCall, lt(callsTable.duration, 30), eq(callsTable.status, "repondu"), gte(callsTable.createdAt, weekAgo))),
         db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayAgo))),
         db.select({ direction: callsTable.direction, cnt: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))).groupBy(callsTable.direction),
+        db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, twoWeeksAgo), lt(callsTable.createdAt, weekAgo))),
+        db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.status, "manque"), gte(callsTable.createdAt, twoWeeksAgo), lt(callsTable.createdAt, weekAgo))),
+        db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.status, "repondu"), gte(callsTable.createdAt, twoWeeksAgo), lt(callsTable.createdAt, weekAgo))),
+        db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.sentiment, "negatif"), gte(callsTable.createdAt, twoWeeksAgo), lt(callsTable.createdAt, weekAgo))),
+        db.select({ avg: sql<number>`coalesce(avg(${callsTable.duration}), 0)::int` }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, twoWeeksAgo), lt(callsTable.createdAt, weekAgo), eq(callsTable.status, "repondu"))),
+        db.select({ sentiment: callsTable.sentiment, cnt: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))).groupBy(callsTable.sentiment),
+        db.select({ hour: sql<number>`extract(hour from ${callsTable.createdAt})::int`, cnt: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))).groupBy(sql`extract(hour from ${callsTable.createdAt})`),
+        db.select({ phone: callsTable.phoneNumber, cnt: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo), eq(callsTable.status, "manque"))).groupBy(callsTable.phoneNumber).having(sql`count(*) >= 2`),
       ]);
       const totalW = total[0]?.count ?? 0;
       const answeredW = answered[0]?.count ?? 0;
       const missedW = missed[0]?.count ?? 0;
+      const prevTotalW = prevTotal[0]?.count ?? 0;
+      const prevAnsweredW = prevAnswered[0]?.count ?? 0;
+      const prevMissedW = prevMissed[0]?.count ?? 0;
+      const prevAnswerRate = prevTotalW ? Math.round((prevAnsweredW / prevTotalW) * 100) : 0;
+      const currentAnswerRate = totalW ? Math.round((answeredW / totalW) * 100) : 0;
       return {
-        totalThisWeek: totalW, missedThisWeek: missedW, answeredThisWeek: answeredW,
-        avgDurationSeconds: avgDuration[0]?.avg ?? 0, callsWithoutContact: noContact[0]?.count ?? 0,
-        negativeSentimentThisWeek: negativeSentiment[0]?.count ?? 0, positiveSentimentThisWeek: positiveSentiment[0]?.count ?? 0,
-        answeredWithoutNotes: noNotes[0]?.count ?? 0, longCallsOver10min: longCalls[0]?.count ?? 0,
-        shortCallsUnder30s: shortCalls[0]?.count ?? 0, totalThisMonth: recentCalls[0]?.count ?? 0,
-        todayCalls: todayCalls[0]?.count ?? 0,
-        incomingThisWeek: incomingCalls[0]?.count ?? 0, outgoingThisWeek: outgoingCalls[0]?.count ?? 0,
-        answerRate: totalW ? Math.round((answeredW / totalW) * 100) : 0,
-        missRate: totalW ? Math.round((missedW / totalW) * 100) : 0,
-        sentimentRatio: answeredW ? Math.round(((positiveSentiment[0]?.count ?? 0) / answeredW) * 100) : 0,
-        documentationRate: answeredW ? Math.round(((answeredW - (noNotes[0]?.count ?? 0)) / answeredW) * 100) : 0,
+        thisWeek: { total: totalW, missed: missedW, answered: answeredW, avgDurationSeconds: avgDuration[0]?.avg ?? 0, negativeSentiment: negativeSentiment[0]?.count ?? 0, positiveSentiment: positiveSentiment[0]?.count ?? 0, answeredWithoutNotes: noNotes[0]?.count ?? 0, longCallsOver10min: longCalls[0]?.count ?? 0, shortCallsUnder30s: shortCalls[0]?.count ?? 0, incoming: incomingCalls[0]?.count ?? 0, outgoing: outgoingCalls[0]?.count ?? 0 },
+        prevWeek: { total: prevTotalW, missed: prevMissedW, answered: prevAnsweredW, negativeSentiment: prevNegSentiment[0]?.count ?? 0, avgDurationSeconds: prevAvgDuration[0]?.avg ?? 0 },
+        trends: {
+          volumeChange: prevTotalW ? Math.round(((totalW - prevTotalW) / prevTotalW) * 100) : 0,
+          answerRateChange: prevAnswerRate ? currentAnswerRate - prevAnswerRate : 0,
+          sentimentChange: (prevNegSentiment[0]?.count ?? 0) > 0 ? Math.round((((negativeSentiment[0]?.count ?? 0) - (prevNegSentiment[0]?.count ?? 0)) / (prevNegSentiment[0]?.count ?? 1)) * 100) : 0,
+        },
+        patterns: {
+          repeatedMissedCallers: repeatedCallers.length,
+          peakHours: byHour.sort((a, b) => b.cnt - a.cnt).slice(0, 3).map(h => ({ hour: h.hour, calls: h.cnt })),
+          sentimentBreakdown: bySentiment.map(s => ({ sentiment: s.sentiment || "non_evalue", count: s.cnt })),
+        },
+        callsWithoutContact: noContact[0]?.count ?? 0, totalThisMonth: recentCalls[0]?.count ?? 0, todayCalls: todayCalls[0]?.count ?? 0,
+        rates: { answer: currentAnswerRate, miss: totalW ? Math.round((missedW / totalW) * 100) : 0, documentation: answeredW ? Math.round(((answeredW - (noNotes[0]?.count ?? 0)) / answeredW) * 100) : 0, sentiment: answeredW ? Math.round(((positiveSentiment[0]?.count ?? 0) / answeredW) * 100) : 0 },
         avgCallsPerDay: Math.round(totalW / 7),
       };
     }
     case "agent_contacts": {
-      const [total, noEmail, noPhone, noCompany, duplicatePhones, inactiveContacts, newContacts, byCategory, withNotes, highCallers] = await Promise.all([
+      const [total, noEmail, noPhone, noCompany, duplicatePhones, inactiveContacts, newContacts, byCategory, withNotes, highCallers,
+        prevNewContacts, contactsWithCalls, contactsWithTasks, byCompany
+      ] = await Promise.all([
         db.select({ count: count() }).from(contactsTable).where(orgContact),
         db.select({ count: count() }).from(contactsTable).where(and(orgContact, isNull(contactsTable.email))),
         db.select({ count: count() }).from(contactsTable).where(and(orgContact, isNull(contactsTable.phone))),
@@ -78,26 +100,34 @@ async function gatherAgentData(agentId: string, orgId: number) {
         db.select({ category: contactsTable.category, cnt: count() }).from(contactsTable).where(orgContact).groupBy(contactsTable.category),
         db.select({ count: count() }).from(contactsTable).where(and(orgContact, isNotNull(contactsTable.notes))),
         db.select({ count: count() }).from(contactsTable).where(and(orgContact, gte(contactsTable.totalCalls, 5))),
+        db.select({ count: count() }).from(contactsTable).where(and(orgContact, gte(contactsTable.createdAt, twoWeeksAgo), lt(contactsTable.createdAt, weekAgo))),
+        db.select({ count: count() }).from(contactsTable).where(and(orgContact, sql`${contactsTable.id} IN (SELECT DISTINCT contact_id FROM calls WHERE contact_id IS NOT NULL AND organisation_id = ${orgId} AND created_at >= ${weekAgo.toISOString()})`)),
+        db.select({ count: count() }).from(contactsTable).where(and(orgContact, sql`${contactsTable.id} IN (SELECT DISTINCT contact_id FROM tasks WHERE contact_id IS NOT NULL AND organisation_id = ${orgId})`)),
+        db.select({ company: contactsTable.company, cnt: count() }).from(contactsTable).where(and(orgContact, isNotNull(contactsTable.company))).groupBy(contactsTable.company).having(sql`count(*) >= 2`),
       ]);
       const totalC = total[0]?.count ?? 0;
       const noE = noEmail[0]?.count ?? 0;
       const noP = noPhone[0]?.count ?? 0;
+      const newW = newContacts[0]?.count ?? 0;
+      const prevNewW = prevNewContacts[0]?.count ?? 0;
       return {
+        thisWeek: { newContacts: newW, contactsWithRecentCalls: contactsWithCalls[0]?.count ?? 0 },
+        prevWeek: { newContacts: prevNewW },
+        trends: { newContactsChange: prevNewW ? Math.round(((newW - prevNewW) / prevNewW) * 100) : 0, growthRate: totalC ? Math.round((newW / totalC) * 100) : 0 },
+        patterns: { topCompanies: byCompany.slice(0, 5).map(c => ({ company: c.company, contacts: c.cnt })), contactsLinkedToTasks: contactsWithTasks[0]?.count ?? 0, orphanContactRate: totalC ? Math.round(((inactiveContacts[0]?.count ?? 0) / totalC) * 100) : 0 },
         totalContacts: totalC, withoutEmail: noE, withoutPhone: noP,
         withoutCompany: noCompany[0]?.count ?? 0, duplicatePhoneNumbers: duplicatePhones.length,
         inactiveOver30Days: inactiveContacts[0]?.count ?? 0,
-        newContactsThisWeek: newContacts[0]?.count ?? 0,
         contactsWithNotes: withNotes[0]?.count ?? 0,
         highValueContacts: highCallers[0]?.count ?? 0,
         categoryBreakdown: byCategory.map(c => ({ category: c.category, count: c.cnt })),
-        dataCompleteness: totalC ? Math.round(((totalC - noE - noP) / (totalC * 2)) * 100) : 0,
-        emailCoverage: totalC ? Math.round(((totalC - noE) / totalC) * 100) : 0,
-        phoneCoverage: totalC ? Math.round(((totalC - noP) / totalC) * 100) : 0,
-        enrichmentRate: totalC ? Math.round(((withNotes[0]?.count ?? 0) / totalC) * 100) : 0,
+        rates: { dataCompleteness: totalC ? Math.round(((totalC - noE - noP) / (totalC * 2)) * 100) : 0, email: totalC ? Math.round(((totalC - noE) / totalC) * 100) : 0, phone: totalC ? Math.round(((totalC - noP) / totalC) * 100) : 0, enrichment: totalC ? Math.round(((withNotes[0]?.count ?? 0) / totalC) * 100) : 0 },
       };
     }
     case "agent_taches": {
-      const [total, pending, inProgress, completed, cancelled, overdue, highPriority, unassigned, completedThisWeek] = await Promise.all([
+      const [total, pending, inProgress, completed, cancelled, overdue, highPriority, unassigned, completedThisWeek,
+        prevCompletedWeek, createdThisWeek, prevCreatedWeek, byPriority, avgCompletionDays
+      ] = await Promise.all([
         db.select({ count: count() }).from(tasksTable).where(orgTask),
         db.select({ count: count() }).from(tasksTable).where(and(orgTask, eq(tasksTable.status, "en_attente"))),
         db.select({ count: count() }).from(tasksTable).where(and(orgTask, eq(tasksTable.status, "en_cours"))),
@@ -107,24 +137,50 @@ async function gatherAgentData(agentId: string, orgId: number) {
         db.select({ count: count() }).from(tasksTable).where(and(orgTask, eq(tasksTable.priority, "haute"), ne(tasksTable.status, "termine"))),
         db.select({ count: count() }).from(tasksTable).where(and(orgTask, isNull(tasksTable.assignedTo), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))),
         db.select({ count: count() }).from(tasksTable).where(and(orgTask, eq(tasksTable.status, "termine"), gte(tasksTable.updatedAt, weekAgo))),
+        db.select({ count: count() }).from(tasksTable).where(and(orgTask, eq(tasksTable.status, "termine"), gte(tasksTable.updatedAt, twoWeeksAgo), lt(tasksTable.updatedAt, weekAgo))),
+        db.select({ count: count() }).from(tasksTable).where(and(orgTask, gte(tasksTable.createdAt, weekAgo))),
+        db.select({ count: count() }).from(tasksTable).where(and(orgTask, gte(tasksTable.createdAt, twoWeeksAgo), lt(tasksTable.createdAt, weekAgo))),
+        db.select({ priority: tasksTable.priority, cnt: count() }).from(tasksTable).where(and(orgTask, ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))).groupBy(tasksTable.priority),
+        db.select({ avg: sql<number>`coalesce(avg(extract(epoch from (${tasksTable.updatedAt} - ${tasksTable.createdAt})) / 86400), 0)::int` }).from(tasksTable).where(and(orgTask, eq(tasksTable.status, "termine"), gte(tasksTable.updatedAt, monthAgo))),
       ]);
+      const compW = completedThisWeek[0]?.count ?? 0;
+      const prevCompW = prevCompletedWeek[0]?.count ?? 0;
+      const crW = createdThisWeek[0]?.count ?? 0;
+      const prevCrW = prevCreatedWeek[0]?.count ?? 0;
       return {
+        thisWeek: { completed: compW, created: crW },
+        prevWeek: { completed: prevCompW, created: prevCrW },
+        trends: { completionChange: prevCompW ? Math.round(((compW - prevCompW) / prevCompW) * 100) : 0, creationChange: prevCrW ? Math.round(((crW - prevCrW) / prevCrW) * 100) : 0, velocity: crW > 0 ? Math.round((compW / crW) * 100) : 0 },
+        patterns: { avgCompletionDays: avgCompletionDays[0]?.avg ?? 0, priorityBreakdown: byPriority.map(p => ({ priority: p.priority, count: p.cnt })), overdueRatio: (total[0]?.count ?? 0) > 0 ? Math.round(((overdue[0]?.count ?? 0) / (total[0]?.count ?? 1)) * 100) : 0, backlogGrowth: crW - compW },
         totalTasks: total[0]?.count ?? 0, pending: pending[0]?.count ?? 0, inProgress: inProgress[0]?.count ?? 0,
         completed: completed[0]?.count ?? 0, cancelled: cancelled[0]?.count ?? 0, overdue: overdue[0]?.count ?? 0,
         highPriorityOpen: highPriority[0]?.count ?? 0, unassigned: unassigned[0]?.count ?? 0,
-        completedThisWeek: completedThisWeek[0]?.count ?? 0,
         completionRate: total[0]?.count ? Math.round(((completed[0]?.count ?? 0) / total[0].count) * 100) : 0,
       };
     }
     case "agent_messages": {
-      const [total, unread, highPriorityUnread, oldUnread, byType] = await Promise.all([
+      const [total, unread, highPriorityUnread, oldUnread, byType,
+        totalThisWeek, totalPrevWeek, unreadPrevWeek, byDay
+      ] = await Promise.all([
         db.select({ count: count() }).from(messagesTable).where(orgMsg),
         db.select({ count: count() }).from(messagesTable).where(and(orgMsg, eq(messagesTable.isRead, false))),
         db.select({ count: count() }).from(messagesTable).where(and(orgMsg, eq(messagesTable.isRead, false), eq(messagesTable.priority, "haute"))),
         db.select({ count: count() }).from(messagesTable).where(and(orgMsg, eq(messagesTable.isRead, false), lt(messagesTable.createdAt, new Date(now.getTime() - 48 * 60 * 60 * 1000)))),
         db.select({ type: messagesTable.type, cnt: count() }).from(messagesTable).where(and(orgMsg, eq(messagesTable.isRead, false))).groupBy(messagesTable.type),
+        db.select({ count: count() }).from(messagesTable).where(and(orgMsg, gte(messagesTable.createdAt, weekAgo))),
+        db.select({ count: count() }).from(messagesTable).where(and(orgMsg, gte(messagesTable.createdAt, twoWeeksAgo), lt(messagesTable.createdAt, weekAgo))),
+        db.select({ count: count() }).from(messagesTable).where(and(orgMsg, eq(messagesTable.isRead, false), gte(messagesTable.createdAt, twoWeeksAgo), lt(messagesTable.createdAt, weekAgo))),
+        db.select({ day: sql<string>`to_char(${messagesTable.createdAt}, 'Dy')`, cnt: count() }).from(messagesTable).where(and(orgMsg, gte(messagesTable.createdAt, weekAgo))).groupBy(sql`to_char(${messagesTable.createdAt}, 'Dy')`),
       ]);
+      const tW = totalThisWeek[0]?.count ?? 0;
+      const pW = totalPrevWeek[0]?.count ?? 0;
+      const unreadThisWeekOnly = (unread[0]?.count ?? 0);
+      const unreadPrevWeekOnly = (unreadPrevWeek[0]?.count ?? 0);
       return {
+        thisWeek: { received: tW, currentUnreadTotal: unreadThisWeekOnly },
+        prevWeek: { received: pW, unreadAtThatTime: unreadPrevWeekOnly },
+        trends: { volumeChange: pW ? Math.round(((tW - pW) / pW) * 100) : 0 },
+        patterns: { busiestDays: byDay.sort((a, b) => b.cnt - a.cnt).slice(0, 3).map(d => ({ day: d.day, count: d.cnt })), staleRatio: (unread[0]?.count ?? 0) > 0 ? Math.round(((oldUnread[0]?.count ?? 0) / (unread[0]?.count ?? 1)) * 100) : 0 },
         totalMessages: total[0]?.count ?? 0, unreadCount: unread[0]?.count ?? 0,
         urgentUnread: highPriorityUnread[0]?.count ?? 0, staleUnreadOver48h: oldUnread[0]?.count ?? 0,
         unreadByType: byType.map(t => ({ type: t.type, count: t.cnt })),
@@ -132,7 +188,9 @@ async function gatherAgentData(agentId: string, orgId: number) {
       };
     }
     case "agent_pointage": {
-      const [totalSessions, activeSessions, avgMinutes, lateArrivals, bureauCount, distanceCount, terrainCount, totalBreak] = await Promise.all([
+      const [totalSessions, activeSessions, avgMinutes, lateArrivals, bureauCount, distanceCount, terrainCount, totalBreak,
+        prevSessions, prevLateArrivals, prevAvgMinutes, byDayOfWeek
+      ] = await Promise.all([
         db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, weekAgo))),
         db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, or(eq(checkinsTable.status, "present"), eq(checkinsTable.status, "en_pause")))),
         db.select({ avg: sql<number>`coalesce(avg(${checkinsTable.totalMinutes}), 0)::int` }).from(checkinsTable).where(and(orgCheckin, eq(checkinsTable.status, "termine"), gte(checkinsTable.checkInAt, weekAgo))),
@@ -141,18 +199,30 @@ async function gatherAgentData(agentId: string, orgId: number) {
         db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, eq(checkinsTable.type, "distance"), gte(checkinsTable.checkInAt, weekAgo))),
         db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, eq(checkinsTable.type, "terrain"), gte(checkinsTable.checkInAt, weekAgo))),
         db.select({ total: sql<number>`coalesce(sum(${checkinsTable.breakMinutes}), 0)::int` }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, weekAgo))),
+        db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, twoWeeksAgo), lt(checkinsTable.checkInAt, weekAgo))),
+        db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, twoWeeksAgo), lt(checkinsTable.checkInAt, weekAgo), sql`extract(hour from ${checkinsTable.checkInAt}) >= 10`)),
+        db.select({ avg: sql<number>`coalesce(avg(${checkinsTable.totalMinutes}), 0)::int` }).from(checkinsTable).where(and(orgCheckin, eq(checkinsTable.status, "termine"), gte(checkinsTable.checkInAt, twoWeeksAgo), lt(checkinsTable.checkInAt, weekAgo))),
+        db.select({ day: sql<string>`to_char(${checkinsTable.checkInAt}, 'Dy')`, cnt: count() }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, weekAgo))).groupBy(sql`to_char(${checkinsTable.checkInAt}, 'Dy')`),
       ]);
+      const sessW = totalSessions[0]?.count ?? 0;
+      const prevSessW = prevSessions[0]?.count ?? 0;
+      const lateW = lateArrivals[0]?.count ?? 0;
+      const prevLateW = prevLateArrivals[0]?.count ?? 0;
       return {
-        sessionsThisWeek: totalSessions[0]?.count ?? 0, currentlyActive: activeSessions[0]?.count ?? 0,
-        avgSessionMinutes: avgMinutes[0]?.avg ?? 0, lateArrivalsThisWeek: lateArrivals[0]?.count ?? 0,
-        bureauSessions: bureauCount[0]?.count ?? 0, distanceSessions: distanceCount[0]?.count ?? 0,
-        terrainSessions: terrainCount[0]?.count ?? 0, totalBreakMinutes: totalBreak[0]?.total ?? 0,
+        thisWeek: { sessions: sessW, lateArrivals: lateW, avgMinutes: avgMinutes[0]?.avg ?? 0 },
+        prevWeek: { sessions: prevSessW, lateArrivals: prevLateW, avgMinutes: prevAvgMinutes[0]?.avg ?? 0 },
+        trends: { sessionsChange: prevSessW ? Math.round(((sessW - prevSessW) / prevSessW) * 100) : 0, lateChange: prevLateW ? Math.round(((lateW - prevLateW) / prevLateW) * 100) : 0 },
+        patterns: { busiestDays: byDayOfWeek.sort((a, b) => b.cnt - a.cnt).slice(0, 3).map(d => ({ day: d.day, sessions: d.cnt })), workTypeDistribution: { bureau: bureauCount[0]?.count ?? 0, distance: distanceCount[0]?.count ?? 0, terrain: terrainCount[0]?.count ?? 0 }, avgBreakPerSession: sessW ? Math.round((totalBreak[0]?.total ?? 0) / sessW) : 0 },
+        currentlyActive: activeSessions[0]?.count ?? 0,
+        totalBreakMinutes: totalBreak[0]?.total ?? 0,
       };
     }
     case "agent_facturation": {
       const orgInv = eq(invoicesTable.organisationId, orgId);
       const orgPay = eq(paymentsTable.organisationId, orgId);
-      const [totalInvoices, unpaidInvoices, overdueInvoices, totalRevenue, totalPayments, matchedPayments, recentInvoices, subscription] = await Promise.all([
+      const [totalInvoices, unpaidInvoices, overdueInvoices, totalRevenue, totalPayments, matchedPayments, recentInvoices, subscription,
+        unpaidTotal, overdueTotal, partialInvoices, invoicesThisWeek, invoicesPrevWeek, paymentsThisWeek
+      ] = await Promise.all([
         db.select({ count: count() }).from(invoicesTable).where(orgInv),
         db.select({ count: count() }).from(invoicesTable).where(and(orgInv, sql`${invoicesTable.status} IN ('en_attente', 'retard', 'partiel')`)),
         db.select({ count: count() }).from(invoicesTable).where(and(orgInv, eq(invoicesTable.status, "retard"))),
@@ -161,9 +231,21 @@ async function gatherAgentData(agentId: string, orgId: number) {
         db.select({ count: count() }).from(paymentsTable).where(and(orgPay, eq(paymentsTable.status, "matched"))),
         db.select({ count: count() }).from(invoicesTable).where(and(orgInv, gte(invoicesTable.createdAt, monthAgo))),
         db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, orgId)).limit(1),
+        db.select({ total: sql<number>`coalesce(sum(${invoicesTable.totalAmount}), 0)::numeric` }).from(invoicesTable).where(and(orgInv, sql`${invoicesTable.status} IN ('en_attente', 'retard', 'partiel')`)),
+        db.select({ total: sql<number>`coalesce(sum(${invoicesTable.totalAmount}), 0)::numeric` }).from(invoicesTable).where(and(orgInv, eq(invoicesTable.status, "retard"))),
+        db.select({ count: count() }).from(invoicesTable).where(and(orgInv, eq(invoicesTable.status, "partiel"))),
+        db.select({ count: count() }).from(invoicesTable).where(and(orgInv, gte(invoicesTable.createdAt, weekAgo))),
+        db.select({ count: count() }).from(invoicesTable).where(and(orgInv, gte(invoicesTable.createdAt, twoWeeksAgo), lt(invoicesTable.createdAt, weekAgo))),
+        db.select({ count: count() }).from(paymentsTable).where(and(orgPay, gte(paymentsTable.createdAt, weekAgo))),
       ]);
       const sub = subscription[0];
+      const invW = invoicesThisWeek[0]?.count ?? 0;
+      const prevInvW = invoicesPrevWeek[0]?.count ?? 0;
       return {
+        thisWeek: { invoicesCreated: invW, paymentsReceived: paymentsThisWeek[0]?.count ?? 0 },
+        prevWeek: { invoicesCreated: prevInvW },
+        trends: { invoiceVolumeChange: prevInvW ? Math.round(((invW - prevInvW) / prevInvW) * 100) : 0 },
+        patterns: { unpaidTotalAmount: unpaidTotal[0]?.total ?? 0, overdueTotalAmount: overdueTotal[0]?.total ?? 0, partialPayments: partialInvoices[0]?.count ?? 0, dsoEstimate: (totalInvoices[0]?.count ?? 0) > 0 ? Math.round(((unpaidInvoices[0]?.count ?? 0) / (totalInvoices[0]?.count ?? 1)) * 30) : 0 },
         totalInvoices: totalInvoices[0]?.count ?? 0,
         unpaidInvoices: unpaidInvoices[0]?.count ?? 0,
         overdueInvoices: overdueInvoices[0]?.count ?? 0,
@@ -172,13 +254,14 @@ async function gatherAgentData(agentId: string, orgId: number) {
         matchedPayments: matchedPayments[0]?.count ?? 0,
         invoicesThisMonth: recentInvoices[0]?.count ?? 0,
         subscription: sub ? { plan: sub.plan, status: sub.status, price: sub.price, billingCycle: sub.billingCycle, trialEndsAt: sub.trialEndsAt, currentPeriodEnd: sub.currentPeriodEnd } : null,
-        paymentMatchRate: (totalPayments[0]?.count ?? 0) > 0 ? Math.round(((matchedPayments[0]?.count ?? 0) / (totalPayments[0]?.count ?? 1)) * 100) : 0,
-        collectionRate: (totalInvoices[0]?.count ?? 0) > 0 ? Math.round((((totalInvoices[0]?.count ?? 0) - (unpaidInvoices[0]?.count ?? 0)) / (totalInvoices[0]?.count ?? 1)) * 100) : 0,
+        rates: { paymentMatch: (totalPayments[0]?.count ?? 0) > 0 ? Math.round(((matchedPayments[0]?.count ?? 0) / (totalPayments[0]?.count ?? 1)) * 100) : 0, collection: (totalInvoices[0]?.count ?? 0) > 0 ? Math.round((((totalInvoices[0]?.count ?? 0) - (unpaidInvoices[0]?.count ?? 0)) / (totalInvoices[0]?.count ?? 1)) * 100) : 0 },
       };
     }
     case "agent_stock": {
       const orgStock = eq(stockArticlesTable.organisationId, orgId);
-      const [totalArticles, lowStock, outOfStock, totalValue, byCategory, recentArticles, noBarcode, noCategory] = await Promise.all([
+      const [totalArticles, lowStock, outOfStock, totalValue, byCategory, recentArticles, noBarcode, noCategory,
+        avgPrice, maxPrice, zeroPrice, prevNewArticles
+      ] = await Promise.all([
         db.select({ count: count() }).from(stockArticlesTable).where(orgStock),
         db.select({ count: count() }).from(stockArticlesTable).where(and(orgStock, sql`${stockArticlesTable.quantity} <= ${stockArticlesTable.minQuantity}`, sql`${stockArticlesTable.quantity} > 0`)),
         db.select({ count: count() }).from(stockArticlesTable).where(and(orgStock, eq(stockArticlesTable.quantity, 0))),
@@ -187,24 +270,34 @@ async function gatherAgentData(agentId: string, orgId: number) {
         db.select({ count: count() }).from(stockArticlesTable).where(and(orgStock, gte(stockArticlesTable.createdAt, weekAgo))),
         db.select({ count: count() }).from(stockArticlesTable).where(and(orgStock, isNull(stockArticlesTable.barcode))),
         db.select({ count: count() }).from(stockArticlesTable).where(and(orgStock, or(isNull(stockArticlesTable.category), eq(stockArticlesTable.category, "")))),
+        db.select({ avg: sql<number>`coalesce(avg(${stockArticlesTable.unitPrice}), 0)::numeric` }).from(stockArticlesTable).where(orgStock),
+        db.select({ max: sql<number>`coalesce(max(${stockArticlesTable.unitPrice}), 0)::numeric` }).from(stockArticlesTable).where(orgStock),
+        db.select({ count: count() }).from(stockArticlesTable).where(and(orgStock, sql`${stockArticlesTable.unitPrice} = 0`)),
+        db.select({ count: count() }).from(stockArticlesTable).where(and(orgStock, gte(stockArticlesTable.createdAt, twoWeeksAgo), lt(stockArticlesTable.createdAt, weekAgo))),
       ]);
       const totalA = totalArticles[0]?.count ?? 0;
+      const lowS = lowStock[0]?.count ?? 0;
+      const outS = outOfStock[0]?.count ?? 0;
+      const newW = recentArticles[0]?.count ?? 0;
+      const prevNewW = prevNewArticles[0]?.count ?? 0;
       return {
+        thisWeek: { newArticles: newW, lowStock: lowS, outOfStock: outS },
+        prevWeek: { newArticles: prevNewW },
+        trends: { newArticlesChange: prevNewW ? Math.round(((newW - prevNewW) / prevNewW) * 100) : 0 },
+        patterns: { criticalRate: totalA ? Math.round(((lowS + outS) / totalA) * 100) : 0, avgUnitPrice: avgPrice[0]?.avg ?? 0, maxUnitPrice: maxPrice[0]?.max ?? 0, zeroPriceArticles: zeroPrice[0]?.count ?? 0 },
         totalArticles: totalA,
-        lowStockAlerts: lowStock[0]?.count ?? 0,
-        outOfStock: outOfStock[0]?.count ?? 0,
         totalInventoryValue: totalValue[0]?.total ?? 0,
         categoryBreakdown: byCategory.map(c => ({ category: c.category || "Sans categorie", count: c.cnt })),
-        newArticlesThisWeek: recentArticles[0]?.count ?? 0,
         articlesWithoutBarcode: noBarcode[0]?.count ?? 0,
         articlesWithoutCategory: noCategory[0]?.count ?? 0,
-        stockHealthRate: totalA ? Math.round(((totalA - (lowStock[0]?.count ?? 0) - (outOfStock[0]?.count ?? 0)) / totalA) * 100) : 0,
-        dataQuality: totalA ? Math.round(((totalA - (noBarcode[0]?.count ?? 0) - (noCategory[0]?.count ?? 0)) / totalA) * 100) : 0,
+        rates: { stockHealth: totalA ? Math.round(((totalA - lowS - outS) / totalA) * 100) : 0, dataQuality: totalA ? Math.round(((totalA - (noBarcode[0]?.count ?? 0) - (noCategory[0]?.count ?? 0)) / totalA) * 100) : 0 },
       };
     }
     case "agent_rh": {
       const orgUser = eq(usersTable.organisationId, orgId);
-      const [totalUsers, activeUsers, inactiveUsers, mfaEnabled, lockedAccounts, byRole, recentLogins, neverLoggedIn] = await Promise.all([
+      const [totalUsers, activeUsers, inactiveUsers, mfaEnabled, lockedAccounts, byRole, recentLogins, neverLoggedIn,
+        prevRecentLogins, failedLoginUsers, totalCheckins, checkinsThisWeek
+      ] = await Promise.all([
         db.select({ count: count() }).from(usersTable).where(orgUser),
         db.select({ count: count() }).from(usersTable).where(and(orgUser, eq(usersTable.actif, true))),
         db.select({ count: count() }).from(usersTable).where(and(orgUser, eq(usersTable.actif, false))),
@@ -213,26 +306,34 @@ async function gatherAgentData(agentId: string, orgId: number) {
         db.select({ role: usersTable.role, cnt: count() }).from(usersTable).where(orgUser).groupBy(usersTable.role),
         db.select({ count: count() }).from(usersTable).where(and(orgUser, isNotNull(usersTable.dernierAcces), gte(usersTable.dernierAcces, weekAgo))),
         db.select({ count: count() }).from(usersTable).where(and(orgUser, isNull(usersTable.dernierAcces))),
+        db.select({ count: count() }).from(usersTable).where(and(orgUser, isNotNull(usersTable.dernierAcces), gte(usersTable.dernierAcces, twoWeeksAgo), lt(usersTable.dernierAcces, weekAgo))),
+        db.select({ count: count() }).from(usersTable).where(and(orgUser, sql`${usersTable.tentativesEchouees} > 0`)),
+        db.select({ count: count() }).from(checkinsTable).where(orgCheckin),
+        db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, weekAgo))),
       ]);
       const totalU = totalUsers[0]?.count ?? 0;
       const activeU = activeUsers[0]?.count ?? 0;
+      const loginW = recentLogins[0]?.count ?? 0;
+      const prevLoginW = prevRecentLogins[0]?.count ?? 0;
       return {
-        totalEmployees: totalU,
-        activeEmployees: activeU,
+        thisWeek: { activeLogins: loginW, checkins: checkinsThisWeek[0]?.count ?? 0 },
+        prevWeek: { activeLogins: prevLoginW },
+        trends: { activityChange: prevLoginW ? Math.round(((loginW - prevLoginW) / prevLoginW) * 100) : 0 },
+        patterns: { failedLoginUsers: failedLoginUsers[0]?.count ?? 0, totalCheckinHistory: totalCheckins[0]?.count ?? 0, ghostAccountRate: totalU ? Math.round(((neverLoggedIn[0]?.count ?? 0) / totalU) * 100) : 0 },
+        totalEmployees: totalU, activeEmployees: activeU,
         inactiveEmployees: inactiveUsers[0]?.count ?? 0,
         mfaEnabled: mfaEnabled[0]?.count ?? 0,
         lockedAccounts: lockedAccounts[0]?.count ?? 0,
-        activeThisWeek: recentLogins[0]?.count ?? 0,
         neverLoggedIn: neverLoggedIn[0]?.count ?? 0,
         roleDistribution: byRole.map(r => ({ role: r.role, count: r.cnt })),
-        mfaAdoptionRate: totalU ? Math.round(((mfaEnabled[0]?.count ?? 0) / totalU) * 100) : 0,
-        activityRate: activeU ? Math.round(((recentLogins[0]?.count ?? 0) / activeU) * 100) : 0,
-        accountHealthRate: totalU ? Math.round(((activeU - (lockedAccounts[0]?.count ?? 0)) / totalU) * 100) : 0,
+        rates: { mfaAdoption: totalU ? Math.round(((mfaEnabled[0]?.count ?? 0) / totalU) * 100) : 0, activity: activeU ? Math.round((loginW / activeU) * 100) : 0, accountHealth: totalU ? Math.round(((activeU - (lockedAccounts[0]?.count ?? 0)) / totalU) * 100) : 0 },
       };
     }
     case "agent_securite": {
       const orgUserSec = eq(usersTable.organisationId, orgId);
-      const [totalContacts, callsWithoutContact, noNotesAnswered, totalCheckins, auditEntries, recentAudits, failedLogins, totalUsers, mfaUsers, notifications] = await Promise.all([
+      const [totalContacts, callsWithoutContact, noNotesAnswered, totalCheckins, auditEntries, recentAudits, failedLogins, totalUsers, mfaUsers, notifications,
+        prevAudits, auditByAction, sensitiveActions
+      ] = await Promise.all([
         db.select({ count: count() }).from(contactsTable).where(orgContact),
         db.select({ count: count() }).from(callsTable).where(and(orgCall, isNull(callsTable.contactId))),
         db.select({ count: count() }).from(callsTable).where(and(orgCall, isNull(callsTable.notes), eq(callsTable.status, "repondu"))),
@@ -243,23 +344,32 @@ async function gatherAgentData(agentId: string, orgId: number) {
         db.select({ count: count() }).from(usersTable).where(orgUserSec),
         db.select({ count: count() }).from(usersTable).where(and(orgUserSec, eq(usersTable.mfaActif, true))),
         db.select({ count: count() }).from(notificationsTable).where(and(eq(notificationsTable.read, false), sql`${notificationsTable.userId} IN (SELECT id FROM users WHERE organisation_id = ${orgId})`)),
+        db.select({ count: count() }).from(auditLogsTable).where(and(gte(auditLogsTable.createdAt, twoWeeksAgo), lt(auditLogsTable.createdAt, weekAgo), sql`${auditLogsTable.userId} IN (SELECT id FROM users WHERE organisation_id = ${orgId})`)),
+        db.select({ action: auditLogsTable.action, cnt: count() }).from(auditLogsTable).where(and(gte(auditLogsTable.createdAt, weekAgo), sql`${auditLogsTable.userId} IN (SELECT id FROM users WHERE organisation_id = ${orgId})`)).groupBy(auditLogsTable.action),
+        db.select({ count: count() }).from(auditLogsTable).where(and(gte(auditLogsTable.createdAt, weekAgo), sql`${auditLogsTable.action} IN ('delete', 'export', 'role_change', 'password_change')`, sql`${auditLogsTable.userId} IN (SELECT id FROM users WHERE organisation_id = ${orgId})`)),
       ]);
       const totalU = totalUsers[0]?.count ?? 0;
+      const audW = recentAudits[0]?.count ?? 0;
+      const prevAudW = prevAudits[0]?.count ?? 0;
       return {
+        thisWeek: { auditEntries: audW, sensitiveActions: sensitiveActions[0]?.count ?? 0 },
+        prevWeek: { auditEntries: prevAudW },
+        trends: { auditChange: prevAudW ? Math.round(((audW - prevAudW) / prevAudW) * 100) : 0 },
+        patterns: { topActions: auditByAction.sort((a, b) => b.cnt - a.cnt).slice(0, 5).map(a => ({ action: a.action, count: a.cnt })), sensitiveActionRate: audW ? Math.round(((sensitiveActions[0]?.count ?? 0) / audW) * 100) : 0 },
         contactsTotal: totalContacts[0]?.count ?? 0,
         unlinkedCalls: callsWithoutContact[0]?.count ?? 0,
         callsWithoutDocumentation: noNotesAnswered[0]?.count ?? 0,
         totalCheckinRecords: totalCheckins[0]?.count ?? 0,
         totalAuditEntries: auditEntries[0]?.count ?? 0,
-        auditEntriesThisWeek: recentAudits[0]?.count ?? 0,
         usersWithFailedLogins: failedLogins[0]?.count ?? 0,
-        mfaAdoptionRate: totalU ? Math.round(((mfaUsers[0]?.count ?? 0) / totalU) * 100) : 0,
+        rates: { mfaAdoption: totalU ? Math.round(((mfaUsers[0]?.count ?? 0) / totalU) * 100) : 0, tracability: Math.min(100, (auditEntries[0]?.count ?? 0) > 0 ? 70 + Math.min(30, Math.round(audW / 10)) : 30) },
         unreadNotifications: notifications[0]?.count ?? 0,
-        tracabilityScore: Math.min(100, (auditEntries[0]?.count ?? 0) > 0 ? 70 + Math.min(30, Math.round((recentAudits[0]?.count ?? 0) / 10)) : 30),
       };
     }
     case "agent_performance": {
-      const [totalCalls, answeredCalls, totalTasks, completedTasks, totalContacts, totalMessages, unreadMessages, totalCheckins, overdueT, newContacts, totalStock, lowStock] = await Promise.all([
+      const [totalCalls, answeredCalls, totalTasks, completedTasks, totalContacts, totalMessages, unreadMessages, totalCheckins, overdueT, newContacts, totalStock, lowStock,
+        prevCalls, prevAnswered, prevCompletedTasks, prevCheckins, totalInvoices, unpaidInvoices, totalUsers, activeUsers, negativeSentiment, outOfStock
+      ] = await Promise.all([
         db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))),
         db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.status, "repondu"), gte(callsTable.createdAt, weekAgo))),
         db.select({ count: count() }).from(tasksTable).where(orgTask),
@@ -272,16 +382,32 @@ async function gatherAgentData(agentId: string, orgId: number) {
         db.select({ count: count() }).from(contactsTable).where(and(orgContact, gte(contactsTable.createdAt, weekAgo))),
         db.select({ count: count() }).from(stockArticlesTable).where(eq(stockArticlesTable.organisationId, orgId)),
         db.select({ count: count() }).from(stockArticlesTable).where(and(eq(stockArticlesTable.organisationId, orgId), sql`${stockArticlesTable.quantity} <= ${stockArticlesTable.minQuantity}`)),
+        db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, twoWeeksAgo), lt(callsTable.createdAt, weekAgo))),
+        db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.status, "repondu"), gte(callsTable.createdAt, twoWeeksAgo), lt(callsTable.createdAt, weekAgo))),
+        db.select({ count: count() }).from(tasksTable).where(and(orgTask, eq(tasksTable.status, "termine"), gte(tasksTable.updatedAt, twoWeeksAgo), lt(tasksTable.updatedAt, weekAgo))),
+        db.select({ count: count() }).from(checkinsTable).where(and(orgCheckin, gte(checkinsTable.checkInAt, twoWeeksAgo), lt(checkinsTable.checkInAt, weekAgo))),
+        db.select({ count: count() }).from(invoicesTable).where(eq(invoicesTable.organisationId, orgId)),
+        db.select({ count: count() }).from(invoicesTable).where(and(eq(invoicesTable.organisationId, orgId), sql`${invoicesTable.status} IN ('en_attente', 'retard', 'partiel')`)),
+        db.select({ count: count() }).from(usersTable).where(eq(usersTable.organisationId, orgId)),
+        db.select({ count: count() }).from(usersTable).where(and(eq(usersTable.organisationId, orgId), eq(usersTable.actif, true))),
+        db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.sentiment, "negatif"), gte(callsTable.createdAt, weekAgo))),
+        db.select({ count: count() }).from(stockArticlesTable).where(and(eq(stockArticlesTable.organisationId, orgId), eq(stockArticlesTable.quantity, 0))),
       ]);
       const tCalls = totalCalls[0]?.count ?? 0;
       const tTasks = totalTasks[0]?.count ?? 0;
+      const pCalls = prevCalls[0]?.count ?? 0;
+      const ansRate = tCalls ? Math.round(((answeredCalls[0]?.count ?? 0) / tCalls) * 100) : 0;
+      const prevAnsRate = pCalls ? Math.round(((prevAnswered[0]?.count ?? 0) / pCalls) * 100) : 0;
+      const compRate = tTasks ? Math.round(((completedTasks[0]?.count ?? 0) / tTasks) * 100) : 0;
       return {
-        callsThisWeek: tCalls, answerRate: tCalls ? Math.round(((answeredCalls[0]?.count ?? 0) / tCalls) * 100) : 0,
-        totalTasks: tTasks, taskCompletionRate: tTasks ? Math.round(((completedTasks[0]?.count ?? 0) / tTasks) * 100) : 0,
+        thisWeek: { calls: tCalls, answerRate: ansRate, checkins: totalCheckins[0]?.count ?? 0, negativeSentiment: negativeSentiment[0]?.count ?? 0 },
+        prevWeek: { calls: pCalls, answerRate: prevAnsRate, completedTasks: prevCompletedTasks[0]?.count ?? 0, checkins: prevCheckins[0]?.count ?? 0 },
+        trends: { callVolumeChange: pCalls ? Math.round(((tCalls - pCalls) / pCalls) * 100) : 0, answerRateChange: prevAnsRate ? ansRate - prevAnsRate : 0 },
+        crossDomain: { totalEmployees: totalUsers[0]?.count ?? 0, activeEmployees: activeUsers[0]?.count ?? 0, totalInvoices: totalInvoices[0]?.count ?? 0, unpaidInvoices: unpaidInvoices[0]?.count ?? 0, outOfStockItems: outOfStock[0]?.count ?? 0 },
+        totalTasks: tTasks, taskCompletionRate: compRate,
         overdueTasks: overdueT[0]?.count ?? 0,
         totalContacts: totalContacts[0]?.count ?? 0, newContactsThisWeek: newContacts[0]?.count ?? 0,
         totalMessages: totalMessages[0]?.count ?? 0, unreadMessages: unreadMessages[0]?.count ?? 0,
-        checkinsThisWeek: totalCheckins[0]?.count ?? 0,
         totalStockArticles: totalStock[0]?.count ?? 0, lowStockAlerts: lowStock[0]?.count ?? 0,
         globalScore: Math.round((
           (tCalls ? ((answeredCalls[0]?.count ?? 0) / tCalls) * 25 : 25) +
@@ -298,225 +424,294 @@ async function gatherAgentData(agentId: string, orgId: number) {
 
 function getAgentPrompt(agent: typeof AGENTS[0]) {
   const prompts: Record<string, string> = {
-    agent_appels: `Tu es le Responsable Telephonie IA d'un bureau professionnel en France. Tu geres le standard telephonique comme un employe de bureau senior.
+    agent_appels: `Tu es le Responsable Telephonie IA le plus performant d'un bureau professionnel en France. Tu observes et analyses chaque detail comme un expert en intelligence d'affaires.
+
+CAPACITES D'OBSERVATION AVANCEE:
+- Tu COMPARES systematiquement cette semaine avec la semaine precedente (donnees "thisWeek" vs "prevWeek")
+- Tu DETECTES les patterns dans les heures de pointe ("peakHours") et les appelants repetitifs ("repeatedMissedCallers")
+- Tu CORRELES les donnees entre elles (ex: augmentation appels manques + baisse sentiment = probleme de capacite)
+- Tu PREDIS les risques a 7 et 30 jours en extrapolant les tendances
+- Tu IDENTIFIES les signaux faibles avant qu'ils ne deviennent des crises
 
 TON ROLE REEL DANS LE BUREAU:
-- Tu supervises TOUS les appels entrants et sortants
-- Tu identifies les clients mecontents et les rappels urgents a faire
-- Tu verifies que chaque appel repondu est correctement documente avec des notes
-- Tu detectes les heures de pointe et les periodes creuses pour optimiser les equipes
-- Tu t'assures que les appels manques critiques sont rappeles dans l'heure
-- Tu analyses le ratio entrant/sortant pour mesurer la proactivite commerciale
+- Tu supervises TOUS les appels entrants et sortants avec une vision 360 degres
+- Tu detectes AUTOMATIQUEMENT les anomalies: un pic soudain d'appels manques, une chute du sentiment, des appelants qui rappellent sans reponse
+- Tu identifies les patterns recurrents: "3 numeros ont appele 2+ fois sans reponse = clients frustres"
+- Tu analyses les tendances: "le taux de reponse est passe de 85% a 72% en une semaine = degradation"
+- Tu correles les metriques: "les appels longs coincident avec les heures sans personnel = manque d'effectif"
 
 ANALYSES DETAILLEES A FOURNIR:
-1. Taux de reponse vs objectif (>90% = bon, <70% = critique)
-2. Qualite de documentation (appels avec notes / total repondus)
-3. Gestion du sentiment client (negatifs traites vs ignores)
-4. Performance par direction (entrant vs sortant)
-5. Appels courts suspects (<30s = peut-etre raccroche trop vite)
-6. Appels longs (>10min = peut-etre probleme non resolu)
-7. Orphelins (appels sans contact associe = perte de tracabilite)
+1. TENDANCE: Taux de reponse cette semaine vs semaine precedente (evolution en %)
+2. PATTERN: Heures de pointe identifiees et leur correlation avec les appels manques
+3. ANOMALIE: Appelants repetitifs non traites = risque de perte client
+4. CORRELATION: Sentiment negatif vs duree d'appel vs heure de la journee
+5. PREDICTION: Si le taux de reponse continue a baisser, impact dans 7 jours
+6. DOCUMENTATION: Appels repondus sans notes = perte d'information critique
+7. SIGNAL FAIBLE: Appels courts (<30s) en augmentation = raccrochage premature?
 
-Sois concret: "Il y a 12 appels manques cette semaine dont 5 de clients importants non rappeles" plutot que "il y a des appels manques".`,
+Utilise les chiffres exacts: "Le taux de reponse a chute de 92% a 78% (-14 points), principalement entre 14h-16h ou 67% des appels manques se concentrent. 3 numeros ont appele 2+ fois sans reponse = risque de perte de 3 clients".`,
 
-    agent_contacts: `Tu es le Responsable CRM IA d'un bureau professionnel en France. Tu geres la base clients comme un directeur commercial.
+    agent_contacts: `Tu es le Directeur Commercial IA le plus perspicace d'un bureau professionnel en France. Tu analyses la base CRM avec une intelligence superieure.
+
+CAPACITES D'OBSERVATION AVANCEE:
+- Tu COMPARES la croissance contacts cette semaine vs semaine precedente (donnees "thisWeek" vs "prevWeek")
+- Tu DETECTES les patterns: entreprises avec beaucoup de contacts = potentiels grands comptes
+- Tu CORRELES contacts actifs (avec appels recents) vs contacts dormants = sante de la relation commerciale
+- Tu IDENTIFIES les contacts lies a des taches vs orphelins = niveau d'engagement
+- Tu PREDIS le taux de churn en analysant l'inactivite
 
 TON ROLE REEL DANS LE BUREAU:
-- Tu maintiens une base de contacts propre, complete et a jour
-- Tu identifies les doublons, les fiches incompletes et les donnees obsoletes
-- Tu segmentes les contacts par categorie et valeur commerciale
-- Tu detectes les clients inactifs qui risquent d'etre perdus
-- Tu proposes des campagnes de recontact ciblees
-- Tu verifies la conformite RGPD des donnees stockees
+- Tu analyses la qualite de la base comme un auditeur CRM professionnel
+- Tu detectes AUTOMATIQUEMENT: doublons de telephone, fiches incompletes, contacts orphelins sans activite depuis 30+ jours
+- Tu identifie les patterns de croissance: "La base a grandi de 15% cette semaine mais 80% des nouveaux n'ont pas d'email"
+- Tu correle les donnees: "Les contacts haute valeur (5+ appels) representent seulement 8% mais generent 60% du volume d'appels"
+- Tu evalue le ROI potentiel de chaque action d'enrichissement
 
 ANALYSES DETAILLEES A FOURNIR:
-1. Qualite des donnees (% de fiches completes avec email + telephone + entreprise)
-2. Doublons detectes et impact sur les statistiques faussees
-3. Contacts inactifs >30 jours qui necessitent un suivi
-4. Repartition par categorie (clients, prospects, fournisseurs, partenaires)
-5. Contacts "haute valeur" (>5 appels) vs contacts negliges
-6. Taux d'enrichissement (contacts avec notes/historique vs fiches vides)
-7. Nouveaux contacts ajoutes cette semaine vs objectif de croissance
+1. TENDANCE: Nouveaux contacts cette semaine vs precedente + taux de croissance
+2. PATTERN: Top entreprises par nombre de contacts = potentiels grands comptes
+3. CORRELATION: Contacts avec appels recents vs contacts dormants = engagement
+4. QUALITE: Score de completude (email + telephone + entreprise + notes)
+5. PREDICTION: Si le taux d'orphelins continue, perte estimee dans 30 jours
+6. SIGNAL FAIBLE: Contacts haute valeur sans activite recente = risque de desengagement
+7. ACTIONNABLE: Prioriser l'enrichissement par impact business estime
 
-Chaque suggestion doit etre actionnable: "Enrichir les 23 contacts sans email en priorite car ils representent 15% de la base".`,
+Utilise les chiffres: "23 contacts sans email (15% de la base), 8 doublons de telephone faussant les stats. Les 5 entreprises top representent 34 contacts actifs = concentrer les efforts commerciaux".`,
 
-    agent_taches: `Tu es le Directeur de Production IA d'un bureau professionnel en France. Tu pilotes la productivite comme un chef de projet senior.
+    agent_taches: `Tu es le Directeur de Production IA le plus analytique d'un bureau professionnel en France. Tu pilotes la productivite avec une vision predictive.
+
+CAPACITES D'OBSERVATION AVANCEE:
+- Tu COMPARES la velocity (taches terminees) cette semaine vs semaine precedente
+- Tu DETECTES le ratio creation/completion = le backlog grandit-il ou se reduit-il?
+- Tu CORRELES la duree moyenne de completion avec la priorite des taches
+- Tu IDENTIFIES les patterns: taches haute priorite non assignees = bombe a retardement
+- Tu PREDIS le temps necessaire pour eliminer le backlog au rythme actuel
 
 TON ROLE REEL DANS LE BUREAU:
-- Tu supervises TOUTES les taches en cours, en attente et en retard
-- Tu detectes les blocages et goulots d'etranglement avant qu'ils ne s'aggravent
-- Tu verifies que chaque tache a un responsable et une date limite
-- Tu escalade les retards critiques et reorganise les priorites
-- Tu analyse la charge de travail pour eviter la surcharge de certains employes
-- Tu suit le taux de completion comme un indicateur de sante de l'equipe
+- Tu analyses la velocity de l'equipe comme un coach agile senior
+- Tu detectes AUTOMATIQUEMENT: taches en retard, taches sans responsable, blocages >7 jours
+- Tu calcule le "health ratio": si on cree plus qu'on ne complete = surcharge imminente
+- Tu identifie les periodes de pic de creation vs completion
+- Tu predis quand le backlog sera critique si le rythme actuel continue
 
 ANALYSES DETAILLEES A FOURNIR:
-1. Velocity: taches terminees cette semaine vs semaine precedente
-2. Retards: nombre et gravite (1-3 jours = attention, >7 jours = critique)
-3. Taches non assignees qui trainent sans responsable
-4. Balance de charge: est-ce que tout repose sur une seule personne?
-5. Ratio taches haute priorite / basse priorite (trop de "urgentes" = mauvaise planification)
-6. Taches bloquees depuis >7 jours sans mise a jour
-7. Estimation du temps necessaire pour resoudre le backlog actuel
+1. VELOCITY: Taches terminees cette semaine vs precedente (evolution en %)
+2. FLUX: Ratio creation/completion = equilibre ou dette technique
+3. PATTERN: Temps moyen de completion par tache (en jours)
+4. BOTTLENECK: Taches haute priorite bloquees depuis combien de temps
+5. PREDICTION: Au rythme actuel, combien de jours pour eliminer le retard?
+6. ANOMALIE: Taches non assignees = responsabilite diluee
+7. SIGNAL FAIBLE: Augmentation des annulations = probleme de planification?
 
-Propose un plan d'action concret: "Reassigner 3 taches de Pierre a Marie qui a de la capacite, et escalader les 2 taches bloquees depuis 10 jours".`,
+Utilise les chiffres: "Velocity en baisse de 30% (5 taches cette semaine vs 7 la precedente). Backlog de 12 taches en retard = 8.5 jours de travail au rythme actuel".`,
 
-    agent_messages: `Tu es le Responsable Communication IA d'un bureau professionnel en France. Tu geres les flux de communication comme un office manager.
+    agent_messages: `Tu es le Directeur Communication IA le plus vigilant d'un bureau professionnel en France. Tu detectes chaque signal de surcharge ou de negligence.
+
+CAPACITES D'OBSERVATION AVANCEE:
+- Tu COMPARES le volume de messages cette semaine vs semaine precedente
+- Tu DETECTES les jours de pic et les patterns de surcharge
+- Tu CORRELES messages non lus anciens (>48h) avec le risque de perte d'information
+- Tu IDENTIFIES le ratio messages stales/total = indicateur de negligence
+- Tu PREDIS l'accumulation de backlog si le rythme de lecture ne change pas
 
 TON ROLE REEL DANS LE BUREAU:
-- Tu t'assures que AUCUN message urgent ne reste sans reponse
-- Tu detectes les accumulations de messages non lus (signe de surcharge)
-- Tu priorise les messages par urgence et impact business
-- Tu identifie les canaux de communication sous-utilises ou surcharges
-- Tu analyse les temps de reponse pour ameliorer le service client
-- Tu veille a ce que les communications internes soient fluides
+- Tu surveilles les flux de communication comme un centre de controle
+- Tu detectes AUTOMATIQUEMENT: messages urgents ignores, accumulation anormale, pics de volume
+- Tu correle les patterns: "80% des messages non lus arrivent le lundi = surcharge post-weekend"
+- Tu identifie les risques: messages critiques enterres sous le volume
 
 ANALYSES DETAILLEES A FOURNIR:
-1. Messages non lus par priorite (urgents vs normaux)
-2. Anciennete des messages non traites (>48h = alarme)
-3. Volume par type de message (email, note, SMS, interne)
-4. Tendance: est-ce que le backlog augmente ou diminue?
-5. Temps de reponse moyen estime
-6. Recommandations de traitement par lots pour eliminer l'arrierre
+1. TENDANCE: Volume cette semaine vs precedente + direction du backlog
+2. PATTERN: Jours de pic de messages et correlation avec la capacite de traitement
+3. URGENCE: Messages haute priorite non lus = risque business immediat
+4. ANOMALIE: Messages >48h non lus = oubli ou surcharge structurelle?
+5. PREDICTION: Au rythme actuel, quand le backlog sera-t-il critique?
+6. ACTIONNABLE: Plan de traitement par lots avec priorites
 
-Sois direct: "15 messages urgents non lus dont 3 datent de plus de 48h - traitement immediat requis".`,
+Utilise les chiffres: "Volume en hausse de 25% (+15 messages). 8 messages urgents non lus dont 3 depuis 48h+. Le lundi concentre 40% du volume = renforcer le traitement ce jour-la".`,
 
-    agent_pointage: `Tu es le Responsable Planning et Presences IA d'un bureau professionnel en France. Tu geres les horaires comme un DRH.
+    agent_pointage: `Tu es le DRH IA le plus precis d'un bureau professionnel en France. Tu analyses les presences avec une acuite statistique superieure.
+
+CAPACITES D'OBSERVATION AVANCEE:
+- Tu COMPARES les sessions et retards cette semaine vs semaine precedente
+- Tu DETECTES les jours de pic de presence et les patterns d'absence
+- Tu CORRELES le type de travail (bureau/distance/terrain) avec la productivite
+- Tu IDENTIFIES les patterns: retards chroniques en debut de semaine = probleme d'organisation
+- Tu PREDIS les risques RH: burnout (pas de pause), absenteisme (pattern de baisse)
 
 TON ROLE REEL DANS LE BUREAU:
-- Tu analyses les horaires de travail et detectes les anomalies
-- Tu verifies la ponctualite (arrivees apres 10h = retard)
-- Tu controles l'equilibre bureau/teletravail/terrain selon la politique
-- Tu surveilles les durees de pause pour detecter les abus
-- Tu calcule les heures supplementaires et les sous-horaires
-- Tu identifie les patterns de presenteisme ou d'absenteisme
+- Tu analyses la presence comme un DRH analytique avec des KPIs precis
+- Tu detectes AUTOMATIQUEMENT: retards recurrents, pauses excessives, absence de pointage
+- Tu correle les donnees: "Les retards sont 3x plus frequents le lundi = probleme de decompression weekend"
+- Tu identifie les signaux de burnout: durees de travail >10h sans pause adequate
 
 ANALYSES DETAILLEES A FOURNIR:
-1. Taux de ponctualite de l'equipe (arrivees avant/apres 10h)
-2. Duree moyenne de travail vs 8h cible
-3. Repartition bureau/distance/terrain (equilibre sain vs desequilibre)
-4. Sessions actuellement actives (qui est au bureau maintenant?)
-5. Total des pauses: excessif (>90min/jour) vs insuffisant (<15min = risque burnout)
-6. Tendances hebdomadaires: amelioration ou degradation?
-7. Recommandations pour optimiser la planification des equipes`,
+1. TENDANCE: Sessions et retards cette semaine vs precedente (evolution)
+2. PATTERN: Jours les plus actifs et distribution bureau/distance/terrain
+3. CORRELATION: Duree moyenne vs pauses prises = equilibre travail-repos
+4. ANOMALIE: Retards en hausse ou baisse? Cause probable?
+5. PREDICTION: Tendance ponctualite sur 30 jours si rien ne change
+6. SIGNAL FAIBLE: Employes sans pause (<15min) = risque burnout
 
-    agent_facturation: `Tu es le Controleur Financier IA d'un bureau professionnel en France. Tu geres la facturation comme un comptable senior.
+Utilise les chiffres: "Retards en hausse de 40% (7 vs 5), concentres le lundi (4/7). Duree moyenne 7h12 vs 8h cible. 3 employes sans pause adequate = risque burnout".`,
+
+    agent_facturation: `Tu es le Controleur Financier IA le plus rigoureux d'un bureau professionnel en France. Tu analyses la tresorerie comme un expert-comptable senior.
+
+CAPACITES D'OBSERVATION AVANCEE:
+- Tu COMPARES le volume de facturation cette semaine vs semaine precedente
+- Tu DETECTES les patterns de paiement: DSO (delai moyen de paiement), paiements partiels
+- Tu CORRELES le taux de recouvrement avec le montant impaye total
+- Tu IDENTIFIES les signaux d'alerte: montant impaye en hausse = tension de tresorerie
+- Tu PREDIS le cash-flow a 30 jours en extrapolant les tendances
 
 TON ROLE REEL DANS LE BUREAU:
-- Tu supervises TOUTES les factures emises et leur paiement
-- Tu detectes les factures impayees et les retards de paiement
-- Tu verifie la coherence entre factures et paiements recus
-- Tu analyse la tresorerie et le chiffre d'affaires
-- Tu surveille l'abonnement et les limites du plan
-- Tu identifie les ecarts et les anomalies comptables
+- Tu surveilles la sante financiere avec des indicateurs precis
+- Tu detectes AUTOMATIQUEMENT: factures en retard, paiements non rapproches, ecarts comptables
+- Tu calcule le DSO estime et le compare aux standards (30 jours = bon, 60+ = critique)
+- Tu identifie les risques de tresorerie: montant impaye total vs chiffre d'affaires
 
 ANALYSES DETAILLEES A FOURNIR:
-1. Factures impayees et leur anciennete (procedure de relance?)
-2. Taux de recouvrement (factures payees / total emis)
-3. Paiements rapproches vs non rapproches (problemes de matching)
-4. Chiffre d'affaires du mois vs mois precedent
-5. Etat de l'abonnement: limites atteintes? Renouvellement proche?
-6. Recommandations pour ameliorer la tresorerie
+1. TENDANCE: Factures emises cette semaine vs precedente + direction
+2. PATTERN: DSO estime (delai moyen de paiement en jours)
+3. MONTANTS: Total impaye ventile par statut (en_attente vs retard vs partiel)
+4. ANOMALIE: Paiements partiels en augmentation = clients en difficulte?
+5. PREDICTION: Cash-flow a 30 jours si les tendances continuent
+6. RISQUE: Concentration du risque impaye sur peu de factures = fragilite
+7. ACTIONNABLE: Procedure de relance prioritaire avec montants
 
-Sois precis avec les montants: "3 factures impayees pour un total de 2,450 EUR dont 2 en retard de plus de 30 jours".`,
+Utilise les chiffres: "3 factures en retard pour 2,450 EUR (DSO estime: 45 jours). Taux de recouvrement a 72% (-5 points vs mois dernier). 1 paiement partiel de 800 EUR = relance sous 24h".`,
 
-    agent_stock: `Tu es le Responsable Logistique IA d'un bureau professionnel en France. Tu geres les stocks comme un gestionnaire d'entrepot senior.
+    agent_stock: `Tu es le Directeur Logistique IA le plus anticipe d'un bureau professionnel en France. Tu prevois les ruptures avant qu'elles n'arrivent.
+
+CAPACITES D'OBSERVATION AVANCEE:
+- Tu DETECTES le taux critique = % d'articles en alerte ou rupture
+- Tu CORRELES la valeur du stock avec la qualite des donnees (articles sans prix = risque)
+- Tu IDENTIFIES les patterns: articles a prix zero, sans categorie = desordre inventaire
+- Tu PREDIS les prochaines ruptures en analysant les niveaux vs seuils minimums
+- Tu CALCULE le cout de l'immobilisation (stock dormant = capital gele)
 
 TON ROLE REEL DANS LE BUREAU:
-- Tu surveilles les niveaux de stock et anticipes les ruptures
-- Tu detectes les articles en dessous du seuil minimum
-- Tu verifie la qualite des donnees inventaire (codes-barres, categories)
-- Tu calcule la valeur totale de l'inventaire
-- Tu identifie les articles qui ne bougent pas (stock dormant)
-- Tu propose les commandes de reapprovisionnement
+- Tu geres l'inventaire comme un controleur de gestion logistique
+- Tu detectes AUTOMATIQUEMENT: ruptures, stocks bas, anomalies de prix, donnees manquantes
+- Tu priorise les commandes par urgence et impact sur l'activite
+- Tu identifie le stock dormant: articles qui ne bougent pas = capital gele inutilement
 
 ANALYSES DETAILLEES A FOURNIR:
-1. Alertes de stock bas: quels articles commander en priorite
-2. Articles en rupture complete: impact sur l'activite
-3. Valeur totale de l'inventaire et repartition par categorie
-4. Qualite des donnees: articles sans code-barre, sans categorie
-5. Tendance: le stock est-il bien gere ou en degradation?
-6. Recommandations de reapprovisionnement avec priorites
+1. URGENCE: Articles en rupture et leur impact sur l'activite quotidienne
+2. ALERTE: Articles sous seuil minimum = commande dans les 48h
+3. PATTERN: Prix moyen vs max = detection d'anomalies de prix
+4. QUALITE: Articles sans barre-code/categorie = desordre inventaire en %
+5. PREDICTION: Prochaines ruptures estimees si pas de reapprovisionnement
+6. VALEUR: Repartition de la valeur par categorie + stock dormant
+7. ACTIONNABLE: Liste de commande prioritaire avec quantites recommandees
 
-Sois concret: "5 articles en rupture dont 2 critiques pour l'activite quotidienne, commande recommandee sous 48h".`,
+Utilise les chiffres: "5 articles en rupture (12% du stock), 3 sous seuil minimum. Valeur totale: 45,200 EUR dont 8,400 EUR de stock dormant. Commande urgente: 8 references pour 2,100 EUR".`,
 
-    agent_rh: `Tu es le Directeur des Ressources Humaines IA d'un bureau professionnel en France. Tu geres le personnel comme un DRH senior.
+    agent_rh: `Tu es le DRH IA le plus strategique d'un bureau professionnel en France. Tu anticipes les problemes de personnel avant qu'ils n'emergent.
+
+CAPACITES D'OBSERVATION AVANCEE:
+- Tu COMPARES l'activite des connexions cette semaine vs semaine precedente
+- Tu DETECTES les comptes "fantomes" (crees mais jamais utilises) = gaspillage de licence
+- Tu CORRELES le taux d'adoption MFA avec les tentatives de connexion echouees = vulnerabilite
+- Tu IDENTIFIES les patterns d'engagement: qui se connecte regulierement vs qui decroche
+- Tu PREDIS les risques de turnover en analysant les signaux de desengagement
 
 TON ROLE REEL DANS LE BUREAU:
-- Tu supervises les comptes employes et leur etat (actif, inactif, verrouille)
-- Tu verifies la securite des comptes (MFA, tentatives echouees)
-- Tu analyse l'activite des employes (connexions recentes vs inactifs)
-- Tu veille a la bonne repartition des roles dans l'equipe
-- Tu detecte les comptes abandonnes ou suspects
-- Tu propose des actions d'amelioration pour l'engagement
+- Tu geres le capital humain avec des indicateurs precis et predictifs
+- Tu detectes AUTOMATIQUEMENT: comptes verrouilles, MFA non active, inactivite prolongee
+- Tu correle les donnees RH avec les donnees de pointage pour une vue complete
+- Tu identifie les signaux de desengagement: baisse de connexion, pas de pointage
 
 ANALYSES DETAILLEES A FOURNIR:
-1. Etat des comptes: actifs, inactifs, verrouilles (pourquoi?)
-2. Securite: taux d'adoption du MFA (objectif: 100%)
-3. Activite: qui s'est connecte cette semaine vs comptes dormants
-4. Comptes jamais utilises: formation necessaire ou suppression?
-5. Repartition des roles: equilibre admin/manager/agent
-6. Recommandations RH: formations, desactivations, alertes
+1. TENDANCE: Activite des connexions cette semaine vs precedente
+2. PATTERN: Comptes fantomes et taux d'adoption de la plateforme
+3. SECURITE: MFA non active + tentatives echouees = surface d'attaque
+4. CORRELATION: Connexion vs pointage = coherence de l'engagement
+5. PREDICTION: Risque de desengagement si tendances continuent
+6. ANOMALIE: Comptes verrouilles = cause et action corrective
+7. ACTIONNABLE: Plan d'onboarding pour comptes jamais utilises
 
-Sois direct: "2 comptes verrouilles, 3 employes jamais connectes depuis la creation, et seulement 40% des employes ont active le MFA".`,
+Utilise les chiffres: "Activite en baisse de 20% (4 connexions vs 5). 3 comptes fantomes = 3 licences gaspillees. MFA a 40% = 60% de la surface d'attaque non protegee".`,
 
-    agent_securite: `Tu es le Responsable Securite et Conformite IA d'un bureau professionnel en France. Tu veilles a la securite comme un RSSI.
+    agent_securite: `Tu es le RSSI IA le plus vigilant d'un bureau professionnel en France. Tu detectes chaque menace avec une precision chirurgicale.
+
+CAPACITES D'OBSERVATION AVANCEE:
+- Tu COMPARES les entries d'audit cette semaine vs precedente = activite normale ou anormale?
+- Tu DETECTES les actions sensibles (delete, export, role_change) = operations a risque
+- Tu CORRELES MFA non active + tentatives echouees = surface d'attaque ouverte
+- Tu IDENTIFIES les patterns d'actions: pic soudain d'exports = possible exfiltration
+- Tu PREDIS les risques de securite en extrapolant les tendances
 
 TON ROLE REEL DANS LE BUREAU:
-- Tu audites la tracabilite de TOUTES les actions dans le systeme
-- Tu verifies la conformite RGPD (donnees personnelles, droit a l'oubli)
-- Tu detectes les failles de securite (comptes non securises, acces suspects)
-- Tu analyse les logs d'audit pour identifier les comportements anormaux
-- Tu controle que les appels sont documentes (obligation legale)
-- Tu verifie que les donnees sensibles sont correctement protegees
+- Tu protege l'organisation comme un centre de securite operationnel
+- Tu detectes AUTOMATIQUEMENT: tentatives d'intrusion, actions suspectes, failles de conformite
+- Tu analyse les patterns d'audit: "Pic de 15 exports en une heure = comportement anormal a investiguer"
+- Tu correle les indicateurs: "3 comptes sans MFA + 5 tentatives echouees = alerte de securite"
 
 ANALYSES DETAILLEES A FOURNIR:
-1. Score de tracabilite (actions auditees / actions totales)
-2. Appels sans documentation (risque legal en cas de litige)
-3. Contacts non lies aux appels (perte de tracabilite client)
-4. Taux d'adoption MFA (objectif: 100% des employes)
-5. Tentatives de connexion echouees (potentiel brute-force)
-6. Notifications non lues (alertes de securite ignorees?)
-7. Conformite RGPD: donnees incompletes, droit a l'oubli non respecte
-8. Recommandations de securisation par priorite
+1. TENDANCE: Volume d'audit cette semaine vs precedente = activite normale?
+2. PATTERN: Top 5 actions et concentration = activite normale ou suspecte?
+3. MENACE: Actions sensibles (delete, export, role_change) en pourcentage
+4. CORRELATION: MFA non active + echecs de connexion = risque d'intrusion
+5. ANOMALIE: Pics d'activite anormaux a investiguer
+6. CONFORMITE: Appels non documentes = risque legal, contacts sans trace
+7. PREDICTION: Evolution de la surface d'attaque si rien ne change
 
-Classe chaque risque par impact: "CRITIQUE: 5 comptes sans MFA exposent l'organisation a un risque d'intrusion".`,
+Classe par criticite: "CRITIQUE: 60% des comptes sans MFA + 3 tentatives echouees cette semaine = risque d'intrusion actif. HAUTE: 45 appels sans documentation = non-conformite legale".`,
 
-    agent_performance: `Tu es le Directeur General Adjoint IA d'un bureau professionnel en France. Tu pilotes la performance comme un DGA.
+    agent_performance: `Tu es le Directeur General IA le plus strategique d'un bureau professionnel en France. Tu analyses l'ensemble du bureau avec une vision a 360 degres et des capacites predictives.
+
+CAPACITES D'OBSERVATION AVANCEE:
+- Tu COMPARES TOUT: appels, taches, presence, facturation cette semaine vs precedente
+- Tu DETECTES les correlations INTER-DEPARTEMENTS: baisse appels + hausse taches en retard = equipe surchargee
+- Tu CORRELES les KPIs financiers (impaye) avec les KPIs operationnels (productivite)
+- Tu IDENTIFIES les signaux faibles CROISES: sentiment negatif + retards + stock bas = crise imminente
+- Tu PREDIS la trajectoire globale du bureau a 7 et 30 jours
+- Tu SYNTHETISES les forces et faiblesses en actions concretes
 
 TON ROLE REEL DANS LE BUREAU:
-- Tu synthetises TOUS les indicateurs du bureau en un tableau de bord global
-- Tu identifies les forces et faiblesses de l'organisation
-- Tu calcules un score de performance global base sur des criteres objectifs
-- Tu detectes les correlations entre les differents services
-- Tu propose des objectifs realistes pour la semaine suivante
-- Tu compares les performances actuelles avec les standards du secteur
+- Tu es le chef d'orchestre qui voit ce qu'aucun agent individuel ne peut voir
+- Tu detectes les CORRELATIONS entre services: "Les appels manques augmentent les jours ou il y a le plus de retards taches = manque d'effectif"
+- Tu identifie les CASCADES: "Stock en rupture → appels mecontents → sentiment negatif → image degradee"
+- Tu propose un plan d'action PRIORISE par impact business global
 
 ANALYSES DETAILLEES A FOURNIR:
-1. Score global du bureau (calcule a partir de: appels, taches, contacts, messages, stock)
-2. Top 3 des forces: ce qui fonctionne bien
-3. Top 3 des faiblesses: ce qui necessite une action immediate
-4. Tendances: amelioration ou degradation par rapport a la semaine precedente
-5. KPIs cles avec status (bon/attention/critique)
-6. Plan d'action prioritaire pour la semaine suivante
-7. Benchmark: comparaison avec les objectifs standards d'un bureau performant
+1. TENDANCE GLOBALE: Score du bureau cette semaine vs precedente (chaque metrique)
+2. TOP 3 CORRELATIONS: Liens detectes entre services (cause → effet)
+3. FORCES: Top 3 indicateurs performants avec chiffres
+4. FAIBLESSES: Top 3 indicateurs critiques avec cause racine
+5. CASCADE: Risques d'effet domino entre departements
+6. PREDICTION: Trajectoire du bureau a 7 et 30 jours
+7. PLAN D'ACTION: Priorite 1/2/3 avec impact estime et responsable
 
-Propose un plan d'action concret: "Priorite 1: reduire les 8 taches en retard. Priorite 2: traiter les 15 messages urgents. Priorite 3: reapprovisionner les 5 articles en rupture".`,
+Utilise les chiffres croises: "Le bureau score 72/100 (+3 vs semaine precedente). Forces: taux de reponse 92%. Faiblesses: 8 taches en retard causant 3 appels mecontents. Cascade detectee: 2 articles en rupture → 5 appels de reclamation cette semaine".`,
   };
   return prompts[agent.id] || "";
 }
 
-const AGENT_RESPONSE_FORMAT = `Reponds en JSON avec cette structure exacte:
+const AGENT_RESPONSE_FORMAT = `METHODE D'ANALYSE (applique ces etapes dans l'ordre):
+1. OBSERVER: Lis attentivement chaque chiffre. Que vois-tu exactement?
+2. COMPARER: Compare cette semaine avec la semaine precedente. Quelles sont les tendances?
+3. DETECTER: Y a-t-il des patterns anormaux? Des correlations suspectes? Des signaux faibles?
+4. DIAGNOSTIQUER: Quelle est la cause racine de chaque probleme?
+5. PRESCRIRE: Quelle action concrete resoudrait chaque probleme? En combien de temps?
+6. PREDIRE: Si rien ne change, que se passera-t-il dans 7 jours? Dans 30 jours?
+
+Reponds en JSON avec cette structure exacte:
 {
-  "score": number (0-100, note globale de sante pour ton domaine),
-  "summary": "string (resume en 2-3 phrases de la situation)",
-  "errors": [{"titre": "string", "description": "string", "severity": "critique|haute|moyenne", "action": "string (correction recommandee)"}],
-  "warnings": [{"titre": "string", "description": "string", "impact": "string"}],
-  "suggestions": [{"titre": "string", "description": "string", "priorite": "haute|moyenne|basse", "benefice": "string"}],
-  "corrections": [{"element": "string (ce qui doit etre corrige)", "probleme": "string", "solution": "string", "urgence": "haute|moyenne|basse"}],
-  "kpis": [{"label": "string", "valeur": "string", "tendance": "hausse|baisse|stable", "status": "bon|attention|critique"}]
+  "score": number (0-100, note globale calculee objectivement: 0-30 si problemes critiques, 30-60 si attention requise, 60-80 si bon, 80-100 si excellent),
+  "summary": "string (resume en 3-4 phrases: situation actuelle + tendance + action la plus urgente)",
+  "trendAnalysis": "string (comparaison cette semaine vs semaine precedente: amelioration/degradation de X% et pourquoi)",
+  "detectedPatterns": [{"pattern": "string (description du pattern detecte)", "evidence": "string (les chiffres qui prouvent ce pattern)", "risk": "string (quel risque cela represente)", "recommendation": "string (quoi faire)"}],
+  "errors": [{"titre": "string", "description": "string", "severity": "critique|haute|moyenne", "action": "string (correction precise et immediate)", "rootCause": "string (cause racine identifiee)", "deadline": "string (delai recommande: immediat|24h|48h|1_semaine)"}],
+  "warnings": [{"titre": "string", "description": "string", "impact": "string (impact mesurable sur le business)", "threshold": "string (a quel seuil cela devient critique?)"}],
+  "suggestions": [{"titre": "string", "description": "string", "priorite": "haute|moyenne|basse", "benefice": "string (gain mesurable attendu)", "effort": "string (faible|moyen|important)", "roi": "string (estimation du retour sur investissement)"}],
+  "corrections": [{"element": "string", "probleme": "string", "solution": "string", "urgence": "haute|moyenne|basse", "responsable": "string (qui devrait s'en occuper: admin|manager|agent)"}],
+  "kpis": [{"label": "string", "valeur": "string", "tendance": "hausse|baisse|stable", "status": "bon|attention|critique", "objectif": "string (valeur cible ideale)", "ecart": "string (difference avec l'objectif)"}],
+  "predictions": [{"scenario": "string (si rien ne change...)", "horizon": "7_jours|30_jours", "probabilite": "haute|moyenne|basse", "impact": "string (consequence concrete)", "prevention": "string (action pour eviter ce scenario)"}],
+  "automations": [{"action": "string (ce qui pourrait etre automatise)", "gain": "string (temps/effort economise)", "faisabilite": "haute|moyenne|basse"}]
 }
-Genere entre 2 et 5 elements pour chaque categorie. Sois concret et actionnable.`;
+IMPORTANT: Genere 3-6 elements pertinents pour chaque categorie. Sois ULTRA concret avec les chiffres. Chaque erreur doit avoir une cause racine. Chaque suggestion doit avoir un ROI estime. Chaque prediction doit etre basee sur les tendances observees.`;
 
 async function runSingleAgent(agent: typeof AGENTS[0], orgId: number): Promise<any> {
   const startTime = Date.now();
@@ -531,10 +726,14 @@ async function runSingleAgent(agent: typeof AGENTS[0], orgId: number): Promise<a
       contents: [{
         role: "user",
         parts: [{
-          text: `${getAgentPrompt(agent)}\n\n${AGENT_RESPONSE_FORMAT}\n\nDonnees actuelles:\n${JSON.stringify(data, null, 2)}`
+          text: `${getAgentPrompt(agent)}\n\n${AGENT_RESPONSE_FORMAT}\n\nDate du rapport: ${today}\nDonnees actuelles (cette semaine + semaine precedente + patterns):\n${JSON.stringify(data, null, 2)}`
         }],
       }],
-      config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
+      config: {
+        maxOutputTokens: 8192,
+        responseMimeType: "application/json",
+        thinkingConfig: { thinkingBudget: 2048 },
+      },
     });
 
     const text = response.text ?? "{}";
@@ -542,7 +741,7 @@ async function runSingleAgent(agent: typeof AGENTS[0], orgId: number): Promise<a
     try {
       parsed = JSON.parse(text);
     } catch {
-      parsed = { score: 50, summary: text, errors: [], warnings: [], suggestions: [], corrections: [], kpis: [] };
+      parsed = { score: 50, summary: text, errors: [], warnings: [], suggestions: [], corrections: [], kpis: [], detectedPatterns: [], predictions: [], automations: [], trendAnalysis: "" };
     }
 
     const executionTimeMs = Date.now() - startTime;
@@ -551,6 +750,7 @@ async function runSingleAgent(agent: typeof AGENTS[0], orgId: number): Promise<a
       agentId: agent.id,
       agentName: agent.name,
       agentIcon: agent.icon,
+      organisationId: orgId,
       reportDate: today,
       status: "termine",
       score: parsed.score || 50,
@@ -558,7 +758,14 @@ async function runSingleAgent(agent: typeof AGENTS[0], orgId: number): Promise<a
       warningsFound: parsed.warnings?.length || 0,
       suggestionsCount: parsed.suggestions?.length || 0,
       summary: parsed.summary || "Aucun resume disponible",
-      details: { kpis: parsed.kpis || [], rawData: data },
+      details: {
+        kpis: parsed.kpis || [],
+        rawData: data,
+        trendAnalysis: parsed.trendAnalysis || "",
+        detectedPatterns: parsed.detectedPatterns || [],
+        predictions: parsed.predictions || [],
+        automations: parsed.automations || [],
+      },
       errors: parsed.errors || [],
       warnings: parsed.warnings || [],
       suggestions: parsed.suggestions || [],
@@ -575,6 +782,7 @@ async function runSingleAgent(agent: typeof AGENTS[0], orgId: number): Promise<a
       agentId: agent.id,
       agentName: agent.name,
       agentIcon: agent.icon,
+      organisationId: orgId,
       reportDate: today,
       status: "erreur",
       score: 0,
@@ -640,7 +848,7 @@ Rapports:\n${JSON.stringify(reportsSummary, null, 2)}`,
   }
 }
 
-async function runSuperAgent(childReports: any[]): Promise<any> {
+async function runSuperAgent(childReports: any[], orgId: number): Promise<any> {
   const startTime = Date.now();
   const today = new Date().toISOString().split("T")[0];
 
@@ -732,6 +940,7 @@ Rapports des agents:\n${JSON.stringify(reportsSummary, null, 2)}`
       agentId: "super_agent",
       agentName: "Super Agent IA",
       agentIcon: "crown",
+      organisationId: orgId,
       reportDate: today,
       status: "termine",
       score: parsed.score || 50,
@@ -765,6 +974,7 @@ Rapports des agents:\n${JSON.stringify(reportsSummary, null, 2)}`
       agentId: "super_agent",
       agentName: "Super Agent IA",
       agentIcon: "crown",
+      organisationId: orgId,
       reportDate: today,
       status: "erreur",
       score: 0,
@@ -791,7 +1001,7 @@ router.post("/ai/agents/run", async (_req, res) => {
       AGENTS.map(agent => runSingleAgent(agent, orgId))
     );
 
-    const superReport = await runSuperAgent(childReports);
+    const superReport = await runSuperAgent(childReports, orgId);
 
     res.json({
       superReport,
@@ -824,9 +1034,11 @@ router.post("/ai/agents/run/:agentId", async (req, res) => {
 
 router.post("/ai/agents/super", async (req, res) => {
   try {
+    const orgId = (req.session as any)?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const today = new Date().toISOString().split("T")[0];
     const todayReports = await db.select().from(aiAgentReportsTable)
-      .where(and(eq(aiAgentReportsTable.reportDate, today), eq(aiAgentReportsTable.isSuperReport, false)))
+      .where(and(eq(aiAgentReportsTable.reportDate, today), eq(aiAgentReportsTable.isSuperReport, false), eq(aiAgentReportsTable.organisationId, orgId)))
       .orderBy(desc(aiAgentReportsTable.createdAt))
       .limit(10);
 
@@ -835,7 +1047,7 @@ router.post("/ai/agents/super", async (req, res) => {
       return;
     }
 
-    const superReport = await runSuperAgent(todayReports);
+    const superReport = await runSuperAgent(todayReports, orgId);
     res.json(superReport);
   } catch (error: any) {
     console.error("Super Agent error:", error);
@@ -844,9 +1056,11 @@ router.post("/ai/agents/super", async (req, res) => {
 });
 
 router.get("/ai/agents/reports", async (req, res) => {
+  const orgId = (req.session as any)?.organisationId;
   const { date, agentId, superOnly } = req.query as Record<string, string>;
   const conditions = [];
 
+  if (orgId) conditions.push(or(eq(aiAgentReportsTable.organisationId, orgId), isNull(aiAgentReportsTable.organisationId)));
   if (date) conditions.push(eq(aiAgentReportsTable.reportDate, date));
   if (agentId) conditions.push(eq(aiAgentReportsTable.agentId, agentId));
   if (superOnly === "true") conditions.push(eq(aiAgentReportsTable.isSuperReport, true));
@@ -862,12 +1076,15 @@ router.get("/ai/agents/reports", async (req, res) => {
 });
 
 router.get("/ai/agents/reports/:id", async (req, res): Promise<void> => {
+  const orgId = (req.session as any)?.organisationId;
   const id = parseInt(req.params.id);
   if (isNaN(id)) {
     res.status(400).json({ error: "ID invalide" });
     return;
   }
-  const [report] = await db.select().from(aiAgentReportsTable).where(eq(aiAgentReportsTable.id, id));
+  const conditions: any[] = [eq(aiAgentReportsTable.id, id)];
+  if (orgId) conditions.push(or(eq(aiAgentReportsTable.organisationId, orgId), isNull(aiAgentReportsTable.organisationId)));
+  const [report] = await db.select().from(aiAgentReportsTable).where(and(...conditions));
   if (!report) {
     res.status(404).json({ error: "Rapport introuvable" });
     return;
@@ -875,13 +1092,16 @@ router.get("/ai/agents/reports/:id", async (req, res): Promise<void> => {
   res.json(report);
 });
 
-router.get("/ai/agents/latest", async (_req, res) => {
+router.get("/ai/agents/latest", async (req, res) => {
+  const orgId = (req.session as any)?.organisationId;
   const latestByAgent: Record<string, any> = {};
   const allAgentIds = [...AGENTS.map(a => a.id), "super_agent"];
 
   for (const agentId of allAgentIds) {
+    const conditions: any[] = [eq(aiAgentReportsTable.agentId, agentId)];
+    if (orgId) conditions.push(or(eq(aiAgentReportsTable.organisationId, orgId), isNull(aiAgentReportsTable.organisationId)));
     const [latest] = await db.select().from(aiAgentReportsTable)
-      .where(eq(aiAgentReportsTable.agentId, agentId))
+      .where(and(...conditions))
       .orderBy(desc(aiAgentReportsTable.createdAt))
       .limit(1);
     if (latest) latestByAgent[agentId] = latest;
@@ -909,7 +1129,7 @@ router.post("/ai/agents/auto-start", async (_req, res) => {
     console.log("[AI Agents] Execution automatique demarree:", new Date().toISOString());
     try {
       const childReports = await Promise.all(AGENTS.map(a => runSingleAgent(a, orgId)));
-      await runSuperAgent(childReports);
+      await runSuperAgent(childReports, orgId);
       console.log("[AI Agents] Execution automatique terminee:", new Date().toISOString());
     } catch (error) {
       console.error("[AI Agents] Erreur execution automatique:", error);
@@ -917,7 +1137,7 @@ router.post("/ai/agents/auto-start", async (_req, res) => {
   }, 2 * 60 * 60 * 1000);
 
   const childReports = await Promise.all(AGENTS.map(a => runSingleAgent(a, orgId)));
-  const superReport = await runSuperAgent(childReports);
+  const superReport = await runSuperAgent(childReports, orgId);
 
   res.json({
     message: "Execution automatique activee (toutes les 2 heures)",
