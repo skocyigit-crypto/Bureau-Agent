@@ -40,6 +40,7 @@ The application features a French UI with a deep navy and warm amber color schem
     - **Visuals:** Real Photo Banners with gradient overlays across all pages.
 - **Google Workspace OAuth Integration:** Full OAuth2 flow for credential management, dynamic authorization, token handling, and self-service configuration.
 - **Google Agenda → Pointage Sync:** API endpoint to sync Google Calendar events with check-in records, with a UI button for date-range selection and import.
+    - **Google Workspace Auto-Pointage:** Background service (`google-auto-pointage.ts`) that runs every 30 minutes, automatically creating check-in records from Google Calendar events for all users with valid OAuth tokens. Tagged with `[google-auto]` in notes. Mobile checkins screen shows auto-synced entries with a Google Workspace badge and "Auto" chip. Gracefully disabled when Google OAuth credentials are not configured.
 
 # External Dependencies
 

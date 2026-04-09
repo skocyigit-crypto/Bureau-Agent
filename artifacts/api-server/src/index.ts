@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { startAutoBackup } from "./services/auto-backup";
 import { startAutomationEngine } from "./services/automation-engine";
 import { ensureSuperAdmin } from "./services/ensure-admin";
+import { startGoogleAutoPointage } from "./services/google-auto-pointage";
 
 const rawPort = process.env["PORT"];
 
@@ -29,4 +30,5 @@ app.listen(port, (err) => {
   ensureSuperAdmin().catch(err => logger.error({ err }, "Erreur seed admin"));
   startAutoBackup();
   startAutomationEngine();
+  startGoogleAutoPointage();
 });

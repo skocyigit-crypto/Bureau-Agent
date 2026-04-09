@@ -193,6 +193,15 @@ export default function CheckinsScreen() {
           </View>
         ) : (
           <>
+            {history.some(h => h.notes?.includes("[google-auto]") || h.notes?.includes("[google-sync]")) && (
+              <View style={[styles.googleBanner, { backgroundColor: "#4285f415", borderColor: "#4285f430" }]}>
+                <Feather name="refresh-cw" size={14} color="#4285f4" />
+                <Text style={[styles.googleBannerText, { color: "#4285f4" }]}>
+                  Google Workspace : synchronisation automatique active
+                </Text>
+              </View>
+            )}
+
             {activeSession ? (
               <View style={[styles.activeCard, { backgroundColor: colors.card, borderColor: isPaused ? "#f59e0b" : "#22c55e" }]}>
                 <View style={[styles.statusDot, { backgroundColor: isPaused ? "#f59e0b" : "#22c55e" }]} />
@@ -278,13 +287,23 @@ export default function CheckinsScreen() {
             ) : (
               history.map(session => {
                 const typeInfo = TYPE_MAP[session.type] || { label: session.type, color: "#64748b", icon: "clock" as const };
+                const isGoogleSync = session.notes?.includes("[google-auto]") || session.notes?.includes("[google-sync]");
                 return (
                   <View key={session.id} style={[styles.historyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    <View style={[styles.historyIcon, { backgroundColor: typeInfo.color + "18" }]}>
-                      <Feather name={typeInfo.icon} size={16} color={typeInfo.color} />
+                    <View style={[styles.historyIcon, { backgroundColor: isGoogleSync ? "#4285f418" : typeInfo.color + "18" }]}>
+                      <Feather name={isGoogleSync ? "refresh-cw" : typeInfo.icon} size={16} color={isGoogleSync ? "#4285f4" : typeInfo.color} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.historyName, { color: colors.foreground }]}>{typeInfo.label}</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <Text style={[styles.historyName, { color: colors.foreground }]}>
+                          {isGoogleSync ? "Google Workspace" : typeInfo.label}
+                        </Text>
+                        {isGoogleSync && (
+                          <View style={[styles.googleChip]}>
+                            <Text style={styles.googleChipText}>Auto</Text>
+                          </View>
+                        )}
+                      </View>
                       <Text style={[styles.historyMeta, { color: colors.mutedForeground }]}>
                         {new Date(session.checkInAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
                         {" • "}
@@ -292,7 +311,7 @@ export default function CheckinsScreen() {
                         {session.checkOutAt && ` - ${new Date(session.checkOutAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`}
                       </Text>
                     </View>
-                    <Text style={[styles.historyDuration, { color: typeInfo.color }]}>
+                    <Text style={[styles.historyDuration, { color: isGoogleSync ? "#4285f4" : typeInfo.color }]}>
                       {formatDuration(session.checkInAt, session.checkOutAt, session.totalMinutes)}
                     </Text>
                   </View>
@@ -336,4 +355,8 @@ const styles = StyleSheet.create({
   historyName: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   historyMeta: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
   historyDuration: { fontSize: 14, fontFamily: "Inter_700Bold" },
+  googleBanner: { flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 16 },
+  googleBannerText: { fontSize: 12, fontFamily: "Inter_500Medium", flex: 1 },
+  googleChip: { backgroundColor: "#4285f420", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  googleChipText: { fontSize: 10, fontFamily: "Inter_600SemiBold", color: "#4285f4" },
 });
