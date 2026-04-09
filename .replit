@@ -20,6 +20,7 @@ runButton = "Project"
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true
+integrations = ["google-drive:1.0.0"]
 
 [postMerge]
 path = "scripts/post-merge.sh"

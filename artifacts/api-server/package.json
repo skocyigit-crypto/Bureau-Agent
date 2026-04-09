@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.44.0",
+    "@replit/connectors-sdk": "^0.3.0",
     "@types/hpp": "^0.2.7",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",

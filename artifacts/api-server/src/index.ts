@@ -32,5 +32,5 @@ app.listen(port, (err) => {
   startAutoBackup();
   startAutomationEngine();
   startGoogleAutoPointage();
-  startGoogleDriveBackupScheduler();
+  startGoogleDriveBackupScheduler().catch(err => console.error("[GoogleDriveBackup] Init error:", err.message));
 });
