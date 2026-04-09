@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, asc, ilike, or, sql, and } from "drizzle-orm";
 import { db, stockArticlesTable } from "@workspace/db";
+import { scanBase64Content, logSecurityEvent } from "../middleware/security";
 import {
   ListStockArticlesQueryParams,
   CreateStockArticleBody,
@@ -155,6 +156,18 @@ router.post("/stock/import/pdf", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
+
+  const scanResult = scanBase64Content(body.data.pdfContent, "import.pdf");
+  if (!scanResult.safe) {
+    const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.socket?.remoteAddress || "unknown";
+    logSecurityEvent("malicious_pdf_upload", ip, (req.session as any)?.userId, `PDF import bloque: ${scanResult.threats.join(", ")}`, "critical");
+    res.status(400).json({
+      error: "Le fichier PDF contient du contenu potentiellement dangereux et a ete bloque.",
+      threats: scanResult.threats,
+      code: "FILE_THREAT_DETECTED",
+    });
+    return;
+  }
 
   try {
     const { ai } = await import("@workspace/integrations-gemini-ai");

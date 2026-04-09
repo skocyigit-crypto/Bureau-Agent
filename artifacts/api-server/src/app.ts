@@ -9,6 +9,7 @@ import connectPgSimple from "connect-pg-simple";
 import router from "./routes";
 import crypto from "crypto";
 import { logger } from "./lib/logger";
+import { ipProtection, threatDetection, csrfProtection } from "./middleware/security";
 
 const app: Express = express();
 
@@ -139,6 +140,8 @@ app.use(session({
   },
 }));
 
+app.use(ipProtection);
+
 app.use("/api/ai", aiLimiter);
 app.use("/api", (req: Request, _res: Response, next: NextFunction) => {
   if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
@@ -146,6 +149,9 @@ app.use("/api", (req: Request, _res: Response, next: NextFunction) => {
   }
   return generalLimiter(req, _res, next);
 });
+
+app.use("/api", threatDetection);
+app.use("/api", csrfProtection);
 
 app.use("/api", router);
 

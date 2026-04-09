@@ -945,6 +945,218 @@ const PLATFORM_NAMES_MAP: Record<string, string> = {
 };
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/workspace";
+const SECURITY_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/security";
+
+function SecurityMonitorPanel() {
+  const [stats, setStats] = useState<any>(null);
+  const [events, setEvents] = useState<any[]>([]);
+  const [blacklist, setBlacklist] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const { toast } = useToast();
+
+  const fetchSecurityData = useCallback(async () => {
+    try {
+      const res = await fetch(`${SECURITY_API}/dashboard`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data.stats);
+        setEvents(data.recentEvents || []);
+        setBlacklist(data.blacklistedIps || []);
+      }
+    } catch { /* silent */ } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchSecurityData(); }, [fetchSecurityData]);
+
+  const handleUnblock = async (ip: string) => {
+    try {
+      const res = await fetch(`${SECURITY_API}/blacklist/${ip}`, { method: "DELETE", credentials: "include" });
+      if (res.ok) {
+        toast({ title: "IP debloquee", description: `L'adresse ${ip} a ete retiree de la liste noire.` });
+        fetchSecurityData();
+      }
+    } catch { toast({ title: "Erreur", description: "Impossible de debloquer cette IP.", variant: "destructive" }); }
+  };
+
+  const handleRefresh = () => { setRefreshing(true); fetchSecurityData(); };
+
+  const severityColor = (s: string) =>
+    s === "critical" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" :
+    s === "warning" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" :
+    "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+
+  const levelLabel = stats?.blacklistedIps > 0 || (stats?.critical || 0) > 0 ? "Eleve" :
+                     (stats?.warning || 0) > 5 ? "Modere" : "Normal";
+  const levelColor = levelLabel === "Eleve" ? "text-red-600" : levelLabel === "Modere" ? "text-amber-600" : "text-emerald-600";
+
+  if (loading) {
+    return (
+      <Card className="border-blue-200 dark:border-blue-900/50">
+        <CardContent className="p-8 flex items-center justify-center gap-2">
+          <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+          <span className="text-sm text-muted-foreground">Chargement du moniteur de securite...</span>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="border-blue-200 dark:border-blue-900/50">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <ScanSearch className="w-5 h-5 text-blue-600" />
+              Moniteur de Securite en Temps Reel
+            </CardTitle>
+            <CardDescription>Surveillance des menaces, detection de virus et protection des donnees clients.</CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge className={`${levelColor === "text-emerald-600" ? "bg-emerald-100 text-emerald-700" : levelColor === "text-amber-600" ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"} border-0`}>
+              Niveau: {levelLabel}
+            </Badge>
+            <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
+              <RefreshCw className={`w-3 h-3 mr-1 ${refreshing ? "animate-spin" : ""}`} />
+              Actualiser
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {stats && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="border rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-blue-600">{stats.totalEvents || 0}</div>
+              <p className="text-xs text-muted-foreground">Evenements totaux</p>
+            </div>
+            <div className="border rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-red-600">{stats.critical || 0}</div>
+              <p className="text-xs text-muted-foreground">Critiques</p>
+            </div>
+            <div className="border rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-amber-600">{stats.warning || 0}</div>
+              <p className="text-xs text-muted-foreground">Avertissements</p>
+            </div>
+            <div className="border rounded-lg p-3 text-center">
+              <div className="text-2xl font-bold text-slate-600">{stats.blacklistedIps || 0}</div>
+              <p className="text-xs text-muted-foreground">IP bloquees</p>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="flex items-center gap-3 border rounded-lg p-3">
+            <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">Antivirus Fichiers</p>
+              <p className="text-xs text-muted-foreground">Scanner de signatures actif</p>
+            </div>
+            <Badge className="ml-auto bg-emerald-100 text-emerald-700 border-0 text-[10px]">Actif</Badge>
+          </div>
+          <div className="flex items-center gap-3 border rounded-lg p-3">
+            <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+              <Shield className="w-4 h-4 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">Detection XSS/SQL</p>
+              <p className="text-xs text-muted-foreground">Protection injection active</p>
+            </div>
+            <Badge className="ml-auto bg-emerald-100 text-emerald-700 border-0 text-[10px]">Actif</Badge>
+          </div>
+          <div className="flex items-center gap-3 border rounded-lg p-3">
+            <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+              <Ban className="w-4 h-4 text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">IP Kara Liste</p>
+              <p className="text-xs text-muted-foreground">Blocage automatique</p>
+            </div>
+            <Badge className="ml-auto bg-emerald-100 text-emerald-700 border-0 text-[10px]">Actif</Badge>
+          </div>
+        </div>
+
+        <Separator />
+
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-semibold flex items-center gap-1.5">
+              <AlertTriangle className="w-4 h-4 text-amber-500" />
+              Derniers evenements de securite
+            </h4>
+            <Badge variant="outline" className="text-[10px]">{events.length} recents</Badge>
+          </div>
+          {events.length === 0 ? (
+            <div className="border rounded-lg p-4 text-center">
+              <ShieldCheck className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">Aucune menace detectee. Tout est securise.</p>
+            </div>
+          ) : (
+            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+              {events.slice(0, 10).map((ev: any, i: number) => (
+                <div key={i} className="flex items-center gap-2 border rounded p-2 text-xs">
+                  <Badge className={`${severityColor(ev.severity)} border-0 text-[9px] shrink-0`}>
+                    {ev.severity === "critical" ? "CRITIQUE" : ev.severity === "warning" ? "ALERTE" : "INFO"}
+                  </Badge>
+                  <span className="text-muted-foreground shrink-0">{new Date(ev.timestamp).toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })}</span>
+                  <span className="truncate">{ev.details}</span>
+                  <span className="ml-auto text-muted-foreground shrink-0">{ev.ip}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {blacklist.length > 0 && (
+          <>
+            <Separator />
+            <div>
+              <h4 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
+                <Ban className="w-4 h-4 text-red-500" />
+                Adresses IP bloquees
+              </h4>
+              <div className="space-y-1.5">
+                {blacklist.map((entry: any, i: number) => (
+                  <div key={i} className="flex items-center gap-2 border border-red-200 dark:border-red-900/50 rounded p-2 text-xs">
+                    <Badge className="bg-red-100 text-red-700 border-0 text-[9px]">
+                      {entry.permanent ? "PERMANENT" : "TEMPORAIRE"}
+                    </Badge>
+                    <span className="font-mono">{entry.ip}</span>
+                    <span className="text-muted-foreground">{entry.count} tentatives</span>
+                    {!entry.permanent && <span className="text-muted-foreground">jusqu'a {new Date(entry.until).toLocaleString("fr-FR")}</span>}
+                    <Button variant="ghost" size="sm" className="ml-auto h-6 text-xs" onClick={() => handleUnblock(entry.ip)}>
+                      Debloquer
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-lg p-3">
+          <div className="flex items-start gap-2">
+            <ShieldCheck className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+            <div>
+              <h4 className="font-semibold text-xs text-blue-800 dark:text-blue-300">Protection Multi-Couches Active</h4>
+              <p className="text-[11px] text-blue-600 dark:text-blue-400 mt-0.5">
+                Vos donnees client sont protegees par 9 couches de securite :
+                chiffrement AES-256-GCM, scanner antivirus de fichiers, detection XSS/injection SQL,
+                protection CSRF, limitation de debit, liste noire IP automatique,
+                en-tetes de securite (Helmet/CSP/HSTS), isolation multi-tenant et journalisation d'audit.
+              </p>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function SettingsPage() {
   const { user: wsUser, isSuperAdmin, isAtLeast } = useWorkspaceUser();
@@ -3951,6 +4163,8 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+
+          <SecurityMonitorPanel />
 
           <Card>
             <CardHeader>
