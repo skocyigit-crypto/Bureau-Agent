@@ -41,7 +41,7 @@ async function getResendCredentials(): Promise<{ apiKey: string; fromEmail: stri
 
     return {
       apiKey: resendConnectionSettings.settings.api_key,
-      fromEmail: resendConnectionSettings.settings.from_email || "Agent de Bureau <onboarding@resend.dev>",
+      fromEmail: "Agent de Bureau <onboarding@resend.dev>",
     };
   } catch {
     return null;
