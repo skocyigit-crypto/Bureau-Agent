@@ -35,7 +35,7 @@ The application features a French UI with a deep navy and warm amber color schem
 - **Features:**
     - **Core Modules:** Dashboard, Call, Contact, Task, and Message Management.
     - **Advanced AI:** Incoming Call Overlay with AI Call Processor, AI Phone Agent "Sophie" (auto-answer with Gemini AI conversation, intent detection, auto-task/appointment creation), AI-powered Stock Management, and Automation Engine.
-    - **Productivity Tools:** Software Integrations catalog, comprehensive Analytics, Settings with multi-platform integrations (Google Workspace, Microsoft 365, Apple/iCloud), Phone Simulator, and Auto-Backup.
+    - **Productivity Tools:** Software Integrations catalog with AI Smart Discovery (auto-detects platforms, industry, and recommends integrations via Gemini AI), comprehensive Analytics, Settings with multi-platform integrations (Google Workspace, Microsoft 365, Apple/iCloud), Phone Simulator, and Auto-Backup.
     - **Business Workflow (CRM / Gestion):** Modules for Prospects, Devis (quotes), Factures (invoicing), Chantiers (job site management), and Agenda (appointments).
     - **Performance de l'equipe:** Employee performance analytics page with AI-powered Gemini analysis generating scores and recommendations.
     - **Advanced Calendar:** Full-featured calendar with Day/Week/Month views, direct appointment creation, contact autocomplete, event statuses, priorities, and reminders.

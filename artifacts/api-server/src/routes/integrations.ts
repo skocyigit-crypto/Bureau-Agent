@@ -1,6 +1,12 @@
 import { Router } from "express";
+import { db, contactsTable, callsTable, tasksTable, usersTable, organisationsTable } from "@workspace/db";
+import { eq, count, sql, and } from "drizzle-orm";
 
 const router = Router();
+
+function getOrgId(req: any): string {
+  return (req.session as any)?.organisationId || "";
+}
 
 interface SoftwareIntegration {
   id: string;
@@ -435,6 +441,273 @@ const CATEGORIES = [
   { id: "automatisation", label: "Automatisation" },
   { id: "support", label: "Support client" },
 ];
+
+const PLATFORM_ECOSYSTEM: Record<string, { name: string; ecosystem: string[]; compatibleWith: string[]; indicators: string[] }> = {
+  "google": {
+    name: "Google Workspace",
+    ecosystem: ["Gmail", "Google Calendar", "Google Drive", "Google Meet", "Google Docs", "Google Sheets", "Google Chat", "Google Contacts", "Google Tasks"],
+    compatibleWith: ["slack", "asana", "trello", "notion", "zapier", "make", "hubspot", "salesforce", "mailchimp"],
+    indicators: ["gmail.com", "googlemail.com", "google.com"],
+  },
+  "microsoft": {
+    name: "Microsoft 365",
+    ecosystem: ["Outlook", "Microsoft Teams", "OneDrive", "SharePoint", "Word", "Excel", "PowerPoint", "Planner", "To Do"],
+    compatibleWith: ["teams", "outlook", "jira", "asana", "trello", "zapier", "make", "salesforce", "hubspot", "zendesk"],
+    indicators: ["outlook.com", "outlook.fr", "hotmail.com", "hotmail.fr", "live.com", "live.fr", "microsoft.com"],
+  },
+  "apple": {
+    name: "Apple / iCloud",
+    ecosystem: ["iCloud Mail", "iCloud Calendar", "iCloud Drive", "FaceTime", "iMessage", "iCloud Contacts"],
+    compatibleWith: ["slack", "notion", "zapier", "make", "dropbox"],
+    indicators: ["icloud.com", "me.com", "mac.com"],
+  },
+  "atlassian": {
+    name: "Atlassian Suite",
+    ecosystem: ["Jira", "Confluence", "Trello", "Bitbucket", "Jira Service Management"],
+    compatibleWith: ["jira", "trello", "slack", "teams", "zapier", "make", "intercom", "zendesk"],
+    indicators: ["atlassian.net", "atlassian.com"],
+  },
+};
+
+const INDUSTRY_PATTERNS: Record<string, { keywords: string[]; recommended: string[]; reason: string }> = {
+  "immobilier": {
+    keywords: ["immo", "immobilier", "agence", "location", "bien", "terrain", "appartement", "maison"],
+    recommended: ["docusign", "dropbox", "mailchimp", "hubspot", "sage"],
+    reason: "Secteur immobilier: signature electronique, gestion documentaire et CRM essentiels",
+  },
+  "cabinet_conseil": {
+    keywords: ["conseil", "consulting", "cabinet", "audit", "expertise"],
+    recommended: ["notion", "asana", "slack", "docusign", "quickbooks"],
+    reason: "Cabinet de conseil: gestion de projets, documentation et collaboration prioritaires",
+  },
+  "commerce": {
+    keywords: ["commerce", "boutique", "magasin", "vente", "retail", "shop"],
+    recommended: ["quickbooks", "mailchimp", "sendinblue", "hubspot", "zendesk"],
+    reason: "Commerce: e-mailing, comptabilite et support client indispensables",
+  },
+  "tech_startup": {
+    keywords: ["tech", "startup", "dev", "software", "saas", "digital", "numerique"],
+    recommended: ["jira", "slack", "notion", "intercom", "zapier"],
+    reason: "Tech/Startup: gestion agile, communication et automatisation critiques",
+  },
+  "sante": {
+    keywords: ["sante", "medical", "clinique", "cabinet", "docteur", "pharmacie", "dentiste"],
+    recommended: ["outlook", "docusign", "sage", "dropbox", "zendesk"],
+    reason: "Sante: securite des documents, planification et conformite essentielles",
+  },
+  "artisan_btp": {
+    keywords: ["artisan", "btp", "construction", "plombier", "electricien", "chantier", "renovation"],
+    recommended: ["sage", "quickbooks", "dropbox", "trello", "zapier"],
+    reason: "Artisan/BTP: suivi de chantiers, devis/factures et stockage de documents prioritaires",
+  },
+  "juridique": {
+    keywords: ["avocat", "notaire", "huissier", "juridique", "droit", "cabinet juridique"],
+    recommended: ["docusign", "dropbox", "outlook", "sage", "notion"],
+    reason: "Juridique: signature electronique, gestion documentaire et comptabilite essentielles",
+  },
+  "education": {
+    keywords: ["ecole", "formation", "universite", "education", "enseignement", "academie"],
+    recommended: ["notion", "zoom", "slack", "asana", "mailchimp"],
+    reason: "Education: collaboration, visioconference et communication prioritaires",
+  },
+};
+
+router.get("/smart-discovery", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  if (!orgId) {
+    res.status(403).json({ error: "Organisation requise." });
+    return;
+  }
+
+  try {
+    const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId));
+    const users = await db.select({ email: usersTable.email, nom: usersTable.nom }).from(usersTable).where(eq(usersTable.organisationId, orgId));
+    const [contactStats] = await db.select({ total: count() }).from(contactsTable).where(eq(contactsTable.organisationId, orgId));
+    const [callStats] = await db.select({ total: count() }).from(callsTable).where(eq(callsTable.organisationId, orgId));
+    const [taskStats] = await db.select({ total: count() }).from(tasksTable).where(eq(tasksTable.organisationId, orgId));
+
+    const emailDomains = new Set<string>();
+    users.forEach(u => {
+      if (u.email) {
+        const domain = u.email.split("@")[1]?.toLowerCase();
+        if (domain) emailDomains.add(domain);
+      }
+    });
+
+    const detectedPlatforms: Array<{ platform: string; name: string; confidence: number; reason: string; ecosystem: string[]; recommendedIntegrations: string[] }> = [];
+
+    for (const [key, platform] of Object.entries(PLATFORM_ECOSYSTEM)) {
+      const domainMatch = platform.indicators.some(ind => emailDomains.has(ind));
+      if (domainMatch) {
+        detectedPlatforms.push({
+          platform: key,
+          name: platform.name,
+          confidence: 95,
+          reason: `Domaine e-mail detecte (${[...emailDomains].filter(d => platform.indicators.includes(d)).join(", ")})`,
+          ecosystem: platform.ecosystem,
+          recommendedIntegrations: platform.compatibleWith,
+        });
+      }
+    }
+
+    const orgName = (org?.name || "").toLowerCase();
+    const orgEmail = (org?.email || "").toLowerCase();
+    const orgDomain = orgEmail.split("@")[1] || "";
+
+    if (orgDomain && !["gmail.com", "outlook.com", "hotmail.com", "icloud.com", "yahoo.com", "free.fr", "orange.fr", "sfr.fr", "laposte.net"].includes(orgDomain)) {
+      const isCustomDomain = !Object.values(PLATFORM_ECOSYSTEM).some(p => p.indicators.includes(orgDomain));
+      if (isCustomDomain) {
+        detectedPlatforms.push({
+          platform: "custom_domain",
+          name: `Domaine professionnel (${orgDomain})`,
+          confidence: 80,
+          reason: `Domaine personnalise detecte - infrastructure e-mail professionnelle probable`,
+          ecosystem: ["Serveur mail professionnel", "Site web d'entreprise"],
+          recommendedIntegrations: ["outlook", "slack", "dropbox", "docusign"],
+        });
+      }
+    }
+
+    const detectedIndustry: Array<{ industry: string; confidence: number; reason: string; recommendedIntegrations: string[] }> = [];
+    for (const [key, pattern] of Object.entries(INDUSTRY_PATTERNS)) {
+      const nameMatch = pattern.keywords.some(kw => orgName.includes(kw));
+      if (nameMatch) {
+        detectedIndustry.push({
+          industry: key,
+          confidence: 85,
+          reason: pattern.reason,
+          recommendedIntegrations: pattern.recommended,
+        });
+      }
+    }
+
+    const usageBasedRecs: Array<{ integrationId: string; reason: string; priority: "haute" | "moyenne" | "basse" }> = [];
+    const totalContacts = contactStats?.total || 0;
+    const totalCalls = callStats?.total || 0;
+    const totalTasks = taskStats?.total || 0;
+
+    if (totalContacts > 50) {
+      usageBasedRecs.push({ integrationId: "hubspot", reason: `${totalContacts} contacts - un CRM ameliorerait le suivi commercial`, priority: "haute" });
+      usageBasedRecs.push({ integrationId: "mailchimp", reason: `Base de ${totalContacts} contacts exploitable pour du marketing`, priority: "moyenne" });
+    }
+    if (totalCalls > 100) {
+      usageBasedRecs.push({ integrationId: "salesforce", reason: `${totalCalls} appels - Salesforce centraliserait l'historique client`, priority: "haute" });
+      usageBasedRecs.push({ integrationId: "zendesk", reason: `Volume d'appels eleve - un systeme de tickets ameliorerait le suivi`, priority: "moyenne" });
+    }
+    if (totalTasks > 30) {
+      usageBasedRecs.push({ integrationId: "asana", reason: `${totalTasks} taches - un outil de gestion de projet structurerait le travail`, priority: "moyenne" });
+      usageBasedRecs.push({ integrationId: "trello", reason: `Organisation visuelle des ${totalTasks} taches avec Trello`, priority: "basse" });
+    }
+    if (totalContacts > 20 && totalCalls > 20) {
+      usageBasedRecs.push({ integrationId: "zapier", reason: `Automatiser les flux entre contacts et appels`, priority: "moyenne" });
+    }
+    if (users.length > 3) {
+      usageBasedRecs.push({ integrationId: "slack", reason: `${users.length} utilisateurs - la communication d'equipe serait optimisee`, priority: "haute" });
+    }
+
+    const allRecommendedIds = new Set<string>();
+    detectedPlatforms.forEach(p => p.recommendedIntegrations.forEach(id => allRecommendedIds.add(id)));
+    detectedIndustry.forEach(i => i.recommendedIntegrations.forEach(id => allRecommendedIds.add(id)));
+    usageBasedRecs.forEach(r => allRecommendedIds.add(r.integrationId));
+
+    const scoredRecommendations = [...allRecommendedIds].map(id => {
+      const integration = SOFTWARE_CATALOG.find(s => s.id === id);
+      if (!integration) return null;
+
+      let score = 0;
+      const reasons: string[] = [];
+
+      detectedPlatforms.forEach(p => {
+        if (p.recommendedIntegrations.includes(id)) {
+          score += 30;
+          reasons.push(`Compatible avec ${p.name}`);
+        }
+      });
+      detectedIndustry.forEach(i => {
+        if (i.recommendedIntegrations.includes(id)) {
+          score += 25;
+          reasons.push(i.reason);
+        }
+      });
+      const usageRec = usageBasedRecs.find(r => r.integrationId === id);
+      if (usageRec) {
+        score += usageRec.priority === "haute" ? 35 : usageRec.priority === "moyenne" ? 20 : 10;
+        reasons.push(usageRec.reason);
+      }
+
+      return {
+        integration,
+        score: Math.min(score, 100),
+        reasons: [...new Set(reasons)],
+        priority: score >= 50 ? "haute" as const : score >= 25 ? "moyenne" as const : "basse" as const,
+      };
+    }).filter(Boolean).sort((a, b) => (b?.score || 0) - (a?.score || 0));
+
+    const useAi = req.query.ai !== "false";
+    let aiInsights = "";
+    if (useAi) {
+    try {
+      const { ai } = await import("@workspace/integrations-gemini-ai");
+      const prompt = `Tu es un consultant en transformation digitale pour entreprises francaises.
+
+Analyse ce profil d'organisation et donne 3-5 recommandations strategiques d'integration logicielle en 2-3 phrases chacune.
+
+PROFIL (anonymise):
+- Type: Entreprise francaise
+- Taille equipe: ${users.length} utilisateurs
+- Volume contacts: ${totalContacts}
+- Volume appels: ${totalCalls}
+- Volume taches: ${totalTasks}
+- Plateformes detectees: ${detectedPlatforms.map(p => p.name).join(", ") || "Aucune"}
+- Secteur detecte: ${detectedIndustry.map(i => i.industry).join(", ") || "Non identifie"}
+
+LOGICIELS DISPONIBLES: ${SOFTWARE_CATALOG.map(s => s.name).join(", ")}
+
+Reponds en JSON:
+{
+  "insights": "Analyse globale en 2-3 phrases",
+  "topRecommendations": [
+    {"softwareId": "id_du_logiciel", "reason": "raison en 1-2 phrases", "businessImpact": "impact attendu"}
+  ],
+  "ecosystemAdvice": "conseil sur l'ecosysteme global en 1-2 phrases",
+  "automationTip": "suggestion d'automatisation en 1 phrase"
+}`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: { maxOutputTokens: 1024, responseMimeType: "application/json" },
+      });
+      aiInsights = response.text || "";
+    } catch (err: any) {
+      console.error("[Smart Discovery] AI error:", err?.message);
+    }
+    }
+
+    let parsedAiInsights = null;
+    try { parsedAiInsights = aiInsights ? JSON.parse(aiInsights) : null; } catch {}
+
+    res.json({
+      detectedPlatforms,
+      detectedIndustry,
+      usageBasedRecommendations: usageBasedRecs,
+      scoredRecommendations,
+      aiInsights: parsedAiInsights,
+      orgProfile: {
+        name: org?.name,
+        domain: orgDomain,
+        userCount: users.length,
+        contactCount: totalContacts,
+        callCount: totalCalls,
+        taskCount: totalTasks,
+      },
+      discoveredAt: new Date().toISOString(),
+    });
+  } catch (err: any) {
+    console.error("[Smart Discovery] Erreur:", err?.message);
+    res.status(500).json({ error: "Erreur lors de la decouverte intelligente." });
+  }
+});
 
 router.get("/catalog", (_req, res) => {
   res.json({
