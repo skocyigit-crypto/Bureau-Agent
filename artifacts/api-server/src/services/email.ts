@@ -308,55 +308,55 @@ export async function sendCredentialsEmail(params: {
         <span style="font-size:28px;color:#0f1729;">&#9742;</span>
       </div>
       <h1 style="color:#ffffff;font-size:24px;margin:0;">Agent de Bureau</h1>
-      <p style="color:rgba(255,255,255,0.6);font-size:14px;margin:8px 0 0;">Vos identifiants de connexion</p>
+      <p style="color:rgba(255,255,255,0.6);font-size:14px;margin:8px 0 0;">Mot de passe temporaire</p>
     </div>
 
     <div style="padding:32px;">
       <h2 style="color:#0f1729;font-size:20px;margin:0 0 8px;">Bonjour ${prenom} ${nom},</h2>
       <p style="color:#64748b;font-size:15px;line-height:1.6;">
-        Votre compte <strong>Agent de Bureau</strong> a ete cree pour l'organisation <strong>${orgName}</strong>. 
-        Voici vos identifiants de connexion :
+        Un nouveau mot de passe temporaire a ete genere pour votre compte <strong>Agent de Bureau</strong> 
+        dans l'organisation <strong>${orgName}</strong>.
       </p>
 
-      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:24px;margin:24px 0;">
-        <h3 style="color:#166534;font-size:16px;margin:0 0 16px;">&#128272; Identifiants de connexion</h3>
+      <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:12px;padding:24px;margin:24px 0;">
+        <h3 style="color:#92400e;font-size:16px;margin:0 0 16px;">&#128274; Mot de passe temporaire</h3>
         <table style="width:100%;border-collapse:collapse;">
           <tr>
-            <td style="padding:8px 0;color:#166534;font-size:13px;width:140px;">Email</td>
+            <td style="padding:8px 0;color:#92400e;font-size:13px;width:140px;">Email</td>
             <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${to}</td>
           </tr>
           <tr>
-            <td style="padding:8px 0;color:#166534;font-size:13px;">Mot de passe</td>
+            <td style="padding:8px 0;color:#92400e;font-size:13px;">Mot de passe</td>
             <td style="padding:8px 0;">
               <span style="background:#0f1729;color:#f59e0b;padding:6px 14px;border-radius:8px;font-family:monospace;font-size:14px;font-weight:700;letter-spacing:1px;">${password}</span>
             </td>
           </tr>
           <tr>
-            <td style="padding:8px 0;color:#166534;font-size:13px;">Role</td>
+            <td style="padding:8px 0;color:#92400e;font-size:13px;">Role</td>
             <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${roleLabels[role] || role}</td>
           </tr>
         </table>
       </div>
 
-      <div style="text-align:center;margin:32px 0 16px;">
-        <a href="${APP_URL}" style="display:inline-block;background:#0f1729;color:#ffffff;text-decoration:none;padding:14px 48px;border-radius:10px;font-size:15px;font-weight:600;">
-          &#128187; Se connecter maintenant
-        </a>
-      </div>
-
-      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px;margin-top:24px;">
-        <p style="margin:0;color:#92400e;font-size:13px;">
-          <strong>&#128274; Important :</strong> Pour votre securite, nous vous recommandons fortement de 
-          <strong>changer votre mot de passe</strong> des votre premiere connexion via les parametres de votre compte.
+      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:16px;margin:0 0 24px;">
+        <p style="margin:0;color:#991b1b;font-size:13px;">
+          <strong>&#9888; Attention :</strong> Ce mot de passe est temporaire. Vous <strong>devez le changer</strong> 
+          des votre prochaine connexion via les parametres de votre compte.
         </p>
       </div>
 
+      <div style="text-align:center;margin:24px 0 16px;">
+        <a href="${APP_URL}" style="display:inline-block;background:#0f1729;color:#ffffff;text-decoration:none;padding:14px 48px;border-radius:10px;font-size:15px;font-weight:600;">
+          Se connecter maintenant
+        </a>
+      </div>
+
       <div style="margin-top:24px;padding:20px;background:#f8fafc;border-radius:10px;">
-        <h3 style="color:#0f1729;font-size:14px;margin:0 0 12px;">&#128640; Pour commencer</h3>
+        <h3 style="color:#0f1729;font-size:14px;margin:0 0 12px;">&#128274; Etapes a suivre</h3>
         <ol style="color:#64748b;font-size:13px;line-height:2;margin:0;padding-left:20px;">
-          <li>Connectez-vous avec les identifiants ci-dessus</li>
-          <li>Changez votre mot de passe dans les parametres</li>
-          <li>Explorez le tableau de bord et les fonctionnalites</li>
+          <li>Connectez-vous avec le mot de passe temporaire ci-dessus</li>
+          <li>Allez dans les parametres de votre compte</li>
+          <li>Changez immediatement votre mot de passe</li>
         </ol>
       </div>
     </div>
@@ -375,12 +375,14 @@ export async function sendCredentialsEmail(params: {
 
   const text = `Bonjour ${prenom} ${nom},
 
-Votre compte Agent de Bureau a ete cree pour ${orgName}.
+Un nouveau mot de passe temporaire a ete genere pour votre compte Agent de Bureau (${orgName}).
 
-IDENTIFIANTS DE CONNEXION:
+MOT DE PASSE TEMPORAIRE:
 - Email: ${to}
 - Mot de passe: ${password}
 - Role: ${roleLabels[role] || role}
+
+ATTENTION: Ce mot de passe est temporaire. Vous devez le changer des votre prochaine connexion.
 
 ACCES:
 - Application: ${APP_URL}
@@ -390,7 +392,7 @@ IMPORTANT: Changez votre mot de passe des votre premiere connexion.
 Support: support@agentdebureau.fr
 Agent de Bureau SAS`;
 
-  return sendEmail(to, `Vos identifiants Agent de Bureau - ${orgName}`, html, text);
+  return sendEmail(to, `Mot de passe temporaire - Agent de Bureau (${orgName})`, html, text);
 }
 
 export async function sendLicenseEmail(params: {

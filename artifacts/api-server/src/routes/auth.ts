@@ -390,7 +390,7 @@ router.post("/auth/users/:id/send-credentials", async (req: Request, res: Respon
 
   if (emailResult.success) {
     res.json({
-      message: `Nouveau mot de passe genere et envoye a ${user.email}.`,
+      message: `Mot de passe temporaire genere et envoye a ${user.email}.`,
       preview: emailResult.preview,
     });
   } else {

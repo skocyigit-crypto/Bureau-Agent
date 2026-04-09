@@ -209,7 +209,7 @@ export default function UsersPage() {
   };
 
   const handleSendCredentials = async (user: ApiUser) => {
-    if (!confirm(`Generer un nouveau mot de passe et l'envoyer par email a ${user.prenom} ${user.nom} (${user.email}) ?`)) return;
+    if (!confirm(`Generer un mot de passe temporaire et l'envoyer par email a ${user.prenom} ${user.nom} (${user.email}) ?`)) return;
     setSaving(true);
     try {
       const res = await fetch(`${BASE}api/auth/users/${user.id}/send-credentials`, {
@@ -218,7 +218,7 @@ export default function UsersPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Identifiants envoyes", description: data.message || `Mot de passe envoye a ${user.email}.` });
+        toast({ title: "Mot de passe temporaire envoye", description: data.message || `Mot de passe temporaire envoye a ${user.email}.` });
       } else {
         toast({ title: "Erreur", description: data.error, variant: "destructive" });
       }
