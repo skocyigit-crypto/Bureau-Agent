@@ -18,7 +18,6 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import {
   useRunAllAiAgents, useGetLatestAiAgentReports, useGetAiAgentReports,
-  useStartAiAgentsAutoRun, useStopAiAgentsAutoRun, useGetAiAgentsConfig,
   useRunSingleAiAgent
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -352,11 +351,8 @@ export default function AiAgentsPage() {
 
   const runAll = useRunAllAiAgents();
   const runSingle = useRunSingleAiAgent();
-  const startAuto = useStartAiAgentsAutoRun();
-  const stopAuto = useStopAiAgentsAutoRun();
 
   const { data: latestReports, isLoading: loadingLatest, isError: errorLatest } = useGetLatestAiAgentReports();
-  const { data: config } = useGetAiAgentsConfig();
   const { data: allReports, isLoading: loadingHistory } = useGetAiAgentReports();
 
   const invalidateAgentQueries = () => {
@@ -392,30 +388,6 @@ export default function AiAgentsPage() {
     });
   };
 
-  const handleStartAuto = () => {
-    startAuto.mutate(undefined, {
-      onSuccess: () => {
-        toast({ title: "Execution automatique activee", description: "Les agents s'executeront toutes les 2 heures." });
-        invalidateAgentQueries();
-      },
-      onError: () => {
-        toast({ title: "Erreur", description: "Impossible d'activer l'execution automatique.", variant: "destructive" });
-      }
-    });
-  };
-
-  const handleStopAuto = () => {
-    stopAuto.mutate(undefined, {
-      onSuccess: () => {
-        toast({ title: "Execution automatique arretee" });
-        invalidateAgentQueries();
-      },
-      onError: () => {
-        toast({ title: "Erreur", description: "Impossible d'arreter l'execution automatique.", variant: "destructive" });
-      }
-    });
-  };
-
   const latestMap = (latestReports || {}) as Record<string, any>;
   const superReport = latestMap["super_agent"];
   const agentReports = Object.values(latestMap).filter((r: any) => !r.isSuperReport);
@@ -424,7 +396,7 @@ export default function AiAgentsPage() {
   const totalSuggestions = agentReports.reduce((acc: number, r: any) => acc + (r.suggestionsCount || 0), 0);
   const avgScore = agentReports.length > 0 ? Math.round(agentReports.reduce((acc: number, r: any) => acc + (r.score || 0), 0) / agentReports.length) : 0;
 
-  const isRunning = runAll.isPending || startAuto.isPending;
+  const isRunning = runAll.isPending;
 
   return (
     <div className="space-y-6">
@@ -436,17 +408,6 @@ export default function AiAgentsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {config?.autoRunEnabled ? (
-            <Button variant="outline" onClick={handleStopAuto} disabled={stopAuto.isPending}>
-              <PowerOff className="w-4 h-4 mr-2" />
-              Arreter l'auto-execution
-            </Button>
-          ) : (
-            <Button variant="outline" onClick={handleStartAuto} disabled={startAuto.isPending}>
-              {startAuto.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Power className="w-4 h-4 mr-2" />}
-              Activer l'auto-execution
-            </Button>
-          )}
           <Button onClick={handleRunAll} disabled={isRunning} className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700">
             {isRunning ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
             Lancer tous les agents
@@ -466,51 +427,6 @@ export default function AiAgentsPage() {
           </div>
         </div>
       </Card>
-
-      <div className="grid gap-3 md:grid-cols-3">
-        <Card className="border-emerald-200/50 bg-gradient-to-br from-emerald-50/30 to-teal-50/20 dark:from-emerald-950/10 dark:to-teal-950/5">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
-                <Brain className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold">Gemini 2.5 Flash</p>
-                <p className="text-[11px] text-muted-foreground">Analyse principale et rapports</p>
-              </div>
-              <Badge variant="outline" className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-300">Actif</Badge>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-violet-200/50 bg-gradient-to-br from-violet-50/30 to-purple-50/20 dark:from-violet-950/10 dark:to-purple-950/5">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
-                <Target className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold">GPT 5.2</p>
-                <p className="text-[11px] text-muted-foreground">Verification et synthese</p>
-              </div>
-              <Badge variant="outline" className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-300">Actif</Badge>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-orange-200/50 bg-gradient-to-br from-orange-50/30 to-amber-50/20 dark:from-orange-950/10 dark:to-amber-950/5">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
-                <Zap className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold">Claude Sonnet 4.6</p>
-                <p className="text-[11px] text-muted-foreground">Raisonnement avance</p>
-              </div>
-              <Badge variant="outline" className="text-[10px] bg-emerald-100 text-emerald-700 border-emerald-300">Actif</Badge>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/10 border-purple-200/50">
@@ -582,9 +498,6 @@ export default function AiAgentsPage() {
         <TabsList>
           <TabsTrigger value="dashboard" className="flex items-center gap-1.5">
             <BarChart3 className="w-4 h-4" /> Vue d'ensemble
-          </TabsTrigger>
-          <TabsTrigger value="super" className="flex items-center gap-1.5">
-            <Crown className="w-4 h-4" /> Super Agent
           </TabsTrigger>
           <TabsTrigger value="agents" className="flex items-center gap-1.5">
             <Brain className="w-4 h-4" /> Agents ({agentReports.length})
@@ -662,19 +575,6 @@ export default function AiAgentsPage() {
                   {isRunning ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
                   Lancer l'analyse
                 </Button>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="super" className="space-y-4">
-          {superReport ? (
-            <AgentCard report={superReport} />
-          ) : (
-            <Card className="border-dashed">
-              <CardContent className="p-8 text-center">
-                <Crown className="w-12 h-12 mx-auto text-purple-300 mb-3" />
-                <p className="text-sm text-muted-foreground">Lancez d'abord tous les agents pour que le Super Agent puisse synthetiser les resultats.</p>
               </CardContent>
             </Card>
           )}

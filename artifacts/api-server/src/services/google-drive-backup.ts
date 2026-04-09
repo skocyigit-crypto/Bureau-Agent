@@ -313,7 +313,7 @@ const DRIVE_BACKUP_INTERVAL_MS = 6 * 60 * 60 * 1000;
 export async function startGoogleDriveBackupScheduler() {
   const available = await isConnectorAvailable();
   if (!available) {
-    console.log("[GoogleDriveBackup] Google Drive non connecte via Replit, sauvegarde Drive desactivee.");
+    console.log("[GoogleDriveBackup] Google Drive non connecte, sauvegarde Drive desactivee.");
     return;
   }
 
