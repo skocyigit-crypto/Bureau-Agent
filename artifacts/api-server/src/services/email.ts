@@ -1,5 +1,5 @@
+import { google } from "googleapis";
 import nodemailer from "nodemailer";
-import { Resend } from "resend";
 
 const SMTP_HOST = process.env.SMTP_HOST || "";
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || "587");
@@ -9,9 +9,9 @@ const SMTP_FROM = process.env.SMTP_FROM || "noreply@agentdebureau.fr";
 const APP_URL = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "agentdebureau.fr"}`;
 const MOBILE_APP_URL = process.env.MOBILE_APP_URL || "";
 
-let resendConnectionSettings: any = null;
+let gmailConnectionSettings: any = null;
 
-async function getResendCredentials(): Promise<{ apiKey: string; fromEmail: string } | null> {
+async function getGmailClient() {
   try {
     const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
     if (!hostname) return null;
@@ -24,28 +24,56 @@ async function getResendCredentials(): Promise<{ apiKey: string; fromEmail: stri
 
     if (!xReplitToken) return null;
 
-    const response = await fetch(
-      "https://" + hostname + "/api/v2/connection?include_secrets=true&connector_names=resend",
-      {
-        headers: {
-          "Accept": "application/json",
-          "X-Replit-Token": xReplitToken,
-        },
-      }
-    );
+    const needsRefresh = !gmailConnectionSettings
+      || !gmailConnectionSettings.settings?.expires_at
+      || new Date(gmailConnectionSettings.settings.expires_at).getTime() <= Date.now();
 
-    const data = await response.json();
-    resendConnectionSettings = data.items?.[0];
+    if (needsRefresh) {
+      const response = await fetch(
+        "https://" + hostname + "/api/v2/connection?include_secrets=true&connector_names=google-mail",
+        {
+          headers: {
+            "Accept": "application/json",
+            "X-Replit-Token": xReplitToken,
+          },
+        }
+      );
+      const data = await response.json();
+      gmailConnectionSettings = data.items?.[0];
+    }
 
-    if (!resendConnectionSettings?.settings?.api_key) return null;
+    const accessToken = gmailConnectionSettings?.settings?.access_token
+      || gmailConnectionSettings?.settings?.oauth?.credentials?.access_token;
 
-    return {
-      apiKey: resendConnectionSettings.settings.api_key,
-      fromEmail: "Agent de Bureau <onboarding@resend.dev>",
-    };
+    if (!accessToken) return null;
+
+    const oauth2Client = new google.auth.OAuth2();
+    oauth2Client.setCredentials({ access_token: accessToken });
+
+    return google.gmail({ version: "v1", auth: oauth2Client });
   } catch {
     return null;
   }
+}
+
+function buildRawEmail(to: string, subject: string, html: string, fromEmail: string): string {
+  const boundary = "boundary_" + Date.now().toString(36);
+  const lines = [
+    `From: "Agent de Bureau" <${fromEmail}>`,
+    `To: ${to}`,
+    `Subject: =?UTF-8?B?${Buffer.from(subject).toString("base64")}?=`,
+    `MIME-Version: 1.0`,
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    ``,
+    `--${boundary}`,
+    `Content-Type: text/html; charset=UTF-8`,
+    `Content-Transfer-Encoding: base64`,
+    ``,
+    Buffer.from(html).toString("base64"),
+    ``,
+    `--${boundary}--`,
+  ];
+  return lines.join("\r\n");
 }
 
 function createSmtpTransport() {
@@ -59,28 +87,23 @@ function createSmtpTransport() {
 }
 
 async function sendEmail(to: string, subject: string, html: string, text: string): Promise<{ success: boolean; error?: string; preview?: string }> {
-  const resendCreds = await getResendCredentials();
-  if (resendCreds) {
+  const gmail = await getGmailClient();
+  if (gmail) {
     try {
-      const resend = new Resend(resendCreds.apiKey);
-      const result = await resend.emails.send({
-        from: resendCreds.fromEmail,
-        to: [to],
-        subject,
-        html,
-        text,
+      const profile = await gmail.users.getProfile({ userId: "me" });
+      const fromEmail = profile.data.emailAddress || "noreply@agentdebureau.fr";
+      const raw = buildRawEmail(to, subject, html, fromEmail);
+      const encodedMessage = Buffer.from(raw).toString("base64url");
+
+      const result = await gmail.users.messages.send({
+        userId: "me",
+        requestBody: { raw: encodedMessage },
       });
 
-      if (result.error) {
-        console.error(`[Email/Resend] Erreur envoi a ${to}:`, result.error.message);
-        return { success: false, error: result.error.message };
-      }
-
-      console.log(`[Email/Resend] Envoye a ${to}: ${result.data?.id}`);
+      console.log(`[Email/Gmail] Envoye a ${to}: ${result.data.id}`);
       return { success: true };
     } catch (err: any) {
-      console.error(`[Email/Resend] Erreur envoi a ${to}:`, err.message);
-      return { success: false, error: err.message };
+      console.error(`[Email/Gmail] Erreur envoi a ${to}:`, err.message);
     }
   }
 
@@ -98,14 +121,13 @@ async function sendEmail(to: string, subject: string, html: string, text: string
       return { success: true };
     } catch (err: any) {
       console.error(`[Email/SMTP] Erreur envoi a ${to}:`, err.message);
-      return { success: false, error: err.message };
     }
   }
 
   console.log(`[Email] Aucun service configure. Email pour ${to}:`);
   console.log(`  Sujet: ${subject}`);
   console.log(`  Contenu texte: ${text.substring(0, 300)}...`);
-  return { success: false, error: "Aucun service email configure (ni Resend, ni SMTP)." };
+  return { success: false, error: "Aucun service email configure (ni Gmail, ni SMTP)." };
 }
 
 export async function sendWelcomeEmail(params: {
