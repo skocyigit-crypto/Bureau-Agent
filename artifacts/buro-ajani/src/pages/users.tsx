@@ -292,19 +292,19 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={Users} variant="teal" size="md" /> Gestion des utilisateurs</h1>
-          <p className="text-muted-foreground">Gerez votre equipe et les permissions d'acces.</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={Users} variant="teal" size="md" /> Gestion des utilisateurs</h1>
+          <p className="text-sm text-muted-foreground">Gerez votre equipe et les permissions d'acces.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" className="gap-2" onClick={() => { setLoading(true); loadUsers(); }}>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => { setLoading(true); loadUsers(); }}>
             <RefreshCw className="w-4 h-4" />
-            Actualiser
+            <span className="hidden sm:inline">Actualiser</span>
           </Button>
-          <Button className="gap-2" onClick={() => siegesRestants > 0 ? setShowAddUser(true) : toast({ title: "Limite atteinte", description: "Nombre maximum d'utilisateurs atteint. Mettez a jour votre plan dans les parametres.", variant: "destructive" })}>
+          <Button size="sm" className="gap-2" onClick={() => siegesRestants > 0 ? setShowAddUser(true) : toast({ title: "Limite atteinte", description: "Nombre maximum d'utilisateurs atteint. Mettez a jour votre plan dans les parametres.", variant: "destructive" })}>
             <UserPlus className="w-4 h-4" />
-            Ajouter un utilisateur
+            Ajouter
           </Button>
         </div>
       </div>
@@ -322,7 +322,7 @@ export default function UsersPage() {
         </div>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
@@ -369,7 +369,7 @@ export default function UsersPage() {
         </Card>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -380,7 +380,7 @@ export default function UsersPage() {
           />
         </div>
         <Select value={roleFilter} onValueChange={setRoleFilter}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-44">
             <SelectValue placeholder="Tous les roles" />
           </SelectTrigger>
           <SelectContent>
@@ -397,109 +397,186 @@ export default function UsersPage() {
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
         </div>
-      ) : (
+      ) : filteredUsers.length === 0 ? (
         <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[280px]">Utilisateur</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead>Departement</TableHead>
-                  <TableHead>MFA</TableHead>
-                  <TableHead>Dernier acces</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      {searchQuery || roleFilter !== "tous" ? "Aucun utilisateur correspond aux criteres." : "Aucun utilisateur. Ajoutez votre premier membre."}
-                    </TableCell>
-                  </TableRow>
-                ) : filteredUsers.map((user) => {
-                  const roleConf = ROLE_CONFIG[user.role];
-                  const RoleIcon = roleConf.icon;
-                  return (
-                    <TableRow key={user.id} className={!user.actif ? "opacity-50" : ""}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-medium">
-                            {user.prenom?.[0]}{user.nom?.[0]}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium">{user.prenom} {user.nom}</p>
-                            <p className="text-[11px] text-muted-foreground">{user.email}</p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={roleConf.couleur + " border-0 text-[10px] gap-1"}>
-                          <RoleIcon className="w-3 h-3" />
-                          {roleConf.label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={user.actif ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-[10px]" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0 text-[10px]"}>
-                          {user.actif ? "Actif" : "Desactive"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">{user.departement || "—"}</TableCell>
-                      <TableCell>
-                        {user.mfaActif ? (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                        ) : (
-                          <AlertTriangle className="w-4 h-4 text-amber-500" />
-                        )}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {user.dernierAcces ? new Date(user.dernierAcces).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "Jamais"}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="w-8 h-8">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => {
-                              setSelectedUser(user);
-                              setEditRole(user.role);
-                              setShowRoleChange(true);
-                            }}>
-                              <UserCog className="w-4 h-4" />
-                              Changer le role
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="gap-2 cursor-pointer text-blue-600" onClick={() => handleSendCredentials(user)}>
-                              <KeyRound className="w-4 h-4" />
-                              Envoyer mot de passe
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            {user.role !== "super_admin" && (
-                              <>
-                                <DropdownMenuItem className={`gap-2 cursor-pointer ${user.actif ? "text-amber-600" : "text-emerald-600"}`} onClick={() => handleToggleActive(user)}>
-                                  {user.actif ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-                                  {user.actif ? "Desactiver" : "Reactiver"}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="gap-2 cursor-pointer text-red-600" onClick={() => handleDelete(user)}>
-                                  <Trash2 className="w-4 h-4" />
-                                  Supprimer
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+          <CardContent className="p-8 text-center text-muted-foreground">
+            {searchQuery || roleFilter !== "tous" ? "Aucun utilisateur correspond aux criteres." : "Aucun utilisateur. Ajoutez votre premier membre."}
           </CardContent>
         </Card>
+      ) : (
+        <>
+          <Card className="hidden lg:block">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Utilisateur</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Statut</TableHead>
+                    <TableHead>Departement</TableHead>
+                    <TableHead>Dernier acces</TableHead>
+                    <TableHead className="w-[50px]"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredUsers.map((user) => {
+                    const roleConf = ROLE_CONFIG[user.role];
+                    const RoleIcon = roleConf.icon;
+                    return (
+                      <TableRow key={user.id} className={!user.actif ? "opacity-50" : ""}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-medium shrink-0">
+                              {user.prenom?.[0]}{user.nom?.[0]}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate">{user.prenom} {user.nom}</p>
+                              <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={roleConf.couleur + " border-0 text-[10px] gap-1"}>
+                            <RoleIcon className="w-3 h-3" />
+                            {roleConf.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={user.actif ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-[10px]" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0 text-[10px]"}>
+                            {user.actif ? "Actif" : "Desactive"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm">{user.departement || "—"}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {user.dernierAcces ? new Date(user.dernierAcces).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "Jamais"}
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="w-8 h-8">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => {
+                                setSelectedUser(user);
+                                setEditRole(user.role);
+                                setShowRoleChange(true);
+                              }}>
+                                <UserCog className="w-4 h-4" />
+                                Changer le role
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="gap-2 cursor-pointer text-blue-600" onClick={() => handleSendCredentials(user)}>
+                                <KeyRound className="w-4 h-4" />
+                                Envoyer mot de passe
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              {user.role !== "super_admin" && (
+                                <>
+                                  <DropdownMenuItem className={`gap-2 cursor-pointer ${user.actif ? "text-amber-600" : "text-emerald-600"}`} onClick={() => handleToggleActive(user)}>
+                                    {user.actif ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                                    {user.actif ? "Desactiver" : "Reactiver"}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem className="gap-2 cursor-pointer text-red-600" onClick={() => handleDelete(user)}>
+                                    <Trash2 className="w-4 h-4" />
+                                    Supprimer
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          <div className="lg:hidden space-y-3">
+            {filteredUsers.map((user) => {
+              const roleConf = ROLE_CONFIG[user.role];
+              const RoleIcon = roleConf.icon;
+              return (
+                <Card key={user.id} className={!user.actif ? "opacity-50" : ""}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-medium shrink-0">
+                          {user.prenom?.[0]}{user.nom?.[0]}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold truncate">{user.prenom} {user.nom}</p>
+                          <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                        </div>
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="w-8 h-8 shrink-0">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => {
+                            setSelectedUser(user);
+                            setEditRole(user.role);
+                            setShowRoleChange(true);
+                          }}>
+                            <UserCog className="w-4 h-4" />
+                            Changer le role
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2 cursor-pointer text-blue-600" onClick={() => handleSendCredentials(user)}>
+                            <KeyRound className="w-4 h-4" />
+                            Envoyer mot de passe
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {user.role !== "super_admin" && (
+                            <>
+                              <DropdownMenuItem className={`gap-2 cursor-pointer ${user.actif ? "text-amber-600" : "text-emerald-600"}`} onClick={() => handleToggleActive(user)}>
+                                {user.actif ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                                {user.actif ? "Desactiver" : "Reactiver"}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="gap-2 cursor-pointer text-red-600" onClick={() => handleDelete(user)}>
+                                <Trash2 className="w-4 h-4" />
+                                Supprimer
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 mt-3">
+                      <Badge className={roleConf.couleur + " border-0 text-[10px] gap-1"}>
+                        <RoleIcon className="w-3 h-3" />
+                        {roleConf.label}
+                      </Badge>
+                      <Badge className={user.actif ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0 text-[10px]" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0 text-[10px]"}>
+                        {user.actif ? "Actif" : "Desactive"}
+                      </Badge>
+                      {user.departement && (
+                        <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{user.departement}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Clock className="w-3 h-3" />
+                        {user.dernierAcces ? new Date(user.dernierAcces).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "Jamais connecte"}
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        {user.mfaActif ? (
+                          <><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> MFA</>
+                        ) : (
+                          <><AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> Pas de MFA</>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </>
       )}
 
       {siegesRestants <= 2 && siegesRestants > 0 && (
