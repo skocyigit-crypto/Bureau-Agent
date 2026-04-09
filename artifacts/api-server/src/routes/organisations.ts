@@ -8,6 +8,15 @@ import { sendLicenseEmail } from "../services/email";
 
 const SALT_ROUNDS = 12;
 
+function generateTempCode(): string {
+  const digits = "0123456789";
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += digits[crypto.randomInt(digits.length)];
+  }
+  return code;
+}
+
 function generateSecurePassword(): string {
   const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
   const lower = "abcdefghjkmnpqrstuvwxyz";
@@ -153,7 +162,7 @@ router.post("/organisations", async (req: Request, res: Response): Promise<void>
 
   let generatedPassword: string | null = null;
   if (adminEmail && adminPrenom && adminNom) {
-    generatedPassword = generateSecurePassword();
+    generatedPassword = generateTempCode();
   }
 
   try {
@@ -258,8 +267,6 @@ router.post("/organisations/:id/resend-license", async (req: Request, res: Respo
     return;
   }
 
-  const { resetPassword } = req.body || {};
-
   let adminPassword: string | undefined;
   let adminUser: any = null;
 
@@ -270,8 +277,8 @@ router.post("/organisations/:id/resend-license", async (req: Request, res: Respo
     nom: usersTable.nom,
   }).from(usersTable).where(eq(usersTable.organisationId, id));
 
-  if (existingAdmin && resetPassword) {
-    adminPassword = generateSecurePassword();
+  if (existingAdmin) {
+    adminPassword = generateTempCode();
     const passwordHash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
     await db.update(usersTable).set({
       passwordHash,

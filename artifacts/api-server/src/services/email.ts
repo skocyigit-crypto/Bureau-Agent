@@ -412,27 +412,30 @@ export async function sendLicenseEmail(params: {
     : "";
 
   const credentialsSection = (adminEmail && adminPassword) ? `
-      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:24px;margin:24px 0;">
-        <h3 style="color:#166534;font-size:16px;margin:0 0 16px;">&#128272; Identifiants administrateur</h3>
+      <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:12px;padding:24px;margin:24px 0;">
+        <h3 style="color:#92400e;font-size:16px;margin:0 0 16px;">&#128274; Code de connexion temporaire</h3>
         <table style="width:100%;border-collapse:collapse;">
           <tr>
-            <td style="padding:8px 0;color:#166534;font-size:13px;width:140px;">Administrateur</td>
+            <td style="padding:8px 0;color:#92400e;font-size:13px;width:140px;">Administrateur</td>
             <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${adminName || adminEmail}</td>
           </tr>
           <tr>
-            <td style="padding:8px 0;color:#166534;font-size:13px;">Email de connexion</td>
+            <td style="padding:8px 0;color:#92400e;font-size:13px;">Email de connexion</td>
             <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${adminEmail}</td>
           </tr>
           <tr>
-            <td style="padding:8px 0;color:#166534;font-size:13px;">Mot de passe</td>
+            <td style="padding:8px 0;color:#92400e;font-size:13px;">Code temporaire</td>
             <td style="padding:8px 0;">
-              <span style="background:#0f1729;color:#f59e0b;padding:6px 14px;border-radius:8px;font-family:monospace;font-size:14px;font-weight:700;letter-spacing:1px;">${adminPassword}</span>
+              <span style="background:#0f1729;color:#f59e0b;padding:10px 20px;border-radius:8px;font-family:monospace;font-size:22px;font-weight:700;letter-spacing:6px;">${adminPassword}</span>
             </td>
           </tr>
         </table>
-        <p style="color:#166534;font-size:11px;margin:12px 0 0;font-style:italic;">
-          &#9888; Changez votre mot de passe des votre premiere connexion.
-        </p>
+        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin:12px 0 0;">
+          <p style="margin:0;color:#991b1b;font-size:12px;">
+            <strong>&#9888; Attention :</strong> Ce code est temporaire. Utilisez-le comme mot de passe pour vous connecter, 
+            puis changez votre mot de passe immediatement dans les parametres.
+          </p>
+        </div>
       </div>` : "";
 
   const html = `
@@ -521,7 +524,7 @@ export async function sendLicenseEmail(params: {
       <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px;margin-top:24px;">
         <p style="margin:0;color:#92400e;font-size:13px;">
           <strong>&#128274; Important :</strong> Conservez cet email en lieu sur. 
-          Il contient votre cle de licence${adminPassword ? " et vos identifiants de connexion" : ""}.
+          Il contient votre cle de licence${adminPassword ? " et votre code de connexion temporaire" : ""}.
         </p>
       </div>
 
@@ -549,7 +552,7 @@ export async function sendLicenseEmail(params: {
 </body>
 </html>`;
 
-  const credText = (adminEmail && adminPassword) ? `\nIDENTIFIANTS ADMINISTRATEUR:\n- Administrateur: ${adminName || adminEmail}\n- Email: ${adminEmail}\n- Mot de passe: ${adminPassword}\n- IMPORTANT: Changez votre mot de passe des votre premiere connexion.\n` : "";
+  const credText = (adminEmail && adminPassword) ? `\nCODE DE CONNEXION TEMPORAIRE:\n- Administrateur: ${adminName || adminEmail}\n- Email: ${adminEmail}\n- Code temporaire: ${adminPassword}\n- ATTENTION: Ce code est temporaire. Changez votre mot de passe des votre premiere connexion.\n` : "";
 
   const text = `Bienvenue${adminName ? ` ${adminName}` : ` ${orgName}`} !\n\nVotre licence Agent de Bureau pour ${orgName}:\n- Plan: ${plan}\n- Cle de licence: ${licenseKey}\n${credText}\nAccedez a l'application: ${APP_URL}\n\nPOUR COMMENCER:\n1. Connectez-vous sur ${APP_URL}\n2. Changez votre mot de passe\n3. Ajoutez vos premiers contacts\n4. Gerez vos appels et taches\n5. Invitez vos collaborateurs\n\nConservez cet email en lieu sur.\n\nSupport: support@agentdebureau.fr\nAgent de Bureau SAS`;
 
