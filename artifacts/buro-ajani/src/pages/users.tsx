@@ -209,7 +209,7 @@ export default function UsersPage() {
   };
 
   const handleSendCredentials = async (user: ApiUser) => {
-    if (!confirm(`Generer un mot de passe temporaire et l'envoyer par email a ${user.prenom} ${user.nom} (${user.email}) ?`)) return;
+    if (!confirm(`Generer un code de connexion temporaire et l'envoyer par email a ${user.prenom} ${user.nom} (${user.email}) ?`)) return;
     setSaving(true);
     try {
       const res = await fetch(`${BASE}api/auth/users/${user.id}/send-credentials`, {
@@ -218,7 +218,7 @@ export default function UsersPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Mot de passe temporaire envoye", description: data.message || `Mot de passe temporaire envoye a ${user.email}.` });
+        toast({ title: "Code temporaire envoye", description: data.message || `Code de connexion temporaire envoye a ${user.email}.` });
       } else {
         toast({ title: "Erreur", description: data.error, variant: "destructive" });
       }
@@ -468,7 +468,7 @@ export default function UsersPage() {
                               </DropdownMenuItem>
                               <DropdownMenuItem className="gap-2 cursor-pointer text-blue-600" onClick={() => handleSendCredentials(user)}>
                                 <LockKeyhole className="w-4 h-4" />
-                                Envoyer mot de passe
+                                Envoyer code temporaire
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               {user.role !== "super_admin" && (
@@ -528,7 +528,7 @@ export default function UsersPage() {
                           </DropdownMenuItem>
                           <DropdownMenuItem className="gap-2 cursor-pointer text-blue-600" onClick={() => handleSendCredentials(user)}>
                             <LockKeyhole className="w-4 h-4" />
-                            Envoyer mot de passe
+                            Envoyer code temporaire
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {user.role !== "super_admin" && (

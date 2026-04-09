@@ -308,27 +308,27 @@ export async function sendCredentialsEmail(params: {
         <span style="font-size:28px;color:#0f1729;">&#9742;</span>
       </div>
       <h1 style="color:#ffffff;font-size:24px;margin:0;">Agent de Bureau</h1>
-      <p style="color:rgba(255,255,255,0.6);font-size:14px;margin:8px 0 0;">Mot de passe temporaire</p>
+      <p style="color:rgba(255,255,255,0.6);font-size:14px;margin:8px 0 0;">Code de connexion temporaire</p>
     </div>
 
     <div style="padding:32px;">
       <h2 style="color:#0f1729;font-size:20px;margin:0 0 8px;">Bonjour ${prenom} ${nom},</h2>
       <p style="color:#64748b;font-size:15px;line-height:1.6;">
-        Un nouveau mot de passe temporaire a ete genere pour votre compte <strong>Agent de Bureau</strong> 
+        Un code de connexion temporaire a ete genere pour votre compte <strong>Agent de Bureau</strong> 
         dans l'organisation <strong>${orgName}</strong>.
       </p>
 
       <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:12px;padding:24px;margin:24px 0;">
-        <h3 style="color:#92400e;font-size:16px;margin:0 0 16px;">&#128274; Mot de passe temporaire</h3>
+        <h3 style="color:#92400e;font-size:16px;margin:0 0 16px;">&#128274; Code de connexion temporaire</h3>
         <table style="width:100%;border-collapse:collapse;">
           <tr>
             <td style="padding:8px 0;color:#92400e;font-size:13px;width:140px;">Email</td>
             <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${to}</td>
           </tr>
           <tr>
-            <td style="padding:8px 0;color:#92400e;font-size:13px;">Mot de passe</td>
+            <td style="padding:8px 0;color:#92400e;font-size:13px;">Code temporaire</td>
             <td style="padding:8px 0;">
-              <span style="background:#0f1729;color:#f59e0b;padding:6px 14px;border-radius:8px;font-family:monospace;font-size:14px;font-weight:700;letter-spacing:1px;">${password}</span>
+              <span style="background:#0f1729;color:#f59e0b;padding:10px 20px;border-radius:8px;font-family:monospace;font-size:22px;font-weight:700;letter-spacing:6px;">${password}</span>
             </td>
           </tr>
           <tr>
@@ -340,8 +340,8 @@ export async function sendCredentialsEmail(params: {
 
       <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:16px;margin:0 0 24px;">
         <p style="margin:0;color:#991b1b;font-size:13px;">
-          <strong>&#9888; Attention :</strong> Ce mot de passe est temporaire. Vous <strong>devez le changer</strong> 
-          des votre prochaine connexion via les parametres de votre compte.
+          <strong>&#9888; Attention :</strong> Ce code est temporaire. Utilisez-le comme mot de passe pour vous connecter, 
+          puis <strong>changez votre mot de passe</strong> immediatement dans les parametres de votre compte.
         </p>
       </div>
 
@@ -352,9 +352,9 @@ export async function sendCredentialsEmail(params: {
       </div>
 
       <div style="margin-top:24px;padding:20px;background:#f8fafc;border-radius:10px;">
-        <h3 style="color:#0f1729;font-size:14px;margin:0 0 12px;">&#128274; Etapes a suivre</h3>
+        <h3 style="color:#0f1729;font-size:14px;margin:0 0 12px;">&#128274; Comment utiliser</h3>
         <ol style="color:#64748b;font-size:13px;line-height:2;margin:0;padding-left:20px;">
-          <li>Connectez-vous avec le mot de passe temporaire ci-dessus</li>
+          <li>Connectez-vous avec votre email et le code temporaire ci-dessus</li>
           <li>Allez dans les parametres de votre compte</li>
           <li>Changez immediatement votre mot de passe</li>
         </ol>
@@ -375,14 +375,14 @@ export async function sendCredentialsEmail(params: {
 
   const text = `Bonjour ${prenom} ${nom},
 
-Un nouveau mot de passe temporaire a ete genere pour votre compte Agent de Bureau (${orgName}).
+Un code de connexion temporaire a ete genere pour votre compte Agent de Bureau (${orgName}).
 
-MOT DE PASSE TEMPORAIRE:
+CODE DE CONNEXION TEMPORAIRE:
 - Email: ${to}
-- Mot de passe: ${password}
+- Code temporaire: ${password}
 - Role: ${roleLabels[role] || role}
 
-ATTENTION: Ce mot de passe est temporaire. Vous devez le changer des votre prochaine connexion.
+ATTENTION: Ce code est temporaire. Utilisez-le comme mot de passe pour vous connecter, puis changez votre mot de passe immediatement.
 
 ACCES:
 - Application: ${APP_URL}
@@ -392,7 +392,7 @@ IMPORTANT: Changez votre mot de passe des votre premiere connexion.
 Support: support@agentdebureau.fr
 Agent de Bureau SAS`;
 
-  return sendEmail(to, `Mot de passe temporaire - Agent de Bureau (${orgName})`, html, text);
+  return sendEmail(to, `Code de connexion temporaire - Agent de Bureau (${orgName})`, html, text);
 }
 
 export async function sendLicenseEmail(params: {

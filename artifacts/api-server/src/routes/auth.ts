@@ -320,6 +320,15 @@ router.delete("/auth/users/:id", async (req: Request, res: Response): Promise<vo
   res.status(204).send();
 });
 
+function generateTempCode(): string {
+  const digits = "0123456789";
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += digits[crypto.randomInt(digits.length)];
+  }
+  return code;
+}
+
 function generateSecurePassword(): string {
   const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
   const lower = "abcdefghjkmnpqrstuvwxyz";
@@ -361,8 +370,8 @@ router.post("/auth/users/:id/send-credentials", async (req: Request, res: Respon
   const [user] = await db.select().from(usersTable).where(and(...conditions));
   if (!user) { res.status(404).json({ error: "Utilisateur non trouve." }); return; }
 
-  const newPassword = generateSecurePassword();
-  const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  const tempCode = generateTempCode();
+  const passwordHash = await bcrypt.hash(tempCode, SALT_ROUNDS);
 
   await db.update(usersTable).set({
     passwordHash,
@@ -381,7 +390,7 @@ router.post("/auth/users/:id/send-credentials", async (req: Request, res: Respon
     to: user.email,
     prenom: user.prenom,
     nom: user.nom,
-    password: newPassword,
+    password: tempCode,
     orgName,
     role: user.role,
   });
@@ -390,7 +399,7 @@ router.post("/auth/users/:id/send-credentials", async (req: Request, res: Respon
 
   if (emailResult.success) {
     res.json({
-      message: `Mot de passe temporaire genere et envoye a ${user.email}.`,
+      message: `Code de connexion temporaire genere et envoye a ${user.email}.`,
       preview: emailResult.preview,
     });
   } else {
