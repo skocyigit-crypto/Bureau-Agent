@@ -3,7 +3,7 @@ import {
   Users, UserPlus, Crown, ShieldCheck, Eye, Trash2, MoreHorizontal,
   Mail, Clock, CheckCircle2, XCircle, AlertTriangle, Search,
   Lock, Unlock, Edit, UserCog, Phone,
-  Loader2, ShieldAlert, RefreshCw, KeyRound, Send
+  Loader2, ShieldAlert, RefreshCw, Send, LockKeyhole
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -467,7 +467,7 @@ export default function UsersPage() {
                                 Changer le role
                               </DropdownMenuItem>
                               <DropdownMenuItem className="gap-2 cursor-pointer text-blue-600" onClick={() => handleSendCredentials(user)}>
-                                <KeyRound className="w-4 h-4" />
+                                <LockKeyhole className="w-4 h-4" />
                                 Envoyer mot de passe
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
@@ -527,7 +527,7 @@ export default function UsersPage() {
                             Changer le role
                           </DropdownMenuItem>
                           <DropdownMenuItem className="gap-2 cursor-pointer text-blue-600" onClick={() => handleSendCredentials(user)}>
-                            <KeyRound className="w-4 h-4" />
+                            <LockKeyhole className="w-4 h-4" />
                             Envoyer mot de passe
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
