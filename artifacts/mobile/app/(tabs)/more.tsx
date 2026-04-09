@@ -164,6 +164,7 @@ export default function MoreScreen() {
         {(user?.role === "super_admin" || user?.role === "administrateur") ? (
           <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>ADMINISTRATION</Text>
+            <MenuItem icon="briefcase" label="Mon Espace" sublabel="Equipe et rapports admin" color="#14b8a6" onPress={() => nav("/admin-reports")} />
             <MenuItem icon="users" label="Utilisateurs" sublabel="Gestion de l'equipe" color="#3b82f6" onPress={() => nav("/users")} />
             <MenuItem icon="shield" label="Journal d'audit" sublabel="Securite et historique" color="#ef4444" onPress={() => nav("/audit-log")} />
             <MenuItem icon="grid" label="Integrations" sublabel="Logiciels connectes" color="#22c55e" onPress={() => nav("/integrations")} />

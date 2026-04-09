@@ -25,6 +25,7 @@ import automationsRouter from "./automations";
 import performanceRouter from "./performance";
 import subscriptionsRouter from "./subscriptions";
 import organisationsRouter from "./organisations";
+import adminReportsRouter from "./admin-reports";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -55,5 +56,6 @@ router.use("/google-oauth", googleOAuthRouter);
 router.use(checkinsRouter);
 router.use(performanceRouter);
 router.use(organisationsRouter);
+router.use(adminReportsRouter);
 
 export default router;
