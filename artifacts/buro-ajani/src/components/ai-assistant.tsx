@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
-import { Brain, Send, X, Sparkles, Loader2, AlertTriangle, Lightbulb, Info, Zap, ChevronDown, ChevronUp, MessageCircle, Calculator, ChevronRight, Hash, Percent, TrendingUp, Ruler, Pi, BarChart2, DollarSign, ArrowRightLeft, Wand2, Navigation, Bell, RotateCcw, Activity, Target, Shield, Flame, ThumbsUp, Plus, UserPlus, CheckCircle2, ArrowUpCircle, MailCheck, BellRing, Package, ListChecks, ClipboardCheck } from "lucide-react";
+import { Brain, Send, X, Sparkles, Loader2, AlertTriangle, Lightbulb, Info, Zap, ChevronDown, ChevronUp, MessageCircle, Calculator, ChevronRight, Hash, Percent, TrendingUp, Ruler, Pi, BarChart2, DollarSign, ArrowRightLeft, Wand2, Navigation, Bell, RotateCcw, Activity, Target, Shield, Flame, ThumbsUp, Plus, UserPlus, CheckCircle2, ArrowUpCircle, MailCheck, BellRing, Package, ListChecks, ClipboardCheck, Mail, Calendar, FolderPlus, Search, FileText, Download, UserCheck, Edit, Globe, Briefcase, PhoneForwarded, RefreshCw, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -185,12 +185,13 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
         return;
       }
 
-      const executableTypes = ["create_task", "create_contact", "complete_task", "escalate_task", "bulk_escalate", "mark_messages_read", "send_notification", "stock_alert"];
+      const executableTypes = ["create_task", "create_contact", "complete_task", "escalate_task", "bulk_escalate", "mark_messages_read", "send_notification", "stock_alert", "update_task", "bulk_complete_tasks", "update_contact", "search_contacts", "send_email", "create_event", "schedule_followup", "create_project", "update_project", "create_prospect", "update_prospect", "convert_prospect", "update_stock", "search_web", "generate_report", "search_all", "export_data"];
       if (executableTypes.includes(action.type)) {
         const result = await executeAiAction(action.type, action.target);
         if (result.success) {
           toast({ title: "Action executee", description: result.message });
-          setMessages(prev => [...prev, { role: "assistant", content: `${result.message}`, mood: "positif", timestamp: new Date() }]);
+          const extraContent = result.data ? `\n\n${typeof result.data === "string" ? result.data : (result.data.answer || result.data.content || JSON.stringify(result.data, null, 2))}` : "";
+          setMessages(prev => [...prev, { role: "assistant", content: `${result.message}${extraContent}`, mood: "positif", timestamp: new Date() }]);
         } else {
           toast({ title: "Echec", description: result.message || "Action echouee.", variant: "destructive" });
         }
@@ -238,45 +239,73 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
       case "mark_messages_read": return <MailCheck className="w-3 h-3" />;
       case "send_notification": return <BellRing className="w-3 h-3" />;
       case "stock_alert": return <Package className="w-3 h-3" />;
+      case "send_email": return <Mail className="w-3 h-3" />;
+      case "create_event": return <Calendar className="w-3 h-3" />;
+      case "schedule_followup": return <PhoneForwarded className="w-3 h-3" />;
+      case "create_project": return <FolderPlus className="w-3 h-3" />;
+      case "update_project": return <Briefcase className="w-3 h-3" />;
+      case "create_prospect": return <Target className="w-3 h-3" />;
+      case "update_prospect": return <TrendingUp className="w-3 h-3" />;
+      case "convert_prospect": return <UserCheck className="w-3 h-3" />;
+      case "update_task": return <Edit className="w-3 h-3" />;
+      case "update_contact": return <Edit className="w-3 h-3" />;
+      case "update_stock": return <RefreshCw className="w-3 h-3" />;
+      case "search_web": return <Globe className="w-3 h-3" />;
+      case "search_contacts": case "search_all": return <Search className="w-3 h-3" />;
+      case "generate_report": return <FileText className="w-3 h-3" />;
+      case "export_data": return <Download className="w-3 h-3" />;
+      case "bulk_complete_tasks": return <ClipboardCheck className="w-3 h-3" />;
       default: return <Zap className="w-3 h-3" />;
     }
   };
 
   const getActionColor = (type: string) => {
     switch (type) {
-      case "create_task": return "from-emerald-50 to-green-50 dark:from-emerald-950/20 dark:to-green-950/20 border-emerald-200/50 dark:border-emerald-800/30 hover:from-emerald-100 hover:to-green-100";
-      case "create_contact": return "from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 border-blue-200/50 dark:border-blue-800/30 hover:from-blue-100 hover:to-cyan-100";
-      case "complete_task": return "from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-green-200/50 dark:border-green-800/30 hover:from-green-100 hover:to-emerald-100";
+      case "create_task": case "update_task": return "from-emerald-50 to-green-50 dark:from-emerald-950/20 dark:to-green-950/20 border-emerald-200/50 dark:border-emerald-800/30 hover:from-emerald-100 hover:to-green-100";
+      case "create_contact": case "update_contact": return "from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 border-blue-200/50 dark:border-blue-800/30 hover:from-blue-100 hover:to-cyan-100";
+      case "complete_task": case "bulk_complete_tasks": return "from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-green-200/50 dark:border-green-800/30 hover:from-green-100 hover:to-emerald-100";
       case "escalate_task": case "bulk_escalate": return "from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border-orange-200/50 dark:border-orange-800/30 hover:from-orange-100 hover:to-amber-100";
-      case "stock_alert": return "from-red-50 to-rose-50 dark:from-red-950/20 dark:to-rose-950/20 border-red-200/50 dark:border-red-800/30 hover:from-red-100 hover:to-rose-100";
+      case "stock_alert": case "update_stock": return "from-red-50 to-rose-50 dark:from-red-950/20 dark:to-rose-950/20 border-red-200/50 dark:border-red-800/30 hover:from-red-100 hover:to-rose-100";
       case "auto_fix": return "from-violet-50 to-purple-50 dark:from-violet-950/20 dark:to-purple-950/20 border-violet-200/50 dark:border-violet-800/30 hover:from-violet-100 hover:to-purple-100";
+      case "send_email": return "from-sky-50 to-blue-50 dark:from-sky-950/20 dark:to-blue-950/20 border-sky-200/50 dark:border-sky-800/30 hover:from-sky-100 hover:to-blue-100";
+      case "create_event": case "schedule_followup": return "from-amber-50 to-yellow-50 dark:from-amber-950/20 dark:to-yellow-950/20 border-amber-200/50 dark:border-amber-800/30 hover:from-amber-100 hover:to-yellow-100";
+      case "create_project": case "update_project": return "from-indigo-50 to-blue-50 dark:from-indigo-950/20 dark:to-blue-950/20 border-indigo-200/50 dark:border-indigo-800/30 hover:from-indigo-100 hover:to-blue-100";
+      case "create_prospect": case "update_prospect": case "convert_prospect": return "from-pink-50 to-rose-50 dark:from-pink-950/20 dark:to-rose-950/20 border-pink-200/50 dark:border-pink-800/30 hover:from-pink-100 hover:to-rose-100";
+      case "search_web": case "search_all": case "search_contacts": return "from-cyan-50 to-teal-50 dark:from-cyan-950/20 dark:to-teal-950/20 border-cyan-200/50 dark:border-cyan-800/30 hover:from-cyan-100 hover:to-teal-100";
+      case "generate_report": case "export_data": return "from-slate-50 to-gray-50 dark:from-slate-950/20 dark:to-gray-950/20 border-slate-200/50 dark:border-slate-800/30 hover:from-slate-100 hover:to-gray-100";
       default: return "from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/20 border-purple-200/50 dark:border-purple-800/30 hover:from-purple-100 hover:to-indigo-100";
     }
   };
 
   const getActionIconColor = (type: string) => {
     switch (type) {
-      case "create_task": return "text-emerald-500";
-      case "create_contact": return "text-blue-500";
-      case "complete_task": return "text-green-500";
+      case "create_task": case "update_task": return "text-emerald-500";
+      case "create_contact": case "update_contact": return "text-blue-500";
+      case "complete_task": case "bulk_complete_tasks": return "text-green-500";
       case "escalate_task": case "bulk_escalate": return "text-orange-500";
-      case "stock_alert": return "text-red-500";
+      case "stock_alert": case "update_stock": return "text-red-500";
       case "auto_fix": return "text-violet-500";
       case "mark_messages_read": return "text-teal-500";
       case "send_notification": return "text-amber-500";
+      case "send_email": return "text-sky-500";
+      case "create_event": case "schedule_followup": return "text-amber-600";
+      case "create_project": case "update_project": return "text-indigo-500";
+      case "create_prospect": case "update_prospect": case "convert_prospect": return "text-pink-500";
+      case "search_web": case "search_all": case "search_contacts": return "text-cyan-500";
+      case "generate_report": case "export_data": return "text-slate-500";
       default: return "text-purple-500";
     }
   };
 
   const quickQuestions = [
-    "Quel est l'etat general du bureau ?",
+    "Donne-moi le briefing executif complet du jour",
     "Quelles sont les urgences a traiter maintenant ?",
-    "Cree une tache pour rappeler le client principal demain",
-    "Marque tous les messages comme lus",
-    "Escalade toutes les taches en retard",
-    "Analyse mes performances et propose des actions",
-    "Y a-t-il des anomalies a traiter ?",
-    "Donne-moi le briefing executif du jour",
+    "Envoie un email de relance au dernier prospect",
+    "Planifie un suivi pour les contacts inactifs",
+    "Genere un rapport de performance global",
+    "Cree un projet pour le nouveau client",
+    "Quels prospects sont prets a convertir ?",
+    "Recherche les tarifs du marche pour nos services",
   ];
 
   return (
@@ -289,7 +318,7 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
           </div>
           <div>
             <h3 className="font-semibold text-sm">Assistant IA Elite</h3>
-            <p className="text-[10px] text-white/70">Multi-IA · Donnees temps reel · Actions automatiques</p>
+            <p className="text-[10px] text-white/70">IA Ultra · Email · CRM · Projets · Recherche · Actions</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -351,7 +380,7 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
             <div>
               <p className="text-sm font-semibold text-foreground mb-1">Intelligence de Bureau</p>
               <p className="text-[11px] text-muted-foreground max-w-[280px]">
-                Acces complet a vos donnees en temps reel. Je peux analyser, predire, corriger et agir sur votre bureau.
+                Votre bureau, votre CRM, vos projets, vos emails — je gere tout. Demandez-moi n'importe quoi.
               </p>
             </div>
             <div className="w-full space-y-1.5 mt-1">

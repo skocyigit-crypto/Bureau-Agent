@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, platformConnectionsTable, notificationsTable, stockArticlesTable } from "@workspace/db";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, platformConnectionsTable, notificationsTable, stockArticlesTable, calendarEventsTable, projetsTable, prospectsTable, automationRulesTable } from "@workspace/db";
+import { Resend } from "resend";
 import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNull, or } from "drizzle-orm";
 
 const router = Router();
@@ -1794,12 +1795,33 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
       if ((stockStats[0]?.outOfStock ?? 0) > 0) anomalies.push(`${stockStats[0]?.outOfStock} articles en rupture de stock!`);
     } catch { /* stock table may not be available */ }
 
+    let calendarData: any[] = [];
+    let projectsData: any[] = [];
+    let prospectsData: any[] = [];
+    try {
+      const orgCalendar = eq(calendarEventsTable.organisationId, orgId);
+      const orgProject = eq(projetsTable.organisationId, orgId);
+      const orgProspect = eq(prospectsTable.organisationId, orgId);
+      const nextWeek = new Date(now.getTime() + 7 * 86400000);
+      const [upcomingEvents, activeProjects, projectStats, activeProspects, prospectStats] = await Promise.all([
+        db.select({ id: calendarEventsTable.id, title: calendarEventsTable.title, type: calendarEventsTable.type, startDate: calendarEventsTable.startDate, endDate: calendarEventsTable.endDate, contactName: calendarEventsTable.contactName, location: calendarEventsTable.location, status: calendarEventsTable.status, priority: calendarEventsTable.priority }).from(calendarEventsTable).where(and(orgCalendar, gte(calendarEventsTable.startDate, now), lte(calendarEventsTable.startDate, nextWeek))).orderBy(asc(calendarEventsTable.startDate)).limit(10),
+        db.select({ id: projetsTable.id, title: projetsTable.title, status: projetsTable.status, priority: projetsTable.priority, progress: projetsTable.progress, clientName: projetsTable.clientName, budget: projetsTable.budget, spent: projetsTable.spent, endDate: projetsTable.endDate }).from(projetsTable).where(and(orgProject, ne(projetsTable.status, "termine"), ne(projetsTable.status, "annule"))).orderBy(desc(projetsTable.updatedAt)).limit(10),
+        db.select({ total: count(), active: sql<number>`count(*) filter (where ${projetsTable.status} not in ('termine','annule'))`, overBudget: sql<number>`count(*) filter (where ${projetsTable.spent}::numeric > ${projetsTable.budget}::numeric and ${projetsTable.budget}::numeric > 0)` }).from(projetsTable).where(orgProject),
+        db.select({ id: prospectsTable.id, title: prospectsTable.title, contactName: prospectsTable.contactName, company: prospectsTable.company, stage: prospectsTable.stage, value: prospectsTable.value, probability: prospectsTable.probability, email: prospectsTable.email, phone: prospectsTable.phone, expectedCloseDate: prospectsTable.expectedCloseDate }).from(prospectsTable).where(and(orgProspect, ne(prospectsTable.stage, "gagne"), ne(prospectsTable.stage, "perdu"))).orderBy(desc(prospectsTable.updatedAt)).limit(10),
+        db.select({ total: count(), pipeline: sql<number>`coalesce(sum(${prospectsTable.value}::numeric), 0)::numeric`, avgProbability: sql<number>`coalesce(avg(${prospectsTable.probability}), 0)::int`, won: sql<number>`count(*) filter (where ${prospectsTable.stage} = 'gagne')`, lost: sql<number>`count(*) filter (where ${prospectsTable.stage} = 'perdu')` }).from(prospectsTable).where(orgProspect),
+      ]);
+      calendarData = upcomingEvents;
+      projectsData = activeProjects;
+      prospectsData = activeProspects;
+      if ((projectStats[0]?.overBudget ?? 0) > 0) anomalies.push(`${projectStats[0]?.overBudget} projets depassent leur budget!`);
+    } catch { /* tables may not be available */ }
+
     const missedRate = (callStats[0]?.total ?? 0) > 0 ? Math.round(((callStats[0]?.missed ?? 0) / (callStats[0]?.total ?? 1)) * 100) : 0;
     if (missedRate > 30) anomalies.push(`Taux d'appels manques critique: ${missedRate}%`);
     if ((taskStats[0]?.overdue ?? 0) > 5) anomalies.push(`${taskStats[0]?.overdue} taches en retard — attention!`);
     if ((msgStats[0]?.unread ?? 0) > 20) anomalies.push(`${msgStats[0]?.unread} messages non lus accumules`);
 
-    const systemContext = `Tu es l'Assistant IA Elite du bureau "Agent de Bureau" — le cerveau central et le BRAS DROIT de toute l'organisation. Tu as acces a TOUTES les donnees en temps reel ET tu peux EXECUTER des actions.
+    const systemContext = `Tu es l'Assistant IA ULTRA du bureau "Agent de Bureau" — le cerveau central, BRAS DROIT et MOTEUR de toute l'organisation. Tu as acces a TOUTES les donnees en temps reel ET tu peux EXECUTER des actions. Tu es le plus puissant assistant de bureau jamais cree.
 
 ═══ DONNEES EN TEMPS REEL ═══
 📞 Appels: ${callStats[0]?.total ?? 0} total | ${callStats[0]?.thisWeek ?? 0} cette semaine | ${callStats[0]?.missed ?? 0} manques | ${callStats[0]?.answered ?? 0} repondus | Taux manques: ${missedRate}%
@@ -1808,6 +1830,12 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
 ✉️ Messages: ${msgStats[0]?.total ?? 0} total | ${msgStats[0]?.unread ?? 0} non lus
 📦 Stock en alerte: ${stockData.length} articles bas
 ${stockData.length > 0 ? "Articles critiques: " + stockData.map(s => `${s.name} (${s.quantity}/${s.minQuantity})`).join(", ") : ""}
+📅 Evenements a venir: ${calendarData.length} cette semaine
+${calendarData.length > 0 ? calendarData.map(e => `• ${e.title} — ${new Date(e.startDate).toLocaleDateString("fr-FR")} ${new Date(e.startDate).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}${e.contactName ? ` (${e.contactName})` : ""}`).join("\n") : "Aucun evenement prevu"}
+🏗️ Projets actifs: ${projectsData.length}
+${projectsData.length > 0 ? projectsData.map(p => `• ${p.title} — ${p.status} (${p.progress}%)${p.clientName ? ` client: ${p.clientName}` : ""}${p.budget ? ` budget: ${p.budget}€` : ""}`).join("\n") : "Aucun projet actif"}
+💼 Prospects actifs: ${prospectsData.length}
+${prospectsData.length > 0 ? prospectsData.map(p => `• ${p.title}${p.contactName ? ` — ${p.contactName}` : ""}${p.company ? ` (${p.company})` : ""} — etape: ${p.stage}${p.value ? ` valeur: ${p.value}€` : ""} prob: ${p.probability}%`).join("\n") : "Aucun prospect"}
 
 ${anomalies.length > 0 ? "⚠️ ANOMALIES DETECTEES:\n" + anomalies.map(a => "• " + a).join("\n") : "✅ Aucune anomalie detectee"}
 
@@ -1826,38 +1854,85 @@ ${JSON.stringify(topContacts.slice(0, 8), null, 1)}
 ═══ TACHES URGENTES ═══
 ${JSON.stringify(urgentTasks.slice(0, 5), null, 1)}
 
+═══ PROSPECTS ACTIFS ═══
+${JSON.stringify(prospectsData.slice(0, 5), null, 1)}
+
+═══ EVENEMENTS CALENDRIER ═══
+${JSON.stringify(calendarData.slice(0, 5), null, 1)}
+
+═══ PROJETS EN COURS ═══
+${JSON.stringify(projectsData.slice(0, 5), null, 1)}
+
 CONTEXTE: ${context ? JSON.stringify(context) : "Tableau de bord principal"}
 
-═══ TES POUVOIRS (ACTIONS EXECUTABLES) ═══
+═══ TES SUPER-POUVOIRS (ACTIONS EXECUTABLES) ═══
 Tu peux proposer ces actions que l'utilisateur peut declencher d'un clic:
 
+--- GESTION DES TACHES ---
 1. "create_task" — Creer une tache. target: JSON {"title":"...", "priority":"haute|moyenne|basse", "status":"en_attente", "description":"...", "dueDate":"YYYY-MM-DD"}
-2. "create_contact" — Creer un contact. target: JSON {"firstName":"...", "lastName":"...", "phone":"...", "email":"...", "category":"client|prospect|fournisseur|partenaire|autre", "company":"..."}
-3. "complete_task" — Marquer une tache comme terminee. target: "ID_TACHE"
-4. "escalate_task" — Escalader en haute priorite. target: "ID_TACHE"
-5. "mark_messages_read" — Marquer les messages comme lus. target: "all" ou "ID_MESSAGE"
-6. "send_notification" — Envoyer une notification interne. target: JSON {"title":"...", "message":"...", "priority":"haute|moyenne|basse|urgente"}
-7. "auto_fix" — Lancer l'auto-correction globale. target: ""
-8. "navigate" — Naviguer vers une page. target: "/chemin"  (ex: /taches, /contacts, /appels, /factures, /stock)
-9. "reminder" — Programmer un rappel. target: "texte du rappel"
-10. "bulk_escalate" — Escalader TOUTES les taches en retard. target: ""
-11. "stock_alert" — Generer une alerte stock critique. target: ""
+2. "complete_task" — Marquer une tache comme terminee. target: "ID_TACHE"
+3. "escalate_task" — Escalader en haute priorite. target: "ID_TACHE"
+4. "bulk_escalate" — Escalader TOUTES les taches en retard. target: ""
+5. "update_task" — Modifier une tache. target: JSON {"id": ID, "title":"...", "priority":"...", "status":"...", "description":"...", "dueDate":"YYYY-MM-DD"}
+6. "bulk_complete_tasks" — Terminer toutes les taches completees. target: ""
+
+--- GESTION DES CONTACTS ---
+7. "create_contact" — Creer un contact. target: JSON {"firstName":"...", "lastName":"...", "phone":"...", "email":"...", "category":"client|prospect|fournisseur|partenaire|autre", "company":"..."}
+8. "update_contact" — Modifier un contact. target: JSON {"id": ID, "firstName":"...", "lastName":"...", "phone":"...", "email":"...", "company":"...", "notes":"..."}
+9. "search_contacts" — Rechercher des contacts. target: "terme de recherche"
+
+--- COMMUNICATION ---
+10. "send_email" — Envoyer un email professionnel. target: JSON {"to":"email@dest.com", "subject":"...", "body":"...", "contactName":"..."}
+11. "mark_messages_read" — Marquer les messages comme lus. target: "all" ou "ID_MESSAGE"
+12. "send_notification" — Envoyer une notification interne. target: JSON {"title":"...", "message":"...", "priority":"haute|moyenne|basse|urgente"}
+
+--- CALENDRIER ---
+13. "create_event" — Creer un evenement calendrier. target: JSON {"title":"...", "type":"rendez_vous|reunion|appel|tache|autre", "startDate":"YYYY-MM-DDTHH:mm", "endDate":"YYYY-MM-DDTHH:mm", "description":"...", "location":"...", "contactName":"...", "priority":"normale|haute|urgente"}
+14. "schedule_followup" — Programmer un suivi client (cree tache + evenement). target: JSON {"contactName":"...", "reason":"...", "date":"YYYY-MM-DD", "time":"HH:mm"}
+
+--- PROJETS ---
+15. "create_project" — Creer un projet. target: JSON {"title":"...", "description":"...", "priority":"haute|moyenne|basse", "clientName":"...", "budget":"...", "startDate":"YYYY-MM-DD", "endDate":"YYYY-MM-DD"}
+16. "update_project" — Mettre a jour un projet. target: JSON {"id": ID, "status":"...", "progress": N, "notes":"..."}
+
+--- PROSPECTS / CRM ---
+17. "create_prospect" — Creer un prospect. target: JSON {"title":"...", "contactName":"...", "company":"...", "email":"...", "phone":"...", "value":"...", "probability":N, "source":"...", "stage":"nouveau|contacte|qualifie|proposition|negociation|gagne|perdu"}
+18. "update_prospect" — Mettre a jour un prospect. target: JSON {"id": ID, "stage":"...", "value":"...", "probability":N, "notes":"..."}
+19. "convert_prospect" — Convertir un prospect en client. target: "ID_PROSPECT"
+
+--- STOCK ---
+20. "stock_alert" — Generer une alerte stock critique. target: ""
+21. "update_stock" — Mettre a jour la quantite de stock. target: JSON {"id": ID, "quantity": N, "reason":"..."}
+
+--- ANALYSE & RECHERCHE ---
+22. "search_web" — Rechercher sur le web pour obtenir des informations. target: "question ou terme de recherche"
+23. "generate_report" — Generer un rapport analytique detaille. target: "type de rapport: performance|appels|contacts|projets|prospects|stock|global"
+24. "search_all" — Rechercher dans toutes les donnees. target: "terme de recherche"
+25. "export_data" — Exporter des donnees en resume. target: "contacts|taches|appels|projets|prospects|stock"
+
+--- SYSTEME ---
+26. "auto_fix" — Lancer l'auto-correction globale. target: ""
+27. "navigate" — Naviguer vers une page. target: "/chemin"
+28. "reminder" — Programmer un rappel. target: "texte du rappel"
 
 ═══ REGLES D'OR ═══
 1. TOUJOURS en francais, professionnel mais chaleureux
 2. PRECIS — cite des chiffres REELS, pas d'inventions
 3. PROACTIF — detecte les problemes AVANT qu'on te les demande
-4. ACTIONNABLE — chaque reponse propose des actions concretes
+4. ACTIONNABLE — chaque reponse propose des actions concretes executables
 5. EXECUTIF — quand l'utilisateur veut quelque chose, propose l'action directe
-6. Si l'utilisateur dit "cree une tache pour..." ou "ajoute un contact..." ou "rappelle-moi...", genere l'action appropriee
+6. Si l'utilisateur dit "cree une tache pour...", "envoie un email a...", "planifie un rdv avec...", "cree un prospect pour...", genere l'action appropriee IMMEDIATEMENT
 7. Si tu detectes une anomalie, propose immediatement l'action corrective
 8. Pour les demandes vagues, pose UNE question de clarification puis propose
 9. Sois STRATEGIQUE — explique POURQUOI tu recommandes chaque action
+10. Tu peux combiner PLUSIEURS actions dans une seule reponse (ex: creer tache + envoyer email + planifier rdv)
+11. Pour les emails, redige un contenu professionnel complet. L'utilisateur clique et ca envoie directement.
+12. Pour les recherches web, utilise "search_web" quand l'utilisateur pose une question sur un sujet externe (tarifs, reglementation, concurrents, etc.)
+13. Tu es POLYVALENT: gestion, communication, CRM, analyse, planning, stock, projets — tu geres TOUT
 
 FORMAT DE REPONSE JSON:
 {
   "response": "texte de reponse detaillee",
-  "actions": [{"label": "Texte du bouton", "type": "create_task|create_contact|complete_task|escalate_task|mark_messages_read|send_notification|auto_fix|navigate|reminder|bulk_escalate|stock_alert", "target": "donnees", "details": "explication"}],
+  "actions": [{"label": "Texte du bouton", "type": "TYPE_ACTION", "target": "donnees", "details": "explication courte"}],
   "insights": ["observation strategique 1", "observation 2"],
   "mood": "positif|neutre|alerte|critique",
   "anomalies": ["anomalie detectee 1"]
@@ -2011,6 +2086,283 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         } else {
           result = { success: true, message: "Aucun article en stock critique." };
         }
+        break;
+      }
+      case "update_task": {
+        let data: any;
+        try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees invalides." }); return; }
+        if (!data.id) { res.status(400).json({ error: "ID de tache requis." }); return; }
+        const updates: any = {};
+        if (data.title) updates.title = data.title;
+        if (data.priority) updates.priority = data.priority;
+        if (data.status) updates.status = data.status;
+        if (data.description) updates.description = data.description;
+        if (data.dueDate) updates.dueDate = new Date(data.dueDate);
+        await db.update(tasksTable).set(updates).where(and(eq(tasksTable.id, data.id), eq(tasksTable.organisationId, orgId)));
+        result = { success: true, message: `Tache #${data.id} mise a jour.`, entity: "task", id: data.id };
+        break;
+      }
+      case "bulk_complete_tasks": {
+        const completed = await db.update(tasksTable).set({ status: "termine" }).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.status, "en_cours"))).returning();
+        result = { success: true, message: `${completed.length} taches en cours marquees comme terminees.`, count: completed.length };
+        break;
+      }
+      case "update_contact": {
+        let data: any;
+        try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees invalides." }); return; }
+        if (!data.id) { res.status(400).json({ error: "ID de contact requis." }); return; }
+        const contactUpdates: any = {};
+        if (data.firstName) contactUpdates.firstName = data.firstName;
+        if (data.lastName) contactUpdates.lastName = data.lastName;
+        if (data.phone) contactUpdates.phone = data.phone;
+        if (data.email) contactUpdates.email = data.email;
+        if (data.company) contactUpdates.company = data.company;
+        if (data.notes) contactUpdates.notes = data.notes;
+        if (data.category) contactUpdates.category = data.category;
+        await db.update(contactsTable).set(contactUpdates).where(and(eq(contactsTable.id, data.id), eq(contactsTable.organisationId, orgId)));
+        result = { success: true, message: `Contact #${data.id} mis a jour.`, entity: "contact", id: data.id };
+        break;
+      }
+      case "search_contacts": {
+        const searchTerm = String(target).trim();
+        const contacts = await db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName, phone: contactsTable.phone, email: contactsTable.email, company: contactsTable.company, category: contactsTable.category }).from(contactsTable).where(and(eq(contactsTable.organisationId, orgId), or(sql`${contactsTable.firstName} ilike ${'%' + searchTerm + '%'}`, sql`${contactsTable.lastName} ilike ${'%' + searchTerm + '%'}`, sql`${contactsTable.company} ilike ${'%' + searchTerm + '%'}`, sql`${contactsTable.phone} ilike ${'%' + searchTerm + '%'}`, sql`${contactsTable.email} ilike ${'%' + searchTerm + '%'}`))).limit(10);
+        result = { success: true, message: `${contacts.length} contact(s) trouve(s) pour "${searchTerm}".`, data: contacts, count: contacts.length };
+        break;
+      }
+      case "send_email": {
+        let data: any;
+        try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees d'email invalides." }); return; }
+        if (!data.to || !data.subject || !data.body) { res.status(400).json({ error: "Destinataire, sujet et corps requis." }); return; }
+        try {
+          const resendApiKey = process.env.RESEND_API_KEY;
+          if (!resendApiKey) { result = { success: false, message: "Service email non configure." }; break; }
+          const resend = new Resend(resendApiKey);
+          await resend.emails.send({
+            from: "Agent de Bureau <onboarding@resend.dev>",
+            to: data.to,
+            subject: data.subject,
+            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;"><h2 style="color:#6366f1;">${data.subject}</h2><div style="line-height:1.6;color:#333;">${data.body.replace(/\n/g, '<br>')}</div><hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;"><p style="font-size:12px;color:#9ca3af;">Envoye via Agent de Bureau — Votre assistant de bureau intelligent</p></div>`,
+          });
+          result = { success: true, message: `Email envoye a ${data.to} — Sujet: "${data.subject}"` };
+        } catch (emailErr: any) {
+          result = { success: false, message: `Erreur d'envoi: ${emailErr.message}` };
+        }
+        break;
+      }
+      case "create_event": {
+        let data: any;
+        try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees d'evenement invalides." }); return; }
+        if (!data.title || !data.startDate) { res.status(400).json({ error: "Titre et date de debut requis." }); return; }
+        const startDate = new Date(data.startDate);
+        const endDate = data.endDate ? new Date(data.endDate) : new Date(startDate.getTime() + 3600000);
+        const [event] = await db.insert(calendarEventsTable).values({
+          organisationId: orgId,
+          title: data.title,
+          description: data.description || "",
+          type: data.type || "rendez_vous",
+          startDate,
+          endDate,
+          location: data.location || null,
+          contactName: data.contactName || null,
+          priority: data.priority || "normale",
+          status: "confirme",
+          createdBy: userId,
+        }).returning();
+        result = { success: true, message: `Evenement "${event.title}" cree le ${startDate.toLocaleDateString("fr-FR")} a ${startDate.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}.`, entity: "event", id: event.id };
+        break;
+      }
+      case "schedule_followup": {
+        let data: any;
+        try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees invalides." }); return; }
+        if (!data.contactName || !data.date) { res.status(400).json({ error: "Nom du contact et date requis." }); return; }
+        const followDate = new Date(`${data.date}T${data.time || "10:00"}`);
+        const [task] = await db.insert(tasksTable).values({
+          organisationId: orgId,
+          title: `Suivi: ${data.contactName} — ${data.reason || "A contacter"}`,
+          description: `Suivi programme pour ${data.contactName}. Raison: ${data.reason || "Non specifiee"}`,
+          status: "en_attente",
+          priority: "haute",
+          dueDate: followDate,
+        }).returning();
+        const [event] = await db.insert(calendarEventsTable).values({
+          organisationId: orgId,
+          title: `Suivi: ${data.contactName}`,
+          description: data.reason || "Suivi client",
+          type: "appel",
+          startDate: followDate,
+          endDate: new Date(followDate.getTime() + 1800000),
+          contactName: data.contactName,
+          priority: "haute",
+          status: "confirme",
+          createdBy: userId,
+        }).returning();
+        result = { success: true, message: `Suivi programme pour ${data.contactName} le ${followDate.toLocaleDateString("fr-FR")} a ${followDate.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}. Tache + evenement crees.`, entities: [{ type: "task", id: task.id }, { type: "event", id: event.id }] };
+        break;
+      }
+      case "create_project": {
+        let data: any;
+        try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees invalides." }); return; }
+        if (!data.title) { res.status(400).json({ error: "Titre requis." }); return; }
+        const [project] = await db.insert(projetsTable).values({
+          organisationId: orgId,
+          title: data.title,
+          description: data.description || "",
+          status: "planifie",
+          priority: data.priority || "moyenne",
+          clientName: data.clientName || null,
+          budget: data.budget || null,
+          startDate: data.startDate ? new Date(data.startDate) : new Date(),
+          endDate: data.endDate ? new Date(data.endDate) : null,
+        }).returning();
+        result = { success: true, message: `Projet "${project.title}" cree avec succes.`, entity: "project", id: project.id };
+        break;
+      }
+      case "update_project": {
+        let data: any;
+        try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees invalides." }); return; }
+        if (!data.id) { res.status(400).json({ error: "ID de projet requis." }); return; }
+        const projectUpdates: any = {};
+        if (data.status) projectUpdates.status = data.status;
+        if (data.progress !== undefined) projectUpdates.progress = data.progress;
+        if (data.notes) projectUpdates.notes = data.notes;
+        if (data.priority) projectUpdates.priority = data.priority;
+        await db.update(projetsTable).set(projectUpdates).where(and(eq(projetsTable.id, data.id), eq(projetsTable.organisationId, orgId)));
+        result = { success: true, message: `Projet #${data.id} mis a jour.`, entity: "project", id: data.id };
+        break;
+      }
+      case "create_prospect": {
+        let data: any;
+        try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees invalides." }); return; }
+        if (!data.title) { res.status(400).json({ error: "Titre requis." }); return; }
+        const [prospect] = await db.insert(prospectsTable).values({
+          organisationId: orgId,
+          title: data.title,
+          contactName: data.contactName || null,
+          company: data.company || null,
+          email: data.email || null,
+          phone: data.phone || null,
+          value: data.value || null,
+          probability: data.probability || 50,
+          source: data.source || null,
+          stage: data.stage || "nouveau",
+        }).returning();
+        result = { success: true, message: `Prospect "${prospect.title}" cree avec succes.`, entity: "prospect", id: prospect.id };
+        break;
+      }
+      case "update_prospect": {
+        let data: any;
+        try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees invalides." }); return; }
+        if (!data.id) { res.status(400).json({ error: "ID de prospect requis." }); return; }
+        const prospectUpdates: any = {};
+        if (data.stage) prospectUpdates.stage = data.stage;
+        if (data.value) prospectUpdates.value = data.value;
+        if (data.probability !== undefined) prospectUpdates.probability = data.probability;
+        if (data.notes) prospectUpdates.notes = data.notes;
+        await db.update(prospectsTable).set(prospectUpdates).where(and(eq(prospectsTable.id, data.id), eq(prospectsTable.organisationId, orgId)));
+        result = { success: true, message: `Prospect #${data.id} mis a jour.`, entity: "prospect", id: data.id };
+        break;
+      }
+      case "convert_prospect": {
+        const prospectId = parseInt(String(target), 10);
+        if (!prospectId) { res.status(400).json({ error: "ID de prospect requis." }); return; }
+        const [prospect] = await db.select().from(prospectsTable).where(and(eq(prospectsTable.id, prospectId), eq(prospectsTable.organisationId, orgId))).limit(1);
+        if (!prospect) { result = { success: false, message: "Prospect non trouve." }; break; }
+        await db.update(prospectsTable).set({ stage: "gagne", wonAt: new Date() }).where(and(eq(prospectsTable.id, prospectId), eq(prospectsTable.organisationId, orgId)));
+        if (prospect.contactName && prospect.phone) {
+          const nameParts = prospect.contactName.split(" ");
+          const [contact] = await db.insert(contactsTable).values({
+            organisationId: orgId,
+            firstName: nameParts[0] || prospect.contactName,
+            lastName: nameParts.slice(1).join(" ") || "",
+            phone: prospect.phone || "Non renseigne",
+            email: prospect.email || null,
+            company: prospect.company || null,
+            category: "client",
+            notes: `Converti depuis prospect: ${prospect.title}`,
+          }).returning();
+          result = { success: true, message: `Prospect "${prospect.title}" converti en client! Contact "${contact.firstName} ${contact.lastName}" cree.`, entities: [{ type: "prospect", id: prospectId }, { type: "contact", id: contact.id }] };
+        } else {
+          result = { success: true, message: `Prospect "${prospect.title}" marque comme gagne.`, entity: "prospect", id: prospectId };
+        }
+        break;
+      }
+      case "update_stock": {
+        let data: any;
+        try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees invalides." }); return; }
+        if (!data.id || data.quantity === undefined) { res.status(400).json({ error: "ID et quantite requis." }); return; }
+        await db.update(stockArticlesTable).set({ quantity: data.quantity }).where(and(eq(stockArticlesTable.id, data.id), eq(stockArticlesTable.organisationId, orgId)));
+        result = { success: true, message: `Stock article #${data.id} mis a jour: quantite = ${data.quantity}.${data.reason ? ` Raison: ${data.reason}` : ""}`, entity: "stock", id: data.id };
+        break;
+      }
+      case "search_web": {
+        try {
+          const { ai } = await import("@workspace/integrations-gemini-ai");
+          const searchResponse = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: [{ role: "user", parts: [{ text: `Tu es un assistant de recherche. Reponds de maniere concise et informative a cette question en francais. Donne des informations factuelles, des chiffres et des sources si possible. Question: ${String(target)}` }] }],
+            config: { maxOutputTokens: 2048 },
+          });
+          result = { success: true, message: searchResponse.text || "Aucun resultat.", data: { query: String(target), answer: searchResponse.text } };
+        } catch (searchErr: any) {
+          result = { success: false, message: `Erreur de recherche: ${searchErr.message}` };
+        }
+        break;
+      }
+      case "generate_report": {
+        const reportType = String(target).trim();
+        const { ai } = await import("@workspace/integrations-gemini-ai");
+        const orgCall = eq(callsTable.organisationId, orgId);
+        const orgContact = eq(contactsTable.organisationId, orgId);
+        const orgTask = eq(tasksTable.organisationId, orgId);
+        const monthAgo = new Date(Date.now() - 30 * 86400000);
+        const [calls, contacts, tasks, projects, prospects] = await Promise.all([
+          db.select({ total: count(), missed: sql<number>`count(*) filter (where ${callsTable.status} = 'manque')`, answered: sql<number>`count(*) filter (where ${callsTable.status} = 'repondu')` }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, monthAgo))),
+          db.select({ total: count(), newThisMonth: sql<number>`count(*) filter (where ${contactsTable.createdAt} >= ${monthAgo.toISOString()})` }).from(contactsTable).where(orgContact),
+          db.select({ total: count(), completed: sql<number>`count(*) filter (where ${tasksTable.status} = 'termine')`, overdue: sql<number>`count(*) filter (where ${tasksTable.dueDate} < now() and ${tasksTable.status} not in ('termine','annule'))` }).from(tasksTable).where(orgTask),
+          db.select({ total: count(), active: sql<number>`count(*) filter (where ${projetsTable.status} not in ('termine','annule'))` }).from(projetsTable).where(eq(projetsTable.organisationId, orgId)),
+          db.select({ total: count(), pipeline: sql<number>`coalesce(sum(${prospectsTable.value}::numeric), 0)::numeric`, won: sql<number>`count(*) filter (where ${prospectsTable.stage} = 'gagne')` }).from(prospectsTable).where(eq(prospectsTable.organisationId, orgId)),
+        ]);
+        const reportResponse = await ai.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: [{ role: "user", parts: [{ text: `Genere un rapport ${reportType} detaille en francais pour un bureau professionnel. Donnees: Appels (30j): ${JSON.stringify(calls[0])}. Contacts: ${JSON.stringify(contacts[0])}. Taches: ${JSON.stringify(tasks[0])}. Projets: ${JSON.stringify(projects[0])}. Prospects: ${JSON.stringify(prospects[0])}. Inclus des recommandations concretes.` }] }],
+          config: { maxOutputTokens: 4096 },
+        });
+        result = { success: true, message: reportResponse.text || "Rapport genere.", data: { type: reportType, content: reportResponse.text } };
+        break;
+      }
+      case "search_all": {
+        const term = String(target).trim();
+        const [foundContacts, foundTasks, foundProjects, foundProspects] = await Promise.all([
+          db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName, company: contactsTable.company, type: sql<string>`'contact'` }).from(contactsTable).where(and(eq(contactsTable.organisationId, orgId), or(sql`${contactsTable.firstName} ilike ${'%' + term + '%'}`, sql`${contactsTable.lastName} ilike ${'%' + term + '%'}`, sql`${contactsTable.company} ilike ${'%' + term + '%'}`))).limit(5),
+          db.select({ id: tasksTable.id, title: tasksTable.title, status: tasksTable.status, type: sql<string>`'tache'` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), sql`${tasksTable.title} ilike ${'%' + term + '%'}`)).limit(5),
+          db.select({ id: projetsTable.id, title: projetsTable.title, status: projetsTable.status, type: sql<string>`'projet'` }).from(projetsTable).where(and(eq(projetsTable.organisationId, orgId), sql`${projetsTable.title} ilike ${'%' + term + '%'}`)).limit(5),
+          db.select({ id: prospectsTable.id, title: prospectsTable.title, stage: prospectsTable.stage, type: sql<string>`'prospect'` }).from(prospectsTable).where(and(eq(prospectsTable.organisationId, orgId), or(sql`${prospectsTable.title} ilike ${'%' + term + '%'}`, sql`${prospectsTable.contactName} ilike ${'%' + term + '%'}`))).limit(5),
+        ]);
+        const allResults = [...foundContacts, ...foundTasks, ...foundProjects, ...foundProspects];
+        result = { success: true, message: `${allResults.length} resultat(s) pour "${term}".`, data: allResults, count: allResults.length };
+        break;
+      }
+      case "export_data": {
+        const dataType = String(target).trim();
+        let exportData: any[] = [];
+        let exportLabel = dataType;
+        switch (dataType) {
+          case "contacts":
+            exportData = await db.select({ id: contactsTable.id, prenom: contactsTable.firstName, nom: contactsTable.lastName, telephone: contactsTable.phone, email: contactsTable.email, entreprise: contactsTable.company, categorie: contactsTable.category }).from(contactsTable).where(eq(contactsTable.organisationId, orgId)).limit(100);
+            break;
+          case "taches":
+            exportData = await db.select({ id: tasksTable.id, titre: tasksTable.title, statut: tasksTable.status, priorite: tasksTable.priority, echeance: tasksTable.dueDate }).from(tasksTable).where(eq(tasksTable.organisationId, orgId)).limit(100);
+            break;
+          case "prospects":
+            exportData = await db.select({ id: prospectsTable.id, titre: prospectsTable.title, contact: prospectsTable.contactName, entreprise: prospectsTable.company, etape: prospectsTable.stage, valeur: prospectsTable.value }).from(prospectsTable).where(eq(prospectsTable.organisationId, orgId)).limit(100);
+            break;
+          case "projets":
+            exportData = await db.select({ id: projetsTable.id, titre: projetsTable.title, statut: projetsTable.status, progression: projetsTable.progress, client: projetsTable.clientName, budget: projetsTable.budget }).from(projetsTable).where(eq(projetsTable.organisationId, orgId)).limit(100);
+            break;
+          default:
+            exportData = [];
+        }
+        result = { success: true, message: `Export ${exportLabel}: ${exportData.length} enregistrements.`, data: exportData, count: exportData.length };
         break;
       }
       default:
