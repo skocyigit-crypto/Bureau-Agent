@@ -572,7 +572,6 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
         duration: duration || 0,
         notes: enrichedSummary,
         sentiment: sentiment || "neutre",
-        aiProcessed: true,
         organisationId: orgId,
       }).returning();
 

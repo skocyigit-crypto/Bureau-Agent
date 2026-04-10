@@ -164,7 +164,7 @@ router.get("/google-drive-backup/status", async (_req: Request, res: Response): 
 });
 
 router.post("/google-drive-backup/verify/:fileId", async (req: Request, res: Response): Promise<void> => {
-  const { fileId } = req.params;
+  const fileId = String(req.params.fileId);
   if (!fileId) {
     res.status(400).json({ error: "fileId requis." });
     return;
@@ -179,7 +179,7 @@ router.post("/google-drive-backup/verify/:fileId", async (req: Request, res: Res
 });
 
 router.post("/google-drive-backup/preview/:fileId", async (req: Request, res: Response): Promise<void> => {
-  const { fileId } = req.params;
+  const fileId = String(req.params.fileId);
   if (!fileId) {
     res.status(400).json({ error: "fileId requis." });
     return;
@@ -208,7 +208,7 @@ router.post("/google-drive-backup/preview/:fileId", async (req: Request, res: Re
 });
 
 router.post("/google-drive-backup/restore/:fileId", async (req: Request, res: Response): Promise<void> => {
-  const { fileId } = req.params;
+  const fileId = String(req.params.fileId);
   const { tables, dryRun = true, clearBeforeRestore = false } = req.body;
 
   if (!fileId) {

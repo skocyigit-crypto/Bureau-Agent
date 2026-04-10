@@ -38,7 +38,7 @@ router.get("/security/blacklist", requireAdmin, (_req, res) => {
 });
 
 router.delete("/security/blacklist/:ip", requireAdmin, (req, res) => {
-  const ip = req.params.ip;
+  const ip = String(req.params.ip);
   const userId = (req.session as any)?.userId;
 
   if (unblockIp(ip)) {

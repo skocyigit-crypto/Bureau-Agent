@@ -395,7 +395,7 @@ router.post("/auth/users/:id/send-credentials", async (req: Request, res: Respon
     role: user.role,
   });
 
-  logAudit(sessionUserId, (req.session as any)?.userEmail, "send_credentials", "user", id, { targetEmail: user.email }, req.ip, req.get("user-agent"));
+  logAudit(sessionUserId, (req.session as any)?.userEmail, "send_credentials", "user", String(id), { targetEmail: user.email }, req.ip, req.get("user-agent"));
 
   if (emailResult.success) {
     res.json({
@@ -478,7 +478,7 @@ router.post("/auth/users/create-and-send", async (req: Request, res: Response): 
     role: role || "agent",
   });
 
-  logAudit(sessionUserId, (req.session as any)?.userEmail, "create_and_send_credentials", "user", newUser.id, { targetEmail: email }, req.ip, req.get("user-agent"));
+  logAudit(sessionUserId, (req.session as any)?.userEmail, "create_and_send_credentials", "user", String(newUser.id), { targetEmail: email }, req.ip, req.get("user-agent"));
 
   res.status(201).json({
     ...newUser,

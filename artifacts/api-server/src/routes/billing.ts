@@ -35,7 +35,7 @@ router.get("/billing/invoices", async (_req: Request, res: Response): Promise<vo
 });
 
 router.get("/billing/invoices/:orgId", async (req: Request, res: Response): Promise<void> => {
-  const orgId = parseInt(req.params.orgId);
+  const orgId = parseInt(String(req.params.orgId));
   if (isNaN(orgId)) { res.status(400).json({ error: "ID invalide." }); return; }
 
   const summary = await getOrgBillingSummary(orgId);
@@ -67,7 +67,7 @@ router.post("/billing/generate", async (req: Request, res: Response): Promise<vo
 });
 
 router.patch("/billing/invoices/:id/status", async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
   const { status, notes } = req.body;
@@ -231,7 +231,7 @@ router.get("/billing/payments", async (_req: Request, res: Response): Promise<vo
 });
 
 router.post("/billing/payments/:id/assign", async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
   const { invoiceId } = req.body;

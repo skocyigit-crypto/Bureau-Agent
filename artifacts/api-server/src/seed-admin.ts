@@ -14,7 +14,7 @@ async function ensureDefaultOrganisation(): Promise<number> {
     slug: "agent-de-bureau-sas",
     email: SUPER_ADMIN_EMAIL,
     maxUsers: 3,
-    isActive: true,
+    actif: true,
   }).returning({ id: organisationsTable.id });
 
   const trialEnd = new Date(Date.now() + 14 * 86400000);

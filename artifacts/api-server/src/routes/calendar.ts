@@ -97,7 +97,7 @@ router.patch("/calendar/events/:id", async (req: Request, res: Response): Promis
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   const orgId = getOrgId(req);
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
   const updateData: Record<string, any> = {};
@@ -128,7 +128,7 @@ router.delete("/calendar/events/:id", async (req: Request, res: Response): Promi
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   const orgId = getOrgId(req);
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
   await db.delete(calendarEventsTable).where(and(eq(calendarEventsTable.id, id), eq(calendarEventsTable.organisationId, orgId)));

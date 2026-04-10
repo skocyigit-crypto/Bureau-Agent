@@ -79,7 +79,7 @@ router.get("/legal/compliance", async (_req: Request, res: Response): Promise<vo
 });
 
 router.get("/legal/org/:orgId", async (req: Request, res: Response): Promise<void> => {
-  const orgId = parseInt(req.params.orgId);
+  const orgId = parseInt(String(req.params.orgId));
   if (isNaN(orgId)) { res.status(400).json({ error: "ID invalide." }); return; }
 
   const agreements = await db.select().from(legalAgreementsTable)
@@ -88,8 +88,8 @@ router.get("/legal/org/:orgId", async (req: Request, res: Response): Promise<voi
   const allDocs = Object.entries(LEGAL_DOCUMENTS).map(([code, doc]) => {
     const agreement = agreements.find(a => a.documentType === code);
     return {
+      ...(doc as any),
       code,
-      ...doc,
       status: agreement ? "accepted" as const : "pending" as const,
       agreement: agreement ? {
         id: agreement.id,
@@ -232,7 +232,7 @@ router.post("/legal/revoke", async (req: Request, res: Response): Promise<void> 
 });
 
 router.get("/legal/history/:orgId", async (req: Request, res: Response): Promise<void> => {
-  const orgId = parseInt(req.params.orgId);
+  const orgId = parseInt(String(req.params.orgId));
   if (isNaN(orgId)) { res.status(400).json({ error: "ID invalide." }); return; }
 
   const history = await db.select().from(legalAgreementsTable)

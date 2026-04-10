@@ -143,13 +143,13 @@ router.get("/status", async (_req, res) => {
   }
 });
 
-router.post("/connect/:platform/:serviceId", async (req, res) => {
+router.post("/connect/:platform/:serviceId", async (req, res): Promise<void> => {
   try {
     const { platform, serviceId } = req.params;
     const platformServices = ALL_PLATFORM_SERVICES[platform];
-    if (!platformServices) return res.status(404).json({ error: "Plateforme inconnue." });
+    if (!platformServices) { res.status(404).json({ error: "Plateforme inconnue." }); return; }
     const service = platformServices.find(s => s.id === serviceId);
-    if (!service) return res.status(404).json({ error: "Service inconnu." });
+    if (!service) { res.status(404).json({ error: "Service inconnu." }); return; }
 
     const existing = await db.select().from(platformConnectionsTable)
       .where(and(eq(platformConnectionsTable.platform, platform), eq(platformConnectionsTable.serviceId, serviceId)));
@@ -190,13 +190,13 @@ router.post("/connect/:platform/:serviceId", async (req, res) => {
   }
 });
 
-router.post("/disconnect/:platform/:serviceId", async (req, res) => {
+router.post("/disconnect/:platform/:serviceId", async (req, res): Promise<void> => {
   try {
     const { platform, serviceId } = req.params;
     const platformServices = ALL_PLATFORM_SERVICES[platform];
-    if (!platformServices) return res.status(404).json({ error: "Plateforme inconnue." });
+    if (!platformServices) { res.status(404).json({ error: "Plateforme inconnue." }); return; }
     const service = platformServices.find(s => s.id === serviceId);
-    if (!service) return res.status(404).json({ error: "Service inconnu." });
+    if (!service) { res.status(404).json({ error: "Service inconnu." }); return; }
 
     await db.update(platformConnectionsTable)
       .set({ status: "deconnecte", updatedAt: new Date() })
@@ -217,11 +217,11 @@ router.post("/disconnect/:platform/:serviceId", async (req, res) => {
   }
 });
 
-router.post("/connect-all/:platform", async (req, res) => {
+router.post("/connect-all/:platform", async (req, res): Promise<void> => {
   try {
     const { platform } = req.params;
     const platformServices = ALL_PLATFORM_SERVICES[platform];
-    if (!platformServices) return res.status(404).json({ error: "Plateforme inconnue." });
+    if (!platformServices) { res.status(404).json({ error: "Plateforme inconnue." }); return; }
 
     const now = new Date();
     const existing = await db.select().from(platformConnectionsTable).where(eq(platformConnectionsTable.platform, platform));
@@ -253,10 +253,10 @@ router.post("/connect-all/:platform", async (req, res) => {
   }
 });
 
-router.post("/disconnect-all/:platform", async (req, res) => {
+router.post("/disconnect-all/:platform", async (req, res): Promise<void> => {
   try {
     const { platform } = req.params;
-    if (!ALL_PLATFORM_SERVICES[platform]) return res.status(404).json({ error: "Plateforme inconnue." });
+    if (!ALL_PLATFORM_SERVICES[platform]) { res.status(404).json({ error: "Plateforme inconnue." }); return; }
 
     await db.update(platformConnectionsTable)
       .set({ status: "deconnecte", updatedAt: new Date() })
@@ -273,17 +273,18 @@ router.post("/disconnect-all/:platform", async (req, res) => {
   }
 });
 
-router.post("/sync/:platform", async (req, res) => {
+router.post("/sync/:platform", async (req, res): Promise<void> => {
   try {
     const { platform } = req.params;
-    if (!ALL_PLATFORM_SERVICES[platform]) return res.status(404).json({ error: "Plateforme inconnue." });
+    if (!ALL_PLATFORM_SERVICES[platform]) { res.status(404).json({ error: "Plateforme inconnue." }); return; }
 
     const now = new Date();
     const connected = await db.select().from(platformConnectionsTable)
       .where(and(eq(platformConnectionsTable.platform, platform), eq(platformConnectionsTable.status, "connecte")));
 
     if (connected.length === 0) {
-      return res.json({ status: "aucune_connexion", message: "Aucun service connecte a synchroniser." });
+      res.json({ status: "aucune_connexion", message: "Aucun service connecte a synchroniser." });
+      return;
     }
 
     await db.update(platformConnectionsTable)
@@ -314,7 +315,7 @@ router.post("/sync/:platform", async (req, res) => {
   }
 });
 
-router.get("/sync-logs", async (req, res) => {
+router.get("/sync-logs", async (req, res): Promise<void> => {
   try {
     const { platform, limit: limitParam } = req.query;
     const limitVal = Math.min(Math.max(parseInt(String(limitParam || "50"), 10) || 50, 1), 200);
@@ -331,7 +332,7 @@ router.get("/sync-logs", async (req, res) => {
   }
 });
 
-router.get("/sync-logs/:platform", async (req, res) => {
+router.get("/sync-logs/:platform", async (req, res): Promise<void> => {
   try {
     const { platform } = req.params;
     const logs = await db.select().from(platformSyncLogsTable)
@@ -468,7 +469,7 @@ async function gatherDailyData(dateStr: string, orgId: number) {
   };
 }
 
-router.post("/daily-report", async (req, res) => {
+router.post("/daily-report", async (req, res): Promise<void> => {
   try {
     const orgId = (req.session as any)?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
@@ -478,7 +479,8 @@ router.post("/daily-report", async (req, res) => {
 
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(reportDate)) {
-      return res.status(400).json({ error: "Format de date invalide. Utilisez AAAA-MM-JJ." });
+      res.status(400).json({ error: "Format de date invalide. Utilisez AAAA-MM-JJ." });
+      return;
     }
 
     const dailyData = await gatherDailyData(reportDate, orgId);
@@ -621,7 +623,7 @@ Reponds en JSON avec cette structure exacte:
   }
 });
 
-router.get("/daily-reports", async (req, res) => {
+router.get("/daily-reports", async (req, res): Promise<void> => {
   try {
     const { limit: limitParam, offset: offsetParam } = req.query;
     const limitVal = Math.min(Math.max(parseInt(String(limitParam || "30"), 10) || 30, 1), 100);
@@ -647,16 +649,18 @@ router.get("/daily-reports", async (req, res) => {
   }
 });
 
-router.get("/daily-reports/:id", async (req, res) => {
+router.get("/daily-reports/:id", async (req, res): Promise<void> => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) {
-      return res.status(400).json({ error: "ID invalide." });
+      res.status(400).json({ error: "ID invalide." });
+      return;
     }
 
     const [report] = await db.select().from(dailyReportsTable).where(eq(dailyReportsTable.id, id));
     if (!report) {
-      return res.status(404).json({ error: "Rapport non trouve." });
+      res.status(404).json({ error: "Rapport non trouve." });
+      return;
     }
 
     res.json(report);
@@ -666,16 +670,18 @@ router.get("/daily-reports/:id", async (req, res) => {
   }
 });
 
-router.delete("/daily-reports/:id", async (req, res) => {
+router.delete("/daily-reports/:id", async (req, res): Promise<void> => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) {
-      return res.status(400).json({ error: "ID invalide." });
+      res.status(400).json({ error: "ID invalide." });
+      return;
     }
 
     const [deleted] = await db.delete(dailyReportsTable).where(eq(dailyReportsTable.id, id)).returning();
     if (!deleted) {
-      return res.status(404).json({ error: "Rapport non trouve." });
+      res.status(404).json({ error: "Rapport non trouve." });
+      return;
     }
 
     res.json({ success: true, message: "Rapport supprime." });
@@ -685,13 +691,14 @@ router.delete("/daily-reports/:id", async (req, res) => {
   }
 });
 
-router.get("/activity-summary", async (req, res) => {
+router.get("/activity-summary", async (req, res): Promise<void> => {
   try {
     const now = new Date();
     const todayStr = now.toISOString().split("T")[0];
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    const dailyData = await gatherDailyData(todayStr);
+    const orgId = (req.session as any)?.organisationId;
+    const dailyData = await gatherDailyData(todayStr, orgId);
 
     const weekReports = await db.select().from(dailyReportsTable)
       .where(gte(dailyReportsTable.createdAt, weekAgo))

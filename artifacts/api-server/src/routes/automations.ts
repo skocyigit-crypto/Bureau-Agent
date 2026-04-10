@@ -41,7 +41,7 @@ router.patch("/notifications/:id/read", async (req: Request, res: Response): Pro
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
   await db.update(notificationsTable).set({ read: true }).where(eq(notificationsTable.id, id));
@@ -169,7 +169,7 @@ router.patch("/automations/:id", async (req: Request, res: Response): Promise<vo
     res.status(403).json({ error: "Acces refuse." }); return;
   }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id) || id < 1) { res.status(400).json({ error: "ID invalide." }); return; }
 
   const { enabled, name, description, schedule } = req.body;
@@ -203,7 +203,7 @@ router.delete("/automations/:id", async (req: Request, res: Response): Promise<v
     res.status(403).json({ error: "Acces refuse." }); return;
   }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id) || id < 1) { res.status(400).json({ error: "ID invalide." }); return; }
 
   await db.delete(automationRulesTable).where(eq(automationRulesTable.id, id));

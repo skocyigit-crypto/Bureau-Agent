@@ -175,7 +175,7 @@ export async function isConnectorAvailable(): Promise<boolean> {
     const connectors = getConnectors();
     const response = await connectors.proxy("google-drive", "/drive/v3/about?fields=user", { method: "GET" });
     const data = typeof response.json === "function" ? await response.json() : response;
-    return !!data?.user;
+    return !!(data as any)?.user;
   } catch {
     return false;
   }

@@ -5,7 +5,7 @@ import { performBackup } from "../services/auto-backup";
 
 const router = Router();
 
-router.get("/backups", async (req, res) => {
+router.get("/backups", async (req, res): Promise<void> => {
   try {
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
     const platform = req.query.platform as string | undefined;
@@ -79,7 +79,7 @@ router.get("/backups/config", async (_req, res) => {
   }
 });
 
-router.post("/backups/config/:platform", async (req, res) => {
+router.post("/backups/config/:platform", async (req, res): Promise<void> => {
   try {
     const { platform } = req.params;
     const { enabled, intervalMinutes, retentionDays, encryptionEnabled } = req.body;
@@ -94,7 +94,7 @@ router.post("/backups/config/:platform", async (req, res) => {
         retentionDays: retentionDays ?? 90,
         encryptionEnabled: encryptionEnabled ?? "true",
       }).returning();
-      return res.json({ config, message: "Configuration creee." });
+      res.json({ config, message: "Configuration creee." }); return;
     }
 
     const [updated] = await db.update(backupConfigTable)
@@ -119,10 +119,10 @@ router.post("/backups/manual", async (_req, res) => {
   try {
     const result = await performBackup();
     if (!result.success) {
-      return res.status(500).json({
+      res.status(500).json({
         ...result,
         message: `Erreur lors de la sauvegarde: ${result.error}`,
-      });
+      }); return;
     }
     res.json({
       ...result,

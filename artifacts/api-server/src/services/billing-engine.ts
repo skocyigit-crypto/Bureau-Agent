@@ -1,6 +1,4 @@
-import { db, invoicesTable, subscriptionsTable, organisationsTable, usersTable, contactsTable, callsTable } from "@workspace/db";
-import { PLANS, type PlanKey } from "@workspace/db/schema";
-import { OVERAGE_RATES } from "@workspace/db/schema";
+import { db, invoicesTable, subscriptionsTable, organisationsTable, usersTable, contactsTable, callsTable, PLANS, type PlanKey, OVERAGE_RATES } from "@workspace/db";
 import { eq, and, gte, lt, sql } from "drizzle-orm";
 
 export async function generateMonthlyInvoices(periodYear: number, periodMonth: number): Promise<{ generated: number; skipped: number; errors: number }> {

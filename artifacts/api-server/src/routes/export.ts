@@ -27,7 +27,7 @@ router.get("/export/:entity", async (req: Request, res: Response): Promise<void>
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   const orgId = getOrgId(req);
-  const { entity } = req.params;
+  const entity = String(req.params.entity);
 
   if (!VALID_ENTITIES.includes(entity as any)) {
     res.status(400).json({ error: "Entite non supportee." });

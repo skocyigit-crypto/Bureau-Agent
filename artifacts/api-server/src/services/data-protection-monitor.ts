@@ -159,7 +159,7 @@ async function analyzeOrgBackupStatus(
     );
 
   const issues: string[] = [];
-  let severity: "critique" | "haute" | "moyenne" | "info" = "info";
+  let severity: string = "info";
 
   const now = new Date();
   const backupAge = lastBackup?.createdAt
@@ -227,7 +227,7 @@ async function analyzeOrgBackupStatus(
     backupEnabled: driveEnabled || localEnabled,
     totalRecords,
     issues,
-    severity,
+    severity: severity as "info" | "moyenne" | "haute" | "critique",
   };
 }
 

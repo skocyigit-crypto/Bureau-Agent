@@ -4,8 +4,8 @@ import { eq, count, sql, and } from "drizzle-orm";
 
 const router = Router();
 
-function getOrgId(req: any): string {
-  return (req.session as any)?.organisationId || "";
+function getOrgId(req: any): number {
+  return (req.session as any)?.organisationId || 0;
 }
 
 interface SoftwareIntegration {
@@ -722,7 +722,7 @@ router.get("/:integrationId", (req, res) => {
   const { integrationId } = req.params;
   const integration = SOFTWARE_CATALOG.find(s => s.id === integrationId);
   if (!integration) {
-    return res.status(404).json({ error: "Integration inconnue." });
+    res.status(404).json({ error: "Integration inconnue." }); return;
   }
   res.json(integration);
 });
@@ -731,7 +731,7 @@ router.post("/:integrationId/connect", (req, res) => {
   const { integrationId } = req.params;
   const integration = SOFTWARE_CATALOG.find(s => s.id === integrationId);
   if (!integration) {
-    return res.status(404).json({ error: "Integration inconnue." });
+    res.status(404).json({ error: "Integration inconnue." }); return;
   }
 
   const config = req.body || {};
@@ -740,10 +740,10 @@ router.post("/:integrationId/connect", (req, res) => {
     .map(f => f.label);
 
   if (missingFields.length > 0) {
-    return res.status(400).json({
+    res.status(400).json({
       error: "Champs requis manquants.",
       missingFields,
-    });
+    }); return;
   }
 
   res.json({
@@ -758,7 +758,7 @@ router.post("/:integrationId/disconnect", (req, res) => {
   const { integrationId } = req.params;
   const integration = SOFTWARE_CATALOG.find(s => s.id === integrationId);
   if (!integration) {
-    return res.status(404).json({ error: "Integration inconnue." });
+    res.status(404).json({ error: "Integration inconnue." }); return;
   }
 
   res.json({
@@ -772,7 +772,7 @@ router.post("/:integrationId/test", (req, res) => {
   const { integrationId } = req.params;
   const integration = SOFTWARE_CATALOG.find(s => s.id === integrationId);
   if (!integration) {
-    return res.status(404).json({ error: "Integration inconnue." });
+    res.status(404).json({ error: "Integration inconnue." }); return;
   }
 
   res.json({
@@ -786,7 +786,7 @@ router.post("/:integrationId/sync", (req, res) => {
   const { integrationId } = req.params;
   const integration = SOFTWARE_CATALOG.find(s => s.id === integrationId);
   if (!integration) {
-    return res.status(404).json({ error: "Integration inconnue." });
+    res.status(404).json({ error: "Integration inconnue." }); return;
   }
 
   res.json({

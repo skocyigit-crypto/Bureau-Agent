@@ -40,10 +40,10 @@ function getOAuth2Client() {
   return new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 }
 
-router.get("/status", async (req, res) => {
+router.get("/status", async (req, res): Promise<void> => {
   try {
     const userId = (req.session as any)?.userId;
-    if (!userId) return res.status(401).json({ error: "Non authentifie." });
+    if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -68,17 +68,17 @@ router.get("/status", async (req, res) => {
   }
 });
 
-router.post("/auth-url", async (req, res) => {
+router.post("/auth-url", async (req, res): Promise<void> => {
   try {
     const userId = (req.session as any)?.userId;
-    if (!userId) return res.status(401).json({ error: "Non authentifie." });
+    if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
     const oauth2Client = getOAuth2Client();
     if (!oauth2Client) {
-      return res.status(400).json({
+      res.status(400).json({
         error: "Google Workspace n'est pas configure. Ajoutez GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET dans les variables d'environnement.",
         needsConfig: true,
-      });
+      }); return;
     }
 
     const { services } = req.body;
@@ -112,36 +112,41 @@ router.post("/auth-url", async (req, res) => {
   }
 });
 
-router.get("/callback", async (req, res) => {
+router.get("/callback", async (req, res): Promise<void> => {
   try {
     const { code, state, error: oauthError } = req.query;
     const baseUrl = "/";
 
     if (oauthError) {
       console.error("Google OAuth error:", oauthError);
-      return res.redirect(`${baseUrl}parametres?google_error=access_denied`);
+      res.redirect(`${baseUrl}parametres?google_error=access_denied`);
+      return;
     }
 
     if (!code || typeof code !== "string") {
-      return res.redirect(`${baseUrl}parametres?google_error=no_code`);
+      res.redirect(`${baseUrl}parametres?google_error=no_code`);
+      return;
     }
 
     const sessionState = (req.session as any)?.googleOAuthState;
     if (!state || state !== sessionState) {
-      return res.redirect(`${baseUrl}parametres?google_error=invalid_state`);
+      res.redirect(`${baseUrl}parametres?google_error=invalid_state`);
+      return;
     }
 
     const userId = (req.session as any)?.userId;
     if (!userId) {
-      return res.redirect(`${baseUrl}parametres?google_error=not_authenticated`);
+      res.redirect(`${baseUrl}parametres?google_error=not_authenticated`);
+      return;
     }
 
     const oauth2Client = getOAuth2Client();
     if (!oauth2Client) {
-      return res.redirect(`${baseUrl}parametres?google_error=not_configured`);
+      res.redirect(`${baseUrl}parametres?google_error=not_configured`);
+      return;
     }
 
-    const { tokens } = await oauth2Client.getToken(code);
+    const { tokens } = await oauth2Client!.getToken(code as string);
     const now = new Date();
     const expiresAt = tokens.expiry_date ? new Date(tokens.expiry_date) : new Date(now.getTime() + 3600 * 1000);
 
@@ -215,17 +220,17 @@ router.get("/callback", async (req, res) => {
     delete (req.session as any).googleOAuthState;
     delete (req.session as any).googleOAuthServices;
 
-    return res.redirect(`${baseUrl}parametres?google_success=true`);
+    res.redirect(`${baseUrl}parametres?google_success=true`); return;
   } catch (error: any) {
     console.error("Google OAuth callback error:", error);
-    return res.redirect(`/parametres?google_error=exchange_failed`);
+    res.redirect(`/parametres?google_error=exchange_failed`);
   }
 });
 
-router.post("/disconnect", async (req, res) => {
+router.post("/disconnect", async (req, res): Promise<void> => {
   try {
     const userId = (req.session as any)?.userId;
-    if (!userId) return res.status(401).json({ error: "Non authentifie." });
+    if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
     const tokens = await db.select().from(googleOAuthTokensTable)
       .where(eq(googleOAuthTokensTable.userId, userId));
@@ -262,21 +267,21 @@ router.post("/disconnect", async (req, res) => {
   }
 });
 
-router.post("/refresh", async (req, res) => {
+router.post("/refresh", async (req, res): Promise<void> => {
   try {
     const userId = (req.session as any)?.userId;
-    if (!userId) return res.status(401).json({ error: "Non authentifie." });
+    if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
     const tokens = await db.select().from(googleOAuthTokensTable)
       .where(eq(googleOAuthTokensTable.userId, userId));
 
     if (tokens.length === 0 || !tokens[0].refreshToken) {
-      return res.status(400).json({ error: "Aucun token de rafraichissement disponible. Reconnectez votre compte Google." });
+      res.status(400).json({ error: "Aucun token de rafraichissement disponible. Reconnectez votre compte Google." }); return;
     }
 
     const oauth2Client = getOAuth2Client();
     if (!oauth2Client) {
-      return res.status(400).json({ error: "Google Workspace n'est pas configure." });
+      res.status(400).json({ error: "Google Workspace n'est pas configure." }); return;
     }
 
     oauth2Client.setCredentials({ refresh_token: tokens[0].refreshToken });
@@ -299,10 +304,10 @@ router.post("/refresh", async (req, res) => {
   }
 });
 
-router.get("/config", async (req, res) => {
+router.get("/config", async (req, res): Promise<void> => {
   try {
     const userId = (req.session as any)?.userId;
-    if (!userId) return res.status(401).json({ error: "Non authentifie." });
+    if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -318,19 +323,19 @@ router.get("/config", async (req, res) => {
   }
 });
 
-router.post("/config", async (req, res) => {
+router.post("/config", async (req, res): Promise<void> => {
   try {
     const userId = (req.session as any)?.userId;
     const userRole = (req.session as any)?.userRole;
-    if (!userId) return res.status(401).json({ error: "Non authentifie." });
-    if (userRole !== "super_admin") return res.status(403).json({ error: "Acces reserve au Super Administrateur." });
+    if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+    if (userRole !== "super_admin") { res.status(403).json({ error: "Acces reserve au Super Administrateur." }); return; }
 
     const { clientId, clientSecret } = req.body;
     if (!clientId || typeof clientId !== "string" || clientId.length < 10) {
-      return res.status(400).json({ error: "Client ID invalide." });
+      res.status(400).json({ error: "Client ID invalide." }); return;
     }
     if (!clientSecret || typeof clientSecret !== "string" || clientSecret.length < 5) {
-      return res.status(400).json({ error: "Client Secret invalide." });
+      res.status(400).json({ error: "Client Secret invalide." }); return;
     }
 
     process.env.GOOGLE_CLIENT_ID = clientId.trim();

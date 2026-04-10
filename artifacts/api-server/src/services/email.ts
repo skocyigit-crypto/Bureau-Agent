@@ -47,7 +47,7 @@ async function getGmailClient() {
           },
         }
       );
-      const data = await response.json();
+      const data = await response.json() as any;
       gmailConnectionSettings = data.items?.[0];
     }
 

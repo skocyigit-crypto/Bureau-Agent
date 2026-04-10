@@ -3,11 +3,12 @@ import { detectMathExpressions, analyzeMath, analyzeWithAI } from "../services/m
 
 const router = Router();
 
-router.post("/math/detect", async (req, res) => {
+router.post("/math/detect", async (req, res): Promise<void> => {
   try {
     const { text } = req.body;
     if (!text) {
-      return res.status(400).json({ error: "Le parametre 'text' est requis." });
+      res.status(400).json({ error: "Le parametre 'text' est requis." });
+      return;
     }
     const detected = detectMathExpressions(text);
     res.json({ detected, text });
@@ -17,11 +18,12 @@ router.post("/math/detect", async (req, res) => {
   }
 });
 
-router.post("/math/analyze", async (req, res) => {
+router.post("/math/analyze", async (req, res): Promise<void> => {
   try {
     const { text, useAI = false } = req.body;
     if (!text) {
-      return res.status(400).json({ error: "Le parametre 'text' est requis." });
+      res.status(400).json({ error: "Le parametre 'text' est requis." });
+      return;
     }
 
     let analysis = analyzeMath(text);
@@ -37,11 +39,12 @@ router.post("/math/analyze", async (req, res) => {
   }
 });
 
-router.post("/math/evaluate", async (req, res) => {
+router.post("/math/evaluate", async (req, res): Promise<void> => {
   try {
     const { expressions } = req.body;
     if (!expressions || !Array.isArray(expressions)) {
-      return res.status(400).json({ error: "Le parametre 'expressions' (tableau) est requis." });
+      res.status(400).json({ error: "Le parametre 'expressions' (tableau) est requis." });
+      return;
     }
 
     const results = expressions.map((expr: string) => {

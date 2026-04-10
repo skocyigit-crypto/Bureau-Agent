@@ -1117,7 +1117,7 @@ router.get("/ai/agents/reports", requireMinAgent, async (req, res) => {
 
 router.get("/ai/agents/reports/:id", requireMinAgent, async (req, res): Promise<void> => {
   const orgId = (req.session as any)?.organisationId;
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) {
     res.status(400).json({ error: "ID invalide" });
     return;

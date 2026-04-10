@@ -118,7 +118,7 @@ async function gatherAnalyticsData(orgId: number) {
   };
 }
 
-router.post("/ai/analyze", async (req, res) => {
+router.post("/ai/analyze", async (req, res): Promise<void> => {
   try {
     const orgId = (req.session as any)?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
@@ -288,13 +288,13 @@ async function gatherContextForPage(page: string, orgId: number) {
   }
 }
 
-router.post("/ai/suggest", async (req, res) => {
+router.post("/ai/suggest", async (req, res): Promise<void> => {
   try {
     const orgId = (req.session as any)?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const { page } = req.body;
     if (!page || !["dashboard", "calls", "contacts", "tasks", "messages", "rapports", "logiciels", "pointage", "utilisateurs"].includes(page)) {
-      return res.status(400).json({ error: "Le parametre 'page' est requis." });
+      res.status(400).json({ error: "Le parametre 'page' est requis." }); return;
     }
 
     const contextData = await gatherContextForPage(page, orgId);
@@ -363,13 +363,13 @@ Donnees:\n${JSON.stringify(contextData, null, 2)}`
   }
 });
 
-router.post("/ai/validate", async (req, res) => {
+router.post("/ai/validate", async (req, res): Promise<void> => {
   try {
     const orgId = (req.session as any)?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const { entityType, data } = req.body;
     if (!entityType || !data) {
-      return res.status(400).json({ error: "Les parametres 'entityType' et 'data' sont requis." });
+      res.status(400).json({ error: "Les parametres 'entityType' et 'data' sont requis." }); return;
     }
 
     let contextInfo = "";
@@ -455,13 +455,13 @@ Si tout est correct, errors et warnings seront vides. Sois utile mais pas trop s
   }
 });
 
-router.post("/ai/assistant", async (req, res) => {
+router.post("/ai/assistant", async (req, res): Promise<void> => {
   try {
     const orgId = (req.session as any)?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const { question, currentPage } = req.body;
     if (!question) {
-      return res.status(400).json({ error: "Le parametre 'question' est requis." });
+      res.status(400).json({ error: "Le parametre 'question' est requis." }); return;
     }
 
     const { detectMathExpressions, analyzeMath, analyzeWithAI } = await import("../services/math-engine");
@@ -616,7 +616,7 @@ Sois precis, base-toi sur les donnees reelles. Pour les calculs mathematiques, u
   }
 });
 
-router.post("/ai/recognize", async (req, res) => {
+router.post("/ai/recognize", async (req, res): Promise<void> => {
   try {
     const orgId = (req.session as any)?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
@@ -824,14 +824,14 @@ router.post("/ai/recognize", async (req, res) => {
   }
 });
 
-router.post("/ai/draft-email", async (req, res) => {
+router.post("/ai/draft-email", async (req, res): Promise<void> => {
   try {
     const orgId = (req.session as any)?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const { contactId, contactName, contactEmail, company, category, purpose, tone, language, additionalContext } = req.body;
 
     if (!purpose) {
-      return res.status(400).json({ error: "Le parametre 'purpose' est requis." });
+      res.status(400).json({ error: "Le parametre 'purpose' est requis." }); return;
     }
 
     let contactHistory = "";
@@ -961,7 +961,7 @@ Reponds en JSON avec cette structure exacte:
   }
 });
 
-router.post("/ai/discovery", async (req, res) => {
+router.post("/ai/discovery", async (req, res): Promise<void> => {
   try {
     const userId = (req.session as any)?.userId;
     if (!userId) {
@@ -1068,7 +1068,7 @@ router.post("/ai/discovery", async (req, res) => {
       contents: [{
         role: "user",
         parts: [{
-          text: `Tu es l'Agent IA personnel de l'utilisateur "${userProfile.prenom} ${userProfile.nom}" dans le logiciel Agent de Bureau (gestion de bureau et centre d'appels professionnel en France).
+          text: `Tu es l'Agent IA personnel de l'utilisateur "${userProfile.prenom}" dans le logiciel Agent de Bureau (gestion de bureau et centre d'appels professionnel en France).
 
 PROFIL UTILISATEUR:
 ${JSON.stringify(userProfile, null, 2)}
@@ -1190,7 +1190,7 @@ Sois concret, personnalise, et adapte tes recommandations au role (${userProfile
   }
 });
 
-router.post("/ai/central-intelligence", async (req, res) => {
+router.post("/ai/central-intelligence", async (req, res): Promise<void> => {
   try {
     const userId = (req.session as any)?.userId;
     const orgId = (req.session as any)?.organisationId;

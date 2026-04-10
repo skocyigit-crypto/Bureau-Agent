@@ -106,7 +106,7 @@ router.get("/organisations", async (_req: Request, res: Response): Promise<void>
 });
 
 router.get("/organisations/:id", async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
   const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, id));
@@ -250,7 +250,7 @@ router.post("/organisations", async (req: Request, res: Response): Promise<void>
 });
 
 router.post("/organisations/:id/resend-license", async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
   const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, id));
@@ -333,7 +333,7 @@ router.post("/organisations/:id/resend-license", async (req: Request, res: Respo
 });
 
 router.put("/organisations/:id", async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
   const { name, email, phone, address, actif, maxUsers } = req.body;
@@ -358,7 +358,7 @@ router.put("/organisations/:id", async (req: Request, res: Response): Promise<vo
 });
 
 router.put("/organisations/:id/plan", async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
   const { plan } = req.body;
@@ -403,7 +403,7 @@ router.put("/organisations/:id/plan", async (req: Request, res: Response): Promi
 });
 
 router.delete("/organisations/:id", async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
   if (id === 1) {
