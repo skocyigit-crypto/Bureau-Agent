@@ -336,7 +336,7 @@ router.put("/organisations/:id", async (req: Request, res: Response): Promise<vo
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
-  const { name, email, phone, address, actif, maxUsers } = req.body;
+  const { name, email, phone, address, actif, maxUsers, bankName, bankIban, bankBic, siret, tvaNumber, legalForm, capital, invoiceFooter, autoInvoiceEnabled, autoEmailInvoice } = req.body;
 
   const updateData: Record<string, any> = {};
   if (name !== undefined) updateData.name = name.trim();
@@ -345,6 +345,16 @@ router.put("/organisations/:id", async (req: Request, res: Response): Promise<vo
   if (address !== undefined) updateData.address = address || null;
   if (actif !== undefined) updateData.actif = actif;
   if (maxUsers !== undefined) updateData.maxUsers = maxUsers;
+  if (bankName !== undefined) updateData.bankName = bankName || null;
+  if (bankIban !== undefined) updateData.bankIban = bankIban || null;
+  if (bankBic !== undefined) updateData.bankBic = bankBic || null;
+  if (siret !== undefined) updateData.siret = siret || null;
+  if (tvaNumber !== undefined) updateData.tvaNumber = tvaNumber || null;
+  if (legalForm !== undefined) updateData.legalForm = legalForm || null;
+  if (capital !== undefined) updateData.capital = capital || null;
+  if (invoiceFooter !== undefined) updateData.invoiceFooter = invoiceFooter || null;
+  if (autoInvoiceEnabled !== undefined) updateData.autoInvoiceEnabled = autoInvoiceEnabled;
+  if (autoEmailInvoice !== undefined) updateData.autoEmailInvoice = autoEmailInvoice;
 
   if (Object.keys(updateData).length === 0) {
     res.status(400).json({ error: "Aucune donnee a mettre a jour." });

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Settings, Shield, Bell, Save, Monitor, Package,
-  PhoneIncoming, Layers
+  PhoneIncoming, Layers, CreditCard
 } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,6 +15,7 @@ import { TabSauvegardes } from "./settings/tab-sauvegardes";
 import { TabInstallation } from "./settings/tab-installation";
 import { TabNotifications } from "./settings/tab-notifications";
 import { TabSecurite } from "./settings/tab-securite";
+import { TabFacturation } from "./settings/tab-facturation";
 
 export default function SettingsPage() {
   const { user } = useWorkspaceUser();
@@ -55,7 +56,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className={`grid w-full lg:w-auto lg:inline-grid ${isAdmin ? "grid-cols-7" : "grid-cols-3"}`}>
+        <TabsList className={`grid w-full lg:w-auto lg:inline-grid ${isAdmin ? "grid-cols-8" : "grid-cols-3"}`}>
           {isAdmin && (
             <TabsTrigger value="abonnement" className="gap-2">
               <Package className="w-4 h-4" />
@@ -87,6 +88,12 @@ export default function SettingsPage() {
             Notifications
           </TabsTrigger>
           {isAdmin && (
+            <TabsTrigger value="facturation" className="gap-2">
+              <CreditCard className="w-4 h-4" />
+              Facturation
+            </TabsTrigger>
+          )}
+          {isAdmin && (
             <TabsTrigger value="securite" className="gap-2">
               <Shield className="w-4 h-4" />
               Securite
@@ -116,6 +123,10 @@ export default function SettingsPage() {
 
         <TabsContent value="notifications" className="space-y-6 mt-6">
           <TabNotifications />
+        </TabsContent>
+
+        <TabsContent value="facturation" className="space-y-6 mt-6">
+          <TabFacturation />
         </TabsContent>
 
         <TabsContent value="securite" className="space-y-6 mt-6">
