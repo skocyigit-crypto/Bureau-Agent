@@ -2,6 +2,7 @@ import { pgTable, serial, integer, text, timestamp, boolean, jsonb, index } from
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
+import { organisationsTable } from "./organisations";
 
 export const automationRulesTable = pgTable("automation_rules", {
   id: serial("id").primaryKey(),
@@ -39,7 +40,8 @@ export const automationLogsTable = pgTable("automation_logs", {
 
 export const notificationsTable = pgTable("notifications", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id"),
+  userId: integer("user_id").references(() => usersTable.id, { onDelete: "cascade" }),
+  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
   type: text("type").notNull(),
   title: text("title").notNull(),
   message: text("message").notNull(),
@@ -49,7 +51,12 @@ export const notificationsTable = pgTable("notifications", {
   sourceType: text("source_type"),
   sourceId: text("source_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  index("notifications_user_id_idx").on(table.userId),
+  index("notifications_org_id_idx").on(table.organisationId),
+  index("notifications_read_idx").on(table.read),
+  index("notifications_created_at_idx").on(table.createdAt),
+]);
 
 export const insertAutomationRuleSchema = createInsertSchema(automationRulesTable).omit({ id: true, createdAt: true, updatedAt: true, runCount: true, errorCount: true });
 export type InsertAutomationRule = z.infer<typeof insertAutomationRuleSchema>;

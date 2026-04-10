@@ -67,7 +67,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <Icon3D icon={Phone} variant="navy" size="sm" />
               <div>
                 <h1 className="text-sidebar-foreground font-semibold text-base leading-none">Agent de Bureau</h1>
-                <p className="text-sidebar-foreground/60 text-xs mt-1">Paris HQ</p>
+                <p className="text-sidebar-foreground/60 text-xs mt-1">{user.organisation || "Bureau"}</p>
               </div>
             </div>
           </SidebarHeader>

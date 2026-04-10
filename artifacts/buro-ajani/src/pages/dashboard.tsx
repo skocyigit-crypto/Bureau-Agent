@@ -17,8 +17,10 @@ import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip as 
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Link } from "wouter";
+import { useWorkspaceUser } from "@/components/workspace-user";
 
 export default function Dashboard() {
+  const { user } = useWorkspaceUser();
   const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
   const { data: summary, isLoading: isLoadingSummary } = useGetDashboardSummary({ query: { queryKey: ["dashboardSummary"] } });
   const { data: recentActivity, isLoading: isLoadingActivity } = useGetRecentActivity({ limit: 6 }, { query: { queryKey: ["recentActivity"] } });
@@ -113,14 +115,14 @@ export default function Dashboard() {
           <div className="absolute inset-0 bg-gradient-to-r from-[#1a2744]/80 via-[#1a2744]/50 to-transparent" />
           <div className="absolute inset-0 flex items-center p-6 md:p-8">
             <div className="text-white">
-              <h2 className="text-xl md:text-2xl font-bold">Bienvenue, Aurelie</h2>
+              <h2 className="text-xl md:text-2xl font-bold">Bienvenue, {user.prenom || user.nom}</h2>
               <p className="text-white/80 text-sm mt-1">Votre bureau est operationnel. Consultez les indicateurs du jour.</p>
               <div className="flex items-center gap-4 mt-3">
                 <div className="flex items-center gap-1.5 text-sm text-emerald-300">
                   <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   Systeme actif
                 </div>
-                <div className="text-sm text-amber-300">Paris HQ</div>
+                <div className="text-sm text-amber-300">{user.organisation || "Bureau"}</div>
               </div>
             </div>
           </div>

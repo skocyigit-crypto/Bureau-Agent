@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, aiAgentReportsTable, stockArticlesTable, invoicesTable, paymentsTable, subscriptionsTable, usersTable, automationRulesTable, notificationsTable, auditLogsTable, calendarEventsTable } from "@workspace/db";
 import { sql, eq, gte, lte, and, count, desc, lt, ne, isNull, isNotNull, or, sum, avg } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -823,7 +824,7 @@ async function getOpenAIReview(reportsSummary: any[]): Promise<any> {
     const text = response.choices[0]?.message?.content ?? "{}";
     return JSON.parse(text);
   } catch (error: any) {
-    console.error("OpenAI review error:", error.message);
+    logger.error({ err: error, context: "openai_review" }, "OpenAI review error");
     return { verification: "Verification OpenAI non disponible", incoherences: [], pointsManques: [] };
   }
 }
@@ -847,7 +848,7 @@ Rapports:\n${JSON.stringify(reportsSummary, null, 2)}`,
     const text = block.type === "text" ? block.text : "{}";
     return JSON.parse(text);
   } catch (error: any) {
-    console.error("Anthropic strategy error:", error.message);
+    logger.error({ err: error, context: "anthropic_strategy" }, "Anthropic strategy error");
     return { strategieGlobale: "Strategie Anthropic non disponible", prioritesStrategiques: [], risques: [], opportunites: [] };
   }
 }
@@ -1022,7 +1023,7 @@ router.post("/ai/agents/run", requireAdmin, async (_req, res) => {
             const report = await runSingleAgent(agent, orgId);
             childReports.push(report);
           } catch (err: any) {
-            console.error(`Agent ${agent.id} failed:`, err.message);
+            logger.error({ err, agentId: agent.id }, `Agent ${agent.id} failed`);
             childReports.push({ id: 0, agentName: agent.name, score: 0, status: "erreur", errorsFound: 1, executionTimeMs: 0 });
           }
           jobState.completedAgents++;
@@ -1030,14 +1031,14 @@ router.post("/ai/agents/run", requireAdmin, async (_req, res) => {
         await runSuperAgent(childReports, orgId);
         jobState.status = "completed";
       } catch (err: any) {
-        console.error("AI Agents background run error:", err);
+        logger.error({ err }, "AI Agents background run error");
         jobState.status = "failed";
       } finally {
         setTimeout(() => runningJobs.delete(orgId), 60000);
       }
     })();
   } catch (error: any) {
-    console.error("AI Agents run error:", error);
+    logger.error({ err: error }, "AI Agents run error");
     res.status(500).json({ error: "Erreur lors de l'execution des agents IA", details: error.message });
   }
 });
@@ -1066,7 +1067,7 @@ router.post("/ai/agents/run/:agentId", requireAdmin, async (req, res) => {
     const report = await runSingleAgent(agent, orgId);
     res.json(report);
   } catch (error: any) {
-    console.error("AI Agent run error:", error);
+    logger.error({ err: error }, "AI Agent run error");
     res.status(500).json({ error: "Erreur lors de l'execution de l'agent", details: error.message });
   }
 });
@@ -1089,7 +1090,7 @@ router.post("/ai/agents/super", requireAdmin, async (req, res) => {
     const superReport = await runSuperAgent(todayReports, orgId);
     res.json(superReport);
   } catch (error: any) {
-    console.error("Super Agent error:", error);
+    logger.error({ err: error }, "Super Agent error");
     res.status(500).json({ error: "Erreur Super Agent", details: error.message });
   }
 });
@@ -1170,13 +1171,13 @@ router.post("/ai/agents/auto-start", requireAdmin, async (_req, res) => {
     const state = autoRunState.get(orgId);
     if (state?.running) return;
     if (state) state.running = true;
-    console.log(`[AI Agents] Execution automatique org ${orgId} demarree:`, new Date().toISOString());
+    logger.info({ orgId }, "[AI Agents] Execution automatique demarree");
     try {
       const childReports = await Promise.all(AGENTS.map(a => runSingleAgent(a, orgId)));
       await runSuperAgent(childReports, orgId);
-      console.log(`[AI Agents] Execution automatique org ${orgId} terminee:`, new Date().toISOString());
+      logger.info({ orgId }, "[AI Agents] Execution automatique terminee");
     } catch (error) {
-      console.error(`[AI Agents] Erreur execution automatique org ${orgId}:`, error);
+      logger.error({ err: error, orgId }, "[AI Agents] Erreur execution automatique");
     } finally {
       const s = autoRunState.get(orgId);
       if (s) s.running = false;
@@ -1547,7 +1548,7 @@ router.post("/ai/autopilot/run", requireAdmin, async (req, res): Promise<void> =
     res.json({ status: "started", message: "Cycle Oto-Pilot lance en arriere-plan." });
 
     runAutopilotCycle(orgId).catch((err: any) => {
-      console.error("Autopilot background run error:", err);
+      logger.error({ err }, "Autopilot background run error");
       addAutopilotLog(orgId, "error", `Cycle echoue: ${err.message}`, "system", "haute");
     }).finally(() => {
       runningAutopilotJobs.delete(orgId);

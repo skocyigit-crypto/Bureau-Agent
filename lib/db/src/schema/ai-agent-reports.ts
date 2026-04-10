@@ -1,13 +1,14 @@
 import { pgTable, serial, text, timestamp, integer, jsonb, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { organisationsTable } from "./organisations";
 
 export const aiAgentReportsTable = pgTable("ai_agent_reports", {
   id: serial("id").primaryKey(),
   agentId: text("agent_id").notNull(),
   agentName: text("agent_name").notNull(),
   agentIcon: text("agent_icon").notNull().default("brain"),
-  organisationId: integer("organisation_id"),
+  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
   reportDate: text("report_date").notNull(),
   status: text("status").notNull().default("en_cours"),
   score: integer("score").notNull().default(0),

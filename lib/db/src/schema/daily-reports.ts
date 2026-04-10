@@ -1,9 +1,11 @@
-import { pgTable, serial, text, timestamp, integer, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { organisationsTable } from "./organisations";
 
 export const dailyReportsTable = pgTable("daily_reports", {
   id: serial("id").primaryKey(),
+  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
   reportDate: text("report_date").notNull(),
   summary: text("summary").notNull(),
   highlights: jsonb("highlights").notNull().default([]),
@@ -20,7 +22,11 @@ export const dailyReportsTable = pgTable("daily_reports", {
   score: integer("score").notNull().default(0),
   status: text("status").notNull().default("genere"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  index("daily_reports_org_id_idx").on(table.organisationId),
+  index("daily_reports_date_idx").on(table.reportDate),
+  index("daily_reports_created_at_idx").on(table.createdAt),
+]);
 
 export const insertDailyReportSchema = createInsertSchema(dailyReportsTable).omit({ id: true, createdAt: true });
 export type InsertDailyReport = z.infer<typeof insertDailyReportSchema>;

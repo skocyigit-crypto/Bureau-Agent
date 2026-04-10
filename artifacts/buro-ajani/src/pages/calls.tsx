@@ -135,14 +135,23 @@ export default function Calls() {
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
     const ids = Array.from(selectedIds);
+    let successCount = 0;
+    let failCount = 0;
     for (const id of ids) {
       await new Promise<void>((resolve) => {
-        deleteCall.mutate({ id }, { onSuccess: () => resolve(), onError: () => resolve() });
+        deleteCall.mutate({ id }, {
+          onSuccess: () => { successCount++; resolve(); },
+          onError: () => { failCount++; resolve(); },
+        });
       });
     }
     setSelectedIds(new Set());
     queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() });
-    toast({ title: `${ids.length} appel(s) supprime(s)` });
+    if (failCount > 0) {
+      toast({ title: `${successCount} supprime(s), ${failCount} echoue(s)`, variant: "destructive" });
+    } else {
+      toast({ title: `${successCount} appel(s) supprime(s)` });
+    }
   };
 
   const exportCSV = () => {

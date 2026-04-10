@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -86,8 +86,65 @@ export default function AiAgentsScreen() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
-      if (res.ok) fetchData();
-    } catch {} finally { setRunningAll(false); }
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === "started" || data.status === "already_running") {
+          pollForCompletion();
+        } else {
+          fetchData();
+          setRunningAll(false);
+        }
+      } else {
+        setRunningAll(false);
+      }
+    } catch {
+      setRunningAll(false);
+    }
+  }
+
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollStartRef = useRef<number>(0);
+
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
+
+  function pollForCompletion() {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollStartRef.current = Date.now();
+    const MAX_POLL_MS = 5 * 60 * 1000;
+
+    pollRef.current = setInterval(async () => {
+      if (Date.now() - pollStartRef.current > MAX_POLL_MS) {
+        if (pollRef.current) clearInterval(pollRef.current);
+        pollRef.current = null;
+        setRunningAll(false);
+        fetchData();
+        return;
+      }
+      try {
+        const res = await fetchAuth(`${API_BASE}/api/ai/agents/run/status`);
+        if (!res.ok) {
+          if (pollRef.current) clearInterval(pollRef.current);
+          pollRef.current = null;
+          setRunningAll(false);
+          return;
+        }
+        const data = await res.json();
+        if (data.status === "completed" || data.status === "failed" || data.status === "idle") {
+          if (pollRef.current) clearInterval(pollRef.current);
+          pollRef.current = null;
+          setRunningAll(false);
+          fetchData();
+        }
+      } catch {
+        if (pollRef.current) clearInterval(pollRef.current);
+        pollRef.current = null;
+        setRunningAll(false);
+      }
+    }, 4000);
   }
 
   async function runSingleAgent(agentId: string) {
