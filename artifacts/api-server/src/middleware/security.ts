@@ -88,6 +88,9 @@ function detectThreatInValue(value: unknown, path: string): string | null {
     for (const p of PATH_TRAVERSAL_PATTERNS) {
       if (p.test(value)) return `Traversee de chemin detectee dans ${path}`;
     }
+    for (const p of COMMAND_INJECTION_PATTERNS) {
+      if (p.test(value)) return `Injection de commande detectee dans ${path}`;
+    }
   }
   if (Array.isArray(value)) {
     for (let i = 0; i < value.length; i++) {
@@ -239,8 +242,9 @@ export function threatDetection(req: Request, res: Response, next: NextFunction)
     }
   }
 
+  const urlPath = url.split("?")[0];
   for (const p of COMMAND_INJECTION_PATTERNS) {
-    if (p.test(url)) {
+    if (p.test(urlPath)) {
       recordThreat(ip, "Injection de commande dans URL", req);
       res.status(400).json({ error: "URL invalide detectee." });
       return;

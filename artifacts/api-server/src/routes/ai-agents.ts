@@ -997,25 +997,60 @@ Rapports des agents:\n${JSON.stringify(reportsSummary, null, 2)}`
   }
 }
 
+const runningJobs = new Map<number, { status: string; startedAt: number; completedAgents: number; totalAgents: number }>();
+
 router.post("/ai/agents/run", requireAdmin, async (_req, res) => {
   try {
     const orgId = (_req.session as any)?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
-    const childReports = await Promise.all(
-      AGENTS.map(agent => runSingleAgent(agent, orgId))
-    );
 
-    const superReport = await runSuperAgent(childReports, orgId);
+    if (runningJobs.has(orgId) && runningJobs.get(orgId)!.status === "running") {
+      res.json({ status: "already_running", message: "Une analyse est deja en cours." });
+      return;
+    }
 
-    res.json({
-      superReport,
-      agentReports: childReports,
-      totalExecutionTimeMs: childReports.reduce((acc, r) => acc + (r.executionTimeMs || 0), 0) + (superReport.executionTimeMs || 0),
-    });
+    const jobState = { status: "running", startedAt: Date.now(), completedAgents: 0, totalAgents: AGENTS.length };
+    runningJobs.set(orgId, jobState);
+
+    res.json({ status: "started", message: "Analyse lancee en arriere-plan.", totalAgents: AGENTS.length });
+
+    (async () => {
+      try {
+        const childReports: any[] = [];
+        for (const agent of AGENTS) {
+          try {
+            const report = await runSingleAgent(agent, orgId);
+            childReports.push(report);
+          } catch (err: any) {
+            console.error(`Agent ${agent.id} failed:`, err.message);
+            childReports.push({ id: 0, agentName: agent.name, score: 0, status: "erreur", errorsFound: 1, executionTimeMs: 0 });
+          }
+          jobState.completedAgents++;
+        }
+        await runSuperAgent(childReports, orgId);
+        jobState.status = "completed";
+      } catch (err: any) {
+        console.error("AI Agents background run error:", err);
+        jobState.status = "failed";
+      } finally {
+        setTimeout(() => runningJobs.delete(orgId), 60000);
+      }
+    })();
   } catch (error: any) {
     console.error("AI Agents run error:", error);
     res.status(500).json({ error: "Erreur lors de l'execution des agents IA", details: error.message });
   }
+});
+
+router.get("/ai/agents/run/status", requireAdmin, async (req, res) => {
+  const orgId = (req.session as any)?.organisationId;
+  if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+  const job = runningJobs.get(orgId);
+  if (!job) {
+    res.json({ status: "idle" });
+    return;
+  }
+  res.json(job);
 });
 
 router.post("/ai/agents/run/:agentId", requireAdmin, async (req, res) => {
@@ -1496,13 +1531,29 @@ Reponds en JSON:
   }
 }
 
+const runningAutopilotJobs = new Map<number, boolean>();
+
 router.post("/ai/autopilot/run", requireAdmin, async (req, res): Promise<void> => {
   const orgId = (req.session as any)?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
+
+  if (runningAutopilotJobs.get(orgId)) {
+    res.json({ status: "already_running", message: "Un cycle Oto-Pilot est deja en cours." });
+    return;
+  }
+
   try {
-    const result = await runAutopilotCycle(orgId);
-    res.json(result);
+    runningAutopilotJobs.set(orgId, true);
+    res.json({ status: "started", message: "Cycle Oto-Pilot lance en arriere-plan." });
+
+    runAutopilotCycle(orgId).catch((err: any) => {
+      console.error("Autopilot background run error:", err);
+      addAutopilotLog(orgId, "error", `Cycle echoue: ${err.message}`, "system", "haute");
+    }).finally(() => {
+      runningAutopilotJobs.delete(orgId);
+    });
   } catch (err: any) {
+    runningAutopilotJobs.delete(orgId);
     res.status(500).json({ error: "Erreur cycle Oto-Pilot", details: err.message });
   }
 });

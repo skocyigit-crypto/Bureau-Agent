@@ -416,6 +416,10 @@ export default function AiAgentsPage() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const { isAtLeast } = useWorkspaceUser();
   const canRunAgents = isAtLeast("administrateur");
+  const [isRunning, setIsRunning] = useState(false);
+  const [runProgress, setRunProgress] = useState({ completedAgents: 0, totalAgents: 10 });
+
+  const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 
   const runAll = useRunAllAiAgents();
   const runSingle = useRunSingleAiAgent();
@@ -432,11 +436,36 @@ export default function AiAgentsPage() {
     });
   };
 
+  useEffect(() => {
+    if (!isRunning) return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/api/ai/agents/run/status`, { credentials: "include" });
+        const data = await res.json();
+        if (data.status === "completed" || data.status === "failed" || data.status === "idle") {
+          setIsRunning(false);
+          invalidateAgentQueries();
+          if (data.status === "completed") {
+            toast({ title: "Analyse terminee", description: "Tous les agents IA ont termine leur analyse." });
+          } else if (data.status === "failed") {
+            toast({ title: "Erreur", description: "L'analyse a rencontre des erreurs.", variant: "destructive" });
+          }
+        } else if (data.status === "running") {
+          setRunProgress({ completedAgents: data.completedAgents || 0, totalAgents: data.totalAgents || 10 });
+        }
+      } catch {}
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isRunning]);
+
   const handleRunAll = () => {
     runAll.mutate(undefined, {
-      onSuccess: () => {
-        toast({ title: "Analyse terminee", description: "Tous les agents IA ont termine leur analyse." });
-        invalidateAgentQueries();
+      onSuccess: (data: any) => {
+        if (data?.status === "started" || data?.status === "already_running") {
+          setIsRunning(true);
+          setRunProgress({ completedAgents: 0, totalAgents: data?.totalAgents || 10 });
+          toast({ title: "Analyse lancee", description: "Les agents IA travaillent en arriere-plan..." });
+        }
       },
       onError: () => {
         toast({ title: "Erreur", description: "Impossible d'executer les agents IA.", variant: "destructive" });
@@ -464,8 +493,6 @@ export default function AiAgentsPage() {
   const totalSuggestions = agentReports.reduce((acc: number, r: any) => acc + (r.suggestionsCount || 0), 0);
   const avgScore = agentReports.length > 0 ? Math.round(agentReports.reduce((acc: number, r: any) => acc + (r.score || 0), 0) / agentReports.length) : 0;
 
-  const isRunning = runAll.isPending;
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -477,9 +504,9 @@ export default function AiAgentsPage() {
         </div>
         <div className="flex items-center gap-2">
           {canRunAgents ? (
-            <Button onClick={handleRunAll} disabled={isRunning} className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700">
-              {isRunning ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
-              Lancer tous les agents
+            <Button onClick={handleRunAll} disabled={isRunning || runAll.isPending} className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700">
+              {isRunning || runAll.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
+              {isRunning ? `Analyse en cours (${runProgress.completedAgents}/${runProgress.totalAgents})` : "Lancer tous les agents"}
             </Button>
           ) : (
             <Badge variant="secondary" className="py-1.5 px-3 text-xs">
@@ -646,9 +673,9 @@ export default function AiAgentsPage() {
                   Lancez les agents IA pour obtenir une analyse complete de votre bureau.
                 </p>
                 {canRunAgents && (
-                  <Button onClick={handleRunAll} disabled={isRunning} className="bg-gradient-to-r from-purple-600 to-indigo-600">
-                    {isRunning ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
-                    Lancer l'analyse
+                  <Button onClick={handleRunAll} disabled={isRunning || runAll.isPending} className="bg-gradient-to-r from-purple-600 to-indigo-600">
+                    {isRunning || runAll.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
+                    {isRunning ? `Analyse en cours (${runProgress.completedAgents}/${runProgress.totalAgents})` : "Lancer l'analyse"}
                   </Button>
                 )}
               </CardContent>
@@ -753,10 +780,8 @@ function AutopilotPanel() {
     try {
       const r = await fetch(`${baseUrl}/api/ai/autopilot/run`, { method: "POST", credentials: "include" });
       if (!r.ok) { const err = await r.json().catch(() => ({})); throw new Error(err.error || err.details || "Echec du cycle"); }
-      const data = await r.json();
-      setCycleResult(data);
-      toast({ title: "Cycle Oto-Pilot termine", description: `Score: ${data.consensusScore}/100 — ${data.issues?.length || 0} problemes, ${data.autoFixes?.length || 0} corrections` });
-      fetchStatus();
+      toast({ title: "Cycle Oto-Pilot lance", description: "Le diagnostic s'execute en arriere-plan..." });
+      setTimeout(() => fetchStatus(), 5000);
     } catch (e: any) {
       toast({ title: "Erreur", description: e.message, variant: "destructive" });
     } finally { setLoading(false); }

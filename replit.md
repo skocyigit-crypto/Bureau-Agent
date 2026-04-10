@@ -75,3 +75,10 @@ The Settings page (`artifacts/buro-ajani/src/pages/settings.tsx`) was refactored
 - `tab-securite.tsx` — Security settings with embedded SecurityMonitorPanel
 
 Each tab component is fully self-contained with its own state, API calls, and handlers. OAuth callback handling (google_success/google_error URL params) is processed at the parent shell level.
+
+## AI Agents Background Processing
+The AI agent routes (`/api/ai/agents/run` and `/api/ai/autopilot/run`) use background processing to avoid HTTP timeouts. They respond immediately with `{ status: "started" }` and process AI calls asynchronously. The frontend polls `/api/ai/agents/run/status` every 3 seconds to track progress (completedAgents/totalAgents). Both routes have in-flight guards to prevent duplicate concurrent executions per organization.
+
+## Security Middleware Notes
+- Command injection patterns are checked on URL **path only** (not query string) to avoid false positives from `&` query parameter separators.
+- Command injection patterns are additionally checked on **parsed query values** via `detectThreatInValue`, so malicious payloads like `$(id)` or `foo;bar` in query values are still detected.
