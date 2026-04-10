@@ -50,7 +50,18 @@ The application features a French UI with a deep navy and warm amber color schem
 - **Google Agenda → Pointage Sync:** API endpoint and UI for syncing Google Calendar events with check-in records. A background service (`google-auto-pointage.ts`) runs every 30 minutes to auto-create check-in records from Google Calendar events for configured users.
 - **Usage-Based Billing System:** Integrated into the Organisations/Licence management area, featuring forfait-linked invoicing with automatic overage calculation, usage snapshots, a dedicated "Facturation" tab, per-organization billing details, bank statement import, and automatic payment matching.
 - **Legal Compliance System:** Full legal rights management in a "Juridique" tab for Super Admins. Tracks 7 legal documents (CGU, CGV, RGPD, DPA, SLA, Propriete Intellectuelle, Securite) with per-organization compliance tracking, a compliance dashboard, document detail dialogs, and a legal document catalog.
-- **Google Drive Secure Backup:** Encrypted backup service that uploads full database exports to Google Drive. Features AES-256-GCM encryption, full database export of 16 tables, `.adb.enc` envelope format, automatic scheduling, Google Drive folder management with retention policies, and a frontend UI in settings.
+- **Google Drive Secure Backup & Restore System:** Enterprise-grade backup system with full data protection:
+    - **29 tables backed up** (all critical business data: organisations, users, contacts, calls, tasks, messages, prospects, devis, factures_client, projets, and 19 more).
+    - **AES-256-GCM encryption** with SHA-256 integrity checksums.
+    - **Auto-schedule** every 6 hours with configurable intervals (1-24h).
+    - **90-day retention** with automatic cleanup of old backups.
+    - **Full restore system**: download from Google Drive, decrypt, verify integrity, restore data with ON CONFLICT safety.
+    - **Dry-run restore**: simulate restoration to preview what would be restored before committing.
+    - **Per-table selective restore**: choose specific tables to restore.
+    - **Backup verification**: validate backup integrity without restoring (checksum matching, table/record counts).
+    - **Local JSON export**: download unencrypted backup directly to browser.
+    - **Frontend UI**: verify, simulate, restore buttons per backup file; verification details panel; restore results panel with per-table counts.
+    - **API endpoints**: `/google-drive-backup/verify/:fileId`, `/google-drive-backup/restore/:fileId`, `/google-drive-backup/preview/:fileId`, `/google-drive-backup/export-local`, `/google-drive-backup/tables`.
 
 # External Dependencies
 

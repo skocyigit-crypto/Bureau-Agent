@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { performGoogleDriveBackup, listGoogleDriveBackups, isConnectorAvailable } from "../services/google-drive-backup";
+import { performGoogleDriveBackup, listGoogleDriveBackups, isConnectorAvailable, downloadAndDecryptBackup, verifyBackup, restoreFromBackup, exportBackupAsJSON } from "../services/google-drive-backup";
 import { db, autoBackupsTable, backupConfigTable } from "@workspace/db";
 import { eq, desc, sql } from "drizzle-orm";
 
@@ -134,6 +134,11 @@ router.get("/google-drive-backup/status", async (_req: Request, res: Response): 
     .orderBy(desc(autoBackupsTable.createdAt))
     .limit(1);
 
+  const totalBackups = await db.select({
+    total: sql<number>`count(*)::int`,
+    totalSize: sql<number>`coalesce(sum(${autoBackupsTable.sizeBytes}), 0)::bigint`,
+  }).from(autoBackupsTable).where(eq(autoBackupsTable.platform, "google"));
+
   res.json({
     configured,
     schedulerActive: configured,
@@ -141,6 +146,177 @@ router.get("/google-drive-backup/status", async (_req: Request, res: Response): 
     encryption: "AES-256-GCM",
     lastBackup: lastBackup[0] || null,
     lastSuccessfulBackup: lastSuccess[0] || null,
+    totalBackups: totalBackups[0]?.total || 0,
+    totalStorageBytes: Number(totalBackups[0]?.totalSize || 0),
+    backedUpTables: 29,
+    features: [
+      "AES-256-GCM encryption",
+      "SHA-256 integrity verification",
+      "29 tables backed up",
+      "Auto-schedule every 6 hours",
+      "90-day retention policy",
+      "Full restore capability",
+      "Dry-run restore preview",
+      "Per-table selective restore",
+      "Local JSON export",
+    ],
+  });
+});
+
+router.post("/google-drive-backup/verify/:fileId", async (req: Request, res: Response): Promise<void> => {
+  const { fileId } = req.params;
+  if (!fileId) {
+    res.status(400).json({ error: "fileId requis." });
+    return;
+  }
+
+  const result = await verifyBackup(fileId);
+  if (result.success) {
+    res.json(result);
+  } else {
+    res.status(500).json(result);
+  }
+});
+
+router.post("/google-drive-backup/preview/:fileId", async (req: Request, res: Response): Promise<void> => {
+  const { fileId } = req.params;
+  if (!fileId) {
+    res.status(400).json({ error: "fileId requis." });
+    return;
+  }
+
+  const result = await downloadAndDecryptBackup(fileId);
+  if (!result.success) {
+    res.status(500).json({ error: result.error });
+    return;
+  }
+
+  const preview: Record<string, any> = {};
+  for (const [key, value] of Object.entries(result.data)) {
+    if (key === "_meta") {
+      preview._meta = value;
+      continue;
+    }
+    const tableData = value as any;
+    preview[key] = {
+      count: tableData?.count || 0,
+      sample: (tableData?.data || []).slice(0, 3),
+    };
+  }
+
+  res.json({ success: true, preview, meta: result.meta });
+});
+
+router.post("/google-drive-backup/restore/:fileId", async (req: Request, res: Response): Promise<void> => {
+  const { fileId } = req.params;
+  const { tables, dryRun = true, clearBeforeRestore = false } = req.body;
+
+  if (!fileId) {
+    res.status(400).json({ error: "fileId requis." });
+    return;
+  }
+
+  if (!dryRun && clearBeforeRestore) {
+    const confirmCode = req.body.confirmCode;
+    if (confirmCode !== "RESTAURER-TOUT") {
+      res.status(400).json({
+        error: "Pour une restauration destructive, envoyez confirmCode: 'RESTAURER-TOUT'.",
+        hint: "Cette operation supprimera les donnees existantes avant la restauration.",
+      });
+      return;
+    }
+  }
+
+  const result = await restoreFromBackup(fileId, {
+    tables: tables || undefined,
+    dryRun: dryRun !== false,
+    clearBeforeRestore: clearBeforeRestore === true,
+  });
+
+  if (result.success) {
+    res.json({
+      message: result.dryRun
+        ? `Simulation terminee: ${result.totalRestored} enregistrements seraient restaures.`
+        : `Restauration terminee: ${result.totalRestored} enregistrements restaures.`,
+      ...result,
+    });
+  } else {
+    res.status(500).json(result);
+  }
+});
+
+router.get("/google-drive-backup/export-local", async (_req: Request, res: Response): Promise<void> => {
+  const result = await exportBackupAsJSON();
+  if (!result.success) {
+    res.status(500).json({ error: result.error });
+    return;
+  }
+
+  res.setHeader("Content-Type", "application/json");
+  res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+  res.setHeader("Content-Length", String(result.size));
+  res.send(result.data);
+});
+
+router.get("/google-drive-backup/export-encrypted", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const backupResult = await performGoogleDriveBackup();
+    if (backupResult.success) {
+      res.json({
+        message: "Sauvegarde chiffree creee et uploadee sur Google Drive.",
+        ...backupResult,
+      });
+    } else {
+      res.status(500).json({ error: backupResult.error });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/google-drive-backup/tables", async (_req: Request, res: Response): Promise<void> => {
+  const tables = [
+    { name: "organisations", category: "Systeme", description: "Organisations clientes", critical: true },
+    { name: "subscriptions", category: "Systeme", description: "Abonnements/licences", critical: true },
+    { name: "users", category: "Systeme", description: "Comptes utilisateurs", critical: true },
+    { name: "contacts", category: "CRM", description: "Fiches contacts", critical: true },
+    { name: "calls", category: "Telephonie", description: "Historique des appels", critical: true },
+    { name: "tasks", category: "Productivite", description: "Taches et suivi", critical: true },
+    { name: "messages", category: "Communication", description: "Messages SMS/chat", critical: true },
+    { name: "checkins", category: "RH", description: "Pointages equipe", critical: false },
+    { name: "stock_articles", category: "Stock", description: "Articles en stock", critical: false },
+    { name: "automations", category: "Automatisation", description: "Regles d'automatisation", critical: false },
+    { name: "calendar_events", category: "Agenda", description: "Evenements agenda", critical: true },
+    { name: "invoices", category: "Facturation", description: "Factures systeme", critical: true },
+    { name: "payments", category: "Facturation", description: "Paiements", critical: true },
+    { name: "legal_agreements", category: "Juridique", description: "Accords legaux", critical: false },
+    { name: "audit_logs", category: "Securite", description: "Journal d'audit", critical: false },
+    { name: "platform_connections", category: "Integrations", description: "Connexions logiciels", critical: false },
+    { name: "prospects", category: "CRM", description: "Pipeline prospects", critical: true },
+    { name: "devis", category: "Commercial", description: "Devis clients", critical: true },
+    { name: "factures_client", category: "Commercial", description: "Factures clients", critical: true },
+    { name: "projets", category: "Projets", description: "Projets en cours", critical: true },
+    { name: "notifications", category: "Systeme", description: "Notifications", critical: false },
+    { name: "google_oauth_tokens", category: "Integrations", description: "Tokens Google OAuth", critical: false },
+    { name: "admin_reports", category: "Administration", description: "Rapports admin", critical: false },
+    { name: "ai_agent_reports", category: "IA", description: "Rapports agents IA", critical: false },
+    { name: "daily_reports", category: "Rapports", description: "Rapports quotidiens", critical: false },
+    { name: "performance_reports", category: "RH", description: "Rapports performance", critical: false },
+    { name: "automation_rules", category: "Automatisation", description: "Regles automatisation", critical: false },
+    { name: "automation_logs", category: "Automatisation", description: "Logs automatisation", critical: false },
+    { name: "platform_sync_logs", category: "Integrations", description: "Logs synchronisation", critical: false },
+  ];
+
+  const criticalCount = tables.filter(t => t.critical).length;
+  const categories = [...new Set(tables.map(t => t.category))];
+
+  res.json({
+    tables,
+    summary: {
+      total: tables.length,
+      critical: criticalCount,
+      categories,
+    },
   });
 });
 

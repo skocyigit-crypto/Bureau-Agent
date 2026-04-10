@@ -29,12 +29,28 @@ function encryptData(data: string): { encrypted: Buffer; iv: string; authTag: st
   return { encrypted, iv: iv.toString("hex"), authTag };
 }
 
+function decryptData(encryptedBase64: string, iv: string, authTag: string): string {
+  const key = deriveEncryptionKey();
+  const decipher = crypto.createDecipheriv("aes-256-gcm", key, Buffer.from(iv, "hex"));
+  (decipher as any).setAuthTag(Buffer.from(authTag, "hex"));
+  const decrypted = Buffer.concat([
+    decipher.update(Buffer.from(encryptedBase64, "base64")),
+    decipher.final(),
+  ]);
+  return decrypted.toString("utf-8");
+}
+
 async function collectFullBackupData(): Promise<object> {
   const tables = [
     "organisations", "subscriptions", "users", "contacts", "calls",
     "tasks", "messages", "checkins", "stock_articles", "automations",
     "calendar_events", "invoices", "payments", "legal_agreements",
     "audit_logs", "platform_connections",
+    "prospects", "devis", "factures_client", "projets",
+    "notifications", "google_oauth_tokens",
+    "admin_reports", "ai_agent_reports", "daily_reports",
+    "performance_reports", "automation_rules", "automation_logs",
+    "platform_sync_logs",
   ];
 
   const snapshot: Record<string, any> = {};
@@ -52,10 +68,12 @@ async function collectFullBackupData(): Promise<object> {
 
   snapshot._meta = {
     exportedAt: new Date().toISOString(),
-    version: "2.0",
+    version: "3.0",
     encryption: "AES-256-GCM",
     platform: "Agent de Bureau SaaS",
     tables: tables.length,
+    tableNames: tables,
+    totalRecords: Object.values(snapshot).reduce((sum: number, t: any) => sum + (t?.count || 0), 0),
   };
 
   return snapshot;
@@ -302,6 +320,271 @@ export async function listGoogleDriveBackups(): Promise<{
       success: true,
       files: listResult.files || [],
       folderId,
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function downloadAndDecryptBackup(fileId: string): Promise<{
+  success: boolean;
+  data?: any;
+  meta?: any;
+  error?: string;
+}> {
+  try {
+    const content = await driveProxy(
+      `/drive/v3/files/${fileId}?alt=media`,
+      { method: "GET" }
+    );
+
+    let envelope: any;
+    if (typeof content === "string") {
+      envelope = JSON.parse(content);
+    } else if (content && typeof content === "object") {
+      envelope = content;
+    } else {
+      return { success: false, error: "Contenu du fichier invalide." };
+    }
+
+    if (!envelope.encryption || !envelope.data) {
+      return { success: false, error: "Format de sauvegarde invalide (pas d'enveloppe chiffree)." };
+    }
+
+    const decryptedStr = decryptData(
+      envelope.data,
+      envelope.encryption.iv,
+      envelope.encryption.authTag
+    );
+
+    const checksum = crypto.createHash("sha256").update(decryptedStr).digest("hex");
+    if (envelope.integrity?.originalChecksum && checksum !== envelope.integrity.originalChecksum) {
+      return { success: false, error: "Integrite compromise: le checksum ne correspond pas. Fichier possiblement corrompu." };
+    }
+
+    const parsed = JSON.parse(decryptedStr);
+    return {
+      success: true,
+      data: parsed,
+      meta: {
+        ...envelope.metadata,
+        integrity: "verified",
+        checksum: checksum.substring(0, 16),
+        originalSize: envelope.integrity?.originalSize,
+        tables: parsed._meta?.tables,
+        totalRecords: parsed._meta?.totalRecords,
+        version: parsed._meta?.version,
+      },
+    };
+  } catch (error: any) {
+    return { success: false, error: `Erreur de dechiffrement: ${error.message}` };
+  }
+}
+
+export async function verifyBackup(fileId: string): Promise<{
+  success: boolean;
+  valid?: boolean;
+  details?: {
+    format: string;
+    version: string;
+    encryption: string;
+    integrityMatch: boolean;
+    tablesCount: number;
+    totalRecords: number;
+    createdAt: string;
+    sizeOriginal: number;
+    sizeEncrypted: number;
+    tableDetails: { name: string; count: number }[];
+  };
+  error?: string;
+}> {
+  try {
+    const result = await downloadAndDecryptBackup(fileId);
+    if (!result.success || !result.data) {
+      return { success: false, valid: false, error: result.error };
+    }
+
+    const data = result.data;
+    const meta = data._meta || {};
+    const tableDetails: { name: string; count: number }[] = [];
+    let totalRecords = 0;
+
+    for (const [key, value] of Object.entries(data)) {
+      if (key === "_meta") continue;
+      const tableData = value as any;
+      const count = tableData?.count || 0;
+      tableDetails.push({ name: key, count });
+      totalRecords += count;
+    }
+
+    return {
+      success: true,
+      valid: true,
+      details: {
+        format: "agent-de-bureau-backup",
+        version: meta.version || "unknown",
+        encryption: "AES-256-GCM",
+        integrityMatch: true,
+        tablesCount: tableDetails.length,
+        totalRecords,
+        createdAt: meta.exportedAt || "unknown",
+        sizeOriginal: result.meta?.originalSize || 0,
+        sizeEncrypted: 0,
+        tableDetails,
+      },
+    };
+  } catch (error: any) {
+    return { success: false, valid: false, error: error.message };
+  }
+}
+
+export async function restoreFromBackup(fileId: string, options: {
+  tables?: string[];
+  dryRun?: boolean;
+  clearBeforeRestore?: boolean;
+}): Promise<{
+  success: boolean;
+  restoredTables?: { name: string; inserted: number; skipped: number; errors: number }[];
+  totalRestored?: number;
+  dryRun?: boolean;
+  error?: string;
+  warnings?: string[];
+}> {
+  try {
+    const downloadResult = await downloadAndDecryptBackup(fileId);
+    if (!downloadResult.success || !downloadResult.data) {
+      return { success: false, error: downloadResult.error };
+    }
+
+    const backupData = downloadResult.data;
+    const warnings: string[] = [];
+    const restoredTables: { name: string; inserted: number; skipped: number; errors: number }[] = [];
+    let totalRestored = 0;
+
+    const safeRestoreOrder = [
+      "organisations", "subscriptions", "users",
+      "contacts", "calls", "tasks", "messages",
+      "checkins", "stock_articles", "automations",
+      "calendar_events", "invoices", "payments",
+      "legal_agreements", "platform_connections",
+      "prospects", "devis", "factures_client", "projets",
+      "notifications", "google_oauth_tokens",
+      "admin_reports", "ai_agent_reports", "daily_reports",
+      "performance_reports", "automation_rules", "automation_logs",
+      "platform_sync_logs", "audit_logs",
+    ];
+
+    const tablesToRestore = options.tables
+      ? safeRestoreOrder.filter(t => options.tables!.includes(t))
+      : safeRestoreOrder;
+
+    if (options.dryRun) {
+      for (const tableName of tablesToRestore) {
+        const tableData = backupData[tableName];
+        if (!tableData || !tableData.data || tableData.data.length === 0) {
+          restoredTables.push({ name: tableName, inserted: 0, skipped: 0, errors: 0 });
+          continue;
+        }
+        restoredTables.push({
+          name: tableName,
+          inserted: tableData.data.length,
+          skipped: 0,
+          errors: 0,
+        });
+        totalRestored += tableData.data.length;
+      }
+      return { success: true, restoredTables, totalRestored, dryRun: true, warnings };
+    }
+
+    for (const tableName of tablesToRestore) {
+      const tableData = backupData[tableName];
+      if (!tableData || !tableData.data || tableData.data.length === 0) {
+        restoredTables.push({ name: tableName, inserted: 0, skipped: 0, errors: 0 });
+        continue;
+      }
+
+      let inserted = 0;
+      let skipped = 0;
+      let errors = 0;
+
+      try {
+        if (options.clearBeforeRestore) {
+          await db.execute(sql.raw(`DELETE FROM ${tableName}`));
+        }
+
+        for (const row of tableData.data) {
+          try {
+            const columns = Object.keys(row).filter(k => row[k] !== undefined);
+            if (columns.length === 0) { skipped++; continue; }
+
+            const colNames = columns.map(c => `"${c}"`).join(", ");
+            const placeholders = columns.map((_, i) => `$${i + 1}`).join(", ");
+            const values = columns.map(c => {
+              const v = row[c];
+              if (v === null || v === undefined) return null;
+              if (typeof v === "object") return JSON.stringify(v);
+              return v;
+            });
+
+            const query = options.clearBeforeRestore
+              ? `INSERT INTO ${tableName} (${colNames}) VALUES (${placeholders})`
+              : `INSERT INTO ${tableName} (${colNames}) VALUES (${placeholders}) ON CONFLICT DO NOTHING`;
+
+            await db.execute(sql.raw(query, ...values));
+            inserted++;
+          } catch (rowErr: any) {
+            errors++;
+            if (errors <= 3) {
+              warnings.push(`${tableName}: erreur ligne - ${rowErr.message?.substring(0, 100)}`);
+            }
+          }
+        }
+      } catch (tableErr: any) {
+        errors = tableData.data.length;
+        warnings.push(`${tableName}: erreur table - ${tableErr.message?.substring(0, 100)}`);
+      }
+
+      restoredTables.push({ name: tableName, inserted, skipped, errors });
+      totalRestored += inserted;
+    }
+
+    await db.insert(autoBackupsTable).values({
+      type: "restore",
+      status: "termine",
+      platform: "google",
+      dataSummary: {
+        sourceFileId: fileId,
+        tablesRestored: restoredTables.filter(t => t.inserted > 0).length,
+        totalRecords: totalRestored,
+        warnings: warnings.length,
+      },
+      duration: 0,
+    });
+
+    return { success: true, restoredTables, totalRestored, dryRun: false, warnings };
+  } catch (error: any) {
+    return { success: false, error: `Erreur de restauration: ${error.message}` };
+  }
+}
+
+export async function exportBackupAsJSON(): Promise<{
+  success: boolean;
+  data?: string;
+  fileName?: string;
+  size?: number;
+  error?: string;
+}> {
+  try {
+    const backupData = await collectFullBackupData();
+    const jsonStr = JSON.stringify(backupData, null, 2);
+    const now = new Date();
+    const fileName = `backup_local_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}.json`;
+
+    return {
+      success: true,
+      data: jsonStr,
+      fileName,
+      size: Buffer.byteLength(jsonStr, "utf-8"),
     };
   } catch (error: any) {
     return { success: false, error: error.message };

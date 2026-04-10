@@ -6,7 +6,7 @@ import {
   ShieldCheck, ShieldBan, FileWarning, Download, Upload, Bug, Eye, UserCog,
   AlertTriangle, Server, KeyRound, Fingerprint, ScanSearch, FileX, Ban,
   TriangleAlert, CircleAlert, Monitor, Laptop, Smartphone, Wifi, HardDrive,
-  CloudDownload, Share2, Package, Cpu, RefreshCcw, CheckCheck, Save, HardDriveUpload,
+  CloudDownload, Share2, Package, Cpu, RefreshCcw, RotateCcw, CheckCheck, Save, HardDriveUpload,
   Video, MessageCircle, MapPin, StickyNote, ListChecks, Users, Image,
   BarChart3, Megaphone, Search, Cloud, Settings, BookOpen, Bookmark,
   Languages, ShieldQuestion, Radio, Store, ClipboardList, Play,
@@ -1305,6 +1305,11 @@ export default function SettingsPage() {
   const [driveConfigSaving, setDriveConfigSaving] = useState(false);
   const [driveConfigEditing, setDriveConfigEditing] = useState(false);
   const [driveConfigForm, setDriveConfigForm] = useState({ enabled: "true", intervalMinutes: 360, retentionDays: 90, encryptionEnabled: "true" });
+  const [verifyingFileId, setVerifyingFileId] = useState<string | null>(null);
+  const [verifyResult, setVerifyResult] = useState<any>(null);
+  const [restoringFileId, setRestoringFileId] = useState<string | null>(null);
+  const [restoreResult, setRestoreResult] = useState<any>(null);
+  const [exportingLocal, setExportingLocal] = useState(false);
 
   const { simulateIncomingCall } = useSimulateCall();
   const { toast } = useToast();
@@ -1512,6 +1517,100 @@ export default function SettingsPage() {
       toast({ title: "Erreur", description: "Impossible de sauvegarder la configuration.", variant: "destructive" });
     } finally {
       setDriveConfigSaving(false);
+    }
+  };
+
+  const handleVerifyBackup = async (fileId: string) => {
+    setVerifyingFileId(fileId);
+    setVerifyResult(null);
+    try {
+      const res = await fetch(`${API_BASE}/google-drive-backup/verify/${fileId}`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      setVerifyResult(data);
+      if (data.valid) {
+        toast({ title: "Verification reussie", description: `${data.details.tablesCount} tables, ${data.details.totalRecords} enregistrements. Integrite: OK` });
+      } else {
+        toast({ title: "Verification echouee", description: data.error || "Fichier corrompu.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de verifier le fichier.", variant: "destructive" });
+    } finally {
+      setVerifyingFileId(null);
+    }
+  };
+
+  const handleDryRunRestore = async (fileId: string) => {
+    setRestoringFileId(fileId);
+    setRestoreResult(null);
+    try {
+      const res = await fetch(`${API_BASE}/google-drive-backup/restore/${fileId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ dryRun: true }),
+      });
+      const data = await res.json();
+      setRestoreResult(data);
+      toast({ title: "Simulation terminee", description: `${data.totalRestored} enregistrements seraient restaures.` });
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de simuler la restauration.", variant: "destructive" });
+    } finally {
+      setRestoringFileId(null);
+    }
+  };
+
+  const handleFullRestore = async (fileId: string) => {
+    if (!confirm("ATTENTION: Cette operation va restaurer les donnees depuis la sauvegarde. Les enregistrements existants seront preserves (pas de suppression). Continuer ?")) return;
+    setRestoringFileId(fileId);
+    try {
+      const res = await fetch(`${API_BASE}/google-drive-backup/restore/${fileId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ dryRun: false, clearBeforeRestore: false }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: "Restauration terminee", description: `${data.totalRestored} enregistrements restaures avec succes.` });
+        setRestoreResult(data);
+      } else {
+        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Erreur de restauration.", variant: "destructive" });
+    } finally {
+      setRestoringFileId(null);
+    }
+  };
+
+  const handleExportLocal = async () => {
+    setExportingLocal(true);
+    try {
+      const res = await fetch(`${API_BASE}/google-drive-backup/export-local`, { credentials: "include" });
+      if (res.ok) {
+        const blob = await res.blob();
+        const disposition = res.headers.get("Content-Disposition");
+        const match = disposition?.match(/filename="(.+)"/);
+        const fileName = match?.[1] || `backup_local_${new Date().toISOString().slice(0,10)}.json`;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast({ title: "Export termine", description: `Fichier ${fileName} telecharge.` });
+      } else {
+        toast({ title: "Erreur", description: "Impossible d'exporter.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Erreur d'export.", variant: "destructive" });
+    } finally {
+      setExportingLocal(false);
     }
   };
 
@@ -3741,33 +3840,132 @@ export default function SettingsPage() {
                 )}
               </div>
 
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={handleExportLocal} disabled={exportingLocal} className="gap-1.5 h-7 text-xs">
+                  {exportingLocal ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                  Export JSON local
+                </Button>
+              </div>
+
               {driveBackupFiles.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-xs font-semibold flex items-center gap-1.5">
                     <FolderOpen className="w-3.5 h-3.5 text-blue-600" />
                     Fichiers sur Google Drive ({driveBackupFiles.length})
                   </p>
-                  <div className="space-y-1.5 max-h-[250px] overflow-y-auto">
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
                     {driveBackupFiles.map((file: any) => (
-                      <div key={file.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/20 border border-border/30">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-100 shrink-0">
-                          <Cloud className="w-4 h-4 text-blue-600" />
+                      <div key={file.id} className="p-3 rounded-lg bg-muted/20 border border-border/30 space-y-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-100 shrink-0">
+                            <Cloud className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate">{file.name}</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {new Date(file.createdTime).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                              {file.size && ` | ${(Number(file.size) / 1024).toFixed(1)} Ko`}
+                            </p>
+                          </div>
+                          {file.webViewLink && (
+                            <a href={file.webViewLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700">
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
+                          )}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium truncate">{file.name}</p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {new Date(file.createdTime).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                            {file.size && ` | ${(Number(file.size) / 1024).toFixed(1)} Ko`}
-                          </p>
+                        <div className="flex items-center gap-1.5 ml-11">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 text-[10px] px-2 gap-1"
+                            disabled={verifyingFileId === file.id}
+                            onClick={() => handleVerifyBackup(file.id)}
+                          >
+                            {verifyingFileId === file.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Shield className="w-3 h-3" />}
+                            Verifier
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 text-[10px] px-2 gap-1"
+                            disabled={restoringFileId === file.id}
+                            onClick={() => handleDryRunRestore(file.id)}
+                          >
+                            {restoringFileId === file.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Eye className="w-3 h-3" />}
+                            Simuler
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            className="h-6 text-[10px] px-2 gap-1 bg-emerald-600 hover:bg-emerald-700"
+                            disabled={restoringFileId === file.id}
+                            onClick={() => handleFullRestore(file.id)}
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            Restaurer
+                          </Button>
                         </div>
-                        {file.webViewLink && (
-                          <a href={file.webViewLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700">
-                            <ExternalLink className="w-4 h-4" />
-                          </a>
-                        )}
                       </div>
                     ))}
                   </div>
+
+                  {verifyResult && verifyResult.valid && verifyResult.details && (
+                    <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/50 space-y-2">
+                      <p className="text-xs font-semibold text-emerald-700 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Verification reussie
+                      </p>
+                      <div className="grid grid-cols-3 gap-2 text-[10px]">
+                        <div className="p-1.5 bg-white/50 dark:bg-black/20 rounded">
+                          <span className="text-muted-foreground">Tables:</span>
+                          <span className="font-semibold ml-1">{verifyResult.details.tablesCount}</span>
+                        </div>
+                        <div className="p-1.5 bg-white/50 dark:bg-black/20 rounded">
+                          <span className="text-muted-foreground">Enregistrements:</span>
+                          <span className="font-semibold ml-1">{verifyResult.details.totalRecords}</span>
+                        </div>
+                        <div className="p-1.5 bg-white/50 dark:bg-black/20 rounded">
+                          <span className="text-muted-foreground">Chiffrement:</span>
+                          <span className="font-semibold ml-1">{verifyResult.details.encryption}</span>
+                        </div>
+                      </div>
+                      <div className="space-y-0.5 max-h-[150px] overflow-y-auto">
+                        {verifyResult.details.tableDetails?.map((t: any) => (
+                          <div key={t.name} className="flex justify-between text-[10px] px-1">
+                            <span className="text-muted-foreground">{t.name}</span>
+                            <span className="font-mono">{t.count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {restoreResult && restoreResult.restoredTables && (
+                    <div className={`p-3 rounded-lg border space-y-2 ${restoreResult.dryRun ? "bg-amber-50 dark:bg-amber-950/20 border-amber-200/50" : "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200/50"}`}>
+                      <p className={`text-xs font-semibold flex items-center gap-1.5 ${restoreResult.dryRun ? "text-amber-700" : "text-emerald-700"}`}>
+                        {restoreResult.dryRun ? <Eye className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                        {restoreResult.dryRun ? "Simulation de restauration" : "Restauration terminee"} — {restoreResult.totalRestored} enregistrements
+                      </p>
+                      <div className="space-y-0.5 max-h-[150px] overflow-y-auto">
+                        {restoreResult.restoredTables.filter((t: any) => t.inserted > 0 || t.errors > 0).map((t: any) => (
+                          <div key={t.name} className="flex items-center justify-between text-[10px] px-1">
+                            <span className="text-muted-foreground">{t.name}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-emerald-600 font-mono">+{t.inserted}</span>
+                              {t.errors > 0 && <span className="text-red-600 font-mono">!{t.errors}</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {restoreResult.warnings?.length > 0 && (
+                        <div className="text-[10px] text-amber-700 space-y-0.5">
+                          {restoreResult.warnings.map((w: string, i: number) => (
+                            <p key={i}>{w}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
