@@ -78,7 +78,7 @@ export default function AutomationsScreen() {
         const data = await logsRes.json();
         setLogs(data.logs ?? []);
       }
-    } catch {} finally {
+    } catch (err) { console.warn("[Automations] fetch failed:", err); } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -99,7 +99,7 @@ export default function AutomationsScreen() {
       if (res.ok) {
         setRules(prev => prev.map(r => r.id === rule.id ? { ...r, enabled: !r.enabled } : r));
       }
-    } catch {}
+    } catch (err) { console.warn("[Automations] toggleRule failed:", err); }
   }
 
   const executionsToday = logs.filter(l => {

@@ -80,7 +80,7 @@ export function AiDiscoveryPanel() {
           setData(JSON.parse(cached));
           setHasLoaded(true);
           return;
-        } catch {}
+        } catch (err) { console.warn("[AIDiscovery] failed:", err); }
       }
     }
 

@@ -74,7 +74,7 @@ export default function DashboardScreen() {
         const callData = await callsRes.json();
         setRecentCalls(callData.calls?.slice(0, 5) ?? []);
       }
-    } catch {} finally {
+    } catch (err) { console.warn("[Dashboard] fetch failed:", err); } finally {
       setLoading(false);
       setRefreshing(false);
     }

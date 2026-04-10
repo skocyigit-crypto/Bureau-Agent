@@ -93,7 +93,7 @@ export default function ContactsScreen() {
         const data = await res.json();
         setContacts(data.contacts ?? []);
       }
-    } catch {} finally {
+    } catch (err) { console.warn("[Contacts] fetch failed:", err); } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -120,7 +120,7 @@ export default function ContactsScreen() {
         setFormValues({ category: "client" });
         fetchContacts();
       }
-    } catch {} finally { setFormLoading(false); }
+    } catch (err) { console.warn("[Contacts] submit failed:", err); } finally { setFormLoading(false); }
   }
 
   async function handleDelete(id: number) {
@@ -128,7 +128,7 @@ export default function ContactsScreen() {
       await fetchAuth(`${API_BASE}/api/contacts/${id}`, { method: "DELETE" });
       setSelected(null);
       fetchContacts();
-    } catch {}
+    } catch (err) { console.warn("[Contacts] delete failed:", err); }
   }
 
   function openEdit(contact: Contact) {

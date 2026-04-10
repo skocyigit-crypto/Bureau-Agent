@@ -68,7 +68,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSessionCookie(null);
         }
       }
-    } catch {
+    } catch (err) {
+      console.warn("[Auth] restoreSession failed:", err);
     } finally {
       setIsLoading(false);
     }
@@ -111,7 +112,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           headers: { Cookie: sessionCookie },
         });
       }
-    } catch {
+    } catch (err) {
+      console.warn("[Auth] logout request failed:", err);
     } finally {
       setUser(null);
       setSessionCookie(null);

@@ -28,7 +28,7 @@ export function ExportMenu() {
       a.download = res.headers.get("content-disposition")?.match(/filename="(.+)"/)?.[1] || `${entity}.csv`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch {} finally {
+    } catch (err) { console.warn("[ExportMenu] export failed:", err); } finally {
       setExporting(null);
     }
   }

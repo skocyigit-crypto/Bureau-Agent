@@ -69,7 +69,7 @@ export default function AiAgentsScreen() {
         const data = await latestRes.json();
         setLatestReports(data ?? {});
       }
-    } catch {} finally {
+    } catch (err) { console.warn("[AIAgents] fetch failed:", err); } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -155,7 +155,7 @@ export default function AiAgentsScreen() {
         headers: { "Content-Type": "application/json" },
       });
       if (res.ok) fetchData();
-    } catch {} finally { setRunningAgent(null); }
+    } catch (err) { console.warn("[AIAgents] runSingleAgent failed:", err); } finally { setRunningAgent(null); }
   }
 
   function getScoreColor(score: number) {

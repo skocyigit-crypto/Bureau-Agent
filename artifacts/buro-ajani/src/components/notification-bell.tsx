@@ -32,7 +32,7 @@ export function NotificationBell() {
       const data = await res.json();
       setNotifications(data.notifications);
       setUnreadCount(data.unreadCount);
-    } catch {}
+    } catch (err) { console.warn("[NotificationBell] fetch failed:", err); }
   }
 
   useEffect(() => {
@@ -56,7 +56,7 @@ export function NotificationBell() {
       await fetch(`${baseUrl}/api/notifications/${id}/read`, { method: "PATCH", credentials: "include" });
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch {}
+    } catch (err) { console.warn("[NotificationBell] markRead failed:", err); }
   }
 
   async function markAllRead() {
@@ -64,7 +64,7 @@ export function NotificationBell() {
       await fetch(`${baseUrl}/api/notifications/read-all`, { method: "POST", credentials: "include" });
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
       setUnreadCount(0);
-    } catch {}
+    } catch (err) { console.warn("[NotificationBell] markAllRead failed:", err); }
   }
 
   function timeAgo(date: string): string {

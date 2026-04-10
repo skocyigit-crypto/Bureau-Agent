@@ -126,7 +126,7 @@ function App() {
         method: "POST",
         credentials: "include",
       });
-    } catch {}
+    } catch (err) { console.warn("[App] logout request failed:", err); }
     setCurrentUser(null);
     setAuthState("login");
     queryClient.clear();

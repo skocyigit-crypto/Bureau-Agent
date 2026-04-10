@@ -131,7 +131,7 @@ export default function AdminReportsScreen() {
         const data = await statsRes.json();
         setStats(data);
       }
-    } catch {} finally {
+    } catch (err) { console.warn("[AdminReports] fetch failed:", err); } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -145,7 +145,7 @@ export default function AdminReportsScreen() {
         const data = await res.json();
         setTeamUsers(data.users ?? data ?? []);
       }
-    } catch {} finally { setTeamLoading(false); }
+    } catch (err) { console.warn("[AdminReports] team fetch failed:", err); } finally { setTeamLoading(false); }
   }, [fetchAuth]);
 
   useEffect(() => { fetchReports(); }, [fetchReports]);
@@ -176,7 +176,7 @@ export default function AdminReportsScreen() {
         setFormValues({ category: "general", priority: "normal" });
         fetchReports();
       }
-    } catch {} finally { setFormLoading(false); }
+    } catch (err) { console.warn("[AdminReports] submit failed:", err); } finally { setFormLoading(false); }
   }
 
   async function handleAddUser() {
@@ -199,7 +199,7 @@ export default function AdminReportsScreen() {
         setUserFormValues({ role: "agent" });
         fetchTeam();
       }
-    } catch {} finally { setUserFormLoading(false); }
+    } catch (err) { console.warn("[AdminReports] user submit failed:", err); } finally { setUserFormLoading(false); }
   }
 
   async function updateReportStatus(reportId: number, status: string) {
@@ -210,7 +210,7 @@ export default function AdminReportsScreen() {
         body: JSON.stringify({ status }),
       });
       if (res.ok) fetchReports();
-    } catch {}
+    } catch (err) { console.warn("[AdminReports] status update failed:", err); }
   }
 
   const ROLE_MAP: Record<string, { label: string; color: string }> = {

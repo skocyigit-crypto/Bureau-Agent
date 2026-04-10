@@ -66,7 +66,7 @@ export default function IntegrationsScreen() {
         setIntegrations(data.integrations ?? []);
         setCategories(data.categories ?? []);
       }
-    } catch {} finally {
+    } catch (err) { console.warn("[Integrations] fetch failed:", err); } finally {
       setLoading(false);
       setRefreshing(false);
     }

@@ -68,7 +68,7 @@ export default function CheckinsScreen() {
         const data = await historyRes.json();
         setHistory(data.checkins ?? []);
       }
-    } catch {} finally {
+    } catch (err) { console.warn("[Checkins] fetch failed:", err); } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -113,7 +113,7 @@ export default function CheckinsScreen() {
         }),
       });
       if (res.ok) fetchData();
-    } catch {} finally { setActing(false); }
+    } catch (err) { console.warn("[Checkins] action failed:", err); } finally { setActing(false); }
   }
 
   async function checkout() {
@@ -126,7 +126,7 @@ export default function CheckinsScreen() {
         body: JSON.stringify({ status: "termine", checkOutAt: new Date().toISOString() }),
       });
       if (res.ok) fetchData();
-    } catch {} finally { setActing(false); }
+    } catch (err) { console.warn("[Checkins] action failed:", err); } finally { setActing(false); }
   }
 
   async function togglePause() {
@@ -140,7 +140,7 @@ export default function CheckinsScreen() {
         body: JSON.stringify({ status: newStatus }),
       });
       if (res.ok) fetchData();
-    } catch {} finally { setActing(false); }
+    } catch (err) { console.warn("[Checkins] action failed:", err); } finally { setActing(false); }
   }
 
   function confirmCheckout() {

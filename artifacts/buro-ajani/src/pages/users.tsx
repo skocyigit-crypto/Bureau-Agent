@@ -93,7 +93,7 @@ export default function UsersPage() {
         const data = await res.json();
         setMaxUsers(data.users?.max || 5);
       }
-    } catch {}
+    } catch (err) { console.warn("[Users] action failed:", err); }
   }, []);
 
   useEffect(() => { loadUsers(); loadSubscription(); }, [loadUsers, loadSubscription]);

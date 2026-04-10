@@ -45,7 +45,7 @@ export function GlobalSearch() {
         const data = await res.json();
         setResults(data);
         setOpen(true);
-      } catch {} finally { setLoading(false); }
+      } catch (err) { console.warn("[GlobalSearch] search failed:", err); } finally { setLoading(false); }
     }, 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [query]);

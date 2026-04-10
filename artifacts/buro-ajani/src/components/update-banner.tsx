@@ -27,7 +27,7 @@ export function UpdateBanner() {
       if (version !== baseVersionRef.current && version !== "unknown") {
         setHasUpdate(true);
       }
-    } catch {}
+    } catch (err) { console.warn("[UpdateBanner] check failed:", err); }
   }, []);
 
   useEffect(() => {

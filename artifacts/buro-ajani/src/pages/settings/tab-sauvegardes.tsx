@@ -91,7 +91,7 @@ export function TabSauvegardes() {
     try {
       const res = await fetch(`${API_BASE}/google-drive-backup/status`, { credentials: "include" });
       if (res.ok) setDriveBackupStatus(await res.json());
-    } catch {}
+    } catch (err) { console.warn("[Sauvegardes] operation failed:", err); }
   }, []);
 
   const fetchDriveBackupHistory = useCallback(async () => {
@@ -102,7 +102,7 @@ export function TabSauvegardes() {
         setDriveBackupHistory(data.backups || []);
         setDriveBackupStats(data.stats || null);
       }
-    } catch {}
+    } catch (err) { console.warn("[Sauvegardes] operation failed:", err); }
   }, []);
 
   const fetchDriveFiles = async () => {
@@ -113,7 +113,7 @@ export function TabSauvegardes() {
         const data = await res.json();
         setDriveBackupFiles(data.files || []);
       }
-    } catch {} finally {
+    } catch (err) { console.warn("[Sauvegardes] operation failed:", err); } finally {
       setDriveFilesLoading(false);
     }
   };
@@ -151,7 +151,7 @@ export function TabSauvegardes() {
           encryptionEnabled: data.encryptionEnabled || "true",
         });
       }
-    } catch {}
+    } catch (err) { console.warn("[Sauvegardes] operation failed:", err); }
   }, []);
 
   const saveDriveConfig = async () => {
@@ -183,7 +183,7 @@ export function TabSauvegardes() {
     try {
       const res = await fetch(`${API_BASE}/data-protection/status`, { credentials: "include" });
       if (res.ok) setDataProtectionStatus(await res.json());
-    } catch {} finally {
+    } catch (err) { console.warn("[Sauvegardes] operation failed:", err); } finally {
       setDataProtectionLoading(false);
     }
   }, []);

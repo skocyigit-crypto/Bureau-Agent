@@ -95,7 +95,7 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ selectedIntegrations: Array.from(selectedIntegrations) }),
       });
-    } catch {}
+    } catch (err) { console.warn("[Onboarding] failed:", err); }
     setCompleting(false);
     onComplete?.();
   }, [baseUrl, selectedIntegrations, onComplete]);

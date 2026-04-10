@@ -124,7 +124,7 @@ export async function syncGoogleCalendarToCheckins(params: {
   try {
     const calInfo = await calendar.calendars.get({ calendarId: "primary" });
     calendarTimeZone = calInfo.data.timeZone || "Europe/Paris";
-  } catch {}
+  } catch (err) { console.warn("[GoogleCalendarSync] operation failed:", err); }
 
   let allEvents: any[] = [];
   let pageToken: string | undefined;

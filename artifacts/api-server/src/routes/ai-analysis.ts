@@ -473,7 +473,7 @@ router.post("/ai/assistant", async (req, res) => {
       if (mathAnalysis.subComponents.length > 0) {
         try {
           mathAnalysis = await analyzeWithAI(question, mathAnalysis);
-        } catch {}
+        } catch (err) { console.warn("[AIAnalysis] operation failed:", err); }
       }
     }
 

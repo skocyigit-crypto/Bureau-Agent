@@ -237,7 +237,7 @@ router.post("/disconnect", async (req, res) => {
           oauth2Client.setCredentials({ access_token: tokens[0].accessToken });
           await oauth2Client.revokeToken(tokens[0].accessToken);
         }
-      } catch {}
+      } catch (err) { console.warn("[GoogleOAuth] operation failed:", err); }
     }
 
     await db.delete(googleOAuthTokensTable)

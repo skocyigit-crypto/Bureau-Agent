@@ -241,7 +241,7 @@ export default function OrganisationsPage() {
       if (res.ok) {
         setBillingSummary(await res.json());
       }
-    } catch {}
+    } catch (err) { console.warn("[Organisations] loadBillingSummary failed:", err); }
   }, []);
 
   const loadLegalCompliance = useCallback(async () => {
@@ -253,7 +253,7 @@ export default function OrganisationsPage() {
         setLegalCompliance(data.compliance || []);
         setLegalSummary(data.summary || null);
       }
-    } catch {} finally {
+    } catch (err) { console.warn("[Organisations] loadLegalCompliance failed:", err); } finally {
       setLegalLoading(false);
     }
   }, []);
@@ -268,7 +268,7 @@ export default function OrganisationsPage() {
         const data = await res.json();
         setLegalDetailDocs(data.documents || []);
       }
-    } catch {} finally {
+    } catch (err) { console.warn("[Organisations] openLegalDetail failed:", err); } finally {
       setLegalDetailLoading(false);
     }
   };
@@ -380,7 +380,7 @@ export default function OrganisationsPage() {
       if (res.ok) {
         setOrgBilling(await res.json());
       }
-    } catch {} finally {
+    } catch (err) { console.warn("[Organisations] openBilling failed:", err); } finally {
       setBillingLoading(false);
     }
   };

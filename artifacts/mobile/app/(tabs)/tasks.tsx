@@ -3,6 +3,7 @@ import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Platform,
   Pressable,
@@ -92,7 +93,7 @@ export default function TasksScreen() {
         const data = await res.json();
         setTasks(data.tasks ?? []);
       }
-    } catch {} finally {
+    } catch (err) { console.warn("[Tasks] fetch failed:", err); } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -120,7 +121,10 @@ export default function TasksScreen() {
         body: JSON.stringify({ status: nextStatus }),
       });
       fetchTasks();
-    } catch {}
+    } catch (err) {
+      console.warn("[Tasks] toggleStatus failed:", err);
+      if (Platform.OS !== "web") Alert.alert("Erreur", "Impossible de changer le statut.");
+    }
   }
 
   async function handleSubmit() {
@@ -140,7 +144,10 @@ export default function TasksScreen() {
         setFormValues({ priority: "moyenne", status: "en_attente" });
         fetchTasks();
       }
-    } catch {} finally { setFormLoading(false); }
+    } catch (err) {
+      console.warn("[Tasks] submit failed:", err);
+      if (Platform.OS !== "web") Alert.alert("Erreur", "Impossible de sauvegarder la tache.");
+    } finally { setFormLoading(false); }
   }
 
   async function handleDelete(id: number) {
@@ -148,7 +155,10 @@ export default function TasksScreen() {
       await fetchAuth(`${API_BASE}/api/tasks/${id}`, { method: "DELETE" });
       setSelected(null);
       fetchTasks();
-    } catch {}
+    } catch (err) {
+      console.warn("[Tasks] delete failed:", err);
+      if (Platform.OS !== "web") Alert.alert("Erreur", "Impossible de supprimer la tache.");
+    }
   }
 
   function openEdit(task: Task) {

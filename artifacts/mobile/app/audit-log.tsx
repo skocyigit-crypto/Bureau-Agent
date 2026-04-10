@@ -73,7 +73,7 @@ export default function AuditLogScreen() {
         setEntries(data.logs ?? []);
         setTotalCount(data.total ?? 0);
       }
-    } catch {} finally {
+    } catch (err) { console.warn("[AuditLog] fetch failed:", err); } finally {
       setLoading(false);
       setRefreshing(false);
     }

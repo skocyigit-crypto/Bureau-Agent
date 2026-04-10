@@ -243,7 +243,7 @@ export function TabPlateformes() {
         setGoogleOAuthConfigured(data.configured);
         setGoogleOAuthAuthenticated(data.authenticated && data.tokenValid);
       }
-    } catch {}
+    } catch (err) { console.warn("[Plateformes] operation failed:", err); }
   }, []);
 
   const fetchPlatforms = useCallback(async () => {

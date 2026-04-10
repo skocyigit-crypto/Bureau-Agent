@@ -102,7 +102,7 @@ export default function CalendarScreen() {
         all.sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
         setEvents(all);
       }
-    } catch {} finally {
+    } catch (err) { console.warn("[Calendar] fetch failed:", err); } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -165,7 +165,7 @@ export default function CalendarScreen() {
         setFormValues({ type: "rendez_vous" });
         fetchEvents();
       }
-    } catch {} finally { setFormLoading(false); }
+    } catch (err) { console.warn("[Calendar] submit failed:", err); } finally { setFormLoading(false); }
   }
 
   function openEdit(ev: CalendarEvent) {
@@ -195,7 +195,7 @@ export default function CalendarScreen() {
       await fetchAuth(`${API_BASE}/api/calendar/events/${id}`, { method: "DELETE" });
       setSelected(null);
       fetchEvents();
-    } catch {}
+    } catch (err) { console.warn("[Calendar] delete failed:", err); }
   }
 
   const monthLabel = selectedDate.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });

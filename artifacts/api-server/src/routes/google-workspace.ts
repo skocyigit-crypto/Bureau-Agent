@@ -119,7 +119,7 @@ router.get("/google-workspace/recent-emails", async (req, res): Promise<void> =>
           snippet: detail.data.snippet || "",
           unread: (detail.data.labelIds || []).includes("UNREAD"),
         });
-      } catch {}
+      } catch (err) { console.warn("[GoogleWorkspace] operation failed:", err); }
     }
 
     res.json({ emails });
@@ -232,7 +232,7 @@ router.get("/google-workspace/tasks", async (req, res): Promise<void> => {
             listId: list.id,
           });
         }
-      } catch {}
+      } catch (err) { console.warn("[GoogleWorkspace] operation failed:", err); }
     }
 
     res.json({ tasks: allTasks.slice(0, 15) });

@@ -49,7 +49,7 @@ export default function AutomationsPage() {
         setLogs(data.logs);
         setStats(data.stats);
       }
-    } catch {} finally {
+    } catch (err) { console.warn("[Automations] fetch failed:", err); } finally {
       setLoading(false);
     }
   }

@@ -55,7 +55,7 @@ export default function SettingsScreen() {
       try {
         const res = await fetchAuth(`${API_BASE}/api/subscription/current`);
         if (res.ok) setSub(await res.json());
-      } catch {} finally { setLoading(false); }
+      } catch (err) { console.warn("[Settings] fetch failed:", err); } finally { setLoading(false); }
     })();
   }, [fetchAuth]);
 

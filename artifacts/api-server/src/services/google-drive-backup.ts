@@ -160,7 +160,7 @@ async function cleanupOldDriveBackups(folderId: string, retentionDays: number) {
       try {
         await driveProxy(`/drive/v3/files/${file.id}`, { method: "DELETE" });
         console.log(`[GoogleDriveBackup] Ancien fichier supprime: ${file.name}`);
-      } catch {}
+      } catch (err) { console.warn("[GoogleDriveBackup] operation failed:", err); }
     }
     if (oldFiles.length > 0) {
       console.log(`[GoogleDriveBackup] ${oldFiles.length} ancienne(s) sauvegarde(s) nettoyee(s).`);

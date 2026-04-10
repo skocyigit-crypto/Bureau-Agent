@@ -685,7 +685,7 @@ Reponds en JSON:
     }
 
     let parsedAiInsights = null;
-    try { parsedAiInsights = aiInsights ? JSON.parse(aiInsights) : null; } catch {}
+    try { parsedAiInsights = aiInsights ? JSON.parse(aiInsights) : null; } catch (err) { console.warn("[Integrations] operation failed:", err); }
 
     res.json({
       detectedPlatforms,

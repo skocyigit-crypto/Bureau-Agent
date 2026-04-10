@@ -82,7 +82,7 @@ export default function UsersScreen() {
           mfaActif: u.mfaActif ?? false,
         })));
       }
-    } catch {} finally {
+    } catch (err) { console.warn("[Users] fetch failed:", err); } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -143,7 +143,7 @@ export default function UsersScreen() {
           fetchUsers();
         }
       }
-    } catch {} finally { setFormLoading(false); }
+    } catch (err) { console.warn("[Users] submit failed:", err); } finally { setFormLoading(false); }
   }
 
   function openEdit(user: User) {
@@ -169,7 +169,10 @@ export default function UsersScreen() {
     function doDelete() {
       fetchAuth(`${API_BASE}/api/auth/users/${id}`, { method: "DELETE" })
         .then(() => fetchUsers())
-        .catch(() => {});
+        .catch((err) => {
+          console.warn("[Users] delete failed:", err);
+          Alert.alert("Erreur", "Impossible de supprimer l'utilisateur.");
+        });
     }
     if (Platform.OS === "web") { doDelete(); return; }
     Alert.alert("Supprimer", "Supprimer cet utilisateur ?", [
@@ -184,7 +187,7 @@ export default function UsersScreen() {
       await fetchAuth(`${API_BASE}/api/auth/users/${userId}/send-credentials`, {
         method: "POST",
       });
-    } catch {} finally { setSendingCreds(null); }
+    } catch (err) { console.warn("[Users] sendCredentials failed:", err); } finally { setSendingCreds(null); }
   }
 
   async function toggleActive(user: User) {
@@ -195,7 +198,7 @@ export default function UsersScreen() {
         body: JSON.stringify({ actif: !user.actif }),
       });
       fetchUsers();
-    } catch {}
+    } catch (err) { console.warn("[Users] toggleActive failed:", err); }
   }
 
   return (

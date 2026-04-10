@@ -148,7 +148,7 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
 
     try {
       await handleCopyToClipboard();
-    } catch {}
+    } catch (err) { console.warn("[EmailComposer] send failed:", err); }
 
     setStep("approved");
     setIsSending(false);

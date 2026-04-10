@@ -53,7 +53,7 @@ export default function AnalyticsScreen() {
           answeredRate: json.answeredRate ?? 0,
         });
       }
-    } catch {} finally {
+    } catch (err) { console.warn("[Analytics] fetch failed:", err); } finally {
       setLoading(false);
       setRefreshing(false);
     }

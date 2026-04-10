@@ -7,6 +7,15 @@ import { startGoogleAutoPointage } from "./services/google-auto-pointage";
 import { startGoogleDriveBackupScheduler } from "./services/google-drive-backup";
 import { startDataProtectionMonitor } from "./services/data-protection-monitor";
 
+process.on("unhandledRejection", (reason) => {
+  logger.error({ err: reason }, "Unhandled promise rejection");
+});
+
+process.on("uncaughtException", (err) => {
+  logger.fatal({ err }, "Uncaught exception — shutting down");
+  process.exit(1);
+});
+
 const rawPort = process.env["PORT"];
 
 if (!rawPort) {
@@ -33,6 +42,6 @@ app.listen(port, (err) => {
   startAutoBackup();
   startAutomationEngine();
   startGoogleAutoPointage();
-  startGoogleDriveBackupScheduler().catch(err => console.error("[GoogleDriveBackup] Init error:", err.message));
+  startGoogleDriveBackupScheduler().catch(err => logger.error({ err }, "[GoogleDriveBackup] Init error"));
   startDataProtectionMonitor();
 });

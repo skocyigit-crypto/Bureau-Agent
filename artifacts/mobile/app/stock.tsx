@@ -84,7 +84,7 @@ export default function StockScreen() {
         const data = await res.json();
         setArticles(data.articles ?? []);
       }
-    } catch {} finally {
+    } catch (err) { console.warn("[Stock] fetch failed:", err); } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -117,7 +117,7 @@ export default function StockScreen() {
         setFormValues({ category: "fourniture", quantity: "0", minQuantity: "5" });
         fetchStock();
       }
-    } catch {} finally { setFormLoading(false); }
+    } catch (err) { console.warn("[Stock] submit failed:", err); } finally { setFormLoading(false); }
   }
 
   function openEdit(article: StockArticle) {
@@ -147,7 +147,7 @@ export default function StockScreen() {
       await fetchAuth(`${API_BASE}/api/stock/${id}`, { method: "DELETE" });
       setSelected(null);
       fetchStock();
-    } catch {}
+    } catch (err) { console.warn("[Stock] delete failed:", err); }
   }
 
   return (

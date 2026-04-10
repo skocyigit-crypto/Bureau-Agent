@@ -87,7 +87,7 @@ export default function MessagesScreen() {
         const data = await res.json();
         setMessages(data.messages ?? []);
       }
-    } catch {} finally {
+    } catch (err) { console.warn("[Messages] fetch failed:", err); } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -123,7 +123,7 @@ export default function MessagesScreen() {
         setFormValues({ type: "note", priority: "moyenne", phoneNumber: "" });
         fetchMessages();
       }
-    } catch {} finally { setFormLoading(false); }
+    } catch (err) { console.warn("[Messages] submit failed:", err); } finally { setFormLoading(false); }
   }
 
   function openEdit(msg: Message) {
@@ -150,7 +150,7 @@ export default function MessagesScreen() {
       await fetchAuth(`${API_BASE}/api/messages/${id}`, { method: "DELETE" });
       setSelected(null);
       fetchMessages();
-    } catch {}
+    } catch (err) { console.warn("[Messages] delete failed:", err); }
   }
 
   async function markAsRead(msg: Message) {
@@ -162,7 +162,7 @@ export default function MessagesScreen() {
         body: JSON.stringify({ isRead: true }),
       });
       fetchMessages();
-    } catch {}
+    } catch (err) { console.warn("[Messages] markAsRead failed:", err); }
   }
 
   const filters = [

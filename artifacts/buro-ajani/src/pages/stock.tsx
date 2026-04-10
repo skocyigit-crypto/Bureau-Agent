@@ -200,7 +200,7 @@ async function detectBarcodeNative(video: HTMLVideoElement): Promise<string | nu
       });
       const barcodes = await detector.detect(video);
       if (barcodes.length > 0) return barcodes[0].rawValue;
-    } catch {}
+    } catch (err) { console.warn("[Stock] barcode failed:", err); }
   }
   return null;
 }
@@ -610,8 +610,8 @@ export default function StockPage() {
     setScanNotFound(false);
     setScanResult(null);
     try {
-      const baseUrl = import.meta.env.VITE_API_URL || "";
-      const response = await fetch(`${baseUrl}/api/stock/scan/${encodeURIComponent(code)}`);
+      const scanBase = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const response = await fetch(`${scanBase}/api/stock/scan/${encodeURIComponent(code)}`, { credentials: "include" });
       if (response.ok) {
         const article = await response.json();
         setScanResult(article);

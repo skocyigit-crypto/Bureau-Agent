@@ -213,7 +213,7 @@ export function CentralIntelligence() {
         try {
           setData(JSON.parse(cached));
           return;
-        } catch {}
+        } catch (err) { console.warn("[CentralIntelligence] failed:", err); }
       }
     }
     const timer = setTimeout(() => loadData(), 800);

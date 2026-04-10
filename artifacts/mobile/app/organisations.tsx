@@ -85,7 +85,7 @@ export default function OrganisationsScreen() {
         const rawOrgs = data.organisations ?? data ?? [];
         setOrgs(rawOrgs.map((o: any) => ({ ...o, actif: o.actif ?? true })));
       }
-    } catch {} finally {
+    } catch (err) { console.warn("[Organisations] fetch failed:", err); } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -113,7 +113,7 @@ export default function OrganisationsScreen() {
         setFormValues({ plan: "essai" });
         fetchOrgs();
       }
-    } catch {} finally { setFormLoading(false); }
+    } catch (err) { console.warn("[Organisations] submit failed:", err); } finally { setFormLoading(false); }
   }
 
   async function resendLicense(orgId: number, resetPassword = false) {
@@ -124,7 +124,7 @@ export default function OrganisationsScreen() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resetPassword }),
       });
-    } catch {} finally { setSendingEmail(null); }
+    } catch (err) { console.warn("[Organisations] sendEmail failed:", err); } finally { setSendingEmail(null); }
   }
 
   async function toggleActive(org: Organisation) {
@@ -135,7 +135,7 @@ export default function OrganisationsScreen() {
         body: JSON.stringify({ name: org.name, actif: !org.actif }),
       });
       fetchOrgs();
-    } catch {}
+    } catch (err) { console.warn("[Organisations] action failed:", err); }
   }
 
   const totalOrgs = orgs.length;

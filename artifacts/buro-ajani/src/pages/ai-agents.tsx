@@ -453,7 +453,7 @@ export default function AiAgentsPage() {
         } else if (data.status === "running") {
           setRunProgress({ completedAgents: data.completedAgents || 0, totalAgents: data.totalAgents || 10 });
         }
-      } catch {}
+      } catch (err) { console.warn("[AIAgents] operation failed:", err); }
     }, 3000);
     return () => clearInterval(interval);
   }, [isRunning]);
@@ -766,7 +766,7 @@ function AutopilotPanel() {
     try {
       const r = await fetch(`${baseUrl}/api/ai/autopilot/status`, { credentials: "include" });
       if (r.ok) setStatus(await r.json());
-    } catch {}
+    } catch (err) { console.warn("[AIAgents] operation failed:", err); }
   }, [baseUrl]);
 
   useEffect(() => {

@@ -81,7 +81,7 @@ export default function CallsScreen() {
         const data = await res.json();
         setCalls(data.calls ?? []);
       }
-    } catch {} finally {
+    } catch (err) { console.warn("[Calls] fetch failed:", err); } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -124,7 +124,7 @@ export default function CallsScreen() {
         setFormValues({ direction: "entrant", status: "answered" });
         fetchCalls();
       }
-    } catch {} finally { setFormLoading(false); }
+    } catch (err) { console.warn("[Calls] submit failed:", err); } finally { setFormLoading(false); }
   }
 
   async function handleDelete(id: number) {
@@ -132,7 +132,7 @@ export default function CallsScreen() {
       await fetchAuth(`${API_BASE}/api/calls/${id}`, { method: "DELETE" });
       setSelected(null);
       fetchCalls();
-    } catch {}
+    } catch (err) { console.warn("[Calls] delete failed:", err); }
   }
 
   function openEdit(call: Call) {

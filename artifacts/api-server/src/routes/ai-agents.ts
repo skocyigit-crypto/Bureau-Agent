@@ -1497,7 +1497,7 @@ Reponds en JSON:
     }
 
     let parsedConsensus: any = null;
-    try { parsedConsensus = consensusSummary ? JSON.parse(consensusSummary) : null; } catch {}
+    try { parsedConsensus = consensusSummary ? JSON.parse(consensusSummary) : null; } catch (err) { logger.warn({ err }, "Failed to parse consensus JSON"); }
 
     const orgState = getOrgAutopilot(orgId);
     orgState.status.cycleCount++;
