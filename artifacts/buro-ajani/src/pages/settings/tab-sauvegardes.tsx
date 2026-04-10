@@ -285,7 +285,7 @@ export function TabSauvegardes() {
     fetchDriveBackupHistory();
     fetchDriveConfig();
     fetchDataProtectionStatus();
-    const interval = setInterval(fetchBackups, 30000);
+    const interval = setInterval(fetchBackups, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchBackups, fetchDriveBackupStatus, fetchDriveBackupHistory, fetchDriveConfig, fetchDataProtectionStatus]);
 

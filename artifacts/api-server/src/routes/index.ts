@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middleware/auth";
 import { requireTenant } from "../middleware/tenant";
+import { licenseCheck } from "../middleware/license-check";
 import healthRouter from "./health";
 import authRouter from "./auth";
 import registerRouter from "./register";
@@ -38,6 +39,7 @@ import googleWorkspaceRouter from "./google-workspace";
 import mathRouter from "./math";
 import dataProtectionRouter from "./data-protection";
 import documentAiRouter from "./document-ai";
+import mySubscriptionRouter from "./my-subscription";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -46,6 +48,9 @@ router.use(registerRouter);
 
 router.use(requireAuth);
 router.use(requireTenant);
+
+router.use(mySubscriptionRouter);
+router.use(licenseCheck);
 
 router.use(callsRouter);
 router.use(contactsRouter);

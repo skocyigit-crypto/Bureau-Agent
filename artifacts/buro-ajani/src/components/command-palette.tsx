@@ -53,6 +53,7 @@ export function CommandPalette() {
     { id: "users", label: "Utilisateurs", icon: UserCog, action: () => navigate("/utilisateurs"), category: "Administration" },
     { id: "audit", label: "Journal d'audit", icon: Shield, action: () => navigate("/audit"), category: "Administration" },
     { id: "organisations", label: "Licences", icon: KeyRound, action: () => navigate("/organisations"), category: "Administration" },
+    { id: "abonnement", label: "Mon Abonnement", icon: KeyRound, action: () => navigate("/abonnement"), category: "Navigation", keywords: ["licence", "plan", "subscription"] },
     { id: "settings", label: "Parametres", icon: Settings, action: () => navigate("/parametres"), category: "Administration" },
     { id: "notifications", label: "Notifications", icon: MessageSquare, action: () => navigate("/notifications"), category: "Navigation" },
     { id: "google-workspace", label: "Google Workspace", icon: Search, action: () => navigate("/google-workspace"), category: "Navigation", keywords: ["gmail", "drive", "docs", "sheets", "calendar", "google"] },

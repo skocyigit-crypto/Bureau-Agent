@@ -1198,7 +1198,7 @@ function AutopilotPanel() {
 
   useEffect(() => {
     fetchStatus();
-    const poll = setInterval(fetchStatus, 15000);
+    const poll = setInterval(fetchStatus, 60000);
     return () => clearInterval(poll);
   }, [fetchStatus]);
 

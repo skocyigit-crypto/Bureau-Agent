@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -40,41 +40,66 @@ import ProjetsPage from "@/pages/projets";
 import NotificationsPage from "@/pages/notifications";
 import GoogleWorkspacePage from "@/pages/google-workspace";
 import DocumentAiPage from "@/pages/document-ai";
+import AbonnementPage from "@/pages/abonnement";
+import { useLicenseCheck } from "@/hooks/use-license-check";
 import { CommandPalette } from "@/components/command-palette";
 
 const queryClient = new QueryClient();
+
+function LicenseGate({ children }: { children: React.ReactNode }) {
+  const license = useLicenseCheck();
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    if (!license.loading && !license.allowed) {
+      navigate("/abonnement");
+    }
+  }, [license.loading, license.allowed, navigate]);
+
+  if (license.loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
+  if (!license.allowed) return null;
+
+  return <>{children}</>;
+}
+
+function withLicenseGate(Component: React.ComponentType) {
+  return function GatedComponent(props: any) {
+    return <LicenseGate><Component {...props} /></LicenseGate>;
+  };
+}
 
 function AppRoutes() {
   return (
     <Layout>
       <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/appels" component={Calls} />
-        <Route path="/appels/:id" component={CallDetail} />
-        <Route path="/contacts" component={Contacts} />
-        <Route path="/contacts/:id" component={ContactDetail} />
-        <Route path="/taches" component={Tasks} />
-        <Route path="/messages" component={Messages} />
-        <Route path="/rapports" component={Reports} />
-        <Route path="/logiciels" component={Software} />
-        <Route path="/analyse" component={Analytics} />
-        <Route path="/utilisateurs" component={UsersPage} />
-        <Route path="/pointage" component={CheckinsPage} />
-        <Route path="/stock" component={StockPage} />
-        <Route path="/agents-ia" component={AiAgentsPage} />
-        <Route path="/calendrier" component={CalendarPage} />
-        <Route path="/audit" component={AuditLogPage} />
-        <Route path="/automatisations" component={AutomationsPage} />
-        <Route path="/performance" component={PerformancePage} />
-        <Route path="/parametres" component={SettingsPage} />
+        <Route path="/" component={withLicenseGate(Dashboard)} />
+        <Route path="/appels" component={withLicenseGate(Calls)} />
+        <Route path="/appels/:id" component={withLicenseGate(CallDetail)} />
+        <Route path="/contacts" component={withLicenseGate(Contacts)} />
+        <Route path="/contacts/:id" component={withLicenseGate(ContactDetail)} />
+        <Route path="/taches" component={withLicenseGate(Tasks)} />
+        <Route path="/messages" component={withLicenseGate(Messages)} />
+        <Route path="/rapports" component={withLicenseGate(Reports)} />
+        <Route path="/logiciels" component={withLicenseGate(Software)} />
+        <Route path="/analyse" component={withLicenseGate(Analytics)} />
+        <Route path="/utilisateurs" component={withLicenseGate(UsersPage)} />
+        <Route path="/pointage" component={withLicenseGate(CheckinsPage)} />
+        <Route path="/stock" component={withLicenseGate(StockPage)} />
+        <Route path="/agents-ia" component={withLicenseGate(AiAgentsPage)} />
+        <Route path="/calendrier" component={withLicenseGate(CalendarPage)} />
+        <Route path="/audit" component={withLicenseGate(AuditLogPage)} />
+        <Route path="/automatisations" component={withLicenseGate(AutomationsPage)} />
+        <Route path="/performance" component={withLicenseGate(PerformancePage)} />
+        <Route path="/prospects" component={withLicenseGate(ProspectsPage)} />
+        <Route path="/devis" component={withLicenseGate(DevisPage)} />
+        <Route path="/factures" component={withLicenseGate(FacturesPage)} />
+        <Route path="/projets" component={withLicenseGate(ProjetsPage)} />
+        <Route path="/google-workspace" component={withLicenseGate(GoogleWorkspacePage)} />
+        <Route path="/document-ia" component={withLicenseGate(DocumentAiPage)} />
+        <Route path="/abonnement" component={AbonnementPage} />
         <Route path="/organisations" component={OrganisationsPage} />
-        <Route path="/prospects" component={ProspectsPage} />
-        <Route path="/devis" component={DevisPage} />
-        <Route path="/factures" component={FacturesPage} />
-        <Route path="/projets" component={ProjetsPage} />
+        <Route path="/parametres" component={SettingsPage} />
         <Route path="/notifications" component={NotificationsPage} />
-        <Route path="/google-workspace" component={GoogleWorkspacePage} />
-        <Route path="/document-ia" component={DocumentAiPage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
