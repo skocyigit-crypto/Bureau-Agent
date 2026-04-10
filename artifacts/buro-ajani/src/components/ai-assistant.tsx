@@ -1,17 +1,27 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Brain, Send, X, Sparkles, Loader2, AlertTriangle, Lightbulb, Info, Zap, ChevronDown, ChevronUp, MessageCircle } from "lucide-react";
+import { Brain, Send, X, Sparkles, Loader2, AlertTriangle, Lightbulb, Info, Zap, ChevronDown, ChevronUp, MessageCircle, Calculator, ChevronRight, Hash, Percent, TrendingUp, Ruler, Pi, BarChart2, DollarSign, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAskAiAssistant, useRequestAiSuggestions } from "@workspace/api-client-react";
 
+interface MathResult {
+  expression: string;
+  type: string;
+  result: string;
+  steps: string[];
+  unit?: string;
+}
+
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   data?: { label: string; valeur: string }[];
   actions?: { label: string; description: string }[];
+  mathDetected?: boolean;
+  mathResults?: MathResult[];
   timestamp: Date;
 }
 
@@ -84,12 +94,14 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
     askAssistant.mutate(
       { data: { question: input.trim(), currentPage } },
       {
-        onSuccess: (response) => {
+        onSuccess: (response: any) => {
           const assistantMessage: ChatMessage = {
             role: "assistant",
             content: response.reponse,
             data: response.donnees,
             actions: response.actions,
+            mathDetected: response.mathDetected,
+            mathResults: response.mathResults,
             timestamp: new Date(),
           };
           setMessages(prev => [...prev, assistantMessage]);
@@ -115,12 +127,14 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
       askAssistant.mutate(
         { data: { question, currentPage } },
         {
-          onSuccess: (response) => {
+          onSuccess: (response: any) => {
             setMessages(prev => [...prev, {
               role: "assistant",
               content: response.reponse,
               data: response.donnees,
               actions: response.actions,
+              mathDetected: response.mathDetected,
+              mathResults: response.mathResults,
               timestamp: new Date(),
             }]);
           },
@@ -155,11 +169,36 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const getMathTypeIcon = (type: string) => {
+    switch (type) {
+      case "arithmetic": return <Hash className="w-3 h-3" />;
+      case "percentage": return <Percent className="w-3 h-3" />;
+      case "financial": return <DollarSign className="w-3 h-3" />;
+      case "statistics": return <BarChart2 className="w-3 h-3" />;
+      case "geometry": return <Pi className="w-3 h-3" />;
+      case "conversion": return <ArrowRightLeft className="w-3 h-3" />;
+      case "power": case "root": case "logarithm": return <TrendingUp className="w-3 h-3" />;
+      case "trigonometry": return <Ruler className="w-3 h-3" />;
+      default: return <Calculator className="w-3 h-3" />;
+    }
+  };
+
+  const getMathTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      arithmetic: "Arithmetique", percentage: "Pourcentage", power: "Puissance",
+      root: "Racine", logarithm: "Logarithme", trigonometry: "Trigonometrie",
+      statistics: "Statistiques", financial: "Financier", conversion: "Conversion",
+      geometry: "Geometrie", ratio: "Ratio", comparison: "Comparaison",
+      fraction: "Fraction", equation: "Equation", date_calc: "Date",
+    };
+    return labels[type] || type;
+  };
+
   const quickQuestions = [
     "Quel est le resume de la journee ?",
     "Combien d'appels manques cette semaine ?",
     "Quelles taches sont en retard ?",
-    "Quels contacts n'ont pas ete contactes recemment ?",
+    "Calcule 15% de 2500€ HT avec TVA",
   ];
 
   return (
@@ -273,6 +312,10 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
                       ))}
                     </div>
                   )}
+
+                  {msg.mathDetected && msg.mathResults && msg.mathResults.length > 0 && (
+                    <MathResultsPanel results={msg.mathResults} getMathTypeIcon={getMathTypeIcon} getMathTypeLabel={getMathTypeLabel} />
+                  )}
                 </div>
               </div>
             ))}
@@ -310,6 +353,63 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
             <Send className="w-4 h-4" />
           </Button>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function MathResultsPanel({ results, getMathTypeIcon, getMathTypeLabel }: {
+  results: MathResult[];
+  getMathTypeIcon: (type: string) => React.ReactNode;
+  getMathTypeLabel: (type: string) => string;
+}) {
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+
+  return (
+    <div className="mt-2 border-t border-border/50 pt-2">
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <Calculator className="w-3.5 h-3.5 text-blue-500" />
+        <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider">
+          Analyse mathematique ({results.length} sous-composant{results.length > 1 ? "s" : ""})
+        </span>
+      </div>
+      <div className="space-y-1.5">
+        {results.map((mr, idx) => (
+          <div key={idx} className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200/50 dark:border-blue-800/30 overflow-hidden">
+            <button
+              className="w-full flex items-center gap-2 px-2 py-1.5 text-left hover:bg-blue-100/50 dark:hover:bg-blue-900/20 transition-colors"
+              onClick={() => setExpandedIdx(expandedIdx === idx ? null : idx)}
+            >
+              <span className="text-blue-600 dark:text-blue-400 shrink-0">
+                {getMathTypeIcon(mr.type)}
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <code className="text-[11px] font-mono text-foreground truncate">{mr.expression}</code>
+                  <Badge variant="outline" className="h-3.5 px-1 text-[8px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700 shrink-0">
+                    {getMathTypeLabel(mr.type)}
+                  </Badge>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-blue-700 dark:text-blue-300 shrink-0">
+                = {mr.result}{mr.unit ? ` ${mr.unit}` : ""}
+              </span>
+              <ChevronRight className={`w-3 h-3 text-blue-400 shrink-0 transition-transform ${expandedIdx === idx ? "rotate-90" : ""}`} />
+            </button>
+            {expandedIdx === idx && mr.steps.length > 0 && (
+              <div className="px-2 pb-2 pt-0.5 border-t border-blue-200/30 dark:border-blue-800/30">
+                <div className="space-y-0.5">
+                  {mr.steps.map((step, si) => (
+                    <div key={si} className="flex items-start gap-1.5 text-[10px]">
+                      <span className="text-blue-400 shrink-0 mt-px font-mono">{si + 1}.</span>
+                      <span className="text-muted-foreground font-mono">{step}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );

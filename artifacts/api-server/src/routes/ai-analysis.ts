@@ -464,6 +464,19 @@ router.post("/ai/assistant", async (req, res) => {
       return res.status(400).json({ error: "Le parametre 'question' est requis." });
     }
 
+    const { detectMathExpressions, analyzeMath, analyzeWithAI } = await import("../services/math-engine");
+    const hasMath = detectMathExpressions(question);
+    let mathAnalysis = null;
+
+    if (hasMath) {
+      mathAnalysis = analyzeMath(question);
+      if (mathAnalysis.subComponents.length > 0) {
+        try {
+          mathAnalysis = await analyzeWithAI(question, mathAnalysis);
+        } catch {}
+      }
+    }
+
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
@@ -502,6 +515,21 @@ router.post("/ai/assistant", async (req, res) => {
       appelsManques: missedCalls,
     };
 
+    const mathContext = mathAnalysis && mathAnalysis.detected
+      ? `\n\nANALYSE MATHEMATIQUE DETECTEE:\n${JSON.stringify({
+          category: mathAnalysis.category,
+          summary: mathAnalysis.summary,
+          subComponents: mathAnalysis.subComponents.map(c => ({
+            expression: c.expression,
+            type: c.type,
+            result: c.result,
+            steps: c.steps,
+            unit: c.unit,
+          })),
+          finalResult: mathAnalysis.finalResult,
+        }, null, 2)}\n\nINCLUS les resultats mathematiques dans ta reponse. Presente chaque sous-composant avec ses etapes de resolution. Utilise les resultats exacts calcules ci-dessus.`
+      : "";
+
     const { ai } = await import("@workspace/integrations-gemini-ai");
 
     const response = await ai.models.generateContent({
@@ -511,25 +539,49 @@ router.post("/ai/assistant", async (req, res) => {
         parts: [{
           text: `Tu es l'assistant IA intelligent du logiciel "Agent de Bureau", un outil de gestion de bureau et centre d'appels en France. Tu reponds aux questions de l'utilisateur en francais, de facon professionnelle, concise et utile. Tu as acces aux donnees en temps reel du bureau.
 
+Tu possedes un moteur mathematique integre capable de:
+- Arithmetique (addition, soustraction, multiplication, division)
+- Pourcentages (20% de 500, TVA)
+- Puissances et racines (2^10, sqrt(144))
+- Logarithmes (log, ln)
+- Trigonometrie (sin, cos, tan en degres)
+- Statistiques (moyenne, somme de series)
+- Calculs financiers (HT/TTC, TVA, marges)
+- Conversions d'unites (km, kg, litres...)
+- Geometrie (aire, perimetre, volume)
+- Ratios et proportions
+
+Quand tu detectes des expressions mathematiques, decompose-les en sous-composants et montre la resolution etape par etape.
+
 Page actuelle de l'utilisateur: ${currentPage || "tableau de bord"}
 
 Donnees du bureau en temps reel:
-${JSON.stringify(dbContext, null, 2)}
+${JSON.stringify(dbContext, null, 2)}${mathContext}
 
 Question de l'utilisateur: "${question}"
 
 Reponds en JSON avec cette structure:
 {
-  "reponse": "string (reponse principale, claire et concise, 2-4 phrases max)",
-  "donnees": [{"label": "string", "valeur": "string"}] (donnees chiffrees pertinentes, max 4),
-  "actions": [{"label": "string", "description": "string"}] (actions suggerees, max 3)
+  "reponse": "string (reponse principale, claire et concise)",
+  "donnees": [{"label": "string", "valeur": "string"}] (donnees chiffrees pertinentes, max 6),
+  "actions": [{"label": "string", "description": "string"}] (actions suggerees, max 3),
+  "mathDetected": boolean,
+  "mathResults": [
+    {
+      "expression": "string (l'expression originale)",
+      "type": "string (arithmetic|percentage|financial|statistics|geometry|conversion|trigonometry|power|root|logarithm|ratio)",
+      "result": "string (resultat formate)",
+      "steps": ["string (etapes de resolution)"],
+      "unit": "string optionnel (unite du resultat)"
+    }
+  ] (resultats mathematiques, vide si aucune expression detectee)
 }
 
-Sois precis, base-toi sur les donnees reelles. Si la question n'a pas de rapport avec le bureau, reponds poliment que tu es specialise dans la gestion de bureau.`
+Sois precis, base-toi sur les donnees reelles. Pour les calculs mathematiques, utilise les resultats du moteur integre quand ils sont disponibles.`
         }],
       }],
       config: {
-        maxOutputTokens: 2048,
+        maxOutputTokens: 4096,
         responseMimeType: "application/json",
       },
     });
@@ -539,7 +591,18 @@ Sois precis, base-toi sur les donnees reelles. Si la question n'a pas de rapport
     try {
       parsed = JSON.parse(text);
     } catch {
-      parsed = { reponse: text, donnees: [], actions: [] };
+      parsed = { reponse: text, donnees: [], actions: [], mathDetected: false, mathResults: [] };
+    }
+
+    if (mathAnalysis && mathAnalysis.detected && mathAnalysis.subComponents.length > 0) {
+      parsed.mathDetected = true;
+      parsed.mathResults = mathAnalysis.subComponents.map(c => ({
+        expression: c.expression,
+        type: c.type,
+        result: typeof c.result === "number" ? c.result.toLocaleString("fr-FR") : String(c.result),
+        steps: c.steps,
+        unit: c.unit,
+      }));
     }
 
     res.json(parsed);

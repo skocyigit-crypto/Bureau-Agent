@@ -34,6 +34,8 @@ import prospectsRouter from "./prospects";
 import devisRouter from "./devis";
 import facturesClientRouter from "./factures-client";
 import projetsRouter from "./projets";
+import googleWorkspaceRouter from "./google-workspace";
+import mathRouter from "./math";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -73,5 +75,7 @@ router.use(prospectsRouter);
 router.use(devisRouter);
 router.use(facturesClientRouter);
 router.use(projetsRouter);
+router.use(googleWorkspaceRouter);
+router.use(mathRouter);
 
 export default router;

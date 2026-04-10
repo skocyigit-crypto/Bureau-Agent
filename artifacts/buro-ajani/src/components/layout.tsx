@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo } from "react";
 import { Link, useLocation } from "wouter";
-import { Phone, Users, CheckSquare, MessageSquare, BarChart, Search, LayoutDashboard, Settings, PhoneIncoming, FileText, Puzzle, UserCog, Clock, Brain, Package, Calendar, Shield, Zap, BarChart3, KeyRound, Target, FileSignature, Receipt, FolderKanban } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, BarChart, Search, LayoutDashboard, Settings, PhoneIncoming, FileText, Puzzle, UserCog, Clock, Brain, Package, Calendar, Shield, Zap, BarChart3, KeyRound, Target, FileSignature, Receipt, FolderKanban, Globe } from "lucide-react";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { SidebarIcon3D, Icon3D } from "@/components/icon-3d";
 import { AiAssistantButton } from "@/components/ai-assistant";
@@ -38,6 +38,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       { name: "Projets", href: "/projets", icon: FolderKanban },
       { name: "Calendrier", href: "/calendrier", icon: Calendar },
       { name: "Rapports", href: "/rapports", icon: FileText },
+      { name: "Google Workspace", href: "/google-workspace", icon: Globe },
       { name: "Logiciels", href: "/logiciels", icon: Puzzle },
       { name: "Analyse", href: "/analyse", icon: BarChart },
       ...(isAdmin ? [{ name: "Utilisateurs", href: "/utilisateurs", icon: UserCog }] : []),

@@ -1,0 +1,381 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { format, formatDistanceToNow, isToday, isTomorrow } from "date-fns";
+import { fr } from "date-fns/locale";
+import {
+  Mail, Calendar, HardDrive, FileText, Table, Presentation, Users, CheckSquare,
+  StickyNote, Video, Image, PlayCircle, MessageCircle, ClipboardList,
+  Search, ExternalLink, RefreshCw, Shield, Zap, Grid3X3, ChevronRight,
+  Clock, Star, Eye, Folder, Link2, AlertCircle, Check, Loader2, Globe
+} from "lucide-react";
+import { Icon3D } from "@/components/icon-3d";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
+
+const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+async function apiFetch(path: string) {
+  const res = await fetch(`${baseUrl}/api${path}`, { credentials: "include" });
+  if (!res.ok) throw new Error("Erreur");
+  return res.json();
+}
+
+const ICON_MAP: Record<string, any> = {
+  mail: Mail, calendar: Calendar, "hard-drive": HardDrive, "file-text": FileText,
+  table: Table, presentation: Presentation, users: Users, "check-square": CheckSquare,
+  "sticky-note": StickyNote, video: Video, image: Image, "play-circle": PlayCircle,
+  "message-circle": MessageCircle, "clipboard-list": ClipboardList,
+};
+
+const MIME_ICONS: Record<string, any> = {
+  "Google Doc": FileText, "Google Sheet": Table, "Google Slides": Presentation,
+  "Google Form": ClipboardList, "Dossier": Folder, "PDF": FileText,
+  "Image": Image, "Word": FileText, "Excel": Table, "PowerPoint": Presentation, "Fichier": FileText,
+};
+
+function formatFileSize(bytes: number | null) {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function SmartDate({ dateStr }: { dateStr: string }) {
+  if (!dateStr) return <span>-</span>;
+  const d = new Date(dateStr);
+  if (isToday(d)) return <span className="text-blue-600 font-medium">Aujourd'hui {format(d, "HH:mm")}</span>;
+  if (isTomorrow(d)) return <span className="text-amber-600 font-medium">Demain {format(d, "HH:mm")}</span>;
+  return <span>{format(d, "dd MMM HH:mm", { locale: fr })}</span>;
+}
+
+export default function GoogleWorkspace() {
+  const [search, setSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState("all");
+  const [activeTab, setActiveTab] = useState("apps");
+
+  const { data: hub, isLoading: hubLoading } = useQuery({ queryKey: ["gw-hub"], queryFn: () => apiFetch("/google-workspace/hub") });
+  const { data: emailsData, isLoading: emailsLoading } = useQuery({ queryKey: ["gw-emails"], queryFn: () => apiFetch("/google-workspace/recent-emails"), enabled: hub?.authenticated });
+  const { data: eventsData, isLoading: eventsLoading } = useQuery({ queryKey: ["gw-events"], queryFn: () => apiFetch("/google-workspace/upcoming-events"), enabled: hub?.authenticated });
+  const { data: filesData, isLoading: filesLoading } = useQuery({ queryKey: ["gw-files"], queryFn: () => apiFetch("/google-workspace/recent-files"), enabled: hub?.authenticated });
+  const { data: tasksData, isLoading: tasksLoading } = useQuery({ queryKey: ["gw-tasks"], queryFn: () => apiFetch("/google-workspace/tasks"), enabled: hub?.authenticated });
+
+  const filteredApps = (hub?.apps || []).filter((app: any) => {
+    const matchSearch = !search || app.name.toLowerCase().includes(search.toLowerCase()) || app.description.toLowerCase().includes(search.toLowerCase());
+    const matchCat = activeCategory === "all" || app.category === activeCategory;
+    return matchSearch && matchCat;
+  });
+
+  const connectedApps = (hub?.apps || []).filter((a: any) => a.connected);
+  const disconnectedApps = (hub?.apps || []).filter((a: any) => !a.connected);
+
+  return (
+    <div className="flex-1 space-y-4 p-4 lg:p-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <Icon3D icon={Globe} variant="blue" size="lg" />
+          <div>
+            <h1 className="text-2xl font-bold">Google Workspace</h1>
+            <p className="text-muted-foreground text-sm">Gerez vos applications Google depuis un seul endroit</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {hub?.authenticated ? (
+            <Badge variant="default" className="bg-emerald-500 text-white gap-1"><Check className="h-3 w-3" /> Connecte</Badge>
+          ) : (
+            <Badge variant="outline" className="gap-1"><AlertCircle className="h-3 w-3" /> Non connecte</Badge>
+          )}
+        </div>
+      </div>
+
+      {hub?.stats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Card><CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Grid3X3 className="h-5 w-5 text-blue-500" />
+              <div><p className="text-xs text-muted-foreground">Applications</p><p className="text-xl font-bold">{hub.stats.totalApps}</p></div>
+            </div>
+          </CardContent></Card>
+          <Card><CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-emerald-500" />
+              <div><p className="text-xs text-muted-foreground">Connectees</p><p className="text-xl font-bold">{hub.stats.connectedApps}</p></div>
+            </div>
+          </CardContent></Card>
+          <Card><CardContent className="p-4">
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Integration</p>
+              <Progress value={hub.stats.percentage} className="h-2" />
+              <p className="text-xs font-semibold">{hub.stats.percentage}%</p>
+            </div>
+          </CardContent></Card>
+          <Card><CardContent className="p-4">
+            <div className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-indigo-500" />
+              <div><p className="text-xs text-muted-foreground">Statut</p><p className="text-sm font-semibold">{hub?.tokenValid ? "Token actif" : "Token expire"}</p></div>
+            </div>
+          </CardContent></Card>
+        </div>
+      )}
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="apps">Applications ({hub?.stats?.totalApps || 0})</TabsTrigger>
+          {hub?.authenticated && <>
+            <TabsTrigger value="emails">Emails</TabsTrigger>
+            <TabsTrigger value="agenda">Agenda</TabsTrigger>
+            <TabsTrigger value="drive">Drive</TabsTrigger>
+            <TabsTrigger value="tasks">Taches</TabsTrigger>
+          </>}
+        </TabsList>
+
+        <TabsContent value="apps" className="space-y-4">
+          <div className="flex gap-2 flex-wrap">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input className="pl-9" placeholder="Rechercher une application..." value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+            <div className="flex gap-1 flex-wrap">
+              {(hub?.categories || []).map((cat: any) => (
+                <Button key={cat.id} variant={activeCategory === cat.id ? "default" : "outline"} size="sm" onClick={() => setActiveCategory(cat.id)}>{cat.label}</Button>
+              ))}
+            </div>
+          </div>
+
+          {hubLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-40" />)}</div>
+          ) : (
+            <>
+              {connectedApps.length > 0 && activeCategory === "all" && !search && (
+                <div>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+                    <Check className="h-4 w-4 text-emerald-500" /> Applications connectees ({connectedApps.length})
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {connectedApps.map((app: any) => <AppCard key={app.id} app={app} />)}
+                  </div>
+                </div>
+              )}
+
+              {(search || activeCategory !== "all" ? filteredApps : disconnectedApps).length > 0 && (
+                <div>
+                  {!search && activeCategory === "all" && connectedApps.length > 0 && (
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-3">Autres applications ({disconnectedApps.length})</h3>
+                  )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {(search || activeCategory !== "all" ? filteredApps : disconnectedApps).map((app: any) => <AppCard key={app.id} app={app} />)}
+                  </div>
+                </div>
+              )}
+
+              {filteredApps.length === 0 && <div className="text-center py-12 text-muted-foreground">Aucune application trouvee</div>}
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="emails" className="space-y-3">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2"><Mail className="h-5 w-5 text-red-500" /> Derniers emails</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {emailsLoading ? <div className="p-4"><Skeleton className="h-40" /></div> : emailsData?.error === "non_connecte" ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <Mail className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                  <p>Connectez votre compte Google pour voir vos emails</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {(emailsData?.emails || []).map((email: any) => (
+                    <div key={email.id} className={`p-3 hover:bg-muted/30 transition-colors ${email.unread ? "bg-blue-50/50 dark:bg-blue-950/20" : ""}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            {email.unread && <div className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />}
+                            <p className={`text-sm truncate ${email.unread ? "font-semibold" : ""}`}>{email.subject}</p>
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">{email.from}</p>
+                          <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{email.snippet}</p>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground shrink-0">{email.date ? formatDistanceToNow(new Date(email.date), { addSuffix: true, locale: fr }) : ""}</span>
+                      </div>
+                    </div>
+                  ))}
+                  {(!emailsData?.emails || emailsData.emails.length === 0) && <div className="p-8 text-center text-muted-foreground">Aucun email recent</div>}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="agenda" className="space-y-3">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2"><Calendar className="h-5 w-5 text-blue-500" /> Evenements a venir</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {eventsLoading ? <div className="p-4"><Skeleton className="h-40" /></div> : eventsData?.error === "non_connecte" ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <Calendar className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                  <p>Connectez votre compte Google pour voir votre agenda</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {(eventsData?.events || []).map((event: any) => (
+                    <div key={event.id} className="p-3 hover:bg-muted/30 transition-colors">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium">{event.title}</p>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              <SmartDate dateStr={event.start} />
+                              {!event.allDay && event.end && <> - {format(new Date(event.end), "HH:mm")}</>}
+                            </span>
+                            {event.allDay && <Badge variant="outline" className="text-[10px]">Toute la journee</Badge>}
+                          </div>
+                          {event.location && <p className="text-xs text-muted-foreground mt-1">{event.location}</p>}
+                          {event.attendees?.length > 0 && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <Users className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-[10px] text-muted-foreground">{event.attendees.length} participant{event.attendees.length > 1 ? "s" : ""}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {event.meetLink && (
+                            <a href={event.meetLink} target="_blank" rel="noopener noreferrer">
+                              <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs"><Video className="h-3 w-3" /> Meet</Button>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {(!eventsData?.events || eventsData.events.length === 0) && <div className="p-8 text-center text-muted-foreground">Aucun evenement a venir</div>}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="drive" className="space-y-3">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2"><HardDrive className="h-5 w-5 text-green-500" /> Fichiers recents</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {filesLoading ? <div className="p-4"><Skeleton className="h-40" /></div> : filesData?.error === "non_connecte" ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <HardDrive className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                  <p>Connectez votre compte Google pour voir vos fichiers</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {(filesData?.files || []).map((file: any) => {
+                    const TypeIcon = MIME_ICONS[file.type] || FileText;
+                    return (
+                      <div key={file.id} className="p-3 hover:bg-muted/30 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <TypeIcon className="h-5 w-5 text-muted-foreground shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium truncate">{file.name}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                              <Badge variant="outline" className="text-[10px]">{file.type}</Badge>
+                              {file.size && <span>{formatFileSize(file.size)}</span>}
+                              {file.modifiedTime && <span>{formatDistanceToNow(new Date(file.modifiedTime), { addSuffix: true, locale: fr })}</span>}
+                              {file.shared && <Badge variant="secondary" className="text-[10px]">Partage</Badge>}
+                            </div>
+                          </div>
+                          {file.webViewLink && (
+                            <a href={file.webViewLink} target="_blank" rel="noopener noreferrer">
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0"><ExternalLink className="h-3 w-3" /></Button>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {(!filesData?.files || filesData.files.length === 0) && <div className="p-8 text-center text-muted-foreground">Aucun fichier recent</div>}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="tasks" className="space-y-3">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2"><CheckSquare className="h-5 w-5 text-blue-500" /> Taches Google</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {tasksLoading ? <div className="p-4"><Skeleton className="h-40" /></div> : tasksData?.error === "non_connecte" ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <CheckSquare className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                  <p>Connectez votre compte Google pour voir vos taches</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {(tasksData?.tasks || []).map((task: any) => (
+                    <div key={task.id} className="p-3 hover:bg-muted/30 transition-colors">
+                      <div className="flex items-start gap-2">
+                        <div className={`mt-1 w-4 h-4 rounded border-2 shrink-0 ${task.status === "completed" ? "bg-emerald-500 border-emerald-500" : "border-muted-foreground/30"}`}>
+                          {task.status === "completed" && <Check className="h-3 w-3 text-white" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-sm ${task.status === "completed" ? "line-through text-muted-foreground" : "font-medium"}`}>{task.title}</p>
+                          {task.notes && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{task.notes}</p>}
+                          <div className="flex items-center gap-2 mt-1">
+                            {task.listName && <Badge variant="outline" className="text-[10px]">{task.listName}</Badge>}
+                            {task.due && <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Clock className="h-2.5 w-2.5" /> {format(new Date(task.due), "dd/MM/yyyy")}</span>}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {(!tasksData?.tasks || tasksData.tasks.length === 0) && <div className="p-8 text-center text-muted-foreground">Aucune tache en cours</div>}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function AppCard({ app }: { app: any }) {
+  const Icon = ICON_MAP[app.icon] || Grid3X3;
+  return (
+    <Card className={`transition-all hover:shadow-md ${app.connected ? "border-emerald-200 dark:border-emerald-800/50" : ""}`}>
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: app.color + "15" }}>
+            <Icon className="h-5 w-5" style={{ color: app.color }} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-sm">{app.name}</h3>
+              {app.connected ? (
+                <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px]">Actif</Badge>
+              ) : (
+                <Badge variant="outline" className="text-[10px]">Inactif</Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">{app.description}</p>
+            {app.lastSync && (
+              <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+                <RefreshCw className="h-2.5 w-2.5" />
+                Sync: {formatDistanceToNow(new Date(app.lastSync), { addSuffix: true, locale: fr })}
+              </p>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

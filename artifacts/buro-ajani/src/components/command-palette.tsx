@@ -55,6 +55,7 @@ export function CommandPalette() {
     { id: "organisations", label: "Licences", icon: KeyRound, action: () => navigate("/organisations"), category: "Administration" },
     { id: "settings", label: "Parametres", icon: Settings, action: () => navigate("/parametres"), category: "Administration" },
     { id: "notifications", label: "Notifications", icon: MessageSquare, action: () => navigate("/notifications"), category: "Navigation" },
+    { id: "google-workspace", label: "Google Workspace", icon: Search, action: () => navigate("/google-workspace"), category: "Navigation", keywords: ["gmail", "drive", "docs", "sheets", "calendar", "google"] },
   ];
 
   const filtered = commands.filter(cmd => {
