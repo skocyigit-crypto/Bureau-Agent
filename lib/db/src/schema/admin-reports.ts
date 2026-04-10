@@ -1,9 +1,11 @@
-import { pgTable, serial, integer, varchar, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, varchar, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
+import { organisationsTable } from "./organisations";
+import { usersTable } from "./users";
 
 export const adminReportsTable = pgTable("admin_reports", {
   id: serial("id").primaryKey(),
-  organisationId: integer("organisation_id").notNull(),
-  userId: integer("user_id").notNull(),
+  organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   userName: varchar("user_name", { length: 200 }),
   userEmail: varchar("user_email", { length: 255 }),
   orgName: varchar("org_name", { length: 200 }),
@@ -17,7 +19,10 @@ export const adminReportsTable = pgTable("admin_reports", {
   readAt: timestamp("read_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (table) => [
+  index("admin_reports_org_id_idx").on(table.organisationId),
+  index("admin_reports_user_id_idx").on(table.userId),
+]);
 
 export type AdminReport = typeof adminReportsTable.$inferSelect;
 export type InsertAdminReport = typeof adminReportsTable.$inferInsert;

@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, varchar, text, timestamp, numeric, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, varchar, text, timestamp, numeric, jsonb, index } from "drizzle-orm/pg-core";
 import { organisationsTable } from "./organisations";
 
 export const OVERAGE_RATES = {
@@ -36,7 +36,10 @@ export const invoicesTable = pgTable("invoices", {
   paidAt: timestamp("paid_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (table) => [
+  index("invoices_org_id_idx").on(table.organisationId),
+  index("invoices_status_idx").on(table.status),
+]);
 
 export const paymentsTable = pgTable("payments", {
   id: serial("id").primaryKey(),

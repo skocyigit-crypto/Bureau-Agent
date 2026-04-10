@@ -1,6 +1,7 @@
-import { pgTable, serial, integer, text, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, boolean, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { usersTable } from "./users";
 
 export const automationRulesTable = pgTable("automation_rules", {
   id: serial("id").primaryKey(),
@@ -17,14 +18,14 @@ export const automationRulesTable = pgTable("automation_rules", {
   runCount: integer("run_count").notNull().default(0),
   errorCount: integer("error_count").notNull().default(0),
   lastError: text("last_error"),
-  createdBy: integer("created_by"),
+  createdBy: integer("created_by").references(() => usersTable.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 
 export const automationLogsTable = pgTable("automation_logs", {
   id: serial("id").primaryKey(),
-  ruleId: integer("rule_id").notNull(),
+  ruleId: integer("rule_id").notNull().references(() => automationRulesTable.id, { onDelete: "cascade" }),
   ruleName: text("rule_name").notNull(),
   status: text("status").notNull().default("success"),
   details: jsonb("details"),
@@ -32,7 +33,9 @@ export const automationLogsTable = pgTable("automation_logs", {
   duration: integer("duration"),
   error: text("error"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  index("automation_logs_rule_id_idx").on(table.ruleId),
+]);
 
 export const notificationsTable = pgTable("notifications", {
   id: serial("id").primaryKey(),

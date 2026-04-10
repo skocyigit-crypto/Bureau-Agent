@@ -23,6 +23,8 @@ export const stockArticlesTable = pgTable("stock_articles", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [
   index("stock_org_id_idx").on(table.organisationId),
+  index("stock_reference_idx").on(table.reference),
+  index("stock_barcode_idx").on(table.barcode),
 ]);
 
 export const insertStockArticleSchema = createInsertSchema(stockArticlesTable).omit({ id: true, createdAt: true, updatedAt: true });

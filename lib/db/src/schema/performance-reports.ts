@@ -1,12 +1,13 @@
 import { pgTable, serial, integer, text, timestamp, jsonb, index } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
+import { organisationsTable } from "./organisations";
 
 export const performanceReportsTable = pgTable("performance_reports", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => usersTable.id, { onDelete: "set null" }),
   userEmail: text("user_email"),
   userName: text("user_name"),
-  organisationId: integer("organisation_id"),
+  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
   periode: text("periode").notNull(),
   dateDebut: timestamp("date_debut", { withTimezone: true }).notNull(),
   dateFin: timestamp("date_fin", { withTimezone: true }).notNull(),
