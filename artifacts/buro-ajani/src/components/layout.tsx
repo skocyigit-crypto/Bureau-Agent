@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo } from "react";
 import { Link, useLocation } from "wouter";
-import { Phone, Users, CheckSquare, MessageSquare, BarChart, Search, LayoutDashboard, Settings, PhoneIncoming, FileText, Puzzle, UserCog, Clock, Brain, Package, Calendar, Shield, Zap, BarChart3, KeyRound } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, BarChart, Search, LayoutDashboard, Settings, PhoneIncoming, FileText, Puzzle, UserCog, Clock, Brain, Package, Calendar, Shield, Zap, BarChart3, KeyRound, Target, FileSignature, Receipt, FolderKanban } from "lucide-react";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { SidebarIcon3D, Icon3D } from "@/components/icon-3d";
 import { AiAssistantButton } from "@/components/ai-assistant";
@@ -32,6 +32,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
       { name: "Contacts", href: "/contacts", icon: Users },
       { name: "Tâches", href: "/taches", icon: CheckSquare },
       { name: "Messages", href: "/messages", icon: MessageSquare },
+      { name: "Prospects", href: "/prospects", icon: Target },
+      { name: "Devis", href: "/devis", icon: FileSignature },
+      { name: "Factures", href: "/factures", icon: Receipt },
+      { name: "Projets", href: "/projets", icon: FolderKanban },
       { name: "Calendrier", href: "/calendrier", icon: Calendar },
       { name: "Rapports", href: "/rapports", icon: FileText },
       { name: "Logiciels", href: "/logiciels", icon: Puzzle },

@@ -30,6 +30,10 @@ import billingRouter from "./billing";
 import legalRouter from "./legal";
 import googleDriveBackupRouter from "./google-drive-backup";
 import securityRouter from "./security";
+import prospectsRouter from "./prospects";
+import devisRouter from "./devis";
+import facturesClientRouter from "./factures-client";
+import projetsRouter from "./projets";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -65,5 +69,9 @@ router.use(billingRouter);
 router.use(legalRouter);
 router.use(googleDriveBackupRouter);
 router.use(securityRouter);
+router.use(prospectsRouter);
+router.use(devisRouter);
+router.use(facturesClientRouter);
+router.use(projetsRouter);
 
 export default router;

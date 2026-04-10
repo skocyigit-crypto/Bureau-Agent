@@ -33,6 +33,12 @@ import AuditLogPage from "@/pages/audit-log";
 import AutomationsPage from "@/pages/automations";
 import PerformancePage from "@/pages/performance";
 import OrganisationsPage from "@/pages/organisations";
+import ProspectsPage from "@/pages/prospects";
+import DevisPage from "@/pages/devis";
+import FacturesPage from "@/pages/factures";
+import ProjetsPage from "@/pages/projets";
+import NotificationsPage from "@/pages/notifications";
+import { CommandPalette } from "@/components/command-palette";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +66,11 @@ function AppRoutes() {
         <Route path="/performance" component={PerformancePage} />
         <Route path="/parametres" component={SettingsPage} />
         <Route path="/organisations" component={OrganisationsPage} />
+        <Route path="/prospects" component={ProspectsPage} />
+        <Route path="/devis" component={DevisPage} />
+        <Route path="/factures" component={FacturesPage} />
+        <Route path="/projets" component={ProjetsPage} />
+        <Route path="/notifications" component={NotificationsPage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
@@ -147,6 +158,7 @@ function App() {
                 ) : (
                   <>
                     <UpdateBanner />
+                    <CommandPalette />
                     <AppRoutes />
                   </>
                 )}

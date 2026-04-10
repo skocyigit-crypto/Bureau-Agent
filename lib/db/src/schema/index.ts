@@ -19,3 +19,7 @@ export * from "./performance-reports";
 export * from "./admin-reports";
 export * from "./invoices";
 export * from "./legal-agreements";
+export * from "./prospects";
+export * from "./devis";
+export * from "./factures-client";
+export * from "./projets";
