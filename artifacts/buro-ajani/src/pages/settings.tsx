@@ -1310,6 +1310,8 @@ export default function SettingsPage() {
   const [restoringFileId, setRestoringFileId] = useState<string | null>(null);
   const [restoreResult, setRestoreResult] = useState<any>(null);
   const [exportingLocal, setExportingLocal] = useState(false);
+  const [dataProtectionStatus, setDataProtectionStatus] = useState<any>(null);
+  const [dataProtectionLoading, setDataProtectionLoading] = useState(false);
 
   const { simulateIncomingCall } = useSimulateCall();
   const { toast } = useToast();
@@ -1520,6 +1522,20 @@ export default function SettingsPage() {
     }
   };
 
+  const fetchDataProtectionStatus = useCallback(async () => {
+    setDataProtectionLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/data-protection/status`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setDataProtectionStatus(data);
+      }
+    } catch {
+    } finally {
+      setDataProtectionLoading(false);
+    }
+  }, []);
+
   const handleVerifyBackup = async (fileId: string) => {
     setVerifyingFileId(fileId);
     setVerifyResult(null);
@@ -1620,10 +1636,11 @@ export default function SettingsPage() {
       fetchDriveBackupStatus();
       fetchDriveBackupHistory();
       fetchDriveConfig();
+      fetchDataProtectionStatus();
       const interval = setInterval(fetchBackups, 30000);
       return () => clearInterval(interval);
     }
-  }, [activeTab, fetchBackups, fetchDriveBackupStatus, fetchDriveBackupHistory, fetchDriveConfig]);
+  }, [activeTab, fetchBackups, fetchDriveBackupStatus, fetchDriveBackupHistory, fetchDriveConfig, fetchDataProtectionStatus]);
 
   const handleGoogleOAuthConnect = async (services?: string[]) => {
     setGoogleConnecting(true);
@@ -3506,6 +3523,107 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="sauvegardes" className="space-y-6 mt-6">
+
+          {dataProtectionStatus && (
+            <Card className={`border-2 ${
+              !dataProtectionStatus.globalHealth.backupConfigured || !dataProtectionStatus.globalHealth.lastBackup
+                ? "border-red-300 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20"
+                : dataProtectionStatus.globalHealth.failedBackups24h > 0
+                  ? "border-amber-300 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20"
+                  : "border-emerald-300 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20"
+            }`}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2.5 rounded-xl ${
+                      !dataProtectionStatus.globalHealth.backupConfigured || !dataProtectionStatus.globalHealth.lastBackup
+                        ? "bg-red-100 dark:bg-red-900/30"
+                        : dataProtectionStatus.globalHealth.failedBackups24h > 0
+                          ? "bg-amber-100 dark:bg-amber-900/30"
+                          : "bg-emerald-100 dark:bg-emerald-900/30"
+                    }`}>
+                      <Shield className={`w-5 h-5 ${
+                        !dataProtectionStatus.globalHealth.backupConfigured || !dataProtectionStatus.globalHealth.lastBackup
+                          ? "text-red-600"
+                          : dataProtectionStatus.globalHealth.failedBackups24h > 0
+                            ? "text-amber-600"
+                            : "text-emerald-600"
+                      }`} />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Protection des donnees</CardTitle>
+                      <CardDescription>Surveillance automatique de la securite et de l'integrite de vos donnees (toutes les 6h).</CardDescription>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" onClick={fetchDataProtectionStatus} disabled={dataProtectionLoading} className="h-7 text-xs gap-1">
+                      {dataProtectionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                      Actualiser
+                    </Button>
+                    <Badge className={`text-xs gap-1 border-0 ${
+                      !dataProtectionStatus.globalHealth.backupConfigured || !dataProtectionStatus.globalHealth.lastBackup
+                        ? "bg-red-100 text-red-700"
+                        : dataProtectionStatus.globalHealth.failedBackups24h > 0
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-emerald-100 text-emerald-700"
+                    }`}>
+                      <div className={`w-2 h-2 rounded-full animate-pulse ${
+                        !dataProtectionStatus.globalHealth.backupConfigured || !dataProtectionStatus.globalHealth.lastBackup
+                          ? "bg-red-500"
+                          : dataProtectionStatus.globalHealth.failedBackups24h > 0
+                            ? "bg-amber-500"
+                            : "bg-emerald-500"
+                      }`} />
+                      {!dataProtectionStatus.globalHealth.backupConfigured || !dataProtectionStatus.globalHealth.lastBackup
+                        ? "Critique"
+                        : dataProtectionStatus.globalHealth.failedBackups24h > 0
+                          ? "Attention"
+                          : "Protege"}
+                    </Badge>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="bg-white/60 dark:bg-black/20 rounded-lg p-3 text-center border border-border/30">
+                    <p className="text-xl font-bold text-blue-700">{dataProtectionStatus.globalHealth.totalRecords?.toLocaleString("fr-FR") || 0}</p>
+                    <p className="text-[10px] text-muted-foreground">Enregistrements proteges</p>
+                  </div>
+                  <div className="bg-white/60 dark:bg-black/20 rounded-lg p-3 text-center border border-border/30">
+                    <p className="text-xl font-bold text-emerald-700">
+                      {dataProtectionStatus.globalHealth.lastBackup
+                        ? new Date(dataProtectionStatus.globalHealth.lastBackup).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+                        : "Jamais"}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">Derniere sauvegarde</p>
+                  </div>
+                  <div className="bg-white/60 dark:bg-black/20 rounded-lg p-3 text-center border border-border/30">
+                    <p className={`text-xl font-bold ${dataProtectionStatus.globalHealth.backupConfigured ? "text-emerald-700" : "text-red-700"}`}>
+                      {dataProtectionStatus.globalHealth.backupConfigured ? "Oui" : "Non"}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">Sauvegarde configuree</p>
+                  </div>
+                  <div className="bg-white/60 dark:bg-black/20 rounded-lg p-3 text-center border border-border/30">
+                    <p className={`text-xl font-bold ${dataProtectionStatus.globalHealth.failedBackups24h > 0 ? "text-red-700" : "text-emerald-700"}`}>
+                      {dataProtectionStatus.globalHealth.failedBackups24h}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">Echecs (24h)</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                  <Clock className="w-3 h-3" />
+                  <span>
+                    Derniere verification: {dataProtectionStatus.lastCheck
+                      ? new Date(dataProtectionStatus.lastCheck).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+                      : "En attente..."
+                    }
+                    {dataProtectionStatus.nextCheck && ` | Prochaine: ${new Date(dataProtectionStatus.nextCheck).toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="border-emerald-200 dark:border-emerald-800">
             <CardHeader>
               <div className="flex items-center justify-between">

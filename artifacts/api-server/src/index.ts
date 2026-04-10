@@ -5,6 +5,7 @@ import { startAutomationEngine } from "./services/automation-engine";
 import { ensureSuperAdmin } from "./services/ensure-admin";
 import { startGoogleAutoPointage } from "./services/google-auto-pointage";
 import { startGoogleDriveBackupScheduler } from "./services/google-drive-backup";
+import { startDataProtectionMonitor } from "./services/data-protection-monitor";
 
 const rawPort = process.env["PORT"];
 
@@ -33,4 +34,5 @@ app.listen(port, (err) => {
   startAutomationEngine();
   startGoogleAutoPointage();
   startGoogleDriveBackupScheduler().catch(err => console.error("[GoogleDriveBackup] Init error:", err.message));
+  startDataProtectionMonitor();
 });

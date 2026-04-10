@@ -62,6 +62,16 @@ The application features a French UI with a deep navy and warm amber color schem
     - **Local JSON export**: download unencrypted backup directly to browser.
     - **Frontend UI**: verify, simulate, restore buttons per backup file; verification details panel; restore results panel with per-table counts.
     - **API endpoints**: `/google-drive-backup/verify/:fileId`, `/google-drive-backup/restore/:fileId`, `/google-drive-backup/preview/:fileId`, `/google-drive-backup/export-local`, `/google-drive-backup/tables`.
+- **Data Protection Monitor (Automated):** Background service (`data-protection-monitor.ts`) that runs every 6 hours to protect licensed customer data:
+    - Checks backup status for every active organization with a subscription.
+    - Detects: no backup ever, stale backups (>48h), no backup system configured, trial expiration risk, large data without cloud backup, RGPD compliance gaps.
+    - Sends in-app notifications to org admins (severity: critique/haute/moyenne/info).
+    - Escalates critical issues to super admins.
+    - Monitors global backup health: failed backups in 24h, large tables, system-wide backup gaps.
+    - Deduplicates notifications (1 per admin per day per source).
+    - Logs all checks to automation_logs for audit trail.
+    - **API endpoint**: `/data-protection/status` — returns global health, last/next check times, backup stats.
+    - **Frontend**: "Protection des donnees" card at top of sauvegardes tab with color-coded status (red/amber/green), record counts, last backup time, failure count, next check timer.
 
 # External Dependencies
 

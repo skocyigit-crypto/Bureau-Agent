@@ -36,6 +36,7 @@ import facturesClientRouter from "./factures-client";
 import projetsRouter from "./projets";
 import googleWorkspaceRouter from "./google-workspace";
 import mathRouter from "./math";
+import dataProtectionRouter from "./data-protection";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -77,5 +78,6 @@ router.use(facturesClientRouter);
 router.use(projetsRouter);
 router.use(googleWorkspaceRouter);
 router.use(mathRouter);
+router.use(dataProtectionRouter);
 
 export default router;
