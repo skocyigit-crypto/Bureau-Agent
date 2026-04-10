@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
-import { Phone, Users, CheckSquare, MessageSquare, BarChart, LayoutDashboard, Settings, FileText, Package, Calendar, Shield, Zap, BarChart3, Brain, Clock, Target, Receipt, FolderKanban, Search, UserCog, KeyRound } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, BarChart, LayoutDashboard, Settings, FileText, Package, Calendar, Shield, Zap, BarChart3, Brain, Clock, Target, FolderKanban, Search, UserCog, KeyRound } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
@@ -39,7 +39,6 @@ export function CommandPalette() {
     { id: "tasks", label: "Taches", icon: CheckSquare, action: () => navigate("/taches"), category: "Navigation", keywords: ["todo", "travail"] },
     { id: "messages", label: "Messages", icon: MessageSquare, action: () => navigate("/messages"), category: "Navigation", keywords: ["sms", "chat"] },
     { id: "prospects", label: "Pipeline Commercial", icon: Target, action: () => navigate("/prospects"), category: "Navigation", keywords: ["crm", "vente", "lead"] },
-    { id: "factures", label: "Factures", icon: Receipt, action: () => navigate("/factures"), category: "Navigation", keywords: ["invoice", "paiement"] },
     { id: "projets", label: "Projets", icon: FolderKanban, action: () => navigate("/projets"), category: "Navigation", keywords: ["project", "chantier"] },
     { id: "calendar", label: "Calendrier", icon: Calendar, action: () => navigate("/calendrier"), category: "Navigation", keywords: ["agenda", "rdv"] },
     { id: "stock", label: "Stock", icon: Package, action: () => navigate("/stock"), category: "Navigation", keywords: ["inventaire", "materiel"] },
