@@ -27,7 +27,17 @@ import {
   Package,
   Bot,
   Plug,
-  Brain
+  Brain,
+  Shield,
+  CloudUpload,
+  Calculator,
+  Receipt,
+  FolderKanban,
+  Scale,
+  Mail,
+  Database,
+  Workflow,
+  Gauge
 } from "lucide-react";
 import {
   Accordion,
@@ -136,7 +146,7 @@ export default function Home() {
                 </motion.h1>
                 
                 <motion.p variants={fadeInUp} className="text-xl md:text-2xl text-blue-100/80 mb-12 max-w-3xl mx-auto leading-relaxed font-medium">
-                  Centralisez vos appels, vos contacts et vos tâches sur une plateforme élégante, puissante et fièrement conçue pour le marché français.
+                  CRM, appels, devis, facturation, stock, IA multi-agents et protection des donnees : la plateforme complete, puissante et fierement concue pour le marche francais.
                 </motion.p>
                 
                 <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -208,10 +218,10 @@ export default function Home() {
           <div className="container mx-auto px-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
               {[
-                { label: "Bureaux gérés", value: 2500, suffix: "+" },
-                { label: "Appels traités", display: "1,2M+", value: 120, suffix: "" },
-                { label: "Taux de satisfaction", value: 98, suffix: ".5%" },
-                { label: "Disponibilité", value: 24, suffix: "/7" }
+                { label: "Bureaux geres", value: 2500, suffix: "+" },
+                { label: "Appels traites", display: "1,2M+", value: 120, suffix: "" },
+                { label: "Fonctionnalites", value: 16, suffix: " modules" },
+                { label: "Disponibilite", value: 24, suffix: "/7" }
               ].map((stat, i) => (
                 <motion.div 
                   key={i}
@@ -256,28 +266,48 @@ export default function Home() {
               {[
                 {
                   icon: <PhoneCall className="w-7 h-7" />,
-                  title: "Gestion des appels",
-                  desc: "Routez, transférez et suivez les appels entrants et sortants avec une fluidité déconcertante."
+                  title: "Centre d'appels",
+                  desc: "Routage intelligent, transfert en un clic, identification automatique de l'appelant et historique complet en temps reel."
                 },
                 {
                   icon: <Users className="w-7 h-7" />,
-                  title: "Annuaire professionnel",
-                  desc: "Un carnet de contacts intelligent avec historique complet des interactions."
+                  title: "CRM & Contacts",
+                  desc: "Annuaire professionnel intelligent avec prospects, suivi des interactions et pipeline commercial integre."
+                },
+                {
+                  icon: <Receipt className="w-7 h-7" />,
+                  title: "Devis & Facturation",
+                  desc: "Creation de devis, conversion en factures, suivi des paiements et relances automatiques. TVA, remises et multi-devises."
+                },
+                {
+                  icon: <FolderKanban className="w-7 h-7" />,
+                  title: "Gestion de projets",
+                  desc: "Projets avec budgets, echeances et suivi d'avancement. Associez contacts, devis et factures a chaque projet."
                 },
                 {
                   icon: <CheckSquare className="w-7 h-7" />,
-                  title: "Gestion des tâches",
-                  desc: "Transformez une demande téléphonique en tâche assignable en un seul clic."
+                  title: "Tâches & Automatisations",
+                  desc: "Taches assignables avec priorites, regles d'automatisation personnalisees et alertes intelligentes."
                 },
                 {
-                  icon: <Voicemail className="w-7 h-7" />,
-                  title: "Messagerie vocale",
-                  desc: "Transcription automatique des messages vocaux et organisation par priorité."
+                  icon: <Brain className="w-7 h-7" />,
+                  title: "Multi-Agent IA",
+                  desc: "7 agents IA specialises : analyse sentimentale, previsions, performance, scoring clients et actions proactives."
                 },
                 {
-                  icon: <BarChart3 className="w-7 h-7" />,
-                  title: "Analyses avancées",
-                  desc: "Tableaux de bord détaillés pour comprendre vos flux de communication."
+                  icon: <Calculator className="w-7 h-7" />,
+                  title: "Moteur Mathematique",
+                  desc: "15 types de calculs integres : financier, statistique, geometrie, conversions, trigonometrie et bien plus."
+                },
+                {
+                  icon: <Shield className="w-7 h-7" />,
+                  title: "Protection des Donnees",
+                  desc: "Surveillance automatique toutes les 6h, alertes de sauvegarde, conformite RGPD et chiffrement AES-256."
+                },
+                {
+                  icon: <CloudUpload className="w-7 h-7" />,
+                  title: "Sauvegarde Cloud",
+                  desc: "Sauvegarde chiffree sur Google Drive, verification d'integrite, restauration et export JSON en un clic."
                 },
                 {
                   icon: <Package className="w-7 h-7" />,
@@ -285,19 +315,34 @@ export default function Home() {
                   desc: "Inventaire complet avec scan QR/code-barres, import IA de factures et suivi automatique des niveaux."
                 },
                 {
-                  icon: <Brain className="w-7 h-7" />,
-                  title: "Multi-Agent IA",
-                  desc: "7 agents IA specialises analysent vos donnees en continu et proposent des actions concretes."
+                  icon: <Scale className="w-7 h-7" />,
+                  title: "Conformite Juridique",
+                  desc: "Gestion CGU, CGV, RGPD, DPA, SLA et propriete intellectuelle. Suivi par organisation avec dashboard."
                 },
                 {
-                  icon: <Plug className="w-7 h-7" />,
-                  title: "58 integrations natives",
-                  desc: "Google Workspace, Microsoft 365, Apple/iCloud : connectez vos outils en un clic."
+                  icon: <BarChart3 className="w-7 h-7" />,
+                  title: "Analyses & Rapports",
+                  desc: "Tableaux de bord en temps reel, rapports quotidiens automatiques, metriques de performance par equipe."
+                },
+                {
+                  icon: <Mail className="w-7 h-7" />,
+                  title: "Google Workspace Hub",
+                  desc: "Gmail, Drive, Calendar et Contacts integres nativement. Synchronisation bidirectionnelle en temps reel."
+                },
+                {
+                  icon: <Database className="w-7 h-7" />,
+                  title: "Facturation Usage",
+                  desc: "Forfaits avec calcul automatique des depassements, snapshots d'usage et rapprochement bancaire."
+                },
+                {
+                  icon: <Workflow className="w-7 h-7" />,
+                  title: "Automatisations",
+                  desc: "Regles personnalisees, alertes proactives, rappels de taches, pointage auto depuis Google Calendar."
                 },
                 {
                   icon: <Globe className="w-7 h-7" />,
-                  title: "Interface 100% Francaise",
-                  desc: "Une ergonomie et une documentation pensees exclusivement pour le marche francophone."
+                  title: "100% Francais",
+                  desc: "Interface, documentation et support integralement en francais. Concu pour le marche francophone."
                 }
               ].map((feature, i) => (
                 <motion.div 
@@ -545,29 +590,30 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-center">
-              {/* Tier 1 */}
+              {/* Tier 1 - Starter */}
               <motion.div 
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 className="bg-card rounded-[2rem] p-10 border border-border shadow-lg"
               >
-                <h3 className="text-2xl font-bold text-foreground mb-2">Essentiel</h3>
-                <p className="text-muted-foreground mb-8 min-h-[48px]">Pour les petits secrétariats indépendants.</p>
+                <h3 className="text-2xl font-bold text-foreground mb-2">Starter</h3>
+                <p className="text-muted-foreground mb-8 min-h-[48px]">Pour les petits bureaux et independants.</p>
                 <div className="mb-8">
                   <span className="text-5xl font-extrabold text-primary">29€</span>
                   <span className="text-muted-foreground font-medium">/mois</span>
                 </div>
                 <Button variant="outline" className="w-full h-14 rounded-xl text-lg font-bold border-2 mb-8 hover:bg-primary/5">
-                  Commencer l'essai
+                  Essai gratuit 14 jours
                 </Button>
                 <ul className="space-y-4">
                   {[
-                    "1 Numero de telephone",
-                    "Jusqu'a 3 utilisateurs",
-                    "Gestion des appels basique",
-                    "Annuaire 500 contacts",
+                    "Jusqu'a 5 utilisateurs",
+                    "500 contacts & prospects",
+                    "2 000 appels / mois",
+                    "Devis & facturation",
                     "Gestion de stock",
+                    "Sauvegarde chiffree",
                     "Support par email"
                   ].map((feature, i) => (
                     <li key={i} className="flex items-center gap-3 text-foreground font-medium">
@@ -594,19 +640,22 @@ export default function Home() {
                 <h3 className="text-2xl font-bold text-white mb-2">Professionnel</h3>
                 <p className="text-blue-200/80 mb-8 min-h-[48px]">Pour les PME et bureaux en croissance.</p>
                 <div className="mb-8">
-                  <span className="text-5xl font-extrabold text-white">59€</span>
+                  <span className="text-5xl font-extrabold text-white">79€</span>
                   <span className="text-blue-200/80 font-medium">/mois</span>
                 </div>
                 <Button className="w-full h-14 rounded-xl text-lg font-bold bg-accent text-accent-foreground hover:bg-accent/90 mb-8 shadow-xl">
-                  Commencer l'essai
+                  Essai gratuit 14 jours
                 </Button>
                 <ul className="space-y-4">
                   {[
-                    "3 Numeros de telephone",
-                    "Jusqu'a 10 utilisateurs",
-                    "58 integrations natives",
+                    "Jusqu'a 15 utilisateurs",
+                    "5 000 contacts & prospects",
+                    "10 000 appels / mois",
                     "Multi-Agent IA (7 agents)",
-                    "Analytique avancee",
+                    "Moteur mathematique",
+                    "Google Workspace Hub",
+                    "Protection des donnees auto",
+                    "Conformite juridique",
                     "Support prioritaire 24/7"
                   ].map((feature, i) => (
                     <li key={i} className="flex items-center gap-3 text-white font-medium">
@@ -628,18 +677,22 @@ export default function Home() {
                 <h3 className="text-2xl font-bold text-foreground mb-2">Entreprise</h3>
                 <p className="text-muted-foreground mb-8 min-h-[48px]">Pour les grands groupes et volumes massifs.</p>
                 <div className="mb-8">
-                  <span className="text-5xl font-extrabold text-primary text-xl">Sur devis</span>
+                  <span className="text-5xl font-extrabold text-primary">199€</span>
+                  <span className="text-muted-foreground font-medium">/mois</span>
                 </div>
                 <Button variant="outline" className="w-full h-14 rounded-xl text-lg font-bold border-2 mb-8 hover:bg-primary/5">
                   Contacter les ventes
                 </Button>
                 <ul className="space-y-4">
                   {[
-                    "Numeros illimites",
-                    "Utilisateurs illimites",
-                    "SLA Garanti 99.9%",
+                    "Jusqu'a 100 utilisateurs",
+                    "50 000 contacts illimites",
+                    "Appels illimites",
                     "IA sur mesure + API ouverte",
+                    "SLA Garanti 99.9%",
                     "Account Manager dedie",
+                    "Sauvegarde & restauration avancee",
+                    "Audit de securite complet",
                     "Formation sur site"
                   ].map((feature, i) => (
                     <li key={i} className="flex items-center gap-3 text-foreground font-medium">
@@ -760,12 +813,12 @@ export default function Home() {
             </div>
 
             <div className="flex flex-wrap justify-center items-center gap-4 md:gap-6">
-              {['Salesforce', 'Slack', 'Zoom', 'HubSpot', 'Notion', 'Zapier'].map((integration, i) => (
+              {['Salesforce', 'Slack', 'Zoom', 'HubSpot', 'Notion', 'Zapier', 'Resend', 'Stripe'].map((integration, i) => (
                 <div key={i} className="px-5 py-2.5 bg-card border border-border rounded-xl shadow-sm font-bold text-sm text-muted-foreground hover:text-primary hover:border-primary hover:shadow-md transition-all cursor-pointer">
                   {integration}
                 </div>
               ))}
-              <span className="text-sm text-muted-foreground font-medium">+ 15 autres</span>
+              <span className="text-sm text-muted-foreground font-medium">+ 13 autres</span>
             </div>
           </div>
         </section>
@@ -782,27 +835,35 @@ export default function Home() {
               {[
                 {
                   q: "Combien de temps prend la mise en place?",
-                  a: "L'inscription et la configuration initiale prennent moins de 5 minutes. L'importation de vos lignes existantes (portabilité) peut prendre de 3 à 7 jours ouvrés selon votre opérateur actuel, mais nous vous fournissons des numéros temporaires utilisables immédiatement."
+                  a: "L'inscription et la configuration initiale prennent moins de 5 minutes. Importez vos contacts, configurez votre pipeline commercial et commencez a creer des devis immediatement. L'importation de vos lignes existantes (portabilite) peut prendre de 3 a 7 jours ouvres."
                 },
                 {
-                  q: "Puis-je garder mes numéros actuels?",
-                  a: "Absolument. Nous prenons en charge la portabilité gratuite de tous vos numéros fixes et mobiles français. La démarche est entièrement automatisée depuis votre espace client."
+                  q: "Comment fonctionne la periode d'essai?",
+                  a: "Vous disposez de 14 jours d'essai gratuit sur le plan Professionnel, avec toutes les fonctionnalites debloquees : IA, devis, facturation, sauvegarde cloud, conformite juridique. Aucune carte bancaire n'est requise pour commencer."
                 },
                 {
-                  q: "Comment fonctionne la période d'essai?",
-                  a: "Vous disposez de 14 jours d'essai gratuit sur le plan Professionnel, avec toutes les fonctionnalités débloquées. Aucune carte bancaire n'est requise pour commencer. À la fin de l'essai, vous choisissez le plan qui vous convient."
+                  q: "Mes donnees sont-elles securisees?",
+                  a: "La securite est notre priorite absolue. Sauvegardes automatiques chiffrees AES-256 sur Google Drive toutes les 6 heures, monitoring continu de la protection des donnees, verification d'integrite et restauration en un clic. Conforme RGPD avec gestion complete des documents juridiques (CGU, CGV, DPA, SLA)."
                 },
                 {
-                  q: "Mes données sont-elles sécurisées?",
-                  a: "La sécurité est notre priorité absolue. Toutes les données sont chiffrées de bout en bout et hébergées exclusivement sur des serveurs situés en France (Paris), en totale conformité avec le RGPD et certifiés ISO 27001."
+                  q: "Que peut faire l'assistant IA?",
+                  a: "L'assistant Sophie combine 7 agents IA specialises : analyse sentimentale des appels, previsions d'activite, scoring clients, evaluation de performance, detection automatique de calculs mathematiques (15 types) et recommandations proactives. Il apprend de vos donnees pour proposer des actions concretes."
                 },
                 {
-                  q: "Proposez-vous une formation pour mes équipes?",
-                  a: "L'interface est conçue pour être intuitive dès la première utilisation. Cependant, pour le plan Professionnel et supérieur, nous proposons une session de formation d'intégration (onboarding) gratuite de 45 minutes pour votre équipe."
+                  q: "Comment fonctionne la facturation?",
+                  a: "Creez des devis professionnels, convertissez-les en factures d'un clic, gerez la TVA et les remises, suivez les paiements et les relances. Le systeme de facturation par usage calcule automatiquement les depassements de forfait avec rapprochement bancaire integre."
                 },
                 {
                   q: "Quelles integrations sont disponibles?",
-                  a: "Agent de Bureau propose 58 integrations natives reparties sur trois ecosystemes : Google Workspace (26 services), Microsoft 365 (19 services) et Apple/iCloud (13 services). Nous integrons egalement Salesforce, HubSpot, Slack, Notion, Zapier et bien d'autres. Notre API ouverte vous permet de connecter vos propres outils."
+                  a: "Agent de Bureau propose 58 integrations natives : Google Workspace (26 services avec Hub integre), Microsoft 365 (19 services) et Apple/iCloud (13 services). Plus Salesforce, HubSpot, Slack, Notion, Zapier et bien d'autres. API ouverte pour connecter vos propres outils."
+                },
+                {
+                  q: "Proposez-vous une application mobile?",
+                  a: "Oui, une application mobile Expo React Native est disponible avec toutes les fonctionnalites essentielles : gestion des appels, contacts, taches, notifications push en temps reel et acces au tableau de bord depuis votre telephone."
+                },
+                {
+                  q: "Puis-je restaurer mes donnees?",
+                  a: "Absolument. Chaque sauvegarde peut etre verifiee (integrite, checksum), simulee (dry-run) et restauree en un clic. Vous pouvez aussi exporter l'integralite de vos donnees en JSON a tout moment. Le systeme alerte automatiquement les administrateurs si la protection des donnees est insuffisante."
                 }
               ].map((faq, i) => (
                 <AccordionItem key={i} value={`item-${i}`} className="bg-card border border-border rounded-xl px-6 data-[state=open]:shadow-md transition-all">
@@ -821,23 +882,24 @@ export default function Home() {
         {/* 13. SECURITY/COMPLIANCE SECTION */}
         <section className="py-20 bg-primary/5 border-t border-border">
           <div className="container mx-auto px-4">
-            <div className="flex flex-col md:flex-row justify-center items-center gap-8 md:gap-16">
-              <div className="flex items-center gap-3 text-foreground font-bold">
-                <ShieldCheck className="w-8 h-8 text-primary" />
-                <span>Conforme RGPD</span>
-              </div>
-              <div className="flex items-center gap-3 text-foreground font-bold">
-                <Lock className="w-8 h-8 text-primary" />
-                <span>Chiffrement SSL 256-bit</span>
-              </div>
-              <div className="flex items-center gap-3 text-foreground font-bold">
-                <Server className="w-8 h-8 text-primary" />
-                <span>Hébergement 100% France</span>
-              </div>
-              <div className="flex items-center gap-3 text-foreground font-bold">
-                <FileText className="w-8 h-8 text-primary" />
-                <span>Certifié ISO 27001</span>
-              </div>
+            <div className="text-center mb-12">
+              <h3 className="text-2xl font-extrabold text-primary mb-2">Securite & Conformite de niveau entreprise</h3>
+              <p className="text-muted-foreground">Vos donnees sont protegees 24h/24, 7j/7 par des mecanismes de securite avances.</p>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+              {[
+                { icon: <ShieldCheck className="w-7 h-7" />, label: "Conforme RGPD" },
+                { icon: <Lock className="w-7 h-7" />, label: "Chiffrement AES-256" },
+                { icon: <Server className="w-7 h-7" />, label: "Hebergement France" },
+                { icon: <CloudUpload className="w-7 h-7" />, label: "Sauvegarde auto 6h" },
+                { icon: <Shield className="w-7 h-7" />, label: "Monitoring continu" },
+                { icon: <Scale className="w-7 h-7" />, label: "CGU/CGV/DPA/SLA" },
+              ].map((item, i) => (
+                <div key={i} className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-card border border-border text-center">
+                  <div className="text-primary">{item.icon}</div>
+                  <span className="text-sm font-bold text-foreground">{item.label}</span>
+                </div>
+              ))}
             </div>
           </div>
         </section>

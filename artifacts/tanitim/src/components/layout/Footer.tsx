@@ -16,7 +16,7 @@ export function Footer() {
               </span>
             </Link>
             <p className="text-primary-foreground/70 max-w-md text-base leading-relaxed">
-              Le centre nerveux professionnel pour les bureaux français. Une plateforme de secrétariat complète qui gère vos appels, vos contacts et vos tâches avec élégance et efficacité.
+              La plateforme SaaS complete pour les bureaux francais : CRM, centre d'appels, devis, facturation, gestion de projets, stock, IA multi-agents et protection des donnees. 16 modules integres.
             </p>
             <div className="flex items-center gap-4 pt-4">
               <a href="#" className="w-10 h-10 rounded-full bg-primary-foreground/10 flex items-center justify-center hover:bg-accent hover:text-accent-foreground transition-colors text-primary-foreground/70">
