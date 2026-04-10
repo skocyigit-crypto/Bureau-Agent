@@ -62,6 +62,18 @@ The application features a French UI with a deep navy and warm amber color schem
     - **Local JSON export**: download unencrypted backup directly to browser.
     - **Frontend UI**: verify, simulate, restore buttons per backup file; verification details panel; restore results panel with per-table counts.
     - **API endpoints**: `/google-drive-backup/verify/:fileId`, `/google-drive-backup/restore/:fileId`, `/google-drive-backup/preview/:fileId`, `/google-drive-backup/export-local`, `/google-drive-backup/tables`.
+- **Document IA (AI Document Processor):** Intelligent document analysis and routing system:
+    - Upload any document (PDF, PNG, JPEG, WebP, GIF, BMP, TIFF — max 10 Mo).
+    - AI analyzes content using Gemini 2.5 Flash and identifies document type (16 types: facture, devis, bon de commande, contrat, CV, carte de visite, courrier, releve bancaire, inventaire, rapport, note de frais, planning, etc.).
+    - Extracts all relevant data (amounts, dates, names, references, line items, etc.).
+    - Recommends destination module (contacts, prospects, factures, devis, stock, projets, taches, messages).
+    - Finds related entities in the database (matches by email, phone, company name, person name).
+    - Suggests and executes actions: create contact, prospect, facture, devis, task, project, stock articles — with data pre-filled from the document.
+    - Batch action execution for processing all suggestions at once.
+    - Security: base64 content scanning, malicious file detection, 15 Mo body limit for document uploads.
+    - **Service**: `artifacts/api-server/src/services/document-ai.ts`
+    - **API routes**: `POST /api/document-ai/analyze`, `POST /api/document-ai/execute-action`, `POST /api/document-ai/batch-execute`
+    - **Frontend**: `artifacts/buro-ajani/src/pages/document-ai.tsx` — drag-and-drop upload, analysis results with confidence score, suggested actions panel, related entities sidebar, session history.
 - **Data Protection Monitor (Automated):** Background service (`data-protection-monitor.ts`) that runs every 6 hours to protect licensed customer data:
     - Checks backup status for every active organization with a subscription.
     - Detects: no backup ever, stale backups (>48h), no backup system configured, trial expiration risk, large data without cloud backup, RGPD compliance gaps.

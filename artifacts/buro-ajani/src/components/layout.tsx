@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo } from "react";
 import { Link, useLocation } from "wouter";
-import { Phone, Users, CheckSquare, MessageSquare, BarChart, Search, LayoutDashboard, Settings, PhoneIncoming, FileText, Puzzle, UserCog, Clock, Brain, Package, Calendar, Shield, Zap, BarChart3, KeyRound, Target, FileSignature, Receipt, FolderKanban, Globe } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, BarChart, Search, LayoutDashboard, Settings, PhoneIncoming, FileText, Puzzle, UserCog, Clock, Brain, Package, Calendar, Shield, Zap, BarChart3, KeyRound, Target, FileSignature, Receipt, FolderKanban, Globe, ScanSearch } from "lucide-react";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { SidebarIcon3D, Icon3D } from "@/components/icon-3d";
 import { AiAssistantButton } from "@/components/ai-assistant";
@@ -45,6 +45,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       { name: "Stock", href: "/stock", icon: Package },
       { name: "Pointage", href: "/pointage", icon: Clock },
       ...(user.role !== "lecture_seule" ? [{ name: "Agents IA", href: "/agents-ia", icon: Brain }] : []),
+      { name: "Document IA", href: "/document-ia", icon: ScanSearch },
       { name: "Performance", href: "/performance", icon: BarChart3 },
       ...(isAdmin ? [{ name: "Automatisations", href: "/automatisations", icon: Zap }] : []),
       ...(user.role === "super_admin" ? [{ name: "Lisans", href: "/organisations", icon: KeyRound }] : []),

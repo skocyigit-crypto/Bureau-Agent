@@ -37,6 +37,7 @@ import projetsRouter from "./projets";
 import googleWorkspaceRouter from "./google-workspace";
 import mathRouter from "./math";
 import dataProtectionRouter from "./data-protection";
+import documentAiRouter from "./document-ai";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -79,5 +80,6 @@ router.use(projetsRouter);
 router.use(googleWorkspaceRouter);
 router.use(mathRouter);
 router.use(dataProtectionRouter);
+router.use(documentAiRouter);
 
 export default router;

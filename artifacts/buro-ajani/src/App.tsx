@@ -39,6 +39,7 @@ import FacturesPage from "@/pages/factures";
 import ProjetsPage from "@/pages/projets";
 import NotificationsPage from "@/pages/notifications";
 import GoogleWorkspacePage from "@/pages/google-workspace";
+import DocumentAiPage from "@/pages/document-ai";
 import { CommandPalette } from "@/components/command-palette";
 
 const queryClient = new QueryClient();
@@ -73,6 +74,7 @@ function AppRoutes() {
         <Route path="/projets" component={ProjetsPage} />
         <Route path="/notifications" component={NotificationsPage} />
         <Route path="/google-workspace" component={GoogleWorkspacePage} />
+        <Route path="/document-ia" component={DocumentAiPage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
