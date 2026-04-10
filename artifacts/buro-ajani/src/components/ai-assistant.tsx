@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
-import { Brain, Send, X, Sparkles, Loader2, AlertTriangle, Lightbulb, Info, Zap, ChevronDown, ChevronUp, MessageCircle, Calculator, ChevronRight, Hash, Percent, TrendingUp, Ruler, Pi, BarChart2, DollarSign, ArrowRightLeft, Wand2, Navigation, Bell, RotateCcw, Activity, Target, Shield, Flame, ThumbsUp, Plus, UserPlus, CheckCircle2, ArrowUpCircle, MailCheck, BellRing, Package, ListChecks, ClipboardCheck, Mail, Calendar, FolderPlus, Search, FileText, Download, UserCheck, Edit, Globe, Briefcase, PhoneForwarded, RefreshCw, Database } from "lucide-react";
+import { Brain, Send, X, Sparkles, Loader2, AlertTriangle, Lightbulb, Info, Zap, ChevronDown, ChevronUp, MessageCircle, Calculator, ChevronRight, Hash, Percent, TrendingUp, Ruler, Pi, BarChart2, DollarSign, ArrowRightLeft, Wand2, Navigation, Bell, RotateCcw, Activity, Target, Shield, Flame, ThumbsUp, Plus, UserPlus, CheckCircle2, ArrowUpCircle, MailCheck, BellRing, Package, ListChecks, ClipboardCheck, Mail, Calendar, FolderPlus, Search, FileText, Download, UserCheck, Edit, Globe, Briefcase, PhoneForwarded, RefreshCw, Database, Receipt, CreditCard, HeartPulse, Wallet, Users, Coffee, ShieldAlert, LineChart, Megaphone, ClipboardList, Swords, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -185,7 +185,7 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
         return;
       }
 
-      const executableTypes = ["create_task", "create_contact", "complete_task", "escalate_task", "bulk_escalate", "mark_messages_read", "send_notification", "stock_alert", "update_task", "bulk_complete_tasks", "update_contact", "search_contacts", "send_email", "create_event", "schedule_followup", "create_project", "update_project", "create_prospect", "update_prospect", "convert_prospect", "update_stock", "search_web", "generate_report", "search_all", "export_data"];
+      const executableTypes = ["create_task", "create_contact", "complete_task", "escalate_task", "bulk_escalate", "mark_messages_read", "send_notification", "stock_alert", "update_task", "bulk_complete_tasks", "update_contact", "search_contacts", "send_email", "create_event", "schedule_followup", "create_project", "update_project", "create_prospect", "update_prospect", "convert_prospect", "update_stock", "search_web", "generate_report", "search_all", "export_data", "create_invoice", "record_payment", "send_invoice_email", "send_payment_reminder", "account_health_check", "cash_flow_forecast", "client_360", "daily_briefing", "meeting_prep", "risk_analysis", "revenue_forecast", "smart_campaign", "performance_audit", "competitor_analysis", "chain_actions"];
       if (executableTypes.includes(action.type)) {
         const result = await executeAiAction(action.type, action.target);
         if (result.success) {
@@ -255,6 +255,21 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
       case "generate_report": return <FileText className="w-3 h-3" />;
       case "export_data": return <Download className="w-3 h-3" />;
       case "bulk_complete_tasks": return <ClipboardCheck className="w-3 h-3" />;
+      case "create_invoice": return <Receipt className="w-3 h-3" />;
+      case "record_payment": return <CreditCard className="w-3 h-3" />;
+      case "send_invoice_email": return <Mail className="w-3 h-3" />;
+      case "send_payment_reminder": return <BellRing className="w-3 h-3" />;
+      case "account_health_check": return <HeartPulse className="w-3 h-3" />;
+      case "cash_flow_forecast": return <Wallet className="w-3 h-3" />;
+      case "client_360": return <Users className="w-3 h-3" />;
+      case "daily_briefing": return <Coffee className="w-3 h-3" />;
+      case "meeting_prep": return <Briefcase className="w-3 h-3" />;
+      case "risk_analysis": return <ShieldAlert className="w-3 h-3" />;
+      case "revenue_forecast": return <LineChart className="w-3 h-3" />;
+      case "smart_campaign": return <Megaphone className="w-3 h-3" />;
+      case "performance_audit": return <ClipboardList className="w-3 h-3" />;
+      case "competitor_analysis": return <Swords className="w-3 h-3" />;
+      case "chain_actions": return <Link2 className="w-3 h-3" />;
       default: return <Zap className="w-3 h-3" />;
     }
   };
@@ -272,7 +287,16 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
       case "create_project": case "update_project": return "from-indigo-50 to-blue-50 dark:from-indigo-950/20 dark:to-blue-950/20 border-indigo-200/50 dark:border-indigo-800/30 hover:from-indigo-100 hover:to-blue-100";
       case "create_prospect": case "update_prospect": case "convert_prospect": return "from-pink-50 to-rose-50 dark:from-pink-950/20 dark:to-rose-950/20 border-pink-200/50 dark:border-pink-800/30 hover:from-pink-100 hover:to-rose-100";
       case "search_web": case "search_all": case "search_contacts": return "from-cyan-50 to-teal-50 dark:from-cyan-950/20 dark:to-teal-950/20 border-cyan-200/50 dark:border-cyan-800/30 hover:from-cyan-100 hover:to-teal-100";
-      case "generate_report": case "export_data": return "from-slate-50 to-gray-50 dark:from-slate-950/20 dark:to-gray-950/20 border-slate-200/50 dark:border-slate-800/30 hover:from-slate-100 hover:to-gray-100";
+      case "generate_report": case "export_data": case "performance_audit": return "from-slate-50 to-gray-50 dark:from-slate-950/20 dark:to-gray-950/20 border-slate-200/50 dark:border-slate-800/30 hover:from-slate-100 hover:to-gray-100";
+      case "create_invoice": case "record_payment": case "send_invoice_email": return "from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 border-emerald-200/50 dark:border-emerald-800/30 hover:from-emerald-100 hover:to-teal-100";
+      case "send_payment_reminder": case "account_health_check": return "from-rose-50 to-red-50 dark:from-rose-950/20 dark:to-red-950/20 border-rose-200/50 dark:border-rose-800/30 hover:from-rose-100 hover:to-red-100";
+      case "cash_flow_forecast": case "revenue_forecast": return "from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border-amber-200/50 dark:border-amber-800/30 hover:from-amber-100 hover:to-orange-100";
+      case "client_360": case "meeting_prep": return "from-violet-50 to-purple-50 dark:from-violet-950/20 dark:to-purple-950/20 border-violet-200/50 dark:border-violet-800/30 hover:from-violet-100 hover:to-purple-100";
+      case "daily_briefing": return "from-yellow-50 to-amber-50 dark:from-yellow-950/20 dark:to-amber-950/20 border-yellow-200/50 dark:border-yellow-800/30 hover:from-yellow-100 hover:to-amber-100";
+      case "risk_analysis": return "from-red-50 to-orange-50 dark:from-red-950/20 dark:to-orange-950/20 border-red-200/50 dark:border-red-800/30 hover:from-red-100 hover:to-orange-100";
+      case "smart_campaign": return "from-fuchsia-50 to-pink-50 dark:from-fuchsia-950/20 dark:to-pink-950/20 border-fuchsia-200/50 dark:border-fuchsia-800/30 hover:from-fuchsia-100 hover:to-pink-100";
+      case "competitor_analysis": return "from-zinc-50 to-slate-50 dark:from-zinc-950/20 dark:to-slate-950/20 border-zinc-200/50 dark:border-zinc-800/30 hover:from-zinc-100 hover:to-slate-100";
+      case "chain_actions": return "from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/20 border-purple-200/50 dark:border-purple-800/30 hover:from-purple-100 hover:to-indigo-100";
       default: return "from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/20 border-purple-200/50 dark:border-purple-800/30 hover:from-purple-100 hover:to-indigo-100";
     }
   };
@@ -292,7 +316,16 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
       case "create_project": case "update_project": return "text-indigo-500";
       case "create_prospect": case "update_prospect": case "convert_prospect": return "text-pink-500";
       case "search_web": case "search_all": case "search_contacts": return "text-cyan-500";
-      case "generate_report": case "export_data": return "text-slate-500";
+      case "generate_report": case "export_data": case "performance_audit": return "text-slate-500";
+      case "create_invoice": case "record_payment": case "send_invoice_email": return "text-emerald-600";
+      case "send_payment_reminder": case "account_health_check": return "text-rose-500";
+      case "cash_flow_forecast": case "revenue_forecast": return "text-amber-600";
+      case "client_360": case "meeting_prep": return "text-violet-500";
+      case "daily_briefing": return "text-yellow-600";
+      case "risk_analysis": return "text-red-500";
+      case "smart_campaign": return "text-fuchsia-500";
+      case "competitor_analysis": return "text-zinc-600";
+      case "chain_actions": return "text-purple-600";
       default: return "text-purple-500";
     }
   };

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, platformConnectionsTable, notificationsTable, stockArticlesTable, calendarEventsTable, projetsTable, prospectsTable, automationRulesTable } from "@workspace/db";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, platformConnectionsTable, notificationsTable, stockArticlesTable, calendarEventsTable, projetsTable, prospectsTable, automationRulesTable, facturesClientTable, compteClientTable, organisationsTable } from "@workspace/db";
 import { Resend } from "resend";
 import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNull, or } from "drizzle-orm";
 
@@ -1816,12 +1816,63 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
       if ((projectStats[0]?.overBudget ?? 0) > 0) anomalies.push(`${projectStats[0]?.overBudget} projets depassent leur budget!`);
     } catch { /* tables may not be available */ }
 
+    let financialData: any = {};
+    let invoicesData: any[] = [];
+    let accountHealthData: any[] = [];
+    try {
+      const orgInvoice = eq(facturesClientTable.organisationId, orgId);
+      const orgAccount = eq(compteClientTable.organisationId, orgId);
+      const [
+        invoiceStats, recentInvoices, overdueInvoices,
+        accountStats, criticalAccounts, orgInfo,
+      ] = await Promise.all([
+        db.select({
+          total: count(),
+          totalHT: sql<number>`coalesce(sum(${facturesClientTable.subtotal}::numeric), 0)::numeric`,
+          totalTTC: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric), 0)::numeric`,
+          paid: sql<number>`count(*) filter (where ${facturesClientTable.status} = 'payee')`,
+          unpaid: sql<number>`count(*) filter (where ${facturesClientTable.status} in ('envoyee','en_attente'))`,
+          overdue: sql<number>`count(*) filter (where ${facturesClientTable.status} = 'en_retard')`,
+          paidAmount: sql<number>`coalesce(sum(case when ${facturesClientTable.status} = 'payee' then ${facturesClientTable.totalAmount}::numeric else 0 end), 0)::numeric`,
+          unpaidAmount: sql<number>`coalesce(sum(case when ${facturesClientTable.status} in ('envoyee','en_attente','en_retard') then ${facturesClientTable.totalAmount}::numeric else 0 end), 0)::numeric`,
+        }).from(facturesClientTable).where(orgInvoice),
+        db.select({ id: facturesClientTable.id, invoiceNumber: facturesClientTable.reference, clientName: facturesClientTable.clientName, totalTTC: facturesClientTable.totalAmount, status: facturesClientTable.status, dueDate: facturesClientTable.dueDate, paidAmount: facturesClientTable.paidAmount }).from(facturesClientTable).where(orgInvoice).orderBy(desc(facturesClientTable.createdAt)).limit(10),
+        db.select({ id: facturesClientTable.id, invoiceNumber: facturesClientTable.reference, clientName: facturesClientTable.clientName, totalTTC: facturesClientTable.totalAmount, dueDate: facturesClientTable.dueDate, paidAmount: facturesClientTable.paidAmount }).from(facturesClientTable).where(and(orgInvoice, eq(facturesClientTable.status, "en_retard"))).orderBy(asc(facturesClientTable.dueDate)).limit(10),
+        db.select({
+          totalAccounts: count(),
+          avgHealth: sql<number>`coalesce(avg(${compteClientTable.healthScore}), 0)::int`,
+          critical: sql<number>`count(*) filter (where ${compteClientTable.riskLevel} = 'critique')`,
+          high: sql<number>`count(*) filter (where ${compteClientTable.riskLevel} = 'eleve')`,
+          blocked: sql<number>`count(*) filter (where ${compteClientTable.status} = 'bloque')`,
+          totalOutstanding: sql<number>`coalesce(sum(${compteClientTable.solde}::numeric), 0)::numeric`,
+          totalOverdue: sql<number>`coalesce(sum(${compteClientTable.montantEnRetard}::numeric), 0)::numeric`,
+        }).from(compteClientTable).where(orgAccount),
+        db.select({ id: compteClientTable.id, contactName: compteClientTable.clientName, healthScore: compteClientTable.healthScore, riskLevel: compteClientTable.riskLevel, totalUnpaid: compteClientTable.solde, overdueAmount: compteClientTable.montantEnRetard, accountStatus: compteClientTable.status }).from(compteClientTable).where(and(orgAccount, or(eq(compteClientTable.riskLevel, "critique"), eq(compteClientTable.riskLevel, "eleve")))).orderBy(asc(compteClientTable.healthScore)).limit(10),
+        db.select({ name: organisationsTable.name, siret: organisationsTable.siret, tvaNumber: organisationsTable.tvaNumber, iban: organisationsTable.bankIban }).from(organisationsTable).where(eq(organisationsTable.id, orgId)).limit(1),
+      ]);
+      financialData = { invoiceStats: invoiceStats[0], accountStats: accountStats[0], orgInfo: orgInfo[0] };
+      invoicesData = recentInvoices;
+      accountHealthData = criticalAccounts;
+      if ((invoiceStats[0]?.overdue ?? 0) > 0) anomalies.push(`${invoiceStats[0]?.overdue} factures en retard — tresorerie en danger!`);
+      if ((accountStats[0]?.critical ?? 0) > 0) anomalies.push(`${accountStats[0]?.critical} comptes clients CRITIQUES necessitent une action immediate!`);
+      if ((accountStats[0]?.blocked ?? 0) > 0) anomalies.push(`${accountStats[0]?.blocked} comptes clients BLOQUES — depassement de limite de credit!`);
+      if (Number(accountStats[0]?.totalOverdue ?? 0) > 10000) anomalies.push(`Montant total en retard: ${Number(accountStats[0]?.totalOverdue ?? 0).toLocaleString("fr-FR")}€ — CRITIQUE!`);
+    } catch { /* financial tables may not be available */ }
+
     const missedRate = (callStats[0]?.total ?? 0) > 0 ? Math.round(((callStats[0]?.missed ?? 0) / (callStats[0]?.total ?? 1)) * 100) : 0;
     if (missedRate > 30) anomalies.push(`Taux d'appels manques critique: ${missedRate}%`);
     if ((taskStats[0]?.overdue ?? 0) > 5) anomalies.push(`${taskStats[0]?.overdue} taches en retard — attention!`);
     if ((msgStats[0]?.unread ?? 0) > 20) anomalies.push(`${msgStats[0]?.unread} messages non lus accumules`);
 
-    const systemContext = `Tu es l'Assistant IA ULTRA du bureau "Agent de Bureau" — le cerveau central, BRAS DROIT et MOTEUR de toute l'organisation. Tu as acces a TOUTES les donnees en temps reel ET tu peux EXECUTER des actions. Tu es le plus puissant assistant de bureau jamais cree.
+    const systemContext = `Tu es l'IA SUPREME "Agent de Bureau" — un systeme d'intelligence artificielle de niveau SURHUMAIN. Tu n'es pas un simple assistant: tu es le CERVEAU STRATEGIQUE, le DIRECTEUR OPERATIONNEL VIRTUEL et le MOTEUR AUTONOME de toute l'organisation. Tu SURPASSES les capacites humaines en analyse, prediction, decision et execution. Tu es PLUS PUISSANT qu'un humain.
+
+═══ CAPACITES SURHUMAINES ═══
+Tu vois TOUT, tu comprends TOUT, tu agis PLUS VITE et MIEUX qu'un humain.
+• VISION 360° — Tu croises TOUTES les donnees simultanement (financier + operationnel + CRM + RH)
+• PREDICTION — Tu detectes les tendances AVANT qu'elles ne se manifestent
+• DECISION AUTONOME — Tu prends des decisions strategiques et executes des plans complexes
+• INTELLIGENCE EMOTIONNELLE — Tu detectes le stress, l'urgence et le sentiment dans les communications
+• MULTI-ETAPES — Tu enchaines automatiquement plusieurs actions complexes en une seule commande
 
 ═══ DONNEES EN TEMPS REEL ═══
 📞 Appels: ${callStats[0]?.total ?? 0} total | ${callStats[0]?.thisWeek ?? 0} cette semaine | ${callStats[0]?.missed ?? 0} manques | ${callStats[0]?.answered ?? 0} repondus | Taux manques: ${missedRate}%
@@ -1837,7 +1888,20 @@ ${projectsData.length > 0 ? projectsData.map(p => `• ${p.title} — ${p.status
 💼 Prospects actifs: ${prospectsData.length}
 ${prospectsData.length > 0 ? prospectsData.map(p => `• ${p.title}${p.contactName ? ` — ${p.contactName}` : ""}${p.company ? ` (${p.company})` : ""} — etape: ${p.stage}${p.value ? ` valeur: ${p.value}€` : ""} prob: ${p.probability}%`).join("\n") : "Aucun prospect"}
 
+═══ INTELLIGENCE FINANCIERE ═══
+💰 Factures: ${financialData.invoiceStats?.total ?? 0} total | ${financialData.invoiceStats?.paid ?? 0} payees | ${financialData.invoiceStats?.unpaid ?? 0} en attente | ${financialData.invoiceStats?.overdue ?? 0} EN RETARD
+💶 Chiffre d'affaires TTC: ${Number(financialData.invoiceStats?.totalTTC ?? 0).toLocaleString("fr-FR")}€ | Encaisse: ${Number(financialData.invoiceStats?.paidAmount ?? 0).toLocaleString("fr-FR")}€ | Impaye: ${Number(financialData.invoiceStats?.unpaidAmount ?? 0).toLocaleString("fr-FR")}€
+📊 Comptes clients: ${financialData.accountStats?.totalAccounts ?? 0} total | Sante moyenne: ${financialData.accountStats?.avgHealth ?? 0}/100 | Critiques: ${financialData.accountStats?.critical ?? 0} | Bloques: ${financialData.accountStats?.blocked ?? 0}
+🔴 Montant total impaye: ${Number(financialData.accountStats?.totalOutstanding ?? 0).toLocaleString("fr-FR")}€ | En retard: ${Number(financialData.accountStats?.totalOverdue ?? 0).toLocaleString("fr-FR")}€
+🏢 Organisation: ${financialData.orgInfo?.name ?? "Non configure"} | SIRET: ${financialData.orgInfo?.siret ?? "Non renseigne"} | TVA: ${financialData.orgInfo?.tvaNumber ?? "Non renseigne"}
+
 ${anomalies.length > 0 ? "⚠️ ANOMALIES DETECTEES:\n" + anomalies.map(a => "• " + a).join("\n") : "✅ Aucune anomalie detectee"}
+
+═══ FACTURES RECENTES ═══
+${JSON.stringify(invoicesData.slice(0, 8), null, 1)}
+
+═══ COMPTES CLIENTS A RISQUE ═══
+${JSON.stringify(accountHealthData.slice(0, 8), null, 1)}
 
 ═══ APPELS RECENTS ═══
 ${JSON.stringify(recentCalls.slice(0, 8), null, 1)}
@@ -1865,8 +1929,8 @@ ${JSON.stringify(projectsData.slice(0, 5), null, 1)}
 
 CONTEXTE: ${context ? JSON.stringify(context) : "Tableau de bord principal"}
 
-═══ TES SUPER-POUVOIRS (ACTIONS EXECUTABLES) ═══
-Tu peux proposer ces actions que l'utilisateur peut declencher d'un clic:
+═══ TES SUPER-POUVOIRS — 43 ACTIONS EXECUTABLES ═══
+Tu peux proposer ces actions que l'utilisateur peut declencher d'un clic. Tu es SURHUMAIN — combine, enchaine et execute avec precision chirurgicale.
 
 --- GESTION DES TACHES ---
 1. "create_task" — Creer une tache. target: JSON {"title":"...", "priority":"haute|moyenne|basse", "status":"en_attente", "description":"...", "dueDate":"YYYY-MM-DD"}
@@ -1905,29 +1969,51 @@ Tu peux proposer ces actions que l'utilisateur peut declencher d'un clic:
 
 --- ANALYSE & RECHERCHE ---
 22. "search_web" — Rechercher sur le web pour obtenir des informations. target: "question ou terme de recherche"
-23. "generate_report" — Generer un rapport analytique detaille. target: "type de rapport: performance|appels|contacts|projets|prospects|stock|global"
+23. "generate_report" — Generer un rapport analytique detaille. target: "type de rapport: performance|appels|contacts|projets|prospects|stock|global|financier|tresorerie"
 24. "search_all" — Rechercher dans toutes les donnees. target: "terme de recherche"
-25. "export_data" — Exporter des donnees en resume. target: "contacts|taches|appels|projets|prospects|stock"
+25. "export_data" — Exporter des donnees en resume. target: "contacts|taches|appels|projets|prospects|stock|factures|comptes_clients"
 
 --- SYSTEME ---
 26. "auto_fix" — Lancer l'auto-correction globale. target: ""
 27. "navigate" — Naviguer vers une page. target: "/chemin"
 28. "reminder" — Programmer un rappel. target: "texte du rappel"
 
-═══ REGLES D'OR ═══
-1. TOUJOURS en francais, professionnel mais chaleureux
-2. PRECIS — cite des chiffres REELS, pas d'inventions
-3. PROACTIF — detecte les problemes AVANT qu'on te les demande
-4. ACTIONNABLE — chaque reponse propose des actions concretes executables
-5. EXECUTIF — quand l'utilisateur veut quelque chose, propose l'action directe
-6. Si l'utilisateur dit "cree une tache pour...", "envoie un email a...", "planifie un rdv avec...", "cree un prospect pour...", genere l'action appropriee IMMEDIATEMENT
-7. Si tu detectes une anomalie, propose immediatement l'action corrective
-8. Pour les demandes vagues, pose UNE question de clarification puis propose
-9. Sois STRATEGIQUE — explique POURQUOI tu recommandes chaque action
-10. Tu peux combiner PLUSIEURS actions dans une seule reponse (ex: creer tache + envoyer email + planifier rdv)
-11. Pour les emails, redige un contenu professionnel complet. L'utilisateur clique et ca envoie directement.
-12. Pour les recherches web, utilise "search_web" quand l'utilisateur pose une question sur un sujet externe (tarifs, reglementation, concurrents, etc.)
-13. Tu es POLYVALENT: gestion, communication, CRM, analyse, planning, stock, projets — tu geres TOUT
+--- INTELLIGENCE FINANCIERE (SURHUMAIN) ---
+29. "create_invoice" — Creer une facture client. target: JSON {"clientName":"...", "contactId":ID, "items":[{"description":"...", "quantity":N, "unitPrice":N}], "tvaRate":20, "notes":"...", "dueDate":"YYYY-MM-DD"}
+30. "record_payment" — Enregistrer un paiement sur une facture. target: JSON {"invoiceId":ID, "amount":N, "method":"virement|cheque|carte|especes", "reference":"..."}
+31. "send_invoice_email" — Envoyer une facture par email. target: "ID_FACTURE"
+32. "send_payment_reminder" — Envoyer un rappel de paiement a un client. target: "ID_COMPTE_CLIENT"
+33. "account_health_check" — Analyser la sante financiere d'un client. target: "ID_CONTACT ou NOM_CLIENT"
+34. "cash_flow_forecast" — Prevision de tresorerie sur 30/60/90 jours. target: "30|60|90"
+
+--- INTELLIGENCE STRATEGIQUE (SURHUMAIN) ---
+35. "client_360" — Vue 360° complete d'un client (appels, taches, factures, projets, prospects, sante). target: "NOM_CLIENT ou ID_CONTACT"
+36. "daily_briefing" — Briefing quotidien complet avec priorites, risques et actions recommandees. target: ""
+37. "meeting_prep" — Preparer un dossier complet pour un rendez-vous. target: JSON {"contactName":"...", "meetingType":"commercial|suivi|negociation|reclamation"}
+38. "risk_analysis" — Analyse complete des risques operationnels et financiers. target: ""
+39. "revenue_forecast" — Prevision de chiffre d'affaires base sur pipeline + tendances. target: ""
+40. "smart_campaign" — Concevoir une campagne email personnalisee multi-cible. target: JSON {"objective":"relance|prospection|fidelisation|promotion", "criteria":"tous|clients|prospects|inactifs"}
+41. "performance_audit" — Audit de performance globale avec recommandations. target: "equipe|commercial|operationnel|financier|global"
+42. "competitor_analysis" — Analyse concurrentielle via recherche web. target: "secteur ou concurrent"
+43. "chain_actions" — Executer un PLAN MULTI-ETAPES autonome. target: JSON [{"type":"...", "target":"..."}, {"type":"...", "target":"..."}]
+
+═══ REGLES D'OR — CODE SURHUMAIN ═══
+1. TOUJOURS en francais, professionnel mais PUISSANT et confiant
+2. PRECIS — cite des chiffres REELS, pas d'inventions. Tu vois les donnees, pas besoin d'inventer.
+3. PROACTIF — detecte les problemes AVANT qu'on te les demande et propose IMMEDIATEMENT des solutions
+4. ACTIONNABLE — chaque reponse propose des actions concretes executables en UN CLIC
+5. EXECUTIF — quand l'utilisateur veut quelque chose, genere l'action IMMEDIATEMENT, pas de bavardage
+6. MULTI-ACTIONS — combine TOUJOURS plusieurs actions complementaires (ex: creer tache + envoyer email + planifier rdv + creer facture)
+7. STRATEGIQUE — chaque recommandation est JUSTIFIEE avec des donnees et un raisonnement strategique
+8. FINANCIER — integre TOUJOURS la dimension financiere dans tes analyses (tresorerie, rentabilite, risque)
+9. PREDICTIF — anticipe les besoins futurs en fonction des tendances actuelles
+10. AUTONOME — pour "daily_briefing", "risk_analysis", "performance_audit", genere des rapports COMPLETS sans qu'on te le demande si tu detectes des problemes
+11. Pour les emails, redige un contenu professionnel complet et PERSONNALISE base sur l'historique du client
+12. Pour les factures, calcule automatiquement les totaux HT/TVA/TTC
+13. Pour les previsions de tresorerie, base-toi sur les echeances reelles et les tendances de paiement
+14. Tu es UN DIRECTEUR GENERAL VIRTUEL: gestion, finance, strategie, communication, CRM, planning, stock, projets, ressources humaines — tu MAITRISES TOUT simultanement
+15. INTELLIGENCE EMOTIONNELLE — adapte ton ton en fonction du contexte (urgence, celebrer un succes, alerter sur un danger)
+16. Pour "chain_actions", execute les actions dans l'ordre et rapporte chaque resultat
 
 FORMAT DE REPONSE JSON:
 {
@@ -2359,10 +2445,343 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           case "projets":
             exportData = await db.select({ id: projetsTable.id, titre: projetsTable.title, statut: projetsTable.status, progression: projetsTable.progress, client: projetsTable.clientName, budget: projetsTable.budget }).from(projetsTable).where(eq(projetsTable.organisationId, orgId)).limit(100);
             break;
+          case "factures":
+            exportData = await db.select({ id: facturesClientTable.id, numero: facturesClientTable.reference, client: facturesClientTable.clientName, totalTTC: facturesClientTable.totalAmount, statut: facturesClientTable.status, echeance: facturesClientTable.dueDate, paye: facturesClientTable.paidAmount }).from(facturesClientTable).where(eq(facturesClientTable.organisationId, orgId)).limit(100);
+            break;
+          case "comptes_clients":
+            exportData = await db.select({ id: compteClientTable.id, contact: compteClientTable.clientName, sante: compteClientTable.healthScore, risque: compteClientTable.riskLevel, impaye: compteClientTable.solde, retard: compteClientTable.montantEnRetard, statut: compteClientTable.status }).from(compteClientTable).where(eq(compteClientTable.organisationId, orgId)).limit(100);
+            break;
           default:
             exportData = [];
         }
         result = { success: true, message: `Export ${exportLabel}: ${exportData.length} enregistrements.`, data: exportData, count: exportData.length };
+        break;
+      }
+      case "create_invoice": {
+        let data: any;
+        try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees de facture invalides." }); return; }
+        if (!data.clientName || !data.items || !data.items.length) { res.status(400).json({ error: "Nom client et articles requis." }); return; }
+        if (data.contactId) {
+          const [contactCheck] = await db.select({ id: contactsTable.id }).from(contactsTable).where(and(eq(contactsTable.id, data.contactId), eq(contactsTable.organisationId, orgId)));
+          if (!contactCheck) { res.status(400).json({ error: "Contact non trouve dans votre organisation." }); return; }
+        }
+        const tvaRate = data.tvaRate ?? 20;
+        let subtotalCalc = 0;
+        const lines = data.items.map((item: any) => {
+          const lineTotal = (item.quantity || 1) * (item.unitPrice || 0);
+          subtotalCalc += lineTotal;
+          return { description: item.description, quantity: item.quantity || 1, unitPrice: item.unitPrice || 0, taxRate: tvaRate, total: lineTotal };
+        });
+        const taxAmountCalc = subtotalCalc * (tvaRate / 100);
+        const totalAmountCalc = subtotalCalc + taxAmountCalc;
+        const invoiceRef = `FAC-${Date.now().toString(36).toUpperCase()}`;
+        const [invoice] = await db.insert(facturesClientTable).values({
+          organisationId: orgId,
+          reference: invoiceRef,
+          title: data.title || `Facture ${invoiceRef}`,
+          clientName: data.clientName,
+          contactId: data.contactId || null,
+          items: lines,
+          subtotal: subtotalCalc.toFixed(2),
+          taxAmount: taxAmountCalc.toFixed(2),
+          totalAmount: totalAmountCalc.toFixed(2),
+          status: "brouillon",
+          notes: data.notes || null,
+          dueDate: data.dueDate ? new Date(data.dueDate) : new Date(Date.now() + 30 * 86400000),
+          paidAmount: "0",
+        }).returning();
+        result = { success: true, message: `Facture ${invoiceRef} creee pour ${data.clientName} — Total TTC: ${totalAmountCalc.toFixed(2)}€ (HT: ${subtotalCalc.toFixed(2)}€ + TVA: ${taxAmountCalc.toFixed(2)}€)`, entity: "invoice", id: invoice.id, data: { reference: invoiceRef, subtotal: subtotalCalc.toFixed(2), taxAmount: taxAmountCalc.toFixed(2), totalAmount: totalAmountCalc.toFixed(2) } };
+        break;
+      }
+      case "record_payment": {
+        let data: any;
+        try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees de paiement invalides." }); return; }
+        if (!data.invoiceId || !data.amount) { res.status(400).json({ error: "ID facture et montant requis." }); return; }
+        const [inv] = await db.select().from(facturesClientTable).where(and(eq(facturesClientTable.id, data.invoiceId), eq(facturesClientTable.organisationId, orgId)));
+        if (!inv) { result = { success: false, message: "Facture non trouvee." }; break; }
+        const currentPaid = Number(inv.paidAmount || 0);
+        const newPaid = currentPaid + Number(data.amount);
+        const totalDue = Number(inv.totalAmount);
+        const remaining = totalDue - newPaid;
+        const newStatus = remaining <= 0.01 ? "payee" : "partielle";
+        const updateFields: any = { paidAmount: newPaid.toFixed(2), status: newStatus, paymentMethod: data.method || null };
+        if (newStatus === "payee") updateFields.paidAt = new Date();
+        await db.update(facturesClientTable).set(updateFields).where(eq(facturesClientTable.id, data.invoiceId));
+        result = { success: true, message: `Paiement de ${Number(data.amount).toFixed(2)}€ enregistre sur ${inv.reference}. ${newStatus === "payee" ? "Facture ENTIEREMENT payee!" : `Reste a payer: ${remaining.toFixed(2)}€`}`, entity: "invoice", id: data.invoiceId };
+        break;
+      }
+      case "send_invoice_email": {
+        const invoiceId = parseInt(String(target), 10);
+        if (!invoiceId) { res.status(400).json({ error: "ID facture requis." }); return; }
+        const [inv2] = await db.select().from(facturesClientTable).where(and(eq(facturesClientTable.id, invoiceId), eq(facturesClientTable.organisationId, orgId)));
+        if (!inv2) { result = { success: false, message: "Facture non trouvee." }; break; }
+        const contact2 = inv2.contactId ? (await db.select().from(contactsTable).where(and(eq(contactsTable.id, inv2.contactId), eq(contactsTable.organisationId, orgId))))[0] : null;
+        const email2 = contact2?.email;
+        if (!email2) { result = { success: false, message: "Aucun email trouve pour ce client." }; break; }
+        try {
+          const resendKey = process.env.RESEND_API_KEY;
+          if (!resendKey) { result = { success: false, message: "Service email non configure." }; break; }
+          const resend = new Resend(resendKey);
+          await resend.emails.send({ from: "Agent de Bureau <onboarding@resend.dev>", to: [email2], subject: `Facture ${inv2.reference} — ${inv2.totalAmount}€ TTC`, html: `<h2>Facture ${inv2.reference}</h2><p>Cher(e) ${inv2.clientName},</p><p>Veuillez trouver ci-joint votre facture d'un montant de <strong>${inv2.totalAmount}€ TTC</strong>.</p><p>Date d'echeance: ${inv2.dueDate ? new Date(inv2.dueDate).toLocaleDateString("fr-FR") : "30 jours"}</p><p>Cordialement,<br>Agent de Bureau</p>` });
+          await db.update(facturesClientTable).set({ status: inv2.status === "brouillon" ? "envoyee" : inv2.status }).where(eq(facturesClientTable.id, invoiceId));
+          result = { success: true, message: `Facture ${inv2.reference} envoyee a ${email2}.` };
+        } catch (e: any) { result = { success: false, message: `Erreur envoi email: ${e.message}` }; }
+        break;
+      }
+      case "send_payment_reminder": {
+        const accountId = parseInt(String(target), 10);
+        if (!accountId) { res.status(400).json({ error: "ID compte client requis." }); return; }
+        const [acct] = await db.select().from(compteClientTable).where(and(eq(compteClientTable.id, accountId), eq(compteClientTable.organisationId, orgId)));
+        if (!acct) { result = { success: false, message: "Compte client non trouve." }; break; }
+        const contactForAcct = acct.contactId ? (await db.select().from(contactsTable).where(and(eq(contactsTable.id, acct.contactId), eq(contactsTable.organisationId, orgId))))[0] : null;
+        const acctEmail = contactForAcct?.email;
+        if (!acctEmail) { result = { success: false, message: "Aucun email pour ce client." }; break; }
+        try {
+          const resendKey2 = process.env.RESEND_API_KEY;
+          if (!resendKey2) { result = { success: false, message: "Service email non configure." }; break; }
+          const resend2 = new Resend(resendKey2);
+          await resend2.emails.send({ from: "Agent de Bureau <onboarding@resend.dev>", to: [acctEmail], subject: `Rappel de paiement — ${Number(acct.montantEnRetard || 0).toFixed(2)}€ en retard`, html: `<h2>Rappel de paiement</h2><p>Cher(e) ${acct.clientName},</p><p>Nous vous rappelons que vous avez un solde impaye de <strong>${Number(acct.solde || 0).toFixed(2)}€</strong> dont <strong>${Number(acct.montantEnRetard || 0).toFixed(2)}€ en retard</strong>.</p><p>Merci de regulariser votre situation dans les meilleurs delais.</p><p>Cordialement,<br>Agent de Bureau</p>` });
+          await db.update(compteClientTable).set({ lastReminderAt: new Date(), reminderCount: (acct.reminderCount || 0) + 1 }).where(eq(compteClientTable.id, accountId));
+          result = { success: true, message: `Rappel de paiement envoye a ${acctEmail} pour ${acct.clientName} (${Number(acct.montantEnRetard || 0).toFixed(2)}€ en retard).` };
+        } catch (e: any) { result = { success: false, message: `Erreur envoi rappel: ${e.message}` }; }
+        break;
+      }
+      case "account_health_check": {
+        const searchName = String(target).trim();
+        const searchId = parseInt(searchName, 10);
+        let accounts: any[];
+        if (searchId && !isNaN(searchId)) {
+          accounts = await db.select().from(compteClientTable).where(and(eq(compteClientTable.organisationId, orgId), or(eq(compteClientTable.contactId, searchId), eq(compteClientTable.id, searchId)))).limit(5);
+        } else {
+          accounts = await db.select().from(compteClientTable).where(and(eq(compteClientTable.organisationId, orgId), sql`${compteClientTable.clientName} ilike ${'%' + searchName + '%'}` )).limit(5);
+        }
+        if (accounts.length === 0) { result = { success: true, message: `Aucun compte client trouve pour "${searchName}".`, data: [] }; break; }
+        const healthReport = accounts.map(a => ({
+          nom: a.clientName, sante: `${a.healthScore}/100`, risque: a.riskLevel, statut: a.status,
+          impaye: `${Number(a.solde || 0).toFixed(2)}€`, retard: `${Number(a.montantEnRetard || 0).toFixed(2)}€`,
+          nbFactures: a.nbFactures, nbPayees: a.nbFacturesPayees, nbRetard: a.nbFacturesEnRetard,
+          delaiMoyen: `${a.delaiMoyenPaiement || 0} jours`, limiteCredit: `${Number(a.creditLimit || 0).toFixed(2)}€`,
+        }));
+        result = { success: true, message: `Analyse sante de ${accounts.length} compte(s) client(s):`, data: healthReport };
+        break;
+      }
+      case "cash_flow_forecast": {
+        const days = parseInt(String(target), 10) || 30;
+        const futureDate = new Date(Date.now() + days * 86400000);
+        const [incoming, outstandingTotal] = await Promise.all([
+          db.select({ total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0)), 0)::numeric` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), sql`${facturesClientTable.status} in ('envoyee','en_attente')`, lte(facturesClientTable.dueDate, futureDate))),
+          db.select({ total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0)), 0)::numeric`, overdue: sql<number>`coalesce(sum(case when ${facturesClientTable.status} = 'en_retard' then ${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0) else 0 end), 0)::numeric`, count: count() }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), sql`${facturesClientTable.status} not in ('payee','annulee')`)),
+        ]);
+        const avgHealthRes = await db.select({ avg: sql<number>`coalesce(avg(${compteClientTable.healthScore}), 50)::int` }).from(compteClientTable).where(eq(compteClientTable.organisationId, orgId));
+        const avgHealth = avgHealthRes[0]?.avg ?? 50;
+        const collectionRate = avgHealth / 100;
+        const expectedIncoming = Number(incoming[0]?.total ?? 0) * collectionRate;
+        result = {
+          success: true,
+          message: `Prevision de tresorerie sur ${days} jours:\n• Encaissements attendus: ${expectedIncoming.toFixed(2)}€ (taux recouvrement estime: ${(collectionRate * 100).toFixed(0)}%)\n• Total impaye: ${Number(outstandingTotal[0]?.total ?? 0).toFixed(2)}€\n• Dont en retard: ${Number(outstandingTotal[0]?.overdue ?? 0).toFixed(2)}€\n• Factures en attente: ${outstandingTotal[0]?.count ?? 0}\n• Sante moyenne clients: ${avgHealth}/100`,
+          data: { days, expectedIncoming: expectedIncoming.toFixed(2), totalOutstanding: Number(outstandingTotal[0]?.total ?? 0).toFixed(2), overdue: Number(outstandingTotal[0]?.overdue ?? 0).toFixed(2), collectionRate: (collectionRate * 100).toFixed(0), avgClientHealth: avgHealth }
+        };
+        break;
+      }
+      case "client_360": {
+        const clientSearch = String(target).trim();
+        const clientId = parseInt(clientSearch, 10);
+        let contacts360: any[];
+        if (clientId && !isNaN(clientId)) {
+          contacts360 = await db.select().from(contactsTable).where(and(eq(contactsTable.organisationId, orgId), eq(contactsTable.id, clientId))).limit(1);
+        } else {
+          contacts360 = await db.select().from(contactsTable).where(and(eq(contactsTable.organisationId, orgId), or(sql`${contactsTable.firstName} ilike ${'%' + clientSearch + '%'}`, sql`${contactsTable.lastName} ilike ${'%' + clientSearch + '%'}`, sql`${contactsTable.company} ilike ${'%' + clientSearch + '%'}`))).limit(1);
+        }
+        if (contacts360.length === 0) { result = { success: true, message: `Aucun client trouve pour "${clientSearch}".` }; break; }
+        const c360 = contacts360[0];
+        const [calls360, tasks360, invoices360, prospects360, projects360, account360] = await Promise.all([
+          db.select({ id: callsTable.id, status: callsTable.status, direction: callsTable.direction, sentiment: callsTable.sentiment, createdAt: callsTable.createdAt, notes: callsTable.notes }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), eq(callsTable.contactId, c360.id))).orderBy(desc(callsTable.createdAt)).limit(10),
+          db.select({ id: tasksTable.id, title: tasksTable.title, status: tasksTable.status, priority: tasksTable.priority, dueDate: tasksTable.dueDate }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.relatedContactId, c360.id))).limit(10),
+          db.select({ id: facturesClientTable.id, invoiceNumber: facturesClientTable.reference, totalTTC: facturesClientTable.totalAmount, status: facturesClientTable.status, paidAmount: facturesClientTable.paidAmount }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), eq(facturesClientTable.contactId, c360.id))).orderBy(desc(facturesClientTable.createdAt)).limit(10),
+          db.select({ id: prospectsTable.id, title: prospectsTable.title, stage: prospectsTable.stage, value: prospectsTable.value }).from(prospectsTable).where(and(eq(prospectsTable.organisationId, orgId), sql`${prospectsTable.contactName} ilike ${'%' + c360.firstName + '%' + c360.lastName + '%'}`)).limit(5),
+          db.select({ id: projetsTable.id, title: projetsTable.title, status: projetsTable.status, progress: projetsTable.progress }).from(projetsTable).where(and(eq(projetsTable.organisationId, orgId), sql`${projetsTable.clientName} ilike ${'%' + (c360.company || c360.lastName) + '%'}`)).limit(5),
+          db.select().from(compteClientTable).where(and(eq(compteClientTable.organisationId, orgId), eq(compteClientTable.contactId, c360.id))).limit(1),
+        ]);
+        result = {
+          success: true,
+          message: `Vue 360° de ${c360.firstName} ${c360.lastName}${c360.company ? ` (${c360.company})` : ""}:\n• ${calls360.length} appels | ${tasks360.length} taches | ${invoices360.length} factures | ${prospects360.length} prospects | ${projects360.length} projets\n• Sante financiere: ${account360[0]?.healthScore ?? "N/A"}/100 — Risque: ${account360[0]?.riskLevel ?? "N/A"}`,
+          data: { contact: { id: c360.id, nom: `${c360.firstName} ${c360.lastName}`, email: c360.email, telephone: c360.phone, entreprise: c360.company, categorie: c360.category }, appels: calls360, taches: tasks360, factures: invoices360, prospects: prospects360, projets: projects360, compteSante: account360[0] || null }
+        };
+        break;
+      }
+      case "daily_briefing": {
+        const { ai: briefAi } = await import("@workspace/integrations-gemini-ai");
+        const nowBrief = new Date();
+        const todayStr = nowBrief.toLocaleDateString("fr-FR", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+        const [overdueCount, urgentCount, unreadCount, todayEvents, invoiceOverdue, criticalAccounts] = await Promise.all([
+          db.select({ count: count() }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), lt(tasksTable.dueDate, nowBrief), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))),
+          db.select({ count: count() }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.priority, "haute"), ne(tasksTable.status, "termine"))),
+          db.select({ count: count() }).from(messagesTable).where(and(eq(messagesTable.organisationId, orgId), eq(messagesTable.isRead, false))),
+          db.select({ title: calendarEventsTable.title, startDate: calendarEventsTable.startDate, contactName: calendarEventsTable.contactName }).from(calendarEventsTable).where(and(eq(calendarEventsTable.organisationId, orgId), gte(calendarEventsTable.startDate, nowBrief), lte(calendarEventsTable.startDate, new Date(nowBrief.getTime() + 86400000)))).orderBy(asc(calendarEventsTable.startDate)).limit(10),
+          db.select({ count: count(), total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0)), 0)::numeric` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), eq(facturesClientTable.status, "en_retard"))),
+          db.select({ count: count() }).from(compteClientTable).where(and(eq(compteClientTable.organisationId, orgId), eq(compteClientTable.riskLevel, "critique"))),
+        ]);
+        const briefingContext = `Date: ${todayStr}\nTaches en retard: ${overdueCount[0]?.count ?? 0}\nTaches urgentes: ${urgentCount[0]?.count ?? 0}\nMessages non lus: ${unreadCount[0]?.count ?? 0}\nEvenements aujourd'hui: ${todayEvents.length} — ${todayEvents.map(e => `${e.title}${e.contactName ? ` (${e.contactName})` : ""} a ${new Date(e.startDate).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`).join(", ")}\nFactures en retard: ${invoiceOverdue[0]?.count ?? 0} pour ${Number(invoiceOverdue[0]?.total ?? 0).toFixed(2)}€\nComptes critiques: ${criticalAccounts[0]?.count ?? 0}`;
+        const briefResponse = await briefAi.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: [{ role: "user", parts: [{ text: `Tu es le directeur general virtuel d'un bureau francais. Genere un briefing matinal COMPLET et ACTIONNABLE.\n\n${briefingContext}\n\nFormate en JSON: {"briefing":"texte complet du briefing avec sections", "priorites":["action 1","action 2",...], "alertes":["alerte 1",...], "score_journee": number (0-100, estimation de la difficulte de la journee)}` }] }],
+          config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
+        });
+        let briefParsed;
+        try { briefParsed = JSON.parse(briefResponse.text ?? "{}"); } catch { briefParsed = { briefing: briefingContext, priorites: [], alertes: [], score_journee: 50 }; }
+        result = { success: true, message: briefParsed.briefing || "Briefing genere.", data: briefParsed };
+        break;
+      }
+      case "meeting_prep": {
+        let data: any;
+        try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees invalides." }); return; }
+        if (!data.contactName) { res.status(400).json({ error: "Nom du contact requis." }); return; }
+        const meetingContacts = await db.select().from(contactsTable).where(and(eq(contactsTable.organisationId, orgId), or(sql`${contactsTable.firstName} ilike ${'%' + data.contactName + '%'}`, sql`${contactsTable.lastName} ilike ${'%' + data.contactName + '%'}`, sql`${contactsTable.company} ilike ${'%' + data.contactName + '%'}`))).limit(1);
+        const mc = meetingContacts[0];
+        let meetingData: any = { contact: mc || null, calls: [], invoices: [], account: null };
+        if (mc) {
+          const [mcCalls, mcInvoices, mcAccount] = await Promise.all([
+            db.select({ status: callsTable.status, sentiment: callsTable.sentiment, createdAt: callsTable.createdAt, notes: callsTable.notes }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), eq(callsTable.contactId, mc.id))).orderBy(desc(callsTable.createdAt)).limit(5),
+            db.select({ invoiceNumber: facturesClientTable.reference, totalTTC: facturesClientTable.totalAmount, status: facturesClientTable.status, paidAmount: facturesClientTable.paidAmount }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), eq(facturesClientTable.contactId, mc.id))).limit(5),
+            db.select().from(compteClientTable).where(and(eq(compteClientTable.organisationId, orgId), eq(compteClientTable.contactId, mc.id))).limit(1),
+          ]);
+          meetingData = { contact: mc, calls: mcCalls, invoices: mcInvoices, account: mcAccount[0] || null };
+        }
+        const { ai: meetAi } = await import("@workspace/integrations-gemini-ai");
+        const meetResponse = await meetAi.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: [{ role: "user", parts: [{ text: `Tu es un directeur commercial expert. Prepare un dossier COMPLET pour un rendez-vous ${data.meetingType || "commercial"} avec ${data.contactName}.\n\nDonnees client: ${JSON.stringify(meetingData, null, 1)}\n\nGenere en JSON: {"dossier":"texte complet du dossier de preparation", "points_cles":["point 1",...], "questions_a_poser":["question 1",...], "risques":["risque 1",...], "opportunites":["opp 1",...], "strategie":"strategie recommandee"}` }] }],
+          config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
+        });
+        let meetParsed;
+        try { meetParsed = JSON.parse(meetResponse.text ?? "{}"); } catch { meetParsed = { dossier: "Dossier en cours de preparation...", points_cles: [], questions_a_poser: [], risques: [], opportunites: [], strategie: "" }; }
+        result = { success: true, message: meetParsed.dossier || "Dossier de preparation genere.", data: meetParsed };
+        break;
+      }
+      case "risk_analysis": {
+        const { ai: riskAi } = await import("@workspace/integrations-gemini-ai");
+        const [rOverdue, rCritical, rStock, rMissed, rOverBudget] = await Promise.all([
+          db.select({ count: count(), total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0)), 0)::numeric` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), eq(facturesClientTable.status, "en_retard"))),
+          db.select({ count: count() }).from(compteClientTable).where(and(eq(compteClientTable.organisationId, orgId), or(eq(compteClientTable.riskLevel, "critique"), eq(compteClientTable.riskLevel, "eleve")))),
+          db.select({ count: count() }).from(stockArticlesTable).where(and(eq(stockArticlesTable.organisationId, orgId), sql`${stockArticlesTable.quantity} <= ${stockArticlesTable.minQuantity}`)),
+          db.select({ count: count() }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), eq(callsTable.status, "manque"), gte(callsTable.createdAt, new Date(Date.now() - 7 * 86400000)))),
+          db.select({ count: count() }).from(projetsTable).where(and(eq(projetsTable.organisationId, orgId), sql`${projetsTable.spent}::numeric > ${projetsTable.budget}::numeric and ${projetsTable.budget}::numeric > 0`)),
+        ]);
+        const riskData = `Factures en retard: ${rOverdue[0]?.count ?? 0} (${Number(rOverdue[0]?.total ?? 0).toFixed(2)}€)\nComptes a risque: ${rCritical[0]?.count ?? 0}\nStock critique: ${rStock[0]?.count ?? 0}\nAppels manques (7j): ${rMissed[0]?.count ?? 0}\nProjets hors budget: ${rOverBudget[0]?.count ?? 0}`;
+        const riskResponse = await riskAi.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: [{ role: "user", parts: [{ text: `Tu es un expert en gestion des risques. Analyse les risques operationnels et financiers de ce bureau:\n\n${riskData}\n\nGenere en JSON: {"analyse":"texte complet de l'analyse des risques", "risques":[{"nom":"...", "niveau":"critique|eleve|moyen|faible", "impact":"...", "action":"..."}], "score_risque_global": number (0-100, 100=tres risque), "recommandations":["rec 1",...]}` }] }],
+          config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
+        });
+        let riskParsed;
+        try { riskParsed = JSON.parse(riskResponse.text ?? "{}"); } catch { riskParsed = { analyse: riskData, risques: [], score_risque_global: 50, recommandations: [] }; }
+        result = { success: true, message: riskParsed.analyse || "Analyse des risques generee.", data: riskParsed };
+        break;
+      }
+      case "revenue_forecast": {
+        const { ai: revAi } = await import("@workspace/integrations-gemini-ai");
+        const [paidLast90, pipeline, prospects90] = await Promise.all([
+          db.select({ month: sql<string>`to_char(${facturesClientTable.paidAt}, 'YYYY-MM')`, total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric), 0)::numeric` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), eq(facturesClientTable.status, "payee"), gte(facturesClientTable.paidAt, new Date(Date.now() - 90 * 86400000)))).groupBy(sql`to_char(${facturesClientTable.paidAt}, 'YYYY-MM')`),
+          db.select({ total: sql<number>`coalesce(sum(${facturesClientTable.totalAmount}::numeric - coalesce(${facturesClientTable.paidAmount}::numeric, 0)), 0)::numeric`, count: count() }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), sql`${facturesClientTable.status} not in ('payee','annulee')`)),
+          db.select({ total: sql<number>`coalesce(sum(${prospectsTable.value}::numeric * ${prospectsTable.probability} / 100), 0)::numeric`, count: count() }).from(prospectsTable).where(and(eq(prospectsTable.organisationId, orgId), ne(prospectsTable.stage, "perdu"), ne(prospectsTable.stage, "gagne"))),
+        ]);
+        const revData = `CA derniers 90 jours par mois: ${JSON.stringify(paidLast90)}\nPipeline factures: ${Number(pipeline[0]?.total ?? 0).toFixed(2)}€ (${pipeline[0]?.count ?? 0} factures)\nPipeline prospects pondere: ${Number(prospects90[0]?.total ?? 0).toFixed(2)}€ (${prospects90[0]?.count ?? 0} prospects)`;
+        const revResponse = await revAi.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: [{ role: "user", parts: [{ text: `Tu es un directeur financier expert. Prevois le chiffre d'affaires des 3 prochains mois:\n\n${revData}\n\nGenere en JSON: {"prevision":"texte de prevision detaillee", "mois":[{"mois":"...", "prevu":number, "confiance":number}], "ca_annuel_estime":number, "tendance":"croissance|stable|declin", "recommandations":["rec 1",...]}` }] }],
+          config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
+        });
+        let revParsed;
+        try { revParsed = JSON.parse(revResponse.text ?? "{}"); } catch { revParsed = { prevision: revData, mois: [], ca_annuel_estime: 0, tendance: "stable", recommandations: [] }; }
+        result = { success: true, message: revParsed.prevision || "Prevision de chiffre d'affaires generee.", data: revParsed };
+        break;
+      }
+      case "smart_campaign": {
+        let data: any;
+        try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees de campagne invalides." }); return; }
+        const objective = data.objective || "relance";
+        const criteria = data.criteria || "tous";
+        let targetContacts: any[];
+        const orgC = eq(contactsTable.organisationId, orgId);
+        switch (criteria) {
+          case "clients": targetContacts = await db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName, email: contactsTable.email, company: contactsTable.company }).from(contactsTable).where(and(orgC, eq(contactsTable.category, "client"), isNotNull(contactsTable.email))).limit(50); break;
+          case "prospects": targetContacts = await db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName, email: contactsTable.email, company: contactsTable.company }).from(contactsTable).where(and(orgC, eq(contactsTable.category, "prospect"), isNotNull(contactsTable.email))).limit(50); break;
+          default: targetContacts = await db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName, email: contactsTable.email, company: contactsTable.company }).from(contactsTable).where(and(orgC, isNotNull(contactsTable.email))).limit(50);
+        }
+        const { ai: campAi } = await import("@workspace/integrations-gemini-ai");
+        const campResponse = await campAi.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: [{ role: "user", parts: [{ text: `Tu es un expert en marketing et communication. Concois une campagne email "${objective}" pour ${targetContacts.length} contacts (${criteria}).\n\nContacts cibles: ${JSON.stringify(targetContacts.slice(0, 10))}\n\nGenere en JSON: {"campagne":"description de la campagne", "sujet_email":"...", "template_email":"contenu HTML de l'email avec {{prenom}} {{nom}} {{entreprise}} comme variables", "nombre_cibles":${targetContacts.length}, "planning":"calendrier d'envoi recommande", "kpis":["kpi 1",...]}` }] }],
+          config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
+        });
+        let campParsed;
+        try { campParsed = JSON.parse(campResponse.text ?? "{}"); } catch { campParsed = { campagne: "Campagne en preparation...", sujet_email: "", template_email: "", nombre_cibles: targetContacts.length, planning: "", kpis: [] }; }
+        result = { success: true, message: `Campagne "${objective}" concue pour ${targetContacts.length} contacts.`, data: { ...campParsed, contacts: targetContacts } };
+        break;
+      }
+      case "performance_audit": {
+        const auditType = String(target).trim() || "global";
+        const { ai: auditAi } = await import("@workspace/integrations-gemini-ai");
+        const nowAudit = new Date();
+        const monthAgoAudit = new Date(nowAudit.getTime() - 30 * 86400000);
+        const [aCalls, aTasks, aInvoices, aProspects, aAccounts] = await Promise.all([
+          db.select({ total: count(), answered: sql<number>`count(*) filter (where ${callsTable.status} = 'repondu')`, missed: sql<number>`count(*) filter (where ${callsTable.status} = 'manque')`, avgDuration: avg(callsTable.duration) }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, monthAgoAudit))),
+          db.select({ total: count(), completed: sql<number>`count(*) filter (where ${tasksTable.status} = 'termine')`, overdue: sql<number>`count(*) filter (where ${tasksTable.dueDate} < now() and ${tasksTable.status} not in ('termine','annule'))` }).from(tasksTable).where(eq(tasksTable.organisationId, orgId)),
+          db.select({ total: count(), paid: sql<number>`count(*) filter (where ${facturesClientTable.status} = 'payee')`, overdue: sql<number>`count(*) filter (where ${facturesClientTable.status} = 'en_retard')`, ca: sql<number>`coalesce(sum(case when ${facturesClientTable.status} = 'payee' then ${facturesClientTable.totalAmount}::numeric else 0 end), 0)::numeric` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), gte(facturesClientTable.createdAt, monthAgoAudit))),
+          db.select({ total: count(), won: sql<number>`count(*) filter (where ${prospectsTable.stage} = 'gagne')`, lost: sql<number>`count(*) filter (where ${prospectsTable.stage} = 'perdu')`, pipeline: sql<number>`coalesce(sum(${prospectsTable.value}::numeric), 0)::numeric` }).from(prospectsTable).where(eq(prospectsTable.organisationId, orgId)),
+          db.select({ avgHealth: sql<number>`coalesce(avg(${compteClientTable.healthScore}), 0)::int`, critical: sql<number>`count(*) filter (where ${compteClientTable.riskLevel} = 'critique')` }).from(compteClientTable).where(eq(compteClientTable.organisationId, orgId)),
+        ]);
+        const auditData = `Type: ${auditType}\nAppels (30j): ${JSON.stringify(aCalls[0])}\nTaches: ${JSON.stringify(aTasks[0])}\nFactures (30j): ${JSON.stringify(aInvoices[0])}\nProspects: ${JSON.stringify(aProspects[0])}\nSante clients: ${JSON.stringify(aAccounts[0])}`;
+        const auditResponse = await auditAi.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: [{ role: "user", parts: [{ text: `Tu es un consultant en management de haut niveau. Realise un audit de performance ${auditType} COMPLET:\n\n${auditData}\n\nGenere en JSON: {"audit":"texte complet de l'audit", "score_global": number (0-100), "points_forts":["..."], "points_faibles":["..."], "recommandations":[{"action":"...", "priorite":"haute|moyenne|basse", "impact":"..."}], "objectifs_30j":["..."]}` }] }],
+          config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
+        });
+        let auditParsed;
+        try { auditParsed = JSON.parse(auditResponse.text ?? "{}"); } catch { auditParsed = { audit: auditData, score_global: 50, points_forts: [], points_faibles: [], recommandations: [], objectifs_30j: [] }; }
+        result = { success: true, message: auditParsed.audit || "Audit de performance genere.", data: auditParsed };
+        break;
+      }
+      case "competitor_analysis": {
+        const searchTarget = String(target).trim();
+        if (!searchTarget) { res.status(400).json({ error: "Secteur ou concurrent requis." }); return; }
+        try {
+          const { ai: compAi } = await import("@workspace/integrations-gemini-ai");
+          const compResponse = await compAi.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: [{ role: "user", parts: [{ text: `Tu es un analyste strategique expert du marche francais. Realise une analyse concurrentielle COMPLETE et DETAILLEE pour "${searchTarget}".\n\nInclus: les principaux acteurs du marche, leurs forces/faiblesses, les tendances du secteur, les opportunites et menaces. Base-toi sur tes connaissances du marche francais.\n\nGenere en JSON: {"analyse":"analyse complete et detaillee", "concurrents":[{"nom":"...", "forces":"...", "faiblesses":"...", "part_marche_estimee":"..."}], "tendances":["..."], "opportunites":["..."], "menaces":["..."], "recommandations":["..."], "positionnement_recommande":"strategie de positionnement"}` }] }],
+            config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
+          });
+          let compParsed;
+          try { compParsed = JSON.parse(compResponse.text ?? "{}"); } catch { compParsed = { analyse: `Analyse de "${searchTarget}" en cours...`, concurrents: [], tendances: [], opportunites: [], menaces: [], recommandations: [], positionnement_recommande: "" }; }
+          result = { success: true, message: compParsed.analyse || "Analyse concurrentielle generee.", data: compParsed };
+        } catch (e: any) {
+          result = { success: false, message: `Erreur analyse: ${e.message}` };
+        }
+        break;
+      }
+      case "chain_actions": {
+        let actions: any[];
+        try { actions = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Liste d'actions invalide." }); return; }
+        if (!Array.isArray(actions) || actions.length === 0) { res.status(400).json({ error: "Tableau d'actions requis." }); return; }
+        if (actions.length > 10) { res.status(400).json({ error: "Maximum 10 actions par chaine." }); return; }
+        const chainResults: any[] = [];
+        const port = process.env.PORT || 8080;
+        for (const action of actions) {
+          try {
+            const chainRes = await fetch(`http://localhost:${port}/api/ai/execute`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", cookie: req.headers.cookie || "" },
+              body: JSON.stringify({ type: action.type, target: action.target }),
+            });
+            const chainData = await chainRes.json() as Record<string, any>;
+            chainResults.push({ type: action.type, success: chainData.success, message: chainData.message });
+          } catch (e: any) {
+            chainResults.push({ type: action.type, success: false, message: e.message });
+          }
+        }
+        const successCount = chainResults.filter((r: any) => r.success).length;
+        result = { success: true, message: `Plan multi-etapes execute: ${successCount}/${actions.length} actions reussies.`, data: chainResults };
         break;
       }
       default:
