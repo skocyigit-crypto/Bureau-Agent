@@ -516,7 +516,7 @@ export function decryptSensitiveData(ciphertext: string): string {
   const authTag = combined.subarray(SALT_LENGTH + IV_LENGTH, SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH);
   const encrypted = combined.subarray(SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH);
   const key = deriveKey(secret, salt);
-  const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, key, iv);
+  const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH });
   decipher.setAuthTag(authTag);
   return decipher.update(encrypted) + decipher.final("utf-8");
 }

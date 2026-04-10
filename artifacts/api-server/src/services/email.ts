@@ -1,6 +1,15 @@
 import { google } from "googleapis";
 import nodemailer from "nodemailer";
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 const SMTP_HOST = process.env.SMTP_HOST || "";
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || "587");
 const SMTP_USER = process.env.SMTP_USER || "";
@@ -168,9 +177,9 @@ export async function sendWelcomeEmail(params: {
     </div>
 
     <div style="padding:32px;">
-      <h2 style="color:#0f1729;font-size:20px;margin:0 0 8px;">Bienvenue, ${adminName} !</h2>
+      <h2 style="color:#0f1729;font-size:20px;margin:0 0 8px;">Bienvenue, ${escapeHtml(adminName)} !</h2>
       <p style="color:#64748b;font-size:15px;line-height:1.6;">
-        Votre compte <strong>Agent de Bureau</strong> pour <strong>${orgName}</strong> a ete cree avec succes. 
+        Votre compte <strong>Agent de Bureau</strong> pour <strong>${escapeHtml(orgName)}</strong> a ete cree avec succes. 
         Voici toutes les informations pour commencer :
       </p>
 
@@ -179,7 +188,7 @@ export async function sendWelcomeEmail(params: {
         <table style="width:100%;border-collapse:collapse;">
           <tr>
             <td style="padding:8px 0;color:#166534;font-size:13px;width:140px;">Email</td>
-            <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${loginEmail}</td>
+            <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${escapeHtml(loginEmail)}</td>
           </tr>
         </table>
         <p style="color:#166534;font-size:11px;margin:12px 0 0;font-style:italic;">
@@ -192,16 +201,16 @@ export async function sendWelcomeEmail(params: {
         <table style="width:100%;border-collapse:collapse;">
           <tr>
             <td style="padding:8px 0;color:#64748b;font-size:13px;width:140px;">Organisation</td>
-            <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${orgName}</td>
+            <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${escapeHtml(orgName)}</td>
           </tr>
           <tr>
             <td style="padding:8px 0;color:#64748b;font-size:13px;">Plan</td>
-            <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${plan}</td>
+            <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${escapeHtml(plan)}</td>
           </tr>
           <tr>
             <td style="padding:8px 0;color:#64748b;font-size:13px;">Cle de licence</td>
             <td style="padding:8px 0;">
-              <span style="background:#0f1729;color:#f59e0b;padding:6px 14px;border-radius:8px;font-family:monospace;font-size:14px;font-weight:700;letter-spacing:1px;">${licenseKey}</span>
+              <span style="background:#0f1729;color:#f59e0b;padding:6px 14px;border-radius:8px;font-family:monospace;font-size:14px;font-weight:700;letter-spacing:1px;">${escapeHtml(licenseKey)}</span>
             </td>
           </tr>
         </table>
@@ -312,10 +321,10 @@ export async function sendCredentialsEmail(params: {
     </div>
 
     <div style="padding:32px;">
-      <h2 style="color:#0f1729;font-size:20px;margin:0 0 8px;">Bonjour ${prenom} ${nom},</h2>
+      <h2 style="color:#0f1729;font-size:20px;margin:0 0 8px;">Bonjour ${escapeHtml(prenom)} ${escapeHtml(nom)},</h2>
       <p style="color:#64748b;font-size:15px;line-height:1.6;">
         Un code de connexion temporaire a ete genere pour votre compte <strong>Agent de Bureau</strong> 
-        dans l'organisation <strong>${orgName}</strong>.
+        dans l'organisation <strong>${escapeHtml(orgName)}</strong>.
       </p>
 
       <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:12px;padding:24px;margin:24px 0;">
@@ -417,16 +426,16 @@ export async function sendLicenseEmail(params: {
         <table style="width:100%;border-collapse:collapse;">
           <tr>
             <td style="padding:8px 0;color:#92400e;font-size:13px;width:140px;">Administrateur</td>
-            <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${adminName || adminEmail}</td>
+            <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${escapeHtml(adminName || adminEmail)}</td>
           </tr>
           <tr>
             <td style="padding:8px 0;color:#92400e;font-size:13px;">Email</td>
-            <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${adminEmail}</td>
+            <td style="padding:8px 0;color:#0f1729;font-size:14px;font-weight:600;">${escapeHtml(adminEmail)}</td>
           </tr>
           <tr>
             <td style="padding:8px 0;color:#92400e;font-size:13px;">Code temporaire</td>
             <td style="padding:8px 0;">
-              <span style="background:#0f1729;color:#f59e0b;padding:10px 20px;border-radius:8px;font-family:monospace;font-size:22px;font-weight:700;letter-spacing:6px;">${adminPassword}</span>
+              <span style="background:#0f1729;color:#f59e0b;padding:10px 20px;border-radius:8px;font-family:monospace;font-size:22px;font-weight:700;letter-spacing:6px;">${escapeHtml(adminPassword)}</span>
             </td>
           </tr>
         </table>
@@ -453,9 +462,9 @@ export async function sendLicenseEmail(params: {
     </div>
 
     <div style="padding:32px;">
-      <h2 style="color:#0f1729;font-size:20px;margin:0 0 8px;">Bienvenue${adminName ? `, ${adminName}` : `, ${orgName}`} !</h2>
+      <h2 style="color:#0f1729;font-size:20px;margin:0 0 8px;">Bienvenue${adminName ? `, ${escapeHtml(adminName)}` : `, ${escapeHtml(orgName)}`} !</h2>
       <p style="color:#64748b;font-size:15px;line-height:1.6;">
-        Votre compte <strong>Agent de Bureau</strong> pour <strong>${orgName}</strong> (plan <strong>${plan}</strong>) a ete cree avec succes.
+        Votre compte <strong>Agent de Bureau</strong> pour <strong>${escapeHtml(orgName)}</strong> (plan <strong>${escapeHtml(plan)}</strong>) a ete cree avec succes.
       </p>
 
       ${trialInfo}

@@ -31,7 +31,7 @@ function encryptData(data: string): { encrypted: Buffer; iv: string; authTag: st
 
 function decryptData(encryptedBase64: string, iv: string, authTag: string): string {
   const key = deriveEncryptionKey();
-  const decipher = crypto.createDecipheriv("aes-256-gcm", key, Buffer.from(iv, "hex"));
+  const decipher = crypto.createDecipheriv("aes-256-gcm", key, Buffer.from(iv, "hex"), { authTagLength: 16 });
   (decipher as any).setAuthTag(Buffer.from(authTag, "hex"));
   const decrypted = Buffer.concat([
     decipher.update(Buffer.from(encryptedBase64, "base64")),
@@ -56,7 +56,7 @@ async function collectFullBackupData(): Promise<object> {
   const snapshot: Record<string, any> = {};
   for (const table of tables) {
     try {
-      const rows = await db.execute(sql.raw(`SELECT * FROM ${table}`));
+      const rows = await db.execute(sql`SELECT * FROM ${sql.identifier(table)}`);
       snapshot[table] = {
         count: Array.isArray(rows) ? rows.length : (rows as any)?.rows?.length || 0,
         data: Array.isArray(rows) ? rows : (rows as any)?.rows || [],
@@ -509,7 +509,7 @@ export async function restoreFromBackup(fileId: string, options: {
 
       try {
         if (options.clearBeforeRestore) {
-          await db.execute(sql.raw(`DELETE FROM ${tableName}`));
+          await db.execute(sql`DELETE FROM ${sql.identifier(tableName)}`);
         }
 
         for (const row of tableData.data) {
@@ -517,20 +517,23 @@ export async function restoreFromBackup(fileId: string, options: {
             const columns = Object.keys(row).filter(k => row[k] !== undefined);
             if (columns.length === 0) { skipped++; continue; }
 
-            const colNames = columns.map(c => `"${c}"`).join(", ");
-            const placeholders = columns.map((_, i) => `$${i + 1}`).join(", ");
-            const values = columns.map(c => {
+            const colIdentifiers = columns.map(c => sql.identifier(c));
+            const valuesArr = columns.map(c => {
               const v = row[c];
               if (v === null || v === undefined) return null;
               if (typeof v === "object") return JSON.stringify(v);
               return v;
             });
 
-            const query = options.clearBeforeRestore
-              ? `INSERT INTO ${tableName} (${colNames}) VALUES (${placeholders})`
-              : `INSERT INTO ${tableName} (${colNames}) VALUES (${placeholders}) ON CONFLICT DO NOTHING`;
-
-            await db.execute(sql.raw(query, ...values));
+            if (options.clearBeforeRestore) {
+              await db.execute(
+                sql`INSERT INTO ${sql.identifier(tableName)} (${sql.join(colIdentifiers, sql`, `)}) VALUES (${sql.join(valuesArr.map(v => sql`${v}`), sql`, `)})`
+              );
+            } else {
+              await db.execute(
+                sql`INSERT INTO ${sql.identifier(tableName)} (${sql.join(colIdentifiers, sql`, `)}) VALUES (${sql.join(valuesArr.map(v => sql`${v}`), sql`, `)}) ON CONFLICT DO NOTHING`
+              );
+            }
             inserted++;
           } catch (rowErr: any) {
             errors++;

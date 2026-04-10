@@ -1661,7 +1661,11 @@ export default function SettingsPage() {
         }
         return;
       }
-      window.location.href = data.authUrl;
+      if (data.authUrl && (data.authUrl.startsWith("https://accounts.google.com/") || data.authUrl.startsWith("https://www.googleapis.com/"))) {
+        window.location.href = data.authUrl;
+      } else {
+        toast({ title: "Erreur", description: "URL d'autorisation invalide.", variant: "destructive" });
+      }
     } catch {
       toast({ title: "Erreur", description: "Erreur reseau.", variant: "destructive" });
     } finally {

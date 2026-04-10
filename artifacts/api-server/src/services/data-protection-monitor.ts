@@ -129,7 +129,7 @@ async function getTableRecordCounts(): Promise<Record<string, number>> {
 
   for (const table of tables) {
     try {
-      const result = await db.execute(sql.raw(`SELECT COUNT(*) as cnt FROM ${table}`));
+      const result = await db.execute(sql`SELECT COUNT(*) as cnt FROM ${sql.identifier(table)}`);
       const rows = Array.isArray(result) ? result : (result as any)?.rows || [];
       counts[table] = parseInt(rows[0]?.cnt || "0", 10);
     } catch {
