@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
-import { Brain, Send, X, Sparkles, Loader2, AlertTriangle, Lightbulb, Info, Zap, ChevronDown, ChevronUp, MessageCircle, Calculator, ChevronRight, Hash, Percent, TrendingUp, Ruler, Pi, BarChart2, DollarSign, ArrowRightLeft, Wand2, Navigation, Bell, RotateCcw, Activity, Target, Shield, Flame, ThumbsUp } from "lucide-react";
+import { Brain, Send, X, Sparkles, Loader2, AlertTriangle, Lightbulb, Info, Zap, ChevronDown, ChevronUp, MessageCircle, Calculator, ChevronRight, Hash, Percent, TrendingUp, Ruler, Pi, BarChart2, DollarSign, ArrowRightLeft, Wand2, Navigation, Bell, RotateCcw, Activity, Target, Shield, Flame, ThumbsUp, Plus, UserPlus, CheckCircle2, ArrowUpCircle, MailCheck, BellRing, Package, ListChecks, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -141,14 +141,37 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
   const handleSend = () => sendMessage(input);
   const handleQuickQuestion = (q: string) => sendMessage(q);
 
+  const [executingAction, setExecutingAction] = useState<string | null>(null);
+
+  const executeAiAction = async (type: string, target: string) => {
+    const res = await fetch(`${BASE}/api/ai/execute`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ type, target }),
+    });
+    if (!res.ok) throw new Error("Erreur d'execution");
+    return res.json();
+  };
+
   const handleAction = async (action: any) => {
-    if (action.type === "navigate" && action.target) {
-      const target = String(action.target);
-      if (target.startsWith("/") && !target.startsWith("//")) {
-        window.location.href = target;
+    const actionKey = `${action.type}-${action.target}`;
+    setExecutingAction(actionKey);
+    try {
+      if (action.type === "navigate" && action.target) {
+        const target = String(action.target);
+        if (target.startsWith("/") && !target.startsWith("//")) {
+          window.location.href = target;
+        }
+        return;
       }
-    } else if (action.type === "auto_fix") {
-      try {
+
+      if (action.type === "reminder") {
+        toast({ title: "Rappel programme", description: action.details || action.label });
+        return;
+      }
+
+      if (action.type === "auto_fix") {
         const res = await fetch(`${BASE}/api/ai/agents/auto-fix`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -157,12 +180,29 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
         if (res.ok) {
           const data = await res.json();
           toast({ title: "Corrections appliquees", description: `${data.totalFixes} corrections effectuees.` });
+          setMessages(prev => [...prev, { role: "assistant", content: `Auto-correction terminee: ${data.totalFixes} corrections appliquees.`, mood: "positif", timestamp: new Date() }]);
         }
-      } catch (err) {
-        console.warn("Auto-fix error:", err);
+        return;
       }
-    } else if (action.type === "reminder") {
-      toast({ title: "Rappel programme", description: action.details || action.label });
+
+      const executableTypes = ["create_task", "create_contact", "complete_task", "escalate_task", "bulk_escalate", "mark_messages_read", "send_notification", "stock_alert"];
+      if (executableTypes.includes(action.type)) {
+        const result = await executeAiAction(action.type, action.target);
+        if (result.success) {
+          toast({ title: "Action executee", description: result.message });
+          setMessages(prev => [...prev, { role: "assistant", content: `${result.message}`, mood: "positif", timestamp: new Date() }]);
+        } else {
+          toast({ title: "Echec", description: result.message || "Action echouee.", variant: "destructive" });
+        }
+        return;
+      }
+
+      toast({ title: action.label, description: action.details || "Action non reconnue." });
+    } catch (err) {
+      console.warn("Action error:", err);
+      toast({ title: "Erreur", description: "Impossible d'executer cette action.", variant: "destructive" });
+    } finally {
+      setExecutingAction(null);
     }
   };
 
@@ -190,16 +230,52 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
       case "auto_fix": return <Wand2 className="w-3 h-3" />;
       case "navigate": return <Navigation className="w-3 h-3" />;
       case "reminder": return <Bell className="w-3 h-3" />;
+      case "create_task": return <Plus className="w-3 h-3" />;
+      case "create_contact": return <UserPlus className="w-3 h-3" />;
+      case "complete_task": return <CheckCircle2 className="w-3 h-3" />;
+      case "escalate_task": return <ArrowUpCircle className="w-3 h-3" />;
+      case "bulk_escalate": return <ListChecks className="w-3 h-3" />;
+      case "mark_messages_read": return <MailCheck className="w-3 h-3" />;
+      case "send_notification": return <BellRing className="w-3 h-3" />;
+      case "stock_alert": return <Package className="w-3 h-3" />;
       default: return <Zap className="w-3 h-3" />;
+    }
+  };
+
+  const getActionColor = (type: string) => {
+    switch (type) {
+      case "create_task": return "from-emerald-50 to-green-50 dark:from-emerald-950/20 dark:to-green-950/20 border-emerald-200/50 dark:border-emerald-800/30 hover:from-emerald-100 hover:to-green-100";
+      case "create_contact": return "from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 border-blue-200/50 dark:border-blue-800/30 hover:from-blue-100 hover:to-cyan-100";
+      case "complete_task": return "from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-green-200/50 dark:border-green-800/30 hover:from-green-100 hover:to-emerald-100";
+      case "escalate_task": case "bulk_escalate": return "from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border-orange-200/50 dark:border-orange-800/30 hover:from-orange-100 hover:to-amber-100";
+      case "stock_alert": return "from-red-50 to-rose-50 dark:from-red-950/20 dark:to-rose-950/20 border-red-200/50 dark:border-red-800/30 hover:from-red-100 hover:to-rose-100";
+      case "auto_fix": return "from-violet-50 to-purple-50 dark:from-violet-950/20 dark:to-purple-950/20 border-violet-200/50 dark:border-violet-800/30 hover:from-violet-100 hover:to-purple-100";
+      default: return "from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/20 border-purple-200/50 dark:border-purple-800/30 hover:from-purple-100 hover:to-indigo-100";
+    }
+  };
+
+  const getActionIconColor = (type: string) => {
+    switch (type) {
+      case "create_task": return "text-emerald-500";
+      case "create_contact": return "text-blue-500";
+      case "complete_task": return "text-green-500";
+      case "escalate_task": case "bulk_escalate": return "text-orange-500";
+      case "stock_alert": return "text-red-500";
+      case "auto_fix": return "text-violet-500";
+      case "mark_messages_read": return "text-teal-500";
+      case "send_notification": return "text-amber-500";
+      default: return "text-purple-500";
     }
   };
 
   const quickQuestions = [
     "Quel est l'etat general du bureau ?",
     "Quelles sont les urgences a traiter maintenant ?",
-    "Analyse mes performances de la semaine",
-    "Quelles actions automatiques peux-tu faire ?",
-    "Y a-t-il des risques a surveiller ?",
+    "Cree une tache pour rappeler le client principal demain",
+    "Marque tous les messages comme lus",
+    "Escalade toutes les taches en retard",
+    "Analyse mes performances et propose des actions",
+    "Y a-t-il des anomalies a traiter ?",
     "Donne-moi le briefing executif du jour",
   ];
 
@@ -333,20 +409,26 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
                     <div className="mt-2 space-y-1.5 border-t border-border/50 pt-2">
                       <div className="flex items-center gap-1 mb-1">
                         <Zap className="w-3 h-3 text-amber-500" />
-                        <span className="text-[10px] font-semibold text-amber-600 uppercase tracking-wider">Actions disponibles</span>
+                        <span className="text-[10px] font-semibold text-amber-600 uppercase tracking-wider">Actions executables ({msg.actions.length})</span>
                       </div>
-                      {msg.actions.map((a, j) => (
-                        <button key={j} onClick={() => handleAction(a)}
-                          className="w-full flex items-center gap-2 text-left text-xs p-2 rounded-lg bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/20 hover:from-purple-100 hover:to-indigo-100 dark:hover:from-purple-950/40 dark:hover:to-indigo-950/40 transition-colors border border-purple-200/50 dark:border-purple-800/30"
-                        >
-                          <span className="shrink-0 text-purple-500">{getActionIcon(a.type)}</span>
-                          <div className="flex-1 min-w-0">
-                            <span className="font-medium text-foreground">{a.label}</span>
-                            {a.details && <span className="text-muted-foreground ml-1 text-[10px]">— {a.details}</span>}
-                          </div>
-                          <ChevronRight className="w-3 h-3 text-purple-400 shrink-0" />
-                        </button>
-                      ))}
+                      {msg.actions.map((a, j) => {
+                        const actionKey = `${a.type}-${a.target}`;
+                        const isExecuting = executingAction === actionKey;
+                        return (
+                          <button key={j} onClick={() => handleAction(a)} disabled={isExecuting}
+                            className={`w-full flex items-center gap-2 text-left text-xs p-2 rounded-lg bg-gradient-to-r ${getActionColor(a.type)} transition-all border ${isExecuting ? "opacity-60" : "hover:shadow-sm"}`}
+                          >
+                            <span className={`shrink-0 ${getActionIconColor(a.type)}`}>
+                              {isExecuting ? <Loader2 className="w-3 h-3 animate-spin" /> : getActionIcon(a.type)}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <span className="font-medium text-foreground">{a.label}</span>
+                              {a.details && <span className="text-muted-foreground ml-1 text-[10px]">— {a.details}</span>}
+                            </div>
+                            {isExecuting ? <Loader2 className="w-3 h-3 animate-spin text-muted-foreground shrink-0" /> : <ChevronRight className={`w-3 h-3 ${getActionIconColor(a.type)} shrink-0`} />}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
 

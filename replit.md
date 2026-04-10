@@ -76,11 +76,17 @@ The Settings page (`artifacts/buro-ajani/src/pages/settings.tsx`) was refactored
 
 Each tab component is fully self-contained with its own state, API calls, and handlers. OAuth callback handling (google_success/google_error URL params) is processed at the parent shell level.
 
-## AI Chat Assistant (Interactive Q&A)
-POST `/api/ai/chat` — Interactive AI assistant with full real-time data access. Accepts `{message, context, history}`, queries all DB tables for current stats (calls, contacts, tasks, messages), and returns structured JSON with `{message, actions[], insights[], mood, stats}`. Actions support types: `auto_fix`, `navigate` (allowlisted relative paths only), `reminder`. Frontend: floating chat panel in `ai-assistant.tsx` with action buttons, mood indicators, and conversation history.
+## AI Chat Assistant (Interactive Q&A + Command Execution)
+POST `/api/ai/chat` — Interactive AI assistant with full real-time data access and **action execution powers**. Accepts `{message, context, history}`, queries all DB tables (calls, contacts, tasks, messages, stock), detects anomalies proactively, and returns structured JSON with `{message, actions[], insights[], mood, stats, anomalies[]}`. Supports 11 action types: `create_task`, `create_contact`, `complete_task`, `escalate_task`, `bulk_escalate`, `mark_messages_read`, `send_notification`, `stock_alert`, `auto_fix`, `navigate` (allowlisted relative paths only), `reminder`. Frontend: floating chat panel in `ai-assistant.tsx` with color-coded action buttons, mood indicators, loading states, and 8 quick action questions.
 
-## AI Auto-Fix Engine
-POST `/api/ai/agents/auto-fix` — Automated correction endpoint (admin only). Performs: orphan call linking by phone number, overdue task escalation to high priority, stuck task notifications, stale message alerts, incomplete contact flagging. All fixes logged to `audit_logs` table. Returns `{totalFixes, fixes[]}`.
+## AI Command Execution Engine
+POST `/api/ai/execute` — Direct action execution from AI assistant. Accepts `{type, target}` and performs the action. Supports: creating tasks/contacts, completing/escalating tasks, bulk escalating overdue tasks, marking messages as read, sending notifications, generating stock alerts. All mutations scoped to user's organisation.
+
+## AI Auto-Fix Engine (Enhanced)
+POST `/api/ai/agents/auto-fix` — Automated correction endpoint (admin only). Performs 8 fix types: orphan call linking by phone number, overdue task escalation, stuck task notifications, stale message alerts, incomplete contact flagging, **duplicate contact detection** (by phone number with notifications), **auto-categorization** of contacts to client/prospect based on call/task history, **negative stock correction** (sets negative quantities to zero). All fixes logged to `audit_logs` table. Returns `{totalFixes, fixes[]}`.
+
+## AI Anomaly Detection
+GET `/api/ai/anomalies` — Proactive anomaly detection across all systems. Checks 11 anomaly types: call volume drop/spike (week-over-week), excessive missed calls, overdue tasks, stuck tasks, urgent unread messages, message backlog, out-of-stock items, low stock, inactive users, admin accounts without MFA. Returns severity-sorted anomalies with suggested actions and global severity status. Frontend: "Anomalies" tab on AI agents page with color-coded severity cards and re-scan capability.
 
 ## AI Predictive Intelligence
 GET `/api/ai/predictions` — Forecasting engine using 4 weeks of historical data. Gemini analyzes call volume trends, task completion velocity, contact growth, and customer satisfaction to generate: weekly forecasts (per-day predictions with alert levels), operational risks with mitigation strategies, opportunities, and strategic recommendations. Frontend: "Predictions IA" tab on AI agents page with visual cards and daily forecast grid.

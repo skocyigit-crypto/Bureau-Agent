@@ -660,6 +660,9 @@ export default function AiAgentsPage() {
           <TabsTrigger value="predictions" className="flex items-center gap-1.5">
             <TrendingUp className="w-4 h-4" /> Predictions IA
           </TabsTrigger>
+          <TabsTrigger value="anomalies" className="flex items-center gap-1.5">
+            <Radar className="w-4 h-4" /> Anomalies
+          </TabsTrigger>
           <TabsTrigger value="autopilot" className="flex items-center gap-1.5">
             <Rocket className="w-4 h-4" /> Oto-Pilot
           </TabsTrigger>
@@ -1019,10 +1022,158 @@ export default function AiAgentsPage() {
           )}
         </TabsContent>
 
+        <TabsContent value="anomalies" className="space-y-6">
+          <AnomalyDetectionPanel />
+        </TabsContent>
+
         <TabsContent value="autopilot" className="space-y-6">
           <AutopilotPanel />
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function AnomalyDetectionPanel() {
+  const [anomalyData, setAnomalyData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+  const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+  const scanAnomalies = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${BASE}/api/ai/anomalies`, { credentials: "include" });
+      if (!res.ok) throw new Error("Erreur");
+      const data = await res.json();
+      setAnomalyData(data);
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de scanner les anomalies.", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }, [BASE, toast]);
+
+  useEffect(() => { scanAnomalies(); }, []);
+
+  const getSeverityColor = (s: string) => {
+    switch (s) {
+      case "critique": return "border-red-500/50 bg-red-50 dark:bg-red-950/20";
+      case "haute": return "border-orange-500/50 bg-orange-50 dark:bg-orange-950/20";
+      case "moyenne": return "border-amber-500/50 bg-amber-50 dark:bg-amber-950/20";
+      case "basse": return "border-blue-500/50 bg-blue-50 dark:bg-blue-950/20";
+      default: return "border-border";
+    }
+  };
+
+  const getSeverityIcon = (s: string) => {
+    switch (s) {
+      case "critique": return <AlertTriangle className="w-5 h-5 text-red-500" />;
+      case "haute": return <AlertCircle className="w-5 h-5 text-orange-500" />;
+      case "moyenne": return <Eye className="w-5 h-5 text-amber-500" />;
+      case "basse": return <Lightbulb className="w-5 h-5 text-blue-500" />;
+      default: return <Activity className="w-5 h-5 text-muted-foreground" />;
+    }
+  };
+
+  const globalStatusConfig: Record<string, { label: string; color: string; icon: any }> = {
+    ok: { label: "Systeme sain", color: "text-emerald-600", icon: CheckCircle2 },
+    basse: { label: "Attention mineure", color: "text-blue-600", icon: Lightbulb },
+    moyenne: { label: "Vigilance requise", color: "text-amber-600", icon: Eye },
+    haute: { label: "Problemes detectes", color: "text-orange-600", icon: AlertCircle },
+    critique: { label: "Situation critique", color: "text-red-600", icon: AlertTriangle },
+  };
+
+  const gs = globalStatusConfig[anomalyData?.globalSeverity || "ok"] || globalStatusConfig.ok;
+  const GsIcon = gs.icon;
+
+  return (
+    <div className="space-y-6">
+      <Card className="overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-900/50 dark:to-gray-900/50 border-b">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white">
+                <Radar className="w-5 h-5" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Detection d'Anomalies</CardTitle>
+                <CardDescription>Surveillance proactive en temps reel de toutes les metriques</CardDescription>
+              </div>
+            </div>
+            <Button onClick={scanAnomalies} disabled={loading} variant="outline" size="sm">
+              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <RefreshCw className="w-4 h-4 mr-1" />}
+              Re-scanner
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-6">
+          {loading && !anomalyData ? (
+            <div className="text-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-purple-500 mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">Analyse en cours...</p>
+            </div>
+          ) : anomalyData ? (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between p-4 rounded-xl bg-muted/30 border">
+                <div className="flex items-center gap-3">
+                  <GsIcon className={`w-8 h-8 ${gs.color}`} />
+                  <div>
+                    <p className={`text-lg font-bold ${gs.color}`}>{gs.label}</p>
+                    <p className="text-sm text-muted-foreground">{anomalyData.summary.total} anomalie(s) detectee(s)</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  {anomalyData.summary.critique > 0 && <Badge variant="destructive">{anomalyData.summary.critique} critique(s)</Badge>}
+                  {anomalyData.summary.haute > 0 && <Badge className="bg-orange-500 hover:bg-orange-600">{anomalyData.summary.haute} haute(s)</Badge>}
+                  {anomalyData.summary.moyenne > 0 && <Badge className="bg-amber-100 text-amber-700">{anomalyData.summary.moyenne} moyenne(s)</Badge>}
+                  {anomalyData.summary.basse > 0 && <Badge variant="secondary">{anomalyData.summary.basse} basse(s)</Badge>}
+                </div>
+              </div>
+
+              {anomalyData.anomalies.length === 0 ? (
+                <div className="text-center py-8">
+                  <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+                  <p className="font-semibold text-emerald-700">Aucune anomalie detectee</p>
+                  <p className="text-sm text-muted-foreground mt-1">Tous les systemes fonctionnent normalement</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {anomalyData.anomalies.map((a: any, i: number) => (
+                    <div key={i} className={`p-4 rounded-xl border-2 ${getSeverityColor(a.severity)} transition-all hover:shadow-md`}>
+                      <div className="flex items-start gap-3">
+                        {getSeverityIcon(a.severity)}
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <h4 className="font-semibold text-sm">{a.title}</h4>
+                            {getSeverityBadge(a.severity)}
+                          </div>
+                          <p className="text-sm text-muted-foreground mb-2">{a.description}</p>
+                          {a.suggestedAction && (
+                            <div className="flex items-center gap-1.5 text-xs text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30 rounded-lg px-2.5 py-1.5">
+                              <Wrench className="w-3 h-3 shrink-0" />
+                              <span>{a.suggestedAction}</span>
+                            </div>
+                          )}
+                        </div>
+                        {a.metric && (
+                          <div className="text-right shrink-0">
+                            <p className="text-2xl font-bold text-foreground">{a.metric}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground text-right">
+                Derniere analyse: {anomalyData.checkedAt ? new Date(anomalyData.checkedAt).toLocaleString("fr-FR") : "-"}
+              </p>
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
     </div>
   );
 }

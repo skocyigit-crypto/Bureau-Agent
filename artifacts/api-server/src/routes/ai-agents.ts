@@ -1734,6 +1734,68 @@ router.post("/ai/agents/auto-fix", requireAdmin, async (req, res): Promise<void>
       fixes.push({ type: "incomplete_contacts_flagged", description: "Contacts avec donnees incompletes signales", count: incompleteContacts, details: `${contactsNoEmail.length} sans email, ${contactsNoPhone.length} sans telephone` });
     }
 
+    const duplicatePhones = await db.execute(sql`
+      SELECT phone, count(*) as cnt 
+      FROM contacts 
+      WHERE organisation_id = ${orgId} AND phone IS NOT NULL AND phone != ''
+      GROUP BY phone 
+      HAVING count(*) > 1 
+      LIMIT 20
+    `);
+    const dupCount = Array.isArray(duplicatePhones.rows) ? duplicatePhones.rows.length : 0;
+    if (dupCount > 0) {
+      const dupDetails = duplicatePhones.rows.map((r: any) => `${r.phone} (${r.cnt}x)`).join(", ");
+      for (const dup of duplicatePhones.rows.slice(0, 5)) {
+        await db.insert(notificationsTable).values({
+          userId: userId,
+          organisationId: orgId,
+          title: `Contact en double: ${(dup as any).phone}`,
+          message: `${(dup as any).cnt} contacts partagent le numero ${(dup as any).phone}. Verifiez et fusionnez si necessaire.`,
+          type: "alerte",
+          priority: "moyenne",
+        });
+      }
+      fixes.push({ type: "duplicate_contacts_flagged", description: "Doublons de contacts detectes par numero de telephone", count: dupCount, details: dupDetails });
+    }
+
+    const contactsNoCategory = await db.select({ id: contactsTable.id })
+      .from(contactsTable)
+      .where(and(orgContact, or(isNull(contactsTable.category), eq(contactsTable.category, "autre"))))
+      .limit(50);
+    let categorizedCount = 0;
+    for (const c of contactsNoCategory) {
+      const [callInfo] = await db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.contactId, c.id)));
+      const [taskInfo] = await db.select({ count: count() }).from(tasksTable).where(and(orgTask, eq(tasksTable.relatedContactId, c.id)));
+      const callCount = callInfo?.count ?? 0;
+      const taskCount = taskInfo?.count ?? 0;
+      if (callCount >= 3 || taskCount >= 2) {
+        await db.update(contactsTable).set({ category: "client" }).where(eq(contactsTable.id, c.id));
+        categorizedCount++;
+      } else if (callCount === 1 || taskCount === 1) {
+        await db.update(contactsTable).set({ category: "prospect" }).where(eq(contactsTable.id, c.id));
+        categorizedCount++;
+      }
+    }
+    if (categorizedCount > 0) {
+      fixes.push({ type: "contacts_auto_categorized", description: "Contacts categorises automatiquement selon activite", count: categorizedCount, details: `${categorizedCount} contacts recategorises (client/prospect) selon leur historique d'appels et taches` });
+    }
+
+    let zeroQuantityFixed = 0;
+    try {
+      const orgStock = eq(stockArticlesTable.organisationId, orgId);
+      const negativeStock = await db.select({ id: stockArticlesTable.id })
+        .from(stockArticlesTable)
+        .where(and(orgStock, sql`${stockArticlesTable.quantity} < 0`))
+        .limit(50);
+      for (const item of negativeStock) {
+        await db.update(stockArticlesTable).set({ quantity: 0 }).where(eq(stockArticlesTable.id, item.id));
+        zeroQuantityFixed++;
+      }
+      if (zeroQuantityFixed > 0) {
+        fixes.push({ type: "negative_stock_fixed", description: "Quantites de stock negatives corrigees a zero", count: zeroQuantityFixed, details: `${zeroQuantityFixed} articles avaient des quantites negatives` });
+      }
+    } catch { /* stock table might not exist */ }
+
     await db.insert(auditLogsTable).values({
       userId: userId,
       action: "ai_auto_fix",
@@ -1751,6 +1813,121 @@ router.post("/ai/agents/auto-fix", requireAdmin, async (req, res): Promise<void>
   } catch (error: any) {
     logger.error({ err: error }, "AI auto-fix error");
     res.status(500).json({ error: "Erreur lors de l'auto-correction" });
+  }
+});
+
+router.get("/ai/anomalies", requireMinAgent, async (req, res): Promise<void> => {
+  try {
+    const orgId = (req.session as any)?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
+
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 86400000);
+    const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000);
+    const dayAgo = new Date(now.getTime() - 86400000);
+    const orgCall = eq(callsTable.organisationId, orgId);
+    const orgTask = eq(tasksTable.organisationId, orgId);
+    const orgMsg = eq(messagesTable.organisationId, orgId);
+    const orgStock = eq(stockArticlesTable.organisationId, orgId);
+    const orgUser = eq(usersTable.organisationId, orgId);
+
+    const anomalies: { type: string; severity: "critique" | "haute" | "moyenne" | "basse"; title: string; description: string; metric?: string; suggestedAction?: string }[] = [];
+
+    const [
+      callsThisWeek, callsPrevWeek,
+      missedToday,
+      tasksOverdue, stuckTasks,
+      unreadMsgs, urgentUnread,
+      outOfStock, lowStock,
+      inactiveUsers, noMfaAdmins,
+    ] = await Promise.all([
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, twoWeeksAgo), lt(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.status, "manque"), gte(callsTable.createdAt, dayAgo))),
+      db.select({ count: count() }).from(tasksTable).where(and(orgTask, lt(tasksTable.dueDate, now), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))),
+      db.select({ count: count() }).from(tasksTable).where(and(orgTask, eq(tasksTable.status, "en_cours"), lt(tasksTable.updatedAt, weekAgo))),
+      db.select({ count: count() }).from(messagesTable).where(and(orgMsg, eq(messagesTable.isRead, false))),
+      db.select({ count: count() }).from(messagesTable).where(and(orgMsg, eq(messagesTable.isRead, false), eq(messagesTable.priority, "haute"))),
+      db.select({ count: count() }).from(stockArticlesTable).where(and(orgStock, eq(stockArticlesTable.quantity, 0))),
+      db.select({ count: count() }).from(stockArticlesTable).where(and(orgStock, sql`${stockArticlesTable.quantity} <= ${stockArticlesTable.minQuantity}`, sql`${stockArticlesTable.quantity} > 0`)),
+      db.select({ count: count() }).from(usersTable).where(and(orgUser, eq(usersTable.actif, true), or(isNull(usersTable.dernierAcces), lt(usersTable.dernierAcces, twoWeeksAgo)))),
+      db.select({ count: count() }).from(usersTable).where(and(orgUser, eq(usersTable.actif, true), or(eq(usersTable.role, "super_admin"), eq(usersTable.role, "administrateur")), eq(usersTable.mfaActif, false))),
+    ]);
+
+    const curCalls = callsThisWeek[0]?.count ?? 0;
+    const prevCalls = callsPrevWeek[0]?.count ?? 0;
+    if (prevCalls > 0 && curCalls < prevCalls * 0.6) {
+      anomalies.push({ type: "volume_drop", severity: "haute", title: "Chute du volume d'appels", description: `${curCalls} appels cette semaine vs ${prevCalls} la semaine precedente (-${Math.round((1 - curCalls / prevCalls) * 100)}%)`, metric: `${curCalls}/${prevCalls}`, suggestedAction: "Verifier les canaux de communication et les horaires de l'equipe" });
+    }
+    if (prevCalls > 0 && curCalls > prevCalls * 1.5) {
+      anomalies.push({ type: "volume_spike", severity: "moyenne", title: "Pic d'appels inhabituel", description: `${curCalls} appels cette semaine vs ${prevCalls} la semaine precedente (+${Math.round((curCalls / prevCalls - 1) * 100)}%)`, metric: `${curCalls}/${prevCalls}`, suggestedAction: "Verifier si une campagne ou un evenement a genere un afflux" });
+    }
+
+    const missedCount = missedToday[0]?.count ?? 0;
+    if (missedCount > 5) {
+      anomalies.push({ type: "missed_calls", severity: missedCount > 10 ? "critique" : "haute", title: "Trop d'appels manques aujourd'hui", description: `${missedCount} appels manques aujourd'hui`, metric: `${missedCount}`, suggestedAction: "Augmenter les effectifs ou revoir les plages horaires" });
+    }
+
+    const overdueCount = tasksOverdue[0]?.count ?? 0;
+    if (overdueCount > 0) {
+      anomalies.push({ type: "overdue_tasks", severity: overdueCount > 10 ? "critique" : overdueCount > 5 ? "haute" : "moyenne", title: `${overdueCount} taches en retard`, description: `${overdueCount} taches ont depasse leur echeance sans etre terminees`, metric: `${overdueCount}`, suggestedAction: "Escalader les taches critiques et replanifier les autres" });
+    }
+
+    const stuckCount = stuckTasks[0]?.count ?? 0;
+    if (stuckCount > 0) {
+      anomalies.push({ type: "stuck_tasks", severity: stuckCount > 5 ? "haute" : "moyenne", title: `${stuckCount} taches bloquees`, description: `${stuckCount} taches "en cours" sans mise a jour depuis plus de 7 jours`, metric: `${stuckCount}`, suggestedAction: "Contacter les responsables et debloquer les obstacles" });
+    }
+
+    const unreadCount = unreadMsgs[0]?.count ?? 0;
+    const urgentCount = urgentUnread[0]?.count ?? 0;
+    if (urgentCount > 0) {
+      anomalies.push({ type: "urgent_messages", severity: urgentCount > 3 ? "critique" : "haute", title: `${urgentCount} messages urgents non lus`, description: `${urgentCount} messages de haute priorite attendent une reponse`, metric: `${urgentCount}`, suggestedAction: "Traiter immediatement les messages urgents" });
+    }
+    if (unreadCount > 20) {
+      anomalies.push({ type: "message_backlog", severity: "moyenne", title: `${unreadCount} messages non lus accumules`, description: `L'accumulation de messages non lus indique un probleme de traitement`, metric: `${unreadCount}`, suggestedAction: "Organiser une session de traitement des messages" });
+    }
+
+    const oos = outOfStock[0]?.count ?? 0;
+    const ls = lowStock[0]?.count ?? 0;
+    if (oos > 0) {
+      anomalies.push({ type: "out_of_stock", severity: "critique", title: `${oos} articles en rupture de stock`, description: `${oos} articles ont un stock a zero — commandes impossibles`, metric: `${oos}`, suggestedAction: "Commander immediatement les articles en rupture" });
+    }
+    if (ls > 3) {
+      anomalies.push({ type: "low_stock", severity: "haute", title: `${ls} articles en stock bas`, description: `${ls} articles sont en dessous du seuil minimum`, metric: `${ls}`, suggestedAction: "Planifier un reapprovisionnement preventif" });
+    }
+
+    const inactive = inactiveUsers[0]?.count ?? 0;
+    if (inactive > 0) {
+      anomalies.push({ type: "inactive_users", severity: "basse", title: `${inactive} utilisateurs inactifs`, description: `${inactive} utilisateurs actifs ne se sont pas connectes depuis 2 semaines`, metric: `${inactive}`, suggestedAction: "Verifier les comptes et desactiver si necessaire" });
+    }
+
+    const noMfa = noMfaAdmins[0]?.count ?? 0;
+    if (noMfa > 0) {
+      anomalies.push({ type: "security_risk", severity: "haute", title: `${noMfa} admins sans MFA`, description: `${noMfa} comptes administrateurs n'ont pas active l'authentification a deux facteurs`, metric: `${noMfa}`, suggestedAction: "Forcer l'activation du MFA pour tous les administrateurs" });
+    }
+
+    anomalies.sort((a, b) => {
+      const sev = { critique: 0, haute: 1, moyenne: 2, basse: 3 };
+      return (sev[a.severity] ?? 3) - (sev[b.severity] ?? 3);
+    });
+
+    const globalSeverity = anomalies.length === 0 ? "ok" : anomalies[0].severity;
+
+    res.json({
+      anomalies,
+      summary: {
+        total: anomalies.length,
+        critique: anomalies.filter(a => a.severity === "critique").length,
+        haute: anomalies.filter(a => a.severity === "haute").length,
+        moyenne: anomalies.filter(a => a.severity === "moyenne").length,
+        basse: anomalies.filter(a => a.severity === "basse").length,
+      },
+      globalSeverity,
+      checkedAt: now.toISOString(),
+    });
+  } catch (error: any) {
+    logger.error({ err: error }, "Anomaly detection error");
+    res.status(500).json({ error: "Erreur lors de la detection d'anomalies" });
   }
 });
 

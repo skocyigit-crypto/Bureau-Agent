@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, platformConnectionsTable } from "@workspace/db";
-import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNull } from "drizzle-orm";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, platformConnectionsTable, notificationsTable, stockArticlesTable } from "@workspace/db";
+import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNull, or } from "drizzle-orm";
 
 const router = Router();
 
@@ -1782,41 +1782,86 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
       parts: [{ text: h.content }],
     }));
 
-    const systemContext = `Tu es l'Assistant IA Elite du bureau "Agent de Bureau" — le cerveau central de toute l'organisation. Tu as acces a TOUTES les donnees en temps reel du bureau.
+    let stockData: any[] = [];
+    let anomalies: string[] = [];
+    try {
+      const orgStock = eq(stockArticlesTable.organisationId, orgId);
+      const [lowStockItems, stockStats] = await Promise.all([
+        db.select({ id: stockArticlesTable.id, name: stockArticlesTable.name, quantity: stockArticlesTable.quantity, minQuantity: stockArticlesTable.minQuantity }).from(stockArticlesTable).where(and(orgStock, sql`${stockArticlesTable.quantity} <= ${stockArticlesTable.minQuantity}`)).limit(10),
+        db.select({ total: count(), outOfStock: sql<number>`count(*) filter (where ${stockArticlesTable.quantity} = 0)`, totalValue: sql<number>`coalesce(sum(${stockArticlesTable.quantity} * ${stockArticlesTable.unitPrice}), 0)::numeric` }).from(stockArticlesTable).where(orgStock),
+      ]);
+      stockData = lowStockItems;
+      if ((stockStats[0]?.outOfStock ?? 0) > 0) anomalies.push(`${stockStats[0]?.outOfStock} articles en rupture de stock!`);
+    } catch { /* stock table may not be available */ }
 
-DONNEES EN TEMPS REEL:
-📞 Appels: ${callStats[0]?.total ?? 0} total, ${callStats[0]?.thisWeek ?? 0} cette semaine, ${callStats[0]?.missed ?? 0} manques, ${callStats[0]?.answered ?? 0} repondus
-👥 Contacts: ${contactStats[0]?.total ?? 0} total, ${contactStats[0]?.newThisWeek ?? 0} nouveaux cette semaine
-📋 Taches: ${taskStats[0]?.total ?? 0} total, ${taskStats[0]?.pending ?? 0} en attente, ${taskStats[0]?.inProgress ?? 0} en cours, ${taskStats[0]?.completed ?? 0} terminees, ${taskStats[0]?.overdue ?? 0} en retard
-✉️ Messages: ${msgStats[0]?.total ?? 0} total, ${msgStats[0]?.unread ?? 0} non lus
+    const missedRate = (callStats[0]?.total ?? 0) > 0 ? Math.round(((callStats[0]?.missed ?? 0) / (callStats[0]?.total ?? 1)) * 100) : 0;
+    if (missedRate > 30) anomalies.push(`Taux d'appels manques critique: ${missedRate}%`);
+    if ((taskStats[0]?.overdue ?? 0) > 5) anomalies.push(`${taskStats[0]?.overdue} taches en retard — attention!`);
+    if ((msgStats[0]?.unread ?? 0) > 20) anomalies.push(`${msgStats[0]?.unread} messages non lus accumules`);
 
-APPELS RECENTS (7 derniers jours):
-${JSON.stringify(recentCalls.slice(0, 5), null, 1)}
+    const systemContext = `Tu es l'Assistant IA Elite du bureau "Agent de Bureau" — le cerveau central et le BRAS DROIT de toute l'organisation. Tu as acces a TOUTES les donnees en temps reel ET tu peux EXECUTER des actions.
 
-TACHES EN RETARD:
-${JSON.stringify(overdueTasks.slice(0, 5), null, 1)}
+═══ DONNEES EN TEMPS REEL ═══
+📞 Appels: ${callStats[0]?.total ?? 0} total | ${callStats[0]?.thisWeek ?? 0} cette semaine | ${callStats[0]?.missed ?? 0} manques | ${callStats[0]?.answered ?? 0} repondus | Taux manques: ${missedRate}%
+👥 Contacts: ${contactStats[0]?.total ?? 0} total | ${contactStats[0]?.newThisWeek ?? 0} nouveaux cette semaine | ${contactStats[0]?.withEmail ?? 0} avec email
+📋 Taches: ${taskStats[0]?.total ?? 0} total | ${taskStats[0]?.pending ?? 0} en attente | ${taskStats[0]?.inProgress ?? 0} en cours | ${taskStats[0]?.completed ?? 0} terminees | ${taskStats[0]?.overdue ?? 0} EN RETARD
+✉️ Messages: ${msgStats[0]?.total ?? 0} total | ${msgStats[0]?.unread ?? 0} non lus
+📦 Stock en alerte: ${stockData.length} articles bas
+${stockData.length > 0 ? "Articles critiques: " + stockData.map(s => `${s.name} (${s.quantity}/${s.minQuantity})`).join(", ") : ""}
 
-MESSAGES NON LUS PRIORITAIRES:
-${JSON.stringify(unreadMsgs.slice(0, 5), null, 1)}
+${anomalies.length > 0 ? "⚠️ ANOMALIES DETECTEES:\n" + anomalies.map(a => "• " + a).join("\n") : "✅ Aucune anomalie detectee"}
 
-CONTACTS LES PLUS ACTIFS:
-${JSON.stringify(topContacts.slice(0, 5), null, 1)}
+═══ APPELS RECENTS ═══
+${JSON.stringify(recentCalls.slice(0, 8), null, 1)}
 
-TACHES URGENTES (haute priorite):
+═══ TACHES EN RETARD ═══
+${JSON.stringify(overdueTasks.slice(0, 8), null, 1)}
+
+═══ MESSAGES NON LUS ═══
+${JSON.stringify(unreadMsgs.slice(0, 8), null, 1)}
+
+═══ TOP CONTACTS ═══
+${JSON.stringify(topContacts.slice(0, 8), null, 1)}
+
+═══ TACHES URGENTES ═══
 ${JSON.stringify(urgentTasks.slice(0, 5), null, 1)}
 
-CONTEXTE UTILISATEUR: ${context ? JSON.stringify(context) : "Tableau de bord principal"}
+CONTEXTE: ${context ? JSON.stringify(context) : "Tableau de bord principal"}
 
-REGLES:
-1. Reponds TOUJOURS en francais avec un ton professionnel mais chaleureux
-2. Sois PRECIS — cite des chiffres reels du bureau
-3. Quand on te demande "que faire?", donne des ACTIONS CONCRETES numerotees
-4. Si tu detectes un probleme, propose des solutions IMMEDIATES
-5. Tu peux suggerer des actions automatiques: "Je peux relancer automatiquement les taches en retard si vous le souhaitez."
-6. Pour les questions financieres ou de stock, sois factuel et prudent
-7. Chaque reponse doit etre ACTIONNABLE — pas juste informative
+═══ TES POUVOIRS (ACTIONS EXECUTABLES) ═══
+Tu peux proposer ces actions que l'utilisateur peut declencher d'un clic:
 
-Reponds en JSON: {"response": "texte", "actions": [{"label": "string", "type": "auto_fix|navigate|reminder", "target": "string", "details": "string"}], "insights": ["string"], "mood": "positif|neutre|alerte|critique"}`;
+1. "create_task" — Creer une tache. target: JSON {"title":"...", "priority":"haute|moyenne|basse", "status":"en_attente", "description":"...", "dueDate":"YYYY-MM-DD"}
+2. "create_contact" — Creer un contact. target: JSON {"firstName":"...", "lastName":"...", "phone":"...", "email":"...", "category":"client|prospect|fournisseur|partenaire|autre", "company":"..."}
+3. "complete_task" — Marquer une tache comme terminee. target: "ID_TACHE"
+4. "escalate_task" — Escalader en haute priorite. target: "ID_TACHE"
+5. "mark_messages_read" — Marquer les messages comme lus. target: "all" ou "ID_MESSAGE"
+6. "send_notification" — Envoyer une notification interne. target: JSON {"title":"...", "message":"...", "priority":"haute|moyenne|basse|urgente"}
+7. "auto_fix" — Lancer l'auto-correction globale. target: ""
+8. "navigate" — Naviguer vers une page. target: "/chemin"  (ex: /taches, /contacts, /appels, /factures, /stock)
+9. "reminder" — Programmer un rappel. target: "texte du rappel"
+10. "bulk_escalate" — Escalader TOUTES les taches en retard. target: ""
+11. "stock_alert" — Generer une alerte stock critique. target: ""
+
+═══ REGLES D'OR ═══
+1. TOUJOURS en francais, professionnel mais chaleureux
+2. PRECIS — cite des chiffres REELS, pas d'inventions
+3. PROACTIF — detecte les problemes AVANT qu'on te les demande
+4. ACTIONNABLE — chaque reponse propose des actions concretes
+5. EXECUTIF — quand l'utilisateur veut quelque chose, propose l'action directe
+6. Si l'utilisateur dit "cree une tache pour..." ou "ajoute un contact..." ou "rappelle-moi...", genere l'action appropriee
+7. Si tu detectes une anomalie, propose immediatement l'action corrective
+8. Pour les demandes vagues, pose UNE question de clarification puis propose
+9. Sois STRATEGIQUE — explique POURQUOI tu recommandes chaque action
+
+FORMAT DE REPONSE JSON:
+{
+  "response": "texte de reponse detaillee",
+  "actions": [{"label": "Texte du bouton", "type": "create_task|create_contact|complete_task|escalate_task|mark_messages_read|send_notification|auto_fix|navigate|reminder|bulk_escalate|stock_alert", "target": "donnees", "details": "explication"}],
+  "insights": ["observation strategique 1", "observation 2"],
+  "mood": "positif|neutre|alerte|critique",
+  "anomalies": ["anomalie detectee 1"]
+}`;
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
@@ -1852,6 +1897,130 @@ Reponds en JSON: {"response": "texte", "actions": [{"label": "string", "type": "
     console.error("AI Chat error:", error);
     const isProduction = process.env.NODE_ENV === "production";
     res.status(500).json({ error: "Erreur du chat IA", ...(isProduction ? {} : { details: error.message }) });
+  }
+});
+
+router.post("/ai/execute", async (req, res): Promise<void> => {
+  try {
+    const orgId = (req.session as any)?.organisationId;
+    const userId = (req.session as any)?.userId;
+    if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
+
+    const { type, target } = req.body;
+    if (!type) { res.status(400).json({ error: "Type d'action requis." }); return; }
+
+    let result: any = { success: false };
+
+    switch (type) {
+      case "create_task": {
+        let data: any;
+        try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees de tache invalides." }); return; }
+        if (!data.title) { res.status(400).json({ error: "Titre requis." }); return; }
+        const [task] = await db.insert(tasksTable).values({
+          organisationId: orgId,
+          title: data.title,
+          description: data.description || "",
+          status: data.status || "en_attente",
+          priority: data.priority || "moyenne",
+          dueDate: data.dueDate ? new Date(data.dueDate) : null,
+          assignedTo: data.assignedTo || null,
+          relatedContactId: data.relatedContactId || null,
+        }).returning();
+        result = { success: true, message: `Tache "${task.title}" creee avec succes.`, entity: "task", id: task.id };
+        break;
+      }
+      case "create_contact": {
+        let data: any;
+        try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees de contact invalides." }); return; }
+        if (!data.firstName || !data.lastName || !data.phone) { res.status(400).json({ error: "Prenom, nom et telephone requis." }); return; }
+        const [contact] = await db.insert(contactsTable).values({
+          organisationId: orgId,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          phone: data.phone,
+          email: data.email || null,
+          company: data.company || null,
+          category: data.category || "autre",
+          notes: data.notes || null,
+        }).returning();
+        result = { success: true, message: `Contact "${contact.firstName} ${contact.lastName}" cree avec succes.`, entity: "contact", id: contact.id };
+        break;
+      }
+      case "complete_task": {
+        const taskId = parseInt(String(target), 10);
+        if (!taskId) { res.status(400).json({ error: "ID de tache requis." }); return; }
+        const orgTask = eq(tasksTable.organisationId, orgId);
+        await db.update(tasksTable).set({ status: "termine" }).where(and(eq(tasksTable.id, taskId), orgTask));
+        result = { success: true, message: `Tache #${taskId} marquee comme terminee.`, entity: "task", id: taskId };
+        break;
+      }
+      case "escalate_task": {
+        const taskId = parseInt(String(target), 10);
+        if (!taskId) { res.status(400).json({ error: "ID de tache requis." }); return; }
+        await db.update(tasksTable).set({ priority: "haute" }).where(and(eq(tasksTable.id, taskId), eq(tasksTable.organisationId, orgId)));
+        result = { success: true, message: `Tache #${taskId} escaladee en haute priorite.`, entity: "task", id: taskId };
+        break;
+      }
+      case "bulk_escalate": {
+        const now = new Date();
+        const updated = await db.update(tasksTable).set({ priority: "haute" }).where(and(eq(tasksTable.organisationId, orgId), lt(tasksTable.dueDate, now), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"), ne(tasksTable.priority, "haute"))).returning();
+        result = { success: true, message: `${updated.length} taches en retard escaladees en haute priorite.`, count: updated.length };
+        break;
+      }
+      case "mark_messages_read": {
+        if (target === "all") {
+          const updated = await db.update(messagesTable).set({ isRead: true }).where(and(eq(messagesTable.organisationId, orgId), eq(messagesTable.isRead, false))).returning();
+          result = { success: true, message: `${updated.length} messages marques comme lus.`, count: updated.length };
+        } else {
+          const msgId = parseInt(String(target), 10);
+          if (msgId) {
+            await db.update(messagesTable).set({ isRead: true }).where(and(eq(messagesTable.id, msgId), eq(messagesTable.organisationId, orgId)));
+            result = { success: true, message: `Message #${msgId} marque comme lu.` };
+          }
+        }
+        break;
+      }
+      case "send_notification": {
+        let data: any;
+        try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees de notification invalides." }); return; }
+        if (!data.title) { res.status(400).json({ error: "Titre requis." }); return; }
+        await db.insert(notificationsTable).values({
+          userId: userId,
+          organisationId: orgId,
+          title: data.title,
+          message: data.message || "",
+          type: data.type || "info",
+          priority: data.priority || "moyenne",
+        });
+        result = { success: true, message: `Notification "${data.title}" envoyee.` };
+        break;
+      }
+      case "stock_alert": {
+        const orgStock = eq(stockArticlesTable.organisationId, orgId);
+        const criticalItems = await db.select({ id: stockArticlesTable.id, name: stockArticlesTable.name, quantity: stockArticlesTable.quantity }).from(stockArticlesTable).where(and(orgStock, sql`${stockArticlesTable.quantity} <= ${stockArticlesTable.minQuantity}`)).limit(20);
+        if (criticalItems.length > 0) {
+          await db.insert(notificationsTable).values({
+            userId: userId,
+            organisationId: orgId,
+            title: `Alerte Stock: ${criticalItems.length} articles critiques`,
+            message: criticalItems.map(i => `${i.name}: ${i.quantity} restants`).join(", "),
+            type: "alerte",
+            priority: "haute",
+          });
+          result = { success: true, message: `Alerte stock generee pour ${criticalItems.length} articles.`, count: criticalItems.length };
+        } else {
+          result = { success: true, message: "Aucun article en stock critique." };
+        }
+        break;
+      }
+      default:
+        result = { success: false, message: `Action "${type}" non reconnue.` };
+    }
+
+    res.json(result);
+  } catch (error: any) {
+    console.error("AI Execute error:", error);
+    res.status(500).json({ error: "Erreur d'execution", success: false });
   }
 });
 
