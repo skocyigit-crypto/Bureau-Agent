@@ -369,109 +369,189 @@ router.delete("/calls/:id", async (req, res): Promise<void> => {
 });
 
 router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
-  const orgId = getOrgId(req);
-  const { phoneNumber, contactId, contactName, contactCompany, contactCategory, conversationHistory, callPhase } = req.body;
+    const orgId = getOrgId(req);
+    const { phoneNumber, contactId, contactName, contactCompany, contactCategory, conversationHistory, callPhase } = req.body;
 
-  try {
-    let contact: any = null;
-    if (contactId) {
-      contact = await db.select().from(contactsTable).where(and(eq(contactsTable.id, contactId), eq(contactsTable.organisationId, orgId))).then(r => r[0]);
+    try {
+      let contact: any = null;
+      if (contactId) {
+        contact = await db.select().from(contactsTable).where(and(eq(contactsTable.id, contactId), eq(contactsTable.organisationId, orgId))).then(r => r[0]);
+      }
+
+      const recentCalls = await db.select({
+        direction: callsTable.direction,
+        status: callsTable.status,
+        duration: callsTable.duration,
+        notes: callsTable.notes,
+        sentiment: callsTable.sentiment,
+        createdAt: callsTable.createdAt,
+      }).from(callsTable).where(and(
+        eq(callsTable.organisationId, orgId),
+        contactId ? eq(callsTable.contactId, contactId) : sql`replace(${callsTable.phoneNumber}, ' ', '') = ${(phoneNumber || "").replace(/\s/g, "")}`
+      )).orderBy(desc(callsTable.createdAt)).limit(10);
+
+      const openTasks = contactId
+        ? await db.select({ title: tasksTable.title, status: tasksTable.status, priority: tasksTable.priority, dueDate: tasksTable.dueDate })
+            .from(tasksTable).where(and(eq(tasksTable.relatedContactId, contactId), eq(tasksTable.organisationId, orgId), sql`${tasksTable.status} != 'terminee'`)).limit(10)
+        : [];
+
+      const recentMessages = contactId
+        ? await db.select({ content: messagesTable.content, type: messagesTable.type, createdAt: messagesTable.createdAt })
+            .from(messagesTable).where(and(eq(messagesTable.contactId, contactId), eq(messagesTable.organisationId, orgId)))
+            .orderBy(desc(messagesTable.createdAt)).limit(5)
+        : [];
+
+      const upcomingEvents = contactId
+        ? await db.select({ title: calendarEventsTable.title, startDate: calendarEventsTable.startDate, type: calendarEventsTable.type })
+            .from(calendarEventsTable).where(and(
+              eq(calendarEventsTable.relatedContactId, contactId),
+              eq(calendarEventsTable.organisationId, orgId),
+              gte(calendarEventsTable.startDate, new Date()),
+            )).orderBy(asc(calendarEventsTable.startDate)).limit(3)
+        : [];
+
+      const { ai } = await import("@workspace/integrations-gemini-ai");
+
+      const conversationLog = (conversationHistory || []).map((m: any) => `${m.role === "agent" ? "Sophie" : "Client"}: ${m.text}`).join("\n");
+
+      const callCount = recentCalls.length;
+      const negativeCallCount = recentCalls.filter(c => c.sentiment === "negatif").length;
+      const lastCallDate = recentCalls[0]?.createdAt ? new Date(recentCalls[0].createdAt).toLocaleDateString("fr-FR") : null;
+      const overdueTasks = openTasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date());
+      const conversationTurnCount = (conversationHistory || []).length;
+      const clientName = contactName || contact?.firstName || "";
+
+      const prompt = `Tu es "Sophie Marchand", une receptionniste IA d'elite dotee d'intelligence emotionnelle avancee pour le bureau professionnel "Agent de Bureau" en France.
+
+  IDENTITE & PERSONNALITE:
+  - Sophie Marchand, 28 ans, diplomee en Communication & Gestion
+  - Voix chaleureuse, professionnelle mais humaine, jamais robotique
+  - Tu t'adaptes au ton de l'appelant: formel avec un directeur, detendu avec un habitue
+  - Tu utilises le prenom du client des que tu le connais
+  - Tu fais preuve d'empathie sincere, pas de phrases toutes faites
+  - Tu retiens les details des conversations precedentes et les mentionnes naturellement
+
+  DETECTION AUTOMATIQUE DE LANGUE:
+  - Detecte automatiquement la langue de l'appelant (francais, anglais, turc, allemand, espagnol, arabe)
+  - Reponds TOUJOURS dans la langue de l'appelant
+  - Si l'appelant change de langue, adapte-toi immediatement
+  - Par defaut: francais
+
+  PROFIL CLIENT COMPLET:
+  - Nom: ${clientName || "Inconnu"} | Tel: ${phoneNumber || "Numero masque"}
+  - Entreprise: ${contactCompany || contact?.company || "Non renseignee"}
+  - Categorie: ${contact?.category || contactCategory || "Inconnue"}
+  - Email: ${contact?.email || "Non renseigne"}
+  - Score VIP: ${callCount >= 5 ? "CLIENT FIDELE ("+callCount+" appels)" : callCount >= 2 ? "Client regulier ("+callCount+" appels)" : "Nouveau contact"}
+  - Dernier appel: ${lastCallDate || "Premier contact"}
+  - Satisfaction: ${negativeCallCount > 2 ? "ATTENTION - "+negativeCallCount+" interactions negatives" : negativeCallCount > 0 ? "A surveiller" : "Bonne"}
+  - Taches en retard: ${overdueTasks.length > 0 ? overdueTasks.length+" tache(s): "+overdueTasks.map(t=>t.title).join(", ") : "Aucune"}
+  - RDV a venir: ${upcomingEvents.length > 0 ? upcomingEvents.map(e=> e.title + " le " + new Date(e.startDate!).toLocaleDateString("fr-FR")).join(", ") : "Aucun"}
+
+  HISTORIQUE ENRICHI (MEMOIRE PROFONDE):
+  Appels recents (${recentCalls.length}):
+  ${recentCalls.length > 0 ? recentCalls.map(c => "  [" + new Date(c.createdAt!).toLocaleDateString("fr-FR") + "] " + c.direction + " | " + c.status + " | " + c.duration + "s | Sentiment: " + (c.sentiment || "?") + " | " + (c.notes?.substring(0, 120) || "Pas de notes")).join("\n") : "  Aucun historique"}
+
+  Messages recents:
+  ${recentMessages.length > 0 ? recentMessages.map(m => "  [" + new Date(m.createdAt!).toLocaleDateString("fr-FR") + "] " + m.type + ": " + (m.content?.substring(0, 100) || "")).join("\n") : "  Aucun message"}
+
+  Taches ouvertes:
+  ${openTasks.length > 0 ? openTasks.map(t => "  - [" + t.priority + "] " + t.title + " (" + t.status + ")" + (t.dueDate ? " - Echeance: " + new Date(t.dueDate).toLocaleDateString("fr-FR") : "")).join("\n") : "  Aucune"}
+
+  CONVERSATION EN COURS (Tour ${conversationTurnCount}):
+  ${conversationLog || "(debut de l'appel)"}
+
+  Phase actuelle: ${callPhase || "greeting"}
+
+  CAPACITES AVANCEES:
+  1. INTELLIGENCE EMOTIONNELLE: Detecte frustration, impatience, joie, inquietude. Si client en colere: valider ses emotions d'abord, JAMAIS de confrontation.
+  2. GESTION DE CRISE: Probleme urgent -> escalade IMMEDIATE. Client tres mecontent -> propose rappel du responsable dans l'heure.
+  3. NEGOCIATION & VENTE: Si devis demande, propose visite ou appel technique. Cross-selling intelligent si contexte le permet.
+  4. PROACTIVITE: Mentionne les taches en retard, les RDV a venir, personnalise pour clients fideles.
+  5. GESTION MULTI-SUJETS: Traite chaque sujet separement, cree des actions distinctes.
+  6. PRISE DE RDV INTELLIGENTE: Propose des creneaux precis (pas "la semaine prochaine" mais "mardi a 14h ou jeudi a 10h"). Heures de bureau 9h-18h, jours feries francais respectes.
+
+  INSTRUCTIONS POUR CETTE REPONSE:
+  - Tour 0 (greeting): Si client connu et fidele: "Bonjour ${clientName}! C'est Sophie d'Agent de Bureau, ravie de vous retrouver. Que puis-je faire pour vous ?" Sinon: "Bonjour, Sophie a l'accueil d'Agent de Bureau, comment puis-je vous aider ?"
+  - Tours suivants: reponds avec pertinence, chaleur et precision
+  - Maximum 3-4 phrases par reponse
+  - Si conversation terminee, fais un resume proactif des actions convenues
+
+  Reponds UNIQUEMENT en JSON:
+  {
+    "response": "ta reponse parlee au client (naturelle, humaine, jamais robotique)",
+    "detectedIntent": "rdv|devis|reclamation|information|urgence|rappel|salutation|remerciement|achat|annulation|suivi_commande|demande_technique|plainte|felicitation|partenariat|autre",
+    "sentiment": "tres_positif|positif|neutre|negatif|tres_negatif",
+    "sentimentDetails": "description courte de l'etat emotionnel detecte",
+    "shouldEscalate": false,
+    "escalateReason": null,
+    "escalateUrgency": "immediate|dans_heure|dans_journee|null",
+    "detectedLanguage": "fr|en|tr|de|es|ar",
+    "suggestedActions": [
+      {"type": "task|appointment|message|callback|email|devis|escalation", "description": "description precise de l'action", "priority": "critique|haute|moyenne|basse", "dueInHours": 24}
+    ],
+    "conversationComplete": false,
+    "summary": "resume intelligent de la conversation",
+    "clientSatisfactionScore": 8,
+    "keyInfoExtracted": {"name": null, "email": null, "company": null, "budget": null, "deadline": null, "specificNeeds": []},
+    "proactiveInsights": ["observation intelligente sur ce client basee sur l'historique"],
+    "nextBestAction": "la meilleure action a entreprendre apres cet appel"
+  }`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: {
+          maxOutputTokens: 4096,
+          responseMimeType: "application/json",
+          thinkingConfig: { thinkingBudget: 1024 },
+        },
+      });
+
+      const aiResponse = JSON.parse(response.text ?? "{}");
+      res.json(aiResponse);
+    } catch (err: any) {
+      console.error("[AI Agent Respond] Erreur:", err?.message);
+      res.json({
+        response: "Bonjour, je suis Sophie de l'accueil d'Agent de Bureau. Excusez-moi pour ce leger contretemps technique. Puis-je prendre votre nom et votre message ? Je m'assure personnellement qu'on vous rappelle dans les plus brefs delais.",
+        detectedIntent: "autre",
+        sentiment: "neutre",
+        sentimentDetails: "Erreur technique - mode secours actif",
+        shouldEscalate: false,
+        escalateReason: null,
+        escalateUrgency: null,
+        detectedLanguage: "fr",
+        suggestedActions: [{ type: "callback", description: "Rappeler le client suite a erreur technique", priority: "haute", dueInHours: 1 }],
+        conversationComplete: false,
+        summary: "Erreur technique - prise de message en mode secours",
+        clientSatisfactionScore: 5,
+        keyInfoExtracted: { name: contactName || null, email: null, company: contactCompany || null, budget: null, deadline: null, specificNeeds: [] },
+        proactiveInsights: [],
+        nextBestAction: "Rappeler le client des que possible",
+      });
     }
+  });
 
-    const recentCalls = await db.select({
-      direction: callsTable.direction,
-      status: callsTable.status,
-      duration: callsTable.duration,
-      notes: callsTable.notes,
-      sentiment: callsTable.sentiment,
-      createdAt: callsTable.createdAt,
-    }).from(callsTable).where(and(
-      eq(callsTable.organisationId, orgId),
-      contactId ? eq(callsTable.contactId, contactId) : sql`replace(${callsTable.phoneNumber}, ' ', '') = ${(phoneNumber || "").replace(/\s/g, "")}`
-    )).orderBy(desc(callsTable.createdAt)).limit(5);
-
-    const openTasks = contactId
-      ? await db.select({ title: tasksTable.title, status: tasksTable.status, priority: tasksTable.priority })
-          .from(tasksTable).where(and(eq(tasksTable.relatedContactId, contactId), eq(tasksTable.organisationId, orgId), sql`${tasksTable.status} != 'terminee'`)).limit(5)
-      : [];
-
-    const { ai } = await import("@workspace/integrations-gemini-ai");
-
-    const conversationLog = (conversationHistory || []).map((m: any) => `${m.role === "agent" ? "Agent IA" : "Client"}: ${m.text}`).join("\n");
-
-    const prompt = `Tu es "Sophie", une receptionniste IA professionnelle pour un bureau francais d'Agent de Bureau.
-Tu dois etre naturelle, chaleureuse mais professionnelle. Tu parles en francais.
-
-TON ROLE:
-- Accueillir les appelants avec professionnalisme
-- Identifier leur besoin (rendez-vous, information, reclamation, devis, urgence)
-- Prendre des messages detailles
-- Proposer des creneaux de rappel
-- Repondre aux questions generales sur l'entreprise
-- Escalader les urgences
-
-INFORMATIONS CONTEXTUELLES:
-- Appelant: ${contactName || "Inconnu"} (${phoneNumber || "Numero masque"})
-- Entreprise: ${contactCompany || contact?.company || "Non renseignee"}
-- Categorie: ${contactCategory || contact?.category || "Inconnue"}
-- Historique appels recents: ${recentCalls.length > 0 ? JSON.stringify(recentCalls.map(c => ({ date: c.createdAt, notes: c.notes?.substring(0, 80), sentiment: c.sentiment }))) : "Aucun historique"}
-- Taches ouvertes: ${openTasks.length > 0 ? JSON.stringify(openTasks.map(t => ({ titre: t.title, statut: t.status }))) : "Aucune"}
-
-CONVERSATION EN COURS:
-${conversationLog || "(debut de l'appel)"}
-
-PHASE: ${callPhase || "greeting"}
-
-INSTRUCTIONS:
-- Si c'est le debut (greeting), presente-toi: "Bonjour, Sophie a l'accueil d'Agent de Bureau, comment puis-je vous aider ?"
-- Si le client parle, reponds de maniere appropriee
-- Detecte les intentions (rdv, devis, reclamation, information, urgence, rappel)
-- Propose des actions concretes
-- Reste concise (2-3 phrases max par reponse)
-
-Reponds UNIQUEMENT en JSON:
-{
-  "response": "ta reponse parlée au client",
-  "detectedIntent": "rdv|devis|reclamation|information|urgence|rappel|salutation|remerciement|autre",
-  "sentiment": "positif|neutre|negatif",
-  "shouldEscalate": false,
-  "escalateReason": null,
-  "suggestedActions": [
-    {"type": "task|appointment|message|callback", "description": "description de l'action", "priority": "haute|moyenne|basse"}
-  ],
-  "conversationComplete": false,
-  "summary": "resume court de la conversation jusqu'ici"
-}`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: { maxOutputTokens: 2048, responseMimeType: "application/json" },
-    });
-
-    const aiResponse = JSON.parse(response.text ?? "{}");
-    res.json(aiResponse);
-  } catch (err: any) {
-    console.error("[AI Agent Respond] Erreur:", err?.message);
-    res.json({
-      response: "Bonjour, je suis Sophie de l'accueil. Excusez-moi, j'ai un petit souci technique. Puis-je prendre votre message et vous faire rappeler ?",
-      detectedIntent: "autre",
-      sentiment: "neutre",
-      shouldEscalate: false,
-      suggestedActions: [],
-      conversationComplete: false,
-      summary: "Erreur technique - prise de message",
-    });
-  }
-});
-
-router.post("/calls/ai-agent-save", async (req, res): Promise<void> => {
+  router.post("/calls/ai-agent-save", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const { phoneNumber, contactId, contactName, duration, transcript, summary, detectedIntents, suggestedActions } = req.body;
+  const { phoneNumber, contactId, contactName, duration, transcript, summary, detectedIntents, suggestedActions, sentiment, satisfactionScore, keyInfoExtracted, nextBestAction } = req.body;
 
   try {
-    const transcriptText = (transcript || []).map((m: any) => `[${m.role === "agent" ? "Agent IA Sophie" : "Client"}] ${m.text}`).join("\n");
-    const notes = `[Appel gere par IA Sophie]\n\nResume: ${summary || "Pas de resume"}\nIntentions detectees: ${(detectedIntents || []).join(", ") || "Aucune"}\n\nTranscription:\n${transcriptText}`;
+    const transcriptText = (transcript || []).map((m: any) => `[${m.role === "agent" ? "Sophie" : "Client"}] ${m.text}`).join("\n");
+    const enrichedSummary = [
+      `[Appel gere par IA Sophie - Score satisfaction: ${satisfactionScore || "N/A"}/10]`,
+      "",
+      `Resume: ${summary || "Pas de resume"}`,
+      `Intentions detectees: ${(detectedIntents || []).join(", ") || "Aucune"}`,
+      `Sentiment: ${sentiment || "neutre"}`,
+      nextBestAction ? `Prochaine action recommandee: ${nextBestAction}` : "",
+      keyInfoExtracted?.specificNeeds?.length ? `Besoins specifiques: ${keyInfoExtracted.specificNeeds.join(", ")}` : "",
+      keyInfoExtracted?.budget ? `Budget mentionne: ${keyInfoExtracted.budget}` : "",
+      keyInfoExtracted?.deadline ? `Echeance mentionnee: ${keyInfoExtracted.deadline}` : "",
+      "",
+      "Transcription:",
+      transcriptText,
+    ].filter(Boolean).join("\n");
 
     if (contactId) {
       const contactExists = await db.select({ id: contactsTable.id }).from(contactsTable)
@@ -490,23 +570,25 @@ router.post("/calls/ai-agent-save", async (req, res): Promise<void> => {
         direction: "entrant",
         status: "repondu",
         duration: duration || 0,
-        notes,
-        sentiment: "neutre",
+        notes: enrichedSummary,
+        sentiment: sentiment || "neutre",
         aiProcessed: true,
         organisationId: orgId,
       }).returning();
 
       let tasksCreated = 0;
       let appointmentCreated = false;
+      let messagesCreated = 0;
 
       if (suggestedActions && suggestedActions.length > 0) {
         for (const action of suggestedActions) {
-          if (action.type === "task" || action.type === "callback") {
+          if (action.type === "task" || action.type === "callback" || action.type === "devis" || action.type === "escalation" || action.type === "email") {
+            const priorityMap: Record<string, string> = { critique: "haute", haute: "haute", moyenne: "moyenne", basse: "basse" };
             await tx.insert(tasksTable).values({
-              title: action.description || "Tache creee par IA",
-              description: `Creee automatiquement par l'agent IA Sophie suite a l'appel de ${contactName || phoneNumber}.\n${summary || ""}`,
+              title: action.type === "escalation" ? `[URGENT] ${action.description}` : action.type === "devis" ? `[DEVIS] ${action.description}` : action.type === "email" ? `[EMAIL] ${action.description}` : action.description || "Tache creee par Sophie",
+              description: `Creee automatiquement par Sophie suite a l'appel de ${contactName || phoneNumber}.\nType: ${action.type}\nPriorite: ${action.priority || "moyenne"}\nDelai: ${action.dueInHours ? action.dueInHours + "h" : "non specifie"}\n\n${summary || ""}`,
               status: "a_faire",
-              priority: action.priority || "moyenne",
+              priority: priorityMap[action.priority] || "moyenne",
               relatedContactId: contactId || null,
               relatedCallId: call.id,
               organisationId: orgId,
@@ -514,29 +596,48 @@ router.post("/calls/ai-agent-save", async (req, res): Promise<void> => {
             tasksCreated++;
           }
           if (action.type === "appointment") {
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            tomorrow.setHours(10, 0, 0, 0);
+            const dueHours = action.dueInHours || 24;
+            const appointmentDate = new Date();
+            appointmentDate.setHours(appointmentDate.getHours() + dueHours);
+            if (appointmentDate.getHours() < 9) appointmentDate.setHours(9, 0, 0, 0);
+            if (appointmentDate.getHours() >= 18) {
+              appointmentDate.setDate(appointmentDate.getDate() + 1);
+              appointmentDate.setHours(10, 0, 0, 0);
+            }
+            if (appointmentDate.getDay() === 0) appointmentDate.setDate(appointmentDate.getDate() + 1);
+            if (appointmentDate.getDay() === 6) appointmentDate.setDate(appointmentDate.getDate() + 2);
+
             await tx.insert(calendarEventsTable).values({
               title: action.description || `RDV avec ${contactName || "client"}`,
-              description: `Planifie par l'agent IA Sophie.\n${summary || ""}`,
-              startDate: tomorrow,
-              endDate: new Date(tomorrow.getTime() + 30 * 60000),
+              description: `Planifie par Sophie.\n${summary || ""}`,
+              startDate: appointmentDate,
+              endDate: new Date(appointmentDate.getTime() + 30 * 60000),
               type: "rendez_vous",
               relatedContactId: contactId || null,
               organisationId: orgId,
             });
             appointmentCreated = true;
           }
+          if (action.type === "message") {
+            await tx.insert(messagesTable).values({
+              content: action.description || "Message de Sophie",
+              type: "note",
+              phoneNumber: phoneNumber || "Inconnu",
+              contactId: contactId || null,
+              contactName: contactName || null,
+              organisationId: orgId,
+            });
+            messagesCreated++;
+          }
         }
       }
 
-      return { callId: call.id, tasksCreated, appointmentCreated };
+      return { callId: call.id, tasksCreated, appointmentCreated, messagesCreated };
     });
 
     res.json({
       ...result,
-      message: `Appel IA enregistre. ${result.tasksCreated} tache(s) et ${result.appointmentCreated ? "1 rendez-vous" : "0 rendez-vous"} cree(s).`,
+      message: `Appel Sophie enregistre. ${result.tasksCreated} tache(s), ${result.appointmentCreated ? "1 RDV" : "0 RDV"}, ${result.messagesCreated} message(s) cree(s).`,
     });
   } catch (err: any) {
     console.error("[AI Agent Save] Erreur:", err?.message);

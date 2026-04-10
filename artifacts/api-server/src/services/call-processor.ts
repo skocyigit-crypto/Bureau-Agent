@@ -64,34 +64,32 @@ async function _processCallInternal(callId: number): Promise<{
 
   const { ai } = await import("@workspace/integrations-gemini-ai");
 
-  const prompt = `Tu es l'assistant intelligent d'un bureau professionnel en France (Agent de Bureau).
-Tu analyses les appels telephoniques et extrais automatiquement les actions necessaires.
+  const prompt = `Tu es l'analyste IA d'elite du bureau professionnel "Agent de Bureau" en France.
+Tu possedes une expertise avancee en analyse conversationnelle, detection de patterns et intelligence d'affaires.
 
-APPEL A ANALYSER:
+APPEL A ANALYSER EN PROFONDEUR:
 - Contact: ${call.contactName || "Inconnu"}
 - Telephone: ${call.phoneNumber}
 - Direction: ${call.direction}
 - Statut: ${call.status}
 - Duree: ${call.duration} secondes
-- Notes: ${call.notes || "Aucune note"}
+- Notes/Transcription: ${call.notes || "Aucune note"}
 - Date: ${call.createdAt}
 
-INSTRUCTIONS:
-1. Resume l'appel en 2-3 phrases.
+ANALYSE MULTI-DIMENSIONNELLE:
+1. Resume l'appel en 2-3 phrases percutantes et actionnables.
 2. Determine le sentiment global (positif, neutre, negatif).
 3. Detecte si un rendez-vous a ete demande ou convenu.
-   - Si oui, propose une date/heure realiste (dans les prochains jours ouvrables).
+   - Si oui, propose une date/heure realiste (prochains jours ouvrables, 9h-18h, pas de jours feries).
    - Determine le type: rdv, visite, reunion, appel.
-4. Identifie les taches a creer suite a cet appel.
-   - Pour chaque tache, donne un titre, description, priorite (haute/moyenne/basse), et delai en jours.
-5. Determine si un suivi est necessaire.
-6. Propose des tags pertinents.
+4. Identifie TOUTES les taches a creer suite a cet appel.
+   - Pour chaque tache: titre precis, description detaillee, priorite (haute/moyenne/basse), delai en jours.
+   - Inclus les taches implicites (ex: si le client mentionne un probleme, cree une tache de suivi).
+5. Determine si un suivi est necessaire et pourquoi.
+6. Propose des tags pertinents et precis (minimum 3).
 7. Genere une petite blague legere et professionnelle en rapport avec le sujet de l'appel.
-   - La blague doit etre courte (1-2 phrases max), bienveillante et adaptee au milieu professionnel.
-   - Elle peut etre un jeu de mots, une observation amusante, ou un trait d'humour leger.
-   - Exemples: "Pourquoi les comptables ne jouent jamais a cache-cache? Parce qu'ils finissent toujours par se faire retrouver dans les comptes!", "Un devis bien fait, c'est comme un bon cafe: ca reveille tout le monde!"
-   - Adapte la blague au contexte de l'appel (comptabilite, rendez-vous, devis, chantier, etc.)
-   - Toujours en francais, toujours respectueuse et legere.
+   - Courte (1-2 phrases max), bienveillante et adaptee au milieu professionnel.
+   - Adapte la blague au contexte (comptabilite, rendez-vous, devis, chantier, etc.)
 
 IMPORTANT:
 - Les dates suggerees doivent etre au format ISO 8601 (YYYY-MM-DD).
@@ -133,6 +131,7 @@ Reponds UNIQUEMENT en JSON avec cette structure:
     config: {
       maxOutputTokens: 4096,
       responseMimeType: "application/json",
+      thinkingConfig: { thinkingBudget: 1024 },
     },
   });
 

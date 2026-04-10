@@ -93,6 +93,12 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
   const [aiSaveResult, setAiSaveResult] = useState<any>(null);
   const [aiSaving, setAiSaving] = useState(false);
   const [aiCallTimer, setAiCallTimer] = useState(0);
+  const [aiSentiment, setAiSentiment] = useState("neutre");
+  const [aiSatisfactionScore, setAiSatisfactionScore] = useState<number | null>(null);
+  const [aiKeyInfo, setAiKeyInfo] = useState<any>(null);
+  const [aiNextBestAction, setAiNextBestAction] = useState("");
+  const [aiProactiveInsights, setAiProactiveInsights] = useState<string[]>([]);
+  const [aiDetectedLanguage, setAiDetectedLanguage] = useState("fr");
   const aiChatEndRef = useRef<HTMLDivElement>(null);
   const createCall = useCreateCall();
   const queryClient = useQueryClient();
@@ -123,6 +129,12 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
       setAiSaveResult(null);
       setAiSaving(false);
       setAiCallTimer(0);
+      setAiSentiment("neutre");
+      setAiSatisfactionScore(null);
+      setAiKeyInfo(null);
+      setAiNextBestAction("");
+      setAiProactiveInsights([]);
+      setAiDetectedLanguage("fr");
     }
   }, [isVisible]);
 
@@ -250,8 +262,15 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
       if (data.suggestedActions?.length > 0) {
         setAiActions(prev => [...prev, ...data.suggestedActions]);
       }
+      if (data.sentiment) setAiSentiment(data.sentiment);
+      if (data.clientSatisfactionScore != null) setAiSatisfactionScore(data.clientSatisfactionScore);
+      if (data.keyInfoExtracted) setAiKeyInfo(data.keyInfoExtracted);
+      if (data.nextBestAction) setAiNextBestAction(data.nextBestAction);
+      if (data.proactiveInsights?.length > 0) setAiProactiveInsights(data.proactiveInsights);
+      if (data.detectedLanguage) setAiDetectedLanguage(data.detectedLanguage);
       if (data.shouldEscalate) {
-        toast({ title: "Escalade requise", description: data.escalateReason || "L'agent IA recommande un transfert a un agent humain." });
+        const urgencyLabels: Record<string, string> = { immediate: "IMMEDIATE", dans_heure: "dans l'heure", dans_journee: "dans la journee" };
+        toast({ title: `Escalade ${data.escalateUrgency ? urgencyLabels[data.escalateUrgency] || "" : ""}`, description: data.escalateReason || "Sophie recommande un transfert a un agent humain.", variant: "destructive" });
       }
     } catch {
       const now = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -298,6 +317,10 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
           summary: aiSummary,
           detectedIntents: aiDetectedIntents,
           suggestedActions: aiActions,
+          sentiment: aiSentiment,
+          satisfactionScore: aiSatisfactionScore,
+          keyInfoExtracted: aiKeyInfo,
+          nextBestAction: aiNextBestAction,
         }),
       });
       if (!res.ok) throw new Error("Save failed");
@@ -312,7 +335,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
     } finally {
       setAiSaving(false);
     }
-  }, [baseUrl, callData, aiCallTimer, aiConversation, aiSummary, aiDetectedIntents, aiActions, queryClient, toast]);
+  }, [baseUrl, callData, aiCallTimer, aiConversation, aiSummary, aiDetectedIntents, aiActions, aiSentiment, aiSatisfactionScore, aiKeyInfo, aiNextBestAction, queryClient, toast]);
 
   const saveCall = useCallback((status: "repondu" | "manque" | "messagerie") => {
     createCall.mutate({
@@ -820,12 +843,34 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                     {callData.contactName || callData.phoneNumber}
                     {callData.company && <span className="text-white/40">• {callData.company}</span>}
                   </p>
-                  {aiDetectedIntents.length > 0 && (
-                    <div className="flex flex-wrap gap-1 justify-center mt-2">
-                      {aiDetectedIntents.map((i, idx) => (
-                        <Badge key={idx} className="bg-violet-500/10 text-violet-300 border-violet-500/20 text-[10px]">
-                          {i === "rdv" ? "Rendez-vous" : i === "devis" ? "Devis" : i === "reclamation" ? "Reclamation" : i === "urgence" ? "Urgence" : i === "rappel" ? "Rappel" : i === "information" ? "Information" : i}
-                        </Badge>
+                  <div className="flex flex-wrap gap-1.5 justify-center mt-2">
+                    <Badge className={`text-[10px] border ${aiSentiment === "tres_positif" || aiSentiment === "positif" ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" : aiSentiment === "negatif" || aiSentiment === "tres_negatif" ? "bg-red-500/20 text-red-300 border-red-500/30" : "bg-white/10 text-white/60 border-white/20"}`}>
+                      <Smile className="w-3 h-3 mr-0.5" />
+                      {aiSentiment.replace("_", " ")}
+                    </Badge>
+                    {aiSatisfactionScore != null && (
+                      <Badge className={`text-[10px] border ${aiSatisfactionScore >= 7 ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" : aiSatisfactionScore >= 4 ? "bg-amber-500/20 text-amber-300 border-amber-500/30" : "bg-red-500/20 text-red-300 border-red-500/30"}`}>
+                        <Star className="w-3 h-3 mr-0.5" />
+                        {aiSatisfactionScore}/10
+                      </Badge>
+                    )}
+                    <Badge className="bg-blue-500/10 text-blue-300 border-blue-500/20 text-[10px]">
+                      {aiDetectedLanguage === "fr" ? "Francais" : aiDetectedLanguage === "en" ? "English" : aiDetectedLanguage === "tr" ? "Turkce" : aiDetectedLanguage === "de" ? "Deutsch" : aiDetectedLanguage === "es" ? "Espanol" : aiDetectedLanguage === "ar" ? "Arabic" : aiDetectedLanguage}
+                    </Badge>
+                    {aiDetectedIntents.map((i, idx) => (
+                      <Badge key={idx} className="bg-violet-500/10 text-violet-300 border-violet-500/20 text-[10px]">
+                        {i === "rdv" ? "Rendez-vous" : i === "devis" ? "Devis" : i === "reclamation" ? "Reclamation" : i === "urgence" ? "Urgence" : i === "rappel" ? "Rappel" : i === "information" ? "Information" : i === "achat" ? "Achat" : i === "annulation" ? "Annulation" : i === "suivi_commande" ? "Suivi" : i === "demande_technique" ? "Technique" : i === "plainte" ? "Plainte" : i === "partenariat" ? "Partenariat" : i}
+                      </Badge>
+                    ))}
+                  </div>
+                  {aiProactiveInsights.length > 0 && (
+                    <div className="mt-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                      <div className="flex items-center gap-1 text-[10px] text-amber-300 mb-1">
+                        <Lightbulb className="w-3 h-3" />
+                        Insights Sophie
+                      </div>
+                      {aiProactiveInsights.map((insight, idx) => (
+                        <p key={idx} className="text-[10px] text-amber-200/80">{insight}</p>
                       ))}
                     </div>
                   )}
@@ -929,12 +974,50 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                   </p>
                 </div>
 
+                <div className="mx-6 mb-3 flex flex-wrap gap-2">
+                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${aiSentiment === "tres_positif" || aiSentiment === "positif" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300" : aiSentiment === "negatif" || aiSentiment === "tres_negatif" ? "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300" : "bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-300"}`}>
+                    <Smile className="w-3.5 h-3.5" />
+                    {aiSentiment.replace("_", " ")}
+                  </div>
+                  {aiSatisfactionScore != null && (
+                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium ${aiSatisfactionScore >= 7 ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300" : aiSatisfactionScore >= 4 ? "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300" : "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300"}`}>
+                      <Star className="w-3.5 h-3.5" />
+                      Satisfaction: {aiSatisfactionScore}/10
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
+                    {aiDetectedLanguage === "fr" ? "Francais" : aiDetectedLanguage === "en" ? "English" : aiDetectedLanguage === "tr" ? "Turkce" : aiDetectedLanguage === "de" ? "Deutsch" : aiDetectedLanguage === "es" ? "Espanol" : aiDetectedLanguage === "ar" ? "Arabic" : aiDetectedLanguage}
+                  </div>
+                </div>
+
                 {aiSummary && (
                   <div className="mx-6 mb-3 p-3 rounded-xl bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800">
                     <p className="text-xs font-medium text-violet-700 dark:text-violet-300 mb-1 flex items-center gap-1">
-                      <Brain className="w-3 h-3" /> Resume IA
+                      <Brain className="w-3 h-3" /> Resume Sophie
                     </p>
                     <p className="text-sm text-violet-900 dark:text-violet-100">{aiSummary}</p>
+                  </div>
+                )}
+
+                {aiNextBestAction && (
+                  <div className="mx-6 mb-3 p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                    <p className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-1 flex items-center gap-1">
+                      <ArrowRight className="w-3 h-3" /> Prochaine action recommandee
+                    </p>
+                    <p className="text-sm text-blue-900 dark:text-blue-100">{aiNextBestAction}</p>
+                  </div>
+                )}
+
+                {aiKeyInfo && (aiKeyInfo.budget || aiKeyInfo.deadline || aiKeyInfo.specificNeeds?.length > 0) && (
+                  <div className="mx-6 mb-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                    <p className="text-xs font-medium text-amber-700 dark:text-amber-300 mb-1 flex items-center gap-1">
+                      <Target className="w-3 h-3" /> Informations extraites
+                    </p>
+                    <div className="text-xs space-y-0.5 text-amber-900 dark:text-amber-100">
+                      {aiKeyInfo.budget && <p>Budget: {aiKeyInfo.budget}</p>}
+                      {aiKeyInfo.deadline && <p>Echeance: {aiKeyInfo.deadline}</p>}
+                      {aiKeyInfo.specificNeeds?.length > 0 && <p>Besoins: {aiKeyInfo.specificNeeds.join(", ")}</p>}
+                    </div>
                   </div>
                 )}
 
@@ -944,7 +1027,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                     <div className="flex flex-wrap gap-1">
                       {aiDetectedIntents.map((i, idx) => (
                         <Badge key={idx} variant="outline" className="text-xs">
-                          {i === "rdv" ? "Rendez-vous" : i === "devis" ? "Devis" : i === "reclamation" ? "Reclamation" : i === "urgence" ? "Urgence" : i === "rappel" ? "Rappel" : i === "information" ? "Information" : i}
+                          {i === "rdv" ? "Rendez-vous" : i === "devis" ? "Devis" : i === "reclamation" ? "Reclamation" : i === "urgence" ? "Urgence" : i === "rappel" ? "Rappel" : i === "information" ? "Information" : i === "achat" ? "Achat" : i === "annulation" ? "Annulation" : i === "suivi_commande" ? "Suivi" : i === "demande_technique" ? "Technique" : i === "plainte" ? "Plainte" : i === "partenariat" ? "Partenariat" : i}
                         </Badge>
                       ))}
                     </div>
@@ -956,13 +1039,16 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                     <p className="text-xs font-medium text-muted-foreground mb-1.5">Actions suggerees</p>
                     <div className="space-y-1.5">
                       {aiActions.map((a, idx) => (
-                        <div key={idx} className="flex items-start gap-2 p-2 rounded-lg bg-muted/50 text-sm">
+                        <div key={idx} className={`flex items-start gap-2 p-2 rounded-lg text-sm ${a.type === "escalation" ? "bg-red-50 dark:bg-red-900/10" : "bg-muted/50"}`}>
                           {a.type === "task" || a.type === "callback" ? <CheckSquare className="w-3.5 h-3.5 text-blue-500 mt-0.5" /> :
                            a.type === "appointment" ? <CalendarPlus className="w-3.5 h-3.5 text-emerald-500 mt-0.5" /> :
+                           a.type === "escalation" ? <AlertTriangle className="w-3.5 h-3.5 text-red-500 mt-0.5" /> :
+                           a.type === "devis" ? <FileText className="w-3.5 h-3.5 text-violet-500 mt-0.5" /> :
+                           a.type === "email" ? <Send className="w-3.5 h-3.5 text-cyan-500 mt-0.5" /> :
                            <MessageSquare className="w-3.5 h-3.5 text-orange-500 mt-0.5" />}
                           <div>
                             <p className="font-medium text-xs">{a.description}</p>
-                            <p className="text-[10px] text-muted-foreground">{a.type} • {a.priority}</p>
+                            <p className="text-[10px] text-muted-foreground">{a.type === "escalation" ? "Escalade" : a.type === "devis" ? "Devis" : a.type === "email" ? "Email" : a.type} • {a.priority}{a.dueInHours ? ` • ${a.dueInHours}h` : ""}</p>
                           </div>
                         </div>
                       ))}
