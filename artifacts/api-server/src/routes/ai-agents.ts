@@ -1631,4 +1631,127 @@ router.get("/ai/autopilot/logs", requireMinAgent, async (req, res): Promise<void
   res.json({ logs: state.log, total: state.log.length });
 });
 
+router.post("/ai/agents/auto-fix", requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const orgId = (req.session as any)?.organisationId;
+    const userId = (req.session as any)?.userId;
+    if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
+
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 86400000);
+    const orgCall = eq(callsTable.organisationId, orgId);
+    const orgTask = eq(tasksTable.organisationId, orgId);
+    const orgMsg = eq(messagesTable.organisationId, orgId);
+    const orgContact = eq(contactsTable.organisationId, orgId);
+
+    const fixes: { type: string; description: string; count: number; details: string }[] = [];
+
+    const orphanCalls = await db.select({ id: callsTable.id, phoneNumber: callsTable.phoneNumber })
+      .from(callsTable)
+      .where(and(orgCall, isNull(callsTable.contactId), isNotNull(callsTable.phoneNumber)))
+      .limit(100);
+
+    let linkedCount = 0;
+    for (const call of orphanCalls) {
+      if (!call.phoneNumber) continue;
+      const clean = call.phoneNumber.replace(/\s/g, "");
+      const [contact] = await db.select({ id: contactsTable.id })
+        .from(contactsTable)
+        .where(and(orgContact, sql`replace(${contactsTable.phone}, ' ', '') = ${clean}`))
+        .limit(1);
+      if (contact) {
+        await db.update(callsTable).set({ contactId: contact.id }).where(eq(callsTable.id, call.id));
+        linkedCount++;
+      }
+    }
+    if (linkedCount > 0) {
+      fixes.push({ type: "orphan_calls_linked", description: "Appels orphelins lies a leurs contacts", count: linkedCount, details: `${linkedCount} appels retrouves par numero de telephone` });
+    }
+
+    const overdueTasks = await db.select({ id: tasksTable.id, title: tasksTable.title, priority: tasksTable.priority })
+      .from(tasksTable)
+      .where(and(orgTask, lt(tasksTable.dueDate, now), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"), ne(tasksTable.priority, "haute")))
+      .limit(50);
+
+    if (overdueTasks.length > 0) {
+      const overdueIds = overdueTasks.map(t => t.id);
+      for (const id of overdueIds) {
+        await db.update(tasksTable).set({ priority: "haute" }).where(eq(tasksTable.id, id));
+      }
+      fixes.push({ type: "overdue_tasks_escalated", description: "Taches en retard escaladees en haute priorite", count: overdueTasks.length, details: overdueTasks.map(t => t.title).join(", ") });
+    }
+
+    const stuckTasks = await db.select({ id: tasksTable.id, title: tasksTable.title })
+      .from(tasksTable)
+      .where(and(orgTask, eq(tasksTable.status, "en_cours"), lt(tasksTable.updatedAt, weekAgo)))
+      .limit(30);
+
+    if (stuckTasks.length > 0) {
+      for (const task of stuckTasks) {
+        await db.insert(notificationsTable).values({
+          userId: userId,
+          organisationId: orgId,
+          title: `Tache bloquee: ${task.title}`,
+          message: `Cette tache est en cours depuis plus de 7 jours sans mise a jour.`,
+          type: "alerte",
+          priority: "haute",
+        });
+      }
+      fixes.push({ type: "stuck_tasks_notified", description: "Notifications envoyees pour les taches bloquees", count: stuckTasks.length, details: stuckTasks.map(t => t.title).join(", ") });
+    }
+
+    const staleMessages = await db.select({ id: messagesTable.id })
+      .from(messagesTable)
+      .where(and(orgMsg, eq(messagesTable.isRead, false), eq(messagesTable.priority, "haute"), lt(messagesTable.createdAt, new Date(now.getTime() - 48 * 3600000))))
+      .limit(20);
+
+    if (staleMessages.length > 0) {
+      for (const msg of staleMessages) {
+        await db.insert(notificationsTable).values({
+          userId: userId,
+          organisationId: orgId,
+          title: "Message urgent non lu depuis 48h",
+          message: `Un message prioritaire attend votre attention.`,
+          type: "rappel",
+          priority: "urgente",
+        });
+      }
+      fixes.push({ type: "stale_messages_alerted", description: "Alertes pour messages urgents non lus depuis 48h+", count: staleMessages.length, details: `${staleMessages.length} messages urgents en attente` });
+    }
+
+    const contactsNoEmail = await db.select({ id: contactsTable.id, firstName: contactsTable.firstName, phone: contactsTable.phone })
+      .from(contactsTable)
+      .where(and(orgContact, isNull(contactsTable.email), isNotNull(contactsTable.phone), isNotNull(contactsTable.firstName)))
+      .limit(20);
+
+    const contactsNoPhone = await db.select({ id: contactsTable.id, firstName: contactsTable.firstName, email: contactsTable.email })
+      .from(contactsTable)
+      .where(and(orgContact, isNull(contactsTable.phone), isNotNull(contactsTable.email), isNotNull(contactsTable.firstName)))
+      .limit(20);
+
+    const incompleteContacts = contactsNoEmail.length + contactsNoPhone.length;
+    if (incompleteContacts > 0) {
+      fixes.push({ type: "incomplete_contacts_flagged", description: "Contacts avec donnees incompletes signales", count: incompleteContacts, details: `${contactsNoEmail.length} sans email, ${contactsNoPhone.length} sans telephone` });
+    }
+
+    await db.insert(auditLogsTable).values({
+      userId: userId,
+      action: "ai_auto_fix",
+      resource: "system",
+      resourceId: "auto-fix",
+      details: { fixes, totalFixes: fixes.reduce((s, f) => s + f.count, 0), executedAt: now.toISOString() },
+    });
+
+    res.json({
+      success: true,
+      totalFixes: fixes.reduce((s, f) => s + f.count, 0),
+      fixes,
+      executedAt: now.toISOString(),
+    });
+  } catch (error: any) {
+    logger.error({ err: error }, "AI auto-fix error");
+    res.status(500).json({ error: "Erreur lors de l'auto-correction" });
+  }
+});
+
 export default router;

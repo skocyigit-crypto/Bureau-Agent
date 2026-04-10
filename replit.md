@@ -76,6 +76,15 @@ The Settings page (`artifacts/buro-ajani/src/pages/settings.tsx`) was refactored
 
 Each tab component is fully self-contained with its own state, API calls, and handlers. OAuth callback handling (google_success/google_error URL params) is processed at the parent shell level.
 
+## AI Chat Assistant (Interactive Q&A)
+POST `/api/ai/chat` — Interactive AI assistant with full real-time data access. Accepts `{message, context, history}`, queries all DB tables for current stats (calls, contacts, tasks, messages), and returns structured JSON with `{message, actions[], insights[], mood, stats}`. Actions support types: `auto_fix`, `navigate` (allowlisted relative paths only), `reminder`. Frontend: floating chat panel in `ai-assistant.tsx` with action buttons, mood indicators, and conversation history.
+
+## AI Auto-Fix Engine
+POST `/api/ai/agents/auto-fix` — Automated correction endpoint (admin only). Performs: orphan call linking by phone number, overdue task escalation to high priority, stuck task notifications, stale message alerts, incomplete contact flagging. All fixes logged to `audit_logs` table. Returns `{totalFixes, fixes[]}`.
+
+## AI Predictive Intelligence
+GET `/api/ai/predictions` — Forecasting engine using 4 weeks of historical data. Gemini analyzes call volume trends, task completion velocity, contact growth, and customer satisfaction to generate: weekly forecasts (per-day predictions with alert levels), operational risks with mitigation strategies, opportunities, and strategic recommendations. Frontend: "Predictions IA" tab on AI agents page with visual cards and daily forecast grid.
+
 ## AI Agents Background Processing
 The AI agent routes (`/api/ai/agents/run` and `/api/ai/autopilot/run`) use background processing to avoid HTTP timeouts. They respond immediately with `{ status: "started" }` and process AI calls asynchronously. The frontend polls `/api/ai/agents/run/status` every 3 seconds to track progress (completedAgents/totalAgents). Both routes have in-flight guards to prevent duplicate concurrent executions per organization. The mobile app uses `useRef`-based polling with 5-minute timeout cap and proper unmount cleanup.
 

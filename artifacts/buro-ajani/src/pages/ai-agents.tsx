@@ -418,6 +418,10 @@ export default function AiAgentsPage() {
   const canRunAgents = isAtLeast("administrateur");
   const [isRunning, setIsRunning] = useState(false);
   const [runProgress, setRunProgress] = useState({ completedAgents: 0, totalAgents: 10 });
+  const [autoFixLoading, setAutoFixLoading] = useState(false);
+  const [autoFixResult, setAutoFixResult] = useState<any>(null);
+  const [predictions, setPredictions] = useState<any>(null);
+  const [predictionsLoading, setPredictionsLoading] = useState(false);
 
   const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -473,6 +477,47 @@ export default function AiAgentsPage() {
     });
   };
 
+  const handleAutoFix = async () => {
+    setAutoFixLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/ai/agents/auto-fix`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include" });
+      if (!res.ok) throw new Error("Erreur serveur");
+      const data = await res.json();
+      setAutoFixResult(data);
+      toast({
+        title: `${data.totalFixes} corrections appliquees`,
+        description: data.fixes.map((f: any) => f.description).join(", ") || "Aucune correction necessaire.",
+      });
+      invalidateAgentQueries();
+    } catch (err) {
+      console.warn("Auto-fix error:", err);
+      toast({ title: "Erreur", description: "Impossible d'appliquer les corrections.", variant: "destructive" });
+    } finally {
+      setAutoFixLoading(false);
+    }
+  };
+
+  const loadPredictions = async () => {
+    setPredictionsLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/api/ai/predictions`, { credentials: "include" });
+      if (!res.ok) throw new Error("Erreur serveur");
+      const data = await res.json();
+      setPredictions(data);
+    } catch (err) {
+      console.warn("Predictions error:", err);
+      toast({ title: "Erreur", description: "Impossible de charger les predictions.", variant: "destructive" });
+    } finally {
+      setPredictionsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "predictions" && !predictions && !predictionsLoading) {
+      loadPredictions();
+    }
+  }, [activeTab]);
+
   const handleRunSingle = (agentId: string) => {
     runSingle.mutate({ agentId }, {
       onSuccess: () => {
@@ -503,6 +548,12 @@ export default function AiAgentsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {canRunAgents && (
+            <Button variant="outline" onClick={handleAutoFix} disabled={autoFixLoading} className="gap-2 border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/20">
+              {autoFixLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wrench className="w-4 h-4" />}
+              Auto-correction
+            </Button>
+          )}
           {canRunAgents ? (
             <Button onClick={handleRunAll} disabled={isRunning || runAll.isPending} className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700">
               {isRunning || runAll.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
@@ -605,6 +656,9 @@ export default function AiAgentsPage() {
           </TabsTrigger>
           <TabsTrigger value="historique" className="flex items-center gap-1.5">
             <FileText className="w-4 h-4" /> Historique
+          </TabsTrigger>
+          <TabsTrigger value="predictions" className="flex items-center gap-1.5">
+            <TrendingUp className="w-4 h-4" /> Predictions IA
           </TabsTrigger>
           <TabsTrigger value="autopilot" className="flex items-center gap-1.5">
             <Rocket className="w-4 h-4" /> Oto-Pilot
@@ -741,6 +795,228 @@ export default function AiAgentsPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="predictions" className="space-y-6">
+          {predictionsLoading ? (
+            <Card className="border-dashed">
+              <CardContent className="p-12 text-center">
+                <Loader2 className="w-10 h-10 mx-auto text-purple-500 animate-spin mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Analyse predictive en cours...</h3>
+                <p className="text-sm text-muted-foreground">L'IA analyse 4 semaines de donnees historiques pour generer des predictions precises.</p>
+              </CardContent>
+            </Card>
+          ) : predictions?.predictions ? (
+            <>
+              {autoFixResult && autoFixResult.totalFixes > 0 && (
+                <Card className="border-emerald-300 bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-950/20 dark:to-green-950/10">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                      <h4 className="font-semibold text-emerald-800 dark:text-emerald-300">{autoFixResult.totalFixes} corrections appliquees</h4>
+                    </div>
+                    <div className="space-y-1">
+                      {autoFixResult.fixes.map((fix: any, i: number) => (
+                        <div key={i} className="flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-400">
+                          <Wrench className="w-3 h-3 shrink-0" />
+                          <span>{fix.description} ({fix.count})</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="grid gap-4 md:grid-cols-4">
+                <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/10 border-blue-200/50">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Phone className="w-5 h-5 text-blue-600" />
+                      <span className="text-xs font-medium text-muted-foreground">Appels prevus (7j)</span>
+                    </div>
+                    <p className="text-2xl font-bold">{predictions.predictions.callVolume?.predicted || 0}</p>
+                    <div className="flex items-center gap-1 mt-1">
+                      <Badge variant="outline" className={`text-[10px] h-4 ${
+                        predictions.predictions.callVolume?.trend === "hausse" ? "text-emerald-600 border-emerald-300" :
+                        predictions.predictions.callVolume?.trend === "baisse" ? "text-red-600 border-red-300" : "text-blue-600 border-blue-300"
+                      }`}>
+                        {predictions.predictions.callVolume?.trend === "hausse" ? "↑" : predictions.predictions.callVolume?.trend === "baisse" ? "↓" : "→"} {predictions.predictions.callVolume?.trend}
+                      </Badge>
+                      <span className="text-[10px] text-muted-foreground">Confiance: {predictions.predictions.callVolume?.confidence || 0}%</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-950/20 dark:to-green-950/10 border-emerald-200/50">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <ClipboardList className="w-5 h-5 text-emerald-600" />
+                      <span className="text-xs font-medium text-muted-foreground">Taches completees</span>
+                    </div>
+                    <p className="text-2xl font-bold">{predictions.predictions.taskCompletion?.predictedCompleted || 0}</p>
+                    <Badge variant="outline" className={`text-[10px] h-4 ${
+                      predictions.predictions.taskCompletion?.velocityTrend === "acceleration" ? "text-emerald-600 border-emerald-300" :
+                      predictions.predictions.taskCompletion?.velocityTrend === "deceleration" ? "text-red-600 border-red-300" : "text-blue-600 border-blue-300"
+                    }`}>
+                      {predictions.predictions.taskCompletion?.velocityTrend || "stable"}
+                    </Badge>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/20 dark:to-purple-950/10 border-violet-200/50">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Users className="w-5 h-5 text-violet-600" />
+                      <span className="text-xs font-medium text-muted-foreground">Nouveaux contacts</span>
+                    </div>
+                    <p className="text-2xl font-bold">{predictions.predictions.contactGrowth?.predictedNew || 0}</p>
+                    <Badge variant="outline" className={`text-[10px] h-4 ${
+                      predictions.predictions.contactGrowth?.trend === "croissance" ? "text-emerald-600 border-emerald-300" :
+                      predictions.predictions.contactGrowth?.trend === "declin" ? "text-red-600 border-red-300" : "text-blue-600 border-blue-300"
+                    }`}>
+                      {predictions.predictions.contactGrowth?.trend || "stable"}
+                    </Badge>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/10 border-amber-200/50">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <HeartPulse className="w-5 h-5 text-amber-600" />
+                      <span className="text-xs font-medium text-muted-foreground">Satisfaction client</span>
+                    </div>
+                    <p className="text-2xl font-bold">{predictions.predictions.customerSatisfaction?.score || 0}<span className="text-sm text-muted-foreground">/100</span></p>
+                    <Badge variant="outline" className={`text-[10px] h-4 ${
+                      predictions.predictions.customerSatisfaction?.trend === "amelioration" ? "text-emerald-600 border-emerald-300" :
+                      predictions.predictions.customerSatisfaction?.trend === "degradation" ? "text-red-600 border-red-300" : "text-blue-600 border-blue-300"
+                    }`}>
+                      {predictions.predictions.customerSatisfaction?.trend || "stable"}
+                    </Badge>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {predictions.predictions.weeklyForecast?.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Radar className="w-4 h-4 text-purple-500" /> Previsions quotidiennes (7 jours)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-2 md:grid-cols-7">
+                      {predictions.predictions.weeklyForecast.map((day: any, i: number) => (
+                        <div key={i} className={`text-center p-3 rounded-lg border ${
+                          day.alertLevel === "rouge" ? "bg-red-50 dark:bg-red-950/20 border-red-200" :
+                          day.alertLevel === "jaune" ? "bg-amber-50 dark:bg-amber-950/20 border-amber-200" :
+                          "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200"
+                        }`}>
+                          <p className="text-xs font-semibold">{day.day?.substring(0, 3)}</p>
+                          <p className="text-lg font-bold mt-1">{day.callsPredicted || 0}</p>
+                          <p className="text-[10px] text-muted-foreground">appels</p>
+                          <p className="text-xs font-medium mt-0.5">{day.tasksPredicted || 0}</p>
+                          <p className="text-[10px] text-muted-foreground">taches</p>
+                          <div className={`mt-1 w-2 h-2 rounded-full mx-auto ${
+                            day.alertLevel === "rouge" ? "bg-red-500" :
+                            day.alertLevel === "jaune" ? "bg-amber-500" : "bg-emerald-500"
+                          }`} />
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {predictions.predictions.operationalRisks?.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-red-500" /> Risques operationnels detectes
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {predictions.predictions.operationalRisks.map((risk: any, i: number) => (
+                      <div key={i} className={`p-3 rounded-lg border ${
+                        risk.probability === "haute" ? "bg-red-50 dark:bg-red-950/20 border-red-200/50" :
+                        risk.probability === "moyenne" ? "bg-amber-50 dark:bg-amber-950/20 border-amber-200/50" :
+                        "bg-blue-50 dark:bg-blue-950/20 border-blue-200/50"
+                      }`}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-medium">{risk.risk}</span>
+                          <div className="flex items-center gap-1">
+                            {getSeverityBadge(risk.probability)}
+                            <Badge variant="outline" className="text-[10px] h-5">{risk.impact}</Badge>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{risk.mitigation}</p>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              {predictions.predictions.opportunities?.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-emerald-500" /> Opportunites identifiees
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {predictions.predictions.opportunities.map((opp: any, i: number) => (
+                      <div key={i} className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/50">
+                        <span className="text-sm font-medium text-emerald-800 dark:text-emerald-300">{opp.opportunity}</span>
+                        <p className="text-xs text-muted-foreground mt-1">Impact: {opp.potentialImpact}</p>
+                        <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
+                          <Zap className="w-3 h-3" /> {opp.actionRequired}
+                        </p>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              {predictions.predictions.strategicRecommendations?.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Target className="w-4 h-4 text-violet-500" /> Recommandations strategiques
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {predictions.predictions.strategicRecommendations.map((rec: string, i: number) => (
+                        <div key={i} className="flex items-start gap-2 text-sm">
+                          <span className="w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-950/30 text-violet-700 dark:text-violet-300 flex items-center justify-center text-xs font-bold shrink-0">{i + 1}</span>
+                          <p className="text-muted-foreground">{rec}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">Predictions generees le {new Date(predictions.generatedAt).toLocaleString("fr-FR")}</p>
+                <Button variant="outline" size="sm" onClick={loadPredictions} disabled={predictionsLoading} className="gap-1">
+                  <RefreshCw className="w-3 h-3" /> Actualiser
+                </Button>
+              </div>
+            </>
+          ) : (
+            <Card className="border-dashed">
+              <CardContent className="py-16 text-center">
+                <TrendingUp className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Predictions IA</h3>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
+                  Analysez vos donnees historiques pour predire le volume d'appels, la productivite et les risques operationnels des 7 prochains jours.
+                </p>
+                <Button onClick={loadPredictions} disabled={predictionsLoading} className="gap-2 bg-gradient-to-r from-purple-600 to-indigo-600">
+                  <Sparkles className="w-4 h-4" /> Generer les predictions
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="autopilot" className="space-y-6">

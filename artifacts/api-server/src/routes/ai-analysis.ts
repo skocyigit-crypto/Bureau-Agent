@@ -1745,4 +1745,213 @@ IMPORTANT: Tu ES l'assistant d'Aurelie. Agis, ne suggere pas. Chaque resolution 
   }
 });
 
+router.post("/ai/chat", async (req, res): Promise<void> => {
+  try {
+    const orgId = (req.session as any)?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
+    const { message, context, history } = req.body;
+    if (!message?.trim()) { res.status(400).json({ error: "Message requis." }); return; }
+
+    const { ai } = await import("@workspace/integrations-gemini-ai");
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 86400000);
+    const monthAgo = new Date(now.getTime() - 30 * 86400000);
+    const orgCall = eq(callsTable.organisationId, orgId);
+    const orgContact = eq(contactsTable.organisationId, orgId);
+    const orgTask = eq(tasksTable.organisationId, orgId);
+    const orgMsg = eq(messagesTable.organisationId, orgId);
+
+    const [
+      callStats, contactStats, taskStats, msgStats,
+      recentCalls, overdueTasks, unreadMsgs,
+      topContacts, urgentTasks,
+    ] = await Promise.all([
+      db.select({ total: count(), thisWeek: sql<number>`count(*) filter (where ${callsTable.createdAt} >= ${weekAgo.toISOString()})`, missed: sql<number>`count(*) filter (where ${callsTable.status} = 'manque')`, answered: sql<number>`count(*) filter (where ${callsTable.status} = 'repondu')` }).from(callsTable).where(orgCall),
+      db.select({ total: count(), newThisWeek: sql<number>`count(*) filter (where ${contactsTable.createdAt} >= ${weekAgo.toISOString()})`, withEmail: sql<number>`count(*) filter (where ${contactsTable.email} is not null)` }).from(contactsTable).where(orgContact),
+      db.select({ total: count(), pending: sql<number>`count(*) filter (where ${tasksTable.status} = 'en_attente')`, inProgress: sql<number>`count(*) filter (where ${tasksTable.status} = 'en_cours')`, completed: sql<number>`count(*) filter (where ${tasksTable.status} = 'termine')`, overdue: sql<number>`count(*) filter (where ${tasksTable.dueDate} < now() and ${tasksTable.status} not in ('termine','annule'))` }).from(tasksTable).where(orgTask),
+      db.select({ total: count(), unread: sql<number>`count(*) filter (where ${messagesTable.isRead} = false)` }).from(messagesTable).where(orgMsg),
+      db.select({ contactName: callsTable.contactName, phoneNumber: callsTable.phoneNumber, status: callsTable.status, direction: callsTable.direction, sentiment: callsTable.sentiment, createdAt: callsTable.createdAt, notes: callsTable.notes }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))).orderBy(desc(callsTable.createdAt)).limit(10),
+      db.select({ id: tasksTable.id, title: tasksTable.title, priority: tasksTable.priority, dueDate: tasksTable.dueDate, status: tasksTable.status }).from(tasksTable).where(and(orgTask, lt(tasksTable.dueDate, now), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))).orderBy(desc(tasksTable.priority)).limit(10),
+      db.select({ id: messagesTable.id, contactName: messagesTable.contactName, content: messagesTable.content, type: messagesTable.type, priority: messagesTable.priority, createdAt: messagesTable.createdAt }).from(messagesTable).where(and(orgMsg, eq(messagesTable.isRead, false))).orderBy(desc(messagesTable.createdAt)).limit(10),
+      db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName, company: contactsTable.company, phone: contactsTable.phone, totalCalls: contactsTable.totalCalls }).from(contactsTable).where(orgContact).orderBy(desc(contactsTable.totalCalls)).limit(10),
+      db.select({ id: tasksTable.id, title: tasksTable.title, priority: tasksTable.priority, dueDate: tasksTable.dueDate }).from(tasksTable).where(and(orgTask, eq(tasksTable.priority, "haute"), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))).limit(10),
+    ]);
+
+    const chatHistory = (history || []).slice(-6).map((h: any) => ({
+      role: h.role === "user" ? "user" : "model",
+      parts: [{ text: h.content }],
+    }));
+
+    const systemContext = `Tu es l'Assistant IA Elite du bureau "Agent de Bureau" — le cerveau central de toute l'organisation. Tu as acces a TOUTES les donnees en temps reel du bureau.
+
+DONNEES EN TEMPS REEL:
+📞 Appels: ${callStats[0]?.total ?? 0} total, ${callStats[0]?.thisWeek ?? 0} cette semaine, ${callStats[0]?.missed ?? 0} manques, ${callStats[0]?.answered ?? 0} repondus
+👥 Contacts: ${contactStats[0]?.total ?? 0} total, ${contactStats[0]?.newThisWeek ?? 0} nouveaux cette semaine
+📋 Taches: ${taskStats[0]?.total ?? 0} total, ${taskStats[0]?.pending ?? 0} en attente, ${taskStats[0]?.inProgress ?? 0} en cours, ${taskStats[0]?.completed ?? 0} terminees, ${taskStats[0]?.overdue ?? 0} en retard
+✉️ Messages: ${msgStats[0]?.total ?? 0} total, ${msgStats[0]?.unread ?? 0} non lus
+
+APPELS RECENTS (7 derniers jours):
+${JSON.stringify(recentCalls.slice(0, 5), null, 1)}
+
+TACHES EN RETARD:
+${JSON.stringify(overdueTasks.slice(0, 5), null, 1)}
+
+MESSAGES NON LUS PRIORITAIRES:
+${JSON.stringify(unreadMsgs.slice(0, 5), null, 1)}
+
+CONTACTS LES PLUS ACTIFS:
+${JSON.stringify(topContacts.slice(0, 5), null, 1)}
+
+TACHES URGENTES (haute priorite):
+${JSON.stringify(urgentTasks.slice(0, 5), null, 1)}
+
+CONTEXTE UTILISATEUR: ${context ? JSON.stringify(context) : "Tableau de bord principal"}
+
+REGLES:
+1. Reponds TOUJOURS en francais avec un ton professionnel mais chaleureux
+2. Sois PRECIS — cite des chiffres reels du bureau
+3. Quand on te demande "que faire?", donne des ACTIONS CONCRETES numerotees
+4. Si tu detectes un probleme, propose des solutions IMMEDIATES
+5. Tu peux suggerer des actions automatiques: "Je peux relancer automatiquement les taches en retard si vous le souhaitez."
+6. Pour les questions financieres ou de stock, sois factuel et prudent
+7. Chaque reponse doit etre ACTIONNABLE — pas juste informative
+
+Reponds en JSON: {"response": "texte", "actions": [{"label": "string", "type": "auto_fix|navigate|reminder", "target": "string", "details": "string"}], "insights": ["string"], "mood": "positif|neutre|alerte|critique"}`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [
+        { role: "user", parts: [{ text: systemContext }] },
+        { role: "model", parts: [{ text: '{"response": "Pret a vous aider.", "actions": [], "insights": [], "mood": "positif"}' }] },
+        ...chatHistory,
+        { role: "user", parts: [{ text: message }] },
+      ],
+      config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
+    });
+
+    let parsed;
+    try {
+      parsed = JSON.parse(response.text ?? "{}");
+    } catch {
+      parsed = { response: response.text || "Reponse en cours de traitement...", actions: [], insights: [], mood: "neutre" };
+    }
+
+    res.json({
+      message: parsed.response || "Je n'ai pas pu generer de reponse.",
+      actions: parsed.actions || [],
+      insights: parsed.insights || [],
+      mood: parsed.mood || "neutre",
+      stats: {
+        calls: callStats[0],
+        contacts: contactStats[0],
+        tasks: taskStats[0],
+        messages: msgStats[0],
+      },
+    });
+  } catch (error: any) {
+    console.error("AI Chat error:", error);
+    const isProduction = process.env.NODE_ENV === "production";
+    res.status(500).json({ error: "Erreur du chat IA", ...(isProduction ? {} : { details: error.message }) });
+  }
+});
+
+router.get("/ai/predictions", async (req, res): Promise<void> => {
+  try {
+    const orgId = (req.session as any)?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
+
+    const { ai } = await import("@workspace/integrations-gemini-ai");
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 86400000);
+    const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000);
+    const threeWeeksAgo = new Date(now.getTime() - 21 * 86400000);
+    const fourWeeksAgo = new Date(now.getTime() - 28 * 86400000);
+    const orgCall = eq(callsTable.organisationId, orgId);
+    const orgTask = eq(tasksTable.organisationId, orgId);
+    const orgContact = eq(contactsTable.organisationId, orgId);
+
+    const [
+      callsWeek1, callsWeek2, callsWeek3, callsWeek4,
+      tasksCompletedW1, tasksCompletedW2, tasksCompletedW3, tasksCompletedW4,
+      tasksCreatedW1, tasksCreatedW2,
+      contactsW1, contactsW2, contactsW3, contactsW4,
+      callsByDayOfWeek, callsByHour,
+      missedRateW1, missedRateW2,
+      sentimentPositive, sentimentNegative,
+    ] = await Promise.all([
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, twoWeeksAgo), lt(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, threeWeeksAgo), lt(callsTable.createdAt, twoWeeksAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, fourWeeksAgo), lt(callsTable.createdAt, threeWeeksAgo))),
+      db.select({ count: count() }).from(tasksTable).where(and(orgTask, eq(tasksTable.status, "termine"), gte(tasksTable.updatedAt, weekAgo))),
+      db.select({ count: count() }).from(tasksTable).where(and(orgTask, eq(tasksTable.status, "termine"), gte(tasksTable.updatedAt, twoWeeksAgo), lt(tasksTable.updatedAt, weekAgo))),
+      db.select({ count: count() }).from(tasksTable).where(and(orgTask, eq(tasksTable.status, "termine"), gte(tasksTable.updatedAt, threeWeeksAgo), lt(tasksTable.updatedAt, twoWeeksAgo))),
+      db.select({ count: count() }).from(tasksTable).where(and(orgTask, eq(tasksTable.status, "termine"), gte(tasksTable.updatedAt, fourWeeksAgo), lt(tasksTable.updatedAt, threeWeeksAgo))),
+      db.select({ count: count() }).from(tasksTable).where(and(orgTask, gte(tasksTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(tasksTable).where(and(orgTask, gte(tasksTable.createdAt, twoWeeksAgo), lt(tasksTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(contactsTable).where(and(orgContact, gte(contactsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(contactsTable).where(and(orgContact, gte(contactsTable.createdAt, twoWeeksAgo), lt(contactsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(contactsTable).where(and(orgContact, gte(contactsTable.createdAt, threeWeeksAgo), lt(contactsTable.createdAt, twoWeeksAgo))),
+      db.select({ count: count() }).from(contactsTable).where(and(orgContact, gte(contactsTable.createdAt, fourWeeksAgo), lt(contactsTable.createdAt, threeWeeksAgo))),
+      db.select({ day: sql<string>`to_char(${callsTable.createdAt}, 'Dy')`, cnt: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, fourWeeksAgo))).groupBy(sql`to_char(${callsTable.createdAt}, 'Dy')`),
+      db.select({ hour: sql<string>`extract(hour from ${callsTable.createdAt})::int`, cnt: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, fourWeeksAgo))).groupBy(sql`extract(hour from ${callsTable.createdAt})::int`),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.status, "manque"), gte(callsTable.createdAt, twoWeeksAgo), lt(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.sentiment, "positif"), gte(callsTable.createdAt, fourWeeksAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.sentiment, "negatif"), gte(callsTable.createdAt, fourWeeksAgo))),
+    ]);
+
+    const historicalData = {
+      calls: { week1: callsWeek1[0]?.count ?? 0, week2: callsWeek2[0]?.count ?? 0, week3: callsWeek3[0]?.count ?? 0, week4: callsWeek4[0]?.count ?? 0 },
+      tasksCompleted: { week1: tasksCompletedW1[0]?.count ?? 0, week2: tasksCompletedW2[0]?.count ?? 0, week3: tasksCompletedW3[0]?.count ?? 0, week4: tasksCompletedW4[0]?.count ?? 0 },
+      tasksCreated: { week1: tasksCreatedW1[0]?.count ?? 0, week2: tasksCreatedW2[0]?.count ?? 0 },
+      contacts: { week1: contactsW1[0]?.count ?? 0, week2: contactsW2[0]?.count ?? 0, week3: contactsW3[0]?.count ?? 0, week4: contactsW4[0]?.count ?? 0 },
+      missedCalls: { week1: missedRateW1[0]?.count ?? 0, week2: missedRateW2[0]?.count ?? 0 },
+      sentiment: { positive: sentimentPositive[0]?.count ?? 0, negative: sentimentNegative[0]?.count ?? 0 },
+      callsByDay: callsByDayOfWeek.map(d => ({ day: d.day, calls: d.cnt })),
+      callsByHour: callsByHour.sort((a, b) => Number(a.hour) - Number(b.hour)).map(h => ({ hour: h.hour, calls: h.cnt })),
+    };
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{
+        role: "user",
+        parts: [{
+          text: `Tu es le moteur de prediction IA d'un bureau professionnel francais. Analyse les donnees historiques des 4 dernieres semaines et genere des PREDICTIONS PRECISES pour les 7 prochains jours.
+
+DONNEES HISTORIQUES (semaine 4 = la plus recente):
+${JSON.stringify(historicalData, null, 2)}
+
+Genere des predictions en JSON avec cette structure:
+{
+  "callVolume": { "predicted": number, "trend": "hausse|baisse|stable", "confidence": number (0-100), "peakDay": "string", "peakHour": number, "reasoning": "string" },
+  "taskCompletion": { "predictedCompleted": number, "predictedCreated": number, "velocityTrend": "acceleration|deceleration|stable", "bottleneckRisk": "faible|moyen|eleve", "reasoning": "string" },
+  "contactGrowth": { "predictedNew": number, "trend": "croissance|stagnation|declin", "reasoning": "string" },
+  "customerSatisfaction": { "score": number (0-100), "trend": "amelioration|degradation|stable", "riskFactors": ["string"], "reasoning": "string" },
+  "operationalRisks": [{ "risk": "string", "probability": "haute|moyenne|faible", "impact": "critique|majeur|mineur", "mitigation": "string" }],
+  "opportunities": [{ "opportunity": "string", "potentialImpact": "string", "actionRequired": "string" }],
+  "weeklyForecast": [{ "day": "Lundi|Mardi|...", "callsPredicted": number, "tasksPredicted": number, "alertLevel": "vert|jaune|rouge" }],
+  "strategicRecommendations": ["string"]
+}
+
+Sois PRECIS et base-toi sur les tendances reelles. Chaque prediction doit etre JUSTIFIEE.`
+        }],
+      }],
+      config: { maxOutputTokens: 8192, responseMimeType: "application/json" },
+    });
+
+    let parsed;
+    try {
+      parsed = JSON.parse(response.text ?? "{}");
+    } catch {
+      parsed = { callVolume: { predicted: 0, trend: "stable", confidence: 50 }, taskCompletion: { predictedCompleted: 0, velocityTrend: "stable" }, contactGrowth: { predictedNew: 0, trend: "stable" }, customerSatisfaction: { score: 70, trend: "stable" }, operationalRisks: [], opportunities: [], weeklyForecast: [], strategicRecommendations: [] };
+    }
+
+    res.json({ predictions: parsed, historicalData, generatedAt: new Date().toISOString() });
+  } catch (error: any) {
+    console.error("AI Predictions error:", error);
+    res.status(500).json({ error: "Erreur des predictions IA" });
+  }
+});
+
 export default router;
