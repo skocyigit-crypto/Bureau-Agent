@@ -34,7 +34,6 @@ import AutomationsPage from "@/pages/automations";
 import PerformancePage from "@/pages/performance";
 import OrganisationsPage from "@/pages/organisations";
 import ProspectsPage from "@/pages/prospects";
-import DevisPage from "@/pages/devis";
 import FacturesPage from "@/pages/factures";
 import ProjetsPage from "@/pages/projets";
 import NotificationsPage from "@/pages/notifications";
@@ -91,7 +90,6 @@ function AppRoutes() {
         <Route path="/automatisations" component={withLicenseGate(AutomationsPage)} />
         <Route path="/performance" component={withLicenseGate(PerformancePage)} />
         <Route path="/prospects" component={withLicenseGate(ProspectsPage)} />
-        <Route path="/devis" component={withLicenseGate(DevisPage)} />
         <Route path="/factures" component={withLicenseGate(FacturesPage)} />
         <Route path="/projets" component={withLicenseGate(ProjetsPage)} />
         <Route path="/google-workspace" component={withLicenseGate(GoogleWorkspacePage)} />
