@@ -23,3 +23,4 @@ export * from "./prospects";
 export * from "./devis";
 export * from "./factures-client";
 export * from "./projets";
+export * from "./compte-client";
