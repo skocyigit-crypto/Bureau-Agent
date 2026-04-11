@@ -872,4 +872,89 @@ router.post("/commandant/send-task-reminder", async (req: Request, res: Response
   }
 });
 
+// ═══════════════════════════════════════════
+// AI SMART SEARCH (Cross-module intelligent search)
+// ═══════════════════════════════════════════
+router.post("/commandant/smart-search", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const { query } = req.body;
+    if (!query || query.length < 2) { res.status(400).json({ error: "Requete trop courte" }); return; }
+
+    const q = `%${query}%`;
+    const [contacts, tasks, events, invoices, prospects] = await Promise.all([
+      db.select().from(contactsTable).where(and(eq(contactsTable.organisationId, orgId), or(ilike(contactsTable.firstName, q), ilike(contactsTable.lastName, q), ilike(contactsTable.email, q), ilike(contactsTable.phone, q), ilike(contactsTable.company, q)))).limit(10),
+      db.select().from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), or(ilike(tasksTable.title, q), ilike(tasksTable.description, q)))).limit(10),
+      db.select().from(calendarEventsTable).where(and(eq(calendarEventsTable.organisationId, orgId), or(ilike(calendarEventsTable.title, q), ilike(calendarEventsTable.description, q)))).limit(10),
+      db.select().from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), or(ilike(facturesClientTable.reference, q), ilike(facturesClientTable.clientName, q)))).limit(10),
+      db.select().from(prospectsTable).where(and(eq(prospectsTable.organisationId, orgId), or(ilike(prospectsTable.company, q), ilike(prospectsTable.contactName, q), ilike(prospectsTable.email, q)))).limit(10),
+    ]);
+
+    const totalResults = contacts.length + tasks.length + events.length + invoices.length + prospects.length;
+
+    let aiSummary = "";
+    if (totalResults > 0) {
+      const prompt = `Analyse ces resultats de recherche pour "${query}" et donne un resume utile en francais (2-3 phrases max):
+Contacts: ${contacts.length} (${contacts.map(c => `${c.firstName} ${c.lastName}`).join(", ")})
+Taches: ${tasks.length} (${tasks.map(t => t.title).join(", ")})
+Evenements: ${events.length}
+Factures: ${invoices.length}
+Prospects: ${prospects.length}
+Resume:`;
+      try { aiSummary = await multiAiGenerate(prompt); } catch {}
+    }
+
+    res.json({
+      success: true,
+      query,
+      totalResults,
+      results: {
+        contacts: contacts.map(c => ({ id: c.id, type: "contact", title: `${c.firstName} ${c.lastName}`, subtitle: c.company || c.email, phone: c.phone })),
+        tasks: tasks.map(t => ({ id: t.id, type: "tache", title: t.title, subtitle: `${t.status} - ${t.priority}`, dueDate: t.dueDate })),
+        events: events.map(e => ({ id: e.id, type: "evenement", title: e.title, subtitle: e.type, startDate: e.startDate })),
+        invoices: invoices.map(f => ({ id: f.id, type: "facture", title: f.reference, subtitle: `${f.clientName} - ${Number(f.totalAmount).toFixed(2)} EUR`, status: f.status })),
+        prospects: prospects.map(p => ({ id: p.id, type: "prospect", title: p.company || p.contactName || p.title, subtitle: `${p.stage} - ${p.source || ""}` })),
+      },
+      aiSummary,
+    });
+  } catch (err: any) {
+    console.error("[Commandant/SmartSearch]", err);
+    res.status(500).json({ error: "Erreur" });
+  }
+});
+
+// ═══════════════════════════════════════════
+// AI TEXT ANALYSIS (Analyze any text with AI)
+// ═══════════════════════════════════════════
+router.post("/commandant/analyze-text", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { text, analysisType } = req.body;
+    if (!text) { res.status(400).json({ error: "Texte requis" }); return; }
+
+    const typePrompts: Record<string, string> = {
+      sentiment: "Analyse le sentiment de ce texte. Reponds en JSON: {sentiment: 'positif/neutre/negatif', score: 0-100, emotions: ['joie','colere',...], keyPhrases: ['...'], summary: '...'}",
+      summary: "Resume ce texte en 3-5 points cles. JSON: {summary: '...', keyPoints: ['...'], wordCount: N, readingTime: '...', complexity: 'simple/moyen/complexe'}",
+      entities: "Extrais toutes les entites de ce texte. JSON: {people: ['...'], companies: ['...'], dates: ['...'], amounts: ['...'], locations: ['...'], emails: ['...'], phones: ['...'], urls: ['...']}",
+      action_items: "Extrais les actions et taches de ce texte. JSON: {actions: [{title: '...', priority: 'haute/moyenne/basse', deadline: '...', assignee: '...'}], decisions: ['...'], questions: ['...']}",
+      translate: "Traduis ce texte en anglais professionnel. JSON: {translation: '...', sourceLanguage: '...', formalityLevel: 'formel/informel'}",
+      rewrite: "Reecris ce texte de maniere plus professionnelle et claire en francais. JSON: {rewritten: '...', improvements: ['...'], tone: '...'}",
+    };
+
+    const systemPrompt = "Tu es un expert en analyse de texte. Reponds UNIQUEMENT en JSON valide.";
+    const prompt = `${typePrompts[analysisType] || typePrompts.summary}\n\nTexte a analyser:\n${text}`;
+
+    const aiResponse = await multiAiGenerate(prompt, systemPrompt);
+    let parsed: any;
+    try {
+      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+      parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { result: aiResponse };
+    } catch { parsed = { result: aiResponse }; }
+
+    res.json({ success: true, analysisType: analysisType || "summary", analysis: parsed });
+  } catch (err: any) {
+    console.error("[Commandant/AnalyzeText]", err);
+    res.status(500).json({ error: "Erreur" });
+  }
+});
+
 export default router;

@@ -15,7 +15,8 @@ import {
   Brain, Phone, Mail, Calendar, CheckSquare, DollarSign, HardDrive, Camera,
   Users, Zap, Send, RefreshCw, Loader2, AlertTriangle, Star, Clock, FileText,
   MapPin, BarChart3, Shield, Bell, TrendingUp, ArrowRight, Sparkles,
-  MessageSquare, Target, Play, Eye, Coffee,
+  MessageSquare, Target, Play, Eye, Coffee, Navigation, ExternalLink,
+  Search, Wand2, Copy, Mic, Bot,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -53,14 +54,16 @@ export default function CommandantIAPage() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="grid grid-cols-8 w-full">
+        <TabsList className="grid grid-cols-10 w-full">
           <TabsTrigger value="briefing" className="text-xs gap-1"><Coffee className="h-3 w-3" />Briefing</TabsTrigger>
           <TabsTrigger value="phone" className="text-xs gap-1"><Phone className="h-3 w-3" />Telephone</TabsTrigger>
           <TabsTrigger value="email" className="text-xs gap-1"><Mail className="h-3 w-3" />Email</TabsTrigger>
           <TabsTrigger value="meetings" className="text-xs gap-1"><Calendar className="h-3 w-3" />Reunions</TabsTrigger>
           <TabsTrigger value="tasks" className="text-xs gap-1"><CheckSquare className="h-3 w-3" />Taches</TabsTrigger>
           <TabsTrigger value="finance" className="text-xs gap-1"><DollarSign className="h-3 w-3" />Finance</TabsTrigger>
+          <TabsTrigger value="photo" className="text-xs gap-1"><Camera className="h-3 w-3" />Photo</TabsTrigger>
           <TabsTrigger value="drive" className="text-xs gap-1"><HardDrive className="h-3 w-3" />Drive</TabsTrigger>
+          <TabsTrigger value="rappels" className="text-xs gap-1"><Bell className="h-3 w-3" />Rappels</TabsTrigger>
           <TabsTrigger value="stats" className="text-xs gap-1"><BarChart3 className="h-3 w-3" />Stats</TabsTrigger>
         </TabsList>
 
@@ -70,7 +73,9 @@ export default function CommandantIAPage() {
         <TabsContent value="meetings"><MeetingsTab /></TabsContent>
         <TabsContent value="tasks"><TasksTab /></TabsContent>
         <TabsContent value="finance"><FinanceTab /></TabsContent>
+        <TabsContent value="photo"><PhotoTab /></TabsContent>
         <TabsContent value="drive"><DriveTab /></TabsContent>
+        <TabsContent value="rappels"><RappelsTab /></TabsContent>
         <TabsContent value="stats"><StatsTab /></TabsContent>
       </Tabs>
     </div>
@@ -680,6 +685,214 @@ function StatsTab() {
           )}
         </>
       ) : <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24" />)}</div>}
+    </div>
+  );
+}
+
+function PhotoTab() {
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
+  const [description, setDescription] = useState("");
+  const [linkedEntity, setLinkedEntity] = useState("contact");
+  const [linkedEntityId, setLinkedEntityId] = useState("");
+  const [result, setResult] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [detecting, setDetecting] = useState(false);
+  const { toast } = useToast();
+
+  const detectLocation = () => {
+    if (!navigator.geolocation) { toast({ title: "Erreur", description: "Geolocalisation non supportee", variant: "destructive" }); return; }
+    setDetecting(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setLatitude(String(pos.coords.latitude)); setLongitude(String(pos.coords.longitude)); setDetecting(false); toast({ title: "Position detectee" }); },
+      (err) => { setDetecting(false); toast({ title: "Erreur GPS", description: err.message, variant: "destructive" }); },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const submitLocation = async () => {
+    setLoading(true);
+    try {
+      const d = await apiPost("/commandant/photo-location", {
+        latitude: parseFloat(latitude), longitude: parseFloat(longitude), description,
+        linkedEntity: linkedEntityId ? linkedEntity : null, linkedEntityId: linkedEntityId ? parseInt(linkedEntityId) : null,
+      });
+      if (d.success) { setResult(d); toast({ title: "Localisation enregistree", description: d.location?.address }); }
+      else throw new Error(d.error);
+    } catch (err: any) { toast({ title: "Erreur", description: err.message, variant: "destructive" }); }
+    setLoading(false);
+  };
+
+  return (
+    <div className="space-y-4 mt-4">
+      <div className="grid grid-cols-2 gap-4">
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Camera className="h-4 w-4 text-rose-500" />Photo + Localisation GPS</CardTitle><CardDescription className="text-xs">Capturez votre position et associez-la a un contact ou projet</CardDescription></CardHeader>
+          <CardContent className="space-y-3">
+            <Button onClick={detectLocation} disabled={detecting} variant="outline" className="w-full border-rose-200 text-rose-700 hover:bg-rose-50">
+              {detecting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Navigation className="h-4 w-4 mr-2" />}
+              Detecter ma position GPS
+            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <div><Label className="text-xs">Latitude</Label><Input value={latitude} onChange={e => setLatitude(e.target.value)} placeholder="48.8566" /></div>
+              <div><Label className="text-xs">Longitude</Label><Input value={longitude} onChange={e => setLongitude(e.target.value)} placeholder="2.3522" /></div>
+            </div>
+            <div><Label className="text-xs">Description</Label><Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Visite client, livraison, intervention..." rows={2} /></div>
+            <div className="grid grid-cols-2 gap-2">
+              <div><Label className="text-xs">Lier a</Label>
+                <Select value={linkedEntity} onValueChange={setLinkedEntity}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>
+                  <SelectItem value="contact">Contact</SelectItem>
+                  <SelectItem value="projet">Projet</SelectItem>
+                  <SelectItem value="prospect">Prospect</SelectItem>
+                </SelectContent></Select>
+              </div>
+              <div><Label className="text-xs">ID (optionnel)</Label><Input value={linkedEntityId} onChange={e => setLinkedEntityId(e.target.value)} placeholder="ID" type="number" /></div>
+            </div>
+            <Button onClick={submitLocation} disabled={loading || (!latitude && !longitude)} className="w-full bg-rose-600 hover:bg-rose-700">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <MapPin className="h-4 w-4 mr-2" />}Enregistrer la position
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><MapPin className="h-4 w-4 text-blue-500" />Resultat</CardTitle></CardHeader>
+          <CardContent>
+            {result ? (
+              <div className="space-y-3">
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <div className="text-xs font-semibold text-blue-700 mb-1">Adresse detectee:</div>
+                  <p className="text-sm">{result.location?.address}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                  <div>Lat: {result.location?.latitude}</div>
+                  <div>Lng: {result.location?.longitude}</div>
+                </div>
+                {result.location?.mapUrl && (
+                  <a href={result.location.mapUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-blue-600 hover:underline">
+                    <ExternalLink className="h-3 w-3" />Voir sur Google Maps
+                  </a>
+                )}
+                {result.metadata && (
+                  <div className="p-2 bg-muted rounded text-xs space-y-1">
+                    <div>Heure: {new Date(result.metadata.timestamp).toLocaleString("fr-FR")}</div>
+                    {result.metadata.linkedEntity && <div>Lie a: {result.metadata.linkedEntity} #{result.metadata.linkedEntityId}</div>}
+                    {result.metadata.description && <div>Note: {result.metadata.description}</div>}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <MapPin className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                <p className="text-xs text-muted-foreground">Detectez votre position ou entrez les coordonnees GPS</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function RappelsTab() {
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [sendingId, setSendingId] = useState<number | null>(null);
+  const [reminderEmail, setReminderEmail] = useState("");
+  const [customMessage, setCustomMessage] = useState("");
+  const { toast } = useToast();
+
+  const loadOverdueTasks = async () => {
+    setLoading(true);
+    try {
+      const d = await apiPost("/commandant/overdue-reminders", { sendEmails: false });
+      if (d.success) {
+        setTasks(d.aiAnalysis?.taskReminders || []);
+      }
+    } catch (err: any) { toast({ title: "Erreur", description: err.message, variant: "destructive" }); }
+    setLoading(false);
+  };
+
+  const sendReminder = async (taskId: number) => {
+    if (!reminderEmail) { toast({ title: "Email requis", variant: "destructive" }); return; }
+    setSendingId(taskId);
+    try {
+      const d = await apiPost("/commandant/send-task-reminder", { taskId, recipientEmail: reminderEmail, customMessage: customMessage || undefined });
+      if (d.success) toast({ title: "Rappel envoye", description: `Email envoye a ${reminderEmail}` });
+      else throw new Error(d.error || "Echec");
+    } catch (err: any) { toast({ title: "Erreur", description: err.message, variant: "destructive" }); }
+    setSendingId(null);
+  };
+
+  const sendBulkReminders = async () => {
+    setLoading(true);
+    try {
+      const d = await apiPost("/commandant/overdue-reminders", { sendEmails: true });
+      if (d.success) toast({ title: "Rappels envoyes", description: `${d.emailsSent || 0} emails de rappel envoyes pour les factures en retard` });
+    } catch (err: any) { toast({ title: "Erreur", description: err.message, variant: "destructive" }); }
+    setLoading(false);
+  };
+
+  useEffect(() => { loadOverdueTasks(); }, []);
+
+  return (
+    <div className="space-y-4 mt-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold flex items-center gap-2"><Bell className="h-5 w-5 text-orange-500" />Rappels intelligents</h2>
+        <div className="flex gap-2">
+          <Button onClick={loadOverdueTasks} variant="outline" disabled={loading}><RefreshCw className="h-4 w-4" /></Button>
+          <Button onClick={sendBulkReminders} disabled={loading} className="bg-orange-600 hover:bg-orange-700">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}Rappels factures auto
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-red-500" />Rappels IA detectes</CardTitle></CardHeader>
+          <CardContent>
+            <ScrollArea className="h-64">
+              {tasks.length > 0 ? (
+                <div className="space-y-2">
+                  {tasks.map((t: any, i: number) => (
+                    <div key={i} className="p-2 border rounded-lg hover:bg-muted/50">
+                      <div className="flex items-center justify-between">
+                        <Badge variant={t.urgency === "critique" ? "destructive" : t.urgency === "haute" ? "default" : "secondary"} className="text-[10px]">{t.urgency || "moyenne"}</Badge>
+                        {t.taskId && <span className="text-[10px] text-muted-foreground">#{t.taskId}</span>}
+                      </div>
+                      <p className="text-xs mt-1">{t.message}</p>
+                      {t.suggestedAction && <p className="text-[10px] text-muted-foreground mt-1 italic">{t.suggestedAction}</p>}
+                    </div>
+                  ))}
+                </div>
+              ) : loading ? (
+                <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
+              ) : (
+                <div className="text-center py-8"><CheckSquare className="h-8 w-8 mx-auto text-emerald-500 mb-2" /><p className="text-xs text-muted-foreground">Aucun rappel critique detecte</p></div>
+              )}
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Send className="h-4 w-4 text-blue-500" />Envoyer un rappel individuel</CardTitle><CardDescription className="text-xs">Envoyez un email de rappel pour une tache specifique</CardDescription></CardHeader>
+          <CardContent className="space-y-3">
+            <div><Label className="text-xs">ID de la tache</Label><Input placeholder="Ex: 42" type="number" id="taskIdInput" /></div>
+            <div><Label className="text-xs">Email destinataire</Label><Input value={reminderEmail} onChange={e => setReminderEmail(e.target.value)} placeholder="collaborateur@example.com" /></div>
+            <div><Label className="text-xs">Message personnalise (optionnel)</Label><Textarea value={customMessage} onChange={e => setCustomMessage(e.target.value)} placeholder="Merci de finaliser cette tache rapidement..." rows={3} /></div>
+            <Button
+              onClick={() => {
+                const taskId = parseInt((document.getElementById("taskIdInput") as HTMLInputElement)?.value || "0");
+                if (taskId > 0) sendReminder(taskId);
+                else toast({ title: "ID de tache requis", variant: "destructive" });
+              }}
+              disabled={sendingId !== null}
+              className="w-full"
+            >
+              {sendingId !== null ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Bell className="h-4 w-4 mr-2" />}Envoyer le rappel
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
