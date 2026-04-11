@@ -685,7 +685,17 @@ Reponds en JSON:
     }
 
     let parsedAiInsights = null;
-    try { parsedAiInsights = aiInsights ? JSON.parse(aiInsights) : null; } catch (err) { console.warn("[Integrations] operation failed:", err); }
+    if (aiInsights) {
+      try {
+        parsedAiInsights = JSON.parse(aiInsights);
+      } catch {
+        const cleaned = aiInsights.replace(/[\x00-\x1F]/g, " ").trim();
+        const lastBrace = cleaned.lastIndexOf("}");
+        if (lastBrace > 0) {
+          try { parsedAiInsights = JSON.parse(cleaned.substring(0, lastBrace + 1)); } catch { /* ignore */ }
+        }
+      }
+    }
 
     res.json({
       detectedPlatforms,

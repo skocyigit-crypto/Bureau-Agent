@@ -193,7 +193,7 @@ export default function AbonnementPage() {
             <p className="text-2xl font-bold">
               {sub?.plan === "essai"
                 ? (sub.daysRemaining !== null ? `${sub.daysRemaining} jours` : "—")
-                : (sub?.periodDaysRemaining !== null ? `${sub.periodDaysRemaining} jours` : "—")}
+                : (sub?.periodDaysRemaining !== null ? `${sub?.periodDaysRemaining} jours` : "—")}
             </p>
             {sub?.trialEndsAt && sub.plan === "essai" && (
               <p className="text-xs text-muted-foreground mt-1">
