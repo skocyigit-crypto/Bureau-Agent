@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useMemo, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Phone, Users, CheckSquare, MessageSquare, BarChart, Search, LayoutDashboard, Settings, PhoneIncoming, FileText, Puzzle, UserCog, Clock, Brain, Package, Calendar, Shield, Zap, BarChart3, KeyRound, Target, FolderKanban, Globe, ScanSearch, Wallet } from "lucide-react";
 import { useWorkspaceUser } from "@/components/workspace-user";
@@ -15,6 +15,9 @@ import { ExportMenu } from "@/components/export-menu";
 import { NotificationBell } from "@/components/notification-bell";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SmartBrowserToolbar } from "@/components/smart-browser-panel";
+import { QuickActionHub } from "@/components/quick-action-hub";
+import { DataExportPanel } from "@/components/data-export-panel";
+import { Plus, Download } from "lucide-react";
 
 type IncomingCallContextType = { simulateIncomingCall: (phone?: string) => void };
 const IncomingCallContext = createContext<IncomingCallContextType>({ simulateIncomingCall: () => {} });
@@ -24,6 +27,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const incomingCall = useIncomingCall();
   const { user } = useWorkspaceUser();
+  const [quickActionOpen, setQuickActionOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === "A") {
+        e.preventDefault();
+        setQuickActionOpen(true);
+      }
+      if (e.ctrlKey && e.shiftKey && e.key === "E") {
+        e.preventDefault();
+        setExportOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const navigation = useMemo(() => {
     const isAdmin = user.role === "super_admin" || user.role === "administrateur";
@@ -38,6 +58,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
       { name: "Comptes Clients", href: "/comptes-clients", icon: Wallet },
       { name: "Calendrier", href: "/calendrier", icon: Calendar },
       { name: "Rapports", href: "/rapports", icon: FileText },
+      { name: "Rapport Executif", href: "/rapport-executif", icon: BarChart3 },
+      ...(isAdmin ? [{ name: "Licence & Facturation", href: "/gestion-licence", icon: Shield }] : []),
       { name: "Google Workspace", href: "/google-workspace", icon: Globe },
       { name: "Logiciels", href: "/logiciels", icon: Puzzle },
       { name: "Analyse", href: "/analyse", icon: BarChart },
@@ -125,6 +147,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <div className="w-px h-4 bg-border" />
               <ThemeToggle />
               <ExportMenu />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setExportOpen(true)}>
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Exporter les donnees (Ctrl+Shift+E)</TooltipContent>
+              </Tooltip>
               <AiHealthBadge />
               <NotificationBell />
               
@@ -139,6 +169,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </main>
         </div>
         <AiAssistantButton />
+        <Button
+          onClick={() => setQuickActionOpen(true)}
+          className="fixed bottom-6 left-6 z-50 rounded-full w-12 h-12 p-0 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg hover:shadow-xl transition-all"
+        >
+          <Plus className="h-5 w-5" />
+        </Button>
+        <QuickActionHub open={quickActionOpen} onOpenChange={setQuickActionOpen} />
+        <DataExportPanel open={exportOpen} onOpenChange={setExportOpen} />
       </div>
     </SidebarProvider>
     </RecognitionProvider>

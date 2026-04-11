@@ -42,6 +42,9 @@ import documentAiRouter from "./document-ai";
 import mySubscriptionRouter from "./my-subscription";
 import comptesClientsRouter from "./comptes-clients";
 import prospectCalendarRouter from "./prospect-calendar";
+import smartReportsRouter from "./smart-reports";
+import bulkOperationsRouter from "./bulk-operations";
+import licenseManagementRouter from "./license-management";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -90,5 +93,8 @@ router.use(dataProtectionRouter);
 router.use(documentAiRouter);
 router.use(comptesClientsRouter);
 router.use(prospectCalendarRouter);
+router.use(smartReportsRouter);
+router.use(bulkOperationsRouter);
+router.use(licenseManagementRouter);
 
 export default router;

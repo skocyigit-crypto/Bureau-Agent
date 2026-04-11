@@ -9,6 +9,7 @@ import { AiRecognitionPanel } from "@/components/ai-recognition-panel";
 import { AiDiscoveryPanel } from "@/components/ai-discovery-panel";
 import { CentralIntelligence } from "@/components/central-intelligence";
 import { EmailComposer } from "@/components/email-composer";
+import { LiveActivityFeed } from "@/components/live-activity-feed";
 import officeTeamImg from "@/assets/images/office-team.png";
 import { useGetDashboardSummary, useGetRecentActivity, useGetTopContacts, useGetWeeklyReport, useGetHourlyPerformance, useGetTaskStats } from "@workspace/api-client-react";
 import { Progress } from "@/components/ui/progress";
@@ -360,6 +361,8 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+      <LiveActivityFeed compact />
+
       <Card className="bg-gradient-to-r from-[#1a2744] to-[#2d3a54] text-white border-0 shadow-lg">
         <CardContent className="p-4 md:p-6">
           <div className="grid gap-4 md:grid-cols-3">

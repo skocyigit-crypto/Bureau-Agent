@@ -25,3 +25,4 @@ export * from "./factures-client";
 export * from "./projets";
 export * from "./compte-client";
 export * from "./app-releases";
+export * from "./payment-reminders";
