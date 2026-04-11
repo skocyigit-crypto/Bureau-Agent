@@ -1,8 +1,10 @@
 import { Feather } from "@expo/vector-icons";
-import React, { useCallback, useEffect, useState } from "react";
+import * as Haptics from "expo-haptics";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Linking,
   Platform,
   Pressable,
   RefreshControl,
@@ -106,6 +108,15 @@ export default function CallsScreen() {
     return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
   }
 
+  const todayStats = useMemo(() => {
+    const today = new Date().toDateString();
+    const todayCalls = calls.filter(c => new Date(c.createdAt).toDateString() === today);
+    const missed = todayCalls.filter(c => c.status === "missed").length;
+    const answered = todayCalls.filter(c => c.status === "answered").length;
+    const totalDuration = todayCalls.reduce((sum, c) => sum + (c.duration || 0), 0);
+    return { total: todayCalls.length, missed, answered, totalDuration };
+  }, [calls]);
+
   async function handleSubmit() {
     if (!formValues.contactName?.trim() && !formValues.phoneNumber?.trim()) return;
     setFormLoading(true);
@@ -196,20 +207,70 @@ export default function CallsScreen() {
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={[styles.listContent, { paddingBottom: isWeb ? 118 : 100 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+          ListHeaderComponent={
+            todayStats.total > 0 ? (
+              <View style={[styles.todaySummary, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <Text style={[styles.todayLabel, { color: colors.foreground }]}>Aujourd'hui</Text>
+                <View style={styles.todayRow}>
+                  <View style={styles.todayStat}>
+                    <Feather name="phone" size={14} color={colors.primary} />
+                    <Text style={[styles.todayValue, { color: colors.primary }]}>{todayStats.total}</Text>
+                  </View>
+                  <View style={styles.todayStat}>
+                    <Feather name="check-circle" size={14} color="#22c55e" />
+                    <Text style={[styles.todayValue, { color: "#22c55e" }]}>{todayStats.answered}</Text>
+                  </View>
+                  <View style={styles.todayStat}>
+                    <Feather name="phone-missed" size={14} color="#ef4444" />
+                    <Text style={[styles.todayValue, { color: "#ef4444" }]}>{todayStats.missed}</Text>
+                  </View>
+                  <View style={styles.todayStat}>
+                    <Feather name="clock" size={14} color={colors.mutedForeground} />
+                    <Text style={[styles.todayValue, { color: colors.mutedForeground }]}>{formatDuration(todayStats.totalDuration)}</Text>
+                  </View>
+                </View>
+              </View>
+            ) : null
+          }
           ListEmptyComponent={<EmptyState icon="phone-off" title="Aucun appel" subtitle="Les appels apparaitront ici" />}
           renderItem={({ item }) => {
             const status = STATUS_MAP[item.status] ?? { label: item.status, color: colors.mutedForeground };
+            const isMissed = item.status === "missed";
             return (
-              <ListItem
-                title={item.contactName || item.phoneNumber}
-                subtitle={item.direction === "entrant" ? "Entrant" : "Sortant"}
-                icon={item.status === "missed" ? "phone-missed" : item.direction === "sortant" ? "phone-outgoing" : "phone-incoming"}
-                iconColor={status.color}
-                rightText={formatTime(item.createdAt)}
-                rightSubtext={item.duration > 0 ? formatDuration(item.duration) : status.label}
-                statusColor={status.color}
-                onPress={() => setSelected(item)}
-              />
+              <View style={[styles.callRow, { backgroundColor: colors.card, borderColor: isMissed ? "#ef444430" : colors.border }]}>
+                <View style={[styles.callIcon, { backgroundColor: status.color + "18" }]}>
+                  <Feather
+                    name={isMissed ? "phone-missed" : item.direction === "sortant" ? "phone-outgoing" : "phone-incoming"}
+                    size={16}
+                    color={status.color}
+                  />
+                </View>
+                <Pressable onPress={() => setSelected(item)} style={styles.callContent}>
+                  <Text style={[styles.callName, { color: colors.foreground }]} numberOfLines={1}>
+                    {item.contactName || item.phoneNumber}
+                  </Text>
+                  <View style={styles.callMeta}>
+                    <Text style={[styles.callSub, { color: colors.mutedForeground }]}>
+                      {item.direction === "entrant" ? "Entrant" : "Sortant"}
+                    </Text>
+                    {item.duration > 0 && (
+                      <Text style={[styles.callDuration, { color: colors.mutedForeground }]}> · {formatDuration(item.duration)}</Text>
+                    )}
+                  </View>
+                </Pressable>
+                {isMissed && item.phoneNumber && (
+                  <Pressable
+                    onPress={() => {
+                      if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      Linking.openURL(`tel:${item.phoneNumber}`);
+                    }}
+                    style={[styles.callbackBtn, { backgroundColor: "#22c55e18" }]}
+                  >
+                    <Feather name="phone-call" size={14} color="#22c55e" />
+                  </Pressable>
+                )}
+                <Text style={[styles.callTime, { color: colors.mutedForeground }]}>{formatTime(item.createdAt)}</Text>
+              </View>
             );
           }}
         />
@@ -263,4 +324,18 @@ const styles = StyleSheet.create({
   filterText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   loadingContainer: { flex: 1, alignItems: "center", justifyContent: "center" },
   listContent: { padding: 16 },
+  todaySummary: { padding: 14, borderRadius: 12, borderWidth: 1, marginBottom: 12 },
+  todayLabel: { fontSize: 13, fontFamily: "Inter_600SemiBold", marginBottom: 8 },
+  todayRow: { flexDirection: "row", justifyContent: "space-around" },
+  todayStat: { flexDirection: "row", alignItems: "center", gap: 5 },
+  todayValue: { fontSize: 14, fontFamily: "Inter_700Bold" },
+  callRow: { flexDirection: "row", alignItems: "center", padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 8 },
+  callIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center", marginRight: 10 },
+  callContent: { flex: 1 },
+  callName: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  callMeta: { flexDirection: "row", alignItems: "center", marginTop: 2 },
+  callSub: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  callDuration: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  callbackBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", marginRight: 6 },
+  callTime: { fontSize: 12, fontFamily: "Inter_400Regular" },
 });

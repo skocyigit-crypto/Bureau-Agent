@@ -109,6 +109,18 @@ export default function TasksScreen() {
     return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
   }
 
+  function getDueDateInfo(dateStr: string | null): { label: string; color: string; urgent: boolean } | null {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffDays = Math.ceil((d.getTime() - now.getTime()) / 86400000);
+    if (diffDays < 0) return { label: `${Math.abs(diffDays)}j retard`, color: "#ef4444", urgent: true };
+    if (diffDays === 0) return { label: "Aujourd'hui", color: "#f59e0b", urgent: true };
+    if (diffDays === 1) return { label: "Demain", color: "#f59e0b", urgent: false };
+    if (diffDays <= 3) return { label: `${diffDays}j`, color: "#3b82f6", urgent: false };
+    return { label: formatDate(dateStr), color: colors.mutedForeground, urgent: false };
+  }
+
   async function toggleStatus(task: Task) {
     if (Platform.OS !== "web") {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -225,8 +237,13 @@ export default function TasksScreen() {
           renderItem={({ item }) => {
             const status = STATUS_MAP[item.status] ?? { label: item.status, color: "#64748b", icon: "circle" as const };
             const prioColor = PRIORITY_COLORS[item.priority] ?? colors.mutedForeground;
+            const dueInfo = item.status !== "termine" ? getDueDateInfo(item.dueDate) : null;
             return (
-              <View style={[styles.taskRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={[
+                styles.taskRow,
+                { backgroundColor: colors.card, borderColor: dueInfo?.urgent ? dueInfo.color + "40" : colors.border },
+                dueInfo?.urgent && { borderLeftWidth: 3, borderLeftColor: dueInfo.color },
+              ]}>
                 <Pressable onPress={() => toggleStatus(item)} style={[styles.checkCircle, { borderColor: status.color }]}>
                   {item.status === "termine" ? <Feather name="check" size={14} color={status.color} /> : null}
                 </Pressable>
@@ -246,11 +263,15 @@ export default function TasksScreen() {
                     <Text style={[styles.taskMetaText, { color: colors.mutedForeground }]}>
                       {PRIORITY_LABELS[item.priority] ?? item.priority}
                     </Text>
-                    {item.dueDate ? (
+                    {dueInfo ? (
+                      <View style={[styles.dueBadge, { backgroundColor: dueInfo.color + "15" }]}>
+                        <Feather name={dueInfo.urgent ? "alert-circle" : "clock"} size={10} color={dueInfo.color} />
+                        <Text style={[styles.dueBadgeText, { color: dueInfo.color }]}>{dueInfo.label}</Text>
+                      </View>
+                    ) : item.dueDate ? (
                       <>
                         <Text style={[styles.taskMetaText, { color: colors.mutedForeground }]}> · </Text>
-                        <Feather name="calendar" size={11} color={colors.mutedForeground} />
-                        <Text style={[styles.taskMetaText, { color: colors.mutedForeground }]}> {formatDate(item.dueDate)}</Text>
+                        <Text style={[styles.taskMetaText, { color: colors.mutedForeground }]}>{formatDate(item.dueDate)}</Text>
                       </>
                     ) : null}
                   </View>
@@ -332,7 +353,9 @@ const styles = StyleSheet.create({
   taskContent: { flex: 1, marginRight: 8 },
   taskTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   taskDone: { textDecorationLine: "line-through", opacity: 0.5 },
-  taskMeta: { flexDirection: "row", alignItems: "center", marginTop: 4 },
-  prioDot: { width: 6, height: 6, borderRadius: 3, marginRight: 4 },
+  taskMeta: { flexDirection: "row", alignItems: "center", marginTop: 4, flexWrap: "wrap", gap: 4 },
+  prioDot: { width: 6, height: 6, borderRadius: 3, marginRight: 2 },
   taskMetaText: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  dueBadge: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginLeft: 4 },
+  dueBadgeText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
 });

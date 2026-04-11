@@ -1,8 +1,10 @@
 import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Linking,
   Platform,
   Pressable,
   RefreshControl,
@@ -17,7 +19,6 @@ import { DetailModal } from "@/components/DetailModal";
 import { EmptyState } from "@/components/EmptyState";
 import { FAB } from "@/components/FAB";
 import { FormModal } from "@/components/FormModal";
-import { ListItem } from "@/components/ListItem";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -30,6 +31,7 @@ interface Contact {
   email: string;
   category: string;
   totalCalls: number;
+  lastCallAt?: string;
   address?: string;
   notes?: string;
 }
@@ -103,6 +105,23 @@ export default function ContactsScreen() {
 
   function onRefresh() { setRefreshing(true); fetchContacts(); }
 
+  function haptic() {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }
+
+  function formatLastContact(dateStr?: string): string {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - d.getTime();
+    const days = Math.floor(diff / 86400000);
+    if (days === 0) return "Aujourd'hui";
+    if (days === 1) return "Hier";
+    if (days < 7) return `${days}j`;
+    if (days < 30) return `${Math.floor(days / 7)}sem`;
+    return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  }
+
   async function handleSubmit() {
     if (!formValues.firstName?.trim() || !formValues.lastName?.trim()) return;
     setFormLoading(true);
@@ -160,10 +179,17 @@ export default function ContactsScreen() {
     { key: "fournisseur", label: "Fourn." },
   ];
 
+  const totalCount = contacts.length;
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.secondary, paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
-        <Text style={styles.headerTitle}>Contacts</Text>
+        <View style={styles.headerRow}>
+          <Text style={styles.headerTitle}>Contacts</Text>
+          <View style={[styles.countBadge, { backgroundColor: colors.primary + "30" }]}>
+            <Text style={[styles.countText, { color: colors.primary }]}>{totalCount}</Text>
+          </View>
+        </View>
         <View style={[styles.searchContainer, { backgroundColor: "rgba(255,255,255,0.1)" }]}>
           <Feather name="search" size={16} color="rgba(255,255,255,0.5)" />
           <TextInput
@@ -197,17 +223,62 @@ export default function ContactsScreen() {
           ListEmptyComponent={<EmptyState icon="users" title="Aucun contact" subtitle="Vos contacts apparaitront ici" />}
           renderItem={({ item }) => {
             const catColor = CATEGORY_COLORS[item.category] ?? colors.mutedForeground;
+            const lastContact = formatLastContact(item.lastCallAt);
             return (
-              <ListItem
-                title={`${item.firstName} ${item.lastName}`}
-                subtitle={item.company || item.email}
-                icon="user"
-                iconColor={catColor}
-                rightText={item.totalCalls > 0 ? `${item.totalCalls} appels` : undefined}
-                rightSubtext={CATEGORY_LABELS[item.category] ?? item.category}
-                statusColor={catColor}
+              <Pressable
                 onPress={() => setSelected(item)}
-              />
+                style={({ pressed }) => [
+                  styles.contactRow,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                <View style={[styles.avatarBox, { backgroundColor: catColor + "18" }]}>
+                  <Text style={[styles.avatarInitials, { color: catColor }]}>
+                    {(item.firstName[0] || "").toUpperCase()}{(item.lastName[0] || "").toUpperCase()}
+                  </Text>
+                </View>
+                <View style={styles.contactInfo}>
+                  <Text style={[styles.contactName, { color: colors.foreground }]} numberOfLines={1}>
+                    {item.firstName} {item.lastName}
+                  </Text>
+                  <View style={styles.contactMeta}>
+                    <View style={[styles.catDot, { backgroundColor: catColor }]} />
+                    <Text style={[styles.contactSub, { color: colors.mutedForeground }]} numberOfLines={1}>
+                      {item.company || CATEGORY_LABELS[item.category] || item.category}
+                    </Text>
+                    {lastContact ? (
+                      <Text style={[styles.lastContactText, { color: colors.mutedForeground }]}> · {lastContact}</Text>
+                    ) : null}
+                  </View>
+                </View>
+                <View style={styles.actionBtns}>
+                  {item.phone ? (
+                    <Pressable
+                      onPress={() => { haptic(); Linking.openURL(`tel:${item.phone}`); }}
+                      style={[styles.actionBtn, { backgroundColor: "#22c55e18" }]}
+                    >
+                      <Feather name="phone" size={15} color="#22c55e" />
+                    </Pressable>
+                  ) : null}
+                  {item.phone ? (
+                    <Pressable
+                      onPress={() => { haptic(); Linking.openURL(`sms:${item.phone}`); }}
+                      style={[styles.actionBtn, { backgroundColor: "#3b82f618" }]}
+                    >
+                      <Feather name="message-circle" size={15} color="#3b82f6" />
+                    </Pressable>
+                  ) : null}
+                  {item.email ? (
+                    <Pressable
+                      onPress={() => { haptic(); Linking.openURL(`mailto:${item.email}`); }}
+                      style={[styles.actionBtn, { backgroundColor: "#8b5cf618" }]}
+                    >
+                      <Feather name="mail" size={15} color="#8b5cf6" />
+                    </Pressable>
+                  ) : null}
+                </View>
+              </Pressable>
             );
           }}
         />
@@ -256,7 +327,10 @@ export default function ContactsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { paddingHorizontal: 20, paddingBottom: 14 },
-  headerTitle: { fontSize: 22, fontFamily: "Inter_700Bold", color: "#ffffff", marginBottom: 14 },
+  headerRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
+  headerTitle: { fontSize: 22, fontFamily: "Inter_700Bold", color: "#ffffff" },
+  countBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12 },
+  countText: { fontSize: 13, fontFamily: "Inter_700Bold" },
   searchContainer: { flexDirection: "row", alignItems: "center", borderRadius: 10, paddingHorizontal: 12, height: 40, gap: 8, marginBottom: 12 },
   searchInput: { flex: 1, color: "#ffffff", fontSize: 14, fontFamily: "Inter_400Regular" },
   filterRow: { flexDirection: "row", gap: 8 },
@@ -264,4 +338,15 @@ const styles = StyleSheet.create({
   filterText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   loadingContainer: { flex: 1, alignItems: "center", justifyContent: "center" },
   listContent: { padding: 16 },
+  contactRow: { flexDirection: "row", alignItems: "center", padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 8 },
+  avatarBox: { width: 42, height: 42, borderRadius: 12, alignItems: "center", justifyContent: "center", marginRight: 12 },
+  avatarInitials: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  contactInfo: { flex: 1, marginRight: 8 },
+  contactName: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  contactMeta: { flexDirection: "row", alignItems: "center", marginTop: 3 },
+  catDot: { width: 6, height: 6, borderRadius: 3, marginRight: 5 },
+  contactSub: { fontSize: 12, fontFamily: "Inter_400Regular", flexShrink: 1 },
+  lastContactText: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  actionBtns: { flexDirection: "row", gap: 6 },
+  actionBtn: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
 });
