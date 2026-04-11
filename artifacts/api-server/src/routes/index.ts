@@ -41,6 +41,7 @@ import dataProtectionRouter from "./data-protection";
 import documentAiRouter from "./document-ai";
 import mySubscriptionRouter from "./my-subscription";
 import comptesClientsRouter from "./comptes-clients";
+import prospectCalendarRouter from "./prospect-calendar";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -88,5 +89,6 @@ router.use(mathRouter);
 router.use(dataProtectionRouter);
 router.use(documentAiRouter);
 router.use(comptesClientsRouter);
+router.use(prospectCalendarRouter);
 
 export default router;

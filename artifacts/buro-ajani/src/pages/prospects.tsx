@@ -1,8 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Target, Search, Plus, MoreHorizontal, Edit, Trash2, ArrowRight, Columns3, LayoutList, DollarSign, TrendingUp, Users2, Percent, GripVertical } from "lucide-react";
+import { Target, Search, Plus, MoreHorizontal, Edit, Trash2, ArrowRight, Columns3, LayoutList, DollarSign, TrendingUp, Users2, Percent, Calendar, Clock, CheckCircle2, AlertCircle, RefreshCw, CalendarPlus, User } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -41,6 +43,137 @@ function euro(v: number | string | null | undefined) {
   return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(Number(v) || 0);
 }
 
+function ScheduleSection({ form, setForm, teamMembers }: { form: any; setForm: (f: any) => void; teamMembers: any[] }) {
+  const [showScheduler, setShowScheduler] = useState(false);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [availability, setAvailability] = useState<any>(null);
+
+  const assignedUser = teamMembers.find((m: any) => String(m.id) === String(form.assignedTo));
+
+  useEffect(() => {
+    if (!form.assignedTo || !selectedDate) return;
+    setLoadingSlots(true);
+    apiFetch(`/prospect-calendar/availability?userId=${form.assignedTo}&date=${selectedDate}&days=1`)
+      .then(data => setAvailability(data))
+      .catch(() => setAvailability(null))
+      .finally(() => setLoadingSlots(false));
+  }, [form.assignedTo, selectedDate]);
+
+  const selectSlot = (slot: any) => {
+    setForm({
+      ...form,
+      rdvStartDate: slot.start,
+      rdvEndDate: slot.end,
+    });
+  };
+
+  if (!form.assignedTo) return null;
+
+  return (
+    <div className="border rounded-lg p-3 space-y-3 bg-muted/20">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-indigo-500" />
+          <span className="font-medium text-sm">Planifier un rendez-vous</span>
+        </div>
+        <Switch checked={showScheduler} onCheckedChange={setShowScheduler} />
+      </div>
+
+      {showScheduler && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <User className="h-3 w-3" />
+            <span>Calendrier de <strong>{assignedUser?.prenom} {assignedUser?.nom}</strong></span>
+            {assignedUser?.hasGoogleSync && (
+              <Badge variant="outline" className="text-[10px] gap-1">
+                <RefreshCw className="h-2.5 w-2.5" /> Google Sync
+              </Badge>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label className="text-xs">Date du rendez-vous</Label>
+              <Input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} min={new Date().toISOString().slice(0, 10)} />
+            </div>
+            <div>
+              <Label className="text-xs">Synchroniser Google Agenda</Label>
+              <div className="flex items-center gap-2 mt-1.5">
+                <Switch checked={form.syncGoogle || false} onCheckedChange={v => setForm({ ...form, syncGoogle: v })} disabled={!assignedUser?.hasGoogleSync} />
+                <span className="text-xs text-muted-foreground">{assignedUser?.hasGoogleSync ? "Actif" : "Non connecte"}</span>
+              </div>
+            </div>
+          </div>
+
+          {selectedDate && (
+            <div>
+              <Label className="text-xs mb-2 block">Creneaux disponibles</Label>
+              {loadingSlots ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground py-4 justify-center">
+                  <RefreshCw className="h-3 w-3 animate-spin" /> Analyse des calendriers...
+                </div>
+              ) : availability ? (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
+                    <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-green-500" /> {availability.freeSlots} libres</span>
+                    <span className="flex items-center gap-1"><AlertCircle className="h-3 w-3 text-red-500" /> {availability.busySlots} occupes</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1 max-h-[200px] overflow-y-auto">
+                    {availability.allSlots?.filter((s: any) => {
+                      const d = new Date(s.start);
+                      return d.toISOString().slice(0, 10) === selectedDate;
+                    }).map((slot: any, i: number) => {
+                      const startTime = new Date(slot.start).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+                      const endTime = new Date(slot.end).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+                      const isSelected = form.rdvStartDate === slot.start;
+                      return (
+                        <TooltipProvider key={i}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                disabled={!slot.available}
+                                onClick={() => slot.available && selectSlot(slot)}
+                                className={`text-xs px-2 py-1.5 rounded border transition-all ${
+                                  isSelected
+                                    ? "bg-indigo-500 text-white border-indigo-600"
+                                    : slot.available
+                                    ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-900 hover:bg-green-100 dark:hover:bg-green-950/50 cursor-pointer"
+                                    : "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900 text-muted-foreground line-through opacity-60 cursor-not-allowed"
+                                }`}
+                              >
+                                {startTime}-{endTime}
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {slot.available ? "Disponible" : `Occupe: ${slot.eventTitle || ""} (${slot.source || ""})`}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      );
+                    })}
+                  </div>
+                  {form.rdvStartDate && (
+                    <div className="flex items-center gap-2 mt-2 p-2 bg-indigo-50 dark:bg-indigo-950/30 rounded border border-indigo-200 dark:border-indigo-900">
+                      <CalendarPlus className="h-4 w-4 text-indigo-500" />
+                      <span className="text-xs font-medium">
+                        RDV : {new Date(form.rdvStartDate).toLocaleDateString("fr-FR")} de {new Date(form.rdvStartDate).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} a {new Date(form.rdvEndDate).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">Selectionnez une date pour voir les disponibilites</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Prospects() {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -52,15 +185,75 @@ export default function Prospects() {
 
   const { data: pipelineData, isLoading } = useQuery({ queryKey: ["prospects-pipeline"], queryFn: () => apiFetch("/prospects/pipeline") });
   const { data: listData } = useQuery({ queryKey: ["prospects-list", search], queryFn: () => apiFetch(`/prospects?search=${search}`) });
+  const { data: calendarSources } = useQuery({ queryKey: ["prospect-calendar-sources"], queryFn: () => apiFetch("/prospect-calendar/sources") });
+  const { data: teamData } = useQuery({ queryKey: ["team-availability"], queryFn: () => apiFetch("/prospect-calendar/team-availability") });
+  const { data: teamMembersData } = useQuery({ queryKey: ["prospect-team-members"], queryFn: () => apiFetch("/prospect-calendar/team-members") });
+
+  const teamMembers = (teamMembersData?.members || []);
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => apiFetch("/prospects", { method: "POST", body: JSON.stringify(data) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["prospects-pipeline"] }); qc.invalidateQueries({ queryKey: ["prospects-list"] }); toast({ title: "Prospect cree" }); setIsDialogOpen(false); },
+    mutationFn: async (data: any) => {
+      const { rdvStartDate, rdvEndDate, syncGoogle, ...prospectData } = data;
+      const prospect = await apiFetch("/prospects", { method: "POST", body: JSON.stringify(prospectData) });
+
+      if (rdvStartDate && rdvEndDate && data.assignedTo) {
+        await apiFetch("/prospect-calendar/schedule", {
+          method: "POST",
+          body: JSON.stringify({
+            prospectId: prospect.id,
+            prospectTitle: prospect.title,
+            assignedUserId: parseInt(data.assignedTo),
+            startDate: rdvStartDate,
+            endDate: rdvEndDate,
+            syncGoogle: syncGoogle || false,
+            contactName: data.contactName,
+            contactEmail: data.email,
+            contactPhone: data.phone,
+            company: data.company,
+          }),
+        });
+      }
+      return prospect;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["prospects-pipeline"] });
+      qc.invalidateQueries({ queryKey: ["prospects-list"] });
+      qc.invalidateQueries({ queryKey: ["team-availability"] });
+      toast({ title: "Prospect cree", description: form.rdvStartDate ? "Rendez-vous planifie et synchronise" : undefined });
+      setIsDialogOpen(false);
+    },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, ...data }: any) => apiFetch(`/prospects/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["prospects-pipeline"] }); qc.invalidateQueries({ queryKey: ["prospects-list"] }); toast({ title: "Prospect mis a jour" }); setIsDialogOpen(false); },
+    mutationFn: async ({ id, rdvStartDate, rdvEndDate, syncGoogle, ...data }: any) => {
+      const prospect = await apiFetch(`/prospects/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+
+      if (rdvStartDate && rdvEndDate && data.assignedTo) {
+        await apiFetch("/prospect-calendar/schedule", {
+          method: "POST",
+          body: JSON.stringify({
+            prospectId: id,
+            prospectTitle: data.title || prospect?.title,
+            assignedUserId: parseInt(data.assignedTo),
+            startDate: rdvStartDate,
+            endDate: rdvEndDate,
+            syncGoogle: syncGoogle || false,
+            contactName: data.contactName,
+            contactEmail: data.email,
+            contactPhone: data.phone,
+            company: data.company,
+          }),
+        });
+      }
+      return prospect;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["prospects-pipeline"] });
+      qc.invalidateQueries({ queryKey: ["prospects-list"] });
+      qc.invalidateQueries({ queryKey: ["team-availability"] });
+      toast({ title: "Prospect mis a jour" });
+      setIsDialogOpen(false);
+    },
   });
 
   const deleteMutation = useMutation({
@@ -72,8 +265,8 @@ export default function Prospects() {
     updateMutation.mutate({ id, stage });
   }, [updateMutation]);
 
-  const openCreate = () => { setEditing(null); setForm({ title: "", stage: "nouveau", priority: "moyenne", probability: 50, value: "" }); setIsDialogOpen(true); };
-  const openEdit = (p: any) => { setEditing(p); setForm({ ...p, value: p.value || "" }); setIsDialogOpen(true); };
+  const openCreate = () => { setEditing(null); setForm({ title: "", stage: "nouveau", priority: "moyenne", probability: 50, value: "", assignedTo: "", syncGoogle: false }); setIsDialogOpen(true); };
+  const openEdit = (p: any) => { setEditing(p); setForm({ ...p, value: p.value || "", assignedTo: p.assignedTo || "" }); setIsDialogOpen(true); };
 
   const handleSave = () => {
     const data = { ...form, value: form.value ? Number(form.value) : null, probability: Number(form.probability) || 50 };
@@ -94,6 +287,12 @@ export default function Prospects() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {calendarSources && (
+            <Badge variant="outline" className="gap-1 text-xs">
+              <Calendar className="h-3 w-3" />
+              {calendarSources.totalSources} calendrier{calendarSources.totalSources !== 1 ? "s" : ""} synchronise{calendarSources.totalSources !== 1 ? "s" : ""}
+            </Badge>
+          )}
           <div className="flex border rounded-lg">
             <Button variant={viewMode === "kanban" ? "default" : "ghost"} size="sm" onClick={() => setViewMode("kanban")}><Columns3 className="h-4 w-4 mr-1" /> Kanban</Button>
             <Button variant={viewMode === "list" ? "default" : "ghost"} size="sm" onClick={() => setViewMode("list")}><LayoutList className="h-4 w-4 mr-1" /> Liste</Button>
@@ -109,6 +308,35 @@ export default function Prospects() {
           <Card><CardContent className="p-4"><div className="flex items-center gap-2"><TrendingUp className="h-5 w-5 text-indigo-500" /><div><p className="text-xs text-muted-foreground">Gagne</p><p className="text-xl font-bold">{euro(stats.wonValue)}</p></div></div></CardContent></Card>
           <Card><CardContent className="p-4"><div className="flex items-center gap-2"><Percent className="h-5 w-5 text-amber-500" /><div><p className="text-xs text-muted-foreground">Prob. moy.</p><p className="text-xl font-bold">{stats.avgProbability}%</p></div></div></CardContent></Card>
         </div>
+      )}
+
+      {teamData?.team && teamData.team.length > 0 && (
+        <Card>
+          <CardHeader className="py-3 px-4">
+            <CardTitle className="text-sm flex items-center gap-2"><Clock className="h-4 w-4 text-indigo-500" /> Disponibilite de l'equipe aujourd'hui</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-3">
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {teamData.team.map((member: any) => (
+                <div key={member.userId} className="flex-shrink-0 border rounded-lg p-2 min-w-[140px]">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <div className={`w-2 h-2 rounded-full ${member.freeSlots > 6 ? "bg-green-500" : member.freeSlots > 2 ? "bg-amber-500" : "bg-red-500"}`} />
+                    <span className="text-xs font-medium truncate">{member.userName}</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <span>{member.freeSlots} creneaux libres</span>
+                    {member.hasGoogleSync && <RefreshCw className="h-2.5 w-2.5 text-blue-500" />}
+                  </div>
+                  {member.nextAvailable && (
+                    <p className="text-[10px] text-green-600 mt-0.5">
+                      Proch. : {new Date(member.nextAvailable).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {viewMode === "list" && (
@@ -148,6 +376,12 @@ export default function Prospects() {
                       </div>
                       {p.company && <p className="text-xs text-muted-foreground">{p.company}</p>}
                       {p.contactName && <p className="text-xs text-muted-foreground">{p.contactName}</p>}
+                      {p.assignedTo && (
+                        <div className="flex items-center gap-1">
+                          <User className="h-3 w-3 text-indigo-500" />
+                          <span className="text-[10px] text-indigo-600">{teamMembers.find((m: any) => String(m.id) === String(p.assignedTo))?.prenom || p.assignedTo}</span>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between">
                         {p.value && <span className="text-xs font-semibold text-emerald-600">{euro(p.value)}</span>}
                         <Badge variant={PRIORITY_COLORS[p.priority] as any} className="text-[10px]">{p.priority}</Badge>
@@ -172,6 +406,7 @@ export default function Prospects() {
                 <thead><tr className="border-b bg-muted/50">
                   <th className="text-left p-3 font-medium">Titre</th>
                   <th className="text-left p-3 font-medium">Societe</th>
+                  <th className="text-left p-3 font-medium">Assigne</th>
                   <th className="text-left p-3 font-medium">Etape</th>
                   <th className="text-left p-3 font-medium">Valeur</th>
                   <th className="text-left p-3 font-medium">Prob.</th>
@@ -183,6 +418,14 @@ export default function Prospects() {
                     <tr key={p.id} className="border-b hover:bg-muted/30 cursor-pointer" onClick={() => openEdit(p)}>
                       <td className="p-3 font-medium">{p.title}</td>
                       <td className="p-3 text-muted-foreground">{p.company || "-"}</td>
+                      <td className="p-3 text-muted-foreground">
+                        {p.assignedTo ? (
+                          <span className="flex items-center gap-1">
+                            <User className="h-3 w-3 text-indigo-500" />
+                            {teamMembers.find((m: any) => String(m.id) === String(p.assignedTo))?.prenom || p.assignedTo}
+                          </span>
+                        ) : "-"}
+                      </td>
                       <td className="p-3"><Badge className={`${STAGE_COLORS[p.stage]} text-white text-xs`}>{STAGE_LABELS[p.stage]}</Badge></td>
                       <td className="p-3">{p.value ? euro(p.value) : "-"}</td>
                       <td className="p-3">{p.probability}%</td>
@@ -238,16 +481,47 @@ export default function Prospects() {
               </div>
               <div><Label>Source</Label><Input value={form.source || ""} onChange={e => setForm({ ...form, source: e.target.value })} placeholder="Web, Salon..." /></div>
             </div>
+
+            <div>
+              <Label>Assigne a</Label>
+              <Select value={form.assignedTo || ""} onValueChange={v => setForm({ ...form, assignedTo: v })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selectionner un commercial" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teamMembers.map((m: any) => {
+                    const avail = teamData?.team?.find((t: any) => t.userId === m.id);
+                    return (
+                      <SelectItem key={m.id} value={String(m.id)}>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${avail && avail.freeSlots > 6 ? "bg-green-500" : avail && avail.freeSlots > 2 ? "bg-amber-500" : "bg-red-500"}`} />
+                          <span>{m.prenom} {m.nom}</span>
+                          <span className="text-muted-foreground text-xs">({m.role})</span>
+                          {m.hasGoogleSync && <RefreshCw className="h-3 w-3 text-blue-400" />}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Valeur (EUR)</Label><Input type="number" value={form.value || ""} onChange={e => setForm({ ...form, value: e.target.value })} /></div>
               <div><Label>Probabilite (%)</Label><Input type="number" min={0} max={100} value={form.probability || 50} onChange={e => setForm({ ...form, probability: e.target.value })} /></div>
             </div>
             <div><Label>Date de cloture prevue</Label><Input type="date" value={form.expectedCloseDate ? form.expectedCloseDate.slice(0, 10) : ""} onChange={e => setForm({ ...form, expectedCloseDate: e.target.value })} /></div>
+
+            <ScheduleSection form={form} setForm={setForm} teamMembers={teamMembers} />
+
             <div><Label>Notes</Label><Textarea value={form.notes || ""} onChange={e => setForm({ ...form, notes: e.target.value })} rows={3} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Annuler</Button>
-            <Button onClick={handleSave} disabled={!form.title}>{editing ? "Enregistrer" : "Creer"}</Button>
+            <Button onClick={handleSave} disabled={!form.title}>
+              {form.rdvStartDate && <CalendarPlus className="h-4 w-4 mr-1" />}
+              {editing ? "Enregistrer" : form.rdvStartDate ? "Creer + Planifier RDV" : "Creer"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
