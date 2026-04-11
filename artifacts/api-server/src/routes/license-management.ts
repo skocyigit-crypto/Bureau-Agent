@@ -45,7 +45,9 @@ async function sendEmailViaResend(to: string, subject: string, html: string): Pr
 async function logAudit(orgId: number, action: string, details: string, userId?: number, metadata?: Record<string, any>) {
   try {
     await db.insert(licenseAuditLogTable).values({ organisationId: orgId, action, details, performedBy: userId || null, metadata: metadata || null });
-  } catch {}
+  } catch (err: any) {
+    console.error("[LicenseAudit] Erreur log audit:", err.message);
+  }
 }
 
 router.get("/license-management/dashboard", async (req: Request, res: Response): Promise<void> => {

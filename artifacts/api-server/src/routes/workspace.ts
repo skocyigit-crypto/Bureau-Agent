@@ -651,7 +651,7 @@ router.get("/daily-reports", async (req, res): Promise<void> => {
 
 router.get("/daily-reports/:id", async (req, res): Promise<void> => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) {
       res.status(400).json({ error: "ID invalide." });
       return;
@@ -672,7 +672,7 @@ router.get("/daily-reports/:id", async (req, res): Promise<void> => {
 
 router.delete("/daily-reports/:id", async (req, res): Promise<void> => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) {
       res.status(400).json({ error: "ID invalide." });
       return;

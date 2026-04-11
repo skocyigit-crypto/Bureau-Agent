@@ -87,7 +87,7 @@ router.put("/factures-client/bank-info", async (req, res): Promise<void> => {
 
 router.get("/factures-client/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
   const [f] = await db.select().from(facturesClientTable).where(and(eq(facturesClientTable.id, id), eq(facturesClientTable.organisationId, orgId)));
   if (!f) { res.status(404).json({ error: "Facture non trouvee" }); return; }
@@ -116,7 +116,7 @@ router.post("/factures-client", async (req, res): Promise<void> => {
 
 router.patch("/factures-client/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
   const updateData: any = { ...req.body };
   if (updateData.items) {
@@ -139,7 +139,7 @@ router.patch("/factures-client/:id", async (req, res): Promise<void> => {
 
 router.delete("/factures-client/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
   const [f] = await db.delete(facturesClientTable).where(and(eq(facturesClientTable.id, id), eq(facturesClientTable.organisationId, orgId))).returning();
   if (!f) { res.status(404).json({ error: "Facture non trouvee" }); return; }
@@ -226,7 +226,7 @@ function generateInvoiceHtml(facture: any, org: any): string {
 router.post("/factures-client/:id/record-payment", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
   const userId = (req.session as any)?.userId;
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
 
   const { amount, paymentMethod, notes } = req.body;
@@ -303,7 +303,7 @@ router.post("/factures-client/:id/record-payment", async (req, res): Promise<voi
 
 router.post("/factures-client/:id/send-invoice", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
 
   const [facture] = await db.select().from(facturesClientTable).where(and(eq(facturesClientTable.id, id), eq(facturesClientTable.organisationId, orgId)));

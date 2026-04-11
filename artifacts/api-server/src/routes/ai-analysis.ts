@@ -2769,7 +2769,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         const port = process.env.PORT || 8080;
         for (const action of actions) {
           try {
-            const chainRes = await fetch(`http://localhost:${port}/api/ai/execute`, {
+            const chainRes = await fetch(`http://127.0.0.1:${port}/api/ai/execute`, {
               method: "POST",
               headers: { "Content-Type": "application/json", cookie: req.headers.cookie || "" },
               body: JSON.stringify({ type: action.type, target: action.target }),

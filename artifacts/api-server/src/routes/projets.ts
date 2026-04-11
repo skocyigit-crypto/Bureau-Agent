@@ -3,6 +3,28 @@ import { eq, desc, ilike, or, sql, and } from "drizzle-orm";
 import { db, projetsTable } from "@workspace/db";
 import { getOrgId } from "../middleware/tenant";
 
+const VALID_STATUSES = ["planifie", "en_cours", "en_pause", "termine", "annule"];
+const VALID_PRIORITIES = ["basse", "moyenne", "haute", "urgente"];
+
+function validateProjet(body: any, isUpdate = false): string | null {
+  if (!isUpdate && (!body.title || typeof body.title !== "string" || body.title.trim().length === 0)) return "Titre requis";
+  if (body.title && (typeof body.title !== "string" || body.title.length > 500)) return "Titre invalide (max 500 caracteres)";
+  if (body.description && typeof body.description !== "string") return "Description invalide";
+  if (body.status && !VALID_STATUSES.includes(body.status)) return "Statut invalide";
+  if (body.priority && !VALID_PRIORITIES.includes(body.priority)) return "Priorite invalide";
+  if (body.clientName && typeof body.clientName !== "string") return "Nom client invalide";
+  return null;
+}
+
+function sanitizeProjetData(body: any): Record<string, any> {
+  const allowed = ["title", "description", "contactId", "clientName", "clientCompany", "address", "status", "priority", "budget", "startDate", "endDate", "assignedTo", "teamMembers", "milestones", "tags", "notes", "spent", "actualEndDate", "progress"];
+  const result: Record<string, any> = {};
+  for (const key of allowed) {
+    if (body[key] !== undefined) result[key] = body[key];
+  }
+  return result;
+}
+
 const router: IRouter = Router();
 
 router.get("/projets", async (req, res): Promise<void> => {
@@ -46,7 +68,7 @@ router.get("/projets/stats", async (req, res): Promise<void> => {
 
 router.get("/projets/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
   const [p] = await db.select().from(projetsTable).where(and(eq(projetsTable.id, id), eq(projetsTable.organisationId, orgId)));
   if (!p) { res.status(404).json({ error: "Projet non trouve" }); return; }
@@ -55,8 +77,9 @@ router.get("/projets/:id", async (req, res): Promise<void> => {
 
 router.post("/projets", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
+  const err = validateProjet(req.body);
+  if (err) { res.status(400).json({ error: err }); return; }
   const { title, description, contactId, clientName, clientCompany, address, status, priority, budget, startDate, endDate, assignedTo, teamMembers, milestones, tags, notes } = req.body;
-  if (!title) { res.status(400).json({ error: "Titre requis" }); return; }
   const [p] = await db.insert(projetsTable).values({
     organisationId: orgId, title, description, contactId: contactId || null,
     clientName, clientCompany, address, status: status || "planifie",
@@ -71,15 +94,17 @@ router.post("/projets", async (req, res): Promise<void> => {
 
 router.patch("/projets/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
-  const updateData: any = { ...req.body };
+  const valErr = validateProjet(req.body, true);
+  if (valErr) { res.status(400).json({ error: valErr }); return; }
+  const updateData: any = sanitizeProjetData(req.body);
   if (updateData.startDate) updateData.startDate = new Date(updateData.startDate);
   if (updateData.endDate) updateData.endDate = new Date(updateData.endDate);
+  if (updateData.actualEndDate) updateData.actualEndDate = new Date(updateData.actualEndDate);
   if (updateData.status === "termine" && !updateData.actualEndDate) updateData.actualEndDate = new Date();
   if (updateData.budget) updateData.budget = String(updateData.budget);
   if (updateData.spent) updateData.spent = String(updateData.spent);
-  delete updateData.id; delete updateData.organisationId; delete updateData.createdAt;
   const [p] = await db.update(projetsTable).set(updateData)
     .where(and(eq(projetsTable.id, id), eq(projetsTable.organisationId, orgId))).returning();
   if (!p) { res.status(404).json({ error: "Projet non trouve" }); return; }
@@ -88,7 +113,7 @@ router.patch("/projets/:id", async (req, res): Promise<void> => {
 
 router.delete("/projets/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
   const [p] = await db.delete(projetsTable).where(and(eq(projetsTable.id, id), eq(projetsTable.organisationId, orgId))).returning();
   if (!p) { res.status(404).json({ error: "Projet non trouve" }); return; }

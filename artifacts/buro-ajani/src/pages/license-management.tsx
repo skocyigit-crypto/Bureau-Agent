@@ -570,7 +570,9 @@ function AuditTab() {
           const d = await r.json();
           setLogs(d.logs || []);
         }
-      } catch {}
+      } catch (err) {
+        console.error("[AuditLog] Erreur chargement:", err);
+      }
       setLoading(false);
     })();
   }, []);

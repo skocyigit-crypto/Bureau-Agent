@@ -65,7 +65,7 @@ router.get("/prospects/pipeline", async (req, res): Promise<void> => {
 
 router.get("/prospects/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
   const [prospect] = await db.select().from(prospectsTable).where(and(eq(prospectsTable.id, id), eq(prospectsTable.organisationId, orgId)));
   if (!prospect) { res.status(404).json({ error: "Prospect non trouve" }); return; }
@@ -88,7 +88,7 @@ router.post("/prospects", async (req, res): Promise<void> => {
 
 router.patch("/prospects/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
   const updateData: any = { ...req.body };
   if (updateData.expectedCloseDate) updateData.expectedCloseDate = new Date(updateData.expectedCloseDate);
@@ -103,7 +103,7 @@ router.patch("/prospects/:id", async (req, res): Promise<void> => {
 
 router.delete("/prospects/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
   const [prospect] = await db.delete(prospectsTable)
     .where(and(eq(prospectsTable.id, id), eq(prospectsTable.organisationId, orgId))).returning();

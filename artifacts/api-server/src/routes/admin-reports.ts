@@ -103,7 +103,7 @@ router.patch("/admin-reports/:id", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Acces reserve au super admin." }); return;
   }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
   const { status, adminResponse } = req.body || {};
@@ -139,7 +139,7 @@ router.patch("/admin-reports/:id/read", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Acces reserve aux administrateurs." }); return;
   }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
   try {

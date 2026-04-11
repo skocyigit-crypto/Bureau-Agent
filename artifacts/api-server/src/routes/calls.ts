@@ -124,7 +124,7 @@ router.post("/calls/:id/process", async (req, res): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
   try {

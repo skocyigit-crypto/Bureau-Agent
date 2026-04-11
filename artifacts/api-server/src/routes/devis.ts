@@ -45,7 +45,7 @@ router.get("/devis/stats", async (req, res): Promise<void> => {
 
 router.get("/devis/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
   const [d] = await db.select().from(devisTable).where(and(eq(devisTable.id, id), eq(devisTable.organisationId, orgId)));
   if (!d) { res.status(404).json({ error: "Devis non trouve" }); return; }
@@ -74,7 +74,7 @@ router.post("/devis", async (req, res): Promise<void> => {
 
 router.patch("/devis/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
   const updateData: any = { ...req.body };
   if (updateData.items) {
@@ -95,7 +95,7 @@ router.patch("/devis/:id", async (req, res): Promise<void> => {
 
 router.delete("/devis/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
   const [d] = await db.delete(devisTable).where(and(eq(devisTable.id, id), eq(devisTable.organisationId, orgId))).returning();
   if (!d) { res.status(404).json({ error: "Devis non trouve" }); return; }
