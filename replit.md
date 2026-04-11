@@ -49,6 +49,7 @@ The application features a French UI with a deep navy and warm amber color schem
   - Autonomous: chain_actions (multi-step sequential execution up to 10 actions)
   - Full financial context in every conversation (invoices, account health, cash flow, org info)
   - System prompt: ultra-strategic, proactive, multi-action, emotionally intelligent
+- **App Update Management System:** Complete release management for SaaS customers. Super admins publish versioned releases with changelog via Settings > Mises a jour tab. Customers see a smart update banner (auto-detects new builds + new releases). Supports: version numbering, type classification (major/feature/security/fix/performance), detailed changelog, force-update mode (mandatory updates block the UI), dismiss/later option. DB: `app_releases`. API: `/api/app-version`, `/api/app-releases`. Frontend: UpdateBanner component (top bar) + TabMisesAJour (Settings).
 - **AI Auto-Fix Engine:** Automated correction endpoint for orphan call linking, overdue task escalation, duplicate contact detection, auto-categorization, and negative stock correction.
 - **AI Anomaly Detection:** Proactive anomaly detection across all systems, checking 11 anomaly types with suggested actions.
 - **AI Predictive Intelligence:** Forecasting engine using historical data to generate weekly forecasts, operational risks, opportunities, and strategic recommendations.

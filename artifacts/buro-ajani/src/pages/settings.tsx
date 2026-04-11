@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Settings, Shield, Bell, Save, Monitor, Package,
-  PhoneIncoming, Layers, CreditCard
+  PhoneIncoming, Layers, CreditCard, Rocket
 } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,11 +16,13 @@ import { TabInstallation } from "./settings/tab-installation";
 import { TabNotifications } from "./settings/tab-notifications";
 import { TabSecurite } from "./settings/tab-securite";
 import { TabFacturation } from "./settings/tab-facturation";
+import { TabMisesAJour } from "./settings/tab-mises-a-jour";
 
 export default function SettingsPage() {
   const { user } = useWorkspaceUser();
   const { toast } = useToast();
   const isAdmin = user?.role === "super_admin" || user?.role === "administrateur";
+  const isSuperAdmin = user?.role === "super_admin";
   const [activeTab, setActiveTab] = useState(isAdmin ? "abonnement" : "appels");
 
   useEffect(() => {
@@ -56,7 +58,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className={`grid w-full lg:w-auto lg:inline-grid ${isAdmin ? "grid-cols-8" : "grid-cols-3"}`}>
+        <TabsList className={`grid w-full lg:w-auto lg:inline-grid ${isSuperAdmin ? "grid-cols-9" : isAdmin ? "grid-cols-8" : "grid-cols-3"}`}>
           {isAdmin && (
             <TabsTrigger value="abonnement" className="gap-2">
               <Package className="w-4 h-4" />
@@ -99,6 +101,12 @@ export default function SettingsPage() {
               Securite
             </TabsTrigger>
           )}
+          {isSuperAdmin && (
+            <TabsTrigger value="mises-a-jour" className="gap-2">
+              <Rocket className="w-4 h-4" />
+              Mises a jour
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="abonnement" className="space-y-6 mt-6">
@@ -131,6 +139,10 @@ export default function SettingsPage() {
 
         <TabsContent value="securite" className="space-y-6 mt-6">
           <TabSecurite />
+        </TabsContent>
+
+        <TabsContent value="mises-a-jour" className="space-y-6 mt-6">
+          <TabMisesAJour />
         </TabsContent>
       </Tabs>
     </div>

@@ -1,14 +1,101 @@
 import { Router, type IRouter } from "express";
 import { HealthCheckResponse } from "@workspace/api-zod";
-import { db, callsTable, contactsTable, tasksTable, messagesTable, stockArticlesTable, calendarEventsTable } from "@workspace/db";
-import { sql } from "drizzle-orm";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, stockArticlesTable, calendarEventsTable, appReleasesTable } from "@workspace/db";
+import { sql, desc, eq, and } from "drizzle-orm";
 import crypto from "crypto";
 
 const router: IRouter = Router();
 
+const APP_BUILD_HASH = crypto.createHash("md5").update(new Date().toISOString().slice(0, 16)).digest("hex").substring(0, 12);
+const APP_BUILD_TIME = new Date().toISOString();
+
 router.get("/healthz", (_req, res) => {
   const data = HealthCheckResponse.parse({ status: "ok" });
   res.json(data);
+});
+
+router.get("/app-version", async (_req, res) => {
+  try {
+    const [latestRelease] = await db.select()
+      .from(appReleasesTable)
+      .where(eq(appReleasesTable.isActive, true))
+      .orderBy(desc(appReleasesTable.publishedAt))
+      .limit(1);
+
+    res.json({
+      buildHash: APP_BUILD_HASH,
+      buildTime: APP_BUILD_TIME,
+      latestRelease: latestRelease ? {
+        id: latestRelease.id,
+        version: latestRelease.version,
+        title: latestRelease.title,
+        description: latestRelease.description,
+        changes: latestRelease.changes,
+        type: latestRelease.type,
+        forceUpdate: latestRelease.forceUpdate,
+        publishedAt: latestRelease.publishedAt,
+      } : null,
+    });
+  } catch {
+    res.json({ buildHash: APP_BUILD_HASH, buildTime: APP_BUILD_TIME, latestRelease: null });
+  }
+});
+
+router.get("/app-releases", async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(String(req.query.limit)) || 10, 50);
+    const releases = await db.select()
+      .from(appReleasesTable)
+      .where(eq(appReleasesTable.isActive, true))
+      .orderBy(desc(appReleasesTable.publishedAt))
+      .limit(limit);
+    res.json({ releases });
+  } catch {
+    res.json({ releases: [] });
+  }
+});
+
+router.post("/app-releases", async (req, res): Promise<void> => {
+  const userRole = (req.session as any)?.userRole;
+  if (userRole !== "super_admin") {
+    res.status(403).json({ error: "Acces reserve au super administrateur." });
+    return;
+  }
+
+  const { version, title, description, changes, type, forceUpdate } = req.body;
+  if (!version || !title) {
+    res.status(400).json({ error: "Version et titre requis." });
+    return;
+  }
+
+  try {
+    const userId = (req.session as any)?.userId;
+    const [release] = await db.insert(appReleasesTable).values({
+      version,
+      title,
+      description: description || null,
+      changes: changes || null,
+      type: type || "update",
+      forceUpdate: forceUpdate || false,
+      buildHash: APP_BUILD_HASH,
+      publishedBy: userId,
+    }).returning();
+    res.status(201).json(release);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.delete("/app-releases/:id", async (req, res): Promise<void> => {
+  const userRole = (req.session as any)?.userRole;
+  if (userRole !== "super_admin") {
+    res.status(403).json({ error: "Acces reserve." });
+    return;
+  }
+  const id = parseInt(String(req.params.id), 10);
+  if (!id) { res.status(400).json({ error: "ID invalide." }); return; }
+  await db.update(appReleasesTable).set({ isActive: false }).where(eq(appReleasesTable.id, id));
+  res.status(204).end();
 });
 
 let cachedVersion: { hash: string; timestamp: number } | null = null;
