@@ -85,6 +85,13 @@ export default function CommandantIAPage() {
 function BriefingTab() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any>(null);
+  const [searching, setSearching] = useState(false);
+  const [analysisText, setAnalysisText] = useState("");
+  const [analysisType, setAnalysisType] = useState("summary");
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [analyzing, setAnalyzing] = useState(false);
   const { toast } = useToast();
 
   const loadBriefing = async () => {
@@ -97,12 +104,90 @@ function BriefingTab() {
     setLoading(false);
   };
 
+  const smartSearch = async () => {
+    if (!searchQuery || searchQuery.length < 2) return;
+    setSearching(true);
+    setSearchResults(null);
+    try {
+      const d = await apiPost("/commandant/smart-search", { query: searchQuery });
+      if (d.success) setSearchResults(d);
+      else toast({ title: "Erreur", description: d.error || "Recherche echouee", variant: "destructive" });
+    } catch (err: any) { toast({ title: "Erreur", description: err.message, variant: "destructive" }); }
+    finally { setSearching(false); }
+  };
+
+  const analyzeText = async () => {
+    if (!analysisText) return;
+    setAnalyzing(true);
+    setAnalysisResult(null);
+    try {
+      const d = await apiPost("/commandant/analyze-text", { text: analysisText, analysisType });
+      if (d.success) setAnalysisResult(d.analysis);
+      else toast({ title: "Erreur", description: d.error || "Analyse echouee", variant: "destructive" });
+    } catch (err: any) { toast({ title: "Erreur", description: err.message, variant: "destructive" }); }
+    finally { setAnalyzing(false); }
+  };
+
   useEffect(() => { loadBriefing(); }, []);
 
   const weatherIcons: Record<string, string> = { ensoleille: "☀️", nuageux: "⛅", orageux: "⛈️" };
+  const typeIcons: Record<string, any> = { contact: Users, tache: CheckSquare, evenement: Calendar, facture: FileText, prospect: Target };
+  const typeColors: Record<string, string> = { contact: "text-blue-600 bg-blue-50", tache: "text-emerald-600 bg-emerald-50", evenement: "text-purple-600 bg-purple-50", facture: "text-orange-600 bg-orange-50", prospect: "text-rose-600 bg-rose-50" };
 
   return (
     <div className="space-y-4 mt-4">
+      <Card className="border-2 border-slate-200 bg-gradient-to-r from-slate-50 to-blue-50">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2">
+            <Search className="h-5 w-5 text-blue-500" />
+            <Input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && smartSearch()}
+              placeholder="Recherche intelligente — contacts, taches, factures, evenements, prospects..."
+              className="flex-1 border-0 bg-transparent text-base focus-visible:ring-0 placeholder:text-muted-foreground/60"
+            />
+            <Button onClick={smartSearch} disabled={searching} size="sm" className="bg-blue-600 hover:bg-blue-700">
+              {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {searchResults && (
+        <Card className="border-blue-200">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2"><Wand2 className="h-4 w-4 text-blue-500" />{searchResults.totalResults} resultat{searchResults.totalResults > 1 ? "s" : ""} pour "{searchResults.query}"</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setSearchResults(null)} className="text-xs h-6">Fermer</Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {searchResults.aiSummary && <p className="text-xs text-muted-foreground mb-3 p-2 bg-blue-50 rounded">{searchResults.aiSummary}</p>}
+            <ScrollArea className="max-h-48">
+              <div className="space-y-1">
+                {(searchResults.results && typeof searchResults.results === "object" ? Object.entries(searchResults.results) : []).flatMap(([category, items]: [string, any]) =>
+                  (Array.isArray(items) ? items : []).map((item: any) => {
+                    const Icon = typeIcons[item.type] || FileText;
+                    const colorClass = typeColors[item.type] || "text-gray-600 bg-gray-50";
+                    return (
+                      <div key={`${item.type}-${item.id}`} className="flex items-center gap-2 p-2 rounded hover:bg-muted/50 cursor-pointer">
+                        <div className={`p-1 rounded ${colorClass}`}><Icon className="h-3 w-3" /></div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-medium truncate">{item.title}</div>
+                          {item.subtitle && <div className="text-[10px] text-muted-foreground truncate">{item.subtitle}</div>}
+                        </div>
+                        <Badge variant="outline" className="text-[9px] shrink-0">{item.type}</Badge>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold flex items-center gap-2"><Coffee className="h-5 w-5 text-amber-500" />Briefing du jour</h2>
         <Button onClick={loadBriefing} variant="outline" disabled={loading}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}</Button>
@@ -115,7 +200,7 @@ function BriefingTab() {
           <Card className="border-2 border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50">
             <CardContent className="p-6">
               <div className="flex items-start gap-4">
-                <div className="text-4xl">{weatherIcons[data.briefing?.weatherOfBusiness] || "🌤️"}</div>
+                <div className="text-4xl">{weatherIcons[data.briefing?.weatherOfBusiness?.toLowerCase()] || "🌤️"}</div>
                 <div className="flex-1">
                   <p className="text-base font-medium">{data.briefing?.greeting}</p>
                   {data.briefing?.motivationalNote && <p className="text-sm text-muted-foreground mt-2 italic">{data.briefing.motivationalNote}</p>}
@@ -158,6 +243,71 @@ function BriefingTab() {
           </div>
         </>
       ) : null}
+
+      <Separator className="my-4" />
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2"><Bot className="h-4 w-4 text-violet-500" />Outils IA - Analyse de texte</CardTitle>
+          <CardDescription className="text-xs">Analysez, resumez, traduisez ou reformulez n'importe quel texte avec l'IA</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { v: "summary", l: "Resume", icon: FileText },
+              { v: "sentiment", l: "Sentiment", icon: Eye },
+              { v: "entities", l: "Entites", icon: Users },
+              { v: "action_items", l: "Actions", icon: CheckSquare },
+              { v: "translate", l: "Traduire (EN)", icon: ArrowRight },
+              { v: "rewrite", l: "Reformuler", icon: Wand2 },
+            ].map(opt => (
+              <Button
+                key={opt.v}
+                variant={analysisType === opt.v ? "default" : "outline"}
+                size="sm"
+                className={`text-xs gap-1 ${analysisType === opt.v ? "bg-violet-600 hover:bg-violet-700" : ""}`}
+                onClick={() => setAnalysisType(opt.v)}
+              >
+                <opt.icon className="h-3 w-3" />{opt.l}
+              </Button>
+            ))}
+          </div>
+          <Textarea
+            value={analysisText}
+            onChange={e => setAnalysisText(e.target.value)}
+            placeholder="Collez ou tapez un texte a analyser (email, contrat, notes de reunion, message client...)"
+            rows={4}
+          />
+          <Button onClick={analyzeText} disabled={analyzing || !analysisText} className="w-full bg-violet-600 hover:bg-violet-700">
+            {analyzing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Brain className="h-4 w-4 mr-2" />}Analyser avec l'IA
+          </Button>
+          {analysisResult && (
+            <Card className="border-violet-200 bg-violet-50/30">
+              <CardContent className="p-4">
+                <ScrollArea className="max-h-60">
+                  <div className="space-y-2 text-sm">
+                    {analysisResult.summary && <div><span className="font-semibold text-violet-700">Resume:</span> <span className="text-muted-foreground">{analysisResult.summary}</span></div>}
+                    {analysisResult.sentiment && <div className="flex items-center gap-2"><span className="font-semibold text-violet-700">Sentiment:</span> <Badge className={analysisResult.sentiment === "positif" ? "bg-emerald-100 text-emerald-700" : analysisResult.sentiment === "negatif" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700"}>{analysisResult.sentiment}</Badge>{analysisResult.score !== undefined && <span className="text-xs text-muted-foreground">({analysisResult.score}/100)</span>}</div>}
+                    {analysisResult.keyPoints?.length > 0 && <div><span className="font-semibold text-violet-700">Points cles:</span><ul className="mt-1">{analysisResult.keyPoints.map((p: string, i: number) => <li key={i} className="text-xs text-muted-foreground ml-3">• {p}</li>)}</ul></div>}
+                    {analysisResult.emotions?.length > 0 && <div><span className="font-semibold text-violet-700">Emotions:</span> {analysisResult.emotions.map((e: string, i: number) => <Badge key={i} variant="outline" className="text-[10px] ml-1">{e}</Badge>)}</div>}
+                    {analysisResult.keyPhrases?.length > 0 && <div><span className="font-semibold text-violet-700">Phrases cles:</span> {analysisResult.keyPhrases.map((p: string, i: number) => <Badge key={i} variant="secondary" className="text-[10px] ml-1">{p}</Badge>)}</div>}
+                    {analysisResult.actions?.length > 0 && <div><span className="font-semibold text-violet-700">Actions:</span><ul className="mt-1">{analysisResult.actions.map((a: any, i: number) => <li key={i} className="text-xs ml-3 flex items-center gap-1"><CheckSquare className="h-3 w-3 text-emerald-500" /><span className="font-medium">{a.title || a}</span>{a.priority && <Badge variant="outline" className="text-[9px]">{a.priority}</Badge>}{a.deadline && <span className="text-muted-foreground"> ({a.deadline})</span>}</li>)}</ul></div>}
+                    {analysisResult.decisions?.length > 0 && <div><span className="font-semibold text-violet-700">Decisions:</span><ul className="mt-1">{analysisResult.decisions.map((d: string, i: number) => <li key={i} className="text-xs text-muted-foreground ml-3">✓ {d}</li>)}</ul></div>}
+                    {analysisResult.people?.length > 0 && <div><span className="font-semibold text-violet-700">Personnes:</span> {analysisResult.people.join(", ")}</div>}
+                    {analysisResult.companies?.length > 0 && <div><span className="font-semibold text-violet-700">Entreprises:</span> {analysisResult.companies.join(", ")}</div>}
+                    {analysisResult.dates?.length > 0 && <div><span className="font-semibold text-violet-700">Dates:</span> {analysisResult.dates.join(", ")}</div>}
+                    {analysisResult.amounts?.length > 0 && <div><span className="font-semibold text-violet-700">Montants:</span> {analysisResult.amounts.join(", ")}</div>}
+                    {analysisResult.translation && <div><span className="font-semibold text-violet-700">Traduction:</span><div className="mt-1 p-2 bg-white rounded text-xs">{analysisResult.translation}</div></div>}
+                    {analysisResult.rewritten && <div><span className="font-semibold text-violet-700">Version reformulee:</span><div className="mt-1 p-2 bg-white rounded text-xs">{analysisResult.rewritten}</div></div>}
+                    {analysisResult.improvements?.length > 0 && <div><span className="font-semibold text-violet-700">Ameliorations:</span><ul className="mt-1">{analysisResult.improvements.map((imp: string, i: number) => <li key={i} className="text-xs text-muted-foreground ml-3">→ {imp}</li>)}</ul></div>}
+                    {analysisResult.readingTime && <div className="text-xs text-muted-foreground">Temps de lecture: {analysisResult.readingTime} | Complexite: {analysisResult.complexity || "N/A"}</div>}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
