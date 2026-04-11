@@ -14,6 +14,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { ExportMenu } from "@/components/export-menu";
 import { NotificationBell } from "@/components/notification-bell";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { SmartBrowserToolbar } from "@/components/smart-browser-panel";
 
 type IncomingCallContextType = { simulateIncomingCall: (phone?: string) => void };
 const IncomingCallContext = createContext<IncomingCallContextType>({ simulateIncomingCall: () => {} });
@@ -120,6 +121,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </TooltipTrigger>
                 <TooltipContent>Simuler un appel entrant</TooltipContent>
               </Tooltip>
+              <SmartBrowserToolbar />
+              <div className="w-px h-4 bg-border" />
               <ThemeToggle />
               <ExportMenu />
               <AiHealthBadge />

@@ -42,6 +42,7 @@ import ComptesClientsPage from "@/pages/comptes-clients";
 import AbonnementPage from "@/pages/abonnement";
 import { useLicenseCheck } from "@/hooks/use-license-check";
 import { CommandPalette } from "@/components/command-palette";
+import { SmartBrowserOverlays, SmartBrowserShortcuts } from "@/components/smart-browser-panel";
 
 const queryClient = new QueryClient();
 
@@ -186,6 +187,8 @@ function App() {
                   <>
                     <UpdateBanner />
                     <CommandPalette />
+                    <SmartBrowserOverlays />
+                    <SmartBrowserShortcuts />
                     <AppRoutes />
                   </>
                 )}
