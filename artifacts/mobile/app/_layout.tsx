@@ -40,6 +40,7 @@ function RootLayoutNav() {
       <Stack.Screen name="audit-log" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="integrations" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="organisations" options={{ headerShown: false, presentation: "modal" }} />
+      <Stack.Screen name="face-recognition" options={{ headerShown: false, presentation: "modal" }} />
     </Stack>
   );
 }

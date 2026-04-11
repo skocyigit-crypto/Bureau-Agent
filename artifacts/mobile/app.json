@@ -34,6 +34,12 @@
           "origin": "https://agentdebureau.fr/"
         }
       ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Agent de Bureau a besoin d'acceder a votre camera pour la reconnaissance faciale."
+        }
+      ],
       "expo-font",
       "expo-web-browser"
     ],

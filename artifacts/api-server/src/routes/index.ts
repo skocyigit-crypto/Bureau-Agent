@@ -46,6 +46,7 @@ import smartReportsRouter from "./smart-reports";
 import bulkOperationsRouter from "./bulk-operations";
 import licenseManagementRouter from "./license-management";
 import aiCommandantRouter from "./ai-commandant";
+import faceRecognitionRouter from "./face-recognition";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -98,5 +99,6 @@ router.use(smartReportsRouter);
 router.use(bulkOperationsRouter);
 router.use(licenseManagementRouter);
 router.use(aiCommandantRouter);
+router.use("/face", faceRecognitionRouter);
 
 export default router;

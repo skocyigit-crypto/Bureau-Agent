@@ -158,6 +158,7 @@ export default function MoreScreen() {
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>INTELLIGENCE ARTIFICIELLE</Text>
           <MenuItem icon="cpu" label="Agents IA" sublabel="Analyse et recommandations" color="#8b5cf6" onPress={() => nav("/ai-agents")} />
+          <MenuItem icon="aperture" label="Reconnaissance faciale" sublabel="Identification IA en temps reel" color="#ec4899" onPress={() => nav("/face-recognition")} />
           <MenuItem icon="zap" label="Automations" sublabel="Regles et executions" color="#f97316" onPress={() => nav("/automations")} />
         </View>
 
