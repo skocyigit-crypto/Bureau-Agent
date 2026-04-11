@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Phone, Users, CheckSquare, MessageSquare, BarChart, Search, LayoutDashboard, Settings, PhoneIncoming, FileText, Puzzle, UserCog, Clock, Brain, Package, Calendar, Shield, Zap, BarChart3, KeyRound, Target, FolderKanban, Globe, ScanSearch, Wallet } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, BarChart, Search, LayoutDashboard, Settings, PhoneIncoming, FileText, Puzzle, UserCog, Clock, Brain, Package, Calendar, Shield, Zap, BarChart3, KeyRound, Target, FolderKanban, Globe, ScanSearch, Wallet, Sparkles } from "lucide-react";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { SidebarIcon3D, Icon3D } from "@/components/icon-3d";
 import { AiAssistantButton } from "@/components/ai-assistant";
@@ -67,6 +67,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       { name: "Stock", href: "/stock", icon: Package },
       { name: "Pointage", href: "/pointage", icon: Clock },
       ...(user.role !== "lecture_seule" ? [{ name: "Agents IA", href: "/agents-ia", icon: Brain }] : []),
+      ...(user.role !== "lecture_seule" ? [{ name: "AI Commandant", href: "/commandant-ia", icon: Sparkles }] : []),
       { name: "Document IA", href: "/document-ia", icon: ScanSearch },
       { name: "Performance", href: "/performance", icon: BarChart3 },
       ...(isAdmin ? [{ name: "Automatisations", href: "/automatisations", icon: Zap }] : []),

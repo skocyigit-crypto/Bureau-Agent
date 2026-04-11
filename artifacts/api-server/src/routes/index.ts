@@ -45,6 +45,7 @@ import prospectCalendarRouter from "./prospect-calendar";
 import smartReportsRouter from "./smart-reports";
 import bulkOperationsRouter from "./bulk-operations";
 import licenseManagementRouter from "./license-management";
+import aiCommandantRouter from "./ai-commandant";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -96,5 +97,6 @@ router.use(prospectCalendarRouter);
 router.use(smartReportsRouter);
 router.use(bulkOperationsRouter);
 router.use(licenseManagementRouter);
+router.use(aiCommandantRouter);
 
 export default router;

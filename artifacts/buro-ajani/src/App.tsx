@@ -45,6 +45,7 @@ import { CommandPalette } from "@/components/command-palette";
 import { SmartBrowserOverlays, SmartBrowserShortcuts } from "@/components/smart-browser-panel";
 import ExecutiveReportPage from "@/pages/rapport-executif";
 import LicenseManagementPage from "@/pages/license-management";
+import CommandantIAPage from "@/pages/commandant-ia";
 import { QuickActionHub } from "@/components/quick-action-hub";
 
 const queryClient = new QueryClient();
@@ -103,6 +104,7 @@ function AppRoutes() {
         <Route path="/parametres" component={SettingsPage} />
         <Route path="/rapport-executif" component={withLicenseGate(ExecutiveReportPage)} />
         <Route path="/gestion-licence" component={withLicenseGate(LicenseManagementPage)} />
+        <Route path="/commandant-ia" component={withLicenseGate(CommandantIAPage)} />
         <Route path="/notifications" component={NotificationsPage} />
         <Route component={NotFound} />
       </Switch>
