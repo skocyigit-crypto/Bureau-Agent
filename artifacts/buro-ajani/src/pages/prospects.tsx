@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Target, Search, Plus, MoreHorizontal, Edit, Trash2, ArrowRight, Columns3, LayoutList, DollarSign, TrendingUp, Users2, Percent, Calendar, Clock, CheckCircle2, AlertCircle, RefreshCw, CalendarPlus, User } from "lucide-react";
+import { Target, Search, Plus, MoreHorizontal, Edit, Trash2, ArrowRight, Columns3, LayoutList, DollarSign, TrendingUp, Users2, Percent, Calendar, Clock, CheckCircle2, AlertCircle, RefreshCw, CalendarPlus, User, Star, Activity, Mail, Phone, MessageSquare, BellRing, X } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -174,6 +176,185 @@ function ScheduleSection({ form, setForm, teamMembers }: { form: any; setForm: (
   );
 }
 
+const GRADE_COLORS: Record<string, string> = { A: "bg-emerald-500", B: "bg-blue-500", C: "bg-amber-500", D: "bg-orange-500", F: "bg-red-500" };
+
+function LeadScoreBadge({ prospectId }: { prospectId: number }) {
+  const { data } = useQuery({ queryKey: ["lead-score", prospectId], queryFn: () => apiFetch(`/prospects/${prospectId}/score`), staleTime: 60000 });
+  if (!data) return null;
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge className={`${GRADE_COLORS[data.grade]} text-white text-[10px] px-1.5 py-0 gap-0.5`}>
+            <Star className="h-2.5 w-2.5" /> {data.grade} ({data.score})
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-[200px]">
+          <div className="text-xs space-y-0.5">
+            <p className="font-semibold">Score: {data.score}/100</p>
+            {data.factors.map((f: any, i: number) => (
+              <p key={i}>+{f.points} {f.label}</p>
+            ))}
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+const TIMELINE_ICONS: Record<string, any> = { creation: Activity, stage: ArrowRight, call: Phone };
+const EMAIL_TEMPLATES = [
+  { id: "intro", label: "Introduction", subject: "Presentation de nos services", body: "Bonjour {name},\n\nSuite a notre echange, je me permets de vous presenter nos services...\n\nCordialement" },
+  { id: "followup", label: "Relance", subject: "Suite a notre echange", body: "Bonjour {name},\n\nJe me permets de revenir vers vous concernant notre proposition...\n\nCordialement" },
+  { id: "proposal", label: "Proposition", subject: "Proposition commerciale", body: "Bonjour {name},\n\nVeuillez trouver ci-joint notre proposition commerciale...\n\nCordialement" },
+  { id: "thanks", label: "Remerciement", subject: "Merci pour votre confiance", body: "Bonjour {name},\n\nNous vous remercions pour votre confiance...\n\nCordialement" },
+];
+
+function ProspectDetailPanel({ prospect, onClose, teamMembers }: { prospect: any; onClose: () => void; teamMembers: any[] }) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("timeline");
+  const [followUpType, setFollowUpType] = useState("appel");
+  const [followUpDate, setFollowUpDate] = useState("");
+  const [followUpNote, setFollowUpNote] = useState("");
+  const [emailTemplate, setEmailTemplate] = useState("");
+
+  const { data: scoreData } = useQuery({ queryKey: ["lead-score", prospect.id], queryFn: () => apiFetch(`/prospects/${prospect.id}/score`) });
+  const { data: timelineData } = useQuery({ queryKey: ["prospect-timeline", prospect.id], queryFn: () => apiFetch(`/prospects/${prospect.id}/timeline`) });
+
+  const followUpMutation = useMutation({
+    mutationFn: (data: any) => apiFetch(`/prospects/${prospect.id}/follow-up`, { method: "POST", body: JSON.stringify(data) }),
+    onSuccess: () => { toast({ title: "Relance programmee" }); qc.invalidateQueries({ queryKey: ["prospect-timeline", prospect.id] }); setFollowUpDate(""); setFollowUpNote(""); },
+  });
+
+  const assignedMember = teamMembers.find((m: any) => String(m.id) === String(prospect.assignedTo));
+
+  return (
+    <div className="fixed inset-y-0 right-0 w-[420px] bg-background border-l shadow-xl z-50 flex flex-col">
+      <div className="flex items-center justify-between p-4 border-b">
+        <div>
+          <h3 className="font-semibold">{prospect.title}</h3>
+          <p className="text-xs text-muted-foreground">{prospect.company || ""} {prospect.contactName ? `- ${prospect.contactName}` : ""}</p>
+        </div>
+        <Button variant="ghost" size="sm" onClick={onClose}><X className="h-4 w-4" /></Button>
+      </div>
+
+      {scoreData && (
+        <div className="p-4 border-b bg-muted/20">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium">Score Lead</span>
+            <Badge className={`${GRADE_COLORS[scoreData.grade]} text-white`}>{scoreData.grade} - {scoreData.score}/100</Badge>
+          </div>
+          <Progress value={scoreData.score} className="h-2 mb-2" />
+          <div className="flex flex-wrap gap-1">
+            {scoreData.factors.map((f: any, i: number) => (
+              <Badge key={i} variant="outline" className="text-[10px]">+{f.points} {f.label}</Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+        <TabsList className="mx-4 mt-2">
+          <TabsTrigger value="timeline" className="text-xs"><Activity className="h-3 w-3 mr-1" /> Historique</TabsTrigger>
+          <TabsTrigger value="followup" className="text-xs"><BellRing className="h-3 w-3 mr-1" /> Relance</TabsTrigger>
+          <TabsTrigger value="email" className="text-xs"><Mail className="h-3 w-3 mr-1" /> Email</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="timeline" className="flex-1 overflow-y-auto px-4 pb-4">
+          <div className="space-y-3 mt-2">
+            {timelineData?.events?.map((event: any, i: number) => {
+              const IconComp = TIMELINE_ICONS[event.type] || Activity;
+              return (
+                <div key={i} className="flex gap-3">
+                  <div className="flex flex-col items-center">
+                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center"><IconComp className="h-4 w-4" /></div>
+                    {i < (timelineData.events.length - 1) && <div className="w-px flex-1 bg-border mt-1" />}
+                  </div>
+                  <div className="flex-1 pb-3">
+                    <p className="text-sm font-medium">{event.title}</p>
+                    <p className="text-xs text-muted-foreground">{event.detail}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{event.date ? format(new Date(event.date), "dd/MM/yyyy HH:mm", { locale: fr }) : ""}</p>
+                  </div>
+                </div>
+              );
+            })}
+            {(!timelineData?.events || timelineData.events.length === 0) && (
+              <p className="text-sm text-muted-foreground text-center py-8">Aucun evenement</p>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="followup" className="px-4 pb-4">
+          <div className="space-y-3 mt-2">
+            <div>
+              <Label className="text-xs">Type de relance</Label>
+              <Select value={followUpType} onValueChange={setFollowUpType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="appel">Appel telephonique</SelectItem>
+                  <SelectItem value="email">Email</SelectItem>
+                  <SelectItem value="reunion">Reunion</SelectItem>
+                  <SelectItem value="visite">Visite client</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Date</Label>
+              <Input type="datetime-local" value={followUpDate} onChange={e => setFollowUpDate(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Note</Label>
+              <Textarea value={followUpNote} onChange={e => setFollowUpNote(e.target.value)} rows={3} placeholder="Details de la relance..." />
+            </div>
+            {assignedMember && (
+              <div className="flex items-center gap-2 p-2 bg-muted/30 rounded text-xs">
+                <User className="h-3 w-3" />
+                <span>Assigne a: <strong>{assignedMember.prenom} {assignedMember.nom}</strong></span>
+              </div>
+            )}
+            <Button className="w-full" onClick={() => followUpMutation.mutate({ type: followUpType, dueDate: followUpDate, note: followUpNote })} disabled={!followUpDate}>
+              <BellRing className="h-4 w-4 mr-1" /> Programmer la relance
+            </Button>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="email" className="px-4 pb-4">
+          <div className="space-y-3 mt-2">
+            <div>
+              <Label className="text-xs">Modele</Label>
+              <Select value={emailTemplate} onValueChange={setEmailTemplate}>
+                <SelectTrigger><SelectValue placeholder="Choisir un modele" /></SelectTrigger>
+                <SelectContent>
+                  {EMAIL_TEMPLATES.map(t => <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {emailTemplate && (() => {
+              const tpl = EMAIL_TEMPLATES.find(t => t.id === emailTemplate);
+              if (!tpl) return null;
+              const body = tpl.body.replace(/{name}/g, prospect.contactName || "Madame, Monsieur");
+              return (
+                <div className="space-y-2">
+                  <div><Label className="text-xs">Objet</Label><Input value={tpl.subject} readOnly className="bg-muted/30" /></div>
+                  <div><Label className="text-xs">Contenu</Label><Textarea value={body} rows={6} className="bg-muted/30" readOnly /></div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Mail className="h-3 w-3" />
+                    <span>Destinataire: {prospect.email || "Pas d'email"}</span>
+                  </div>
+                  <Button className="w-full" disabled={!prospect.email}>
+                    <Mail className="h-4 w-4 mr-1" /> Envoyer l'email
+                  </Button>
+                </div>
+              );
+            })()}
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
 export default function Prospects() {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -182,6 +363,7 @@ export default function Prospects() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState<any>({});
+  const [selectedProspect, setSelectedProspect] = useState<any>(null);
 
   const { data: pipelineData, isLoading } = useQuery({ queryKey: ["prospects-pipeline"], queryFn: () => apiFetch("/prospects/pipeline") });
   const { data: listData } = useQuery({ queryKey: ["prospects-list", search], queryFn: () => apiFetch(`/prospects?search=${search}`) });
@@ -361,7 +543,7 @@ export default function Prospects() {
               </div>
               <div className="space-y-2 min-h-[200px] bg-muted/30 rounded-lg p-2">
                 {pipelineData.pipeline[stage.id]?.map((p: any) => (
-                  <Card key={p.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => openEdit(p)}>
+                  <Card key={p.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSelectedProspect(p)}>
                     <CardContent className="p-3 space-y-2">
                       <div className="flex items-start justify-between">
                         <h3 className="font-medium text-sm leading-tight">{p.title}</h3>
@@ -369,6 +551,7 @@ export default function Prospects() {
                           <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}><Button variant="ghost" size="sm" className="h-6 w-6 p-0"><MoreHorizontal className="h-3 w-3" /></Button></DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={e => { e.stopPropagation(); openEdit(p); }}><Edit className="h-3 w-3 mr-2" /> Modifier</DropdownMenuItem>
+                            <DropdownMenuItem onClick={e => { e.stopPropagation(); setSelectedProspect(p); }}><Activity className="h-3 w-3 mr-2" /> Details</DropdownMenuItem>
                             {stage.id !== "gagne" && <DropdownMenuItem onClick={e => { e.stopPropagation(); moveStage(p.id, "gagne"); }}><ArrowRight className="h-3 w-3 mr-2" /> Marquer gagne</DropdownMenuItem>}
                             <DropdownMenuItem className="text-red-600" onClick={e => { e.stopPropagation(); deleteMutation.mutate(p.id); }}><Trash2 className="h-3 w-3 mr-2" /> Supprimer</DropdownMenuItem>
                           </DropdownMenuContent>
@@ -376,6 +559,7 @@ export default function Prospects() {
                       </div>
                       {p.company && <p className="text-xs text-muted-foreground">{p.company}</p>}
                       {p.contactName && <p className="text-xs text-muted-foreground">{p.contactName}</p>}
+                      <LeadScoreBadge prospectId={p.id} />
                       {p.assignedTo && (
                         <div className="flex items-center gap-1">
                           <User className="h-3 w-3 text-indigo-500" />
@@ -415,8 +599,8 @@ export default function Prospects() {
                 </tr></thead>
                 <tbody>
                   {(listData?.prospects || []).map((p: any) => (
-                    <tr key={p.id} className="border-b hover:bg-muted/30 cursor-pointer" onClick={() => openEdit(p)}>
-                      <td className="p-3 font-medium">{p.title}</td>
+                    <tr key={p.id} className="border-b hover:bg-muted/30 cursor-pointer" onClick={() => setSelectedProspect(p)}>
+                      <td className="p-3 font-medium"><div className="flex items-center gap-2">{p.title}<LeadScoreBadge prospectId={p.id} /></div></td>
                       <td className="p-3 text-muted-foreground">{p.company || "-"}</td>
                       <td className="p-3 text-muted-foreground">
                         {p.assignedTo ? (
@@ -449,6 +633,10 @@ export default function Prospects() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {selectedProspect && (
+        <ProspectDetailPanel prospect={selectedProspect} onClose={() => setSelectedProspect(null)} teamMembers={teamMembers} />
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

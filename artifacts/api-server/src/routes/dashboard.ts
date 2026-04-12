@@ -477,4 +477,154 @@ router.get("/dashboard/notifications", async (req, res): Promise<void> => {
   });
 });
 
+router.get("/team-status", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  try {
+    const users = await db.execute(sql`
+      SELECT id, CONCAT(prenom, ' ', nom) as name, role, 
+        CASE 
+          WHEN dernier_acces > NOW() - INTERVAL '15 minutes' THEN 'online'
+          WHEN dernier_acces > NOW() - INTERVAL '1 hour' THEN 'busy'
+          ELSE 'offline'
+        END as status,
+        COALESCE(dernier_acces, created_at) as last_seen
+      FROM users 
+      WHERE organisation_id = ${orgId} AND actif = true
+      ORDER BY dernier_acces DESC NULLS LAST
+      LIMIT 20
+    `);
+    res.json({ members: users.rows });
+  } catch (err) {
+    res.json({ members: [] });
+  }
+});
+
+router.get("/dashboard/week-comparison", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  const DAYS_FR = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+  try {
+    const thisWeekStart = getStartOfWeek();
+    const lastWeekStart = new Date(thisWeekStart);
+    lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+
+    const thisWeekCalls = await db.execute(sql`
+      SELECT EXTRACT(DOW FROM created_at) as dow, COUNT(*)::int as cnt
+      FROM calls WHERE organisation_id = ${orgId} AND created_at >= ${thisWeekStart}
+      GROUP BY dow ORDER BY dow
+    `);
+
+    const lastWeekCalls = await db.execute(sql`
+      SELECT EXTRACT(DOW FROM created_at) as dow, COUNT(*)::int as cnt
+      FROM calls WHERE organisation_id = ${orgId} 
+        AND created_at >= ${lastWeekStart} AND created_at < ${thisWeekStart}
+      GROUP BY dow ORDER BY dow
+    `);
+
+    const twMap: Record<number, number> = {};
+    const lwMap: Record<number, number> = {};
+    for (const r of thisWeekCalls.rows as any[]) twMap[r.dow] = r.cnt;
+    for (const r of lastWeekCalls.rows as any[]) lwMap[r.dow] = r.cnt;
+
+    const comparison = [1, 2, 3, 4, 5, 6, 0].map((dow, i) => ({
+      day: DAYS_FR[i],
+      thisWeek: twMap[dow] || 0,
+      lastWeek: lwMap[dow] || 0,
+    }));
+
+    res.json({ comparison });
+  } catch (err) {
+    res.json({ comparison: [] });
+  }
+});
+
+router.get("/dashboard/predictions", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  try {
+    const now = new Date();
+    const weekMs = 7 * 24 * 60 * 60 * 1000;
+
+    const weeks: { start: Date; end: Date }[] = [];
+    for (let i = 4; i >= 0; i--) {
+      const end = new Date(now.getTime() - i * weekMs);
+      const start = new Date(end.getTime() - weekMs);
+      weeks.push({ start, end });
+    }
+
+    const weeklyData: { calls: number; tasks: number; contacts: number; revenue: number }[] = [];
+    for (const w of weeks) {
+      const [callsResult] = (await db.execute(sql`
+        SELECT COUNT(*)::int as cnt FROM calls WHERE organisation_id = ${orgId} AND created_at >= ${w.start.toISOString()} AND created_at < ${w.end.toISOString()}
+      `)).rows as any[];
+      const [tasksResult] = (await db.execute(sql`
+        SELECT COUNT(*)::int as cnt FROM tasks WHERE organisation_id = ${orgId} AND created_at >= ${w.start.toISOString()} AND created_at < ${w.end.toISOString()}
+      `)).rows as any[];
+      const [contactsResult] = (await db.execute(sql`
+        SELECT COUNT(*)::int as cnt FROM contacts WHERE organisation_id = ${orgId} AND created_at >= ${w.start.toISOString()} AND created_at < ${w.end.toISOString()}
+      `)).rows as any[];
+      const [revenueResult] = (await db.execute(sql`
+        SELECT COALESCE(SUM(total_amount), 0)::float as total FROM factures_client WHERE organisation_id = ${orgId} AND status = 'payee' AND created_at >= ${w.start.toISOString()} AND created_at < ${w.end.toISOString()}
+      `)).rows as any[];
+
+      weeklyData.push({
+        calls: callsResult?.cnt || 0,
+        tasks: tasksResult?.cnt || 0,
+        contacts: contactsResult?.cnt || 0,
+        revenue: revenueResult?.total || 0,
+      });
+    }
+
+    const predict = (values: number[]) => {
+      if (values.length < 2) return values[values.length - 1] || 0;
+      const n = values.length;
+      const xMean = (n - 1) / 2;
+      const yMean = values.reduce((a, b) => a + b, 0) / n;
+      let num = 0, den = 0;
+      for (let i = 0; i < n; i++) {
+        num += (i - xMean) * (values[i] - yMean);
+        den += (i - xMean) * (i - xMean);
+      }
+      const slope = den !== 0 ? num / den : 0;
+      const intercept = yMean - slope * xMean;
+      return Math.max(0, Math.round(slope * n + intercept));
+    };
+
+    const callTrend = weeklyData.map(w => w.calls);
+    const taskTrend = weeklyData.map(w => w.tasks);
+    const contactTrend = weeklyData.map(w => w.contacts);
+    const revenueTrend = weeklyData.map(w => w.revenue);
+
+    const predictions = {
+      nextWeekCalls: predict(callTrend),
+      nextWeekTasks: predict(taskTrend),
+      nextWeekContacts: predict(contactTrend),
+      nextWeekRevenue: Math.round(predict(revenueTrend) * 100) / 100,
+      trends: {
+        calls: callTrend,
+        tasks: taskTrend,
+        contacts: contactTrend,
+        revenue: revenueTrend,
+      },
+      labels: weeks.map(w => {
+        const d = new Date(w.end);
+        return `${d.getDate()}/${d.getMonth() + 1}`;
+      }),
+    };
+
+    const insights: string[] = [];
+    const lastCalls = callTrend[callTrend.length - 1] || 0;
+    const prevCalls = callTrend[callTrend.length - 2] || 0;
+    if (lastCalls > prevCalls * 1.2) insights.push("Volume d'appels en forte hausse (+20%)");
+    else if (lastCalls < prevCalls * 0.8) insights.push("Baisse du volume d'appels (-20%)");
+
+    const lastRev = revenueTrend[revenueTrend.length - 1] || 0;
+    const prevRev = revenueTrend[revenueTrend.length - 2] || 0;
+    if (lastRev > prevRev) insights.push("Chiffre d'affaires en croissance");
+    if (predictions.nextWeekCalls > lastCalls * 1.1) insights.push("Prevision: augmentation des appels la semaine prochaine");
+
+    res.json({ predictions, insights });
+  } catch (err) {
+    res.json({ predictions: null, insights: [] });
+  }
+});
+
 export default router;

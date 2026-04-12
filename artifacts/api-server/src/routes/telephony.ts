@@ -383,4 +383,46 @@ router.get("/telephony/stats", async (req, res): Promise<void> => {
   });
 });
 
+const scheduledCallsStore: Map<number, { id: number; orgId: number; toNumber: string; scheduledAt: string; note: string; status: string; createdBy: number; createdAt: string }[]> = new Map();
+let scheduleIdCounter = 1;
+
+router.get("/telephony/schedule", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  const scheduled = scheduledCallsStore.get(orgId) || [];
+  scheduled.sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+  res.json({ scheduled });
+});
+
+router.post("/telephony/schedule", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  const { toNumber, scheduledAt, note } = req.body;
+  if (!toNumber || !scheduledAt) {
+    res.status(400).json({ error: "Numero et date/heure requis" });
+    return;
+  }
+  const userId = (req.session as any)?.userId || 0;
+  const entry = {
+    id: scheduleIdCounter++,
+    orgId,
+    toNumber,
+    scheduledAt,
+    note: note || "",
+    status: "pending",
+    createdBy: userId,
+    createdAt: new Date().toISOString(),
+  };
+  if (!scheduledCallsStore.has(orgId)) scheduledCallsStore.set(orgId, []);
+  scheduledCallsStore.get(orgId)!.push(entry);
+  res.json({ success: true, scheduled: entry });
+});
+
+router.delete("/telephony/schedule/:id", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  const id = parseInt(String(req.params.id));
+  const list = scheduledCallsStore.get(orgId) || [];
+  const idx = list.findIndex(s => s.id === id);
+  if (idx >= 0) { list.splice(idx, 1); }
+  res.json({ success: true });
+});
+
 export default router;

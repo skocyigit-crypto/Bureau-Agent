@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Phone, Users, CheckSquare, MessageSquare, ArrowUpRight, ArrowDownRight, Clock, Plus, Activity, BarChart3, Send, LayoutDashboard, Shield, HardDriveDownload, Zap } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, ArrowUpRight, ArrowDownRight, Clock, Plus, Activity, BarChart3, Send, LayoutDashboard, Shield, HardDriveDownload, Zap, CloudSun, UserCheck, UserX, Coffee, Calendar, Brain, TrendingUp, Lightbulb } from "lucide-react";
 import { Icon3D, type Icon3DVariant } from "@/components/icon-3d";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { AiRecognitionPanel } from "@/components/ai-recognition-panel";
@@ -14,15 +14,54 @@ import officeTeamImg from "@/assets/images/office-team.png";
 import { useGetDashboardSummary, useGetRecentActivity, useGetTopContacts, useGetWeeklyReport, useGetHourlyPerformance, useGetTaskStats } from "@workspace/api-client-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, Bar, Cell } from "recharts";
+import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, Bar, Cell, LineChart, Line, Legend } from "recharts";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Link } from "wouter";
 import { useWorkspaceUser } from "@/components/workspace-user";
 
+const API = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function useLiveClock() {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return now;
+}
+
+function useTeamStatus() {
+  const [team, setTeam] = useState<{ id: number; name: string; role: string; status: string; lastSeen: string }[]>([]);
+  const fetchTeam = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/api/team-status`, { credentials: "include" });
+      if (res.ok) { const d = await res.json(); setTeam(d.members || []); }
+    } catch {}
+  }, []);
+  useEffect(() => { fetchTeam(); const t = setInterval(fetchTeam, 30000); return () => clearInterval(t); }, [fetchTeam]);
+  return team;
+}
+
+function useWeekComparison() {
+  const [data, setData] = useState<{ day: string; thisWeek: number; lastWeek: number }[]>([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API}/api/dashboard/week-comparison`, { credentials: "include" });
+        if (res.ok) { const d = await res.json(); setData(d.comparison || []); }
+      } catch {}
+    })();
+  }, []);
+  return data;
+}
+
 export default function Dashboard() {
   const { user } = useWorkspaceUser();
   const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
+  const now = useLiveClock();
+  const teamMembers = useTeamStatus();
+  const weekComparison = useWeekComparison();
   const { data: summary, isLoading: isLoadingSummary } = useGetDashboardSummary({ query: { queryKey: ["dashboardSummary"] } });
   const { data: recentActivity, isLoading: isLoadingActivity } = useGetRecentActivity({ limit: 6 }, { query: { queryKey: ["recentActivity"] } });
   const { data: topContacts, isLoading: isLoadingContacts } = useGetTopContacts({ limit: 5 }, { query: { queryKey: ["topContacts"] } });
@@ -129,6 +168,67 @@ export default function Dashboard() {
           </div>
         </div>
       </Card>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="bg-gradient-to-br from-slate-50 to-slate-100/50 dark:from-slate-950/30 dark:to-slate-900/10 border-slate-200/50 dark:border-slate-800/30">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-primary/10">
+              <Clock className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <div className="text-3xl font-bold tabular-nums tracking-tight">
+                {format(now, "HH:mm:ss")}
+              </div>
+              <div className="text-sm text-muted-foreground capitalize">
+                {format(now, "EEEE d MMMM yyyy", { locale: fr })}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-950/30 dark:to-indigo-900/10 border-indigo-200/50 dark:border-indigo-800/30">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400">Equipe</span>
+              <Badge variant="secondary" className="text-xs">{teamMembers.length} membres</Badge>
+            </div>
+            {teamMembers.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {teamMembers.slice(0, 6).map(m => (
+                  <div key={m.id} className="flex items-center gap-1.5 text-xs">
+                    <div className={`w-2 h-2 rounded-full ${m.status === "online" ? "bg-emerald-500 animate-pulse" : m.status === "busy" ? "bg-amber-500" : "bg-gray-300"}`} />
+                    <span className="truncate max-w-[80px]">{m.name}</span>
+                  </div>
+                ))}
+                {teamMembers.length > 6 && <span className="text-xs text-muted-foreground">+{teamMembers.length - 6}</span>}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>Chargement de l'equipe...</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-cyan-50 to-cyan-100/50 dark:from-cyan-950/30 dark:to-cyan-900/10 border-cyan-200/50 dark:border-cyan-800/30">
+          <CardContent className="p-4">
+            <div className="text-sm font-medium text-cyan-600 dark:text-cyan-400 mb-2">Cette semaine vs precedente</div>
+            {weekComparison.length > 0 ? (
+              <div className="h-[60px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={weekComparison} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                    <Line type="monotone" dataKey="thisWeek" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="lastWeek" stroke="hsl(var(--muted-foreground))" strokeWidth={1} strokeDasharray="4 4" dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="text-xs text-muted-foreground">Pas assez de donnees</div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <CentralIntelligence />
 
@@ -400,10 +500,94 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
+      <PredictiveAnalyticsWidget />
+
       <EmailComposer
         isOpen={isEmailComposerOpen}
         onClose={() => setIsEmailComposerOpen(false)}
       />
     </div>
+  );
+}
+
+function PredictiveAnalyticsWidget() {
+  const [data, setData] = useState<any>(null);
+  useEffect(() => {
+    fetch(`${API}/api/dashboard/predictions`, { credentials: "include" })
+      .then(r => r.json())
+      .then(setData)
+      .catch(() => {});
+  }, []);
+
+  if (!data?.predictions) return null;
+  const p = data.predictions;
+
+  const chartData = p.labels.map((label: string, i: number) => ({
+    name: label,
+    appels: p.trends.calls[i],
+    taches: p.trends.tasks[i],
+    contacts: p.trends.contacts[i],
+  }));
+  chartData.push({ name: "Prevu", appels: p.nextWeekCalls, taches: p.nextWeekTasks, contacts: p.nextWeekContacts });
+
+  const euro = (v: number) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(v);
+
+  return (
+    <Card className="bg-gradient-to-br from-violet-950 to-indigo-950 border-violet-800 text-white">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-lg"><Brain className="h-5 w-5 text-violet-400" /> Analyse Predictive IA</CardTitle>
+        <CardDescription className="text-white/60">Previsions pour la semaine prochaine basees sur les tendances</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="bg-white/10 rounded-lg p-3 text-center">
+            <Phone className="h-4 w-4 mx-auto mb-1 text-blue-400" />
+            <p className="text-xl font-bold">{p.nextWeekCalls}</p>
+            <p className="text-[10px] text-white/60">Appels prevus</p>
+          </div>
+          <div className="bg-white/10 rounded-lg p-3 text-center">
+            <CheckSquare className="h-4 w-4 mx-auto mb-1 text-green-400" />
+            <p className="text-xl font-bold">{p.nextWeekTasks}</p>
+            <p className="text-[10px] text-white/60">Taches prevues</p>
+          </div>
+          <div className="bg-white/10 rounded-lg p-3 text-center">
+            <Users className="h-4 w-4 mx-auto mb-1 text-amber-400" />
+            <p className="text-xl font-bold">{p.nextWeekContacts}</p>
+            <p className="text-[10px] text-white/60">Contacts prevus</p>
+          </div>
+          <div className="bg-white/10 rounded-lg p-3 text-center">
+            <TrendingUp className="h-4 w-4 mx-auto mb-1 text-emerald-400" />
+            <p className="text-xl font-bold">{euro(p.nextWeekRevenue)}</p>
+            <p className="text-[10px] text-white/60">CA prevu</p>
+          </div>
+        </div>
+
+        <div className="h-[180px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+              <XAxis dataKey="name" stroke="rgba(255,255,255,0.5)" tick={{ fontSize: 11 }} />
+              <YAxis stroke="rgba(255,255,255,0.5)" tick={{ fontSize: 11 }} />
+              <RechartsTooltip contentStyle={{ background: "#1e1b4b", border: "1px solid #4338ca", borderRadius: 8, color: "#fff" }} />
+              <Line type="monotone" dataKey="appels" stroke="#60a5fa" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="taches" stroke="#34d399" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="contacts" stroke="#fbbf24" strokeWidth={2} dot={{ r: 3 }} />
+              <Legend wrapperStyle={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {data.insights?.length > 0 && (
+          <div className="space-y-1.5">
+            {data.insights.map((insight: string, i: number) => (
+              <div key={i} className="flex items-center gap-2 text-xs bg-white/5 rounded-lg px-3 py-2">
+                <Lightbulb className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
+                <span className="text-white/80">{insight}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

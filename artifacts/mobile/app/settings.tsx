@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface Subscription {
   plan: string;
@@ -127,6 +128,8 @@ export default function SettingsScreen() {
           )}
         </View>
 
+        <ThemeCard />
+
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.cardHeader}>
             <Feather name="info" size={18} color={colors.primary} />
@@ -137,6 +140,36 @@ export default function SettingsScreen() {
           <InfoRow icon="code" label="Framework" value="React Native / Expo" />
         </View>
       </ScrollView>
+    </View>
+  );
+}
+
+function ThemeCard() {
+  const colors = useColors();
+  const { mode, setMode } = useTheme();
+  const modes: { key: "system" | "light" | "dark"; icon: keyof typeof Feather.glyphMap; label: string }[] = [
+    { key: "system", icon: "smartphone", label: "Systeme" },
+    { key: "light", icon: "sun", label: "Clair" },
+    { key: "dark", icon: "moon", label: "Sombre" },
+  ];
+  return (
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={styles.cardHeader}>
+        <Feather name="moon" size={18} color={colors.primary} />
+        <Text style={[styles.cardTitle, { color: colors.foreground }]}>Apparence</Text>
+      </View>
+      <View style={styles.themeRow}>
+        {modes.map(m => (
+          <Pressable
+            key={m.key}
+            onPress={() => setMode(m.key)}
+            style={[styles.themeBtn, { borderColor: mode === m.key ? colors.primary : colors.border, backgroundColor: mode === m.key ? colors.primary + "18" : "transparent" }]}
+          >
+            <Feather name={m.icon} size={20} color={mode === m.key ? colors.primary : colors.mutedForeground} />
+            <Text style={[styles.themeBtnLabel, { color: mode === m.key ? colors.primary : colors.mutedForeground }]}>{m.label}</Text>
+          </Pressable>
+        ))}
+      </View>
     </View>
   );
 }
@@ -160,4 +193,7 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   subLoading: { padding: 20 },
   noSub: { padding: 16, textAlign: "center", fontSize: 14, fontFamily: "Inter_400Regular" },
+  themeRow: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingBottom: 16 },
+  themeBtn: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 12, borderRadius: 10, borderWidth: 1.5, gap: 4 },
+  themeBtnLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
 });

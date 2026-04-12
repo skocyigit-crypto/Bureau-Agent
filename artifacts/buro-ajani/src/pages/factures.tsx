@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Receipt, Search, Plus, MoreHorizontal, Edit, Trash2, Send, Check, DollarSign, AlertTriangle, Clock, FileText, CreditCard } from "lucide-react";
+import { Receipt, Search, Plus, MoreHorizontal, Edit, Trash2, Send, Check, DollarSign, AlertTriangle, Clock, FileText, CreditCard, Globe, Calculator, Copy, RefreshCw, X } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 async function apiFetch(path: string, opts?: RequestInit) {
@@ -48,6 +49,7 @@ export default function Factures() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState<any>({});
+  const [toolsInvoiceId, setToolsInvoiceId] = useState<number | null>(null);
   const [items, setItems] = useState<LineItem[]>([emptyItem()]);
 
   const { data, isLoading } = useQuery({ queryKey: ["factures", search, statusFilter], queryFn: () => apiFetch(`/factures-client?search=${search}&status=${statusFilter}`) });
@@ -158,6 +160,7 @@ export default function Factures() {
                             <DropdownMenuItem onClick={e => { e.stopPropagation(); openEdit(f); }}><Edit className="h-3 w-3 mr-2" /> Modifier</DropdownMenuItem>
                             {f.status === "brouillon" && <DropdownMenuItem onClick={e => { e.stopPropagation(); updateMutation.mutate({ id: f.id, status: "envoyee" }); }}><Send className="h-3 w-3 mr-2" /> Envoyer</DropdownMenuItem>}
                             {f.status !== "payee" && <DropdownMenuItem onClick={e => { e.stopPropagation(); updateMutation.mutate({ id: f.id, status: "payee" }); }}><Check className="h-3 w-3 mr-2" /> Marquer payee</DropdownMenuItem>}
+                            <DropdownMenuItem onClick={e => { e.stopPropagation(); setToolsInvoiceId(f.id); }}><Calculator className="h-3 w-3 mr-2" /> Outils</DropdownMenuItem>
                             <DropdownMenuItem className="text-red-600" onClick={e => { e.stopPropagation(); deleteMutation.mutate(f.id); }}><Trash2 className="h-3 w-3 mr-2" /> Supprimer</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -224,6 +227,99 @@ export default function Factures() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <InvoiceToolsPanel invoiceId={toolsInvoiceId} onClose={() => setToolsInvoiceId(null)} />
     </div>
+  );
+}
+
+function InvoiceToolsPanel({ invoiceId, onClose }: { invoiceId: number | null; onClose: () => void }) {
+  const [currency, setCurrency] = useState("USD");
+
+  const { data: currencies } = useQuery({
+    queryKey: ["currencies"],
+    queryFn: () => apiFetch("/factures-client/currencies"),
+    enabled: !!invoiceId,
+  });
+  const { data: conversion } = useQuery({
+    queryKey: ["invoice-convert", invoiceId, currency],
+    queryFn: () => apiFetch(`/factures-client/${invoiceId}/convert?currency=${currency}`),
+    enabled: !!invoiceId,
+  });
+  const { data: lateFees } = useQuery({
+    queryKey: ["invoice-late-fees", invoiceId],
+    queryFn: () => apiFetch(`/factures-client/${invoiceId}/late-fees`),
+    enabled: !!invoiceId,
+  });
+
+  if (!invoiceId) return null;
+
+  return (
+    <Dialog open={!!invoiceId} onOpenChange={() => onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle className="flex items-center gap-2"><Calculator className="h-5 w-5" /> Outils Facture</DialogTitle></DialogHeader>
+        <Tabs defaultValue="currency">
+          <TabsList className="w-full">
+            <TabsTrigger value="currency" className="flex-1 text-xs"><Globe className="h-3 w-3 mr-1" /> Devises</TabsTrigger>
+            <TabsTrigger value="latefees" className="flex-1 text-xs"><AlertTriangle className="h-3 w-3 mr-1" /> Penalites</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="currency" className="space-y-3 mt-3">
+            <div>
+              <Label className="text-xs">Convertir en</Label>
+              <Select value={currency} onValueChange={setCurrency}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {currencies?.currencies?.map((c: any) => (
+                    <SelectItem key={c.code} value={c.code}>{c.symbol} - {c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {conversion && (
+              <Card>
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">HT</span>
+                    <span className="font-medium">{conversion.convertedHt.toLocaleString("fr-FR")} {conversion.symbol}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">TTC</span>
+                    <span className="font-bold text-lg">{conversion.convertedTtc.toLocaleString("fr-FR")} {conversion.symbol}</span>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground text-right">Taux: 1 EUR = {conversion.rate} {currency}</div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="latefees" className="space-y-3 mt-3">
+            {lateFees && !lateFees.applicable && (
+              <div className="text-center py-6 text-sm text-muted-foreground">
+                <Check className="h-8 w-8 mx-auto mb-2 text-emerald-500" />
+                Aucune penalite applicable
+              </div>
+            )}
+            {lateFees?.applicable && (
+              <Card className="border-red-200 dark:border-red-900">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-red-600">
+                    <AlertTriangle className="h-5 w-5" />
+                    <span className="font-semibold">{lateFees.daysLate} jours de retard</span>
+                  </div>
+                  <div className="space-y-1.5 text-sm">
+                    <div className="flex justify-between"><span>Montant du</span><span>{euro(lateFees.outstanding)}</span></div>
+                    <div className="flex justify-between"><span>Taux annuel</span><span>{lateFees.rate}%</span></div>
+                    <div className="flex justify-between"><span>Interets de retard</span><span className="text-red-600">{euro(lateFees.lateFee)}</span></div>
+                    <div className="flex justify-between"><span>Indemnite forfaitaire</span><span className="text-red-600">{euro(lateFees.fixedIndemnity)}</span></div>
+                    <div className="border-t pt-1.5 flex justify-between font-bold"><span>Total penalites</span><span className="text-red-600">{euro(lateFees.total)}</span></div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
   );
 }

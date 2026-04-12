@@ -85,6 +85,21 @@ router.put("/factures-client/bank-info", async (req, res): Promise<void> => {
   res.json({ message: "Informations bancaires mises a jour.", data: updated });
 });
 
+const CURRENCIES: Record<string, { symbol: string; name: string; rate: number }> = {
+  EUR: { symbol: "EUR", name: "Euro", rate: 1 },
+  USD: { symbol: "$", name: "Dollar americain", rate: 1.08 },
+  GBP: { symbol: "GBP", name: "Livre sterling", rate: 0.86 },
+  CHF: { symbol: "CHF", name: "Franc suisse", rate: 0.97 },
+  TRY: { symbol: "TRY", name: "Livre turque", rate: 34.5 },
+  CAD: { symbol: "CA$", name: "Dollar canadien", rate: 1.47 },
+  MAD: { symbol: "MAD", name: "Dirham marocain", rate: 10.8 },
+  XOF: { symbol: "CFA", name: "Franc CFA", rate: 655.96 },
+};
+
+router.get("/factures-client/currencies", async (_req, res): Promise<void> => {
+  res.json({ currencies: Object.entries(CURRENCIES).map(([code, v]) => ({ code, ...v })) });
+});
+
 router.get("/factures-client/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
   const id = parseInt(String(req.params.id));
@@ -334,6 +349,70 @@ router.post("/factures-client/:id/send-invoice", async (req, res): Promise<void>
     console.error("Send invoice email error:", err.message);
     res.status(500).json({ error: `Erreur d'envoi: ${err.message}` });
   }
+});
+
+router.get("/factures-client/:id/late-fees", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  const id = parseInt(String(req.params.id));
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+
+  const [facture] = await db.select().from(facturesClientTable)
+    .where(and(eq(facturesClientTable.id, id), eq(facturesClientTable.organisationId, orgId)));
+  if (!facture) { res.status(404).json({ error: "Facture non trouvee" }); return; }
+
+  const dueDate = (facture as any).dueDate ? new Date((facture as any).dueDate) : null;
+  const now = new Date();
+
+  if (!dueDate || now <= dueDate || facture.status === "payee") {
+    res.json({ lateFee: 0, daysLate: 0, rate: 0, applicable: false });
+    return;
+  }
+
+  const daysLate = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+  const annualRate = 0.1;
+  const dailyRate = annualRate / 365;
+  const totalAmount = Number(facture.totalAmount) || 0;
+  const paidAmount = Number(facture.paidAmount) || 0;
+  const outstanding = totalAmount - paidAmount;
+  const lateFee = Math.round(outstanding * dailyRate * daysLate * 100) / 100;
+  const fixedIndemnity = 40;
+
+  res.json({
+    lateFee,
+    fixedIndemnity,
+    total: lateFee + fixedIndemnity,
+    daysLate,
+    rate: annualRate * 100,
+    outstanding,
+    applicable: true,
+  });
+});
+
+router.get("/factures-client/:id/convert", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  const id = parseInt(String(req.params.id));
+  const currency = String(req.query.currency || "USD");
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+
+  const cur = CURRENCIES[currency];
+  if (!cur) { res.status(400).json({ error: "Devise non supportee" }); return; }
+
+  const [facture] = await db.select().from(facturesClientTable)
+    .where(and(eq(facturesClientTable.id, id), eq(facturesClientTable.organisationId, orgId)));
+  if (!facture) { res.status(404).json({ error: "Facture non trouvee" }); return; }
+
+  const totalHt = Number(facture.subtotal) || 0;
+  const totalTtc = Number(facture.totalAmount) || 0;
+
+  res.json({
+    currency: currency,
+    symbol: cur.symbol,
+    rate: cur.rate,
+    convertedHt: Math.round(totalHt * cur.rate * 100) / 100,
+    convertedTtc: Math.round(totalTtc * cur.rate * 100) / 100,
+    originalHt: totalHt,
+    originalTtc: totalTtc,
+  });
 });
 
 export default router;

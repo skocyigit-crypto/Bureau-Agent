@@ -111,4 +111,93 @@ router.delete("/prospects/:id", async (req, res): Promise<void> => {
   res.sendStatus(204);
 });
 
+router.get("/prospects/:id/score", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  const id = parseInt(String(req.params.id));
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+
+  const [prospect] = await db.select().from(prospectsTable)
+    .where(and(eq(prospectsTable.id, id), eq(prospectsTable.organisationId, orgId)));
+  if (!prospect) { res.status(404).json({ error: "Prospect non trouve" }); return; }
+
+  let score = 0;
+  const factors: { label: string; points: number; detail: string }[] = [];
+
+  if (prospect.email) { score += 10; factors.push({ label: "Email fourni", points: 10, detail: prospect.email }); }
+  if (prospect.phone) { score += 10; factors.push({ label: "Telephone fourni", points: 10, detail: prospect.phone }); }
+  if (prospect.company) { score += 15; factors.push({ label: "Entreprise identifiee", points: 15, detail: prospect.company }); }
+
+  const stageScores: Record<string, number> = { nouveau: 5, contact: 15, qualification: 30, proposition: 50, negociation: 70, gagne: 100, perdu: 0 };
+  const stageScore = stageScores[prospect.stage || "nouveau"] || 0;
+  score += stageScore;
+  factors.push({ label: "Etape pipeline", points: stageScore, detail: prospect.stage || "nouveau" });
+
+  const value = Number(prospect.value) || 0;
+  if (value > 10000) { score += 20; factors.push({ label: "Valeur elevee", points: 20, detail: `${value}EUR` }); }
+  else if (value > 1000) { score += 10; factors.push({ label: "Valeur moyenne", points: 10, detail: `${value}EUR` }); }
+  else if (value > 0) { score += 5; factors.push({ label: "Valeur definie", points: 5, detail: `${value}EUR` }); }
+
+  if (prospect.priority === "haute") { score += 10; factors.push({ label: "Priorite haute", points: 10, detail: "haute" }); }
+
+  score = Math.min(100, score);
+  const grade = score >= 80 ? "A" : score >= 60 ? "B" : score >= 40 ? "C" : score >= 20 ? "D" : "F";
+
+  res.json({ score, grade, factors, maxScore: 100 });
+});
+
+router.get("/prospects/:id/timeline", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  const id = parseInt(String(req.params.id));
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+
+  const [prospect] = await db.select().from(prospectsTable)
+    .where(and(eq(prospectsTable.id, id), eq(prospectsTable.organisationId, orgId)));
+  if (!prospect) { res.status(404).json({ error: "Prospect non trouve" }); return; }
+
+  const events: { type: string; title: string; date: string; detail: string }[] = [];
+  events.push({ type: "creation", title: "Prospect cree", date: (prospect as any).createdAt || new Date().toISOString(), detail: `${prospect.contactName || "Inconnu"} - ${prospect.company || ""}` });
+
+  if (prospect.stage !== "nouveau") {
+    events.push({ type: "stage", title: `Etape: ${prospect.stage}`, date: (prospect as any).updatedAt || (prospect as any).createdAt || new Date().toISOString(), detail: `Pipeline mis a jour` });
+  }
+
+  if (prospect.contactId) {
+    const calls = await db.execute(sql`
+      SELECT id, direction, status, duration, created_at FROM calls 
+      WHERE organisation_id = ${orgId} AND contact_id = ${prospect.contactId}
+      ORDER BY created_at DESC LIMIT 10
+    `);
+    for (const c of calls.rows as any[]) {
+      events.push({
+        type: "call",
+        title: `Appel ${c.direction} (${c.status})`,
+        date: c.created_at,
+        detail: c.duration ? `${Math.floor(c.duration / 60)}m${c.duration % 60}s` : "0s",
+      });
+    }
+  }
+
+  events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  res.json({ events });
+});
+
+router.post("/prospects/:id/follow-up", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  const id = parseInt(String(req.params.id));
+  const { type, dueDate, note } = req.body;
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+
+  const [prospect] = await db.select().from(prospectsTable)
+    .where(and(eq(prospectsTable.id, id), eq(prospectsTable.organisationId, orgId)));
+  if (!prospect) { res.status(404).json({ error: "Prospect non trouve" }); return; }
+
+  const taskTitle = `Relance: ${prospect.contactName || prospect.company || "Prospect"} - ${type || "Suivi"}`;
+  await db.execute(sql`
+    INSERT INTO tasks (organisation_id, title, description, status, priority, due_date, assigned_to)
+    VALUES (${orgId}, ${taskTitle}, ${note || ""}, 'en_attente', 'haute', ${dueDate || null}, '')
+  `);
+
+  res.json({ success: true, message: "Relance programmee" });
+});
+
 export default router;
