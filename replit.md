@@ -52,6 +52,12 @@ The application features a French UI with a deep navy and warm amber color schem
 - **Invoice Multi-Currency & Late Fees:** Currency conversion for 8 currencies (EUR, USD, GBP, CHF, TRY, CAD, MAD, XOF). Automatic late fee calculation per French law (10% annual rate + 40EUR fixed indemnity). Invoice tools panel accessible from row dropdown.
 - **Predictive Analytics Dashboard:** Linear regression-based forecasting for calls, tasks, contacts, and revenue. 5-week trend charts with next-week predictions. AI-generated insights based on trend analysis.
 - **Mobile Theme System:** Dark/Light/System theme toggle in Settings. ThemeContext provider synced with useColors hook. Three-button selector (Systeme, Clair, Sombre).
+- **Mobile Prospects CRM Screen:** Full pipeline view with stage filters, lead scoring badges (A-F), prospect cards with company/value/priority, search, detail modal with stage timeline and score breakdown.
+- **Mobile Invoices Screen:** Invoice list with status badges, payment progress bars, overdue highlighting with days count, amount breakdown, currency support, detail modal with HT/TTC/TVA breakdown.
+- **Mobile Projects Screen:** Project cards with progress bars, budget tracking, days remaining, priority/status badges, detail modal with full project info including budget burn rate.
+- **Mobile AI Chat Assistant:** Conversational AI interface using smart-search API. Welcome message, quick action buttons (Briefing, Analyse clients, Performance, Risques, Suggestions, Recherche), message bubbles with timestamps, typing indicator.
+- **Enhanced Mobile Dashboard:** Revenue summary card (encaisse/impaye/en retard), project status banner, updated quick access grid (CRM, Factures, Projets), dual AI cards (Assistant IA + Agents IA).
+- **Mobile Navigation Enhancement:** "Plus" menu reorganized with COMMERCIAL section (Prospection CRM, Factures, Projets), AI section includes Assistant IA chat.
 - **AI Anomaly Detection:** Proactive anomaly detection across all systems, checking 11 anomaly types with suggested actions.
 - **AI Predictive Intelligence:** Forecasting engine using historical data to generate weekly forecasts, operational risks, opportunities, and strategic recommendations.
 - **AI Agents Background Processing:** AI agent routes use background processing to avoid HTTP timeouts, with immediate responses and asynchronous processing.

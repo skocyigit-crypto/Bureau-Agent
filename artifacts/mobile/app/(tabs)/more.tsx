@@ -143,6 +143,13 @@ export default function MoreScreen() {
         ) : null}
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>COMMERCIAL</Text>
+          <MenuItem icon="target" label="Prospection CRM" sublabel="Pipeline, scoring, suivi clients" color="#6366f1" onPress={() => nav("/prospects")} />
+          <MenuItem icon="file-text" label="Factures" sublabel="Facturation et paiements" color="#0ea5e9" onPress={() => nav("/invoices")} />
+          <MenuItem icon="folder" label="Projets" sublabel="Gestion de projets et budgets" color="#14b8a6" onPress={() => nav("/projects")} />
+        </View>
+
+        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>COMMUNICATION</Text>
           <MenuItem icon="message-square" label="Messages" sublabel="Messagerie vocale et notes" color="#3b82f6" onPress={() => nav("/messages")} />
           <MenuItem icon="phone-call" label="Telephonie" sublabel="Appels et SMS multi-fournisseurs" color="#22c55e" onPress={() => nav("/telephony")} />
@@ -158,7 +165,8 @@ export default function MoreScreen() {
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>INTELLIGENCE ARTIFICIELLE</Text>
-          <MenuItem icon="cpu" label="Agents IA" sublabel="Analyse et recommandations" color="#8b5cf6" onPress={() => nav("/ai-agents")} />
+          <MenuItem icon="message-circle" label="Assistant IA" sublabel="Chat conversationnel intelligent" color="#8b5cf6" onPress={() => nav("/ai-chat")} />
+          <MenuItem icon="cpu" label="Agents IA" sublabel="Analyse et recommandations" color="#6366f1" onPress={() => nav("/ai-agents")} />
           <MenuItem icon="aperture" label="Reconnaissance faciale" sublabel="Identification IA en temps reel" color="#ec4899" onPress={() => nav("/face-recognition")} />
           <MenuItem icon="zap" label="Automations" sublabel="Regles et executions" color="#f97316" onPress={() => nav("/automations")} />
         </View>

@@ -45,6 +45,7 @@ interface UpcomingEvent {
   id: number;
   title: string;
   startTime: string;
+  createdAt?: string;
   type: string;
 }
 
@@ -53,6 +54,21 @@ interface OverdueTask {
   title: string;
   priority: string;
   dueDate: string;
+}
+
+interface InvoiceStats {
+  total: number;
+  payee: number;
+  en_retard: number;
+  totalAmount: number;
+  paidAmount: number;
+  unpaidAmount: number;
+}
+
+interface ProjectStats {
+  total: number;
+  en_cours: number;
+  termine: number;
 }
 
 export default function DashboardScreen() {
@@ -64,16 +80,20 @@ export default function DashboardScreen() {
   const [recentCalls, setRecentCalls] = useState<RecentCall[]>([]);
   const [events, setEvents] = useState<UpcomingEvent[]>([]);
   const [overdueTasks, setOverdueTasks] = useState<OverdueTask[]>([]);
+  const [invoiceStats, setInvoiceStats] = useState<InvoiceStats | null>(null);
+  const [projectStats, setProjectStats] = useState<ProjectStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchDashboard = useCallback(async () => {
     try {
-      const [summaryRes, callsRes, eventsRes, tasksRes] = await Promise.all([
+      const [summaryRes, callsRes, eventsRes, tasksRes, invRes, projRes] = await Promise.all([
         fetchAuth(`${API_BASE}/api/dashboard/summary`),
         fetchAuth(`${API_BASE}/api/calls?limit=5&sortOrder=desc`),
         fetchAuth(`${API_BASE}/api/calendar?limit=3`).catch(() => null),
         fetchAuth(`${API_BASE}/api/tasks?status=en_attente&sortOrder=asc&limit=5`).catch(() => null),
+        fetchAuth(`${API_BASE}/api/factures-client/stats`).catch(() => null),
+        fetchAuth(`${API_BASE}/api/projets/stats`).catch(() => null),
       ]);
       if (summaryRes.ok) {
         const json = await summaryRes.json();
@@ -105,6 +125,14 @@ export default function DashboardScreen() {
           t.dueDate && new Date(t.dueDate) < now && t.status !== "termine"
         ).slice(0, 3);
         setOverdueTasks(overdue);
+      }
+      if (invRes?.ok) {
+        const invData = await invRes.json();
+        setInvoiceStats(invData);
+      }
+      if (projRes?.ok) {
+        const projData = await projRes.json();
+        setProjectStats(projData);
       }
     } catch (err) { console.warn("[Dashboard] fetch failed:", err); } finally {
       setLoading(false);
@@ -314,15 +342,66 @@ export default function DashboardScreen() {
               </>
             )}
 
+            {invoiceStats && (
+              <Pressable onPress={() => quickNav("/invoices")} style={[styles.revenueCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={styles.revenueHeader}>
+                  <Feather name="credit-card" size={16} color={colors.primary} />
+                  <Text style={[styles.sectionTitle, { color: colors.foreground, paddingHorizontal: 0, marginBottom: 0, marginLeft: 8 }]}>Facturation</Text>
+                  <Feather name="chevron-right" size={14} color={colors.mutedForeground} style={{ marginLeft: "auto" }} />
+                </View>
+                <View style={styles.revenueRow}>
+                  <View style={styles.revenueItem}>
+                    <Text style={[styles.revenueValue, { color: "#22c55e" }]}>
+                      {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(invoiceStats.paidAmount)}
+                    </Text>
+                    <Text style={[styles.revenueLabel, { color: colors.mutedForeground }]}>Encaisse</Text>
+                  </View>
+                  <View style={[styles.revenueDivider, { backgroundColor: colors.border }]} />
+                  <View style={styles.revenueItem}>
+                    <Text style={[styles.revenueValue, { color: "#f59e0b" }]}>
+                      {new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(invoiceStats.unpaidAmount)}
+                    </Text>
+                    <Text style={[styles.revenueLabel, { color: colors.mutedForeground }]}>Impaye</Text>
+                  </View>
+                  <View style={[styles.revenueDivider, { backgroundColor: colors.border }]} />
+                  <View style={styles.revenueItem}>
+                    <Text style={[styles.revenueValue, { color: "#ef4444" }]}>{invoiceStats.en_retard}</Text>
+                    <Text style={[styles.revenueLabel, { color: colors.mutedForeground }]}>En retard</Text>
+                  </View>
+                </View>
+                {invoiceStats.totalAmount > 0 && (
+                  <View style={[styles.revenueBar, { backgroundColor: colors.muted }]}>
+                    <View style={[styles.revenueBarFill, { width: `${Math.min(100, Math.round((invoiceStats.paidAmount / invoiceStats.totalAmount) * 100))}%`, backgroundColor: "#22c55e" }]} />
+                  </View>
+                )}
+              </Pressable>
+            )}
+
+            {projectStats && (projectStats.total > 0) && (
+              <Pressable onPress={() => quickNav("/projects")} style={[styles.projectsBanner, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={styles.projectsBannerRow}>
+                  <Feather name="folder" size={16} color="#14b8a6" />
+                  <Text style={[styles.sectionTitle, { color: colors.foreground, paddingHorizontal: 0, marginBottom: 0, marginLeft: 8, flex: 1 }]}>Projets</Text>
+                  <View style={[styles.projectChip, { backgroundColor: "#3b82f618" }]}>
+                    <Text style={[styles.projectChipText, { color: "#3b82f6" }]}>{projectStats.en_cours} en cours</Text>
+                  </View>
+                  <View style={[styles.projectChip, { backgroundColor: "#22c55e18", marginLeft: 6 }]}>
+                    <Text style={[styles.projectChipText, { color: "#22c55e" }]}>{projectStats.termine} finis</Text>
+                  </View>
+                  <Feather name="chevron-right" size={14} color={colors.mutedForeground} style={{ marginLeft: 8 }} />
+                </View>
+              </Pressable>
+            )}
+
             <Text style={[styles.sectionTitle, { color: colors.foreground, paddingHorizontal: 0, marginTop: 8 }]}>Acces rapide</Text>
             <View style={styles.quickGrid}>
               {[
-                { icon: "phone" as const, label: "Appels", route: "/(tabs)/calls", color: "#3b82f6" },
-                { icon: "users" as const, label: "Contacts", route: "/(tabs)/contacts", color: "#22c55e" },
-                { icon: "check-square" as const, label: "Taches", route: "/(tabs)/tasks", color: "#f59e0b" },
+                { icon: "target" as const, label: "CRM", route: "/prospects", color: "#6366f1" },
+                { icon: "file-text" as const, label: "Factures", route: "/invoices", color: "#0ea5e9" },
+                { icon: "folder" as const, label: "Projets", route: "/projects", color: "#14b8a6" },
                 { icon: "message-square" as const, label: "Messages", route: "/messages", color: "#8b5cf6" },
-                { icon: "aperture" as const, label: "Visages", route: "/face-recognition", color: "#ec4899" },
                 { icon: "package" as const, label: "Stock", route: "/stock", color: "#6366f1" },
+                { icon: "bar-chart-2" as const, label: "Analytique", route: "/analytics", color: "#f59e0b" },
               ].map((qa) => (
                 <Pressable
                   key={qa.label}
@@ -341,10 +420,19 @@ export default function DashboardScreen() {
               ))}
             </View>
 
-            <Pressable onPress={() => quickNav("/ai-agents")} style={[styles.infoCard, { backgroundColor: colors.secondary }]}>
-              <Feather name="zap" size={20} color={colors.primary} />
+            <Pressable onPress={() => quickNav("/ai-chat")} style={[styles.infoCard, { backgroundColor: colors.secondary }]}>
+              <Feather name="message-circle" size={20} color={colors.primary} />
               <View style={styles.infoContent}>
-                <Text style={styles.infoTitle}>Agent IA actif</Text>
+                <Text style={styles.infoTitle}>Assistant IA</Text>
+                <Text style={styles.infoSubtitle}>Chat intelligent pour votre activite</Text>
+              </View>
+              <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.5)" />
+            </Pressable>
+
+            <Pressable onPress={() => quickNav("/ai-agents")} style={[styles.infoCard, { backgroundColor: colors.secondary, marginTop: 8 }]}>
+              <Feather name="zap" size={20} color="#f59e0b" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoTitle}>Agents IA</Text>
                 <Text style={styles.infoSubtitle}>Analyse continue de votre activite</Text>
               </View>
               <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.5)" />
@@ -402,6 +490,19 @@ const styles = StyleSheet.create({
   quickCard: { width: "31%", paddingVertical: 14, borderRadius: 12, borderWidth: 1, alignItems: "center" },
   quickIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", marginBottom: 8 },
   quickLabel: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  revenueCard: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 12 },
+  revenueHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
+  revenueRow: { flexDirection: "row", alignItems: "center" },
+  revenueItem: { flex: 1, alignItems: "center" },
+  revenueValue: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  revenueLabel: { fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 3 },
+  revenueDivider: { width: 1, height: 30 },
+  revenueBar: { height: 4, borderRadius: 2, overflow: "hidden", marginTop: 12 },
+  revenueBarFill: { height: "100%", borderRadius: 2 },
+  projectsBanner: { padding: 14, borderRadius: 12, borderWidth: 1, marginBottom: 12 },
+  projectsBannerRow: { flexDirection: "row", alignItems: "center" },
+  projectChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  projectChipText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
   infoCard: { flexDirection: "row", alignItems: "center", padding: 16, borderRadius: 12, gap: 12, marginTop: 4 },
   infoContent: { flex: 1 },
   infoTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#ffffff" },
