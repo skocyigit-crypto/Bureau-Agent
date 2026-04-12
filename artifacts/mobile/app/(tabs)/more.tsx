@@ -145,6 +145,7 @@ export default function MoreScreen() {
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>COMMUNICATION</Text>
           <MenuItem icon="message-square" label="Messages" sublabel="Messagerie vocale et notes" color="#3b82f6" onPress={() => nav("/messages")} />
+          <MenuItem icon="phone-call" label="Telephonie" sublabel="Appels et SMS multi-fournisseurs" color="#22c55e" onPress={() => nav("/telephony")} />
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>

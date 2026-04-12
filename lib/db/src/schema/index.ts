@@ -27,3 +27,4 @@ export * from "./compte-client";
 export * from "./app-releases";
 export * from "./payment-reminders";
 export * from "./face-profiles";
+export * from "./telephony";

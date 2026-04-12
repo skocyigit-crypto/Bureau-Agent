@@ -47,11 +47,13 @@ import bulkOperationsRouter from "./bulk-operations";
 import licenseManagementRouter from "./license-management";
 import aiCommandantRouter from "./ai-commandant";
 import faceRecognitionRouter from "./face-recognition";
+import telephonyRouter, { telephonyWebhookRouter } from "./telephony";
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
 router.use(registerRouter);
+router.use(telephonyWebhookRouter);
 
 router.use(requireAuth);
 router.use(requireTenant);
@@ -100,5 +102,6 @@ router.use(bulkOperationsRouter);
 router.use(licenseManagementRouter);
 router.use(aiCommandantRouter);
 router.use("/face", faceRecognitionRouter);
+router.use(telephonyRouter);
 
 export default router;
