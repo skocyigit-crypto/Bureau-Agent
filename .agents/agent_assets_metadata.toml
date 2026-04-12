@@ -1,5 +1,4 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "rpsa-m4fCggFZjJRoLqO2"
@@ -102,3 +101,9 @@ id = "mQfu3fUEtzh6As-K3_x3i"
 uri = "file://artifacts/mobile/assets/images/icon.png"
 type = "image"
 title = "generated_image"
+
+[[outputs]]
+id = "q4voXhallPfh5No4ZeSq9"
+uri = "file://KULLANIM_KILAVUZU.md"
+type = "text"
+title = "Agent de Bureau - Kullanım Kılavuzu"
