@@ -48,6 +48,7 @@ import licenseManagementRouter from "./license-management";
 import aiCommandantRouter from "./ai-commandant";
 import faceRecognitionRouter from "./face-recognition";
 import telephonyRouter, { telephonyWebhookRouter } from "./telephony";
+import voiceCommandRouter from "./voice-command";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -103,5 +104,6 @@ router.use(licenseManagementRouter);
 router.use(aiCommandantRouter);
 router.use("/face", faceRecognitionRouter);
 router.use(telephonyRouter);
+router.use(voiceCommandRouter);
 
 export default router;

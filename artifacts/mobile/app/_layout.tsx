@@ -49,6 +49,7 @@ function RootLayoutNav() {
       <Stack.Screen name="telephony" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="notifications" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="admin-reports" options={{ headerShown: false, presentation: "modal" }} />
+      <Stack.Screen name="voice-assistant" options={{ headerShown: false, presentation: "modal" }} />
     </Stack>
   );
 }

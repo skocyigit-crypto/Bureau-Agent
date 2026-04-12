@@ -10,6 +10,7 @@ import RegisterPage from "@/pages/register";
 import { WorkspaceUserProvider } from "@/components/workspace-user";
 import { PwaInstallButton } from "@/components/pwa-install";
 import { UpdateBanner } from "@/components/update-banner";
+import { VoiceAssistant } from "@/components/VoiceAssistant";
 
 import { Layout } from "@/components/layout";
 import OnboardingPage from "@/pages/onboarding";
@@ -199,6 +200,7 @@ function App() {
                     <SmartBrowserOverlays />
                     <SmartBrowserShortcuts />
                     <AppRoutes />
+                    <VoiceAssistant />
                   </>
                 )}
               </WorkspaceUserProvider>
