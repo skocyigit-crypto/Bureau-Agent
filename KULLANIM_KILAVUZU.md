@@ -185,6 +185,65 @@ Buyuk olcekli islerinizi organize edin.
 - Ilerleme takibi
 - Takim isbirligi
 
+### 2.12 Telefoni (Telephonie)
+Coklu saglayici destekli kurumsal telefon sistemi. 6 farkli telefon saglayiciyi tek bir panelden yonetin, arama yapin ve SMS gonderin.
+
+**Desteklenen Saglayicilar:**
+| Saglayici | Ozellikler |
+|-----------|-----------|
+| **Twilio** | Ses, SMS, MMS, WhatsApp, Video, Kayit, IVR, Transkripsiyon |
+| **Vonage** | Ses, SMS, WhatsApp, Video, Kayit, IVR, Dogrulama |
+| **Telnyx** | Ses, SMS, MMS, Fax, Kayit, IVR |
+| **Plivo** | Ses, SMS, MMS, Kayit, IVR |
+| **Sinch** | Ses, SMS, MMS, RCS, WhatsApp, Dogrulama |
+| **Bandwidth** | Ses, SMS, MMS, Acil Arama, Kayit |
+
+**Sekmeler:**
+
+1. **Fournisseurs (Saglayicilar):**
+   - Yapilandirilmis saglayicilari goruntuleyin
+   - Yeni saglayici ekleyin (API anahtarlarini girin)
+   - Saglayiciyi test edin, aktif/pasif yapin
+   - Varsayilan saglayici belirleyin
+   - Yetenekleri gorun (Ses, SMS, WhatsApp vb.)
+
+2. **Appeler (Arama Yap):**
+   - Telefon numarasi girin (+33 formatinda)
+   - Yapilandirilmis saglayici uzerinden tek tikla arama yapin
+   - Arama durumunu anlik izleyin
+
+3. **SMS Gonder:**
+   - Hedef numara ve mesaj girin
+   - Yapilandirilmis saglayici uzerinden SMS gonderin
+   - Gonderim durumu bildirimi
+
+4. **Historique (Gecmis):**
+   - Tum arama gecmisi (gelen/giden)
+   - SMS gecmisi
+   - Arama suresi, durum ve tarih bilgileri
+
+5. **Statistiques (Istatistikler):**
+   - Toplam/basarili/basarisiz arama sayilari
+   - Toplam/basarili/basarisiz SMS sayilari
+   - Aktif saglayici sayisi
+   - Toplam konusma suresi
+
+**Saglayici Ekleme Adimlar:**
+1. "Ajouter un fournisseur" butonuna tiklayin
+2. Listeden bir saglayici secin (ornegin Twilio)
+3. Gerekli bilgileri girin:
+   - **Twilio:** Account SID, Auth Token, Expediteur numarasi
+   - **Vonage:** API Key, API Secret, Expediteur numarasi
+   - **Telnyx:** API Key, Connection ID, Expediteur numarasi
+   - **Plivo:** Auth ID, Auth Token, Expediteur numarasi
+   - **Sinch:** Project ID, API Token, Service Plan ID, Expediteur numarasi
+   - **Bandwidth:** Account ID, Username, Password, Application ID, Expediteur numarasi
+4. "Configurer" butonuna basarak kaydedin
+5. Test butonu ile baglantinizi dogrulayin
+
+**Webhook Entegrasyonu:**
+Saglayicilar, arama durumu guncellemelerini otomatik olarak webhook uzerinden bildirir. Webhook adresi: `/api/telephony/webhook/{saglayici_adi}`
+
 ---
 
 ## 3. Mobil Uygulama
@@ -249,6 +308,7 @@ Mobil uygulamanin giris ekrani, gunluk kullanim icin optimize edilmistir.
 ### 3.5 Plus Menusu
 Ek moduller ve ayarlara bu menuden ulasabilirsiniz:
 - Mesajlar
+- **Telefoni (Telephonie)** - Arama ve SMS (yeni!)
 - Analitik
 - Takvim
 - Stok
@@ -257,6 +317,32 @@ Ek moduller ve ayarlara bu menuden ulasabilirsiniz:
 - **Yuz Tanima (Reconnaissance faciale)**
 - Otomasyonlar
 - Yonetim
+
+### 3.5.1 Mobil Telefoni (Telephonie)
+Mobilden coklu saglayici uzerinden arama ve SMS gonderin.
+
+**3 Sekme:**
+1. **Appeler (Arama):**
+   - Telefon numarasi girin
+   - Yapilandirilmis saglayici varsa: saglayici uzerinden arama baslatir
+   - Saglayici yoksa: telefonun yerel arama uygulamasini acar (fallback)
+
+2. **SMS:**
+   - Hedef numara ve mesaj girin
+   - Saglayici varsa: API uzerinden SMS gonderir
+   - Saglayici yoksa: yerel SMS uygulamasini acar (fallback)
+
+3. **Config (Yapilandirma):**
+   - Yapilandirilmis saglayicilari goruntuleyin
+   - Istatistikler: basarili arama/SMS sayilari
+   - Saglayici durumu (aktif/pasif, varsayilan)
+   - **Not:** Saglayici ekleme/duzenleme islemleri web panelinden yapilir
+
+**Kullanim:**
+1. Plus menusunden "Telephonie" secenegine dokunun
+2. "Appeler" sekmesinde numara girip aramayi baslatin
+3. "SMS" sekmesinde numara ve mesaj girip gonderin
+4. Haptic geri bildirim ile islem onaylari
 
 ### 3.6 Bildirimler (Notifications)
 Dashboard'daki zil ikonundan erisilebilir.
