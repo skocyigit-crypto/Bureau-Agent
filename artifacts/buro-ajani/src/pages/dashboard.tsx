@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Phone, Users, CheckSquare, MessageSquare, ArrowUpRight, ArrowDownRight, Clock, Plus, Activity, BarChart3, Send, LayoutDashboard, Shield, HardDriveDownload, Zap, CloudSun, UserCheck, UserX, Coffee, Calendar, Brain, TrendingUp, Lightbulb } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, ArrowUpRight, ArrowDownRight, Clock, Plus, Activity, BarChart3, Send, LayoutDashboard, Shield, HardDriveDownload, Zap, CloudSun, UserCheck, UserX, Coffee, Calendar, Brain, TrendingUp, Lightbulb, AlertTriangle, ShieldAlert, Flame, Target, Package, FileWarning, Bell, Eye } from "lucide-react";
+import { SmartPulsePanel } from "@/components/smart-pulse-panel";
 import { Icon3D, type Icon3DVariant } from "@/components/icon-3d";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { AiRecognitionPanel } from "@/components/ai-recognition-panel";
@@ -263,6 +264,8 @@ export default function Dashboard() {
           </Link>
         ))}
       </div>
+
+      <SmartPulsePanel />
 
       <AiRecognitionPanel />
 

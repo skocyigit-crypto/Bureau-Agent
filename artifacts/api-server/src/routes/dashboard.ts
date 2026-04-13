@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, sql, desc, gte, and } from "drizzle-orm";
-import { db, callsTable, contactsTable, tasksTable, messagesTable } from "@workspace/db";
+import { eq, sql, desc, gte, and, lt } from "drizzle-orm";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, facturesClientTable } from "@workspace/db";
 import {
   GetCallAnalyticsQueryParams,
   GetRecentActivityQueryParams,
@@ -624,6 +624,209 @@ router.get("/dashboard/predictions", async (req, res): Promise<void> => {
     res.json({ predictions, insights });
   } catch (err) {
     res.json({ predictions: null, insights: [] });
+  }
+});
+
+router.get("/dashboard/smart-pulse", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  try {
+    const now = new Date();
+    const todayStart = getStartOfDay();
+    const weekStart = getStartOfWeek();
+    const monthStart = getStartOfMonth();
+    const prevWeekStart = getPreviousWeekStart();
+    const oc = eq(callsTable.organisationId, orgId);
+
+    const [
+      todayCalls, weekCalls, prevWeekCalls,
+      todayMissed, weekMissed,
+      todayTasks, overdueTasks, completedTasks,
+      todayMessages, unreadMessages,
+      monthRevenue, overdueInvoices,
+      activeProspects, wonProspects, lostProspects,
+      lowStockItems, criticalStockItems,
+    ] = await Promise.all([
+      db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, todayStart))).then(r => Number(r[0]?.c ?? 0)),
+      db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, weekStart))).then(r => Number(r[0]?.c ?? 0)),
+      db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, prevWeekStart), lt(callsTable.createdAt, weekStart))).then(r => Number(r[0]?.c ?? 0)),
+      db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, todayStart), eq(callsTable.status, "missed"))).then(r => Number(r[0]?.c ?? 0)),
+      db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, weekStart), eq(callsTable.status, "missed"))).then(r => Number(r[0]?.c ?? 0)),
+      db.select({ c: sql<number>`count(*)` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), gte(tasksTable.createdAt, todayStart))).then(r => Number(r[0]?.c ?? 0)),
+      db.select({ c: sql<number>`count(*)` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.status, "en_attente"), lt(tasksTable.dueDate, now))).then(r => Number(r[0]?.c ?? 0)),
+      db.select({ c: sql<number>`count(*)` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.status, "termine"), gte(tasksTable.updatedAt, weekStart))).then(r => Number(r[0]?.c ?? 0)),
+      db.select({ c: sql<number>`count(*)` }).from(messagesTable).where(and(eq(messagesTable.organisationId, orgId), gte(messagesTable.createdAt, todayStart))).then(r => Number(r[0]?.c ?? 0)),
+      db.execute(sql`SELECT count(*) as c FROM messages WHERE organisation_id = ${orgId} AND is_read = false`).then(r => Number((r as any).rows?.[0]?.c ?? 0)),
+      db.select({ s: sql<number>`COALESCE(sum(${facturesClientTable.totalAmount}), 0)` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), gte(facturesClientTable.createdAt, monthStart))).then(r => Number(r[0]?.s ?? 0)),
+      db.select({ c: sql<number>`count(*)` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), eq(facturesClientTable.status, "en_retard"))).then(r => Number(r[0]?.c ?? 0)),
+      db.execute(sql`SELECT count(*) as c FROM prospects WHERE organisation_id = ${orgId} AND stage IN ('nouveau','qualification','proposition','negociation')`).then(r => Number((r as any).rows?.[0]?.c ?? 0)),
+      db.execute(sql`SELECT count(*) as c FROM prospects WHERE organisation_id = ${orgId} AND stage = 'gagne'`).then(r => Number((r as any).rows?.[0]?.c ?? 0)),
+      db.execute(sql`SELECT count(*) as c FROM prospects WHERE organisation_id = ${orgId} AND stage = 'perdu'`).then(r => Number((r as any).rows?.[0]?.c ?? 0)),
+      db.execute(sql`SELECT count(*) as c FROM stock_articles WHERE organisation_id = ${orgId} AND quantity <= min_quantity AND quantity > 0`).then(r => Number((r as any).rows?.[0]?.c ?? 0)),
+      db.execute(sql`SELECT count(*) as c FROM stock_articles WHERE organisation_id = ${orgId} AND quantity = 0`).then(r => Number((r as any).rows?.[0]?.c ?? 0)),
+    ]);
+
+    const missedRate = todayCalls > 0 ? Math.round((todayMissed / todayCalls) * 100) : 0;
+    const weekGrowth = prevWeekCalls > 0 ? Math.round(((weekCalls - prevWeekCalls) / prevWeekCalls) * 100) : 0;
+    const totalProspects = activeProspects + wonProspects + lostProspects;
+    const conversionRate = totalProspects > 0 ? Math.round((wonProspects / totalProspects) * 100) : 0;
+
+    const anomalies: Array<{ type: string; severity: "critique" | "alerte" | "attention" | "info"; title: string; description: string; metric?: number }> = [];
+
+    if (missedRate > 40) anomalies.push({ type: "calls", severity: "critique", title: "Taux d'appels manques critique", description: `${missedRate}% des appels manques aujourd'hui. Risque de perte de clients.`, metric: missedRate });
+    else if (missedRate > 25) anomalies.push({ type: "calls", severity: "alerte", title: "Appels manques eleves", description: `${missedRate}% des appels manques. Surveillez la capacite de l'equipe.`, metric: missedRate });
+
+    if (overdueTasks > 5) anomalies.push({ type: "tasks", severity: "critique", title: "Retard critique des taches", description: `${overdueTasks} taches en retard. Productivite en danger.`, metric: overdueTasks });
+    else if (overdueTasks > 2) anomalies.push({ type: "tasks", severity: "alerte", title: "Taches en retard", description: `${overdueTasks} taches depassent leur echeance.`, metric: overdueTasks });
+
+    if (overdueInvoices > 3) anomalies.push({ type: "finance", severity: "critique", title: "Factures impayees critiques", description: `${overdueInvoices} factures en retard. Tresorerie menacee.`, metric: overdueInvoices });
+    else if (overdueInvoices > 0) anomalies.push({ type: "finance", severity: "attention", title: "Factures en retard", description: `${overdueInvoices} facture(s) en attente de paiement.`, metric: overdueInvoices });
+
+    if (unreadMessages > 20) anomalies.push({ type: "messages", severity: "alerte", title: "Boite de reception saturee", description: `${unreadMessages} messages non lus. Risque de retard de reponse.`, metric: unreadMessages });
+
+    if (criticalStockItems > 0) anomalies.push({ type: "stock", severity: "critique", title: "Rupture de stock", description: `${criticalStockItems} article(s) en rupture totale.`, metric: criticalStockItems });
+    if (lowStockItems > 0) anomalies.push({ type: "stock", severity: "attention", title: "Stock bas", description: `${lowStockItems} article(s) sous le seuil minimum.`, metric: lowStockItems });
+
+    if (weekGrowth < -30) anomalies.push({ type: "activity", severity: "alerte", title: "Chute d'activite", description: `Baisse de ${Math.abs(weekGrowth)}% par rapport a la semaine derniere.`, metric: weekGrowth });
+    else if (weekGrowth > 50) anomalies.push({ type: "activity", severity: "info", title: "Pic d'activite", description: `Hausse de ${weekGrowth}% cette semaine. Verifiez la capacite.`, metric: weekGrowth });
+
+    if (conversionRate < 10 && totalProspects > 5) anomalies.push({ type: "crm", severity: "alerte", title: "Taux de conversion faible", description: `Seulement ${conversionRate}% de conversion prospects. Revoir la strategie commerciale.`, metric: conversionRate });
+
+    let healthScore = 100;
+    anomalies.forEach(a => {
+      if (a.severity === "critique") healthScore -= 20;
+      else if (a.severity === "alerte") healthScore -= 10;
+      else if (a.severity === "attention") healthScore -= 5;
+    });
+    healthScore = Math.max(0, Math.min(100, healthScore));
+
+    const riskLevel = healthScore >= 80 ? "faible" : healthScore >= 50 ? "moyen" : "eleve";
+
+    const recommendations: string[] = [];
+    if (missedRate > 20) recommendations.push("Augmenter le personnel aux heures de pointe pour reduire les appels manques");
+    if (overdueTasks > 0) recommendations.push(`Prioriser les ${overdueTasks} taches en retard immediatement`);
+    if (overdueInvoices > 0) recommendations.push("Envoyer des relances automatiques pour les factures impayees");
+    if (unreadMessages > 10) recommendations.push("Traiter les messages non lus pour maintenir la reactivite client");
+    if (criticalStockItems > 0) recommendations.push("Commander d'urgence les articles en rupture de stock");
+    if (conversionRate < 20 && totalProspects > 3) recommendations.push("Analyser les prospects perdus pour ameliorer le taux de conversion");
+    if (recommendations.length === 0) recommendations.push("Excellente performance ! Continuez ainsi.");
+
+    const hourlyDistribution: number[] = [];
+    try {
+      const hourly = await db.select({
+        h: sql<number>`extract(hour from ${callsTable.createdAt})`,
+        c: sql<number>`count(*)`,
+      }).from(callsTable).where(and(oc, gte(callsTable.createdAt, todayStart))).groupBy(sql`extract(hour from ${callsTable.createdAt})`);
+      for (let i = 0; i < 24; i++) {
+        const found = hourly.find((h: any) => Number(h.h) === i);
+        hourlyDistribution.push(found ? Number(found.c) : 0);
+      }
+    } catch { for (let i = 0; i < 24; i++) hourlyDistribution.push(0); }
+
+    const peakHour = hourlyDistribution.indexOf(Math.max(...hourlyDistribution));
+
+    res.json({
+      timestamp: now.toISOString(),
+      healthScore,
+      riskLevel,
+      metrics: {
+        todayCalls, weekCalls, prevWeekCalls, weekGrowth,
+        todayMissed, weekMissed, missedRate,
+        todayTasks, overdueTasks, completedTasks,
+        todayMessages, unreadMessages,
+        monthRevenue: Math.round(monthRevenue * 100) / 100,
+        overdueInvoices,
+        activeProspects, wonProspects, lostProspects, conversionRate,
+        lowStockItems, criticalStockItems,
+        peakHour,
+      },
+      anomalies: anomalies.sort((a, b) => {
+        const sev = { critique: 0, alerte: 1, attention: 2, info: 3 };
+        return sev[a.severity] - sev[b.severity];
+      }),
+      recommendations,
+      hourlyDistribution,
+    });
+  } catch (err) {
+    console.error("[SmartPulse] error:", err);
+    res.status(500).json({ error: "Erreur smart pulse" });
+  }
+});
+
+router.get("/dashboard/anomaly-stream", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  try {
+    const now = new Date();
+    const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const last1h = new Date(now.getTime() - 60 * 60 * 1000);
+    const oc = eq(callsTable.organisationId, orgId);
+
+    const [recentMissed, recentTotal, hourlyMissed, hourlyTotal, repeatedCallers] = await Promise.all([
+      db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, last1h), eq(callsTable.status, "missed"))).then(r => Number(r[0]?.c ?? 0)),
+      db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, last1h))).then(r => Number(r[0]?.c ?? 0)),
+      db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, last24h), eq(callsTable.status, "missed"))).then(r => Number(r[0]?.c ?? 0)),
+      db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, last24h))).then(r => Number(r[0]?.c ?? 0)),
+      db.execute(sql`
+        SELECT phone_number, count(*) as cnt, max(contact_name) as name 
+        FROM calls 
+        WHERE organisation_id = ${orgId} 
+          AND status = 'missed' 
+          AND created_at >= ${last24h}
+          AND phone_number IS NOT NULL
+        GROUP BY phone_number 
+        HAVING count(*) >= 2 
+        ORDER BY cnt DESC 
+        LIMIT 5
+      `).then(r => (r as any).rows ?? []),
+    ]);
+
+    const alerts: Array<{ id: string; type: string; severity: string; title: string; description: string; action?: string; timestamp: string }> = [];
+    const ts = now.toISOString();
+
+    if (recentTotal > 0 && (recentMissed / recentTotal) > 0.5) {
+      alerts.push({ id: "burst-missed", type: "call_burst", severity: "critique", title: "Rafale d'appels manques!", description: `${recentMissed}/${recentTotal} appels manques dans la derniere heure`, action: "Renforcez l'equipe immediatement", timestamp: ts });
+    }
+
+    for (const caller of repeatedCallers) {
+      alerts.push({ id: `repeat-${caller.phone_number}`, type: "repeated_caller", severity: "alerte", title: `${caller.name || caller.phone_number} insiste`, description: `${caller.cnt} appels manques en 24h. Client potentiellement frustre.`, action: `Rappeler ${caller.phone_number} en priorite`, timestamp: ts });
+    }
+
+    const overdueUrgent = await db.execute(sql`
+      SELECT count(*) as c, string_agg(title, ', ') as titles
+      FROM (SELECT title FROM tasks WHERE organisation_id = ${orgId} AND priority = 'haute' AND status = 'en_attente' AND due_date < ${now} ORDER BY due_date LIMIT 3) sub
+    `).then(r => ({ count: Number((r as any).rows?.[0]?.c ?? 0), titles: (r as any).rows?.[0]?.titles || "" }));
+
+    if (overdueUrgent.count > 0) {
+      alerts.push({ id: "urgent-overdue", type: "task_overdue", severity: "critique", title: `${overdueUrgent.count} tache(s) urgente(s) en retard`, description: overdueUrgent.titles || "Taches haute priorite non terminees", action: "Traiter immediatement", timestamp: ts });
+    }
+
+    const bigInvoices = await db.execute(sql`
+      SELECT reference, total_amount, client_name, due_date 
+      FROM factures_client 
+      WHERE organisation_id = ${orgId} 
+        AND status = 'en_retard' 
+        AND total_amount > 1000 
+      ORDER BY total_amount DESC 
+      LIMIT 3
+    `).then(r => (r as any).rows ?? []);
+
+    for (const inv of bigInvoices) {
+      alerts.push({ id: `invoice-${inv.reference}`, type: "invoice_critical", severity: "alerte", title: `Facture ${inv.reference} impayee`, description: `${Number(inv.total_amount).toLocaleString("fr-FR")} EUR - ${inv.client_name || "Client"}`, action: "Relancer le client", timestamp: ts });
+    }
+
+    res.json({
+      alerts: alerts.sort((a, b) => {
+        const sev: Record<string, number> = { critique: 0, alerte: 1, attention: 2, info: 3 };
+        return (sev[a.severity] ?? 3) - (sev[b.severity] ?? 3);
+      }),
+      summary: {
+        critical: alerts.filter(a => a.severity === "critique").length,
+        warning: alerts.filter(a => a.severity === "alerte").length,
+        total: alerts.length,
+      },
+    });
+  } catch (err) {
+    console.error("[AnomalyStream] error:", err);
+    res.json({ alerts: [], summary: { critical: 0, warning: 0, total: 0 } });
   }
 });
 
