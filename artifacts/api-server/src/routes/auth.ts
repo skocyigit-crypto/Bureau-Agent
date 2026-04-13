@@ -253,7 +253,26 @@ router.post("/auth/users", async (req: Request, res: Response): Promise<void> =>
     createdAt: usersTable.createdAt,
   });
 
-  res.status(201).json(newUser);
+  let orgName = organisation || "Agent de Bureau";
+  if (organisationId) {
+    const [org] = await db.select({ name: organisationsTable.name }).from(organisationsTable).where(eq(organisationsTable.id, organisationId));
+    if (org) orgName = org.name;
+  }
+
+  const emailResult = await sendCredentialsEmail({
+    to: email.toLowerCase().trim(),
+    prenom,
+    nom,
+    password,
+    orgName,
+    role: role || "agent",
+  });
+
+  res.status(201).json({
+    ...newUser,
+    emailSent: emailResult.success,
+    emailNote: emailResult.success ? "Identifiants envoyes par email." : `Erreur email: ${emailResult.error}`,
+  });
 });
 
 router.patch("/auth/users/:id", async (req: Request, res: Response): Promise<void> => {
