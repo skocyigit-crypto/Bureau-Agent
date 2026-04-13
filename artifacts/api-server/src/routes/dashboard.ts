@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, sql, desc, gte, and, lt } from "drizzle-orm";
-import { db, callsTable, contactsTable, tasksTable, messagesTable, facturesClientTable } from "@workspace/db";
+import { db, callsTable, contactsTable, tasksTable, messagesTable } from "@workspace/db";
 import {
   GetCallAnalyticsQueryParams,
   GetRecentActivityQueryParams,
@@ -642,9 +642,6 @@ router.get("/dashboard/smart-pulse", async (req, res): Promise<void> => {
       todayMissed, weekMissed,
       todayTasks, overdueTasks, completedTasks,
       todayMessages, unreadMessages,
-      monthRevenue, overdueInvoices,
-      activeProspects, wonProspects, lostProspects,
-      lowStockItems, criticalStockItems,
     ] = await Promise.all([
       db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, todayStart))).then(r => Number(r[0]?.c ?? 0)),
       db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, weekStart))).then(r => Number(r[0]?.c ?? 0)),
@@ -656,19 +653,10 @@ router.get("/dashboard/smart-pulse", async (req, res): Promise<void> => {
       db.select({ c: sql<number>`count(*)` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.status, "termine"), gte(tasksTable.updatedAt, weekStart))).then(r => Number(r[0]?.c ?? 0)),
       db.select({ c: sql<number>`count(*)` }).from(messagesTable).where(and(eq(messagesTable.organisationId, orgId), gte(messagesTable.createdAt, todayStart))).then(r => Number(r[0]?.c ?? 0)),
       db.execute(sql`SELECT count(*) as c FROM messages WHERE organisation_id = ${orgId} AND is_read = false`).then(r => Number((r as any).rows?.[0]?.c ?? 0)),
-      db.select({ s: sql<number>`COALESCE(sum(${facturesClientTable.totalAmount}), 0)` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), gte(facturesClientTable.createdAt, monthStart))).then(r => Number(r[0]?.s ?? 0)),
-      db.select({ c: sql<number>`count(*)` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), eq(facturesClientTable.status, "en_retard"))).then(r => Number(r[0]?.c ?? 0)),
-      db.execute(sql`SELECT count(*) as c FROM prospects WHERE organisation_id = ${orgId} AND stage IN ('nouveau','qualification','proposition','negociation')`).then(r => Number((r as any).rows?.[0]?.c ?? 0)),
-      db.execute(sql`SELECT count(*) as c FROM prospects WHERE organisation_id = ${orgId} AND stage = 'gagne'`).then(r => Number((r as any).rows?.[0]?.c ?? 0)),
-      db.execute(sql`SELECT count(*) as c FROM prospects WHERE organisation_id = ${orgId} AND stage = 'perdu'`).then(r => Number((r as any).rows?.[0]?.c ?? 0)),
-      db.execute(sql`SELECT count(*) as c FROM stock_articles WHERE organisation_id = ${orgId} AND quantity <= min_quantity AND quantity > 0`).then(r => Number((r as any).rows?.[0]?.c ?? 0)),
-      db.execute(sql`SELECT count(*) as c FROM stock_articles WHERE organisation_id = ${orgId} AND quantity = 0`).then(r => Number((r as any).rows?.[0]?.c ?? 0)),
     ]);
 
     const missedRate = todayCalls > 0 ? Math.round((todayMissed / todayCalls) * 100) : 0;
     const weekGrowth = prevWeekCalls > 0 ? Math.round(((weekCalls - prevWeekCalls) / prevWeekCalls) * 100) : 0;
-    const totalProspects = activeProspects + wonProspects + lostProspects;
-    const conversionRate = totalProspects > 0 ? Math.round((wonProspects / totalProspects) * 100) : 0;
 
     const anomalies: Array<{ type: string; severity: "critique" | "alerte" | "attention" | "info"; title: string; description: string; metric?: number }> = [];
 
@@ -678,18 +666,10 @@ router.get("/dashboard/smart-pulse", async (req, res): Promise<void> => {
     if (overdueTasks > 5) anomalies.push({ type: "tasks", severity: "critique", title: "Retard critique des taches", description: `${overdueTasks} taches en retard. Productivite en danger.`, metric: overdueTasks });
     else if (overdueTasks > 2) anomalies.push({ type: "tasks", severity: "alerte", title: "Taches en retard", description: `${overdueTasks} taches depassent leur echeance.`, metric: overdueTasks });
 
-    if (overdueInvoices > 3) anomalies.push({ type: "finance", severity: "critique", title: "Factures impayees critiques", description: `${overdueInvoices} factures en retard. Tresorerie menacee.`, metric: overdueInvoices });
-    else if (overdueInvoices > 0) anomalies.push({ type: "finance", severity: "attention", title: "Factures en retard", description: `${overdueInvoices} facture(s) en attente de paiement.`, metric: overdueInvoices });
-
     if (unreadMessages > 20) anomalies.push({ type: "messages", severity: "alerte", title: "Boite de reception saturee", description: `${unreadMessages} messages non lus. Risque de retard de reponse.`, metric: unreadMessages });
-
-    if (criticalStockItems > 0) anomalies.push({ type: "stock", severity: "critique", title: "Rupture de stock", description: `${criticalStockItems} article(s) en rupture totale.`, metric: criticalStockItems });
-    if (lowStockItems > 0) anomalies.push({ type: "stock", severity: "attention", title: "Stock bas", description: `${lowStockItems} article(s) sous le seuil minimum.`, metric: lowStockItems });
 
     if (weekGrowth < -30) anomalies.push({ type: "activity", severity: "alerte", title: "Chute d'activite", description: `Baisse de ${Math.abs(weekGrowth)}% par rapport a la semaine derniere.`, metric: weekGrowth });
     else if (weekGrowth > 50) anomalies.push({ type: "activity", severity: "info", title: "Pic d'activite", description: `Hausse de ${weekGrowth}% cette semaine. Verifiez la capacite.`, metric: weekGrowth });
-
-    if (conversionRate < 10 && totalProspects > 5) anomalies.push({ type: "crm", severity: "alerte", title: "Taux de conversion faible", description: `Seulement ${conversionRate}% de conversion prospects. Revoir la strategie commerciale.`, metric: conversionRate });
 
     let healthScore = 100;
     anomalies.forEach(a => {
@@ -704,10 +684,7 @@ router.get("/dashboard/smart-pulse", async (req, res): Promise<void> => {
     const recommendations: string[] = [];
     if (missedRate > 20) recommendations.push("Augmenter le personnel aux heures de pointe pour reduire les appels manques");
     if (overdueTasks > 0) recommendations.push(`Prioriser les ${overdueTasks} taches en retard immediatement`);
-    if (overdueInvoices > 0) recommendations.push("Envoyer des relances automatiques pour les factures impayees");
     if (unreadMessages > 10) recommendations.push("Traiter les messages non lus pour maintenir la reactivite client");
-    if (criticalStockItems > 0) recommendations.push("Commander d'urgence les articles en rupture de stock");
-    if (conversionRate < 20 && totalProspects > 3) recommendations.push("Analyser les prospects perdus pour ameliorer le taux de conversion");
     if (recommendations.length === 0) recommendations.push("Excellente performance ! Continuez ainsi.");
 
     const hourlyDistribution: number[] = [];
@@ -733,10 +710,6 @@ router.get("/dashboard/smart-pulse", async (req, res): Promise<void> => {
         todayMissed, weekMissed, missedRate,
         todayTasks, overdueTasks, completedTasks,
         todayMessages, unreadMessages,
-        monthRevenue: Math.round(monthRevenue * 100) / 100,
-        overdueInvoices,
-        activeProspects, wonProspects, lostProspects, conversionRate,
-        lowStockItems, criticalStockItems,
         peakHour,
       },
       anomalies: anomalies.sort((a, b) => {

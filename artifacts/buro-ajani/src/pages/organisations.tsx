@@ -869,9 +869,6 @@ export default function OrganisationsPage() {
                       {org.subscription?.aiEnabled && (
                         <Badge variant="outline" className="text-xs"><Brain className="w-3 h-3 mr-1" />IA</Badge>
                       )}
-                      {org.subscription?.stockEnabled && (
-                        <Badge variant="outline" className="text-xs"><Package className="w-3 h-3 mr-1" />Stock</Badge>
-                      )}
                       {org.subscription?.automationEnabled && (
                         <Badge variant="outline" className="text-xs"><Zap className="w-3 h-3 mr-1" />Auto</Badge>
                       )}

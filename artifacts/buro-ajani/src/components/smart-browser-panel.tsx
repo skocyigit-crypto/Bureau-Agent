@@ -157,12 +157,9 @@ function VoiceCommandButton() {
       [/contacts?/, () => navigate("/contacts")],
       [/t[aâ]ches?|tasks?/, () => navigate("/taches")],
       [/messages?/, () => navigate("/messages")],
-      [/prospects?|pipeline/, () => navigate("/prospects")],
-      [/projets?/, () => navigate("/projets")],
       [/calendrier|agenda|calendar/, () => navigate("/calendrier")],
       [/rapports?|reports?/, () => navigate("/rapports")],
       [/param[eè]tres?|settings?/, () => navigate("/parametres")],
-      [/stock|inventaire/, () => navigate("/stock")],
       [/agents?\s*ia|intelligence/, () => navigate("/agents-ia")],
       [/utilisateurs?|users?/, () => navigate("/utilisateurs")],
     ];
@@ -387,7 +384,6 @@ function SmartKeyboardShortcutsHelp() {
     { keys: "Ctrl+Shift+F", desc: "Recherche globale" },
     { keys: "Ctrl+Shift+N", desc: "Nouveau contact" },
     { keys: "Ctrl+Shift+T", desc: "Nouvelle tache" },
-    { keys: "Ctrl+Shift+P", desc: "Nouveau prospect" },
     { keys: "Ctrl+P", desc: "Imprimer / PDF" },
     { keys: "F11", desc: "Plein ecran" },
     { keys: "Escape", desc: "Fermer les dialogues" },
@@ -585,11 +581,6 @@ export function SmartBrowserShortcuts() {
             e.preventDefault();
             navigate("/taches");
             toast({ title: "Nouvelle tache", description: "Utilisez le bouton + pour creer" });
-            break;
-          case "p":
-            e.preventDefault();
-            navigate("/prospects");
-            toast({ title: "Nouveau prospect", description: "Utilisez le bouton + pour creer" });
             break;
         }
       }

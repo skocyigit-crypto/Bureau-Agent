@@ -4,10 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
-  Activity, AlertTriangle, ShieldAlert, Flame, Target, Package,
+  Activity, AlertTriangle, ShieldAlert, Flame,
   FileWarning, TrendingUp, TrendingDown, Heart, Zap, Eye,
   ChevronRight, RefreshCw, Shield, Phone, CheckSquare,
-  MessageSquare, DollarSign, BarChart3, Clock
+  MessageSquare, BarChart3, Clock
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
@@ -33,14 +33,6 @@ interface SmartPulseData {
     completedTasks: number;
     todayMessages: number;
     unreadMessages: number;
-    monthRevenue: number;
-    overdueInvoices: number;
-    activeProspects: number;
-    wonProspects: number;
-    lostProspects: number;
-    conversionRate: number;
-    lowStockItems: number;
-    criticalStockItems: number;
     peakHour: number;
   };
   anomalies: Array<{
@@ -226,9 +218,6 @@ export function SmartPulsePanel() {
                   <MiniMetric icon={CheckSquare} label="Taches en retard" value={pulse.metrics.overdueTasks} color="bg-amber-600" />
                   <MiniMetric icon={CheckSquare} label="Terminees cette sem." value={pulse.metrics.completedTasks} color="bg-emerald-600" />
                   <MiniMetric icon={MessageSquare} label="Non lus" value={pulse.metrics.unreadMessages} color="bg-purple-600" />
-                  <MiniMetric icon={Target} label="Conversion CRM" value={`${pulse.metrics.conversionRate}%`} color="bg-indigo-600" />
-                  <MiniMetric icon={DollarSign} label="CA du mois" value={new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(pulse.metrics.monthRevenue)} color="bg-emerald-700" />
-                  <MiniMetric icon={Package} label="Stock critique" value={pulse.metrics.criticalStockItems + pulse.metrics.lowStockItems} color="bg-orange-600" />
                 </div>
               </div>
 

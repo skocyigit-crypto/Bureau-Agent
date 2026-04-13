@@ -27,10 +27,7 @@ const typeConfig: Record<string, { icon: typeof Phone; color: string; bg: string
   contact: { icon: Users, color: "text-emerald-600", bg: "bg-emerald-100", label: "Contact" },
   tache: { icon: CheckSquare, color: "text-green-600", bg: "bg-green-100", label: "Tache" },
   message: { icon: MessageSquare, color: "text-orange-600", bg: "bg-orange-100", label: "Message" },
-  prospect: { icon: Target, color: "text-purple-600", bg: "bg-purple-100", label: "Prospect" },
   evenement: { icon: Calendar, color: "text-indigo-600", bg: "bg-indigo-100", label: "Evenement" },
-  facture: { icon: FileText, color: "text-amber-600", bg: "bg-amber-100", label: "Facture" },
-  projet: { icon: TrendingUp, color: "text-pink-600", bg: "bg-pink-100", label: "Projet" },
 };
 
 export function LiveActivityFeed({ compact = false }: { compact?: boolean }) {
@@ -44,7 +41,8 @@ export function LiveActivityFeed({ compact = false }: { compact?: boolean }) {
     try {
       const res = await fetch(`${API}/api/dashboard/recent-activity?limit=20`, { credentials: "include" });
       if (!res.ok) return;
-      const data = await res.json();
+      const json = await res.json();
+      const data = Array.isArray(json) ? json : (json.activities || []);
 
       const items: ActivityItem[] = (data || []).map((item: any, idx: number) => ({
         id: `${item.type}_${item.id || idx}`,

@@ -658,11 +658,6 @@ export function CentralIntelligence() {
                               Copier BC
                             </Button>
                           )}
-                          <Link href="/stock">
-                            <Button variant="default" size="sm" className="h-6 text-[10px] gap-1 bg-indigo-600 hover:bg-indigo-700">
-                              <ArrowRight className="w-3 h-3" /> Gerer
-                            </Button>
-                          </Link>
                         </div>
                       </div>
                     ))}

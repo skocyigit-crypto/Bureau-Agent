@@ -156,7 +156,6 @@ const pageIconMap: Record<string, { variant: Icon3DVariant }> = {
   "/logiciels": { variant: "purple" },
   "/analyse": { variant: "cyan" },
   "/utilisateurs": { variant: "teal" },
-  "/stock": { variant: "orange" },
   "/pointage": { variant: "slate" },
   "/agents-ia": { variant: "purple" },
   "/parametres": { variant: "slate" },
