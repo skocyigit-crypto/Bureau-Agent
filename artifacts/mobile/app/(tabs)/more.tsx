@@ -143,13 +143,6 @@ export default function MoreScreen() {
         ) : null}
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>COMMERCIAL</Text>
-          <MenuItem icon="target" label="Prospection CRM" sublabel="Pipeline, scoring, suivi clients" color="#6366f1" onPress={() => nav("/prospects")} />
-          <MenuItem icon="file-text" label="Factures" sublabel="Facturation et paiements" color="#0ea5e9" onPress={() => nav("/invoices")} />
-          <MenuItem icon="folder" label="Projets" sublabel="Gestion de projets et budgets" color="#14b8a6" onPress={() => nav("/projects")} />
-        </View>
-
-        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>COMMUNICATION</Text>
           <MenuItem icon="message-square" label="Messages" sublabel="Messagerie vocale et notes" color="#3b82f6" onPress={() => nav("/messages")} />
           <MenuItem icon="phone-call" label="Telephonie" sublabel="Appels et SMS multi-fournisseurs" color="#22c55e" onPress={() => nav("/telephony")} />
@@ -159,7 +152,6 @@ export default function MoreScreen() {
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>OUTILS</Text>
           <MenuItem icon="bar-chart-2" label="Analytique" sublabel="Rapports et statistiques" color="#f59e0b" onPress={() => nav("/analytics")} />
           <MenuItem icon="calendar" label="Calendrier" sublabel="Evenements et rendez-vous" color="#ec4899" onPress={() => nav("/calendar")} />
-          <MenuItem icon="package" label="Stock" sublabel="Gestion des stocks" color="#6366f1" onPress={() => nav("/stock")} />
           <MenuItem icon="clock" label="Pointage" sublabel="Gestion de presence" color="#14b8a6" onPress={() => nav("/checkins")} />
         </View>
 

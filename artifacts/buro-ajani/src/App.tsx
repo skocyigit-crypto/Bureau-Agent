@@ -27,18 +27,14 @@ import Software from "@/pages/software";
 import UsersPage from "@/pages/users";
 import CheckinsPage from "@/pages/checkins";
 import AiAgentsPage from "@/pages/ai-agents";
-import StockPage from "@/pages/stock";
 import CalendarPage from "@/pages/calendar";
 import AuditLogPage from "@/pages/audit-log";
 import AutomationsPage from "@/pages/automations";
 import PerformancePage from "@/pages/performance";
 import OrganisationsPage from "@/pages/organisations";
-import ProspectsPage from "@/pages/prospects";
-import ProjetsPage from "@/pages/projets";
 import NotificationsPage from "@/pages/notifications";
 import GoogleWorkspacePage from "@/pages/google-workspace";
 import DocumentAiPage from "@/pages/document-ai";
-import ComptesClientsPage from "@/pages/comptes-clients";
 import AbonnementPage from "@/pages/abonnement";
 import { useLicenseCheck } from "@/hooks/use-license-check";
 import { CommandPalette } from "@/components/command-palette";
@@ -89,17 +85,13 @@ function AppRoutes() {
         <Route path="/analyse" component={withLicenseGate(Analytics)} />
         <Route path="/utilisateurs" component={withLicenseGate(UsersPage)} />
         <Route path="/pointage" component={withLicenseGate(CheckinsPage)} />
-        <Route path="/stock" component={withLicenseGate(StockPage)} />
         <Route path="/agents-ia" component={withLicenseGate(AiAgentsPage)} />
         <Route path="/calendrier" component={withLicenseGate(CalendarPage)} />
         <Route path="/audit" component={withLicenseGate(AuditLogPage)} />
         <Route path="/automatisations" component={withLicenseGate(AutomationsPage)} />
         <Route path="/performance" component={withLicenseGate(PerformancePage)} />
-        <Route path="/prospects" component={withLicenseGate(ProspectsPage)} />
-        <Route path="/projets" component={withLicenseGate(ProjetsPage)} />
         <Route path="/google-workspace" component={withLicenseGate(GoogleWorkspacePage)} />
         <Route path="/document-ia" component={withLicenseGate(DocumentAiPage)} />
-        <Route path="/comptes-clients" component={withLicenseGate(ComptesClientsPage)} />
         <Route path="/abonnement" component={AbonnementPage} />
         <Route path="/organisations" component={OrganisationsPage} />
         <Route path="/parametres" component={SettingsPage} />

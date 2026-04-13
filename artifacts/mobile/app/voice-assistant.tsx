@@ -32,6 +32,16 @@ interface CommandInfo {
   description: string;
 }
 
+const MOBILE_ROUTE_MAP: Record<string, string> = {
+  "/": "/(tabs)",
+  "/appels": "/(tabs)/calls",
+  "/contacts": "/(tabs)/contacts",
+  "/taches": "/(tabs)/tasks",
+  "/calendrier": "/calendar",
+  "/analyse": "/analytics",
+  "/messages": "/messages",
+};
+
 export default function VoiceAssistantScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -48,10 +58,16 @@ export default function VoiceAssistantScreen() {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const recognitionRef = useRef<any>(null);
   const scrollRef = useRef<ScrollView>(null);
+  const wakeActiveRef = useRef(false);
+  const stateRef = useRef<VoiceState>("idle");
 
   const SpeechRecognitionClass = isWeb
     ? ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
     : null;
+
+  useEffect(() => {
+    stateRef.current = voiceState;
+  }, [voiceState]);
 
   useEffect(() => {
     fetchAuth(`${API_BASE}/api/voice/commands`)
@@ -91,8 +107,8 @@ export default function VoiceAssistantScreen() {
       const frVoice = voices.find((v: SpeechSynthesisVoice) => v.lang.startsWith("fr"));
       if (frVoice) utter.voice = frVoice;
       utter.onend = () => {
-        setVoiceState(wakeWordActive ? "listening_wake" : "idle");
-        if (wakeWordActive) startWakeWordListener();
+        setVoiceState(wakeActiveRef.current ? "listening_wake" : "idle");
+        if (wakeActiveRef.current) startWakeWordListener();
       };
       window.speechSynthesis.speak(utter);
     } else {
@@ -100,12 +116,12 @@ export default function VoiceAssistantScreen() {
         language: "fr-FR",
         rate: 1.0,
         onDone: () => {
-          setVoiceState(wakeWordActive ? "listening_wake" : "idle");
-          if (wakeWordActive) startWakeWordListener();
+          setVoiceState(wakeActiveRef.current ? "listening_wake" : "idle");
+          if (wakeActiveRef.current) startWakeWordListener();
         },
       });
     }
-  }, [isWeb, wakeWordActive]);
+  }, [isWeb]);
 
   const processCommand = useCallback(async (text: string) => {
     setVoiceState("processing");
@@ -124,20 +140,9 @@ export default function VoiceAssistantScreen() {
         addMessage("assistant", data.spoken);
         speak(data.spoken);
 
-        if (data.navigate && !isWeb) {
+        if (data.navigate) {
           setTimeout(() => {
-            const routeMap: Record<string, string> = {
-              "/dashboard": "/(tabs)",
-              "/calls": "/(tabs)/calls",
-              "/contacts": "/(tabs)/contacts",
-              "/tasks": "/(tabs)/tasks",
-              "/invoices": "/invoices",
-              "/prospects": "/prospects",
-              "/projects": "/projects",
-              "/calendar": "/calendar",
-              "/analytics": "/analytics",
-            };
-            const target = routeMap[data.navigate] || data.navigate;
+            const target = MOBILE_ROUTE_MAP[data.navigate] || data.navigate;
             router.push(target as any);
           }, 3000);
         }
@@ -151,7 +156,7 @@ export default function VoiceAssistantScreen() {
       addMessage("assistant", errMsg);
       speak(errMsg);
     }
-  }, [fetchAuth, speak, isWeb]);
+  }, [fetchAuth, speak]);
 
   function stopListeners() {
     try { recognitionRef.current?.stop(); } catch {}
@@ -174,6 +179,7 @@ export default function VoiceAssistantScreen() {
     recognition.lang = "fr-FR";
     recognition.continuous = false;
     recognition.interimResults = true;
+    recognition.maxAlternatives = 3;
 
     recognition.onresult = (event: any) => {
       let final = "";
@@ -193,14 +199,14 @@ export default function VoiceAssistantScreen() {
       if (e.error !== "no-speech" && e.error !== "aborted") {
         addMessage("system", "Erreur micro: " + e.error);
       }
-      setVoiceState(wakeWordActive ? "listening_wake" : "idle");
-      if (wakeWordActive) startWakeWordListener();
+      setVoiceState(wakeActiveRef.current ? "listening_wake" : "idle");
+      if (wakeActiveRef.current) startWakeWordListener();
     };
 
     recognition.onend = () => {
-      if (voiceState === "listening") {
-        setVoiceState(wakeWordActive ? "listening_wake" : "idle");
-        if (wakeWordActive) startWakeWordListener();
+      if (stateRef.current === "listening") {
+        setVoiceState(wakeActiveRef.current ? "listening_wake" : "idle");
+        if (wakeActiveRef.current) startWakeWordListener();
       }
     };
 
@@ -219,6 +225,7 @@ export default function VoiceAssistantScreen() {
     recognition.lang = "fr-FR";
     recognition.continuous = true;
     recognition.interimResults = true;
+    recognition.maxAlternatives = 3;
 
     recognition.onresult = (event: any) => {
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -228,18 +235,20 @@ export default function VoiceAssistantScreen() {
           addMessage("system", 'Detection: "Hey Bureau" - Je vous ecoute!');
           if (!isWeb) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           speak("Je vous ecoute");
-          setTimeout(() => startCommandListener(), 1500);
+          setTimeout(() => startCommandListener(), 1200);
           return;
         }
       }
     };
 
     recognition.onerror = () => {
-      setTimeout(() => { if (wakeWordActive) startWakeWordListener(); }, 3000);
+      setTimeout(() => { if (wakeActiveRef.current) startWakeWordListener(); }, 3000);
     };
 
     recognition.onend = () => {
-      setTimeout(() => { if (wakeWordActive) startWakeWordListener(); }, 500);
+      if (wakeActiveRef.current && stateRef.current !== "listening" && stateRef.current !== "processing" && stateRef.current !== "speaking") {
+        setTimeout(() => { if (wakeActiveRef.current) startWakeWordListener(); }, 500);
+      }
     };
 
     recognitionRef.current = recognition;
@@ -250,12 +259,14 @@ export default function VoiceAssistantScreen() {
   }
 
   function toggleWakeWord() {
-    if (wakeWordActive) {
+    if (wakeActiveRef.current) {
+      wakeActiveRef.current = false;
       setWakeWordActive(false);
       stopListeners();
       setVoiceState("idle");
       addMessage("system", 'Mode "Hey Bureau" desactive.');
     } else {
+      wakeActiveRef.current = true;
       setWakeWordActive(true);
       addMessage("system", 'Mode "Hey Bureau" active. Dites "Hey Bureau" pour commencer.');
       startWakeWordListener();
@@ -278,7 +289,10 @@ export default function VoiceAssistantScreen() {
   }
 
   useEffect(() => {
-    return () => { stopListeners(); };
+    return () => {
+      stopListeners();
+      wakeActiveRef.current = false;
+    };
   }, []);
 
   const stateColor =
@@ -290,7 +304,7 @@ export default function VoiceAssistantScreen() {
   const stateLabel =
     voiceState === "listening" ? "Je vous ecoute..." :
     voiceState === "listening_wake" ? 'Dites "Hey Bureau"...' :
-    voiceState === "processing" ? "Traitement..." :
+    voiceState === "processing" ? "Traitement IA..." :
     voiceState === "speaking" ? "Reponse en cours..." : "Appuyez pour parler";
 
   return (
@@ -302,7 +316,7 @@ export default function VoiceAssistantScreen() {
           </Pressable>
           <View style={styles.headerCenter}>
             <Feather name="mic" size={18} color="#fff" />
-            <Text style={styles.headerTitle}>Assistant Vocal</Text>
+            <Text style={styles.headerTitle}>Assistant Vocal IA</Text>
           </View>
           <Pressable onPress={() => setShowCommands(!showCommands)} style={styles.helpBtn}>
             <Feather name="help-circle" size={18} color="rgba(255,255,255,0.6)" />
@@ -323,6 +337,7 @@ export default function VoiceAssistantScreen() {
       {showCommands ? (
         <ScrollView style={styles.commandsList} contentContainerStyle={styles.commandsContent}>
           <Text style={[styles.commandsTitle, { color: colors.foreground }]}>Commandes disponibles</Text>
+          <Text style={[styles.aiNote, { color: colors.primary }]}>L'IA comprend aussi les phrases naturelles en francais.</Text>
           {commands.map((c, i) => (
             <Pressable
               key={i}
@@ -429,7 +444,8 @@ const styles = StyleSheet.create({
   messageText: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21 },
   commandsList: { flex: 1 },
   commandsContent: { padding: 16, gap: 8 },
-  commandsTitle: { fontSize: 16, fontFamily: "Inter_700Bold", marginBottom: 8 },
+  commandsTitle: { fontSize: 16, fontFamily: "Inter_700Bold", marginBottom: 4 },
+  aiNote: { fontSize: 12, fontFamily: "Inter_400Regular", fontStyle: "italic", marginBottom: 8 },
   commandItem: { padding: 14, borderRadius: 12, borderWidth: 1 },
   commandPhrase: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
   commandDesc: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },

@@ -1,7 +1,13 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, callsTable, contactsTable, tasksTable, facturesClientTable, prospectsTable, projetsTable, calendarEventsTable } from "@workspace/db";
+import { db, callsTable, contactsTable, tasksTable, calendarEventsTable } from "@workspace/db";
 import { eq, desc, and, sql, ilike, or } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
+
+let ai: any = null;
+try {
+  const mod = require("@workspace/integrations-gemini-ai");
+  ai = mod.ai;
+} catch {}
 
 const router: IRouter = Router();
 
@@ -11,76 +17,104 @@ interface VoiceCommand {
   params?: Record<string, string>;
 }
 
-function parseCommand(text: string): VoiceCommand {
+function parseCommandRegex(text: string): VoiceCommand {
   const t = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
   if (t.match(/briefing|resume.*(jour|today)|quoi de neuf|resume/))
     return { intent: "daily_briefing" };
-
   if (t.match(/combien.*(appel|call)|nombre.*(appel|call)|appels.*aujourd/))
     return { intent: "count_calls" };
-
   if (t.match(/combien.*(tache|task)|nombre.*(tache|task)|taches.*(attente|pending)/))
     return { intent: "count_tasks" };
-
   if (t.match(/combien.*(contact)|nombre.*(contact)/))
     return { intent: "count_contacts" };
-
-  if (t.match(/combien.*(facture|invoice)|factures.*(retard|impaye)/))
-    return { intent: "invoice_status" };
-
   if (t.match(/derniers? appels?|appels? recents?|recent.*call/))
     return { intent: "recent_calls" };
-
   if (t.match(/taches? urgente|taches? haute|taches? priorite|urgent.*task/))
     return { intent: "urgent_tasks" };
-
   if (t.match(/cre(e|er).*tache|nouvelle? tache|ajoute.*tache|new.*task/)) {
     const titleMatch = text.match(/(?:tache|task)\s+(.+)/i);
     return { intent: "create_task", params: { title: titleMatch?.[1] || "Nouvelle tache" } };
   }
-
   if (t.match(/appel(le|er)?\s|telephone|call\s/)) {
     const nameMatch = text.match(/(?:appelle|appeler|call)\s+(.+)/i);
     return { intent: "call_contact", params: { name: nameMatch?.[1] || "" } };
   }
-
   if (t.match(/cherche|recherche|trouve|search|find/)) {
     const queryMatch = text.match(/(?:cherche|recherche|trouve|search|find)\s+(.+)/i);
     return { intent: "search", params: { query: queryMatch?.[1] || "" } };
   }
-
   if (t.match(/agenda|rendez.?vous|rdv|calendrier|calendar|evenement/))
     return { intent: "calendar" };
-
-  if (t.match(/prospect|pipeline|crm|lead/))
-    return { intent: "prospects_summary" };
-
-  if (t.match(/projet|project/))
-    return { intent: "projects_summary" };
-
-  if (t.match(/stock|inventaire/))
-    return { intent: "stock_summary" };
-
   if (t.match(/performance|statistique|stats|kpi/))
     return { intent: "performance" };
-
   if (t.match(/aide|help|que peux.tu|commande/))
     return { intent: "help" };
+  if (t.match(/bonjour|salut|coucou|bonsoir|hello|hi/))
+    return { intent: "greeting" };
+  if (t.match(/heure|quelle heure|time/))
+    return { intent: "time" };
+  if (t.match(/merci|thank/))
+    return { intent: "thanks" };
 
   return { intent: "unknown", params: { text } };
 }
 
+async function parseCommandAI(text: string): Promise<VoiceCommand> {
+  if (!ai) return parseCommandRegex(text);
+
+  try {
+    const result = await ai.models.generateContent({
+      model: "gemini-2.5-flash-preview-05-20",
+      contents: [{
+        role: "user",
+        parts: [{ text: `Tu es un assistant vocal pour un logiciel de gestion de bureau en francais.
+Analyse cette commande vocale et retourne un JSON avec "intent" et "params".
+
+Intents possibles:
+- daily_briefing: resume de la journee
+- count_calls: combien d'appels
+- count_tasks: combien de taches
+- count_contacts: combien de contacts
+- recent_calls: derniers appels
+- urgent_tasks: taches urgentes/haute priorite
+- create_task: creer une tache (params: {title: "..."})
+- call_contact: appeler un contact (params: {name: "..."})
+- search: rechercher (params: {query: "..."})
+- calendar: agenda/evenements du jour
+- performance: stats de la semaine
+- greeting: salutation
+- time: quelle heure
+- thanks: remerciement
+- help: aide/commandes
+- unknown: si non reconnu
+
+Commande: "${text}"
+
+Reponds UNIQUEMENT en JSON valide, sans backticks ni explication. Exemple: {"intent":"create_task","params":{"title":"Rappeler le client"}}` }]
+      }],
+    });
+
+    const raw = (result.text || "").trim().replace(/```json\n?/g, "").replace(/```/g, "").trim();
+    const parsed = JSON.parse(raw);
+    if (parsed.intent) return parsed;
+  } catch (err) {
+    console.warn("[VoiceCommand] AI parse fallback:", err);
+  }
+
+  return parseCommandRegex(text);
+}
+
 router.post("/voice/command", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
-  const { text, lang } = req.body;
+  const { text } = req.body;
 
   if (!text || typeof text !== "string") {
     res.status(400).json({ error: "Texte requis" });
     return;
   }
 
-  const command = parseCommand(text);
+  const command = await parseCommandAI(text);
   let spokenResponse = "";
   let data: any = null;
   let action: string | null = null;
@@ -89,26 +123,23 @@ router.post("/voice/command", async (req: Request, res: Response): Promise<void>
   try {
     switch (command.intent) {
       case "daily_briefing": {
-        const [calls, tasks, contacts, invoices, events] = await Promise.all([
+        const [calls, tasks, contacts, events] = await Promise.all([
           db.select({ count: sql<number>`count(*)::int` }).from(callsTable)
             .where(and(eq(callsTable.organisationId, orgId), sql`DATE(${callsTable.createdAt}) = CURRENT_DATE`)),
           db.select({ count: sql<number>`count(*)::int` }).from(tasksTable)
             .where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.status, "en_attente"))),
           db.select({ count: sql<number>`count(*)::int` }).from(contactsTable)
             .where(eq(contactsTable.organisationId, orgId)),
-          db.select({ count: sql<number>`count(*)::int`, overdue: sql<number>`count(*) FILTER (WHERE status = 'envoyee' AND due_date < now())::int` })
-            .from(facturesClientTable).where(eq(facturesClientTable.organisationId, orgId)),
           db.select({ count: sql<number>`count(*)::int` }).from(calendarEventsTable)
             .where(and(eq(calendarEventsTable.organisationId, orgId), sql`DATE(${calendarEventsTable.startDate}) = CURRENT_DATE`)),
         ]);
         const c = calls[0]?.count || 0;
         const t = tasks[0]?.count || 0;
         const ct = contacts[0]?.count || 0;
-        const inv = invoices[0]?.overdue || 0;
         const ev = events[0]?.count || 0;
-        spokenResponse = `Bonjour! Voici votre briefing du jour. Vous avez ${c} appel${c > 1 ? "s" : ""} aujourd'hui, ${t} tache${t > 1 ? "s" : ""} en attente, ${ct} contacts au total, ${inv} facture${inv > 1 ? "s" : ""} en retard, et ${ev} evenement${ev > 1 ? "s" : ""} au calendrier.`;
-        data = { calls: c, tasks: t, contacts: ct, overdueInvoices: inv, events: ev };
-        navigate = "/dashboard";
+        spokenResponse = `Bonjour! Voici votre briefing du jour. Vous avez ${c} appel${c > 1 ? "s" : ""} aujourd'hui, ${t} tache${t > 1 ? "s" : ""} en attente, ${ct} contact${ct > 1 ? "s" : ""} au total, et ${ev} evenement${ev > 1 ? "s" : ""} au calendrier.`;
+        data = { calls: c, tasks: t, contacts: ct, events: ev };
+        navigate = "/";
         break;
       }
 
@@ -118,7 +149,7 @@ router.post("/voice/command", async (req: Request, res: Response): Promise<void>
         const n = result?.count || 0;
         spokenResponse = `Vous avez ${n} appel${n > 1 ? "s" : ""} aujourd'hui.`;
         data = { count: n };
-        navigate = "/calls";
+        navigate = "/appels";
         break;
       }
 
@@ -128,7 +159,7 @@ router.post("/voice/command", async (req: Request, res: Response): Promise<void>
         const n = result?.count || 0;
         spokenResponse = `Vous avez ${n} tache${n > 1 ? "s" : ""} en attente.`;
         data = { count: n };
-        navigate = "/tasks";
+        navigate = "/taches";
         break;
       }
 
@@ -142,18 +173,6 @@ router.post("/voice/command", async (req: Request, res: Response): Promise<void>
         break;
       }
 
-      case "invoice_status": {
-        const all = await db.select().from(facturesClientTable).where(eq(facturesClientTable.organisationId, orgId));
-        const total = all.length;
-        const paid = all.filter(f => f.status === "payee").length;
-        const overdue = all.filter(f => f.status === "envoyee" && f.dueDate && new Date(f.dueDate) < new Date()).length;
-        const unpaid = all.reduce((s, f) => s + Number(f.totalAmount) - Number(f.paidAmount), 0);
-        spokenResponse = `Vous avez ${total} facture${total > 1 ? "s" : ""} au total, dont ${paid} payee${paid > 1 ? "s" : ""} et ${overdue} en retard. Le montant impaye total est de ${Math.round(unpaid)} euros.`;
-        data = { total, paid, overdue, unpaid: Math.round(unpaid) };
-        navigate = "/invoices";
-        break;
-      }
-
       case "recent_calls": {
         const calls = await db.select().from(callsTable)
           .where(eq(callsTable.organisationId, orgId))
@@ -163,7 +182,7 @@ router.post("/voice/command", async (req: Request, res: Response): Promise<void>
           ? `Vos ${calls.length} derniers appels: ${names}.`
           : "Aucun appel recent.";
         data = { calls: calls.map(c => ({ name: c.contactName, phone: c.phoneNumber, status: c.status })) };
-        navigate = "/calls";
+        navigate = "/appels";
         break;
       }
 
@@ -176,7 +195,7 @@ router.post("/voice/command", async (req: Request, res: Response): Promise<void>
           ? `Vous avez ${tasks.length} tache${tasks.length > 1 ? "s" : ""} urgente${tasks.length > 1 ? "s" : ""}: ${titles}.`
           : "Aucune tache urgente en attente.";
         data = { tasks: tasks.map(t => ({ id: t.id, title: t.title })) };
-        navigate = "/tasks";
+        navigate = "/taches";
         break;
       }
 
@@ -191,7 +210,7 @@ router.post("/voice/command", async (req: Request, res: Response): Promise<void>
         });
         spokenResponse = `La tache "${title}" a ete creee avec succes.`;
         action = "task_created";
-        navigate = "/tasks";
+        navigate = "/taches";
         break;
       }
 
@@ -254,40 +273,7 @@ router.post("/voice/command", async (req: Request, res: Response): Promise<void>
           spokenResponse = "Aucun evenement prevu aujourd'hui.";
         }
         data = { events: events.map(e => ({ title: e.title, time: e.startDate })) };
-        navigate = "/calendar";
-        break;
-      }
-
-      case "prospects_summary": {
-        const prospects = await db.select().from(prospectsTable)
-          .where(eq(prospectsTable.organisationId, orgId));
-        const total = prospects.length;
-        const won = prospects.filter(p => p.stage === "gagne").length;
-        const totalVal = prospects.reduce((s, p) => s + (Number(p.value) || 0), 0);
-        spokenResponse = `Vous avez ${total} prospect${total > 1 ? "s" : ""} dans le pipeline, dont ${won} gagne${won > 1 ? "s" : ""}. La valeur totale est de ${Math.round(totalVal)} euros.`;
-        data = { total, won, totalValue: Math.round(totalVal) };
-        navigate = "/prospects";
-        break;
-      }
-
-      case "projects_summary": {
-        const projects = await db.select().from(projetsTable)
-          .where(eq(projetsTable.organisationId, orgId));
-        const total = projects.length;
-        const active = projects.filter(p => p.status === "en_cours").length;
-        const done = projects.filter(p => p.status === "termine").length;
-        spokenResponse = `Vous avez ${total} projet${total > 1 ? "s" : ""}: ${active} en cours et ${done} termine${done > 1 ? "s" : ""}.`;
-        data = { total, active, done };
-        navigate = "/projects";
-        break;
-      }
-
-      case "stock_summary": {
-        const stockResult = await db.execute(sql`SELECT count(*)::int as total, coalesce(sum(CASE WHEN quantity <= min_quantity THEN 1 ELSE 0 END), 0)::int as low FROM stock_articles WHERE organisation_id = ${orgId}`);
-        const stockRow = (stockResult as any).rows?.[0] || { total: 0, low: 0 };
-        spokenResponse = `Vous avez ${stockRow.total} article${Number(stockRow.total) > 1 ? "s" : ""} en stock, dont ${stockRow.low} en alerte de stock bas.`;
-        data = { total: Number(stockRow.total), lowStock: Number(stockRow.low) };
-        navigate = "/stock";
+        navigate = "/calendrier";
         break;
       }
 
@@ -300,17 +286,52 @@ router.post("/voice/command", async (req: Request, res: Response): Promise<void>
         ]);
         spokenResponse = `Cette semaine: ${calls[0]?.count || 0} appels passes et ${tasks[0]?.count || 0} taches terminees.`;
         data = { weekCalls: calls[0]?.count || 0, weekTasksDone: tasks[0]?.count || 0 };
-        navigate = "/analytics";
+        navigate = "/analyse";
+        break;
+      }
+
+      case "greeting": {
+        const hour = new Date().getHours();
+        const greeting = hour < 12 ? "Bonjour" : hour < 18 ? "Bon apres-midi" : "Bonsoir";
+        spokenResponse = `${greeting}! Comment puis-je vous aider?`;
+        break;
+      }
+
+      case "time": {
+        const now = new Date();
+        const h = now.getHours();
+        const m = now.getMinutes();
+        spokenResponse = `Il est ${h} heure${h > 1 ? "s" : ""} ${m > 0 ? `et ${m} minute${m > 1 ? "s" : ""}` : ""}.`;
+        break;
+      }
+
+      case "thanks": {
+        spokenResponse = "Je vous en prie! N'hesitez pas si vous avez besoin d'autre chose.";
         break;
       }
 
       case "help": {
-        spokenResponse = "Vous pouvez me demander: le briefing du jour, compter vos appels ou taches, voir les factures en retard, creer une tache, appeler un contact, chercher dans vos donnees, consulter l'agenda, ou voir vos prospects et projets.";
+        spokenResponse = "Vous pouvez me demander: le briefing du jour, compter vos appels ou taches, voir les taches urgentes, creer une tache, appeler un contact, chercher dans vos donnees, ou consulter l'agenda.";
         break;
       }
 
       default: {
-        spokenResponse = `Je n'ai pas compris "${text}". Dites "aide" pour connaitre les commandes disponibles.`;
+        if (ai) {
+          try {
+            const result = await ai.models.generateContent({
+              model: "gemini-2.5-flash-preview-05-20",
+              contents: [{
+                role: "user",
+                parts: [{ text: `Tu es l'assistant vocal "Bureau" d'un logiciel de gestion de bureau francais. L'utilisateur a dit: "${text}". Reponds de maniere concise, utile et naturelle en francais (2-3 phrases max). Si c'est hors sujet, propose poliment les fonctionnalites disponibles (appels, taches, contacts, calendrier, performance).` }]
+              }],
+            });
+            spokenResponse = (result.text || "").trim() || `Je n'ai pas compris "${text}". Dites "aide" pour connaitre les commandes.`;
+          } catch {
+            spokenResponse = `Je n'ai pas compris "${text}". Dites "aide" pour connaitre les commandes disponibles.`;
+          }
+        } else {
+          spokenResponse = `Je n'ai pas compris "${text}". Dites "aide" pour connaitre les commandes disponibles.`;
+        }
         break;
       }
     }
@@ -335,16 +356,14 @@ router.get("/voice/commands", (_req: Request, res: Response): void => {
       { phrase: "Briefing du jour", description: "Resume complet de la journee" },
       { phrase: "Combien d'appels aujourd'hui", description: "Nombre d'appels du jour" },
       { phrase: "Taches en attente", description: "Nombre de taches en attente" },
-      { phrase: "Factures en retard", description: "Statut des factures" },
       { phrase: "Derniers appels", description: "Les 5 derniers appels" },
       { phrase: "Taches urgentes", description: "Taches haute priorite" },
       { phrase: "Cree une tache [titre]", description: "Creer une nouvelle tache" },
       { phrase: "Appelle [nom]", description: "Trouver et appeler un contact" },
       { phrase: "Cherche [texte]", description: "Recherche dans contacts et taches" },
       { phrase: "Agenda du jour", description: "Evenements du calendrier" },
-      { phrase: "Prospects / Pipeline", description: "Resume CRM" },
-      { phrase: "Projets", description: "Resume des projets" },
       { phrase: "Performance", description: "Stats de la semaine" },
+      { phrase: "Quelle heure est-il", description: "Heure actuelle" },
       { phrase: "Aide", description: "Liste des commandes" },
     ],
   });

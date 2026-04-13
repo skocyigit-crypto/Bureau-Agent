@@ -1,22 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Mic, MicOff, X, Volume2, MessageCircle, HelpCircle } from "lucide-react";
+import { Mic, MicOff, X, Volume2, MessageCircle, HelpCircle, Radio } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const WAKE_WORD = "hey bureau";
-
-const ROUTE_MAP: Record<string, string> = {
-  "/dashboard": "/",
-  "/calls": "/appels",
-  "/contacts": "/contacts",
-  "/tasks": "/taches",
-  "/messages": "/messages",
-  "/analytics": "/analyse",
-  "/calendar": "/calendrier",
-  "/prospects": "/prospects",
-  "/projects": "/projets",
-  "/invoices": "/comptes-clients",
-  "/stock": "/stock",
-};
+const WAKE_WORD_VARIANTS = ["hey bureau", "hé bureau", "hey buro", "hé buro", "hey burreau", "eh bureau"];
 
 interface VoiceResult {
   success: boolean;
@@ -37,13 +23,18 @@ export function VoiceAssistant() {
   const [error, setError] = useState("");
   const [showHelp, setShowHelp] = useState(false);
   const [commands, setCommands] = useState<{ phrase: string; description: string }[]>([]);
+  const [history, setHistory] = useState<{ type: "user" | "assistant"; text: string }[]>([]);
   const recognitionRef = useRef<any>(null);
-  const synthRef = useRef<SpeechSynthesisUtterance | null>(null);
   const wakeListenerRef = useRef<any>(null);
-  const isListeningRef = useRef(false);
+  const stateRef = useRef<VoiceState>("idle");
+  const wakeActiveRef = useRef(false);
 
   const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
   const supported = !!SpeechRecognition;
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   useEffect(() => {
     fetch(`${BASE}/api/voice/commands`, { credentials: "include" })
@@ -64,9 +55,10 @@ export function VoiceAssistant() {
     if (frVoice) utter.voice = frVoice;
     utter.onend = () => {
       setState("idle");
-      startWakeWordListener();
+      if (wakeActiveRef.current) {
+        startWakeWordListener();
+      }
     };
-    synthRef.current = utter;
     setState("speaking");
     window.speechSynthesis.speak(utter);
   }, []);
@@ -74,6 +66,7 @@ export function VoiceAssistant() {
   const processCommand = useCallback(async (text: string) => {
     setState("processing");
     setTranscript(text);
+    setHistory(prev => [...prev, { type: "user", text }]);
     try {
       const res = await fetch(`${BASE}/api/voice/command`, {
         method: "POST",
@@ -84,28 +77,35 @@ export function VoiceAssistant() {
       if (res.ok) {
         const data: VoiceResult = await res.json();
         setResponse(data.spoken);
+        setHistory(prev => [...prev, { type: "assistant", text: data.spoken }]);
         speak(data.spoken);
         if (data.navigate) {
-          const mappedRoute = ROUTE_MAP[data.navigate] || data.navigate;
           setTimeout(() => {
-            window.location.hash = "";
-            window.location.pathname = BASE + mappedRoute;
-          }, 2000);
+            window.location.pathname = BASE + data.navigate;
+          }, 2500);
         }
         if (data.action === "initiate_call" && data.data?.contact?.phone) {
-          setTimeout(() => window.open(`tel:${data.data.contact.phone}`), 2500);
+          setTimeout(() => window.open(`tel:${data.data.contact.phone}`), 3000);
         }
       } else {
         const errText = "Erreur de communication avec le serveur.";
         setResponse(errText);
+        setHistory(prev => [...prev, { type: "assistant", text: errText }]);
         speak(errText);
       }
     } catch {
       const errText = "Erreur de connexion. Verifiez votre reseau.";
       setResponse(errText);
+      setHistory(prev => [...prev, { type: "assistant", text: errText }]);
       speak(errText);
     }
   }, [speak]);
+
+  const stopAllListeners = useCallback(() => {
+    try { recognitionRef.current?.stop(); } catch {}
+    try { wakeListenerRef.current?.stop(); } catch {}
+    window.speechSynthesis?.cancel();
+  }, []);
 
   const startCommandListener = useCallback(() => {
     if (!SpeechRecognition) return;
@@ -115,7 +115,7 @@ export function VoiceAssistant() {
     recognition.lang = "fr-FR";
     recognition.continuous = false;
     recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
+    recognition.maxAlternatives = 3;
 
     recognition.onresult = (event: any) => {
       let final = "";
@@ -139,85 +139,85 @@ export function VoiceAssistant() {
         setError("Erreur micro: " + e.error);
       }
       setState("idle");
-      startWakeWordListener();
+      if (wakeActiveRef.current) startWakeWordListener();
     };
 
     recognition.onend = () => {
-      if (state === "listening_command") {
+      if (stateRef.current === "listening_command") {
         setState("idle");
-        startWakeWordListener();
+        if (wakeActiveRef.current) startWakeWordListener();
       }
     };
 
     recognitionRef.current = recognition;
     try {
       recognition.start();
-      isListeningRef.current = true;
       setState("listening_command");
       setTranscript("");
       setResponse("");
       setError("");
-    } catch (e) {
+    } catch {
       setError("Impossible d'activer le micro.");
-      isListeningRef.current = false;
     }
-  }, [SpeechRecognition, processCommand]);
+  }, [SpeechRecognition, processCommand, stopAllListeners]);
 
   const startWakeWordListener = useCallback(() => {
-    if (!SpeechRecognition || isListeningRef.current) return;
+    if (!SpeechRecognition) return;
 
     const recognition = new SpeechRecognition();
     recognition.lang = "fr-FR";
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
+    recognition.maxAlternatives = 3;
 
     recognition.onresult = (event: any) => {
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const text = event.results[i][0].transcript.toLowerCase().trim();
-        if (text.includes(WAKE_WORD) || text.includes("hey bureau") || text.includes("hé bureau") || text.includes("hey buro")) {
+        const detected = WAKE_WORD_VARIANTS.some(w => text.includes(w));
+        if (detected) {
           recognition.stop();
-          isListeningRef.current = false;
           setExpanded(true);
-          const audio = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQQAAAB/f39/");
-          audio.play().catch(() => {});
+          try {
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = 880;
+            gain.gain.value = 0.15;
+            osc.start();
+            osc.stop(ctx.currentTime + 0.12);
+            setTimeout(() => { osc.frequency.value = 1320; }, 60);
+          } catch {}
           speak("Je vous ecoute");
-          setTimeout(() => startCommandListener(), 1500);
+          setTimeout(() => startCommandListener(), 1200);
           return;
         }
       }
     };
 
     recognition.onerror = (e: any) => {
-      isListeningRef.current = false;
       if (e.error !== "aborted" && e.error !== "no-speech") {
-        setTimeout(() => startWakeWordListener(), 3000);
+        setTimeout(() => {
+          if (wakeActiveRef.current) startWakeWordListener();
+        }, 3000);
       }
     };
 
     recognition.onend = () => {
-      isListeningRef.current = false;
-      if (state === "listening_wake" || state === "idle") {
-        setTimeout(() => startWakeWordListener(), 500);
+      if (wakeActiveRef.current && stateRef.current !== "listening_command" && stateRef.current !== "processing" && stateRef.current !== "speaking") {
+        setTimeout(() => {
+          if (wakeActiveRef.current) startWakeWordListener();
+        }, 500);
       }
     };
 
     wakeListenerRef.current = recognition;
     try {
       recognition.start();
-      isListeningRef.current = true;
       setState("listening_wake");
-    } catch {
-      isListeningRef.current = false;
-    }
+    } catch {}
   }, [SpeechRecognition, startCommandListener, speak]);
-
-  function stopAllListeners() {
-    try { recognitionRef.current?.stop(); } catch {}
-    try { wakeListenerRef.current?.stop(); } catch {}
-    isListeningRef.current = false;
-    window.speechSynthesis?.cancel();
-  }
 
   function toggleVoice() {
     if (state === "idle" || state === "listening_wake") {
@@ -227,22 +227,29 @@ export function VoiceAssistant() {
     } else if (state === "listening_command") {
       stopAllListeners();
       setState("idle");
-      startWakeWordListener();
+      if (wakeActiveRef.current) startWakeWordListener();
     } else if (state === "speaking") {
       window.speechSynthesis.cancel();
       setState("idle");
+      if (wakeActiveRef.current) startWakeWordListener();
+    }
+  }
+
+  function toggleWakeMode() {
+    if (wakeActiveRef.current) {
+      wakeActiveRef.current = false;
+      stopAllListeners();
+      setState("idle");
+    } else {
+      wakeActiveRef.current = true;
+      stopAllListeners();
       startWakeWordListener();
     }
   }
 
-  function startWakeMode() {
-    stopAllListeners();
-    setExpanded(false);
-    startWakeWordListener();
-  }
-
   function closeAssistant() {
     stopAllListeners();
+    wakeActiveRef.current = false;
     setState("idle");
     setExpanded(false);
     setTranscript("");
@@ -251,8 +258,11 @@ export function VoiceAssistant() {
   }
 
   useEffect(() => {
-    return () => { stopAllListeners(); };
-  }, []);
+    return () => {
+      stopAllListeners();
+      wakeActiveRef.current = false;
+    };
+  }, [stopAllListeners]);
 
   if (!supported) return null;
 
@@ -266,9 +276,9 @@ export function VoiceAssistant() {
 
   const stateLabels: Record<VoiceState, string> = {
     idle: "Inactif",
-    listening_wake: 'Dites "Hey Bureau"',
+    listening_wake: '"Hey Bureau" actif',
     listening_command: "Je vous ecoute...",
-    processing: "Traitement...",
+    processing: "Traitement IA...",
     speaking: "Reponse...",
   };
 
@@ -280,13 +290,7 @@ export function VoiceAssistant() {
           className={`fixed bottom-6 left-6 z-50 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-110 ${stateColors[state]} ${state === "listening_wake" ? "animate-pulse" : ""}`}
           title={stateLabels[state]}
         >
-          {state === "listening_wake" ? (
-            <Mic className="w-6 h-6 text-white" />
-          ) : state === "listening_command" ? (
-            <Mic className="w-6 h-6 text-white animate-pulse" />
-          ) : (
-            <Mic className="w-6 h-6 text-white" />
-          )}
+          <Mic className="w-6 h-6 text-white" />
           {state === "listening_wake" && (
             <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-400 rounded-full animate-ping" />
           )}
@@ -295,8 +299,8 @@ export function VoiceAssistant() {
         <div className="fixed bottom-6 left-6 z-50 w-80 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 bg-slate-800/80 border-b border-slate-700">
             <div className="flex items-center gap-2">
-              <div className={`w-2.5 h-2.5 rounded-full ${state === "listening_command" ? "bg-red-500 animate-pulse" : state === "processing" ? "bg-blue-400 animate-pulse" : state === "speaking" ? "bg-green-400" : "bg-amber-400"}`} />
-              <span className="text-sm font-semibold text-white">Assistant Vocal</span>
+              <div className={`w-2.5 h-2.5 rounded-full ${state === "listening_command" ? "bg-red-500 animate-pulse" : state === "processing" ? "bg-blue-400 animate-pulse" : state === "speaking" ? "bg-green-400" : state === "listening_wake" ? "bg-amber-400 animate-pulse" : "bg-slate-500"}`} />
+              <span className="text-sm font-semibold text-white">Assistant Vocal IA</span>
             </div>
             <div className="flex gap-1.5">
               <button onClick={() => setShowHelp(!showHelp)} className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-colors">
@@ -317,6 +321,7 @@ export function VoiceAssistant() {
                   <span className="text-xs text-slate-500 ml-2 text-right">{c.description}</span>
                 </div>
               ))}
+              <p className="text-xs text-blue-400 mt-3 italic">L'IA comprend aussi les phrases naturelles en francais.</p>
             </div>
           ) : (
             <div className="p-4">
@@ -324,20 +329,28 @@ export function VoiceAssistant() {
                 <p className="text-xs text-slate-400">{stateLabels[state]}</p>
               </div>
 
-              {transcript && (
-                <div className="bg-slate-800 rounded-lg p-3 mb-3">
-                  <div className="flex items-start gap-2">
-                    <MessageCircle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
-                    <p className="text-sm text-white">{transcript}</p>
-                  </div>
+              {history.length > 0 && (
+                <div className="max-h-40 overflow-y-auto mb-3 space-y-2">
+                  {history.slice(-4).map((h, i) => (
+                    <div key={i} className={`rounded-lg p-2.5 ${h.type === "user" ? "bg-slate-800 ml-6" : "bg-blue-900/30 border border-blue-800/50 mr-6"}`}>
+                      <div className="flex items-start gap-2">
+                        {h.type === "user" ? (
+                          <MessageCircle className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
+                        ) : (
+                          <Volume2 className="w-3.5 h-3.5 text-blue-400 mt-0.5 shrink-0" />
+                        )}
+                        <p className={`text-xs ${h.type === "user" ? "text-white" : "text-blue-200"}`}>{h.text}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
 
-              {response && (
-                <div className="bg-blue-900/30 border border-blue-800/50 rounded-lg p-3 mb-3">
+              {transcript && state === "listening_command" && (
+                <div className="bg-slate-800 rounded-lg p-3 mb-3">
                   <div className="flex items-start gap-2">
-                    <Volume2 className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
-                    <p className="text-sm text-blue-200">{response}</p>
+                    <MessageCircle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0 animate-pulse" />
+                    <p className="text-sm text-white italic">{transcript}...</p>
                   </div>
                 </div>
               )}
@@ -346,7 +359,20 @@ export function VoiceAssistant() {
                 <p className="text-xs text-red-400 text-center mb-3">{error}</p>
               )}
 
-              <div className="flex justify-center gap-3">
+              <div className="flex justify-center items-center gap-3">
+                <button
+                  onClick={toggleWakeMode}
+                  className={`px-3 py-2 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 ${
+                    wakeActiveRef.current
+                      ? "bg-amber-500/20 text-amber-400 border border-amber-500/50"
+                      : "bg-slate-700 hover:bg-slate-600 text-slate-400"
+                  }`}
+                  title={wakeActiveRef.current ? 'Desactiver "Hey Bureau"' : 'Activer "Hey Bureau"'}
+                >
+                  <Radio className="w-3.5 h-3.5" />
+                  Hey Bureau
+                </button>
+
                 <button
                   onClick={toggleVoice}
                   className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${
@@ -354,24 +380,19 @@ export function VoiceAssistant() {
                       ? "bg-red-500 hover:bg-red-600 animate-pulse"
                       : state === "processing"
                         ? "bg-blue-500 cursor-wait"
-                        : "bg-amber-500 hover:bg-amber-600"
+                        : state === "speaking"
+                          ? "bg-green-500"
+                          : "bg-amber-500 hover:bg-amber-600"
                   }`}
                 >
                   {state === "listening_command" ? (
                     <MicOff className="w-6 h-6 text-white" />
+                  ) : state === "processing" ? (
+                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   ) : (
                     <Mic className="w-6 h-6 text-white" />
                   )}
                 </button>
-
-                {state === "idle" && (
-                  <button
-                    onClick={startWakeMode}
-                    className="px-4 py-2 rounded-full bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-medium transition-colors"
-                  >
-                    Mode "Hey Bureau"
-                  </button>
-                )}
               </div>
             </div>
           )}
