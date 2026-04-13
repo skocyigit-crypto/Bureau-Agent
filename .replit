@@ -20,7 +20,7 @@ runButton = "Project"
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true
-integrations = ["google-drive:1.0.0", "resend:1.0.0", "google-mail:1.0.0", "google-calendar:1.0.0"]
+integrations = ["google-drive:1.0.0", "resend:1.0.0", "google-mail:1.0.0", "google-calendar:1.0.0", "google-docs:1.0.0"]
 
 [postMerge]
 path = "scripts/post-merge.sh"
