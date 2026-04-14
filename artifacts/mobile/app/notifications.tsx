@@ -20,7 +20,7 @@ import { useColors } from "@/hooks/useColors";
 
 interface NotifItem {
   id: string;
-  type: "missed_call" | "overdue_task" | "message" | "event" | "stock_alert" | "system";
+  type: "missed_call" | "overdue_task" | "message" | "event" | "system";
   title: string;
   body: string;
   time: string;
@@ -35,7 +35,6 @@ const TYPE_CONFIG: Record<string, { icon: keyof typeof Feather.glyphMap; color: 
   overdue_task: { icon: "alert-circle", color: "#f59e0b" },
   message: { icon: "message-square", color: "#8b5cf6" },
   event: { icon: "calendar", color: "#3b82f6" },
-  stock_alert: { icon: "package", color: "#6366f1" },
   system: { icon: "bell", color: "#64748b" },
 };
 

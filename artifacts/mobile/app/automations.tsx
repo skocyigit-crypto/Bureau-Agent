@@ -48,7 +48,6 @@ const TYPE_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
   task_overdue: "clock",
   calendar_reminder: "bell",
   unread_messages: "mail",
-  stock_alert: "package",
   call_followup: "phone",
   custom: "sliders",
 };
