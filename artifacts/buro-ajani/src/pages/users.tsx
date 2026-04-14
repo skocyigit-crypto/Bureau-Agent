@@ -3,7 +3,7 @@ import {
   Users, UserPlus, Crown, ShieldCheck, Eye, Trash2, MoreHorizontal,
   Mail, Clock, CheckCircle2, XCircle, AlertTriangle, Search,
   Lock, Unlock, Edit, UserCog, Phone,
-  Loader2, ShieldAlert, RefreshCw, Send, LockKeyhole
+  Loader2, ShieldAlert, RefreshCw, Send, LockKeyhole, MailPlus, RotateCcw, Ban
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -71,6 +71,11 @@ export default function UsersPage() {
 
   const [newUser, setNewUser] = useState({ prenom: "", nom: "", email: "", password: "", role: "agent" as UserRole, departement: "" });
   const [editRole, setEditRole] = useState<UserRole>("agent");
+  const [showInvite, setShowInvite] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<string>("agent");
+  const [invitations, setInvitations] = useState<any[]>([]);
+  const [loadingInvites, setLoadingInvites] = useState(false);
 
   const loadUsers = useCallback(async () => {
     try {
@@ -96,7 +101,82 @@ export default function UsersPage() {
     } catch (err) { console.warn("[Users] action failed:", err); }
   }, []);
 
-  useEffect(() => { loadUsers(); loadSubscription(); }, [loadUsers, loadSubscription]);
+  const loadInvitations = useCallback(async () => {
+    setLoadingInvites(true);
+    try {
+      const res = await fetch(`${BASE}api/invitations`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setInvitations(data.invitations || []);
+      }
+    } catch { }
+    finally { setLoadingInvites(false); }
+  }, []);
+
+  useEffect(() => { loadUsers(); loadSubscription(); loadInvitations(); }, [loadUsers, loadSubscription, loadInvitations]);
+
+  const handleSendInvite = async () => {
+    if (!inviteEmail) {
+      toast({ title: "Erreur", description: "L'adresse email est obligatoire.", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch(`${BASE}api/invitations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({
+          title: "Invitation envoyee",
+          description: data.emailSent ? `Un email d'invitation a ete envoye a ${inviteEmail}.` : data.message,
+        });
+        setInviteEmail("");
+        setInviteRole("agent");
+        setShowInvite(false);
+        loadInvitations();
+      } else {
+        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Erreur lors de l'envoi.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleResendInvite = async (id: number) => {
+    try {
+      const res = await fetch(`${BASE}api/invitations/${id}/resend`, { method: "POST", credentials: "include" });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Rappel envoye", description: "L'invitation a ete renvoyee." });
+        loadInvitations();
+      } else {
+        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Erreur lors du renvoi.", variant: "destructive" });
+    }
+  };
+
+  const handleCancelInvite = async (id: number) => {
+    try {
+      const res = await fetch(`${BASE}api/invitations/${id}`, { method: "DELETE", credentials: "include" });
+      if (res.ok) {
+        toast({ title: "Invitation annulee" });
+        loadInvitations();
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Erreur lors de l'annulation.", variant: "destructive" });
+    }
+  };
+
+  const pendingInvitations = invitations.filter(i => i.status === "pending" && !i.expired);
+  const expiredOrUsedInvitations = invitations.filter(i => i.status !== "pending" || i.expired);
 
   if (!canManageUsers) {
     return (
@@ -301,6 +381,10 @@ export default function UsersPage() {
           <Button variant="outline" size="sm" className="gap-2" onClick={() => { setLoading(true); loadUsers(); }}>
             <RefreshCw className="w-4 h-4" />
             <span className="hidden sm:inline">Actualiser</span>
+          </Button>
+          <Button variant="outline" size="sm" className="gap-2 border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-950/30" onClick={() => siegesRestants > 0 ? setShowInvite(true) : toast({ title: "Limite atteinte", description: "Nombre maximum d'utilisateurs atteint.", variant: "destructive" })}>
+            <MailPlus className="w-4 h-4" />
+            Inviter par email
           </Button>
           <Button size="sm" className="gap-2" onClick={() => siegesRestants > 0 ? setShowAddUser(true) : toast({ title: "Limite atteinte", description: "Nombre maximum d'utilisateurs atteint. Mettez a jour votre plan dans les parametres.", variant: "destructive" })}>
             <UserPlus className="w-4 h-4" />
@@ -664,6 +748,94 @@ export default function UsersPage() {
             <Button onClick={handleAddUser} disabled={saving || !newUser.password} className="gap-2">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
               Creer l'utilisateur
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {pendingInvitations.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <MailPlus className="w-5 h-5 text-amber-500" />
+              Invitations en attente
+              <Badge variant="secondary" className="ml-auto">{pendingInvitations.length}</Badge>
+            </CardTitle>
+            <CardDescription>Ces personnes ont recu une invitation et n'ont pas encore cree leur compte.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {pendingInvitations.map((inv) => {
+              const hoursLeft = Math.max(0, Math.round((new Date(inv.expiresAt).getTime() - Date.now()) / 3600000));
+              return (
+                <div key={inv.id} className="flex items-center justify-between p-3 rounded-lg bg-amber-50/50 dark:bg-amber-950/10 border border-amber-200/30 dark:border-amber-800/20">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
+                      <Mail className="w-4 h-4 text-amber-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{inv.email}</p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Badge variant="outline" className="text-[10px] h-5">{ROLE_CONFIG[inv.role as UserRole]?.label || inv.role}</Badge>
+                        <span><Clock className="w-3 h-3 inline mr-0.5" />{hoursLeft}h restantes</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs" onClick={() => handleResendInvite(inv.id)}>
+                      <RotateCcw className="w-3 h-3" />
+                      Renvoyer
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20" onClick={() => handleCancelInvite(inv.id)}>
+                      <Ban className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
+      <Dialog open={showInvite} onOpenChange={setShowInvite}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MailPlus className="w-5 h-5 text-amber-500" />
+              Inviter un collaborateur
+            </DialogTitle>
+            <DialogDescription>
+              Envoyez une invitation securisee par email. La personne recevra un lien pour creer son compte et rejoindre votre equipe.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Adresse email *</Label>
+              <Input type="email" placeholder="collaborateur@entreprise.fr" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <Select value={inviteRole} onValueChange={setInviteRole}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="agent">Agent</SelectItem>
+                  <SelectItem value="administrateur">Administrateur</SelectItem>
+                  <SelectItem value="lecture_seule">Lecture seule</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">Le collaborateur pourra se connecter avec ce role des l'acceptation.</p>
+            </div>
+            <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-800/30 rounded-lg p-3">
+              <p className="text-xs text-blue-700 dark:text-blue-400 flex items-start gap-2">
+                <LockKeyhole className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                L'invitation est securisee avec un token cryptographique unique, valable 72 heures et a usage unique.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowInvite(false)}>Annuler</Button>
+            <Button onClick={handleSendInvite} disabled={saving || !inviteEmail} className="gap-2 bg-amber-600 hover:bg-amber-700 text-white">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              Envoyer l'invitation
             </Button>
           </DialogFooter>
         </DialogContent>

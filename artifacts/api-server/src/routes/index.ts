@@ -42,12 +42,16 @@ import aiCommandantRouter from "./ai-commandant";
 import faceRecognitionRouter from "./face-recognition";
 import telephonyRouter, { telephonyWebhookRouter } from "./telephony";
 import voiceCommandRouter from "./voice-command";
+import invitationsRouter from "./invitations";
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
 router.use(registerRouter);
 router.use(telephonyWebhookRouter);
+
+router.get("/invitations/verify/:token", (req, res, next) => { invitationsRouter(req, res, next); });
+router.post("/invitations/accept/:token", (req, res, next) => { invitationsRouter(req, res, next); });
 
 router.use(requireAuth);
 router.use(requireTenant);
@@ -91,5 +95,6 @@ router.use(aiCommandantRouter);
 router.use("/face", faceRecognitionRouter);
 router.use(telephonyRouter);
 router.use(voiceCommandRouter);
+router.use(invitationsRouter);
 
 export default router;

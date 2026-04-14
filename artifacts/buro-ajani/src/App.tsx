@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation, useRoute } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -44,6 +44,7 @@ import LicenseManagementPage from "@/pages/license-management";
 import CommandantIAPage from "@/pages/commandant-ia";
 import TelephonyPage from "@/pages/telephony";
 import { QuickActionHub } from "@/components/quick-action-hub";
+import InvitationAcceptPage from "@/pages/invitation-accept";
 
 const queryClient = new QueryClient();
 
@@ -106,6 +107,44 @@ function AppRoutes() {
   );
 }
 
+function InvitationOrApp({
+  authState,
+  currentUser,
+  handleLogin,
+  handleLogout,
+  setAuthState,
+}: {
+  authState: "loading" | "login" | "register" | "authenticated";
+  currentUser: any;
+  handleLogin: (user: any) => void;
+  handleLogout: () => void;
+  setAuthState: (s: "loading" | "login" | "register" | "authenticated") => void;
+}) {
+  const [isInvitation] = useRoute("/invitation/:token");
+
+  if (isInvitation) {
+    return <InvitationAcceptPage />;
+  }
+
+  if (authState === "login") {
+    return <LoginPage onLogin={handleLogin} onRegister={() => setAuthState("register")} />;
+  }
+  if (authState === "register") {
+    return <RegisterPage onLogin={handleLogin} onBack={() => setAuthState("login")} />;
+  }
+
+  return (
+    <WorkspaceUserProvider apiUser={currentUser} onLogout={handleLogout}>
+      <UpdateBanner />
+      <CommandPalette />
+      <SmartBrowserOverlays />
+      <SmartBrowserShortcuts />
+      <AppRoutes />
+      <VoiceAssistant />
+    </WorkspaceUserProvider>
+  );
+}
+
 function App() {
   const [authState, setAuthState] = useState<"loading" | "login" | "register" | "authenticated">("loading");
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -151,6 +190,24 @@ function App() {
     queryClient.clear();
   }, []);
 
+  const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+  const isInvitationPath = /\/invitation\/[^/]+/.test(window.location.pathname);
+
+  if (isInvitationPath) {
+    return (
+      <ErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <WouterRouter base={basePath}>
+              <InvitationAcceptPage />
+            </WouterRouter>
+            <Toaster />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </ErrorBoundary>
+    );
+  }
+
   if (authState === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f1729] via-[#1a2744] to-[#0f1729]">
@@ -166,21 +223,14 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            {authState === "login" ? (
-              <LoginPage onLogin={handleLogin} onRegister={() => setAuthState("register")} />
-            ) : authState === "register" ? (
-              <RegisterPage onLogin={handleLogin} onBack={() => setAuthState("login")} />
-            ) : (
-              <WorkspaceUserProvider apiUser={currentUser} onLogout={handleLogout}>
-                <UpdateBanner />
-                <CommandPalette />
-                <SmartBrowserOverlays />
-                <SmartBrowserShortcuts />
-                <AppRoutes />
-                <VoiceAssistant />
-              </WorkspaceUserProvider>
-            )}
+          <WouterRouter base={basePath}>
+            <InvitationOrApp
+              authState={authState}
+              currentUser={currentUser}
+              handleLogin={handleLogin}
+              handleLogout={handleLogout}
+              setAuthState={setAuthState}
+            />
           </WouterRouter>
           <PwaInstallButton />
           <Toaster />

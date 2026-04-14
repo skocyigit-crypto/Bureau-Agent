@@ -75,7 +75,7 @@ function createSmtpTransport() {
   });
 }
 
-async function sendEmail(to: string, subject: string, html: string, text: string): Promise<{ success: boolean; error?: string; preview?: string }> {
+export async function sendEmail(to: string, subject: string, html: string, text: string): Promise<{ success: boolean; error?: string; preview?: string }> {
   const gmail = await getGmailClient();
   if (gmail) {
     try {
