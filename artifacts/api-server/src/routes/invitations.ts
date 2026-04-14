@@ -209,7 +209,7 @@ router.post("/invitations", async (req: Request, res: Response): Promise<void> =
 
   const emailResult = await sendEmail(emailClean, `Invitation a rejoindre ${orgName} — Agent de Bureau`, html, text);
 
-  logAudit(userId, "", "invitation_sent", "invitation", invitation.id, { email: emailClean, role: assignedRole }, req.ip, req.get("user-agent"));
+  logAudit(userId, "", "invitation_sent", "invitation", String(invitation.id), { email: emailClean, role: assignedRole }, req.ip, req.get("user-agent"));
 
   res.status(201).json({
     invitation: { ...invitation, expired: false },
@@ -424,7 +424,7 @@ router.post("/invitations/accept/:token", async (req: Request, res: Response): P
   (req.session as any).organisationId = invitation.organisationId;
   (req.session as any).userEmail = newUser.email;
 
-  logAudit(newUser.id, newUser.email, "invitation_accepted", "invitation", invitation.id, { role: invitation.role }, req.ip, req.get("user-agent"));
+  logAudit(newUser.id, newUser.email, "invitation_accepted", "invitation", String(invitation.id), { role: invitation.role }, req.ip, req.get("user-agent"));
 
   res.status(201).json({
     success: true,

@@ -26,8 +26,8 @@ export function enrichWithUserNames<T extends Record<string, any>>(
 ): (T & { createdByName?: string; updatedByName?: string })[] {
   return records.map((r) => ({
     ...r,
-    createdByName: r.createdBy ? userMap.get(r.createdBy) ?? null : null,
-    updatedByName: r.updatedBy ? userMap.get(r.updatedBy) ?? null : null,
+    createdByName: r.createdBy ? userMap.get(r.createdBy) ?? undefined : undefined,
+    updatedByName: r.updatedBy ? userMap.get(r.updatedBy) ?? undefined : undefined,
   }));
 }
 
@@ -37,7 +37,7 @@ export function enrichSingle<T extends Record<string, any>>(
 ): T & { createdByName?: string; updatedByName?: string } {
   return {
     ...record,
-    createdByName: record.createdBy ? userMap.get(record.createdBy) ?? null : null,
-    updatedByName: record.updatedBy ? userMap.get(record.updatedBy) ?? null : null,
+    createdByName: record.createdBy ? userMap.get(record.createdBy) ?? undefined : undefined,
+    updatedByName: record.updatedBy ? userMap.get(record.updatedBy) ?? undefined : undefined,
   };
 }

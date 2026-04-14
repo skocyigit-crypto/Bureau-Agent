@@ -285,13 +285,13 @@ export default function CallDetail() {
                   </div>
                 </div>
               </div>
-              {(call.createdByName || call.updatedByName) && (
+              {((call as any).createdByName || (call as any).updatedByName) && (
                 <div className="pt-4 border-t border-border space-y-1.5 text-xs text-muted-foreground">
-                  {call.createdByName && (
-                    <div>Créé par <span className="font-medium text-foreground">{call.createdByName}</span> {call.createdAt && <>— {format(new Date(call.createdAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}</>}</div>
+                  {(call as any).createdByName && (
+                    <div>Créé par <span className="font-medium text-foreground">{(call as any).createdByName}</span> {call.createdAt && <>— {format(new Date(call.createdAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}</>}</div>
                   )}
-                  {call.updatedByName && call.updatedAt && (
-                    <div>Modifié par <span className="font-medium text-foreground">{call.updatedByName}</span> — {format(new Date(call.updatedAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}</div>
+                  {(call as any).updatedByName && call.updatedAt && (
+                    <div>Modifié par <span className="font-medium text-foreground">{(call as any).updatedByName}</span> — {format(new Date(call.updatedAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}</div>
                   )}
                 </div>
               )}
