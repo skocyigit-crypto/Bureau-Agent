@@ -49,9 +49,8 @@ router.use(healthRouter);
 router.use(authRouter);
 router.use(registerRouter);
 router.use(telephonyWebhookRouter);
-
-router.get("/invitations/verify/:token", (req, res, next) => { invitationsRouter(req, res, next); });
-router.post("/invitations/accept/:token", (req, res, next) => { invitationsRouter(req, res, next); });
+router.get("/invitations/verify/:token", (req, res, next) => invitationsRouter(req, res, next));
+router.post("/invitations/accept/:token", (req, res, next) => invitationsRouter(req, res, next));
 
 router.use(requireAuth);
 router.use(requireTenant);

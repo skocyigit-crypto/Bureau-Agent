@@ -131,8 +131,8 @@ function BriefingTab() {
   useEffect(() => { loadBriefing(); }, []);
 
   const weatherIcons: Record<string, string> = { ensoleille: "☀️", nuageux: "⛅", orageux: "⛈️" };
-  const typeIcons: Record<string, any> = { contact: Users, tache: CheckSquare, evenement: Calendar, facture: FileText, prospect: Target };
-  const typeColors: Record<string, string> = { contact: "text-blue-600 bg-blue-50", tache: "text-emerald-600 bg-emerald-50", evenement: "text-purple-600 bg-purple-50", facture: "text-orange-600 bg-orange-50", prospect: "text-rose-600 bg-rose-50" };
+  const typeIcons: Record<string, any> = { contact: Users, tache: CheckSquare, evenement: Calendar, message: MessageSquare };
+  const typeColors: Record<string, string> = { contact: "text-blue-600 bg-blue-50", tache: "text-emerald-600 bg-emerald-50", evenement: "text-purple-600 bg-purple-50", message: "text-orange-600 bg-orange-50" };
 
   return (
     <div className="space-y-4 mt-4">
@@ -144,7 +144,7 @@ function BriefingTab() {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               onKeyDown={e => e.key === "Enter" && smartSearch()}
-              placeholder="Recherche intelligente — contacts, taches, factures, evenements, prospects..."
+              placeholder="Recherche intelligente — contacts, taches, evenements, messages..."
               className="flex-1 border-0 bg-transparent text-base focus-visible:ring-0 placeholder:text-muted-foreground/60"
             />
             <Button onClick={smartSearch} disabled={searching} size="sm" className="bg-blue-600 hover:bg-blue-700">
@@ -438,7 +438,7 @@ function EmailTab() {
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Mail className="h-4 w-4 text-blue-500" />Reponse email intelligente</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <div><Label className="text-xs">De</Label><Input value={emailFrom} onChange={e => setEmailFrom(e.target.value)} placeholder="client@example.com" /></div>
-            <div><Label className="text-xs">Objet</Label><Input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder="Demande de devis" /></div>
+            <div><Label className="text-xs">Objet</Label><Input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder="Demande d'informations" /></div>
             <div><Label className="text-xs">Corps du mail</Label><Textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} placeholder="Contenu de l'email recu..." rows={4} /></div>
             <div><Label className="text-xs">Ton</Label>
               <Select value={tone} onValueChange={setTone}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>
@@ -482,7 +482,7 @@ function EmailTab() {
           <CardDescription className="text-xs">Collez vos emails separes par "---" (ligne 1: expediteur, ligne 2: objet, reste: contenu)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Textarea value={emails} onChange={e => setEmails(e.target.value)} placeholder={"client@example.com\nDemande de devis\nBonjour, je souhaite un devis pour...\n---\nautreclient@example.com\nFacture en attente\nMerci de nous envoyer la facture..."} rows={5} />
+          <Textarea value={emails} onChange={e => setEmails(e.target.value)} placeholder={"client@example.com\nDemande d'informations\nBonjour, je souhaite des informations sur...\n---\nautreclient@example.com\nSuivi de dossier\nMerci de nous envoyer les documents..."} rows={5} />
           <Button onClick={compileEmails} disabled={compilingEmails} className="bg-purple-600 hover:bg-purple-700">{compilingEmails ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2" />}Compiler les emails</Button>
           {compilation && (
             <div className="space-y-2">
@@ -892,8 +892,8 @@ function PhotoTab() {
               <div><Label className="text-xs">Lier a</Label>
                 <Select value={linkedEntity} onValueChange={setLinkedEntity}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>
                   <SelectItem value="contact">Contact</SelectItem>
-                  <SelectItem value="projet">Projet</SelectItem>
-                  <SelectItem value="prospect">Prospect</SelectItem>
+                  <SelectItem value="tache">Tache</SelectItem>
+                  <SelectItem value="appel">Appel</SelectItem>
                 </SelectContent></Select>
               </div>
               <div><Label className="text-xs">ID (optionnel)</Label><Input value={linkedEntityId} onChange={e => setLinkedEntityId(e.target.value)} placeholder="ID" type="number" /></div>

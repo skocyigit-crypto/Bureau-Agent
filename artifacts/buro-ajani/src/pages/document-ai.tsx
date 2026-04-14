@@ -8,8 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   FileUp, Brain, CheckCircle2, XCircle, AlertTriangle,
-  FileText, Users, Receipt, FileSignature, Package, FolderKanban,
-  Target, ListChecks, Loader2, Sparkles, ArrowRight, Eye,
+  FileText, Users, ListChecks, Loader2, Sparkles, ArrowRight, Eye,
   Upload, Trash2, RefreshCw, Zap, ChevronDown, ChevronUp,
   MessageSquare,
 } from "lucide-react";
@@ -17,14 +16,13 @@ import {
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 type DocumentType =
-  | "facture" | "devis" | "bon_commande" | "bon_livraison" | "contrat"
-  | "cv" | "carte_visite" | "courrier" | "releve_bancaire" | "inventaire"
+  | "bon_commande" | "bon_livraison" | "contrat"
+  | "cv" | "carte_visite" | "courrier" | "releve_bancaire"
   | "rapport" | "formulaire" | "piece_identite" | "attestation"
   | "note_frais" | "planning" | "inconnu";
 
 type DestinationModule =
-  | "contacts" | "prospects" | "factures" | "devis" | "stock"
-  | "projets" | "taches" | "messages" | "aucun";
+  | "contacts" | "taches" | "messages" | "aucun";
 
 interface SuggestedAction {
   action: string;
@@ -64,8 +62,6 @@ interface ActionResult {
 }
 
 const DOC_TYPE_LABELS: Record<DocumentType, { label: string; color: string }> = {
-  facture: { label: "Facture", color: "bg-blue-500" },
-  devis: { label: "Devis", color: "bg-indigo-500" },
   bon_commande: { label: "Bon de commande", color: "bg-purple-500" },
   bon_livraison: { label: "Bon de livraison", color: "bg-violet-500" },
   contrat: { label: "Contrat", color: "bg-amber-600" },
@@ -73,7 +69,6 @@ const DOC_TYPE_LABELS: Record<DocumentType, { label: string; color: string }> = 
   carte_visite: { label: "Carte de visite", color: "bg-teal-500" },
   courrier: { label: "Courrier", color: "bg-slate-500" },
   releve_bancaire: { label: "Releve bancaire", color: "bg-green-600" },
-  inventaire: { label: "Inventaire", color: "bg-orange-500" },
   rapport: { label: "Rapport", color: "bg-cyan-500" },
   formulaire: { label: "Formulaire", color: "bg-pink-500" },
   piece_identite: { label: "Piece d'identite", color: "bg-red-500" },
@@ -85,11 +80,6 @@ const DOC_TYPE_LABELS: Record<DocumentType, { label: string; color: string }> = 
 
 const MODULE_ICONS: Record<DestinationModule, any> = {
   contacts: Users,
-  prospects: Target,
-  factures: Receipt,
-  devis: FileSignature,
-  stock: Package,
-  projets: FolderKanban,
   taches: ListChecks,
   messages: MessageSquare,
   aucun: FileText,
@@ -97,11 +87,6 @@ const MODULE_ICONS: Record<DestinationModule, any> = {
 
 const MODULE_LABELS: Record<DestinationModule, string> = {
   contacts: "Contacts",
-  prospects: "Prospects",
-  factures: "Factures",
-  devis: "Devis",
-  stock: "Stock",
-  projets: "Projets",
   taches: "Taches",
   messages: "Messages",
   aucun: "Aucun",

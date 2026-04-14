@@ -6,7 +6,7 @@ import { ensureSuperAdmin } from "./services/ensure-admin";
 import { startGoogleAutoPointage } from "./services/google-auto-pointage";
 import { startGoogleDriveBackupScheduler } from "./services/google-drive-backup";
 import { startDataProtectionMonitor } from "./services/data-protection-monitor";
-import { runAccountHealthMonitor } from "./routes/comptes-clients";
+
 import { closePool, checkDbHealth } from "@workspace/db";
 import type { Server } from "http";
 
@@ -97,7 +97,6 @@ async function startServer(): Promise<void> {
     startGoogleAutoPointage();
     startGoogleDriveBackupScheduler().catch(err => logger.error({ err }, "[GoogleDriveBackup] Init error"));
     startDataProtectionMonitor();
-    runAccountHealthMonitor().catch(err => logger.error({ err }, "[ComptesClients] Init error"));
   });
 
   server.keepAliveTimeout = 65000;

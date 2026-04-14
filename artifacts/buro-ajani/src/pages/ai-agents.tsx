@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Brain, Crown, Phone, Users, ClipboardList, Mail, Clock, Shield, TrendingUp,
   Play, Loader2, AlertCircle, AlertTriangle, Lightbulb, CheckCircle2, RefreshCw,
-  ChevronDown, ChevronUp, Zap, Target, ArrowRight, Settings, Power, PowerOff,
+  ChevronDown, ChevronUp, Zap, Target, ArrowRight, Power, PowerOff,
   Activity, BarChart3, FileText, Rocket, Eye, Wrench, MessageSquare, Cpu,
   HeartPulse, Radar, Sparkles, CircleDot, Receipt, Package, UserCog
 } from "lucide-react";
@@ -33,12 +33,6 @@ function getScoreColor(score: number) {
   if (score >= 80) return "text-emerald-600";
   if (score >= 60) return "text-amber-600";
   return "text-destructive";
-}
-
-function getScoreBg(score: number) {
-  if (score >= 80) return "bg-emerald-500";
-  if (score >= 60) return "bg-amber-500";
-  return "bg-destructive";
 }
 
 function getScoreLabel(score: number) {

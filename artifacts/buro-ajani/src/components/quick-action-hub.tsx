@@ -1,18 +1,17 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Phone, Users, CheckSquare, MessageSquare, CalendarDays, FileText, TrendingUp, Zap, Search, Plus, Send, X, Loader2 } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, CalendarDays, Zap, Plus, Send, Loader2 } from "lucide-react";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-type ActionType = "contact" | "tache" | "appel" | "message" | "prospect" | "evenement";
+type ActionType = "contact" | "tache" | "appel" | "message" | "evenement";
 
 interface QuickActionHubProps {
   open: boolean;
@@ -64,12 +63,11 @@ export function QuickActionHub({ open, onOpenChange, defaultTab = "contact" }: Q
         </DialogHeader>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as ActionType)}>
-          <TabsList className="grid grid-cols-6 w-full">
+          <TabsList className="grid grid-cols-5 w-full">
             <TabsTrigger value="contact" className="text-xs gap-1"><Users className="h-3 w-3" />Contact</TabsTrigger>
             <TabsTrigger value="tache" className="text-xs gap-1"><CheckSquare className="h-3 w-3" />Tache</TabsTrigger>
             <TabsTrigger value="appel" className="text-xs gap-1"><Phone className="h-3 w-3" />Appel</TabsTrigger>
             <TabsTrigger value="message" className="text-xs gap-1"><MessageSquare className="h-3 w-3" />Message</TabsTrigger>
-            <TabsTrigger value="prospect" className="text-xs gap-1"><TrendingUp className="h-3 w-3" />Prospect</TabsTrigger>
             <TabsTrigger value="evenement" className="text-xs gap-1"><CalendarDays className="h-3 w-3" />Evenement</TabsTrigger>
           </TabsList>
 
@@ -84,9 +82,6 @@ export function QuickActionHub({ open, onOpenChange, defaultTab = "contact" }: Q
           </TabsContent>
           <TabsContent value="message">
             <QuickMessageForm onSubmit={(d) => handleSubmit("messages", d, "Message")} loading={loading} />
-          </TabsContent>
-          <TabsContent value="prospect">
-            <QuickProspectForm onSubmit={(d) => handleSubmit("prospects", d, "Prospect")} loading={loading} />
           </TabsContent>
           <TabsContent value="evenement">
             <QuickEventForm onSubmit={(d) => handleSubmit("calendar/events", d, "Evenement")} loading={loading} />
@@ -218,55 +213,6 @@ function QuickMessageForm({ onSubmit, loading }: { onSubmit: (d: any) => void; l
       </div>
       <div><Label className="text-xs">Contenu *</Label><Textarea value={content} onChange={e => setContent(e.target.value)} required placeholder="Contenu du message..." rows={3} /></div>
       <Button type="submit" className="w-full" disabled={loading}>{loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}Enregistrer le message</Button>
-    </form>
-  );
-}
-
-function QuickProspectForm({ onSubmit, loading }: { onSubmit: (d: any) => void; loading: boolean }) {
-  const [title, setTitle] = useState("");
-  const [contactName, setContactName] = useState("");
-  const [company, setCompany] = useState("");
-  const [value, setValue] = useState("");
-  const [source, setSource] = useState("site_web");
-  const [stage, setStage] = useState("nouveau");
-
-  return (
-    <form onSubmit={(e) => { e.preventDefault(); onSubmit({ title, contactName, company, value: value ? parseFloat(value) : 0, source, stage, probability: 25 }); }} className="space-y-3 mt-3">
-      <div><Label className="text-xs">Titre du prospect *</Label><Input value={title} onChange={e => setTitle(e.target.value)} required placeholder="Projet renovation bureaux" /></div>
-      <div className="grid grid-cols-2 gap-3">
-        <div><Label className="text-xs">Nom du contact</Label><Input value={contactName} onChange={e => setContactName(e.target.value)} placeholder="Jean Dupont" /></div>
-        <div><Label className="text-xs">Entreprise</Label><Input value={company} onChange={e => setCompany(e.target.value)} placeholder="Acme Inc." /></div>
-      </div>
-      <div className="grid grid-cols-3 gap-3">
-        <div><Label className="text-xs">Valeur (EUR)</Label><Input type="number" value={value} onChange={e => setValue(e.target.value)} placeholder="10000" /></div>
-        <div>
-          <Label className="text-xs">Source</Label>
-          <Select value={source} onValueChange={setSource}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="site_web">Site web</SelectItem>
-              <SelectItem value="recommandation">Recommandation</SelectItem>
-              <SelectItem value="appel_froid">Appel froid</SelectItem>
-              <SelectItem value="salon">Salon</SelectItem>
-              <SelectItem value="reseaux_sociaux">Reseaux sociaux</SelectItem>
-              <SelectItem value="autre">Autre</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label className="text-xs">Etape</Label>
-          <Select value={stage} onValueChange={setStage}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="nouveau">Nouveau</SelectItem>
-              <SelectItem value="qualification">Qualification</SelectItem>
-              <SelectItem value="proposition">Proposition</SelectItem>
-              <SelectItem value="negociation">Negociation</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <Button type="submit" className="w-full" disabled={loading}>{loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <TrendingUp className="h-4 w-4 mr-2" />}Creer le prospect</Button>
     </form>
   );
 }
