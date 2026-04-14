@@ -250,6 +250,16 @@ export default function ContactDetail() {
                 {contact.email && <div className="flex items-center gap-3"><Mail className="w-4 h-4 text-muted-foreground" /><span>{contact.email}</span></div>}
                 {contact.address && <div className="flex items-start gap-3"><MapPin className="w-4 h-4 text-muted-foreground mt-0.5" /><span className="flex-1">{contact.address}</span></div>}
               </div>
+              {(contact.createdByName || contact.updatedByName) && (
+                <div className="pt-4 mt-4 border-t border-border space-y-1.5 text-xs text-muted-foreground">
+                  {contact.createdByName && (
+                    <div>Créé par <span className="font-medium text-foreground">{contact.createdByName}</span> {contact.createdAt && <>— {format(new Date(contact.createdAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}</>}</div>
+                  )}
+                  {contact.updatedByName && contact.updatedAt && (
+                    <div>Modifié par <span className="font-medium text-foreground">{contact.updatedByName}</span> — {format(new Date(contact.updatedAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}</div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
 

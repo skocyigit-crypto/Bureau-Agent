@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, asc, ilike, or, sql, and } from "drizzle-orm";
-import { db, contactsTable, callsTable, tasksTable, calendarEventsTable } from "@workspace/db";
+import { db, contactsTable, callsTable, tasksTable, calendarEventsTable, usersTable } from "@workspace/db";
 import {
   ListContactsQueryParams,
   CreateContactBody,
@@ -10,6 +10,7 @@ import {
   DeleteContactParams,
 } from "@workspace/api-zod";
 import { getOrgId } from "../middleware/tenant";
+import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
 
 const router: IRouter = Router();
 
@@ -66,7 +67,9 @@ router.get("/contacts", async (req, res): Promise<void> => {
       .where(whereClause),
   ]);
 
-  res.json({ contacts, total: countResult[0]?.count ?? 0 });
+  const userIds = contacts.flatMap((c: any) => [c.createdBy, c.updatedBy]);
+  const userMap = await resolveUserNames(userIds);
+  res.json({ contacts: enrichWithUserNames(contacts, userMap), total: countResult[0]?.count ?? 0 });
 });
 
 router.post("/contacts", async (req, res): Promise<void> => {
@@ -77,7 +80,8 @@ router.post("/contacts", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const [contact] = await db.insert(contactsTable).values({ ...parsed.data, organisationId: orgId }).returning();
+  const userId = (req.session as any)?.userId;
+  const [contact] = await db.insert(contactsTable).values({ ...parsed.data, organisationId: orgId, createdBy: userId, updatedBy: userId }).returning();
   res.status(201).json(contact);
 });
 
@@ -95,7 +99,8 @@ router.get("/contacts/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  res.json(contact);
+  const userMap = await resolveUserNames([contact.createdBy, contact.updatedBy]);
+  res.json(enrichSingle(contact, userMap));
 });
 
 router.patch("/contacts/:id", async (req, res): Promise<void> => {
@@ -112,8 +117,9 @@ router.patch("/contacts/:id", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
+  const userId = (req.session as any)?.userId;
   const [contact] = await db.update(contactsTable)
-    .set(parsed.data)
+    .set({ ...parsed.data, updatedBy: userId })
     .where(and(eq(contactsTable.id, params.data.id), eq(contactsTable.organisationId, orgId)))
     .returning();
 

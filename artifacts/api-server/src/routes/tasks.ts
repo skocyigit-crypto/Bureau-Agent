@@ -10,6 +10,7 @@ import {
   DeleteTaskParams,
 } from "@workspace/api-zod";
 import { getOrgId } from "../middleware/tenant";
+import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
 
 const router: IRouter = Router();
 
@@ -67,7 +68,9 @@ router.get("/tasks", async (req, res): Promise<void> => {
       .where(whereClause),
   ]);
 
-  res.json({ tasks, total: countResult[0]?.count ?? 0 });
+  const userIds = tasks.flatMap((t: any) => [t.createdBy, t.updatedBy]);
+  const userMap = await resolveUserNames(userIds);
+  res.json({ tasks: enrichWithUserNames(tasks, userMap), total: countResult[0]?.count ?? 0 });
 });
 
 router.post("/tasks", async (req, res): Promise<void> => {
@@ -78,7 +81,8 @@ router.post("/tasks", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const [task] = await db.insert(tasksTable).values({ ...parsed.data, organisationId: orgId }).returning();
+  const userId = (req.session as any)?.userId;
+  const [task] = await db.insert(tasksTable).values({ ...parsed.data, organisationId: orgId, createdBy: userId, updatedBy: userId }).returning();
   res.status(201).json(task);
 });
 
@@ -96,7 +100,8 @@ router.get("/tasks/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  res.json(task);
+  const userMap = await resolveUserNames([task.createdBy, task.updatedBy]);
+  res.json(enrichSingle(task, userMap));
 });
 
 router.patch("/tasks/:id", async (req, res): Promise<void> => {
@@ -113,8 +118,9 @@ router.patch("/tasks/:id", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
+  const userId = (req.session as any)?.userId;
   const [task] = await db.update(tasksTable)
-    .set(parsed.data)
+    .set({ ...parsed.data, updatedBy: userId })
     .where(and(eq(tasksTable.id, params.data.id), eq(tasksTable.organisationId, orgId)))
     .returning();
 

@@ -2,6 +2,7 @@ import { pgTable, serial, integer, text, timestamp, index } from "drizzle-orm/pg
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { organisationsTable } from "./organisations";
+import { usersTable } from "./users";
 
 export const tasksTable = pgTable("tasks", {
   id: serial("id").primaryKey(),
@@ -14,6 +15,8 @@ export const tasksTable = pgTable("tasks", {
   assignedTo: text("assigned_to"),
   relatedContactId: integer("related_contact_id"),
   relatedCallId: integer("related_call_id"),
+  createdBy: integer("created_by").references(() => usersTable.id, { onDelete: "set null" }),
+  updatedBy: integer("updated_by").references(() => usersTable.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [
@@ -24,6 +27,6 @@ export const tasksTable = pgTable("tasks", {
   index("tasks_org_id_idx").on(table.organisationId),
 ]);
 
-export const insertTaskSchema = createInsertSchema(tasksTable).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertTaskSchema = createInsertSchema(tasksTable).omit({ id: true, createdAt: true, updatedAt: true, createdBy: true, updatedBy: true });
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type Task = typeof tasksTable.$inferSelect;

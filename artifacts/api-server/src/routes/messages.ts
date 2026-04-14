@@ -10,6 +10,7 @@ import {
   DeleteMessageParams,
 } from "@workspace/api-zod";
 import { getOrgId } from "../middleware/tenant";
+import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
 
 const router: IRouter = Router();
 
@@ -68,7 +69,9 @@ router.get("/messages", async (req, res): Promise<void> => {
       .where(whereClause),
   ]);
 
-  res.json({ messages, total: countResult[0]?.count ?? 0 });
+  const userIds = messages.flatMap((m: any) => [m.createdBy, m.updatedBy]);
+  const userMap = await resolveUserNames(userIds);
+  res.json({ messages: enrichWithUserNames(messages, userMap), total: countResult[0]?.count ?? 0 });
 });
 
 router.post("/messages", async (req, res): Promise<void> => {
@@ -79,7 +82,8 @@ router.post("/messages", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const [message] = await db.insert(messagesTable).values({ ...parsed.data, organisationId: orgId }).returning();
+  const userId = (req.session as any)?.userId;
+  const [message] = await db.insert(messagesTable).values({ ...parsed.data, organisationId: orgId, createdBy: userId, updatedBy: userId }).returning();
   res.status(201).json(message);
 });
 
@@ -97,7 +101,8 @@ router.get("/messages/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  res.json(message);
+  const userMap = await resolveUserNames([message.createdBy, message.updatedBy]);
+  res.json(enrichSingle(message, userMap));
 });
 
 router.patch("/messages/:id", async (req, res): Promise<void> => {
@@ -114,8 +119,9 @@ router.patch("/messages/:id", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
+  const userId = (req.session as any)?.userId;
   const [message] = await db.update(messagesTable)
-    .set(parsed.data)
+    .set({ ...parsed.data, updatedBy: userId })
     .where(and(eq(messagesTable.id, params.data.id), eq(messagesTable.organisationId, orgId)))
     .returning();
 

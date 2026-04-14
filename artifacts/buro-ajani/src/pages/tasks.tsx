@@ -317,6 +317,16 @@ export default function Tasks() {
               </FormItem>
             )} />
             <AiValidationFeedback result={aiValidation.result} isValidating={aiValidation.isValidating} />
+            {editingTask && (editingTask.createdByName || editingTask.updatedByName) && (
+              <div className="space-y-1 text-xs text-muted-foreground border-t border-border pt-3">
+                {editingTask.createdByName && (
+                  <div>Créé par <span className="font-medium text-foreground">{editingTask.createdByName}</span> {editingTask.createdAt && <>— {format(new Date(editingTask.createdAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}</>}</div>
+                )}
+                {editingTask.updatedByName && editingTask.updatedAt && (
+                  <div>Modifié par <span className="font-medium text-foreground">{editingTask.updatedByName}</span> — {format(new Date(editingTask.updatedAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}</div>
+                )}
+              </div>
+            )}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => aiValidation.validate(form.getValues())} disabled={aiValidation.isValidating} className="mr-auto">Verifier IA</Button>
               <Button type="submit" disabled={updateTask.isPending || createTask.isPending}>{editingTask ? "Mettre a jour" : "Creer"}</Button>

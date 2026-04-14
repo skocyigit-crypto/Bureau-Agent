@@ -12,6 +12,7 @@ import {
 import { processCallWithAI } from "../services/call-processor";
 import { logAudit } from "./audit";
 import { getOrgId } from "../middleware/tenant";
+import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
 
 const router: IRouter = Router();
 
@@ -78,7 +79,9 @@ router.get("/calls", async (req, res): Promise<void> => {
       .where(whereClause),
   ]);
 
-  res.json({ calls, total: countResult[0]?.count ?? 0 });
+  const userIds = calls.flatMap((c: any) => [c.createdBy, c.updatedBy]);
+  const userMap = await resolveUserNames(userIds);
+  res.json({ calls: enrichWithUserNames(calls, userMap), total: countResult[0]?.count ?? 0 });
 });
 
 router.post("/calls", async (req, res): Promise<void> => {
@@ -103,10 +106,13 @@ router.post("/calls", async (req, res): Promise<void> => {
     }
   }
 
+  const userId = (req.session as any)?.userId;
   const [call] = await db.insert(callsTable).values({
     ...data,
     tags: data.tags ?? [],
     organisationId: orgId,
+    createdBy: userId,
+    updatedBy: userId,
   }).returning();
 
   logAudit((req.session as any)?.userId, (req.session as any)?.userEmail, "create", "call", String(call.id), { contactName: call.contactName, direction: call.direction });
@@ -155,7 +161,8 @@ router.get("/calls/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  res.json(call);
+  const userMap = await resolveUserNames([call.createdBy, call.updatedBy]);
+  res.json(enrichSingle(call, userMap));
 });
 
 router.patch("/calls/:id", async (req, res): Promise<void> => {
@@ -172,8 +179,9 @@ router.patch("/calls/:id", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
+  const userId = (req.session as any)?.userId;
   const [call] = await db.update(callsTable)
-    .set(parsed.data)
+    .set({ ...parsed.data, updatedBy: userId })
     .where(and(eq(callsTable.id, params.data.id), eq(callsTable.organisationId, orgId)))
     .returning();
 

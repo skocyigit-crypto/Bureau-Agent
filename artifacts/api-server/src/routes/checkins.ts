@@ -11,6 +11,7 @@ import {
 } from "@workspace/api-zod";
 import { getOrgId } from "../middleware/tenant";
 import { syncGoogleCalendarToCheckins } from "../services/google-calendar-sync";
+import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
 
 const router: IRouter = Router();
 
@@ -49,7 +50,9 @@ router.get("/checkins", async (req, res): Promise<void> => {
     db.select({ count: sql<number>`count(*)::int` }).from(checkinsTable).where(where),
   ]);
 
-  res.json({ checkins, total: countResult[0]?.count ?? 0 });
+  const userIds = checkins.flatMap((c: any) => [c.createdBy, c.updatedBy]);
+  const userMap = await resolveUserNames(userIds);
+  res.json({ checkins: enrichWithUserNames(checkins, userMap), total: countResult[0]?.count ?? 0 });
 });
 
 router.post("/checkins", async (req, res): Promise<void> => {
@@ -60,12 +63,15 @@ router.post("/checkins", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
+  const userId = (req.session as any)?.userId;
   const [checkin] = await db.insert(checkinsTable).values({
     ...body.data,
     organisationId: orgId,
     checkInAt: body.data.checkInAt ? new Date(body.data.checkInAt) : new Date(),
     checkOutAt: body.data.checkOutAt ? new Date(body.data.checkOutAt) : null,
     ipAddress: req.ip || null,
+    createdBy: userId,
+    updatedBy: userId,
   }).returning();
 
   res.status(201).json(checkin);
@@ -128,7 +134,10 @@ router.get("/checkins/current", async (req, res): Promise<void> => {
     .orderBy(desc(checkinsTable.checkInAt))
     .limit(10);
 
-  res.json({ active: activeCheckins, paused: pausedCheckins });
+  const allCheckins = [...activeCheckins, ...pausedCheckins];
+  const userIds = allCheckins.flatMap((c: any) => [c.createdBy, c.updatedBy]);
+  const userMap = await resolveUserNames(userIds);
+  res.json({ active: enrichWithUserNames(activeCheckins, userMap), paused: enrichWithUserNames(pausedCheckins, userMap) });
 });
 
 router.get("/checkins/:id", async (req, res): Promise<void> => {
@@ -144,7 +153,8 @@ router.get("/checkins/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Pointage introuvable" });
     return;
   }
-  res.json(checkin);
+  const userMap = await resolveUserNames([checkin.createdBy, checkin.updatedBy]);
+  res.json(enrichSingle(checkin, userMap));
 });
 
 router.patch("/checkins/:id", async (req, res): Promise<void> => {
@@ -185,6 +195,8 @@ router.patch("/checkins/:id", async (req, res): Promise<void> => {
     updateData.totalMinutes = Math.max(0, Math.round((checkOut - checkIn) / 60000) - breakMins);
   }
 
+  const userId = (req.session as any)?.userId;
+  updateData.updatedBy = userId;
   const [updated] = await db.update(checkinsTable)
     .set(updateData)
     .where(and(eq(checkinsTable.id, params.data.id), eq(checkinsTable.organisationId, orgId)))

@@ -3,6 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { contactsTable } from "./contacts";
 import { organisationsTable } from "./organisations";
+import { usersTable } from "./users";
 
 export const callsTable = pgTable("calls", {
   id: serial("id").primaryKey(),
@@ -16,6 +17,8 @@ export const callsTable = pgTable("calls", {
   notes: text("notes"),
   sentiment: text("sentiment"),
   tags: text("tags").array().notNull().default([]),
+  createdBy: integer("created_by").references(() => usersTable.id, { onDelete: "set null" }),
+  updatedBy: integer("updated_by").references(() => usersTable.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [
@@ -25,6 +28,6 @@ export const callsTable = pgTable("calls", {
   index("calls_org_id_idx").on(table.organisationId),
 ]);
 
-export const insertCallSchema = createInsertSchema(callsTable).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertCallSchema = createInsertSchema(callsTable).omit({ id: true, createdAt: true, updatedAt: true, createdBy: true, updatedBy: true });
 export type InsertCall = z.infer<typeof insertCallSchema>;
 export type Call = typeof callsTable.$inferSelect;

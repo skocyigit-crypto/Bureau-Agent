@@ -4,6 +4,7 @@ import { calendarEventsTable, insertCalendarEventSchema, tasksTable } from "@wor
 import { eq, and, gte, lte } from "drizzle-orm";
 import { logAudit } from "./audit";
 import { getOrgId } from "../middleware/tenant";
+import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
 
 const router = Router();
 
@@ -64,7 +65,9 @@ router.get("/calendar/events", async (req: Request, res: Response): Promise<void
       status: t.status,
     }));
 
-  res.json({ events, taskEvents });
+  const userIds = events.flatMap((e: any) => [e.createdBy, e.updatedBy]);
+  const userMap = await resolveUserNames(userIds);
+  res.json({ events: enrichWithUserNames(events, userMap), taskEvents });
 });
 
 router.post("/calendar/events", async (req: Request, res: Response): Promise<void> => {
@@ -86,6 +89,7 @@ router.post("/calendar/events", async (req: Request, res: Response): Promise<voi
     ...parsed.data,
     organisationId: orgId,
     createdBy: userId,
+    updatedBy: userId,
   }).returning();
 
   logAudit(userId, (req.session as any)?.userEmail, "create", "calendar_event", String(event.id), { title: event.title });
@@ -112,6 +116,7 @@ router.patch("/calendar/events/:id", async (req: Request, res: Response): Promis
     return;
   }
 
+  updateData.updatedBy = userId;
   const [updated] = await db
     .update(calendarEventsTable)
     .set(updateData)

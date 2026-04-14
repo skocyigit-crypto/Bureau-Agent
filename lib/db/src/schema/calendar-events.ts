@@ -29,6 +29,7 @@ export const calendarEventsTable = pgTable("calendar_events", {
   status: text("status").default("confirme"),
   priority: text("priority").default("normale"),
   createdBy: integer("created_by").references(() => usersTable.id, { onDelete: "set null" }),
+  updatedBy: integer("updated_by").references(() => usersTable.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [
@@ -40,6 +41,6 @@ export const calendarEventsTable = pgTable("calendar_events", {
   index("cal_events_created_by_idx").on(table.createdBy),
 ]);
 
-export const insertCalendarEventSchema = createInsertSchema(calendarEventsTable).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertCalendarEventSchema = createInsertSchema(calendarEventsTable).omit({ id: true, createdAt: true, updatedAt: true, createdBy: true, updatedBy: true });
 export type InsertCalendarEvent = z.infer<typeof insertCalendarEventSchema>;
 export type CalendarEvent = typeof calendarEventsTable.$inferSelect;

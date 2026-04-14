@@ -3,6 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { organisationsTable } from "./organisations";
 import { contactsTable } from "./contacts";
+import { usersTable } from "./users";
 
 export const messagesTable = pgTable("messages", {
   id: serial("id").primaryKey(),
@@ -14,6 +15,8 @@ export const messagesTable = pgTable("messages", {
   type: text("type").notNull().default("note"),
   isRead: boolean("is_read").notNull().default(false),
   priority: text("priority").notNull().default("moyenne"),
+  createdBy: integer("created_by").references(() => usersTable.id, { onDelete: "set null" }),
+  updatedBy: integer("updated_by").references(() => usersTable.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [
@@ -21,6 +24,6 @@ export const messagesTable = pgTable("messages", {
   index("messages_contact_id_idx").on(table.contactId),
 ]);
 
-export const insertMessageSchema = createInsertSchema(messagesTable).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertMessageSchema = createInsertSchema(messagesTable).omit({ id: true, createdAt: true, updatedAt: true, createdBy: true, updatedBy: true });
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type Message = typeof messagesTable.$inferSelect;
