@@ -1,6 +1,6 @@
 import { createContext, useContext, useMemo, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Phone, Users, CheckSquare, MessageSquare, BarChart, Search, LayoutDashboard, Settings, PhoneIncoming, FileText, Puzzle, UserCog, Clock, Brain, Package, Calendar, Shield, Zap, BarChart3, KeyRound, Target, FolderKanban, Globe, ScanSearch, Wallet, Sparkles, PhoneCall } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, BarChart, Search, LayoutDashboard, Settings, PhoneIncoming, FileText, Puzzle, UserCog, Clock, Brain, Package, Calendar, Shield, Zap, BarChart3, KeyRound, Target, FolderKanban, Globe, ScanSearch, Wallet, Sparkles, PhoneCall, Download } from "lucide-react";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { SidebarIcon3D, Icon3D } from "@/components/icon-3d";
 import { AiAssistantButton } from "@/components/ai-assistant";
@@ -17,7 +17,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { SmartBrowserToolbar } from "@/components/smart-browser-panel";
 import { QuickActionHub } from "@/components/quick-action-hub";
 import { DataExportPanel } from "@/components/data-export-panel";
-import { Plus, Download } from "lucide-react";
+import { Plus } from "lucide-react";
 
 type IncomingCallContextType = { simulateIncomingCall: (phone?: string) => void };
 const IncomingCallContext = createContext<IncomingCallContextType>({ simulateIncomingCall: () => {} });
@@ -71,6 +71,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       ...(user.role === "super_admin" ? [{ name: "Lisans", href: "/organisations", icon: KeyRound }] : []),
       ...(user.role !== "super_admin" ? [{ name: "Mon Abonnement", href: "/abonnement", icon: KeyRound }] : []),
       ...(isAdmin ? [{ name: "Audit", href: "/audit", icon: Shield }] : []),
+      { name: "Telecharger", href: "/telecharger", icon: Download },
       { name: "Parametres", href: "/parametres", icon: Settings },
     ];
     return items;

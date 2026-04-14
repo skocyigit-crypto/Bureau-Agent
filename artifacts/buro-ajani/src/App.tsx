@@ -43,6 +43,7 @@ import ExecutiveReportPage from "@/pages/rapport-executif";
 import LicenseManagementPage from "@/pages/license-management";
 import CommandantIAPage from "@/pages/commandant-ia";
 import TelephonyPage from "@/pages/telephony";
+import TelechargerPage from "@/pages/telecharger";
 import { QuickActionHub } from "@/components/quick-action-hub";
 import InvitationAcceptPage from "@/pages/invitation-accept";
 
@@ -100,6 +101,7 @@ function AppRoutes() {
         <Route path="/gestion-licence" component={withLicenseGate(LicenseManagementPage)} />
         <Route path="/commandant-ia" component={withLicenseGate(CommandantIAPage)} />
         <Route path="/telephonie" component={withLicenseGate(TelephonyPage)} />
+        <Route path="/telecharger" component={TelechargerPage} />
         <Route path="/notifications" component={NotificationsPage} />
         <Route component={NotFound} />
       </Switch>
