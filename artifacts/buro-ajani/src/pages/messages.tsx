@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { AiValidationFeedback } from "@/components/ai-validation-feedback";
 import { useAiValidation } from "@/hooks/use-ai-validation";
+import { QueryErrorAlert } from "@/components/safe-component";
 import { Link } from "wouter";
 
 const PAGE_SIZE = 15;
@@ -59,7 +60,7 @@ export default function Messages() {
     offset: page * PAGE_SIZE,
   };
 
-  const { data, isLoading } = useListMessages(queryParams, {
+  const { data, isLoading, error: messagesError } = useListMessages(queryParams, {
     query: { queryKey: getListMessagesQueryKey(queryParams) }
   });
 
@@ -333,6 +334,8 @@ export default function Messages() {
           </Select>
         </div>
       </div>
+
+      {messagesError && <QueryErrorAlert error={messagesError as Error} title="Impossible de charger les messages" />}
 
       <div className="border border-border rounded-lg overflow-hidden bg-card shadow-sm">
         <Table>

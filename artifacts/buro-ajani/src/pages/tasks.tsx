@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { AiValidationFeedback } from "@/components/ai-validation-feedback";
 import { useAiValidation } from "@/hooks/use-ai-validation";
+import { QueryErrorAlert } from "@/components/safe-component";
 import { Link } from "wouter";
 
 const PAGE_SIZE = 20;
@@ -70,7 +71,7 @@ export default function Tasks() {
     offset: viewMode === "kanban" ? 0 : page * PAGE_SIZE,
   };
 
-  const { data, isLoading } = useListTasks(queryParams, {
+  const { data, isLoading, error: tasksError } = useListTasks(queryParams, {
     query: { queryKey: getListTasksQueryKey(queryParams) }
   });
 
@@ -407,6 +408,8 @@ export default function Tasks() {
           </div>
         </div>
       </div>
+
+      {tasksError && <QueryErrorAlert error={tasksError as Error} title="Impossible de charger les taches" />}
 
       {viewMode === "kanban" ? (
         <div className="space-y-4">

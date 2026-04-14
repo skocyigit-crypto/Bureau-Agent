@@ -1,7 +1,8 @@
-import { Component, type ReactNode, useState, useEffect } from "react";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { Component, type ReactNode, useState, useEffect, useCallback } from "react";
+import { AlertTriangle, RefreshCw, WifiOff, ServerCrash, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface SafeProps {
   children: ReactNode;
@@ -110,6 +111,57 @@ export function NetworkStatusBanner() {
   }
 
   return null;
+}
+
+export function QueryErrorAlert({ error, title, queryKeys }: { error: Error | null; title?: string; queryKeys?: string[][] }) {
+  const queryClient = useQueryClient();
+  const [retrying, setRetrying] = useState(false);
+
+  const handleRetry = useCallback(async () => {
+    setRetrying(true);
+    try {
+      if (queryKeys?.length) {
+        await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
+      } else {
+        await queryClient.invalidateQueries();
+      }
+    } finally {
+      setTimeout(() => setRetrying(false), 1000);
+    }
+  }, [queryClient, queryKeys]);
+
+  if (!error) return null;
+
+  const isNetworkError = error.message?.includes("fetch") || error.message?.includes("network") || error.message?.includes("ERR_");
+  const isAuthError = error.message?.includes("401") || error.message?.includes("403");
+  const isServerError = error.message?.includes("500") || error.message?.includes("502") || error.message?.includes("503");
+
+  const Icon = isNetworkError ? WifiOff : isAuthError ? ShieldAlert : isServerError ? ServerCrash : AlertTriangle;
+  const message = isNetworkError
+    ? "Impossible de contacter le serveur. Verifiez votre connexion internet."
+    : isAuthError
+    ? "Acces refuse. Votre session a peut-etre expire."
+    : isServerError
+    ? "Le serveur rencontre un probleme temporaire."
+    : "Une erreur est survenue lors du chargement des donnees.";
+
+  return (
+    <Card className="border-dashed border-red-500/30 bg-red-500/5">
+      <CardContent className="flex items-center gap-4 p-4">
+        <div className="p-2.5 rounded-lg bg-red-500/10">
+          <Icon className="w-5 h-5 text-red-500" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium">{title || "Erreur de chargement"}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{message}</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={handleRetry} disabled={retrying}>
+          <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${retrying ? "animate-spin" : ""}`} />
+          {retrying ? "..." : "Reessayer"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
 }
 
 export function SessionExpiredOverlay({ onRelogin }: { onRelogin: () => void }) {

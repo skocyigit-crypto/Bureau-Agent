@@ -11,7 +11,7 @@ import { AiDiscoveryPanel } from "@/components/ai-discovery-panel";
 import { CentralIntelligence } from "@/components/central-intelligence";
 import { EmailComposer } from "@/components/email-composer";
 import { LiveActivityFeed } from "@/components/live-activity-feed";
-import { SafeComponent } from "@/components/safe-component";
+import { SafeComponent, QueryErrorAlert } from "@/components/safe-component";
 import officeTeamImg from "@/assets/images/office-team.png";
 import { useGetDashboardSummary, useGetRecentActivity, useGetTopContacts, useGetWeeklyReport, useGetHourlyPerformance, useGetTaskStats } from "@workspace/api-client-react";
 import { Progress } from "@/components/ui/progress";
@@ -64,12 +64,14 @@ export default function Dashboard() {
   const now = useLiveClock();
   const teamMembers = useTeamStatus();
   const weekComparison = useWeekComparison();
-  const { data: summary, isLoading: isLoadingSummary } = useGetDashboardSummary({ query: { queryKey: ["dashboardSummary"] } });
-  const { data: recentActivity, isLoading: isLoadingActivity } = useGetRecentActivity({ limit: 6 }, { query: { queryKey: ["recentActivity"] } });
-  const { data: topContacts, isLoading: isLoadingContacts } = useGetTopContacts({ limit: 5 }, { query: { queryKey: ["topContacts"] } });
-  const { data: weeklyReport, isLoading: isLoadingWeekly } = useGetWeeklyReport({ query: { queryKey: ["weeklyReport"] } });
-  const { data: hourlyPerf, isLoading: isLoadingHourly } = useGetHourlyPerformance({ query: { queryKey: ["hourlyPerformance"] } });
-  const { data: taskStats, isLoading: isLoadingTaskStats } = useGetTaskStats({ query: { queryKey: ["taskStats"] } });
+  const { data: summary, isLoading: isLoadingSummary, error: summaryError } = useGetDashboardSummary({ query: { queryKey: ["dashboardSummary"] } });
+  const { data: recentActivity, isLoading: isLoadingActivity, error: activityError } = useGetRecentActivity({ limit: 6 }, { query: { queryKey: ["recentActivity"] } });
+  const { data: topContacts, isLoading: isLoadingContacts, error: contactsError } = useGetTopContacts({ limit: 5 }, { query: { queryKey: ["topContacts"] } });
+  const { data: weeklyReport, isLoading: isLoadingWeekly, error: weeklyError } = useGetWeeklyReport({ query: { queryKey: ["weeklyReport"] } });
+  const { data: hourlyPerf, isLoading: isLoadingHourly, error: hourlyError } = useGetHourlyPerformance({ query: { queryKey: ["hourlyPerformance"] } });
+  const { data: taskStats, isLoading: isLoadingTaskStats, error: taskStatsError } = useGetTaskStats({ query: { queryKey: ["taskStats"] } });
+
+  const dashboardError = summaryError || activityError || contactsError || weeklyError || hourlyError || taskStatsError;
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -83,7 +85,7 @@ export default function Dashboard() {
     return `hsl(var(--primary) / ${intensity})`;
   };
 
-  const maxHourlyCalls = hourlyPerf?.hours.reduce((max, h) => Math.max(max, h.total), 0) || 1;
+  const maxHourlyCalls = hourlyPerf?.hours?.reduce((max: number, h: any) => Math.max(max, h.total), 0) || 1;
 
   const kpiCards: { title: string; value: number; icon: typeof Phone; trend?: number; trendLabel?: string; href: string; variant: Icon3DVariant }[] = [
     {
@@ -120,6 +122,8 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {dashboardError && <QueryErrorAlert error={dashboardError as Error} title="Impossible de charger le tableau de bord" />}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={LayoutDashboard} variant="navy" size="md" /> Tableau de bord</h1>

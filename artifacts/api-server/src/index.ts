@@ -7,6 +7,11 @@ import { startGoogleAutoPointage } from "./services/google-auto-pointage";
 import { startGoogleDriveBackupScheduler } from "./services/google-drive-backup";
 import { startDataProtectionMonitor } from "./services/data-protection-monitor";
 import { runAccountHealthMonitor } from "./routes/comptes-clients";
+import { closePool, checkDbHealth } from "@workspace/db";
+import type { Server } from "http";
+
+let server: Server;
+let isShuttingDown = false;
 
 process.on("unhandledRejection", (reason) => {
   logger.error({ err: reason }, "Unhandled promise rejection");
@@ -14,7 +19,46 @@ process.on("unhandledRejection", (reason) => {
 
 process.on("uncaughtException", (err) => {
   logger.fatal({ err }, "Uncaught exception — shutting down");
-  process.exit(1);
+  gracefulShutdown("uncaughtException").finally(() => process.exit(1));
+});
+
+async function gracefulShutdown(signal: string): Promise<void> {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
+  logger.info({ signal }, "Graceful shutdown initiated");
+
+  const forceTimeout = setTimeout(() => {
+    logger.error("Forced shutdown after timeout");
+    process.exit(1);
+  }, 15000);
+
+  try {
+    if (server) {
+      await new Promise<void>((resolve, reject) => {
+        server.close((err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+      logger.info("HTTP server closed");
+    }
+
+    await closePool();
+    logger.info("Database pool closed");
+  } catch (err) {
+    logger.error({ err }, "Error during shutdown");
+  } finally {
+    clearTimeout(forceTimeout);
+  }
+}
+
+process.on("SIGTERM", () => {
+  gracefulShutdown("SIGTERM").finally(() => process.exit(0));
+});
+
+process.on("SIGINT", () => {
+  gracefulShutdown("SIGINT").finally(() => process.exit(0));
 });
 
 const rawPort = process.env["PORT"];
@@ -31,19 +75,36 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-app.listen(port, (err) => {
-  if (err) {
-    logger.error({ err }, "Error listening on port");
-    process.exit(1);
+async function startServer(): Promise<void> {
+  const dbOk = await checkDbHealth();
+  if (!dbOk) {
+    logger.warn("Database not reachable at startup — continuing anyway");
+  } else {
+    logger.info("Database connection verified");
   }
 
-  logger.info({ port }, "Server listening");
+  server = app.listen(port, (err) => {
+    if (err) {
+      logger.error({ err }, "Error listening on port");
+      process.exit(1);
+    }
 
-  ensureSuperAdmin().catch(err => logger.error({ err }, "Erreur seed admin"));
-  startAutoBackup();
-  startAutomationEngine();
-  startGoogleAutoPointage();
-  startGoogleDriveBackupScheduler().catch(err => logger.error({ err }, "[GoogleDriveBackup] Init error"));
-  startDataProtectionMonitor();
-  runAccountHealthMonitor().catch(err => logger.error({ err }, "[ComptesClients] Init error"));
+    logger.info({ port }, "Server listening");
+
+    ensureSuperAdmin().catch(err => logger.error({ err }, "Erreur seed admin"));
+    startAutoBackup();
+    startAutomationEngine();
+    startGoogleAutoPointage();
+    startGoogleDriveBackupScheduler().catch(err => logger.error({ err }, "[GoogleDriveBackup] Init error"));
+    startDataProtectionMonitor();
+    runAccountHealthMonitor().catch(err => logger.error({ err }, "[ComptesClients] Init error"));
+  });
+
+  server.keepAliveTimeout = 65000;
+  server.headersTimeout = 66000;
+}
+
+startServer().catch((err) => {
+  logger.fatal({ err }, "Failed to start server");
+  process.exit(1);
 });

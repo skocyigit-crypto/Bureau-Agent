@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { AiValidationFeedback } from "@/components/ai-validation-feedback";
 import { useAiValidation } from "@/hooks/use-ai-validation";
+import { QueryErrorAlert } from "@/components/safe-component";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -62,7 +63,7 @@ export default function Contacts() {
     offset: page * PAGE_SIZE,
   };
 
-  const { data, isLoading } = useListContacts(queryParams, {
+  const { data, isLoading, error: contactsError } = useListContacts(queryParams, {
     query: { queryKey: getListContactsQueryKey(queryParams) }
   });
 
@@ -292,6 +293,8 @@ export default function Contacts() {
           </div>
         </div>
       </div>
+
+      {contactsError && <QueryErrorAlert error={contactsError as Error} title="Impossible de charger les contacts" />}
 
       {viewMode === "table" ? (
         <div className="border border-border rounded-lg overflow-hidden bg-card shadow-sm">

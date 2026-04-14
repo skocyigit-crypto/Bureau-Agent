@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { HealthCheckResponse } from "@workspace/api-zod";
-import { db, callsTable, contactsTable, tasksTable, messagesTable, stockArticlesTable, calendarEventsTable, appReleasesTable } from "@workspace/db";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, stockArticlesTable, calendarEventsTable, appReleasesTable, checkDbHealth } from "@workspace/db";
 import { sql, desc, eq, and } from "drizzle-orm";
 import crypto from "crypto";
 
@@ -8,10 +8,23 @@ const router: IRouter = Router();
 
 const APP_BUILD_HASH = crypto.createHash("md5").update(new Date().toISOString().slice(0, 16)).digest("hex").substring(0, 12);
 const APP_BUILD_TIME = new Date().toISOString();
+const startedAt = new Date().toISOString();
 
-router.get("/healthz", (_req, res) => {
-  const data = HealthCheckResponse.parse({ status: "ok" });
-  res.json(data);
+router.get("/healthz", async (_req, res) => {
+  const dbHealthy = await checkDbHealth();
+  const status = dbHealthy ? "ok" : "degraded";
+  const httpStatus = dbHealthy ? 200 : 503;
+
+  res.status(httpStatus).json({
+    status,
+    uptime: Math.floor(process.uptime()),
+    startedAt,
+    db: dbHealthy ? "connected" : "unreachable",
+    memory: {
+      rss: Math.round(process.memoryUsage().rss / 1024 / 1024),
+      heap: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+    },
+  });
 });
 
 router.get("/app-version", async (_req, res) => {

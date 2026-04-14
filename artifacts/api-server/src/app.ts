@@ -156,17 +156,41 @@ app.use("/api", csrfProtection);
 
 app.use("/api", router);
 
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  logger.error({ err: err.message }, "Unhandled error");
-
+app.use((err: Error & { status?: number; statusCode?: number; code?: string }, _req: Request, res: Response, _next: NextFunction) => {
   if (res.headersSent) {
+    logger.warn({ err: err.message }, "Error after headers sent");
     return;
   }
 
-  if (isProduction) {
-    res.status(500).json({ error: "Une erreur interne est survenue." });
+  const status = err.status || err.statusCode || 500;
+  const isServerError = status >= 500;
+
+  if (isServerError) {
+    logger.error({
+      err: err.message,
+      stack: err.stack,
+      code: err.code,
+      method: _req.method,
+      url: _req.originalUrl,
+    }, "Server error");
   } else {
-    res.status(500).json({ error: err.message });
+    logger.warn({ err: err.message, status }, "Client error");
+  }
+
+  if (err.code === "EBADCSRFTOKEN") {
+    res.status(403).json({ error: "Session invalide. Veuillez rafraîchir la page." });
+    return;
+  }
+
+  if (err.message?.includes("ECONNREFUSED") || err.message?.includes("ECONNRESET")) {
+    res.status(503).json({ error: "Service temporairement indisponible. Veuillez réessayer." });
+    return;
+  }
+
+  if (isProduction && isServerError) {
+    res.status(status).json({ error: "Une erreur interne est survenue." });
+  } else {
+    res.status(status).json({ error: err.message || "Erreur inconnue" });
   }
 });
 

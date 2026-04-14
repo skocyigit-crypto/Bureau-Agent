@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { AiValidationFeedback } from "@/components/ai-validation-feedback";
 import { useAiValidation } from "@/hooks/use-ai-validation";
+import { QueryErrorAlert } from "@/components/safe-component";
 
 const PAGE_SIZE = 15;
 
@@ -65,7 +66,7 @@ export default function Calls() {
     offset: page * PAGE_SIZE,
   };
 
-  const { data, isLoading } = useListCalls(queryParams, {
+  const { data, isLoading, error: callsError } = useListCalls(queryParams, {
     query: { queryKey: getListCallsQueryKey(queryParams) }
   });
 
@@ -414,6 +415,8 @@ export default function Calls() {
           </div>
         </div>
       </div>
+
+      {callsError && <QueryErrorAlert error={callsError as Error} title="Impossible de charger les appels" />}
 
       <div className="border border-border rounded-lg overflow-hidden bg-card shadow-sm">
         <Table>
