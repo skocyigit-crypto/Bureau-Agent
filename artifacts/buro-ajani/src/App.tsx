@@ -123,6 +123,13 @@ function InvitationOrApp({
   setAuthState: (s: "loading" | "login" | "register" | "authenticated") => void;
 }) {
   const [isInvitation] = useRoute("/invitation/:token");
+  const [location, navigate] = useLocation();
+
+  useEffect(() => {
+    if (authState === "authenticated" && (location === "/login" || location === "/register")) {
+      navigate("/", { replace: true });
+    }
+  }, [authState, location, navigate]);
 
   if (isInvitation) {
     return <InvitationAcceptPage />;
