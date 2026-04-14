@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Phone, Users, CheckSquare, MessageSquare, ArrowUpRight, ArrowDownRight, Clock, Plus, Activity, BarChart3, Send, LayoutDashboard, Shield, HardDriveDownload, Zap, UserCheck, Brain, TrendingUp, Lightbulb } from "lucide-react";
+import { StaggerContainer, StaggerItem, PressableCard, SlideUp } from "@/components/premium-animations";
 import { SmartPulsePanel } from "@/components/smart-pulse-panel";
 import { Icon3D, type Icon3DVariant } from "@/components/icon-3d";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
@@ -155,7 +156,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <Card className="overflow-hidden border-0 shadow-lg">
+      <SlideUp>
+      <Card className="overflow-hidden border-0 shadow-lg premium-shadow">
         <div className="relative h-40 md:h-48">
           <img src={officeTeamImg} alt="Equipe professionnelle au bureau" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-[#1a2744]/80 via-[#1a2744]/50 to-transparent" />
@@ -174,6 +176,7 @@ export default function Dashboard() {
           </div>
         </div>
       </Card>
+      </SlideUp>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="bg-gradient-to-br from-slate-50 to-slate-100/50 dark:from-slate-950/30 dark:to-slate-900/10 border-slate-200/50 dark:border-slate-800/30">
@@ -240,10 +243,11 @@ export default function Dashboard() {
         <CentralIntelligence />
       </SafeComponent>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <StaggerContainer className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {kpiCards.map((kpi) => (
-          <Link key={kpi.title} href={kpi.href}>
-            <Card className="hover:shadow-md transition-shadow cursor-pointer">
+          <StaggerItem key={kpi.title}>
+          <Link href={kpi.href}>
+            <PressableCard className="rounded-xl border bg-card text-card-foreground premium-shadow-hover">
               <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                 <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.title}</CardTitle>
                 <Icon3D icon={kpi.icon} variant={kpi.variant} size="sm" animate />
@@ -267,10 +271,11 @@ export default function Dashboard() {
                   </>
                 )}
               </CardContent>
-            </Card>
+            </PressableCard>
           </Link>
+          </StaggerItem>
         ))}
-      </div>
+      </StaggerContainer>
 
       <SafeComponent fallbackTitle="Pouls Intelligent">
         <SmartPulsePanel />

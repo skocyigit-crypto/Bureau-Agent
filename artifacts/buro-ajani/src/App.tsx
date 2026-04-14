@@ -12,6 +12,9 @@ import { WorkspaceUserProvider } from "@/components/workspace-user";
 import { PwaInstallButton } from "@/components/pwa-install";
 import { UpdateBanner } from "@/components/update-banner";
 import { VoiceAssistant } from "@/components/VoiceAssistant";
+import { motion, AnimatePresence } from "framer-motion";
+import { MotionProvider } from "@/components/premium-animations";
+import { useDeviceEnvironment, DeviceEnvironmentProvider } from "@/hooks/use-device-environment";
 
 import { Layout } from "@/components/layout";
 import Dashboard from "@/pages/dashboard";
@@ -85,9 +88,28 @@ function withLicenseGate(Component: React.ComponentType) {
   };
 }
 
+function AnimatedRouteContent({ children }: { children: React.ReactNode }) {
+  const [location] = useLocation();
+  const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return (
+    <motion.div
+      key={location}
+      initial={{ opacity: 0, y: prefersReduced ? 0 : 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: prefersReduced ? 0 : -6 }}
+      transition={{ duration: prefersReduced ? 0.01 : 0.22, ease: [0.22, 1, 0.36, 1] }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 function AppRoutes() {
+  const [location] = useLocation();
   return (
     <Layout>
+      <AnimatePresence mode="wait">
+        <AnimatedRouteContent key={location}>
       <Switch>
         <Route path="/" component={withLicenseGate(Dashboard)} />
         <Route path="/appels" component={withLicenseGate(Calls)} />
@@ -119,6 +141,8 @@ function AppRoutes() {
         <Route path="/notifications" component={NotificationsPage} />
         <Route component={NotFound} />
       </Switch>
+        </AnimatedRouteContent>
+      </AnimatePresence>
     </Layout>
   );
 }
@@ -244,6 +268,19 @@ function App() {
 
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
   const isInvitationPath = /\/invitation\/[^/]+/.test(window.location.pathname);
+  const deviceEnv = useDeviceEnvironment();
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.dataset.platform = deviceEnv.platform;
+    root.dataset.displayMode = deviceEnv.displayMode;
+    root.dataset.screenClass = deviceEnv.screenClass;
+    root.dataset.inputMode = deviceEnv.inputMode;
+    if (deviceEnv.isStandalone) root.classList.add("standalone");
+    else root.classList.remove("standalone");
+    if (deviceEnv.hasNotch) root.classList.add("has-notch");
+    else root.classList.remove("has-notch");
+  }, [deviceEnv]);
 
   if (isInvitationPath) {
     return (
@@ -274,6 +311,8 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
+        <DeviceEnvironmentProvider>
+        <MotionProvider reducedMotion={deviceEnv.prefersReducedMotion}>
         <TooltipProvider>
           <NetworkStatusBanner />
           {sessionExpired && <SessionExpiredOverlay onRelogin={handleRelogin} />}
@@ -289,6 +328,8 @@ function App() {
           <PwaInstallButton />
           <Toaster />
         </TooltipProvider>
+        </MotionProvider>
+        </DeviceEnvironmentProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );
