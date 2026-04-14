@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { NetworkStatusBanner, SessionExpiredOverlay } from "@/components/safe-component";
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
 import RegisterPage from "@/pages/register";
@@ -47,7 +48,20 @@ import TelechargerPage from "@/pages/telecharger";
 import { QuickActionHub } from "@/components/quick-action-hub";
 import InvitationAcceptPage from "@/pages/invitation-accept";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 2,
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
+      staleTime: 30_000,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+    },
+    mutations: {
+      retry: 1,
+    },
+  },
+});
 
 function LicenseGate({ children }: { children: React.ReactNode }) {
   const license = useLicenseCheck();
@@ -157,6 +171,7 @@ function InvitationOrApp({
 function App() {
   const [authState, setAuthState] = useState<"loading" | "login" | "register" | "authenticated">("loading");
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   const checkSession = useCallback(async () => {
     try {
@@ -169,11 +184,18 @@ function App() {
         const user = await res.json();
         setCurrentUser(user);
         setAuthState("authenticated");
+        setSessionExpired(false);
       } else {
-        setAuthState("login");
+        setAuthState((prev) => {
+          if (prev === "authenticated") {
+            setSessionExpired(true);
+            return prev;
+          }
+          return "login";
+        });
       }
     } catch {
-      setAuthState("login");
+      setAuthState((prev) => prev === "authenticated" ? prev : "login");
     }
   }, []);
 
@@ -181,9 +203,29 @@ function App() {
     checkSession();
   }, [checkSession]);
 
+  useEffect(() => {
+    if (authState !== "authenticated") return;
+    const interval = setInterval(async () => {
+      try {
+        const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+        const res = await fetch(`${baseUrl}/api/auth/me`, { credentials: "include" });
+        if (!res.ok) setSessionExpired(true);
+      } catch {}
+    }, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [authState]);
+
   const handleLogin = (user: any) => {
     setCurrentUser(user);
     setAuthState("authenticated");
+    setSessionExpired(false);
+  };
+
+  const handleRelogin = () => {
+    setSessionExpired(false);
+    setCurrentUser(null);
+    setAuthState("login");
+    queryClient.clear();
   };
 
   const handleLogout = useCallback(async () => {
@@ -196,6 +238,7 @@ function App() {
     } catch (err) { console.warn("[App] logout request failed:", err); }
     setCurrentUser(null);
     setAuthState("login");
+    setSessionExpired(false);
     queryClient.clear();
   }, []);
 
@@ -232,6 +275,8 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
+          <NetworkStatusBanner />
+          {sessionExpired && <SessionExpiredOverlay onRelogin={handleRelogin} />}
           <WouterRouter base={basePath}>
             <InvitationOrApp
               authState={authState}

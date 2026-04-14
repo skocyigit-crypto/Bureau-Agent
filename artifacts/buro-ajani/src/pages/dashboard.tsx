@@ -11,6 +11,7 @@ import { AiDiscoveryPanel } from "@/components/ai-discovery-panel";
 import { CentralIntelligence } from "@/components/central-intelligence";
 import { EmailComposer } from "@/components/email-composer";
 import { LiveActivityFeed } from "@/components/live-activity-feed";
+import { SafeComponent } from "@/components/safe-component";
 import officeTeamImg from "@/assets/images/office-team.png";
 import { useGetDashboardSummary, useGetRecentActivity, useGetTopContacts, useGetWeeklyReport, useGetHourlyPerformance, useGetTaskStats } from "@workspace/api-client-react";
 import { Progress } from "@/components/ui/progress";
@@ -231,7 +232,9 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <CentralIntelligence />
+      <SafeComponent fallbackTitle="Intelligence Centrale">
+        <CentralIntelligence />
+      </SafeComponent>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {kpiCards.map((kpi) => (
@@ -265,11 +268,17 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <SmartPulsePanel />
+      <SafeComponent fallbackTitle="Pouls Intelligent">
+        <SmartPulsePanel />
+      </SafeComponent>
 
-      <AiRecognitionPanel />
+      <SafeComponent fallbackTitle="Reconnaissance IA">
+        <AiRecognitionPanel />
+      </SafeComponent>
 
-      <AiSuggestionsCard page="dashboard" title="Briefing IA du jour" />
+      <SafeComponent fallbackTitle="Suggestions IA">
+        <AiSuggestionsCard page="dashboard" title="Briefing IA du jour" />
+      </SafeComponent>
 
       {weeklyReport && !isLoadingWeekly && (
         <div className="grid gap-4 md:grid-cols-4">
@@ -464,7 +473,9 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
-      <LiveActivityFeed compact />
+      <SafeComponent fallbackTitle="Activite en direct" compact>
+        <LiveActivityFeed compact />
+      </SafeComponent>
 
       <Card className="bg-gradient-to-r from-[#1a2744] to-[#2d3a54] text-white border-0 shadow-lg">
         <CardContent className="p-4 md:p-6">
@@ -503,7 +514,9 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      <PredictiveAnalyticsWidget />
+      <SafeComponent fallbackTitle="Analyse Predictive">
+        <PredictiveAnalyticsWidget />
+      </SafeComponent>
 
       <EmailComposer
         isOpen={isEmailComposerOpen}
