@@ -1017,4 +1017,264 @@ router.post("/commandant/analyze-text", async (req: Request, res: Response): Pro
   }
 });
 
+router.post("/commandant/execute-command", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const userId = (req.session as any)?.userId;
+    const { command } = req.body;
+    if (!command || typeof command !== "string" || command.length < 3) {
+      res.status(400).json({ error: "Commande requise (minimum 3 caracteres)" });
+      return;
+    }
+
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 86400000);
+
+    const [taskCount, overdueCount, contactCount, unreadMsgs, missedCalls, overdueInvoiceCount] = await Promise.all([
+      db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), ne(tasksTable.status, "termine"))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"), lt(tasksTable.dueDate, now))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(contactsTable).where(eq(contactsTable.organisationId, orgId)).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(messagesTable).where(and(eq(messagesTable.organisationId, orgId), eq(messagesTable.isRead, false))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), ne(facturesClientTable.status, "payee"), ne(facturesClientTable.status, "brouillon"), lt(facturesClientTable.dueDate, now))).then(r => r[0]?.c ?? 0),
+    ]);
+
+    const agentInsights = await getLatestAgentInsights(orgId);
+    const agentSummary = Object.entries(agentInsights).map(([id, i]) => `${id}: score ${i.score}/100`).join(", ");
+
+    const systemPrompt = `Tu es le Commandant IA d'Agent de Bureau. Tu recois des commandes en langage naturel et tu dois les interpreter pour fournir une reponse actionnable.
+
+CONTEXTE ACTUEL DU BUREAU:
+- Taches ouvertes: ${taskCount} (${overdueCount} en retard)
+- Contacts: ${contactCount}
+- Messages non lus: ${unreadMsgs}
+- Appels manques cette semaine: ${missedCalls}
+- Factures en retard: ${overdueInvoiceCount}
+- Scores agents: ${agentSummary || "Aucun rapport disponible"}
+
+Tu peux repondre a des commandes comme:
+- "Resume-moi la situation" → briefing rapide
+- "Quelles sont les urgences?" → liste des items critiques
+- "Comment va le bureau?" → etat general
+- "Quelles taches sont en retard?" → liste des taches en retard
+- "Analyse les appels" → insights telephonie
+- "Previsions pour la semaine" → predictions
+
+Reponds en JSON:
+{
+  "interpretation": "ce que tu as compris de la commande",
+  "response": "ta reponse detaillee en francais",
+  "category": "briefing|urgences|analyse|action|recherche|prediction",
+  "data": {},
+  "suggestedFollowUps": ["commandes de suivi suggerees"],
+  "confidence": 0-100
+}`;
+
+    const aiResponse = await multiAiGenerate(`Commande utilisateur: "${command}"`, systemPrompt);
+    let parsed: any;
+    try {
+      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+      parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { interpretation: command, response: aiResponse, category: "general", confidence: 50 };
+    } catch {
+      parsed = { interpretation: command, response: aiResponse, category: "general", confidence: 50 };
+    }
+
+    parsed.context = {
+      openTasks: taskCount,
+      overdueTasks: overdueCount,
+      contacts: contactCount,
+      unreadMessages: unreadMsgs,
+      missedCalls,
+      overdueInvoices: overdueInvoiceCount,
+    };
+
+    res.json({ success: true, command, result: parsed });
+  } catch (err: any) {
+    console.error("[Commandant/ExecuteCommand]", err);
+    res.status(500).json({ error: "Erreur lors de l'execution de la commande" });
+  }
+});
+
+router.get("/commandant/weekly-digest", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 86400000);
+    const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000);
+
+    const [
+      tasksCompleted, tasksCreated, tasksOverdue,
+      callsTotal, callsMissed, callsAnswered,
+      messagesReceived, messagesUnread,
+      invoicesCreated, invoicesPaid, invoicesOverdue,
+      newContacts, eventsHeld,
+      prevCallsTotal, prevCallsMissed, prevTasksCompleted,
+    ] = await Promise.all([
+      db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.status, "termine"), gte(tasksTable.updatedAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), gte(tasksTable.createdAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"), lt(tasksTable.dueDate, now))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), eq(callsTable.status, "repondu"), gte(callsTable.createdAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(messagesTable).where(and(eq(messagesTable.organisationId, orgId), gte(messagesTable.createdAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(messagesTable).where(and(eq(messagesTable.organisationId, orgId), eq(messagesTable.isRead, false))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), gte(facturesClientTable.createdAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), eq(facturesClientTable.status, "payee"), gte(facturesClientTable.updatedAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), ne(facturesClientTable.status, "payee"), ne(facturesClientTable.status, "brouillon"), lt(facturesClientTable.dueDate, now))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(contactsTable).where(and(eq(contactsTable.organisationId, orgId), gte(contactsTable.createdAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(calendarEventsTable).where(and(eq(calendarEventsTable.organisationId, orgId), gte(calendarEventsTable.startDate, weekAgo), lt(calendarEventsTable.startDate, now))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, twoWeeksAgo), lt(callsTable.createdAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), eq(callsTable.status, "manque"), gte(callsTable.createdAt, twoWeeksAgo), lt(callsTable.createdAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.status, "termine"), gte(tasksTable.updatedAt, twoWeeksAgo), lt(tasksTable.updatedAt, weekAgo))).then(r => r[0]?.c ?? 0),
+    ]);
+
+    const agentInsights = await getLatestAgentInsights(orgId);
+    let crossIssues: any[] = [];
+    try {
+      const collab = await import("./agent-collaboration");
+      crossIssues = await collab.detectCrossAgentIssues(orgId);
+    } catch {}
+
+    const weekData = {
+      taches: { terminees: tasksCompleted, creees: tasksCreated, enRetard: tasksOverdue, prevTerminees: prevTasksCompleted },
+      appels: { total: callsTotal, manques: callsMissed, repondus: callsAnswered, tauxReponse: callsTotal > 0 ? Math.round((callsAnswered / callsTotal) * 100) : 0, prevTotal: prevCallsTotal, prevManques: prevCallsMissed },
+      messages: { recus: messagesReceived, nonLus: messagesUnread },
+      factures: { creees: invoicesCreated, payees: invoicesPaid, enRetard: invoicesOverdue },
+      contacts: { nouveaux: newContacts },
+      evenements: { tenus: eventsHeld },
+    };
+
+    const systemPrompt = `Tu es le Commandant IA d'Agent de Bureau. Genere un digest hebdomadaire complet pour le dirigeant. Sois strategique, concret et utilise les chiffres. Francais uniquement.`;
+    const prompt = `Genere le digest hebdomadaire (${weekAgo.toLocaleDateString("fr-FR")} au ${now.toLocaleDateString("fr-FR")}):
+
+DONNEES DE LA SEMAINE:
+${JSON.stringify(weekData, null, 2)}
+
+SCORES DES AGENTS IA:
+${Object.entries(agentInsights).map(([id, i]) => `${id}: ${i.score}/100 - ${i.summary?.slice(0, 80)}`).join("\n") || "Aucun rapport"}
+
+PROBLEMES TRANSVERSAUX: ${crossIssues.length > 0 ? crossIssues.map(i => `[${i.severity}] ${i.title}`).join(", ") : "Aucun"}
+
+JSON attendu:
+{
+  "weekScore": 0-100,
+  "headline": "titre accrocheur du digest",
+  "executiveSummary": "resume executif en 3-5 phrases",
+  "wins": ["reussites de la semaine"],
+  "concerns": ["points de vigilance"],
+  "weekOverWeekChanges": [{"metric": "nom", "current": 0, "previous": 0, "change": "+X%", "assessment": "bon/attention/critique"}],
+  "topPriorities": ["3 priorites pour la semaine prochaine"],
+  "agentHighlights": ["faits saillants des agents IA"],
+  "outlook": "perspectives pour la semaine prochaine"
+}`;
+
+    const aiResponse = await multiAiGenerate(prompt, systemPrompt);
+    let parsed: any;
+    try {
+      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+      parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { headline: "Digest hebdomadaire", executiveSummary: aiResponse };
+    } catch {
+      parsed = { headline: "Digest hebdomadaire", executiveSummary: aiResponse };
+    }
+
+    res.json({
+      success: true,
+      period: { from: weekAgo.toISOString(), to: now.toISOString() },
+      digest: parsed,
+      rawData: weekData,
+      agentScores: Object.entries(agentInsights).map(([id, i]) => ({ id, score: i.score, status: i.status })),
+      crossIssues: crossIssues.length,
+    });
+  } catch (err: any) {
+    console.error("[Commandant/WeeklyDigest]", err);
+    res.status(500).json({ error: "Erreur lors de la generation du digest" });
+  }
+});
+
+router.get("/commandant/contact-health/:contactId", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const contactId = parseInt(String(req.params.contactId));
+    if (isNaN(contactId)) { res.status(400).json({ error: "ID de contact invalide" }); return; }
+
+    const [contact] = await db.select().from(contactsTable).where(and(eq(contactsTable.id, contactId), eq(contactsTable.organisationId, orgId)));
+    if (!contact) { res.status(404).json({ error: "Contact introuvable" }); return; }
+
+    const now = new Date();
+    const monthAgo = new Date(now.getTime() - 30 * 86400000);
+    const threeMonthsAgo = new Date(now.getTime() - 90 * 86400000);
+
+    const [
+      totalCalls, recentCalls, missedCalls, negativeCalls,
+      openTasks, completedTasks, overdueTasks,
+      unreadMessages, totalMessages,
+      overdueInvoices, paidInvoices,
+      upcomingEvents,
+    ] = await Promise.all([
+      db.select({ c: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), eq(callsTable.contactId, contactId))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), eq(callsTable.contactId, contactId), gte(callsTable.createdAt, monthAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), eq(callsTable.contactId, contactId), eq(callsTable.status, "manque"))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), eq(callsTable.contactId, contactId), eq(callsTable.sentiment, "negatif"))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.relatedContactId, contactId), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.relatedContactId, contactId), eq(tasksTable.status, "termine"))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.relatedContactId, contactId), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"), lt(tasksTable.dueDate, now))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(messagesTable).where(and(eq(messagesTable.organisationId, orgId), eq(messagesTable.contactId, contactId), eq(messagesTable.isRead, false))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(messagesTable).where(and(eq(messagesTable.organisationId, orgId), eq(messagesTable.contactId, contactId))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), sql`${facturesClientTable.clientEmail} = ${contact.email}`, ne(facturesClientTable.status, "payee"), lt(facturesClientTable.dueDate, now))).then(r => r[0]?.c ?? 0).catch(() => 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), sql`${facturesClientTable.clientEmail} = ${contact.email}`, eq(facturesClientTable.status, "payee"))).then(r => r[0]?.c ?? 0).catch(() => 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(calendarEventsTable).where(and(eq(calendarEventsTable.organisationId, orgId), eq(calendarEventsTable.relatedContactId, contactId), gte(calendarEventsTable.startDate, now))).then(r => r[0]?.c ?? 0).catch(() => 0),
+    ]);
+
+    let healthScore = 50;
+    const factors: { factor: string; impact: number; detail: string }[] = [];
+
+    if (recentCalls > 0) { healthScore += 10; factors.push({ factor: "activite_recente", impact: 10, detail: `${recentCalls} appels ce mois` }); }
+    if (recentCalls === 0 && totalCalls > 0) { healthScore -= 10; factors.push({ factor: "inactivite", impact: -10, detail: "Aucun appel ce mois malgre un historique" }); }
+    if (negativeCalls > totalCalls * 0.3 && totalCalls > 0) { healthScore -= 15; factors.push({ factor: "sentiment_negatif", impact: -15, detail: `${negativeCalls}/${totalCalls} appels negatifs` }); }
+    if (overdueTasks > 0) { healthScore -= Math.min(overdueTasks * 5, 20); factors.push({ factor: "taches_retard", impact: -Math.min(overdueTasks * 5, 20), detail: `${overdueTasks} taches en retard` }); }
+    if (completedTasks > 3) { healthScore += 10; factors.push({ factor: "taches_completees", impact: 10, detail: `${completedTasks} taches realisees` }); }
+    if (overdueInvoices > 0) { healthScore -= 20; factors.push({ factor: "factures_impayees", impact: -20, detail: `${overdueInvoices} factures en retard` }); }
+    if (paidInvoices > 0) { healthScore += 10; factors.push({ factor: "bon_payeur", impact: 10, detail: `${paidInvoices} factures payees` }); }
+    if (unreadMessages > 3) { healthScore -= 10; factors.push({ factor: "messages_ignores", impact: -10, detail: `${unreadMessages} messages non lus` }); }
+    if (upcomingEvents > 0) { healthScore += 5; factors.push({ factor: "engagement_futur", impact: 5, detail: `${upcomingEvents} evenements a venir` }); }
+    if (contact.email && contact.phone) { healthScore += 5; factors.push({ factor: "fiche_complete", impact: 5, detail: "Email et telephone renseignes" }); }
+    if (!contact.email || !contact.phone) { healthScore -= 5; factors.push({ factor: "fiche_incomplete", impact: -5, detail: `${!contact.email ? "Email manquant" : "Telephone manquant"}` }); }
+
+    healthScore = Math.max(0, Math.min(100, healthScore));
+
+    const status = healthScore >= 75 ? "excellent" : healthScore >= 55 ? "bon" : healthScore >= 35 ? "attention" : "critique";
+
+    const risks: string[] = [];
+    if (overdueInvoices > 0) risks.push("Factures impayees — risque de perte de revenu");
+    if (negativeCalls > 2) risks.push("Historique d'appels negatifs — risque de churn");
+    if (recentCalls === 0 && totalCalls > 3) risks.push("Contact inactif — risque de desengagement");
+    if (overdueTasks > 2) risks.push("Taches accumulees — risque de mecontentement");
+
+    const opportunities: string[] = [];
+    if (completedTasks > 5) opportunities.push("Contact actif — potentiel d'upsell");
+    if (paidInvoices > 3 && overdueInvoices === 0) opportunities.push("Bon payeur — offrir des conditions privilegiees");
+    if (recentCalls > 3) opportunities.push("Engagement eleve — proposer un suivi personnalise");
+
+    res.json({
+      success: true,
+      contact: { id: contact.id, name: `${contact.firstName} ${contact.lastName}`, company: contact.company, category: contact.category, email: contact.email, phone: contact.phone },
+      healthScore,
+      status,
+      factors,
+      metrics: {
+        calls: { total: totalCalls, recent: recentCalls, missed: missedCalls, negative: negativeCalls },
+        tasks: { open: openTasks, completed: completedTasks, overdue: overdueTasks },
+        messages: { total: totalMessages, unread: unreadMessages },
+        invoices: { overdue: overdueInvoices, paid: paidInvoices },
+        events: { upcoming: upcomingEvents },
+      },
+      risks,
+      opportunities,
+    });
+  } catch (err: any) {
+    console.error("[Commandant/ContactHealth]", err);
+    res.status(500).json({ error: "Erreur lors du calcul de la sante du contact" });
+  }
+});
+
 export default router;

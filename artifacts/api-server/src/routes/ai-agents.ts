@@ -726,30 +726,63 @@ async function runSingleAgent(agent: typeof AGENTS[0], orgId: number): Promise<a
     const data = await gatherAgentData(agent.id, orgId);
 
     let collaborationContext = "";
+    let trendContext = "";
     try {
-      const { getLatestAgentInsights, buildCollaborationPrompt } = await import("./agent-collaboration");
-      const insights = await getLatestAgentInsights(orgId);
+      const { getLatestAgentInsights, buildCollaborationPrompt, getAgentTrendHistory } = await import("./agent-collaboration");
+      const [insights, trendHistory] = await Promise.all([
+        getLatestAgentInsights(orgId),
+        getAgentTrendHistory(orgId, agent.id, 5),
+      ]);
       collaborationContext = buildCollaborationPrompt(insights, agent.id);
+      if (trendHistory.length > 1) {
+        const scores = trendHistory.map(h => h.score ?? 0);
+        const isDecaying = scores.length >= 3 && scores[0] < scores[1] && scores[1] < scores[2];
+        const isImproving = scores.length >= 3 && scores[0] > scores[1] && scores[1] > scores[2];
+        trendContext = `\n\n=== HISTORIQUE DE TES SCORES ===
+Tes ${trendHistory.length} derniers scores: ${scores.join(" → ")}
+Tendance: ${isDecaying ? "⚠ EN DEGRADATION CONTINUE" : isImproving ? "✅ EN AMELIORATION" : "Stable"}
+${isDecaying ? "ATTENTION: Tes scores baissent consecutivement. Analyse POURQUOI et propose des corrections urgentes." : ""}
+${trendHistory.map(h => `  ${h.reportDate}: score ${h.score}, ${h.errorsFound} erreurs, ${h.warningsFound} alertes`).join("\n")}
+=== FIN HISTORIQUE ===`;
+      }
     } catch {}
 
     const { ai } = await import("@workspace/integrations-gemini-ai");
+    const fullPrompt = `${getAgentPrompt(agent)}${collaborationContext}${trendContext}\n\n${AGENT_RESPONSE_FORMAT}\n\nDate du rapport: ${today}\nDonnees actuelles (cette semaine + semaine precedente + patterns):\n${JSON.stringify(data, null, 2)}`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [{
-        role: "user",
-        parts: [{
-          text: `${getAgentPrompt(agent)}${collaborationContext}\n\n${AGENT_RESPONSE_FORMAT}\n\nDate du rapport: ${today}\nDonnees actuelles (cette semaine + semaine precedente + patterns):\n${JSON.stringify(data, null, 2)}`
-        }],
-      }],
-      config: {
-        maxOutputTokens: 8192,
-        responseMimeType: "application/json",
-        thinkingConfig: { thinkingBudget: 2048 },
-      },
-    });
-
-    const text = response.text ?? "{}";
+    let text = "{}";
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+        config: { maxOutputTokens: 8192, responseMimeType: "application/json", thinkingConfig: { thinkingBudget: 2048 } },
+      });
+      text = response.text ?? "{}";
+    } catch (geminiErr: any) {
+      logger.warn({ err: geminiErr, agentId: agent.id }, "Gemini failed, trying OpenAI fallback");
+      try {
+        const { openai } = await import("@workspace/integrations-openai-ai-server");
+        const fallback = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [{ role: "user", content: fullPrompt + "\n\nReponds UNIQUEMENT en JSON valide." }],
+        });
+        text = fallback.choices?.[0]?.message?.content ?? "{}";
+      } catch (openaiErr: any) {
+        logger.warn({ err: openaiErr, agentId: agent.id }, "OpenAI fallback failed, trying Anthropic");
+        try {
+          const { anthropic } = await import("@workspace/integrations-anthropic-ai");
+          const fallback2 = await anthropic.messages.create({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 8192,
+            messages: [{ role: "user", content: fullPrompt + "\n\nReponds UNIQUEMENT en JSON valide." }],
+          });
+          text = fallback2.content?.[0]?.type === "text" ? fallback2.content[0].text : "{}";
+        } catch (anthropicErr: any) {
+          logger.error({ err: anthropicErr, agentId: agent.id }, "All AI providers failed");
+          throw new Error(`Tous les fournisseurs IA ont echoue pour ${agent.id}`);
+        }
+      }
+    }
     let parsed;
     try {
       parsed = JSON.parse(text);
@@ -1037,16 +1070,21 @@ router.post("/ai/agents/run", requireAdmin, async (_req, res) => {
 
     (async () => {
       try {
+        const BATCH_SIZE = 3;
         const childReports: any[] = [];
-        for (const agent of AGENTS) {
-          try {
-            const report = await runSingleAgent(agent, orgId);
-            childReports.push(report);
-          } catch (err: any) {
-            logger.error({ err, agentId: agent.id }, `Agent ${agent.id} failed`);
-            childReports.push({ id: 0, agentName: agent.name, score: 0, status: "erreur", errorsFound: 1, executionTimeMs: 0 });
+        for (let i = 0; i < AGENTS.length; i += BATCH_SIZE) {
+          const batch = AGENTS.slice(i, i + BATCH_SIZE);
+          const batchResults = await Promise.allSettled(batch.map(agent => runSingleAgent(agent, orgId)));
+          for (let j = 0; j < batchResults.length; j++) {
+            const result = batchResults[j];
+            if (result.status === "fulfilled") {
+              childReports.push(result.value);
+            } else {
+              logger.error({ err: result.reason, agentId: batch[j].id }, `Agent ${batch[j].id} failed`);
+              childReports.push({ id: 0, agentName: batch[j].name, score: 0, status: "erreur", errorsFound: 1, executionTimeMs: 0 });
+            }
+            jobState.completedAgents++;
           }
-          jobState.completedAgents++;
         }
         await runSuperAgent(childReports, orgId);
         jobState.status = "completed";
