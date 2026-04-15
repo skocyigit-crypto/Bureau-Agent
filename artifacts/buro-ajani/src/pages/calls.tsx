@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useListCalls, useCreateCall, useUpdateCall, useDeleteCall, getListCallsQueryKey, useListContacts } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -53,6 +53,20 @@ export default function Calls() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const cId = params.get("contactId");
+    if (cId) {
+      form.setValue("contactId", cId as any);
+      const matchedContact = contactsData?.contacts?.find((c: any) => String(c.id) === cId);
+      if (matchedContact?.phone) {
+        form.setValue("phoneNumber", matchedContact.phone);
+      }
+      setIsDialogOpen(true);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [contactsData]);
 
   const queryParams = {
     search: search || undefined,

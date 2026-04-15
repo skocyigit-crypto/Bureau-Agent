@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useListTasks, useCreateTask, useUpdateTask, useDeleteTask, getListTasksQueryKey, useListContacts } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format, isPast, isToday } from "date-fns";
@@ -60,6 +60,16 @@ export default function Tasks() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const cId = params.get("contactId");
+    if (cId) {
+      form.setValue("relatedContactId", cId as any);
+      setIsDialogOpen(true);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   const queryParams = {
     status: statusFilter !== "all" ? statusFilter as any : undefined,
