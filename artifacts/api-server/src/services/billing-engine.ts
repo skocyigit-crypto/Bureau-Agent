@@ -114,27 +114,38 @@ export async function generateMonthlyInvoices(periodYear: number, periodMonth: n
 }
 
 export async function getOrgBillingSummary(orgId: number) {
-  const invoices = await db.select()
-    .from(invoicesTable)
-    .where(eq(invoicesTable.organisationId, orgId))
-    .orderBy(sql`${invoicesTable.periodStart} DESC`)
-    .limit(12);
+  try {
+    const invoices = await db.select()
+      .from(invoicesTable)
+      .where(eq(invoicesTable.organisationId, orgId))
+      .orderBy(sql`${invoicesTable.periodStart} DESC`)
+      .limit(12);
 
-  const totalDue = invoices
-    .filter(i => i.status === "en_attente" || i.status === "partiel" || i.status === "retard")
-    .reduce((sum, i) => sum + Number(i.totalAmount), 0);
+    const totalDue = invoices
+      .filter(i => i.status === "en_attente" || i.status === "partiel" || i.status === "retard")
+      .reduce((sum, i) => sum + Number(i.totalAmount), 0);
 
-  const totalPaid = invoices
-    .filter(i => i.status === "payee")
-    .reduce((sum, i) => sum + Number(i.totalAmount), 0);
+    const totalPaid = invoices
+      .filter(i => i.status === "payee")
+      .reduce((sum, i) => sum + Number(i.totalAmount), 0);
 
-  const lastInvoice = invoices[0] || null;
+    const lastInvoice = invoices[0] || null;
 
-  return {
-    invoices,
-    totalDue: totalDue.toFixed(2),
-    totalPaid: totalPaid.toFixed(2),
-    lastInvoice,
-    invoiceCount: invoices.length,
-  };
+    return {
+      invoices,
+      totalDue: totalDue.toFixed(2),
+      totalPaid: totalPaid.toFixed(2),
+      lastInvoice,
+      invoiceCount: invoices.length,
+    };
+  } catch (error) {
+    console.error(`[BillingEngine] getOrgBillingSummary error for org ${orgId}:`, error);
+    return {
+      invoices: [],
+      totalDue: "0.00",
+      totalPaid: "0.00",
+      lastInvoice: null,
+      invoiceCount: 0,
+    };
+  }
 }
