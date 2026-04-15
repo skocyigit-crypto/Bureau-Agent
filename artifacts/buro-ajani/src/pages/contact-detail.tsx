@@ -1,9 +1,9 @@
-import { useRoute } from "wouter";
+import { useRoute, useLocation } from "wouter";
 import { useGetContact, useGetContactCalls, useGetContactTasks, getGetContactQueryKey, useUpdateContact, getGetContactCallsQueryKey, getGetContactTasksQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Phone, Mail, Building, MapPin, Calendar, Clock, Edit, FileText, Plus, PhoneCall, ArrowLeft, MoreHorizontal, Voicemail, PhoneMissed, CheckSquare, AlertCircle, Send } from "lucide-react";
 import { EmailComposer } from "@/components/email-composer";
 import { DocumentsPanel } from "@/components/file-upload";
@@ -42,6 +42,7 @@ export default function ContactDetail() {
   const contactId = params?.id ? parseInt(params.id) : 0;
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
   const aiValidation = useAiValidation("contact");
@@ -75,20 +76,23 @@ export default function ContactDetail() {
     }
   });
 
-  // Effect to populate form when contact data loads
-  if (contact && form.getValues().firstName === "") {
-    form.reset({
-      firstName: contact.firstName,
-      lastName: contact.lastName,
-      company: contact.company || "",
-      email: contact.email || "",
-      phone: contact.phone,
-      mobile: contact.mobile || "",
-      category: contact.category,
-      address: contact.address || "",
-      notes: contact.notes || "",
-    });
-  }
+  const formInitialized = useRef(false);
+  useEffect(() => {
+    if (contact && !formInitialized.current) {
+      form.reset({
+        firstName: contact.firstName,
+        lastName: contact.lastName,
+        company: contact.company || "",
+        email: contact.email || "",
+        phone: contact.phone,
+        mobile: contact.mobile || "",
+        category: contact.category,
+        address: contact.address || "",
+        notes: contact.notes || "",
+      });
+      formInitialized.current = true;
+    }
+  }, [contact, form]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     updateContact.mutate({ id: contactId, data: values }, {
@@ -156,7 +160,13 @@ export default function ContactDetail() {
           <Button variant="outline" onClick={() => setIsEmailComposerOpen(true)} className="gap-2">
             <Send className="w-4 h-4" /> E-mail IA
           </Button>
-          <Button className="bg-primary text-primary-foreground">
+          <Button className="bg-primary text-primary-foreground" onClick={() => {
+            if (contact?.phone) {
+              window.open(`tel:${contact.phone}`, "_self");
+            } else {
+              toast({ title: "Aucun numéro de téléphone", variant: "destructive" });
+            }
+          }}>
             <PhoneCall className="w-4 h-4 mr-2" /> Appeler
           </Button>
         </div>
@@ -296,7 +306,7 @@ export default function ContactDetail() {
                     <CardTitle>Historique des appels</CardTitle>
                     <CardDescription>Les 10 derniers appels avec ce contact</CardDescription>
                   </div>
-                  <Button variant="outline" size="sm"><Plus className="w-4 h-4 mr-2" /> Nouvel appel</Button>
+                  <Button variant="outline" size="sm" onClick={() => navigate(`/appels?contactId=${contactId}`)}><Plus className="w-4 h-4 mr-2" /> Nouvel appel</Button>
                 </CardHeader>
                 <CardContent>
                   {isCallsLoading ? (
@@ -336,7 +346,7 @@ export default function ContactDetail() {
                     <CardTitle>Tâches liées</CardTitle>
                     <CardDescription>Tâches associées à ce contact</CardDescription>
                   </div>
-                  <Button variant="outline" size="sm"><Plus className="w-4 h-4 mr-2" /> Nouvelle tâche</Button>
+                  <Button variant="outline" size="sm" onClick={() => navigate(`/taches?contactId=${contactId}`)}><Plus className="w-4 h-4 mr-2" /> Nouvelle tâche</Button>
                 </CardHeader>
                 <CardContent>
                   {isTasksLoading ? (
