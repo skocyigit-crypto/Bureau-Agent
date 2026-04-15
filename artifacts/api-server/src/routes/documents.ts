@@ -5,7 +5,7 @@ import { requireRole } from "../middleware/auth";
 import { getOrgId } from "../middleware/tenant";
 import { scanBase64Content, logSecurityEvent } from "../middleware/security";
 import { logger } from "../lib/logger";
-import { analyzeDocument } from "../services/document-ai";
+import { analyzeDocument, processDocumentForImport, importRowsToModule } from "../services/document-ai";
 
 const router = Router();
 const requireMinAgent = requireRole("super_admin", "administrateur", "agent");
@@ -303,6 +303,145 @@ router.get("/documents/stats/overview", requireMinAgent, async (req: Request, re
   } catch (err: any) {
     logger.error({ err }, "Document stats error");
     res.status(500).json({ error: "Erreur" });
+  }
+});
+
+router.post("/documents/process", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const { documentId, fileContent, fileName, mimeType: rawMime } = req.body;
+
+    let content = fileContent;
+    let name = fileName;
+    let mime = rawMime;
+
+    if (documentId) {
+      const docId = parseInt(String(documentId));
+      if (isNaN(docId)) { res.status(400).json({ error: "documentId invalide" }); return; }
+      const [doc] = await db.select().from(documentsTable)
+        .where(and(eq(documentsTable.id, docId), eq(documentsTable.organisationId, orgId)));
+      if (!doc || !doc.fileContent) { res.status(404).json({ error: "Document introuvable" }); return; }
+      content = doc.fileContent;
+      name = doc.originalName;
+      mime = doc.mimeType;
+    }
+
+    if (!content || !name) {
+      res.status(400).json({ error: "fileContent+fileName ou documentId requis" });
+      return;
+    }
+
+    mime = resolveMime(name, mime || "application/octet-stream");
+
+    if (!ALLOWED_MIME_TYPES.includes(mime)) {
+      res.status(400).json({ error: `Type de fichier non autorise: ${mime}` });
+      return;
+    }
+
+    const buffer = Buffer.from(content, "base64");
+    if (buffer.length > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      res.status(400).json({ error: `Fichier trop volumineux. Maximum: ${MAX_FILE_SIZE_MB} Mo.` });
+      return;
+    }
+
+    const scanResult = scanBase64Content(content, name);
+    if (!scanResult.safe) {
+      res.status(400).json({ error: "Fichier bloque pour raisons de securite.", threats: scanResult.threats });
+      return;
+    }
+
+    const result = await processDocumentForImport(content, mime, name, orgId);
+
+    if (documentId) {
+      await db.update(documentsTable).set({
+        extractedData: result as any,
+        status: "processed",
+        updatedAt: new Date(),
+      }).where(eq(documentsTable.id, parseInt(String(documentId))));
+    }
+
+    logger.info({ orgId, fileName: name, totalRows: result.totalRows, suggestedModule: result.suggestedModule }, "Document processed for import");
+
+    res.json(result);
+  } catch (err: any) {
+    logger.error({ err }, "Document process error");
+    res.status(500).json({ error: "Erreur lors du traitement du document" });
+  }
+});
+
+router.post("/documents/import", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const userId = (req.session as any)?.userId || null;
+    const { rows, targetModule, skipDuplicates, selectedRows, documentId } = req.body;
+
+    if (!rows || !Array.isArray(rows) || !targetModule) {
+      res.status(400).json({ error: "rows (tableau) et targetModule sont requis" });
+      return;
+    }
+
+    if (!["contacts", "taches"].includes(targetModule)) {
+      res.status(400).json({ error: `Module d'import non supporte: ${targetModule}. Modules disponibles: contacts, taches` });
+      return;
+    }
+
+    if (rows.length > 500) {
+      res.status(400).json({ error: "Maximum 500 enregistrements par importation" });
+      return;
+    }
+
+    const CONTACT_REQUIRED = ["lastName"];
+    const TASK_REQUIRED = ["title"];
+    const requiredFields = targetModule === "contacts" ? CONTACT_REQUIRED : TASK_REQUIRED;
+
+    const sanitizedRows = rows.map((row: any, i: number) => {
+      if (!row || typeof row !== "object" || !row.fields || typeof row.fields !== "object") {
+        return { rowIndex: i, fields: {}, errors: ["Structure de ligne invalide"], warnings: [], duplicateOf: row?.duplicateOf };
+      }
+      const fields: Record<string, any> = {};
+      for (const [key, val] of Object.entries(row.fields)) {
+        if (typeof key === "string" && key.length < 50) {
+          fields[key] = typeof val === "string" ? val.slice(0, 1000) : val;
+        }
+      }
+      const errors: string[] = Array.isArray(row.errors) ? row.errors.filter((e: any) => typeof e === "string") : [];
+      for (const req of requiredFields) {
+        if (!fields[req] || String(fields[req]).trim() === "") {
+          errors.push(`Champ obligatoire manquant: ${req}`);
+        }
+      }
+      return {
+        rowIndex: typeof row.rowIndex === "number" ? row.rowIndex : i,
+        fields,
+        errors,
+        warnings: Array.isArray(row.warnings) ? row.warnings : [],
+        duplicateOf: row.duplicateOf || undefined,
+      };
+    });
+
+    const validSelectedRows = Array.isArray(selectedRows) ? selectedRows.filter((r: any) => typeof r === "number") : undefined;
+
+    const result = await importRowsToModule(sanitizedRows, targetModule, orgId, userId, skipDuplicates !== false, validSelectedRows);
+
+    if (documentId) {
+      const docId = parseInt(String(documentId));
+      if (!isNaN(docId)) {
+        await db.update(documentsTable).set({
+          status: "imported",
+          updatedAt: new Date(),
+        }).where(and(eq(documentsTable.id, docId), eq(documentsTable.organisationId, orgId)));
+      }
+    }
+
+    logger.info({
+      orgId, targetModule, totalImported: result.totalImported,
+      totalSkipped: result.totalSkipped, totalErrors: result.totalErrors,
+    }, "Document data imported");
+
+    res.json(result);
+  } catch (err: any) {
+    logger.error({ err }, "Document import error");
+    res.status(500).json({ error: "Erreur lors de l'importation des donnees" });
   }
 });
 

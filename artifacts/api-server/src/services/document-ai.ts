@@ -630,3 +630,294 @@ export async function executeDocumentAction(
     };
   }
 }
+
+export interface ProcessedRow {
+  rowIndex: number;
+  fields: Record<string, any>;
+  errors: string[];
+  warnings: string[];
+  duplicateOf?: { id: number; name: string };
+}
+
+export interface ProcessResult {
+  understood: string;
+  totalRows: number;
+  validRows: number;
+  errorRows: number;
+  suggestedModule: DestinationModule;
+  suggestedModuleReason: string;
+  columns: string[];
+  columnMapping: Record<string, string>;
+  rows: ProcessedRow[];
+  summary: string;
+  dataPreview: Record<string, any>[];
+}
+
+const PROCESS_PROMPT = `Tu es un assistant IA expert en extraction de donnees structurees.
+Analyse le contenu du fichier et extrais TOUTES les lignes/enregistrements sous forme structuree.
+
+Tu dois retourner un JSON avec cette structure exacte:
+{
+  "understood": "Description en francais de ce que tu as compris du fichier (type de donnees, nombre d'enregistrements, colonnes detectees)",
+  "suggestedModule": "contacts|taches|messages|factures|devis|prospects|stock|projets|aucun",
+  "suggestedModuleReason": "Explication de pourquoi ce module est le bon pour ces donnees",
+  "columns": ["liste des colonnes/champs detectes dans le fichier"],
+  "columnMapping": {
+    "colonne_originale": "champ_cible_dans_le_module"
+  },
+  "rows": [
+    {
+      "rowIndex": 0,
+      "fields": {
+        "champ1": "valeur1",
+        "champ2": "valeur2"
+      },
+      "errors": ["erreurs detectees pour cette ligne"],
+      "warnings": ["avertissements pour cette ligne"]
+    }
+  ],
+  "summary": "Resume: X enregistrements valides, Y erreurs detectees, Z doublons potentiels"
+}
+
+REGLES DE MAPPING PAR MODULE:
+- contacts: firstName, lastName, email, phone, mobile, company, category, address, notes
+- taches: title, description, status (en_attente|en_cours|termine), priority (basse|moyenne|haute|urgente), dueDate (ISO), assignedTo
+- messages: subject, content, senderName, senderEmail
+- factures: numero, client, montantHT, montantTTC, tva, dateEmission, dateEcheance, lignes
+- prospects: firstName, lastName, email, phone, company, status, value, notes
+
+REGLES IMPORTANTES:
+1. Extrais CHAQUE ligne/enregistrement du fichier — ne fais pas de resume
+2. Pour les contacts: si un seul nom est donne, mets-le en lastName avec firstName vide
+3. Pour les telephones: garde le format original
+4. Pour les dates: convertis en ISO (YYYY-MM-DD)
+5. Si un champ est vide ou manquant, marque-le comme erreur si c'est obligatoire
+6. Champs obligatoires contacts: lastName, phone OU email
+7. Champs obligatoires taches: title
+8. Detecte les doublons potentiels entre les lignes
+9. Retourne UNIQUEMENT du JSON valide`;
+
+export async function processDocumentForImport(
+  base64Content: string,
+  mimeType: string,
+  fileName: string,
+  orgId: number
+): Promise<ProcessResult> {
+  const { ai } = await import("@workspace/integrations-gemini-ai");
+
+  const isVisual = VISUAL_MIME_TYPES.includes(mimeType);
+  let contentParts: any[];
+
+  if (isVisual) {
+    contentParts = [
+      { inlineData: { mimeType, data: base64Content } },
+      { text: `${PROCESS_PROMPT}\n\nFichier: ${fileName}\nType: ${mimeType}` },
+    ];
+  } else {
+    const extractedText = await extractTextFromFile(base64Content, mimeType, fileName);
+    if (!extractedText) {
+      return {
+        understood: "Impossible de lire le contenu de ce fichier.",
+        totalRows: 0, validRows: 0, errorRows: 0,
+        suggestedModule: "aucun",
+        suggestedModuleReason: "Le fichier n'a pas pu etre lu.",
+        columns: [], columnMapping: {}, rows: [],
+        summary: "Echec de lecture du fichier.", dataPreview: [],
+      };
+    }
+    contentParts = [
+      { text: `${PROCESS_PROMPT}\n\nFichier: ${fileName}\nType: ${mimeType}\n\n${extractedText}` },
+    ];
+  }
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: [{ role: "user", parts: contentParts }],
+    config: { maxOutputTokens: 32768, responseMimeType: "application/json" },
+  });
+
+  const text = response.text ?? "{}";
+  let parsed: any;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    logger.error({ text: text.substring(0, 500) }, "Process: impossible de parser la reponse");
+    return {
+      understood: "Erreur d'analyse IA — reponse invalide.",
+      totalRows: 0, validRows: 0, errorRows: 0,
+      suggestedModule: "aucun",
+      suggestedModuleReason: "",
+      columns: [], columnMapping: {}, rows: [],
+      summary: "Erreur IA.", dataPreview: [],
+    };
+  }
+
+  const rows: ProcessedRow[] = (parsed.rows || []).map((r: any, i: number) => ({
+    rowIndex: r.rowIndex ?? i,
+    fields: r.fields || {},
+    errors: r.errors || [],
+    warnings: r.warnings || [],
+    duplicateOf: r.duplicateOf || undefined,
+  }));
+
+  const validRows = rows.filter(r => r.errors.length === 0).length;
+  const errorRows = rows.filter(r => r.errors.length > 0).length;
+
+  const existingDuplicates = await checkDuplicatesInDb(rows, parsed.suggestedModule || "aucun", orgId);
+  for (const dup of existingDuplicates) {
+    const row = rows.find(r => r.rowIndex === dup.rowIndex);
+    if (row) {
+      row.duplicateOf = dup.existing;
+      row.warnings.push(`Doublon potentiel: ${dup.existing.name} (ID: ${dup.existing.id})`);
+    }
+  }
+
+  return {
+    understood: parsed.understood || "",
+    totalRows: rows.length,
+    validRows,
+    errorRows,
+    suggestedModule: parsed.suggestedModule || "aucun",
+    suggestedModuleReason: parsed.suggestedModuleReason || "",
+    columns: parsed.columns || [],
+    columnMapping: parsed.columnMapping || {},
+    rows,
+    summary: parsed.summary || `${rows.length} enregistrement(s) detecte(s), ${validRows} valide(s), ${errorRows} erreur(s).`,
+    dataPreview: rows.slice(0, 5).map(r => r.fields),
+  };
+}
+
+async function checkDuplicatesInDb(
+  rows: ProcessedRow[],
+  module: string,
+  orgId: number
+): Promise<{ rowIndex: number; existing: { id: number; name: string } }[]> {
+  const duplicates: { rowIndex: number; existing: { id: number; name: string } }[] = [];
+
+  if (module !== "contacts") return duplicates;
+
+  const orgFilter = eq(contactsTable.organisationId, orgId);
+
+  for (const row of rows.slice(0, 100)) {
+    const f = row.fields;
+    try {
+      if (f.email) {
+        const [match] = await db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName })
+          .from(contactsTable).where(and(orgFilter, ilike(contactsTable.email, f.email))).limit(1);
+        if (match) {
+          duplicates.push({ rowIndex: row.rowIndex, existing: { id: match.id, name: `${match.firstName || ""} ${match.lastName || ""}`.trim() } });
+          continue;
+        }
+      }
+      if (f.phone) {
+        const cleaned = String(f.phone).replace(/\s+/g, "");
+        const [match] = await db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName })
+          .from(contactsTable).where(and(orgFilter, or(ilike(contactsTable.phone, `%${cleaned}%`), ilike(contactsTable.mobile, `%${cleaned}%`)))).limit(1);
+        if (match && !duplicates.find(d => d.rowIndex === row.rowIndex)) {
+          duplicates.push({ rowIndex: row.rowIndex, existing: { id: match.id, name: `${match.firstName || ""} ${match.lastName || ""}`.trim() } });
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  return duplicates;
+}
+
+export interface ImportResult {
+  success: boolean;
+  totalImported: number;
+  totalSkipped: number;
+  totalErrors: number;
+  importedIds: number[];
+  errors: { rowIndex: number; error: string }[];
+  skipped: { rowIndex: number; reason: string }[];
+}
+
+export async function importRowsToModule(
+  rows: ProcessedRow[],
+  targetModule: string,
+  orgId: number,
+  userId: number | null,
+  skipDuplicates: boolean = true,
+  selectedRows?: number[]
+): Promise<ImportResult> {
+  const result: ImportResult = {
+    success: true, totalImported: 0, totalSkipped: 0, totalErrors: 0,
+    importedIds: [], errors: [], skipped: [],
+  };
+
+  const rowsToImport = selectedRows
+    ? rows.filter(r => selectedRows.includes(r.rowIndex))
+    : rows;
+
+  for (const row of rowsToImport) {
+    if (row.errors.length > 0) {
+      result.skipped.push({ rowIndex: row.rowIndex, reason: `Erreurs: ${row.errors.join(", ")}` });
+      result.totalSkipped++;
+      continue;
+    }
+
+    if (skipDuplicates && row.duplicateOf) {
+      result.skipped.push({ rowIndex: row.rowIndex, reason: `Doublon de ${row.duplicateOf.name} (ID: ${row.duplicateOf.id})` });
+      result.totalSkipped++;
+      continue;
+    }
+
+    try {
+      let createdId: number | undefined;
+
+      switch (targetModule) {
+        case "contacts": {
+          const f = row.fields;
+          const [created] = await db.insert(contactsTable).values({
+            organisationId: orgId,
+            firstName: f.firstName || "",
+            lastName: f.lastName || f.name || "",
+            email: f.email || null,
+            phone: f.phone || "",
+            mobile: f.mobile || null,
+            company: f.company || null,
+            category: f.category || "autre",
+            address: f.address || null,
+            notes: f.notes || null,
+            createdBy: userId,
+          }).returning({ id: contactsTable.id });
+          createdId = created.id;
+          break;
+        }
+        case "taches": {
+          const f = row.fields;
+          const [created] = await db.insert(tasksTable).values({
+            organisationId: orgId,
+            title: f.title || "Tache importee",
+            description: f.description || null,
+            status: f.status || "en_attente",
+            priority: f.priority || "moyenne",
+            dueDate: f.dueDate ? new Date(f.dueDate) : null,
+            assignedTo: f.assignedTo || null,
+            createdBy: userId,
+          }).returning({ id: tasksTable.id });
+          createdId = created.id;
+          break;
+        }
+        default: {
+          result.skipped.push({ rowIndex: row.rowIndex, reason: `Module non supporte pour l'import: ${targetModule}` });
+          result.totalSkipped++;
+          continue;
+        }
+      }
+
+      if (createdId) {
+        result.importedIds.push(createdId);
+        result.totalImported++;
+      }
+    } catch (err: any) {
+      logger.error({ err, rowIndex: row.rowIndex }, "Import row error");
+      result.errors.push({ rowIndex: row.rowIndex, error: err.message });
+      result.totalErrors++;
+    }
+  }
+
+  result.success = result.totalErrors === 0;
+  return result;
+}

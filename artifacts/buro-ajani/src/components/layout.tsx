@@ -101,6 +101,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       { name: "Telephonie", href: "/telephonie", icon: PhoneCall },
       { name: "Document IA", href: "/document-ia", icon: ScanSearch },
       { name: "Documents", href: "/documents", icon: FileText },
+      { name: "Import Intelligent", href: "/import", icon: Download },
       { name: "Performance", href: "/performance", icon: BarChart3 },
       ...(isAdmin ? [{ name: "Automatisations", href: "/automatisations", icon: Zap }] : []),
       ...(user.role === "super_admin" ? [{ name: "Lisans", href: "/organisations", icon: KeyRound }] : []),
