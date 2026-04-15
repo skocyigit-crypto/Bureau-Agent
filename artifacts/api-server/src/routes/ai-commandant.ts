@@ -3,6 +3,7 @@ import { db, callsTable, contactsTable, tasksTable, messagesTable, calendarEvent
 import { eq, sql, and, desc, gte, lte, lt, ne, isNull, isNotNull, or, ilike } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { Resend } from "resend";
+import { getContextForContact, getLatestAgentInsights, buildCommandantContextPrompt } from "./agent-collaboration";
 
 const router = Router();
 
@@ -115,17 +116,25 @@ router.post("/commandant/call-smart-response", async (req: Request, res: Respons
     const orgId = getOrgId(req);
     const { callerPhone, callerName, callNotes, callDirection, callId } = req.body;
 
-    const contacts = callerPhone ? await db.select().from(contactsTable).where(and(eq(contactsTable.organisationId, orgId), eq(contactsTable.phone, callerPhone))).limit(1) : [];
-    const contact = contacts[0];
+    const [contactContext, agentInsights] = await Promise.all([
+      getContextForContact(orgId, undefined, callerPhone, undefined),
+      getLatestAgentInsights(orgId, ["agent_appels", "agent_contacts", "agent_taches", "agent_facturation"]),
+    ]);
+    const contact = contactContext.contact;
+    const collaborationContext = buildCommandantContextPrompt(agentInsights, contactContext);
 
     const recentCalls = contact ? await db.select().from(callsTable).where(and(eq(callsTable.organisationId, orgId), eq(callsTable.contactId, contact.id))).orderBy(desc(callsTable.createdAt)).limit(5) : [];
-    const openTasks = contact ? await db.select().from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.relatedContactId, contact.id), ne(tasksTable.status, "termine"))).limit(5).catch(() => []) : [];
-    const upcomingEvents = contact ? await db.select().from(calendarEventsTable).where(and(eq(calendarEventsTable.organisationId, orgId), gte(calendarEventsTable.startDate, new Date()))).orderBy(calendarEventsTable.startDate).limit(3) : [];
+    const openTasks = contactContext.contactActivity?.openTasks || [];
+    const upcomingEvents = contactContext.contactActivity?.upcomingEvents || [];
+    const overdueInvoices = contactContext.contactActivity?.overdueInvoices || [];
 
     const systemPrompt = `Tu es un assistant telephonique IA d'elite pour "Agent de Bureau", un logiciel de gestion de bureau francais.
 Tu dois generer la MEILLEURE reponse possible pour un appel ${callDirection === "entrant" ? "entrant" : "sortant"}.
 Tu es extremement professionnel, empathique et intelligent. Tu connais l'historique complet du contact.
-Reponds TOUJOURS en francais. Sois chaleureux mais professionnel.`;
+Tu as acces aux rapports des agents IA specialises (telephonie, CRM, productivite, finance) pour enrichir ta reponse.
+Reponds TOUJOURS en francais. Sois chaleureux mais professionnel.
+
+${collaborationContext}`;
 
     const prompt = `APPEL ${callDirection === "entrant" ? "ENTRANT" : "SORTANT"}:
 - Appelant: ${callerName || "Inconnu"} (${callerPhone || "Pas de numero"})
@@ -135,21 +144,23 @@ ${contact ? `- Contact connu: ${contact.firstName} ${contact.lastName} (${contac
 - Total appels precedents: ${contact.totalCalls || 0}
 - Dernier appel: ${contact.lastCallAt ? new Date(contact.lastCallAt).toLocaleDateString("fr-FR") : "Jamais"}` : "- Contact INCONNU (nouveau)"}
 ${recentCalls.length > 0 ? `\n- Derniers appels:\n${recentCalls.map(c => `  * ${new Date(c.createdAt).toLocaleDateString("fr-FR")} - ${c.status} - ${c.notes || "Pas de notes"}`).join("\n")}` : ""}
-${openTasks.length > 0 ? `\n- Taches en cours pour ce contact:\n${openTasks.map(t => `  * [${t.priority}] ${t.title} (${t.status})`).join("\n")}` : ""}
-${upcomingEvents.length > 0 ? `\n- Prochains evenements:\n${upcomingEvents.map(e => `  * ${e.title} - ${new Date(e.startDate).toLocaleDateString("fr-FR")}`).join("\n")}` : ""}
+${openTasks.length > 0 ? `\n- Taches en cours pour ce contact:\n${openTasks.map((t: any) => `  * [${t.priority}] ${t.title} (${t.status})`).join("\n")}` : ""}
+${overdueInvoices.length > 0 ? `\n- ⚠ FACTURES IMPAYEES:\n${overdueInvoices.map((i: any) => `  * ${i.reference} - ${i.amount}€ (echeance depassee)`).join("\n")}` : ""}
+${upcomingEvents.length > 0 ? `\n- Prochains evenements:\n${upcomingEvents.map((e: any) => `  * ${e.title} - ${new Date(e.date).toLocaleDateString("fr-FR")}`).join("\n")}` : ""}
 ${callNotes ? `\n- Notes de l'appel: ${callNotes}` : ""}
 
 Genere un JSON avec:
 {
   "greeting": "Phrase d'accueil personnalisee",
-  "contextBriefing": "Resume de contexte pour l'agent (historique, alertes)",
+  "contextBriefing": "Resume de contexte pour l'agent (historique, alertes, infos des agents IA)",
   "suggestedResponses": ["3-5 reponses suggerees selon le contexte"],
   "detectedIntent": "intention detectee (info, plainte, rdv, devis, suivi, urgence)",
   "sentiment": "positif/neutre/negatif",
   "priority": "basse/moyenne/haute/urgente",
   "recommendedActions": ["actions recommandees apres l'appel"],
   "talkingPoints": ["points importants a aborder"],
-  "warningFlags": ["alertes eventuelles (retard de paiement, plainte precedente, etc.)"]
+  "warningFlags": ["alertes eventuelles (retard de paiement, plainte precedente, etc.)"],
+  "agentInsightsSummary": "Resume des informations fournies par les agents IA specialises"
 }`;
 
     const aiResponse = await multiAiGenerate(prompt, systemPrompt);
@@ -159,11 +170,23 @@ Genere un JSON avec:
       parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { greeting: aiResponse, suggestedResponses: [], recommendedActions: [] };
     } catch { parsed = { greeting: aiResponse, suggestedResponses: [], recommendedActions: [] }; }
 
+    const activeAgents = Object.entries(agentInsights).map(([id, insight]) => ({ id, score: insight.score, summary: insight.summary?.slice(0, 80) }));
+
     res.json({
       success: true,
       contact: contact ? { id: contact.id, name: `${contact.firstName} ${contact.lastName}`, company: contact.company, category: contact.category, totalCalls: contact.totalCalls, email: contact.email } : null,
       aiResponse: parsed,
-      context: { recentCallsCount: recentCalls.length, openTasksCount: openTasks.length, upcomingEventsCount: upcomingEvents.length },
+      context: {
+        recentCallsCount: recentCalls.length,
+        openTasksCount: openTasks.length,
+        upcomingEventsCount: upcomingEvents.length,
+        overdueInvoicesCount: overdueInvoices.length,
+      },
+      collaboration: {
+        agentsConsulted: activeAgents,
+        criticalAlerts: contactContext.criticalAlerts || [],
+        enrichedByAgents: true,
+      },
     });
   } catch (err: any) {
     console.error("[Commandant/CallResponse]", err);
@@ -320,12 +343,21 @@ router.post("/commandant/email-smart-reply", async (req: Request, res: Response)
     const orgId = getOrgId(req);
     const { emailFrom, emailSubject, emailBody, tone, contactId } = req.body;
 
+    const [collabContext, agentInsights] = await Promise.all([
+      getContextForContact(orgId, contactId || undefined, undefined, emailFrom || undefined),
+      getLatestAgentInsights(orgId, ["agent_contacts", "agent_facturation", "agent_messages", "agent_taches"]),
+    ]);
+    const collaborationPrompt = buildCommandantContextPrompt(agentInsights, collabContext);
+
     let contactContext = "";
-    if (contactId) {
-      const [contact] = await db.select().from(contactsTable).where(and(eq(contactsTable.id, contactId), eq(contactsTable.organisationId, orgId)));
-      if (contact) {
-        const recentTasks = await db.select().from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.relatedContactId, contact.id))).orderBy(desc(tasksTable.createdAt)).limit(3);
-        contactContext = `\nCONTACT CONNU: ${contact.firstName} ${contact.lastName}, ${contact.company || "Pas d'entreprise"}, ${contact.email}, ${contact.totalCalls || 0} appels\nTaches recentes: ${recentTasks.map(t => t.title).join(", ") || "Aucune"}`;
+    const contact = collabContext.contact;
+    if (contact) {
+      contactContext = `\nCONTACT CONNU: ${contact.firstName} ${contact.lastName}, ${contact.company || "Pas d'entreprise"}, ${contact.email}, ${contact.totalCalls || 0} appels`;
+      if (collabContext.contactActivity?.openTasks?.length > 0) {
+        contactContext += `\nTaches en cours: ${collabContext.contactActivity.openTasks.map((t: any) => `${t.title} [${t.priority}]`).join(", ")}`;
+      }
+      if (collabContext.contactActivity?.overdueInvoices?.length > 0) {
+        contactContext += `\n⚠ FACTURES IMPAYEES: ${collabContext.contactActivity.overdueInvoices.map((i: any) => `${i.reference} (${i.amount}€)`).join(", ")}`;
       }
     } else if (emailFrom) {
       const contacts = await db.select().from(contactsTable).where(and(eq(contactsTable.organisationId, orgId), eq(contactsTable.email, emailFrom))).limit(1);
@@ -336,7 +368,11 @@ router.post("/commandant/email-smart-reply", async (req: Request, res: Response)
 
     const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId));
 
-    const systemPrompt = `Tu es un expert en communication d'entreprise pour "${org?.name || "Agent de Bureau"}". Tu rediges des reponses email professionnelles, pertinentes et efficaces en francais. Tu t'adaptes au ton demande et tu personnalises selon le contexte du contact.`;
+    const systemPrompt = `Tu es un expert en communication d'entreprise pour "${org?.name || "Agent de Bureau"}". Tu rediges des reponses email professionnelles, pertinentes et efficaces en francais. Tu t'adaptes au ton demande et tu personnalises selon le contexte du contact.
+Tu as acces aux rapports des agents IA specialises pour enrichir ta reponse avec du contexte pertinent.
+
+${collaborationPrompt}`;
+
     const prompt = `Redige une reponse a cet email:
 - De: ${emailFrom || "Inconnu"}
 - Objet: ${emailSubject || "Sans objet"}
@@ -353,7 +389,8 @@ JSON attendu:
   "urgency": "basse/moyenne/haute",
   "suggestedActions": ["actions a faire apres envoi"],
   "alternativeReplies": [{"tone": "empathique", "body": "version alternative"}],
-  "extractedData": {"dates": [], "amounts": [], "phoneNumbers": [], "names": []}
+  "extractedData": {"dates": [], "amounts": [], "phoneNumbers": [], "names": []},
+  "agentInsightsSummary": "Resume des informations des agents IA utilisees pour cette reponse"
 }`;
 
     const aiResponse = await multiAiGenerate(prompt, systemPrompt);
@@ -363,7 +400,8 @@ JSON attendu:
       parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { replySubject: `Re: ${emailSubject}`, replyBody: aiResponse };
     } catch { parsed = { replySubject: `Re: ${emailSubject}`, replyBody: aiResponse }; }
 
-    res.json({ success: true, reply: parsed });
+    const activeAgents = Object.entries(agentInsights).map(([id, insight]) => ({ id, score: insight.score }));
+    res.json({ success: true, reply: parsed, collaboration: { agentsConsulted: activeAgents, enrichedByAgents: true } });
   } catch (err: any) {
     console.error("[Commandant/EmailReply]", err);
     res.status(500).json({ error: "Erreur" });
@@ -792,22 +830,35 @@ router.get("/commandant/daily-briefing", async (req: Request, res: Response): Pr
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const tomorrow = new Date(today.getTime() + 86400000);
 
-    const [taskCount] = await db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), ne(tasksTable.status, "termine")));
-    const [overdueCount] = await db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), ne(tasksTable.status, "termine"), lt(tasksTable.dueDate, now)));
-    const todayEvents = await db.select().from(calendarEventsTable).where(and(eq(calendarEventsTable.organisationId, orgId), gte(calendarEventsTable.startDate, today), lt(calendarEventsTable.startDate, tomorrow))).orderBy(calendarEventsTable.startDate);
-    const [overdueInvoiceCount] = await db.select({ c: sql<number>`count(*)::int` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), ne(facturesClientTable.status, "payee"), ne(facturesClientTable.status, "brouillon"), lt(facturesClientTable.dueDate, now)));
-    const recentCalls = await db.select().from(callsTable).where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, new Date(now.getTime() - 24 * 3600000)))).orderBy(desc(callsTable.createdAt)).limit(5);
+    const [taskCount, overdueCount, todayEvents, overdueInvoiceCount, recentCalls, agentInsights] = await Promise.all([
+      db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), ne(tasksTable.status, "termine"))).then(r => r[0]),
+      db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), ne(tasksTable.status, "termine"), lt(tasksTable.dueDate, now))).then(r => r[0]),
+      db.select().from(calendarEventsTable).where(and(eq(calendarEventsTable.organisationId, orgId), gte(calendarEventsTable.startDate, today), lt(calendarEventsTable.startDate, tomorrow))).orderBy(calendarEventsTable.startDate),
+      db.select({ c: sql<number>`count(*)::int` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), ne(facturesClientTable.status, "payee"), ne(facturesClientTable.status, "brouillon"), lt(facturesClientTable.dueDate, now))).then(r => r[0]),
+      db.select().from(callsTable).where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, new Date(now.getTime() - 24 * 3600000)))).orderBy(desc(callsTable.createdAt)).limit(5),
+      getLatestAgentInsights(orgId),
+    ]);
 
-    const systemPrompt = `Tu es le Commandant IA d'Agent de Bureau — un assistant executif surpuissant qui aide les dirigeants a gerer leur journee. Tu utilises toutes les donnees disponibles pour fournir le briefing matinal le plus complet et actionnable possible. Sois concis, clair et strategique. Francais uniquement.`;
+    const collaborationPrompt = buildCommandantContextPrompt(agentInsights);
+    const crossIssues = (await import("./agent-collaboration")).detectCrossAgentIssues(orgId);
+    const crossIssuesList = await crossIssues;
+
+    const systemPrompt = `Tu es le Commandant IA d'Agent de Bureau — un assistant executif surpuissant qui aide les dirigeants a gerer leur journee. Tu utilises toutes les donnees disponibles ET les rapports des agents IA specialises pour fournir le briefing matinal le plus complet et actionnable possible. Sois concis, clair et strategique. Francais uniquement.
+
+${collaborationPrompt}`;
+
     const prompt = `Genere le briefing matinal pour aujourd'hui (${now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}):
 
-DONNEES:
+DONNEES OPERATIONNELLES:
 - Taches ouvertes: ${taskCount?.c || 0} (${overdueCount?.c || 0} en retard)
 - Evenements aujourd'hui: ${todayEvents.length}
 ${todayEvents.map(e => `  * ${new Date(e.startDate).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} - ${e.title} (${e.type})`).join("\n")}
 - Factures en retard: ${overdueInvoiceCount?.c || 0}
 - Appels derniers 24h: ${recentCalls.length}
 ${recentCalls.map(c => `  * ${c.contactName || "Inconnu"} - ${c.status} - ${c.notes || "Pas de resume"}`).join("\n")}
+
+ALERTES INTER-AGENTS (${crossIssuesList.length} problemes transversaux detectes):
+${crossIssuesList.map(i => `⚠ [${i.severity}] ${i.title}: ${i.description}`).join("\n") || "Aucune alerte transversale"}
 
 JSON attendu:
 {
@@ -816,6 +867,8 @@ JSON attendu:
   "todayAgenda": ["element 1 de l'agenda", "element 2"],
   "criticalItems": ["items critiques a traiter immediatement"],
   "recommendations": ["recommandations strategiques"],
+  "agentAlerts": ["alertes des agents IA specialises"],
+  "crossServiceIssues": ["problemes transversaux detectes entre services"],
   "motivationalNote": "note de motivation personnalisee",
   "weatherOfBusiness": "ensoleille/nuageux/orageux (metaphore business)"
 }`;
@@ -827,10 +880,17 @@ JSON attendu:
       parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { greeting: aiResponse };
     } catch { parsed = { greeting: aiResponse }; }
 
+    const agentScores = Object.entries(agentInsights).map(([id, i]) => ({ id, score: i.score, status: i.status }));
+
     res.json({
       success: true,
       briefing: parsed,
       rawData: { openTasks: taskCount?.c || 0, overdueTasks: overdueCount?.c || 0, todayEvents: todayEvents.length, overdueInvoices: overdueInvoiceCount?.c || 0, recentCalls: recentCalls.length },
+      collaboration: {
+        agentScores,
+        crossIssues: crossIssuesList,
+        enrichedByAgents: true,
+      },
     });
   } catch (err: any) {
     console.error("[Commandant/DailyBriefing]", err);

@@ -724,6 +724,14 @@ async function runSingleAgent(agent: typeof AGENTS[0], orgId: number): Promise<a
 
   try {
     const data = await gatherAgentData(agent.id, orgId);
+
+    let collaborationContext = "";
+    try {
+      const { getLatestAgentInsights, buildCollaborationPrompt } = await import("./agent-collaboration");
+      const insights = await getLatestAgentInsights(orgId);
+      collaborationContext = buildCollaborationPrompt(insights, agent.id);
+    } catch {}
+
     const { ai } = await import("@workspace/integrations-gemini-ai");
 
     const response = await ai.models.generateContent({
@@ -731,7 +739,7 @@ async function runSingleAgent(agent: typeof AGENTS[0], orgId: number): Promise<a
       contents: [{
         role: "user",
         parts: [{
-          text: `${getAgentPrompt(agent)}\n\n${AGENT_RESPONSE_FORMAT}\n\nDate du rapport: ${today}\nDonnees actuelles (cette semaine + semaine precedente + patterns):\n${JSON.stringify(data, null, 2)}`
+          text: `${getAgentPrompt(agent)}${collaborationContext}\n\n${AGENT_RESPONSE_FORMAT}\n\nDate du rapport: ${today}\nDonnees actuelles (cette semaine + semaine precedente + patterns):\n${JSON.stringify(data, null, 2)}`
         }],
       }],
       config: {
@@ -858,6 +866,17 @@ async function runSuperAgent(childReports: any[], orgId: number): Promise<any> {
   const today = new Date().toISOString().split("T")[0];
 
   try {
+    let crossAgentIssues: any[] = [];
+    try {
+      const { detectCrossAgentIssues, createCrossAgentAlert } = await import("./agent-collaboration");
+      crossAgentIssues = await detectCrossAgentIssues(orgId);
+      for (const issue of crossAgentIssues.filter(i => i.severity === "critique")) {
+        const fromAgent = issue.agents[0] || "super_agent";
+        const toAgent = issue.agents[1] || "super_agent";
+        await createCrossAgentAlert(orgId, fromAgent, toAgent, issue.title, issue.description, issue.severity);
+      }
+    } catch {}
+
     const { ai } = await import("@workspace/integrations-gemini-ai");
 
     const reportsSummary = childReports.map(r => ({
@@ -957,6 +976,7 @@ Rapports des agents:\n${JSON.stringify(reportsSummary, null, 2)}`
         actionPlan: parsed.actionPlan || [],
         crossAnalysis: parsed.crossAnalysis || [],
         agentScores: parsed.agentScores || [],
+        crossAgentIssues: crossAgentIssues,
         multiAI: {
           openaiVerification: openaiReview,
           anthropicStrategie: anthropicStrategy,
