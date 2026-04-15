@@ -14,6 +14,23 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "wouter";
 
+const VALID_ROUTES = [
+  "/", "/appels", "/contacts", "/taches", "/messages", "/calendrier",
+  "/rapports", "/rapport-executif", "/analyse", "/performance",
+  "/agents-ia", "/commandant-ia", "/document-ia", "/documents",
+  "/import", "/pointage", "/telephonie", "/google-workspace",
+  "/logiciels", "/utilisateurs", "/audit", "/automatisations",
+  "/organisations", "/abonnement", "/parametres", "/notifications",
+  "/telecharger", "/gestion-licence",
+];
+
+function safeLink(lien: string): string {
+  if (!lien || lien === "#") return "/";
+  const basePath = lien.split("?")[0].split("/").slice(0, 2).join("/");
+  if (VALID_ROUTES.includes(basePath) || VALID_ROUTES.includes(lien)) return lien;
+  return "/";
+}
+
 interface Resolution {
   probleme: string;
   solution: string;
@@ -780,7 +797,7 @@ function ResolutionCard({ resolution, onCopy, copiedId, idx }: { resolution: Res
             {copiedId === idx ? "Copie" : "Copier"}
           </Button>
         )}
-        <Link href={resolution.lien}>
+        <Link href={safeLink(resolution.lien)}>
           <Button variant="default" size="sm" className="h-6 text-[10px] gap-1 bg-indigo-600 hover:bg-indigo-700">
             <ArrowRight className="w-3 h-3" /> {resolution.actionType === "valider" ? "Valider" : "Traiter"}
           </Button>

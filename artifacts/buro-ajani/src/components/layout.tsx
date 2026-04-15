@@ -104,7 +104,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       { name: "Import Intelligent", href: "/import", icon: Download },
       { name: "Performance", href: "/performance", icon: BarChart3 },
       ...(isAdmin ? [{ name: "Automatisations", href: "/automatisations", icon: Zap }] : []),
-      ...(user.role === "super_admin" ? [{ name: "Lisans", href: "/organisations", icon: KeyRound }] : []),
+      ...(user.role === "super_admin" ? [{ name: "Organisations", href: "/organisations", icon: KeyRound }] : []),
       ...(user.role !== "super_admin" ? [{ name: "Mon Abonnement", href: "/abonnement", icon: KeyRound }] : []),
       ...(isAdmin ? [{ name: "Audit", href: "/audit", icon: Shield }] : []),
       { name: "Telecharger", href: "/telecharger", icon: Download },
@@ -138,7 +138,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     <SidebarMenuItem key={item.name}>
                       <SidebarMenuButton 
                         asChild 
-                        isActive={location === item.href}
+                        isActive={location === item.href || (item.href !== "/" && location.startsWith(item.href + "/"))}
                         tooltip={item.name}
                       >
                         <Link href={item.href} className="flex items-center gap-3" onClick={() => triggerHaptic("light")}>
