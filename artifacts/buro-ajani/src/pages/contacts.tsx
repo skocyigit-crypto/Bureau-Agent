@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useListContacts, useCreateContact, useDeleteContact, getListContactsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Users, Search, Filter, MoreHorizontal, Phone, Mail, Building, Plus, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, LayoutGrid, LayoutList } from "lucide-react";
@@ -53,6 +53,24 @@ export default function Contacts() {
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const newName = params.get("newName");
+    const newPhone = params.get("newPhone");
+    if (newName || newPhone) {
+      if (newName) {
+        const parts = newName.trim().split(" ");
+        form.setValue("firstName", parts[0] || "");
+        form.setValue("lastName", parts.slice(1).join(" ") || "");
+      }
+      if (newPhone) {
+        form.setValue("phone", newPhone);
+      }
+      setIsDialogOpen(true);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   const queryParams = {
     search: search || undefined,

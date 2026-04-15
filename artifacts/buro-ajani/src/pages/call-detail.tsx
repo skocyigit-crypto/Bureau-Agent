@@ -1,4 +1,4 @@
-import { useRoute } from "wouter";
+import { useRoute, useLocation } from "wouter";
 import { useGetCall, getGetCallQueryKey, useUpdateCall, useGetContact, getGetContactQueryKey, useAskAiAssistant } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -127,11 +127,16 @@ export default function CallDetail() {
     });
   };
 
+  const [, navigate] = useLocation();
+
   const handleStatusChange = (status: any) => {
     updateCall.mutate({ id: callId, data: { status } }, {
       onSuccess: () => {
         toast({ title: "Statut mis à jour" });
         queryClient.invalidateQueries({ queryKey: getGetCallQueryKey(callId) });
+      },
+      onError: () => {
+        toast({ title: "Erreur", description: "Impossible de mettre à jour le statut", variant: "destructive" });
       }
     });
   };
@@ -141,6 +146,9 @@ export default function CallDetail() {
       onSuccess: () => {
         toast({ title: "Sentiment mis à jour" });
         queryClient.invalidateQueries({ queryKey: getGetCallQueryKey(callId) });
+      },
+      onError: () => {
+        toast({ title: "Erreur", description: "Impossible de mettre à jour le sentiment", variant: "destructive" });
       }
     });
   };
@@ -337,7 +345,7 @@ export default function CallDetail() {
                   <div className="text-sm text-muted-foreground p-3 bg-muted rounded-md text-center">
                     Ce nom a été saisi manuellement mais n'est pas lié à un profil.
                   </div>
-                  <Button variant="outline" className="w-full">
+                  <Button variant="outline" className="w-full" onClick={() => navigate(`/contacts?newName=${encodeURIComponent(call.contactName || "")}`)}>
                     Créer un profil contact
                   </Button>
                 </div>
@@ -347,7 +355,7 @@ export default function CallDetail() {
                     <User className="w-6 h-6" />
                   </div>
                   <p className="text-sm text-muted-foreground">Appel d'un numéro inconnu.</p>
-                  <Button variant="outline" className="w-full">
+                  <Button variant="outline" className="w-full" onClick={() => navigate(`/contacts?newPhone=${encodeURIComponent(call.phoneNumber || "")}`)}>
                     Associer à un contact
                   </Button>
                 </div>

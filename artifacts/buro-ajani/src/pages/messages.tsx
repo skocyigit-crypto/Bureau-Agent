@@ -133,7 +133,7 @@ export default function Messages() {
     toast({ title: `${ids.length} message(s) supprime(s)` });
   };
 
-  const onSubmit = (values: any) => {
+  const onSubmit = (values: z.infer<typeof formSchema>) => {
     createMessage.mutate({ data: values }, {
       onSuccess: () => {
         toast({ title: "Message enregistre" });
