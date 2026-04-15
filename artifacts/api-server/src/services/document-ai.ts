@@ -128,6 +128,82 @@ Regles importantes:
 7. Si un inventaire/bon de commande contient des articles, propose de les ajouter au stock
 8. Retourne UNIQUEMENT du JSON valide, rien d'autre`;
 
+const VISUAL_MIME_TYPES = [
+  "application/pdf",
+  "image/png", "image/jpeg", "image/webp", "image/gif", "image/bmp", "image/tiff",
+];
+
+async function extractTextFromFile(base64Content: string, mimeType: string, fileName: string): Promise<string | null> {
+  const buffer = Buffer.from(base64Content, "base64");
+
+  if (mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || mimeType === "application/vnd.ms-excel" || fileName.match(/\.xlsx?$/i)) {
+    try {
+      const XLSX = await import("xlsx");
+      const workbook = XLSX.read(buffer, { type: "buffer" });
+      const sheets: string[] = [];
+      for (const sheetName of workbook.SheetNames) {
+        const sheet = workbook.Sheets[sheetName];
+        const csv = XLSX.utils.sheet_to_csv(sheet, { FS: " | ", RS: "\n" });
+        const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+        sheets.push(`=== Feuille: ${sheetName} (${json.length} lignes) ===\n${csv}\n\nDonnees JSON:\n${JSON.stringify(json.slice(0, 200), null, 1)}`);
+      }
+      return `CONTENU EXCEL (${workbook.SheetNames.length} feuille(s)):\n\n${sheets.join("\n\n")}`;
+    } catch (err: any) {
+      logger.warn({ err, fileName }, "Excel parse error");
+      return null;
+    }
+  }
+
+  if (mimeType === "text/csv" || fileName.match(/\.csv$/i)) {
+    try {
+      const text = buffer.toString("utf-8");
+      const lines = text.split("\n");
+      const header = lines[0] || "";
+      const dataLines = lines.slice(0, 201);
+      return `CONTENU CSV (${lines.length} lignes):\nColonnes: ${header}\n\n${dataLines.join("\n")}`;
+    } catch (err: any) {
+      logger.warn({ err, fileName }, "CSV parse error");
+      return null;
+    }
+  }
+
+  if (mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || fileName.match(/\.docx$/i)) {
+    try {
+      const mammoth = await import("mammoth");
+      const result = await mammoth.extractRawText({ buffer });
+      return `CONTENU WORD (DOCX):\n\n${result.value.slice(0, 30000)}`;
+    } catch (err: any) {
+      logger.warn({ err, fileName }, "Word parse error");
+      return null;
+    }
+  }
+
+  if (mimeType === "text/plain" || mimeType === "application/rtf" || fileName.match(/\.(txt|rtf)$/i)) {
+    try {
+      return `CONTENU TEXTE:\n\n${buffer.toString("utf-8").slice(0, 30000)}`;
+    } catch {
+      return null;
+    }
+  }
+
+  if (mimeType === "application/vnd.openxmlformats-officedocument.presentationml.presentation" || mimeType === "application/vnd.ms-powerpoint" || fileName.match(/\.pptx?$/i)) {
+    try {
+      const XLSX = await import("xlsx");
+      const workbook = XLSX.read(buffer, { type: "buffer" });
+      const slides: string[] = [];
+      for (const name of workbook.SheetNames) {
+        const csv = XLSX.utils.sheet_to_csv(workbook.Sheets[name], { FS: " | " });
+        slides.push(`--- Slide: ${name} ---\n${csv}`);
+      }
+      return `CONTENU PRESENTATION (${workbook.SheetNames.length} slides):\n\n${slides.join("\n\n")}`;
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
 export async function analyzeDocument(
   base64Content: string,
   mimeType: string,
@@ -136,22 +212,39 @@ export async function analyzeDocument(
 ): Promise<ExtractedData> {
   const { ai } = await import("@workspace/integrations-gemini-ai");
 
+  const isVisual = VISUAL_MIME_TYPES.includes(mimeType);
+  let contentParts: any[];
+
+  if (isVisual) {
+    contentParts = [
+      { inlineData: { mimeType, data: base64Content } },
+      { text: `${ANALYSIS_PROMPT}\n\nNom du fichier: ${fileName}\nType MIME: ${mimeType}` },
+    ];
+  } else {
+    const extractedText = await extractTextFromFile(base64Content, mimeType, fileName);
+    if (!extractedText) {
+      return {
+        documentType: "inconnu",
+        confidence: 0,
+        title: fileName,
+        summary: "Impossible de lire le contenu de ce fichier.",
+        destination: "aucun",
+        destinationReason: "Le format du fichier n'a pas pu etre analyse.",
+        extractedFields: {},
+        suggestedActions: [],
+        relatedEntities: [],
+        warnings: [`Le format ${mimeType} n'a pas pu etre lu correctement.`],
+        rawAnalysis: "",
+      };
+    }
+    contentParts = [
+      { text: `${ANALYSIS_PROMPT}\n\nNom du fichier: ${fileName}\nType MIME: ${mimeType}\n\n${extractedText}` },
+    ];
+  }
+
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash",
-    contents: [{
-      role: "user",
-      parts: [
-        {
-          inlineData: {
-            mimeType,
-            data: base64Content,
-          },
-        },
-        {
-          text: `${ANALYSIS_PROMPT}\n\nNom du fichier: ${fileName}\nType MIME: ${mimeType}`,
-        },
-      ],
-    }],
+    contents: [{ role: "user", parts: contentParts }],
     config: { maxOutputTokens: 16384, responseMimeType: "application/json" },
   });
 

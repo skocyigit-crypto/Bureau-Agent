@@ -109,13 +109,24 @@ export default function DocumentAiPage() {
     const supportedTypes = [
       "application/pdf",
       "image/png", "image/jpeg", "image/webp", "image/gif", "image/bmp", "image/tiff",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-excel",
+      "text/csv",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/msword",
+      "text/plain",
+      "application/rtf",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "application/vnd.ms-powerpoint",
     ];
-    if (!supportedTypes.includes(file.type)) {
-      toast({ title: "Format non supporte", description: "Formats acceptes: PDF, PNG, JPEG, WebP, GIF, BMP, TIFF", variant: "destructive" });
+    const ext = file.name.toLowerCase().match(/\.[^.]+$/)?.[0] || "";
+    const knownExts = [".pdf",".png",".jpg",".jpeg",".webp",".gif",".bmp",".tiff",".xlsx",".xls",".csv",".docx",".doc",".txt",".rtf",".pptx",".ppt"];
+    if (!supportedTypes.includes(file.type) && !knownExts.includes(ext)) {
+      toast({ title: "Format non supporte", description: "Formats acceptes: PDF, Excel, Word, CSV, images, PowerPoint, texte", variant: "destructive" });
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      toast({ title: "Fichier trop volumineux", description: "Taille maximale: 10 Mo", variant: "destructive" });
+    if (file.size > 25 * 1024 * 1024) {
+      toast({ title: "Fichier trop volumineux", description: "Taille maximale: 25 Mo", variant: "destructive" });
       return;
     }
     setSelectedFile(file);
@@ -286,7 +297,7 @@ export default function DocumentAiPage() {
                   ref={fileInputRef}
                   type="file"
                   className="hidden"
-                  accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tiff"
+                  accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tiff,.xlsx,.xls,.csv,.docx,.doc,.txt,.rtf,.pptx,.ppt"
                   onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
                 />
 
@@ -298,7 +309,7 @@ export default function DocumentAiPage() {
                     <div>
                       <h3 className="text-lg font-semibold">Deposez votre document ici</h3>
                       <p className="text-muted-foreground text-sm mt-1">
-                        PDF, images (PNG, JPEG, WebP) — max 10 Mo
+                        PDF, Excel, Word, CSV, images — max 25 Mo
                       </p>
                     </div>
                     <Button

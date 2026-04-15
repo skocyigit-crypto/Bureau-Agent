@@ -44,6 +44,7 @@ import faceRecognitionRouter from "./face-recognition";
 import telephonyRouter, { telephonyWebhookRouter } from "./telephony";
 import voiceCommandRouter from "./voice-command";
 import invitationsRouter from "./invitations";
+import documentsRouter from "./documents";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -97,5 +98,6 @@ router.use("/face", faceRecognitionRouter);
 router.use(telephonyRouter);
 router.use(voiceCommandRouter);
 router.use(invitationsRouter);
+router.use(documentsRouter);
 
 export default router;

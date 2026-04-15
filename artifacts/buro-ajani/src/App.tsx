@@ -39,6 +39,7 @@ import OrganisationsPage from "@/pages/organisations";
 import NotificationsPage from "@/pages/notifications";
 import GoogleWorkspacePage from "@/pages/google-workspace";
 import DocumentAiPage from "@/pages/document-ai";
+import DocumentsPage from "@/pages/documents";
 import AbonnementPage from "@/pages/abonnement";
 import { useLicenseCheck } from "@/hooks/use-license-check";
 import { CommandPalette } from "@/components/command-palette";
@@ -130,6 +131,7 @@ function AppRoutes() {
         <Route path="/performance" component={withLicenseGate(PerformancePage)} />
         <Route path="/google-workspace" component={withLicenseGate(GoogleWorkspacePage)} />
         <Route path="/document-ia" component={withLicenseGate(DocumentAiPage)} />
+        <Route path="/documents" component={withLicenseGate(DocumentsPage)} />
         <Route path="/abonnement" component={AbonnementPage} />
         <Route path="/organisations" component={OrganisationsPage} />
         <Route path="/parametres" component={SettingsPage} />

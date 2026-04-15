@@ -14,21 +14,59 @@ const SUPPORTED_MIME_TYPES = [
   "image/gif",
   "image/bmp",
   "image/tiff",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+  "text/csv",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/msword",
+  "text/plain",
+  "application/rtf",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.ms-powerpoint",
 ];
 
-const MAX_FILE_SIZE_MB = 10;
+const EXTENSION_MIME_MAP: Record<string, string> = {
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".xls": "application/vnd.ms-excel",
+  ".csv": "text/csv",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".doc": "application/msword",
+  ".pdf": "application/pdf",
+  ".txt": "text/plain",
+  ".rtf": "application/rtf",
+  ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ".ppt": "application/vnd.ms-powerpoint",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".bmp": "image/bmp",
+  ".tiff": "image/tiff",
+};
+
+const MAX_FILE_SIZE_MB = 25;
+
+function resolveMimeType(fileName: string, providedMime: string): string {
+  if (SUPPORTED_MIME_TYPES.includes(providedMime)) return providedMime;
+  const ext = fileName.toLowerCase().match(/\.[^.]+$/)?.[0] || "";
+  return EXTENSION_MIME_MAP[ext] || providedMime;
+}
 
 router.post("/document-ai/analyze", async (req, res): Promise<void> => {
-  const { fileContent, mimeType, fileName } = req.body;
+  const { fileContent, mimeType: rawMimeType, fileName } = req.body;
 
-  if (!fileContent || !mimeType || !fileName) {
-    res.status(400).json({ error: "fileContent, mimeType et fileName sont requis." });
+  if (!fileContent || !fileName) {
+    res.status(400).json({ error: "fileContent et fileName sont requis." });
     return;
   }
 
+  const mimeType = resolveMimeType(fileName, rawMimeType || "application/octet-stream");
+
   if (!SUPPORTED_MIME_TYPES.includes(mimeType)) {
     res.status(400).json({
-      error: `Type de fichier non supporte: ${mimeType}. Types acceptes: PDF, PNG, JPEG, WebP, GIF, BMP, TIFF.`,
+      error: `Type de fichier non supporte: ${mimeType}. Types acceptes: PDF, images, Excel, CSV, Word, PowerPoint, texte.`,
+      supportedTypes: Object.keys(EXTENSION_MIME_MAP).join(", "),
     });
     return;
   }
@@ -58,6 +96,7 @@ router.post("/document-ai/analyze", async (req, res): Promise<void> => {
     logger.info({
       orgId,
       fileName,
+      mimeType,
       documentType: result.documentType,
       confidence: result.confidence,
       destination: result.destination,

@@ -6,6 +6,7 @@ import { fr } from "date-fns/locale";
 import { useState } from "react";
 import { Phone, Mail, Building, MapPin, Calendar, Clock, Edit, FileText, Plus, PhoneCall, ArrowLeft, MoreHorizontal, Voicemail, PhoneMissed, CheckSquare, AlertCircle, Send } from "lucide-react";
 import { EmailComposer } from "@/components/email-composer";
+import { DocumentsPanel } from "@/components/file-upload";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -276,6 +277,8 @@ export default function ContactDetail() {
               </div>
             </CardContent>
           </Card>
+
+          <DocumentsPanel entityType="contact" entityId={contact.id} />
         </div>
 
         <div className="md:col-span-2">
