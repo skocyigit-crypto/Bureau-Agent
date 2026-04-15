@@ -177,7 +177,8 @@ export default function Tasks() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
         toast({ title: "Statut mis a jour" });
-      }
+      },
+      onError: () => toast({ title: "Erreur", description: "Impossible de changer le statut", variant: "destructive" }),
     });
   };
 

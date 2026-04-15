@@ -86,7 +86,8 @@ export default function Messages() {
         queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() });
         queryClient.invalidateQueries({ queryKey: ["dashboardSummary"] });
         queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      }
+      },
+      onError: () => toast({ title: "Erreur", description: "Impossible de modifier le statut du message", variant: "destructive" }),
     });
   };
 
