@@ -126,7 +126,8 @@ export default function Calls() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() });
         toast({ title: "Statut mis a jour" });
-      }
+      },
+      onError: () => toast({ title: "Erreur", description: "Impossible de changer le statut de l'appel", variant: "destructive" }),
     });
   };
 

@@ -63,7 +63,6 @@ export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("tous");
   const [showAddUser, setShowAddUser] = useState(false);
-  const [showEditUser, setShowEditUser] = useState(false);
   const [showRoleChange, setShowRoleChange] = useState(false);
   const [selectedUser, setSelectedUser] = useState<ApiUser | null>(null);
   const [saving, setSaving] = useState(false);
@@ -108,8 +107,10 @@ export default function UsersPage() {
       if (res.ok) {
         const data = await res.json();
         setInvitations(data.invitations || []);
+      } else {
+        toast({ title: "Erreur", description: "Impossible de charger les invitations", variant: "destructive" });
       }
-    } catch { }
+    } catch { toast({ title: "Erreur", description: "Erreur reseau lors du chargement des invitations", variant: "destructive" }); }
     finally { setLoadingInvites(false); }
   }, []);
 

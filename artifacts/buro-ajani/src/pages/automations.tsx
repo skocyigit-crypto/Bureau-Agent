@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
 import {
   Zap, PlayCircle, PauseCircle, Clock, CheckCircle, AlertTriangle, Activity,
   BarChart3, RefreshCw, Settings2, Bot, CalendarClock, Mail, Phone, Users,
@@ -28,6 +29,7 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 export default function AutomationsPage() {
+  const { toast } = useToast();
   const [rules, setRules] = useState<any[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
@@ -43,13 +45,20 @@ export default function AutomationsPage() {
       if (rulesRes.ok) {
         const data = await rulesRes.json();
         setRules(data.rules);
+      } else {
+        toast({ title: "Erreur", description: "Impossible de charger les regles", variant: "destructive" });
       }
       if (logsRes.ok) {
         const data = await logsRes.json();
         setLogs(data.logs);
         setStats(data.stats);
+      } else {
+        toast({ title: "Erreur", description: "Impossible de charger les journaux", variant: "destructive" });
       }
-    } catch (err) { console.warn("[Automations] fetch failed:", err); } finally {
+    } catch (err) {
+      console.warn("[Automations] fetch failed:", err);
+      toast({ title: "Erreur", description: "Impossible de charger les automatisations", variant: "destructive" });
+    } finally {
       setLoading(false);
     }
   }

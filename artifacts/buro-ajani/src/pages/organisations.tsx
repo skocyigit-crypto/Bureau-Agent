@@ -240,8 +240,13 @@ export default function OrganisationsPage() {
       const res = await fetch(`${BASE}api/billing/summary`, { credentials: "include" });
       if (res.ok) {
         setBillingSummary(await res.json());
+      } else {
+        toast({ title: "Erreur", description: "Impossible de charger le resume de facturation", variant: "destructive" });
       }
-    } catch (err) { console.warn("[Organisations] loadBillingSummary failed:", err); }
+    } catch (err) {
+      console.warn("[Organisations] loadBillingSummary failed:", err);
+      toast({ title: "Erreur", description: "Erreur reseau lors du chargement de la facturation", variant: "destructive" });
+    }
   }, []);
 
   const loadLegalCompliance = useCallback(async () => {
@@ -252,8 +257,13 @@ export default function OrganisationsPage() {
         const data = await res.json();
         setLegalCompliance(data.compliance || []);
         setLegalSummary(data.summary || null);
+      } else {
+        toast({ title: "Erreur", description: "Impossible de charger la conformite juridique", variant: "destructive" });
       }
-    } catch (err) { console.warn("[Organisations] loadLegalCompliance failed:", err); } finally {
+    } catch (err) {
+      console.warn("[Organisations] loadLegalCompliance failed:", err);
+      toast({ title: "Erreur", description: "Erreur reseau lors du chargement juridique", variant: "destructive" });
+    } finally {
       setLegalLoading(false);
     }
   }, []);
