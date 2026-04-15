@@ -55,12 +55,6 @@ type Step = "upload" | "processing" | "review" | "importing" | "done";
 const MODULE_LABELS: Record<string, string> = {
   contacts: "Contacts",
   taches: "Taches",
-  messages: "Messages",
-  factures: "Factures",
-  devis: "Devis",
-  prospects: "Prospects",
-  stock: "Stock",
-  projets: "Projets",
   aucun: "Aucun",
 };
 
