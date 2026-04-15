@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -110,6 +111,7 @@ function ContactAutocomplete({
     queryKey: ["contacts-search", search],
     queryFn: async () => {
       const res = await fetch(`${baseUrl}/api/contacts?search=${encodeURIComponent(search)}&limit=8`, { credentials: "include" });
+      if (!res.ok) throw new Error("Erreur recherche contacts");
       return res.json();
     },
     enabled: search.length >= 1,
@@ -582,6 +584,7 @@ function EventDetailDialog({
 
 export default function CalendarPage() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [view, setView] = useState<"mois" | "semaine" | "jour">("semaine");
@@ -598,13 +601,18 @@ export default function CalendarPage() {
   const startRange = new Date(year, month - 1, 1).toISOString();
   const endRange = new Date(year, month + 2, 0).toISOString();
 
-  const { data } = useQuery({
+  const { data, isError } = useQuery({
     queryKey: ["calendar-events", startRange, endRange],
     queryFn: async () => {
       const res = await fetch(`${baseUrl}/api/calendar/events?start=${startRange}&end=${endRange}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Erreur chargement calendrier");
       return res.json();
     },
   });
+
+  useEffect(() => {
+    if (isError) toast({ title: "Erreur", description: "Impossible de charger les evenements", variant: "destructive" });
+  }, [isError]);
 
   const createMutation = useMutation({
     mutationFn: async (eventData: any) => {
@@ -612,13 +620,16 @@ export default function CalendarPage() {
         method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify(eventData),
       });
+      if (!res.ok) throw new Error("Erreur creation");
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
       setShowEventForm(false);
       setEditingEvent(null);
+      toast({ title: "Evenement cree" });
     },
+    onError: () => toast({ title: "Erreur", description: "Impossible de creer l'evenement", variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
@@ -627,24 +638,30 @@ export default function CalendarPage() {
         method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify(data),
       });
+      if (!res.ok) throw new Error("Erreur mise a jour");
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
       setShowEventForm(false);
       setEditingEvent(null);
+      toast({ title: "Evenement mis a jour" });
     },
+    onError: () => toast({ title: "Erreur", description: "Impossible de modifier l'evenement", variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      await fetch(`${baseUrl}/api/calendar/events/${id}`, { method: "DELETE", credentials: "include" });
+      const res = await fetch(`${baseUrl}/api/calendar/events/${id}`, { method: "DELETE", credentials: "include" });
+      if (!res.ok) throw new Error("Erreur suppression");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
       setShowEventDetail(false);
       setViewingEvent(null);
+      toast({ title: "Evenement supprime" });
     },
+    onError: () => toast({ title: "Erreur", description: "Impossible de supprimer l'evenement", variant: "destructive" }),
   });
 
   const allEvents = useMemo(() => {

@@ -179,6 +179,7 @@ export default function CheckinsPage() {
         toast({ title: "Depart enregistre", description: "Bonne fin de journee !" });
         invalidateAll();
       },
+      onError: () => toast({ title: "Erreur", description: "Impossible d'enregistrer le depart", variant: "destructive" }),
     });
   };
 
@@ -192,6 +193,7 @@ export default function CheckinsPage() {
         toast({ title: "Pause commencee", description: "Votre session est en pause" });
         invalidateAll();
       },
+      onError: () => toast({ title: "Erreur", description: "Impossible de mettre en pause", variant: "destructive" }),
     });
   };
 
@@ -206,6 +208,7 @@ export default function CheckinsPage() {
         toast({ title: "Reprise", description: "Votre session est active" });
         invalidateAll();
       },
+      onError: () => toast({ title: "Erreur", description: "Impossible de reprendre la session", variant: "destructive" }),
     });
   };
 
@@ -215,6 +218,7 @@ export default function CheckinsPage() {
         toast({ title: "Pointage supprime" });
         invalidateAll();
       },
+      onError: () => toast({ title: "Erreur", description: "Impossible de supprimer le pointage", variant: "destructive" }),
     });
   };
 

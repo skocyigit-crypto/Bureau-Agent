@@ -79,6 +79,7 @@ export default function Analytics() {
       const resp = await fetch(`${apiBase}/ai/analyze`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ period }),
       });
       if (!resp.ok) throw new Error(`Erreur ${resp.status}`);
