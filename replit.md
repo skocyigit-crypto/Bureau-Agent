@@ -61,8 +61,9 @@ The application features a French UI with a deep navy and warm amber color schem
 - **Invoice Multi-Currency & Late Fees:** Currency conversion for 8 currencies and automatic late fee calculation per French law.
 - **Predictive Analytics Dashboard:** Linear regression-based forecasting for calls, tasks, contacts, and revenue, with 5-week trend charts and AI-generated insights.
 - **Notification Preferences Persistence:** Settings notification tab uses localStorage with `agent-bureau-notif-prefs` key. All 6 toggle switches are state-managed with a save button.
-- **Comprehensive Error Handling:** All mutations across calendar, checkins, messages, and tasks pages have `onError` toast handlers. Calendar queries surface load failures. ContactAutocomplete and calendar fetch calls have `res.ok` guards.
+- **Comprehensive Error Handling:** Full error handling across all frontend pages and components — every mutation has `onError` toast handlers, all manual fetch calls have `try/catch` + `!res.ok` guards, no empty catch blocks remain (except intentional browser API fallbacks), all `console.warn` upgraded to `console.error` for proper error logging. Backend: all catch blocks in ai-commandant, ai-agents, workspace, and services have logging. JSON parse fallbacks log warnings.
 - **API Client Cookie Auth:** `lib/api-client-react/src/custom-fetch.ts` defaults to `credentials: "include"` so all generated hooks send session cookies automatically.
+- **Bulk Operations Authorization:** All bulk operations (`/bulk/*` and `/export/*`) require role-based access control — delete operations require `administrateur` or higher, update operations require `operateur` or higher, data export requires `administrateur` or higher.
 
 # External Dependencies
 

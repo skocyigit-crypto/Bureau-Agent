@@ -2,10 +2,14 @@ import { Router, type Request, type Response } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, prospectsTable } from "@workspace/db";
 import { eq, sql, and, inArray } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
+import { requireRole } from "../middleware/auth";
 
 const router = Router();
 
-router.post("/bulk/tasks/complete", async (req: Request, res: Response): Promise<void> => {
+const requireMinOperateur = requireRole("super_admin", "administrateur", "operateur");
+const requireMinAdmin = requireRole("super_admin", "administrateur");
+
+router.post("/bulk/tasks/complete", requireMinOperateur, async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
     const { ids } = req.body;
@@ -21,7 +25,7 @@ router.post("/bulk/tasks/complete", async (req: Request, res: Response): Promise
   }
 });
 
-router.post("/bulk/tasks/delete", async (req: Request, res: Response): Promise<void> => {
+router.post("/bulk/tasks/delete", requireMinAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
     const { ids } = req.body;
@@ -34,7 +38,7 @@ router.post("/bulk/tasks/delete", async (req: Request, res: Response): Promise<v
   }
 });
 
-router.post("/bulk/tasks/assign", async (req: Request, res: Response): Promise<void> => {
+router.post("/bulk/tasks/assign", requireMinOperateur, async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
     const { ids, assignedTo } = req.body;
@@ -50,7 +54,7 @@ router.post("/bulk/tasks/assign", async (req: Request, res: Response): Promise<v
   }
 });
 
-router.post("/bulk/tasks/priority", async (req: Request, res: Response): Promise<void> => {
+router.post("/bulk/tasks/priority", requireMinOperateur, async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
     const { ids, priority } = req.body;
@@ -67,7 +71,7 @@ router.post("/bulk/tasks/priority", async (req: Request, res: Response): Promise
   }
 });
 
-router.post("/bulk/contacts/delete", async (req: Request, res: Response): Promise<void> => {
+router.post("/bulk/contacts/delete", requireMinAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
     const { ids } = req.body;
@@ -80,7 +84,7 @@ router.post("/bulk/contacts/delete", async (req: Request, res: Response): Promis
   }
 });
 
-router.post("/bulk/contacts/category", async (req: Request, res: Response): Promise<void> => {
+router.post("/bulk/contacts/category", requireMinOperateur, async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
     const { ids, category } = req.body;
@@ -96,7 +100,7 @@ router.post("/bulk/contacts/category", async (req: Request, res: Response): Prom
   }
 });
 
-router.post("/bulk/messages/read", async (req: Request, res: Response): Promise<void> => {
+router.post("/bulk/messages/read", requireMinOperateur, async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
     const { ids } = req.body;
@@ -112,7 +116,7 @@ router.post("/bulk/messages/read", async (req: Request, res: Response): Promise<
   }
 });
 
-router.post("/bulk/prospects/stage", async (req: Request, res: Response): Promise<void> => {
+router.post("/bulk/prospects/stage", requireMinOperateur, async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
     const { ids, stage } = req.body;
@@ -128,7 +132,7 @@ router.post("/bulk/prospects/stage", async (req: Request, res: Response): Promis
   }
 });
 
-router.get("/export/:entity", async (req: Request, res: Response): Promise<void> => {
+router.get("/export/:entity", requireMinAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
     const entity = String(req.params.entity);
