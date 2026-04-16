@@ -93,7 +93,8 @@ async function cleanupOldBackups() {
     await db.delete(autoBackupsTable).where(
       sql`${autoBackupsTable.createdAt} < ${cutoff}`
     );
-  } catch {
+  } catch (e) {
+    console.error("[AutoBackup] cleanup failed:", e);
   }
 }
 

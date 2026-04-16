@@ -692,7 +692,7 @@ Reponds en JSON:
         const cleaned = aiInsights.replace(/[\x00-\x1F]/g, " ").trim();
         const lastBrace = cleaned.lastIndexOf("}");
         if (lastBrace > 0) {
-          try { parsedAiInsights = JSON.parse(cleaned.substring(0, lastBrace + 1)); } catch { /* ignore */ }
+          try { parsedAiInsights = JSON.parse(cleaned.substring(0, lastBrace + 1)); } catch (pe) { console.warn("[Integrations] AI insights JSON fallback parse failed:", pe); }
         }
       }
     }

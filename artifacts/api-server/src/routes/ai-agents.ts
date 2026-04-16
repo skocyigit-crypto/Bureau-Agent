@@ -1852,7 +1852,7 @@ router.post("/ai/agents/auto-fix", requireAdmin, async (req, res): Promise<void>
       if (zeroQuantityFixed > 0) {
         fixes.push({ type: "negative_stock_fixed", description: "Quantites de stock negatives corrigees a zero", count: zeroQuantityFixed, details: `${zeroQuantityFixed} articles avaient des quantites negatives` });
       }
-    } catch { /* stock table might not exist */ }
+    } catch (e) { console.warn("[AIAgents] stock auto-fix skipped:", (e as Error).message); }
 
     await db.insert(auditLogsTable).values({
       userId: userId,

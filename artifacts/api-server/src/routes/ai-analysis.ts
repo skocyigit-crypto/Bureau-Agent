@@ -1793,7 +1793,7 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
       ]);
       stockData = lowStockItems;
       if ((stockStats[0]?.outOfStock ?? 0) > 0) anomalies.push(`${stockStats[0]?.outOfStock} articles en rupture de stock!`);
-    } catch { /* stock table may not be available */ }
+    } catch (e) { console.warn("[AIAnalysis] stock data unavailable:", (e as Error).message); }
 
     let calendarData: any[] = [];
     let projectsData: any[] = [];
@@ -1814,7 +1814,7 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
       projectsData = activeProjects;
       prospectsData = activeProspects;
       if ((projectStats[0]?.overBudget ?? 0) > 0) anomalies.push(`${projectStats[0]?.overBudget} projets depassent leur budget!`);
-    } catch { /* tables may not be available */ }
+    } catch (e) { console.warn("[AIAnalysis] calendar/projects/prospects data unavailable:", (e as Error).message); }
 
     let financialData: any = {};
     let invoicesData: any[] = [];
@@ -1857,7 +1857,7 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
       if ((accountStats[0]?.critical ?? 0) > 0) anomalies.push(`${accountStats[0]?.critical} comptes clients CRITIQUES necessitent une action immediate!`);
       if ((accountStats[0]?.blocked ?? 0) > 0) anomalies.push(`${accountStats[0]?.blocked} comptes clients BLOQUES — depassement de limite de credit!`);
       if (Number(accountStats[0]?.totalOverdue ?? 0) > 10000) anomalies.push(`Montant total en retard: ${Number(accountStats[0]?.totalOverdue ?? 0).toLocaleString("fr-FR")}€ — CRITIQUE!`);
-    } catch { /* financial tables may not be available */ }
+    } catch (e) { console.warn("[AIAnalysis] financial data unavailable:", (e as Error).message); }
 
     const missedRate = (callStats[0]?.total ?? 0) > 0 ? Math.round(((callStats[0]?.missed ?? 0) / (callStats[0]?.total ?? 1)) * 100) : 0;
     if (missedRate > 30) anomalies.push(`Taux d'appels manques critique: ${missedRate}%`);

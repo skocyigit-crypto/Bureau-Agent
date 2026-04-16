@@ -817,7 +817,7 @@ async function checkDuplicatesInDb(
           duplicates.push({ rowIndex: row.rowIndex, existing: { id: match.id, name: `${match.firstName || ""} ${match.lastName || ""}`.trim() } });
         }
       }
-    } catch { /* ignore */ }
+    } catch (e) { console.warn("[DocumentAI] duplicate check failed:", (e as Error).message); }
   }
 
   return duplicates;
