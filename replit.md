@@ -64,6 +64,10 @@ The application features a French UI with a deep navy and warm amber color schem
 - **Comprehensive Error Handling:** Full error handling across all frontend pages and components — every mutation has `onError` toast handlers, all manual fetch calls have `try/catch` + `!res.ok` guards, no empty catch blocks remain (except intentional browser API fallbacks), all `console.warn` upgraded to `console.error` for proper error logging. Backend: all catch blocks in ai-commandant, ai-agents, workspace, and services have logging. JSON parse fallbacks log warnings.
 - **API Client Cookie Auth:** `lib/api-client-react/src/custom-fetch.ts` defaults to `credentials: "include"` so all generated hooks send session cookies automatically.
 - **Bulk Operations Authorization:** All bulk operations (`/bulk/*` and `/export/*`) require role-based access control — delete operations require `administrateur` or higher, update operations require `operateur` or higher, data export requires `administrateur` or higher.
+- **Platform Connections Atomicity:** `platform_connections` table has unique index on `(platform, service_id)`. Connect/disconnect routes use atomic upsert (`onConflictDoUpdate`) instead of read-then-write to prevent race conditions and duplicate records.
+- **Dashboard Memory Leak Prevention:** `useTeamStatus` and `useWeekComparison` hooks use `AbortController` + `mounted` flag to prevent state updates on unmounted components.
+- **Search Term Sanitization:** Global search sanitizes LIKE wildcards (`%`, `_`, `\`) to prevent wide pattern matching attacks.
+- **Query Parameter Validation:** `admin-reports` status/category/priority fields validated against whitelists; search terms sanitized.
 
 # External Dependencies
 

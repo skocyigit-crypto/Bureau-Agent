@@ -37,14 +37,24 @@ function useLiveClock() {
 function useTeamStatus() {
   const [team, setTeam] = useState<{ id: number; name: string; role: string; status: string; lastSeen: string }[]>([]);
   const [error, setError] = useState(false);
-  const fetchTeam = useCallback(async () => {
-    try {
-      const res = await fetch(`${API}/api/team-status`, { credentials: "include" });
-      if (res.ok) { const d = await res.json(); setTeam(d.members || []); setError(false); }
-      else { console.error("[Dashboard] team-status HTTP error:", res.status); setError(true); }
-    } catch (err) { console.error("[Dashboard] team-status fetch failed:", err); setError(true); }
+  useEffect(() => {
+    let mounted = true;
+    const controller = new AbortController();
+    const fetchTeam = async () => {
+      try {
+        const res = await fetch(`${API}/api/team-status`, { credentials: "include", signal: controller.signal });
+        if (!mounted) return;
+        if (res.ok) { const d = await res.json(); setTeam(d.members || []); setError(false); }
+        else { console.error("[Dashboard] team-status HTTP error:", res.status); setError(true); }
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+        if (mounted) { console.error("[Dashboard] team-status fetch failed:", err); setError(true); }
+      }
+    };
+    fetchTeam();
+    const t = setInterval(fetchTeam, 30000);
+    return () => { mounted = false; controller.abort(); clearInterval(t); };
   }, []);
-  useEffect(() => { fetchTeam(); const t = setInterval(fetchTeam, 30000); return () => clearInterval(t); }, [fetchTeam]);
   return { team, error };
 }
 
@@ -52,13 +62,20 @@ function useWeekComparison() {
   const [data, setData] = useState<{ day: string; thisWeek: number; lastWeek: number }[]>([]);
   const [error, setError] = useState(false);
   useEffect(() => {
+    let mounted = true;
+    const controller = new AbortController();
     (async () => {
       try {
-        const res = await fetch(`${API}/api/dashboard/week-comparison`, { credentials: "include" });
+        const res = await fetch(`${API}/api/dashboard/week-comparison`, { credentials: "include", signal: controller.signal });
+        if (!mounted) return;
         if (res.ok) { const d = await res.json(); setData(d.comparison || []); setError(false); }
         else { console.error("[Dashboard] week-comparison HTTP error:", res.status); setError(true); }
-      } catch (err) { console.error("[Dashboard] week-comparison fetch failed:", err); setError(true); }
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+        if (mounted) { console.error("[Dashboard] week-comparison fetch failed:", err); setError(true); }
+      }
     })();
+    return () => { mounted = false; controller.abort(); };
   }, []);
   return { data, error };
 }

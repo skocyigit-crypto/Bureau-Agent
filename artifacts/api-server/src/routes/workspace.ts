@@ -152,24 +152,18 @@ router.post("/connect/:platform/:serviceId", async (req, res): Promise<void> => 
     const service = platformServices.find(s => s.id === serviceId);
     if (!service) { res.status(404).json({ error: "Service inconnu." }); return; }
 
-    const existing = await db.select().from(platformConnectionsTable)
-      .where(and(eq(platformConnectionsTable.platform, platform), eq(platformConnectionsTable.serviceId, serviceId)));
-
     const now = new Date();
-    if (existing.length > 0) {
-      await db.update(platformConnectionsTable)
-        .set({ status: "connecte", connectedAt: now, lastSync: now, updatedAt: now })
-        .where(and(eq(platformConnectionsTable.platform, platform), eq(platformConnectionsTable.serviceId, serviceId)));
-    } else {
-      await db.insert(platformConnectionsTable).values({
-        platform,
-        serviceId,
-        serviceName: service.name,
-        status: "connecte",
-        connectedAt: now,
-        lastSync: now,
-      });
-    }
+    await db.insert(platformConnectionsTable).values({
+      platform,
+      serviceId,
+      serviceName: service.name,
+      status: "connecte",
+      connectedAt: now,
+      lastSync: now,
+    }).onConflictDoUpdate({
+      target: [platformConnectionsTable.platform, platformConnectionsTable.serviceId],
+      set: { status: "connecte", connectedAt: now, lastSync: now, updatedAt: now },
+    });
 
     await db.insert(platformSyncLogsTable).values({
       platform,
@@ -225,20 +219,14 @@ router.post("/connect-all/:platform", async (req, res): Promise<void> => {
     if (!platformServices) { res.status(404).json({ error: "Plateforme inconnue." }); return; }
 
     const now = new Date();
-    const existing = await db.select().from(platformConnectionsTable).where(eq(platformConnectionsTable.platform, platform));
-    const existingIds = new Set(existing.map(e => e.serviceId));
-
     for (const svc of platformServices) {
-      if (existingIds.has(svc.id)) {
-        await db.update(platformConnectionsTable)
-          .set({ status: "connecte", connectedAt: now, lastSync: now, updatedAt: now })
-          .where(and(eq(platformConnectionsTable.platform, platform), eq(platformConnectionsTable.serviceId, svc.id)));
-      } else {
-        await db.insert(platformConnectionsTable).values({
-          platform, serviceId: svc.id, serviceName: svc.name,
-          status: "connecte", connectedAt: now, lastSync: now,
-        });
-      }
+      await db.insert(platformConnectionsTable).values({
+        platform, serviceId: svc.id, serviceName: svc.name,
+        status: "connecte", connectedAt: now, lastSync: now,
+      }).onConflictDoUpdate({
+        target: [platformConnectionsTable.platform, platformConnectionsTable.serviceId],
+        set: { status: "connecte", connectedAt: now, lastSync: now, updatedAt: now },
+      });
     }
 
     await db.insert(platformSyncLogsTable).values({
