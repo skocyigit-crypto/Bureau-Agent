@@ -126,7 +126,7 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
       };
       setMessages(prev => [...prev, assistantMessage]);
     } catch (err) {
-      console.warn("AI Chat error:", err);
+      console.error("[AIAssistant] chat error:", err);
       setMessages(prev => [...prev, {
         role: "assistant",
         content: "Desole, une erreur s'est produite. Veuillez reessayer.",
@@ -199,7 +199,7 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
 
       toast({ title: action.label, description: action.details || "Action non reconnue." });
     } catch (err) {
-      console.warn("Action error:", err);
+      console.error("[AIAssistant] action error:", err);
       toast({ title: "Erreur", description: "Impossible d'executer cette action.", variant: "destructive" });
     } finally {
       setExecutingAction(null);

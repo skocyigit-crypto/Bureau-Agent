@@ -484,7 +484,7 @@ export default function AiAgentsPage() {
       });
       invalidateAgentQueries();
     } catch (err) {
-      console.warn("Auto-fix error:", err);
+      console.error("[AIAgents] Auto-fix error:", err);
       toast({ title: "Erreur", description: "Impossible d'appliquer les corrections.", variant: "destructive" });
     } finally {
       setAutoFixLoading(false);
@@ -499,7 +499,7 @@ export default function AiAgentsPage() {
       const data = await res.json();
       setPredictions(data);
     } catch (err) {
-      console.warn("Predictions error:", err);
+      console.error("[AIAgents] Predictions error:", err);
       toast({ title: "Erreur", description: "Impossible de charger les predictions.", variant: "destructive" });
     } finally {
       setPredictionsLoading(false);

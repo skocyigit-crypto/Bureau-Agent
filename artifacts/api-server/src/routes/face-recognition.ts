@@ -85,7 +85,7 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
            Reponds en JSON: { "description": "...", "estimatedAge": "...", "distinctiveFeatures": [...], "professionalAppearance": "..." }`,
           "Tu es un assistant de securite de bureau professionnel. Tu analyses les profils pour aider a l'identification."
         );
-      } catch (e) {}
+      } catch (e) { console.error("[FaceRecognition] AI profile generation failed:", e); }
     }
 
     const [profile] = await db.insert(faceProfilesTable).values({

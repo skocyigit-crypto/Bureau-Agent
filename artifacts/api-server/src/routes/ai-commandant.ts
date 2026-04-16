@@ -168,7 +168,7 @@ Genere un JSON avec:
     try {
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
       parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { greeting: aiResponse, suggestedResponses: [], recommendedActions: [] };
-    } catch { parsed = { greeting: aiResponse, suggestedResponses: [], recommendedActions: [] }; }
+    } catch (pe) { console.warn("[Commandant] JSON parse fallback:", pe); parsed = { greeting: aiResponse, suggestedResponses: [], recommendedActions: [] }; }
 
     const activeAgents = Object.entries(agentInsights).map(([id, insight]) => ({ id, score: insight.score, summary: insight.summary?.slice(0, 80) }));
 
@@ -227,12 +227,12 @@ JSON attendu:
     try {
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
       parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { summary: aiResponse };
-    } catch { parsed = { summary: aiResponse }; }
+    } catch (pe) { console.warn("[Commandant/CallCompile] JSON parse fallback:", pe); parsed = { summary: aiResponse }; }
 
     if (callId) {
       try {
         await db.update(callsTable).set({ notes: parsed.summary, sentiment: parsed.sentiment, tags: parsed.topics || [] }).where(and(eq(callsTable.id, parseInt(String(callId))), eq(callsTable.organisationId, orgId)));
-      } catch {}
+      } catch (e) { console.error("[Commandant] call update failed:", e); }
     }
 
     const createdTasks: any[] = [];
@@ -244,7 +244,7 @@ JSON attendu:
             organisationId: orgId, title: `[Appel] ${task.title}`, description: task.description || parsed.summary, priority: task.priority || "moyenne", status: "en_attente", dueDate,
           }).returning();
           createdTasks.push(t);
-        } catch {}
+        } catch (e) { console.error("[Commandant/CallCompile] task insert failed:", e); }
       }
     }
 
@@ -258,7 +258,7 @@ JSON attendu:
             organisationId: orgId, title: `[Appel] ${appt.title}`, type: appt.type || "rendez_vous", startDate, endDate, status: "confirme",
           }).returning();
           createdEvents.push(e);
-        } catch {}
+        } catch (e) { console.error("[Commandant/CallCompile] event insert failed:", e); }
       }
     }
 
@@ -296,7 +296,7 @@ JSON attendu:
     try {
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
       parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { tasks: [], appointments: [], reminders: [], summary: aiResponse };
-    } catch { parsed = { tasks: [], appointments: [], reminders: [], summary: aiResponse }; }
+    } catch (pe) { console.warn("[Commandant/AutoCreate] JSON parse fallback:", pe); parsed = { tasks: [], appointments: [], reminders: [], summary: aiResponse }; }
 
     const createdTasks: any[] = [];
     for (const task of (parsed.tasks || [])) {
@@ -306,7 +306,7 @@ JSON attendu:
           organisationId: orgId, title: task.title, description: task.description, priority: task.priority || "moyenne", status: "en_attente", dueDate, relatedContactId: contactId || null,
         }).returning();
         createdTasks.push(t);
-      } catch {}
+      } catch (e) { console.error("[Commandant/AutoCreate] task insert failed:", e); }
     }
 
     const createdEvents: any[] = [];
@@ -318,14 +318,14 @@ JSON attendu:
           organisationId: orgId, title: appt.title, type: appt.type || "rendez_vous", startDate, endDate, status: "en_attente", relatedContactId: contactId || null,
         }).returning();
         createdEvents.push(e);
-      } catch {}
+      } catch (e) { console.error("[Commandant/AutoCreate] event insert failed:", e); }
     }
 
     const userId = (req.session as any)?.userId;
     for (const reminder of (parsed.reminders || [])) {
       try {
         await createNotification(orgId, userId, reminder.title, reminder.message, "rappel");
-      } catch {}
+      } catch (e) { console.error("[Commandant/AutoCreate] reminder failed:", e); }
     }
 
     res.json({ success: true, summary: parsed.summary, createdTasks, createdEvents, reminders: parsed.reminders?.length || 0 });
@@ -565,7 +565,7 @@ JSON attendu:
           organisationId: orgId, title: `[Reunion] ${action.title}`, description: `${action.description || ""}\nAssigne a: ${action.assignedTo || "Non assigne"}\nReunion: ${meetingTitle || ""}`, priority: action.priority || "moyenne", status: "en_attente", dueDate,
         }).returning();
         createdTasks.push(t);
-      } catch {}
+      } catch (e) { console.error("[Commandant/MeetingCompile] task insert failed:", e); }
     }
 
     const createdEvents: any[] = [];
@@ -578,7 +578,7 @@ JSON attendu:
           organisationId: orgId, title: appt.title, type: "reunion", startDate, endDate, status: "en_attente", description: `Participants: ${(appt.participants || []).join(", ")}`,
         }).returning();
         createdEvents.push(e);
-      } catch {}
+      } catch (e) { console.error("[Commandant/MeetingCompile] event insert failed:", e); }
     }
 
     const userId = (req.session as any)?.userId;
@@ -631,13 +631,13 @@ router.post("/commandant/photo-location", async (req: Request, res: Response): P
     if (linkedEntity === "contact" && linkedEntityId) {
       try {
         await db.update(contactsTable).set({ address }).where(and(eq(contactsTable.id, linkedEntityId), eq(contactsTable.organisationId, orgId)));
-      } catch {}
+      } catch (e) { console.error("[Commandant/Location] contact address update failed:", e); }
     }
     if (linkedEntity === "projet" && linkedEntityId) {
       try {
         const { projetsTable } = await import("@workspace/db");
         await db.update(projetsTable).set({ address }).where(and(eq(projetsTable.id, linkedEntityId), eq(projetsTable.organisationId, orgId)));
-      } catch {}
+      } catch (e) { console.error("[Commandant/Location] project address update failed:", e); }
     }
 
     res.json({ success: true, location: { address, latitude, longitude, mapUrl }, metadata });
@@ -961,7 +961,7 @@ Evenements: ${events.length}
 Factures: ${invoices.length}
 Prospects: ${prospects.length}
 Resume:`;
-      try { aiSummary = await multiAiGenerate(prompt); } catch {}
+      try { aiSummary = await multiAiGenerate(prompt); } catch (e) { console.error("[Commandant/Search] AI summary failed:", e); }
     }
 
     res.json({
@@ -1133,7 +1133,7 @@ router.get("/commandant/weekly-digest", async (req: Request, res: Response): Pro
     try {
       const collab = await import("./agent-collaboration");
       crossIssues = await collab.detectCrossAgentIssues(orgId);
-    } catch {}
+    } catch (e) { console.warn("[Commandant/Digest] cross-agent issues detection failed:", e); }
 
     const weekData = {
       taches: { terminees: tasksCompleted, creees: tasksCreated, enRetard: tasksOverdue, prevTerminees: prevTasksCompleted },

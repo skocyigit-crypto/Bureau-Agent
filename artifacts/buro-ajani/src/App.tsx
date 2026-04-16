@@ -263,7 +263,7 @@ function App() {
         method: "POST",
         credentials: "include",
       });
-    } catch (err) { console.warn("[App] logout request failed:", err); }
+    } catch (err) { console.error("[App] logout request failed:", err); }
     setCurrentUser(null);
     setAuthState("login");
     setSessionExpired(false);

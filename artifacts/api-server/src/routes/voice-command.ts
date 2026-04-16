@@ -7,7 +7,7 @@ let ai: any = null;
 try {
   const mod = require("@workspace/integrations-gemini-ai");
   ai = mod.ai;
-} catch {}
+} catch (e) { console.warn("[VoiceCommand] Gemini AI not available:", e); }
 
 const router: IRouter = Router();
 
