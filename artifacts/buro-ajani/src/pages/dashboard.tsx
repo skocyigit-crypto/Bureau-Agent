@@ -36,35 +36,39 @@ function useLiveClock() {
 
 function useTeamStatus() {
   const [team, setTeam] = useState<{ id: number; name: string; role: string; status: string; lastSeen: string }[]>([]);
+  const [error, setError] = useState(false);
   const fetchTeam = useCallback(async () => {
     try {
       const res = await fetch(`${API}/api/team-status`, { credentials: "include" });
-      if (res.ok) { const d = await res.json(); setTeam(d.members || []); }
-    } catch (err) { console.error("[Dashboard] team-status fetch failed:", err); }
+      if (res.ok) { const d = await res.json(); setTeam(d.members || []); setError(false); }
+      else { console.error("[Dashboard] team-status HTTP error:", res.status); setError(true); }
+    } catch (err) { console.error("[Dashboard] team-status fetch failed:", err); setError(true); }
   }, []);
   useEffect(() => { fetchTeam(); const t = setInterval(fetchTeam, 30000); return () => clearInterval(t); }, [fetchTeam]);
-  return team;
+  return { team, error };
 }
 
 function useWeekComparison() {
   const [data, setData] = useState<{ day: string; thisWeek: number; lastWeek: number }[]>([]);
+  const [error, setError] = useState(false);
   useEffect(() => {
     (async () => {
       try {
         const res = await fetch(`${API}/api/dashboard/week-comparison`, { credentials: "include" });
-        if (res.ok) { const d = await res.json(); setData(d.comparison || []); }
-      } catch (err) { console.error("[Dashboard] week-comparison fetch failed:", err); }
+        if (res.ok) { const d = await res.json(); setData(d.comparison || []); setError(false); }
+        else { console.error("[Dashboard] week-comparison HTTP error:", res.status); setError(true); }
+      } catch (err) { console.error("[Dashboard] week-comparison fetch failed:", err); setError(true); }
     })();
   }, []);
-  return data;
+  return { data, error };
 }
 
 export default function Dashboard() {
   const { user } = useWorkspaceUser();
   const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
   const now = useLiveClock();
-  const teamMembers = useTeamStatus();
-  const weekComparison = useWeekComparison();
+  const { team: teamMembers, error: teamError } = useTeamStatus();
+  const { data: weekComparison, error: weekCompError } = useWeekComparison();
   const { data: summary, isLoading: isLoadingSummary, error: summaryError } = useGetDashboardSummary({ query: { queryKey: ["dashboardSummary"] } });
   const { data: recentActivity, isLoading: isLoadingActivity, error: activityError } = useGetRecentActivity({ limit: 6 }, { query: { queryKey: ["recentActivity"] } });
   const { data: topContacts, isLoading: isLoadingContacts, error: contactsError } = useGetTopContacts({ limit: 5 }, { query: { queryKey: ["topContacts"] } });
@@ -214,7 +218,7 @@ export default function Dashboard() {
             ) : (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <UserCheck className="w-3.5 h-3.5" />
-                <span>Chargement de l'equipe...</span>
+                <span>{teamError ? "Erreur de chargement de l'equipe" : "Chargement de l'equipe..."}</span>
               </div>
             )}
           </CardContent>
@@ -233,7 +237,7 @@ export default function Dashboard() {
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="text-xs text-muted-foreground">Pas assez de donnees</div>
+              <div className="text-xs text-muted-foreground">{weekCompError ? "Erreur de chargement" : "Pas assez de donnees"}</div>
             )}
           </CardContent>
         </Card>

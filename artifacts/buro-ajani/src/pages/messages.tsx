@@ -111,14 +111,18 @@ export default function Messages() {
   const handleBulkMarkRead = async () => {
     if (selectedIds.size === 0) return;
     const ids = Array.from(selectedIds);
-    for (const id of ids) {
-      await new Promise<void>((resolve) => {
-        updateMessage.mutate({ id, data: { isRead: true } }, { onSuccess: () => resolve(), onError: () => resolve() });
-      });
-    }
+    let successCount = 0;
+    let failCount = 0;
+    await Promise.all(ids.map(id => new Promise<void>((resolve) => {
+      updateMessage.mutate({ id, data: { isRead: true } }, { onSuccess: () => { successCount++; resolve(); }, onError: () => { failCount++; resolve(); } });
+    })));
     setSelectedIds(new Set());
     queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() });
-    toast({ title: `${ids.length} message(s) marque(s) comme lu(s)` });
+    if (failCount > 0) {
+      toast({ title: `${successCount} marque(s) lu(s), ${failCount} echoue(s)`, variant: "destructive" });
+    } else {
+      toast({ title: `${ids.length} message(s) marque(s) comme lu(s)` });
+    }
   };
 
   const handleBulkDelete = async () => {
