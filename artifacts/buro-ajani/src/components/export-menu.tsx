@@ -3,6 +3,7 @@ import { Download, FileSpreadsheet, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useToast } from "@/hooks/use-toast";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -14,6 +15,7 @@ const ENTITIES = [
 ];
 
 export function ExportMenu() {
+  const { toast } = useToast();
   const [exporting, setExporting] = useState<string | null>(null);
 
   async function handleExport(entity: string) {
@@ -28,7 +30,9 @@ export function ExportMenu() {
       a.download = res.headers.get("content-disposition")?.match(/filename="(.+)"/)?.[1] || `${entity}.csv`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch (err) { console.warn("[ExportMenu] export failed:", err); } finally {
+    } catch (err) {
+      toast({ title: "Erreur d'export", description: "Impossible d'exporter les donnees.", variant: "destructive" });
+    } finally {
       setExporting(null);
     }
   }

@@ -243,7 +243,7 @@ export function TabPlateformes() {
         setGoogleOAuthConfigured(data.configured);
         setGoogleOAuthAuthenticated(data.authenticated && data.tokenValid);
       }
-    } catch (err) { console.warn("[Plateformes] operation failed:", err); }
+    } catch (err) { console.error("[Plateformes] Google OAuth status check failed:", err); }
   }, []);
 
   const fetchPlatforms = useCallback(async () => {

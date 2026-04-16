@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Phone, Plus, Settings, Trash2, Star, Check, MessageSquare, PhoneCall, PhoneOff, Send, RefreshCw, ExternalLink, Shield, Zap, Users, Clock, FileText, CalendarClock } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -51,6 +52,7 @@ interface SmsLog {
 }
 
 export default function TelephonyPage() {
+  const { toast } = useToast();
   const [tab, setTab] = useState<"providers" | "call" | "sms" | "bulk" | "schedule" | "logs" | "stats">("providers");
   const [bulkNumbers, setBulkNumbers] = useState("");
   const [bulkBody, setBulkBody] = useState("");
@@ -87,19 +89,27 @@ export default function TelephonyPage() {
       if (avRes.ok) { const d = await avRes.json(); setAvailableProviders(d.providers || []); }
       if (confRes.ok) { const d = await confRes.json(); setConfiguredProviders(d.providers || []); }
       if (statsRes.ok) { const d = await statsRes.json(); setStats(d); }
-    } catch (e) { console.warn("Telephony fetch error:", e); }
+    } catch (e) {
+      console.error("Telephony fetch error:", e);
+      toast({ title: "Erreur", description: "Impossible de charger les donnees telephoniques.", variant: "destructive" });
+    }
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   async function fetchLogs() {
-    const [clRes, slRes] = await Promise.all([
-      fetch(`${API}/api/telephony/call-logs?limit=30`, { credentials: "include" }),
-      fetch(`${API}/api/telephony/sms-logs?limit=30`, { credentials: "include" }),
-    ]);
-    if (clRes.ok) { const d = await clRes.json(); setCallLogs(d.logs || []); }
-    if (slRes.ok) { const d = await slRes.json(); setSmsLogs(d.logs || []); }
+    try {
+      const [clRes, slRes] = await Promise.all([
+        fetch(`${API}/api/telephony/call-logs?limit=30`, { credentials: "include" }),
+        fetch(`${API}/api/telephony/sms-logs?limit=30`, { credentials: "include" }),
+      ]);
+      if (clRes.ok) { const d = await clRes.json(); setCallLogs(d.logs || []); }
+      if (slRes.ok) { const d = await slRes.json(); setSmsLogs(d.logs || []); }
+    } catch (e) {
+      console.error("Telephony fetchLogs error:", e);
+      toast({ title: "Erreur", description: "Impossible de charger les journaux.", variant: "destructive" });
+    }
   }
 
   async function addProvider() {
@@ -135,28 +145,44 @@ export default function TelephonyPage() {
 
   async function deleteProvider(id: number) {
     if (!confirm("Supprimer ce fournisseur ?")) return;
-    await fetch(`${API}/api/telephony/providers/${id}`, { method: "DELETE", credentials: "include" });
-    fetchData();
+    try {
+      const res = await fetch(`${API}/api/telephony/providers/${id}`, { method: "DELETE", credentials: "include" });
+      if (!res.ok) { toast({ title: "Erreur", description: "Impossible de supprimer le fournisseur.", variant: "destructive" }); return; }
+      toast({ title: "Fournisseur supprime" });
+      fetchData();
+    } catch (e) {
+      toast({ title: "Erreur", description: "Erreur de connexion.", variant: "destructive" });
+    }
   }
 
   async function setDefault(id: number) {
-    await fetch(`${API}/api/telephony/providers/${id}`, {
-      method: "PATCH",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isDefault: true }),
-    });
-    fetchData();
+    try {
+      const res = await fetch(`${API}/api/telephony/providers/${id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isDefault: true }),
+      });
+      if (!res.ok) { toast({ title: "Erreur", description: "Impossible de definir par defaut.", variant: "destructive" }); return; }
+      fetchData();
+    } catch (e) {
+      toast({ title: "Erreur", description: "Erreur de connexion.", variant: "destructive" });
+    }
   }
 
   async function toggleActive(id: number, current: boolean) {
-    await fetch(`${API}/api/telephony/providers/${id}`, {
-      method: "PATCH",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isActive: !current }),
-    });
-    fetchData();
+    try {
+      const res = await fetch(`${API}/api/telephony/providers/${id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !current }),
+      });
+      if (!res.ok) { toast({ title: "Erreur", description: "Impossible de modifier le statut.", variant: "destructive" }); return; }
+      fetchData();
+    } catch (e) {
+      toast({ title: "Erreur", description: "Erreur de connexion.", variant: "destructive" });
+    }
   }
 
   async function testProvider(id: number) {

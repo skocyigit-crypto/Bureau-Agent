@@ -135,7 +135,7 @@ export function SmartPulsePanel() {
         setAlertSummary(ad.summary || { critical: 0, warning: 0, total: 0 });
       }
     } catch (err) {
-      console.warn("[SmartPulse] fetch error:", err);
+      console.error("[SmartPulse] fetch error:", err);
     } finally {
       setLoading(false);
       setRefreshing(false);

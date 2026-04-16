@@ -14,23 +14,27 @@ import {
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-function fetchMetriques(periode: string) {
-  return fetch(`${baseUrl}/api/performance/metriques?periode=${periode}`, { credentials: "include" })
-    .then(r => r.json());
+async function fetchMetriques(periode: string) {
+  const r = await fetch(`${baseUrl}/api/performance/metriques?periode=${periode}`, { credentials: "include" });
+  if (!r.ok) throw new Error(`Erreur ${r.status}`);
+  return r.json();
 }
 
-function fetchHistorique() {
-  return fetch(`${baseUrl}/api/performance/historique?limit=20`, { credentials: "include" })
-    .then(r => r.json());
+async function fetchHistorique() {
+  const r = await fetch(`${baseUrl}/api/performance/historique?limit=20`, { credentials: "include" });
+  if (!r.ok) throw new Error(`Erreur ${r.status}`);
+  return r.json();
 }
 
-function genererRapport(periode: string) {
-  return fetch(`${baseUrl}/api/performance/rapport`, {
+async function genererRapport(periode: string) {
+  const r = await fetch(`${baseUrl}/api/performance/rapport`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ periode }),
-  }).then(r => r.json());
+  });
+  if (!r.ok) throw new Error(`Erreur ${r.status}`);
+  return r.json();
 }
 
 function ScoreGauge({ score, size = "lg" }: { score: number; size?: "sm" | "lg" }) {

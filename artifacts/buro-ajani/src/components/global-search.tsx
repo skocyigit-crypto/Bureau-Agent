@@ -42,10 +42,11 @@ export function GlobalSearch() {
     debounceRef.current = setTimeout(async () => {
       try {
         const res = await fetch(`${baseUrl}/api/search?q=${encodeURIComponent(query)}&limit=5`, { credentials: "include" });
+        if (!res.ok) { setLoading(false); return; }
         const data = await res.json();
         setResults(data);
         setOpen(true);
-      } catch (err) { console.warn("[GlobalSearch] search failed:", err); } finally { setLoading(false); }
+      } catch (err) { console.error("[GlobalSearch] search failed:", err); } finally { setLoading(false); }
     }, 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [query]);

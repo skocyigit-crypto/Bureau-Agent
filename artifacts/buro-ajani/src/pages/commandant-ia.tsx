@@ -25,10 +25,12 @@ const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 async function apiPost(path: string, body?: any) {
   const r = await fetch(`${API}/api${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: body ? JSON.stringify(body) : undefined });
+  if (!r.ok) { const err = await r.json().catch(() => ({})); throw new Error((err as any).error || `Erreur ${r.status}`); }
   return r.json();
 }
 async function apiGet(path: string) {
   const r = await fetch(`${API}/api${path}`, { credentials: "include" });
+  if (!r.ok) { const err = await r.json().catch(() => ({})); throw new Error((err as any).error || `Erreur ${r.status}`); }
   return r.json();
 }
 

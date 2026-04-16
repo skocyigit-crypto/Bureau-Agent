@@ -216,7 +216,7 @@ export function WorkspaceUserProvider({ children, apiUser, onLogout }: Workspace
         method: "POST",
         credentials: "include",
       });
-    } catch (err) { console.warn("[WorkspaceUser] logout request failed:", err); }
+    } catch (err) { console.error("[WorkspaceUser] logout request failed:", err); }
     onLogout();
   }, [onLogout]);
 

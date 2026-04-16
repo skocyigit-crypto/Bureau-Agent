@@ -97,7 +97,9 @@ export default function UsersPage() {
         const data = await res.json();
         setMaxUsers(data.users?.max || 5);
       }
-    } catch (err) { console.warn("[Users] action failed:", err); }
+    } catch (err) {
+      console.error("[Users] loadSubscription failed:", err);
+    }
   }, []);
 
   const loadInvitations = useCallback(async () => {
@@ -170,6 +172,8 @@ export default function UsersPage() {
       if (res.ok) {
         toast({ title: "Invitation annulee" });
         loadInvitations();
+      } else {
+        toast({ title: "Erreur", description: "Impossible d'annuler l'invitation.", variant: "destructive" });
       }
     } catch {
       toast({ title: "Erreur", description: "Erreur lors de l'annulation.", variant: "destructive" });

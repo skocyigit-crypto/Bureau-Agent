@@ -230,7 +230,7 @@ export function CentralIntelligence() {
         try {
           setData(JSON.parse(cached));
           return;
-        } catch (err) { console.warn("[CentralIntelligence] failed:", err); }
+        } catch (err) { console.error("[CentralIntelligence] cache parse failed:", err); }
       }
     }
     const timer = setTimeout(() => loadData(), 800);

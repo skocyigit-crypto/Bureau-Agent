@@ -148,7 +148,9 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
 
     try {
       await handleCopyToClipboard();
-    } catch (err) { console.warn("[EmailComposer] send failed:", err); }
+    } catch (err) {
+      toast({ title: "Erreur", description: "Impossible de copier l'e-mail.", variant: "destructive" });
+    }
 
     setStep("approved");
     setIsSending(false);

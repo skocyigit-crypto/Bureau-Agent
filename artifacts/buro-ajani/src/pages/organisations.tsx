@@ -244,7 +244,7 @@ export default function OrganisationsPage() {
         toast({ title: "Erreur", description: "Impossible de charger le resume de facturation", variant: "destructive" });
       }
     } catch (err) {
-      console.warn("[Organisations] loadBillingSummary failed:", err);
+      console.error("[Organisations] loadBillingSummary failed:", err);
       toast({ title: "Erreur", description: "Erreur reseau lors du chargement de la facturation", variant: "destructive" });
     }
   }, []);
@@ -261,7 +261,7 @@ export default function OrganisationsPage() {
         toast({ title: "Erreur", description: "Impossible de charger la conformite juridique", variant: "destructive" });
       }
     } catch (err) {
-      console.warn("[Organisations] loadLegalCompliance failed:", err);
+      console.error("[Organisations] loadLegalCompliance failed:", err);
       toast({ title: "Erreur", description: "Erreur reseau lors du chargement juridique", variant: "destructive" });
     } finally {
       setLegalLoading(false);
@@ -278,7 +278,7 @@ export default function OrganisationsPage() {
         const data = await res.json();
         setLegalDetailDocs(data.documents || []);
       }
-    } catch (err) { console.warn("[Organisations] openLegalDetail failed:", err); } finally {
+    } catch (err) { console.error("[Organisations] openLegalDetail failed:", err); } finally {
       setLegalDetailLoading(false);
     }
   };
@@ -390,7 +390,7 @@ export default function OrganisationsPage() {
       if (res.ok) {
         setOrgBilling(await res.json());
       }
-    } catch (err) { console.warn("[Organisations] openBilling failed:", err); } finally {
+    } catch (err) { console.error("[Organisations] openBilling failed:", err); } finally {
       setBillingLoading(false);
     }
   };

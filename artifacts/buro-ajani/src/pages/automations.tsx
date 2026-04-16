@@ -56,7 +56,7 @@ export default function AutomationsPage() {
         toast({ title: "Erreur", description: "Impossible de charger les journaux", variant: "destructive" });
       }
     } catch (err) {
-      console.warn("[Automations] fetch failed:", err);
+      console.error("[Automations] fetch failed:", err);
       toast({ title: "Erreur", description: "Impossible de charger les automatisations", variant: "destructive" });
     } finally {
       setLoading(false);
