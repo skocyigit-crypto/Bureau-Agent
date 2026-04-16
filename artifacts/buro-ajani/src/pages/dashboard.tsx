@@ -40,7 +40,7 @@ function useTeamStatus() {
     try {
       const res = await fetch(`${API}/api/team-status`, { credentials: "include" });
       if (res.ok) { const d = await res.json(); setTeam(d.members || []); }
-    } catch {}
+    } catch (err) { console.error("[Dashboard] team-status fetch failed:", err); }
   }, []);
   useEffect(() => { fetchTeam(); const t = setInterval(fetchTeam, 30000); return () => clearInterval(t); }, [fetchTeam]);
   return team;
@@ -53,7 +53,7 @@ function useWeekComparison() {
       try {
         const res = await fetch(`${API}/api/dashboard/week-comparison`, { credentials: "include" });
         if (res.ok) { const d = await res.json(); setData(d.comparison || []); }
-      } catch {}
+      } catch (err) { console.error("[Dashboard] week-comparison fetch failed:", err); }
     })();
   }, []);
   return data;
@@ -539,9 +539,9 @@ function PredictiveAnalyticsWidget() {
   const [data, setData] = useState<any>(null);
   useEffect(() => {
     fetch(`${API}/api/dashboard/predictions`, { credentials: "include" })
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error("Erreur predictions"); return r.json(); })
       .then(setData)
-      .catch(() => {});
+      .catch((err) => console.error("[Dashboard] predictions fetch failed:", err));
   }, []);
 
   if (!data?.predictions) return null;

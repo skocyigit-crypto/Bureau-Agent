@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -82,6 +83,7 @@ function MetriqueCard({ icon: Icon, label, value, color }: { icon: any; label: s
 }
 
 export default function PerformancePage() {
+  const { toast } = useToast();
   const [periode, setPeriode] = useState("semaine");
   const [rapport, setRapport] = useState<any>(null);
 
@@ -99,6 +101,7 @@ export default function PerformancePage() {
   const rapportMutation = useMutation({
     mutationFn: () => genererRapport(periode),
     onSuccess: (data) => setRapport(data),
+    onError: () => toast({ title: "Erreur", description: "Impossible de generer le rapport IA", variant: "destructive" }),
   });
 
   const metriques = metriquesQuery.data?.metriques || [];

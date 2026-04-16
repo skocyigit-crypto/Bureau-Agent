@@ -42,11 +42,13 @@ export default function Notifications() {
   const markReadMutation = useMutation({
     mutationFn: (id: number) => apiFetch(`/notifications/${id}/read`, { method: "PATCH" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
+    onError: () => toast({ title: "Erreur", description: "Impossible de marquer la notification comme lue", variant: "destructive" }),
   });
 
   const markAllReadMutation = useMutation({
     mutationFn: () => apiFetch("/notifications/mark-all-read", { method: "PATCH" }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["notifications"] }); toast({ title: "Toutes les notifications lues" }); },
+    onError: () => toast({ title: "Erreur", description: "Impossible de marquer les notifications comme lues", variant: "destructive" }),
   });
 
   const notifications = data?.notifications || data || [];
