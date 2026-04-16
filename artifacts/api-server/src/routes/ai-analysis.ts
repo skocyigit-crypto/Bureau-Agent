@@ -166,7 +166,8 @@ Reponds en JSON avec cette structure exacte:
     let parsed;
     try {
       parsed = JSON.parse(text);
-    } catch {
+    } catch (parseErr) {
+      console.warn("[AI] JSON parse fallback (executive-summary):", parseErr);
       parsed = { resumeExecutif: text, pointsForts: [], pointsAttention: [], tendances: [], recommandations: [], scoreGlobal: 0 };
     }
 
@@ -349,7 +350,8 @@ Donnees:\n${JSON.stringify(contextData, null, 2)}`
     let parsed;
     try {
       parsed = JSON.parse(text);
-    } catch {
+    } catch (parseErr) {
+      console.warn("[AI] JSON parse fallback (suggestions):", parseErr);
       parsed = { suggestions: [], resumeCourt: text };
     }
 
@@ -441,7 +443,8 @@ Si tout est correct, errors et warnings seront vides. Sois utile mais pas trop s
     let parsed;
     try {
       parsed = JSON.parse(text);
-    } catch {
+    } catch (parseErr) {
+      console.warn("[AI] JSON parse fallback (validation):", parseErr);
       parsed = { isValid: true, errors: [], warnings: [], suggestions: [] };
     }
 
@@ -591,7 +594,8 @@ Sois precis, base-toi sur les donnees reelles. Pour les calculs mathematiques, u
     let parsed;
     try {
       parsed = JSON.parse(text);
-    } catch {
+    } catch (parseErr) {
+      console.warn("[AI] JSON parse fallback (assistant):", parseErr);
       parsed = { reponse: text, donnees: [], actions: [], mathDetected: false, mathResults: [] };
     }
 
@@ -947,7 +951,8 @@ Reponds en JSON avec cette structure exacte:
     let parsed;
     try {
       parsed = JSON.parse(text);
-    } catch {
+    } catch (parseErr) {
+      console.warn("[AI] JSON parse fallback (email-draft):", parseErr);
       parsed = { objet: "", corps: text, destinataire: contactName || "", tonUtilise: tone || "cordial", resumeIA: "", suggestionsAlternatives: [] };
     }
 
@@ -1176,7 +1181,8 @@ Sois concret, personnalise, et adapte tes recommandations au role (${userProfile
         actionsSuggerees: Array.isArray(raw.actionsSuggerees) ? raw.actionsSuggerees.slice(0, 5) : [],
         question: typeof raw.question === "string" ? raw.question : "",
       };
-    } catch {
+    } catch (parseErr) {
+      console.warn("[AI] JSON parse fallback (discovery):", parseErr);
       parsed = defaultResult;
     }
 
@@ -1710,7 +1716,8 @@ IMPORTANT: Tu ES l'assistant d'Aurelie. Agis, ne suggere pas. Chaque resolution 
         },
         directiveStrategique: typeof raw.directiveStrategique === "string" ? raw.directiveStrategique : "",
       };
-    } catch {
+    } catch (parseErr) {
+      console.warn("[AI] JSON parse fallback (central-intelligence):", parseErr);
       parsed = {
         scoreSante: scoreGlobal,
         niveauSante: scoreGlobal >= 90 ? "excellent" : scoreGlobal >= 75 ? "bon" : scoreGlobal >= 50 ? "vigilance" : scoreGlobal >= 30 ? "alerte" : "critique",
@@ -2038,7 +2045,8 @@ FORMAT DE REPONSE JSON:
     let parsed;
     try {
       parsed = JSON.parse(response.text ?? "{}");
-    } catch {
+    } catch (parseErr) {
+      console.warn("[AI] JSON parse fallback (general):", parseErr);
       parsed = { response: response.text || "Reponse en cours de traitement...", actions: [], insights: [], mood: "neutre" };
     }
 
@@ -2628,7 +2636,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
         });
         let briefParsed;
-        try { briefParsed = JSON.parse(briefResponse.text ?? "{}"); } catch { briefParsed = { briefing: briefingContext, priorites: [], alertes: [], score_journee: 50 }; }
+        try { briefParsed = JSON.parse(briefResponse.text ?? "{}"); } catch (e) { console.warn("[AI] JSON parse fallback (briefing):", e); briefParsed = { briefing: briefingContext, priorites: [], alertes: [], score_journee: 50 }; }
         result = { success: true, message: briefParsed.briefing || "Briefing genere.", data: briefParsed };
         break;
       }
@@ -2654,7 +2662,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
         });
         let meetParsed;
-        try { meetParsed = JSON.parse(meetResponse.text ?? "{}"); } catch { meetParsed = { dossier: "Dossier en cours de preparation...", points_cles: [], questions_a_poser: [], risques: [], opportunites: [], strategie: "" }; }
+        try { meetParsed = JSON.parse(meetResponse.text ?? "{}"); } catch (e) { console.warn("[AI] JSON parse fallback (meeting-prep):", e); meetParsed = { dossier: "Dossier en cours de preparation...", points_cles: [], questions_a_poser: [], risques: [], opportunites: [], strategie: "" }; }
         result = { success: true, message: meetParsed.dossier || "Dossier de preparation genere.", data: meetParsed };
         break;
       }
@@ -2674,7 +2682,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
         });
         let riskParsed;
-        try { riskParsed = JSON.parse(riskResponse.text ?? "{}"); } catch { riskParsed = { analyse: riskData, risques: [], score_risque_global: 50, recommandations: [] }; }
+        try { riskParsed = JSON.parse(riskResponse.text ?? "{}"); } catch (e) { console.warn("[AI] JSON parse fallback (risk-analysis):", e); riskParsed = { analyse: riskData, risques: [], score_risque_global: 50, recommandations: [] }; }
         result = { success: true, message: riskParsed.analyse || "Analyse des risques generee.", data: riskParsed };
         break;
       }
@@ -2692,7 +2700,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
         });
         let revParsed;
-        try { revParsed = JSON.parse(revResponse.text ?? "{}"); } catch { revParsed = { prevision: revData, mois: [], ca_annuel_estime: 0, tendance: "stable", recommandations: [] }; }
+        try { revParsed = JSON.parse(revResponse.text ?? "{}"); } catch (e) { console.warn("[AI] JSON parse fallback (revenue-forecast):", e); revParsed = { prevision: revData, mois: [], ca_annuel_estime: 0, tendance: "stable", recommandations: [] }; }
         result = { success: true, message: revParsed.prevision || "Prevision de chiffre d'affaires generee.", data: revParsed };
         break;
       }
@@ -2715,7 +2723,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
         });
         let campParsed;
-        try { campParsed = JSON.parse(campResponse.text ?? "{}"); } catch { campParsed = { campagne: "Campagne en preparation...", sujet_email: "", template_email: "", nombre_cibles: targetContacts.length, planning: "", kpis: [] }; }
+        try { campParsed = JSON.parse(campResponse.text ?? "{}"); } catch (e) { console.warn("[AI] JSON parse fallback (campaign):", e); campParsed = { campagne: "Campagne en preparation...", sujet_email: "", template_email: "", nombre_cibles: targetContacts.length, planning: "", kpis: [] }; }
         result = { success: true, message: `Campagne "${objective}" concue pour ${targetContacts.length} contacts.`, data: { ...campParsed, contacts: targetContacts } };
         break;
       }
@@ -2738,7 +2746,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
         });
         let auditParsed;
-        try { auditParsed = JSON.parse(auditResponse.text ?? "{}"); } catch { auditParsed = { audit: auditData, score_global: 50, points_forts: [], points_faibles: [], recommandations: [], objectifs_30j: [] }; }
+        try { auditParsed = JSON.parse(auditResponse.text ?? "{}"); } catch (e) { console.warn("[AI] JSON parse fallback (audit):", e); auditParsed = { audit: auditData, score_global: 50, points_forts: [], points_faibles: [], recommandations: [], objectifs_30j: [] }; }
         result = { success: true, message: auditParsed.audit || "Audit de performance genere.", data: auditParsed };
         break;
       }
@@ -2753,7 +2761,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
             config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
           });
           let compParsed;
-          try { compParsed = JSON.parse(compResponse.text ?? "{}"); } catch { compParsed = { analyse: `Analyse de "${searchTarget}" en cours...`, concurrents: [], tendances: [], opportunites: [], menaces: [], recommandations: [], positionnement_recommande: "" }; }
+          try { compParsed = JSON.parse(compResponse.text ?? "{}"); } catch (e) { console.warn("[AI] JSON parse fallback (competitor):", e); compParsed = { analyse: `Analyse de "${searchTarget}" en cours...`, concurrents: [], tendances: [], opportunites: [], menaces: [], recommandations: [], positionnement_recommande: "" }; }
           result = { success: true, message: compParsed.analyse || "Analyse concurrentielle generee.", data: compParsed };
         } catch (e: any) {
           result = { success: false, message: `Erreur analyse: ${e.message}` };
@@ -2883,7 +2891,8 @@ Sois PRECIS et base-toi sur les tendances reelles. Chaque prediction doit etre J
     let parsed;
     try {
       parsed = JSON.parse(response.text ?? "{}");
-    } catch {
+    } catch (parseErr) {
+      console.warn("[AI] JSON parse fallback (predictions):", parseErr);
       parsed = { callVolume: { predicted: 0, trend: "stable", confidence: 50 }, taskCompletion: { predictedCompleted: 0, velocityTrend: "stable" }, contactGrowth: { predictedNew: 0, trend: "stable" }, customerSatisfaction: { score: 70, trend: "stable" }, operationalRisks: [], opportunities: [], weeklyForecast: [], strategicRecommendations: [] };
     }
 

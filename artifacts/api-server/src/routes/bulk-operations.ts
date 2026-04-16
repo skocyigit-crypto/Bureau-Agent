@@ -45,9 +45,10 @@ router.post("/bulk/tasks/assign", requireMinOperateur, async (req: Request, res:
     const orgId = getOrgId(req);
     const { ids, assignedTo } = req.body;
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    if (!assignedTo || typeof assignedTo !== "string" || assignedTo.trim().length === 0) { res.status(400).json({ error: "assignedTo requis" }); return; }
 
     await db.update(tasksTable)
-      .set({ assignedTo, updatedAt: new Date() })
+      .set({ assignedTo: assignedTo.trim(), updatedAt: new Date() })
       .where(and(eq(tasksTable.organisationId, orgId), inArray(tasksTable.id, ids)));
 
     res.json({ success: true, updated: ids.length });
@@ -94,9 +95,10 @@ router.post("/bulk/contacts/category", requireMinOperateur, async (req: Request,
     const orgId = getOrgId(req);
     const { ids, category } = req.body;
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    if (!category || typeof category !== "string" || category.trim().length === 0) { res.status(400).json({ error: "category requis" }); return; }
 
     await db.update(contactsTable)
-      .set({ category, updatedAt: new Date() })
+      .set({ category: category.trim(), updatedAt: new Date() })
       .where(and(eq(contactsTable.organisationId, orgId), inArray(contactsTable.id, ids)));
 
     res.json({ success: true, updated: ids.length });
