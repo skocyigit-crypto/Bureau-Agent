@@ -193,6 +193,7 @@ export function TabSauvegardes() {
     setVerifyResult(null);
     try {
       const res = await fetch(`${API_BASE}/google-drive-backup/verify/${fileId}`, { method: "POST", credentials: "include" });
+      if (!res.ok) { toast({ title: "Erreur", description: "Verification impossible", variant: "destructive" }); return; }
       const data = await res.json();
       setVerifyResult(data);
       if (data.valid) {
@@ -217,6 +218,7 @@ export function TabSauvegardes() {
         credentials: "include",
         body: JSON.stringify({ dryRun: true }),
       });
+      if (!res.ok) { toast({ title: "Erreur", description: "Simulation impossible", variant: "destructive" }); return; }
       const data = await res.json();
       setRestoreResult(data);
       toast({ title: "Simulation terminee", description: `${data.totalRestored} enregistrements seraient restaures.` });
@@ -237,6 +239,7 @@ export function TabSauvegardes() {
         credentials: "include",
         body: JSON.stringify({ dryRun: false, clearBeforeRestore: false }),
       });
+      if (!res.ok) { toast({ title: "Erreur", description: "Restauration impossible", variant: "destructive" }); return; }
       const data = await res.json();
       if (data.success) {
         toast({ title: "Restauration terminee", description: `${data.totalRestored} enregistrements restaures avec succes.` });

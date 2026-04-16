@@ -301,6 +301,7 @@ export function TabPlateformes() {
     try {
       const res = await fetch(`${GOOGLE_OAUTH_BASE}/disconnect`, { method: "POST", credentials: "include" });
       if (res.ok) { toast({ title: "Google deconnecte", description: "Votre compte Google a ete deconnecte." }); setGoogleOAuthAuthenticated(false); await fetchPlatforms(); }
+      else { toast({ title: "Erreur", description: "Impossible de deconnecter Google.", variant: "destructive" }); }
     } catch { toast({ title: "Erreur", description: "Erreur reseau.", variant: "destructive" }); }
   };
 

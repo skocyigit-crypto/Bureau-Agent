@@ -439,6 +439,7 @@ export default function AiAgentsPage() {
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`${BASE_URL}/api/ai/agents/run/status`, { credentials: "include" });
+        if (!res.ok) return;
         const data = await res.json();
         if (data.status === "completed" || data.status === "failed" || data.status === "idle") {
           setIsRunning(false);

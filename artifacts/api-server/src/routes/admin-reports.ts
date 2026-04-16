@@ -68,6 +68,14 @@ router.post("/admin-reports", async (req, res): Promise<void> => {
   if (!subject?.trim() || !message?.trim()) {
     res.status(400).json({ error: "Sujet et message requis." }); return;
   }
+  const validCategories = ["general", "technique", "facturation", "securite", "autre"];
+  const validPriorities = ["basse", "normal", "haute", "urgente"];
+  if (category && !validCategories.includes(category)) {
+    res.status(400).json({ error: "Categorie invalide" }); return;
+  }
+  if (priority && !validPriorities.includes(priority)) {
+    res.status(400).json({ error: "Priorite invalide" }); return;
+  }
 
   try {
     const [user] = await db.select({ prenom: usersTable.prenom, nom: usersTable.nom, email: usersTable.email })

@@ -105,11 +105,17 @@ export default function DocumentsPage() {
         const data = await docsRes.json();
         setDocuments(data.documents || []);
         setTotal(data.total || 0);
+      } else {
+        console.error("[Documents] docs fetch HTTP error:", docsRes.status);
+        toast({ title: "Erreur de chargement des documents", variant: "destructive" });
       }
       if (statsRes.ok) {
         setStats(await statsRes.json());
       }
-    } catch { /* ignore */ } finally {
+    } catch (err) {
+      console.error("[Documents] load failed:", err);
+      toast({ title: "Erreur de chargement des documents", variant: "destructive" });
+    } finally {
       setLoading(false);
     }
   }, [filterEntity, filterCategory]);
@@ -138,6 +144,8 @@ export default function DocumentsPage() {
       if (res.ok) {
         toast({ title: "Document supprime" });
         loadDocuments();
+      } else {
+        toast({ title: "Erreur de suppression", variant: "destructive" });
       }
     } catch {
       toast({ title: "Erreur", variant: "destructive" });
@@ -151,6 +159,8 @@ export default function DocumentsPage() {
       if (res.ok) {
         toast({ title: "Analyse IA terminee" });
         loadDocuments();
+      } else {
+        toast({ title: "Erreur d'analyse", variant: "destructive" });
       }
     } catch {
       toast({ title: "Erreur d'analyse", variant: "destructive" });
@@ -166,7 +176,9 @@ export default function DocumentsPage() {
         setSelectedDoc(await res.json());
         setDetailOpen(true);
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error("[Documents] view detail failed:", err);
+    }
   };
 
   const filtered = documents.filter(d =>

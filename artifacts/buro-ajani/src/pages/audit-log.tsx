@@ -62,6 +62,7 @@ export default function AuditLogPage() {
     queryKey: ["audit-stats"],
     queryFn: async () => {
       const res = await fetch(`${baseUrl}/api/audit/stats`, { credentials: "include" });
+      if (!res.ok) throw new Error("Erreur chargement statistiques");
       return res.json();
     },
   });
