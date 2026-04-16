@@ -35,20 +35,27 @@ export function GlobalSearch() {
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<any>(null);
 
+  const abortRef = useRef<AbortController | null>(null);
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (query.trim().length < 2) { setResults(null); return; }
     setLoading(true);
     debounceRef.current = setTimeout(async () => {
+      if (abortRef.current) abortRef.current.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
       try {
-        const res = await fetch(`${baseUrl}/api/search?q=${encodeURIComponent(query)}&limit=5`, { credentials: "include" });
+        const res = await fetch(`${baseUrl}/api/search?q=${encodeURIComponent(query)}&limit=5`, { credentials: "include", signal: controller.signal });
         if (!res.ok) { setLoading(false); return; }
         const data = await res.json();
         setResults(data);
         setOpen(true);
-      } catch (err) { console.error("[GlobalSearch] search failed:", err); } finally { setLoading(false); }
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+        console.error("[GlobalSearch] search failed:", err);
+      } finally { setLoading(false); }
     }, 300);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); if (abortRef.current) abortRef.current.abort(); };
   }, [query]);
 
   useEffect(() => {

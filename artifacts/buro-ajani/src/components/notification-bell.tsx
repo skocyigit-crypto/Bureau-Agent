@@ -25,20 +25,25 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  async function fetchNotifications() {
-    try {
-      const res = await fetch(`${baseUrl}/api/notifications?limit=20`, { credentials: "include" });
-      if (!res.ok) return;
-      const data = await res.json();
-      setNotifications(data.notifications);
-      setUnreadCount(data.unreadCount);
-    } catch (err) { console.error("[NotificationBell] fetch failed:", err); }
-  }
-
   useEffect(() => {
+    let mounted = true;
+    const controller = new AbortController();
+    async function fetchNotifications() {
+      try {
+        const res = await fetch(`${baseUrl}/api/notifications?limit=20`, { credentials: "include", signal: controller.signal });
+        if (!mounted) return;
+        if (!res.ok) return;
+        const data = await res.json();
+        setNotifications(data.notifications);
+        setUnreadCount(data.unreadCount);
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+        console.error("[NotificationBell] fetch failed:", err);
+      }
+    }
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 5 * 60 * 1000);
-    return () => clearInterval(interval);
+    return () => { mounted = false; controller.abort(); clearInterval(interval); };
   }, []);
 
   useEffect(() => {

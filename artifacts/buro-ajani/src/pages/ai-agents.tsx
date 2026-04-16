@@ -436,9 +436,10 @@ export default function AiAgentsPage() {
 
   useEffect(() => {
     if (!isRunning) return;
+    const controller = new AbortController();
     const interval = setInterval(async () => {
       try {
-        const res = await fetch(`${BASE_URL}/api/ai/agents/run/status`, { credentials: "include" });
+        const res = await fetch(`${BASE_URL}/api/ai/agents/run/status`, { credentials: "include", signal: controller.signal });
         if (!res.ok) return;
         const data = await res.json();
         if (data.status === "completed" || data.status === "failed" || data.status === "idle") {
@@ -452,9 +453,12 @@ export default function AiAgentsPage() {
         } else if (data.status === "running") {
           setRunProgress({ completedAgents: data.completedAgents || 0, totalAgents: data.totalAgents || 10 });
         }
-      } catch (err) { console.error("[AIAgents] polling failed:", err); }
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+        console.error("[AIAgents] polling failed:", err);
+      }
     }, 3000);
-    return () => clearInterval(interval);
+    return () => { controller.abort(); clearInterval(interval); };
   }, [isRunning]);
 
   const handleRunAll = () => {
@@ -1184,18 +1188,22 @@ function AutopilotPanel() {
   const { isAtLeast } = useWorkspaceUser();
   const canRunAgents = isAtLeast("administrateur");
 
-  const fetchStatus = useCallback(async () => {
-    try {
-      const r = await fetch(`${baseUrl}/api/ai/autopilot/status`, { credentials: "include" });
-      if (r.ok) setStatus(await r.json());
-    } catch (err) { console.error("[AIAgents] autopilot status fetch failed:", err); }
-  }, [baseUrl]);
-
   useEffect(() => {
+    let mounted = true;
+    const controller = new AbortController();
+    const fetchStatus = async () => {
+      try {
+        const r = await fetch(`${baseUrl}/api/ai/autopilot/status`, { credentials: "include", signal: controller.signal });
+        if (mounted && r.ok) setStatus(await r.json());
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+        console.error("[AIAgents] autopilot status fetch failed:", err);
+      }
+    };
     fetchStatus();
     const poll = setInterval(fetchStatus, 60000);
-    return () => clearInterval(poll);
-  }, [fetchStatus]);
+    return () => { mounted = false; controller.abort(); clearInterval(poll); };
+  }, [baseUrl]);
 
   const runCycle = async () => {
     setLoading(true);
@@ -1203,7 +1211,7 @@ function AutopilotPanel() {
       const r = await fetch(`${baseUrl}/api/ai/autopilot/run`, { method: "POST", credentials: "include" });
       if (!r.ok) { const err = await r.json().catch(() => ({})); throw new Error(err.error || err.details || "Echec du cycle"); }
       toast({ title: "Cycle Oto-Pilot lance", description: "Le diagnostic s'execute en arriere-plan..." });
-      setTimeout(() => fetchStatus(), 5000);
+      setTimeout(async () => { try { const r2 = await fetch(`${baseUrl}/api/ai/autopilot/status`, { credentials: "include" }); if (r2.ok) setStatus(await r2.json()); } catch {} }, 5000);
     } catch (e: any) {
       toast({ title: "Erreur", description: e.message, variant: "destructive" });
     } finally { setLoading(false); }
@@ -1217,7 +1225,7 @@ function AutopilotPanel() {
       const data = await r.json();
       if (data.firstCycle) setCycleResult(data.firstCycle);
       toast({ title: "Oto-Pilot active", description: "Surveillance continue toutes les 30 minutes" });
-      fetchStatus();
+      try { const r2 = await fetch(`${baseUrl}/api/ai/autopilot/status`, { credentials: "include" }); if (r2.ok) setStatus(await r2.json()); } catch {}
     } catch (e: any) {
       toast({ title: "Erreur", description: e.message, variant: "destructive" });
     } finally { setStarting(false); }
@@ -1228,7 +1236,7 @@ function AutopilotPanel() {
     try {
       await fetch(`${baseUrl}/api/ai/autopilot/stop`, { method: "POST", credentials: "include" });
       toast({ title: "Oto-Pilot desactive" });
-      fetchStatus();
+      try { const r2 = await fetch(`${baseUrl}/api/ai/autopilot/status`, { credentials: "include" }); if (r2.ok) setStatus(await r2.json()); } catch {}
     } catch (e: any) {
       toast({ title: "Erreur", description: e.message, variant: "destructive" });
     } finally { setStopping(false); }
