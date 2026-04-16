@@ -134,14 +134,18 @@ export default function Contacts() {
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
     const ids = Array.from(selectedIds);
-    for (const id of ids) {
-      await new Promise<void>((resolve) => {
-        deleteContact.mutate({ id }, { onSuccess: () => resolve(), onError: () => resolve() });
-      });
-    }
+    let successCount = 0;
+    let failCount = 0;
+    await Promise.all(ids.map(id => new Promise<void>((resolve) => {
+      deleteContact.mutate({ id }, { onSuccess: () => { successCount++; resolve(); }, onError: () => { failCount++; resolve(); } });
+    })));
     setSelectedIds(new Set());
     queryClient.invalidateQueries({ queryKey: getListContactsQueryKey() });
-    toast({ title: `${ids.length} contact(s) supprime(s)` });
+    if (failCount > 0) {
+      toast({ title: `${successCount} supprime(s), ${failCount} echoue(s)`, variant: "destructive" });
+    } else {
+      toast({ title: `${ids.length} contact(s) supprime(s)` });
+    }
   };
 
   const exportCSV = () => {

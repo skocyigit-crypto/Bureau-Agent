@@ -153,6 +153,7 @@ router.get("/backups/latest", async (_req, res) => {
       isActive: true,
     });
   } catch (error: any) {
+    console.error("Erreur backup status:", error);
     res.status(500).json({ error: "Erreur." });
   }
 });

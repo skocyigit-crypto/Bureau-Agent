@@ -153,14 +153,12 @@ export default function Calls() {
     const ids = Array.from(selectedIds);
     let successCount = 0;
     let failCount = 0;
-    for (const id of ids) {
-      await new Promise<void>((resolve) => {
-        deleteCall.mutate({ id }, {
-          onSuccess: () => { successCount++; resolve(); },
-          onError: () => { failCount++; resolve(); },
-        });
+    await Promise.all(ids.map(id => new Promise<void>((resolve) => {
+      deleteCall.mutate({ id }, {
+        onSuccess: () => { successCount++; resolve(); },
+        onError: () => { failCount++; resolve(); },
       });
-    }
+    })));
     setSelectedIds(new Set());
     queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() });
     if (failCount > 0) {

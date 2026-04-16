@@ -21,6 +21,7 @@ router.post("/bulk/tasks/complete", requireMinOperateur, async (req: Request, re
 
     res.json({ success: true, updated: ids.length });
   } catch (err: any) {
+    console.error("Erreur bulk complete:", err);
     res.status(500).json({ error: "Erreur bulk complete" });
   }
 });
@@ -34,6 +35,7 @@ router.post("/bulk/tasks/delete", requireMinAdmin, async (req: Request, res: Res
     await db.delete(tasksTable).where(and(eq(tasksTable.organisationId, orgId), inArray(tasksTable.id, ids)));
     res.json({ success: true, deleted: ids.length });
   } catch (err: any) {
+    console.error("Erreur bulk delete tasks:", err);
     res.status(500).json({ error: "Erreur bulk delete" });
   }
 });
@@ -50,6 +52,7 @@ router.post("/bulk/tasks/assign", requireMinOperateur, async (req: Request, res:
 
     res.json({ success: true, updated: ids.length });
   } catch (err: any) {
+    console.error("Erreur bulk assign:", err);
     res.status(500).json({ error: "Erreur bulk assign" });
   }
 });
@@ -67,6 +70,7 @@ router.post("/bulk/tasks/priority", requireMinOperateur, async (req: Request, re
 
     res.json({ success: true, updated: ids.length });
   } catch (err: any) {
+    console.error("Erreur bulk priority:", err);
     res.status(500).json({ error: "Erreur bulk priority" });
   }
 });
@@ -80,6 +84,7 @@ router.post("/bulk/contacts/delete", requireMinAdmin, async (req: Request, res: 
     await db.delete(contactsTable).where(and(eq(contactsTable.organisationId, orgId), inArray(contactsTable.id, ids)));
     res.json({ success: true, deleted: ids.length });
   } catch (err: any) {
+    console.error("Erreur bulk delete contacts:", err);
     res.status(500).json({ error: "Erreur bulk delete contacts" });
   }
 });
@@ -96,6 +101,7 @@ router.post("/bulk/contacts/category", requireMinOperateur, async (req: Request,
 
     res.json({ success: true, updated: ids.length });
   } catch (err: any) {
+    console.error("Erreur bulk category:", err);
     res.status(500).json({ error: "Erreur bulk category" });
   }
 });
@@ -112,6 +118,7 @@ router.post("/bulk/messages/read", requireMinOperateur, async (req: Request, res
 
     res.json({ success: true, updated: ids.length });
   } catch (err: any) {
+    console.error("Erreur bulk read messages:", err);
     res.status(500).json({ error: "Erreur bulk read" });
   }
 });
@@ -128,6 +135,7 @@ router.post("/bulk/prospects/stage", requireMinOperateur, async (req: Request, r
 
     res.json({ success: true, updated: ids.length });
   } catch (err: any) {
+    console.error("Erreur bulk stage prospects:", err);
     res.status(500).json({ error: "Erreur bulk stage" });
   }
 });

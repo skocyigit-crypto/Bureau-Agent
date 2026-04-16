@@ -466,6 +466,7 @@ router.get("/license-management/audit-log", async (req: Request, res: Response):
     const logs = await db.select().from(licenseAuditLogTable).where(eq(licenseAuditLogTable.organisationId, orgId)).orderBy(desc(licenseAuditLogTable.createdAt)).limit(50);
     res.json({ logs });
   } catch (err: any) {
+    console.error("Erreur audit log:", err);
     res.status(500).json({ error: "Erreur" });
   }
 });
@@ -497,6 +498,7 @@ router.post("/license-management/update-billing-settings", async (req: Request, 
 
     res.json({ success: true });
   } catch (err: any) {
+    console.error("Erreur update billing settings:", err);
     res.status(500).json({ error: "Erreur" });
   }
 });
