@@ -745,7 +745,7 @@ ${isDecaying ? "ATTENTION: Tes scores baissent consecutivement. Analyse POURQUOI
 ${trendHistory.map(h => `  ${h.reportDate}: score ${h.score}, ${h.errorsFound} erreurs, ${h.warningsFound} alertes`).join("\n")}
 === FIN HISTORIQUE ===`;
       }
-    } catch {}
+    } catch (colErr) { console.warn(`[AI-Agent] ${agent} collaboration context failed:`, colErr); }
 
     const { ai } = await import("@workspace/integrations-gemini-ai");
     const fullPrompt = `${getAgentPrompt(agent)}${collaborationContext}${trendContext}\n\n${AGENT_RESPONSE_FORMAT}\n\nDate du rapport: ${today}\nDonnees actuelles (cette semaine + semaine precedente + patterns):\n${JSON.stringify(data, null, 2)}`;
@@ -908,7 +908,7 @@ async function runSuperAgent(childReports: any[], orgId: number): Promise<any> {
         const toAgent = issue.agents[1] || "super_agent";
         await createCrossAgentAlert(orgId, fromAgent, toAgent, issue.title, issue.description, issue.severity);
       }
-    } catch {}
+    } catch (alertErr) { console.warn("[SuperAgent] cross-agent alert creation failed:", alertErr); }
 
     const { ai } = await import("@workspace/integrations-gemini-ai");
 

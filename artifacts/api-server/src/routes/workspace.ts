@@ -139,7 +139,8 @@ router.get("/status", async (_req, res) => {
     const connectedCount = connections.filter(c => c.status === "connecte").length;
     res.json({ connected: connectedCount > 0, services, syncEnabled: connectedCount > 0, lastGlobalSync: null, connectedCount });
   } catch (error: any) {
-    res.status(500).json({ error: "Erreur." });
+    console.error("[Workspace] GET /status error:", error);
+    res.status(500).json({ error: "Erreur lors de la verification du statut" });
   }
 });
 
@@ -568,7 +569,8 @@ Reponds en JSON avec cette structure exacte:
     let parsed;
     try {
       parsed = JSON.parse(text);
-    } catch {
+    } catch (parseErr) {
+      console.warn("[DailyReport] AI returned invalid JSON, using fallback:", parseErr);
       parsed = {
         resume: text,
         pointsForts: [],
