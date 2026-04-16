@@ -972,7 +972,7 @@ router.post("/ai/discovery", async (req, res): Promise<void> => {
 
     const { usersTable } = await import("@workspace/db");
 
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    const [user] = await db.select({ id: usersTable.id, organisationId: usersTable.organisationId }).from(usersTable).where(eq(usersTable.id, userId));
     if (!user) {
       res.status(404).json({ error: "Utilisateur introuvable." });
       return;

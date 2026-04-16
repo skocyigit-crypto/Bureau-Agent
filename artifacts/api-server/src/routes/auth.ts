@@ -386,7 +386,7 @@ router.post("/auth/users/:id/send-credentials", async (req: Request, res: Respon
     conditions.push(eq(usersTable.organisationId, organisationId));
   }
 
-  const [user] = await db.select().from(usersTable).where(and(...conditions));
+  const [user] = await db.select({ id: usersTable.id, email: usersTable.email, nom: usersTable.nom, prenom: usersTable.prenom, role: usersTable.role, organisation: usersTable.organisation, organisationId: usersTable.organisationId }).from(usersTable).where(and(...conditions));
   if (!user) { res.status(404).json({ error: "Utilisateur non trouve." }); return; }
 
   const tempCode = generateTempCode();

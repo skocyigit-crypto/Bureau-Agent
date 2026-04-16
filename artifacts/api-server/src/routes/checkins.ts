@@ -258,7 +258,7 @@ router.post("/checkins/sync-google", async (req, res): Promise<void> => {
       return;
     }
 
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    const [user] = await db.select({ id: usersTable.id, nom: usersTable.nom, prenom: usersTable.prenom, role: usersTable.role }).from(usersTable).where(eq(usersTable.id, userId));
     if (!user) {
       res.status(404).json({ error: "Utilisateur introuvable." });
       return;

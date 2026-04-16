@@ -103,10 +103,10 @@ router.post("/my-subscription/upgrade-request", async (req: Request, res: Respon
   }
 
   const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId));
-  const [user] = userId ? await db.select().from(usersTable).where(eq(usersTable.id, userId)) : [null];
+  const [user] = userId ? await db.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.id, userId)) : [null];
 
   const { notificationsTable } = await import("@workspace/db");
-  const superAdmins = await db.select().from(usersTable).where(eq(usersTable.role, "super_admin"));
+  const superAdmins = await db.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.role, "super_admin"));
 
   for (const admin of superAdmins) {
     await db.insert(notificationsTable).values({

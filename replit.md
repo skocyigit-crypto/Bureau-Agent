@@ -68,6 +68,7 @@ The application features a French UI with a deep navy and warm amber color schem
 - **Dashboard Memory Leak Prevention:** `useTeamStatus` and `useWeekComparison` hooks use `AbortController` + `mounted` flag to prevent state updates on unmounted components.
 - **Search Term Sanitization:** Global search sanitizes LIKE wildcards (`%`, `_`, `\`) to prevent wide pattern matching attacks.
 - **Query Parameter Validation:** `admin-reports` status/category/priority fields validated against whitelists; search terms sanitized.
+- **Column Projection Security:** All `usersTable` queries that don't need `passwordHash` use explicit column projection (`db.select({ id, email, ... })`). Only `login` and `password-change` routes load `passwordHash` (needed for `bcrypt.compare`). Applied to: `checkins.ts`, `my-subscription.ts`, `ai-analysis.ts`, `auth.ts` (send-credentials).
 
 # External Dependencies
 
