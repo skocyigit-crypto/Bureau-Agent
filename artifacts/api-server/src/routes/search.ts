@@ -18,7 +18,8 @@ router.get("/search", async (req: Request, res: Response): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const term = `%${q.trim()}%`;
+  const sanitized = q.trim().replace(/[%_\\]/g, "\\$&");
+  const term = `%${sanitized}%`;
   const parsedLimit = parseInt(limit as string);
   const maxResults = isNaN(parsedLimit) ? 5 : Math.min(Math.max(parsedLimit, 1), 10);
 

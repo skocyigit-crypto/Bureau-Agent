@@ -32,8 +32,10 @@ function SecurityMonitorPanel() {
         setStats(data.stats);
         setEvents(data.recentEvents || []);
         setBlacklist(data.blacklistedIps || []);
+      } else {
+        console.error("[Securite] dashboard HTTP error:", res.status);
       }
-    } catch { /* silent */ } finally {
+    } catch (err) { console.error("[Securite] dashboard fetch failed:", err); } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -47,8 +49,10 @@ function SecurityMonitorPanel() {
       if (res.ok) {
         toast({ title: "IP debloquee", description: `L'adresse ${ip} a ete retiree de la liste noire.` });
         fetchSecurityData();
+      } else {
+        toast({ title: "Erreur", description: "Impossible de debloquer cette IP.", variant: "destructive" });
       }
-    } catch { toast({ title: "Erreur", description: "Impossible de debloquer cette IP.", variant: "destructive" }); }
+    } catch { toast({ title: "Erreur", description: "Erreur reseau.", variant: "destructive" }); }
   };
 
   const handleRefresh = () => { setRefreshing(true); fetchSecurityData(); };

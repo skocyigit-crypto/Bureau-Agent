@@ -61,7 +61,9 @@ export function TabMisesAJour() {
         const ver = await verRes.json();
         setBuildInfo({ buildHash: ver.buildHash, buildTime: ver.buildTime });
       }
-    } catch { /* */ }
+    } catch (err) {
+      console.error("[MisesAJour] load failed:", err);
+    }
     setLoading(false);
   };
 
@@ -104,8 +106,12 @@ export function TabMisesAJour() {
       if (res.ok) {
         toast({ title: "Supprimee" });
         loadReleases();
+      } else {
+        toast({ title: "Erreur", description: "Impossible de supprimer cette version.", variant: "destructive" });
       }
-    } catch { /* */ }
+    } catch {
+      toast({ title: "Erreur", description: "Erreur reseau.", variant: "destructive" });
+    }
   };
 
   const suggestNextVersion = () => {

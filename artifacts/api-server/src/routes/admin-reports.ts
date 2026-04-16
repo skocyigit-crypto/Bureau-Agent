@@ -21,8 +21,9 @@ router.get("/admin-reports", async (req, res): Promise<void> => {
 
     const conditions: any[] = [];
 
+    const validStatuses = ["nouveau", "en_cours", "resolu", "ferme", "rejete"];
     if (userRole === "super_admin") {
-      if (req.query.status && req.query.status !== "all") {
+      if (req.query.status && req.query.status !== "all" && validStatuses.includes(req.query.status as string)) {
         conditions.push(eq(adminReportsTable.status, req.query.status as string));
       }
       if (req.query.organisationId) {
