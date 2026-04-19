@@ -54,20 +54,6 @@ export default function Calls() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const cId = params.get("contactId");
-    if (cId) {
-      form.setValue("contactId", cId as any);
-      const matchedContact = contactsData?.contacts?.find((c: any) => String(c.id) === cId);
-      if (matchedContact?.phone) {
-        form.setValue("phoneNumber", matchedContact.phone);
-      }
-      setIsDialogOpen(true);
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-  }, [contactsData]);
-
   const queryParams = {
     search: search || undefined,
     status: statusFilter !== "all" ? statusFilter as any : undefined,
@@ -85,6 +71,20 @@ export default function Calls() {
   });
 
   const { data: contactsData } = useListContacts({ limit: 100 }, { query: { queryKey: ["contacts", "all"] } });
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const cId = params.get("contactId");
+    if (cId) {
+      form.setValue("contactId", cId as any);
+      const matchedContact = contactsData?.contacts?.find((c: any) => String(c.id) === cId);
+      if (matchedContact?.phone) {
+        form.setValue("phoneNumber", matchedContact.phone);
+      }
+      setIsDialogOpen(true);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [contactsData]);
 
   const updateCall = useUpdateCall();
   const createCall = useCreateCall();
