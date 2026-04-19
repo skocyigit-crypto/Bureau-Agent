@@ -95,15 +95,17 @@ router.post("/calls", async (req, res): Promise<void> => {
   const data = parsed.data;
 
   if (data.contactId) {
-    const [contact] = await db.select().from(contactsTable).where(and(eq(contactsTable.id, data.contactId), eq(contactsTable.organisationId, orgId)));
-    if (contact) {
-      await db.update(contactsTable)
-        .set({
-          totalCalls: sql`${contactsTable.totalCalls} + 1`,
-          lastCallAt: new Date(),
-        })
-        .where(eq(contactsTable.id, data.contactId));
+    const [contact] = await db.select({ id: contactsTable.id }).from(contactsTable).where(and(eq(contactsTable.id, data.contactId), eq(contactsTable.organisationId, orgId)));
+    if (!contact) {
+      res.status(403).json({ error: "Contact introuvable ou inaccessible." });
+      return;
     }
+    await db.update(contactsTable)
+      .set({
+        totalCalls: sql`${contactsTable.totalCalls} + 1`,
+        lastCallAt: new Date(),
+      })
+      .where(and(eq(contactsTable.id, data.contactId), eq(contactsTable.organisationId, orgId)));
   }
 
   const userId = (req.session as any)?.userId;
@@ -118,8 +120,24 @@ router.post("/calls", async (req, res): Promise<void> => {
   logAudit((req.session as any)?.userId, (req.session as any)?.userEmail, "create", "call", String(call.id), { contactName: call.contactName, direction: call.direction });
 
   if (call.status === "repondu" && call.notes && call.notes.trim().length > 5) {
-    processCallWithAI(call.id).catch((err) => {
-      console.error(`[AI] Erreur traitement appel #${call.id}:`, err?.message || err);
+    processCallWithAI(call.id).catch(async (err) => {
+      const msg = err?.message || String(err);
+      console.error(`[AI] Erreur traitement appel #${call.id}:`, msg);
+      try {
+        const { notificationsTable } = await import("@workspace/db");
+        await db.insert(notificationsTable).values({
+          type: "alerte",
+          title: "Analyse IA echouee",
+          message: `L'analyse automatique de l'appel avec ${call.contactName || call.phoneNumber} n'a pas abouti: ${msg.slice(0, 200)}. Vous pouvez reessayer manuellement depuis le detail de l'appel.`,
+          priority: "normale",
+          actionUrl: `/appels/${call.id}`,
+          sourceType: "ai_error",
+          sourceId: String(call.id),
+          organisationId: orgId,
+        });
+      } catch (notifErr) {
+        console.error(`[AI] Impossible de creer la notification d'erreur:`, notifErr);
+      }
     });
   }
 
@@ -143,7 +161,27 @@ router.post("/calls/:id/process", async (req, res): Promise<void> => {
       appointment: result.createdAppointment,
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || "Erreur lors du traitement IA." });
+    const msg = err?.message || "Erreur lors du traitement IA.";
+    try {
+      const orgId = getOrgId(req);
+      const [c] = await db.select({ contactName: callsTable.contactName, phoneNumber: callsTable.phoneNumber }).from(callsTable).where(and(eq(callsTable.id, id), eq(callsTable.organisationId, orgId)));
+      if (c) {
+        const { notificationsTable } = await import("@workspace/db");
+        await db.insert(notificationsTable).values({
+          type: "alerte",
+          title: "Analyse IA echouee",
+          message: `Echec de l'analyse manuelle de l'appel avec ${c.contactName || c.phoneNumber}: ${msg.slice(0, 200)}.`,
+          priority: "normale",
+          actionUrl: `/appels/${id}`,
+          sourceType: "ai_error",
+          sourceId: String(id),
+          organisationId: orgId,
+        });
+      }
+    } catch (notifErr) {
+      console.error(`[AI] Impossible de creer la notification d'erreur (manuel):`, notifErr);
+    }
+    res.status(500).json({ error: msg });
   }
 });
 

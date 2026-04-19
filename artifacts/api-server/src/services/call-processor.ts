@@ -1,6 +1,8 @@
 import { db, callsTable, tasksTable, calendarEventsTable, notificationsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { logAudit } from "../routes/audit";
+
+const CALL_LOCK_NAMESPACE = 4242;
 
 interface CallAnalysis {
   summary: string;
@@ -39,12 +41,25 @@ export async function processCallWithAI(callId: number): Promise<{
   if (processingCalls.has(callId)) {
     throw new Error("Cet appel est deja en cours de traitement.");
   }
-  processingCalls.add(callId);
 
+  const lockResult = await db.execute(
+    sql`SELECT pg_try_advisory_lock(${CALL_LOCK_NAMESPACE}, ${callId}) AS acquired`
+  );
+  const acquired = (lockResult as any).rows?.[0]?.acquired ?? (lockResult as any)[0]?.acquired;
+  if (!acquired) {
+    throw new Error("Cet appel est deja en cours de traitement par une autre instance.");
+  }
+
+  processingCalls.add(callId);
   try {
     return await _processCallInternal(callId);
   } finally {
     processingCalls.delete(callId);
+    try {
+      await db.execute(sql`SELECT pg_advisory_unlock(${CALL_LOCK_NAMESPACE}, ${callId})`);
+    } catch (unlockErr) {
+      console.error(`[call-processor] Failed to release advisory lock for call ${callId}:`, unlockErr);
+    }
   }
 }
 
