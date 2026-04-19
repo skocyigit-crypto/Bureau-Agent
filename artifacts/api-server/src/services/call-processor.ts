@@ -1,7 +1,7 @@
 import { db, callsTable, tasksTable, calendarEventsTable, notificationsTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { logAudit } from "../routes/audit";
-import { safeJsonParse, aiCallWithRetry, sanitizePromptInput } from "./ai-utils";
+import { safeJsonParse, aiCallWithRetry, sanitizePromptInput, recordAiUsage, extractGeminiTokens } from "./ai-utils";
 
 const CALL_LOCK_NAMESPACE = 4242;
 
@@ -152,18 +152,46 @@ Reponds UNIQUEMENT en JSON avec cette structure:
   "joke": "string"
 }`;
 
-  const response = await aiCallWithRetry(
-    () => ai.models.generateContent({
+  const aiStart = Date.now();
+  let response: any;
+  try {
+    response = await aiCallWithRetry(
+      () => ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: {
+          maxOutputTokens: 4096,
+          responseMimeType: "application/json",
+          thinkingConfig: { thinkingBudget: 1024 },
+        },
+      }),
+      { label: `call-processor#${callId}`, maxRetries: 2 }
+    );
+  } catch (aiErr: any) {
+    await recordAiUsage({
+      organisationId: call.organisationId,
+      provider: "gemini",
       model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: {
-        maxOutputTokens: 4096,
-        responseMimeType: "application/json",
-        thinkingConfig: { thinkingBudget: 1024 },
-      },
-    }),
-    { label: `call-processor#${callId}`, maxRetries: 2 }
-  );
+      route: "call-processor",
+      inputTokens: 0,
+      outputTokens: 0,
+      durationMs: Date.now() - aiStart,
+      status: "error",
+      errorMessage: aiErr?.name ? `${aiErr.name}: ${aiErr?.message || ""}` : String(aiErr?.message || aiErr),
+    });
+    throw aiErr;
+  }
+  const tokens = extractGeminiTokens(response);
+  await recordAiUsage({
+    organisationId: call.organisationId,
+    provider: "gemini",
+    model: "gemini-2.5-flash",
+    route: "call-processor",
+    inputTokens: tokens.input,
+    outputTokens: tokens.output,
+    durationMs: Date.now() - aiStart,
+    status: "success",
+  });
 
   const fallback: CallAnalysis = {
     summary: "Analyse non disponible",

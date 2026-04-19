@@ -30,3 +30,4 @@ export * from "./face-profiles";
 export * from "./telephony";
 export * from "./invitations";
 export * from "./documents";
+export * from "./ai-usage";

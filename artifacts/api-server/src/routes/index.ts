@@ -45,6 +45,7 @@ import telephonyRouter, { telephonyWebhookRouter } from "./telephony";
 import voiceCommandRouter from "./voice-command";
 import invitationsRouter from "./invitations";
 import documentsRouter from "./documents";
+import aiUsageRouter from "./ai-usage";
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -93,6 +94,7 @@ router.use(smartReportsRouter);
 router.use(bulkOperationsRouter);
 router.use(licenseManagementRouter);
 router.use(aiCommandantRouter);
+router.use(aiUsageRouter);
 router.use(agentCollaborationRouter);
 router.use("/face", faceRecognitionRouter);
 router.use(telephonyRouter);
