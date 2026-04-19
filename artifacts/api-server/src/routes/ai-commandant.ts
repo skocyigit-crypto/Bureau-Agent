@@ -4,6 +4,7 @@ import { eq, sql, and, desc, gte, lte, lt, ne, isNull, isNotNull, or, ilike } fr
 import { getOrgId } from "../middleware/tenant";
 import { Resend } from "resend";
 import { getContextForContact, getLatestAgentInsights, buildCommandantContextPrompt } from "./agent-collaboration";
+import { safeJsonParse } from "../services/ai-utils";
 
 const router = Router();
 
@@ -164,11 +165,7 @@ Genere un JSON avec:
 }`;
 
     const aiResponse = await multiAiGenerate(prompt, systemPrompt);
-    let parsed: any;
-    try {
-      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-      parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { greeting: aiResponse, suggestedResponses: [], recommendedActions: [] };
-    } catch (pe) { console.warn("[Commandant] JSON parse fallback:", pe); parsed = { greeting: aiResponse, suggestedResponses: [], recommendedActions: [] }; }
+    const parsed: any = safeJsonParse<any>(aiResponse, { greeting: aiResponse, suggestedResponses: [], recommendedActions: [] });
 
     const activeAgents = Object.entries(agentInsights).map(([id, insight]) => ({ id, score: insight.score, summary: insight.summary?.slice(0, 80) }));
 

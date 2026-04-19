@@ -1,6 +1,7 @@
 import { db, contactsTable, tasksTable, stockArticlesTable, devisTable, facturesClientTable, projetsTable, prospectsTable } from "@workspace/db";
 import { eq, ilike, or, and } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { safeJsonParse, aiCallWithRetry } from "./ai-utils";
 
 export type DocumentType =
   | "facture"
@@ -242,17 +243,19 @@ export async function analyzeDocument(
     ];
   }
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: [{ role: "user", parts: contentParts }],
-    config: { maxOutputTokens: 16384, responseMimeType: "application/json" },
-  });
+  const response = await aiCallWithRetry(
+    () => ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{ role: "user", parts: contentParts }],
+      config: { maxOutputTokens: 16384, responseMimeType: "application/json" },
+    }),
+    { label: `document-ai:${fileName}`, maxRetries: 2 }
+  );
 
   const text = response.text ?? "{}";
-  let parsed: any;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
+  const FALLBACK_DOC_ANALYSIS: any = null;
+  const parsed: any = safeJsonParse<any>(text, FALLBACK_DOC_ANALYSIS);
+  if (parsed === null) {
     logger.error({ text }, "Document AI: impossible de parser la reponse");
     return {
       documentType: "inconnu",

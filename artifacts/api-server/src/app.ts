@@ -145,6 +145,14 @@ app.use(session({
 app.use(ipProtection);
 
 app.use("/api/ai", aiLimiter);
+app.use("/api/voice", aiLimiter);
+app.use("/api/document-ai", aiLimiter);
+app.use("/api/calls", (req: Request, res: Response, next: NextFunction) => {
+  if (req.method === "POST" && /^\/[0-9]+\/process\/?$/.test(req.path)) {
+    return aiLimiter(req, res, next);
+  }
+  return next();
+});
 app.use("/api", (req: Request, _res: Response, next: NextFunction) => {
   if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
     return strictLimiter(req, _res, next);

@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, callsTable, contactsTable, tasksTable, calendarEventsTable } from "@workspace/db";
 import { eq, desc, and, sql, ilike, or } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
+import { safeJsonParse, aiCallWithRetry, sanitizePromptInput } from "../services/ai-utils";
 
 let ai: any = null;
 try {
@@ -63,8 +64,9 @@ function parseCommandRegex(text: string): VoiceCommand {
 async function parseCommandAI(text: string): Promise<VoiceCommand> {
   if (!ai) return parseCommandRegex(text);
 
+  const safeText = sanitizePromptInput(text, 1000);
   try {
-    const result = await ai.models.generateContent({
+    const result = await aiCallWithRetry(() => ai!.models.generateContent({
       model: "gemini-2.5-flash-preview-05-20",
       contents: [{
         role: "user",
@@ -89,14 +91,13 @@ Intents possibles:
 - help: aide/commandes
 - unknown: si non reconnu
 
-Commande: "${text}"
+Commande: "${safeText}"
 
 Reponds UNIQUEMENT en JSON valide, sans backticks ni explication. Exemple: {"intent":"create_task","params":{"title":"Rappeler le client"}}` }]
       }],
-    });
+    }), { label: "voice-command", maxRetries: 1 });
 
-    const raw = (result.text || "").trim().replace(/```json\n?/g, "").replace(/```/g, "").trim();
-    const parsed = JSON.parse(raw);
+    const parsed = safeJsonParse<VoiceCommand>((result as any).text, { intent: "unknown", params: { text } });
     if (parsed.intent) return parsed;
   } catch (err) {
     console.warn("[VoiceCommand] AI parse fallback:", err);

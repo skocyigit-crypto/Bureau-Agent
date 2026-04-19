@@ -1,6 +1,7 @@
 import { db, callsTable, tasksTable, calendarEventsTable, notificationsTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { logAudit } from "../routes/audit";
+import { safeJsonParse, aiCallWithRetry, sanitizePromptInput } from "./ai-utils";
 
 const CALL_LOCK_NAMESPACE = 4242;
 
@@ -85,12 +86,12 @@ async function _processCallInternal(callId: number): Promise<{
 Tu possedes une expertise avancee en analyse conversationnelle, detection de patterns et intelligence d'affaires.
 
 APPEL A ANALYSER EN PROFONDEUR:
-- Contact: ${call.contactName || "Inconnu"}
-- Telephone: ${call.phoneNumber}
+- Contact: ${sanitizePromptInput(call.contactName, 200) || "Inconnu"}
+- Telephone: ${sanitizePromptInput(call.phoneNumber, 50)}
 - Direction: ${call.direction}
 - Statut: ${call.status}
 - Duree: ${call.duration} secondes
-- Notes/Transcription: ${call.notes || "Aucune note"}
+- Notes/Transcription: ${sanitizePromptInput(call.notes, 6000) || "Aucune note"}
 - Date: ${call.createdAt}
 
 ANALYSE MULTI-DIMENSIONNELLE:
@@ -151,35 +152,56 @@ Reponds UNIQUEMENT en JSON avec cette structure:
   "joke": "string"
 }`;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    config: {
-      maxOutputTokens: 4096,
-      responseMimeType: "application/json",
-      thinkingConfig: { thinkingBudget: 1024 },
-    },
-  });
+  const response = await aiCallWithRetry(
+    () => ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: {
+        maxOutputTokens: 4096,
+        responseMimeType: "application/json",
+        thinkingConfig: { thinkingBudget: 1024 },
+      },
+    }),
+    { label: `call-processor#${callId}`, maxRetries: 2 }
+  );
 
-  const text = response.text ?? "{}";
-  let analysis: CallAnalysis;
-  try {
-    analysis = JSON.parse(text);
-  } catch {
-    analysis = {
-      summary: "Analyse non disponible",
-      sentiment: "neutre",
-      emotion: "calme",
-      urgency: "faible",
-      appointmentRequested: false,
-      appointment: null,
-      tasks: [],
-      followUpNeeded: false,
-      followUpReason: null,
-      tags: [],
-      joke: null,
-    };
-  }
+  const fallback: CallAnalysis = {
+    summary: "Analyse non disponible",
+    sentiment: "neutre",
+    emotion: "calme",
+    urgency: "faible",
+    appointmentRequested: false,
+    appointment: null,
+    tasks: [],
+    followUpNeeded: false,
+    followUpReason: null,
+    tags: [],
+    joke: null,
+  };
+  const parsed = safeJsonParse<Partial<CallAnalysis>>(response.text, fallback);
+  const allowedSentiments = new Set(["tres_positif", "positif", "neutre", "negatif", "tres_negatif"]);
+  const allowedUrgencies = new Set(["faible", "moyenne", "haute", "critique"]);
+  const allowedPriorities = new Set(["haute", "moyenne", "basse"]);
+  const analysis: CallAnalysis = {
+    summary: typeof parsed.summary === "string" ? parsed.summary.slice(0, 1000) : fallback.summary,
+    sentiment: allowedSentiments.has(parsed.sentiment as string) ? (parsed.sentiment as string) : "neutre",
+    emotion: typeof parsed.emotion === "string" ? parsed.emotion : "calme",
+    urgency: allowedUrgencies.has(parsed.urgency as string) ? (parsed.urgency as string) : "faible",
+    appointmentRequested: !!parsed.appointmentRequested,
+    appointment: parsed.appointment && typeof parsed.appointment === "object" ? parsed.appointment as CallAnalysis["appointment"] : null,
+    tasks: Array.isArray(parsed.tasks)
+      ? parsed.tasks.filter((t: any) => t && typeof t.title === "string").slice(0, 20).map((t: any) => ({
+          title: String(t.title).slice(0, 200),
+          description: typeof t.description === "string" ? t.description.slice(0, 1000) : "",
+          priority: allowedPriorities.has(t.priority) ? t.priority : "moyenne",
+          dueInDays: Number.isFinite(t.dueInDays) ? Math.max(0, Math.min(90, Number(t.dueInDays))) : 1,
+        }))
+      : [],
+    followUpNeeded: !!parsed.followUpNeeded,
+    followUpReason: typeof parsed.followUpReason === "string" ? parsed.followUpReason.slice(0, 500) : null,
+    tags: Array.isArray(parsed.tags) ? parsed.tags.filter((t: any) => typeof t === "string").slice(0, 15) : [],
+    joke: typeof parsed.joke === "string" ? parsed.joke.slice(0, 500) : null,
+  };
 
   const enrichedTags = [...(analysis.tags || [])];
   if (analysis.emotion) enrichedTags.push(`emotion:${analysis.emotion}`);
