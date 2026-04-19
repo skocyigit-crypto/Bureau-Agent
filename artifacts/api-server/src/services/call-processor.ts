@@ -5,6 +5,8 @@ import { logAudit } from "../routes/audit";
 interface CallAnalysis {
   summary: string;
   sentiment: string;
+  emotion?: string;
+  urgency?: string;
   appointmentRequested: boolean;
   appointment: {
     title: string;
@@ -78,7 +80,14 @@ APPEL A ANALYSER EN PROFONDEUR:
 
 ANALYSE MULTI-DIMENSIONNELLE:
 1. Resume l'appel en 2-3 phrases percutantes et actionnables.
-2. Determine le sentiment global (positif, neutre, negatif).
+2. Determine le sentiment global sur 5 niveaux:
+   - "tres_positif": client enthousiaste, satisfaction elevee, recommandation probable
+   - "positif": client content, interaction reussie
+   - "neutre": echange standard sans emotion marquee
+   - "negatif": client mecontent, frustration, plainte
+   - "tres_negatif": client en colere, menace de resiliation, urgence critique
+2bis. Detecte l'emotion dominante: "satisfaction", "enthousiasme", "calme", "interrogation", "frustration", "colere", "tristesse", "anxiete".
+2ter. Determine le niveau d'urgence: "faible", "moyenne", "haute", "critique".
 3. Detecte si un rendez-vous a ete demande ou convenu.
    - Si oui, propose une date/heure realiste (prochains jours ouvrables, 9h-18h, pas de jours feries).
    - Determine le type: rdv, visite, reunion, appel.
@@ -100,7 +109,9 @@ IMPORTANT:
 Reponds UNIQUEMENT en JSON avec cette structure:
 {
   "summary": "string",
-  "sentiment": "positif|neutre|negatif",
+  "sentiment": "tres_positif|positif|neutre|negatif|tres_negatif",
+  "emotion": "satisfaction|enthousiasme|calme|interrogation|frustration|colere|tristesse|anxiete",
+  "urgency": "faible|moyenne|haute|critique",
   "appointmentRequested": boolean,
   "appointment": {
     "title": "string",
@@ -143,6 +154,8 @@ Reponds UNIQUEMENT en JSON avec cette structure:
     analysis = {
       summary: "Analyse non disponible",
       sentiment: "neutre",
+      emotion: "calme",
+      urgency: "faible",
       appointmentRequested: false,
       appointment: null,
       tasks: [],
@@ -153,9 +166,13 @@ Reponds UNIQUEMENT en JSON avec cette structure:
     };
   }
 
+  const enrichedTags = [...(analysis.tags || [])];
+  if (analysis.emotion) enrichedTags.push(`emotion:${analysis.emotion}`);
+  if (analysis.urgency && analysis.urgency !== "faible") enrichedTags.push(`urgence:${analysis.urgency}`);
+
   await db.update(callsTable).set({
     sentiment: analysis.sentiment,
-    tags: analysis.tags.length > 0 ? analysis.tags : call.tags,
+    tags: enrichedTags.length > 0 ? enrichedTags : call.tags,
   }).where(eq(callsTable.id, callId));
 
   const createdTasks: any[] = [];

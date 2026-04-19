@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, dailyReportsTable, platformConnectionsTable, platformSyncLogsTable } from "@workspace/db";
-import { sql, eq, gte, lte, and, count, avg, desc, between } from "drizzle-orm";
+import { sql, eq, gte, lte, and, count, avg, desc, between, or } from "drizzle-orm";
 
 const router = Router();
 
@@ -399,8 +399,8 @@ async function gatherDailyData(dateStr: string, orgId: number) {
       priority: messagesTable.priority,
       contactName: messagesTable.contactName,
     }).from(messagesTable).where(and(orgMsg, gte(messagesTable.createdAt, dayStart), lte(messagesTable.createdAt, dayEnd))).orderBy(desc(messagesTable.createdAt)).limit(15),
-    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.sentiment, "positif"))),
-    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.sentiment, "negatif"))),
+    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), or(eq(callsTable.sentiment, "positif"), eq(callsTable.sentiment, "tres_positif")))),
+    db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), or(eq(callsTable.sentiment, "negatif"), eq(callsTable.sentiment, "tres_negatif")))),
     db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, dayStart), lte(callsTable.createdAt, dayEnd), eq(callsTable.sentiment, "neutre"))),
   ]);
 

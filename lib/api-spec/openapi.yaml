@@ -1939,7 +1939,7 @@ components:
           nullable: true
         sentiment:
           type: string
-          enum: [positif, neutre, negatif]
+          enum: [tres_positif, positif, neutre, negatif, tres_negatif]
           nullable: true
         tags:
           type: array
@@ -1974,7 +1974,7 @@ components:
           nullable: true
         sentiment:
           type: string
-          enum: [positif, neutre, negatif]
+          enum: [tres_positif, positif, neutre, negatif, tres_negatif]
           nullable: true
         tags:
           type: array
@@ -1998,7 +1998,7 @@ components:
           nullable: true
         sentiment:
           type: string
-          enum: [positif, neutre, negatif]
+          enum: [tres_positif, positif, neutre, negatif, tres_negatif]
           nullable: true
         tags:
           type: array

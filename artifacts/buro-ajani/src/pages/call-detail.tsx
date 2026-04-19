@@ -186,11 +186,30 @@ export default function CallDetail() {
 
   const getSentimentColor = (sentiment?: string | null) => {
     switch (sentiment) {
+      case 'tres_positif': return 'bg-emerald-600';
       case 'positif': return 'bg-emerald-500';
       case 'negatif': return 'bg-destructive';
+      case 'tres_negatif': return 'bg-red-700';
       case 'neutre': return 'bg-muted-foreground';
       default: return 'bg-transparent border border-border';
     }
+  };
+
+  const getTagStyle = (tag: string) => {
+    if (tag.startsWith('urgence:critique')) return 'bg-red-700/10 text-red-700 border-red-700/30';
+    if (tag.startsWith('urgence:haute')) return 'bg-orange-500/10 text-orange-600 border-orange-500/30';
+    if (tag.startsWith('urgence:moyenne')) return 'bg-amber-500/10 text-amber-600 border-amber-500/30';
+    if (tag.startsWith('emotion:colere') || tag.startsWith('emotion:frustration')) return 'bg-red-500/10 text-red-600 border-red-500/30';
+    if (tag.startsWith('emotion:satisfaction') || tag.startsWith('emotion:enthousiasme')) return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30';
+    if (tag.startsWith('emotion:anxiete') || tag.startsWith('emotion:tristesse')) return 'bg-blue-500/10 text-blue-600 border-blue-500/30';
+    if (tag.startsWith('emotion:') || tag.startsWith('urgence:')) return 'bg-muted text-muted-foreground border-border';
+    return '';
+  };
+
+  const formatTagLabel = (tag: string) => {
+    if (tag.startsWith('emotion:')) return `😶 ${tag.slice(8).replace(/_/g, ' ')}`;
+    if (tag.startsWith('urgence:')) return `⚡ urgence ${tag.slice(8)}`;
+    return tag;
   };
 
   return (
@@ -270,6 +289,9 @@ export default function CallDetail() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Non défini</SelectItem>
+                      <SelectItem value="tres_positif">
+                        <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-emerald-600 mr-2"/> Très positif</div>
+                      </SelectItem>
                       <SelectItem value="positif">
                         <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-emerald-500 mr-2"/> Positif</div>
                       </SelectItem>
@@ -279,6 +301,9 @@ export default function CallDetail() {
                       <SelectItem value="negatif">
                         <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-destructive mr-2"/> Négatif</div>
                       </SelectItem>
+                      <SelectItem value="tres_negatif">
+                        <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-red-700 mr-2"/> Très négatif</div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -286,7 +311,7 @@ export default function CallDetail() {
                   <span className="text-sm font-medium block mb-2">Tags</span>
                   <div className="flex flex-wrap gap-2">
                     {call.tags && call.tags.length > 0 ? (
-                      call.tags.map(tag => <Badge key={tag} variant="outline">{tag}</Badge>)
+                      call.tags.map(tag => <Badge key={tag} variant="outline" className={getTagStyle(tag)}>{formatTagLabel(tag)}</Badge>)
                     ) : (
                       <span className="text-sm text-muted-foreground italic">Aucun tag</span>
                     )}

@@ -213,7 +213,7 @@ async function gatherContextForPage(page: string, orgId: number) {
         db.select({ count: count() }).from(tasksTable).where(and(orgTask, eq(tasksTable.status, "en_attente"))),
         db.select({ id: tasksTable.id, title: tasksTable.title, dueDate: tasksTable.dueDate }).from(tasksTable).where(and(orgTask, lt(tasksTable.dueDate, now), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))).limit(5),
         db.select({ count: count() }).from(messagesTable).where(and(orgMsg, eq(messagesTable.isRead, false))),
-        db.select({ contactName: callsTable.contactName, phoneNumber: callsTable.phoneNumber, createdAt: callsTable.createdAt }).from(callsTable).where(and(orgCall, eq(callsTable.sentiment, "negatif"), gte(callsTable.createdAt, weekAgo))).orderBy(desc(callsTable.createdAt)).limit(5),
+        db.select({ contactName: callsTable.contactName, phoneNumber: callsTable.phoneNumber, createdAt: callsTable.createdAt }).from(callsTable).where(and(orgCall, or(eq(callsTable.sentiment, "negatif"), eq(callsTable.sentiment, "tres_negatif")), gte(callsTable.createdAt, weekAgo))).orderBy(desc(callsTable.createdAt)).limit(5),
       ]);
       return { missedCallsThisWeek: missedCalls[0]?.count ?? 0, pendingTasks: pendingTasks[0]?.count ?? 0, overdueTasks: overdueTasks.map(t => ({ id: t.id, title: t.title, dueDate: t.dueDate })), unreadMessages: unread[0]?.count ?? 0, recentNegativeCalls: recentNegative };
     }
@@ -221,7 +221,7 @@ async function gatherContextForPage(page: string, orgId: number) {
       const [missedNoCallback, longCalls, negativeSentiment, noContact] = await Promise.all([
         db.select({ id: callsTable.id, phoneNumber: callsTable.phoneNumber, contactName: callsTable.contactName, createdAt: callsTable.createdAt }).from(callsTable).where(and(orgCall, eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))).orderBy(desc(callsTable.createdAt)).limit(10),
         db.select({ id: callsTable.id, contactName: callsTable.contactName, duration: callsTable.duration }).from(callsTable).where(and(orgCall, gte(callsTable.duration, 600), gte(callsTable.createdAt, weekAgo))).orderBy(desc(callsTable.duration)).limit(5),
-        db.select({ id: callsTable.id, contactName: callsTable.contactName, phoneNumber: callsTable.phoneNumber }).from(callsTable).where(and(orgCall, eq(callsTable.sentiment, "negatif"), gte(callsTable.createdAt, weekAgo))).limit(5),
+        db.select({ id: callsTable.id, contactName: callsTable.contactName, phoneNumber: callsTable.phoneNumber }).from(callsTable).where(and(orgCall, or(eq(callsTable.sentiment, "negatif"), eq(callsTable.sentiment, "tres_negatif")), gte(callsTable.createdAt, weekAgo))).limit(5),
         db.select({ count: count() }).from(callsTable).where(and(orgCall, isNull(callsTable.contactId))),
       ]);
       return { missedCallsNoCallback: missedNoCallback, longCalls, negativeSentimentCalls: negativeSentiment, callsWithoutContact: noContact[0]?.count ?? 0 };
@@ -657,7 +657,7 @@ router.post("/ai/recognize", async (req, res): Promise<void> => {
       db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))),
       db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))),
       db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.status, "repondu"), gte(callsTable.createdAt, weekAgo))),
-      db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.sentiment, "negatif"), gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, or(eq(callsTable.sentiment, "negatif"), eq(callsTable.sentiment, "tres_negatif")), gte(callsTable.createdAt, weekAgo))),
       db.select({ count: count() }).from(callsTable).where(and(orgCall, isNull(callsTable.contactId), gte(callsTable.createdAt, weekAgo))),
       db.select({
         phoneNumber: callsTable.phoneNumber,
@@ -1287,7 +1287,7 @@ router.post("/ai/central-intelligence", async (req, res): Promise<void> => {
 
       db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))),
       db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.status, "repondu"), gte(callsTable.createdAt, weekAgo))),
-      db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.sentiment, "negatif"), gte(callsTable.createdAt, weekAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, or(eq(callsTable.sentiment, "negatif"), eq(callsTable.sentiment, "tres_negatif")), gte(callsTable.createdAt, weekAgo))),
       db.select({ count: count() }).from(callsTable).where(and(orgCall, isNull(callsTable.contactId), gte(callsTable.createdAt, weekAgo))),
       db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))),
       db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, todayStart))),
@@ -2845,8 +2845,8 @@ router.get("/ai/predictions", async (req, res): Promise<void> => {
       db.select({ hour: sql<string>`extract(hour from ${callsTable.createdAt})::int`, cnt: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, fourWeeksAgo))).groupBy(sql`extract(hour from ${callsTable.createdAt})::int`),
       db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))),
       db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.status, "manque"), gte(callsTable.createdAt, twoWeeksAgo), lt(callsTable.createdAt, weekAgo))),
-      db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.sentiment, "positif"), gte(callsTable.createdAt, fourWeeksAgo))),
-      db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.sentiment, "negatif"), gte(callsTable.createdAt, fourWeeksAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, or(eq(callsTable.sentiment, "positif"), eq(callsTable.sentiment, "tres_positif")), gte(callsTable.createdAt, fourWeeksAgo))),
+      db.select({ count: count() }).from(callsTable).where(and(orgCall, or(eq(callsTable.sentiment, "negatif"), eq(callsTable.sentiment, "tres_negatif")), gte(callsTable.createdAt, fourWeeksAgo))),
     ]);
 
     const historicalData = {

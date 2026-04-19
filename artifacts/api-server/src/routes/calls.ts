@@ -423,7 +423,7 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
       const conversationLog = (conversationHistory || []).map((m: any) => `${m.role === "agent" ? "Sophie" : "Client"}: ${m.text}`).join("\n");
 
       const callCount = recentCalls.length;
-      const negativeCallCount = recentCalls.filter(c => c.sentiment === "negatif").length;
+      const negativeCallCount = recentCalls.filter(c => c.sentiment === "negatif" || c.sentiment === "tres_negatif").length;
       const lastCallDate = recentCalls[0]?.createdAt ? new Date(recentCalls[0].createdAt).toLocaleDateString("fr-FR") : null;
       const overdueTasks = openTasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date());
       const conversationTurnCount = (conversationHistory || []).length;

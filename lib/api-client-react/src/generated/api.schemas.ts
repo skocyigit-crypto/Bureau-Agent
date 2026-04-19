@@ -30,9 +30,11 @@ export type CallSentiment =
   | null;
 
 export const CallSentiment = {
+  tres_positif: "tres_positif",
   positif: "positif",
   neutre: "neutre",
   negatif: "negatif",
+  tres_negatif: "tres_negatif",
 } as const;
 
 export interface Call {
@@ -74,9 +76,11 @@ export type CreateCallBodySentiment =
   | null;
 
 export const CreateCallBodySentiment = {
+  tres_positif: "tres_positif",
   positif: "positif",
   neutre: "neutre",
   negatif: "negatif",
+  tres_negatif: "tres_negatif",
 } as const;
 
 export interface CreateCallBody {
@@ -105,9 +109,11 @@ export type UpdateCallBodySentiment =
   | null;
 
 export const UpdateCallBodySentiment = {
+  tres_positif: "tres_positif",
   positif: "positif",
   neutre: "neutre",
   negatif: "negatif",
+  tres_negatif: "tres_negatif",
 } as const;
 
 export interface UpdateCallBody {
@@ -616,6 +622,7 @@ export const AiDetectionSeverite = {
   alerte: "alerte",
   attention: "attention",
   info: "info",
+  tres_positif: "tres_positif",
   positif: "positif",
 } as const;
 

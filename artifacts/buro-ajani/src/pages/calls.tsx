@@ -36,7 +36,7 @@ const formSchema = z.object({
   status: z.enum(["repondu", "manque", "messagerie", "en_cours"]),
   duration: z.coerce.number().min(0).default(0),
   notes: z.string().optional().nullable(),
-  sentiment: z.enum(["positif", "neutre", "negatif", "none"]).transform(v => v === "none" ? null : v).optional(),
+  sentiment: z.enum(["tres_positif", "positif", "neutre", "negatif", "tres_negatif", "none"]).transform(v => v === "none" ? null : v).optional(),
 });
 
 export default function Calls() {
@@ -218,8 +218,10 @@ export default function Calls() {
 
   const getSentimentBadge = (sentiment?: string | null) => {
     switch (sentiment) {
+      case 'tres_positif': return <Badge variant="outline" className="bg-emerald-600/10 text-emerald-700 border-emerald-600/30">Tres positif</Badge>;
       case 'positif': return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">Positif</Badge>;
       case 'negatif': return <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">Negatif</Badge>;
+      case 'tres_negatif': return <Badge variant="outline" className="bg-red-700/10 text-red-700 border-red-700/30">Tres negatif</Badge>;
       case 'neutre': return <Badge variant="outline" className="bg-muted text-muted-foreground border-muted-foreground/20">Neutre</Badge>;
       default: return null;
     }
@@ -334,9 +336,11 @@ export default function Calls() {
                           <FormControl><SelectTrigger><SelectValue placeholder="Non defini"/></SelectTrigger></FormControl>
                           <SelectContent>
                             <SelectItem value="none">Non defini</SelectItem>
+                            <SelectItem value="tres_positif">Tres positif</SelectItem>
                             <SelectItem value="positif">Positif</SelectItem>
                             <SelectItem value="neutre">Neutre</SelectItem>
                             <SelectItem value="negatif">Negatif</SelectItem>
+                            <SelectItem value="tres_negatif">Tres negatif</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
