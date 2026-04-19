@@ -15,7 +15,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 
 type Metrics = {
-  calls?: { total?: number; answered?: number; missed?: number; avgDuration?: number; inbound?: number; outbound?: number; answerRate?: number; sentiment?: { positif?: number; negatif?: number; neutre?: number } };
+  calls?: { total?: number; answered?: number; missed?: number; avgDuration?: number; inbound?: number; outbound?: number; answerRate?: number; sentiment?: { tres_positif?: number; positif?: number; negatif?: number; tres_negatif?: number; neutre?: number } };
   tasks?: { completed?: number; created?: number; overdue?: number; highPriority?: number };
   messages?: { total?: number; unread?: number; urgent?: number };
   contacts?: { added?: number };

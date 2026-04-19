@@ -61,9 +61,11 @@ export default function Analytics() {
 
   const COLORS = ['hsl(142.1 76.2% 36.3%)', 'hsl(215.4 16.3% 46.9%)', 'hsl(0 84.2% 60.2%)', 'hsl(43 96% 56%)', 'hsl(221 83% 53%)'];
   const SENTIMENT_COLORS: Record<string, string> = {
+    'tres_positif': 'hsl(142.1 76.2% 28%)',
     'positif': 'hsl(142.1 76.2% 36.3%)',
     'neutre': 'hsl(215.4 16.3% 46.9%)',
-    'negatif': 'hsl(0 84.2% 60.2%)'
+    'negatif': 'hsl(0 84.2% 60.2%)',
+    'tres_negatif': 'hsl(0 84.2% 45%)'
   };
   const STATUS_COLORS: Record<string, string> = {
     'repondu': 'hsl(142.1 76.2% 36.3%)',
