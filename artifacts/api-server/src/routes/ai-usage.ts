@@ -2,8 +2,15 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, aiUsageTable } from "@workspace/db";
 import { eq, and, gte, sql, desc } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
+import { getQuotaStatus } from "../services/ai-quota";
 
 const router: IRouter = Router();
+
+router.get("/ai-usage/quota", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const status = await getQuotaStatus(orgId);
+  res.json(status);
+});
 
 router.get("/ai-usage/summary", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);

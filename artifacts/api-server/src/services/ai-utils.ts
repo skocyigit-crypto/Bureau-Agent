@@ -147,12 +147,16 @@ export function sanitizeAiErrorMessage(raw: string | null | undefined): string |
 }
 
 export async function recordAiUsage(opts: RecordAiUsageOpts): Promise<void> {
+  if (!opts.organisationId) {
+    console.warn(`[ai-utils] Skipping AI usage record (no organisationId): route=${opts.route} model=${opts.model}`);
+    return;
+  }
   try {
     const { db, aiUsageTable } = await import("@workspace/db");
     const total = opts.inputTokens + opts.outputTokens;
     const cost = estimateAiCostUsd(opts.model, opts.inputTokens, opts.outputTokens);
     await db.insert(aiUsageTable).values({
-      organisationId: opts.organisationId ?? null,
+      organisationId: opts.organisationId,
       userId: opts.userId ?? null,
       provider: opts.provider,
       model: opts.model,
@@ -168,6 +172,32 @@ export async function recordAiUsage(opts: RecordAiUsageOpts): Promise<void> {
   } catch (err) {
     console.error("[ai-utils] Failed to record AI usage:", err);
   }
+}
+
+const RETENTION_DAYS = Number(process.env.AI_USAGE_RETENTION_DAYS ?? 180);
+let purgeTimer: NodeJS.Timeout | null = null;
+
+export async function purgeOldAiUsage(): Promise<number> {
+  try {
+    const { db, aiUsageTable } = await import("@workspace/db");
+    const { lt } = await import("drizzle-orm");
+    const cutoff = new Date(Date.now() - RETENTION_DAYS * 86400_000);
+    const res = await db.delete(aiUsageTable).where(lt(aiUsageTable.createdAt, cutoff));
+    const deleted = (res as any).rowCount ?? 0;
+    if (deleted > 0) console.info(`[ai-utils] Purge ai_usage: ${deleted} lignes supprimees (>${RETENTION_DAYS}j)`);
+    return deleted;
+  } catch (err) {
+    console.error("[ai-utils] Purge ai_usage failed:", err);
+    return 0;
+  }
+}
+
+export function startAiUsagePurgeJob(): void {
+  if (purgeTimer) return;
+  setTimeout(() => { void purgeOldAiUsage(); }, 30_000);
+  purgeTimer = setInterval(() => { void purgeOldAiUsage(); }, 24 * 60 * 60 * 1000);
+  purgeTimer.unref?.();
+  console.info(`[ai-utils] Purge job started (retention: ${RETENTION_DAYS}j)`);
 }
 
 export function sanitizePromptInput(text: string | null | undefined, maxLen: number = 8000): string {

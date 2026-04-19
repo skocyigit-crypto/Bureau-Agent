@@ -4,7 +4,7 @@ import { usersTable } from "./users";
 
 export const aiUsageTable = pgTable("ai_usage", {
   id: serial("id").primaryKey(),
-  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
+  organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
   userId: integer("user_id").references(() => usersTable.id, { onDelete: "set null" }),
   provider: text("provider").notNull(),
   model: text("model").notNull(),

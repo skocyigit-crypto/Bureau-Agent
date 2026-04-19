@@ -161,6 +161,10 @@ router.post("/calls/:id/process", async (req, res): Promise<void> => {
       appointment: result.createdAppointment,
     });
   } catch (err: any) {
+    if (err?.name === "AiQuotaExceededError") {
+      res.status(429).json({ error: err.message, quotaExceeded: true, reason: err.reason, current: err.current, limit: err.limit });
+      return;
+    }
     const msg = err?.message || "Erreur lors du traitement IA.";
     try {
       const orgId = getOrgId(req);

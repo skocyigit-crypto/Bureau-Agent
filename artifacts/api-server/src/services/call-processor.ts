@@ -2,6 +2,7 @@ import { db, callsTable, tasksTable, calendarEventsTable, notificationsTable } f
 import { eq, sql } from "drizzle-orm";
 import { logAudit } from "../routes/audit";
 import { safeJsonParse, aiCallWithRetry, sanitizePromptInput, recordAiUsage, extractGeminiTokens } from "./ai-utils";
+import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
 
 const CALL_LOCK_NAMESPACE = 4242;
 
@@ -79,6 +80,8 @@ async function _processCallInternal(callId: number): Promise<{
   if (existingTasks.length > 0) {
     throw new Error("Cet appel a deja ete traite par l'IA.");
   }
+
+  await assertAiQuota(call.organisationId);
 
   const { ai } = await import("@workspace/integrations-gemini-ai");
 
@@ -192,6 +195,7 @@ Reponds UNIQUEMENT en JSON avec cette structure:
     durationMs: Date.now() - aiStart,
     status: "success",
   });
+  if (call.organisationId) invalidateQuotaCache(call.organisationId);
 
   const fallback: CallAnalysis = {
     summary: "Analyse non disponible",
