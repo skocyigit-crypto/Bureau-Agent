@@ -144,11 +144,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
         ],
       },
       {
-        label: "Administration",
+        label: "Licence",
         items: [
-          ...(isSuperAdmin ? [{ name: "Organisations", href: "/organisations", icon: KeyRound }] : []),
           ...(isAdmin ? [{ name: "Licence & Facturation", href: "/gestion-licence", icon: Shield }] : []),
           ...(!isSuperAdmin ? [{ name: "Mon Abonnement", href: "/abonnement", icon: KeyRound }] : []),
+          ...(isSuperAdmin ? [{ name: "Organisations", href: "/organisations", icon: KeyRound }] : []),
+        ],
+      },
+      {
+        label: "Système",
+        items: [
           ...(isAdmin ? [{ name: "Audit", href: "/audit", icon: Shield }] : []),
           { name: "Telecharger", href: "/telecharger", icon: Download },
           { name: "Parametres", href: "/parametres", icon: Settings },
