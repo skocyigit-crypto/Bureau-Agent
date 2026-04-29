@@ -79,38 +79,82 @@ export function Layout({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  const navigation = useMemo(() => {
+  const navGroups = useMemo(() => {
     const isAdmin = user.role === "super_admin" || user.role === "administrateur";
-    const items = [
-      { name: "Tableau de bord", href: "/", icon: LayoutDashboard },
-      { name: "Appels", href: "/appels", icon: Phone },
-      { name: "Contacts", href: "/contacts", icon: Users },
-      { name: "Tâches", href: "/taches", icon: CheckSquare },
-      { name: "Messages", href: "/messages", icon: MessageSquare },
-      { name: "Calendrier", href: "/calendrier", icon: Calendar },
-      { name: "Rapports", href: "/rapports", icon: FileText },
-      { name: "Rapport Executif", href: "/rapport-executif", icon: BarChart3 },
-      ...(isAdmin ? [{ name: "Licence & Facturation", href: "/gestion-licence", icon: Shield }] : []),
-      { name: "Google Workspace", href: "/google-workspace", icon: Globe },
-      { name: "Logiciels", href: "/logiciels", icon: Puzzle },
-      { name: "Analyse", href: "/analyse", icon: BarChart },
-      ...(isAdmin ? [{ name: "Utilisateurs", href: "/utilisateurs", icon: UserCog }] : []),
-      { name: "Pointage", href: "/pointage", icon: Clock },
-      ...(user.role !== "lecture_seule" ? [{ name: "Agents IA", href: "/agents-ia", icon: Brain }] : []),
-      ...(user.role !== "lecture_seule" ? [{ name: "AI Commandant", href: "/commandant-ia", icon: Sparkles }] : []),
-      { name: "Telephonie", href: "/telephonie", icon: PhoneCall },
-      { name: "Document IA", href: "/document-ia", icon: ScanSearch },
-      { name: "Documents", href: "/documents", icon: FileText },
-      { name: "Import Intelligent", href: "/import", icon: Download },
-      { name: "Performance", href: "/performance", icon: BarChart3 },
-      ...(isAdmin ? [{ name: "Automatisations", href: "/automatisations", icon: Zap }] : []),
-      ...(user.role === "super_admin" ? [{ name: "Organisations", href: "/organisations", icon: KeyRound }] : []),
-      ...(user.role !== "super_admin" ? [{ name: "Mon Abonnement", href: "/abonnement", icon: KeyRound }] : []),
-      ...(isAdmin ? [{ name: "Audit", href: "/audit", icon: Shield }] : []),
-      { name: "Telecharger", href: "/telecharger", icon: Download },
-      { name: "Parametres", href: "/parametres", icon: Settings },
-    ];
-    return items;
+    const isSuperAdmin = user.role === "super_admin";
+    const canUseAi = user.role !== "lecture_seule";
+
+    return [
+      {
+        label: "Vue d'ensemble",
+        items: [
+          { name: "Tableau de bord", href: "/", icon: LayoutDashboard },
+          { name: "Analyse", href: "/analyse", icon: BarChart },
+          { name: "Performance", href: "/performance", icon: BarChart3 },
+        ],
+      },
+      {
+        label: "Communication",
+        items: [
+          { name: "Appels", href: "/appels", icon: Phone },
+          { name: "Telephonie", href: "/telephonie", icon: PhoneCall },
+          { name: "Messages", href: "/messages", icon: MessageSquare },
+          { name: "Calendrier", href: "/calendrier", icon: Calendar },
+        ],
+      },
+      {
+        label: "CRM",
+        items: [
+          { name: "Contacts", href: "/contacts", icon: Users },
+          { name: "Tâches", href: "/taches", icon: CheckSquare },
+        ],
+      },
+      ...(canUseAi
+        ? [{
+            label: "Intelligence Artificielle",
+            items: [
+              { name: "Agents IA", href: "/agents-ia", icon: Brain },
+              { name: "AI Commandant", href: "/commandant-ia", icon: Sparkles },
+              { name: "Document IA", href: "/document-ia", icon: ScanSearch },
+            ],
+          }]
+        : []),
+      {
+        label: "Documents & Rapports",
+        items: [
+          { name: "Documents", href: "/documents", icon: FileText },
+          { name: "Rapports", href: "/rapports", icon: FileText },
+          { name: "Rapport Executif", href: "/rapport-executif", icon: BarChart3 },
+          { name: "Import Intelligent", href: "/import", icon: Download },
+        ],
+      },
+      {
+        label: "Équipe",
+        items: [
+          { name: "Pointage", href: "/pointage", icon: Clock },
+          ...(isAdmin ? [{ name: "Utilisateurs", href: "/utilisateurs", icon: UserCog }] : []),
+        ],
+      },
+      {
+        label: "Intégrations",
+        items: [
+          { name: "Google Workspace", href: "/google-workspace", icon: Globe },
+          { name: "Logiciels", href: "/logiciels", icon: Puzzle },
+          ...(isAdmin ? [{ name: "Automatisations", href: "/automatisations", icon: Zap }] : []),
+        ],
+      },
+      {
+        label: "Administration",
+        items: [
+          ...(isSuperAdmin ? [{ name: "Organisations", href: "/organisations", icon: KeyRound }] : []),
+          ...(isAdmin ? [{ name: "Licence & Facturation", href: "/gestion-licence", icon: Shield }] : []),
+          ...(!isSuperAdmin ? [{ name: "Mon Abonnement", href: "/abonnement", icon: KeyRound }] : []),
+          ...(isAdmin ? [{ name: "Audit", href: "/audit", icon: Shield }] : []),
+          { name: "Telecharger", href: "/telecharger", icon: Download },
+          { name: "Parametres", href: "/parametres", icon: Settings },
+        ],
+      },
+    ].filter(g => g.items.length > 0);
   }, [user.role]);
 
 
@@ -130,27 +174,29 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </SidebarHeader>
           <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {navigation.map((item) => (
-                    <SidebarMenuItem key={item.name}>
-                      <SidebarMenuButton 
-                        asChild 
-                        isActive={location === item.href || (item.href !== "/" && location.startsWith(item.href + "/"))}
-                        tooltip={item.name}
-                      >
-                        <Link href={item.href} className="flex items-center gap-3" onClick={() => triggerHaptic("light")}>
-                          <SidebarIcon3D icon={item.icon} href={item.href} />
-                          <span>{item.name}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+            {navGroups.map((group) => (
+              <SidebarGroup key={group.label}>
+                <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {group.items.map((item) => (
+                      <SidebarMenuItem key={item.name}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={location === item.href || (item.href !== "/" && location.startsWith(item.href + "/"))}
+                          tooltip={item.name}
+                        >
+                          <Link href={item.href} className="flex items-center gap-3" onClick={() => triggerHaptic("light")}>
+                            <SidebarIcon3D icon={item.icon} href={item.href} />
+                            <span>{item.name}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            ))}
           </SidebarContent>
           <SidebarFooter className="p-0">
             <WorkspaceUserSidebarInfo />
