@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { detectMathExpressions, analyzeMath, analyzeWithAI } from "../services/math-engine";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -13,7 +14,7 @@ router.post("/math/detect", async (req, res): Promise<void> => {
     const detected = detectMathExpressions(text);
     res.json({ detected, text });
   } catch (error: any) {
-    console.error("Math detect error:", error);
+    logger.error({ err: error }, "Math detect error:");
     res.status(500).json({ error: "Erreur de detection mathematique." });
   }
 });
@@ -34,7 +35,7 @@ router.post("/math/analyze", async (req, res): Promise<void> => {
 
     res.json(analysis);
   } catch (error: any) {
-    console.error("Math analyze error:", error);
+    logger.error({ err: error }, "Math analyze error:");
     res.status(500).json({ error: "Erreur d'analyse mathematique." });
   }
 });
@@ -57,7 +58,7 @@ router.post("/math/evaluate", async (req, res): Promise<void> => {
 
     res.json({ results });
   } catch (error: any) {
-    console.error("Math evaluate error:", error);
+    logger.error({ err: error }, "Math evaluate error:");
     res.status(500).json({ error: "Erreur d'evaluation mathematique." });
   }
 });

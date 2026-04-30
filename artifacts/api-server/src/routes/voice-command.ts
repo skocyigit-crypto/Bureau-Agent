@@ -3,12 +3,13 @@ import { db, callsTable, contactsTable, tasksTable, calendarEventsTable } from "
 import { eq, desc, and, sql, ilike, or } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { safeJsonParse, aiCallWithRetry, sanitizePromptInput } from "../services/ai-utils";
+import { logger } from "../lib/logger";
 
 let ai: any = null;
 try {
   const mod = require("@workspace/integrations-gemini-ai");
   ai = mod.ai;
-} catch (e) { console.warn("[VoiceCommand] Gemini AI not available:", e); }
+} catch (e) { logger.warn({ err: e }, "[VoiceCommand] Gemini AI not available:"); }
 
 const router: IRouter = Router();
 
@@ -100,7 +101,7 @@ Reponds UNIQUEMENT en JSON valide, sans backticks ni explication. Exemple: {"int
     const parsed = safeJsonParse<VoiceCommand>((result as any).text, { intent: "unknown", params: { text } });
     if (parsed.intent) return parsed;
   } catch (err) {
-    console.warn("[VoiceCommand] AI parse fallback:", err);
+    logger.warn({ err: err }, "[VoiceCommand] AI parse fallback:");
   }
 
   return parseCommandRegex(text);
@@ -346,7 +347,7 @@ router.post("/voice/command", async (req: Request, res: Response): Promise<void>
       navigate,
     });
   } catch (err) {
-    console.error("[VoiceCommand] Error:", err);
+    logger.error({ err: err }, "[VoiceCommand] Error:");
     res.status(500).json({ success: false, spoken: "Une erreur est survenue. Veuillez reessayer." });
   }
 });

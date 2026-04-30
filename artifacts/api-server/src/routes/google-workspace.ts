@@ -3,6 +3,7 @@ import { google } from "googleapis";
 import { db, googleOAuthTokensTable, platformConnectionsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { ReplitConnectors } from "@replit/connectors-sdk";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -10,7 +11,7 @@ let connectors: ReplitConnectors | null = null;
 try {
   connectors = new ReplitConnectors();
 } catch (e) {
-  console.warn("[GoogleWorkspace] Replit Connectors SDK not available");
+  logger.warn("[GoogleWorkspace] Replit Connectors SDK not available");
 }
 
 const GOOGLE_APPS = [
@@ -69,7 +70,7 @@ async function connectorProxy(connectorName: string, path: string, options?: any
     }
     return resp;
   } catch (err: any) {
-    console.warn(`[GoogleWorkspace] Connector ${connectorName} proxy error:`, err.message);
+    logger.warn({ err: err.message }, `[GoogleWorkspace] Connector ${connectorName} proxy error:`);
     return null;
   }
 }
@@ -120,7 +121,7 @@ router.get("/google-workspace/hub", async (req, res): Promise<void> => {
       },
     });
   } catch (error: any) {
-    console.error("Google Workspace hub error:", error);
+    logger.error({ err: error }, "Google Workspace hub error:");
     res.status(500).json({ error: "Erreur" });
   }
 });
@@ -151,12 +152,12 @@ router.get("/google-workspace/recent-emails", async (req, res): Promise<void> =>
                   unread: (detail.labelIds || []).includes("UNREAD"),
                 });
               }
-            } catch (err) { console.warn("[GoogleWorkspace] connector email detail error:", err); }
+            } catch (err) { logger.warn({ err: err }, "[GoogleWorkspace] connector email detail error:"); }
           }
           res.json({ emails, source: "replit_connector" });
           return;
         }
-      } catch (err) { console.warn("[GoogleWorkspace] connector gmail fallback error:", err); }
+      } catch (err) { logger.warn({ err: err }, "[GoogleWorkspace] connector gmail fallback error:"); }
     }
 
     if (!auth) { res.json({ emails: [], error: "non_connecte" }); return; }
@@ -177,12 +178,12 @@ router.get("/google-workspace/recent-emails", async (req, res): Promise<void> =>
           snippet: detail.data.snippet || "",
           unread: (detail.data.labelIds || []).includes("UNREAD"),
         });
-      } catch (err) { console.warn("[GoogleWorkspace] operation failed:", err); }
+      } catch (err) { logger.warn({ err: err }, "[GoogleWorkspace] operation failed:"); }
     }
 
     res.json({ emails });
   } catch (error: any) {
-    console.error("Recent emails error:", error);
+    logger.error({ err: error }, "Recent emails error:");
     res.json({ emails: [], error: error.message });
   }
 });
@@ -221,7 +222,7 @@ router.get("/google-workspace/upcoming-events", async (req, res): Promise<void> 
           res.json({ events, source: "replit_connector" });
           return;
         }
-      } catch (err) { console.warn("[GoogleWorkspace] connector calendar fallback error:", err); }
+      } catch (err) { logger.warn({ err: err }, "[GoogleWorkspace] connector calendar fallback error:"); }
     }
 
     if (!auth) { res.json({ events: [], error: "non_connecte" }); return; }
@@ -253,7 +254,7 @@ router.get("/google-workspace/upcoming-events", async (req, res): Promise<void> 
 
     res.json({ events });
   } catch (error: any) {
-    console.error("Upcoming events error:", error);
+    logger.error({ err: error }, "Upcoming events error:");
     res.json({ events: [], error: error.message });
   }
 });
@@ -290,7 +291,7 @@ router.get("/google-workspace/recent-files", async (req, res): Promise<void> => 
           res.json({ files, source: "replit_connector" });
           return;
         }
-      } catch (err) { console.warn("[GoogleWorkspace] connector drive fallback error:", err); }
+      } catch (err) { logger.warn({ err: err }, "[GoogleWorkspace] connector drive fallback error:"); }
     }
 
     if (!auth) { res.json({ files: [], error: "non_connecte" }); return; }
@@ -318,7 +319,7 @@ router.get("/google-workspace/recent-files", async (req, res): Promise<void> => 
 
     res.json({ files });
   } catch (error: any) {
-    console.error("Recent files error:", error);
+    logger.error({ err: error }, "Recent files error:");
     res.json({ files: [], error: error.message });
   }
 });
@@ -350,12 +351,12 @@ router.get("/google-workspace/tasks", async (req, res): Promise<void> => {
             listId: list.id,
           });
         }
-      } catch (err) { console.warn("[GoogleWorkspace] operation failed:", err); }
+      } catch (err) { logger.warn({ err: err }, "[GoogleWorkspace] operation failed:"); }
     }
 
     res.json({ tasks: allTasks.slice(0, 15) });
   } catch (error: any) {
-    console.error("Google tasks error:", error);
+    logger.error({ err: error }, "Google tasks error:");
     res.json({ tasks: [], error: error.message });
   }
 });

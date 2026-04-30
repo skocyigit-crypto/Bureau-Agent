@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db, contactsTable, callsTable, tasksTable, usersTable, organisationsTable } from "@workspace/db";
 import { eq, count, sql, and } from "drizzle-orm";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -680,7 +681,7 @@ Reponds en JSON:
       });
       aiInsights = response.text || "";
     } catch (err: any) {
-      console.error("[Smart Discovery] AI error:", err?.message);
+      logger.error({ err: err?.message }, "[Smart Discovery] AI error:");
     }
     }
 
@@ -692,7 +693,7 @@ Reponds en JSON:
         const cleaned = aiInsights.replace(/[\x00-\x1F]/g, " ").trim();
         const lastBrace = cleaned.lastIndexOf("}");
         if (lastBrace > 0) {
-          try { parsedAiInsights = JSON.parse(cleaned.substring(0, lastBrace + 1)); } catch (pe) { console.warn("[Integrations] AI insights JSON fallback parse failed:", pe); }
+          try { parsedAiInsights = JSON.parse(cleaned.substring(0, lastBrace + 1)); } catch (pe) { logger.warn({ err: pe }, "[Integrations] AI insights JSON fallback parse failed:"); }
         }
       }
     }
@@ -714,7 +715,7 @@ Reponds en JSON:
       discoveredAt: new Date().toISOString(),
     });
   } catch (err: any) {
-    console.error("[Smart Discovery] Erreur:", err?.message);
+    logger.error({ err: err?.message }, "[Smart Discovery] Erreur:");
     res.status(500).json({ error: "Erreur lors de la decouverte intelligente." });
   }
 });

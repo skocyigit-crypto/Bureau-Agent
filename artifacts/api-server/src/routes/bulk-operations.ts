@@ -3,6 +3,7 @@ import { db, callsTable, contactsTable, tasksTable, messagesTable, prospectsTabl
 import { eq, sql, and, inArray } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -21,7 +22,7 @@ router.post("/bulk/tasks/complete", requireMinOperateur, async (req: Request, re
 
     res.json({ success: true, updated: ids.length });
   } catch (err: any) {
-    console.error("Erreur bulk complete:", err);
+    logger.error({ err: err }, "Erreur bulk complete:");
     res.status(500).json({ error: "Erreur bulk complete" });
   }
 });
@@ -35,7 +36,7 @@ router.post("/bulk/tasks/delete", requireMinAdmin, async (req: Request, res: Res
     await db.delete(tasksTable).where(and(eq(tasksTable.organisationId, orgId), inArray(tasksTable.id, ids)));
     res.json({ success: true, deleted: ids.length });
   } catch (err: any) {
-    console.error("Erreur bulk delete tasks:", err);
+    logger.error({ err: err }, "Erreur bulk delete tasks:");
     res.status(500).json({ error: "Erreur bulk delete" });
   }
 });
@@ -53,7 +54,7 @@ router.post("/bulk/tasks/assign", requireMinOperateur, async (req: Request, res:
 
     res.json({ success: true, updated: ids.length });
   } catch (err: any) {
-    console.error("Erreur bulk assign:", err);
+    logger.error({ err: err }, "Erreur bulk assign:");
     res.status(500).json({ error: "Erreur bulk assign" });
   }
 });
@@ -71,7 +72,7 @@ router.post("/bulk/tasks/priority", requireMinOperateur, async (req: Request, re
 
     res.json({ success: true, updated: ids.length });
   } catch (err: any) {
-    console.error("Erreur bulk priority:", err);
+    logger.error({ err: err }, "Erreur bulk priority:");
     res.status(500).json({ error: "Erreur bulk priority" });
   }
 });
@@ -85,7 +86,7 @@ router.post("/bulk/contacts/delete", requireMinAdmin, async (req: Request, res: 
     await db.delete(contactsTable).where(and(eq(contactsTable.organisationId, orgId), inArray(contactsTable.id, ids)));
     res.json({ success: true, deleted: ids.length });
   } catch (err: any) {
-    console.error("Erreur bulk delete contacts:", err);
+    logger.error({ err: err }, "Erreur bulk delete contacts:");
     res.status(500).json({ error: "Erreur bulk delete contacts" });
   }
 });
@@ -103,7 +104,7 @@ router.post("/bulk/contacts/category", requireMinOperateur, async (req: Request,
 
     res.json({ success: true, updated: ids.length });
   } catch (err: any) {
-    console.error("Erreur bulk category:", err);
+    logger.error({ err: err }, "Erreur bulk category:");
     res.status(500).json({ error: "Erreur bulk category" });
   }
 });
@@ -120,7 +121,7 @@ router.post("/bulk/messages/read", requireMinOperateur, async (req: Request, res
 
     res.json({ success: true, updated: ids.length });
   } catch (err: any) {
-    console.error("Erreur bulk read messages:", err);
+    logger.error({ err: err }, "Erreur bulk read messages:");
     res.status(500).json({ error: "Erreur bulk read" });
   }
 });
@@ -137,7 +138,7 @@ router.post("/bulk/prospects/stage", requireMinOperateur, async (req: Request, r
 
     res.json({ success: true, updated: ids.length });
   } catch (err: any) {
-    console.error("Erreur bulk stage prospects:", err);
+    logger.error({ err: err }, "Erreur bulk stage prospects:");
     res.status(500).json({ error: "Erreur bulk stage" });
   }
 });
@@ -196,7 +197,7 @@ router.get("/export/:entity", requireMinAdmin, async (req: Request, res: Respons
       res.json({ entity, count: data.length, exportedAt: new Date().toISOString(), data });
     }
   } catch (err: any) {
-    console.error("Erreur export:", err);
+    logger.error({ err: err }, "Erreur export:");
     res.status(500).json({ error: "Erreur export" });
   }
 });

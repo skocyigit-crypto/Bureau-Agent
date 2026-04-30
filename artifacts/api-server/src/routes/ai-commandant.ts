@@ -5,6 +5,7 @@ import { getOrgId } from "../middleware/tenant";
 import { Resend } from "resend";
 import { getContextForContact, getLatestAgentInsights, buildCommandantContextPrompt } from "./agent-collaboration";
 import { safeJsonParse } from "../services/ai-utils";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -83,12 +84,12 @@ function emailWrap(title: string, body: string): string {
 async function sendEmailViaResend(to: string, subject: string, html: string): Promise<boolean> {
   try {
     const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) { console.log(`[Commandant/Email] Pas de cle Resend. Email pour ${to}`); return false; }
+    if (!apiKey) { logger.info(`[Commandant/Email] Pas de cle Resend. Email pour ${to}`); return false; }
     const resend = new Resend(apiKey);
     await resend.emails.send({ from: "Agent de Bureau <onboarding@resend.dev>", to: [to], subject, html });
     return true;
   } catch (err: any) {
-    console.error("[Commandant/Email] Erreur:", err.message);
+    logger.error({ err: err.message }, "[Commandant/Email] Erreur:");
     return false;
   }
 }
@@ -105,7 +106,7 @@ async function createNotification(orgId: number, userId: number | null, title: s
       actionUrl: actionUrl || null,
     });
   } catch (err: any) {
-    console.error("[Commandant/Notif]", err.message);
+    logger.error({ err: err.message }, "[Commandant/Notif]");
   }
 }
 
@@ -186,7 +187,7 @@ Genere un JSON avec:
       },
     });
   } catch (err: any) {
-    console.error("[Commandant/CallResponse]", err);
+    logger.error({ err: err }, "[Commandant/CallResponse]");
     res.status(500).json({ error: "Erreur" });
   }
 });
@@ -224,12 +225,12 @@ JSON attendu:
     try {
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
       parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { summary: aiResponse };
-    } catch (pe) { console.warn("[Commandant/CallCompile] JSON parse fallback:", pe); parsed = { summary: aiResponse }; }
+    } catch (pe) { logger.warn({ err: pe }, "[Commandant/CallCompile] JSON parse fallback:"); parsed = { summary: aiResponse }; }
 
     if (callId) {
       try {
         await db.update(callsTable).set({ notes: parsed.summary, sentiment: parsed.sentiment, tags: parsed.topics || [] }).where(and(eq(callsTable.id, parseInt(String(callId))), eq(callsTable.organisationId, orgId)));
-      } catch (e) { console.error("[Commandant] call update failed:", e); }
+      } catch (e) { logger.error({ err: e }, "[Commandant] call update failed:"); }
     }
 
     const createdTasks: any[] = [];
@@ -241,7 +242,7 @@ JSON attendu:
             organisationId: orgId, title: `[Appel] ${task.title}`, description: task.description || parsed.summary, priority: task.priority || "moyenne", status: "en_attente", dueDate,
           }).returning();
           createdTasks.push(t);
-        } catch (e) { console.error("[Commandant/CallCompile] task insert failed:", e); }
+        } catch (e) { logger.error({ err: e }, "[Commandant/CallCompile] task insert failed:"); }
       }
     }
 
@@ -255,13 +256,13 @@ JSON attendu:
             organisationId: orgId, title: `[Appel] ${appt.title}`, type: appt.type || "rendez_vous", startDate, endDate, status: "confirme",
           }).returning();
           createdEvents.push(e);
-        } catch (e) { console.error("[Commandant/CallCompile] event insert failed:", e); }
+        } catch (e) { logger.error({ err: e }, "[Commandant/CallCompile] event insert failed:"); }
       }
     }
 
     res.json({ success: true, compilation: parsed, createdTasks, createdEvents });
   } catch (err: any) {
-    console.error("[Commandant/CallCompile]", err);
+    logger.error({ err: err }, "[Commandant/CallCompile]");
     res.status(500).json({ error: "Erreur" });
   }
 });
@@ -293,7 +294,7 @@ JSON attendu:
     try {
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
       parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { tasks: [], appointments: [], reminders: [], summary: aiResponse };
-    } catch (pe) { console.warn("[Commandant/AutoCreate] JSON parse fallback:", pe); parsed = { tasks: [], appointments: [], reminders: [], summary: aiResponse }; }
+    } catch (pe) { logger.warn({ err: pe }, "[Commandant/AutoCreate] JSON parse fallback:"); parsed = { tasks: [], appointments: [], reminders: [], summary: aiResponse }; }
 
     const createdTasks: any[] = [];
     for (const task of (parsed.tasks || [])) {
@@ -303,7 +304,7 @@ JSON attendu:
           organisationId: orgId, title: task.title, description: task.description, priority: task.priority || "moyenne", status: "en_attente", dueDate, relatedContactId: contactId || null,
         }).returning();
         createdTasks.push(t);
-      } catch (e) { console.error("[Commandant/AutoCreate] task insert failed:", e); }
+      } catch (e) { logger.error({ err: e }, "[Commandant/AutoCreate] task insert failed:"); }
     }
 
     const createdEvents: any[] = [];
@@ -315,19 +316,19 @@ JSON attendu:
           organisationId: orgId, title: appt.title, type: appt.type || "rendez_vous", startDate, endDate, status: "en_attente", relatedContactId: contactId || null,
         }).returning();
         createdEvents.push(e);
-      } catch (e) { console.error("[Commandant/AutoCreate] event insert failed:", e); }
+      } catch (e) { logger.error({ err: e }, "[Commandant/AutoCreate] event insert failed:"); }
     }
 
     const userId = (req.session as any)?.userId;
     for (const reminder of (parsed.reminders || [])) {
       try {
         await createNotification(orgId, userId, reminder.title, reminder.message, "rappel");
-      } catch (e) { console.error("[Commandant/AutoCreate] reminder failed:", e); }
+      } catch (e) { logger.error({ err: e }, "[Commandant/AutoCreate] reminder failed:"); }
     }
 
     res.json({ success: true, summary: parsed.summary, createdTasks, createdEvents, reminders: parsed.reminders?.length || 0 });
   } catch (err: any) {
-    console.error("[Commandant/AutoCreate]", err);
+    logger.error({ err: err }, "[Commandant/AutoCreate]");
     res.status(500).json({ error: "Erreur" });
   }
 });
@@ -400,7 +401,7 @@ JSON attendu:
     const activeAgents = Object.entries(agentInsights).map(([id, insight]) => ({ id, score: insight.score }));
     res.json({ success: true, reply: parsed, collaboration: { agentsConsulted: activeAgents, enrichedByAgents: true } });
   } catch (err: any) {
-    console.error("[Commandant/EmailReply]", err);
+    logger.error({ err: err }, "[Commandant/EmailReply]");
     res.status(500).json({ error: "Erreur" });
   }
 });
@@ -443,7 +444,7 @@ JSON attendu:
 
     res.json({ success: true, compilation: parsed });
   } catch (err: any) {
-    console.error("[Commandant/EmailCompile]", err);
+    logger.error({ err: err }, "[Commandant/EmailCompile]");
     res.status(500).json({ error: "Erreur" });
   }
 });
@@ -514,7 +515,7 @@ JSON attendu:
       emailsSent,
     });
   } catch (err: any) {
-    console.error("[Commandant/OverdueReminders]", err);
+    logger.error({ err: err }, "[Commandant/OverdueReminders]");
     res.status(500).json({ error: "Erreur" });
   }
 });
@@ -562,7 +563,7 @@ JSON attendu:
           organisationId: orgId, title: `[Reunion] ${action.title}`, description: `${action.description || ""}\nAssigne a: ${action.assignedTo || "Non assigne"}\nReunion: ${meetingTitle || ""}`, priority: action.priority || "moyenne", status: "en_attente", dueDate,
         }).returning();
         createdTasks.push(t);
-      } catch (e) { console.error("[Commandant/MeetingCompile] task insert failed:", e); }
+      } catch (e) { logger.error({ err: e }, "[Commandant/MeetingCompile] task insert failed:"); }
     }
 
     const createdEvents: any[] = [];
@@ -575,7 +576,7 @@ JSON attendu:
           organisationId: orgId, title: appt.title, type: "reunion", startDate, endDate, status: "en_attente", description: `Participants: ${(appt.participants || []).join(", ")}`,
         }).returning();
         createdEvents.push(e);
-      } catch (e) { console.error("[Commandant/MeetingCompile] event insert failed:", e); }
+      } catch (e) { logger.error({ err: e }, "[Commandant/MeetingCompile] event insert failed:"); }
     }
 
     const userId = (req.session as any)?.userId;
@@ -585,7 +586,7 @@ JSON attendu:
 
     res.json({ success: true, compilation: parsed, createdTasks, createdEvents, remindersCreated: (parsed.reminders || []).length });
   } catch (err: any) {
-    console.error("[Commandant/MeetingCompile]", err);
+    logger.error({ err: err }, "[Commandant/MeetingCompile]");
     res.status(500).json({ error: "Erreur" });
   }
 });
@@ -628,18 +629,18 @@ router.post("/commandant/photo-location", async (req: Request, res: Response): P
     if (linkedEntity === "contact" && linkedEntityId) {
       try {
         await db.update(contactsTable).set({ address }).where(and(eq(contactsTable.id, linkedEntityId), eq(contactsTable.organisationId, orgId)));
-      } catch (e) { console.error("[Commandant/Location] contact address update failed:", e); }
+      } catch (e) { logger.error({ err: e }, "[Commandant/Location] contact address update failed:"); }
     }
     if (linkedEntity === "projet" && linkedEntityId) {
       try {
         const { projetsTable } = await import("@workspace/db");
         await db.update(projetsTable).set({ address }).where(and(eq(projetsTable.id, linkedEntityId), eq(projetsTable.organisationId, orgId)));
-      } catch (e) { console.error("[Commandant/Location] project address update failed:", e); }
+      } catch (e) { logger.error({ err: e }, "[Commandant/Location] project address update failed:"); }
     }
 
     res.json({ success: true, location: { address, latitude, longitude, mapUrl }, metadata });
   } catch (err: any) {
-    console.error("[Commandant/PhotoLocation]", err);
+    logger.error({ err: err }, "[Commandant/PhotoLocation]");
     res.status(500).json({ error: "Erreur" });
   }
 });
@@ -702,7 +703,7 @@ JSON attendu:
 
     res.json({ success: true, employees: employeeStats, analysis });
   } catch (err: any) {
-    console.error("[Commandant/EmployeeStats]", err);
+    logger.error({ err: err }, "[Commandant/EmployeeStats]");
     res.status(500).json({ error: "Erreur" });
   }
 });
@@ -760,7 +761,7 @@ JSON attendu:
       analysis,
     });
   } catch (err: any) {
-    console.error("[Commandant/PaymentOverview]", err);
+    logger.error({ err: err }, "[Commandant/PaymentOverview]");
     res.status(500).json({ error: "Erreur" });
   }
 });
@@ -787,7 +788,7 @@ router.post("/commandant/drive-send-file", async (req: Request, res: Response): 
 
     res.json({ success: sent, message: sent ? `Document envoye a ${recipientEmail}` : "Echec de l'envoi" });
   } catch (err: any) {
-    console.error("[Commandant/DriveSendFile]", err);
+    logger.error({ err: err }, "[Commandant/DriveSendFile]");
     res.status(500).json({ error: "Erreur" });
   }
 });
@@ -812,7 +813,7 @@ router.post("/commandant/save-attachment-to-drive", async (req: Request, res: Re
 
     res.json({ success: true, message: `Fichier "${fileName}" prepare pour Google Drive`, metadata });
   } catch (err: any) {
-    console.error("[Commandant/SaveAttachment]", err);
+    logger.error({ err: err }, "[Commandant/SaveAttachment]");
     res.status(500).json({ error: "Erreur" });
   }
 });
@@ -890,7 +891,7 @@ JSON attendu:
       },
     });
   } catch (err: any) {
-    console.error("[Commandant/DailyBriefing]", err);
+    logger.error({ err: err }, "[Commandant/DailyBriefing]");
     res.status(500).json({ error: "Erreur" });
   }
 });
@@ -924,7 +925,7 @@ router.post("/commandant/send-task-reminder", async (req: Request, res: Response
 
     res.json({ success: sent });
   } catch (err: any) {
-    console.error("[Commandant/TaskReminder]", err);
+    logger.error({ err: err }, "[Commandant/TaskReminder]");
     res.status(500).json({ error: "Erreur" });
   }
 });
@@ -958,7 +959,7 @@ Evenements: ${events.length}
 Factures: ${invoices.length}
 Prospects: ${prospects.length}
 Resume:`;
-      try { aiSummary = await multiAiGenerate(prompt); } catch (e) { console.error("[Commandant/Search] AI summary failed:", e); }
+      try { aiSummary = await multiAiGenerate(prompt); } catch (e) { logger.error({ err: e }, "[Commandant/Search] AI summary failed:"); }
     }
 
     res.json({
@@ -975,7 +976,7 @@ Resume:`;
       aiSummary,
     });
   } catch (err: any) {
-    console.error("[Commandant/SmartSearch]", err);
+    logger.error({ err: err }, "[Commandant/SmartSearch]");
     res.status(500).json({ error: "Erreur" });
   }
 });
@@ -1009,7 +1010,7 @@ router.post("/commandant/analyze-text", async (req: Request, res: Response): Pro
 
     res.json({ success: true, analysisType: analysisType || "summary", analysis: parsed });
   } catch (err: any) {
-    console.error("[Commandant/AnalyzeText]", err);
+    logger.error({ err: err }, "[Commandant/AnalyzeText]");
     res.status(500).json({ error: "Erreur" });
   }
 });
@@ -1087,7 +1088,7 @@ Reponds en JSON:
 
     res.json({ success: true, command, result: parsed });
   } catch (err: any) {
-    console.error("[Commandant/ExecuteCommand]", err);
+    logger.error({ err: err }, "[Commandant/ExecuteCommand]");
     res.status(500).json({ error: "Erreur lors de l'execution de la commande" });
   }
 });
@@ -1130,7 +1131,7 @@ router.get("/commandant/weekly-digest", async (req: Request, res: Response): Pro
     try {
       const collab = await import("./agent-collaboration");
       crossIssues = await collab.detectCrossAgentIssues(orgId);
-    } catch (e) { console.warn("[Commandant/Digest] cross-agent issues detection failed:", e); }
+    } catch (e) { logger.warn({ err: e }, "[Commandant/Digest] cross-agent issues detection failed:"); }
 
     const weekData = {
       taches: { terminees: tasksCompleted, creees: tasksCreated, enRetard: tasksOverdue, prevTerminees: prevTasksCompleted },
@@ -1183,7 +1184,7 @@ JSON attendu:
       crossIssues: crossIssues.length,
     });
   } catch (err: any) {
-    console.error("[Commandant/WeeklyDigest]", err);
+    logger.error({ err: err }, "[Commandant/WeeklyDigest]");
     res.status(500).json({ error: "Erreur lors de la generation du digest" });
   }
 });
@@ -1269,7 +1270,7 @@ router.get("/commandant/contact-health/:contactId", async (req: Request, res: Re
       opportunities,
     });
   } catch (err: any) {
-    console.error("[Commandant/ContactHealth]", err);
+    logger.error({ err: err }, "[Commandant/ContactHealth]");
     res.status(500).json({ error: "Erreur lors du calcul de la sante du contact" });
   }
 });

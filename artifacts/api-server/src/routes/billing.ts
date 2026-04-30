@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { db, invoicesTable, paymentsTable, organisationsTable } from "@workspace/db";
 import { generateMonthlyInvoices, getOrgBillingSummary } from "../services/billing-engine";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -61,7 +62,7 @@ router.post("/billing/generate", async (req: Request, res: Response): Promise<vo
       ...result,
     });
   } catch (err: any) {
-    console.error("[Billing] Erreur generation:", err);
+    logger.error({ err: err }, "[Billing] Erreur generation:");
     res.status(500).json({ error: "Erreur lors de la generation des factures." });
   }
 });
@@ -111,7 +112,7 @@ router.post("/billing/upload-bank", async (req: Request, res: Response): Promise
       }).returning();
       inserted.push(payment);
     } catch (err: any) {
-      console.error("[Billing] Erreur import ligne:", err.message);
+      logger.error({ err: err.message }, "[Billing] Erreur import ligne:");
     }
   }
 

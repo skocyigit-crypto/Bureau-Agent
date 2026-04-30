@@ -1,5 +1,6 @@
 import { db, invoicesTable, subscriptionsTable, organisationsTable, usersTable, contactsTable, callsTable, PLANS, type PlanKey, OVERAGE_RATES } from "@workspace/db";
 import { eq, and, gte, lt, sql } from "drizzle-orm";
+import { logger } from "../lib/logger";
 
 export async function generateMonthlyInvoices(periodYear: number, periodMonth: number): Promise<{ generated: number; skipped: number; errors: number }> {
   const result = { generated: 0, skipped: 0, errors: 0 };
@@ -106,7 +107,7 @@ export async function generateMonthlyInvoices(periodYear: number, periodMonth: n
       result.generated++;
     } catch (err: any) {
       result.errors++;
-      console.error(`[Billing] Erreur org ${org.id}:`, err.message);
+      logger.error({ err: err.message }, `[Billing] Erreur org ${org.id}:`);
     }
   }
 
@@ -139,7 +140,7 @@ export async function getOrgBillingSummary(orgId: number) {
       invoiceCount: invoices.length,
     };
   } catch (error) {
-    console.error(`[BillingEngine] getOrgBillingSummary error for org ${orgId}:`, error);
+    logger.error({ err: error }, `[BillingEngine] getOrgBillingSummary error for org ${orgId}:`);
     return {
       invoices: [],
       totalDue: "0.00",

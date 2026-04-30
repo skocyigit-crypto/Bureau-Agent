@@ -5,6 +5,7 @@ import { db, organisationsTable, subscriptionsTable, usersTable } from "@workspa
 import { PLANS, type PlanKey } from "@workspace/db/schema";
 import crypto from "crypto";
 import { sendLicenseEmail } from "../services/email";
+import { logger } from "../lib/logger";
 
 const SALT_ROUNDS = 12;
 
@@ -244,7 +245,7 @@ router.post("/organisations", async (req: Request, res: Response): Promise<void>
       emailNote: !sendTo ? "Aucun email fourni." : emailResult?.preview || (emailResult?.success ? "Email envoye avec licence et identifiants." : `Erreur: ${emailResult?.error}`),
     });
   } catch (err: any) {
-    console.error("Erreur creation organisation:", err);
+    logger.error({ err: err }, "Erreur creation organisation:");
     res.status(500).json({ error: "Erreur lors de la creation de l'organisation." });
   }
 });
@@ -406,7 +407,7 @@ router.put("/organisations/:id/plan", async (req: Request, res: Response): Promi
     if (err.message === "NOT_FOUND") {
       res.status(404).json({ error: "Abonnement non trouve pour cette organisation." });
     } else {
-      console.error("Erreur mise a jour plan:", err);
+      logger.error({ err: err }, "Erreur mise a jour plan:");
       res.status(500).json({ error: "Erreur serveur." });
     }
   }

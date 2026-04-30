@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { db, usersTable, organisationsTable, subscriptionsTable } from "@workspace/db";
+import { logger } from "../lib/logger";
 
 const SUPER_ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@agentdebureau.fr";
 const SUPER_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
@@ -34,7 +35,7 @@ async function ensureDefaultOrganisation(): Promise<number> {
     currentPeriodEnd: trialEnd,
   });
 
-  console.log(`[Seed] Organisation par defaut creee (id=${org.id})`);
+  logger.info(`[Seed] Organisation par defaut creee (id=${org.id})`);
   return org.id;
 }
 
@@ -46,14 +47,14 @@ export async function ensureSuperAdmin() {
   if (existing.length > 0) {
     if (!existing[0].organisationId) {
       await db.update(usersTable).set({ organisationId: orgId }).where(eq(usersTable.id, existing[0].id));
-      console.log("[Seed] Super Admin: organisationId mis a jour.");
+      logger.info("[Seed] Super Admin: organisationId mis a jour.");
     }
     return;
   }
 
   if (!SUPER_ADMIN_PASSWORD || SUPER_ADMIN_PASSWORD.length < 8) {
-    console.warn("[Seed] ADMIN_PASSWORD non defini ou trop court (min 8 car.). Super Admin non cree.");
-    console.warn("[Seed] Definissez ADMIN_PASSWORD dans les variables d'environnement pour creer le compte admin.");
+    logger.warn("[Seed] ADMIN_PASSWORD non defini ou trop court (min 8 car.). Super Admin non cree.");
+    logger.warn("[Seed] Definissez ADMIN_PASSWORD dans les variables d'environnement pour creer le compte admin.");
     return;
   }
 
@@ -73,5 +74,5 @@ export async function ensureSuperAdmin() {
     actif: true,
   });
 
-  console.log(`[Seed] Super Admin cree: ${SUPER_ADMIN_EMAIL}`);
+  logger.info(`[Seed] Super Admin cree: ${SUPER_ADMIN_EMAIL}`);
 }

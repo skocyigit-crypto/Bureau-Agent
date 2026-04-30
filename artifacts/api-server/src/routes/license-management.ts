@@ -3,6 +3,7 @@ import { db, organisationsTable, subscriptionsTable, invoicesTable, paymentsTabl
 import { eq, sql, and, desc, gte, lte, lt, isNull, ne } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { Resend } from "resend";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -31,13 +32,13 @@ function generateEmailWrapper(title: string, body: string): string {
 async function sendEmailViaResend(to: string, subject: string, html: string): Promise<boolean> {
   try {
     const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) { console.log(`[Email] Pas de cle Resend. Email pour ${to}: ${subject}`); return false; }
+    if (!apiKey) { logger.info(`[Email] Pas de cle Resend. Email pour ${to}: ${subject}`); return false; }
     const resend = new Resend(apiKey);
     await resend.emails.send({ from: "Agent de Bureau <onboarding@resend.dev>", to: [to], subject, html });
-    console.log(`[Email/Resend] Envoye a ${to}: ${subject}`);
+    logger.info(`[Email/Resend] Envoye a ${to}: ${subject}`);
     return true;
   } catch (err: any) {
-    console.error(`[Email/Resend] Erreur:`, err.message);
+    logger.error({ err: err.message }, `[Email/Resend] Erreur:`);
     return false;
   }
 }
@@ -46,7 +47,7 @@ async function logAudit(orgId: number, action: string, details: string, userId?:
   try {
     await db.insert(licenseAuditLogTable).values({ organisationId: orgId, action, details, performedBy: userId || null, metadata: metadata || null });
   } catch (err: any) {
-    console.error("[LicenseAudit] Erreur log audit:", err.message);
+    logger.error({ err: err.message }, "[LicenseAudit] Erreur log audit:");
   }
 }
 
@@ -111,7 +112,7 @@ router.get("/license-management/dashboard", async (req: Request, res: Response):
       securityAlerts,
     });
   } catch (err: any) {
-    console.error("Erreur license dashboard:", err);
+    logger.error({ err: err }, "Erreur license dashboard:");
     res.status(500).json({ error: "Erreur" });
   }
 });
@@ -203,7 +204,7 @@ router.post("/license-management/send-payment-reminder", async (req: Request, re
 
     res.json({ success: sent, reminderLevel, message: sent ? `Rappel de paiement envoye a ${facture.clientEmail}` : "Echec de l'envoi du rappel" });
   } catch (err: any) {
-    console.error("Erreur envoi rappel:", err);
+    logger.error({ err: err }, "Erreur envoi rappel:");
     res.status(500).json({ error: "Erreur envoi rappel" });
   }
 });
@@ -304,7 +305,7 @@ router.post("/license-management/auto-generate-invoice", async (req: Request, re
 
     res.json({ success: true, invoice: { ...invoice, totalAmount: Number(invoice.totalAmount), baseAmount: Number(invoice.baseAmount), overageAmount: Number(invoice.overageAmount) } });
   } catch (err: any) {
-    console.error("Erreur generation facture:", err);
+    logger.error({ err: err }, "Erreur generation facture:");
     res.status(500).json({ error: "Erreur generation facture" });
   }
 });
@@ -384,7 +385,7 @@ router.post("/license-management/send-invoice-email", async (req: Request, res: 
 
     res.json({ success: sent, message: sent ? `Facture envoyee a ${facture.clientEmail}` : "Echec de l'envoi" });
   } catch (err: any) {
-    console.error("Erreur envoi facture:", err);
+    logger.error({ err: err }, "Erreur envoi facture:");
     res.status(500).json({ error: "Erreur" });
   }
 });
@@ -455,7 +456,7 @@ router.post("/license-management/auto-reminders", async (req: Request, res: Resp
 
     res.json({ success: true, total: overdueInvoices.length, sent, skipped });
   } catch (err: any) {
-    console.error("Erreur auto-reminders:", err);
+    logger.error({ err: err }, "Erreur auto-reminders:");
     res.status(500).json({ error: "Erreur" });
   }
 });
@@ -466,7 +467,7 @@ router.get("/license-management/audit-log", async (req: Request, res: Response):
     const logs = await db.select().from(licenseAuditLogTable).where(eq(licenseAuditLogTable.organisationId, orgId)).orderBy(desc(licenseAuditLogTable.createdAt)).limit(50);
     res.json({ logs });
   } catch (err: any) {
-    console.error("Erreur audit log:", err);
+    logger.error({ err: err }, "Erreur audit log:");
     res.status(500).json({ error: "Erreur" });
   }
 });
@@ -498,7 +499,7 @@ router.post("/license-management/update-billing-settings", async (req: Request, 
 
     res.json({ success: true });
   } catch (err: any) {
-    console.error("Erreur update billing settings:", err);
+    logger.error({ err: err }, "Erreur update billing settings:");
     res.status(500).json({ error: "Erreur" });
   }
 });

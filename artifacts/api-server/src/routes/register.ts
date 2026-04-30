@@ -6,6 +6,7 @@ import { db, organisationsTable, subscriptionsTable, usersTable } from "@workspa
 import { PLANS, type PlanKey } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { sendWelcomeEmail } from "../services/email";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -153,7 +154,7 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
       emailNote: emailResult.preview || (emailResult.success ? "Email de bienvenue envoye." : `Erreur: ${emailResult.error}`),
     });
   } catch (err: any) {
-    console.error("[Register] Erreur:", err);
+    logger.error({ err: err }, "[Register] Erreur:");
     res.status(500).json({ error: "Erreur lors de la creation du compte. Veuillez reessayer." });
   }
 });

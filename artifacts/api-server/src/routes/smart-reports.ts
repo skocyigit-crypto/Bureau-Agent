@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, prospectsTable, calendarEventsTable } from "@workspace/db";
 import { eq, sql, and, gte, lte, desc } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -137,7 +138,7 @@ router.get("/smart-reports/executive-summary", async (req: Request, res: Respons
       },
     });
   } catch (err: any) {
-    console.error("Erreur rapport executif:", err);
+    logger.error({ err: err }, "Erreur rapport executif:");
     res.status(500).json({ error: "Erreur lors de la generation du rapport" });
   }
 });
@@ -173,7 +174,7 @@ router.get("/smart-reports/daily-timeline", async (req: Request, res: Response):
 
     res.json({ timeline });
   } catch (err: any) {
-    console.error("Erreur timeline:", err);
+    logger.error({ err: err }, "Erreur timeline:");
     res.status(500).json({ error: "Erreur" });
   }
 });
@@ -261,7 +262,7 @@ router.get("/smart-reports/reminders", async (req: Request, res: Response): Prom
 
     res.json({ reminders, counts: { overdue: overdueTasks.length, upcoming: upcomingEvents.length, urgentProspects: urgentProspects.length, missedCalls: missedCalls.length } });
   } catch (err: any) {
-    console.error("Erreur reminders:", err);
+    logger.error({ err: err }, "Erreur reminders:");
     res.status(500).json({ error: "Erreur" });
   }
 });

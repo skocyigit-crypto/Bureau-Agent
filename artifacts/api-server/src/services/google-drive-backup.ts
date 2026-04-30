@@ -2,6 +2,7 @@ import { ReplitConnectors } from "@replit/connectors-sdk";
 import { db, autoBackupsTable, backupConfigTable } from "@workspace/db";
 import { eq, sql, desc } from "drizzle-orm";
 import crypto from "crypto";
+import { logger } from "../lib/logger";
 
 const DRIVE_FOLDER_NAME = "Agent de Bureau - Sauvegardes";
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
@@ -159,14 +160,14 @@ async function cleanupOldDriveBackups(folderId: string, retentionDays: number) {
     for (const file of oldFiles) {
       try {
         await driveProxy(`/drive/v3/files/${file.id}`, { method: "DELETE" });
-        console.log(`[GoogleDriveBackup] Ancien fichier supprime: ${file.name}`);
-      } catch (err) { console.warn("[GoogleDriveBackup] operation failed:", err); }
+        logger.info(`[GoogleDriveBackup] Ancien fichier supprime: ${file.name}`);
+      } catch (err) { logger.warn({ err: err }, "[GoogleDriveBackup] operation failed:"); }
     }
     if (oldFiles.length > 0) {
-      console.log(`[GoogleDriveBackup] ${oldFiles.length} ancienne(s) sauvegarde(s) nettoyee(s).`);
+      logger.info(`[GoogleDriveBackup] ${oldFiles.length} ancienne(s) sauvegarde(s) nettoyee(s).`);
     }
   } catch (err: any) {
-    console.error("[GoogleDriveBackup] Erreur nettoyage:", err.message);
+    logger.error({ err: err.message }, "[GoogleDriveBackup] Erreur nettoyage:");
   }
 }
 
@@ -197,12 +198,12 @@ export async function performGoogleDriveBackup(): Promise<{
   const startTime = Date.now();
 
   try {
-    console.log("[GoogleDriveBackup] Collecte des donnees...");
+    logger.info("[GoogleDriveBackup] Collecte des donnees...");
     const backupData = await collectFullBackupData();
     const jsonStr = JSON.stringify(backupData);
     const originalSize = Buffer.byteLength(jsonStr, "utf-8");
 
-    console.log("[GoogleDriveBackup] Chiffrement AES-256-GCM...");
+    logger.info("[GoogleDriveBackup] Chiffrement AES-256-GCM...");
     const { encrypted, iv, authTag } = encryptData(jsonStr);
 
     const checksumOriginal = crypto.createHash("sha256").update(jsonStr).digest("hex");
@@ -232,7 +233,7 @@ export async function performGoogleDriveBackup(): Promise<{
 
     const envelopeSize = Buffer.byteLength(envelope, "utf-8");
 
-    console.log("[GoogleDriveBackup] Recherche/creation du dossier Drive...");
+    logger.info("[GoogleDriveBackup] Recherche/creation du dossier Drive...");
     const folderId = await findOrCreateDriveFolder();
 
     const now = new Date();
@@ -240,7 +241,7 @@ export async function performGoogleDriveBackup(): Promise<{
 
     const description = `Sauvegarde chiffree Agent de Bureau - ${now.toLocaleDateString("fr-FR")} ${now.toLocaleTimeString("fr-FR")} | AES-256-GCM | SHA-256: ${checksumOriginal.substring(0, 16)}`;
 
-    console.log("[GoogleDriveBackup] Upload vers Google Drive...");
+    logger.info("[GoogleDriveBackup] Upload vers Google Drive...");
     const uploadRes = await uploadFileToDrive(folderId, fileName, envelope, description);
 
     const duration = Date.now() - startTime;
@@ -273,7 +274,7 @@ export async function performGoogleDriveBackup(): Promise<{
       updatedAt: now,
     }).where(eq(backupConfigTable.platform, "google"));
 
-    console.log(`[GoogleDriveBackup] Sauvegarde reussie: ${fileName} (${(envelopeSize / 1024).toFixed(1)} Ko, ${duration}ms)`);
+    logger.info(`[GoogleDriveBackup] Sauvegarde reussie: ${fileName} (${(envelopeSize / 1024).toFixed(1)} Ko, ${duration}ms)`);
 
     return {
       success: true,
@@ -285,7 +286,7 @@ export async function performGoogleDriveBackup(): Promise<{
     };
   } catch (error: any) {
     const duration = Date.now() - startTime;
-    console.error("[GoogleDriveBackup] Erreur:", error.message);
+    logger.error({ err: error.message }, "[GoogleDriveBackup] Erreur:");
 
     await db.insert(autoBackupsTable).values({
       type: "google_drive",
@@ -599,17 +600,17 @@ const DRIVE_BACKUP_INTERVAL_MS = 6 * 60 * 60 * 1000;
 export async function startGoogleDriveBackupScheduler() {
   const available = await isConnectorAvailable();
   if (!available) {
-    console.log("[GoogleDriveBackup] Google Drive non connecte, sauvegarde Drive desactivee.");
+    logger.info("[GoogleDriveBackup] Google Drive non connecte, sauvegarde Drive desactivee.");
     return;
   }
 
-  console.log(`[GoogleDriveBackup] Planificateur demarre - Intervalle: ${DRIVE_BACKUP_INTERVAL_MS / 3600000}h`);
+  logger.info(`[GoogleDriveBackup] Planificateur demarre - Intervalle: ${DRIVE_BACKUP_INTERVAL_MS / 3600000}h`);
 
   intervalHandle = setInterval(async () => {
     if (isRunning) return;
-    console.log("[GoogleDriveBackup] Sauvegarde automatique en cours...");
+    logger.info("[GoogleDriveBackup] Sauvegarde automatique en cours...");
     const result = await performGoogleDriveBackup();
-    console.log(`[GoogleDriveBackup] Auto: ${result.success ? "OK" : "ERREUR"} ${result.error || ""}`);
+    logger.info(`[GoogleDriveBackup] Auto: ${result.success ? "OK" : "ERREUR"} ${result.error || ""}`);
   }, DRIVE_BACKUP_INTERVAL_MS);
 }
 
@@ -617,6 +618,6 @@ export function stopGoogleDriveBackupScheduler() {
   if (intervalHandle) {
     clearInterval(intervalHandle);
     intervalHandle = null;
-    console.log("[GoogleDriveBackup] Planificateur arrete.");
+    logger.info("[GoogleDriveBackup] Planificateur arrete.");
   }
 }

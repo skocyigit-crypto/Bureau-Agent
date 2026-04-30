@@ -1,5 +1,6 @@
 import { google } from "googleapis";
 import nodemailer from "nodemailer";
+import { logger } from "../lib/logger";
 
 function escapeHtml(str: string): string {
   return str
@@ -95,10 +96,10 @@ export async function sendEmail(to: string, subject: string, html: string, text:
         requestBody: { raw: encodedMessage },
       });
 
-      console.log(`[Email/Gmail] Envoye a ${to}: ${result.data.id}`);
+      logger.info(`[Email/Gmail] Envoye a ${to}: ${result.data.id}`);
       return { success: true };
     } catch (err: any) {
-      console.error(`[Email/Gmail] Erreur envoi a ${to}:`, err.message);
+      logger.error({ err: err.message }, `[Email/Gmail] Erreur envoi a ${to}:`);
     }
   }
 
@@ -112,16 +113,16 @@ export async function sendEmail(to: string, subject: string, html: string, text:
         text,
         html,
       });
-      console.log(`[Email/SMTP] Envoye a ${to}: ${info.messageId}`);
+      logger.info(`[Email/SMTP] Envoye a ${to}: ${info.messageId}`);
       return { success: true };
     } catch (err: any) {
-      console.error(`[Email/SMTP] Erreur envoi a ${to}:`, err.message);
+      logger.error({ err: err.message }, `[Email/SMTP] Erreur envoi a ${to}:`);
     }
   }
 
-  console.log(`[Email] Aucun service configure. Email pour ${to}:`);
-  console.log(`  Sujet: ${subject}`);
-  console.log(`  Contenu texte: ${text.substring(0, 300)}...`);
+  logger.info(`[Email] Aucun service configure. Email pour ${to}:`);
+  logger.info(`  Sujet: ${subject}`);
+  logger.info(`  Contenu texte: ${text.substring(0, 300)}...`);
   return { success: false, error: "Aucun service email configure (ni Gmail, ni SMTP)." };
 }
 

@@ -3,6 +3,7 @@ import { google } from "googleapis";
 import { db, googleOAuthTokensTable, platformConnectionsTable, platformSyncLogsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import crypto from "crypto";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -63,7 +64,7 @@ router.get("/status", async (req, res): Promise<void> => {
       expiresAt: hasToken ? tokens[0].expiresAt : null,
     });
   } catch (error: any) {
-    console.error("Google OAuth status error:", error);
+    logger.error({ err: error }, "Google OAuth status error:");
     res.status(500).json({ error: "Erreur lors de la verification du statut OAuth." });
   }
 });
@@ -107,7 +108,7 @@ router.post("/auth-url", async (req, res): Promise<void> => {
 
     res.json({ authUrl, state });
   } catch (error: any) {
-    console.error("Google OAuth auth-url error:", error);
+    logger.error({ err: error }, "Google OAuth auth-url error:");
     res.status(500).json({ error: "Erreur lors de la generation de l'URL d'authentification." });
   }
 });
@@ -118,7 +119,7 @@ router.get("/callback", async (req, res): Promise<void> => {
     const baseUrl = "/";
 
     if (oauthError) {
-      console.error("Google OAuth error:", oauthError);
+      logger.error({ err: oauthError }, "Google OAuth error:");
       res.redirect(`${baseUrl}parametres?google_error=access_denied`);
       return;
     }
@@ -222,7 +223,7 @@ router.get("/callback", async (req, res): Promise<void> => {
 
     res.redirect(`${baseUrl}parametres?google_success=true`); return;
   } catch (error: any) {
-    console.error("Google OAuth callback error:", error);
+    logger.error({ err: error }, "Google OAuth callback error:");
     res.redirect(`/parametres?google_error=exchange_failed`);
   }
 });
@@ -242,7 +243,7 @@ router.post("/disconnect", async (req, res): Promise<void> => {
           oauth2Client.setCredentials({ access_token: tokens[0].accessToken });
           await oauth2Client.revokeToken(tokens[0].accessToken);
         }
-      } catch (err) { console.warn("[GoogleOAuth] operation failed:", err); }
+      } catch (err) { logger.warn({ err: err }, "[GoogleOAuth] operation failed:"); }
     }
 
     await db.delete(googleOAuthTokensTable)
@@ -262,7 +263,7 @@ router.post("/disconnect", async (req, res): Promise<void> => {
 
     res.json({ status: "deconnecte", message: "Compte Google deconnecte avec succes." });
   } catch (error: any) {
-    console.error("Google OAuth disconnect error:", error);
+    logger.error({ err: error }, "Google OAuth disconnect error:");
     res.status(500).json({ error: "Erreur lors de la deconnexion." });
   }
 });
@@ -299,7 +300,7 @@ router.post("/refresh", async (req, res): Promise<void> => {
 
     res.json({ status: "rafraichi", expiresAt });
   } catch (error: any) {
-    console.error("Google OAuth refresh error:", error);
+    logger.error({ err: error }, "Google OAuth refresh error:");
     res.status(500).json({ error: "Erreur lors du rafraichissement du token." });
   }
 });
@@ -361,7 +362,7 @@ router.post("/config", async (req, res): Promise<void> => {
       warning: "volatile_config",
     });
   } catch (error: any) {
-    console.error("Google OAuth config error:", error);
+    logger.error({ err: error }, "Google OAuth config error:");
     res.status(500).json({ error: "Erreur lors de la configuration." });
   }
 });

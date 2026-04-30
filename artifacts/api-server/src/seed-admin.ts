@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { db, usersTable, organisationsTable, subscriptionsTable } from "@workspace/db";
+import { logger } from "./lib/logger";
 
 const SUPER_ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@agentdebureau.fr";
 const SUPER_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
@@ -34,19 +35,19 @@ async function ensureDefaultOrganisation(): Promise<number> {
     currentPeriodEnd: trialEnd,
   });
 
-  console.log(`Organisation par defaut creee (id=${org.id}) avec abonnement essai.`);
+  logger.info(`Organisation par defaut creee (id=${org.id}) avec abonnement essai.`);
   return org.id;
 }
 
 async function seedSuperAdmin() {
   if (!SUPER_ADMIN_PASSWORD) {
-    console.error("ADMIN_PASSWORD environment variable is required to seed the admin user.");
-    console.error("Set it with: export ADMIN_PASSWORD=YourSecurePassword123!");
+    logger.error("ADMIN_PASSWORD environment variable is required to seed the admin user.");
+    logger.error("Set it with: export ADMIN_PASSWORD=YourSecurePassword123!");
     process.exit(1);
   }
 
   if (SUPER_ADMIN_PASSWORD.length < 8) {
-    console.error("ADMIN_PASSWORD must be at least 8 characters long.");
+    logger.error("ADMIN_PASSWORD must be at least 8 characters long.");
     process.exit(1);
   }
 
@@ -57,9 +58,9 @@ async function seedSuperAdmin() {
   if (existing.length > 0) {
     if (!existing[0].organisationId) {
       await db.update(usersTable).set({ organisationId: orgId }).where(eq(usersTable.id, existing[0].id));
-      console.log("Super Admin existant: organisationId mis a jour.");
+      logger.info("Super Admin existant: organisationId mis a jour.");
     } else {
-      console.log("Super Admin deja existant, aucune action necessaire.");
+      logger.info("Super Admin deja existant, aucune action necessaire.");
     }
     return;
   }
@@ -80,13 +81,13 @@ async function seedSuperAdmin() {
     actif: true,
   });
 
-  console.log("Super Admin cree avec succes !");
-  console.log(`Email: ${SUPER_ADMIN_EMAIL}`);
+  logger.info("Super Admin cree avec succes !");
+  logger.info(`Email: ${SUPER_ADMIN_EMAIL}`);
 }
 
 seedSuperAdmin()
   .then(() => process.exit(0))
   .catch((err) => {
-    console.error("Erreur:", err);
+    logger.error({ err: err }, "Erreur:");
     process.exit(1);
   });

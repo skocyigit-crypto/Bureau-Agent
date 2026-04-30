@@ -1,6 +1,7 @@
 import { google } from "googleapis";
 import { db, googleOAuthTokensTable, checkinsTable, platformSyncLogsTable } from "@workspace/db";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
+import { logger } from "../lib/logger";
 
 interface SyncResult {
   imported: number;
@@ -124,7 +125,7 @@ export async function syncGoogleCalendarToCheckins(params: {
   try {
     const calInfo = await calendar.calendars.get({ calendarId: "primary" });
     calendarTimeZone = calInfo.data.timeZone || "Europe/Paris";
-  } catch (err) { console.warn("[GoogleCalendarSync] operation failed:", err); }
+  } catch (err) { logger.warn({ err: err }, "[GoogleCalendarSync] operation failed:"); }
 
   let allEvents: any[] = [];
   let pageToken: string | undefined;
@@ -224,7 +225,7 @@ export async function syncGoogleCalendarToCheckins(params: {
     } catch (err: any) {
       result.errors++;
       result.details.push(`${dayKey}: Erreur lors de l'import.`);
-      console.error(`Google sync error for ${dayKey}:`, err);
+      logger.error({ err: err }, `Google sync error for ${dayKey}:`);
     }
   }
 

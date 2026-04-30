@@ -1,6 +1,7 @@
 import { db, autoBackupsTable, backupConfigTable, callsTable, contactsTable, tasksTable, messagesTable, stockArticlesTable, platformConnectionsTable } from "@workspace/db";
 import { count, eq, desc } from "drizzle-orm";
 import crypto from "crypto";
+import { logger } from "../lib/logger";
 
 const BACKUP_INTERVAL_MS = 60 * 60 * 1000;
 const PLATFORMS = ["local", "google", "microsoft", "apple"] as const;
@@ -79,7 +80,7 @@ async function performBackup() {
 
     return { success: true, results: [{ platform: "local", status: "termine", id: backup.id }], duration: Date.now() - startTime };
   } catch (error: any) {
-    console.error("[AutoBackup] Erreur critique:", error.message);
+    logger.error({ err: error.message }, "[AutoBackup] Erreur critique:");
     return { success: false, error: error.message, duration: Date.now() - startTime };
   }
 }
@@ -94,7 +95,7 @@ async function cleanupOldBackups() {
       sql`${autoBackupsTable.createdAt} < ${cutoff}`
     );
   } catch (e) {
-    console.error("[AutoBackup] cleanup failed:", e);
+    logger.error({ err: e }, "[AutoBackup] cleanup failed:");
   }
 }
 
@@ -109,9 +110,9 @@ async function scheduleNext() {
     isRunning = true;
     try {
       const result = await performBackup();
-      console.log(`[AutoBackup] Sauvegarde auto: ${result.success ? "OK" : "ERREUR"} - ${new Date().toISOString()} (${result.duration}ms)`);
+      logger.info(`[AutoBackup] Sauvegarde auto: ${result.success ? "OK" : "ERREUR"} - ${new Date().toISOString()} (${result.duration}ms)`);
     } catch (err: any) {
-      console.error("[AutoBackup] Erreur non geree:", err.message);
+      logger.error({ err: err.message }, "[AutoBackup] Erreur non geree:");
     } finally {
       isRunning = false;
       scheduleNext();
@@ -121,16 +122,16 @@ async function scheduleNext() {
 
 export function startAutoBackup() {
   if (backupTimeout) {
-    console.log("[AutoBackup] Deja en cours d'execution.");
+    logger.info("[AutoBackup] Deja en cours d'execution.");
     return;
   }
 
   isShuttingDown = false;
-  console.log(`[AutoBackup] Demarrage - Intervalle: ${BACKUP_INTERVAL_MS / 1000}s`);
+  logger.info(`[AutoBackup] Demarrage - Intervalle: ${BACKUP_INTERVAL_MS / 1000}s`);
 
   isRunning = true;
   performBackup().then(result => {
-    console.log(`[AutoBackup] Sauvegarde initiale: ${result.success ? "OK" : "ERREUR"} (${result.duration}ms)`);
+    logger.info(`[AutoBackup] Sauvegarde initiale: ${result.success ? "OK" : "ERREUR"} (${result.duration}ms)`);
   }).finally(() => {
     isRunning = false;
     scheduleNext();
@@ -142,7 +143,7 @@ export function stopAutoBackup() {
   if (backupTimeout) {
     clearTimeout(backupTimeout);
     backupTimeout = null;
-    console.log("[AutoBackup] Arrete.");
+    logger.info("[AutoBackup] Arrete.");
   }
 }
 

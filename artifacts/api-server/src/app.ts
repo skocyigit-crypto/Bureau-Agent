@@ -124,11 +124,11 @@ app.use(session({
     const s = process.env.SESSION_SECRET;
     if (s) return s;
     if (isProduction) {
-      console.error("FATAL: SESSION_SECRET est requis en production.");
+      logger.error("FATAL: SESSION_SECRET est requis en production.");
       process.exit(1);
     }
     const devSecret = crypto.randomBytes(32).toString("hex");
-    console.warn("[Security] SESSION_SECRET non defini — cle aleatoire generee (dev uniquement).");
+    logger.warn("[Security] SESSION_SECRET non defini — cle aleatoire generee (dev uniquement).");
     return devSecret;
   })(),
   resave: false,

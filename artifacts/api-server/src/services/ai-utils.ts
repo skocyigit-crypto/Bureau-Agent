@@ -1,3 +1,5 @@
+import { logger } from "../lib/logger";
+
 export function safeJsonParse<T>(rawText: string | undefined | null, fallback: T): T {
   if (!rawText) return fallback;
   const text = String(rawText).trim();
@@ -68,7 +70,7 @@ export async function aiCallWithRetry<T>(fn: () => Promise<T>, opts: AiRetryOpti
         throw err;
       }
       const delay = Math.min(maxDelayMs, baseDelayMs * Math.pow(2, attempt)) + Math.floor(Math.random() * 200);
-      console.warn(`[${label}] Tentative ${attempt + 1}/${maxRetries + 1} echouee, nouvelle tentative dans ${delay}ms:`, (err as any)?.message || err);
+      logger.warn({ err: (err as any)?.message || err }, `[${label}] Tentative ${attempt + 1}/${maxRetries + 1} echouee, nouvelle tentative dans ${delay}ms:`);
       await new Promise((r) => setTimeout(r, delay));
     }
   }
@@ -148,7 +150,7 @@ export function sanitizeAiErrorMessage(raw: string | null | undefined): string |
 
 export async function recordAiUsage(opts: RecordAiUsageOpts): Promise<void> {
   if (!opts.organisationId) {
-    console.warn(`[ai-utils] Skipping AI usage record (no organisationId): route=${opts.route} model=${opts.model}`);
+    logger.warn(`[ai-utils] Skipping AI usage record (no organisationId): route=${opts.route} model=${opts.model}`);
     return;
   }
   try {
@@ -170,7 +172,7 @@ export async function recordAiUsage(opts: RecordAiUsageOpts): Promise<void> {
       errorMessage: sanitizeAiErrorMessage(opts.errorMessage),
     });
   } catch (err) {
-    console.error("[ai-utils] Failed to record AI usage:", err);
+    logger.error({ err: err }, "[ai-utils] Failed to record AI usage:");
   }
 }
 
@@ -187,7 +189,7 @@ export async function purgeOldAiUsage(): Promise<number> {
     if (deleted > 0) console.info(`[ai-utils] Purge ai_usage: ${deleted} lignes supprimees (>${RETENTION_DAYS}j)`);
     return deleted;
   } catch (err) {
-    console.error("[ai-utils] Purge ai_usage failed:", err);
+    logger.error({ err: err }, "[ai-utils] Purge ai_usage failed:");
     return 0;
   }
 }

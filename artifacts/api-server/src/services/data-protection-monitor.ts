@@ -9,6 +9,7 @@ import {
   backupConfigTable,
 } from "@workspace/db";
 import { eq, and, desc, sql, gte, lte, inArray } from "drizzle-orm";
+import { logger } from "../lib/logger";
 
 let monitorInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -33,13 +34,13 @@ interface OrgBackupStatus {
 
 export function startDataProtectionMonitor() {
   if (monitorInterval) return;
-  console.log("[DataProtection] Moniteur de protection des donnees demarre");
+  logger.info("[DataProtection] Moniteur de protection des donnees demarre");
 
   setTimeout(() => runDataProtectionCheck(), 30 * 1000);
   monitorInterval = setInterval(runDataProtectionCheck, CHECK_INTERVAL_MS);
 
   const shutdown = () => {
-    console.log("[DataProtection] Arret du moniteur");
+    logger.info("[DataProtection] Arret du moniteur");
     stopDataProtectionMonitor();
   };
   process.once("SIGTERM", shutdown);
@@ -55,7 +56,7 @@ export function stopDataProtectionMonitor() {
 
 async function runDataProtectionCheck() {
   const start = performance.now();
-  console.log("[DataProtection] Verification de la protection des donnees...");
+  logger.info("[DataProtection] Verification de la protection des donnees...");
 
   try {
     const orgsWithSubs = await db
@@ -72,7 +73,7 @@ async function runDataProtectionCheck() {
       .where(eq(organisationsTable.actif, true));
 
     if (orgsWithSubs.length === 0) {
-      console.log("[DataProtection] Aucune organisation active trouvee.");
+      logger.info("[DataProtection] Aucune organisation active trouvee.");
       return;
     }
 
@@ -111,10 +112,10 @@ async function runDataProtectionCheck() {
       lastBackup: lastSuccessfulBackup?.createdAt || null,
     }, performance.now() - start);
 
-    console.log(`[DataProtection] Verification terminee: ${orgsWithSubs.length} organisations, ${totalNotifications} alertes envoyees`);
+    logger.info(`[DataProtection] Verification terminee: ${orgsWithSubs.length} organisations, ${totalNotifications} alertes envoyees`);
 
   } catch (err: any) {
-    console.error("[DataProtection] Erreur:", err.message);
+    logger.error({ err: err.message }, "[DataProtection] Erreur:");
     await logMonitorRun("error", { error: err.message }, performance.now() - start, err.message);
   }
 }
@@ -418,7 +419,7 @@ async function logMonitorRun(status: string, details: any, duration: number, err
       error: error || null,
     });
   } catch (err) {
-    console.error("[DataProtection] Erreur log:", err);
+    logger.error({ err: err }, "[DataProtection] Erreur log:");
   }
 }
 

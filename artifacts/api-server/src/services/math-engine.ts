@@ -1,3 +1,5 @@
+import { logger } from "../lib/logger";
+
 export interface MathSubComponent {
   id: string;
   expression: string;
@@ -821,7 +823,7 @@ Si aucune correction ou ajout n'est necessaire, retourne des tableaux vides.`
     enhanced.category = determineCategory(enhanced.subComponents);
     return enhanced;
   } catch (error) {
-    console.error("AI math enhancement error:", error);
+    logger.error({ err: error }, "AI math enhancement error:");
     return basicAnalysis;
   }
 }

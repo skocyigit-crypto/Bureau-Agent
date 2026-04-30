@@ -10,18 +10,19 @@ import {
   messagesTable,
 } from "@workspace/db/schema";
 import { eq, lte, and, gte, lt, sql, desc, isNull, or } from "drizzle-orm";
+import { logger } from "../lib/logger";
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 
 export function startAutomationEngine() {
   if (intervalHandle) return;
-  console.log("[Automation] Moteur d'automatisation demarre");
+  logger.info("[Automation] Moteur d'automatisation demarre");
 
   runAllAutomations();
   intervalHandle = setInterval(runAllAutomations, 5 * 60 * 1000);
 
   const shutdown = () => {
-    console.log("[Automation] Arret du moteur d'automatisation");
+    logger.info("[Automation] Arret du moteur d'automatisation");
     stopAutomationEngine();
   };
   process.once("SIGTERM", shutdown);
@@ -60,7 +61,7 @@ async function runAllAutomations() {
       await executeRule(rule);
     }
   } catch (err) {
-    console.error("[Automation] Erreur:", err);
+    logger.error({ err: err }, "[Automation] Erreur:");
   }
 }
 

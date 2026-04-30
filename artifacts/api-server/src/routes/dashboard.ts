@@ -7,6 +7,7 @@ import {
   GetTopContactsQueryParams,
 } from "@workspace/api-zod";
 import { getOrgId } from "../middleware/tenant";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -720,7 +721,7 @@ router.get("/dashboard/smart-pulse", async (req, res): Promise<void> => {
       hourlyDistribution,
     });
   } catch (err) {
-    console.error("[SmartPulse] error:", err);
+    logger.error({ err: err }, "[SmartPulse] error:");
     res.status(500).json({ error: "Erreur smart pulse" });
   }
 });
@@ -798,7 +799,7 @@ router.get("/dashboard/anomaly-stream", async (req, res): Promise<void> => {
       },
     });
   } catch (err) {
-    console.error("[AnomalyStream] error:", err);
+    logger.error({ err: err }, "[AnomalyStream] error:");
     res.json({ alerts: [], summary: { critical: 0, warning: 0, total: 0 } });
   }
 });

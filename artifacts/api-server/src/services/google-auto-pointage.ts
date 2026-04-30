@@ -1,6 +1,7 @@
 import { google } from "googleapis";
 import { db, googleOAuthTokensTable, checkinsTable, usersTable } from "@workspace/db";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
+import { logger } from "../lib/logger";
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 let isRunning = false;
@@ -26,16 +27,16 @@ export function startGoogleAutoPointage() {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   if (!clientId || !clientSecret) {
-    console.log("[GoogleAutoPointage] Google OAuth non configure, auto-sync desactive.");
+    logger.info("[GoogleAutoPointage] Google OAuth non configure, auto-sync desactive.");
     return;
   }
 
-  console.log("[GoogleAutoPointage] Demarrage - Intervalle: 30min");
+  logger.info("[GoogleAutoPointage] Demarrage - Intervalle: 30min");
 
-  setTimeout(() => runAutoSync().catch(err => console.error("[GoogleAutoPointage] Erreur initiale:", err.message)), 10000);
+  setTimeout(() => runAutoSync().catch(err => logger.error({ err: err.message }, "[GoogleAutoPointage] Erreur initiale:")), 10000);
 
   intervalHandle = setInterval(() => {
-    runAutoSync().catch(err => console.error("[GoogleAutoPointage] Erreur periodique:", err.message));
+    runAutoSync().catch(err => logger.error({ err: err.message }, "[GoogleAutoPointage] Erreur periodique:"));
   }, SYNC_INTERVAL_MS);
 
   const shutdown = () => {
@@ -49,13 +50,13 @@ export function stopGoogleAutoPointage() {
   if (intervalHandle) {
     clearInterval(intervalHandle);
     intervalHandle = null;
-    console.log("[GoogleAutoPointage] Arrete.");
+    logger.info("[GoogleAutoPointage] Arrete.");
   }
 }
 
 async function runAutoSync() {
   if (isRunning) {
-    console.log("[GoogleAutoPointage] Sync deja en cours, ignore.");
+    logger.info("[GoogleAutoPointage] Sync deja en cours, ignore.");
     return;
   }
 
@@ -97,12 +98,12 @@ async function doSync() {
       totalErrors += result.errors;
     } catch (err: any) {
       totalErrors++;
-      console.error(`[GoogleAutoPointage] Erreur user ${token.userId}:`, err.message);
+      logger.error({ err: err.message }, `[GoogleAutoPointage] Erreur user ${token.userId}:`);
     }
   }
 
   if (totalImported > 0 || totalErrors > 0) {
-    console.log(`[GoogleAutoPointage] Sync termine: ${totalImported} importe(s), ${totalSkipped} ignore(s), ${totalErrors} erreur(s)`);
+    logger.info(`[GoogleAutoPointage] Sync termine: ${totalImported} importe(s), ${totalSkipped} ignore(s), ${totalErrors} erreur(s)`);
   }
 }
 
@@ -137,7 +138,7 @@ async function syncUserToday(token: {
 
   if (token.expiresAt && token.expiresAt < new Date()) {
     if (!token.refreshToken) {
-      console.warn(`[GoogleAutoPointage] Token expire sans refresh pour user ${token.userId}`);
+      logger.warn(`[GoogleAutoPointage] Token expire sans refresh pour user ${token.userId}`);
       result.errors++;
       return result;
     }
@@ -152,7 +153,7 @@ async function syncUserToday(token: {
         .where(eq(googleOAuthTokensTable.id, token.tokenId));
       oauth2Client.setCredentials(credentials);
     } catch (err: any) {
-      console.warn(`[GoogleAutoPointage] Token refresh echoue user ${token.userId}:`, err.message);
+      logger.warn({ err: err.message }, `[GoogleAutoPointage] Token refresh echoue user ${token.userId}:`);
       result.errors++;
       return result;
     }
@@ -171,7 +172,7 @@ async function syncUserToday(token: {
     const calInfo = await calendar.calendars.get({ calendarId: "primary" });
     calendarTimeZone = calInfo.data.timeZone || "Europe/Paris";
   } catch (err: any) {
-    console.warn(`[GoogleAutoPointage] Calendrier inaccessible user ${token.userId}:`, err.message);
+    logger.warn({ err: err.message }, `[GoogleAutoPointage] Calendrier inaccessible user ${token.userId}:`);
     result.errors++;
     return result;
   }
@@ -196,7 +197,7 @@ async function syncUserToday(token: {
       pageToken = response.data.nextPageToken || undefined;
     } while (pageToken);
   } catch (err: any) {
-    console.warn(`[GoogleAutoPointage] Evenements inaccessibles user ${token.userId}:`, err.message);
+    logger.warn({ err: err.message }, `[GoogleAutoPointage] Evenements inaccessibles user ${token.userId}:`);
     result.errors++;
     return result;
   }
@@ -263,7 +264,7 @@ async function syncUserToday(token: {
     result.imported++;
   } catch (err: any) {
     result.errors++;
-    console.error(`[GoogleAutoPointage] Erreur creation pointage user ${token.userId}:`, err.message);
+    logger.error({ err: err.message }, `[GoogleAutoPointage] Erreur creation pointage user ${token.userId}:`);
   }
 
   return result;

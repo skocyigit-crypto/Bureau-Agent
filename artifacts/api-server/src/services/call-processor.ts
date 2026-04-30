@@ -3,6 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import { logAudit } from "../routes/audit";
 import { safeJsonParse, aiCallWithRetry, sanitizePromptInput, recordAiUsage, extractGeminiTokens } from "./ai-utils";
 import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
+import { logger } from "../lib/logger";
 
 const CALL_LOCK_NAMESPACE = 4242;
 
@@ -60,7 +61,7 @@ export async function processCallWithAI(callId: number): Promise<{
     try {
       await db.execute(sql`SELECT pg_advisory_unlock(${CALL_LOCK_NAMESPACE}, ${callId})`);
     } catch (unlockErr) {
-      console.error(`[call-processor] Failed to release advisory lock for call ${callId}:`, unlockErr);
+      logger.error({ err: unlockErr }, `[call-processor] Failed to release advisory lock for call ${callId}:`);
     }
   }
 }

@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { db, telephonyProvidersTable, telephonyCallLogsTable, telephonySmsLogsTable, callsTable, contactsTable } from "@workspace/db";
 import { getOrgId } from "../middleware/tenant";
+import { logger } from "../lib/logger";
 import {
   getSupportedProviders,
   getProviderInfo,
@@ -18,7 +19,7 @@ telephonyWebhookRouter.post("/telephony/webhook/:provider", async (req, res): Pr
   const provider = String(req.params.provider);
   const payload = req.body;
 
-  console.log(`[Telephony Webhook] ${provider}:`, JSON.stringify(payload).slice(0, 500));
+  logger.info({ err: JSON.stringify(payload).slice(0, 500) }, `[Telephony Webhook] ${provider}:`);
 
   try {
     if (provider === "twilio") {
@@ -67,7 +68,7 @@ telephonyWebhookRouter.post("/telephony/webhook/:provider", async (req, res): Pr
       }
     }
   } catch (err) {
-    console.error(`[Telephony Webhook] Error processing ${provider}:`, err);
+    logger.error({ err: err }, `[Telephony Webhook] Error processing ${provider}:`);
   }
 
   res.json({ received: true });

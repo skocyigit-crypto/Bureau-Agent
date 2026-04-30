@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { auditLogsTable } from "@workspace/db/schema";
 import { desc, eq, gte, lte, and, sql } from "drizzle-orm";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -128,6 +129,6 @@ export async function logAudit(
       userAgent: userAgent || null,
     });
   } catch (err: any) {
-    console.error("[AuditLog] Failed to write audit log:", err.message, { action, resource, resourceId });
+    logger.error({ err: err.message, action, resource, resourceId }, "[AuditLog] Failed to write audit log");
   }
 }

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, dailyReportsTable, platformConnectionsTable, platformSyncLogsTable } from "@workspace/db";
 import { sql, eq, gte, lte, and, count, avg, desc, between, or } from "drizzle-orm";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -123,7 +124,7 @@ router.get("/platforms", async (_req, res) => {
 
     res.json({ platforms, totalServices, totalConnected });
   } catch (error: any) {
-    console.error("Platforms status error:", error);
+    logger.error({ err: error }, "Platforms status error:");
     res.status(500).json({ error: "Erreur lors de la recuperation des plateformes." });
   }
 });
@@ -139,7 +140,7 @@ router.get("/status", async (_req, res) => {
     const connectedCount = connections.filter(c => c.status === "connecte").length;
     res.json({ connected: connectedCount > 0, services, syncEnabled: connectedCount > 0, lastGlobalSync: null, connectedCount });
   } catch (error: any) {
-    console.error("[Workspace] GET /status error:", error);
+    logger.error({ err: error }, "[Workspace] GET /status error:");
     res.status(500).json({ error: "Erreur lors de la verification du statut" });
   }
 });
@@ -180,7 +181,7 @@ router.post("/connect/:platform/:serviceId", async (req, res): Promise<void> => 
       service: { id: service.id, name: service.name, status: "connecte", connectedAt: now, lastSync: now },
     });
   } catch (error: any) {
-    console.error("Connect error:", error);
+    logger.error({ err: error }, "Connect error:");
     res.status(500).json({ error: "Erreur lors de la connexion." });
   }
 });
@@ -207,7 +208,7 @@ router.post("/disconnect/:platform/:serviceId", async (req, res): Promise<void> 
 
     res.json({ status: "deconnecte", message: `${service.name} a ete deconnecte.` });
   } catch (error: any) {
-    console.error("Disconnect error:", error);
+    logger.error({ err: error }, "Disconnect error:");
     res.status(500).json({ error: "Erreur lors de la deconnexion." });
   }
 });
@@ -237,7 +238,7 @@ router.post("/connect-all/:platform", async (req, res): Promise<void> => {
 
     res.json({ status: "connecte", message: `Tous les services ${PLATFORM_NAMES[platform]} ont ete connectes.`, count: platformServices.length });
   } catch (error: any) {
-    console.error("Connect all error:", error);
+    logger.error({ err: error }, "Connect all error:");
     res.status(500).json({ error: "Erreur lors de la connexion globale." });
   }
 });
@@ -299,7 +300,7 @@ router.post("/sync/:platform", async (req, res): Promise<void> => {
       itemCounts,
     });
   } catch (error: any) {
-    console.error("Sync error:", error);
+    logger.error({ err: error }, "Sync error:");
     res.status(500).json({ error: "Erreur lors de la synchronisation." });
   }
 });
@@ -558,7 +559,7 @@ Reponds en JSON avec cette structure exacte:
     try {
       parsed = JSON.parse(text);
     } catch (parseErr) {
-      console.warn("[DailyReport] AI returned invalid JSON, using fallback:", parseErr);
+      logger.warn({ err: parseErr }, "[DailyReport] AI returned invalid JSON, using fallback:");
       parsed = {
         resume: text,
         pointsForts: [],
@@ -604,7 +605,7 @@ Reponds en JSON avec cette structure exacte:
       rawData: dailyData,
     });
   } catch (error: any) {
-    console.error("Daily report error:", error);
+    logger.error({ err: error }, "Daily report error:");
     const isProduction = process.env.NODE_ENV === "production";
     res.status(500).json({
       error: "Erreur lors de la generation du rapport journalier",
@@ -634,7 +635,7 @@ router.get("/daily-reports", async (req, res): Promise<void> => {
       offset: offsetVal,
     });
   } catch (error: any) {
-    console.error("List daily reports error:", error);
+    logger.error({ err: error }, "List daily reports error:");
     res.status(500).json({ error: "Erreur lors de la recuperation des rapports." });
   }
 });
@@ -655,7 +656,7 @@ router.get("/daily-reports/:id", async (req, res): Promise<void> => {
 
     res.json(report);
   } catch (error: any) {
-    console.error("Get daily report error:", error);
+    logger.error({ err: error }, "Get daily report error:");
     res.status(500).json({ error: "Erreur lors de la recuperation du rapport." });
   }
 });
@@ -676,7 +677,7 @@ router.delete("/daily-reports/:id", async (req, res): Promise<void> => {
 
     res.json({ success: true, message: "Rapport supprime." });
   } catch (error: any) {
-    console.error("Delete daily report error:", error);
+    logger.error({ err: error }, "Delete daily report error:");
     res.status(500).json({ error: "Erreur lors de la suppression du rapport." });
   }
 });
@@ -716,7 +717,7 @@ router.get("/activity-summary", async (req, res): Promise<void> => {
       },
     });
   } catch (error: any) {
-    console.error("Activity summary error:", error);
+    logger.error({ err: error }, "Activity summary error:");
     res.status(500).json({ error: "Erreur lors de la recuperation du resume d'activite." });
   }
 });

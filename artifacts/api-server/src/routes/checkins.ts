@@ -12,6 +12,7 @@ import {
 import { getOrgId } from "../middleware/tenant";
 import { syncGoogleCalendarToCheckins } from "../services/google-calendar-sync";
 import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -281,7 +282,7 @@ router.post("/checkins/sync-google", async (req, res): Promise<void> => {
       ...result,
     });
   } catch (err: any) {
-    console.error("Google Calendar sync error:", err);
+    logger.error({ err: err }, "Google Calendar sync error:");
     const safeMessages = [
       "Aucun compte Google connecte",
       "Google Workspace n'est pas configure",

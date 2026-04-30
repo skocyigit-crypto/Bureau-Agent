@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { db, faceProfilesTable, faceRecognitionLogsTable, contactsTable } from "@workspace/db";
 import { eq, sql, and, desc, ilike, or } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -51,7 +52,7 @@ router.get("/profiles", async (req: Request, res: Response): Promise<void> => {
       .orderBy(desc(faceProfilesTable.lastSeenAt));
     res.json({ success: true, profiles });
   } catch (err: any) {
-    console.error("[Face] profiles error:", err.message);
+    logger.error({ err: err.message }, "[Face] profiles error:");
     res.status(500).json({ success: false, error: "Erreur lors du chargement des profils" });
   }
 });
@@ -85,7 +86,7 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
            Reponds en JSON: { "description": "...", "estimatedAge": "...", "distinctiveFeatures": [...], "professionalAppearance": "..." }`,
           "Tu es un assistant de securite de bureau professionnel. Tu analyses les profils pour aider a l'identification."
         );
-      } catch (e) { console.error("[FaceRecognition] AI profile generation failed:", e); }
+      } catch (e) { logger.error({ err: e }, "[FaceRecognition] AI profile generation failed:"); }
     }
 
     const [profile] = await db.insert(faceProfilesTable).values({
@@ -112,7 +113,7 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
 
     res.json({ success: true, profile, aiAnalysis });
   } catch (err: any) {
-    console.error("[Face] register error:", err.message);
+    logger.error({ err: err.message }, "[Face] register error:");
     res.status(500).json({ success: false, error: "Erreur lors de l'enregistrement" });
   }
 });
@@ -212,7 +213,7 @@ router.post("/recognize", async (req: Request, res: Response): Promise<void> => 
       reason: parsed.reason || null,
     });
   } catch (err: any) {
-    console.error("[Face] recognize error:", err.message);
+    logger.error({ err: err.message }, "[Face] recognize error:");
     res.status(500).json({ success: false, error: "Erreur lors de la reconnaissance" });
   }
 });
@@ -227,7 +228,7 @@ router.get("/logs", async (req: Request, res: Response): Promise<void> => {
       .limit(limit);
     res.json({ success: true, logs });
   } catch (err: any) {
-    console.error("[Face] logs error:", err.message);
+    logger.error({ err: err.message }, "[Face] logs error:");
     res.status(500).json({ success: false, error: "Erreur lors du chargement des logs" });
   }
 });
@@ -265,7 +266,7 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
       },
     });
   } catch (err: any) {
-    console.error("[Face] stats error:", err.message);
+    logger.error({ err: err.message }, "[Face] stats error:");
     res.status(500).json({ success: false, error: "Erreur lors du chargement des stats" });
   }
 });
@@ -282,7 +283,7 @@ router.delete("/profiles/:id", async (req: Request, res: Response): Promise<void
       .where(and(eq(faceProfilesTable.id, id), eq(faceProfilesTable.organisationId, orgId)));
     res.json({ success: true });
   } catch (err: any) {
-    console.error("[Face] delete error:", err.message);
+    logger.error({ err: err.message }, "[Face] delete error:");
     res.status(500).json({ success: false, error: "Erreur lors de la suppression" });
   }
 });
@@ -314,7 +315,7 @@ router.post("/search-contact", async (req: Request, res: Response): Promise<void
 
     res.json({ success: true, contacts });
   } catch (err: any) {
-    console.error("[Face] search-contact error:", err.message);
+    logger.error({ err: err.message }, "[Face] search-contact error:");
     res.status(500).json({ success: false, error: "Erreur lors de la recherche" });
   }
 });

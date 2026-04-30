@@ -745,7 +745,7 @@ ${isDecaying ? "ATTENTION: Tes scores baissent consecutivement. Analyse POURQUOI
 ${trendHistory.map(h => `  ${h.reportDate}: score ${h.score}, ${h.errorsFound} erreurs, ${h.warningsFound} alertes`).join("\n")}
 === FIN HISTORIQUE ===`;
       }
-    } catch (colErr) { console.warn(`[AI-Agent] ${agent} collaboration context failed:`, colErr); }
+    } catch (colErr) { logger.warn({ err: colErr }, `[AI-Agent] ${agent} collaboration context failed`); }
 
     const { ai } = await import("@workspace/integrations-gemini-ai");
     const fullPrompt = `${getAgentPrompt(agent)}${collaborationContext}${trendContext}\n\n${AGENT_RESPONSE_FORMAT}\n\nDate du rapport: ${today}\nDonnees actuelles (cette semaine + semaine precedente + patterns):\n${JSON.stringify(data, null, 2)}`;
@@ -908,7 +908,7 @@ async function runSuperAgent(childReports: any[], orgId: number): Promise<any> {
         const toAgent = issue.agents[1] || "super_agent";
         await createCrossAgentAlert(orgId, fromAgent, toAgent, issue.title, issue.description, issue.severity);
       }
-    } catch (alertErr) { console.warn("[SuperAgent] cross-agent alert creation failed:", alertErr); }
+    } catch (alertErr) { logger.warn({ err: alertErr }, "[SuperAgent] cross-agent alert creation failed"); }
 
     const { ai } = await import("@workspace/integrations-gemini-ai");
 
@@ -1852,7 +1852,7 @@ router.post("/ai/agents/auto-fix", requireAdmin, async (req, res): Promise<void>
       if (zeroQuantityFixed > 0) {
         fixes.push({ type: "negative_stock_fixed", description: "Quantites de stock negatives corrigees a zero", count: zeroQuantityFixed, details: `${zeroQuantityFixed} articles avaient des quantites negatives` });
       }
-    } catch (e) { console.warn("[AIAgents] stock auto-fix skipped:", (e as Error).message); }
+    } catch (e) { logger.warn({ err: e }, "[AIAgents] stock auto-fix skipped"); }
 
     await db.insert(auditLogsTable).values({
       userId: userId,

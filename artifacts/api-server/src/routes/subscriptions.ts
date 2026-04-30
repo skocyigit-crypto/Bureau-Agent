@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, subscriptionsTable, organisationsTable } from "@workspace/db";
 import { PLANS, type PlanKey } from "@workspace/db/schema";
 import { getOrgId } from "../middleware/tenant";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -92,7 +93,7 @@ router.post("/subscription/upgrade", async (req: Request, res: Response): Promis
     if (err.message === "NOT_FOUND") {
       res.status(404).json({ error: "Abonnement non trouve." });
     } else {
-      console.error("Erreur mise a jour abonnement:", err);
+      logger.error({ err: err }, "Erreur mise a jour abonnement:");
       res.status(500).json({ error: "Erreur serveur lors de la mise a jour." });
     }
   }

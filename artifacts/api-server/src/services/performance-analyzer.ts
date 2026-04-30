@@ -1,5 +1,6 @@
 import { db, usersTable, auditLogsTable, checkinsTable, tasksTable, callsTable, messagesTable, calendarEventsTable, performanceReportsTable } from "@workspace/db";
 import { eq, sql, gte, lte, and, count, desc } from "drizzle-orm";
+import { logger } from "../lib/logger";
 
 interface UserMetrics {
   userId: number;
@@ -317,7 +318,7 @@ async function analyzeWithGemini(metricsJSON: string, periodeStr: string): Promi
     });
     return JSON.parse(response.text ?? "{}");
   } catch (error: any) {
-    console.error("[Performance] Gemini analysis error:", error.message);
+    logger.error({ err: error.message }, "[Performance] Gemini analysis error:");
     return null;
   }
 }
@@ -342,7 +343,7 @@ async function analyzeWithOpenAI(metricsJSON: string, periodeStr: string): Promi
     const text = response.choices[0]?.message?.content ?? "{}";
     return JSON.parse(text);
   } catch (error: any) {
-    console.error("[Performance] OpenAI analysis error:", error.message);
+    logger.error({ err: error.message }, "[Performance] OpenAI analysis error:");
     return null;
   }
 }
@@ -378,7 +379,7 @@ Fournis une analyse strategique en JSON:
     const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     return JSON.parse(cleaned);
   } catch (error: any) {
-    console.error("[Performance] Anthropic analysis error:", error.message);
+    logger.error({ err: error.message }, "[Performance] Anthropic analysis error:");
     return null;
   }
 }

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, autoBackupsTable, backupConfigTable } from "@workspace/db";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
 import { performBackup } from "../services/auto-backup";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -47,7 +48,7 @@ router.get("/backups", async (req, res): Promise<void> => {
       },
     });
   } catch (error: any) {
-    console.error("Backups fetch error:", error);
+    logger.error({ err: error }, "Backups fetch error:");
     res.status(500).json({ error: "Erreur lors de la recuperation des sauvegardes." });
   }
 });
@@ -74,7 +75,7 @@ router.get("/backups/config", async (_req, res) => {
 
     res.json({ configs });
   } catch (error: any) {
-    console.error("Backup config error:", error);
+    logger.error({ err: error }, "Backup config error:");
     res.status(500).json({ error: "Erreur lors de la recuperation de la configuration." });
   }
 });
@@ -110,7 +111,7 @@ router.post("/backups/config/:platform", async (req, res): Promise<void> => {
 
     res.json({ config: updated, message: `Configuration ${platform} mise a jour.` });
   } catch (error: any) {
-    console.error("Backup config update error:", error);
+    logger.error({ err: error }, "Backup config update error:");
     res.status(500).json({ error: "Erreur lors de la mise a jour de la configuration." });
   }
 });
@@ -129,7 +130,7 @@ router.post("/backups/manual", async (_req, res) => {
       message: `Sauvegarde manuelle terminee en ${result.duration}ms.`,
     });
   } catch (error: any) {
-    console.error("Manual backup error:", error);
+    logger.error({ err: error }, "Manual backup error:");
     res.status(500).json({ error: "Erreur lors de la sauvegarde manuelle." });
   }
 });
@@ -153,7 +154,7 @@ router.get("/backups/latest", async (_req, res) => {
       isActive: true,
     });
   } catch (error: any) {
-    console.error("Erreur backup status:", error);
+    logger.error({ err: error }, "Erreur backup status:");
     res.status(500).json({ error: "Erreur." });
   }
 });

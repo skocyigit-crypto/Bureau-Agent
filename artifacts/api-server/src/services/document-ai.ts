@@ -820,7 +820,7 @@ async function checkDuplicatesInDb(
           duplicates.push({ rowIndex: row.rowIndex, existing: { id: match.id, name: `${match.firstName || ""} ${match.lastName || ""}`.trim() } });
         }
       }
-    } catch (e) { console.warn("[DocumentAI] duplicate check failed:", (e as Error).message); }
+    } catch (e) { logger.warn({ err: e }, "[DocumentAI] duplicate check failed"); }
   }
 
   return duplicates;

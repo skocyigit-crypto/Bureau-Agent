@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, platformConnectionsTable, notificationsTable, stockArticlesTable, calendarEventsTable, projetsTable, prospectsTable, automationRulesTable, facturesClientTable, compteClientTable, organisationsTable } from "@workspace/db";
 import { Resend } from "resend";
 import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNull, or } from "drizzle-orm";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -167,13 +168,13 @@ Reponds en JSON avec cette structure exacte:
     try {
       parsed = JSON.parse(text);
     } catch (parseErr) {
-      console.warn("[AI] JSON parse fallback (executive-summary):", parseErr);
+      logger.warn({ err: parseErr }, "[AI] JSON parse fallback (executive-summary)");
       parsed = { resumeExecutif: text, pointsForts: [], pointsAttention: [], tendances: [], recommandations: [], scoreGlobal: 0 };
     }
 
     res.json(parsed);
   } catch (error: any) {
-    console.error("AI Analysis error:", error);
+    logger.error({ err: error }, "AI Analysis error:");
     const isProduction = process.env.NODE_ENV === "production";
     res.status(500).json({
       error: "Erreur lors de l'analyse IA",
@@ -351,13 +352,13 @@ Donnees:\n${JSON.stringify(contextData, null, 2)}`
     try {
       parsed = JSON.parse(text);
     } catch (parseErr) {
-      console.warn("[AI] JSON parse fallback (suggestions):", parseErr);
+      logger.warn({ err: parseErr }, "[AI] JSON parse fallback (suggestions):");
       parsed = { suggestions: [], resumeCourt: text };
     }
 
     res.json(parsed);
   } catch (error: any) {
-    console.error("AI Suggest error:", error);
+    logger.error({ err: error }, "AI Suggest error:");
     const isProduction = process.env.NODE_ENV === "production";
     res.status(500).json({
       error: "Erreur lors de la generation de suggestions IA",
@@ -444,13 +445,13 @@ Si tout est correct, errors et warnings seront vides. Sois utile mais pas trop s
     try {
       parsed = JSON.parse(text);
     } catch (parseErr) {
-      console.warn("[AI] JSON parse fallback (validation):", parseErr);
+      logger.warn({ err: parseErr }, "[AI] JSON parse fallback (validation):");
       parsed = { isValid: true, errors: [], warnings: [], suggestions: [] };
     }
 
     res.json(parsed);
   } catch (error: any) {
-    console.error("AI Validate error:", error);
+    logger.error({ err: error }, "AI Validate error:");
     const isProduction = process.env.NODE_ENV === "production";
     res.status(500).json({
       error: "Erreur lors de la validation IA",
@@ -477,7 +478,7 @@ router.post("/ai/assistant", async (req, res): Promise<void> => {
       if (mathAnalysis.subComponents.length > 0) {
         try {
           mathAnalysis = await analyzeWithAI(question, mathAnalysis);
-        } catch (err) { console.warn("[AIAnalysis] operation failed:", err); }
+        } catch (err) { logger.warn({ err: err }, "[AIAnalysis] operation failed:"); }
       }
     }
 
@@ -595,7 +596,7 @@ Sois precis, base-toi sur les donnees reelles. Pour les calculs mathematiques, u
     try {
       parsed = JSON.parse(text);
     } catch (parseErr) {
-      console.warn("[AI] JSON parse fallback (assistant):", parseErr);
+      logger.warn({ err: parseErr }, "[AI] JSON parse fallback (assistant):");
       parsed = { reponse: text, donnees: [], actions: [], mathDetected: false, mathResults: [] };
     }
 
@@ -612,7 +613,7 @@ Sois precis, base-toi sur les donnees reelles. Pour les calculs mathematiques, u
 
     res.json(parsed);
   } catch (error: any) {
-    console.error("AI Assistant error:", error);
+    logger.error({ err: error }, "AI Assistant error:");
     const isProduction = process.env.NODE_ENV === "production";
     res.status(500).json({
       error: "Erreur de l'assistant IA",
@@ -820,7 +821,7 @@ router.post("/ai/recognize", async (req, res): Promise<void> => {
 
     res.json({ resume, detections });
   } catch (error: any) {
-    console.error("AI Recognize error:", error);
+    logger.error({ err: error }, "AI Recognize error:");
     const isProduction = process.env.NODE_ENV === "production";
     res.status(500).json({
       error: "Erreur lors de la reconnaissance IA",
@@ -952,13 +953,13 @@ Reponds en JSON avec cette structure exacte:
     try {
       parsed = JSON.parse(text);
     } catch (parseErr) {
-      console.warn("[AI] JSON parse fallback (email-draft):", parseErr);
+      logger.warn({ err: parseErr }, "[AI] JSON parse fallback (email-draft):");
       parsed = { objet: "", corps: text, destinataire: contactName || "", tonUtilise: tone || "cordial", resumeIA: "", suggestionsAlternatives: [] };
     }
 
     res.json(parsed);
   } catch (error: any) {
-    console.error("AI Draft Email error:", error);
+    logger.error({ err: error }, "AI Draft Email error:");
     const isProduction = process.env.NODE_ENV === "production";
     res.status(500).json({
       error: "Erreur lors de la generation de l'e-mail IA",
@@ -1193,13 +1194,13 @@ Sois concret, personnalise, et adapte tes recommandations au role (${userProfile
         question: typeof raw.question === "string" ? raw.question : "",
       };
     } catch (parseErr) {
-      console.warn("[AI] JSON parse fallback (discovery):", parseErr);
+      logger.warn({ err: parseErr }, "[AI] JSON parse fallback (discovery):");
       parsed = defaultResult;
     }
 
     res.json(parsed);
   } catch (error: any) {
-    console.error("AI Discovery error:", error);
+    logger.error({ err: error }, "AI Discovery error:");
     const isProduction = process.env.NODE_ENV === "production";
     res.status(500).json({
       error: "Erreur lors de la decouverte IA",
@@ -1728,7 +1729,7 @@ IMPORTANT: Tu ES l'assistant d'Aurelie. Agis, ne suggere pas. Chaque resolution 
         directiveStrategique: typeof raw.directiveStrategique === "string" ? raw.directiveStrategique : "",
       };
     } catch (parseErr) {
-      console.warn("[AI] JSON parse fallback (central-intelligence):", parseErr);
+      logger.warn({ err: parseErr }, "[AI] JSON parse fallback (central-intelligence):");
       parsed = {
         scoreSante: scoreGlobal,
         niveauSante: scoreGlobal >= 90 ? "excellent" : scoreGlobal >= 75 ? "bon" : scoreGlobal >= 50 ? "vigilance" : scoreGlobal >= 30 ? "alerte" : "critique",
@@ -1755,7 +1756,7 @@ IMPORTANT: Tu ES l'assistant d'Aurelie. Agis, ne suggere pas. Chaque resolution 
 
     res.json(parsed);
   } catch (error: any) {
-    console.error("AI Central Intelligence error:", error);
+    logger.error({ err: error }, "AI Central Intelligence error:");
     const isProduction = process.env.NODE_ENV === "production";
     res.status(500).json({
       error: "Erreur de l'Intelligence Centrale",
@@ -1811,7 +1812,7 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
       ]);
       stockData = lowStockItems;
       if ((stockStats[0]?.outOfStock ?? 0) > 0) anomalies.push(`${stockStats[0]?.outOfStock} articles en rupture de stock!`);
-    } catch (e) { console.warn("[AIAnalysis] stock data unavailable:", (e as Error).message); }
+    } catch (e) { logger.warn({ err: e }, "[AIAnalysis] stock data unavailable"); }
 
     let calendarData: any[] = [];
     let projectsData: any[] = [];
@@ -1832,7 +1833,7 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
       projectsData = activeProjects;
       prospectsData = activeProspects;
       if ((projectStats[0]?.overBudget ?? 0) > 0) anomalies.push(`${projectStats[0]?.overBudget} projets depassent leur budget!`);
-    } catch (e) { console.warn("[AIAnalysis] calendar/projects/prospects data unavailable:", (e as Error).message); }
+    } catch (e) { logger.warn({ err: e }, "[AIAnalysis] calendar/projects/prospects data unavailable"); }
 
     let financialData: any = {};
     let invoicesData: any[] = [];
@@ -1875,7 +1876,7 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
       if ((accountStats[0]?.critical ?? 0) > 0) anomalies.push(`${accountStats[0]?.critical} comptes clients CRITIQUES necessitent une action immediate!`);
       if ((accountStats[0]?.blocked ?? 0) > 0) anomalies.push(`${accountStats[0]?.blocked} comptes clients BLOQUES — depassement de limite de credit!`);
       if (Number(accountStats[0]?.totalOverdue ?? 0) > 10000) anomalies.push(`Montant total en retard: ${Number(accountStats[0]?.totalOverdue ?? 0).toLocaleString("fr-FR")}€ — CRITIQUE!`);
-    } catch (e) { console.warn("[AIAnalysis] financial data unavailable:", (e as Error).message); }
+    } catch (e) { logger.warn({ err: e }, "[AIAnalysis] financial data unavailable"); }
 
     const missedRate = (callStats[0]?.total ?? 0) > 0 ? Math.round(((callStats[0]?.missed ?? 0) / (callStats[0]?.total ?? 1)) * 100) : 0;
     if (missedRate > 30) anomalies.push(`Taux d'appels manques critique: ${missedRate}%`);
@@ -2057,7 +2058,7 @@ FORMAT DE REPONSE JSON:
     try {
       parsed = JSON.parse(response.text ?? "{}");
     } catch (parseErr) {
-      console.warn("[AI] JSON parse fallback (general):", parseErr);
+      logger.warn({ err: parseErr }, "[AI] JSON parse fallback (general):");
       parsed = { response: response.text || "Reponse en cours de traitement...", actions: [], insights: [], mood: "neutre" };
     }
 
@@ -2074,7 +2075,7 @@ FORMAT DE REPONSE JSON:
       },
     });
   } catch (error: any) {
-    console.error("AI Chat error:", error);
+    logger.error({ err: error }, "AI Chat error:");
     const isProduction = process.env.NODE_ENV === "production";
     res.status(500).json({ error: "Erreur du chat IA", ...(isProduction ? {} : { details: error.message }) });
   }
@@ -2647,7 +2648,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
         });
         let briefParsed;
-        try { briefParsed = JSON.parse(briefResponse.text ?? "{}"); } catch (e) { console.warn("[AI] JSON parse fallback (briefing):", e); briefParsed = { briefing: briefingContext, priorites: [], alertes: [], score_journee: 50 }; }
+        try { briefParsed = JSON.parse(briefResponse.text ?? "{}"); } catch (e) { logger.warn({ err: e }, "[AI] JSON parse fallback (briefing):"); briefParsed = { briefing: briefingContext, priorites: [], alertes: [], score_journee: 50 }; }
         result = { success: true, message: briefParsed.briefing || "Briefing genere.", data: briefParsed };
         break;
       }
@@ -2673,7 +2674,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
         });
         let meetParsed;
-        try { meetParsed = JSON.parse(meetResponse.text ?? "{}"); } catch (e) { console.warn("[AI] JSON parse fallback (meeting-prep):", e); meetParsed = { dossier: "Dossier en cours de preparation...", points_cles: [], questions_a_poser: [], risques: [], opportunites: [], strategie: "" }; }
+        try { meetParsed = JSON.parse(meetResponse.text ?? "{}"); } catch (e) { logger.warn({ err: e }, "[AI] JSON parse fallback (meeting-prep):"); meetParsed = { dossier: "Dossier en cours de preparation...", points_cles: [], questions_a_poser: [], risques: [], opportunites: [], strategie: "" }; }
         result = { success: true, message: meetParsed.dossier || "Dossier de preparation genere.", data: meetParsed };
         break;
       }
@@ -2693,7 +2694,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
         });
         let riskParsed;
-        try { riskParsed = JSON.parse(riskResponse.text ?? "{}"); } catch (e) { console.warn("[AI] JSON parse fallback (risk-analysis):", e); riskParsed = { analyse: riskData, risques: [], score_risque_global: 50, recommandations: [] }; }
+        try { riskParsed = JSON.parse(riskResponse.text ?? "{}"); } catch (e) { logger.warn({ err: e }, "[AI] JSON parse fallback (risk-analysis):"); riskParsed = { analyse: riskData, risques: [], score_risque_global: 50, recommandations: [] }; }
         result = { success: true, message: riskParsed.analyse || "Analyse des risques generee.", data: riskParsed };
         break;
       }
@@ -2711,7 +2712,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
         });
         let revParsed;
-        try { revParsed = JSON.parse(revResponse.text ?? "{}"); } catch (e) { console.warn("[AI] JSON parse fallback (revenue-forecast):", e); revParsed = { prevision: revData, mois: [], ca_annuel_estime: 0, tendance: "stable", recommandations: [] }; }
+        try { revParsed = JSON.parse(revResponse.text ?? "{}"); } catch (e) { logger.warn({ err: e }, "[AI] JSON parse fallback (revenue-forecast):"); revParsed = { prevision: revData, mois: [], ca_annuel_estime: 0, tendance: "stable", recommandations: [] }; }
         result = { success: true, message: revParsed.prevision || "Prevision de chiffre d'affaires generee.", data: revParsed };
         break;
       }
@@ -2734,7 +2735,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
         });
         let campParsed;
-        try { campParsed = JSON.parse(campResponse.text ?? "{}"); } catch (e) { console.warn("[AI] JSON parse fallback (campaign):", e); campParsed = { campagne: "Campagne en preparation...", sujet_email: "", template_email: "", nombre_cibles: targetContacts.length, planning: "", kpis: [] }; }
+        try { campParsed = JSON.parse(campResponse.text ?? "{}"); } catch (e) { logger.warn({ err: e }, "[AI] JSON parse fallback (campaign):"); campParsed = { campagne: "Campagne en preparation...", sujet_email: "", template_email: "", nombre_cibles: targetContacts.length, planning: "", kpis: [] }; }
         result = { success: true, message: `Campagne "${objective}" concue pour ${targetContacts.length} contacts.`, data: { ...campParsed, contacts: targetContacts } };
         break;
       }
@@ -2757,7 +2758,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
         });
         let auditParsed;
-        try { auditParsed = JSON.parse(auditResponse.text ?? "{}"); } catch (e) { console.warn("[AI] JSON parse fallback (audit):", e); auditParsed = { audit: auditData, score_global: 50, points_forts: [], points_faibles: [], recommandations: [], objectifs_30j: [] }; }
+        try { auditParsed = JSON.parse(auditResponse.text ?? "{}"); } catch (e) { logger.warn({ err: e }, "[AI] JSON parse fallback (audit):"); auditParsed = { audit: auditData, score_global: 50, points_forts: [], points_faibles: [], recommandations: [], objectifs_30j: [] }; }
         result = { success: true, message: auditParsed.audit || "Audit de performance genere.", data: auditParsed };
         break;
       }
@@ -2772,7 +2773,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
             config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
           });
           let compParsed;
-          try { compParsed = JSON.parse(compResponse.text ?? "{}"); } catch (e) { console.warn("[AI] JSON parse fallback (competitor):", e); compParsed = { analyse: `Analyse de "${searchTarget}" en cours...`, concurrents: [], tendances: [], opportunites: [], menaces: [], recommandations: [], positionnement_recommande: "" }; }
+          try { compParsed = JSON.parse(compResponse.text ?? "{}"); } catch (e) { logger.warn({ err: e }, "[AI] JSON parse fallback (competitor):"); compParsed = { analyse: `Analyse de "${searchTarget}" en cours...`, concurrents: [], tendances: [], opportunites: [], menaces: [], recommandations: [], positionnement_recommande: "" }; }
           result = { success: true, message: compParsed.analyse || "Analyse concurrentielle generee.", data: compParsed };
         } catch (e: any) {
           result = { success: false, message: `Erreur analyse: ${e.message}` };
@@ -2809,7 +2810,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
 
     res.json(result);
   } catch (error: any) {
-    console.error("AI Execute error:", error);
+    logger.error({ err: error }, "AI Execute error:");
     res.status(500).json({ error: "Erreur d'execution", success: false });
   }
 });
@@ -2903,13 +2904,13 @@ Sois PRECIS et base-toi sur les tendances reelles. Chaque prediction doit etre J
     try {
       parsed = JSON.parse(response.text ?? "{}");
     } catch (parseErr) {
-      console.warn("[AI] JSON parse fallback (predictions):", parseErr);
+      logger.warn({ err: parseErr }, "[AI] JSON parse fallback (predictions):");
       parsed = { callVolume: { predicted: 0, trend: "stable", confidence: 50 }, taskCompletion: { predictedCompleted: 0, velocityTrend: "stable" }, contactGrowth: { predictedNew: 0, trend: "stable" }, customerSatisfaction: { score: 70, trend: "stable" }, operationalRisks: [], opportunities: [], weeklyForecast: [], strategicRecommendations: [] };
     }
 
     res.json({ predictions: parsed, historicalData, generatedAt: new Date().toISOString() });
   } catch (error: any) {
-    console.error("AI Predictions error:", error);
+    logger.error({ err: error }, "AI Predictions error:");
     res.status(500).json({ error: "Erreur des predictions IA" });
   }
 });
