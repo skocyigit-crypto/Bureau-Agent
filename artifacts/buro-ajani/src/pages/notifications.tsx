@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Bell, Check, CheckCheck, Trash2, Filter, Phone, Users, CheckSquare, MessageSquare, AlertTriangle, Info, Calendar } from "lucide-react";
+import { Bell, Check, CheckCheck, Trash2, Filter, Phone, Users, CheckSquare, MessageSquare, AlertTriangle, Info, Calendar, ExternalLink } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -115,9 +115,20 @@ export default function Notifications() {
                           )}
                         </div>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {n.createdAt ? formatDistanceToNow(new Date(n.createdAt), { addSuffix: true, locale: fr }) : ""}
-                      </p>
+                      <div className="flex items-center justify-between mt-1">
+                        <p className="text-xs text-muted-foreground">
+                          {n.createdAt ? formatDistanceToNow(new Date(n.createdAt), { addSuffix: true, locale: fr }) : ""}
+                        </p>
+                        {n.actionUrl && (
+                          <a
+                            href={n.actionUrl}
+                            className="text-xs text-primary hover:underline flex items-center gap-0.5"
+                            onClick={() => { if (!n.read) markReadMutation.mutate(n.id); }}
+                          >
+                            Voir <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </CardContent>

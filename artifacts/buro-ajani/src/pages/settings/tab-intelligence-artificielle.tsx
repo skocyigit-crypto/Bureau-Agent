@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
-import { Bot, Zap, DollarSign, Phone, RotateCcw, Save, Info } from "lucide-react";
+import { Bot, Zap, DollarSign, Phone, RotateCcw, Save, Info, TrendingUp, Activity } from "lucide-react";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
+  ResponsiveContainer, Legend, LineChart, Line,
+} from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Icon3D } from "@/components/icon-3d";
 
@@ -27,12 +32,69 @@ interface QuotaStatus {
   percentCalls: number;
 }
 
+interface DayStats {
+  day: string;
+  calls: number;
+  tokens: number;
+  costUsd: number;
+}
+
+interface RouteStats {
+  route: string;
+  calls: number;
+  tokens: number;
+  costUsd: number;
+}
+
+interface ModelStats {
+  model: string;
+  provider: string;
+  calls: number;
+  tokens: number;
+  costUsd: number;
+}
+
+interface SummaryData {
+  period: { days: number; since: string };
+  totals: {
+    totalCalls: number;
+    successCalls: number;
+    errorCalls: number;
+    totalTokens: number;
+    totalCostUsd: number;
+    avgDurationMs: number;
+  };
+  byDay: DayStats[];
+  byRoute: RouteStats[];
+  byModel: ModelStats[];
+}
+
+const CHART_COLORS = {
+  cost: "#f59e0b",
+  calls: "#3b82f6",
+  tokens: "#8b5cf6",
+  success: "#10b981",
+  error: "#ef4444",
+};
+
+function shortDay(day: string): string {
+  const d = new Date(day + "T00:00:00");
+  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+}
+
+function fmtCost(v: number) {
+  return v < 0.001 ? `<0.001$` : `${v.toFixed(3)}$`;
+}
+
 export function TabIntelligenceArtificielle() {
   const { toast } = useToast();
   const [settings, setSettings] = useState<AiSettings>({ aiQuotaCostUsd: null, aiQuotaCalls: null, aiAgentName: null });
   const [quota, setQuota] = useState<QuotaStatus | null>(null);
+  const [summary, setSummary] = useState<SummaryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [chartDays, setChartDays] = useState("30");
+  const [chartMetric, setChartMetric] = useState<"cost" | "calls">("cost");
 
   const [agentName, setAgentName] = useState("");
   const [quotaCost, setQuotaCost] = useState("");
@@ -41,6 +103,10 @@ export function TabIntelligenceArtificielle() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    loadSummary(Number(chartDays));
+  }, [chartDays]);
 
   async function loadData() {
     setLoading(true);
@@ -65,19 +131,24 @@ export function TabIntelligenceArtificielle() {
     } finally {
       setLoading(false);
     }
+    await loadSummary(Number(chartDays));
+  }
+
+  async function loadSummary(days: number) {
+    try {
+      const res = await fetch(`/api/ai-usage/summary?days=${days}`, { credentials: "include" });
+      if (res.ok) setSummary(await res.json());
+    } catch {
+    }
   }
 
   async function handleSave() {
     setSaving(true);
     try {
       const body: Record<string, any> = {};
-
-      const trimmedName = agentName.trim();
-      body.aiAgentName = trimmedName || null;
-
+      body.aiAgentName = agentName.trim() || null;
       const costVal = quotaCost.trim();
       body.aiQuotaCostUsd = costVal === "" ? null : Number(costVal);
-
       const callsVal = quotaCalls.trim();
       body.aiQuotaCalls = callsVal === "" ? null : parseInt(callsVal);
 
@@ -110,6 +181,20 @@ export function TabIntelligenceArtificielle() {
   const effectiveCostLimit = settings.aiQuotaCostUsd ?? DEFAULT_COST_USD;
   const effectiveCallsLimit = settings.aiQuotaCalls ?? DEFAULT_CALLS;
 
+  const chartData = (summary?.byDay || []).map(d => ({
+    day: shortDay(d.day),
+    cost: Number(d.costUsd.toFixed(4)),
+    calls: d.calls,
+    tokens: d.tokens,
+  }));
+
+  const topRoutes = (summary?.byRoute || []).slice(0, 5);
+  const successRate = summary
+    ? summary.totals.totalCalls > 0
+      ? ((summary.totals.successCalls / summary.totals.totalCalls) * 100).toFixed(1)
+      : "100.0"
+    : null;
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -141,7 +226,7 @@ export function TabIntelligenceArtificielle() {
                     Cout estimatif
                   </span>
                   <span className="font-mono">
-                    <span className={quota.percentCost >= 90 ? "text-red-500 font-bold" : quota.percentCost >= 70 ? "text-amber-500 font-semibold" : ""}>
+                    <span className={quota.percentCost >= 95 ? "text-red-500 font-bold" : quota.percentCost >= 80 ? "text-amber-500 font-semibold" : ""}>
                       {quota.used.costUsd.toFixed(3)} USD
                     </span>
                     <span className="text-muted-foreground"> / {quota.limits.maxCostUsdPerMonth} USD</span>
@@ -149,7 +234,7 @@ export function TabIntelligenceArtificielle() {
                 </div>
                 <Progress
                   value={quota.percentCost}
-                  className={`h-2 ${quota.percentCost >= 90 ? "[&>div]:bg-red-500" : quota.percentCost >= 70 ? "[&>div]:bg-amber-500" : "[&>div]:bg-emerald-500"}`}
+                  className={`h-2 ${quota.percentCost >= 95 ? "[&>div]:bg-red-500" : quota.percentCost >= 80 ? "[&>div]:bg-amber-500" : "[&>div]:bg-emerald-500"}`}
                 />
                 <p className="text-xs text-muted-foreground">{quota.percentCost.toFixed(1)}% du quota mensuel utilise</p>
               </div>
@@ -163,7 +248,7 @@ export function TabIntelligenceArtificielle() {
                     Appels IA
                   </span>
                   <span className="font-mono">
-                    <span className={quota.percentCalls >= 90 ? "text-red-500 font-bold" : quota.percentCalls >= 70 ? "text-amber-500 font-semibold" : ""}>
+                    <span className={quota.percentCalls >= 95 ? "text-red-500 font-bold" : quota.percentCalls >= 80 ? "text-amber-500 font-semibold" : ""}>
                       {quota.used.calls.toLocaleString("fr-FR")}
                     </span>
                     <span className="text-muted-foreground"> / {quota.limits.maxCallsPerMonth.toLocaleString("fr-FR")}</span>
@@ -171,10 +256,121 @@ export function TabIntelligenceArtificielle() {
                 </div>
                 <Progress
                   value={quota.percentCalls}
-                  className={`h-2 ${quota.percentCalls >= 90 ? "[&>div]:bg-red-500" : quota.percentCalls >= 70 ? "[&>div]:bg-amber-500" : "[&>div]:bg-blue-500"}`}
+                  className={`h-2 ${quota.percentCalls >= 95 ? "[&>div]:bg-red-500" : quota.percentCalls >= 80 ? "[&>div]:bg-amber-500" : "[&>div]:bg-blue-500"}`}
                 />
                 <p className="text-xs text-muted-foreground">{quota.percentCalls.toFixed(1)}% du quota mensuel utilise</p>
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {summary && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Icon3D icon={TrendingUp} variant="blue" size="sm" />
+                    Tendance de consommation IA
+                  </CardTitle>
+                  <CardDescription>Evolution journaliere du cout et du nombre d'appels IA.</CardDescription>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <Select value={chartMetric} onValueChange={(v) => setChartMetric(v as "cost" | "calls")}>
+                    <SelectTrigger className="w-28 h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cost">Cout (USD)</SelectItem>
+                      <SelectItem value="calls">Appels</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={chartDays} onValueChange={setChartDays}>
+                    <SelectTrigger className="w-20 h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="7">7j</SelectItem>
+                      <SelectItem value="14">14j</SelectItem>
+                      <SelectItem value="30">30j</SelectItem>
+                      <SelectItem value="60">60j</SelectItem>
+                      <SelectItem value="90">90j</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+                <div className="rounded-lg border bg-muted/30 p-3">
+                  <p className="text-xs text-muted-foreground">Cout total</p>
+                  <p className="font-semibold font-mono text-amber-600">{fmtCost(summary.totals.totalCostUsd)}</p>
+                </div>
+                <div className="rounded-lg border bg-muted/30 p-3">
+                  <p className="text-xs text-muted-foreground">Appels totaux</p>
+                  <p className="font-semibold font-mono text-blue-600">{summary.totals.totalCalls.toLocaleString("fr-FR")}</p>
+                </div>
+                <div className="rounded-lg border bg-muted/30 p-3">
+                  <p className="text-xs text-muted-foreground">Taux de succes</p>
+                  <p className={`font-semibold font-mono ${Number(successRate) >= 95 ? "text-emerald-600" : Number(successRate) >= 80 ? "text-amber-600" : "text-red-600"}`}>
+                    {successRate}%
+                  </p>
+                </div>
+                <div className="rounded-lg border bg-muted/30 p-3">
+                  <p className="text-xs text-muted-foreground">Tokens totaux</p>
+                  <p className="font-semibold font-mono text-purple-600">{summary.totals.totalTokens.toLocaleString("fr-FR")}</p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={220}>
+                  {chartMetric === "cost" ? (
+                    <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <XAxis dataKey="day" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                      <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}$`} width={45} />
+                      <ReTooltip
+                        formatter={(value: number) => [`${value.toFixed(4)} USD`, "Cout"]}
+                        contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                      />
+                      <Bar dataKey="cost" fill={CHART_COLORS.cost} radius={[3, 3, 0, 0]} name="Cout (USD)" maxBarSize={32} />
+                    </BarChart>
+                  ) : (
+                    <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <XAxis dataKey="day" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
+                      <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={40} />
+                      <ReTooltip
+                        formatter={(value: number) => [value.toLocaleString("fr-FR"), "Appels"]}
+                        contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                      />
+                      <Bar dataKey="calls" fill={CHART_COLORS.calls} radius={[3, 3, 0, 0]} name="Appels IA" maxBarSize={32} />
+                    </BarChart>
+                  )}
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[220px] text-muted-foreground text-sm">
+                  <Activity className="w-4 h-4 mr-2" />
+                  Aucune donnee d'utilisation sur cette periode.
+                </div>
+              )}
+
+              {topRoutes.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Top routes IA ({chartDays}j)</p>
+                  <div className="space-y-1.5">
+                    {topRoutes.map((r) => (
+                      <div key={r.route} className="flex items-center justify-between text-sm">
+                        <span className="font-mono text-xs text-muted-foreground truncate max-w-[200px]">{r.route}</span>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <Badge variant="secondary" className="text-xs font-mono">{r.calls} appels</Badge>
+                          <span className="text-xs font-mono text-amber-600">{fmtCost(r.costUsd)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -232,6 +428,7 @@ export function TabIntelligenceArtificielle() {
             <CardDescription>
               Definissez les limites de consommation IA pour votre organisation. Laissez vide pour utiliser les limites systeme
               (cout : <strong>{DEFAULT_COST_USD} USD</strong>, appels : <strong>{DEFAULT_CALLS.toLocaleString("fr-FR")}</strong>).
+              Une notification est automatiquement envoyee a partir de <strong>80% d'utilisation</strong>.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">

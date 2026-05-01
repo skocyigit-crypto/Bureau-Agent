@@ -46,6 +46,12 @@ export default function SettingsPage() {
       toast({ title: "Erreur Google", description: msgs[googleError] || "Erreur inconnue.", variant: "destructive" });
       window.history.replaceState({}, "", window.location.pathname);
     }
+    const tabParam = params.get("tab");
+    const VALID_TABS = ["abonnement", "google", "appels", "sauvegardes", "installation", "notifications", "securite", "mises-a-jour", "intelligence-artificielle"];
+    if (tabParam && VALID_TABS.includes(tabParam)) {
+      setActiveTab(tabParam);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   }, [toast]);
 
   return (
