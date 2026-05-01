@@ -47,6 +47,8 @@ import { twilioVoiceRouter } from "./twilio-voice";
 import invitationsRouter from "./invitations";
 import documentsRouter from "./documents";
 import aiUsageRouter from "./ai-usage";
+import meetingsRouter from "./meetings";
+
 const router: IRouter = Router();
 
 router.use(healthRouter);
@@ -103,5 +105,6 @@ router.use(telephonyRouter);
 router.use(voiceCommandRouter);
 router.use(invitationsRouter);
 router.use(documentsRouter);
+router.use(meetingsRouter);
 
 export default router;

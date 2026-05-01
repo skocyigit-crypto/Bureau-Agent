@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, timestamp, numeric, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, numeric, jsonb, index, doublePrecision } from "drizzle-orm/pg-core";
 import { organisationsTable } from "./organisations";
 import { contactsTable } from "./contacts";
 
@@ -13,6 +13,8 @@ export const projetsTable = pgTable("projets", {
   clientName: text("client_name"),
   clientCompany: text("client_company"),
   address: text("address"),
+  latitude: doublePrecision("latitude"),
+  longitude: doublePrecision("longitude"),
   budget: numeric("budget", { precision: 12, scale: 2 }),
   spent: numeric("spent", { precision: 12, scale: 2 }).default("0"),
   currency: text("currency").notNull().default("EUR"),

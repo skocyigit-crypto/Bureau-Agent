@@ -153,6 +153,7 @@ export default function MoreScreen() {
           <MenuItem icon="bar-chart-2" label="Analytique" sublabel="Rapports et statistiques" color="#f59e0b" onPress={() => nav("/analytics")} />
           <MenuItem icon="calendar" label="Calendrier" sublabel="Evenements et rendez-vous" color="#ec4899" onPress={() => nav("/calendar")} />
           <MenuItem icon="clock" label="Pointage" sublabel="Gestion de presence" color="#14b8a6" onPress={() => nav("/checkins")} />
+          <MenuItem icon="users" label="Réunion IA" sublabel="Compiler, taches & chantier GPS" color="#8b5cf6" onPress={() => nav("/meetings")} />
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
