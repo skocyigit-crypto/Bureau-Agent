@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, asc, ilike, or, sql, and, gte, lte } from "drizzle-orm";
-import { db, callsTable, contactsTable, tasksTable, calendarEventsTable, messagesTable } from "@workspace/db";
+import { db, callsTable, contactsTable, tasksTable, calendarEventsTable, messagesTable, organisationsTable } from "@workspace/db";
 import {
   ListCallsQueryParams,
   CreateCallBody,
@@ -423,6 +423,10 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
     const orgId = getOrgId(req);
     const { phoneNumber, contactId, contactName, contactCompany, contactCategory, conversationHistory, callPhase } = req.body;
 
+    const [orgRespondRow] = await db.select({ aiAgentName: organisationsTable.aiAgentName }).from(organisationsTable).where(eq(organisationsTable.id, orgId));
+    const respondAgentName = orgRespondRow?.aiAgentName || "Sophie Marchand";
+    const respondAgentFirstName = respondAgentName.split(" ")[0];
+
     try {
       let contact: any = null;
       if (contactId) {
@@ -463,7 +467,7 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
 
       const { ai } = await import("@workspace/integrations-gemini-ai");
 
-      const conversationLog = (conversationHistory || []).map((m: any) => `${m.role === "agent" ? "Sophie" : "Client"}: ${m.text}`).join("\n");
+      const conversationLog = (conversationHistory || []).map((m: any) => `${m.role === "agent" ? respondAgentFirstName : "Client"}: ${m.text}`).join("\n");
 
       const callCount = recentCalls.length;
       const negativeCallCount = recentCalls.filter(c => c.sentiment === "negatif" || c.sentiment === "tres_negatif").length;
@@ -472,10 +476,10 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
       const conversationTurnCount = (conversationHistory || []).length;
       const clientName = contactName || contact?.firstName || "";
 
-      const prompt = `Tu es "Sophie Marchand", une receptionniste IA d'elite dotee d'intelligence emotionnelle avancee pour le bureau professionnel "Agent de Bureau" en France.
+      const prompt = `Tu es "${respondAgentName}", une receptionniste IA d'elite dotee d'intelligence emotionnelle avancee pour le bureau professionnel "Agent de Bureau" en France.
 
   IDENTITE & PERSONNALITE:
-  - Sophie Marchand, 28 ans, diplomee en Communication & Gestion
+  - ${respondAgentName}, diplomee en Communication & Gestion
   - Voix chaleureuse, professionnelle mais humaine, jamais robotique
   - Tu t'adaptes au ton de l'appelant: formel avec un directeur, detendu avec un habitue
   - Tu utilises le prenom du client des que tu le connais
@@ -523,7 +527,7 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
   6. PRISE DE RDV INTELLIGENTE: Propose des creneaux precis (pas "la semaine prochaine" mais "mardi a 14h ou jeudi a 10h"). Heures de bureau 9h-18h, jours feries francais respectes.
 
   INSTRUCTIONS POUR CETTE REPONSE:
-  - Tour 0 (greeting): Si client connu et fidele: "Bonjour ${clientName}! C'est Sophie d'Agent de Bureau, ravie de vous retrouver. Que puis-je faire pour vous ?" Sinon: "Bonjour, Sophie a l'accueil d'Agent de Bureau, comment puis-je vous aider ?"
+  - Tour 0 (greeting): Si client connu et fidele: "Bonjour ${clientName}! C'est ${respondAgentFirstName} d'Agent de Bureau, ravie de vous retrouver. Que puis-je faire pour vous ?" Sinon: "Bonjour, ${respondAgentFirstName} a l'accueil d'Agent de Bureau, comment puis-je vous aider ?"
   - Tours suivants: reponds avec pertinence, chaleur et precision
   - Maximum 3-4 phrases par reponse
   - Si conversation terminee, fais un resume proactif des actions convenues
@@ -564,7 +568,7 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
     } catch (err: any) {
       logger.error({ err: err?.message }, "[AI Agent Respond] Erreur:");
       res.json({
-        response: "Bonjour, je suis Sophie de l'accueil d'Agent de Bureau. Excusez-moi pour ce leger contretemps technique. Puis-je prendre votre nom et votre message ? Je m'assure personnellement qu'on vous rappelle dans les plus brefs delais.",
+        response: `Bonjour, je suis ${respondAgentFirstName} de l'accueil d'Agent de Bureau. Excusez-moi pour ce leger contretemps technique. Puis-je prendre votre nom et votre message ? Je m'assure personnellement qu'on vous rappelle dans les plus brefs delais.`,
         detectedIntent: "autre",
         sentiment: "neutre",
         sentimentDetails: "Erreur technique - mode secours actif",
@@ -588,9 +592,13 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
   const { phoneNumber, contactId, contactName, duration, transcript, summary, detectedIntents, suggestedActions, sentiment, satisfactionScore, keyInfoExtracted, nextBestAction } = req.body;
 
   try {
-    const transcriptText = (transcript || []).map((m: any) => `[${m.role === "agent" ? "Sophie" : "Client"}] ${m.text}`).join("\n");
+    const [orgSaveRow] = await db.select({ aiAgentName: organisationsTable.aiAgentName }).from(organisationsTable).where(eq(organisationsTable.id, orgId));
+    const saveAgentName = orgSaveRow?.aiAgentName || "Sophie Marchand";
+    const saveAgentFirstName = saveAgentName.split(" ")[0];
+
+    const transcriptText = (transcript || []).map((m: any) => `[${m.role === "agent" ? saveAgentFirstName : "Client"}] ${m.text}`).join("\n");
     const enrichedSummary = [
-      `[Appel gere par IA Sophie - Score satisfaction: ${satisfactionScore || "N/A"}/10]`,
+      `[Appel gere par IA ${saveAgentFirstName} - Score satisfaction: ${satisfactionScore || "N/A"}/10]`,
       "",
       `Resume: ${summary || "Pas de resume"}`,
       `Intentions detectees: ${(detectedIntents || []).join(", ") || "Aucune"}`,
@@ -635,8 +643,8 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
           if (action.type === "task" || action.type === "callback" || action.type === "devis" || action.type === "escalation" || action.type === "email") {
             const priorityMap: Record<string, string> = { critique: "haute", haute: "haute", moyenne: "moyenne", basse: "basse" };
             await tx.insert(tasksTable).values({
-              title: action.type === "escalation" ? `[URGENT] ${action.description}` : action.type === "devis" ? `[DEVIS] ${action.description}` : action.type === "email" ? `[EMAIL] ${action.description}` : action.description || "Tache creee par Sophie",
-              description: `Creee automatiquement par Sophie suite a l'appel de ${contactName || phoneNumber}.\nType: ${action.type}\nPriorite: ${action.priority || "moyenne"}\nDelai: ${action.dueInHours ? action.dueInHours + "h" : "non specifie"}\n\n${summary || ""}`,
+              title: action.type === "escalation" ? `[URGENT] ${action.description}` : action.type === "devis" ? `[DEVIS] ${action.description}` : action.type === "email" ? `[EMAIL] ${action.description}` : action.description || `Tache creee par ${saveAgentFirstName}`,
+              description: `Creee automatiquement par ${saveAgentFirstName} suite a l'appel de ${contactName || phoneNumber}.\nType: ${action.type}\nPriorite: ${action.priority || "moyenne"}\nDelai: ${action.dueInHours ? action.dueInHours + "h" : "non specifie"}\n\n${summary || ""}`,
               status: "a_faire",
               priority: priorityMap[action.priority] || "moyenne",
               relatedContactId: contactId || null,
@@ -659,7 +667,7 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
 
             await tx.insert(calendarEventsTable).values({
               title: action.description || `RDV avec ${contactName || "client"}`,
-              description: `Planifie par Sophie.\n${summary || ""}`,
+              description: `Planifie par ${saveAgentFirstName}.\n${summary || ""}`,
               startDate: appointmentDate,
               endDate: new Date(appointmentDate.getTime() + 30 * 60000),
               type: "rendez_vous",
@@ -670,7 +678,7 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
           }
           if (action.type === "message") {
             await tx.insert(messagesTable).values({
-              content: action.description || "Message de Sophie",
+              content: action.description || `Message de ${saveAgentFirstName}`,
               type: "note",
               phoneNumber: phoneNumber || "Inconnu",
               contactId: contactId || null,
@@ -687,7 +695,7 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
 
     res.json({
       ...result,
-      message: `Appel Sophie enregistre. ${result.tasksCreated} tache(s), ${result.appointmentCreated ? "1 RDV" : "0 RDV"}, ${result.messagesCreated} message(s) cree(s).`,
+      message: `Appel ${saveAgentFirstName} enregistre. ${result.tasksCreated} tache(s), ${result.appointmentCreated ? "1 RDV" : "0 RDV"}, ${result.messagesCreated} message(s) cree(s).`,
     });
   } catch (err: any) {
     logger.error({ err: err?.message }, "[AI Agent Save] Erreur:");

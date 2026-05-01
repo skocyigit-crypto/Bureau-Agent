@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, text, timestamp, boolean, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, text, timestamp, boolean, integer, numeric } from "drizzle-orm/pg-core";
 
 export const organisationsTable = pgTable("organisations", {
   id: serial("id").primaryKey(),
@@ -20,6 +20,9 @@ export const organisationsTable = pgTable("organisations", {
   invoiceFooter: text("invoice_footer"),
   autoInvoiceEnabled: boolean("auto_invoice_enabled").notNull().default(true),
   autoEmailInvoice: boolean("auto_email_invoice").notNull().default(true),
+  aiQuotaCostUsd: numeric("ai_quota_cost_usd", { precision: 10, scale: 2 }),
+  aiQuotaCalls: integer("ai_quota_calls"),
+  aiAgentName: varchar("ai_agent_name", { length: 100 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

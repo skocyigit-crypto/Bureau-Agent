@@ -73,6 +73,9 @@ The application features a French UI with a deep navy and warm amber color schem
 - **Pino Structured Logging:** All 250 `console.*` calls replaced with `logger.info/warn/error` using pino object-first signature (`{ err }` pattern) across 39 server files. Zero TS errors.
 - **Nav Sidebar Groups:** 27 flat nav items restructured into 8 logical groups: Vue d'ensemble, Communication, CRM, Intelligence Artificielle, Documents & Rapports, Équipe, Intégrations, Licence + Système.
 - **Schema Integrity:** `tasks.organisation_id` is `NOT NULL` at both DB and Drizzle schema levels. `notificationsTable` is defined in `lib/db/src/schema/automations.ts` (its canonical location). Auto-created tasks from call analysis include `organisationId` via non-null assertion (safe: guarded upstream by `assertAiQuota`).
+- **Per-Org AI Quota:** `organisations` table extended with `ai_quota_cost_usd` (numeric), `ai_quota_calls` (integer), and `ai_agent_name` (varchar 100). `ai-quota.ts` service reads per-org limits with 5-min cache; falls back to env var defaults (AI_DEFAULT_MONTHLY_COST_USD=50, AI_DEFAULT_MONTHLY_CALLS=5000). Endpoints: `GET/PATCH /api/ai-usage/settings` (admin+).
+- **Branded AI Persona:** Sophie receptionist name is now org-configurable via `organisations.ai_agent_name`. Both `ai-agent-respond` and `ai-agent-save` routes fetch the org's agent name and use it throughout prompts, transcripts, task/appointment descriptions. Default remains "Sophie Marchand".
+- **AI Settings UI:** New "IA" tab in Settings page (`/settings?tab=intelligence-artificielle`) shows real-time quota usage bars, persona name editor, and quota limit inputs. Admin-only access.
 
 # External Dependencies
 

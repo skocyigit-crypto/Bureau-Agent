@@ -1,8 +1,10 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, aiUsageTable } from "@workspace/db";
+import { db, aiUsageTable, organisationsTable } from "@workspace/db";
 import { eq, and, gte, sql, desc } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
-import { getQuotaStatus } from "../services/ai-quota";
+import { getQuotaStatus, invalidateQuotaCache } from "../services/ai-quota";
+import { requireRole } from "../middleware/auth";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -68,6 +70,71 @@ router.get("/ai-usage/summary", async (req: Request, res: Response): Promise<voi
     byDay,
     recentErrors,
   });
+});
+
+router.get("/ai-usage/settings", requireRole("administrateur", "super_admin"), async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const [org] = await db.select({
+    aiQuotaCostUsd: organisationsTable.aiQuotaCostUsd,
+    aiQuotaCalls: organisationsTable.aiQuotaCalls,
+    aiAgentName: organisationsTable.aiAgentName,
+  }).from(organisationsTable).where(eq(organisationsTable.id, orgId));
+
+  if (!org) {
+    res.status(404).json({ error: "Organisation introuvable." });
+    return;
+  }
+
+  res.json({
+    aiQuotaCostUsd: org.aiQuotaCostUsd != null ? Number(org.aiQuotaCostUsd) : null,
+    aiQuotaCalls: org.aiQuotaCalls,
+    aiAgentName: org.aiAgentName,
+  });
+});
+
+router.patch("/ai-usage/settings", requireRole("administrateur", "super_admin"), async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const { aiQuotaCostUsd, aiQuotaCalls, aiAgentName } = req.body;
+
+  const updates: Record<string, any> = {};
+
+  if (aiQuotaCostUsd !== undefined) {
+    const val = aiQuotaCostUsd === null ? null : Number(aiQuotaCostUsd);
+    if (val !== null && (isNaN(val) || val < 1 || val > 10000)) {
+      res.status(400).json({ error: "aiQuotaCostUsd doit etre entre 1 et 10000 USD." });
+      return;
+    }
+    updates.aiQuotaCostUsd = val !== null ? String(val) : null;
+  }
+
+  if (aiQuotaCalls !== undefined) {
+    const val = aiQuotaCalls === null ? null : parseInt(String(aiQuotaCalls));
+    if (val !== null && (isNaN(val) || val < 100 || val > 1000000)) {
+      res.status(400).json({ error: "aiQuotaCalls doit etre entre 100 et 1 000 000." });
+      return;
+    }
+    updates.aiQuotaCalls = val;
+  }
+
+  if (aiAgentName !== undefined) {
+    const name = aiAgentName === null ? null : String(aiAgentName).trim().slice(0, 100);
+    if (name !== null && name.length < 2) {
+      res.status(400).json({ error: "aiAgentName doit contenir au moins 2 caracteres." });
+      return;
+    }
+    updates.aiAgentName = name;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: "Aucun champ a mettre a jour." });
+    return;
+  }
+
+  await db.update(organisationsTable).set(updates).where(eq(organisationsTable.id, orgId));
+  invalidateQuotaCache(orgId);
+
+  logger.info({ orgId, updates: Object.keys(updates) }, "[ai-usage] Parametres IA mis a jour");
+  res.json({ success: true, message: "Parametres IA mis a jour avec succes." });
 });
 
 export default router;

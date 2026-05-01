@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Settings, Shield, Bell, Save, Monitor, Package,
-  PhoneIncoming, Layers, Rocket
+  PhoneIncoming, Layers, Rocket, BrainCircuit
 } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,6 +16,7 @@ import { TabInstallation } from "./settings/tab-installation";
 import { TabNotifications } from "./settings/tab-notifications";
 import { TabSecurite } from "./settings/tab-securite";
 import { TabMisesAJour } from "./settings/tab-mises-a-jour";
+import { TabIntelligenceArtificielle } from "./settings/tab-intelligence-artificielle";
 
 export default function SettingsPage() {
   const { user } = useWorkspaceUser();
@@ -57,7 +58,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className={`grid w-full lg:w-auto lg:inline-grid ${isSuperAdmin ? "grid-cols-8" : isAdmin ? "grid-cols-7" : "grid-cols-3"}`}>
+        <TabsList className={`grid w-full lg:w-auto lg:inline-grid ${isSuperAdmin ? "grid-cols-9" : isAdmin ? "grid-cols-8" : "grid-cols-3"}`}>
           {isAdmin && (
             <TabsTrigger value="abonnement" className="gap-2">
               <Package className="w-4 h-4" />
@@ -92,6 +93,12 @@ export default function SettingsPage() {
             <TabsTrigger value="securite" className="gap-2">
               <Shield className="w-4 h-4" />
               Securite
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="intelligence-artificielle" className="gap-2">
+              <BrainCircuit className="w-4 h-4" />
+              IA
             </TabsTrigger>
           )}
           {isSuperAdmin && (
@@ -129,6 +136,10 @@ export default function SettingsPage() {
 
         <TabsContent value="securite" className="space-y-6 mt-6">
           <TabSecurite />
+        </TabsContent>
+
+        <TabsContent value="intelligence-artificielle" className="space-y-6 mt-6">
+          <TabIntelligenceArtificielle />
         </TabsContent>
 
         <TabsContent value="mises-a-jour" className="space-y-6 mt-6">
