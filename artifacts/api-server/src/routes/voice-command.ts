@@ -3,6 +3,7 @@ import { db, callsTable, contactsTable, tasksTable, calendarEventsTable } from "
 import { eq, desc, and, sql, ilike, or } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { safeJsonParse, aiCallWithRetry, sanitizePromptInput } from "../services/ai-utils";
+import { assertAiQuota, AiQuotaExceededError } from "../services/ai-quota";
 import { logger } from "../lib/logger";
 
 let ai: any = null;
@@ -114,6 +115,11 @@ router.post("/voice/command", async (req: Request, res: Response): Promise<void>
   if (!text || typeof text !== "string") {
     res.status(400).json({ error: "Texte requis" });
     return;
+  }
+
+  try { await assertAiQuota(orgId); } catch (qe) {
+    if (qe instanceof AiQuotaExceededError) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; }
+    throw qe;
   }
 
   const command = await parseCommandAI(text);

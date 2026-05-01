@@ -147,6 +147,7 @@ app.use(ipProtection);
 app.use("/api/ai", aiLimiter);
 app.use("/api/voice", aiLimiter);
 app.use("/api/document-ai", aiLimiter);
+app.use("/api/commandant", aiLimiter);
 app.use("/api/calls", (req: Request, res: Response, next: NextFunction) => {
   const aiPaths = ["/ai-agent-respond", "/ai-agent-save", "/ai-coaching"];
   if (req.method === "POST" && (aiPaths.some(p => req.path === p) || /^\/[0-9]+\/process\/?$/.test(req.path))) {

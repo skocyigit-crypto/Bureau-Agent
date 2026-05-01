@@ -3,8 +3,31 @@ import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable
 import { Resend } from "resend";
 import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNull, or } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
+import { extractGeminiTokens, recordAiUsage } from "../services/ai-utils";
 
 const router = Router();
+
+async function aiGenerate(orgId: number, options: { model?: string; contents: any[]; config?: any; route?: string }): Promise<string> {
+  await assertAiQuota(orgId);
+  const t0 = Date.now();
+  const { ai } = await import("@workspace/integrations-gemini-ai");
+  const model = options.model ?? "gemini-2.5-flash";
+  const response = await ai.models.generateContent({
+    model,
+    contents: options.contents,
+    ...(options.config ? { config: options.config } : {}),
+  });
+  const text = response.text ?? "{}";
+  const tokens = extractGeminiTokens(response);
+  recordAiUsage({ organisationId: orgId, provider: "gemini", model, route: options.route ?? "/ai", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+  invalidateQuotaCache(orgId);
+  return text;
+}
+
+function isQuotaError(err: unknown): err is AiQuotaExceededError {
+  return err instanceof AiQuotaExceededError;
+}
 
 async function gatherAnalyticsData(orgId: number) {
   const now = new Date();
@@ -124,6 +147,7 @@ router.post("/ai/analyze", async (req, res): Promise<void> => {
   try {
     const orgId = (req.session as any)?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+    try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
     const analyticsData = await gatherAnalyticsData(orgId);
 
     const { ai } = await import("@workspace/integrations-gemini-ai");
@@ -295,6 +319,7 @@ router.post("/ai/suggest", async (req, res): Promise<void> => {
   try {
     const orgId = (req.session as any)?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+    try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
     const { page } = req.body;
     if (!page || !["dashboard", "calls", "contacts", "tasks", "messages", "rapports", "logiciels", "pointage", "utilisateurs"].includes(page)) {
       res.status(400).json({ error: "Le parametre 'page' est requis." }); return;
@@ -371,6 +396,7 @@ router.post("/ai/validate", async (req, res): Promise<void> => {
   try {
     const orgId = (req.session as any)?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+    try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
     const { entityType, data } = req.body;
     if (!entityType || !data) {
       res.status(400).json({ error: "Les parametres 'entityType' et 'data' sont requis." }); return;
@@ -464,6 +490,7 @@ router.post("/ai/assistant", async (req, res): Promise<void> => {
   try {
     const orgId = (req.session as any)?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+    try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
     const { question, currentPage } = req.body;
     if (!question) {
       res.status(400).json({ error: "Le parametre 'question' est requis." }); return;
@@ -626,6 +653,7 @@ router.post("/ai/recognize", async (req, res): Promise<void> => {
   try {
     const orgId = (req.session as any)?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+    try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -834,6 +862,7 @@ router.post("/ai/draft-email", async (req, res): Promise<void> => {
   try {
     const orgId = (req.session as any)?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+    try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
     const { contactId, contactName, contactEmail, company, category, purpose, tone, language, additionalContext } = req.body;
 
     if (!purpose) {
@@ -1218,6 +1247,7 @@ router.post("/ai/central-intelligence", async (req, res): Promise<void> => {
       return;
     }
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+    try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: (qe as AiQuotaExceededError).message, quotaExceeded: true }); return; } throw qe; }
 
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -1769,6 +1799,7 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
   try {
     const orgId = (req.session as any)?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
+        try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
     const { message, context, history } = req.body;
     if (!message?.trim()) { res.status(400).json({ error: "Message requis." }); return; }
 
@@ -2086,6 +2117,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
     const orgId = (req.session as any)?.organisationId;
     const userId = (req.session as any)?.userId;
     if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
+        try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
 
     const { type, target } = req.body;
     if (!type) { res.status(400).json({ error: "Type d'action requis." }); return; }
@@ -2819,6 +2851,7 @@ router.get("/ai/predictions", async (req, res): Promise<void> => {
   try {
     const orgId = (req.session as any)?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
+        try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
 
     const { ai } = await import("@workspace/integrations-gemini-ai");
     const now = new Date();

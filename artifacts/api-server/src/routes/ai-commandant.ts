@@ -4,8 +4,18 @@ import { eq, sql, and, desc, gte, lte, lt, ne, isNull, isNotNull, or, ilike } fr
 import { getOrgId } from "../middleware/tenant";
 import { Resend } from "resend";
 import { getContextForContact, getLatestAgentInsights, buildCommandantContextPrompt } from "./agent-collaboration";
-import { safeJsonParse } from "../services/ai-utils";
+import { safeJsonParse, extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage } from "../services/ai-utils";
+import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
 import { logger } from "../lib/logger";
+
+function handleCommandantError(err: unknown, res: Response, logLabel: string): void {
+  if (err instanceof AiQuotaExceededError) {
+    res.status(429).json({ error: err.message, quotaExceeded: true, reason: err.reason, current: err.current, limit: err.limit });
+    return;
+  }
+  logger.error({ err }, logLabel);
+  res.status(500).json({ error: "Erreur interne" });
+}
 
 const router = Router();
 
@@ -24,42 +34,71 @@ async function getAnthropic() {
   return anthropic;
 }
 
-async function multiAiGenerate(prompt: string, systemPrompt?: string): Promise<string> {
+async function multiAiGenerate(prompt: string, systemPrompt?: string, orgId?: number, route?: string): Promise<string> {
+  if (orgId) {
+    try { await assertAiQuota(orgId); } catch (e: any) { throw e; }
+  }
+
   const errors: string[] = [];
+  const t0 = Date.now();
 
   try {
     const ai = await getGemini();
     const r = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-05-20",
+      model: "gemini-2.5-flash",
       contents: systemPrompt ? [{ role: "user", parts: [{ text: systemPrompt + "\n\n" + prompt }] }] : prompt,
     });
     const text = typeof r === "object" && r !== null && "text" in r ? String(r.text) : String(r);
-    if (text && text.length > 10) return text;
-  } catch (e: any) { errors.push("Gemini: " + e.message); }
+    if (text && text.length > 10) {
+      if (orgId) {
+        const tokens = extractGeminiTokens(r);
+        recordAiUsage({ organisationId: orgId, provider: "gemini", model: "gemini-2.5-flash", route: route || "/commandant", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+        invalidateQuotaCache(orgId);
+      }
+      return text;
+    }
+  } catch (e: any) {
+    if (String(e.message).includes("quota")) throw e;
+    errors.push("Gemini: " + e.message);
+  }
 
   try {
     const openai = await getOpenAI();
     const r = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5.2",
       messages: [
         ...(systemPrompt ? [{ role: "system" as const, content: systemPrompt }] : []),
         { role: "user" as const, content: prompt },
       ],
     });
     const text = r.choices?.[0]?.message?.content;
-    if (text && text.length > 10) return text;
+    if (text && text.length > 10) {
+      if (orgId) {
+        const tokens = extractOpenAITokens(r);
+        recordAiUsage({ organisationId: orgId, provider: "openai", model: "gpt-5.2", route: route || "/commandant", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+        invalidateQuotaCache(orgId);
+      }
+      return text;
+    }
   } catch (e: any) { errors.push("OpenAI: " + e.message); }
 
   try {
     const anthropic = await getAnthropic();
     const r = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 4096,
       ...(systemPrompt ? { system: systemPrompt } : {}),
       messages: [{ role: "user", content: prompt }],
     });
     const text = r.content?.[0]?.type === "text" ? r.content[0].text : "";
-    if (text && text.length > 10) return text;
+    if (text && text.length > 10) {
+      if (orgId) {
+        const tokens = extractAnthropicTokens(r);
+        recordAiUsage({ organisationId: orgId, provider: "anthropic", model: "claude-sonnet-4-6", route: route || "/commandant", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+        invalidateQuotaCache(orgId);
+      }
+      return text;
+    }
   } catch (e: any) { errors.push("Anthropic: " + e.message); }
 
   return `[AI indisponible] ${errors.join("; ")}`;
@@ -165,7 +204,7 @@ Genere un JSON avec:
   "agentInsightsSummary": "Resume des informations fournies par les agents IA specialises"
 }`;
 
-    const aiResponse = await multiAiGenerate(prompt, systemPrompt);
+    const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
     const parsed: any = safeJsonParse<any>(aiResponse, { greeting: aiResponse, suggestedResponses: [], recommendedActions: [] });
 
     const activeAgents = Object.entries(agentInsights).map(([id, insight]) => ({ id, score: insight.score, summary: insight.summary?.slice(0, 80) }));
@@ -187,8 +226,7 @@ Genere un JSON avec:
       },
     });
   } catch (err: any) {
-    logger.error({ err: err }, "[Commandant/CallResponse]");
-    res.status(500).json({ error: "Erreur" });
+    handleCommandantError(err, res, "[Commandant/CallResponse]");
   }
 });
 
@@ -220,7 +258,7 @@ JSON attendu:
   "urgencyLevel": "normal/eleve/critique"
 }`;
 
-    const aiResponse = await multiAiGenerate(prompt, systemPrompt);
+    const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
     let parsed: any;
     try {
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
@@ -262,8 +300,7 @@ JSON attendu:
 
     res.json({ success: true, compilation: parsed, createdTasks, createdEvents });
   } catch (err: any) {
-    logger.error({ err: err }, "[Commandant/CallCompile]");
-    res.status(500).json({ error: "Erreur" });
+    handleCommandantError(err, res, "[Commandant/CallCompile]");
   }
 });
 
@@ -289,7 +326,7 @@ JSON attendu:
   "summary": "resume de ce qui a ete extrait"
 }`;
 
-    const aiResponse = await multiAiGenerate(prompt, systemPrompt);
+    const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
     let parsed: any;
     try {
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
@@ -328,8 +365,7 @@ JSON attendu:
 
     res.json({ success: true, summary: parsed.summary, createdTasks, createdEvents, reminders: parsed.reminders?.length || 0 });
   } catch (err: any) {
-    logger.error({ err: err }, "[Commandant/AutoCreate]");
-    res.status(500).json({ error: "Erreur" });
+    handleCommandantError(err, res, "[Commandant/AutoCreate]");
   }
 });
 
@@ -391,7 +427,7 @@ JSON attendu:
   "agentInsightsSummary": "Resume des informations des agents IA utilisees pour cette reponse"
 }`;
 
-    const aiResponse = await multiAiGenerate(prompt, systemPrompt);
+    const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
     let parsed: any;
     try {
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
@@ -401,8 +437,7 @@ JSON attendu:
     const activeAgents = Object.entries(agentInsights).map(([id, insight]) => ({ id, score: insight.score }));
     res.json({ success: true, reply: parsed, collaboration: { agentsConsulted: activeAgents, enrichedByAgents: true } });
   } catch (err: any) {
-    logger.error({ err: err }, "[Commandant/EmailReply]");
-    res.status(500).json({ error: "Erreur" });
+    handleCommandantError(err, res, "[Commandant/EmailReply]");
   }
 });
 
@@ -435,7 +470,7 @@ JSON attendu:
   "stats": {"total": 10, "urgent": 2, "needsReply": 5, "informational": 3}
 }`;
 
-    const aiResponse = await multiAiGenerate(prompt, systemPrompt);
+    const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
     let parsed: any;
     try {
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
@@ -444,8 +479,7 @@ JSON attendu:
 
     res.json({ success: true, compilation: parsed });
   } catch (err: any) {
-    logger.error({ err: err }, "[Commandant/EmailCompile]");
-    res.status(500).json({ error: "Erreur" });
+    handleCommandantError(err, res, "[Commandant/EmailCompile]");
   }
 });
 
@@ -483,7 +517,7 @@ JSON attendu:
   "criticalAlerts": ["alertes critiques"]
 }`;
 
-    const aiResponse = await multiAiGenerate(prompt, systemPrompt);
+    const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
     let parsed: any;
     try {
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
@@ -515,8 +549,7 @@ JSON attendu:
       emailsSent,
     });
   } catch (err: any) {
-    logger.error({ err: err }, "[Commandant/OverdueReminders]");
-    res.status(500).json({ error: "Erreur" });
+    handleCommandantError(err, res, "[Commandant/OverdueReminders]");
   }
 });
 
@@ -548,7 +581,7 @@ JSON attendu:
   "meetingEfficiency": "score 1-10 avec commentaire"
 }`;
 
-    const aiResponse = await multiAiGenerate(prompt, systemPrompt);
+    const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
     let parsed: any;
     try {
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
@@ -586,8 +619,7 @@ JSON attendu:
 
     res.json({ success: true, compilation: parsed, createdTasks, createdEvents, remindersCreated: (parsed.reminders || []).length });
   } catch (err: any) {
-    logger.error({ err: err }, "[Commandant/MeetingCompile]");
-    res.status(500).json({ error: "Erreur" });
+    handleCommandantError(err, res, "[Commandant/MeetingCompile]");
   }
 });
 
@@ -640,8 +672,7 @@ router.post("/commandant/photo-location", async (req: Request, res: Response): P
 
     res.json({ success: true, location: { address, latitude, longitude, mapUrl }, metadata });
   } catch (err: any) {
-    logger.error({ err: err }, "[Commandant/PhotoLocation]");
-    res.status(500).json({ error: "Erreur" });
+    handleCommandantError(err, res, "[Commandant/PhotoLocation]");
   }
 });
 
@@ -694,7 +725,7 @@ JSON attendu:
   "trends": "tendances observees"
 }`;
 
-    const aiResponse = await multiAiGenerate(prompt, systemPrompt);
+    const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
     let analysis: any;
     try {
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
@@ -703,8 +734,7 @@ JSON attendu:
 
     res.json({ success: true, employees: employeeStats, analysis });
   } catch (err: any) {
-    logger.error({ err: err }, "[Commandant/EmployeeStats]");
-    res.status(500).json({ error: "Erreur" });
+    handleCommandantError(err, res, "[Commandant/EmployeeStats]");
   }
 });
 
@@ -747,7 +777,7 @@ JSON attendu:
   "automatedEmailDrafts": [{"clientName": "nom", "subject": "objet", "body": "corps email"}]
 }`;
 
-    const aiResponse = await multiAiGenerate(prompt, systemPrompt);
+    const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
     let analysis: any;
     try {
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
@@ -761,8 +791,7 @@ JSON attendu:
       analysis,
     });
   } catch (err: any) {
-    logger.error({ err: err }, "[Commandant/PaymentOverview]");
-    res.status(500).json({ error: "Erreur" });
+    handleCommandantError(err, res, "[Commandant/PaymentOverview]");
   }
 });
 
@@ -788,8 +817,7 @@ router.post("/commandant/drive-send-file", async (req: Request, res: Response): 
 
     res.json({ success: sent, message: sent ? `Document envoye a ${recipientEmail}` : "Echec de l'envoi" });
   } catch (err: any) {
-    logger.error({ err: err }, "[Commandant/DriveSendFile]");
-    res.status(500).json({ error: "Erreur" });
+    handleCommandantError(err, res, "[Commandant/DriveSendFile]");
   }
 });
 
@@ -813,8 +841,7 @@ router.post("/commandant/save-attachment-to-drive", async (req: Request, res: Re
 
     res.json({ success: true, message: `Fichier "${fileName}" prepare pour Google Drive`, metadata });
   } catch (err: any) {
-    logger.error({ err: err }, "[Commandant/SaveAttachment]");
-    res.status(500).json({ error: "Erreur" });
+    handleCommandantError(err, res, "[Commandant/SaveAttachment]");
   }
 });
 
@@ -871,7 +898,7 @@ JSON attendu:
   "weatherOfBusiness": "ensoleille/nuageux/orageux (metaphore business)"
 }`;
 
-    const aiResponse = await multiAiGenerate(prompt, systemPrompt);
+    const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
     let parsed: any;
     try {
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
@@ -891,8 +918,7 @@ JSON attendu:
       },
     });
   } catch (err: any) {
-    logger.error({ err: err }, "[Commandant/DailyBriefing]");
-    res.status(500).json({ error: "Erreur" });
+    handleCommandantError(err, res, "[Commandant/DailyBriefing]");
   }
 });
 
@@ -925,8 +951,7 @@ router.post("/commandant/send-task-reminder", async (req: Request, res: Response
 
     res.json({ success: sent });
   } catch (err: any) {
-    logger.error({ err: err }, "[Commandant/TaskReminder]");
-    res.status(500).json({ error: "Erreur" });
+    handleCommandantError(err, res, "[Commandant/TaskReminder]");
   }
 });
 
@@ -959,7 +984,7 @@ Evenements: ${events.length}
 Factures: ${invoices.length}
 Prospects: ${prospects.length}
 Resume:`;
-      try { aiSummary = await multiAiGenerate(prompt); } catch (e) { logger.error({ err: e }, "[Commandant/Search] AI summary failed:"); }
+      try { aiSummary = await multiAiGenerate(prompt, undefined, orgId, req.path); } catch (e) { logger.error({ err: e }, "[Commandant/Search] AI summary failed:"); }
     }
 
     res.json({
@@ -976,8 +1001,7 @@ Resume:`;
       aiSummary,
     });
   } catch (err: any) {
-    logger.error({ err: err }, "[Commandant/SmartSearch]");
-    res.status(500).json({ error: "Erreur" });
+    handleCommandantError(err, res, "[Commandant/SmartSearch]");
   }
 });
 
@@ -986,6 +1010,7 @@ Resume:`;
 // ═══════════════════════════════════════════
 router.post("/commandant/analyze-text", async (req: Request, res: Response): Promise<void> => {
   try {
+    const orgId = getOrgId(req);
     const { text, analysisType } = req.body;
     if (!text) { res.status(400).json({ error: "Texte requis" }); return; }
 
@@ -1001,7 +1026,7 @@ router.post("/commandant/analyze-text", async (req: Request, res: Response): Pro
     const systemPrompt = "Tu es un expert en analyse de texte. Reponds UNIQUEMENT en JSON valide.";
     const prompt = `${typePrompts[analysisType] || typePrompts.summary}\n\nTexte a analyser:\n${text}`;
 
-    const aiResponse = await multiAiGenerate(prompt, systemPrompt);
+    const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
     let parsed: any;
     try {
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
@@ -1010,8 +1035,7 @@ router.post("/commandant/analyze-text", async (req: Request, res: Response): Pro
 
     res.json({ success: true, analysisType: analysisType || "summary", analysis: parsed });
   } catch (err: any) {
-    logger.error({ err: err }, "[Commandant/AnalyzeText]");
-    res.status(500).json({ error: "Erreur" });
+    handleCommandantError(err, res, "[Commandant/AnalyzeText]");
   }
 });
 
@@ -1068,7 +1092,7 @@ Reponds en JSON:
   "confidence": 0-100
 }`;
 
-    const aiResponse = await multiAiGenerate(`Commande utilisateur: "${command}"`, systemPrompt);
+    const aiResponse = await multiAiGenerate(`Commande utilisateur: "${command}"`, systemPrompt, orgId, req.path);
     let parsed: any;
     try {
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
@@ -1166,7 +1190,7 @@ JSON attendu:
   "outlook": "perspectives pour la semaine prochaine"
 }`;
 
-    const aiResponse = await multiAiGenerate(prompt, systemPrompt);
+    const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
     let parsed: any;
     try {
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
