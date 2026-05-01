@@ -97,7 +97,7 @@ Regles:
 
     const t0 = Date.now();
     const aiRes = await fetch(
-      `${geminiBase}/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+      `${geminiBase}/v1beta/models/gemini-2.5-pro:generateContent?key=${geminiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -116,7 +116,7 @@ Regles:
       organisationId: orgId,
       userId,
       provider: "gemini",
-      model: "gemini-2.5-flash",
+      model: "gemini-2.5-pro",
       route: "/api/meetings/compile",
       inputTokens: aiData?.usageMetadata?.promptTokenCount || 0,
       outputTokens: aiData?.usageMetadata?.candidatesTokenCount || 0,

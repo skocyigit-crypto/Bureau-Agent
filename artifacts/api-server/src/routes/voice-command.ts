@@ -69,7 +69,7 @@ async function parseCommandAI(text: string): Promise<VoiceCommand> {
   const safeText = sanitizePromptInput(text, 1000);
   try {
     const result = await aiCallWithRetry(() => ai!.models.generateContent({
-      model: "gemini-2.5-flash-preview-05-20",
+      model: "gemini-2.5-pro",
       contents: [{
         role: "user",
         parts: [{ text: `Tu es un assistant vocal pour un logiciel de gestion de bureau en francais.
@@ -327,7 +327,7 @@ router.post("/voice/command", async (req: Request, res: Response): Promise<void>
         if (ai) {
           try {
             const result = await ai.models.generateContent({
-              model: "gemini-2.5-flash-preview-05-20",
+              model: "gemini-2.5-pro",
               contents: [{
                 role: "user",
                 parts: [{ text: `Tu es l'assistant vocal "Bureau" d'un logiciel de gestion de bureau francais. L'utilisateur a dit: "${text}". Reponds de maniere concise, utile et naturelle en francais (2-3 phrases max). Si c'est hors sujet, propose poliment les fonctionnalites disponibles (appels, taches, contacts, calendrier, performance).` }]

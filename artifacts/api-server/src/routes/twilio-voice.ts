@@ -224,7 +224,7 @@ async function generateVoiceReply(session: VoiceSession, callerSpeech: string): 
 
   try {
     const r = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.5-pro",
       contents: [{ role: "user", parts: [{ text: userPrompt }] }],
       config: {
         systemInstruction: systemPrompt,
@@ -241,7 +241,7 @@ async function generateVoiceReply(session: VoiceSession, callerSpeech: string): 
       recordAiUsage({
         organisationId: session.orgId,
         provider: "gemini",
-        model: "gemini-2.5-flash",
+        model: "gemini-2.5-pro",
         route: "/api/telephony/twilio/gather",
         inputTokens,
         outputTokens,

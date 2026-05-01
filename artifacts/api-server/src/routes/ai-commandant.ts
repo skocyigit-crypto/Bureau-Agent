@@ -48,14 +48,14 @@ async function multiAiGenerate(prompt: string, systemPrompt?: string, orgId?: nu
   try {
     const ai = await getGemini();
     const r = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.5-pro",
       contents: safeSystem ? [{ role: "user", parts: [{ text: safeSystem + "\n\n" + safePrompt }] }] : safePrompt,
     });
     const text = typeof r === "object" && r !== null && "text" in r ? String(r.text) : String(r);
     if (text && text.length > 10) {
       if (orgId) {
         const tokens = extractGeminiTokens(r);
-        recordAiUsage({ organisationId: orgId, provider: "gemini", model: "gemini-2.5-flash", route: route || "/commandant", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+        recordAiUsage({ organisationId: orgId, provider: "gemini", model: "gemini-2.5-pro", route: route || "/commandant", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
         invalidateQuotaCache(orgId);
       }
       return text;

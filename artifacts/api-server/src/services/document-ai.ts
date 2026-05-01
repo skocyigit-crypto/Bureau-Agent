@@ -245,7 +245,7 @@ export async function analyzeDocument(
 
   const response = await aiCallWithRetry(
     () => ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.5-pro",
       contents: [{ role: "user", parts: contentParts }],
       config: { maxOutputTokens: 16384, responseMimeType: "application/json" },
     }),
@@ -734,7 +734,7 @@ export async function processDocumentForImport(
   }
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-2.5-pro",
     contents: [{ role: "user", parts: contentParts }],
     config: { maxOutputTokens: 32768, responseMimeType: "application/json" },
   });

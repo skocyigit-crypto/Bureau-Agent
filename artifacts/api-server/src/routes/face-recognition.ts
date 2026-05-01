@@ -21,7 +21,7 @@ async function multiAiAnalyze(prompt: string, systemPrompt?: string): Promise<st
   try {
     const ai = await getGemini();
     const r = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-05-20",
+      model: "gemini-2.5-pro",
       contents: systemPrompt ? [{ role: "user", parts: [{ text: systemPrompt + "\n\n" + prompt }] }] : prompt,
     });
     const text = typeof r === "object" && r !== null && "text" in r ? String(r.text) : String(r);

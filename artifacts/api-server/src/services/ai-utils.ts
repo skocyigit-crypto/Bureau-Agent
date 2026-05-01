@@ -83,13 +83,11 @@ export interface AiPricing {
 }
 
 const PRICING: Record<string, AiPricing> = {
-  "gemini-2.5-flash": { inputPerMillion: 0.075, outputPerMillion: 0.30 },
-  "gemini-2.5-flash-preview-05-20": { inputPerMillion: 0.075, outputPerMillion: 0.30 },
   "gemini-2.5-pro": { inputPerMillion: 1.25, outputPerMillion: 5.0 },
   "gpt-4o-mini": { inputPerMillion: 0.15, outputPerMillion: 0.60 },
   "gpt-5.2": { inputPerMillion: 2.5, outputPerMillion: 10.0 },
   "claude-sonnet-4-6": { inputPerMillion: 3.0, outputPerMillion: 15.0 },
-  "claude-sonnet-4-20250514": { inputPerMillion: 3.0, outputPerMillion: 15.0 },
+  "claude-opus-4-7": { inputPerMillion: 15.0, outputPerMillion: 75.0 },
 };
 
 export function estimateAiCostUsd(model: string, inputTokens: number, outputTokens: number): number {

@@ -758,13 +758,13 @@ ${trendHistory.map(h => `  ${h.reportDate}: score ${h.score}, ${h.errorsFound} e
     const t0 = Date.now();
     try {
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.5-pro",
         contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
         config: { maxOutputTokens: 8192, responseMimeType: "application/json", thinkingConfig: { thinkingBudget: 2048 } },
       });
       text = response.text ?? "{}";
       const tokens = extractGeminiTokens(response);
-      recordAiUsage({ organisationId: orgId, provider: "gemini", model: "gemini-2.5-flash", route: `/ai/agents/${agent.id}`, inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+      recordAiUsage({ organisationId: orgId, provider: "gemini", model: "gemini-2.5-pro", route: `/ai/agents/${agent.id}`, inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
       invalidateQuotaCache(orgId);
     } catch (geminiErr: any) {
       if (geminiErr instanceof AiQuotaExceededError) throw geminiErr;
@@ -945,7 +945,7 @@ async function runSuperAgent(childReports: any[], orgId: number): Promise<any> {
 
     const [geminiResponse, openaiReview, anthropicStrategy] = await Promise.all([
       ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.5-pro",
         contents: [{
           role: "user",
           parts: [{
@@ -1030,7 +1030,7 @@ Rapports des agents:\n${JSON.stringify(reportsSummary, null, 2)}`
         multiAI: {
           openaiVerification: openaiReview,
           anthropicStrategie: anthropicStrategy,
-          providersUsed: ["gemini-2.5-flash", "gpt-5.2", "claude-sonnet-4-6"],
+          providersUsed: ["gemini-2.5-pro", "gpt-5.2", "claude-sonnet-4-6"],
         },
       },
       errors: parsed.errors || [],
@@ -1484,7 +1484,7 @@ Etat du systeme:\n${JSON.stringify({ ...systemHealth, issuesCount: issues.length
         (async () => {
           const { ai } = await import("@workspace/integrations-gemini-ai");
           const r = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-2.5-pro",
             contents: [{ role: "user", parts: [{ text: diagPrompt + "\n\nFocus: detection d'anomalies et patterns de donnees" }] }],
             config: { maxOutputTokens: 2048, responseMimeType: "application/json" },
           });
@@ -1550,7 +1550,7 @@ Etat du systeme:\n${JSON.stringify({ ...systemHealth, issuesCount: issues.length
     try {
       const { ai } = await import("@workspace/integrations-gemini-ai");
       const consensusRes = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.5-pro",
         contents: [{ role: "user", parts: [{ text: `Tu es le coordinateur de 3 IA (Gemini, OpenAI, Anthropic) qui analysent un systeme de bureau.
 
 Synthétise leurs diagnostics en un rapport de consensus. Identifie:

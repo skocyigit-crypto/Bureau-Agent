@@ -312,7 +312,7 @@ async function analyzeWithGemini(metricsJSON: string, periodeStr: string): Promi
   try {
     const { ai } = await import("@workspace/integrations-gemini-ai");
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.5-pro",
       contents: [{ role: "user", parts: [{ text: GEMINI_PROMPT(metricsJSON, periodeStr) }] }],
       config: { maxOutputTokens: 8192, responseMimeType: "application/json" },
     });

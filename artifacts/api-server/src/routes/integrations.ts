@@ -675,7 +675,7 @@ Reponds en JSON:
 }`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.5-pro",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: { maxOutputTokens: 1024, responseMimeType: "application/json" },
       });
