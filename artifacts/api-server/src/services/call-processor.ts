@@ -251,6 +251,7 @@ Reponds UNIQUEMENT en JSON avec cette structure:
     dueDate.setDate(dueDate.getDate() + (taskDef.dueInDays || 1));
 
     const [task] = await db.insert(tasksTable).values({
+      organisationId: call.organisationId!,
       title: taskDef.title,
       description: `${taskDef.description}\n\n[Cree automatiquement - Appel #${callId} avec ${call.contactName || call.phoneNumber}]`,
       status: "en_attente",
@@ -268,6 +269,7 @@ Reponds UNIQUEMENT en JSON avec cette structure:
     followUpDue.setDate(followUpDue.getDate() + 1);
 
     const [followUpTask] = await db.insert(tasksTable).values({
+      organisationId: call.organisationId!,
       title: `Suivi: ${call.contactName || call.phoneNumber}`,
       description: `${analysis.followUpReason || "Suivi necessaire suite a l'appel."}\n\n[Cree automatiquement - Appel #${callId}]`,
       status: "en_attente",

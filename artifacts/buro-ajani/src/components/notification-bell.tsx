@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Bell, Check, CheckCheck, ExternalLink, AlertTriangle, Info, Lightbulb, Clock } from "lucide-react";
+import { Link } from "wouter";
+import { Bell, Check, CheckCheck, ExternalLink, AlertTriangle, Info, Lightbulb, Clock, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -179,6 +180,15 @@ export function NotificationBell() {
                 );
               })
             )}
+          </div>
+          <div className="px-4 py-2 border-t bg-muted/30">
+            <Link
+              href="/notifications"
+              onClick={() => setOpen(false)}
+              className="flex items-center justify-center gap-1.5 text-xs text-primary hover:underline font-medium py-1"
+            >
+              Voir toutes les notifications <ArrowRight className="w-3 h-3" />
+            </Link>
           </div>
         </div>
       )}

@@ -6,7 +6,7 @@ import { usersTable } from "./users";
 
 export const tasksTable = pgTable("tasks", {
   id: serial("id").primaryKey(),
-  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
+  organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   description: text("description"),
   status: text("status").notNull().default("en_attente"),

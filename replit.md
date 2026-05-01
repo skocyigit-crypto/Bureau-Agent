@@ -70,6 +70,9 @@ The application features a French UI with a deep navy and warm amber color schem
 - **Search Term Sanitization:** Global search sanitizes LIKE wildcards (`%`, `_`, `\`) to prevent wide pattern matching attacks.
 - **Query Parameter Validation:** `admin-reports` status/category/priority fields validated against whitelists; search terms sanitized.
 - **Column Projection Security:** All `usersTable` queries that don't need `passwordHash` use explicit column projection (`db.select({ id, email, ... })`). Only `login` and `password-change` routes load `passwordHash` (needed for `bcrypt.compare`). Applied to: `checkins.ts`, `my-subscription.ts`, `ai-analysis.ts`, `auth.ts` (send-credentials).
+- **Pino Structured Logging:** All 250 `console.*` calls replaced with `logger.info/warn/error` using pino object-first signature (`{ err }` pattern) across 39 server files. Zero TS errors.
+- **Nav Sidebar Groups:** 27 flat nav items restructured into 8 logical groups: Vue d'ensemble, Communication, CRM, Intelligence Artificielle, Documents & Rapports, Équipe, Intégrations, Licence + Système.
+- **Schema Integrity:** `tasks.organisation_id` is `NOT NULL` at both DB and Drizzle schema levels. `notificationsTable` is defined in `lib/db/src/schema/automations.ts` (its canonical location). Auto-created tasks from call analysis include `organisationId` via non-null assertion (safe: guarded upstream by `assertAiQuota`).
 
 # External Dependencies
 

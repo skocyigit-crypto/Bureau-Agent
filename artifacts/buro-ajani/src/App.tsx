@@ -52,6 +52,7 @@ import TelephonyPage from "@/pages/telephony";
 import TelechargerPage from "@/pages/telecharger";
 import { QuickActionHub } from "@/components/quick-action-hub";
 import InvitationAcceptPage from "@/pages/invitation-accept";
+import OnboardingPage from "@/pages/onboarding";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -143,6 +144,7 @@ function AppRoutes() {
         <Route path="/telephonie" component={withLicenseGate(TelephonyPage)} />
         <Route path="/telecharger" component={TelechargerPage} />
         <Route path="/notifications" component={NotificationsPage} />
+        <Route path="/onboarding" component={() => <OnboardingPage />} />
         <Route component={NotFound} />
       </Switch>
         </AnimatedRouteContent>
