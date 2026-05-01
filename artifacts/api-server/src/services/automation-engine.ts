@@ -288,10 +288,205 @@ async function checkMissedCalls() {
   await logAutomationRun("Appels manques", "success", { count }, count, performance.now() - start);
 }
 
+// ---------------------------------------------------------------------------
+// Custom rule execution — evaluates trigger + executes actions
+// ---------------------------------------------------------------------------
+
+async function getTriggerItems(rule: any): Promise<any[]> {
+  const orgId: number | null = rule.organisationId ?? null;
+  const conditions = rule.conditions ?? {};
+
+  switch (rule.trigger) {
+    case "schedule":
+      // Always fires on schedule — no specific items
+      return [{ type: "schedule" }];
+
+    case "missed_call": {
+      // Find missed calls in the last execution interval
+      const intervalMs = scheduleToMs(rule.schedule) || 5 * 60 * 1000;
+      const since = new Date(Date.now() - intervalMs * 2); // 2x interval to avoid gaps
+      const query = db
+        .select({ id: callsTable.id, phoneNumber: callsTable.phoneNumber, createdAt: callsTable.createdAt })
+        .from(callsTable)
+        .where(and(
+          eq(callsTable.status, "manque"),
+          gte(callsTable.createdAt, since),
+          ...(orgId ? [eq(callsTable.organisationId, orgId)] : []),
+        ))
+        .limit(50);
+      return await query;
+    }
+
+    case "contact_no_activity": {
+      const days: number = conditions.inactivityDays ?? 30;
+      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      const query = db
+        .select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName, phone: contactsTable.phone, email: contactsTable.email })
+        .from(contactsTable)
+        .where(and(
+          lte(contactsTable.updatedAt, cutoff),
+          ...(orgId ? [eq(contactsTable.organisationId, orgId)] : []),
+        ))
+        .limit(20);
+      return await query;
+    }
+
+    case "task_overdue": {
+      const query = db
+        .select({ id: tasksTable.id, title: tasksTable.title, dueDate: tasksTable.dueDate })
+        .from(tasksTable)
+        .where(and(
+          lte(tasksTable.dueDate, new Date()),
+          sql`${tasksTable.status} NOT IN ('terminee', 'annulee')`,
+          ...(orgId ? [eq(tasksTable.organisationId, orgId)] : []),
+        ))
+        .limit(20);
+      return await query;
+    }
+
+    default:
+      return [{ type: rule.trigger }];
+  }
+}
+
+async function executeAction(
+  orgId: number | null,
+  action: { type: string; params?: Record<string, any> },
+  context: Record<string, any>,
+  ruleName: string,
+): Promise<void> {
+  const p = action.params ?? {};
+
+  switch (action.type) {
+    case "send_notification": {
+      await db.insert(notificationsTable).values({
+        ...(orgId ? { organisationId: orgId } : {}),
+        type: p.notifType ?? "info",
+        title: interpolate(p.title ?? ruleName, context),
+        message: interpolate(p.message ?? `Règle "${ruleName}" déclenchée.`, context),
+        priority: p.priority ?? "normale",
+        actionUrl: p.actionUrl ?? null,
+        sourceType: "automation_rule",
+        sourceId: `rule-${Date.now()}`,
+      });
+      break;
+    }
+
+    case "create_task": {
+      if (!orgId) break;
+      const dueDays: number = p.dueDays ?? 1;
+      await db.insert(tasksTable).values({
+        organisationId: orgId,
+        title: interpolate(p.title ?? `Tâche automatique: ${ruleName}`, context),
+        description: p.description ? interpolate(p.description, context) : null,
+        status: "en_attente",
+        priority: p.priority ?? "moyenne",
+        dueDate: new Date(Date.now() + dueDays * 24 * 60 * 60 * 1000),
+      });
+      break;
+    }
+
+    case "send_sms": {
+      const sid = process.env.TWILIO_ACCOUNT_SID;
+      const token = process.env.TWILIO_AUTH_TOKEN;
+      const from = process.env.TWILIO_PHONE_NUMBER;
+      const to: string = p.to ?? context.phoneNumber ?? context.phone ?? "";
+      const body: string = interpolate(p.message ?? `Automatisation: ${ruleName}`, context);
+
+      if (!sid || !token || !from || !to) {
+        logger.warn({ to, hasSid: !!sid }, "[Automation] send_sms: config Twilio manquante ou numero cible absent");
+        break;
+      }
+
+      const formBody = new URLSearchParams({ From: from, To: to, Body: body }).toString();
+      const resp = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: formBody,
+      });
+      if (!resp.ok) {
+        const err = await resp.text().catch(() => "");
+        logger.warn({ status: resp.status, err: err.slice(0, 200) }, "[Automation] send_sms: echec Twilio");
+      }
+      break;
+    }
+
+    case "send_email": {
+      const apiKey = process.env.RESEND_API_KEY;
+      const to: string = p.to ?? context.email ?? "";
+      if (!apiKey || !to) {
+        logger.warn({ to, hasKey: !!apiKey }, "[Automation] send_email: config Resend manquante ou email cible absent");
+        break;
+      }
+      const resp = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: "no-reply@agentdebureau.fr",
+          to: [to],
+          subject: interpolate(p.subject ?? ruleName, context),
+          html: `<p>${interpolate(p.body ?? `Automatisation: ${ruleName}`, context).replace(/\n/g, "<br>")}</p>`,
+        }),
+      });
+      if (!resp.ok) {
+        const err = await resp.text().catch(() => "");
+        logger.warn({ status: resp.status, err: err.slice(0, 200) }, "[Automation] send_email: echec Resend");
+      }
+      break;
+    }
+
+    default:
+      logger.warn({ actionType: action.type }, "[Automation] Type d'action inconnu");
+  }
+}
+
+/** Replace {{key}} tokens in a string with context values */
+function interpolate(template: string, ctx: Record<string, any>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => String(ctx[key] ?? ""));
+}
+
+function scheduleToMs(schedule: string | null): number {
+  switch (schedule) {
+    case "5min": return 5 * 60 * 1000;
+    case "15min": return 15 * 60 * 1000;
+    case "30min": return 30 * 60 * 1000;
+    case "1h": return 60 * 60 * 1000;
+    case "6h": return 6 * 60 * 60 * 1000;
+    case "12h": return 12 * 60 * 60 * 1000;
+    case "24h": return 24 * 60 * 60 * 1000;
+    default: return 60 * 60 * 1000;
+  }
+}
+
 async function executeRule(rule: any) {
   const start = performance.now();
+  const orgId: number | null = rule.organisationId ?? null;
+
   try {
     const nextRun = calculateNextRun(rule.schedule);
+
+    // Evaluate trigger to get items to act on
+    const items = await getTriggerItems(rule);
+
+    // Parse actions list
+    const actions: Array<{ type: string; params?: Record<string, any> }> =
+      Array.isArray(rule.actions) ? rule.actions : [];
+
+    let itemsProcessed = 0;
+
+    for (const item of items) {
+      for (const action of actions) {
+        try {
+          await executeAction(orgId, action, item, rule.name);
+          itemsProcessed++;
+        } catch (actionErr: any) {
+          logger.warn({ err: actionErr?.message, action: action.type, rule: rule.name }, "[Automation] Echec action");
+        }
+      }
+    }
 
     await db.update(automationRulesTable)
       .set({
@@ -301,7 +496,13 @@ async function executeRule(rule: any) {
       })
       .where(eq(automationRulesTable.id, rule.id));
 
-    await logAutomationRun(rule.name, "success", { ruleId: rule.id }, 1, performance.now() - start);
+    await logAutomationRun(
+      rule.name,
+      "success",
+      { ruleId: rule.id, trigger: rule.trigger, itemsFound: items.length, actionsExecuted: itemsProcessed },
+      itemsProcessed,
+      performance.now() - start,
+    );
   } catch (err: any) {
     await db.update(automationRulesTable)
       .set({
@@ -311,7 +512,14 @@ async function executeRule(rule: any) {
       })
       .where(eq(automationRulesTable.id, rule.id));
 
-    await logAutomationRun(rule.name, "error", { ruleId: rule.id, error: err?.message }, 0, performance.now() - start, err?.message);
+    await logAutomationRun(
+      rule.name,
+      "error",
+      { ruleId: rule.id, error: err?.message },
+      0,
+      performance.now() - start,
+      err?.message,
+    );
   }
 }
 
