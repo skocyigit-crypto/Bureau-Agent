@@ -148,7 +148,8 @@ app.use("/api/ai", aiLimiter);
 app.use("/api/voice", aiLimiter);
 app.use("/api/document-ai", aiLimiter);
 app.use("/api/calls", (req: Request, res: Response, next: NextFunction) => {
-  if (req.method === "POST" && /^\/[0-9]+\/process\/?$/.test(req.path)) {
+  const aiPaths = ["/ai-agent-respond", "/ai-agent-save", "/ai-coaching"];
+  if (req.method === "POST" && (aiPaths.some(p => req.path === p) || /^\/[0-9]+\/process\/?$/.test(req.path))) {
     return aiLimiter(req, res, next);
   }
   return next();

@@ -80,12 +80,31 @@ function useWeekComparison() {
   return { data, error };
 }
 
+interface AiQuotaData {
+  percentCost: number;
+  percentCalls: number;
+  used: { costUsd: number; calls: number };
+  limits: { maxCostUsdPerMonth: number; maxCallsPerMonth: number };
+}
+
+function useAiQuota() {
+  const [quota, setQuota] = useState<AiQuotaData | null>(null);
+  useEffect(() => {
+    fetch(`${API}/api/ai-usage/quota`, { credentials: "include" })
+      .then(r => { if (!r.ok) return null; return r.json(); })
+      .then(d => { if (d) setQuota(d); })
+      .catch(() => {});
+  }, []);
+  return quota;
+}
+
 export default function Dashboard() {
   const { user } = useWorkspaceUser();
   const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
   const now = useLiveClock();
   const { team: teamMembers, error: teamError } = useTeamStatus();
   const { data: weekComparison, error: weekCompError } = useWeekComparison();
+  const aiQuota = useAiQuota();
   const { data: summary, isLoading: isLoadingSummary, error: summaryError } = useGetDashboardSummary({ query: { queryKey: ["dashboardSummary"] } });
   const { data: recentActivity, isLoading: isLoadingActivity, error: activityError } = useGetRecentActivity({ limit: 6 }, { query: { queryKey: ["recentActivity"] } });
   const { data: topContacts, isLoading: isLoadingContacts, error: contactsError } = useGetTopContacts({ limit: 5 }, { query: { queryKey: ["topContacts"] } });
@@ -530,16 +549,29 @@ export default function Dashboard() {
                 <p className="text-xs text-white/50">Toutes les 2 minutes</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-amber-500/20">
-                <Zap className="w-5 h-5 text-amber-400" />
+            <Link href="/parametres?tab=intelligence-artificielle" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
+              <div className={`p-2.5 rounded-xl ${aiQuota && (aiQuota.percentCost >= 95 || aiQuota.percentCalls >= 95) ? "bg-red-500/20" : aiQuota && (aiQuota.percentCost >= 80 || aiQuota.percentCalls >= 80) ? "bg-orange-500/20" : "bg-amber-500/20"}`}>
+                <Zap className={`w-5 h-5 ${aiQuota && (aiQuota.percentCost >= 95 || aiQuota.percentCalls >= 95) ? "text-red-400" : aiQuota && (aiQuota.percentCost >= 80 || aiQuota.percentCalls >= 80) ? "text-orange-400" : "text-amber-400"}`} />
               </div>
-              <div>
-                <p className="text-xs text-white/60">Systeme IA</p>
-                <p className="font-semibold text-amber-300">7 agents actifs</p>
-                <p className="text-xs text-white/50">Surveillance continue</p>
+              <div className="min-w-0">
+                <p className="text-xs text-white/60">Quota IA ce mois</p>
+                {aiQuota ? (
+                  <>
+                    <p className={`font-semibold text-sm ${aiQuota.percentCost >= 95 || aiQuota.percentCalls >= 95 ? "text-red-300" : aiQuota.percentCost >= 80 || aiQuota.percentCalls >= 80 ? "text-orange-300" : "text-amber-300"}`}>
+                      {aiQuota.used.costUsd.toFixed(2)} USD · {aiQuota.used.calls.toLocaleString("fr-FR")} appels
+                    </p>
+                    <p className="text-xs text-white/50">
+                      {Math.max(aiQuota.percentCost, aiQuota.percentCalls).toFixed(0)}% du plafond mensuel
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-semibold text-amber-300">Systeme IA</p>
+                    <p className="text-xs text-white/50">Surveillance continue</p>
+                  </>
+                )}
               </div>
-            </div>
+            </Link>
           </div>
         </CardContent>
       </Card>

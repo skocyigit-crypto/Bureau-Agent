@@ -10,12 +10,52 @@ import {
   DeleteCallParams,
 } from "@workspace/api-zod";
 import { processCallWithAI } from "../services/call-processor";
+import { assertAiQuota, invalidateQuotaCache } from "../services/ai-quota";
+import { recordAiUsage, extractGeminiTokens } from "../services/ai-utils";
 import { logAudit } from "./audit";
 import { getOrgId } from "../middleware/tenant";
 import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
+
+const AI_LIMITS = {
+  MAX_FIELD_CHARS: 200,
+  MAX_NOTES_CHARS: 4000,
+  MAX_CONTEXT_CHARS: 1500,
+  MAX_HISTORY_TURNS: 20,
+  MAX_HISTORY_MSG_CHARS: 800,
+  MAX_TRANSCRIPT_MSGS: 50,
+  MAX_TRANSCRIPT_MSG_CHARS: 800,
+  MAX_SUMMARY_CHARS: 3000,
+};
+
+function sanitizeField(s: unknown, maxLen = AI_LIMITS.MAX_FIELD_CHARS): string {
+  if (typeof s !== "string") return "";
+  return s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").replace(/`{3,}/g, "```").trim().slice(0, maxLen);
+}
+
+function sanitizeHistory(history: unknown): { role: string; text: string }[] {
+  if (!Array.isArray(history)) return [];
+  return history
+    .slice(0, AI_LIMITS.MAX_HISTORY_TURNS)
+    .map((m: any) => ({
+      role: typeof m?.role === "string" ? m.role.slice(0, 20) : "user",
+      text: sanitizeField(m?.text, AI_LIMITS.MAX_HISTORY_MSG_CHARS),
+    }))
+    .filter(m => m.text.length > 0);
+}
+
+function sanitizeTranscript(transcript: unknown): { role: string; text: string }[] {
+  if (!Array.isArray(transcript)) return [];
+  return transcript
+    .slice(0, AI_LIMITS.MAX_TRANSCRIPT_MSGS)
+    .map((m: any) => ({
+      role: typeof m?.role === "string" ? m.role.slice(0, 20) : "user",
+      text: sanitizeField(m?.text, AI_LIMITS.MAX_TRANSCRIPT_MSG_CHARS),
+    }))
+    .filter(m => m.text.length > 0);
+}
 
 const callSortColumns: Record<string, any> = {
   createdAt: callsTable.createdAt,
@@ -342,15 +382,23 @@ Reponds UNIQUEMENT en JSON:
 });
 
 router.post("/calls/ai-coaching", async (req, res): Promise<void> => {
-  const { notes, contactName, phoneNumber, callDuration, contactCategory, previousContext } = req.body;
+  const orgId = getOrgId(req);
+  const rawNotes = sanitizeField(req.body.notes, AI_LIMITS.MAX_NOTES_CHARS);
+  const contactName = sanitizeField(req.body.contactName);
+  const phoneNumber = sanitizeField(req.body.phoneNumber);
+  const contactCategory = sanitizeField(req.body.contactCategory);
+  const previousContext = sanitizeField(req.body.previousContext, AI_LIMITS.MAX_CONTEXT_CHARS);
+  const callDuration = typeof req.body.callDuration === "number" ? Math.max(0, Math.min(req.body.callDuration, 86400)) : 0;
 
-  if (!notes || notes.trim().length < 3) {
+  if (!rawNotes || rawNotes.length < 3) {
     res.json({ suggestions: ["Continuez a ecouter le client attentivement."], actions: [] });
     return;
   }
 
   try {
+    await assertAiQuota(orgId);
     const { ai } = await import("@workspace/integrations-gemini-ai");
+    const t0 = Date.now();
 
     const prompt = `Tu es un coach IA en temps reel pour un agent de bureau professionnel en France.
 L'agent est EN COURS D'APPEL et a pris des notes. Fournis des suggestions IMMEDIATES et CONCRETES.
@@ -358,8 +406,8 @@ L'agent est EN COURS D'APPEL et a pris des notes. Fournis des suggestions IMMEDI
 CONTEXTE DE L'APPEL:
 - Contact: ${contactName || "Inconnu"} (${contactCategory || "non classe"})
 - Telephone: ${phoneNumber || "N/A"}
-- Duree actuelle: ${callDuration || 0} secondes
-- Notes prises: "${notes}"
+- Duree actuelle: ${callDuration} secondes
+- Notes prises: "${rawNotes}"
 ${previousContext ? `- Contexte precedent: ${previousContext}` : ""}
 
 INSTRUCTIONS:
@@ -385,9 +433,17 @@ Reponds UNIQUEMENT en JSON:
       config: { maxOutputTokens: 1024, responseMimeType: "application/json" },
     });
 
+    const tokens = extractGeminiTokens(response);
+    recordAiUsage({ organisationId: orgId, provider: "gemini", model: "gemini-2.5-flash", route: "/calls/ai-coaching", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+    invalidateQuotaCache(orgId);
+
     const coaching = JSON.parse(response.text ?? "{}");
     res.json(coaching);
   } catch (err: any) {
+    if (err?.message?.includes("quota")) {
+      res.status(429).json({ error: err.message, suggestions: [], detectedIntents: [], proposedResponse: "", actionItems: [], urgencyLevel: "normale", tips: "" });
+      return;
+    }
     logger.error({ err: err?.message }, "[AI Coaching] Erreur:");
     res.json({
       suggestions: ["Continuez la conversation normalement."],
@@ -421,7 +477,13 @@ router.delete("/calls/:id", async (req, res): Promise<void> => {
 
 router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
     const orgId = getOrgId(req);
-    const { phoneNumber, contactId, contactName, contactCompany, contactCategory, conversationHistory, callPhase } = req.body;
+    const phoneNumber = sanitizeField(req.body.phoneNumber);
+    const contactId = typeof req.body.contactId === "number" ? req.body.contactId : (typeof req.body.contactId === "string" ? parseInt(req.body.contactId) || undefined : undefined);
+    const contactName = sanitizeField(req.body.contactName);
+    const contactCompany = sanitizeField(req.body.contactCompany);
+    const contactCategory = sanitizeField(req.body.contactCategory);
+    const callPhase = sanitizeField(req.body.callPhase, 50);
+    const conversationHistory = sanitizeHistory(req.body.conversationHistory);
 
     const [orgRespondRow] = await db.select({ aiAgentName: organisationsTable.aiAgentName }).from(organisationsTable).where(eq(organisationsTable.id, orgId));
     const respondAgentName = orgRespondRow?.aiAgentName || "Sophie Marchand";
@@ -465,7 +527,9 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
             )).orderBy(asc(calendarEventsTable.startDate)).limit(3)
         : [];
 
+      await assertAiQuota(orgId);
       const { ai } = await import("@workspace/integrations-gemini-ai");
+      const t0Respond = Date.now();
 
       const conversationLog = (conversationHistory || []).map((m: any) => `${m.role === "agent" ? respondAgentFirstName : "Client"}: ${m.text}`).join("\n");
 
@@ -563,9 +627,17 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
         },
       });
 
+      const respondTokens = extractGeminiTokens(response);
+      recordAiUsage({ organisationId: orgId, provider: "gemini", model: "gemini-2.5-flash", route: "/calls/ai-agent-respond", inputTokens: respondTokens.input, outputTokens: respondTokens.output, durationMs: Date.now() - t0Respond }).catch(() => {});
+      invalidateQuotaCache(orgId);
+
       const aiResponse = JSON.parse(response.text ?? "{}");
       res.json(aiResponse);
     } catch (err: any) {
+      if ((err as any)?.message?.includes("quota")) {
+        res.status(429).json({ error: (err as any).message, response: "Service IA temporairement indisponible (quota atteint).", conversationComplete: false });
+        return;
+      }
       logger.error({ err: err?.message }, "[AI Agent Respond] Erreur:");
       res.json({
         response: `Bonjour, je suis ${respondAgentFirstName} de l'accueil d'Agent de Bureau. Excusez-moi pour ce leger contretemps technique. Puis-je prendre votre nom et votre message ? Je m'assure personnellement qu'on vous rappelle dans les plus brefs delais.`,
@@ -589,14 +661,38 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
 
   router.post("/calls/ai-agent-save", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const { phoneNumber, contactId, contactName, duration, transcript, summary, detectedIntents, suggestedActions, sentiment, satisfactionScore, keyInfoExtracted, nextBestAction } = req.body;
+  const phoneNumber = sanitizeField(req.body.phoneNumber);
+  const contactId = typeof req.body.contactId === "number" ? req.body.contactId : (typeof req.body.contactId === "string" ? parseInt(req.body.contactId) || undefined : undefined);
+  const contactName = sanitizeField(req.body.contactName);
+  const duration = typeof req.body.duration === "number" ? Math.max(0, Math.min(req.body.duration, 86400)) : 0;
+  const transcript = sanitizeTranscript(req.body.transcript);
+  const summary = sanitizeField(req.body.summary, AI_LIMITS.MAX_SUMMARY_CHARS);
+  const detectedIntents = Array.isArray(req.body.detectedIntents) ? req.body.detectedIntents.slice(0, 20).map((i: unknown) => sanitizeField(i, 50)) : [];
+  const suggestedActions = Array.isArray(req.body.suggestedActions) ? req.body.suggestedActions.slice(0, 10).map((a: any) => ({
+    type: sanitizeField(a?.type, 50),
+    description: sanitizeField(a?.description, 300),
+    priority: sanitizeField(a?.priority, 20),
+    dueInHours: typeof a?.dueInHours === "number" ? Math.max(0, Math.min(a.dueInHours, 8760)) : 24,
+  })) : [];
+  const sentiment = sanitizeField(req.body.sentiment, 30);
+  const satisfactionScore = typeof req.body.satisfactionScore === "number" ? Math.max(0, Math.min(req.body.satisfactionScore, 10)) : null;
+  const nextBestAction = sanitizeField(req.body.nextBestAction, AI_LIMITS.MAX_CONTEXT_CHARS);
+  const rawKei = req.body.keyInfoExtracted || {};
+  const keyInfoExtracted = {
+    name: sanitizeField(rawKei.name),
+    email: sanitizeField(rawKei.email),
+    company: sanitizeField(rawKei.company),
+    budget: sanitizeField(rawKei.budget, 100),
+    deadline: sanitizeField(rawKei.deadline, 100),
+    specificNeeds: Array.isArray(rawKei.specificNeeds) ? rawKei.specificNeeds.slice(0, 10).map((n: unknown) => sanitizeField(n, 200)) : [],
+  };
 
   try {
     const [orgSaveRow] = await db.select({ aiAgentName: organisationsTable.aiAgentName }).from(organisationsTable).where(eq(organisationsTable.id, orgId));
     const saveAgentName = orgSaveRow?.aiAgentName || "Sophie Marchand";
     const saveAgentFirstName = saveAgentName.split(" ")[0];
 
-    const transcriptText = (transcript || []).map((m: any) => `[${m.role === "agent" ? saveAgentFirstName : "Client"}] ${m.text}`).join("\n");
+    const transcriptText = transcript.map((m) => `[${m.role === "agent" ? saveAgentFirstName : "Client"}] ${m.text}`).join("\n");
     const enrichedSummary = [
       `[Appel gere par IA ${saveAgentFirstName} - Score satisfaction: ${satisfactionScore || "N/A"}/10]`,
       "",
