@@ -2,6 +2,8 @@ import { Router } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, aiAgentReportsTable, stockArticlesTable, invoicesTable, paymentsTable, subscriptionsTable, usersTable, automationRulesTable, notificationsTable, auditLogsTable, calendarEventsTable } from "@workspace/db";
 import { sql, eq, gte, lte, and, count, desc, lt, ne, isNull, isNotNull, or, sum, avg } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
+import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "../services/ai-quota";
+import { extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage } from "../services/ai-utils";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -723,6 +725,8 @@ async function runSingleAgent(agent: typeof AGENTS[0], orgId: number): Promise<a
   const today = new Date().toISOString().split("T")[0];
 
   try {
+    await assertAiQuota(orgId);
+
     const data = await gatherAgentData(agent.id, orgId);
 
     let collaborationContext = "";
@@ -751,6 +755,7 @@ ${trendHistory.map(h => `  ${h.reportDate}: score ${h.score}, ${h.errorsFound} e
     const fullPrompt = `${getAgentPrompt(agent)}${collaborationContext}${trendContext}\n\n${AGENT_RESPONSE_FORMAT}\n\nDate du rapport: ${today}\nDonnees actuelles (cette semaine + semaine precedente + patterns):\n${JSON.stringify(data, null, 2)}`;
 
     let text = "{}";
+    const t0 = Date.now();
     try {
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
@@ -758,25 +763,35 @@ ${trendHistory.map(h => `  ${h.reportDate}: score ${h.score}, ${h.errorsFound} e
         config: { maxOutputTokens: 8192, responseMimeType: "application/json", thinkingConfig: { thinkingBudget: 2048 } },
       });
       text = response.text ?? "{}";
+      const tokens = extractGeminiTokens(response);
+      recordAiUsage({ organisationId: orgId, provider: "gemini", model: "gemini-2.5-flash", route: `/ai/agents/${agent.id}`, inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+      invalidateQuotaCache(orgId);
     } catch (geminiErr: any) {
+      if (geminiErr instanceof AiQuotaExceededError) throw geminiErr;
       logger.warn({ err: geminiErr, agentId: agent.id }, "Gemini failed, trying OpenAI fallback");
       try {
         const { openai } = await import("@workspace/integrations-openai-ai-server");
         const fallback = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
+          model: "gpt-5.2",
           messages: [{ role: "user", content: fullPrompt + "\n\nReponds UNIQUEMENT en JSON valide." }],
         });
         text = fallback.choices?.[0]?.message?.content ?? "{}";
+        const ftokens = extractOpenAITokens(fallback);
+        recordAiUsage({ organisationId: orgId, provider: "openai", model: "gpt-5.2", route: `/ai/agents/${agent.id}`, inputTokens: ftokens.input, outputTokens: ftokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+        invalidateQuotaCache(orgId);
       } catch (openaiErr: any) {
         logger.warn({ err: openaiErr, agentId: agent.id }, "OpenAI fallback failed, trying Anthropic");
         try {
           const { anthropic } = await import("@workspace/integrations-anthropic-ai");
           const fallback2 = await anthropic.messages.create({
-            model: "claude-sonnet-4-20250514",
+            model: "claude-sonnet-4-6",
             max_tokens: 8192,
             messages: [{ role: "user", content: fullPrompt + "\n\nReponds UNIQUEMENT en JSON valide." }],
           });
           text = fallback2.content?.[0]?.type === "text" ? fallback2.content[0].text : "{}";
+          const atokens = extractAnthropicTokens(fallback2);
+          recordAiUsage({ organisationId: orgId, provider: "anthropic", model: "claude-sonnet-4-6", route: `/ai/agents/${agent.id}`, inputTokens: atokens.input, outputTokens: atokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+          invalidateQuotaCache(orgId);
         } catch (anthropicErr: any) {
           logger.error({ err: anthropicErr, agentId: agent.id }, "All AI providers failed");
           throw new Error(`Tous les fournisseurs IA ont echoue pour ${agent.id}`);
@@ -899,6 +914,8 @@ async function runSuperAgent(childReports: any[], orgId: number): Promise<any> {
   const today = new Date().toISOString().split("T")[0];
 
   try {
+    await assertAiQuota(orgId);
+
     let crossAgentIssues: any[] = [];
     try {
       const { detectCrossAgentIssues, createCrossAgentAlert } = await import("./agent-collaboration");
@@ -1125,6 +1142,7 @@ router.post("/ai/agents/run/:agentId", requireAdmin, async (req, res) => {
     const report = await runSingleAgent(agent, orgId);
     res.json(report);
   } catch (error: any) {
+    if (error instanceof AiQuotaExceededError) { res.status(429).json({ error: error.message, quotaExceeded: true }); return; }
     logger.error({ err: error }, "AI Agent run error");
     res.status(500).json({ error: "Erreur lors de l'execution de l'agent", details: error.message });
   }
@@ -1148,6 +1166,7 @@ router.post("/ai/agents/super", requireAdmin, async (req, res) => {
     const superReport = await runSuperAgent(todayReports, orgId);
     res.json(superReport);
   } catch (error: any) {
+    if (error instanceof AiQuotaExceededError) { res.status(429).json({ error: error.message, quotaExceeded: true }); return; }
     logger.error({ err: error }, "Super Agent error");
     res.status(500).json({ error: "Erreur Super Agent", details: error.message });
   }
@@ -1304,6 +1323,14 @@ async function runAutopilotCycle(orgId: number) {
   addAutopilotLog(orgId, "cycle", "Demarrage du cycle Oto-Pilot");
 
   try {
+    try { await assertAiQuota(orgId); } catch (qe) {
+      if (qe instanceof AiQuotaExceededError) {
+        addAutopilotLog(orgId, "error", `Quota IA atteint: ${qe.message}`, "system", "haute");
+        return;
+      }
+      throw qe;
+    }
+
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 

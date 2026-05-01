@@ -4,7 +4,7 @@ import { eq, sql, and, desc, gte, lte, lt, ne, isNull, isNotNull, or, ilike } fr
 import { getOrgId } from "../middleware/tenant";
 import { Resend } from "resend";
 import { getContextForContact, getLatestAgentInsights, buildCommandantContextPrompt } from "./agent-collaboration";
-import { safeJsonParse, extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage } from "../services/ai-utils";
+import { safeJsonParse, extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, sanitizePromptInput } from "../services/ai-utils";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
 import { logger } from "../lib/logger";
 
@@ -39,6 +39,9 @@ async function multiAiGenerate(prompt: string, systemPrompt?: string, orgId?: nu
     try { await assertAiQuota(orgId); } catch (e: any) { throw e; }
   }
 
+  const safePrompt = sanitizePromptInput(prompt, 24000);
+  const safeSystem = sanitizePromptInput(systemPrompt, 8000);
+
   const errors: string[] = [];
   const t0 = Date.now();
 
@@ -46,7 +49,7 @@ async function multiAiGenerate(prompt: string, systemPrompt?: string, orgId?: nu
     const ai = await getGemini();
     const r = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: systemPrompt ? [{ role: "user", parts: [{ text: systemPrompt + "\n\n" + prompt }] }] : prompt,
+      contents: safeSystem ? [{ role: "user", parts: [{ text: safeSystem + "\n\n" + safePrompt }] }] : safePrompt,
     });
     const text = typeof r === "object" && r !== null && "text" in r ? String(r.text) : String(r);
     if (text && text.length > 10) {
@@ -67,8 +70,8 @@ async function multiAiGenerate(prompt: string, systemPrompt?: string, orgId?: nu
     const r = await openai.chat.completions.create({
       model: "gpt-5.2",
       messages: [
-        ...(systemPrompt ? [{ role: "system" as const, content: systemPrompt }] : []),
-        { role: "user" as const, content: prompt },
+        ...(safeSystem ? [{ role: "system" as const, content: safeSystem }] : []),
+        { role: "user" as const, content: safePrompt },
       ],
     });
     const text = r.choices?.[0]?.message?.content;
@@ -87,8 +90,8 @@ async function multiAiGenerate(prompt: string, systemPrompt?: string, orgId?: nu
     const r = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 4096,
-      ...(systemPrompt ? { system: systemPrompt } : {}),
-      messages: [{ role: "user", content: prompt }],
+      ...(safeSystem ? { system: safeSystem } : {}),
+      messages: [{ role: "user", content: safePrompt }],
     });
     const text = r.content?.[0]?.type === "text" ? r.content[0].text : "";
     if (text && text.length > 10) {
