@@ -1,5 +1,5 @@
-import { ReplitConnectors } from "@replit/connectors-sdk";
-import { db, autoBackupsTable, backupConfigTable } from "@workspace/db";
+import { google } from "googleapis";
+import { db, autoBackupsTable, backupConfigTable, googleOAuthTokensTable } from "@workspace/db";
 import { eq, sql, desc } from "drizzle-orm";
 import crypto from "crypto";
 import { logger } from "../lib/logger";
@@ -7,14 +7,106 @@ import { logger } from "../lib/logger";
 const DRIVE_FOLDER_NAME = "Agent de Bureau - Sauvegardes";
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 let isRunning = false;
-let connectorsInstance: ReplitConnectors | null = null;
 
-function getConnectors(): ReplitConnectors {
-  if (!connectorsInstance) {
-    connectorsInstance = new ReplitConnectors();
+// ---------------------------------------------------------------------------
+// Google Drive auth — service account or per-user OAuth token
+// ---------------------------------------------------------------------------
+
+async function getGoogleDriveAccessToken(): Promise<string | null> {
+  // 1. Try service account (GOOGLE_SERVICE_ACCOUNT_KEY_JSON_B64 — base64 encoded JSON)
+  const saKeyB64 = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_JSON_B64;
+  if (saKeyB64) {
+    try {
+      const keyJson = Buffer.from(saKeyB64, "base64").toString("utf-8");
+      const credentials = JSON.parse(keyJson);
+      const auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ["https://www.googleapis.com/auth/drive"],
+      });
+      const token = await auth.getAccessToken();
+      if (token) return token;
+    } catch (err: any) {
+      logger.warn({ err: err.message }, "[GoogleDriveBackup] Service account auth failed, trying OAuth fallback:");
+    }
   }
-  return connectorsInstance;
+
+  // 2. Try GOOGLE_SERVICE_ACCOUNT_KEY_JSON (plain JSON string — legacy)
+  const saKeyJson = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_JSON;
+  if (saKeyJson) {
+    try {
+      const credentials = JSON.parse(saKeyJson);
+      const auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ["https://www.googleapis.com/auth/drive"],
+      });
+      const token = await auth.getAccessToken();
+      if (token) return token;
+    } catch (err: any) {
+      logger.warn({ err: err.message }, "[GoogleDriveBackup] Service account (plain JSON) auth failed:");
+    }
+  }
+
+  // 3. Fall back to any stored user OAuth token with drive scope
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
+
+  try {
+    const tokens = await db
+      .select()
+      .from(googleOAuthTokensTable)
+      .orderBy(desc(googleOAuthTokensTable.updatedAt))
+      .limit(10);
+
+    const driveToken = tokens.find(t => (t.scope || "").includes("drive"));
+    if (!driveToken) return null;
+
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI ||
+      `${process.env.APP_URL || "http://localhost"}/api/google-oauth/callback`;
+
+    const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+    oauth2Client.setCredentials({
+      access_token: driveToken.accessToken,
+      refresh_token: driveToken.refreshToken,
+    });
+
+    const { token } = await oauth2Client.getAccessToken();
+    return token || null;
+  } catch (err: any) {
+    logger.warn({ err: err.message }, "[GoogleDriveBackup] OAuth token fallback failed:");
+    return null;
+  }
 }
+
+// ---------------------------------------------------------------------------
+// Direct Google Drive API calls (no Replit connector SDK)
+// ---------------------------------------------------------------------------
+
+async function googleDriveRequest(accessToken: string, path: string, options: RequestInit = {}): Promise<any> {
+  const base = path.startsWith("https://") ? path : `https://www.googleapis.com${path}`;
+  const response = await fetch(base, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      ...(options.headers as Record<string, string> || {}),
+    },
+  });
+
+  if (response.status === 204) return {};
+
+  const text = await response.text();
+  if (!text) return {};
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Encryption helpers
+// ---------------------------------------------------------------------------
 
 function deriveEncryptionKey(): Buffer {
   const secret = process.env.BACKUP_ENCRYPTION_KEY || process.env.SESSION_SECRET || "agent-de-bureau-backup-key-2025";
@@ -40,6 +132,10 @@ function decryptData(encryptedBase64: string, iv: string, authTag: string): stri
   ]);
   return decrypted.toString("utf-8");
 }
+
+// ---------------------------------------------------------------------------
+// DB data collection
+// ---------------------------------------------------------------------------
 
 async function collectFullBackupData(): Promise<object> {
   const tables = [
@@ -80,17 +176,13 @@ async function collectFullBackupData(): Promise<object> {
   return snapshot;
 }
 
-async function driveProxy(path: string, options: any = {}): Promise<any> {
-  const connectors = getConnectors();
-  const response = await connectors.proxy("google-drive", path, options);
-  if (typeof response.json === "function") {
-    return response.json();
-  }
-  return response;
-}
+// ---------------------------------------------------------------------------
+// Drive helpers
+// ---------------------------------------------------------------------------
 
-async function findOrCreateDriveFolder(): Promise<string> {
-  const searchResult = await driveProxy(
+async function findOrCreateDriveFolder(accessToken: string): Promise<string> {
+  const searchResult = await googleDriveRequest(
+    accessToken,
     `/drive/v3/files?q=name%3D'${encodeURIComponent(DRIVE_FOLDER_NAME)}'%20and%20mimeType%3D'application%2Fvnd.google-apps.folder'%20and%20trashed%3Dfalse&fields=files(id,name)&spaces=drive`,
     { method: "GET" }
   );
@@ -99,7 +191,7 @@ async function findOrCreateDriveFolder(): Promise<string> {
     return searchResult.files[0].id;
   }
 
-  const createResult = await driveProxy("/drive/v3/files", {
+  const createResult = await googleDriveRequest(accessToken, "/drive/v3/files", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -112,7 +204,7 @@ async function findOrCreateDriveFolder(): Promise<string> {
   return createResult.id;
 }
 
-async function uploadFileToDrive(folderId: string, fileName: string, content: string, description: string): Promise<any> {
+async function uploadFileToDrive(accessToken: string, folderId: string, fileName: string, content: string, description: string): Promise<any> {
   const boundary = "agent_de_bureau_boundary_" + crypto.randomBytes(8).toString("hex");
   const metadata = JSON.stringify({
     name: fileName,
@@ -132,26 +224,24 @@ async function uploadFileToDrive(folderId: string, fileName: string, content: st
   ];
   const body = bodyParts.join("");
 
-  const result = await driveProxy(
-    "/upload/drive/v3/files?uploadType=multipart&fields=id,name,size,webViewLink",
+  return googleDriveRequest(
+    accessToken,
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,size,webViewLink",
     {
       method: "POST",
-      headers: {
-        "Content-Type": `multipart/related; boundary=${boundary}`,
-      },
+      headers: { "Content-Type": `multipart/related; boundary=${boundary}` },
       body,
     }
   );
-
-  return result;
 }
 
-async function cleanupOldDriveBackups(folderId: string, retentionDays: number) {
+async function cleanupOldDriveBackups(accessToken: string, folderId: string, retentionDays: number) {
   try {
     const cutoffDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
     const cutoffStr = cutoffDate.toISOString();
 
-    const listResult = await driveProxy(
+    const listResult = await googleDriveRequest(
+      accessToken,
       `/drive/v3/files?q='${folderId}'%20in%20parents%20and%20trashed%3Dfalse%20and%20createdTime%20%3C%20'${cutoffStr}'&fields=files(id,name,createdTime)&orderBy=createdTime%20asc&pageSize=50`,
       { method: "GET" }
     );
@@ -159,7 +249,7 @@ async function cleanupOldDriveBackups(folderId: string, retentionDays: number) {
     const oldFiles = listResult.files || [];
     for (const file of oldFiles) {
       try {
-        await driveProxy(`/drive/v3/files/${file.id}`, { method: "DELETE" });
+        await googleDriveRequest(accessToken, `/drive/v3/files/${file.id}`, { method: "DELETE" });
         logger.info(`[GoogleDriveBackup] Ancien fichier supprime: ${file.name}`);
       } catch (err) { logger.warn({ err: err }, "[GoogleDriveBackup] operation failed:"); }
     }
@@ -171,16 +261,23 @@ async function cleanupOldDriveBackups(folderId: string, retentionDays: number) {
   }
 }
 
-export async function isConnectorAvailable(): Promise<boolean> {
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+export async function isGoogleDriveConnected(): Promise<boolean> {
   try {
-    const connectors = getConnectors();
-    const response = await connectors.proxy("google-drive", "/drive/v3/about?fields=user", { method: "GET" });
-    const data = typeof response.json === "function" ? await response.json() : response;
-    return !!(data as any)?.user;
+    const token = await getGoogleDriveAccessToken();
+    if (!token) return false;
+    const data = await googleDriveRequest(token, "/drive/v3/about?fields=user", { method: "GET" });
+    return !!data?.user;
   } catch {
     return false;
   }
 }
+
+/** @deprecated Use isGoogleDriveConnected instead */
+export const isConnectorAvailable = isGoogleDriveConnected;
 
 export async function performGoogleDriveBackup(): Promise<{
   success: boolean;
@@ -198,6 +295,11 @@ export async function performGoogleDriveBackup(): Promise<{
   const startTime = Date.now();
 
   try {
+    const accessToken = await getGoogleDriveAccessToken();
+    if (!accessToken) {
+      return { success: false, error: "Google Drive non configure. Ajoutez GOOGLE_SERVICE_ACCOUNT_KEY_JSON_B64 ou connectez-vous via OAuth." };
+    }
+
     logger.info("[GoogleDriveBackup] Collecte des donnees...");
     const backupData = await collectFullBackupData();
     const jsonStr = JSON.stringify(backupData);
@@ -234,7 +336,7 @@ export async function performGoogleDriveBackup(): Promise<{
     const envelopeSize = Buffer.byteLength(envelope, "utf-8");
 
     logger.info("[GoogleDriveBackup] Recherche/creation du dossier Drive...");
-    const folderId = await findOrCreateDriveFolder();
+    const folderId = await findOrCreateDriveFolder(accessToken);
 
     const now = new Date();
     const fileName = `backup_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}.adb.enc`;
@@ -242,13 +344,13 @@ export async function performGoogleDriveBackup(): Promise<{
     const description = `Sauvegarde chiffree Agent de Bureau - ${now.toLocaleDateString("fr-FR")} ${now.toLocaleTimeString("fr-FR")} | AES-256-GCM | SHA-256: ${checksumOriginal.substring(0, 16)}`;
 
     logger.info("[GoogleDriveBackup] Upload vers Google Drive...");
-    const uploadRes = await uploadFileToDrive(folderId, fileName, envelope, description);
+    const uploadRes = await uploadFileToDrive(accessToken, folderId, fileName, envelope, description);
 
     const duration = Date.now() - startTime;
 
     const configs = await db.select().from(backupConfigTable).where(eq(backupConfigTable.platform, "google"));
     const retentionDays = configs.length > 0 ? configs[0].retentionDays : 90;
-    await cleanupOldDriveBackups(folderId, retentionDays);
+    await cleanupOldDriveBackups(accessToken, folderId, retentionDays);
 
     await db.insert(autoBackupsTable).values({
       type: "google_drive",
@@ -310,9 +412,13 @@ export async function listGoogleDriveBackups(): Promise<{
   error?: string;
 }> {
   try {
-    const folderId = await findOrCreateDriveFolder();
+    const accessToken = await getGoogleDriveAccessToken();
+    if (!accessToken) return { success: false, error: "Google Drive non configure." };
 
-    const listResult = await driveProxy(
+    const folderId = await findOrCreateDriveFolder(accessToken);
+
+    const listResult = await googleDriveRequest(
+      accessToken,
       `/drive/v3/files?q='${folderId}'%20in%20parents%20and%20trashed%3Dfalse&fields=files(id,name,size,createdTime,modifiedTime,webViewLink)&orderBy=createdTime%20desc&pageSize=50`,
       { method: "GET" }
     );
@@ -334,7 +440,11 @@ export async function downloadAndDecryptBackup(fileId: string): Promise<{
   error?: string;
 }> {
   try {
-    const content = await driveProxy(
+    const accessToken = await getGoogleDriveAccessToken();
+    if (!accessToken) return { success: false, error: "Google Drive non configure." };
+
+    const content = await googleDriveRequest(
+      accessToken,
       `/drive/v3/files/${fileId}?alt=media`,
       { method: "GET" }
     );
@@ -598,7 +708,7 @@ export async function exportBackupAsJSON(): Promise<{
 const DRIVE_BACKUP_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 export async function startGoogleDriveBackupScheduler() {
-  const available = await isConnectorAvailable();
+  const available = await isGoogleDriveConnected();
   if (!available) {
     logger.info("[GoogleDriveBackup] Google Drive non connecte, sauvegarde Drive desactivee.");
     return;
