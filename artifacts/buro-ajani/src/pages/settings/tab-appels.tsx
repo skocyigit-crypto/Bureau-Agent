@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PhoneIncoming } from "lucide-react";
+import { PhoneIncoming, Link2, Copy, Check } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -7,12 +7,36 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { useSimulateCall } from "@/components/layout";
+
+function WebhookUrlRow({ label, url }: { label: string; url: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
+        <code className="text-xs bg-muted px-2 py-1 rounded block truncate">{url}</code>
+      </div>
+      <Button size="icon" variant="ghost" className="shrink-0" onClick={copy} title="Copier">
+        {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+      </Button>
+    </div>
+  );
+}
 
 export function TabAppels() {
   const [callRingDuration, setCallRingDuration] = useState("30");
   const [soundEnabled, setSoundEnabled] = useState(true);
   const { simulateIncomingCall } = useSimulateCall();
+
+  const baseUrl = `${window.location.protocol}//${window.location.host}/api`;
 
   return (
     <div className="space-y-6">
@@ -126,6 +150,42 @@ export function TabAppels() {
               <p className="text-xs text-muted-foreground">L'IA detecte si un rappel est necessaire et cree la tache</p>
             </div>
             <Switch defaultChecked />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-blue-200 dark:border-blue-800">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Link2 className="w-5 h-5 text-blue-500" />
+            Configuration Twilio — Receptionniste IA
+            <Badge variant="secondary" className="ml-auto text-xs">Webhooks</Badge>
+          </CardTitle>
+          <CardDescription>
+            Copiez ces URLs dans votre console Twilio pour activer la receptionniste IA sur vos appels entrants.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <WebhookUrlRow
+            label="Voice URL (A Call Comes In → Webhook → HTTP POST)"
+            url={`${baseUrl}/telephony/twilio/voice`}
+          />
+          <Separator />
+          <WebhookUrlRow
+            label="Status Callback URL (Call Status Changes)"
+            url={`${baseUrl}/telephony/twilio/status`}
+          />
+          <Separator />
+          <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-800 dark:text-blue-300 space-y-1">
+            <p className="font-semibold">Comment configurer :</p>
+            <ol className="list-decimal list-inside space-y-1 ml-1">
+              <li>Connectez-vous a <strong>console.twilio.com</strong></li>
+              <li>Allez dans <strong>Phone Numbers → Manage → Active Numbers</strong></li>
+              <li>Cliquez sur votre numero</li>
+              <li>Dans la section <strong>Voice Configuration</strong>, collez l'URL Voice ci-dessus</li>
+              <li>Definissez la methode sur <strong>HTTP POST</strong></li>
+              <li>Enregistrez. L'IA repondra automatiquement aux appels entrants.</li>
+            </ol>
           </div>
         </CardContent>
       </Card>
