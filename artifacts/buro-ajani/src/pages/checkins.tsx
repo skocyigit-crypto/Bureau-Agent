@@ -4,8 +4,9 @@ import {
   Timer, Users, BarChart3, Loader2, Play, Pause, Square, Plus, ChevronLeft,
   ChevronRight, ChevronsLeft, ChevronsRight, MoreHorizontal, Trash2, Eye,
   RefreshCw, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Sparkles,
-  Download, CheckCircle2, AlertCircle, CloudDownload, Printer
+  Download, CheckCircle2, AlertCircle, CloudDownload, Printer, Copy
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -96,6 +97,7 @@ export default function CheckinsPage() {
   const [sortBy, setSortBy] = useState("checkInAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [showGoogleSyncDialog, setShowGoogleSyncDialog] = useState(false);
@@ -215,6 +217,13 @@ export default function CheckinsPage() {
     });
   };
 
+  const handleDuplicate = async (id: number) => {
+    const baseUrl = (import.meta.env.BASE_URL || "/").replace(/\/?$/, "/");
+    const res = await fetch(`${baseUrl}api/checkins/${id}/duplicate`, { method: "POST", credentials: "include" });
+    if (res.ok) { toast({ title: "Pointage dupliqué" }); queryClient.invalidateQueries({ queryKey: ["checkins"] }); }
+    else toast({ title: "Erreur", description: "Impossible de dupliquer", variant: "destructive" });
+  };
+
   const handleDelete = (id: number) => {
     deleteCheckin.mutate({ id }, {
       onSuccess: () => {
@@ -223,6 +232,26 @@ export default function CheckinsPage() {
       },
       onError: () => toast({ title: "Erreur", description: "Impossible de supprimer le pointage", variant: "destructive" }),
     });
+  };
+
+  const checkinsList = listData?.checkins ?? [];
+  const toggleSelect = (id: number) => setSelectedIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+  const toggleAll = () => setSelectedIds(selectedIds.length === checkinsList.length ? [] : checkinsList.map((c: any) => c.id));
+  const handleBulkStatus = async (status: string) => {
+    if (!selectedIds.length) return;
+    const baseUrl = import.meta.env.BASE_URL || "/";
+    const res = await fetch(`${baseUrl}api/bulk/checkins/status`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds, status }) });
+    if (res.ok) { toast({ title: `${selectedIds.length} pointage(s) mis à jour` }); setSelectedIds([]); invalidateAll(); }
+    else toast({ title: "Erreur", variant: "destructive" });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Supprimer ${selectedIds.length} pointage(s) ?`)) return;
+    const baseUrl = import.meta.env.BASE_URL || "/";
+    const res = await fetch(`${baseUrl}api/bulk/checkins/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds }) });
+    if (res.ok) { toast({ title: `${selectedIds.length} pointage(s) supprime(s)` }); setSelectedIds([]); invalidateAll(); }
+    else toast({ title: "Erreur", variant: "destructive" });
   };
 
   const handleGoogleSync = async () => {
@@ -455,10 +484,28 @@ export default function CheckinsPage() {
             </Button>
           </div>
 
+          {selectedIds.length > 0 && (
+            <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg flex-wrap">
+              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">{selectedIds.length} pointage(s) sélectionné(s)</span>
+              <Select onValueChange={handleBulkStatus}>
+                <SelectTrigger className="h-7 text-xs w-36"><SelectValue placeholder="Changer statut" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="present">Présent</SelectItem>
+                  <SelectItem value="en_pause">En pause</SelectItem>
+                  <SelectItem value="termine">Terminé</SelectItem>
+                  <SelectItem value="absent">Absent</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button size="sm" variant="destructive" className="gap-1 h-7 text-xs" onClick={handleBulkDelete}><Trash2 className="w-3 h-3" />Supprimer la sélection</Button>
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setSelectedIds([])}>Annuler</Button>
+            </div>
+          )}
+
           <div className="border border-border rounded-lg overflow-hidden bg-card shadow-sm">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
+                  <TableHead className="w-10"><Checkbox checked={checkinsList.length > 0 && selectedIds.length === checkinsList.length} onCheckedChange={toggleAll} /></TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => handleSort("employeeName")}>
                     <span className="flex items-center">Employe{getSortIcon("employeeName")}</span>
                   </TableHead>
@@ -489,7 +536,7 @@ export default function CheckinsPage() {
                   ))
                 ) : !listData?.checkins?.length ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+                    <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
                       <Clock className="w-12 h-12 mx-auto mb-3 opacity-30" />
                       <p className="font-medium">Aucun pointage enregistre</p>
                       <p className="text-sm">Commencez par pointer votre arrivee</p>
@@ -501,6 +548,7 @@ export default function CheckinsPage() {
                     const statusMeta = STATUS_META[checkin.status] || STATUS_META.termine;
                     return (
                       <TableRow key={checkin.id} className="group">
+                        <TableCell><Checkbox checked={selectedIds.includes(checkin.id)} onCheckedChange={() => toggleSelect(checkin.id)} /></TableCell>
                         <TableCell>
                           <div className="font-medium text-sm">{checkin.employeeName}</div>
                           {checkin.employeeRole && <div className="text-xs text-muted-foreground">{checkin.employeeRole}</div>}
@@ -533,6 +581,10 @@ export default function CheckinsPage() {
                               <DropdownMenuItem onClick={() => { setSelectedCheckin(checkin); setShowDetailDialog(true); }}>
                                 <Eye className="w-4 h-4 mr-2" /> Voir les details
                               </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDuplicate(checkin.id)}>
+                                <Copy className="w-4 h-4 mr-2" /> Dupliquer
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
                               <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(checkin.id)}>
                                 <Trash2 className="w-4 h-4 mr-2" /> Supprimer
                               </DropdownMenuItem>

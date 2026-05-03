@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import {
   Settings, Shield, Bell, Save, Monitor, Package,
-  PhoneIncoming, Layers, Rocket, BrainCircuit, Building2, Users
+  PhoneIncoming, Layers, Rocket, BrainCircuit, Building2, Users, Printer
 } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { useToast } from "@/hooks/use-toast";
@@ -60,11 +61,14 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
-          <Icon3D icon={Settings} variant="slate" size="md" /> Parametres
-        </h1>
-        <p className="text-muted-foreground">Configuration de l'application et integrations.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
+            <Icon3D icon={Settings} variant="slate" size="md" /> Parametres
+          </h1>
+          <p className="text-muted-foreground">Configuration de l'application et integrations.</p>
+        </div>
+        <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>

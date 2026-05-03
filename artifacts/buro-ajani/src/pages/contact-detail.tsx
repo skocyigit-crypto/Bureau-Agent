@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Phone, Mail, Building, MapPin, Calendar, Clock, Edit, FileText, Plus, PhoneCall, ArrowLeft, MoreHorizontal, Voicemail, PhoneMissed, CheckSquare, AlertCircle, Send, Tag, X, Receipt, Euro, Save } from "lucide-react";
+import { Phone, Mail, Building, MapPin, Calendar, Clock, Edit, FileText, Plus, PhoneCall, ArrowLeft, MoreHorizontal, Voicemail, PhoneMissed, CheckSquare, AlertCircle, Send, Tag, X, Receipt, Euro, Save, Printer } from "lucide-react";
 import { EmailComposer } from "@/components/email-composer";
 import { DocumentsPanel } from "@/components/file-upload";
 import { Button } from "@/components/ui/button";
@@ -210,6 +210,7 @@ export default function ContactDetail() {
         </Button>
         <h1 className="text-3xl font-bold tracking-tight flex-1">{contact.firstName} {contact.lastName}</h1>
         <div className="flex gap-2">
+          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
           <Button variant="outline" onClick={() => setIsEmailComposerOpen(true)} className="gap-2">
             <Send className="w-4 h-4" /> E-mail IA
           </Button>

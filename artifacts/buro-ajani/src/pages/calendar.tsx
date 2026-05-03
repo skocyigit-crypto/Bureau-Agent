@@ -12,7 +12,7 @@ import { Icon3D } from "@/components/icon-3d";
 import {
   Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, MapPin, Download,
   Users, CheckSquare, Trash2, Phone, Mail, Building, User, FileText,
-  AlertCircle, Star, Search, X, ChevronDown, Edit2, Eye, Printer
+  AlertCircle, Star, Search, X, ChevronDown, Edit2, Eye, Printer, Copy
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -480,12 +480,14 @@ function EventDetailDialog({
   event,
   onEdit,
   onDelete,
+  onDuplicate,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   event: any;
   onEdit: () => void;
   onDelete: () => void;
+  onDuplicate?: () => void;
 }) {
   if (!event) return null;
   const typeInfo = EVENT_TYPES.find(t => t.value === event.type);
@@ -570,6 +572,11 @@ function EventDetailDialog({
                 <Button variant="outline" size="sm" className="flex-1" onClick={onEdit}>
                   <Edit2 className="w-3.5 h-3.5 mr-1" /> Modifier
                 </Button>
+                {onDuplicate && (
+                  <Button variant="outline" size="sm" title="Dupliquer (semaine suivante)" onClick={onDuplicate}>
+                    <Copy className="w-3.5 h-3.5" />
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={onDelete}>
                   <Trash2 className="w-3.5 h-3.5" />
                 </Button>
@@ -662,6 +669,20 @@ export default function CalendarPage() {
       toast({ title: "Evenement supprime" });
     },
     onError: () => toast({ title: "Erreur", description: "Impossible de supprimer l'evenement", variant: "destructive" }),
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${baseUrl}/api/calendar/events/${id}/duplicate`, { method: "POST", credentials: "include" });
+      if (!res.ok) throw new Error("Erreur duplication");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+      setShowEventDetail(false);
+      setViewingEvent(null);
+      toast({ title: "Événement dupliqué (semaine suivante)" });
+    },
+    onError: () => toast({ title: "Erreur", description: "Impossible de dupliquer l'evenement", variant: "destructive" }),
   });
 
   const allEvents = useMemo(() => {
@@ -1079,6 +1100,7 @@ export default function CalendarPage() {
         event={viewingEvent}
         onEdit={handleEditFromDetail}
         onDelete={() => viewingEvent && deleteMutation.mutate(viewingEvent.id)}
+        onDuplicate={() => viewingEvent && duplicateMutation.mutate(viewingEvent.id)}
       />
     </div>
   );

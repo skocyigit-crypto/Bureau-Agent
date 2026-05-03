@@ -7,7 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { KeyRound, Users, Phone, BookUser, Brain, Package, Zap, Crown, Check, ArrowUpRight, AlertTriangle, Clock, Shield } from "lucide-react";
+import { KeyRound, Users, Phone, BookUser, Brain, Package, Zap, Crown, Check, ArrowUpRight, AlertTriangle, Clock, Shield, Printer } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "") + "/";
 
@@ -146,7 +146,10 @@ export default function AbonnementPage() {
           </h1>
           <p className="text-muted-foreground mt-1">{data.organisation.name}</p>
         </div>
-        {statusBadge()}
+        <div className="flex items-center gap-2">
+          {statusBadge()}
+          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="h-4 w-4" /></Button>
+        </div>
       </div>
 
       {!isActive && (

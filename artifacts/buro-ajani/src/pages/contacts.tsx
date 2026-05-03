@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useListContacts, useCreateContact, useUpdateContact, useDeleteContact, getListContactsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Users, Search, Filter, MoreHorizontal, Phone, Mail, Building, Plus, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, LayoutGrid, LayoutList, Upload, Printer, Edit } from "lucide-react";
+import { Users, Search, Filter, MoreHorizontal, Phone, Mail, Building, Plus, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, LayoutGrid, LayoutList, Upload, Printer, Edit, Tag, Copy } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import receptionImg from "@/assets/images/reception-desk.png";
 import { Button } from "@/components/ui/button";
@@ -138,18 +138,30 @@ export default function Contacts() {
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
+    if (!confirm(`Supprimer ${selectedIds.size} contact(s) ?`)) return;
     const ids = Array.from(selectedIds);
-    let successCount = 0;
-    let failCount = 0;
-    await Promise.all(ids.map(id => new Promise<void>((resolve) => {
-      deleteContact.mutate({ id }, { onSuccess: () => { successCount++; resolve(); }, onError: () => { failCount++; resolve(); } });
-    })));
+    const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+    const res = await fetch(`${BASE}/api/bulk/contacts/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
     setSelectedIds(new Set());
     queryClient.invalidateQueries({ queryKey: getListContactsQueryKey() });
-    if (failCount > 0) {
-      toast({ title: `${successCount} supprime(s), ${failCount} echoue(s)`, variant: "destructive" });
+    if (res.ok) {
+      toast({ title: `${ids.length} contact(s) supprimé(s)` });
     } else {
-      toast({ title: `${ids.length} contact(s) supprime(s)` });
+      toast({ title: "Erreur lors de la suppression", variant: "destructive" });
+    }
+  };
+
+  const handleBulkCategory = async (category: string) => {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+    const res = await fetch(`${BASE}/api/bulk/contacts/category`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids, category }) });
+    setSelectedIds(new Set());
+    queryClient.invalidateQueries({ queryKey: getListContactsQueryKey() });
+    if (res.ok) {
+      toast({ title: `${ids.length} contact(s) mis à jour → ${category}` });
+    } else {
+      toast({ title: "Erreur", variant: "destructive" });
     }
   };
 
@@ -159,6 +171,13 @@ export default function Contacts() {
     a.href = `${BASE}/api/contacts/export/csv`;
     a.download = `contacts_${format(new Date(), "yyyyMMdd")}.csv`;
     a.click();
+  };
+
+  const handleDuplicate = async (id: number) => {
+    const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+    const res = await fetch(`${BASE}/api/contacts/${id}/duplicate`, { method: "POST", credentials: "include" });
+    if (res.ok) { toast({ title: "Contact dupliqué" }); queryClient.invalidateQueries({ queryKey: getListContactsQueryKey() }); }
+    else toast({ title: "Erreur", description: "Impossible de dupliquer", variant: "destructive" });
   };
 
   const openEdit = (contact: any) => {
@@ -224,10 +243,27 @@ export default function Contacts() {
         </div>
         <div className="flex items-center gap-2">
           {selectedIds.size > 0 && (
-            <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
-              <Trash2 className="w-4 h-4 mr-2" />
-              Supprimer ({selectedIds.size})
-            </Button>
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Tag className="w-4 h-4 mr-2" />
+                    Catégorie ({selectedIds.size})
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Changer la catégorie</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {["client", "prospect", "fournisseur", "partenaire", "autre"].map(cat => (
+                    <DropdownMenuItem key={cat} onClick={() => handleBulkCategory(cat)} className="capitalize cursor-pointer">{cat}</DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Supprimer ({selectedIds.size})
+              </Button>
+            </>
           )}
           <Button variant="outline" size="sm" onClick={exportCSV}>
             <Download className="w-4 h-4 mr-2" />
@@ -447,6 +483,7 @@ export default function Contacts() {
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem asChild><Link href={`/contacts/${contact.id}`}>Voir le profil</Link></DropdownMenuItem>
                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(contact); }}><Edit className="w-3 h-3 mr-2" />Modifier</DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDuplicate(contact.id); }}><Copy className="w-3 h-3 mr-2" />Dupliquer</DropdownMenuItem>
                           {contact.phone && <DropdownMenuItem onClick={() => setLocation(`/appels?phone=${encodeURIComponent(contact.phone)}`)}><Phone className="w-3 h-3 mr-2" />Appeler</DropdownMenuItem>}
                           {contact.email && <DropdownMenuItem onClick={() => { setEmailComposerContactId(contact.id); setIsEmailComposerOpen(true); }}><Mail className="w-3 h-3 mr-2" />Envoyer email</DropdownMenuItem>}
                           <DropdownMenuSeparator />

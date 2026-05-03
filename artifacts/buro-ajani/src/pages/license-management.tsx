@@ -17,7 +17,7 @@ import {
   Shield, CreditCard, Send, AlertTriangle, CheckCircle, Clock, FileText,
   Building2, Key, Zap, RefreshCw, Mail, BanknoteIcon, Receipt, AlertCircle as AlertCircleIcon,
   Eye, Calendar, TrendingUp, ArrowUpRight, ArrowDownRight, Lock, Loader2,
-  DollarSign, Users, Phone, Bell, History, Settings2, Download, BarChart3,
+  DollarSign, Users, Phone, Bell, History, Settings2, Download, BarChart3, Printer,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -63,7 +63,10 @@ export default function LicenseManagementPage() {
           </h1>
           <p className="text-sm text-muted-foreground">{data.organisation?.name} - Securite, paiements et factures</p>
         </div>
-        <Button variant="outline" onClick={fetchData}><RefreshCw className="h-4 w-4 mr-2" />Actualiser</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={fetchData}><RefreshCw className="h-4 w-4 mr-2" />Actualiser</Button>
+          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="h-4 w-4" /></Button>
+        </div>
       </div>
 
       {data.securityAlerts?.length > 0 && (

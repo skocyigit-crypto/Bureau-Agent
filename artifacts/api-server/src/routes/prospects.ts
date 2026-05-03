@@ -222,6 +222,36 @@ router.post("/prospects/:id/convert", requireRole("agent"), async (req: Request,
   }
 });
 
+router.post("/prospects/:id/duplicate", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const userId = (req.session as any)?.userId;
+  const id = parseInt(req.params.id as string);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  try {
+    const [original] = await db.select().from(prospectsTable).where(and(eq(prospectsTable.id, id), eq(prospectsTable.organisationId, orgId)));
+    if (!original) { res.status(404).json({ error: "Prospect non trouve." }); return; }
+    const [copy] = await db.insert(prospectsTable).values({
+      organisationId: orgId,
+      title: `${original.title} (copie)`,
+      contactName: original.contactName,
+      company: original.company,
+      email: original.email,
+      phone: original.phone,
+      stage: original.stage,
+      priority: original.priority,
+      value: original.value,
+      probability: original.probability,
+      source: original.source,
+      notes: original.notes,
+      expectedCloseDate: original.expectedCloseDate,
+    }).returning();
+    res.status(201).json(copy);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur duplication prospect");
+    res.status(500).json({ error: "Erreur lors de la duplication." });
+  }
+});
+
 router.delete("/prospects/:id", requireRole("administrateur", "super_admin"), async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Activity, Phone, FileText, Receipt, Package, TrendingUp, ShoppingCart, User, MessageSquare, CheckSquare, RefreshCw, Clock } from "lucide-react";
+import { Activity, Phone, FileText, Receipt, Package, TrendingUp, ShoppingCart, User, MessageSquare, CheckSquare, RefreshCw, Clock, Printer } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -117,6 +117,7 @@ export default function ActiviteRecentePage() {
           <Button variant="outline" size="sm" onClick={load} disabled={loading}>
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
+          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
         </div>
       </div>
 

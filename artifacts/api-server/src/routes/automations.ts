@@ -74,6 +74,36 @@ router.post("/notifications/read-all", async (req: Request, res: Response): Prom
   }
 });
 
+router.delete("/notifications/:id", async (req: Request, res: Response): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+
+  const id = parseInt(String(req.params.id));
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+
+  try {
+    await db.delete(notificationsTable)
+      .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, userId)));
+    res.json({ success: true });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur suppression notification");
+    res.status(500).json({ error: "Erreur lors de la suppression de la notification." });
+  }
+});
+
+router.post("/notifications/delete-all", async (req: Request, res: Response): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+
+  try {
+    await db.delete(notificationsTable).where(eq(notificationsTable.userId, userId));
+    res.json({ success: true });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur suppression toutes notifications");
+    res.status(500).json({ error: "Erreur lors de la suppression des notifications." });
+  }
+});
+
 router.get("/automations", async (req: Request, res: Response): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }

@@ -1,9 +1,9 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useListTasks, useCreateTask, useUpdateTask, useDeleteTask, getListTasksQueryKey, useListContacts } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format, isPast, isToday } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CheckSquare, Search, Filter, MoreHorizontal, Plus, Calendar, Clock, AlertCircle, Edit, Users, LayoutList, Columns3, ArrowUpDown, ArrowUp, ArrowDown, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertTriangle, GripVertical, Repeat, Download, Copy, Printer } from "lucide-react";
+import { CheckSquare, Search, Filter, MoreHorizontal, Plus, Calendar, Clock, AlertCircle, Edit, Users, LayoutList, Columns3, ArrowUpDown, ArrowUp, ArrowDown, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertTriangle, GripVertical, Repeat, Download, Copy, Printer, CheckCheck, UserCheck } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import taskManagementImg from "@/assets/images/task-management.png";
 import { Button } from "@/components/ui/button";
@@ -204,18 +204,73 @@ export default function Tasks() {
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
+    if (!confirm(`Supprimer ${selectedIds.size} tâche(s) ?`)) return;
     const ids = Array.from(selectedIds);
-    let successCount = 0;
-    let failCount = 0;
-    await Promise.all(ids.map(id => new Promise<void>((resolve) => {
-      deleteTask.mutate({ id }, { onSuccess: () => { successCount++; resolve(); }, onError: () => { failCount++; resolve(); } });
-    })));
+    const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+    const res = await fetch(`${BASE}/api/bulk/tasks/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
     setSelectedIds(new Set());
     queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
-    if (failCount > 0) {
-      toast({ title: `${successCount} supprime(s), ${failCount} echoue(s)`, variant: "destructive" });
+    if (res.ok) {
+      toast({ title: `${ids.length} tâche(s) supprimée(s)` });
     } else {
-      toast({ title: `${ids.length} tache(s) supprimee(s)` });
+      toast({ title: "Erreur lors de la suppression", variant: "destructive" });
+    }
+  };
+
+  const handleBulkComplete = async () => {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+    const res = await fetch(`${BASE}/api/bulk/tasks/complete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
+    setSelectedIds(new Set());
+    queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+    if (res.ok) {
+      toast({ title: `${ids.length} tâche(s) marquée(s) terminée(s)` });
+    } else {
+      toast({ title: "Erreur", variant: "destructive" });
+    }
+  };
+
+  const handleBulkPriority = async (priority: string) => {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+    const res = await fetch(`${BASE}/api/bulk/tasks/priority`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids, priority }) });
+    setSelectedIds(new Set());
+    queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+    if (res.ok) {
+      toast({ title: `${ids.length} tâche(s) → priorité ${priority}` });
+    } else {
+      toast({ title: "Erreur", variant: "destructive" });
+    }
+  };
+
+  const [bulkAssignName, setBulkAssignName] = useState("");
+  const [showAssignInput, setShowAssignInput] = useState(false);
+  const assignInputRef = useRef<HTMLInputElement>(null);
+
+  const handleBulkStatus = async (status: string) => {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+    const res = await fetch(`${BASE}/api/bulk/tasks/status`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids, status }) });
+    if (res.ok) { toast({ title: `${ids.length} tâche(s) mise(s) à jour` }); setSelectedIds(new Set()); queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() }); }
+    else toast({ title: "Erreur", variant: "destructive" });
+  };
+
+  const handleBulkAssign = async () => {
+    if (selectedIds.size === 0 || !bulkAssignName.trim()) return;
+    const ids = Array.from(selectedIds);
+    const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+    const res = await fetch(`${BASE}/api/bulk/tasks/assign`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids, assignedTo: bulkAssignName.trim() }) });
+    setBulkAssignName("");
+    setShowAssignInput(false);
+    setSelectedIds(new Set());
+    queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+    if (res.ok) {
+      toast({ title: `${ids.length} tâche(s) assignée(s) à ${bulkAssignName.trim()}` });
+    } else {
+      toast({ title: "Erreur", variant: "destructive" });
     }
   };
 
@@ -422,10 +477,68 @@ export default function Tasks() {
         </div>
         <div className="flex items-center gap-2">
           {selectedIds.size > 0 && (
-            <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
-              <Trash2 className="w-4 h-4 mr-2" />
-              Supprimer ({selectedIds.size})
-            </Button>
+            <>
+              <Button variant="outline" size="sm" onClick={handleBulkComplete}>
+                <CheckCheck className="w-4 h-4 mr-2" />
+                Terminer ({selectedIds.size})
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Filter className="w-4 h-4 mr-2" />
+                    Priorité ({selectedIds.size})
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Changer la priorité</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {[{val:"urgente",label:"🔴 Urgente"},{val:"haute",label:"🟠 Haute"},{val:"moyenne",label:"🟡 Moyenne"},{val:"basse",label:"🟢 Basse"}].map(p => (
+                    <DropdownMenuItem key={p.val} onClick={() => handleBulkPriority(p.val)} className="cursor-pointer">{p.label}</DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {showAssignInput ? (
+                <div className="flex items-center gap-1">
+                  <Input
+                    ref={assignInputRef}
+                    value={bulkAssignName}
+                    onChange={e => setBulkAssignName(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") handleBulkAssign(); if (e.key === "Escape") { setShowAssignInput(false); setBulkAssignName(""); } }}
+                    placeholder="Nom de l'agent..."
+                    className="h-8 w-36 text-sm"
+                    autoFocus
+                  />
+                  <Button size="sm" className="h-8" onClick={handleBulkAssign} disabled={!bulkAssignName.trim()}>
+                    <UserCheck className="w-3 h-3" />
+                  </Button>
+                </div>
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => { setShowAssignInput(true); setTimeout(() => assignInputRef.current?.focus(), 50); }}>
+                  <UserCheck className="w-4 h-4 mr-2" />
+                  Assigner ({selectedIds.size})
+                </Button>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <ArrowUpDown className="w-4 h-4 mr-2" />
+                    Statut ({selectedIds.size})
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Changer le statut</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => handleBulkStatus("todo")}>À faire</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleBulkStatus("en_cours")}>En cours</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleBulkStatus("terminee")}>Terminée</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleBulkStatus("annulee")}>Annulée</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Supprimer ({selectedIds.size})
+              </Button>
+            </>
           )}
           <a href={`${(import.meta.env.BASE_URL || "/").replace(/\/$/, "")}/api/tasks/export/csv`} download>
             <Button variant="outline" size="sm"><Download className="w-4 h-4 mr-2" />CSV</Button>

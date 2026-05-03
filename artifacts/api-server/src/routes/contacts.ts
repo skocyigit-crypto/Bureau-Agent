@@ -216,6 +216,35 @@ router.patch("/contacts/:id/tags", async (req, res): Promise<void> => {
   }
 });
 
+router.post("/contacts/:id/duplicate", async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw!, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  const orgId = getOrgId(req);
+  const userId = (req.session as any)?.userId;
+  try {
+    const [original] = await db.select().from(contactsTable).where(and(eq(contactsTable.id, id), eq(contactsTable.organisationId, orgId)));
+    if (!original) { res.status(404).json({ error: "Contact non trouve." }); return; }
+    const [copy] = await db.insert(contactsTable).values({
+      organisationId: orgId,
+      firstName: original.firstName,
+      lastName: `${original.lastName} (copie)`,
+      company: original.company,
+      email: original.email,
+      phone: original.phone,
+      category: original.category,
+      address: original.address,
+      notes: original.notes,
+      createdBy: userId,
+      updatedBy: userId,
+    }).returning();
+    res.status(201).json(copy);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur duplication contact");
+    res.status(500).json({ error: "Erreur lors de la duplication." });
+  }
+});
+
 router.delete("/contacts/:id", async (req, res): Promise<void> => {
   const params = DeleteContactParams.safeParse(req.params);
   if (!params.success) {

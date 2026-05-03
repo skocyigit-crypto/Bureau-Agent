@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Bell, Check, CheckCheck, Trash2, Filter, Phone, Users, CheckSquare, MessageSquare, AlertTriangle, Info, Calendar, ExternalLink } from "lucide-react";
+import { Bell, Check, CheckCheck, Trash2, Filter, Phone, Users, CheckSquare, MessageSquare, AlertTriangle, Info, Calendar, ExternalLink, Printer } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +51,18 @@ export default function Notifications() {
     onError: () => toast({ title: "Erreur", description: "Impossible de marquer les notifications comme lues", variant: "destructive" }),
   });
 
+  const deleteNotifMutation = useMutation({
+    mutationFn: (id: number) => apiFetch(`/notifications/${id}`, { method: "DELETE" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
+    onError: () => toast({ title: "Erreur", description: "Impossible de supprimer la notification", variant: "destructive" }),
+  });
+
+  const deleteAllMutation = useMutation({
+    mutationFn: () => apiFetch("/notifications/delete-all", { method: "POST" }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["notifications"] }); toast({ title: "Notifications supprimees" }); },
+    onError: () => toast({ title: "Erreur", description: "Impossible de supprimer les notifications", variant: "destructive" }),
+  });
+
   const notifications = data?.notifications || data || [];
   const unreadCount = notifications.filter((n: any) => !n.read).length;
 
@@ -79,6 +91,12 @@ export default function Notifications() {
               <CheckCheck className="h-4 w-4 mr-1" /> Tout lire
             </Button>
           )}
+          {notifications.length > 0 && (
+            <Button variant="outline" className="text-red-600 hover:text-red-700" onClick={() => deleteAllMutation.mutate()}>
+              <Trash2 className="h-4 w-4 mr-1" /> Tout supprimer
+            </Button>
+          )}
+          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="h-4 w-4" /></Button>
         </div>
       </div>
 
@@ -109,10 +127,13 @@ export default function Notifications() {
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                           {!n.read && (
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => markReadMutation.mutate(n.id)}>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Marquer comme lu" onClick={() => markReadMutation.mutate(n.id)}>
                               <Check className="h-3 w-3" />
                             </Button>
                           )}
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20" title="Supprimer" onClick={() => deleteNotifMutation.mutate(n.id)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                         </div>
                       </div>
                       <div className="flex items-center justify-between mt-1">

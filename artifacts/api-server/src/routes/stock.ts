@@ -252,6 +252,37 @@ router.get("/stock/export/csv", async (req: Request, res: Response): Promise<voi
   }
 });
 
+router.post("/stock/:id/duplicate", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const id = parseInt(req.params.id as string);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  try {
+    const [original] = await db.select().from(stockArticlesTable).where(and(eq(stockArticlesTable.id, id), eq(stockArticlesTable.organisationId, orgId)));
+    if (!original) { res.status(404).json({ error: "Article non trouve." }); return; }
+    const newRef = `${original.reference}-COPIE-${Date.now().toString().slice(-4)}`;
+    const [copy] = await db.insert(stockArticlesTable).values({
+      organisationId: orgId,
+      name: `${original.name} (copie)`,
+      reference: newRef,
+      barcode: null,
+      description: original.description,
+      category: original.category,
+      quantity: 0,
+      minQuantity: original.minQuantity,
+      unitPrice: original.unitPrice,
+      supplier: original.supplier,
+      location: original.location,
+      unit: original.unit,
+      status: original.status,
+      notes: original.notes,
+    }).returning();
+    res.status(201).json(copy);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur duplication article stock");
+    res.status(500).json({ error: "Erreur lors de la duplication." });
+  }
+});
+
 router.delete("/stock/:id", requireRole("administrateur", "super_admin"), async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);

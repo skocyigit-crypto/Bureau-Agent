@@ -3,7 +3,7 @@ import { useListMessages, useUpdateMessage, useCreateMessage, useDeleteMessage, 
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { MessageSquare, Voicemail, FileText, Bell, Search, Filter, MoreHorizontal, MailOpen, Mail, Plus, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CheckCheck, Send, Download, Edit, Printer } from "lucide-react";
+import { MessageSquare, Voicemail, FileText, Bell, Search, Filter, MoreHorizontal, MailOpen, Mail, Plus, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CheckCheck, Send, Download, Edit, Printer, Copy } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import messagingImg from "@/assets/images/messaging-center.png";
 import { EmailComposer } from "@/components/email-composer";
@@ -112,35 +112,37 @@ export default function Messages() {
   const handleBulkMarkRead = async () => {
     if (selectedIds.size === 0) return;
     const ids = Array.from(selectedIds);
-    let successCount = 0;
-    let failCount = 0;
-    await Promise.all(ids.map(id => new Promise<void>((resolve) => {
-      updateMessage.mutate({ id, data: { isRead: true } }, { onSuccess: () => { successCount++; resolve(); }, onError: () => { failCount++; resolve(); } });
-    })));
+    const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+    const res = await fetch(`${BASE}/api/bulk/messages/read`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
     setSelectedIds(new Set());
     queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() });
-    if (failCount > 0) {
-      toast({ title: `${successCount} marque(s) lu(s), ${failCount} echoue(s)`, variant: "destructive" });
+    if (res.ok) {
+      toast({ title: `${ids.length} message(s) marqué(s) comme lu(s)` });
     } else {
-      toast({ title: `${ids.length} message(s) marque(s) comme lu(s)` });
+      toast({ title: "Erreur", variant: "destructive" });
     }
   };
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
+    if (!confirm(`Supprimer ${selectedIds.size} message(s) ?`)) return;
     const ids = Array.from(selectedIds);
-    let successCount = 0;
-    let failCount = 0;
-    await Promise.all(ids.map(id => new Promise<void>((resolve) => {
-      deleteMessage.mutate({ id }, { onSuccess: () => { successCount++; resolve(); }, onError: () => { failCount++; resolve(); } });
-    })));
+    const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+    const res = await fetch(`${BASE}/api/bulk/messages/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
     setSelectedIds(new Set());
     queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() });
-    if (failCount > 0) {
-      toast({ title: `${successCount} supprime(s), ${failCount} echoue(s)`, variant: "destructive" });
-    } else {
+    if (res.ok) {
       toast({ title: `${ids.length} message(s) supprime(s)` });
+    } else {
+      toast({ title: "Erreur lors de la suppression", variant: "destructive" });
     }
+  };
+
+  const handleDuplicate = async (id: number) => {
+    const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+    const res = await fetch(`${BASE}/api/messages/${id}/duplicate`, { method: "POST", credentials: "include" });
+    if (res.ok) { toast({ title: "Message dupliqué" }); queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() }); }
+    else toast({ title: "Erreur", description: "Impossible de dupliquer", variant: "destructive" });
   };
 
   const handleOpenEdit = (message: any) => {
@@ -473,6 +475,9 @@ export default function Messages() {
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => handleOpenEdit(message)}>
                           <Edit className="w-4 h-4 mr-2" />Modifier
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDuplicate(message.id)}>
+                          <Copy className="w-4 h-4 mr-2" />Dupliquer
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => handleReadToggle(message.id, !message.isRead)}>

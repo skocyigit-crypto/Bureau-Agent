@@ -500,6 +500,34 @@ router.get("/calls/export/csv", async (req, res): Promise<void> => {
   }
 });
 
+router.post("/calls/:id/duplicate", async (req, res): Promise<void> => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+    const orgId = getOrgId(req);
+    const [original] = await db.select().from(callsTable).where(and(eq(callsTable.id, id), eq(callsTable.organisationId, orgId)));
+    if (!original) { res.status(404).json({ error: "Appel introuvable" }); return; }
+    const userId = (req.session as any)?.userId;
+    const [copy] = await db.insert(callsTable).values({
+      organisationId: orgId,
+      contactId: original.contactId,
+      contactName: original.contactName,
+      phoneNumber: original.phoneNumber,
+      direction: original.direction,
+      status: "en_cours",
+      duration: 0,
+      notes: original.notes,
+      tags: original.tags ?? [],
+      createdBy: userId,
+      updatedBy: userId,
+    }).returning();
+    res.status(201).json(copy);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur duplication appel");
+    res.status(500).json({ error: "Erreur lors de la duplication" });
+  }
+});
+
 router.delete("/calls/:id", async (req, res): Promise<void> => {
   const params = DeleteCallParams.safeParse(req.params);
   if (!params.success) {

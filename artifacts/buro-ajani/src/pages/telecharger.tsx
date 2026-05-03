@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Smartphone, Monitor, Laptop, Globe, Download, CloudDownload,
   CheckCircle2, QrCode, Play, ExternalLink, Clock,
-  Tablet, Wifi, Bell, Shield, Zap, Share, PlusSquare, MoreVertical, Info
+  Tablet, Wifi, Bell, Shield, Zap, Share, PlusSquare, MoreVertical, Info, Printer
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -77,12 +77,15 @@ export default function TelechargerPage() {
             Installez Agent de Bureau sur votre ordinateur ou telephone.
           </p>
         </div>
-        {isInstalled && (
-          <Badge className="bg-emerald-100 text-emerald-700 border-0 gap-1.5 h-7">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            Application installee
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {isInstalled && (
+            <Badge className="bg-emerald-100 text-emerald-700 border-0 gap-1.5 h-7">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Application installee
+            </Badge>
+          )}
+          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+        </div>
       </div>
 
       <div className="flex gap-2 p-1 bg-muted rounded-lg w-fit">

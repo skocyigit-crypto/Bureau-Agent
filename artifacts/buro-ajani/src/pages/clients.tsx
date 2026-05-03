@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Search, Users, Mail, Phone, Building, FileText, Receipt, Euro, AlertCircle, ArrowRight, RefreshCw, ChevronLeft, Download } from "lucide-react";
+import { Search, Users, Mail, Phone, Building, FileText, Receipt, Euro, AlertCircle, ArrowRight, RefreshCw, ChevronLeft, Download, Printer } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -230,6 +230,7 @@ export default function ClientsPage() {
           <Button variant="outline" size="sm" onClick={loadClients} disabled={loading}>
             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />Actualiser
           </Button>
+          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
         </div>
       </div>
 

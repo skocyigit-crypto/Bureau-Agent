@@ -3,7 +3,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Zap, PlayCircle, PauseCircle, Clock, CheckCircle, AlertTriangle, Activity,
   BarChart3, RefreshCw, Settings2, Bot, CalendarClock, Mail, Phone, Users,
-  FileText, TrendingUp, Loader2, Plus, Trash2, Bell, MessageSquare, ClipboardList, Copy, Pencil, Download,
+  FileText, TrendingUp, Loader2, Plus, Trash2, Bell, MessageSquare, ClipboardList, Copy, Pencil, Download, Printer,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -525,6 +525,7 @@ export default function AutomationsPage() {
           <a href={`${baseUrl}/api/automations/export/csv`} download="automations.csv">
             <Button variant="outline" size="sm" title="Exporter CSV"><Download className="w-4 h-4" /></Button>
           </a>
+          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
           <CreateRuleDialog onCreated={fetchData} />
         </div>
       </div>

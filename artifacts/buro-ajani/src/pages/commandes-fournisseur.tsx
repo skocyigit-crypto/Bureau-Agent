@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Search, MoreHorizontal, Edit, Trash2, Mail, Copy, Check, X, Package, Truck, Clock, AlertCircle, Download, Printer } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -97,6 +98,7 @@ export default function CommandesFournisseurPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(0);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<BC | null>(null);
   const { toast } = useToast();
@@ -180,6 +182,22 @@ export default function CommandesFournisseurPage() {
     else toast({ title: "Erreur", description: "Impossible de supprimer.", variant: "destructive" });
   }
 
+  const toggleSelect = (id: number) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleAll = () => setSelectedIds(prev => prev.length === data.length ? [] : data.map(bc => bc.id));
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length || !confirm(`Supprimer ${selectedIds.length} commande(s) ?`)) return;
+    const res = await fetch(`${BASE}/api/bulk/commandes/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds }) });
+    if (res.ok) { toast({ title: `${selectedIds.length} commande(s) supprimée(s)` }); setSelectedIds([]); load(); }
+    else toast({ title: "Erreur", variant: "destructive" });
+  };
+
+  const handleBulkStatus = async (status: string) => {
+    if (!selectedIds.length) return;
+    const res = await fetch(`${BASE}/api/bulk/commandes/status`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds, status }) });
+    if (res.ok) { toast({ title: `${selectedIds.length} commande(s) mise(s) à jour` }); setSelectedIds([]); load(); }
+    else toast({ title: "Erreur", variant: "destructive" });
+  };
+
   async function handleExport() {
     window.open(`${BASE}/api/commandes-fournisseur/export/csv`, "_blank");
   }
@@ -219,10 +237,29 @@ export default function CommandesFournisseurPage() {
         </Select>
       </div>
 
+      {selectedIds.length > 0 && (
+        <div className="flex items-center gap-3 p-3 bg-muted/60 border rounded-lg flex-wrap">
+          <span className="text-sm font-medium">{selectedIds.length} sélectionné(s)</span>
+          <Select onValueChange={handleBulkStatus}>
+            <SelectTrigger className="h-7 text-xs w-40"><SelectValue placeholder="Changer statut" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="brouillon">Brouillon</SelectItem>
+              <SelectItem value="envoye">Envoyé</SelectItem>
+              <SelectItem value="confirme">Confirmé</SelectItem>
+              <SelectItem value="recu">Reçu</SelectItem>
+              <SelectItem value="annule">Annulé</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button size="sm" variant="destructive" onClick={handleBulkDelete}><Trash2 className="w-3 h-3 mr-1" />Supprimer la sélection</Button>
+          <Button size="sm" variant="ghost" onClick={() => setSelectedIds([])}>Annuler</Button>
+        </div>
+      )}
+
       <div className="border rounded-xl overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10"><Checkbox checked={data.length > 0 && selectedIds.length === data.length} onCheckedChange={toggleAll} /></TableHead>
               <TableHead className="w-32">Référence</TableHead>
               <TableHead>Fournisseur</TableHead>
               <TableHead className="hidden md:table-cell w-28">Statut</TableHead>
@@ -241,7 +278,7 @@ export default function CommandesFournisseurPage() {
               ))
             ) : data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
                   <Package className="w-8 h-8 mx-auto mb-2 opacity-30" />
                   <p>Aucun bon de commande</p>
                   <Button variant="outline" size="sm" className="mt-2" onClick={openNew}><Plus className="w-3 h-3 mr-1" />Créer un BC</Button>
@@ -249,6 +286,7 @@ export default function CommandesFournisseurPage() {
               </TableRow>
             ) : data.map(bc => (
               <TableRow key={bc.id} className="cursor-pointer hover:bg-muted/30" onClick={() => openEdit(bc)}>
+                <TableCell onClick={e => e.stopPropagation()}><Checkbox checked={selectedIds.includes(bc.id)} onCheckedChange={() => toggleSelect(bc.id)} /></TableCell>
                 <TableCell className="font-mono text-xs font-medium">{bc.reference}</TableCell>
                 <TableCell>
                   <div className="font-medium text-sm">{bc.fournisseurName}</div>

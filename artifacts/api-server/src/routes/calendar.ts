@@ -144,6 +144,47 @@ router.patch("/calendar/events/:id", async (req: Request, res: Response): Promis
   }
 });
 
+router.post("/calendar/events/:id/duplicate", async (req: Request, res: Response): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  const orgId = getOrgId(req);
+  const id = parseInt(String(req.params.id));
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  try {
+    const [original] = await db.select().from(calendarEventsTable).where(and(eq(calendarEventsTable.id, id), eq(calendarEventsTable.organisationId, orgId)));
+    if (!original) { res.status(404).json({ error: "Evenement non trouve." }); return; }
+    const startDate = new Date(original.startDate);
+    const endDate = new Date(original.endDate);
+    startDate.setDate(startDate.getDate() + 7);
+    endDate.setDate(endDate.getDate() + 7);
+    const [copy] = await db.insert(calendarEventsTable).values({
+      organisationId: orgId,
+      title: `${original.title} (copie)`,
+      description: original.description,
+      type: original.type,
+      startDate,
+      endDate,
+      allDay: original.allDay,
+      location: original.location,
+      color: original.color,
+      relatedContactId: original.relatedContactId,
+      contactName: original.contactName,
+      contactPhone: original.contactPhone,
+      contactEmail: original.contactEmail,
+      contactCompany: original.contactCompany,
+      reminder: original.reminder,
+      status: "confirme",
+      priority: original.priority,
+      createdBy: userId,
+      updatedBy: userId,
+    }).returning();
+    res.status(201).json(copy);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur duplication evenement agenda");
+    res.status(500).json({ error: "Erreur lors de la duplication." });
+  }
+});
+
 router.delete("/calendar/events/:id", async (req: Request, res: Response): Promise<void> => {
   const userId = (req.session as any)?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }

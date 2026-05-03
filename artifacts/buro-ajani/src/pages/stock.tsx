@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Package, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, AlertTriangle, RefreshCw, Minus, ArrowUp, Download, History, Printer } from "lucide-react";
+import { Package, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, AlertTriangle, RefreshCw, Minus, ArrowUp, Download, History, Printer, Copy } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,6 +60,7 @@ export default function StockPage() {
   const [saving, setSaving] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
   const [form, setForm] = useState({ ...EMPTY });
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -116,10 +118,33 @@ export default function StockPage() {
     finally { setAdjusting(false); }
   };
 
+  const handleDuplicate = async (id: number) => {
+    const res = await fetch(`${BASE}/api/stock/${id}/duplicate`, { method: "POST", credentials: "include" });
+    if (res.ok) { toast({ title: "Article dupliqué" }); load(); }
+    else toast({ title: "Erreur", description: "Impossible de dupliquer", variant: "destructive" });
+  };
+
   const handleDelete = async (id: number) => {
     if (!confirm("Supprimer cet article ?")) return;
     const res = await fetch(`${BASE}/api/stock/${id}`, { method: "DELETE", credentials: "include" });
     if (res.ok) { toast({ title: "Article supprime" }); load(); }
+  };
+
+  const toggleSelect = (id: number) => setSelectedIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+  const toggleAll = () => setSelectedIds(selectedIds.length === articles.length ? [] : articles.map(a => a.id));
+  const handleBulkStatus = async (status: string) => {
+    if (!selectedIds.length) return;
+    const res = await fetch(`${BASE}/api/bulk/stock/status`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds, status }) });
+    if (res.ok) { toast({ title: `${selectedIds.length} article(s) mis à jour` }); setSelectedIds([]); load(); }
+    else toast({ title: "Erreur", variant: "destructive" });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Supprimer ${selectedIds.length} article(s) ?`)) return;
+    const res = await fetch(`${BASE}/api/bulk/stock/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds }) });
+    if (res.ok) { toast({ title: `${selectedIds.length} article(s) supprime(s)` }); setSelectedIds([]); load(); }
+    else toast({ title: "Erreur", variant: "destructive" });
   };
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -164,6 +189,22 @@ export default function StockPage() {
         <Button variant="ghost" size="icon" onClick={load}><RefreshCw className="w-4 h-4" /></Button>
       </div>
 
+      {selectedIds.length > 0 && (
+        <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg flex-wrap">
+          <span className="text-sm font-medium text-blue-700 dark:text-blue-300">{selectedIds.length} article(s) sélectionné(s)</span>
+          <Select onValueChange={handleBulkStatus}>
+            <SelectTrigger className="h-7 text-xs w-36"><SelectValue placeholder="Changer statut" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="en_stock">En stock</SelectItem>
+              <SelectItem value="stock_faible">Stock faible</SelectItem>
+              <SelectItem value="rupture">Rupture</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button size="sm" variant="destructive" className="gap-1 h-7 text-xs" onClick={handleBulkDelete}><Trash2 className="w-3 h-3" />Supprimer la sélection</Button>
+          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setSelectedIds([])}>Annuler</Button>
+        </div>
+      )}
+
       <Card>
         {loading ? (
           <div className="p-4 space-y-2">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
@@ -171,6 +212,7 @@ export default function StockPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10"><Checkbox checked={articles.length > 0 && selectedIds.length === articles.length} onCheckedChange={toggleAll} /></TableHead>
                 <TableHead>Article</TableHead>
                 <TableHead>Référence</TableHead>
                 <TableHead>Catégorie</TableHead>
@@ -182,11 +224,12 @@ export default function StockPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {articles.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-10 text-muted-foreground">Aucun article trouvé.</TableCell></TableRow>}
+              {articles.length === 0 && <TableRow><TableCell colSpan={9} className="text-center py-10 text-muted-foreground">Aucun article trouvé.</TableCell></TableRow>}
               {articles.map(a => {
                 const sc = STATUS_CFG[a.status] || STATUS_CFG.en_stock;
                 return (
                   <TableRow key={a.id} className={a.status === "rupture" ? "bg-red-50/50 dark:bg-red-950/10" : a.status === "stock_faible" ? "bg-amber-50/50 dark:bg-amber-950/10" : ""}>
+                    <TableCell><Checkbox checked={selectedIds.includes(a.id)} onCheckedChange={() => toggleSelect(a.id)} /></TableCell>
                     <TableCell>
                       <div>
                         <p className="font-medium text-sm">{a.name}</p>
@@ -210,6 +253,7 @@ export default function StockPage() {
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => openAdjust(a)}><RefreshCw className="w-3 h-3 mr-2" />Ajuster stock</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => openEdit(a)}><Edit className="w-3 h-3 mr-2" />Modifier</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDuplicate(a.id)}><Copy className="w-3 h-3 mr-2" />Dupliquer</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(a.id)}><Trash2 className="w-3 h-3 mr-2" />Supprimer</DropdownMenuItem>
                         </DropdownMenuContent>

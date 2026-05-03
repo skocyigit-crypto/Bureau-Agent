@@ -8,7 +8,7 @@ import {
   CheckCircle2, Clock, Zap, Eye, Edit3, Copy, ExternalLink, Inbox,
   Filter, MoreHorizontal, Paperclip, Tag, ArrowLeft, Plus, RotateCcw,
   AlertCircle, TrendingUp, ShoppingCart, FileText, Info, MessageSquare,
-  CornerDownLeft, Check, Wifi, WifiOff
+  CornerDownLeft, Check, Wifi, WifiOff, Printer
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -380,6 +380,7 @@ export default function GmailAgentPage() {
           <Button variant="outline" size="sm" onClick={() => { refetchInbox(); qc.invalidateQueries({ queryKey: ["gmail-message"] }); }}>
             <RefreshCw className="h-4 w-4 mr-1" />Actualiser
           </Button>
+          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="h-4 w-4" /></Button>
           <Button size="sm" onClick={() => { setComposeReplyTo(undefined); setComposeOpen(true); }}>
             <Plus className="h-4 w-4 mr-1" />Nouveau
           </Button>

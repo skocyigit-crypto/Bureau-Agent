@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { ArrowLeft, Package, TrendingUp, TrendingDown, RefreshCw, Search, Filter, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { ArrowLeft, Package, TrendingUp, TrendingDown, RefreshCw, Search, Filter, ChevronLeft, ChevronRight, Download, Printer } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -93,6 +93,7 @@ export default function StockMouvementsPage() {
         <a href={`${(import.meta.env.BASE_URL || "/").replace(/\/$/, "")}/api/stock/mouvements/export/csv`} download="mouvements_stock.csv">
           <Button variant="outline" size="sm" className="gap-2"><Download className="w-4 h-4" />CSV</Button>
         </a>
+        <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
       </div>
 
       <Card>

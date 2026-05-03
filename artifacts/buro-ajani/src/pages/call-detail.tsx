@@ -3,7 +3,7 @@ import { useGetCall, getGetCallQueryKey, useUpdateCall, useGetContact, getGetCon
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Phone, Clock, Calendar, ArrowLeft, Building, User, Edit, PhoneIncoming, PhoneOutgoing, PhoneMissed, Voicemail, Check, Brain, Sparkles, Loader2, Send, Lightbulb } from "lucide-react";
+import { Phone, Clock, Calendar, ArrowLeft, Building, User, Edit, PhoneIncoming, PhoneOutgoing, PhoneMissed, Voicemail, Check, Brain, Sparkles, Loader2, Send, Lightbulb, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -222,6 +222,7 @@ export default function CallDetail() {
           Détails de l'appel
         </h1>
         <div className="flex gap-2">
+          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
           {call.status !== 'repondu' && (
             <Button variant="outline" onClick={() => handleStatusChange('repondu')}>
               Marquer répondu

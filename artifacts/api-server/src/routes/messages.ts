@@ -184,6 +184,34 @@ router.get("/messages/export/csv", async (req, res): Promise<void> => {
   }
 });
 
+router.post("/messages/:id/duplicate", async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw!, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  const orgId = getOrgId(req);
+  const userId = (req.session as any)?.userId;
+  try {
+    const [original] = await db.select().from(messagesTable).where(and(eq(messagesTable.id, id), eq(messagesTable.organisationId, orgId)));
+    if (!original) { res.status(404).json({ error: "Message non trouve." }); return; }
+    const [copy] = await db.insert(messagesTable).values({
+      organisationId: orgId,
+      contactId: original.contactId,
+      contactName: original.contactName,
+      phoneNumber: original.phoneNumber,
+      content: original.content,
+      type: original.type,
+      priority: original.priority,
+      isRead: false,
+      createdBy: userId,
+      updatedBy: userId,
+    }).returning();
+    res.status(201).json(copy);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur duplication message");
+    res.status(500).json({ error: "Erreur lors de la duplication." });
+  }
+});
+
 router.delete("/messages/:id", async (req, res): Promise<void> => {
   const params = DeleteMessageParams.safeParse(req.params);
   if (!params.success) {

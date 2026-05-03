@@ -3,7 +3,7 @@ import { useListCalls, useCreateCall, useUpdateCall, useDeleteCall, getListCalls
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Search, Filter, MoreHorizontal, Check, Clock, Voicemail, Plus, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CalendarIcon, Printer, Edit } from "lucide-react";
+import { Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Search, Filter, MoreHorizontal, Check, Clock, Voicemail, Plus, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CalendarIcon, Printer, Edit, Copy } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import callCenterImg from "@/assets/images/call-center.png";
 import { Button } from "@/components/ui/button";
@@ -149,23 +149,27 @@ export default function Calls() {
     }
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkStatus = async (status: string) => {
     if (selectedIds.size === 0) return;
     const ids = Array.from(selectedIds);
-    let successCount = 0;
-    let failCount = 0;
-    await Promise.all(ids.map(id => new Promise<void>((resolve) => {
-      deleteCall.mutate({ id }, {
-        onSuccess: () => { successCount++; resolve(); },
-        onError: () => { failCount++; resolve(); },
-      });
-    })));
+    const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+    const res = await fetch(`${BASE}/api/bulk/calls/status`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids, status }) });
+    if (res.ok) { toast({ title: `${ids.length} appel(s) mis à jour` }); queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() }); setSelectedIds(new Set()); }
+    else toast({ title: "Erreur", description: "Impossible de mettre à jour", variant: "destructive" });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Supprimer ${selectedIds.size} appel(s) ?`)) return;
+    const ids = Array.from(selectedIds);
+    const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+    const res = await fetch(`${BASE}/api/bulk/calls/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
     setSelectedIds(new Set());
     queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() });
-    if (failCount > 0) {
-      toast({ title: `${successCount} supprime(s), ${failCount} echoue(s)`, variant: "destructive" });
+    if (res.ok) {
+      toast({ title: `${ids.length} appel(s) supprime(s)` });
     } else {
-      toast({ title: `${successCount} appel(s) supprime(s)` });
+      toast({ title: "Erreur lors de la suppression", variant: "destructive" });
     }
   };
 
@@ -264,10 +268,28 @@ export default function Calls() {
         </div>
         <div className="flex items-center gap-2">
           {selectedIds.size > 0 && (
-            <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
-              <Trash2 className="w-4 h-4 mr-2" />
-              Supprimer ({selectedIds.size})
-            </Button>
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Check className="w-4 h-4 mr-2" />
+                    Statut ({selectedIds.size})
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Changer le statut</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => handleBulkStatus("repondu")}><Check className="w-3 h-3 mr-2 text-emerald-600" />Repondu</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleBulkStatus("manque")}><PhoneMissed className="w-3 h-3 mr-2 text-destructive" />Manque</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleBulkStatus("messagerie")}><Voicemail className="w-3 h-3 mr-2 text-amber-600" />Messagerie</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleBulkStatus("en_cours")}><Clock className="w-3 h-3 mr-2 text-blue-600" />En cours</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Supprimer ({selectedIds.size})
+              </Button>
+            </>
           )}
           <Button variant="outline" size="sm" onClick={exportCSV}>
             <Download className="w-4 h-4 mr-2" />
@@ -557,6 +579,14 @@ export default function Calls() {
                         <DropdownMenuSeparator />
                         {call.status !== 'repondu' && <DropdownMenuItem onClick={() => handleStatusChange(call.id, 'repondu')}>Marquer comme repondu</DropdownMenuItem>}
                         {call.status !== 'messagerie' && <DropdownMenuItem onClick={() => handleStatusChange(call.id, 'messagerie')}>Marquer comme messagerie</DropdownMenuItem>}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={async (e) => {
+                          e.stopPropagation();
+                          const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+                          const res = await fetch(`${base}/api/calls/${call.id}/duplicate`, { method: "POST", credentials: "include" });
+                          if (res.ok) { toast({ title: "Appel dupliqué" }); queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() }); }
+                          else toast({ title: "Erreur", variant: "destructive" });
+                        }}><Copy className="w-4 h-4 mr-2" />Dupliquer</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={async (e) => {
                           e.stopPropagation();

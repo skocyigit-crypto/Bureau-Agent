@@ -107,6 +107,10 @@ The application features a French UI with a deep navy and warm amber color schem
 - **Dashboard BC Widget:** CommercialSection now shows 5 KPI cards including "Commandes Fournisseurs" (confirmed count + pending amount + received count) fetched from `/api/commandes-fournisseur/stats`.
 - **Global Search Extended to 9 types:** Added `commandes` (Bons de Commande) to global search with violet icon, title from reference, subtitle with fournisseur name/status/amount.
 - **CRM Sidebar Extended:** 12 items now in "CRM & Commercial" group: Contacts, Tâches, Prospects, Devis, Factures, Stock, Rapport Commercial, Bons de Commande, Fiche Clients, Objectifs, Relances, Notes Internes.
+- **Print Buttons (43 pages):** All major pages have a print button (`window.print()`) in their headers. Excluded: login, invitation, register, onboarding, print-preview pages (devis-print, facture-print, bc-print), and document-import pages.
+- **Bulk Operations (11 pages):** Multi-select checkboxes + "Supprimer la sélection" bulk delete added to: tasks, contacts, messages, calls, prospects, devis, factures-client, commandes-fournisseur, stock, checkins, documents. API routes: `POST /bulk/{entity}/delete` (admin+) in `bulk-operations.ts`. Prospects page also supports bulk in list view (not kanban). All bulk deletes use batch API routes (not individual mutations). Tasks page also has "Bulk Terminer" (CheckCheck button → `/bulk/tasks/complete`). Contacts page has "Bulk Catégorie" dropdown (DropdownMenu → `/bulk/contacts/category`). Messages page has "Bulk Marquer lu" button → `/bulk/messages/read`. Added new bulk routes: `/bulk/calls/delete`, `/bulk/messages/delete` (total 17 bulk routes).
+- **Notifications Delete:** Individual delete button per notification + "Tout supprimer" button + print button added to notifications page. Backend: `DELETE /notifications/:id` + `POST /notifications/delete-all`.
+- **Edit Dialogs (15 pages):** Full inline edit dialogs for: tasks, notes-internes, messages, objectifs-commerciaux, automations, stock, prospects, checkins, contacts, calls, devis, factures-client, commandes-fournisseur, documents, users.
 
 # External Dependencies
 

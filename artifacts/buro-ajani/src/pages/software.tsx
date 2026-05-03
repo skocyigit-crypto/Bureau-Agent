@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Puzzle, Search, CheckCircle2, Settings2, Zap, RefreshCw, BarChart3, MessageSquare, Users, FolderOpen, Mail, CreditCard, Link2, Shield, Loader2, Sparkles, Brain, Radar, ChevronDown, ChevronUp, Target, TrendingUp, Globe, Cpu } from "lucide-react";
+import { Puzzle, Search, CheckCircle2, Settings2, Zap, RefreshCw, BarChart3, MessageSquare, Users, FolderOpen, Mail, CreditCard, Link2, Shield, Loader2, Sparkles, Brain, Radar, ChevronDown, ChevronUp, Target, TrendingUp, Globe, Cpu, Printer } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -210,6 +210,7 @@ export default function Software() {
           <Badge className="bg-emerald-100 text-emerald-700 text-sm px-3 py-1">
             {catalog?.totalAvailable ?? 0} logiciels disponibles
           </Badge>
+          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
         </div>
       </div>
 

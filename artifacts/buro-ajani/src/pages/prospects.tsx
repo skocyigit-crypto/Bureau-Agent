@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { TrendingUp, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, Filter, Target, Trophy, XCircle, DollarSign, RefreshCw, Kanban, LayoutList, ArrowUpDown, Download, UserPlus, Printer } from "lucide-react";
+import { TrendingUp, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, Filter, Target, Trophy, XCircle, DollarSign, RefreshCw, Kanban, LayoutList, ArrowUpDown, Download, UserPlus, Printer, Layers, Copy } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,6 +71,7 @@ export default function ProspectsPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -119,6 +121,12 @@ export default function ProspectsPage() {
     finally { setSaving(false); }
   };
 
+  const handleDuplicate = async (id: number) => {
+    const res = await fetch(`${BASE}/api/prospects/${id}/duplicate`, { method: "POST", credentials: "include" });
+    if (res.ok) { toast({ title: "Prospect dupliqué" }); load(); }
+    else toast({ title: "Erreur", description: "Impossible de dupliquer", variant: "destructive" });
+  };
+
   const handleDelete = async (id: number) => {
     if (!confirm("Supprimer ce prospect ?")) return;
     const res = await fetch(`${BASE}/api/prospects/${id}`, { method: "DELETE", credentials: "include" });
@@ -137,6 +145,23 @@ export default function ProspectsPage() {
   const handleStageChange = async (id: number, stage: string) => {
     const res = await fetch(`${BASE}/api/prospects/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ stage }) });
     if (res.ok) { load(); toast({ title: "Etape mise a jour" }); }
+  };
+
+  const toggleSelect = (id: number) => setSelectedIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+  const toggleAll = () => setSelectedIds(selectedIds.length === prospects.length ? [] : prospects.map(p => p.id));
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Supprimer ${selectedIds.length} prospect(s) ?`)) return;
+    const res = await fetch(`${BASE}/api/bulk/prospects/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds }) });
+    if (res.ok) { toast({ title: `${selectedIds.length} prospect(s) supprimé(s)` }); setSelectedIds([]); load(); }
+    else toast({ title: "Erreur", variant: "destructive" });
+  };
+
+  const handleBulkStage = async (stage: string) => {
+    if (selectedIds.length === 0) return;
+    const res = await fetch(`${BASE}/api/bulk/prospects/stage`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds, stage }) });
+    if (res.ok) { toast({ title: `${selectedIds.length} prospect(s) → ${stage}` }); setSelectedIds([]); load(); }
+    else toast({ title: "Erreur", variant: "destructive" });
   };
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -232,11 +257,38 @@ export default function ProspectsPage() {
           })}
         </div>
       ) : (
+        <>
+          {selectedIds.length > 0 && (
+            <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg flex-wrap">
+              <span className="text-sm font-medium text-blue-700 dark:text-blue-300">{selectedIds.length} prospect(s) sélectionné(s)</span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="outline" className="gap-1 h-7 text-xs"><Layers className="w-3 h-3" />Étape</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuLabel>Changer l'étape</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {STAGES.map(s => (
+                    <DropdownMenuItem key={s.key} onClick={() => handleBulkStage(s.key)} className="cursor-pointer">{s.label}</DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button size="sm" variant="destructive" className="gap-1 h-7 text-xs" onClick={handleBulkDelete}><Trash2 className="w-3 h-3" />Supprimer</Button>
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setSelectedIds([])}>Annuler</Button>
+            </div>
+          )}
         <Card>
           <div className="divide-y">
+            {prospects.length > 0 && (
+              <div className="flex items-center gap-3 px-4 py-2 border-b bg-muted/30">
+                <Checkbox checked={selectedIds.length === prospects.length && prospects.length > 0} onCheckedChange={toggleAll} />
+                <span className="text-xs text-muted-foreground">Tout sélectionner</span>
+              </div>
+            )}
             {prospects.length === 0 && <p className="text-center py-10 text-muted-foreground">Aucun prospect trouvé.</p>}
             {prospects.map(p => (
               <div key={p.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20">
+                <Checkbox checked={selectedIds.includes(p.id)} onCheckedChange={() => toggleSelect(p.id)} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{p.title}</p>
                   <p className="text-xs text-muted-foreground">{[p.company, p.contactName].filter(Boolean).join(" · ")}</p>
@@ -249,6 +301,7 @@ export default function ProspectsPage() {
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                     <DropdownMenuItem onClick={() => openEdit(p)}><Edit className="w-3 h-3 mr-2" />Modifier</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDuplicate(p.id)}><Copy className="w-3 h-3 mr-2" />Dupliquer</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleConvert(p.id)}><UserPlus className="w-3 h-3 mr-2" />Convertir en contact</DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(p.id)}><Trash2 className="w-3 h-3 mr-2" />Supprimer</DropdownMenuItem>
@@ -267,6 +320,7 @@ export default function ProspectsPage() {
             </div>
           )}
         </Card>
+        </>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

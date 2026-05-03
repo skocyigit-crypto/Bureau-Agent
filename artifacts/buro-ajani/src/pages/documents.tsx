@@ -4,15 +4,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { FileUpload } from "@/components/file-upload";
 import {
   FileText, FileSpreadsheet, Image as ImageIcon, File, Download,
   Trash2, Brain, Sparkles, Search, Filter, BarChart3, HardDrive,
-  Upload, Loader2, Eye, Printer,
+  Upload, Loader2, Eye, Printer, Edit,
 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -88,6 +91,10 @@ export default function DocumentsPage() {
   const [selectedDoc, setSelectedDoc] = useState<any>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [analyzingId, setAnalyzingId] = useState<number | null>(null);
+  const [editingDoc, setEditingDoc] = useState<Doc | null>(null);
+  const [editDocForm, setEditDocForm] = useState({ category: "", description: "", entityType: "" });
+  const [editDocSaving, setEditDocSaving] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   const loadDocuments = useCallback(async () => {
     setLoading(true);
@@ -152,6 +159,16 @@ export default function DocumentsPage() {
     }
   };
 
+  const toggleSelect = (id: number) => setSelectedIds(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+  const toggleAll = () => setSelectedIds(selectedIds.length === filtered.length ? [] : filtered.map((d: any) => d.id));
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Supprimer ${selectedIds.length} document(s) ?`)) return;
+    const res = await fetch(`${API}/api/bulk/documents/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds }) });
+    if (res.ok) { toast({ title: `${selectedIds.length} document(s) supprime(s)` }); setSelectedIds([]); loadDocuments(); }
+    else toast({ title: "Erreur", variant: "destructive" });
+  };
+
   const analyzeDoc = async (id: number) => {
     setAnalyzingId(id);
     try {
@@ -166,6 +183,37 @@ export default function DocumentsPage() {
       toast({ title: "Erreur d'analyse", variant: "destructive" });
     } finally {
       setAnalyzingId(null);
+    }
+  };
+
+  const openEditDoc = (doc: Doc) => {
+    setEditingDoc(doc);
+    setEditDocForm({ category: doc.category || "general", description: doc.description || "", entityType: doc.entityType || "" });
+  };
+
+  const handleUpdateDoc = async () => {
+    if (!editingDoc) return;
+    setEditDocSaving(true);
+    try {
+      const body: any = { category: editDocForm.category, description: editDocForm.description };
+      if (editDocForm.entityType) body.entityType = editDocForm.entityType;
+      const res = await fetch(`${API}/api/documents/${editingDoc.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        toast({ title: "Document mis a jour" });
+        setEditingDoc(null);
+        loadDocuments();
+      } else {
+        toast({ title: "Erreur de mise a jour", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", variant: "destructive" });
+    } finally {
+      setEditDocSaving(false);
     }
   };
 
@@ -192,7 +240,12 @@ export default function DocumentsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Documents</h1>
           <p className="text-muted-foreground">Gestion centralisee de tous vos fichiers</p>
         </div>
-        <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+        <div className="flex items-center gap-2">
+          <a href={`${API}/api/documents/export/csv`} download>
+            <Button variant="outline" size="icon" title="Exporter CSV"><Download className="w-4 h-4" /></Button>
+          </a>
+          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+        </div>
       </div>
 
       {stats && (
@@ -314,11 +367,25 @@ export default function DocumentsPage() {
             </Card>
           ) : (
             <div className="space-y-2">
+              {selectedIds.length > 0 && (
+                <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <span className="text-sm font-medium text-blue-700 dark:text-blue-300">{selectedIds.length} document(s) sélectionné(s)</span>
+                  <Button size="sm" variant="destructive" className="gap-1 h-7 text-xs" onClick={handleBulkDelete}><Trash2 className="w-3 h-3" />Supprimer la sélection</Button>
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setSelectedIds([])}>Annuler</Button>
+                </div>
+              )}
+              {filtered.length > 0 && (
+                <div className="flex items-center gap-3 px-4 py-2 bg-muted/30 rounded-lg border">
+                  <Checkbox checked={selectedIds.length === filtered.length && filtered.length > 0} onCheckedChange={toggleAll} />
+                  <span className="text-xs text-muted-foreground">Tout sélectionner ({filtered.length})</span>
+                </div>
+              )}
               {filtered.map(doc => {
                 const Icon = getFileIcon(doc.mimeType);
                 return (
                   <Card key={doc.id} className="hover:bg-accent/30 transition-colors">
                     <CardContent className="p-4 flex items-center gap-4">
+                      <Checkbox checked={selectedIds.includes(doc.id)} onCheckedChange={() => toggleSelect(doc.id)} />
                       <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center shrink-0">
                         <Icon className="w-6 h-6 text-muted-foreground" />
                       </div>
@@ -347,6 +414,9 @@ export default function DocumentsPage() {
                       <div className="flex items-center gap-1 shrink-0">
                         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => viewDetail(doc.id)}>
                           <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEditDoc(doc)}>
+                          <Edit className="w-4 h-4" />
                         </Button>
                         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => downloadDoc(doc.id, doc.fileName)}>
                           <Download className="w-4 h-4" />
@@ -445,6 +515,55 @@ export default function DocumentsPage() {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editingDoc} onOpenChange={(o) => { if (!o) setEditingDoc(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Modifier le document</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Categorie</Label>
+              <Select value={editDocForm.category} onValueChange={(v) => setEditDocForm(f => ({ ...f, category: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(CATEGORY_LABELS).map(([k, l]) => (
+                    <SelectItem key={k} value={k}>{l}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Module associe</Label>
+              <Select value={editDocForm.entityType || "none"} onValueChange={(v) => setEditDocForm(f => ({ ...f, entityType: v === "none" ? "" : v }))}>
+                <SelectTrigger><SelectValue placeholder="Aucun" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucun</SelectItem>
+                  {Object.entries(ENTITY_LABELS).map(([k, l]) => (
+                    <SelectItem key={k} value={k}>{l}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Textarea
+                value={editDocForm.description}
+                onChange={(e) => setEditDocForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="Description du document..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingDoc(null)}>Annuler</Button>
+            <Button onClick={handleUpdateDoc} disabled={editDocSaving}>
+              {editDocSaving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              Enregistrer
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

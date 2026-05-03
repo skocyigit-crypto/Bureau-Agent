@@ -241,6 +241,33 @@ router.patch("/checkins/:id", async (req, res): Promise<void> => {
   }
 });
 
+router.post("/checkins/:id/duplicate", async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw!, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  const orgId = getOrgId(req);
+  const userId = (req.session as any)?.userId;
+  try {
+    const [original] = await db.select().from(checkinsTable).where(and(eq(checkinsTable.id, id), eq(checkinsTable.organisationId, orgId)));
+    if (!original) { res.status(404).json({ error: "Pointage non trouve." }); return; }
+    const [copy] = await db.insert(checkinsTable).values({
+      organisationId: orgId,
+      employeeName: original.employeeName,
+      employeeRole: original.employeeRole,
+      type: original.type,
+      status: "en_cours",
+      location: original.location,
+      notes: original.notes,
+      createdBy: userId,
+      updatedBy: userId,
+    }).returning();
+    res.status(201).json(copy);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur duplication pointage");
+    res.status(500).json({ error: "Erreur lors de la duplication." });
+  }
+});
+
 router.delete("/checkins/:id", async (req, res): Promise<void> => {
   const params = DeleteCheckinParams.safeParse(req.params);
   if (!params.success) {

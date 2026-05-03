@@ -5,7 +5,7 @@ import {
   Package, Shield, Zap, Brain, Search, RefreshCw, Copy, Check, Send,
   Receipt, CreditCard, Upload, TrendingUp, Clock, FileText, ArrowUpDown,
   BarChart3, CircleDollarSign, AlertCircle, Scale, ShieldCheck, Lock, Eye, FileCheck, BookOpen,
-  TrendingDown, Pause, Play, Activity, DollarSign, UserPlus, Target, Percent,
+  TrendingDown, Pause, Play, Activity, DollarSign, UserPlus, Target, Percent, Printer,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -737,6 +737,7 @@ export default function OrganisationsPage() {
               <RefreshCw className="w-4 h-4 mr-2" />
               Actualiser
             </Button>
+            <Button variant="outline" size="icon" className="border-white/20 text-white hover:bg-white/10" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
             <Button className="bg-amber-500 hover:bg-amber-600 text-black" onClick={openCreate}>
               <Plus className="w-4 h-4 mr-2" />
               Nouvelle Organisation

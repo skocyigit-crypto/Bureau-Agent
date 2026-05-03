@@ -75,6 +75,8 @@ export default function UsersPage() {
   const [inviteRole, setInviteRole] = useState<string>("agent");
   const [invitations, setInvitations] = useState<any[]>([]);
   const [loadingInvites, setLoadingInvites] = useState(false);
+  const [showEditUser, setShowEditUser] = useState(false);
+  const [editUserForm, setEditUserForm] = useState({ prenom: "", nom: "", departement: "", telephone: "" });
 
   const loadUsers = useCallback(async () => {
     try {
@@ -263,6 +265,31 @@ export default function UsersPage() {
       }
     } catch {
       toast({ title: "Erreur", description: "Erreur lors de la modification.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEditUser = async () => {
+    if (!selectedUser) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`${BASE}api/auth/users/${selectedUser.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(editUserForm),
+      });
+      if (res.ok) {
+        toast({ title: "Utilisateur modifie", description: `${editUserForm.prenom} ${editUserForm.nom} mis a jour.` });
+        setShowEditUser(false);
+        loadUsers();
+      } else {
+        const data = await res.json();
+        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de modifier l'utilisateur.", variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -553,6 +580,14 @@ export default function UsersPage() {
                             <DropdownMenuContent align="end" className="w-48">
                               <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => {
                                 setSelectedUser(user);
+                                setEditUserForm({ prenom: user.prenom || "", nom: user.nom || "", departement: user.departement || "", telephone: "" });
+                                setShowEditUser(true);
+                              }}>
+                                <Edit className="w-4 h-4" />
+                                Modifier
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => {
+                                setSelectedUser(user);
                                 setEditRole(user.role);
                                 setShowRoleChange(true);
                               }}>
@@ -611,6 +646,14 @@ export default function UsersPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => {
+                            setSelectedUser(user);
+                            setEditUserForm({ prenom: user.prenom || "", nom: user.nom || "", departement: user.departement || "", telephone: "" });
+                            setShowEditUser(true);
+                          }}>
+                            <Edit className="w-4 h-4" />
+                            Modifier
+                          </DropdownMenuItem>
                           <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => {
                             setSelectedUser(user);
                             setEditRole(user.role);
@@ -845,6 +888,47 @@ export default function UsersPage() {
             <Button onClick={handleSendInvite} disabled={saving || !inviteEmail} className="gap-2 bg-amber-600 hover:bg-amber-700 text-white">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               Envoyer l'invitation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showEditUser} onOpenChange={setShowEditUser}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="w-5 h-5" />
+              Modifier l'utilisateur
+            </DialogTitle>
+            <DialogDescription>
+              {selectedUser && `${selectedUser.email}`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Prenom</Label>
+                <Input value={editUserForm.prenom} onChange={(e) => setEditUserForm(f => ({ ...f, prenom: e.target.value }))} />
+              </div>
+              <div>
+                <Label>Nom</Label>
+                <Input value={editUserForm.nom} onChange={(e) => setEditUserForm(f => ({ ...f, nom: e.target.value }))} />
+              </div>
+            </div>
+            <div>
+              <Label>Departement</Label>
+              <Input value={editUserForm.departement} onChange={(e) => setEditUserForm(f => ({ ...f, departement: e.target.value }))} placeholder="Ex: Commercial, Support..." />
+            </div>
+            <div>
+              <Label>Telephone</Label>
+              <Input value={editUserForm.telephone} onChange={(e) => setEditUserForm(f => ({ ...f, telephone: e.target.value }))} placeholder="+33 6 XX XX XX XX" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditUser(false)}>Annuler</Button>
+            <Button onClick={handleEditUser} disabled={saving}>
+              {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              Enregistrer
             </Button>
           </DialogFooter>
         </DialogContent>

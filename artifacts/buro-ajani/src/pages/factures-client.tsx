@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Receipt, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, RefreshCw, AlertTriangle, CheckCircle2, X, Mail, Printer, Download } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +61,7 @@ export default function FacturesClientPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [overdueOnly, setOverdueOnly] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [payTarget, setPayTarget] = useState<Facture | null>(null);
@@ -160,6 +162,22 @@ export default function FacturesClientPage() {
     if (res.ok) { toast({ title: "Facture supprimee" }); load(); }
   };
 
+  const toggleSelect = (id: number) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleAll = () => setSelectedIds(prev => prev.length === factures.length ? [] : factures.map(f => f.id));
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length || !confirm(`Supprimer ${selectedIds.length} facture(s) ?`)) return;
+    const res = await fetch(`${BASE}/api/bulk/factures/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds }) });
+    if (res.ok) { toast({ title: `${selectedIds.length} facture(s) supprimée(s)` }); setSelectedIds([]); load(); }
+    else toast({ title: "Erreur", variant: "destructive" });
+  };
+
+  const handleBulkStatus = async (status: string) => {
+    if (!selectedIds.length) return;
+    const res = await fetch(`${BASE}/api/bulk/factures/status`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds, status }) });
+    if (res.ok) { toast({ title: `${selectedIds.length} facture(s) mise(s) à jour` }); setSelectedIds([]); load(); }
+    else toast({ title: "Erreur", variant: "destructive" });
+  };
+
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
@@ -195,6 +213,24 @@ export default function FacturesClientPage() {
         <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
       </div>
 
+      {selectedIds.length > 0 && (
+        <div className="flex items-center gap-3 p-3 bg-muted/60 border rounded-lg flex-wrap">
+          <span className="text-sm font-medium">{selectedIds.length} sélectionné(s)</span>
+          <Select onValueChange={handleBulkStatus}>
+            <SelectTrigger className="h-7 text-xs w-44"><SelectValue placeholder="Changer statut" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="brouillon">Brouillon</SelectItem>
+              <SelectItem value="emise">Émise</SelectItem>
+              <SelectItem value="partiellement_payee">Part. payée</SelectItem>
+              <SelectItem value="payee">Payée</SelectItem>
+              <SelectItem value="annulee">Annulée</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button size="sm" variant="destructive" onClick={handleBulkDelete}><Trash2 className="w-3 h-3 mr-1" />Supprimer la sélection</Button>
+          <Button size="sm" variant="ghost" onClick={() => setSelectedIds([])}>Annuler</Button>
+        </div>
+      )}
+
       <Card>
         {loading ? (
           <div className="p-4 space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
@@ -202,6 +238,7 @@ export default function FacturesClientPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10"><Checkbox checked={factures.length > 0 && selectedIds.length === factures.length} onCheckedChange={toggleAll} /></TableHead>
                 <TableHead>Référence</TableHead>
                 <TableHead>Client</TableHead>
                 <TableHead className="text-right">Total TTC</TableHead>
@@ -212,11 +249,12 @@ export default function FacturesClientPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {factures.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">Aucune facture trouvée.</TableCell></TableRow>}
+              {factures.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-10 text-muted-foreground">Aucune facture trouvée.</TableCell></TableRow>}
               {factures.map(f => {
                 const sc = f.isOverdue && !["payee", "annulee"].includes(f.status) ? STATUS_CFG.en_retard : STATUS_CFG[f.status] || STATUS_CFG.emise;
                 return (
                   <TableRow key={f.id} className={`cursor-pointer hover:bg-muted/20 ${f.isOverdue && !["payee", "annulee"].includes(f.status) ? "bg-red-50/30 dark:bg-red-950/10" : ""}`} onClick={() => openEdit(f)}>
+                    <TableCell onClick={e => e.stopPropagation()}><Checkbox checked={selectedIds.includes(f.id)} onCheckedChange={() => toggleSelect(f.id)} /></TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">{f.reference}</TableCell>
                     <TableCell className="text-sm"><div className="font-medium">{f.clientName}</div>{f.clientCompany && <div className="text-xs text-muted-foreground">{f.clientCompany}</div>}</TableCell>
                     <TableCell className="text-right font-bold">{fmtEur(f.totalAmount)}</TableCell>

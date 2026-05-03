@@ -617,4 +617,39 @@ router.put("/documents/:id", requireMinAgent, async (req: Request, res: Response
   }
 });
 
+router.get("/documents/export/csv", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const docs = await db.select({
+      id: documentsTable.id,
+      fileName: documentsTable.fileName,
+      originalName: documentsTable.originalName,
+      mimeType: documentsTable.mimeType,
+      fileSize: documentsTable.fileSize,
+      category: documentsTable.category,
+      entityType: documentsTable.entityType,
+      status: documentsTable.status,
+      createdAt: documentsTable.createdAt,
+    }).from(documentsTable).where(eq(documentsTable.organisationId, orgId));
+
+    if (docs.length === 0) { res.set("Content-Type", "text/csv").send("id,fileName,originalName,mimeType,fileSize,category,entityType,status,createdAt\n"); return; }
+    const headers = ["id", "fileName", "originalName", "mimeType", "fileSize", "category", "entityType", "status", "createdAt"];
+    const csvRows = [
+      headers.join(","),
+      ...docs.map(d => headers.map(h => {
+        const val = (d as any)[h];
+        if (val === null || val === undefined) return "";
+        const str = String(val instanceof Date ? val.toISOString() : val);
+        return str.includes(",") || str.includes('"') || str.includes("\n") ? `"${str.replace(/"/g, '""')}"` : str;
+      }).join(","))
+    ];
+    res.set("Content-Type", "text/csv; charset=utf-8");
+    res.set("Content-Disposition", `attachment; filename="documents_${new Date().toISOString().slice(0,10)}.csv"`);
+    res.send(csvRows.join("\n"));
+  } catch (err: any) {
+    logger.error({ err }, "Documents export CSV error");
+    res.status(500).json({ error: "Erreur export" });
+  }
+});
+
 export default router;
