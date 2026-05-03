@@ -3,7 +3,8 @@ import {
   Users, UserPlus, Crown, ShieldCheck, Eye, Trash2, MoreHorizontal,
   Mail, Clock, CheckCircle2, XCircle, AlertTriangle, Search,
   Lock, Unlock, Edit, UserCog, Phone,
-  Loader2, ShieldAlert, RefreshCw, Send, LockKeyhole, MailPlus, RotateCcw, Ban, Download, Printer
+  Loader2, ShieldAlert, RefreshCw, Send, LockKeyhole, MailPlus, RotateCcw, Ban, Download, Printer,
+  CheckSquare, Square, X
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -77,6 +78,8 @@ export default function UsersPage() {
   const [loadingInvites, setLoadingInvites] = useState(false);
   const [showEditUser, setShowEditUser] = useState(false);
   const [editUserForm, setEditUserForm] = useState({ prenom: "", nom: "", departement: "", telephone: "" });
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const loadUsers = useCallback(async () => {
     try {
@@ -402,6 +405,42 @@ export default function UsersPage() {
     }
   };
 
+  const toggleSelectMode = () => { setSelectMode(v => !v); setSelectedIds(new Set()); };
+  const toggleId = (id: number) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleAll = () => {
+    const eligible = filteredUsers.filter(u => u.role !== "super_admin" && u.id !== workspaceUser?.id);
+    if (selectedIds.size === eligible.length) { setSelectedIds(new Set()); }
+    else { setSelectedIds(new Set(eligible.map(u => u.id))); }
+  };
+
+  const handleBulkDeactivate = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Desactiver ${selectedIds.size} utilisateur(s) ?`)) return;
+    const ids = Array.from(selectedIds);
+    const res = await fetch(`${BASE}api/auth/users/bulk/deactivate`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
+    if (res.ok) {
+      toast({ title: `${selectedIds.size} utilisateur(s) desactive(s)` });
+      setSelectedIds(new Set()); setSelectMode(false); loadUsers();
+    } else {
+      const d = await res.json();
+      toast({ title: "Erreur", description: d.error, variant: "destructive" });
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Supprimer ${selectedIds.size} utilisateur(s) ? Cette action est irreversible.`)) return;
+    const ids = Array.from(selectedIds);
+    const res = await fetch(`${BASE}api/auth/users/bulk/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
+    if (res.ok) {
+      toast({ title: `${selectedIds.size} utilisateur(s) supprime(s)` });
+      setSelectedIds(new Set()); setSelectMode(false); loadUsers();
+    } else {
+      const d = await res.json();
+      toast({ title: "Erreur", description: d.error, variant: "destructive" });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -409,7 +448,20 @@ export default function UsersPage() {
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={Users} variant="teal" size="md" /> Gestion des utilisateurs</h1>
           <p className="text-sm text-muted-foreground">Gerez votre equipe et les permissions d'acces.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {selectMode && selectedIds.size > 0 && (
+            <>
+              <Button size="sm" variant="outline" className="gap-1.5 text-amber-600 border-amber-300" onClick={handleBulkDeactivate}>
+                <Lock className="w-3.5 h-3.5" /> Désactiver ({selectedIds.size})
+              </Button>
+              <Button size="sm" variant="outline" className="gap-1.5 text-red-600 border-red-300" onClick={handleBulkDelete}>
+                <Trash2 className="w-3.5 h-3.5" /> Supprimer ({selectedIds.size})
+              </Button>
+            </>
+          )}
+          <Button variant={selectMode ? "default" : "outline"} size="sm" className="gap-2" onClick={toggleSelectMode}>
+            {selectMode ? <><X className="w-4 h-4" /> Annuler</> : <><CheckSquare className="w-4 h-4" /> Sélectionner</>}
+          </Button>
           <Button variant="outline" size="sm" className="gap-2" onClick={() => { setLoading(true); loadUsers(); }}>
             <RefreshCw className="w-4 h-4" />
             <span className="hidden sm:inline">Actualiser</span>
@@ -530,6 +582,15 @@ export default function UsersPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    {selectMode && (
+                      <TableHead className="w-10">
+                        <button onClick={toggleAll} className="flex items-center">
+                          {selectedIds.size === filteredUsers.filter(u => u.role !== "super_admin" && u.id !== workspaceUser?.id).length && selectedIds.size > 0
+                            ? <CheckSquare className="w-4 h-4 text-primary" />
+                            : <Square className="w-4 h-4 text-muted-foreground" />}
+                        </button>
+                      </TableHead>
+                    )}
                     <TableHead>Utilisateur</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Statut</TableHead>
@@ -542,8 +603,17 @@ export default function UsersPage() {
                   {filteredUsers.map((user) => {
                     const roleConf = ROLE_CONFIG[user.role];
                     const RoleIcon = roleConf.icon;
+                    const isSelectable = user.role !== "super_admin" && user.id !== workspaceUser?.id;
+                    const isSelected = selectedIds.has(user.id);
                     return (
-                      <TableRow key={user.id} className={!user.actif ? "opacity-50" : ""}>
+                      <TableRow key={user.id} className={`${!user.actif ? "opacity-50" : ""} ${selectMode && isSelected ? "bg-primary/5" : ""}`} onClick={selectMode && isSelectable ? () => toggleId(user.id) : undefined} style={selectMode && isSelectable ? { cursor: "pointer" } : undefined}>
+                        {selectMode && (
+                          <TableCell className="w-10">
+                            {isSelectable
+                              ? (isSelected ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4 text-muted-foreground" />)
+                              : <Square className="w-4 h-4 text-muted-foreground/30" />}
+                          </TableCell>
+                        )}
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-medium shrink-0">

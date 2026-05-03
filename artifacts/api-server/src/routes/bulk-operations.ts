@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { db, callsTable, contactsTable, tasksTable, messagesTable, prospectsTable, devisTable, facturesClientTable, commandesFournisseurTable, stockArticlesTable, checkinsTable, documentsTable } from "@workspace/db";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, prospectsTable, devisTable, facturesClientTable, commandesFournisseurTable, stockArticlesTable, checkinsTable, documentsTable, notesInternesTable, objectifsCommerciauxTable } from "@workspace/db";
 import { eq, sql, and, inArray } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
@@ -239,6 +239,34 @@ router.post("/bulk/prospects/stage", requireMinOperateur, async (req: Request, r
   }
 });
 
+router.post("/bulk/prospects/priority", requireMinOperateur, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const { ids, priority } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    if (!["basse", "moyenne", "haute"].includes(priority)) { res.status(400).json({ error: "Priorité invalide" }); return; }
+    await db.update(prospectsTable).set({ priority, updatedAt: new Date() }).where(and(eq(prospectsTable.organisationId, orgId), inArray(prospectsTable.id, ids)));
+    res.json({ success: true, updated: ids.length });
+  } catch (err: any) {
+    logger.error({ err }, "Bulk prospects priority error");
+    res.status(500).json({ error: "Erreur bulk priority" });
+  }
+});
+
+router.post("/bulk/prospects/assign", requireMinOperateur, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const { ids, assignedTo } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    if (!assignedTo || typeof assignedTo !== "string" || assignedTo.trim().length === 0) { res.status(400).json({ error: "assignedTo requis" }); return; }
+    await db.update(prospectsTable).set({ assignedTo: assignedTo.trim(), updatedAt: new Date() }).where(and(eq(prospectsTable.organisationId, orgId), inArray(prospectsTable.id, ids)));
+    res.json({ success: true, updated: ids.length });
+  } catch (err: any) {
+    logger.error({ err }, "Bulk prospects assign error");
+    res.status(500).json({ error: "Erreur bulk assign" });
+  }
+});
+
 router.get("/export/:entity", requireMinAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
@@ -414,6 +442,62 @@ router.post("/bulk/documents/delete", requireMinAdmin, async (req: Request, res:
   } catch (err: any) {
     logger.error({ err }, "Bulk delete documents error");
     res.status(500).json({ error: "Erreur suppression" });
+  }
+});
+
+router.post("/bulk/objectifs-commerciaux/delete", requireMinAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const { ids } = req.body as { ids: number[] };
+    if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    const result = await db.delete(objectifsCommerciauxTable).where(and(eq(objectifsCommerciauxTable.organisationId, orgId), inArray(objectifsCommerciauxTable.id, ids)));
+    res.json({ deleted: result.rowCount ?? ids.length });
+  } catch (err: any) {
+    logger.error({ err }, "Bulk delete objectifs error");
+    res.status(500).json({ error: "Erreur suppression" });
+  }
+});
+
+router.post("/bulk/objectifs-commerciaux/status", requireMinAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const { ids, status } = req.body as { ids: number[]; status: string };
+    if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    const validStatuses = ["actif", "termine", "archive"];
+    if (!validStatuses.includes(status)) { res.status(400).json({ error: "Statut invalide" }); return; }
+    await db.update(objectifsCommerciauxTable).set({ status }).where(and(eq(objectifsCommerciauxTable.organisationId, orgId), inArray(objectifsCommerciauxTable.id, ids)));
+    res.json({ success: true, updated: ids.length });
+  } catch (err: any) {
+    logger.error({ err }, "Bulk status objectifs error");
+    res.status(500).json({ error: "Erreur" });
+  }
+});
+
+router.post("/bulk/notes-internes/delete", requireMinOperateur, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const { ids } = req.body as { ids: number[] };
+    if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    const result = await db.delete(notesInternesTable).where(and(eq(notesInternesTable.organisationId, orgId), inArray(notesInternesTable.id, ids)));
+    res.json({ deleted: result.rowCount ?? ids.length });
+  } catch (err: any) {
+    logger.error({ err }, "Bulk delete notes-internes error");
+    res.status(500).json({ error: "Erreur suppression" });
+  }
+});
+
+router.post("/bulk/notes-internes/color", requireMinOperateur, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const { ids, color } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    const validColors = ["default", "yellow", "blue", "green", "pink", "violet", "orange"];
+    if (!validColors.includes(color)) { res.status(400).json({ error: "Couleur invalide" }); return; }
+    await db.update(notesInternesTable).set({ color }).where(and(eq(notesInternesTable.organisationId, orgId), inArray(notesInternesTable.id, ids)));
+    res.json({ success: true, updated: ids.length });
+  } catch (err: any) {
+    logger.error({ err }, "Bulk color notes-internes error");
+    res.status(500).json({ error: "Erreur" });
   }
 });
 

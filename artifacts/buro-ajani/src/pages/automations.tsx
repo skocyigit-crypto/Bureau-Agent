@@ -4,6 +4,7 @@ import {
   Zap, PlayCircle, PauseCircle, Clock, CheckCircle, AlertTriangle, Activity,
   BarChart3, RefreshCw, Settings2, Bot, CalendarClock, Mail, Phone, Users,
   FileText, TrendingUp, Loader2, Plus, Trash2, Bell, MessageSquare, ClipboardList, Copy, Pencil, Download, Printer,
+  CheckSquare, Square, X,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -423,6 +424,8 @@ export default function AutomationsPage() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [editingRule, setEditingRule] = useState<any>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   async function fetchData() {
     setLoading(true);
@@ -480,6 +483,28 @@ export default function AutomationsPage() {
   }
 
   useEffect(() => { fetchData(); }, []);
+
+  const toggleSelectMode = () => { setSelectMode(v => !v); setSelectedIds(new Set()); };
+  const toggleId = (id: number) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleAll = (ids: number[]) => {
+    if (selectedIds.size === ids.length && ids.length > 0) setSelectedIds(new Set());
+    else setSelectedIds(new Set(ids));
+  };
+  const handleBulkDelete = async (customRules: any[]) => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Supprimer ${selectedIds.size} automatisation(s) ?`)) return;
+    const ids = Array.from(selectedIds);
+    const res = await fetch(`${baseUrl}/api/automations/bulk/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
+    if (res.ok) { toast({ title: `${selectedIds.size} automatisation(s) supprimee(s)` }); setSelectedIds(new Set()); setSelectMode(false); fetchData(); }
+    else { const d = await res.json(); toast({ title: "Erreur", description: d.error, variant: "destructive" }); }
+  };
+  const handleBulkToggle = async (enabled: boolean) => {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    const res = await fetch(`${baseUrl}/api/automations/bulk/toggle`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids, enabled }) });
+    if (res.ok) { toast({ title: enabled ? "Regles activees" : "Regles suspendues" }); setSelectedIds(new Set()); setSelectMode(false); fetchData(); }
+    else { const d = await res.json(); toast({ title: "Erreur", description: d.error, variant: "destructive" }); }
+  };
 
   function timeAgo(date: string | null): string {
     if (!date) return "Jamais";
@@ -636,6 +661,26 @@ export default function AutomationsPage() {
             <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
               <Settings2 className="w-4 h-4" /> Regles personnalisees ({customRules.length})
             </h3>
+            {customRules.length > 0 && (
+              <div className="flex items-center gap-2">
+                {selectMode && selectedIds.size > 0 && (
+                  <>
+                    <Button size="sm" variant="outline" className="gap-1.5 text-green-600 border-green-300 h-7 text-xs" onClick={() => handleBulkToggle(true)}>
+                      <PlayCircle className="w-3 h-3" /> Activer ({selectedIds.size})
+                    </Button>
+                    <Button size="sm" variant="outline" className="gap-1.5 text-amber-600 border-amber-300 h-7 text-xs" onClick={() => handleBulkToggle(false)}>
+                      <PauseCircle className="w-3 h-3" /> Suspendre ({selectedIds.size})
+                    </Button>
+                    <Button size="sm" variant="outline" className="gap-1.5 text-red-600 border-red-300 h-7 text-xs" onClick={() => handleBulkDelete(customRules)}>
+                      <Trash2 className="w-3 h-3" /> Supprimer ({selectedIds.size})
+                    </Button>
+                  </>
+                )}
+                <Button size="sm" variant={selectMode ? "default" : "outline"} className="h-7 text-xs gap-1.5" onClick={toggleSelectMode}>
+                  {selectMode ? <><X className="w-3 h-3" /> Annuler</> : <><CheckSquare className="w-3 h-3" /> Sélectionner</>}
+                </Button>
+              </div>
+            )}
           </div>
 
           {customRules.length === 0 ? (
@@ -648,10 +693,26 @@ export default function AutomationsPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <>
+              {selectMode && (
+                <div className="flex items-center gap-2 pb-1">
+                  <button onClick={() => toggleAll(customRules.map(r => r.id))} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground">
+                    {selectedIds.size === customRules.length && customRules.length > 0
+                      ? <CheckSquare className="w-4 h-4 text-primary" />
+                      : <Square className="w-4 h-4" />}
+                    {selectedIds.size === customRules.length && customRules.length > 0 ? "Tout désélectionner" : "Tout sélectionner"}
+                  </button>
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {customRules.map(rule => (
-                <Card key={rule.id} className="hover:shadow-md transition-shadow">
+                <Card key={rule.id} className={`hover:shadow-md transition-shadow ${selectMode && selectedIds.has(rule.id) ? "ring-2 ring-primary" : ""}`} onClick={selectMode ? () => toggleId(rule.id) : undefined} style={selectMode ? { cursor: "pointer" } : undefined}>
                   <CardContent className="pt-5 pb-4">
+                    {selectMode && (
+                      <div className="flex justify-end mb-2">
+                        {selectedIds.has(rule.id) ? <CheckSquare className="w-4 h-4 text-primary" /> : <Square className="w-4 h-4 text-muted-foreground" />}
+                      </div>
+                    )}
                     <div className="flex items-start gap-3">
                       <div className={`p-2.5 rounded-xl ${rule.enabled ? "bg-amber-500/10 text-amber-500" : "bg-gray-500/10 text-gray-500"}`}>
                         <Zap className="w-5 h-5" />
@@ -679,28 +740,31 @@ export default function AutomationsPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 mt-3 pt-3 border-t">
-                      <Button size="sm" variant="outline" className="h-7 text-xs flex-1" onClick={() => toggleRule(rule.id, rule.enabled)}>
-                        {rule.enabled ? <PauseCircle className="w-3 h-3 mr-1" /> : <PlayCircle className="w-3 h-3 mr-1" />}
-                        {rule.enabled ? "Suspendre" : "Activer"}
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" title="Modifier" onClick={() => setEditingRule(rule)}>
-                        <Pencil className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" title="Dupliquer" onClick={async () => {
-                        const res = await fetch(`${baseUrl}/api/automations/${rule.id}/duplicate`, { method: "POST", credentials: "include" });
-                        if (res.ok) { toast({ title: "Automation dupliquée" }); fetchData(); }
-                      }}>
-                        <Copy className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10" onClick={() => deleteRule(rule.id, rule.name)}>
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
+                    {!selectMode && (
+                      <div className="flex items-center gap-1.5 mt-3 pt-3 border-t">
+                        <Button size="sm" variant="outline" className="h-7 text-xs flex-1" onClick={() => toggleRule(rule.id, rule.enabled)}>
+                          {rule.enabled ? <PauseCircle className="w-3 h-3 mr-1" /> : <PlayCircle className="w-3 h-3 mr-1" />}
+                          {rule.enabled ? "Suspendre" : "Activer"}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" title="Modifier" onClick={() => setEditingRule(rule)}>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" title="Dupliquer" onClick={async () => {
+                          const res = await fetch(`${baseUrl}/api/automations/${rule.id}/duplicate`, { method: "POST", credentials: "include" });
+                          if (res.ok) { toast({ title: "Automation dupliquée" }); fetchData(); }
+                        }}>
+                          <Copy className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10" onClick={() => deleteRule(rule.id, rule.name)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
-            </div>
+              </div>
+            </>
           )}
         </TabsContent>
 

@@ -164,6 +164,23 @@ export default function ProspectsPage() {
     else toast({ title: "Erreur", variant: "destructive" });
   };
 
+  const handleBulkPriority = async (priority: string) => {
+    if (selectedIds.length === 0) return;
+    const res = await fetch(`${BASE}/api/bulk/prospects/priority`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds, priority }) });
+    if (res.ok) { toast({ title: `${selectedIds.length} prospect(s) mis à jour` }); setSelectedIds([]); load(); }
+    else toast({ title: "Erreur", variant: "destructive" });
+  };
+
+  const [showAssignInput, setShowAssignInput] = useState(false);
+  const [bulkAssignName, setBulkAssignName] = useState("");
+
+  const handleBulkAssign = async () => {
+    if (!bulkAssignName.trim() || selectedIds.length === 0) return;
+    const res = await fetch(`${BASE}/api/bulk/prospects/assign`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds, assignedTo: bulkAssignName.trim() }) });
+    if (res.ok) { toast({ title: `${selectedIds.length} prospect(s) assigné(s) à ${bulkAssignName.trim()}` }); setSelectedIds([]); setBulkAssignName(""); setShowAssignInput(false); load(); }
+    else toast({ title: "Erreur", variant: "destructive" });
+  };
+
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
@@ -259,7 +276,7 @@ export default function ProspectsPage() {
       ) : (
         <>
           {selectedIds.length > 0 && (
-            <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg flex-wrap">
+            <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg flex-wrap">
               <span className="text-sm font-medium text-blue-700 dark:text-blue-300">{selectedIds.length} prospect(s) sélectionné(s)</span>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -273,8 +290,36 @@ export default function ProspectsPage() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="outline" className="gap-1 h-7 text-xs"><ArrowUpDown className="w-3 h-3" />Priorité</Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuLabel>Changer la priorité</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {PRIORITIES.map(p => (
+                    <DropdownMenuItem key={p.key} onClick={() => handleBulkPriority(p.key)} className="cursor-pointer">{p.label}</DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {showAssignInput ? (
+                <div className="flex items-center gap-1">
+                  <Input
+                    value={bulkAssignName}
+                    onChange={e => setBulkAssignName(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") handleBulkAssign(); if (e.key === "Escape") { setShowAssignInput(false); setBulkAssignName(""); } }}
+                    placeholder="Nom de l'assigné..."
+                    className="h-7 text-xs w-36"
+                    autoFocus
+                  />
+                  <Button size="sm" className="h-7 text-xs px-2" onClick={handleBulkAssign} disabled={!bulkAssignName.trim()}>OK</Button>
+                  <Button size="sm" variant="ghost" className="h-7 text-xs px-2" onClick={() => { setShowAssignInput(false); setBulkAssignName(""); }}>✕</Button>
+                </div>
+              ) : (
+                <Button size="sm" variant="outline" className="gap-1 h-7 text-xs" onClick={() => setShowAssignInput(true)}><UserPlus className="w-3 h-3" />Assigner</Button>
+              )}
               <Button size="sm" variant="destructive" className="gap-1 h-7 text-xs" onClick={handleBulkDelete}><Trash2 className="w-3 h-3" />Supprimer</Button>
-              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setSelectedIds([])}>Annuler</Button>
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setSelectedIds([]); setShowAssignInput(false); setBulkAssignName(""); }}>Annuler</Button>
             </div>
           )}
         <Card>

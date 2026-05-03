@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { auditLogsTable } from "@workspace/db/schema";
-import { desc, eq, gte, lte, and, sql } from "drizzle-orm";
+import { desc, eq, gte, lte, and, sql, ilike } from "drizzle-orm";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -29,7 +29,7 @@ router.get("/audit/logs", async (req: Request, res: Response): Promise<void> => 
   const page = safeInt(req.query.page, 1, 1, 10000);
   const limit = safeInt(req.query.limit, 50, 1, 200);
   const offset = (page - 1) * limit;
-  const { action, resource, userId, from, to } = req.query;
+  const { action, resource, userId, from, to, userEmail } = req.query;
 
   let conditions: any[] = [];
   if (action && typeof action === "string") conditions.push(eq(auditLogsTable.action, action));
@@ -37,6 +37,9 @@ router.get("/audit/logs", async (req: Request, res: Response): Promise<void> => 
   if (userId) {
     const uid = safeInt(userId, 0, 1, 999999);
     if (uid > 0) conditions.push(eq(auditLogsTable.userId, uid));
+  }
+  if (userEmail && typeof userEmail === "string" && userEmail.trim()) {
+    conditions.push(ilike(auditLogsTable.userEmail, `%${userEmail.trim()}%`));
   }
   if (from && typeof from === "string") {
     const d = new Date(from);
@@ -111,11 +114,27 @@ router.get("/audit/stats", async (req: Request, res: Response): Promise<void> =>
 });
 
 router.get("/audit/export/csv", async (req: Request, res: Response): Promise<void> => {
-  const orgId = (req as any).session?.organisationId;
+  if (!requireAdmin(req, res)) return;
   try {
+    const { action, resource, from, to, userEmail } = req.query;
+    const conditions: any[] = [];
+    if (action && typeof action === "string") conditions.push(eq(auditLogsTable.action, action));
+    if (resource && typeof resource === "string") conditions.push(eq(auditLogsTable.resource, resource));
+    if (userEmail && typeof userEmail === "string" && userEmail.trim()) {
+      conditions.push(ilike(auditLogsTable.userEmail, `%${userEmail.trim()}%`));
+    }
+    if (from && typeof from === "string") {
+      const d = new Date(from);
+      if (!isNaN(d.getTime())) conditions.push(gte(auditLogsTable.createdAt, d));
+    }
+    if (to && typeof to === "string") {
+      const d = new Date(to);
+      if (!isNaN(d.getTime())) conditions.push(lte(auditLogsTable.createdAt, d));
+    }
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
     const rows = await db.select().from(auditLogsTable)
-      .where(orgId ? eq(auditLogsTable.userId, orgId) : undefined as any)
-      .orderBy(desc(auditLogsTable.createdAt)).limit(5000);
+      .where(whereClause)
+      .orderBy(desc(auditLogsTable.createdAt)).limit(10000);
     const escape = (v: any) => { if (v == null) return ""; const s = String(v).replace(/"/g, '""'); return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s; };
     const headers = ["Date", "Utilisateur", "Action", "Ressource", "ID Ressource", "IP"];
     const lines = [headers.join(","), ...rows.map(r => [

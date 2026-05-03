@@ -5,7 +5,7 @@ import {
   automationLogsTable,
   notificationsTable,
 } from "@workspace/db/schema";
-import { eq, desc, and, sql, gte } from "drizzle-orm";
+import { eq, desc, and, sql, gte, inArray } from "drizzle-orm";
 import { logAudit } from "./audit";
 
 const router = Router();
@@ -276,6 +276,39 @@ router.delete("/automations/:id", async (req: Request, res: Response): Promise<v
   } catch (err: any) {
     req.log.error({ err }, "Erreur suppression automation");
     res.status(500).json({ error: "Erreur lors de la suppression de l'automation." });
+  }
+});
+
+router.post("/automations/bulk/delete", async (req: Request, res: Response): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  const userRole = (req.session as any)?.userRole;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces refuse." }); return; }
+  const { ids } = req.body as { ids: number[] };
+  if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+  try {
+    await db.delete(automationRulesTable).where(inArray(automationRulesTable.id, ids));
+    res.json({ success: true, deleted: ids.length });
+  } catch (err: any) {
+    req.log.error({ err }, "Bulk delete automations error");
+    res.status(500).json({ error: "Erreur suppression" });
+  }
+});
+
+router.post("/automations/bulk/toggle", async (req: Request, res: Response): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  const userRole = (req.session as any)?.userRole;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces refuse." }); return; }
+  const { ids, enabled } = req.body as { ids: number[]; enabled: boolean };
+  if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+  if (typeof enabled !== "boolean") { res.status(400).json({ error: "enabled requis (boolean)" }); return; }
+  try {
+    await db.update(automationRulesTable).set({ enabled }).where(inArray(automationRulesTable.id, ids));
+    res.json({ success: true, updated: ids.length });
+  } catch (err: any) {
+    req.log.error({ err }, "Bulk toggle automations error");
+    res.status(500).json({ error: "Erreur mise a jour" });
   }
 });
 

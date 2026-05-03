@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import rateLimit from "express-rate-limit";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray, ne } from "drizzle-orm";
 import { db, usersTable, organisationsTable } from "@workspace/db";
 import { logAudit } from "./audit";
 import { sendCredentialsEmail, sendEmail } from "../services/email";
@@ -568,6 +568,46 @@ router.post("/auth/users/create-and-send", async (req: Request, res: Response): 
   } catch (err: any) {
     req.log.error({ err }, "Erreur creation et envoi utilisateur");
     res.status(500).json({ error: "Erreur lors de la creation de l'utilisateur." });
+  }
+});
+
+router.post("/auth/users/bulk/deactivate", async (req: Request, res: Response): Promise<void> => {
+  const userRole = (req.session as any)?.userRole;
+  const organisationId = (req.session as any)?.organisationId;
+  const sessionUserId = (req.session as any)?.userId;
+  if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces interdit." }); return; }
+  const { ids } = req.body as { ids: number[] };
+  if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+  const safeIds = ids.filter(id => id !== sessionUserId);
+  if (safeIds.length === 0) { res.status(400).json({ error: "Impossible de desactiver votre propre compte." }); return; }
+  try {
+    const conditions = [inArray(usersTable.id, safeIds), ne(usersTable.role, "super_admin")];
+    if (organisationId) conditions.push(eq(usersTable.organisationId, organisationId));
+    await db.update(usersTable).set({ actif: false }).where(and(...conditions));
+    res.json({ success: true, updated: safeIds.length });
+  } catch (err: any) {
+    logger.error({ err }, "Bulk deactivate users error");
+    res.status(500).json({ error: "Erreur lors de la desactivation." });
+  }
+});
+
+router.post("/auth/users/bulk/delete", async (req: Request, res: Response): Promise<void> => {
+  const userRole = (req.session as any)?.userRole;
+  const organisationId = (req.session as any)?.organisationId;
+  const sessionUserId = (req.session as any)?.userId;
+  if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces interdit." }); return; }
+  const { ids } = req.body as { ids: number[] };
+  if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+  const safeIds = ids.filter(id => id !== sessionUserId);
+  if (safeIds.length === 0) { res.status(400).json({ error: "Impossible de supprimer votre propre compte." }); return; }
+  try {
+    const conditions = [inArray(usersTable.id, safeIds), ne(usersTable.role, "super_admin")];
+    if (organisationId) conditions.push(eq(usersTable.organisationId, organisationId));
+    const result = await db.delete(usersTable).where(and(...conditions));
+    res.json({ deleted: result.rowCount ?? safeIds.length });
+  } catch (err: any) {
+    logger.error({ err }, "Bulk delete users error");
+    res.status(500).json({ error: "Erreur lors de la suppression." });
   }
 });
 
