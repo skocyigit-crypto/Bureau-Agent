@@ -1302,4 +1302,165 @@ router.get("/commandant/contact-health/:contactId", async (req: Request, res: Re
   }
 });
 
+// ═══════════════════════════════════════════════════════
+// GMAIL AJAN — OTOMATIK TRİAJ
+// ═══════════════════════════════════════════════════════
+router.post("/commandant/gmail-triage", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const { emails } = req.body;
+
+    if (!Array.isArray(emails) || emails.length === 0) {
+      res.status(400).json({ error: "Liste d'emails requise" }); return;
+    }
+
+    const [org, agentInsights] = await Promise.all([
+      db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId)),
+      getLatestAgentInsights(orgId, ["agent_contacts", "agent_facturation", "agent_messages", "agent_taches"]),
+    ]);
+
+    const collabPrompt = buildCommandantContextPrompt(agentInsights, {});
+
+    const systemPrompt = `Tu es un assistant IA expert en gestion de messagerie pour "${org[0]?.name || "Agent de Bureau"}". Tu analyses les emails et fournis un triage intelligent et actionnable. Tu connais le contexte metier grace aux rapports des agents IA specialises.
+
+${collabPrompt}
+
+Ta mission: trier, prioriser et identifier les actions a realiser pour chaque email. Sois concis et actionnable.`;
+
+    const emailList = emails.slice(0, 30).map((e: any, i: number) =>
+      `[${i + 1}] ID:${e.id || i} | De: ${e.from} | Objet: ${e.subject} | Date: ${e.date} | Non-lu: ${e.unread ? "Oui" : "Non"} | Extrait: ${(e.snippet || "").slice(0, 200)}`
+    ).join("\n");
+
+    const prompt = `Analyse et trie ces ${emails.length} emails:
+
+${emailList}
+
+Reponds UNIQUEMENT en JSON valide:
+{
+  "triage": [
+    {
+      "emailId": "id",
+      "priority": "critique|haute|normale|basse",
+      "category": "commercial|client|finance|administratif|spam|information|urgence",
+      "needsReply": true,
+      "replyDeadline": "maintenant|aujourd_hui|cette_semaine|aucune",
+      "summary": "Resume en 1 phrase courte",
+      "suggestedAction": "Action concrete a realiser",
+      "sentiment": "positif|neutre|negatif|urgent",
+      "tags": ["tag1"]
+    }
+  ],
+  "overview": {
+    "criticalCount": 0,
+    "needsReplyCount": 0,
+    "commercialOpportunities": 0,
+    "financialItems": 0
+  },
+  "priorityActions": ["Action 1", "Action 2"],
+  "executiveSummary": "Resume executif en 2-3 phrases"
+}`;
+
+    const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
+    let parsed: any;
+    try {
+      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+      parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { executiveSummary: aiResponse, triage: [], overview: {}, priorityActions: [] };
+    } catch {
+      parsed = { executiveSummary: aiResponse, triage: [], overview: {}, priorityActions: [] };
+    }
+
+    res.json({ success: true, triage: parsed });
+  } catch (err: any) {
+    handleCommandantError(err, res, "[Commandant/GmailTriage]");
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// GMAIL AJAN — AKILLI YANIT TASLAGI
+// ═══════════════════════════════════════════════════════
+router.post("/commandant/gmail-draft-reply", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const { from, subject, bodyHtml, bodyPlain, snippet, tone = "professionnel", instructions } = req.body;
+
+    if (!from || !subject) {
+      res.status(400).json({ error: "from et subject requis" }); return;
+    }
+
+    const senderEmail = from.match(/<(.+?)>/)?.[1] || from;
+
+    const [collabContext, agentInsights, org] = await Promise.all([
+      getContextForContact(orgId, undefined, undefined, senderEmail),
+      getLatestAgentInsights(orgId, ["agent_contacts", "agent_facturation", "agent_messages", "agent_taches"]),
+      db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId)),
+    ]);
+
+    const collabPrompt = buildCommandantContextPrompt(agentInsights, collabContext);
+
+    let contactInfo = "";
+    if (collabContext.contact) {
+      const c = collabContext.contact;
+      contactInfo = `\nCONTACT CRM IDENTIFIE: ${c.firstName} ${c.lastName} | Entreprise: ${c.company || "N/A"} | ${c.totalCalls || 0} appels passes`;
+      if (collabContext.contactActivity?.openTasks?.length > 0) {
+        contactInfo += `\nTaches en cours: ${collabContext.contactActivity.openTasks.slice(0, 3).map((t: any) => t.title).join(", ")}`;
+      }
+      if (collabContext.contactActivity?.overdueInvoices?.length > 0) {
+        contactInfo += `\n⚠ FACTURES IMPAYEES: ${collabContext.contactActivity.overdueInvoices.map((i: any) => `${i.reference} ${i.amount}€`).join(", ")}`;
+      }
+    }
+
+    const systemPrompt = `Tu es l'assistant email IA de "${org[0]?.name || "Agent de Bureau"}". Tu rediges des reponses email professionnelles, precises et efficaces. Tu utilises le contexte CRM et les rapports des agents pour personnaliser chaque reponse.
+
+Regles:
+- Redige en francais sauf si l'email original est dans une autre langue
+- Adapte le ton selon la demande
+- Sois concis et actionnable
+- Signe toujours au nom de l'entreprise
+
+${collabPrompt}`;
+
+    const emailContent = bodyPlain || snippet || "(Contenu non disponible)";
+    const prompt = `Redige une reponse professionnelle a cet email:
+
+De: ${from}
+Objet: ${subject}
+Contenu: ${emailContent.slice(0, 4000)}
+${contactInfo}
+
+Ton souhaite: ${tone}
+${instructions ? `Instructions specifiques: ${instructions}` : ""}
+
+Reponds UNIQUEMENT en JSON valide:
+{
+  "replySubject": "Re: ${subject}",
+  "replyBodyHtml": "<p>Corps HTML de la reponse...</p>",
+  "replyBodyPlain": "Corps en texte brut...",
+  "tone": "ton utilise",
+  "detectedIntent": "intention de l'email (demande_info|plainte|commande|suivi|rdv|devis|remerciement|commercial)",
+  "urgency": "basse|moyenne|haute",
+  "suggestedActions": ["action post-envoi 1", "action post-envoi 2"],
+  "alternativeReplies": [
+    {"label": "Version plus formelle", "bodyHtml": "<p>...</p>"},
+    {"label": "Version plus courte", "bodyHtml": "<p>...</p>"}
+  ],
+  "extractedData": {"dates": [], "amounts": [], "names": []},
+  "crmSuggestion": {"suggestContact": false, "suggestTask": false, "taskDescription": ""}
+}`;
+
+    const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
+    let parsed: any;
+    try {
+      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+      parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { replyBodyHtml: aiResponse, replySubject: `Re: ${subject}` };
+    } catch {
+      parsed = { replyBodyHtml: aiResponse, replySubject: `Re: ${subject}` };
+    }
+
+    res.json({ success: true, draft: parsed, contactFound: !!collabContext.contact });
+  } catch (err: any) {
+    handleCommandantError(err, res, "[Commandant/GmailDraftReply]");
+  }
+});
+
 export default router;
+

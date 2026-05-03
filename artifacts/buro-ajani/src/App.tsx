@@ -38,6 +38,7 @@ import PerformancePage from "@/pages/performance";
 import OrganisationsPage from "@/pages/organisations";
 import NotificationsPage from "@/pages/notifications";
 import GoogleWorkspacePage from "@/pages/google-workspace";
+import GmailAgentPage from "@/pages/gmail-agent";
 import DocumentAiPage from "@/pages/document-ai";
 import DocumentsPage from "@/pages/documents";
 import DocumentImportPage from "@/pages/document-import";
@@ -132,6 +133,7 @@ function AppRoutes() {
         <Route path="/automatisations" component={withLicenseGate(AutomationsPage)} />
         <Route path="/performance" component={withLicenseGate(PerformancePage)} />
         <Route path="/google-workspace" component={withLicenseGate(GoogleWorkspacePage)} />
+        <Route path="/gmail-agent" component={withLicenseGate(GmailAgentPage)} />
         <Route path="/document-ia" component={withLicenseGate(DocumentAiPage)} />
         <Route path="/documents" component={withLicenseGate(DocumentsPage)} />
         <Route path="/import" component={withLicenseGate(DocumentImportPage)} />

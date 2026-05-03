@@ -48,6 +48,7 @@ import invitationsRouter from "./invitations";
 import documentsRouter from "./documents";
 import aiUsageRouter from "./ai-usage";
 import meetingsRouter from "./meetings";
+import gmailRouter from "./gmail";
 
 const router: IRouter = Router();
 
@@ -106,5 +107,6 @@ router.use(voiceCommandRouter);
 router.use(invitationsRouter);
 router.use(documentsRouter);
 router.use(meetingsRouter);
+router.use(gmailRouter);
 
 export default router;

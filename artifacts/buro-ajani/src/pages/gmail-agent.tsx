@@ -1,0 +1,863 @@
+import { useState, useCallback, useRef, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { format, parseISO, isToday, isYesterday, formatDistanceToNow } from "date-fns";
+import { fr } from "date-fns/locale";
+import {
+  Mail, Send, Reply, Archive, Trash2, Star, StarOff, RefreshCw, Search,
+  Brain, Sparkles, Loader2, ChevronRight, ChevronLeft, X, AlertTriangle,
+  CheckCircle2, Clock, Zap, Eye, Edit3, Copy, ExternalLink, Inbox,
+  Filter, MoreHorizontal, Paperclip, Tag, ArrowLeft, Plus, RotateCcw,
+  AlertCircle, TrendingUp, ShoppingCart, FileText, Info, MessageSquare,
+  CornerDownLeft, Check, Wifi, WifiOff
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { Icon3D } from "@/components/icon-3d";
+
+const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+async function apiFetch(path: string, opts?: RequestInit) {
+  const res = await fetch(`${baseUrl}/api${path}`, { credentials: "include", ...opts });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function apiPost(path: string, body: any) {
+  return apiFetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+async function apiPatch(path: string, body: any) {
+  return apiFetch(path, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+async function apiDelete(path: string) {
+  return apiFetch(path, { method: "DELETE" });
+}
+
+function parseEmailName(emailStr: string) {
+  const match = emailStr.match(/^"?([^"<]+)"?\s*<?([^>]*)>?$/);
+  if (match) {
+    return { name: match[1].trim(), email: match[2].trim() || emailStr };
+  }
+  return { name: emailStr, email: emailStr };
+}
+
+function SmartDate({ dateStr }: { dateStr: string }) {
+  if (!dateStr) return <span className="text-muted-foreground text-xs">-</span>;
+  try {
+    const d = new Date(dateStr);
+    if (isToday(d)) return <span className="text-xs text-blue-600 font-medium">{format(d, "HH:mm")}</span>;
+    if (isYesterday(d)) return <span className="text-xs text-muted-foreground">Hier {format(d, "HH:mm")}</span>;
+    return <span className="text-xs text-muted-foreground">{format(d, "dd MMM", { locale: fr })}</span>;
+  } catch { return <span className="text-xs text-muted-foreground">{dateStr.slice(0, 10)}</span>; }
+}
+
+const PRIORITY_CONFIG: Record<string, { color: string; label: string; icon: any }> = {
+  critique: { color: "bg-red-100 text-red-700 border-red-200", label: "Critique", icon: AlertTriangle },
+  haute: { color: "bg-orange-100 text-orange-700 border-orange-200", label: "Haute", icon: Zap },
+  normale: { color: "bg-blue-100 text-blue-700 border-blue-200", label: "Normale", icon: Info },
+  basse: { color: "bg-gray-100 text-gray-600 border-gray-200", label: "Basse", icon: Check },
+};
+
+const CATEGORY_CONFIG: Record<string, { color: string; label: string; icon: any }> = {
+  commercial: { color: "bg-emerald-100 text-emerald-700", label: "Commercial", icon: TrendingUp },
+  client: { color: "bg-blue-100 text-blue-700", label: "Client", icon: MessageSquare },
+  finance: { color: "bg-amber-100 text-amber-700", label: "Finance", icon: ShoppingCart },
+  administratif: { color: "bg-purple-100 text-purple-700", label: "Admin", icon: FileText },
+  spam: { color: "bg-gray-100 text-gray-500", label: "Spam", icon: X },
+  information: { color: "bg-slate-100 text-slate-600", label: "Info", icon: Info },
+  urgence: { color: "bg-red-100 text-red-700", label: "Urgence", icon: AlertCircle },
+};
+
+const TONE_OPTIONS = [
+  { value: "professionnel", label: "Professionnel" },
+  { value: "formel", label: "Formel" },
+  { value: "cordial", label: "Cordial" },
+  { value: "direct", label: "Direct" },
+  { value: "empathique", label: "Empathique" },
+];
+
+function EmailListItem({
+  email, selected, triageInfo, onClick
+}: {
+  email: any;
+  selected: boolean;
+  triageInfo?: any;
+  onClick: () => void;
+}) {
+  const sender = parseEmailName(email.from || "");
+  const pri = triageInfo ? PRIORITY_CONFIG[triageInfo.priority] : null;
+
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full text-left px-3 py-2.5 border-b transition-colors hover:bg-muted/50 ${selected ? "bg-blue-50 border-l-2 border-l-blue-500" : ""} ${email.unread ? "bg-white" : "bg-muted/20"}`}
+    >
+      <div className="flex items-start gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-1 mb-0.5">
+            <span className={`text-sm truncate ${email.unread ? "font-semibold" : "font-medium text-muted-foreground"}`}>
+              {sender.name.slice(0, 28)}
+            </span>
+            <div className="flex items-center gap-1 shrink-0">
+              {email.starred && <Star className="h-3 w-3 text-amber-400 fill-amber-400" />}
+              {email.hasAttachment && <Paperclip className="h-3 w-3 text-muted-foreground" />}
+              <SmartDate dateStr={email.date} />
+            </div>
+          </div>
+          <p className={`text-xs truncate mb-0.5 ${email.unread ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+            {email.subject}
+          </p>
+          <p className="text-xs text-muted-foreground truncate">{email.snippet}</p>
+          {pri && (
+            <div className="flex items-center gap-1 mt-1">
+              <Badge variant="outline" className={`text-[10px] py-0 px-1 ${pri.color}`}>
+                {pri.label}
+              </Badge>
+              {triageInfo?.category && CATEGORY_CONFIG[triageInfo.category] && (
+                <Badge variant="outline" className={`text-[10px] py-0 px-1 ${CATEGORY_CONFIG[triageInfo.category].color}`}>
+                  {CATEGORY_CONFIG[triageInfo.category].label}
+                </Badge>
+              )}
+              {triageInfo?.needsReply && (
+                <Badge variant="outline" className="text-[10px] py-0 px-1 bg-violet-100 text-violet-700">Réponse requise</Badge>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function ComposeModal({ open, onClose, replyTo }: { open: boolean; onClose: () => void; replyTo?: any }) {
+  const [to, setTo] = useState(replyTo?.from || "");
+  const [subject, setSubject] = useState(replyTo ? `Re: ${replyTo.subject}` : "");
+  const [body, setBody] = useState(replyTo?.aiBody || "");
+  const [sending, setSending] = useState(false);
+  const { toast } = useToast();
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    if (replyTo) {
+      const sender = parseEmailName(replyTo.from || "");
+      setTo(sender.email);
+      setSubject(replyTo.subject?.startsWith("Re:") ? replyTo.subject : `Re: ${replyTo.subject}`);
+      setBody(replyTo.aiBody || "");
+    }
+  }, [replyTo]);
+
+  const handleSend = async () => {
+    if (!to || !subject || !body) { toast({ title: "Champs requis", variant: "destructive" }); return; }
+    setSending(true);
+    try {
+      if (replyTo?.threadId) {
+        await apiPost("/gmail/reply", { messageId: replyTo.messageId, threadId: replyTo.threadId, to, subject, body, isHtml: false });
+      } else {
+        await apiPost("/gmail/send", { to, subject, body, isHtml: false });
+      }
+      toast({ title: "Email envoyé", description: `A ${to}` });
+      qc.invalidateQueries({ queryKey: ["gmail-inbox"] });
+      onClose();
+    } catch {
+      toast({ title: "Erreur d'envoi", variant: "destructive" });
+    } finally { setSending(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5 text-blue-500" />
+            {replyTo ? "Répondre" : "Nouveau message"}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label className="text-xs">À</Label>
+            <Input value={to} onChange={e => setTo(e.target.value)} placeholder="destinataire@email.com" className="mt-1" />
+          </div>
+          <div>
+            <Label className="text-xs">Objet</Label>
+            <Input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Objet du message" className="mt-1" />
+          </div>
+          <div>
+            <Label className="text-xs">Message</Label>
+            <Textarea value={body} onChange={e => setBody(e.target.value)} placeholder="Rédigez votre message..." className="mt-1 min-h-[200px]" />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={onClose}>Annuler</Button>
+            <Button onClick={handleSend} disabled={sending}>
+              {sending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+              Envoyer
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export default function GmailAgentPage() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  const [selectedEmail, setSelectedEmail] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState("is:inbox");
+  const [triageData, setTriageData] = useState<any>(null);
+  const [isTriaging, setIsTriaging] = useState(false);
+  const [isDrafting, setIsDrafting] = useState(false);
+  const [aiDraft, setAiDraft] = useState<any>(null);
+  const [tone, setTone] = useState("professionnel");
+  const [draftInstructions, setDraftInstructions] = useState("");
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [composeReplyTo, setComposeReplyTo] = useState<any>(undefined);
+  const [aiPanelTab, setAiPanelTab] = useState("triage");
+
+  const { data: profile } = useQuery({
+    queryKey: ["gmail-profile"],
+    queryFn: () => apiFetch("/gmail/profile"),
+    staleTime: 30000,
+  });
+
+  const { data: inboxData, isLoading: inboxLoading, refetch: refetchInbox } = useQuery({
+    queryKey: ["gmail-inbox", activeFilter],
+    queryFn: () => apiFetch(`/gmail/inbox?q=${encodeURIComponent(activeFilter)}&maxResults=30`),
+    enabled: profile?.authenticated === true,
+    staleTime: 30000,
+  });
+
+  const { data: emailDetail, isLoading: detailLoading } = useQuery({
+    queryKey: ["gmail-message", selectedEmail?.id],
+    queryFn: () => apiFetch(`/gmail/message/${selectedEmail.id}`),
+    enabled: !!selectedEmail?.id,
+    staleTime: 60000,
+  });
+
+  const emails: any[] = inboxData?.emails || [];
+
+  const triageMap = triageData?.triage?.triage
+    ? Object.fromEntries((triageData.triage.triage as any[]).map((t: any) => [t.emailId, t]))
+    : {};
+
+  const handleTriage = async () => {
+    if (!emails.length) return;
+    setIsTriaging(true);
+    setAiPanelTab("triage");
+    try {
+      const data = await apiPost("/commandant/gmail-triage", { emails: emails.slice(0, 25) });
+      setTriageData(data);
+      toast({ title: "Triage IA terminé", description: `${emails.length} emails analysés` });
+    } catch {
+      toast({ title: "Erreur triage", variant: "destructive" });
+    } finally { setIsTriaging(false); }
+  };
+
+  const handleDraftReply = async () => {
+    if (!emailDetail && !selectedEmail) return;
+    setIsDrafting(true);
+    setAiPanelTab("reply");
+    try {
+      const data = await apiPost("/commandant/gmail-draft-reply", {
+        from: emailDetail?.from || selectedEmail?.from,
+        subject: emailDetail?.subject || selectedEmail?.subject,
+        bodyHtml: emailDetail?.bodyHtml,
+        bodyPlain: emailDetail?.bodyPlain,
+        snippet: selectedEmail?.snippet,
+        tone,
+        instructions: draftInstructions,
+      });
+      setAiDraft(data.draft);
+      toast({ title: "Réponse IA générée", description: data.contactFound ? "Contact CRM identifié" : "" });
+    } catch {
+      toast({ title: "Erreur génération", variant: "destructive" });
+    } finally { setIsDrafting(false); }
+  };
+
+  const handleArchive = async (id: string) => {
+    try {
+      await apiPost(`/gmail/message/${id}/archive`, {});
+      toast({ title: "Archivé" });
+      qc.invalidateQueries({ queryKey: ["gmail-inbox"] });
+      if (selectedEmail?.id === id) setSelectedEmail(null);
+    } catch { toast({ title: "Erreur", variant: "destructive" }); }
+  };
+
+  const handleTrash = async (id: string) => {
+    try {
+      await apiDelete(`/gmail/message/${id}/trash`);
+      toast({ title: "Supprimé" });
+      qc.invalidateQueries({ queryKey: ["gmail-inbox"] });
+      if (selectedEmail?.id === id) setSelectedEmail(null);
+    } catch { toast({ title: "Erreur", variant: "destructive" }); }
+  };
+
+  const handleStar = async (id: string, starred: boolean) => {
+    try {
+      await apiPatch(`/gmail/message/${id}/star`, { starred: !starred });
+      qc.invalidateQueries({ queryKey: ["gmail-inbox"] });
+    } catch { toast({ title: "Erreur", variant: "destructive" }); }
+  };
+
+  const handleUseReply = () => {
+    if (!aiDraft) return;
+    setComposeReplyTo({
+      from: emailDetail?.from || selectedEmail?.from,
+      subject: emailDetail?.subject || selectedEmail?.subject,
+      threadId: emailDetail?.threadId || selectedEmail?.threadId,
+      messageId: emailDetail?.messageId,
+      aiBody: aiDraft.replyBodyPlain || aiDraft.replyBodyHtml?.replace(/<[^>]+>/g, "") || "",
+    });
+    setComposeOpen(true);
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      setActiveFilter(searchQuery.trim());
+    } else {
+      setActiveFilter("is:inbox");
+    }
+  };
+
+  if (!profile?.authenticated && profile !== undefined) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-8">
+        <Card className="max-w-md w-full">
+          <CardContent className="pt-8 text-center space-y-4">
+            <WifiOff className="h-12 w-12 mx-auto text-muted-foreground" />
+            <h2 className="text-xl font-semibold">Gmail non connecté</h2>
+            <p className="text-muted-foreground text-sm">Connectez votre compte Google dans les paramètres pour utiliser l'agent email IA.</p>
+            <Button onClick={() => window.location.href = `${baseUrl}/google-workspace`} className="w-full">
+              Connecter Google Workspace
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 flex flex-col h-screen overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-background shrink-0">
+        <div className="flex items-center gap-3">
+          <Icon3D icon={Mail} variant="blue" size="sm" />
+          <div>
+            <h1 className="font-semibold text-base leading-tight">Agent Mail IA</h1>
+            {profile?.email && (
+              <p className="text-xs text-muted-foreground">{profile.email}</p>
+            )}
+          </div>
+          {profile?.authenticated && (
+            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+              <Wifi className="h-3 w-3 mr-1" />Connecté
+            </Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => { refetchInbox(); qc.invalidateQueries({ queryKey: ["gmail-message"] }); }}>
+            <RefreshCw className="h-4 w-4 mr-1" />Actualiser
+          </Button>
+          <Button size="sm" onClick={() => { setComposeReplyTo(undefined); setComposeOpen(true); }}>
+            <Plus className="h-4 w-4 mr-1" />Nouveau
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex-1 flex overflow-hidden">
+        {/* LEFT: Email List */}
+        <div className="w-72 border-r flex flex-col bg-background shrink-0">
+          <div className="p-2 border-b space-y-2">
+            <form onSubmit={handleSearch} className="flex gap-1">
+              <Input
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Rechercher..."
+                className="h-8 text-xs"
+              />
+              <Button type="submit" size="sm" variant="ghost" className="h-8 w-8 p-0">
+                <Search className="h-3.5 w-3.5" />
+              </Button>
+            </form>
+            <div className="flex gap-1 flex-wrap">
+              {[
+                { label: "Boîte", filter: "is:inbox" },
+                { label: "Non lus", filter: "is:unread is:inbox" },
+                { label: "Importants", filter: "is:important is:inbox" },
+                { label: "Étoilés", filter: "is:starred" },
+              ].map(f => (
+                <button
+                  key={f.filter}
+                  onClick={() => setActiveFilter(f.filter)}
+                  className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${activeFilter === f.filter ? "bg-blue-500 text-white border-blue-500" : "text-muted-foreground border-border hover:bg-muted"}`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <ScrollArea className="flex-1">
+            {inboxLoading ? (
+              <div className="space-y-1 p-2">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="space-y-1 p-2">
+                    <Skeleton className="h-3 w-3/4" />
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                ))}
+              </div>
+            ) : emails.length === 0 ? (
+              <div className="p-4 text-center text-muted-foreground text-sm">
+                <Inbox className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                Aucun email
+              </div>
+            ) : (
+              emails.map(email => (
+                <EmailListItem
+                  key={email.id}
+                  email={email}
+                  selected={selectedEmail?.id === email.id}
+                  triageInfo={triageMap[email.id]}
+                  onClick={() => setSelectedEmail(email)}
+                />
+              ))
+            )}
+          </ScrollArea>
+
+          {emails.length > 0 && (
+            <div className="p-2 border-t">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-xs"
+                onClick={handleTriage}
+                disabled={isTriaging}
+              >
+                {isTriaging ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                ) : (
+                  <Brain className="h-3.5 w-3.5 mr-1" />
+                )}
+                Triage IA — {emails.length} emails
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* CENTER: Email Content */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {!selectedEmail ? (
+            <div className="flex-1 flex items-center justify-center bg-muted/20">
+              <div className="text-center text-muted-foreground space-y-2">
+                <Mail className="h-12 w-12 mx-auto opacity-30" />
+                <p className="text-sm">Sélectionnez un email pour le lire</p>
+                {emails.length > 0 && (
+                  <Button variant="outline" size="sm" onClick={handleTriage} disabled={isTriaging}>
+                    <Brain className="h-4 w-4 mr-2" />
+                    {isTriaging ? "Analyse en cours..." : "Analyser la boîte avec l'IA"}
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="px-4 py-3 border-b bg-background">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <h2 className="font-semibold text-sm truncate">{selectedEmail.subject}</h2>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-xs text-muted-foreground truncate">
+                        De: {parseEmailName(selectedEmail.from || "").name}
+                        {" "}
+                        <span className="text-muted-foreground/60">&lt;{parseEmailName(selectedEmail.from || "").email}&gt;</span>
+                      </span>
+                      <SmartDate dateStr={selectedEmail.date} />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleStar(selectedEmail.id, selectedEmail.starred)}>
+                      {selectedEmail.starred ? <Star className="h-4 w-4 text-amber-400 fill-amber-400" /> : <StarOff className="h-4 w-4" />}
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+                      setComposeReplyTo({ from: selectedEmail.from, subject: selectedEmail.subject, threadId: selectedEmail.threadId, messageId: emailDetail?.messageId });
+                      setComposeOpen(true);
+                    }}>
+                      <Reply className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleArchive(selectedEmail.id)}>
+                      <Archive className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600" onClick={() => handleTrash(selectedEmail.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                    <Button variant="default" size="sm" className="h-7 text-xs ml-1" onClick={handleDraftReply} disabled={isDrafting}>
+                      {isDrafting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Sparkles className="h-3.5 w-3.5 mr-1" />}
+                      Réponse IA
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <ScrollArea className="flex-1">
+                <div className="p-4">
+                  {detailLoading ? (
+                    <div className="space-y-3">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-1/2" />
+                    </div>
+                  ) : emailDetail ? (
+                    <div className="space-y-3">
+                      {emailDetail.cc && (
+                        <p className="text-xs text-muted-foreground">Cc: {emailDetail.cc}</p>
+                      )}
+                      {emailDetail.attachments?.length > 0 && (
+                        <div className="flex items-center gap-2 flex-wrap py-2 px-3 bg-muted/30 rounded-md">
+                          <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
+                          {emailDetail.attachments.map((att: any, i: number) => (
+                            <Badge key={i} variant="outline" className="text-xs">
+                              {att.filename} {att.size ? `(${Math.round(att.size / 1024)} KB)` : ""}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                      <Separator />
+                      {emailDetail.bodyHtml ? (
+                        <div className="relative">
+                          <iframe
+                            ref={iframeRef}
+                            srcDoc={emailDetail.bodyHtml}
+                            className="w-full border-0 min-h-[400px]"
+                            sandbox="allow-same-origin"
+                            onLoad={e => {
+                              const iframe = e.currentTarget;
+                              try {
+                                iframe.style.height = iframe.contentDocument?.body?.scrollHeight + "px";
+                              } catch {}
+                            }}
+                            title="Email content"
+                          />
+                        </div>
+                      ) : (
+                        <pre className="text-sm whitespace-pre-wrap font-sans">{emailDetail.bodyPlain}</pre>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-sm">{selectedEmail.snippet}</p>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+
+              <div className="p-3 border-t bg-muted/20">
+                <Button variant="outline" size="sm" className="text-xs" onClick={() => {
+                  setComposeReplyTo({
+                    from: selectedEmail.from,
+                    subject: selectedEmail.subject,
+                    threadId: selectedEmail.threadId,
+                    messageId: emailDetail?.messageId,
+                  });
+                  setComposeOpen(true);
+                }}>
+                  <CornerDownLeft className="h-3.5 w-3.5 mr-1" />Répondre
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT: AI Agent Panel */}
+        <div className="w-80 border-l flex flex-col bg-background shrink-0">
+          <div className="px-3 py-2.5 border-b">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-violet-500" />
+              <h3 className="text-sm font-semibold">Agent IA</h3>
+              <Badge variant="outline" className="text-[10px] ml-auto bg-violet-50 text-violet-700 border-violet-200">
+                Gemini 2.5 Pro
+              </Badge>
+            </div>
+          </div>
+
+          <Tabs value={aiPanelTab} onValueChange={setAiPanelTab} className="flex-1 flex flex-col overflow-hidden">
+            <TabsList className="mx-2 mt-2 h-7">
+              <TabsTrigger value="triage" className="text-xs flex-1 h-6">Triage</TabsTrigger>
+              <TabsTrigger value="reply" className="text-xs flex-1 h-6">Réponse IA</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="triage" className="flex-1 overflow-hidden m-0 px-0">
+              <ScrollArea className="h-full">
+                <div className="p-3 space-y-3">
+                  {!triageData && !isTriaging && (
+                    <div className="space-y-3">
+                      <p className="text-xs text-muted-foreground">
+                        L'agent analyse votre boîte mail avec les données CRM pour prioriser et identifier les actions à réaliser.
+                      </p>
+                      <Button className="w-full" size="sm" onClick={handleTriage} disabled={!emails.length || isTriaging}>
+                        <Brain className="h-4 w-4 mr-2" />
+                        Analyser {emails.length} emails
+                      </Button>
+                      <div className="space-y-1.5 text-xs text-muted-foreground">
+                        <p className="font-medium text-foreground">L'agent peut:</p>
+                        {["Prioriser les emails urgents", "Identifier les opportunités commerciales", "Détecter les contacts CRM", "Suggérer des actions concrètes", "Résumer la boîte en 1 rapport"].map(f => (
+                          <div key={f} className="flex items-center gap-1.5">
+                            <Check className="h-3 w-3 text-green-500" />
+                            <span>{f}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {isTriaging && (
+                    <div className="flex flex-col items-center justify-center py-8 gap-3">
+                      <div className="relative">
+                        <Brain className="h-10 w-10 text-violet-400" />
+                        <Loader2 className="h-5 w-5 text-violet-600 animate-spin absolute -bottom-1 -right-1" />
+                      </div>
+                      <p className="text-xs text-muted-foreground text-center">Analyse en cours avec Gemini 2.5 Pro...</p>
+                    </div>
+                  )}
+
+                  {triageData && !isTriaging && (
+                    <div className="space-y-3">
+                      <div className="bg-violet-50 rounded-lg p-3 border border-violet-100">
+                        <p className="text-xs font-medium text-violet-800 mb-1">Résumé exécutif</p>
+                        <p className="text-xs text-violet-700">{triageData.triage?.executiveSummary}</p>
+                      </div>
+
+                      {triageData.triage?.overview && (
+                        <div className="grid grid-cols-2 gap-2">
+                          {[
+                            { label: "Critiques", val: triageData.triage.overview.criticalCount, color: "text-red-600" },
+                            { label: "À répondre", val: triageData.triage.overview.needsReplyCount, color: "text-orange-600" },
+                            { label: "Commerciaux", val: triageData.triage.overview.commercialOpportunities, color: "text-emerald-600" },
+                            { label: "Finances", val: triageData.triage.overview.financialItems, color: "text-amber-600" },
+                          ].map(item => (
+                            <div key={item.label} className="bg-muted/30 rounded p-2 text-center">
+                              <p className={`text-lg font-bold ${item.color}`}>{item.val || 0}</p>
+                              <p className="text-[10px] text-muted-foreground">{item.label}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {triageData.triage?.priorityActions?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold mb-1.5">Actions prioritaires</p>
+                          <div className="space-y-1.5">
+                            {triageData.triage.priorityActions.map((action: string, i: number) => (
+                              <div key={i} className="flex items-start gap-1.5 text-xs">
+                                <div className="w-4 h-4 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center shrink-0 text-[10px] font-bold mt-0.5">{i + 1}</div>
+                                <span>{action}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {triageData.triage?.triage?.filter((t: any) => t.priority === "critique" || t.priority === "haute").length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold mb-1.5">Emails prioritaires</p>
+                          <div className="space-y-1.5">
+                            {triageData.triage.triage
+                              .filter((t: any) => t.priority === "critique" || t.priority === "haute")
+                              .slice(0, 5)
+                              .map((t: any, i: number) => {
+                                const email = emails.find((e: any) => e.id === t.emailId);
+                                const pri = PRIORITY_CONFIG[t.priority];
+                                return (
+                                  <button key={i} onClick={() => { if (email) setSelectedEmail(email); }}
+                                    className="w-full text-left rounded border p-2 hover:bg-muted/50 transition-colors">
+                                    <div className="flex items-center gap-1 mb-0.5">
+                                      <Badge variant="outline" className={`text-[9px] py-0 px-1 ${pri?.color}`}>{pri?.label}</Badge>
+                                      {t.needsReply && <Badge variant="outline" className="text-[9px] py-0 px-1 bg-violet-100 text-violet-700">Réponse</Badge>}
+                                    </div>
+                                    <p className="text-[11px] font-medium truncate">{email?.subject || t.emailId}</p>
+                                    <p className="text-[10px] text-muted-foreground truncate">{t.summary}</p>
+                                    <p className="text-[10px] text-blue-600 mt-0.5">→ {t.suggestedAction}</p>
+                                  </button>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
+
+                      <Button variant="outline" size="sm" className="w-full text-xs" onClick={handleTriage} disabled={isTriaging}>
+                        <RotateCcw className="h-3.5 w-3.5 mr-1" />Relancer le triage
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="reply" className="flex-1 overflow-hidden m-0">
+              <ScrollArea className="h-full">
+                <div className="p-3 space-y-3">
+                  {!selectedEmail ? (
+                    <p className="text-xs text-muted-foreground">Sélectionnez un email pour générer une réponse IA.</p>
+                  ) : (
+                    <>
+                      <div className="bg-muted/30 rounded p-2">
+                        <p className="text-[10px] text-muted-foreground">Email sélectionné</p>
+                        <p className="text-xs font-medium truncate">{selectedEmail.subject}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">{parseEmailName(selectedEmail.from || "").name}</p>
+                      </div>
+
+                      <div>
+                        <Label className="text-xs">Ton de la réponse</Label>
+                        <Select value={tone} onValueChange={setTone}>
+                          <SelectTrigger className="h-8 text-xs mt-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {TONE_OPTIONS.map(t => (
+                              <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label className="text-xs">Instructions supplémentaires</Label>
+                        <Textarea
+                          value={draftInstructions}
+                          onChange={e => setDraftInstructions(e.target.value)}
+                          placeholder="Ex: Mentionner la réunion de jeudi..."
+                          className="mt-1 text-xs min-h-[60px]"
+                        />
+                      </div>
+
+                      <Button className="w-full" size="sm" onClick={handleDraftReply} disabled={isDrafting}>
+                        {isDrafting ? (
+                          <><Loader2 className="h-4 w-4 animate-spin mr-2" />Génération...</>
+                        ) : (
+                          <><Sparkles className="h-4 w-4 mr-2" />Générer la réponse</>
+                        )}
+                      </Button>
+
+                      {isDrafting && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center py-2">
+                          <Brain className="h-4 w-4 text-violet-400 animate-pulse" />
+                          Analyse CRM + génération Gemini 2.5 Pro...
+                        </div>
+                      )}
+
+                      {aiDraft && !isDrafting && (
+                        <div className="space-y-3">
+                          <Separator />
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-semibold">Réponse générée</p>
+                            <div className="flex gap-1">
+                              {aiDraft.urgency && (
+                                <Badge variant="outline" className={`text-[9px] ${aiDraft.urgency === "haute" ? "bg-orange-100 text-orange-700" : "bg-gray-100 text-gray-600"}`}>
+                                  {aiDraft.urgency}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="bg-blue-50 border border-blue-100 rounded p-2 space-y-1">
+                            <p className="text-[10px] text-muted-foreground">Objet</p>
+                            <p className="text-xs font-medium">{aiDraft.replySubject}</p>
+                          </div>
+
+                          <div className="bg-muted/30 rounded p-2 max-h-48 overflow-y-auto">
+                            <p className="text-[10px] text-muted-foreground mb-1">Corps du message</p>
+                            <p className="text-xs whitespace-pre-wrap">
+                              {aiDraft.replyBodyPlain || aiDraft.replyBodyHtml?.replace(/<[^>]+>/g, "").trim()}
+                            </p>
+                          </div>
+
+                          {aiDraft.detectedIntent && (
+                            <div className="text-[10px] text-muted-foreground flex items-center gap-1">
+                              <Eye className="h-3 w-3" />
+                              Intention: {aiDraft.detectedIntent}
+                            </div>
+                          )}
+
+                          {aiDraft.suggestedActions?.length > 0 && (
+                            <div>
+                              <p className="text-[10px] font-medium mb-1">Actions recommandées</p>
+                              {aiDraft.suggestedActions.slice(0, 3).map((a: string, i: number) => (
+                                <p key={i} className="text-[10px] text-muted-foreground flex items-start gap-1">
+                                  <ChevronRight className="h-3 w-3 shrink-0 mt-0.5" />{a}
+                                </p>
+                              ))}
+                            </div>
+                          )}
+
+                          <div className="flex gap-1.5">
+                            <Button size="sm" className="flex-1 text-xs h-7" onClick={handleUseReply}>
+                              <Send className="h-3.5 w-3.5 mr-1" />Utiliser
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => {
+                              navigator.clipboard.writeText(aiDraft.replyBodyPlain || aiDraft.replyBodyHtml?.replace(/<[^>]+>/g, "") || "");
+                              toast({ title: "Copié" });
+                            }}>
+                              <Copy className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+
+                          {aiDraft.alternativeReplies?.length > 0 && (
+                            <div>
+                              <p className="text-[10px] font-medium mb-1.5">Alternatives</p>
+                              <div className="space-y-1.5">
+                                {aiDraft.alternativeReplies.slice(0, 2).map((alt: any, i: number) => (
+                                  <button key={i}
+                                    onClick={() => setAiDraft({ ...aiDraft, replyBodyHtml: alt.bodyHtml, replyBodyPlain: alt.bodyHtml?.replace(/<[^>]+>/g, "") })}
+                                    className="w-full text-left rounded border p-2 hover:bg-muted/50 transition-colors">
+                                    <p className="text-[10px] font-medium text-blue-600">{alt.label}</p>
+                                    <p className="text-[10px] text-muted-foreground truncate">
+                                      {alt.bodyHtml?.replace(/<[^>]+>/g, "").slice(0, 80)}...
+                                    </p>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+
+      <ComposeModal
+        open={composeOpen}
+        onClose={() => setComposeOpen(false)}
+        replyTo={composeReplyTo}
+      />
+    </div>
+  );
+}
