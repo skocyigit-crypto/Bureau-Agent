@@ -1114,7 +1114,7 @@ router.post("/ai/agents/run", requireAdmin, async (_req, res) => {
     })();
   } catch (error: any) {
     logger.error({ err: error }, "AI Agents run error");
-    res.status(500).json({ error: "Erreur lors de l'execution des agents IA", details: error.message });
+    res.status(500).json({ error: "Erreur lors de l'execution des agents IA" });
   }
 });
 
@@ -1144,7 +1144,7 @@ router.post("/ai/agents/run/:agentId", requireAdmin, async (req, res) => {
   } catch (error: any) {
     if (error instanceof AiQuotaExceededError) { res.status(429).json({ error: error.message, quotaExceeded: true }); return; }
     logger.error({ err: error }, "AI Agent run error");
-    res.status(500).json({ error: "Erreur lors de l'execution de l'agent", details: error.message });
+    res.status(500).json({ error: "Erreur lors de l'execution de l'agent" });
   }
 });
 
@@ -1168,7 +1168,7 @@ router.post("/ai/agents/super", requireAdmin, async (req, res) => {
   } catch (error: any) {
     if (error instanceof AiQuotaExceededError) { res.status(429).json({ error: error.message, quotaExceeded: true }); return; }
     logger.error({ err: error }, "Super Agent error");
-    res.status(500).json({ error: "Erreur Super Agent", details: error.message });
+    res.status(500).json({ error: "Erreur Super Agent" });
   }
 });
 
@@ -1277,7 +1277,7 @@ router.post("/ai/agents/auto-start", requireAdmin, async (_req, res) => {
   } catch (error: any) {
     const state = autoRunState.get(orgId);
     if (state) state.running = false;
-    res.status(500).json({ error: "Erreur lors du premier cycle", details: error.message });
+    res.status(500).json({ error: "Erreur lors du premier cycle" });
   }
 });
 
@@ -1640,7 +1640,7 @@ router.post("/ai/autopilot/run", requireAdmin, async (req, res): Promise<void> =
     });
   } catch (err: any) {
     runningAutopilotJobs.delete(orgId);
-    res.status(500).json({ error: "Erreur cycle Oto-Pilot", details: err.message });
+    res.status(500).json({ error: "Erreur cycle Oto-Pilot" });
   }
 });
 

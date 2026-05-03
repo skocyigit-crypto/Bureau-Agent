@@ -28,7 +28,8 @@ router.get("/performance/metriques", async (req, res): Promise<void> => {
     const metriques = await gatherUserMetrics(dateDebut, now, orgId);
     res.json({ metriques, dateDebut: dateDebut.toISOString(), dateFin: now.toISOString(), periode });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || "Erreur lors de la collecte des metriques." });
+    req.log.error({ err }, "Erreur collecte metriques");
+    res.status(500).json({ error: "Erreur lors de la collecte des metriques." });
   }
 });
 
@@ -46,7 +47,8 @@ router.post("/performance/rapport", async (req, res): Promise<void> => {
     const rapport = await generatePerformanceReport(p, orgId, employeId || undefined);
     res.json(rapport);
   } catch (err: any) {
-    res.status(500).json({ error: err.message || "Erreur lors de la generation du rapport." });
+    req.log.error({ err }, "Erreur generation rapport performance");
+    res.status(500).json({ error: "Erreur lors de la generation du rapport." });
   }
 });
 
@@ -61,7 +63,8 @@ router.get("/performance/historique", async (req, res): Promise<void> => {
     const historique = await getPerformanceHistory(limit, orgId);
     res.json({ historique });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || "Erreur lors de la recuperation de l'historique." });
+    req.log.error({ err }, "Erreur recuperation historique performance");
+    res.status(500).json({ error: "Erreur lors de la recuperation de l'historique." });
   }
 });
 

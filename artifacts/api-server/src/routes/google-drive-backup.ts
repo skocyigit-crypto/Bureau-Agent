@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { performGoogleDriveBackup, listGoogleDriveBackups, isConnectorAvailable, downloadAndDecryptBackup, verifyBackup, restoreFromBackup, exportBackupAsJSON } from "../services/google-drive-backup";
 import { db, autoBackupsTable, backupConfigTable } from "@workspace/db";
 import { eq, desc, sql } from "drizzle-orm";
+import { logger } from "../lib/logger";
 
 const router = Router();
 
@@ -270,7 +271,8 @@ router.get("/google-drive-backup/export-encrypted", async (_req: Request, res: R
       res.status(500).json({ error: backupResult.error });
     }
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    logger.error({ err: error }, "[GDriveBackup] export-encrypted error");
+    res.status(500).json({ error: "Erreur lors de la sauvegarde chiffree." });
   }
 });
 

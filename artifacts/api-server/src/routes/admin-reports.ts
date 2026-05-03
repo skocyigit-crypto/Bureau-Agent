@@ -51,7 +51,8 @@ router.get("/admin-reports", async (req, res): Promise<void> => {
       limit,
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || "Erreur serveur." });
+    req.log.error({ err }, "Erreur admin-reports");
+    res.status(500).json({ error: "Erreur serveur." });
   }
 });
 
@@ -99,7 +100,8 @@ router.post("/admin-reports", async (req, res): Promise<void> => {
 
     res.status(201).json({ report });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || "Erreur serveur." });
+    req.log.error({ err }, "Erreur admin-reports");
+    res.status(500).json({ error: "Erreur serveur." });
   }
 });
 
@@ -134,7 +136,8 @@ router.patch("/admin-reports/:id", async (req, res): Promise<void> => {
     if (!updated) { res.status(404).json({ error: "Rapport non trouve." }); return; }
     res.json({ report: updated });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || "Erreur serveur." });
+    req.log.error({ err }, "Erreur admin-reports");
+    res.status(500).json({ error: "Erreur serveur." });
   }
 });
 
@@ -164,7 +167,8 @@ router.patch("/admin-reports/:id/read", async (req, res): Promise<void> => {
     if (!updated) { res.status(404).json({ error: "Rapport non trouve." }); return; }
     res.json({ report: updated });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || "Erreur serveur." });
+    req.log.error({ err }, "Erreur admin-reports");
+    res.status(500).json({ error: "Erreur serveur." });
   }
 });
 
@@ -195,7 +199,8 @@ router.get("/admin-reports/stats", async (req, res): Promise<void> => {
 
     res.json(stats[0] || { total: 0, nouveau: 0, en_cours: 0, resolu: 0, repondu: 0 });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || "Erreur serveur." });
+    req.log.error({ err }, "Erreur admin-reports");
+    res.status(500).json({ error: "Erreur serveur." });
   }
 });
 

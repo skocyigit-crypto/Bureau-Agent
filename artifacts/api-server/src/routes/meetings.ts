@@ -246,7 +246,7 @@ Regles:
     });
   } catch (error: any) {
     logger.error({ err: error }, "[Meetings] compile error:");
-    res.status(500).json({ error: error.message || "Erreur de compilation" });
+    res.status(500).json({ error: "Erreur lors de la compilation de la reunion." });
   }
 });
 
@@ -275,7 +275,7 @@ router.get("/meetings/chantiers", async (req, res): Promise<void> => {
     res.json({ chantiers: projets });
   } catch (error: any) {
     logger.error({ err: error }, "[Meetings] chantiers list error:");
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erreur lors de la recuperation des chantiers." });
   }
 });
 
@@ -303,7 +303,7 @@ router.patch("/meetings/chantiers/:id/location", async (req, res): Promise<void>
     res.json({ success: true });
   } catch (error: any) {
     logger.error({ err: error }, "[Meetings] set location error:");
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Erreur lors de la mise a jour de la localisation." });
   }
 });
 
