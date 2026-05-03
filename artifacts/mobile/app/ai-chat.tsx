@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -13,6 +13,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
@@ -20,11 +21,13 @@ import { useColors } from "@/hooks/useColors";
 
 interface Message {
   id: string;
-  role: "user" | "assistant" | "system";
+  role: "user" | "assistant";
   content: string;
-  timestamp: Date;
-  loading?: boolean;
+  timestamp: string;
 }
+
+const STORAGE_KEY = "ai_chat_history";
+const MAX_STORED = 60;
 
 const QUICK_ACTIONS = [
   { icon: "bar-chart-2" as const, label: "Briefing du jour", prompt: "Donne-moi le briefing complet de la journee: appels, taches, rendez-vous, factures en retard." },
@@ -35,22 +38,89 @@ const QUICK_ACTIONS = [
   { icon: "search" as const, label: "Recherche", prompt: "Recherche dans mes donnees: " },
 ];
 
+function parseMarkdown(text: string, textColor: string, mutedColor: string) {
+  const lines = text.split("\n");
+  const elements: React.ReactNode[] = [];
+
+  lines.forEach((line, lineIdx) => {
+    if (line.startsWith("- ") || line.startsWith("• ")) {
+      const content = line.replace(/^[-•] /, "");
+      elements.push(
+        <View key={lineIdx} style={{ flexDirection: "row", gap: 6, marginTop: 3 }}>
+          <Text style={{ color: mutedColor, fontSize: 14, lineHeight: 21 }}>•</Text>
+          <Text style={{ flex: 1, color: textColor, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21 }}>
+            {renderInline(content, textColor)}
+          </Text>
+        </View>
+      );
+    } else if (line.startsWith("**") && line.endsWith("**")) {
+      elements.push(
+        <Text key={lineIdx} style={{ color: textColor, fontSize: 14, fontFamily: "Inter_700Bold", lineHeight: 21, marginTop: lineIdx > 0 ? 6 : 0 }}>
+          {line.slice(2, -2)}
+        </Text>
+      );
+    } else if (line === "") {
+      elements.push(<View key={lineIdx} style={{ height: 6 }} />);
+    } else {
+      elements.push(
+        <Text key={lineIdx} style={{ color: textColor, fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21 }}>
+          {renderInline(line, textColor)}
+        </Text>
+      );
+    }
+  });
+
+  return elements;
+}
+
+function renderInline(text: string, textColor: string): React.ReactNode[] {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <Text key={i} style={{ fontFamily: "Inter_700Bold" }}>{part.slice(2, -2)}</Text>;
+    }
+    return <Text key={i}>{part}</Text>;
+  });
+}
+
 export default function AIChatScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth, user } = useAuth();
   const isWeb = Platform.OS === "web";
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      role: "assistant",
-      content: `Bonjour ${user?.prenom || ""}! Je suis votre assistant IA Agent de Bureau. Je peux vous aider avec:\n\n- Briefing quotidien et analyses\n- Recherche dans vos donnees\n- Conseils strategiques\n- Suivi des performances\n\nComment puis-je vous aider?`,
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
+      if (raw) {
+        try {
+          const stored: Message[] = JSON.parse(raw);
+          if (stored.length > 0) {
+            setMessages(stored.slice(-MAX_STORED));
+            setHistoryLoaded(true);
+            return;
+          }
+        } catch {}
+      }
+      setMessages([{
+        id: "welcome",
+        role: "assistant",
+        content: `Bonjour ${user?.prenom || ""}! Je suis votre assistant IA Agent de Bureau. Je peux vous aider avec:\n\n- Briefing quotidien et analyses\n- Recherche dans vos donnees\n- Conseils strategiques\n- Suivi des performances\n\nComment puis-je vous aider?`,
+        timestamp: new Date().toISOString(),
+      }]);
+      setHistoryLoaded(true);
+    });
+  }, []);
+
+  async function persistMessages(msgs: Message[]) {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(msgs.slice(-MAX_STORED)));
+    } catch {}
+  }
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isTyping) return;
@@ -59,12 +129,14 @@ export default function AIChatScreen() {
       id: `u-${Date.now()}`,
       role: "user",
       content: text.trim(),
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
     };
 
-    setMessages(prev => [...prev, userMsg]);
+    const updated = [...messages, userMsg];
+    setMessages(updated);
     setInput("");
     setIsTyping(true);
+    persistMessages(updated);
 
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
 
@@ -104,54 +176,103 @@ export default function AIChatScreen() {
         id: `a-${Date.now()}`,
         role: "assistant",
         content: reply,
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
       };
-      setMessages(prev => [...prev, aiMsg]);
-    } catch (e) {
+      const withReply = [...updated, aiMsg];
+      setMessages(withReply);
+      persistMessages(withReply);
+    } catch {
       const errorMsg: Message = {
         id: `e-${Date.now()}`,
         role: "assistant",
         content: "Une erreur est survenue. Verifiez votre connexion et reessayez.",
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
       };
-      setMessages(prev => [...prev, errorMsg]);
+      const withError = [...updated, errorMsg];
+      setMessages(withError);
+      persistMessages(withError);
     } finally {
       setIsTyping(false);
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 200);
     }
-  }, [fetchAuth, isTyping]);
+  }, [fetchAuth, isTyping, messages]);
 
-  function formatTime(d: Date) {
-    return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  function clearHistory() {
+    const welcome: Message = {
+      id: "welcome",
+      role: "assistant",
+      content: "Conversation reinitialise. Comment puis-je vous aider?",
+      timestamp: new Date().toISOString(),
+    };
+    setMessages([welcome]);
+    persistMessages([welcome]);
   }
 
-  function renderMessage({ item }: { item: Message }) {
+  function formatTime(ts: string) {
+    return new Date(ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function renderMessage({ item, index }: { item: Message; index: number }) {
     const isUser = item.role === "user";
+    const textColor = isUser ? "#fff" : colors.foreground;
+    const mutedColor = isUser ? "rgba(255,255,255,0.6)" : colors.mutedForeground;
+
+    const showDateSep = index === 0 || (
+      new Date(messages[index - 1]?.timestamp).toDateString() !== new Date(item.timestamp).toDateString()
+    );
+
+    const dateLabel = (() => {
+      const d = new Date(item.timestamp);
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(today.getDate() - 1);
+      if (d.toDateString() === today.toDateString()) return "Aujourd'hui";
+      if (d.toDateString() === yesterday.toDateString()) return "Hier";
+      return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+    })();
+
     return (
-      <View style={[styles.messageRow, isUser ? styles.userRow : styles.aiRow]}>
-        {!isUser && (
-          <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-            <Feather name="cpu" size={14} color="#fff" />
+      <>
+        {showDateSep && (
+          <View style={styles.dateSep}>
+            <View style={[styles.dateLine, { backgroundColor: colors.border }]} />
+            <Text style={[styles.dateLabel, { color: colors.mutedForeground }]}>{dateLabel}</Text>
+            <View style={[styles.dateLine, { backgroundColor: colors.border }]} />
           </View>
         )}
-        <View style={[
-          styles.bubble,
-          isUser
-            ? [styles.userBubble, { backgroundColor: colors.primary }]
-            : [styles.aiBubble, { backgroundColor: colors.card, borderColor: colors.border }],
-        ]}>
-          <Text style={[styles.messageText, { color: isUser ? "#fff" : colors.foreground }]}>
-            {item.content}
-          </Text>
-          <Text style={[styles.timestamp, { color: isUser ? "rgba(255,255,255,0.6)" : colors.mutedForeground }]}>
-            {formatTime(item.timestamp)}
-          </Text>
+        <View style={[styles.messageRow, isUser ? styles.userRow : styles.aiRow]}>
+          {!isUser && (
+            <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+              <Feather name="cpu" size={14} color="#fff" />
+            </View>
+          )}
+          <View style={[
+            styles.bubble,
+            isUser
+              ? [styles.userBubble, { backgroundColor: colors.primary }]
+              : [styles.aiBubble, { backgroundColor: colors.card, borderColor: colors.border }],
+          ]}>
+            <View style={styles.markdownContent}>
+              {parseMarkdown(item.content, textColor, mutedColor)}
+            </View>
+            <Text style={[styles.timestamp, { color: mutedColor }]}>
+              {formatTime(item.timestamp)}
+            </Text>
+          </View>
+          {isUser && (
+            <View style={[styles.avatar, { backgroundColor: colors.secondary }]}>
+              <Text style={styles.avatarText}>{user ? (user.prenom[0] + user.nom[0]).toUpperCase() : "U"}</Text>
+            </View>
+          )}
         </View>
-        {isUser && (
-          <View style={[styles.avatar, { backgroundColor: colors.secondary }]}>
-            <Text style={styles.avatarText}>{user ? (user.prenom[0] + user.nom[0]).toUpperCase() : "U"}</Text>
-          </View>
-        )}
+      </>
+    );
+  }
+
+  if (!historyLoaded) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, alignItems: "center", justifyContent: "center" }]}>
+        <ActivityIndicator color={colors.primary} />
       </View>
     );
   }
@@ -169,22 +290,18 @@ export default function AIChatScreen() {
             </View>
             <View>
               <Text style={styles.headerTitle}>Assistant IA</Text>
-              <Text style={styles.headerSub}>{isTyping ? "En train d'ecrire..." : "En ligne"}</Text>
+              <View style={styles.statusRow}>
+                <View style={[styles.statusDot, { backgroundColor: isTyping ? "#f59e0b" : "#22c55e" }]} />
+                <Text style={styles.headerSub}>{isTyping ? "En train d'ecrire..." : "En ligne"}</Text>
+              </View>
             </View>
           </View>
-          <Pressable
-            onPress={() => {
-              setMessages([{
-                id: "welcome",
-                role: "assistant",
-                content: `Conversation reinitialise. Comment puis-je vous aider?`,
-                timestamp: new Date(),
-              }]);
-            }}
-            style={styles.clearBtn}
-          >
-            <Feather name="trash-2" size={16} color="rgba(255,255,255,0.6)" />
-          </Pressable>
+          <View style={styles.headerActions}>
+            <Text style={[styles.msgCount, { color: "rgba(255,255,255,0.5)" }]}>{messages.length}</Text>
+            <Pressable onPress={clearHistory} style={styles.clearBtn} hitSlop={12}>
+              <Feather name="trash-2" size={16} color="rgba(255,255,255,0.6)" />
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -196,17 +313,17 @@ export default function AIChatScreen() {
         <FlatList
           ref={flatListRef}
           data={messages}
-          keyExtractor={m => m.id}
+          keyExtractor={(m) => m.id}
           renderItem={renderMessage}
           contentContainerStyle={[styles.messageList, { paddingBottom: 10 }]}
           showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
           ListHeaderComponent={
             messages.length <= 1 ? (
               <View style={styles.quickActionsContainer}>
                 <Text style={[styles.quickActionsTitle, { color: colors.mutedForeground }]}>Actions rapides</Text>
                 <View style={styles.quickActionsGrid}>
-                  {QUICK_ACTIONS.map(a => (
+                  {QUICK_ACTIONS.map((a) => (
                     <Pressable
                       key={a.label}
                       onPress={() => {
@@ -285,22 +402,29 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: "row", alignItems: "center" },
   backBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
   headerCenter: { flex: 1, flexDirection: "row", alignItems: "center", marginLeft: 12, gap: 10 },
-  headerAvatar: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  headerAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   headerTitle: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#fff" },
+  statusRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2 },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
   headerSub: { fontSize: 11, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.6)" },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  msgCount: { fontSize: 12, fontFamily: "Inter_400Regular" },
   clearBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center" },
   chatArea: { flex: 1 },
   messageList: { padding: 16 },
+  dateSep: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 12 },
+  dateLine: { flex: 1, height: StyleSheet.hairlineWidth },
+  dateLabel: { fontSize: 12, fontFamily: "Inter_500Medium" },
   messageRow: { flexDirection: "row", marginBottom: 12, alignItems: "flex-end", gap: 8 },
   userRow: { justifyContent: "flex-end" },
   aiRow: { justifyContent: "flex-start" },
   avatar: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
   avatarText: { fontSize: 10, fontFamily: "Inter_700Bold", color: "#fff" },
-  bubble: { maxWidth: "75%", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16 },
+  bubble: { maxWidth: "78%", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16 },
   userBubble: { borderBottomRightRadius: 4 },
   aiBubble: { borderBottomLeftRadius: 4, borderWidth: 1 },
-  messageText: { fontSize: 14, fontFamily: "Inter_400Regular", lineHeight: 21 },
-  timestamp: { fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 4, textAlign: "right" },
+  markdownContent: { gap: 0 },
+  timestamp: { fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 6, textAlign: "right" },
   typingDots: { flexDirection: "row", gap: 4, paddingVertical: 4, paddingHorizontal: 4 },
   dot: { width: 6, height: 6, borderRadius: 3, opacity: 0.4 },
   dot2: { opacity: 0.6 },
