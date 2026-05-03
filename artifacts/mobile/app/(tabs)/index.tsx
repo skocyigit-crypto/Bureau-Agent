@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Linking,
@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState } from "@/components/EmptyState";
 import { StatCard } from "@/components/StatCard";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useColors } from "@/hooks/useColors";
 
 interface DashboardData {
@@ -56,6 +57,8 @@ interface OverdueTask {
   dueDate: string;
 }
 
+const REFRESH_INTERVAL = 60_000;
+
 export default function DashboardScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -67,8 +70,12 @@ export default function DashboardScreen() {
   const [overdueTasks, setOverdueTasks] = useState<OverdueTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchDashboard = useCallback(async () => {
+  const { cached: cachedDashboard, isFromCache, updateCache } = useOfflineCache<DashboardData | null>("dashboard_summary", null);
+
+  const fetchDashboard = useCallback(async (silent = false) => {
     try {
       const [summaryRes, callsRes, eventsRes, tasksRes] = await Promise.all([
         fetchAuth(`${API_BASE}/api/dashboard/summary`),
@@ -78,7 +85,7 @@ export default function DashboardScreen() {
       ]);
       if (summaryRes.ok) {
         const json = await summaryRes.json();
-        setData({
+        const d: DashboardData = {
           totalCalls: json.totalCalls ?? 0,
           missedCalls: json.missedCalls ?? 0,
           totalContacts: json.totalContacts ?? 0,
@@ -88,7 +95,9 @@ export default function DashboardScreen() {
           answeredRate: json.answeredRate ?? 0,
           todayCalls: json.todayCalls ?? json.totalCalls ?? 0,
           todayTasks: json.todayTasks ?? json.pendingTasks ?? 0,
-        });
+        };
+        setData(d);
+        updateCache(d);
       }
       if (callsRes.ok) {
         const callData = await callsRes.json();
@@ -96,24 +105,35 @@ export default function DashboardScreen() {
       }
       if (eventsRes?.ok) {
         const eventData = await eventsRes.json();
-        const evts = (eventData.events || eventData.data || []).slice(0, 3);
-        setEvents(evts);
+        setEvents((eventData.events || eventData.data || []).slice(0, 3));
       }
       if (tasksRes?.ok) {
         const taskData = await tasksRes.json();
         const now = new Date();
-        const overdue = (taskData.tasks || []).filter((t: any) =>
-          t.dueDate && new Date(t.dueDate) < now && t.status !== "termine"
-        ).slice(0, 3);
-        setOverdueTasks(overdue);
+        setOverdueTasks(
+          (taskData.tasks || [])
+            .filter((t: any) => t.dueDate && new Date(t.dueDate) < now && t.status !== "termine")
+            .slice(0, 3)
+        );
       }
-    } catch (err) { console.warn("[Dashboard] fetch failed:", err); } finally {
+      setLastRefresh(new Date());
+    } catch {
+      if (!silent && cachedDashboard && !data) setData(cachedDashboard);
+    } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [fetchAuth]);
+  }, [fetchAuth, cachedDashboard, data, updateCache]);
 
-  useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
+  useEffect(() => {
+    if (isFromCache && cachedDashboard && !data) setData(cachedDashboard);
+  }, [isFromCache, cachedDashboard, data]);
+
+  useEffect(() => {
+    fetchDashboard();
+    intervalRef.current = setInterval(() => fetchDashboard(true), REFRESH_INTERVAL);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [fetchDashboard]);
 
   function onRefresh() { setRefreshing(true); fetchDashboard(); }
 
@@ -132,18 +152,19 @@ export default function DashboardScreen() {
   }
 
   function formatEventTime(dateStr: string) {
-    const d = new Date(dateStr);
-    return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    return new Date(dateStr).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function formatLastRefresh() {
+    if (!lastRefresh) return "";
+    const diff = Date.now() - lastRefresh.getTime();
+    if (diff < 60000) return "maintenant";
+    return `${Math.floor(diff / 60000)} min`;
   }
 
   const STATUS_COLORS: Record<string, string> = {
-    answered: "#22c55e",
-    missed: "#ef4444",
-    voicemail: "#f59e0b",
-    outgoing: "#3b82f6",
+    answered: "#22c55e", missed: "#ef4444", voicemail: "#f59e0b", outgoing: "#3b82f6",
   };
-
-  const PRIO_COLORS: Record<string, string> = { haute: "#ef4444", moyenne: "#f59e0b", basse: "#22c55e" };
 
   const now = new Date();
   const dayName = now.toLocaleDateString("fr-FR", { weekday: "long" });
@@ -156,7 +177,23 @@ export default function DashboardScreen() {
         <View style={styles.headerRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.greeting}>{greeting}</Text>
-            <Text style={styles.headerSubtitle}>{dayName.charAt(0).toUpperCase() + dayName.slice(1)}, {dateStr}</Text>
+            <View style={styles.subtitleRow}>
+              <Text style={styles.headerSubtitle}>
+                {dayName.charAt(0).toUpperCase() + dayName.slice(1)}, {dateStr}
+              </Text>
+              {lastRefresh && !isFromCache && (
+                <View style={styles.refreshBadge}>
+                  <View style={styles.refreshDot} />
+                  <Text style={styles.refreshText}>{formatLastRefresh()}</Text>
+                </View>
+              )}
+              {isFromCache && (
+                <View style={[styles.refreshBadge, { backgroundColor: "rgba(255,255,255,0.08)" }]}>
+                  <Feather name="wifi-off" size={8} color="rgba(255,255,255,0.4)" />
+                  <Text style={[styles.refreshText, { color: "rgba(255,255,255,0.4)" }]}>Cache</Text>
+                </View>
+              )}
+            </View>
           </View>
           <Pressable onPress={() => quickNav("/notifications")} style={[styles.notifBtn, { backgroundColor: "rgba(255,255,255,0.12)" }]}>
             <Feather name="bell" size={18} color="#fff" />
@@ -178,8 +215,8 @@ export default function DashboardScreen() {
             { icon: "phone-call" as const, label: "Appel", route: "/(tabs)/calls", color: "#3b82f6" },
             { icon: "user-plus" as const, label: "Contact", route: "/(tabs)/contacts", color: "#22c55e" },
             { icon: "plus-square" as const, label: "Tache", route: "/(tabs)/tasks", color: "#f59e0b" },
-            { icon: "calendar" as const, label: "RDV", route: "/calendar", color: "#ec4899" },
-          ].map(a => (
+            { icon: "video" as const, label: "Reunion IA", route: "/meetings", color: "#8b5cf6" },
+          ].map((a) => (
             <Pressable
               key={a.label}
               onPress={() => quickNav(a.route)}
@@ -210,9 +247,11 @@ export default function DashboardScreen() {
               <Pressable onPress={() => quickNav("/(tabs)/tasks")} style={[styles.urgentBanner, { backgroundColor: "#ef444415", borderColor: "#ef4444" }]}>
                 <Feather name="alert-triangle" size={18} color="#ef4444" />
                 <View style={{ flex: 1, marginLeft: 10 }}>
-                  <Text style={[styles.urgentTitle, { color: "#ef4444" }]}>{overdueTasks.length} tache{overdueTasks.length > 1 ? "s" : ""} en retard</Text>
+                  <Text style={[styles.urgentTitle, { color: "#ef4444" }]}>
+                    {overdueTasks.length} tache{overdueTasks.length > 1 ? "s" : ""} en retard
+                  </Text>
                   <Text style={[styles.urgentSub, { color: colors.mutedForeground }]} numberOfLines={1}>
-                    {overdueTasks.map(t => t.title).join(", ")}
+                    {overdueTasks.map((t) => t.title).join(", ")}
                   </Text>
                 </View>
                 <Feather name="chevron-right" size={16} color="#ef4444" />
@@ -244,8 +283,8 @@ export default function DashboardScreen() {
                 </View>
                 <View style={[styles.perfDivider, { backgroundColor: colors.border }]} />
                 <View style={styles.perfItem}>
-                  <Text style={[styles.perfValue, { color: colors.primary }]}>{data.unreadMessages}</Text>
-                  <Text style={[styles.perfLabel, { color: colors.mutedForeground }]}>Non lus</Text>
+                  <Text style={[styles.perfValue, { color: colors.primary }]}>{data.todayCalls}</Text>
+                  <Text style={[styles.perfLabel, { color: colors.mutedForeground }]}>Appels/jour</Text>
                 </View>
               </View>
             </View>
@@ -253,15 +292,21 @@ export default function DashboardScreen() {
             {events.length > 0 && (
               <>
                 <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionTitle, { color: colors.foreground, paddingHorizontal: 0, marginBottom: 0 }]}>Agenda du jour</Text>
+                  <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>Agenda du jour</Text>
                   <Pressable onPress={() => quickNav("/calendar")}>
                     <Text style={[styles.seeAll, { color: colors.primary }]}>Voir tout</Text>
                   </Pressable>
                 </View>
-                {events.map(evt => (
-                  <Pressable key={evt.id} onPress={() => quickNav("/calendar")} style={[styles.eventItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                {events.map((evt) => (
+                  <Pressable
+                    key={evt.id}
+                    onPress={() => quickNav("/calendar")}
+                    style={[styles.eventItem, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  >
                     <View style={[styles.eventTime, { backgroundColor: colors.primary + "15" }]}>
-                      <Text style={[styles.eventTimeText, { color: colors.primary }]}>{formatEventTime(evt.startTime || evt.createdAt || new Date().toISOString())}</Text>
+                      <Text style={[styles.eventTimeText, { color: colors.primary }]}>
+                        {formatEventTime(evt.startTime || evt.createdAt || new Date().toISOString())}
+                      </Text>
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.eventTitle, { color: colors.foreground }]} numberOfLines={1}>{evt.title}</Text>
@@ -276,7 +321,7 @@ export default function DashboardScreen() {
             {recentCalls.length > 0 && (
               <>
                 <View style={[styles.sectionHeader, { marginTop: events.length > 0 ? 8 : 0 }]}>
-                  <Text style={[styles.sectionTitle, { color: colors.foreground, paddingHorizontal: 0, marginBottom: 0 }]}>Appels recents</Text>
+                  <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>Appels recents</Text>
                   <Pressable onPress={() => quickNav("/(tabs)/calls")}>
                     <Text style={[styles.seeAll, { color: colors.primary }]}>Voir tout</Text>
                   </Pressable>
@@ -315,13 +360,15 @@ export default function DashboardScreen() {
               </>
             )}
 
-            <Text style={[styles.sectionTitle, { color: colors.foreground, paddingHorizontal: 0, marginTop: 8 }]}>Acces rapide</Text>
+            <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 8 }]}>Acces rapide</Text>
             <View style={styles.quickGrid}>
               {[
                 { icon: "message-square" as const, label: "Messages", route: "/messages", color: "#8b5cf6" },
                 { icon: "calendar" as const, label: "Calendrier", route: "/calendar", color: "#ec4899" },
                 { icon: "bar-chart-2" as const, label: "Analytique", route: "/analytics", color: "#f59e0b" },
                 { icon: "clock" as const, label: "Pointage", route: "/checkins", color: "#14b8a6" },
+                { icon: "users" as const, label: "Reunion IA", route: "/meetings", color: "#8b5cf6" },
+                { icon: "cpu" as const, label: "Agents IA", route: "/ai-agents", color: "#6366f1" },
               ].map((qa) => (
                 <Pressable
                   key={qa.label}
@@ -349,13 +396,13 @@ export default function DashboardScreen() {
               <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.5)" />
             </Pressable>
 
-            <Pressable onPress={() => quickNav("/ai-agents")} style={[styles.infoCard, { backgroundColor: colors.secondary, marginTop: 8 }]}>
-              <Feather name="zap" size={20} color="#f59e0b" />
+            <Pressable onPress={() => quickNav("/meetings")} style={[styles.infoCard, { backgroundColor: "#8b5cf615", borderWidth: 1, borderColor: "#8b5cf630", marginTop: 8 }]}>
+              <Feather name="video" size={20} color="#8b5cf6" />
               <View style={styles.infoContent}>
-                <Text style={styles.infoTitle}>Agents IA</Text>
-                <Text style={styles.infoSubtitle}>Analyse continue de votre activite</Text>
+                <Text style={[styles.infoTitle, { color: "#8b5cf6" }]}>Reunion IA</Text>
+                <Text style={[styles.infoSubtitle, { color: "rgba(139,92,246,0.7)" }]}>Compiler · GPS chantier · Taches auto</Text>
               </View>
-              <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.5)" />
+              <Feather name="chevron-right" size={16} color="#8b5cf6" />
             </Pressable>
           </>
         )}
@@ -369,7 +416,11 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingBottom: 16 },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   greeting: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#ffffff" },
-  headerSubtitle: { fontSize: 13, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.6)", marginTop: 2 },
+  subtitleRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
+  headerSubtitle: { fontSize: 13, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.6)" },
+  refreshBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(34,197,94,0.15)", paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8 },
+  refreshDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: "#22c55e" },
+  refreshText: { fontSize: 10, fontFamily: "Inter_500Medium", color: "#22c55e" },
   notifBtn: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", position: "relative" },
   notifDot: { position: "absolute", top: 2, right: 2, minWidth: 16, height: 16, borderRadius: 8, alignItems: "center", justifyContent: "center", paddingHorizontal: 3 },
   notifDotText: { color: "#fff", fontSize: 9, fontFamily: "Inter_700Bold" },
@@ -407,22 +458,9 @@ const styles = StyleSheet.create({
   recentTime: { fontSize: 12, fontFamily: "Inter_400Regular", marginLeft: 8 },
   callbackBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   quickGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16 },
-  quickCard: { width: "31%", paddingVertical: 14, borderRadius: 12, borderWidth: 1, alignItems: "center" },
+  quickCard: { width: "30.5%", paddingVertical: 14, borderRadius: 12, borderWidth: 1, alignItems: "center" },
   quickIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", marginBottom: 8 },
-  quickLabel: { fontSize: 12, fontFamily: "Inter_500Medium" },
-  revenueCard: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 12 },
-  revenueHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
-  revenueRow: { flexDirection: "row", alignItems: "center" },
-  revenueItem: { flex: 1, alignItems: "center" },
-  revenueValue: { fontSize: 16, fontFamily: "Inter_700Bold" },
-  revenueLabel: { fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 3 },
-  revenueDivider: { width: 1, height: 30 },
-  revenueBar: { height: 4, borderRadius: 2, overflow: "hidden", marginTop: 12 },
-  revenueBarFill: { height: "100%", borderRadius: 2 },
-  projectsBanner: { padding: 14, borderRadius: 12, borderWidth: 1, marginBottom: 12 },
-  projectsBannerRow: { flexDirection: "row", alignItems: "center" },
-  projectChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  projectChipText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
+  quickLabel: { fontSize: 11, fontFamily: "Inter_500Medium", textAlign: "center" },
   infoCard: { flexDirection: "row", alignItems: "center", padding: 16, borderRadius: 12, gap: 12, marginTop: 4 },
   infoContent: { flex: 1 },
   infoTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#ffffff" },
