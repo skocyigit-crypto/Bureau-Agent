@@ -18,6 +18,8 @@ export const usersTable = pgTable("users", {
   dernierAcces: timestamp("dernier_acces"),
   tentativesEchouees: integer("tentatives_echouees").notNull().default(0),
   verrouilleJusqua: timestamp("verrouille_jusqua"),
+  resetPasswordToken: varchar("reset_password_token", { length: 128 }),
+  resetPasswordExpiry: timestamp("reset_password_expiry", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [

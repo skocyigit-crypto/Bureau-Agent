@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Settings, Shield, Bell, Save, Monitor, Package,
-  PhoneIncoming, Layers, Rocket, BrainCircuit, Building2
+  PhoneIncoming, Layers, Rocket, BrainCircuit, Building2, Users
 } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,6 +9,7 @@ import { useWorkspaceUser } from "@/components/workspace-user";
 import { useToast } from "@/hooks/use-toast";
 
 import { TabAbonnement } from "./settings/tab-abonnement";
+import { TabEquipe } from "./settings/tab-equipe";
 import { TabPlateformes } from "./settings/tab-plateformes";
 import { TabAppels } from "./settings/tab-appels";
 import { TabSauvegardes } from "./settings/tab-sauvegardes";
@@ -48,14 +49,14 @@ export default function SettingsPage() {
       window.history.replaceState({}, "", window.location.pathname);
     }
     const tabParam = params.get("tab");
-    const VALID_TABS = ["profil", "abonnement", "google", "appels", "sauvegardes", "installation", "notifications", "securite", "mises-a-jour", "intelligence-artificielle"];
+    const VALID_TABS = ["profil", "abonnement", "equipe", "google", "appels", "sauvegardes", "installation", "notifications", "securite", "mises-a-jour", "intelligence-artificielle"];
     if (tabParam && VALID_TABS.includes(tabParam)) {
       setActiveTab(tabParam);
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, [toast]);
 
-  const adminTabCount = isSuperAdmin ? 10 : isAdmin ? 9 : 3;
+  const adminTabCount = isSuperAdmin ? 11 : isAdmin ? 10 : 3;
 
   return (
     <div className="space-y-6">
@@ -78,6 +79,12 @@ export default function SettingsPage() {
             <TabsTrigger value="abonnement" className="gap-2">
               <Package className="w-4 h-4" />
               Abonnement
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="equipe" className="gap-2">
+              <Users className="w-4 h-4" />
+              Équipe
             </TabsTrigger>
           )}
           {isAdmin && (
@@ -130,6 +137,10 @@ export default function SettingsPage() {
 
         <TabsContent value="abonnement" className="space-y-6 mt-6">
           <TabAbonnement />
+        </TabsContent>
+
+        <TabsContent value="equipe" className="space-y-6 mt-6">
+          <TabEquipe />
         </TabsContent>
 
         <TabsContent value="google" className="space-y-6 mt-6">

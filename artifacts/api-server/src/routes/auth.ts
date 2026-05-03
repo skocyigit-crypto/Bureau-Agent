@@ -5,7 +5,7 @@ import rateLimit from "express-rate-limit";
 import { eq, and } from "drizzle-orm";
 import { db, usersTable, organisationsTable } from "@workspace/db";
 import { logAudit } from "./audit";
-import { sendCredentialsEmail } from "../services/email";
+import { sendCredentialsEmail, sendEmail } from "../services/email";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -21,6 +21,14 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Trop de tentatives de connexion. Reessayez dans 15 minutes." },
   skipSuccessfulRequests: true,
+});
+
+const resetLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop de demandes de reinitialisation. Reessayez dans 1 heure." },
 });
 
 router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Promise<void> => {
@@ -560,6 +568,101 @@ router.post("/auth/users/create-and-send", async (req: Request, res: Response): 
   } catch (err: any) {
     req.log.error({ err }, "Erreur creation et envoi utilisateur");
     res.status(500).json({ error: "Erreur lors de la creation de l'utilisateur." });
+  }
+});
+
+router.post("/auth/forgot-password", resetLimiter, async (req: Request, res: Response): Promise<void> => {
+  const { email } = req.body;
+  if (!email || typeof email !== "string") {
+    res.status(400).json({ error: "Email obligatoire." });
+    return;
+  }
+
+  const emailClean = email.toLowerCase().trim();
+
+  try {
+    const [user] = await db.select({ id: usersTable.id, email: usersTable.email, prenom: usersTable.prenom, nom: usersTable.nom, actif: usersTable.actif })
+      .from(usersTable).where(eq(usersTable.email, emailClean));
+
+    if (!user || !user.actif) {
+      res.json({ message: "Si un compte existe avec cet email, un lien de reinitialisation a ete envoye." });
+      return;
+    }
+
+    const token = crypto.randomBytes(48).toString("hex");
+    const expiry = new Date(Date.now() + 60 * 60 * 1000);
+
+    await db.update(usersTable).set({
+      resetPasswordToken: token,
+      resetPasswordExpiry: expiry,
+      updatedAt: new Date(),
+    }).where(eq(usersTable.id, user.id));
+
+    const appUrl = process.env.REPLIT_DEPLOYMENT_URL
+      || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
+      || "https://agentdebureau.fr";
+    const appBase = process.env.APP_BASE_PATH || "/buro-ajani";
+    const resetLink = `${appUrl}${appBase}?reset_token=${token}`;
+
+    const html = `
+      <div style="font-family:sans-serif;max-width:500px;margin:auto;padding:24px">
+        <h2 style="color:#1a2744">Reinitialisation de votre mot de passe</h2>
+        <p>Bonjour ${user.prenom},</p>
+        <p>Vous avez demande la reinitialisation de votre mot de passe. Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe :</p>
+        <div style="text-align:center;margin:32px 0">
+          <a href="${resetLink}" style="background:#1a2744;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">
+            Reinitialiser mon mot de passe
+          </a>
+        </div>
+        <p style="color:#666;font-size:13px">Ce lien est valable pendant <strong>1 heure</strong>. Si vous n'avez pas fait cette demande, ignorez cet email.</p>
+        <hr style="border:none;border-top:1px solid #eee;margin:24px 0">
+        <p style="color:#999;font-size:11px">Agent de Bureau &mdash; ${appUrl}</p>
+      </div>`;
+
+    await sendEmail(emailClean, "Reinitialisation de votre mot de passe - Agent de Bureau", html,
+      `Bonjour ${user.prenom}, reinitialiser votre mot de passe: ${resetLink} (valide 1h)`);
+
+    res.json({ message: "Si un compte existe avec cet email, un lien de reinitialisation a ete envoye." });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur forgot-password");
+    res.status(500).json({ error: "Erreur lors de l'envoi du lien de reinitialisation." });
+  }
+});
+
+router.post("/auth/reset-password", resetLimiter, async (req: Request, res: Response): Promise<void> => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword) {
+    res.status(400).json({ error: "Token et nouveau mot de passe obligatoires." });
+    return;
+  }
+  if (newPassword.length < 8) {
+    res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caracteres." });
+    return;
+  }
+
+  try {
+    const [user] = await db.select({ id: usersTable.id, resetPasswordToken: usersTable.resetPasswordToken, resetPasswordExpiry: usersTable.resetPasswordExpiry })
+      .from(usersTable).where(eq(usersTable.resetPasswordToken, token));
+
+    if (!user || !user.resetPasswordExpiry || new Date(user.resetPasswordExpiry) < new Date()) {
+      res.status(400).json({ error: "Lien invalide ou expire. Veuillez refaire une demande." });
+      return;
+    }
+
+    const hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await db.update(usersTable).set({
+      passwordHash: hash,
+      resetPasswordToken: null,
+      resetPasswordExpiry: null,
+      tentativesEchouees: 0,
+      verrouilleJusqua: null,
+      updatedAt: new Date(),
+    }).where(eq(usersTable.id, user.id));
+
+    res.json({ message: "Mot de passe reinitialise avec succes. Vous pouvez maintenant vous connecter." });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur reset-password");
+    res.status(500).json({ error: "Erreur lors de la reinitialisation." });
   }
 });
 
