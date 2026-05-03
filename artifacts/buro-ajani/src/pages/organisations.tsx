@@ -5,6 +5,7 @@ import {
   Package, Shield, Zap, Brain, Search, RefreshCw, Copy, Check, Send,
   Receipt, CreditCard, Upload, TrendingUp, Clock, FileText, ArrowUpDown,
   BarChart3, CircleDollarSign, AlertCircle, Scale, ShieldCheck, Lock, Eye, FileCheck, BookOpen,
+  TrendingDown, Pause, Play, Activity, DollarSign, UserPlus, Target, Percent,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -219,6 +220,10 @@ export default function OrganisationsPage() {
   const [acceptingLegal, setAcceptingLegal] = useState<string | null>(null);
   const [acceptingAll, setAcceptingAll] = useState(false);
 
+  const [saasMetrics, setSaasMetrics] = useState<any>(null);
+  const [saasLoading, setSaasLoading] = useState(false);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
+
   const loadOrganisations = async () => {
     try {
       const res = await fetch(`${BASE}api/organisations`, { credentials: "include" });
@@ -356,7 +361,39 @@ export default function OrganisationsPage() {
     }
   };
 
-  useEffect(() => { loadOrganisations(); loadBillingSummary(); loadLegalCompliance(); }, [loadBillingSummary, loadLegalCompliance]);
+  const loadSaasMetrics = useCallback(async () => {
+    setSaasLoading(true);
+    try {
+      const res = await fetch(`${BASE}api/billing/saas-metrics`, { credentials: "include" });
+      if (res.ok) setSaasMetrics(await res.json());
+    } catch (err) { console.error("[Organisations] loadSaasMetrics failed:", err); }
+    finally { setSaasLoading(false); }
+  }, []);
+
+  const handleToggleStatus = async (org: Organisation) => {
+    if (org.id === 1) return;
+    setTogglingId(org.id);
+    try {
+      const res = await fetch(`${BASE}api/organisations/${org.id}/toggle-status`, {
+        method: "PATCH",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: org.actif ? "Organisation suspendue" : "Organisation activee", description: data.message });
+        loadOrganisations();
+        loadSaasMetrics();
+      } else {
+        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Erreur lors du changement de statut.", variant: "destructive" });
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
+  useEffect(() => { loadOrganisations(); loadBillingSummary(); loadLegalCompliance(); loadSaasMetrics(); }, [loadBillingSummary, loadLegalCompliance, loadSaasMetrics]);
 
   const resetForm = () => {
     setFormName(""); setFormEmail(""); setFormPhone(""); setFormAddress(""); setFormPlan("essai"); setFormActif(true);
@@ -708,12 +745,263 @@ export default function OrganisationsPage() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v === "saas") loadSaasMetrics(); }}>
         <TabsList>
-          <TabsTrigger value="organisations" className="gap-2"><Building2 className="w-4 h-4" />Organisations</TabsTrigger>
+          <TabsTrigger value="saas" className="gap-2"><Activity className="w-4 h-4" />Tableau SaaS</TabsTrigger>
+          <TabsTrigger value="organisations" className="gap-2"><Building2 className="w-4 h-4" />Licences</TabsTrigger>
           <TabsTrigger value="facturation" className="gap-2"><Receipt className="w-4 h-4" />Facturation</TabsTrigger>
           <TabsTrigger value="juridique" className="gap-2"><Scale className="w-4 h-4" />Juridique</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="saas" className="space-y-6 mt-4">
+          {saasLoading ? (
+            <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>
+          ) : saasMetrics ? (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card className="border-emerald-200 dark:border-emerald-900 bg-emerald-50/30 dark:bg-emerald-950/10">
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs text-emerald-600 font-medium">MRR</p>
+                      <DollarSign className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <p className="text-2xl font-bold text-emerald-700">{saasMetrics.mrr.toFixed(0)} EUR</p>
+                    <p className="text-[11px] text-emerald-600/70 mt-0.5">ARR : {saasMetrics.arr.toFixed(0)} EUR</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs text-muted-foreground font-medium">Clients payants</p>
+                      <Crown className="w-4 h-4 text-amber-500" />
+                    </div>
+                    <p className="text-2xl font-bold">{saasMetrics.paidCustomers}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">sur {saasMetrics.totalCustomers} clients</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs text-muted-foreground font-medium">En essai</p>
+                      <Clock className="w-4 h-4 text-blue-500" />
+                    </div>
+                    <p className="text-2xl font-bold">{saasMetrics.trialCustomers}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{saasMetrics.trialExpiringSoon?.length || 0} expirent dans 7j</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs text-muted-foreground font-medium">Taux conversion</p>
+                      <Percent className="w-4 h-4 text-purple-500" />
+                    </div>
+                    <p className="text-2xl font-bold">{saasMetrics.conversionRate}%</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{saasMetrics.suspendedCustomers} suspendu(s)</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {saasMetrics.trialExpiringSoon?.length > 0 && (
+                <Card className="border-amber-200 dark:border-amber-900 bg-amber-50/30 dark:bg-amber-950/10">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                      <AlertTriangle className="w-4 h-4" />
+                      {saasMetrics.trialExpiringSoon.length} essai(s) expirant dans les 7 prochains jours
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {saasMetrics.trialExpiringSoon.map((t: any) => (
+                      <div key={t.id} className="flex items-center justify-between p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-amber-200 dark:bg-amber-900 flex items-center justify-center text-amber-800 font-bold text-xs">
+                            {t.name.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-sm">{t.name}</p>
+                            <p className="text-xs text-muted-foreground">{t.email || "Pas d'email"}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400">
+                            J-{t.daysLeft}
+                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-amber-700"
+                            onClick={() => { const org = organisations.find(o => o.id === t.id); if (org) openPlanChange(org); }}
+                          >
+                            <Crown className="w-3.5 h-3.5 mr-1" />
+                            Convertir
+                          </Button>
+                          {t.email && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => { const org = organisations.find(o => o.id === t.id); if (org) resendLicense(org); }}
+                              disabled={sendingEmail === t.id}
+                            >
+                              {sendingEmail === t.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-1" />}
+                              Relancer
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2"><Target className="w-4 h-4" />Repartition des plans</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {[
+                      { key: "essai", label: "Essai Gratuit", color: "bg-gray-400", price: 0 },
+                      { key: "starter", label: "Starter", color: "bg-blue-500", price: 29 },
+                      { key: "professionnel", label: "Professionnel", color: "bg-purple-500", price: 79 },
+                      { key: "entreprise", label: "Entreprise", color: "bg-amber-500", price: 199 },
+                    ].map(plan => {
+                      const count = saasMetrics.planDistribution?.[plan.key] || 0;
+                      const total = Object.values(saasMetrics.planDistribution || {}).reduce((a: number, b: any) => a + b, 0) as number;
+                      const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                      return (
+                        <div key={plan.key} className="space-y-1">
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2.5 h-2.5 rounded-full ${plan.color}`} />
+                              <span>{plan.label}</span>
+                              {plan.price > 0 && <span className="text-xs text-muted-foreground">{plan.price} EUR/mois</span>}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold">{count}</span>
+                              <span className="text-xs text-muted-foreground">({pct}%)</span>
+                            </div>
+                          </div>
+                          <Progress value={pct} className={`h-1.5 ${plan.key === "entreprise" ? "[&>div]:bg-amber-500" : plan.key === "professionnel" ? "[&>div]:bg-purple-500" : plan.key === "starter" ? "[&>div]:bg-blue-500" : "[&>div]:bg-gray-400"}`} />
+                        </div>
+                      );
+                    })}
+                    <Separator />
+                    <div className="flex items-center justify-between text-sm font-semibold">
+                      <span>Revenus en attente</span>
+                      <span className={saasMetrics.pendingRevenue?.total > 0 ? "text-amber-600" : "text-emerald-600"}>
+                        {saasMetrics.pendingRevenue?.total?.toFixed(2) || "0.00"} EUR ({saasMetrics.pendingRevenue?.count || 0} facture(s))
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2"><UserPlus className="w-4 h-4" />Nouveaux clients (30 derniers jours)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {saasMetrics.recentSignups?.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-4">Aucun nouveau client ce mois.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {saasMetrics.recentSignups?.slice(0, 6).map((s: any) => (
+                          <div key={s.id} className="flex items-center justify-between py-1.5">
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-md bg-gradient-to-br from-[#1a2744] to-[#0f1729] flex items-center justify-center text-white font-bold text-[10px]">
+                                {s.name.substring(0, 2).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium">{s.name}</p>
+                                <p className="text-[11px] text-muted-foreground">{new Date(s.createdAt).toLocaleDateString("fr-FR")}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge className={`text-[10px] ${PLAN_COLORS[s.plan] || ""}`}>{s.plan}</Badge>
+                              {!s.actif && <Badge variant="secondary" className="text-[10px]">Suspendu</Badge>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {saasMetrics.revenueTrend?.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2"><TrendingUp className="w-4 h-4" />Revenus encaisses (6 derniers mois)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-end gap-2 h-32">
+                      {(() => {
+                        const trend = saasMetrics.revenueTrend as { month: string; revenue: number; invoices: number }[];
+                        const max = Math.max(...trend.map(t => t.revenue), 1);
+                        return trend.map(t => (
+                          <div key={t.month} className="flex-1 flex flex-col items-center gap-1">
+                            <span className="text-[10px] text-muted-foreground font-medium">{t.revenue > 0 ? `${t.revenue.toFixed(0)}€` : ""}</span>
+                            <div
+                              className="w-full rounded-t bg-emerald-500 dark:bg-emerald-600 min-h-[4px] transition-all"
+                              style={{ height: `${Math.max(4, (t.revenue / max) * 96)}px` }}
+                            />
+                            <span className="text-[10px] text-muted-foreground">{t.month.slice(5)}/{t.month.slice(2, 4)}</span>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {saasMetrics.suspendedOrgs?.length > 0 && (
+                <Card className="border-red-200 dark:border-red-900 bg-red-50/20 dark:bg-red-950/10">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2 text-red-600 dark:text-red-400">
+                      <Pause className="w-4 h-4" />
+                      {saasMetrics.suspendedOrgs.length} organisation(s) suspendue(s)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {saasMetrics.suspendedOrgs.map((s: any) => (
+                      <div key={s.id} className="flex items-center justify-between p-3 rounded-lg border border-red-200 dark:border-red-900">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-700 font-bold text-xs">
+                            {s.name.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-sm">{s.name}</p>
+                            <p className="text-xs text-muted-foreground">{s.email || "Pas d'email"} · Plan {s.plan}</p>
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-emerald-600 hover:text-emerald-700"
+                          onClick={() => { const org = organisations.find(o => o.id === s.id); if (org) handleToggleStatus(org); }}
+                          disabled={togglingId === s.id}
+                        >
+                          {togglingId === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 mr-1" />}
+                          Reactiver
+                        </Button>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="flex justify-center">
+                <Button variant="outline" onClick={loadSaasMetrics} disabled={saasLoading}>
+                  <RefreshCw className={`w-4 h-4 mr-2 ${saasLoading ? "animate-spin" : ""}`} />
+                  Actualiser les metriques
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
+              <Activity className="w-12 h-12 opacity-30" />
+              <Button variant="outline" onClick={loadSaasMetrics}>Charger les metriques</Button>
+            </div>
+          )}
+        </TabsContent>
 
         <TabsContent value="organisations" className="space-y-4 mt-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -925,6 +1213,18 @@ export default function OrganisationsPage() {
                         <Edit className="w-3.5 h-3.5 mr-1" />
                         Modifier
                       </Button>
+                      {org.id !== 1 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className={org.actif ? "text-amber-600 hover:text-amber-700" : "text-emerald-600 hover:text-emerald-700"}
+                          onClick={() => handleToggleStatus(org)}
+                          disabled={togglingId === org.id}
+                          title={org.actif ? "Suspendre l'acces" : "Reactiver l'acces"}
+                        >
+                          {togglingId === org.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : org.actif ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                        </Button>
+                      )}
                       {org.id !== 1 && (
                         <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700" onClick={() => { setSelectedOrg(org); setShowDelete(true); }}>
                           <Trash2 className="w-3.5 h-3.5" />

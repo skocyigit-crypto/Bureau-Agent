@@ -323,4 +323,103 @@ router.get("/billing/summary", async (req: Request, res: Response): Promise<void
   }
 });
 
+router.get("/billing/saas-metrics", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { subscriptionsTable: subs } = await import("@workspace/db");
+
+    const allOrgs = await db.select({
+      id: organisationsTable.id,
+      name: organisationsTable.name,
+      email: organisationsTable.email,
+      actif: organisationsTable.actif,
+      createdAt: organisationsTable.createdAt,
+    }).from(organisationsTable).orderBy(desc(organisationsTable.createdAt));
+
+    const allSubs = await db.select().from(subs);
+
+    const now = new Date();
+    const in7Days = new Date(now.getTime() + 7 * 86400000);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
+    const sixMonthsAgo = new Date(now.getTime() - 180 * 86400000);
+
+    let mrr = 0;
+    let paidCount = 0;
+    let trialCount = 0;
+    let suspendedCount = 0;
+    const planDist: Record<string, number> = { essai: 0, starter: 0, professionnel: 0, entreprise: 0 };
+    const trialExpiringSoon: { id: number; name: string; email: string | null; trialEndsAt: string; daysLeft: number }[] = [];
+    const suspendedOrgs: { id: number; name: string; email: string | null; plan: string }[] = [];
+
+    for (const org of allOrgs) {
+      const sub = allSubs.find(s => s.organisationId === org.id);
+      if (!org.actif) {
+        suspendedCount++;
+        suspendedOrgs.push({ id: org.id, name: org.name, email: org.email, plan: sub?.plan || "inconnu" });
+        continue;
+      }
+      if (!sub) continue;
+
+      planDist[sub.plan] = (planDist[sub.plan] || 0) + 1;
+
+      if (sub.plan === "essai") {
+        trialCount++;
+        if (sub.trialEndsAt) {
+          const endsAt = new Date(sub.trialEndsAt);
+          if (endsAt > now && endsAt <= in7Days) {
+            const daysLeft = Math.ceil((endsAt.getTime() - now.getTime()) / 86400000);
+            trialExpiringSoon.push({ id: org.id, name: org.name, email: org.email, trialEndsAt: sub.trialEndsAt.toISOString(), daysLeft });
+          }
+        }
+      } else {
+        paidCount++;
+        mrr += Number(sub.price) || 0;
+      }
+    }
+
+    const recentSignups = allOrgs
+      .filter(o => new Date(o.createdAt) >= thirtyDaysAgo)
+      .map(o => {
+        const sub = allSubs.find(s => s.organisationId === o.id);
+        return { id: o.id, name: o.name, email: o.email, plan: sub?.plan || "essai", createdAt: o.createdAt.toISOString(), actif: o.actif };
+      });
+
+    const revenueTrend = await db.select({
+      month: sql<string>`TO_CHAR(created_at, 'YYYY-MM')`,
+      total: sql<string>`COALESCE(SUM(total_amount), 0)::text`,
+      count: sql<number>`count(*)::int`,
+    }).from(invoicesTable)
+      .where(sql`${invoicesTable.createdAt} >= ${sixMonthsAgo} AND ${invoicesTable.status} = 'payee'`)
+      .groupBy(sql`TO_CHAR(created_at, 'YYYY-MM')`)
+      .orderBy(sql`TO_CHAR(created_at, 'YYYY-MM')`);
+
+    const pendingRevenue = await db.select({
+      total: sql<string>`COALESCE(SUM(total_amount), 0)::text`,
+      count: sql<number>`count(*)::int`,
+    }).from(invoicesTable)
+      .where(sql`${invoicesTable.status} IN ('en_attente', 'retard', 'partiel')`);
+
+    res.json({
+      mrr: Math.round(mrr * 100) / 100,
+      arr: Math.round(mrr * 12 * 100) / 100,
+      totalCustomers: allOrgs.length,
+      paidCustomers: paidCount,
+      trialCustomers: trialCount,
+      suspendedCustomers: suspendedCount,
+      conversionRate: allOrgs.length > 0 ? Math.round((paidCount / Math.max(1, paidCount + trialCount)) * 100) : 0,
+      planDistribution: planDist,
+      trialExpiringSoon: trialExpiringSoon.sort((a, b) => a.daysLeft - b.daysLeft),
+      suspendedOrgs,
+      recentSignups,
+      revenueTrend: revenueTrend.map(r => ({ month: r.month, revenue: Number(r.total), invoices: r.count })),
+      pendingRevenue: {
+        total: Number(pendingRevenue[0]?.total || 0),
+        count: pendingRevenue[0]?.count || 0,
+      },
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur metriques SaaS");
+    res.status(500).json({ error: "Erreur lors du calcul des metriques SaaS." });
+  }
+});
+
 export default router;

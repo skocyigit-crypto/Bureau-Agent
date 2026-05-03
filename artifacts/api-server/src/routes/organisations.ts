@@ -434,6 +434,28 @@ router.put("/organisations/:id/plan", async (req: Request, res: Response): Promi
   }
 });
 
+router.patch("/organisations/:id/toggle-status", async (req: Request, res: Response): Promise<void> => {
+  const id = parseInt(String(req.params.id));
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  if (id === 1) { res.status(400).json({ error: "Impossible de suspendre l'organisation principale." }); return; }
+
+  try {
+    const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, id));
+    if (!org) { res.status(404).json({ error: "Organisation non trouvee." }); return; }
+
+    const newStatus = !org.actif;
+    await db.update(organisationsTable).set({ actif: newStatus }).where(eq(organisationsTable.id, id));
+
+    res.json({
+      message: newStatus ? `Organisation "${org.name}" activee.` : `Organisation "${org.name}" suspendue.`,
+      actif: newStatus,
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur toggle statut organisation");
+    res.status(500).json({ error: "Erreur lors du changement de statut." });
+  }
+});
+
 router.delete("/organisations/:id", async (req: Request, res: Response): Promise<void> => {
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
