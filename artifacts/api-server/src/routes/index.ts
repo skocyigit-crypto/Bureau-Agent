@@ -51,6 +51,10 @@ import meetingsRouter from "./meetings";
 import gmailRouter from "./gmail";
 import orgProfileRouter from "./org-profile";
 import demoRequestRouter from "./demo-request";
+import prospectsRouter from "./prospects";
+import stockRouter from "./stock";
+import devisRouter from "./devis";
+import facturesClientRouter from "./factures-client";
 
 const router: IRouter = Router();
 
@@ -112,5 +116,9 @@ router.use(documentsRouter);
 router.use(meetingsRouter);
 router.use(gmailRouter);
 router.use(orgProfileRouter);
+router.use(prospectsRouter);
+router.use(stockRouter);
+router.use(devisRouter);
+router.use(facturesClientRouter);
 
 export default router;

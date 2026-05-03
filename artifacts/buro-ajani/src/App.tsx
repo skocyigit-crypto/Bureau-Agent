@@ -54,6 +54,10 @@ import TelechargerPage from "@/pages/telecharger";
 import { QuickActionHub } from "@/components/quick-action-hub";
 import InvitationAcceptPage from "@/pages/invitation-accept";
 import OnboardingPage from "@/pages/onboarding";
+import ProspectsPage from "@/pages/prospects";
+import StockPage from "@/pages/stock";
+import DevisPage from "@/pages/devis";
+import FacturesClientPage from "@/pages/factures-client";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -147,6 +151,10 @@ function AppRoutes() {
         <Route path="/telecharger" component={TelechargerPage} />
         <Route path="/notifications" component={NotificationsPage} />
         <Route path="/onboarding" component={() => <OnboardingPage />} />
+        <Route path="/prospects" component={withLicenseGate(ProspectsPage)} />
+        <Route path="/stock" component={withLicenseGate(StockPage)} />
+        <Route path="/devis" component={withLicenseGate(DevisPage)} />
+        <Route path="/factures-client" component={withLicenseGate(FacturesClientPage)} />
         <Route component={NotFound} />
       </Switch>
         </AnimatedRouteContent>
