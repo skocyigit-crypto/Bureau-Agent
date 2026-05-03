@@ -184,7 +184,7 @@ export async function purgeOldAiUsage(): Promise<number> {
     const cutoff = new Date(Date.now() - RETENTION_DAYS * 86400_000);
     const res = await db.delete(aiUsageTable).where(lt(aiUsageTable.createdAt, cutoff));
     const deleted = (res as any).rowCount ?? 0;
-    if (deleted > 0) console.info(`[ai-utils] Purge ai_usage: ${deleted} lignes supprimees (>${RETENTION_DAYS}j)`);
+    if (deleted > 0) logger.info(`[ai-utils] Purge ai_usage: ${deleted} lignes supprimees (>${RETENTION_DAYS}j)`);
     return deleted;
   } catch (err) {
     logger.error({ err: err }, "[ai-utils] Purge ai_usage failed:");
@@ -197,7 +197,7 @@ export function startAiUsagePurgeJob(): void {
   setTimeout(() => { void purgeOldAiUsage(); }, 30_000);
   purgeTimer = setInterval(() => { void purgeOldAiUsage(); }, 24 * 60 * 60 * 1000);
   purgeTimer.unref?.();
-  console.info(`[ai-utils] Purge job started (retention: ${RETENTION_DAYS}j)`);
+  logger.info(`[ai-utils] Purge job started (retention: ${RETENTION_DAYS}j)`);
 }
 
 export function sanitizePromptInput(text: string | null | undefined, maxLen: number = 8000): string {

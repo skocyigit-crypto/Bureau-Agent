@@ -80,7 +80,7 @@ export default function DashboardScreen() {
       const [summaryRes, callsRes, eventsRes, tasksRes] = await Promise.all([
         fetchAuth(`${API_BASE}/api/dashboard/summary`),
         fetchAuth(`${API_BASE}/api/calls?limit=5&sortOrder=desc`),
-        fetchAuth(`${API_BASE}/api/calendar?limit=3`).catch(() => null),
+        fetchAuth(`${API_BASE}/api/calendar/events?limit=3`).catch(() => null),
         fetchAuth(`${API_BASE}/api/tasks?status=en_attente&sortOrder=asc&limit=5`).catch(() => null),
       ]);
       if (summaryRes.ok) {

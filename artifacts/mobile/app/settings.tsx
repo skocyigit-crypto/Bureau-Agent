@@ -54,8 +54,8 @@ export default function SettingsScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetchAuth(`${API_BASE}/api/subscription/current`);
-        if (res.ok) setSub(await res.json());
+        const res = await fetchAuth(`${API_BASE}/api/subscription`);
+        if (res.ok) { const data = await res.json(); setSub(data.subscription ?? data); }
       } catch (err) { console.warn("[Settings] fetch failed:", err); } finally { setLoading(false); }
     })();
   }, [fetchAuth]);
@@ -91,7 +91,7 @@ export default function SettingsScreen() {
             </View>
             <InfoRow icon="user" label="Nom" value={`${user.prenom} ${user.nom}`} />
             <InfoRow icon="mail" label="E-mail" value={user.email} />
-            <InfoRow icon="shield" label="Role" value={user.role === "super_admin" ? "Super Admin" : user.role === "admin" ? "Administrateur" : user.role === "agent" ? "Agent" : "Lecture seule"} />
+            <InfoRow icon="shield" label="Role" value={user.role === "super_admin" ? "Super Admin" : user.role === "administrateur" ? "Administrateur" : user.role === "agent" ? "Agent" : "Lecture seule"} />
             {user.departement ? <InfoRow icon="briefcase" label="Departement" value={user.departement} /> : null}
             {user.organisation ? <InfoRow icon="home" label="Organisation" value={user.organisation} /> : null}
           </View>

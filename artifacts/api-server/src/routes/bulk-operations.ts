@@ -7,7 +7,7 @@ import { logger } from "../lib/logger";
 
 const router = Router();
 
-const requireMinOperateur = requireRole("super_admin", "administrateur", "operateur");
+const requireMinOperateur = requireRole("super_admin", "administrateur", "agent");
 const requireMinAdmin = requireRole("super_admin", "administrateur");
 
 router.post("/bulk/tasks/complete", requireMinOperateur, async (req: Request, res: Response): Promise<void> => {

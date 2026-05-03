@@ -134,7 +134,7 @@ export default function MoreScreen() {
               </Text>
               <View style={[styles.roleBadge, { backgroundColor: colors.primary + "20" }]}>
                 <Text style={[styles.roleText, { color: colors.primary }]}>
-                  {user.role === "super_admin" ? "Super Admin" : user.role === "admin" ? "Administrateur" : user.role === "agent" ? "Agent" : "Lecture seule"}
+                  {user.role === "super_admin" ? "Super Admin" : user.role === "administrateur" ? "Administrateur" : user.role === "agent" ? "Agent" : "Lecture seule"}
                 </Text>
               </View>
             </View>

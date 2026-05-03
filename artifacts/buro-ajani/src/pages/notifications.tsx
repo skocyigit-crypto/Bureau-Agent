@@ -46,7 +46,7 @@ export default function Notifications() {
   });
 
   const markAllReadMutation = useMutation({
-    mutationFn: () => apiFetch("/notifications/mark-all-read", { method: "PATCH" }),
+    mutationFn: () => apiFetch("/notifications/read-all", { method: "POST" }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["notifications"] }); toast({ title: "Toutes les notifications lues" }); },
     onError: () => toast({ title: "Erreur", description: "Impossible de marquer les notifications comme lues", variant: "destructive" }),
   });
