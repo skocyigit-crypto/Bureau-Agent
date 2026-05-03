@@ -3,6 +3,7 @@ import { motion, useScroll, useTransform, useInView } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { DemoModal } from "@/components/DemoModal";
 import { 
   PhoneCall, 
   Users, 
@@ -112,10 +113,14 @@ function Counter({ end, suffix = "", duration = 2 }: { end: number, suffix?: str
 export default function Home() {
   const { scrollYProgress } = useScroll();
   const parallaxY = useTransform(scrollYProgress, [0, 1], [0, -100]);
-  
+  const [demoOpen, setDemoOpen] = useState(false);
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [newsletterDone, setNewsletterDone] = useState(false);
+
   return (
     <div className="min-h-screen bg-background flex flex-col overflow-x-hidden font-sans">
-      <Navbar />
+      <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
+      <Navbar onDemoClick={() => setDemoOpen(true)} />
 
       <main className="flex-grow pt-20">
         {/* 1. HERO SECTION */}
@@ -150,11 +155,13 @@ export default function Home() {
                 </motion.p>
                 
                 <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                  <Button size="lg" className="h-16 px-10 text-lg bg-[#f59e0b] text-[#1a2744] hover:bg-[#f59e0b]/90 rounded-full w-full sm:w-auto font-bold shadow-[0_0_40px_-10px_rgba(245,158,11,0.5)] transition-all hover:scale-105">
-                    Démarrer l'essai gratuit
-                    <ArrowRight className="ml-2 w-5 h-5" />
-                  </Button>
-                  <Button size="lg" variant="outline" className="h-16 px-10 text-lg bg-white/5 border-white/20 text-white hover:bg-white/10 rounded-full w-full sm:w-auto font-semibold transition-all hover:scale-105 backdrop-blur-sm">
+                  <a href="/register">
+                    <Button size="lg" className="h-16 px-10 text-lg bg-[#f59e0b] text-[#1a2744] hover:bg-[#f59e0b]/90 rounded-full w-full sm:w-auto font-bold shadow-[0_0_40px_-10px_rgba(245,158,11,0.5)] transition-all hover:scale-105">
+                      Démarrer l'essai gratuit
+                      <ArrowRight className="ml-2 w-5 h-5" />
+                    </Button>
+                  </a>
+                  <Button size="lg" variant="outline" className="h-16 px-10 text-lg bg-white/5 border-white/20 text-white hover:bg-white/10 rounded-full w-full sm:w-auto font-semibold transition-all hover:scale-105 backdrop-blur-sm" onClick={() => setDemoOpen(true)}>
                     Planifier une démo
                   </Button>
                 </motion.div>
@@ -405,10 +412,12 @@ export default function Home() {
                   ))}
                 </div>
                 <div className="pt-6">
-                  <Button className="group h-14 px-8 text-lg rounded-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold shadow-xl hover:shadow-primary/25 transition-all">
-                    Découvrir la téléphonie 
-                    <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </Button>
+                  <a href="/register">
+                    <Button className="group h-14 px-8 text-lg rounded-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold shadow-xl hover:shadow-primary/25 transition-all">
+                      Démarrer gratuitement
+                      <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                  </a>
                 </div>
               </motion.div>
               
@@ -484,10 +493,12 @@ export default function Home() {
                   ))}
                 </div>
                 <div className="pt-6">
-                  <Button className="group h-14 px-8 text-lg rounded-full bg-white text-primary hover:bg-white/90 font-bold shadow-xl transition-all">
-                    Explorer les analyses
-                    <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </Button>
+                  <a href="/register">
+                    <Button className="group h-14 px-8 text-lg rounded-full bg-white text-primary hover:bg-white/90 font-bold shadow-xl transition-all">
+                      Voir le tableau de bord
+                      <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                  </a>
                 </div>
               </motion.div>
               
@@ -603,9 +614,11 @@ export default function Home() {
                   <span className="text-5xl font-extrabold text-primary">29€</span>
                   <span className="text-muted-foreground font-medium">/mois</span>
                 </div>
-                <Button variant="outline" className="w-full h-14 rounded-xl text-lg font-bold border-2 mb-8 hover:bg-primary/5">
-                  Essai gratuit 14 jours
-                </Button>
+                <a href="/register" className="block w-full mb-8">
+                  <Button variant="outline" className="w-full h-14 rounded-xl text-lg font-bold border-2 hover:bg-primary/5">
+                    Essai gratuit 14 jours
+                  </Button>
+                </a>
                 <ul className="space-y-4">
                   {[
                     "Jusqu'a 5 utilisateurs",
@@ -643,9 +656,11 @@ export default function Home() {
                   <span className="text-5xl font-extrabold text-white">79€</span>
                   <span className="text-blue-200/80 font-medium">/mois</span>
                 </div>
-                <Button className="w-full h-14 rounded-xl text-lg font-bold bg-accent text-accent-foreground hover:bg-accent/90 mb-8 shadow-xl">
-                  Essai gratuit 14 jours
-                </Button>
+                <a href="/register" className="block w-full mb-8">
+                  <Button className="w-full h-14 rounded-xl text-lg font-bold bg-accent text-accent-foreground hover:bg-accent/90 shadow-xl">
+                    Essai gratuit 14 jours
+                  </Button>
+                </a>
                 <ul className="space-y-4">
                   {[
                     "Jusqu'a 15 utilisateurs",
@@ -680,7 +695,7 @@ export default function Home() {
                   <span className="text-5xl font-extrabold text-primary">199€</span>
                   <span className="text-muted-foreground font-medium">/mois</span>
                 </div>
-                <Button variant="outline" className="w-full h-14 rounded-xl text-lg font-bold border-2 mb-8 hover:bg-primary/5">
+                <Button variant="outline" className="w-full h-14 rounded-xl text-lg font-bold border-2 mb-8 hover:bg-primary/5" onClick={() => setDemoOpen(true)}>
                   Contacter les ventes
                 </Button>
                 <ul className="space-y-4">
@@ -926,26 +941,37 @@ export default function Home() {
               </p>
               
               <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-16">
-                <Button size="lg" className="h-16 px-12 text-xl bg-accent text-accent-foreground hover:bg-accent/90 rounded-full w-full sm:w-auto font-bold shadow-[0_0_40px_-10px_rgba(245,158,11,0.6)] hover:scale-105 transition-all">
-                  Commencer gratuitement
-                </Button>
-                <Button size="lg" variant="outline" className="h-16 px-12 text-xl border-2 border-white/20 text-white hover:bg-white/10 rounded-full w-full sm:w-auto font-bold hover:scale-105 transition-all backdrop-blur-sm">
+                <a href="/register">
+                  <Button size="lg" className="h-16 px-12 text-xl bg-accent text-accent-foreground hover:bg-accent/90 rounded-full w-full sm:w-auto font-bold shadow-[0_0_40px_-10px_rgba(245,158,11,0.6)] hover:scale-105 transition-all">
+                    Commencer gratuitement
+                  </Button>
+                </a>
+                <Button size="lg" variant="outline" className="h-16 px-12 text-xl border-2 border-white/20 text-white hover:bg-white/10 rounded-full w-full sm:w-auto font-bold hover:scale-105 transition-all backdrop-blur-sm" onClick={() => setDemoOpen(true)}>
                   Parler à un expert
                 </Button>
               </div>
 
               <div className="max-w-md mx-auto bg-white/5 p-6 rounded-3xl border border-white/10 backdrop-blur-md">
                 <h4 className="text-sm font-bold uppercase tracking-widest text-white/80 mb-4">Restez informé</h4>
-                <div className="flex gap-2">
-                  <Input 
-                    type="email" 
-                    placeholder="votre@email.fr" 
-                    className="bg-white/10 border-white/20 text-white placeholder:text-white/50 h-12 rounded-xl focus-visible:ring-accent"
-                  />
-                  <Button className="h-12 bg-white text-primary hover:bg-white/90 rounded-xl font-bold px-6">
-                    S'inscrire
-                  </Button>
-                </div>
+                {newsletterDone ? (
+                  <p className="text-center text-accent font-bold py-2">✓ Inscription confirmée. Merci !</p>
+                ) : (
+                  <div className="flex gap-2">
+                    <Input
+                      type="email"
+                      placeholder="votre@email.fr"
+                      value={newsletterEmail}
+                      onChange={(e) => setNewsletterEmail(e.target.value)}
+                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 h-12 rounded-xl focus-visible:ring-accent"
+                    />
+                    <Button
+                      className="h-12 bg-white text-primary hover:bg-white/90 rounded-xl font-bold px-6 shrink-0"
+                      onClick={() => { if (newsletterEmail.includes("@")) setNewsletterDone(true); }}
+                    >
+                      S'inscrire
+                    </Button>
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>

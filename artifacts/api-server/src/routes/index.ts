@@ -50,12 +50,14 @@ import aiUsageRouter from "./ai-usage";
 import meetingsRouter from "./meetings";
 import gmailRouter from "./gmail";
 import orgProfileRouter from "./org-profile";
+import demoRequestRouter from "./demo-request";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
 router.use(registerRouter);
+router.use(demoRequestRouter);
 router.use(telephonyWebhookRouter);
 router.use(twilioVoiceRouter);
 router.get("/invitations/verify/:token", (req, res, next) => invitationsRouter(req, res, next));
