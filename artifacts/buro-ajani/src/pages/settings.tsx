@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Settings, Shield, Bell, Save, Monitor, Package,
-  PhoneIncoming, Layers, Rocket, BrainCircuit
+  PhoneIncoming, Layers, Rocket, BrainCircuit, Building2
 } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,13 +17,14 @@ import { TabNotifications } from "./settings/tab-notifications";
 import { TabSecurite } from "./settings/tab-securite";
 import { TabMisesAJour } from "./settings/tab-mises-a-jour";
 import { TabIntelligenceArtificielle } from "./settings/tab-intelligence-artificielle";
+import { TabProfilOrg } from "./settings/tab-profil-org";
 
 export default function SettingsPage() {
   const { user } = useWorkspaceUser();
   const { toast } = useToast();
   const isAdmin = user?.role === "super_admin" || user?.role === "administrateur";
   const isSuperAdmin = user?.role === "super_admin";
-  const [activeTab, setActiveTab] = useState(isAdmin ? "abonnement" : "appels");
+  const [activeTab, setActiveTab] = useState(isAdmin ? "profil" : "appels");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -47,12 +48,14 @@ export default function SettingsPage() {
       window.history.replaceState({}, "", window.location.pathname);
     }
     const tabParam = params.get("tab");
-    const VALID_TABS = ["abonnement", "google", "appels", "sauvegardes", "installation", "notifications", "securite", "mises-a-jour", "intelligence-artificielle"];
+    const VALID_TABS = ["profil", "abonnement", "google", "appels", "sauvegardes", "installation", "notifications", "securite", "mises-a-jour", "intelligence-artificielle"];
     if (tabParam && VALID_TABS.includes(tabParam)) {
       setActiveTab(tabParam);
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, [toast]);
+
+  const adminTabCount = isSuperAdmin ? 10 : isAdmin ? 9 : 3;
 
   return (
     <div className="space-y-6">
@@ -64,7 +67,13 @@ export default function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className={`grid w-full lg:w-auto lg:inline-grid ${isSuperAdmin ? "grid-cols-9" : isAdmin ? "grid-cols-8" : "grid-cols-3"}`}>
+        <TabsList className={`grid w-full lg:w-auto lg:inline-grid grid-cols-3 md:grid-cols-${Math.min(adminTabCount, 5)} lg:grid-cols-${adminTabCount}`}>
+          {isAdmin && (
+            <TabsTrigger value="profil" className="gap-2">
+              <Building2 className="w-4 h-4" />
+              Entreprise
+            </TabsTrigger>
+          )}
           {isAdmin && (
             <TabsTrigger value="abonnement" className="gap-2">
               <Package className="w-4 h-4" />
@@ -115,6 +124,10 @@ export default function SettingsPage() {
           )}
         </TabsList>
 
+        <TabsContent value="profil" className="space-y-6 mt-6">
+          <TabProfilOrg />
+        </TabsContent>
+
         <TabsContent value="abonnement" className="space-y-6 mt-6">
           <TabAbonnement />
         </TabsContent>
@@ -138,7 +151,6 @@ export default function SettingsPage() {
         <TabsContent value="notifications" className="space-y-6 mt-6">
           <TabNotifications />
         </TabsContent>
-
 
         <TabsContent value="securite" className="space-y-6 mt-6">
           <TabSecurite />

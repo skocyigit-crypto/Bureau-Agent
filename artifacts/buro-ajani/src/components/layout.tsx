@@ -63,6 +63,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { user } = useWorkspaceUser();
   const [quickActionOpen, setQuickActionOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [orgLogo, setOrgLogo] = useState<string | null>(null);
+  const [orgName, setOrgName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+    fetch(`${BASE}/api/org-profile`, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data) {
+          setOrgLogo(data.logo || null);
+          setOrgName(data.name || null);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -173,10 +188,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Sidebar className="border-r border-sidebar-border">
           <SidebarHeader className="p-4">
             <div className="flex items-center gap-3 px-2 py-1">
-              <Icon3D icon={Phone} variant="navy" size="sm" />
-              <div>
-                <h1 className="text-sidebar-foreground font-semibold text-base leading-none">Agent de Bureau</h1>
-                <p className="text-sidebar-foreground/60 text-xs mt-1">{user.organisation || "Bureau"}</p>
+              {orgLogo ? (
+                <img
+                  src={orgLogo}
+                  alt={orgName || "Logo"}
+                  className="h-8 w-8 rounded-lg object-contain border border-sidebar-border bg-white shrink-0"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+              ) : (
+                <Icon3D icon={Phone} variant="navy" size="sm" />
+              )}
+              <div className="min-w-0">
+                <h1 className="text-sidebar-foreground font-semibold text-base leading-none truncate">
+                  {orgName || "Agent de Bureau"}
+                </h1>
+                <p className="text-sidebar-foreground/60 text-xs mt-1 truncate">{user.organisation || "Bureau"}</p>
               </div>
             </div>
           </SidebarHeader>
