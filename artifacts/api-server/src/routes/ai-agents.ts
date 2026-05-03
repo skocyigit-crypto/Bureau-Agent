@@ -1277,6 +1277,7 @@ router.post("/ai/agents/auto-start", requireAdmin, async (_req, res) => {
   } catch (error: any) {
     const state = autoRunState.get(orgId);
     if (state) state.running = false;
+    logger.error({ err: error, orgId }, "[AI Agents] Erreur premier cycle auto-run");
     res.status(500).json({ error: "Erreur lors du premier cycle" });
   }
 });
@@ -1640,6 +1641,7 @@ router.post("/ai/autopilot/run", requireAdmin, async (req, res): Promise<void> =
     });
   } catch (err: any) {
     runningAutopilotJobs.delete(orgId);
+    logger.error({ err, orgId }, "[Autopilot] Erreur lancement cycle");
     res.status(500).json({ error: "Erreur cycle Oto-Pilot" });
   }
 });

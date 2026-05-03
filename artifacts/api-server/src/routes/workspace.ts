@@ -2,8 +2,11 @@ import { Router } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, dailyReportsTable, platformConnectionsTable, platformSyncLogsTable } from "@workspace/db";
 import { sql, eq, gte, lte, and, count, avg, desc, between, or } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { requireAuth } from "../middleware/auth";
 
 const router = Router();
+
+router.use(requireAuth);
 
 const GOOGLE_SERVICES = [
   { id: "gmail", name: "Gmail", scope: "https://www.googleapis.com/auth/gmail.modify" },
@@ -259,6 +262,7 @@ router.post("/disconnect-all/:platform", async (req, res): Promise<void> => {
 
     res.json({ status: "deconnecte", message: `Tous les services ${PLATFORM_NAMES[platform]} ont ete deconnectes.` });
   } catch (error: any) {
+    logger.error({ err: error }, "Workspace disconnect-all error");
     res.status(500).json({ error: "Erreur lors de la deconnexion globale." });
   }
 });
@@ -318,6 +322,7 @@ router.get("/sync-logs", async (req, res): Promise<void> => {
 
     res.json({ logs });
   } catch (error: any) {
+    logger.error({ err: error }, "Workspace sync-logs fetch error");
     res.status(500).json({ error: "Erreur lors de la recuperation des logs." });
   }
 });
@@ -331,6 +336,7 @@ router.get("/sync-logs/:platform", async (req, res): Promise<void> => {
       .limit(30);
     res.json({ logs });
   } catch (error: any) {
+    logger.error({ err: error }, "Workspace sync-logs platform fetch error");
     res.status(500).json({ error: "Erreur lors de la recuperation des logs." });
   }
 });

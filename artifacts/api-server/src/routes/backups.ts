@@ -3,8 +3,11 @@ import { db, autoBackupsTable, backupConfigTable } from "@workspace/db";
 import { eq, desc, sql, and, gte } from "drizzle-orm";
 import { performBackup } from "../services/auto-backup";
 import { logger } from "../lib/logger";
+import { requireRole } from "../middleware/auth";
 
 const router = Router();
+
+router.use(requireRole("super_admin"));
 
 router.get("/backups", async (req, res): Promise<void> => {
   try {

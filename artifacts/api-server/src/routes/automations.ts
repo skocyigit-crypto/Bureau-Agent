@@ -18,10 +18,11 @@ router.get("/notifications", async (req: Request, res: Response): Promise<void> 
   const unreadOnly = req.query.unread === "true";
 
   try {
-    let whereClause = undefined;
-    if (unreadOnly) {
-      whereClause = eq(notificationsTable.read, false);
-    }
+    const userFilter = eq(notificationsTable.userId, userId);
+    const unreadFilter = eq(notificationsTable.read, false);
+    const whereClause = unreadOnly
+      ? and(userFilter, unreadFilter)
+      : userFilter;
 
     const notifications = await db
       .select()
@@ -33,7 +34,7 @@ router.get("/notifications", async (req: Request, res: Response): Promise<void> 
     const [{ count }] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(notificationsTable)
-      .where(eq(notificationsTable.read, false));
+      .where(and(userFilter, unreadFilter));
 
     res.json({ notifications, unreadCount: count });
   } catch (err: any) {
@@ -50,7 +51,8 @@ router.patch("/notifications/:id/read", async (req: Request, res: Response): Pro
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
   try {
-    await db.update(notificationsTable).set({ read: true }).where(eq(notificationsTable.id, id));
+    await db.update(notificationsTable).set({ read: true })
+      .where(and(eq(notificationsTable.id, id), eq(notificationsTable.userId, userId)));
     res.json({ success: true });
   } catch (err: any) {
     req.log.error({ err }, "Erreur marquer notification lue");
@@ -63,7 +65,8 @@ router.post("/notifications/read-all", async (req: Request, res: Response): Prom
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   try {
-    await db.update(notificationsTable).set({ read: true }).where(eq(notificationsTable.read, false));
+    await db.update(notificationsTable).set({ read: true })
+      .where(and(eq(notificationsTable.userId, userId), eq(notificationsTable.read, false)));
     res.json({ success: true });
   } catch (err: any) {
     req.log.error({ err }, "Erreur marquer toutes notifications lues");

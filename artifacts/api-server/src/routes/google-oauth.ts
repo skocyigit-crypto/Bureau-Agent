@@ -320,6 +320,7 @@ router.get("/config", async (req, res): Promise<void> => {
       clientIdPreview: clientId ? clientId.slice(0, 12) + "..." : null,
     });
   } catch (error: any) {
+    logger.error({ err: error }, "Google OAuth config read error");
     res.status(500).json({ error: "Erreur." });
   }
 });
