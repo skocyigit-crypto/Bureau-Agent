@@ -19,10 +19,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
-
-const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
 
 type TabType = "scan" | "register" | "profiles" | "logs";
 

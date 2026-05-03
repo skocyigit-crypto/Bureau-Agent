@@ -3,6 +3,7 @@ import { db, faceProfilesTable, faceRecognitionLogsTable, contactsTable } from "
 import { eq, sql, and, desc, ilike, or } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { logger } from "../lib/logger";
+import { assertAiQuota, AiQuotaExceededError } from "../services/ai-quota";
 
 const router = Router();
 
@@ -78,6 +79,10 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
 
     let aiAnalysis = "";
     if (photoBase64) {
+      try { await assertAiQuota(orgId); } catch (qe) {
+        if (qe instanceof AiQuotaExceededError) { res.status(429).json({ success: false, error: qe.message, quotaExceeded: true }); return; }
+        throw qe;
+      }
       try {
         aiAnalysis = await multiAiAnalyze(
           `Analyse cette description de photo d'une personne nommee "${name}" pour un systeme de reconnaissance faciale en bureau. 
@@ -137,6 +142,11 @@ router.post("/recognize", async (req: Request, res: Response): Promise<void> => 
     }
 
     const profileList = profiles.map(p => `- ID:${p.id} Nom:${p.name} Role:${p.role} (vu ${p.recognitionCount} fois)`).join("\n");
+
+    try { await assertAiQuota(orgId); } catch (qe) {
+      if (qe instanceof AiQuotaExceededError) { res.status(429).json({ success: false, error: qe.message, quotaExceeded: true }); return; }
+      throw qe;
+    }
 
     const aiResult = await multiAiAnalyze(
       `Systeme de reconnaissance faciale de bureau.
