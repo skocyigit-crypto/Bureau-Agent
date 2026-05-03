@@ -55,23 +55,28 @@ router.get("/messages", async (req, res): Promise<void> => {
   const sortCol = messageSortColumns[sortBy ?? "createdAt"] ?? messagesTable.createdAt;
   const orderFn = sortOrder === "asc" ? asc : desc;
 
-  const [messages, countResult] = await Promise.all([
-    db
-      .select()
-      .from(messagesTable)
-      .where(whereClause)
-      .orderBy(orderFn(sortCol))
-      .limit(limit ?? 50)
-      .offset(offset ?? 0),
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(messagesTable)
-      .where(whereClause),
-  ]);
+  try {
+    const [messages, countResult] = await Promise.all([
+      db
+        .select()
+        .from(messagesTable)
+        .where(whereClause)
+        .orderBy(orderFn(sortCol))
+        .limit(limit ?? 50)
+        .offset(offset ?? 0),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(messagesTable)
+        .where(whereClause),
+    ]);
 
-  const userIds = messages.flatMap((m: any) => [m.createdBy, m.updatedBy]);
-  const userMap = await resolveUserNames(userIds);
-  res.json({ messages: enrichWithUserNames(messages, userMap), total: countResult[0]?.count ?? 0 });
+    const userIds = messages.flatMap((m: any) => [m.createdBy, m.updatedBy]);
+    const userMap = await resolveUserNames(userIds);
+    res.json({ messages: enrichWithUserNames(messages, userMap), total: countResult[0]?.count ?? 0 });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur liste messages");
+    res.status(500).json({ error: "Erreur lors de la recuperation des messages." });
+  }
 });
 
 router.post("/messages", async (req, res): Promise<void> => {
@@ -83,8 +88,14 @@ router.post("/messages", async (req, res): Promise<void> => {
 
   const orgId = getOrgId(req);
   const userId = (req.session as any)?.userId;
-  const [message] = await db.insert(messagesTable).values({ ...parsed.data, organisationId: orgId, createdBy: userId, updatedBy: userId }).returning();
-  res.status(201).json(message);
+
+  try {
+    const [message] = await db.insert(messagesTable).values({ ...parsed.data, organisationId: orgId, createdBy: userId, updatedBy: userId }).returning();
+    res.status(201).json(message);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur creation message");
+    res.status(500).json({ error: "Erreur lors de la creation du message." });
+  }
 });
 
 router.get("/messages/:id", async (req, res): Promise<void> => {
@@ -95,14 +106,20 @@ router.get("/messages/:id", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const [message] = await db.select().from(messagesTable).where(and(eq(messagesTable.id, params.data.id), eq(messagesTable.organisationId, orgId)));
-  if (!message) {
-    res.status(404).json({ error: "Message not found" });
-    return;
-  }
 
-  const userMap = await resolveUserNames([message.createdBy, message.updatedBy]);
-  res.json(enrichSingle(message, userMap));
+  try {
+    const [message] = await db.select().from(messagesTable).where(and(eq(messagesTable.id, params.data.id), eq(messagesTable.organisationId, orgId)));
+    if (!message) {
+      res.status(404).json({ error: "Message not found" });
+      return;
+    }
+
+    const userMap = await resolveUserNames([message.createdBy, message.updatedBy]);
+    res.json(enrichSingle(message, userMap));
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur recuperation message");
+    res.status(500).json({ error: "Erreur lors de la recuperation du message." });
+  }
 });
 
 router.patch("/messages/:id", async (req, res): Promise<void> => {
@@ -120,17 +137,23 @@ router.patch("/messages/:id", async (req, res): Promise<void> => {
 
   const orgId = getOrgId(req);
   const userId = (req.session as any)?.userId;
-  const [message] = await db.update(messagesTable)
-    .set({ ...parsed.data, updatedBy: userId })
-    .where(and(eq(messagesTable.id, params.data.id), eq(messagesTable.organisationId, orgId)))
-    .returning();
 
-  if (!message) {
-    res.status(404).json({ error: "Message not found" });
-    return;
+  try {
+    const [message] = await db.update(messagesTable)
+      .set({ ...parsed.data, updatedBy: userId })
+      .where(and(eq(messagesTable.id, params.data.id), eq(messagesTable.organisationId, orgId)))
+      .returning();
+
+    if (!message) {
+      res.status(404).json({ error: "Message not found" });
+      return;
+    }
+
+    res.json(message);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur mise a jour message");
+    res.status(500).json({ error: "Erreur lors de la mise a jour du message." });
   }
-
-  res.json(message);
 });
 
 router.delete("/messages/:id", async (req, res): Promise<void> => {
@@ -141,13 +164,19 @@ router.delete("/messages/:id", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const [message] = await db.delete(messagesTable).where(and(eq(messagesTable.id, params.data.id), eq(messagesTable.organisationId, orgId))).returning();
-  if (!message) {
-    res.status(404).json({ error: "Message not found" });
-    return;
-  }
 
-  res.sendStatus(204);
+  try {
+    const [message] = await db.delete(messagesTable).where(and(eq(messagesTable.id, params.data.id), eq(messagesTable.organisationId, orgId))).returning();
+    if (!message) {
+      res.status(404).json({ error: "Message not found" });
+      return;
+    }
+
+    res.sendStatus(204);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur suppression message");
+    res.status(500).json({ error: "Erreur lors de la suppression du message." });
+  }
 });
 
 export default router;

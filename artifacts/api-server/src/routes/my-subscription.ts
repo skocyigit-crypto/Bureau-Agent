@@ -18,6 +18,7 @@ router.get("/my-subscription", async (req: Request, res: Response): Promise<void
   const { orgId } = getSession(req);
   if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
 
+  try {
   const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId));
   if (!org) { res.status(404).json({ error: "Organisation introuvable." }); return; }
 
@@ -91,6 +92,10 @@ router.get("/my-subscription", async (req: Request, res: Response): Promise<void
       isCurrent: key === planKey,
     })),
   });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur recuperation abonnement utilisateur");
+    res.status(500).json({ error: "Erreur lors de la recuperation de l'abonnement." });
+  }
 });
 
 router.post("/my-subscription/upgrade-request", async (req: Request, res: Response): Promise<void> => {
@@ -102,28 +107,33 @@ router.post("/my-subscription/upgrade-request", async (req: Request, res: Respon
     res.status(400).json({ error: "Plan cible invalide." }); return;
   }
 
-  const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId));
-  const [user] = userId ? await db.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.id, userId)) : [null];
+  try {
+    const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId));
+    const [user] = userId ? await db.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.id, userId)) : [null];
 
-  const { notificationsTable } = await import("@workspace/db");
-  const superAdmins = await db.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.role, "super_admin"));
+    const { notificationsTable } = await import("@workspace/db");
+    const superAdmins = await db.select({ id: usersTable.id, email: usersTable.email }).from(usersTable).where(eq(usersTable.role, "super_admin"));
 
-  for (const admin of superAdmins) {
-    await db.insert(notificationsTable).values({
-      userId: admin.id,
-      organisationId: orgId,
-      type: "info",
-      title: "Demande de changement de plan",
-      message: `${org?.name || "Organisation"} (${user?.email || "utilisateur"}) demande un passage au plan "${PLANS[targetPlan as PlanKey].name}". ${message || ""}`.trim(),
-      priority: "haute",
-      actionUrl: "/organisations",
+    for (const admin of superAdmins) {
+      await db.insert(notificationsTable).values({
+        userId: admin.id,
+        organisationId: orgId,
+        type: "info",
+        title: "Demande de changement de plan",
+        message: `${org?.name || "Organisation"} (${user?.email || "utilisateur"}) demande un passage au plan "${PLANS[targetPlan as PlanKey].name}". ${message || ""}`.trim(),
+        priority: "haute",
+        actionUrl: "/organisations",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Votre demande de passage au plan "${PLANS[targetPlan as PlanKey].name}" a ete envoyee a l'administrateur. Vous serez contacte sous peu.`,
     });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur demande upgrade abonnement");
+    res.status(500).json({ error: "Erreur lors de l'envoi de la demande de changement de plan." });
   }
-
-  res.json({
-    success: true,
-    message: `Votre demande de passage au plan "${PLANS[targetPlan as PlanKey].name}" a ete envoyee a l'administrateur. Vous serez contacte sous peu.`,
-  });
 });
 
 router.get("/my-subscription/check-access", async (req: Request, res: Response): Promise<void> => {
@@ -133,23 +143,28 @@ router.get("/my-subscription/check-access", async (req: Request, res: Response):
 
   if (!orgId) { res.json({ allowed: false, reason: "no_org" }); return; }
 
-  const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId));
-  if (!org || !org.actif) { res.json({ allowed: false, reason: "org_inactive" }); return; }
+  try {
+    const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId));
+    if (!org || !org.actif) { res.json({ allowed: false, reason: "org_inactive" }); return; }
 
-  const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, orgId));
-  if (!sub) { res.json({ allowed: true, reason: "no_subscription" }); return; }
+    const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, orgId));
+    if (!sub) { res.json({ allowed: true, reason: "no_subscription" }); return; }
 
-  if (sub.status === "cancelled") {
-    res.json({ allowed: false, reason: "cancelled" }); return;
-  }
-
-  if (sub.trialEndsAt && new Date(sub.trialEndsAt) < new Date()) {
-    if (sub.plan === "essai") {
-      res.json({ allowed: false, reason: "trial_expired", trialEndsAt: sub.trialEndsAt }); return;
+    if (sub.status === "cancelled") {
+      res.json({ allowed: false, reason: "cancelled" }); return;
     }
-  }
 
-  res.json({ allowed: true, reason: "active" });
+    if (sub.trialEndsAt && new Date(sub.trialEndsAt) < new Date()) {
+      if (sub.plan === "essai") {
+        res.json({ allowed: false, reason: "trial_expired", trialEndsAt: sub.trialEndsAt }); return;
+      }
+    }
+
+    res.json({ allowed: true, reason: "active" });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur verification acces abonnement");
+    res.status(500).json({ error: "Erreur lors de la verification de l'acces." });
+  }
 });
 
 export default router;

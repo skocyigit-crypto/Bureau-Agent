@@ -38,6 +38,7 @@ router.get("/export/:entity", async (req: Request, res: Response): Promise<void>
   let columns: { key: string; label: string }[] = [];
   let filename = "";
 
+  try {
   switch (entity) {
     case "contacts":
       data = await db.select().from(contactsTable).where(eq(contactsTable.organisationId, orgId)).orderBy(desc(contactsTable.updatedAt));
@@ -104,6 +105,10 @@ router.get("/export/:entity", async (req: Request, res: Response): Promise<void>
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="${filename}_${date}.csv"`);
   res.send("\uFEFF" + csv);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur export CSV");
+    res.status(500).json({ error: "Erreur lors de l'export." });
+  }
 });
 
 export default router;

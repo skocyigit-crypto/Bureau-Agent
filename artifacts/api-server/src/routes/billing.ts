@@ -17,30 +17,40 @@ function requireSuperAdmin(req: Request, res: Response, next: () => void): void 
 
 router.use(requireSuperAdmin);
 
-router.get("/billing/invoices", async (_req: Request, res: Response): Promise<void> => {
-  const invoices = await db.select({
-    invoice: invoicesTable,
-    orgName: organisationsTable.name,
-  })
-    .from(invoicesTable)
-    .leftJoin(organisationsTable, eq(invoicesTable.organisationId, organisationsTable.id))
-    .orderBy(desc(invoicesTable.createdAt))
-    .limit(200);
+router.get("/billing/invoices", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const invoices = await db.select({
+      invoice: invoicesTable,
+      orgName: organisationsTable.name,
+    })
+      .from(invoicesTable)
+      .leftJoin(organisationsTable, eq(invoicesTable.organisationId, organisationsTable.id))
+      .orderBy(desc(invoicesTable.createdAt))
+      .limit(200);
 
-  res.json({
-    invoices: invoices.map(r => ({
-      ...r.invoice,
-      organisationName: r.orgName,
-    })),
-  });
+    res.json({
+      invoices: invoices.map(r => ({
+        ...r.invoice,
+        organisationName: r.orgName,
+      })),
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur liste factures");
+    res.status(500).json({ error: "Erreur lors de la recuperation des factures." });
+  }
 });
 
 router.get("/billing/invoices/:orgId", async (req: Request, res: Response): Promise<void> => {
   const orgId = parseInt(String(req.params.orgId));
   if (isNaN(orgId)) { res.status(400).json({ error: "ID invalide." }); return; }
 
-  const summary = await getOrgBillingSummary(orgId);
-  res.json(summary);
+  try {
+    const summary = await getOrgBillingSummary(orgId);
+    res.json(summary);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur resume facturation organisation");
+    res.status(500).json({ error: "Erreur lors de la recuperation du resume de facturation." });
+  }
 });
 
 router.post("/billing/generate", async (req: Request, res: Response): Promise<void> => {
@@ -62,7 +72,7 @@ router.post("/billing/generate", async (req: Request, res: Response): Promise<vo
       ...result,
     });
   } catch (err: any) {
-    logger.error({ err: err }, "[Billing] Erreur generation:");
+    logger.error({ err }, "Erreur generation factures");
     res.status(500).json({ error: "Erreur lors de la generation des factures." });
   }
 });
@@ -82,10 +92,15 @@ router.patch("/billing/invoices/:id/status", async (req: Request, res: Response)
   if (status === "payee") updateData.paidAt = new Date();
   if (notes !== undefined) updateData.notes = notes;
 
-  const [updated] = await db.update(invoicesTable).set(updateData).where(eq(invoicesTable.id, id)).returning();
-  if (!updated) { res.status(404).json({ error: "Facture introuvable." }); return; }
+  try {
+    const [updated] = await db.update(invoicesTable).set(updateData).where(eq(invoicesTable.id, id)).returning();
+    if (!updated) { res.status(404).json({ error: "Facture introuvable." }); return; }
 
-  res.json({ message: "Statut mis a jour.", invoice: updated });
+    res.json({ message: "Statut mis a jour.", invoice: updated });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur mise a jour statut facture");
+    res.status(500).json({ error: "Erreur lors de la mise a jour du statut." });
+  }
 });
 
 router.post("/billing/upload-bank", async (req: Request, res: Response): Promise<void> => {
@@ -112,7 +127,7 @@ router.post("/billing/upload-bank", async (req: Request, res: Response): Promise
       }).returning();
       inserted.push(payment);
     } catch (err: any) {
-      logger.error({ err: err.message }, "[Billing] Erreur import ligne:");
+      req.log.error({ err }, "Erreur import ligne releve bancaire");
     }
   }
 
@@ -123,112 +138,122 @@ router.post("/billing/upload-bank", async (req: Request, res: Response): Promise
 });
 
 router.post("/billing/match-payments", async (req: Request, res: Response): Promise<void> => {
-  const pendingPayments = await db.select()
-    .from(paymentsTable)
-    .where(eq(paymentsTable.status, "pending"))
-    .orderBy(desc(paymentsTable.createdAt));
+  try {
+    const pendingPayments = await db.select()
+      .from(paymentsTable)
+      .where(eq(paymentsTable.status, "pending"))
+      .orderBy(desc(paymentsTable.createdAt));
 
-  if (pendingPayments.length === 0) {
-    res.json({ message: "Aucun paiement en attente a rapprocher.", matched: 0 });
-    return;
-  }
+    if (pendingPayments.length === 0) {
+      res.json({ message: "Aucun paiement en attente a rapprocher.", matched: 0 });
+      return;
+    }
 
-  const pendingInvoices = await db.select({
-    invoice: invoicesTable,
-    orgName: organisationsTable.name,
-    orgEmail: organisationsTable.email,
-  })
-    .from(invoicesTable)
-    .leftJoin(organisationsTable, eq(invoicesTable.organisationId, organisationsTable.id))
-    .where(sql`${invoicesTable.status} IN ('en_attente', 'retard')`)
-    .orderBy(desc(invoicesTable.createdAt));
+    const pendingInvoices = await db.select({
+      invoice: invoicesTable,
+      orgName: organisationsTable.name,
+      orgEmail: organisationsTable.email,
+    })
+      .from(invoicesTable)
+      .leftJoin(organisationsTable, eq(invoicesTable.organisationId, organisationsTable.id))
+      .where(sql`${invoicesTable.status} IN ('en_attente', 'retard')`)
+      .orderBy(desc(invoicesTable.createdAt));
 
-  if (pendingInvoices.length === 0) {
-    res.json({ message: "Aucune facture en attente.", matched: 0 });
-    return;
-  }
+    if (pendingInvoices.length === 0) {
+      res.json({ message: "Aucune facture en attente.", matched: 0 });
+      return;
+    }
 
-  let matched = 0;
-  const matchedInvoiceIds = new Set<number>();
+    let matched = 0;
+    const matchedInvoiceIds = new Set<number>();
 
-  for (const payment of pendingPayments) {
-    let bestMatch: { invoiceId: number; orgId: number; confidence: number } | null = null;
+    for (const payment of pendingPayments) {
+      let bestMatch: { invoiceId: number; orgId: number; confidence: number } | null = null;
 
-    for (const inv of pendingInvoices) {
-      if (matchedInvoiceIds.has(inv.invoice.id)) continue;
+      for (const inv of pendingInvoices) {
+        if (matchedInvoiceIds.has(inv.invoice.id)) continue;
 
-      let confidence = 0;
-      const invoiceTotal = Number(inv.invoice.totalAmount);
-      const paymentAmount = Number(payment.amount);
+        let confidence = 0;
+        const invoiceTotal = Number(inv.invoice.totalAmount);
+        const paymentAmount = Number(payment.amount);
 
-      if (Math.abs(invoiceTotal - paymentAmount) < 0.01) {
-        confidence += 50;
-      } else if (Math.abs(invoiceTotal - paymentAmount) < 1) {
-        confidence += 30;
+        if (Math.abs(invoiceTotal - paymentAmount) < 0.01) {
+          confidence += 50;
+        } else if (Math.abs(invoiceTotal - paymentAmount) < 1) {
+          confidence += 30;
+        }
+
+        const payerName = (payment.payerName || "").toLowerCase();
+        const orgName = (inv.orgName || "").toLowerCase();
+        if (payerName && orgName && (payerName.includes(orgName) || orgName.includes(payerName))) {
+          confidence += 40;
+        }
+
+        const bankRef = (payment.bankRef || "").toLowerCase();
+        const periodLabel = inv.invoice.periodLabel || "";
+        if (bankRef && (bankRef.includes(periodLabel) || bankRef.includes(orgName))) {
+          confidence += 10;
+        }
+
+        if (confidence > (bestMatch?.confidence || 0) && confidence >= 50) {
+          bestMatch = { invoiceId: inv.invoice.id, orgId: inv.invoice.organisationId, confidence };
+        }
       }
 
-      const payerName = (payment.payerName || "").toLowerCase();
-      const orgName = (inv.orgName || "").toLowerCase();
-      if (payerName && orgName && (payerName.includes(orgName) || orgName.includes(payerName))) {
-        confidence += 40;
-      }
+      if (bestMatch) {
+        matchedInvoiceIds.add(bestMatch.invoiceId);
 
-      const bankRef = (payment.bankRef || "").toLowerCase();
-      const periodLabel = inv.invoice.periodLabel || "";
-      if (bankRef && (bankRef.includes(periodLabel) || bankRef.includes(orgName))) {
-        confidence += 10;
-      }
+        await db.update(paymentsTable).set({
+          invoiceId: bestMatch.invoiceId,
+          organisationId: bestMatch.orgId,
+          matchedBy: "auto",
+          matchConfidence: String(bestMatch.confidence),
+          status: "matched",
+        }).where(eq(paymentsTable.id, payment.id));
 
-      if (confidence > (bestMatch?.confidence || 0) && confidence >= 50) {
-        bestMatch = { invoiceId: inv.invoice.id, orgId: inv.invoice.organisationId, confidence };
+        if (bestMatch.confidence >= 80) {
+          await db.update(invoicesTable).set({
+            status: "payee",
+            paidAt: new Date(),
+          }).where(eq(invoicesTable.id, bestMatch.invoiceId));
+        }
+
+        matched++;
       }
     }
 
-    if (bestMatch) {
-      matchedInvoiceIds.add(bestMatch.invoiceId);
-
-      await db.update(paymentsTable).set({
-        invoiceId: bestMatch.invoiceId,
-        organisationId: bestMatch.orgId,
-        matchedBy: "auto",
-        matchConfidence: String(bestMatch.confidence),
-        status: "matched",
-      }).where(eq(paymentsTable.id, payment.id));
-
-      if (bestMatch.confidence >= 80) {
-        await db.update(invoicesTable).set({
-          status: "payee",
-          paidAt: new Date(),
-        }).where(eq(invoicesTable.id, bestMatch.invoiceId));
-      }
-
-      matched++;
-    }
+    res.json({
+      message: `Rapprochement termine: ${matched} paiement(s) rapproche(s) sur ${pendingPayments.length}.`,
+      matched,
+      total: pendingPayments.length,
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur rapprochement paiements");
+    res.status(500).json({ error: "Erreur lors du rapprochement des paiements." });
   }
-
-  res.json({
-    message: `Rapprochement termine: ${matched} paiement(s) rapproche(s) sur ${pendingPayments.length}.`,
-    matched,
-    total: pendingPayments.length,
-  });
 });
 
-router.get("/billing/payments", async (_req: Request, res: Response): Promise<void> => {
-  const payments = await db.select({
-    payment: paymentsTable,
-    orgName: organisationsTable.name,
-  })
-    .from(paymentsTable)
-    .leftJoin(organisationsTable, eq(paymentsTable.organisationId, organisationsTable.id))
-    .orderBy(desc(paymentsTable.createdAt))
-    .limit(200);
+router.get("/billing/payments", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const payments = await db.select({
+      payment: paymentsTable,
+      orgName: organisationsTable.name,
+    })
+      .from(paymentsTable)
+      .leftJoin(organisationsTable, eq(paymentsTable.organisationId, organisationsTable.id))
+      .orderBy(desc(paymentsTable.createdAt))
+      .limit(200);
 
-  res.json({
-    payments: payments.map(r => ({
-      ...r.payment,
-      organisationName: r.orgName,
-    })),
-  });
+    res.json({
+      payments: payments.map(r => ({
+        ...r.payment,
+        organisationName: r.orgName,
+      })),
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur liste paiements");
+    res.status(500).json({ error: "Erreur lors de la recuperation des paiements." });
+  }
 });
 
 router.post("/billing/payments/:id/assign", async (req: Request, res: Response): Promise<void> => {
@@ -238,54 +263,64 @@ router.post("/billing/payments/:id/assign", async (req: Request, res: Response):
   const { invoiceId } = req.body;
   if (!invoiceId) { res.status(400).json({ error: "invoiceId requis." }); return; }
 
-  const [invoice] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, invoiceId));
-  if (!invoice) { res.status(404).json({ error: "Facture introuvable." }); return; }
+  try {
+    const [invoice] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, invoiceId));
+    if (!invoice) { res.status(404).json({ error: "Facture introuvable." }); return; }
 
-  await db.update(paymentsTable).set({
-    invoiceId,
-    organisationId: invoice.organisationId,
-    matchedBy: "manual",
-    matchConfidence: "100",
-    status: "matched",
-  }).where(eq(paymentsTable.id, id));
+    await db.update(paymentsTable).set({
+      invoiceId,
+      organisationId: invoice.organisationId,
+      matchedBy: "manual",
+      matchConfidence: "100",
+      status: "matched",
+    }).where(eq(paymentsTable.id, id));
 
-  await db.update(invoicesTable).set({
-    status: "payee",
-    paidAt: new Date(),
-  }).where(eq(invoicesTable.id, invoiceId));
+    await db.update(invoicesTable).set({
+      status: "payee",
+      paidAt: new Date(),
+    }).where(eq(invoicesTable.id, invoiceId));
 
-  res.json({ message: "Paiement affecte et facture marquee comme payee." });
+    res.json({ message: "Paiement affecte et facture marquee comme payee." });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur affectation paiement");
+    res.status(500).json({ error: "Erreur lors de l'affectation du paiement." });
+  }
 });
 
-router.get("/billing/summary", async (_req: Request, res: Response): Promise<void> => {
-  const [totalDue] = await db.select({
-    total: sql<string>`COALESCE(SUM(total_amount), 0)::text`,
-    count: sql<number>`count(*)::int`,
-  }).from(invoicesTable).where(sql`${invoicesTable.status} IN ('en_attente', 'retard', 'partiel')`);
+router.get("/billing/summary", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const [totalDue] = await db.select({
+      total: sql<string>`COALESCE(SUM(total_amount), 0)::text`,
+      count: sql<number>`count(*)::int`,
+    }).from(invoicesTable).where(sql`${invoicesTable.status} IN ('en_attente', 'retard', 'partiel')`);
 
-  const [totalPaid] = await db.select({
-    total: sql<string>`COALESCE(SUM(total_amount), 0)::text`,
-    count: sql<number>`count(*)::int`,
-  }).from(invoicesTable).where(eq(invoicesTable.status, "payee"));
+    const [totalPaid] = await db.select({
+      total: sql<string>`COALESCE(SUM(total_amount), 0)::text`,
+      count: sql<number>`count(*)::int`,
+    }).from(invoicesTable).where(eq(invoicesTable.status, "payee"));
 
-  const [overdue] = await db.select({
-    total: sql<string>`COALESCE(SUM(total_amount), 0)::text`,
-    count: sql<number>`count(*)::int`,
-  }).from(invoicesTable).where(eq(invoicesTable.status, "retard"));
+    const [overdue] = await db.select({
+      total: sql<string>`COALESCE(SUM(total_amount), 0)::text`,
+      count: sql<number>`count(*)::int`,
+    }).from(invoicesTable).where(eq(invoicesTable.status, "retard"));
 
-  const [pendingPayments] = await db.select({
-    count: sql<number>`count(*)::int`,
-  }).from(paymentsTable).where(eq(paymentsTable.status, "pending"));
+    const [pendingPayments] = await db.select({
+      count: sql<number>`count(*)::int`,
+    }).from(paymentsTable).where(eq(paymentsTable.status, "pending"));
 
-  res.json({
-    totalDue: totalDue?.total || "0",
-    totalDueCount: totalDue?.count || 0,
-    totalPaid: totalPaid?.total || "0",
-    totalPaidCount: totalPaid?.count || 0,
-    overdue: overdue?.total || "0",
-    overdueCount: overdue?.count || 0,
-    pendingPayments: pendingPayments?.count || 0,
-  });
+    res.json({
+      totalDue: totalDue?.total || "0",
+      totalDueCount: totalDue?.count || 0,
+      totalPaid: totalPaid?.total || "0",
+      totalPaidCount: totalPaid?.count || 0,
+      overdue: overdue?.total || "0",
+      overdueCount: overdue?.count || 0,
+      pendingPayments: pendingPayments?.count || 0,
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur resume facturation");
+    res.status(500).json({ error: "Erreur lors de la recuperation du resume." });
+  }
 });
 
 export default router;

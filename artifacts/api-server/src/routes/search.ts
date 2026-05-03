@@ -23,6 +23,7 @@ router.get("/search", async (req: Request, res: Response): Promise<void> => {
   const parsedLimit = parseInt(limit as string);
   const maxResults = isNaN(parsedLimit) ? 5 : Math.min(Math.max(parsedLimit, 1), 10);
 
+  try {
   const [contacts, calls, tasks, messages] = await Promise.all([
     db.select()
       .from(contactsTable)
@@ -84,6 +85,10 @@ router.get("/search", async (req: Request, res: Response): Promise<void> => {
     messages,
     totalResults: contacts.length + calls.length + tasks.length + messages.length,
   });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur recherche globale");
+    res.status(500).json({ error: "Erreur lors de la recherche." });
+  }
 });
 
 export default router;

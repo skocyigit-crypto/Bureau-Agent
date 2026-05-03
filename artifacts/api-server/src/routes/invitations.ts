@@ -32,17 +32,22 @@ router.get("/invitations", async (req: Request, res: Response): Promise<void> =>
     return;
   }
 
-  const invitations = await db.select().from(invitationsTable)
-    .where(eq(invitationsTable.organisationId, organisationId))
-    .orderBy(sql`${invitationsTable.createdAt} DESC`);
+  try {
+    const invitations = await db.select().from(invitationsTable)
+      .where(eq(invitationsTable.organisationId, organisationId))
+      .orderBy(sql`${invitationsTable.createdAt} DESC`);
 
-  const now = new Date();
-  const enriched = invitations.map(inv => ({
-    ...inv,
-    expired: inv.status === "pending" && new Date(inv.expiresAt) < now,
-  }));
+    const now = new Date();
+    const enriched = invitations.map(inv => ({
+      ...inv,
+      expired: inv.status === "pending" && new Date(inv.expiresAt) < now,
+    }));
 
-  res.json({ invitations: enriched });
+    res.json({ invitations: enriched });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur liste invitations");
+    res.status(500).json({ error: "Erreur lors de la recuperation des invitations." });
+  }
 });
 
 router.post("/invitations", async (req: Request, res: Response): Promise<void> => {
@@ -72,6 +77,7 @@ router.post("/invitations", async (req: Request, res: Response): Promise<void> =
   const validRoles = ["administrateur", "agent", "lecture_seule"];
   const assignedRole = role && validRoles.includes(role) ? role : "agent";
 
+  try {
   const existingUser = await db.select({ id: usersTable.id }).from(usersTable)
     .where(eq(usersTable.email, emailClean));
   if (existingUser.length > 0) {
@@ -218,6 +224,10 @@ router.post("/invitations", async (req: Request, res: Response): Promise<void> =
       ? `Invitation envoyee a ${emailClean}`
       : `Invitation creee mais l'email n'a pas pu etre envoye: ${emailResult.error}`,
   });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur creation invitation");
+    res.status(500).json({ error: "Erreur lors de l'envoi de l'invitation." });
+  }
 });
 
 router.post("/invitations/:id/resend", async (req: Request, res: Response): Promise<void> => {
@@ -230,6 +240,7 @@ router.post("/invitations/:id/resend", async (req: Request, res: Response): Prom
     return;
   }
 
+  try {
   const [invitation] = await db.select().from(invitationsTable)
     .where(and(eq(invitationsTable.id, invitationId), eq(invitationsTable.organisationId, organisationId)));
 
@@ -281,6 +292,10 @@ router.post("/invitations/:id/resend", async (req: Request, res: Response): Prom
   const emailResult = await sendEmail(invitation.email, `Rappel : Invitation a rejoindre ${orgName}`, html, `Rappel: Acceptez votre invitation : ${acceptUrl}`);
 
   res.json({ success: true, emailSent: emailResult.success });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur renvoi invitation");
+    res.status(500).json({ error: "Erreur lors du renvoi de l'invitation." });
+  }
 });
 
 router.delete("/invitations/:id", async (req: Request, res: Response): Promise<void> => {
@@ -293,56 +308,66 @@ router.delete("/invitations/:id", async (req: Request, res: Response): Promise<v
     return;
   }
 
-  const [invitation] = await db.select().from(invitationsTable)
-    .where(and(eq(invitationsTable.id, invitationId), eq(invitationsTable.organisationId, organisationId)));
+  try {
+    const [invitation] = await db.select().from(invitationsTable)
+      .where(and(eq(invitationsTable.id, invitationId), eq(invitationsTable.organisationId, organisationId)));
 
-  if (!invitation) {
-    res.status(404).json({ error: "Invitation non trouvee." });
-    return;
+    if (!invitation) {
+      res.status(404).json({ error: "Invitation non trouvee." });
+      return;
+    }
+
+    await db.update(invitationsTable).set({ status: "cancelled" }).where(eq(invitationsTable.id, invitationId));
+    res.json({ success: true, message: "Invitation annulee." });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur annulation invitation");
+    res.status(500).json({ error: "Erreur lors de l'annulation de l'invitation." });
   }
-
-  await db.update(invitationsTable).set({ status: "cancelled" }).where(eq(invitationsTable.id, invitationId));
-  res.json({ success: true, message: "Invitation annulee." });
 });
 
 router.get("/invitations/verify/:token", async (req: Request, res: Response): Promise<void> => {
   const token = String(req.params.token);
 
-  const [invitation] = await db.select({
-    id: invitationsTable.id,
-    email: invitationsTable.email,
-    role: invitationsTable.role,
-    status: invitationsTable.status,
-    expiresAt: invitationsTable.expiresAt,
-    invitedByName: invitationsTable.invitedByName,
-    orgId: invitationsTable.organisationId,
-  }).from(invitationsTable).where(eq(invitationsTable.token, token));
+  try {
+    const [invitation] = await db.select({
+      id: invitationsTable.id,
+      email: invitationsTable.email,
+      role: invitationsTable.role,
+      status: invitationsTable.status,
+      expiresAt: invitationsTable.expiresAt,
+      invitedByName: invitationsTable.invitedByName,
+      orgId: invitationsTable.organisationId,
+    }).from(invitationsTable).where(eq(invitationsTable.token, token));
 
-  if (!invitation) {
-    res.status(404).json({ error: "Invitation invalide ou introuvable.", valid: false });
-    return;
+    if (!invitation) {
+      res.status(404).json({ error: "Invitation invalide ou introuvable.", valid: false });
+      return;
+    }
+
+    if (invitation.status !== "pending") {
+      res.status(410).json({ error: "Cette invitation a deja ete utilisee.", valid: false });
+      return;
+    }
+
+    if (new Date(invitation.expiresAt) < new Date()) {
+      res.status(410).json({ error: "Cette invitation a expire. Demandez une nouvelle invitation a votre administrateur.", valid: false });
+      return;
+    }
+
+    const [org] = await db.select({ name: organisationsTable.name })
+      .from(organisationsTable).where(eq(organisationsTable.id, invitation.orgId));
+
+    res.json({
+      valid: true,
+      email: invitation.email,
+      role: invitation.role,
+      organisationName: org?.name || "Agent de Bureau",
+      invitedBy: invitation.invitedByName,
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur verification token invitation");
+    res.status(500).json({ error: "Erreur lors de la verification de l'invitation.", valid: false });
   }
-
-  if (invitation.status !== "pending") {
-    res.status(410).json({ error: "Cette invitation a deja ete utilisee.", valid: false });
-    return;
-  }
-
-  if (new Date(invitation.expiresAt) < new Date()) {
-    res.status(410).json({ error: "Cette invitation a expire. Demandez une nouvelle invitation a votre administrateur.", valid: false });
-    return;
-  }
-
-  const [org] = await db.select({ name: organisationsTable.name })
-    .from(organisationsTable).where(eq(organisationsTable.id, invitation.orgId));
-
-  res.json({
-    valid: true,
-    email: invitation.email,
-    role: invitation.role,
-    organisationName: org?.name || "Agent de Bureau",
-    invitedBy: invitation.invitedByName,
-  });
 });
 
 router.post("/invitations/accept/:token", async (req: Request, res: Response): Promise<void> => {
@@ -367,70 +392,75 @@ router.post("/invitations/accept/:token", async (req: Request, res: Response): P
     return;
   }
 
-  const [invitation] = await db.select().from(invitationsTable).where(eq(invitationsTable.token, token));
+  try {
+    const [invitation] = await db.select().from(invitationsTable).where(eq(invitationsTable.token, token));
 
-  if (!invitation) {
-    res.status(404).json({ error: "Invitation invalide." });
-    return;
+    if (!invitation) {
+      res.status(404).json({ error: "Invitation invalide." });
+      return;
+    }
+
+    if (invitation.status !== "pending") {
+      res.status(410).json({ error: "Cette invitation a deja ete utilisee." });
+      return;
+    }
+
+    if (new Date(invitation.expiresAt) < new Date()) {
+      res.status(410).json({ error: "Cette invitation a expire." });
+      return;
+    }
+
+    const existingUser = await db.select({ id: usersTable.id }).from(usersTable)
+      .where(eq(usersTable.email, invitation.email));
+    if (existingUser.length > 0) {
+      res.status(409).json({ error: "Un compte existe deja avec cet email." });
+      return;
+    }
+
+    const [org] = await db.select({ name: organisationsTable.name })
+      .from(organisationsTable).where(eq(organisationsTable.id, invitation.organisationId));
+
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    const avatar = `${(prenom as string)[0]}${(nom as string)[0]}`.toUpperCase();
+
+    const [newUser] = await db.insert(usersTable).values({
+      email: invitation.email,
+      passwordHash,
+      nom,
+      prenom,
+      role: invitation.role,
+      organisation: org?.name || "Agent de Bureau",
+      organisationId: invitation.organisationId,
+      avatar,
+    }).returning({
+      id: usersTable.id,
+      email: usersTable.email,
+      nom: usersTable.nom,
+      prenom: usersTable.prenom,
+      role: usersTable.role,
+    });
+
+    await db.update(invitationsTable).set({
+      status: "accepted",
+      acceptedAt: new Date(),
+    }).where(eq(invitationsTable.id, invitation.id));
+
+    (req.session as any).userId = newUser.id;
+    (req.session as any).userRole = newUser.role;
+    (req.session as any).organisationId = invitation.organisationId;
+    (req.session as any).userEmail = newUser.email;
+
+    logAudit(newUser.id, newUser.email, "invitation_accepted", "invitation", String(invitation.id), { role: invitation.role }, req.ip, req.get("user-agent"));
+
+    res.status(201).json({
+      success: true,
+      user: newUser,
+      message: `Bienvenue ${prenom} ! Votre compte a ete cree avec succes.`,
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur acceptation invitation");
+    res.status(500).json({ error: "Erreur lors de l'acceptation de l'invitation." });
   }
-
-  if (invitation.status !== "pending") {
-    res.status(410).json({ error: "Cette invitation a deja ete utilisee." });
-    return;
-  }
-
-  if (new Date(invitation.expiresAt) < new Date()) {
-    res.status(410).json({ error: "Cette invitation a expire." });
-    return;
-  }
-
-  const existingUser = await db.select({ id: usersTable.id }).from(usersTable)
-    .where(eq(usersTable.email, invitation.email));
-  if (existingUser.length > 0) {
-    res.status(409).json({ error: "Un compte existe deja avec cet email." });
-    return;
-  }
-
-  const [org] = await db.select({ name: organisationsTable.name })
-    .from(organisationsTable).where(eq(organisationsTable.id, invitation.organisationId));
-
-  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-  const avatar = `${(prenom as string)[0]}${(nom as string)[0]}`.toUpperCase();
-
-  const [newUser] = await db.insert(usersTable).values({
-    email: invitation.email,
-    passwordHash,
-    nom,
-    prenom,
-    role: invitation.role,
-    organisation: org?.name || "Agent de Bureau",
-    organisationId: invitation.organisationId,
-    avatar,
-  }).returning({
-    id: usersTable.id,
-    email: usersTable.email,
-    nom: usersTable.nom,
-    prenom: usersTable.prenom,
-    role: usersTable.role,
-  });
-
-  await db.update(invitationsTable).set({
-    status: "accepted",
-    acceptedAt: new Date(),
-  }).where(eq(invitationsTable.id, invitation.id));
-
-  (req.session as any).userId = newUser.id;
-  (req.session as any).userRole = newUser.role;
-  (req.session as any).organisationId = invitation.organisationId;
-  (req.session as any).userEmail = newUser.email;
-
-  logAudit(newUser.id, newUser.email, "invitation_accepted", "invitation", String(invitation.id), { role: invitation.role }, req.ip, req.get("user-agent"));
-
-  res.status(201).json({
-    success: true,
-    user: newUser,
-    message: `Bienvenue ${prenom} ! Votre compte a ete cree avec succes.`,
-  });
 });
 
 export default router;

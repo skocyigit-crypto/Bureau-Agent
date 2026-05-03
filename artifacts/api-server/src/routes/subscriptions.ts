@@ -10,25 +10,30 @@ const router = Router();
 router.get("/subscription", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
 
-  const [subscription] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, orgId));
-  const [organisation] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId));
+  try {
+    const [subscription] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, orgId));
+    const [organisation] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId));
 
-  if (!subscription) {
-    res.status(404).json({ error: "Aucun abonnement trouve." });
-    return;
+    if (!subscription) {
+      res.status(404).json({ error: "Aucun abonnement trouve." });
+      return;
+    }
+
+    const plan = PLANS[subscription.plan as PlanKey];
+    const isTrialExpired = subscription.plan === "essai" && subscription.trialEndsAt && new Date(subscription.trialEndsAt) < new Date();
+
+    res.json({
+      subscription: {
+        ...subscription,
+        planDetails: plan,
+        isTrialExpired,
+      },
+      organisation,
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur recuperation abonnement");
+    res.status(500).json({ error: "Erreur lors de la recuperation de l'abonnement." });
   }
-
-  const plan = PLANS[subscription.plan as PlanKey];
-  const isTrialExpired = subscription.plan === "essai" && subscription.trialEndsAt && new Date(subscription.trialEndsAt) < new Date();
-
-  res.json({
-    subscription: {
-      ...subscription,
-      planDetails: plan,
-      isTrialExpired,
-    },
-    organisation,
-  });
 });
 
 router.get("/subscription/plans", async (_req: Request, res: Response): Promise<void> => {
@@ -102,33 +107,38 @@ router.post("/subscription/upgrade", async (req: Request, res: Response): Promis
 router.get("/subscription/usage", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
 
-  const [subscription] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, orgId));
-  if (!subscription) {
-    res.status(404).json({ error: "Aucun abonnement trouve." });
-    return;
+  try {
+    const [subscription] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, orgId));
+    if (!subscription) {
+      res.status(404).json({ error: "Aucun abonnement trouve." });
+      return;
+    }
+
+    const { usersTable, contactsTable, callsTable } = await import("@workspace/db");
+    const { sql, and, gte } = await import("drizzle-orm");
+
+    const [userCount] = await db.select({ count: sql<number>`count(*)::int` }).from(usersTable).where(eq(usersTable.organisationId, orgId));
+    const [contactCount] = await db.select({ count: sql<number>`count(*)::int` }).from(contactsTable).where(eq(contactsTable.organisationId, orgId));
+
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const [callCount] = await db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, monthStart)));
+
+    res.json({
+      users: { current: userCount?.count ?? 0, max: subscription.maxUsers },
+      contacts: { current: contactCount?.count ?? 0, max: subscription.maxContacts },
+      callsThisMonth: { current: callCount?.count ?? 0, max: subscription.maxCallsPerMonth },
+      features: {
+        aiEnabled: subscription.aiEnabled,
+        stockEnabled: subscription.stockEnabled,
+        automationEnabled: subscription.automationEnabled,
+      },
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur usage abonnement");
+    res.status(500).json({ error: "Erreur lors de la recuperation de l'usage." });
   }
-
-  const { usersTable, contactsTable, callsTable } = await import("@workspace/db");
-  const { sql, and, gte } = await import("drizzle-orm");
-
-  const [userCount] = await db.select({ count: sql<number>`count(*)::int` }).from(usersTable).where(eq(usersTable.organisationId, orgId));
-  const [contactCount] = await db.select({ count: sql<number>`count(*)::int` }).from(contactsTable).where(eq(contactsTable.organisationId, orgId));
-
-  const monthStart = new Date();
-  monthStart.setDate(1);
-  monthStart.setHours(0, 0, 0, 0);
-  const [callCount] = await db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, monthStart)));
-
-  res.json({
-    users: { current: userCount?.count ?? 0, max: subscription.maxUsers },
-    contacts: { current: contactCount?.count ?? 0, max: subscription.maxContacts },
-    callsThisMonth: { current: callCount?.count ?? 0, max: subscription.maxCallsPerMonth },
-    features: {
-      aiEnabled: subscription.aiEnabled,
-      stockEnabled: subscription.stockEnabled,
-      automationEnabled: subscription.automationEnabled,
-    },
-  });
 });
 
 export default router;

@@ -1,10 +1,12 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import rateLimit from "express-rate-limit";
 import { eq, and } from "drizzle-orm";
 import { db, usersTable, organisationsTable } from "@workspace/db";
 import { logAudit } from "./audit";
 import { sendCredentialsEmail } from "../services/email";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -12,7 +14,16 @@ const SALT_ROUNDS = 12;
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
 
-router.post("/auth/login", async (req: Request, res: Response): Promise<void> => {
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop de tentatives de connexion. Reessayez dans 15 minutes." },
+  skipSuccessfulRequests: true,
+});
+
+router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Promise<void> => {
   const { email, password } = req.body;
 
   if (!email || !password) {
@@ -20,64 +31,69 @@ router.post("/auth/login", async (req: Request, res: Response): Promise<void> =>
     return;
   }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim()));
+  try {
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim()));
 
-  if (!user) {
-    res.status(401).json({ error: "Identifiants invalides." });
-    return;
-  }
-
-  if (!user.actif) {
-    res.status(403).json({ error: "Ce compte est desactive. Contactez votre administrateur." });
-    return;
-  }
-
-  if (user.verrouilleJusqua && new Date(user.verrouilleJusqua) > new Date()) {
-    const remaining = Math.ceil((new Date(user.verrouilleJusqua).getTime() - Date.now()) / 60000);
-    res.status(423).json({ error: `Compte verrouille. Reessayez dans ${remaining} minute(s).` });
-    return;
-  }
-
-  const isValid = await bcrypt.compare(password, user.passwordHash);
-
-  if (!isValid) {
-    const newAttempts = user.tentativesEchouees + 1;
-    const updateData: Record<string, any> = { tentativesEchouees: newAttempts };
-
-    if (newAttempts >= MAX_FAILED_ATTEMPTS) {
-      updateData.verrouilleJusqua = new Date(Date.now() + LOCKOUT_DURATION_MS);
+    if (!user) {
+      res.status(401).json({ error: "Identifiants invalides." });
+      return;
     }
 
-    await db.update(usersTable).set(updateData).where(eq(usersTable.id, user.id));
-    res.status(401).json({ error: "Identifiants invalides." });
-    return;
+    if (!user.actif) {
+      res.status(403).json({ error: "Ce compte est desactive. Contactez votre administrateur." });
+      return;
+    }
+
+    if (user.verrouilleJusqua && new Date(user.verrouilleJusqua) > new Date()) {
+      const remaining = Math.ceil((new Date(user.verrouilleJusqua).getTime() - Date.now()) / 60000);
+      res.status(423).json({ error: `Compte verrouille. Reessayez dans ${remaining} minute(s).` });
+      return;
+    }
+
+    const isValid = await bcrypt.compare(password, user.passwordHash);
+
+    if (!isValid) {
+      const newAttempts = user.tentativesEchouees + 1;
+      const updateData: Record<string, any> = { tentativesEchouees: newAttempts };
+
+      if (newAttempts >= MAX_FAILED_ATTEMPTS) {
+        updateData.verrouilleJusqua = new Date(Date.now() + LOCKOUT_DURATION_MS);
+      }
+
+      await db.update(usersTable).set(updateData).where(eq(usersTable.id, user.id));
+      res.status(401).json({ error: "Identifiants invalides." });
+      return;
+    }
+
+    await db.update(usersTable).set({
+      tentativesEchouees: 0,
+      verrouilleJusqua: null,
+      dernierAcces: new Date(),
+    }).where(eq(usersTable.id, user.id));
+
+    (req.session as any).userId = user.id;
+    (req.session as any).userRole = user.role;
+    (req.session as any).organisationId = user.organisationId;
+    (req.session as any).userEmail = user.email;
+
+    logAudit(user.id, user.email, "login", "auth", undefined, { role: user.role }, req.ip, req.get("user-agent"));
+
+    res.json({
+      id: user.id,
+      email: user.email,
+      nom: user.nom,
+      prenom: user.prenom,
+      role: user.role,
+      departement: user.departement,
+      organisation: user.organisation,
+      organisationId: user.organisationId,
+      avatar: user.avatar,
+      mfaActif: user.mfaActif,
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur login");
+    res.status(500).json({ error: "Erreur lors de la connexion." });
   }
-
-  await db.update(usersTable).set({
-    tentativesEchouees: 0,
-    verrouilleJusqua: null,
-    dernierAcces: new Date(),
-  }).where(eq(usersTable.id, user.id));
-
-  (req.session as any).userId = user.id;
-  (req.session as any).userRole = user.role;
-  (req.session as any).organisationId = user.organisationId;
-  (req.session as any).userEmail = user.email;
-
-  logAudit(user.id, user.email, "login", "auth", undefined, { role: user.role }, req.ip, req.get("user-agent"));
-
-  res.json({
-    id: user.id,
-    email: user.email,
-    nom: user.nom,
-    prenom: user.prenom,
-    role: user.role,
-    departement: user.departement,
-    organisation: user.organisation,
-    organisationId: user.organisationId,
-    avatar: user.avatar,
-    mfaActif: user.mfaActif,
-  });
 });
 
 router.post("/auth/complete-onboarding", (req: Request, res: Response): void => {
@@ -108,30 +124,35 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  const [user] = await db.select({
-    id: usersTable.id,
-    email: usersTable.email,
-    nom: usersTable.nom,
-    prenom: usersTable.prenom,
-    role: usersTable.role,
-    departement: usersTable.departement,
-    organisation: usersTable.organisation,
-    organisationId: usersTable.organisationId,
-    telephone: usersTable.telephone,
-    avatar: usersTable.avatar,
-    mfaActif: usersTable.mfaActif,
-    actif: usersTable.actif,
-    dernierAcces: usersTable.dernierAcces,
-    createdAt: usersTable.createdAt,
-  }).from(usersTable).where(eq(usersTable.id, userId));
+  try {
+    const [user] = await db.select({
+      id: usersTable.id,
+      email: usersTable.email,
+      nom: usersTable.nom,
+      prenom: usersTable.prenom,
+      role: usersTable.role,
+      departement: usersTable.departement,
+      organisation: usersTable.organisation,
+      organisationId: usersTable.organisationId,
+      telephone: usersTable.telephone,
+      avatar: usersTable.avatar,
+      mfaActif: usersTable.mfaActif,
+      actif: usersTable.actif,
+      dernierAcces: usersTable.dernierAcces,
+      createdAt: usersTable.createdAt,
+    }).from(usersTable).where(eq(usersTable.id, userId));
 
-  if (!user || !user.actif) {
-    req.session.destroy(() => {});
-    res.status(401).json({ error: "Session invalide." });
-    return;
+    if (!user || !user.actif) {
+      req.session.destroy(() => {});
+      res.status(401).json({ error: "Session invalide." });
+      return;
+    }
+
+    res.json(user);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur auth/me");
+    res.status(500).json({ error: "Erreur lors de la verification de session." });
   }
-
-  res.json(user);
 });
 
 router.post("/auth/change-password", async (req: Request, res: Response): Promise<void> => {
@@ -149,16 +170,21 @@ router.post("/auth/change-password", async (req: Request, res: Response): Promis
     return;
   }
 
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
-  if (!user) { res.status(401).json({ error: "Utilisateur non trouve." }); return; }
+  try {
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    if (!user) { res.status(401).json({ error: "Utilisateur non trouve." }); return; }
 
-  const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
-  if (!isValid) { res.status(401).json({ error: "Mot de passe actuel incorrect." }); return; }
+    const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isValid) { res.status(401).json({ error: "Mot de passe actuel incorrect." }); return; }
 
-  const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-  await db.update(usersTable).set({ passwordHash: newHash, updatedAt: new Date() }).where(eq(usersTable.id, userId));
+    const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await db.update(usersTable).set({ passwordHash: newHash, updatedAt: new Date() }).where(eq(usersTable.id, userId));
 
-  res.json({ message: "Mot de passe modifie avec succes." });
+    res.json({ message: "Mot de passe modifie avec succes." });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur changement mot de passe");
+    res.status(500).json({ error: "Erreur lors du changement de mot de passe." });
+  }
 });
 
 router.get("/auth/users", async (req: Request, res: Response): Promise<void> => {
@@ -171,27 +197,32 @@ router.get("/auth/users", async (req: Request, res: Response): Promise<void> => 
     return;
   }
 
-  const conditions = [];
-  if (organisationId) {
-    conditions.push(eq(usersTable.organisationId, organisationId));
+  try {
+    const conditions = [];
+    if (organisationId) {
+      conditions.push(eq(usersTable.organisationId, organisationId));
+    }
+
+    const users = await db.select({
+      id: usersTable.id,
+      email: usersTable.email,
+      nom: usersTable.nom,
+      prenom: usersTable.prenom,
+      role: usersTable.role,
+      departement: usersTable.departement,
+      organisation: usersTable.organisation,
+      organisationId: usersTable.organisationId,
+      actif: usersTable.actif,
+      mfaActif: usersTable.mfaActif,
+      dernierAcces: usersTable.dernierAcces,
+      createdAt: usersTable.createdAt,
+    }).from(usersTable).where(conditions.length > 0 ? and(...conditions) : undefined);
+
+    res.json({ users, total: users.length });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur liste utilisateurs");
+    res.status(500).json({ error: "Erreur lors de la recuperation des utilisateurs." });
   }
-
-  const users = await db.select({
-    id: usersTable.id,
-    email: usersTable.email,
-    nom: usersTable.nom,
-    prenom: usersTable.prenom,
-    role: usersTable.role,
-    departement: usersTable.departement,
-    organisation: usersTable.organisation,
-    organisationId: usersTable.organisationId,
-    actif: usersTable.actif,
-    mfaActif: usersTable.mfaActif,
-    dernierAcces: usersTable.dernierAcces,
-    createdAt: usersTable.createdAt,
-  }).from(usersTable).where(conditions.length > 0 ? and(...conditions) : undefined);
-
-  res.json({ users, total: users.length });
 });
 
 router.post("/auth/users", async (req: Request, res: Response): Promise<void> => {
@@ -221,58 +252,63 @@ router.post("/auth/users", async (req: Request, res: Response): Promise<void> =>
     return;
   }
 
-  const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim()));
-  if (existing.length > 0) {
-    res.status(409).json({ error: "Un utilisateur avec cet email existe deja." });
-    return;
+  try {
+    const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim()));
+    if (existing.length > 0) {
+      res.status(409).json({ error: "Un utilisateur avec cet email existe deja." });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    const avatar = `${(prenom as string)[0]}${(nom as string)[0]}`.toUpperCase();
+
+    const [newUser] = await db.insert(usersTable).values({
+      email: email.toLowerCase().trim(),
+      passwordHash,
+      nom,
+      prenom,
+      role: role || "agent",
+      departement,
+      organisation: organisation || "Agent de Bureau SAS",
+      organisationId: organisationId || null,
+      telephone,
+      avatar,
+    }).returning({
+      id: usersTable.id,
+      email: usersTable.email,
+      nom: usersTable.nom,
+      prenom: usersTable.prenom,
+      role: usersTable.role,
+      departement: usersTable.departement,
+      organisation: usersTable.organisation,
+      actif: usersTable.actif,
+      createdAt: usersTable.createdAt,
+    });
+
+    let orgName = organisation || "Agent de Bureau";
+    if (organisationId) {
+      const [org] = await db.select({ name: organisationsTable.name }).from(organisationsTable).where(eq(organisationsTable.id, organisationId));
+      if (org) orgName = org.name;
+    }
+
+    const emailResult = await sendCredentialsEmail({
+      to: email.toLowerCase().trim(),
+      prenom,
+      nom,
+      password,
+      orgName,
+      role: role || "agent",
+    });
+
+    res.status(201).json({
+      ...newUser,
+      emailSent: emailResult.success,
+      emailNote: emailResult.success ? "Identifiants envoyes par email." : "Utilisateur cree. Envoi email echoue.",
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur creation utilisateur");
+    res.status(500).json({ error: "Erreur lors de la creation de l'utilisateur." });
   }
-
-  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-  const avatar = `${(prenom as string)[0]}${(nom as string)[0]}`.toUpperCase();
-
-  const [newUser] = await db.insert(usersTable).values({
-    email: email.toLowerCase().trim(),
-    passwordHash,
-    nom,
-    prenom,
-    role: role || "agent",
-    departement,
-    organisation: organisation || "Agent de Bureau SAS",
-    organisationId: organisationId || null,
-    telephone,
-    avatar,
-  }).returning({
-    id: usersTable.id,
-    email: usersTable.email,
-    nom: usersTable.nom,
-    prenom: usersTable.prenom,
-    role: usersTable.role,
-    departement: usersTable.departement,
-    organisation: usersTable.organisation,
-    actif: usersTable.actif,
-    createdAt: usersTable.createdAt,
-  });
-
-  let orgName = organisation || "Agent de Bureau";
-  if (organisationId) {
-    const [org] = await db.select({ name: organisationsTable.name }).from(organisationsTable).where(eq(organisationsTable.id, organisationId));
-    if (org) orgName = org.name;
-  }
-
-  const emailResult = await sendCredentialsEmail({
-    to: email.toLowerCase().trim(),
-    prenom,
-    nom,
-    password,
-    orgName,
-    role: role || "agent",
-  });
-
-  res.status(201).json({
-    ...newUser,
-    emailSent: emailResult.success,
-    emailNote: emailResult.success ? "Identifiants envoyes par email." : `Erreur email: ${emailResult.error}`,
-  });
 });
 
 router.patch("/auth/users/:id", async (req: Request, res: Response): Promise<void> => {
@@ -305,17 +341,22 @@ router.patch("/auth/users/:id", async (req: Request, res: Response): Promise<voi
     updateData.passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
   }
 
-  const [updated] = await db.update(usersTable).set(updateData).where(eq(usersTable.id, id)).returning({
-    id: usersTable.id,
-    email: usersTable.email,
-    nom: usersTable.nom,
-    prenom: usersTable.prenom,
-    role: usersTable.role,
-    actif: usersTable.actif,
-  });
+  try {
+    const [updated] = await db.update(usersTable).set(updateData).where(eq(usersTable.id, id)).returning({
+      id: usersTable.id,
+      email: usersTable.email,
+      nom: usersTable.nom,
+      prenom: usersTable.prenom,
+      role: usersTable.role,
+      actif: usersTable.actif,
+    });
 
-  if (!updated) { res.status(404).json({ error: "Utilisateur non trouve." }); return; }
-  res.json(updated);
+    if (!updated) { res.status(404).json({ error: "Utilisateur non trouve." }); return; }
+    res.json(updated);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur mise a jour utilisateur");
+    res.status(500).json({ error: "Erreur lors de la mise a jour de l'utilisateur." });
+  }
 });
 
 router.delete("/auth/users/:id", async (req: Request, res: Response): Promise<void> => {
@@ -334,9 +375,14 @@ router.delete("/auth/users/:id", async (req: Request, res: Response): Promise<vo
     return;
   }
 
-  const [deleted] = await db.delete(usersTable).where(eq(usersTable.id, id)).returning();
-  if (!deleted) { res.status(404).json({ error: "Utilisateur non trouve." }); return; }
-  res.status(204).send();
+  try {
+    const [deleted] = await db.delete(usersTable).where(eq(usersTable.id, id)).returning();
+    if (!deleted) { res.status(404).json({ error: "Utilisateur non trouve." }); return; }
+    res.status(204).send();
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur suppression utilisateur");
+    res.status(500).json({ error: "Erreur lors de la suppression de l'utilisateur." });
+  }
 });
 
 function generateTempCode(): string {
@@ -381,48 +427,54 @@ router.post("/auth/users/:id/send-credentials", async (req: Request, res: Respon
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
-  const conditions = [eq(usersTable.id, id)];
-  if (organisationId && userRole !== "super_admin") {
-    conditions.push(eq(usersTable.organisationId, organisationId));
-  }
+  try {
+    const conditions = [eq(usersTable.id, id)];
+    if (organisationId && userRole !== "super_admin") {
+      conditions.push(eq(usersTable.organisationId, organisationId));
+    }
 
-  const [user] = await db.select({ id: usersTable.id, email: usersTable.email, nom: usersTable.nom, prenom: usersTable.prenom, role: usersTable.role, organisation: usersTable.organisation, organisationId: usersTable.organisationId }).from(usersTable).where(and(...conditions));
-  if (!user) { res.status(404).json({ error: "Utilisateur non trouve." }); return; }
+    const [user] = await db.select({ id: usersTable.id, email: usersTable.email, nom: usersTable.nom, prenom: usersTable.prenom, role: usersTable.role, organisation: usersTable.organisation, organisationId: usersTable.organisationId }).from(usersTable).where(and(...conditions));
+    if (!user) { res.status(404).json({ error: "Utilisateur non trouve." }); return; }
 
-  const tempCode = generateTempCode();
-  const passwordHash = await bcrypt.hash(tempCode, SALT_ROUNDS);
+    const tempCode = generateTempCode();
+    const passwordHash = await bcrypt.hash(tempCode, SALT_ROUNDS);
 
-  await db.update(usersTable).set({
-    passwordHash,
-    tentativesEchouees: 0,
-    verrouilleJusqua: null,
-    updatedAt: new Date(),
-  }).where(eq(usersTable.id, id));
+    await db.update(usersTable).set({
+      passwordHash,
+      tentativesEchouees: 0,
+      verrouilleJusqua: null,
+      updatedAt: new Date(),
+    }).where(eq(usersTable.id, id));
 
-  let orgName = user.organisation || "Agent de Bureau";
-  if (user.organisationId) {
-    const [org] = await db.select({ name: organisationsTable.name }).from(organisationsTable).where(eq(organisationsTable.id, user.organisationId));
-    if (org) orgName = org.name;
-  }
+    let orgName = user.organisation || "Agent de Bureau";
+    if (user.organisationId) {
+      const [org] = await db.select({ name: organisationsTable.name }).from(organisationsTable).where(eq(organisationsTable.id, user.organisationId));
+      if (org) orgName = org.name;
+    }
 
-  const emailResult = await sendCredentialsEmail({
-    to: user.email,
-    prenom: user.prenom,
-    nom: user.nom,
-    password: tempCode,
-    orgName,
-    role: user.role,
-  });
-
-  logAudit(sessionUserId, (req.session as any)?.userEmail, "send_credentials", "user", String(id), { targetEmail: user.email }, req.ip, req.get("user-agent"));
-
-  if (emailResult.success) {
-    res.json({
-      message: `Code de connexion temporaire genere et envoye a ${user.email}.`,
-      preview: emailResult.preview,
+    const emailResult = await sendCredentialsEmail({
+      to: user.email,
+      prenom: user.prenom,
+      nom: user.nom,
+      password: tempCode,
+      orgName,
+      role: user.role,
     });
-  } else {
-    res.status(500).json({ error: `Mot de passe mis a jour mais erreur d'envoi email: ${emailResult.error}` });
+
+    logAudit(sessionUserId, (req.session as any)?.userEmail, "send_credentials", "user", String(id), { targetEmail: user.email }, req.ip, req.get("user-agent"));
+
+    if (emailResult.success) {
+      res.json({
+        message: `Code de connexion temporaire genere et envoye a ${user.email}.`,
+        preview: emailResult.preview,
+      });
+    } else {
+      logger.warn({ err: emailResult.error }, "Envoi credentials email echoue");
+      res.status(500).json({ error: "Mot de passe mis a jour mais erreur lors de l'envoi de l'email." });
+    }
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur envoi credentials");
+    res.status(500).json({ error: "Erreur lors de l'envoi des identifiants." });
   }
 });
 
@@ -449,61 +501,66 @@ router.post("/auth/users/create-and-send", async (req: Request, res: Response): 
     return;
   }
 
-  const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim()));
-  if (existing.length > 0) {
-    res.status(409).json({ error: "Un utilisateur avec cet email existe deja." });
-    return;
+  try {
+    const existing = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim()));
+    if (existing.length > 0) {
+      res.status(409).json({ error: "Un utilisateur avec cet email existe deja." });
+      return;
+    }
+
+    const generatedPassword = generateSecurePassword();
+    const passwordHash = await bcrypt.hash(generatedPassword, SALT_ROUNDS);
+    const avatar = `${(prenom as string)[0]}${(nom as string)[0]}`.toUpperCase();
+
+    const [newUser] = await db.insert(usersTable).values({
+      email: email.toLowerCase().trim(),
+      passwordHash,
+      nom,
+      prenom,
+      role: role || "agent",
+      departement,
+      organisation: organisation || "Agent de Bureau SAS",
+      organisationId: organisationId || null,
+      telephone,
+      avatar,
+    }).returning({
+      id: usersTable.id,
+      email: usersTable.email,
+      nom: usersTable.nom,
+      prenom: usersTable.prenom,
+      role: usersTable.role,
+      departement: usersTable.departement,
+      organisation: usersTable.organisation,
+      actif: usersTable.actif,
+      createdAt: usersTable.createdAt,
+    });
+
+    let orgName = organisation || "Agent de Bureau";
+    if (organisationId) {
+      const [org] = await db.select({ name: organisationsTable.name }).from(organisationsTable).where(eq(organisationsTable.id, organisationId));
+      if (org) orgName = org.name;
+    }
+
+    const emailResult = await sendCredentialsEmail({
+      to: email.toLowerCase().trim(),
+      prenom,
+      nom,
+      password: generatedPassword,
+      orgName,
+      role: role || "agent",
+    });
+
+    logAudit(sessionUserId, (req.session as any)?.userEmail, "create_and_send_credentials", "user", String(newUser.id), { targetEmail: email }, req.ip, req.get("user-agent"));
+
+    res.status(201).json({
+      ...newUser,
+      emailSent: emailResult.success,
+      emailNote: emailResult.preview || (emailResult.success ? "Identifiants envoyes par email." : "Utilisateur cree. Envoi email echoue."),
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur creation et envoi utilisateur");
+    res.status(500).json({ error: "Erreur lors de la creation de l'utilisateur." });
   }
-
-  const generatedPassword = generateSecurePassword();
-  const passwordHash = await bcrypt.hash(generatedPassword, SALT_ROUNDS);
-  const avatar = `${(prenom as string)[0]}${(nom as string)[0]}`.toUpperCase();
-
-  const [newUser] = await db.insert(usersTable).values({
-    email: email.toLowerCase().trim(),
-    passwordHash,
-    nom,
-    prenom,
-    role: role || "agent",
-    departement,
-    organisation: organisation || "Agent de Bureau SAS",
-    organisationId: organisationId || null,
-    telephone,
-    avatar,
-  }).returning({
-    id: usersTable.id,
-    email: usersTable.email,
-    nom: usersTable.nom,
-    prenom: usersTable.prenom,
-    role: usersTable.role,
-    departement: usersTable.departement,
-    organisation: usersTable.organisation,
-    actif: usersTable.actif,
-    createdAt: usersTable.createdAt,
-  });
-
-  let orgName = organisation || "Agent de Bureau";
-  if (organisationId) {
-    const [org] = await db.select({ name: organisationsTable.name }).from(organisationsTable).where(eq(organisationsTable.id, organisationId));
-    if (org) orgName = org.name;
-  }
-
-  const emailResult = await sendCredentialsEmail({
-    to: email.toLowerCase().trim(),
-    prenom,
-    nom,
-    password: generatedPassword,
-    orgName,
-    role: role || "agent",
-  });
-
-  logAudit(sessionUserId, (req.session as any)?.userEmail, "create_and_send_credentials", "user", String(newUser.id), { targetEmail: email }, req.ip, req.get("user-agent"));
-
-  res.status(201).json({
-    ...newUser,
-    emailSent: emailResult.success,
-    emailNote: emailResult.preview || (emailResult.success ? "Identifiants envoyes par email." : `Erreur email: ${emailResult.error}`),
-  });
 });
 
 export default router;

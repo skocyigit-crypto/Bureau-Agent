@@ -54,23 +54,28 @@ router.get("/tasks", async (req, res): Promise<void> => {
   const sortCol = taskSortColumns[sortBy ?? "createdAt"] ?? tasksTable.createdAt;
   const orderFn = sortOrder === "asc" ? asc : desc;
 
-  const [tasks, countResult] = await Promise.all([
-    db
-      .select()
-      .from(tasksTable)
-      .where(whereClause)
-      .orderBy(orderFn(sortCol))
-      .limit(limit ?? 50)
-      .offset(offset ?? 0),
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(tasksTable)
-      .where(whereClause),
-  ]);
+  try {
+    const [tasks, countResult] = await Promise.all([
+      db
+        .select()
+        .from(tasksTable)
+        .where(whereClause)
+        .orderBy(orderFn(sortCol))
+        .limit(limit ?? 50)
+        .offset(offset ?? 0),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(tasksTable)
+        .where(whereClause),
+    ]);
 
-  const userIds = tasks.flatMap((t: any) => [t.createdBy, t.updatedBy]);
-  const userMap = await resolveUserNames(userIds);
-  res.json({ tasks: enrichWithUserNames(tasks, userMap), total: countResult[0]?.count ?? 0 });
+    const userIds = tasks.flatMap((t: any) => [t.createdBy, t.updatedBy]);
+    const userMap = await resolveUserNames(userIds);
+    res.json({ tasks: enrichWithUserNames(tasks, userMap), total: countResult[0]?.count ?? 0 });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur liste taches");
+    res.status(500).json({ error: "Erreur lors de la recuperation des taches." });
+  }
 });
 
 router.post("/tasks", async (req, res): Promise<void> => {
@@ -82,8 +87,14 @@ router.post("/tasks", async (req, res): Promise<void> => {
 
   const orgId = getOrgId(req);
   const userId = (req.session as any)?.userId;
-  const [task] = await db.insert(tasksTable).values({ ...parsed.data, organisationId: orgId, createdBy: userId, updatedBy: userId }).returning();
-  res.status(201).json(task);
+
+  try {
+    const [task] = await db.insert(tasksTable).values({ ...parsed.data, organisationId: orgId, createdBy: userId, updatedBy: userId }).returning();
+    res.status(201).json(task);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur creation tache");
+    res.status(500).json({ error: "Erreur lors de la creation de la tache." });
+  }
 });
 
 router.get("/tasks/:id", async (req, res): Promise<void> => {
@@ -94,14 +105,20 @@ router.get("/tasks/:id", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const [task] = await db.select().from(tasksTable).where(and(eq(tasksTable.id, params.data.id), eq(tasksTable.organisationId, orgId)));
-  if (!task) {
-    res.status(404).json({ error: "Task not found" });
-    return;
-  }
 
-  const userMap = await resolveUserNames([task.createdBy, task.updatedBy]);
-  res.json(enrichSingle(task, userMap));
+  try {
+    const [task] = await db.select().from(tasksTable).where(and(eq(tasksTable.id, params.data.id), eq(tasksTable.organisationId, orgId)));
+    if (!task) {
+      res.status(404).json({ error: "Task not found" });
+      return;
+    }
+
+    const userMap = await resolveUserNames([task.createdBy, task.updatedBy]);
+    res.json(enrichSingle(task, userMap));
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur recuperation tache");
+    res.status(500).json({ error: "Erreur lors de la recuperation de la tache." });
+  }
 });
 
 router.patch("/tasks/:id", async (req, res): Promise<void> => {
@@ -119,17 +136,23 @@ router.patch("/tasks/:id", async (req, res): Promise<void> => {
 
   const orgId = getOrgId(req);
   const userId = (req.session as any)?.userId;
-  const [task] = await db.update(tasksTable)
-    .set({ ...parsed.data, updatedBy: userId })
-    .where(and(eq(tasksTable.id, params.data.id), eq(tasksTable.organisationId, orgId)))
-    .returning();
 
-  if (!task) {
-    res.status(404).json({ error: "Task not found" });
-    return;
+  try {
+    const [task] = await db.update(tasksTable)
+      .set({ ...parsed.data, updatedBy: userId })
+      .where(and(eq(tasksTable.id, params.data.id), eq(tasksTable.organisationId, orgId)))
+      .returning();
+
+    if (!task) {
+      res.status(404).json({ error: "Task not found" });
+      return;
+    }
+
+    res.json(task);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur mise a jour tache");
+    res.status(500).json({ error: "Erreur lors de la mise a jour de la tache." });
   }
-
-  res.json(task);
 });
 
 router.delete("/tasks/:id", async (req, res): Promise<void> => {
@@ -140,13 +163,19 @@ router.delete("/tasks/:id", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const [task] = await db.delete(tasksTable).where(and(eq(tasksTable.id, params.data.id), eq(tasksTable.organisationId, orgId))).returning();
-  if (!task) {
-    res.status(404).json({ error: "Task not found" });
-    return;
-  }
 
-  res.sendStatus(204);
+  try {
+    const [task] = await db.delete(tasksTable).where(and(eq(tasksTable.id, params.data.id), eq(tasksTable.organisationId, orgId))).returning();
+    if (!task) {
+      res.status(404).json({ error: "Task not found" });
+      return;
+    }
+
+    res.sendStatus(204);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur suppression tache");
+    res.status(500).json({ error: "Erreur lors de la suppression de la tache." });
+  }
 });
 
 export default router;

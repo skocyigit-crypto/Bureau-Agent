@@ -120,10 +120,9 @@ router.post("/backups/manual", async (_req, res) => {
   try {
     const result = await performBackup();
     if (!result.success) {
-      res.status(500).json({
-        ...result,
-        message: `Erreur lors de la sauvegarde: ${result.error}`,
-      }); return;
+      logger.warn({ err: result.error }, "Sauvegarde manuelle echouee");
+      res.status(500).json({ error: "Erreur lors de la sauvegarde manuelle." });
+      return;
     }
     res.json({
       ...result,

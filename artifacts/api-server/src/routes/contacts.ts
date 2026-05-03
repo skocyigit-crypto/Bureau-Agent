@@ -53,23 +53,28 @@ router.get("/contacts", async (req, res): Promise<void> => {
   const sortCol = contactSortColumns[sortBy ?? "createdAt"] ?? contactsTable.createdAt;
   const orderFn = sortOrder === "asc" ? asc : desc;
 
-  const [contacts, countResult] = await Promise.all([
-    db
-      .select()
-      .from(contactsTable)
-      .where(whereClause)
-      .orderBy(orderFn(sortCol))
-      .limit(limit ?? 50)
-      .offset(offset ?? 0),
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(contactsTable)
-      .where(whereClause),
-  ]);
+  try {
+    const [contacts, countResult] = await Promise.all([
+      db
+        .select()
+        .from(contactsTable)
+        .where(whereClause)
+        .orderBy(orderFn(sortCol))
+        .limit(limit ?? 50)
+        .offset(offset ?? 0),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(contactsTable)
+        .where(whereClause),
+    ]);
 
-  const userIds = contacts.flatMap((c: any) => [c.createdBy, c.updatedBy]);
-  const userMap = await resolveUserNames(userIds);
-  res.json({ contacts: enrichWithUserNames(contacts, userMap), total: countResult[0]?.count ?? 0 });
+    const userIds = contacts.flatMap((c: any) => [c.createdBy, c.updatedBy]);
+    const userMap = await resolveUserNames(userIds);
+    res.json({ contacts: enrichWithUserNames(contacts, userMap), total: countResult[0]?.count ?? 0 });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur liste contacts");
+    res.status(500).json({ error: "Erreur lors de la recuperation des contacts." });
+  }
 });
 
 router.post("/contacts", async (req, res): Promise<void> => {
@@ -81,8 +86,14 @@ router.post("/contacts", async (req, res): Promise<void> => {
 
   const orgId = getOrgId(req);
   const userId = (req.session as any)?.userId;
-  const [contact] = await db.insert(contactsTable).values({ ...parsed.data, organisationId: orgId, createdBy: userId, updatedBy: userId }).returning();
-  res.status(201).json(contact);
+
+  try {
+    const [contact] = await db.insert(contactsTable).values({ ...parsed.data, organisationId: orgId, createdBy: userId, updatedBy: userId }).returning();
+    res.status(201).json(contact);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur creation contact");
+    res.status(500).json({ error: "Erreur lors de la creation du contact." });
+  }
 });
 
 router.get("/contacts/:id", async (req, res): Promise<void> => {
@@ -93,14 +104,20 @@ router.get("/contacts/:id", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const [contact] = await db.select().from(contactsTable).where(and(eq(contactsTable.id, params.data.id), eq(contactsTable.organisationId, orgId)));
-  if (!contact) {
-    res.status(404).json({ error: "Contact not found" });
-    return;
-  }
 
-  const userMap = await resolveUserNames([contact.createdBy, contact.updatedBy]);
-  res.json(enrichSingle(contact, userMap));
+  try {
+    const [contact] = await db.select().from(contactsTable).where(and(eq(contactsTable.id, params.data.id), eq(contactsTable.organisationId, orgId)));
+    if (!contact) {
+      res.status(404).json({ error: "Contact not found" });
+      return;
+    }
+
+    const userMap = await resolveUserNames([contact.createdBy, contact.updatedBy]);
+    res.json(enrichSingle(contact, userMap));
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur recuperation contact");
+    res.status(500).json({ error: "Erreur lors de la recuperation du contact." });
+  }
 });
 
 router.patch("/contacts/:id", async (req, res): Promise<void> => {
@@ -118,17 +135,23 @@ router.patch("/contacts/:id", async (req, res): Promise<void> => {
 
   const orgId = getOrgId(req);
   const userId = (req.session as any)?.userId;
-  const [contact] = await db.update(contactsTable)
-    .set({ ...parsed.data, updatedBy: userId })
-    .where(and(eq(contactsTable.id, params.data.id), eq(contactsTable.organisationId, orgId)))
-    .returning();
 
-  if (!contact) {
-    res.status(404).json({ error: "Contact not found" });
-    return;
+  try {
+    const [contact] = await db.update(contactsTable)
+      .set({ ...parsed.data, updatedBy: userId })
+      .where(and(eq(contactsTable.id, params.data.id), eq(contactsTable.organisationId, orgId)))
+      .returning();
+
+    if (!contact) {
+      res.status(404).json({ error: "Contact not found" });
+      return;
+    }
+
+    res.json(contact);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur mise a jour contact");
+    res.status(500).json({ error: "Erreur lors de la mise a jour du contact." });
   }
-
-  res.json(contact);
 });
 
 router.delete("/contacts/:id", async (req, res): Promise<void> => {
@@ -139,16 +162,22 @@ router.delete("/contacts/:id", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const [contact] = await db.delete(contactsTable).where(and(eq(contactsTable.id, params.data.id), eq(contactsTable.organisationId, orgId))).returning();
-  if (!contact) {
-    res.status(404).json({ error: "Contact not found" });
-    return;
+
+  try {
+    const [contact] = await db.delete(contactsTable).where(and(eq(contactsTable.id, params.data.id), eq(contactsTable.organisationId, orgId))).returning();
+    if (!contact) {
+      res.status(404).json({ error: "Contact not found" });
+      return;
+    }
+
+    await db.update(tasksTable).set({ relatedContactId: null }).where(eq(tasksTable.relatedContactId, params.data.id));
+    await db.update(calendarEventsTable).set({ relatedContactId: null }).where(eq(calendarEventsTable.relatedContactId, params.data.id));
+
+    res.sendStatus(204);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur suppression contact");
+    res.status(500).json({ error: "Erreur lors de la suppression du contact." });
   }
-
-  await db.update(tasksTable).set({ relatedContactId: null }).where(eq(tasksTable.relatedContactId, params.data.id));
-  await db.update(calendarEventsTable).set({ relatedContactId: null }).where(eq(calendarEventsTable.relatedContactId, params.data.id));
-
-  res.sendStatus(204);
 });
 
 router.get("/contacts/:id/calls", async (req, res): Promise<void> => {
@@ -162,20 +191,25 @@ router.get("/contacts/:id/calls", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
   const limit = parseInt(req.query.limit as string || "20", 10);
 
-  const [calls, countResult] = await Promise.all([
-    db
-      .select()
-      .from(callsTable)
-      .where(and(eq(callsTable.contactId, id), eq(callsTable.organisationId, orgId)))
-      .orderBy(desc(callsTable.createdAt))
-      .limit(limit),
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(callsTable)
-      .where(and(eq(callsTable.contactId, id), eq(callsTable.organisationId, orgId))),
-  ]);
+  try {
+    const [calls, countResult] = await Promise.all([
+      db
+        .select()
+        .from(callsTable)
+        .where(and(eq(callsTable.contactId, id), eq(callsTable.organisationId, orgId)))
+        .orderBy(desc(callsTable.createdAt))
+        .limit(limit),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(callsTable)
+        .where(and(eq(callsTable.contactId, id), eq(callsTable.organisationId, orgId))),
+    ]);
 
-  res.json({ calls, total: countResult[0]?.count ?? 0 });
+    res.json({ calls, total: countResult[0]?.count ?? 0 });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur appels contact");
+    res.status(500).json({ error: "Erreur lors de la recuperation des appels." });
+  }
 });
 
 router.get("/contacts/:id/tasks", async (req, res): Promise<void> => {
@@ -187,13 +221,19 @@ router.get("/contacts/:id/tasks", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const tasks = await db
-    .select()
-    .from(tasksTable)
-    .where(and(eq(tasksTable.relatedContactId, id), eq(tasksTable.organisationId, orgId)))
-    .orderBy(desc(tasksTable.createdAt));
 
-  res.json({ tasks });
+  try {
+    const tasks = await db
+      .select()
+      .from(tasksTable)
+      .where(and(eq(tasksTable.relatedContactId, id), eq(tasksTable.organisationId, orgId)))
+      .orderBy(desc(tasksTable.createdAt));
+
+    res.json({ tasks });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur taches contact");
+    res.status(500).json({ error: "Erreur lors de la recuperation des taches." });
+  }
 });
 
 export default router;

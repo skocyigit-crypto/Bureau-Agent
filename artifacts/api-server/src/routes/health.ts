@@ -94,8 +94,9 @@ router.post("/app-releases", async (req, res): Promise<void> => {
       publishedBy: userId,
     }).returning();
     res.status(201).json(release);
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur creation release");
+    res.status(500).json({ error: "Erreur lors de la creation de la release." });
   }
 });
 
@@ -107,8 +108,13 @@ router.delete("/app-releases/:id", async (req, res): Promise<void> => {
   }
   const id = parseInt(String(req.params.id), 10);
   if (!id) { res.status(400).json({ error: "ID invalide." }); return; }
-  await db.update(appReleasesTable).set({ isActive: false }).where(eq(appReleasesTable.id, id));
-  res.status(204).end();
+  try {
+    await db.update(appReleasesTable).set({ isActive: false }).where(eq(appReleasesTable.id, id));
+    res.status(204).end();
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur suppression release");
+    res.status(500).json({ error: "Erreur lors de la suppression de la release." });
+  }
 });
 
 let cachedVersion: { hash: string; timestamp: number } | null = null;

@@ -130,8 +130,8 @@ router.get("/google-workspace/recent-emails", async (req, res): Promise<void> =>
 
     res.json({ emails });
   } catch (error: any) {
-    logger.error({ err: error }, "Recent emails error:");
-    res.json({ emails: [], error: error.message });
+    logger.error({ err: error }, "Erreur emails recents Google Workspace");
+    res.json({ emails: [], error: "non_connecte" });
   }
 });
 
@@ -170,8 +170,8 @@ router.get("/google-workspace/upcoming-events", async (req, res): Promise<void> 
 
     res.json({ events });
   } catch (error: any) {
-    logger.error({ err: error }, "Upcoming events error:");
-    res.json({ events: [], error: error.message });
+    logger.error({ err: error }, "Erreur evenements agenda Google Workspace");
+    res.json({ events: [], error: "non_connecte" });
   }
 });
 
@@ -206,8 +206,8 @@ router.get("/google-workspace/recent-files", async (req, res): Promise<void> => 
 
     res.json({ files });
   } catch (error: any) {
-    logger.error({ err: error }, "Recent files error:");
-    res.json({ files: [], error: error.message });
+    logger.error({ err: error }, "Erreur fichiers recents Google Drive");
+    res.json({ files: [], error: "non_connecte" });
   }
 });
 
@@ -243,8 +243,8 @@ router.get("/google-workspace/tasks", async (req, res): Promise<void> => {
 
     res.json({ tasks: allTasks.slice(0, 15) });
   } catch (error: any) {
-    logger.error({ err: error }, "Google tasks error:");
-    res.json({ tasks: [], error: error.message });
+    logger.error({ err: error }, "Erreur taches Google Tasks");
+    res.json({ tasks: [], error: "non_connecte" });
   }
 });
 

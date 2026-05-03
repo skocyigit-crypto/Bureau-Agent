@@ -71,38 +71,43 @@ router.get("/audit/stats", async (req: Request, res: Response): Promise<void> =>
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const [todayStats] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(auditLogsTable)
-    .where(gte(auditLogsTable.createdAt, today));
+  try {
+    const [todayStats] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(auditLogsTable)
+      .where(gte(auditLogsTable.createdAt, today));
 
-  const actionBreakdown = await db
-    .select({
-      action: auditLogsTable.action,
-      count: sql<number>`count(*)::int`,
-    })
-    .from(auditLogsTable)
-    .where(gte(auditLogsTable.createdAt, today))
-    .groupBy(auditLogsTable.action)
-    .orderBy(desc(sql`count(*)`))
-    .limit(10);
+    const actionBreakdown = await db
+      .select({
+        action: auditLogsTable.action,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(auditLogsTable)
+      .where(gte(auditLogsTable.createdAt, today))
+      .groupBy(auditLogsTable.action)
+      .orderBy(desc(sql`count(*)`))
+      .limit(10);
 
-  const activeUsers = await db
-    .select({
-      userEmail: auditLogsTable.userEmail,
-      count: sql<number>`count(*)::int`,
-    })
-    .from(auditLogsTable)
-    .where(gte(auditLogsTable.createdAt, today))
-    .groupBy(auditLogsTable.userEmail)
-    .orderBy(desc(sql`count(*)`))
-    .limit(5);
+    const activeUsers = await db
+      .select({
+        userEmail: auditLogsTable.userEmail,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(auditLogsTable)
+      .where(gte(auditLogsTable.createdAt, today))
+      .groupBy(auditLogsTable.userEmail)
+      .orderBy(desc(sql`count(*)`))
+      .limit(5);
 
-  res.json({
-    todayTotal: todayStats?.count || 0,
-    actionBreakdown,
-    activeUsers,
-  });
+    res.json({
+      todayTotal: todayStats?.count || 0,
+      actionBreakdown,
+      activeUsers,
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur statistiques audit");
+    res.status(500).json({ error: "Erreur lors de la recuperation des statistiques d'audit." });
+  }
 });
 
 export default router;

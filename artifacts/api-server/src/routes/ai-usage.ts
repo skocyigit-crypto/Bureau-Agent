@@ -10,8 +10,13 @@ const router: IRouter = Router();
 
 router.get("/ai-usage/quota", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
-  const status = await getQuotaStatus(orgId);
-  res.json(status);
+  try {
+    const status = await getQuotaStatus(orgId);
+    res.json(status);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur quota IA");
+    res.status(500).json({ error: "Erreur lors de la recuperation du quota IA." });
+  }
 });
 
 router.get("/ai-usage/summary", async (req: Request, res: Response): Promise<void> => {
@@ -19,6 +24,7 @@ router.get("/ai-usage/summary", async (req: Request, res: Response): Promise<voi
   const days = Math.max(1, Math.min(90, parseInt(String(req.query.days ?? "30")) || 30));
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
+  try {
   const [totals, byRoute, byModel, byDay, recentErrors] = await Promise.all([
     db.select({
       totalCalls: sql<number>`count(*)::int`,
@@ -70,26 +76,35 @@ router.get("/ai-usage/summary", async (req: Request, res: Response): Promise<voi
     byDay,
     recentErrors,
   });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur resume usage IA");
+    res.status(500).json({ error: "Erreur lors de la recuperation du resume d'utilisation IA." });
+  }
 });
 
 router.get("/ai-usage/settings", requireRole("administrateur", "super_admin"), async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
-  const [org] = await db.select({
-    aiQuotaCostUsd: organisationsTable.aiQuotaCostUsd,
-    aiQuotaCalls: organisationsTable.aiQuotaCalls,
-    aiAgentName: organisationsTable.aiAgentName,
-  }).from(organisationsTable).where(eq(organisationsTable.id, orgId));
+  try {
+    const [org] = await db.select({
+      aiQuotaCostUsd: organisationsTable.aiQuotaCostUsd,
+      aiQuotaCalls: organisationsTable.aiQuotaCalls,
+      aiAgentName: organisationsTable.aiAgentName,
+    }).from(organisationsTable).where(eq(organisationsTable.id, orgId));
 
-  if (!org) {
-    res.status(404).json({ error: "Organisation introuvable." });
-    return;
+    if (!org) {
+      res.status(404).json({ error: "Organisation introuvable." });
+      return;
+    }
+
+    res.json({
+      aiQuotaCostUsd: org.aiQuotaCostUsd != null ? Number(org.aiQuotaCostUsd) : null,
+      aiQuotaCalls: org.aiQuotaCalls,
+      aiAgentName: org.aiAgentName,
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur parametres IA");
+    res.status(500).json({ error: "Erreur lors de la recuperation des parametres IA." });
   }
-
-  res.json({
-    aiQuotaCostUsd: org.aiQuotaCostUsd != null ? Number(org.aiQuotaCostUsd) : null,
-    aiQuotaCalls: org.aiQuotaCalls,
-    aiAgentName: org.aiAgentName,
-  });
 });
 
 router.patch("/ai-usage/settings", requireRole("administrateur", "super_admin"), async (req: Request, res: Response): Promise<void> => {
@@ -130,11 +145,16 @@ router.patch("/ai-usage/settings", requireRole("administrateur", "super_admin"),
     return;
   }
 
-  await db.update(organisationsTable).set(updates).where(eq(organisationsTable.id, orgId));
-  invalidateQuotaCache(orgId);
+  try {
+    await db.update(organisationsTable).set(updates).where(eq(organisationsTable.id, orgId));
+    invalidateQuotaCache(orgId);
 
-  logger.info({ orgId, updates: Object.keys(updates) }, "[ai-usage] Parametres IA mis a jour");
-  res.json({ success: true, message: "Parametres IA mis a jour avec succes." });
+    logger.info({ orgId, updates: Object.keys(updates) }, "[ai-usage] Parametres IA mis a jour");
+    res.json({ success: true, message: "Parametres IA mis a jour avec succes." });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur mise a jour parametres IA");
+    res.status(500).json({ error: "Erreur lors de la mise a jour des parametres IA." });
+  }
 });
 
 export default router;

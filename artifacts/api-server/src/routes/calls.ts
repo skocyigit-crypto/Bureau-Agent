@@ -106,23 +106,28 @@ router.get("/calls", async (req, res): Promise<void> => {
   const sortCol = callSortColumns[sortBy ?? "createdAt"] ?? callsTable.createdAt;
   const orderFn = sortOrder === "asc" ? asc : desc;
 
-  const [calls, countResult] = await Promise.all([
-    db
-      .select()
-      .from(callsTable)
-      .where(whereClause)
-      .orderBy(orderFn(sortCol))
-      .limit(limit ?? 50)
-      .offset(offset ?? 0),
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(callsTable)
-      .where(whereClause),
-  ]);
+  try {
+    const [calls, countResult] = await Promise.all([
+      db
+        .select()
+        .from(callsTable)
+        .where(whereClause)
+        .orderBy(orderFn(sortCol))
+        .limit(limit ?? 50)
+        .offset(offset ?? 0),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(callsTable)
+        .where(whereClause),
+    ]);
 
-  const userIds = calls.flatMap((c: any) => [c.createdBy, c.updatedBy]);
-  const userMap = await resolveUserNames(userIds);
-  res.json({ calls: enrichWithUserNames(calls, userMap), total: countResult[0]?.count ?? 0 });
+    const userIds = calls.flatMap((c: any) => [c.createdBy, c.updatedBy]);
+    const userMap = await resolveUserNames(userIds);
+    res.json({ calls: enrichWithUserNames(calls, userMap), total: countResult[0]?.count ?? 0 });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur liste appels");
+    res.status(500).json({ error: "Erreur lors de la recuperation des appels." });
+  }
 });
 
 router.post("/calls", async (req, res): Promise<void> => {
@@ -135,54 +140,59 @@ router.post("/calls", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
   const data = parsed.data;
 
-  if (data.contactId) {
-    const [contact] = await db.select({ id: contactsTable.id }).from(contactsTable).where(and(eq(contactsTable.id, data.contactId), eq(contactsTable.organisationId, orgId)));
-    if (!contact) {
-      res.status(403).json({ error: "Contact introuvable ou inaccessible." });
-      return;
-    }
-    await db.update(contactsTable)
-      .set({
-        totalCalls: sql`${contactsTable.totalCalls} + 1`,
-        lastCallAt: new Date(),
-      })
-      .where(and(eq(contactsTable.id, data.contactId), eq(contactsTable.organisationId, orgId)));
-  }
-
-  const userId = (req.session as any)?.userId;
-  const [call] = await db.insert(callsTable).values({
-    ...data,
-    tags: data.tags ?? [],
-    organisationId: orgId,
-    createdBy: userId,
-    updatedBy: userId,
-  }).returning();
-
-  logAudit((req.session as any)?.userId, (req.session as any)?.userEmail, "create", "call", String(call.id), { contactName: call.contactName, direction: call.direction });
-
-  if (call.status === "repondu" && call.notes && call.notes.trim().length > 5) {
-    processCallWithAI(call.id).catch(async (err) => {
-      const msg = err?.message || String(err);
-      logger.error({ err: msg }, `[AI] Erreur traitement appel #${call.id}:`);
-      try {
-        const { notificationsTable } = await import("@workspace/db");
-        await db.insert(notificationsTable).values({
-          type: "alerte",
-          title: "Analyse IA echouee",
-          message: `L'analyse automatique de l'appel avec ${call.contactName || call.phoneNumber} n'a pas abouti: ${msg.slice(0, 200)}. Vous pouvez reessayer manuellement depuis le detail de l'appel.`,
-          priority: "normale",
-          actionUrl: `/appels/${call.id}`,
-          sourceType: "ai_error",
-          sourceId: String(call.id),
-          organisationId: orgId,
-        });
-      } catch (notifErr) {
-        logger.error({ err: notifErr }, `[AI] Impossible de creer la notification d'erreur:`);
+  try {
+    if (data.contactId) {
+      const [contact] = await db.select({ id: contactsTable.id }).from(contactsTable).where(and(eq(contactsTable.id, data.contactId), eq(contactsTable.organisationId, orgId)));
+      if (!contact) {
+        res.status(403).json({ error: "Contact introuvable ou inaccessible." });
+        return;
       }
-    });
-  }
+      await db.update(contactsTable)
+        .set({
+          totalCalls: sql`${contactsTable.totalCalls} + 1`,
+          lastCallAt: new Date(),
+        })
+        .where(and(eq(contactsTable.id, data.contactId), eq(contactsTable.organisationId, orgId)));
+    }
 
-  res.status(201).json(call);
+    const userId = (req.session as any)?.userId;
+    const [call] = await db.insert(callsTable).values({
+      ...data,
+      tags: data.tags ?? [],
+      organisationId: orgId,
+      createdBy: userId,
+      updatedBy: userId,
+    }).returning();
+
+    logAudit((req.session as any)?.userId, (req.session as any)?.userEmail, "create", "call", String(call.id), { contactName: call.contactName, direction: call.direction });
+
+    if (call.status === "repondu" && call.notes && call.notes.trim().length > 5) {
+      processCallWithAI(call.id).catch(async (err) => {
+        const msg = err?.message || String(err);
+        logger.error({ err: msg }, `[AI] Erreur traitement appel #${call.id}:`);
+        try {
+          const { notificationsTable } = await import("@workspace/db");
+          await db.insert(notificationsTable).values({
+            type: "alerte",
+            title: "Analyse IA echouee",
+            message: `L'analyse automatique de l'appel avec ${call.contactName || call.phoneNumber} n'a pas abouti: ${msg.slice(0, 200)}. Vous pouvez reessayer manuellement depuis le detail de l'appel.`,
+            priority: "normale",
+            actionUrl: `/appels/${call.id}`,
+            sourceType: "ai_error",
+            sourceId: String(call.id),
+            organisationId: orgId,
+          });
+        } catch (notifErr) {
+          logger.error({ err: notifErr }, `[AI] Impossible de creer la notification d'erreur:`);
+        }
+      });
+    }
+
+    res.status(201).json(call);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur creation appel");
+    res.status(500).json({ error: "Erreur lors de la creation de l'appel." });
+  }
 });
 
 router.post("/calls/:id/process", async (req, res): Promise<void> => {
@@ -238,14 +248,20 @@ router.get("/calls/:id", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const [call] = await db.select().from(callsTable).where(and(eq(callsTable.id, params.data.id), eq(callsTable.organisationId, orgId)));
-  if (!call) {
-    res.status(404).json({ error: "Call not found" });
-    return;
-  }
 
-  const userMap = await resolveUserNames([call.createdBy, call.updatedBy]);
-  res.json(enrichSingle(call, userMap));
+  try {
+    const [call] = await db.select().from(callsTable).where(and(eq(callsTable.id, params.data.id), eq(callsTable.organisationId, orgId)));
+    if (!call) {
+      res.status(404).json({ error: "Appel introuvable." });
+      return;
+    }
+
+    const userMap = await resolveUserNames([call.createdBy, call.updatedBy]);
+    res.json(enrichSingle(call, userMap));
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur recuperation appel");
+    res.status(500).json({ error: "Erreur lors de la recuperation de l'appel." });
+  }
 });
 
 router.patch("/calls/:id", async (req, res): Promise<void> => {

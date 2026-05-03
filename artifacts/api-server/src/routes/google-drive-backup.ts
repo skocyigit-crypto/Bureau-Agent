@@ -17,72 +17,91 @@ const requireSuperAdmin = (req: Request, res: Response, next: Function) => {
 
 router.use(requireSuperAdmin);
 
-router.post("/google-drive-backup/run", async (_req: Request, res: Response): Promise<void> => {
-  const result = await performGoogleDriveBackup();
-  if (result.success) {
+router.post("/google-drive-backup/run", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await performGoogleDriveBackup();
+    if (result.success) {
+      res.json({
+        message: `Sauvegarde Google Drive reussie : ${result.fileName}`,
+        ...result,
+      });
+    } else {
+      logger.warn({ err: result.error }, "Sauvegarde Google Drive echouee");
+      res.status(500).json({ error: "Erreur lors de la sauvegarde Google Drive." });
+    }
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur sauvegarde Google Drive");
+    res.status(500).json({ error: "Erreur lors de la sauvegarde Google Drive." });
+  }
+});
+
+router.get("/google-drive-backup/files", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await listGoogleDriveBackups();
+    if (result.success) {
+      res.json(result);
+    } else {
+      logger.warn({ err: result.error }, "Erreur liste sauvegardes Google Drive");
+      res.status(500).json({ error: "Erreur lors de la recuperation des sauvegardes." });
+    }
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur liste sauvegardes Google Drive");
+    res.status(500).json({ error: "Erreur lors de la recuperation des sauvegardes." });
+  }
+});
+
+router.get("/google-drive-backup/history", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const backups = await db.select().from(autoBackupsTable)
+      .where(eq(autoBackupsTable.platform, "google"))
+      .orderBy(desc(autoBackupsTable.createdAt))
+      .limit(50);
+
+    const stats = await db.select({
+      total: sql<number>`count(*)::int`,
+      success: sql<number>`count(*) filter (where ${autoBackupsTable.status} = 'termine')::int`,
+      errors: sql<number>`count(*) filter (where ${autoBackupsTable.status} = 'erreur')::int`,
+      totalSize: sql<number>`coalesce(sum(${autoBackupsTable.sizeBytes}), 0)::bigint`,
+      lastBackup: sql<string>`max(${autoBackupsTable.createdAt})`,
+    }).from(autoBackupsTable).where(eq(autoBackupsTable.platform, "google"));
+
     res.json({
-      message: `Sauvegarde Google Drive reussie : ${result.fileName}`,
-      ...result,
+      backups,
+      stats: {
+        total: stats[0]?.total || 0,
+        success: stats[0]?.success || 0,
+        errors: stats[0]?.errors || 0,
+        totalSizeBytes: Number(stats[0]?.totalSize || 0),
+        lastBackup: stats[0]?.lastBackup || null,
+      },
     });
-  } else {
-    res.status(500).json({
-      message: `Erreur de sauvegarde : ${result.error}`,
-      ...result,
-    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur historique sauvegardes");
+    res.status(500).json({ error: "Erreur lors de la recuperation de l'historique." });
   }
 });
 
-router.get("/google-drive-backup/files", async (_req: Request, res: Response): Promise<void> => {
-  const result = await listGoogleDriveBackups();
-  if (result.success) {
-    res.json(result);
-  } else {
-    res.status(500).json(result);
+router.get("/google-drive-backup/config", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const configs = await db.select().from(backupConfigTable).where(eq(backupConfigTable.platform, "google"));
+    if (configs.length === 0) {
+      await db.insert(backupConfigTable).values({
+        platform: "google",
+        enabled: "true",
+        intervalMinutes: 360,
+        retentionDays: 90,
+        encryptionEnabled: "true",
+        storagePath: "Google Drive > Agent de Bureau - Sauvegardes",
+      });
+      const newConfig = await db.select().from(backupConfigTable).where(eq(backupConfigTable.platform, "google"));
+      res.json(newConfig[0]);
+      return;
+    }
+    res.json(configs[0]);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur configuration sauvegarde");
+    res.status(500).json({ error: "Erreur lors de la recuperation de la configuration." });
   }
-});
-
-router.get("/google-drive-backup/history", async (_req: Request, res: Response): Promise<void> => {
-  const backups = await db.select().from(autoBackupsTable)
-    .where(eq(autoBackupsTable.platform, "google"))
-    .orderBy(desc(autoBackupsTable.createdAt))
-    .limit(50);
-
-  const stats = await db.select({
-    total: sql<number>`count(*)::int`,
-    success: sql<number>`count(*) filter (where ${autoBackupsTable.status} = 'termine')::int`,
-    errors: sql<number>`count(*) filter (where ${autoBackupsTable.status} = 'erreur')::int`,
-    totalSize: sql<number>`coalesce(sum(${autoBackupsTable.sizeBytes}), 0)::bigint`,
-    lastBackup: sql<string>`max(${autoBackupsTable.createdAt})`,
-  }).from(autoBackupsTable).where(eq(autoBackupsTable.platform, "google"));
-
-  res.json({
-    backups,
-    stats: {
-      total: stats[0]?.total || 0,
-      success: stats[0]?.success || 0,
-      errors: stats[0]?.errors || 0,
-      totalSizeBytes: Number(stats[0]?.totalSize || 0),
-      lastBackup: stats[0]?.lastBackup || null,
-    },
-  });
-});
-
-router.get("/google-drive-backup/config", async (_req: Request, res: Response): Promise<void> => {
-  const configs = await db.select().from(backupConfigTable).where(eq(backupConfigTable.platform, "google"));
-  if (configs.length === 0) {
-    await db.insert(backupConfigTable).values({
-      platform: "google",
-      enabled: "true",
-      intervalMinutes: 360,
-      retentionDays: 90,
-      encryptionEnabled: "true",
-      storagePath: "Google Drive > Agent de Bureau - Sauvegardes",
-    });
-    const newConfig = await db.select().from(backupConfigTable).where(eq(backupConfigTable.platform, "google"));
-    res.json(newConfig[0]);
-    return;
-  }
-  res.json(configs[0]);
 });
 
 router.put("/google-drive-backup/config", async (req: Request, res: Response): Promise<void> => {
@@ -108,60 +127,70 @@ router.put("/google-drive-backup/config", async (req: Request, res: Response): P
   }
   if (encryptionEnabled !== undefined) updates.encryptionEnabled = String(encryptionEnabled);
 
-  const existing = await db.select().from(backupConfigTable).where(eq(backupConfigTable.platform, "google"));
-  if (existing.length === 0) {
-    await db.insert(backupConfigTable).values({
-      platform: "google",
-      ...updates,
-    });
-  } else {
-    await db.update(backupConfigTable).set(updates).where(eq(backupConfigTable.platform, "google"));
-  }
+  try {
+    const existing = await db.select().from(backupConfigTable).where(eq(backupConfigTable.platform, "google"));
+    if (existing.length === 0) {
+      await db.insert(backupConfigTable).values({
+        platform: "google",
+        ...updates,
+      });
+    } else {
+      await db.update(backupConfigTable).set(updates).where(eq(backupConfigTable.platform, "google"));
+    }
 
-  const updated = await db.select().from(backupConfigTable).where(eq(backupConfigTable.platform, "google"));
-  res.json({ message: "Configuration mise a jour.", config: updated[0] });
+    const updated = await db.select().from(backupConfigTable).where(eq(backupConfigTable.platform, "google"));
+    res.json({ message: "Configuration mise a jour.", config: updated[0] });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur mise a jour configuration sauvegarde");
+    res.status(500).json({ error: "Erreur lors de la mise a jour de la configuration." });
+  }
 });
 
-router.get("/google-drive-backup/status", async (_req: Request, res: Response): Promise<void> => {
-  const configured = await isConnectorAvailable();
+router.get("/google-drive-backup/status", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const configured = await isConnectorAvailable();
 
-  const lastBackup = await db.select().from(autoBackupsTable)
-    .where(eq(autoBackupsTable.platform, "google"))
-    .orderBy(desc(autoBackupsTable.createdAt))
-    .limit(1);
+    const lastBackup = await db.select().from(autoBackupsTable)
+      .where(eq(autoBackupsTable.platform, "google"))
+      .orderBy(desc(autoBackupsTable.createdAt))
+      .limit(1);
 
-  const lastSuccess = await db.select().from(autoBackupsTable)
-    .where(sql`${autoBackupsTable.platform} = 'google' AND ${autoBackupsTable.status} = 'termine'`)
-    .orderBy(desc(autoBackupsTable.createdAt))
-    .limit(1);
+    const lastSuccess = await db.select().from(autoBackupsTable)
+      .where(sql`${autoBackupsTable.platform} = 'google' AND ${autoBackupsTable.status} = 'termine'`)
+      .orderBy(desc(autoBackupsTable.createdAt))
+      .limit(1);
 
-  const totalBackups = await db.select({
-    total: sql<number>`count(*)::int`,
-    totalSize: sql<number>`coalesce(sum(${autoBackupsTable.sizeBytes}), 0)::bigint`,
-  }).from(autoBackupsTable).where(eq(autoBackupsTable.platform, "google"));
+    const totalBackups = await db.select({
+      total: sql<number>`count(*)::int`,
+      totalSize: sql<number>`coalesce(sum(${autoBackupsTable.sizeBytes}), 0)::bigint`,
+    }).from(autoBackupsTable).where(eq(autoBackupsTable.platform, "google"));
 
-  res.json({
-    configured,
-    schedulerActive: configured,
-    intervalHours: 6,
-    encryption: "AES-256-GCM",
-    lastBackup: lastBackup[0] || null,
-    lastSuccessfulBackup: lastSuccess[0] || null,
-    totalBackups: totalBackups[0]?.total || 0,
-    totalStorageBytes: Number(totalBackups[0]?.totalSize || 0),
-    backedUpTables: 29,
-    features: [
-      "AES-256-GCM encryption",
-      "SHA-256 integrity verification",
-      "29 tables backed up",
-      "Auto-schedule every 6 hours",
-      "90-day retention policy",
-      "Full restore capability",
-      "Dry-run restore preview",
-      "Per-table selective restore",
-      "Local JSON export",
-    ],
-  });
+    res.json({
+      configured,
+      schedulerActive: configured,
+      intervalHours: 6,
+      encryption: "AES-256-GCM",
+      lastBackup: lastBackup[0] || null,
+      lastSuccessfulBackup: lastSuccess[0] || null,
+      totalBackups: totalBackups[0]?.total || 0,
+      totalStorageBytes: Number(totalBackups[0]?.totalSize || 0),
+      backedUpTables: 29,
+      features: [
+        "AES-256-GCM encryption",
+        "SHA-256 integrity verification",
+        "29 tables backed up",
+        "Auto-schedule every 6 hours",
+        "90-day retention policy",
+        "Full restore capability",
+        "Dry-run restore preview",
+        "Per-table selective restore",
+        "Local JSON export",
+      ],
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur statut sauvegarde");
+    res.status(500).json({ error: "Erreur lors de la recuperation du statut." });
+  }
 });
 
 router.post("/google-drive-backup/verify/:fileId", async (req: Request, res: Response): Promise<void> => {
@@ -171,11 +200,17 @@ router.post("/google-drive-backup/verify/:fileId", async (req: Request, res: Res
     return;
   }
 
-  const result = await verifyBackup(fileId);
-  if (result.success) {
-    res.json(result);
-  } else {
-    res.status(500).json(result);
+  try {
+    const result = await verifyBackup(fileId);
+    if (result.success) {
+      res.json(result);
+    } else {
+      logger.warn({ err: result.error }, "Verification sauvegarde echouee");
+      res.status(500).json({ error: "Erreur lors de la verification de la sauvegarde." });
+    }
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur verification sauvegarde");
+    res.status(500).json({ error: "Erreur lors de la verification de la sauvegarde." });
   }
 });
 
@@ -186,26 +221,32 @@ router.post("/google-drive-backup/preview/:fileId", async (req: Request, res: Re
     return;
   }
 
-  const result = await downloadAndDecryptBackup(fileId);
-  if (!result.success) {
-    res.status(500).json({ error: result.error });
-    return;
-  }
-
-  const preview: Record<string, any> = {};
-  for (const [key, value] of Object.entries(result.data)) {
-    if (key === "_meta") {
-      preview._meta = value;
-      continue;
+  try {
+    const result = await downloadAndDecryptBackup(fileId);
+    if (!result.success) {
+      logger.warn({ err: result.error }, "Telechargement sauvegarde echoue");
+      res.status(500).json({ error: "Erreur lors du telechargement de la sauvegarde." });
+      return;
     }
-    const tableData = value as any;
-    preview[key] = {
-      count: tableData?.count || 0,
-      sample: (tableData?.data || []).slice(0, 3),
-    };
-  }
 
-  res.json({ success: true, preview, meta: result.meta });
+    const preview: Record<string, any> = {};
+    for (const [key, value] of Object.entries(result.data)) {
+      if (key === "_meta") {
+        preview._meta = value;
+        continue;
+      }
+      const tableData = value as any;
+      preview[key] = {
+        count: tableData?.count || 0,
+        sample: (tableData?.data || []).slice(0, 3),
+      };
+    }
+
+    res.json({ success: true, preview, meta: result.meta });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur apercu sauvegarde");
+    res.status(500).json({ error: "Erreur lors de l'apercu de la sauvegarde." });
+  }
 });
 
 router.post("/google-drive-backup/restore/:fileId", async (req: Request, res: Response): Promise<void> => {
@@ -228,38 +269,50 @@ router.post("/google-drive-backup/restore/:fileId", async (req: Request, res: Re
     }
   }
 
-  const result = await restoreFromBackup(fileId, {
-    tables: tables || undefined,
-    dryRun: dryRun !== false,
-    clearBeforeRestore: clearBeforeRestore === true,
-  });
-
-  if (result.success) {
-    res.json({
-      message: result.dryRun
-        ? `Simulation terminee: ${result.totalRestored} enregistrements seraient restaures.`
-        : `Restauration terminee: ${result.totalRestored} enregistrements restaures.`,
-      ...result,
+  try {
+    const result = await restoreFromBackup(fileId, {
+      tables: tables || undefined,
+      dryRun: dryRun !== false,
+      clearBeforeRestore: clearBeforeRestore === true,
     });
-  } else {
-    res.status(500).json(result);
+
+    if (result.success) {
+      res.json({
+        message: result.dryRun
+          ? `Simulation terminee: ${result.totalRestored} enregistrements seraient restaures.`
+          : `Restauration terminee: ${result.totalRestored} enregistrements restaures.`,
+        ...result,
+      });
+    } else {
+      logger.warn({ err: result.error }, "Restauration sauvegarde echouee");
+      res.status(500).json({ error: "Erreur lors de la restauration de la sauvegarde." });
+    }
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur restauration sauvegarde");
+    res.status(500).json({ error: "Erreur lors de la restauration de la sauvegarde." });
   }
 });
 
-router.get("/google-drive-backup/export-local", async (_req: Request, res: Response): Promise<void> => {
-  const result = await exportBackupAsJSON();
-  if (!result.success) {
-    res.status(500).json({ error: result.error });
-    return;
-  }
+router.get("/google-drive-backup/export-local", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await exportBackupAsJSON();
+    if (!result.success) {
+      logger.warn({ err: result.error }, "Export local sauvegarde echoue");
+      res.status(500).json({ error: "Erreur lors de l'export de la sauvegarde." });
+      return;
+    }
 
-  res.setHeader("Content-Type", "application/json");
-  res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
-  res.setHeader("Content-Length", String(result.size));
-  res.send(result.data);
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+    res.setHeader("Content-Length", String(result.size));
+    res.send(result.data);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur export local sauvegarde");
+    res.status(500).json({ error: "Erreur lors de l'export de la sauvegarde." });
+  }
 });
 
-router.get("/google-drive-backup/export-encrypted", async (_req: Request, res: Response): Promise<void> => {
+router.get("/google-drive-backup/export-encrypted", async (req: Request, res: Response): Promise<void> => {
   try {
     const backupResult = await performGoogleDriveBackup();
     if (backupResult.success) {
@@ -268,10 +321,11 @@ router.get("/google-drive-backup/export-encrypted", async (_req: Request, res: R
         ...backupResult,
       });
     } else {
-      res.status(500).json({ error: backupResult.error });
+      logger.warn({ err: backupResult.error }, "Export chiffre sauvegarde echoue");
+      res.status(500).json({ error: "Erreur lors de la sauvegarde chiffree." });
     }
-  } catch (error: any) {
-    logger.error({ err: error }, "[GDriveBackup] export-encrypted error");
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur export chiffre sauvegarde");
     res.status(500).json({ error: "Erreur lors de la sauvegarde chiffree." });
   }
 });

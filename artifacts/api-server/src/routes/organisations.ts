@@ -48,81 +48,91 @@ function requireSuperAdmin(req: Request, res: Response, next: () => void): void 
 
 router.use(requireSuperAdmin);
 
-router.get("/organisations", async (_req: Request, res: Response): Promise<void> => {
+router.get("/organisations", async (req: Request, res: Response): Promise<void> => {
   const { contactsTable, callsTable } = await import("@workspace/db");
   const { gte, and } = await import("drizzle-orm");
 
-  const orgs = await db.select().from(organisationsTable).orderBy(desc(organisationsTable.createdAt));
+  try {
+    const orgs = await db.select().from(organisationsTable).orderBy(desc(organisationsTable.createdAt));
 
-  const orgIds = orgs.map(o => o.id);
-  const subscriptions = orgIds.length > 0
-    ? await db.select().from(subscriptionsTable).where(sql`${subscriptionsTable.organisationId} IN (${sql.join(orgIds.map(id => sql`${id}`), sql`, `)})`)
-    : [];
+    const orgIds = orgs.map(o => o.id);
+    const subscriptions = orgIds.length > 0
+      ? await db.select().from(subscriptionsTable).where(sql`${subscriptionsTable.organisationId} IN (${sql.join(orgIds.map(id => sql`${id}`), sql`, `)})`)
+      : [];
 
-  const userCounts = orgIds.length > 0
-    ? await db.select({
-        organisationId: usersTable.organisationId,
-        count: sql<number>`count(*)::int`,
-      }).from(usersTable).where(sql`${usersTable.organisationId} IN (${sql.join(orgIds.map(id => sql`${id}`), sql`, `)})`).groupBy(usersTable.organisationId)
-    : [];
+    const userCounts = orgIds.length > 0
+      ? await db.select({
+          organisationId: usersTable.organisationId,
+          count: sql<number>`count(*)::int`,
+        }).from(usersTable).where(sql`${usersTable.organisationId} IN (${sql.join(orgIds.map(id => sql`${id}`), sql`, `)})`).groupBy(usersTable.organisationId)
+      : [];
 
-  const contactCounts = orgIds.length > 0
-    ? await db.select({
-        organisationId: contactsTable.organisationId,
-        count: sql<number>`count(*)::int`,
-      }).from(contactsTable).where(sql`${contactsTable.organisationId} IN (${sql.join(orgIds.map(id => sql`${id}`), sql`, `)})`).groupBy(contactsTable.organisationId)
-    : [];
+    const contactCounts = orgIds.length > 0
+      ? await db.select({
+          organisationId: contactsTable.organisationId,
+          count: sql<number>`count(*)::int`,
+        }).from(contactsTable).where(sql`${contactsTable.organisationId} IN (${sql.join(orgIds.map(id => sql`${id}`), sql`, `)})`).groupBy(contactsTable.organisationId)
+      : [];
 
-  const monthStart = new Date();
-  monthStart.setDate(1);
-  monthStart.setHours(0, 0, 0, 0);
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
 
-  const callCounts = orgIds.length > 0
-    ? await db.select({
-        organisationId: callsTable.organisationId,
-        count: sql<number>`count(*)::int`,
-      }).from(callsTable).where(sql`${callsTable.organisationId} IN (${sql.join(orgIds.map(id => sql`${id}`), sql`, `)}) AND ${callsTable.createdAt} >= ${monthStart}`).groupBy(callsTable.organisationId)
-    : [];
+    const callCounts = orgIds.length > 0
+      ? await db.select({
+          organisationId: callsTable.organisationId,
+          count: sql<number>`count(*)::int`,
+        }).from(callsTable).where(sql`${callsTable.organisationId} IN (${sql.join(orgIds.map(id => sql`${id}`), sql`, `)}) AND ${callsTable.createdAt} >= ${monthStart}`).groupBy(callsTable.organisationId)
+      : [];
 
-  const result = orgs.map(org => {
-    const sub = subscriptions.find(s => s.organisationId === org.id);
-    const uc = userCounts.find(u => u.organisationId === org.id);
-    const cc = contactCounts.find(c => c.organisationId === org.id);
-    const ac = callCounts.find(a => a.organisationId === org.id);
-    const plan = sub ? PLANS[sub.plan as PlanKey] : null;
-    return {
-      ...org,
-      subscription: sub ? {
-        ...sub,
-        planDetails: plan,
-        isTrialExpired: sub.plan === "essai" && sub.trialEndsAt && new Date(sub.trialEndsAt) < new Date(),
-      } : null,
-      userCount: uc?.count ?? 0,
-      contactCount: cc?.count ?? 0,
-      callCount: ac?.count ?? 0,
-    };
-  });
+    const result = orgs.map(org => {
+      const sub = subscriptions.find(s => s.organisationId === org.id);
+      const uc = userCounts.find(u => u.organisationId === org.id);
+      const cc = contactCounts.find(c => c.organisationId === org.id);
+      const ac = callCounts.find(a => a.organisationId === org.id);
+      const plan = sub ? PLANS[sub.plan as PlanKey] : null;
+      return {
+        ...org,
+        subscription: sub ? {
+          ...sub,
+          planDetails: plan,
+          isTrialExpired: sub.plan === "essai" && sub.trialEndsAt && new Date(sub.trialEndsAt) < new Date(),
+        } : null,
+        userCount: uc?.count ?? 0,
+        contactCount: cc?.count ?? 0,
+        callCount: ac?.count ?? 0,
+      };
+    });
 
-  res.json({ organisations: result });
+    res.json({ organisations: result });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur liste organisations");
+    res.status(500).json({ error: "Erreur lors de la recuperation des organisations." });
+  }
 });
 
 router.get("/organisations/:id", async (req: Request, res: Response): Promise<void> => {
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
-  const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, id));
-  if (!org) { res.status(404).json({ error: "Organisation non trouvee." }); return; }
+  try {
+    const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, id));
+    if (!org) { res.status(404).json({ error: "Organisation non trouvee." }); return; }
 
-  const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, id));
-  const [userCount] = await db.select({ count: sql<number>`count(*)::int` }).from(usersTable).where(eq(usersTable.organisationId, id));
+    const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, id));
+    const [userCount] = await db.select({ count: sql<number>`count(*)::int` }).from(usersTable).where(eq(usersTable.organisationId, id));
 
-  const plan = sub ? PLANS[sub.plan as PlanKey] : null;
+    const plan = sub ? PLANS[sub.plan as PlanKey] : null;
 
-  res.json({
-    organisation: org,
-    subscription: sub ? { ...sub, planDetails: plan } : null,
-    userCount: userCount?.count ?? 0,
-  });
+    res.json({
+      organisation: org,
+      subscription: sub ? { ...sub, planDetails: plan } : null,
+      userCount: userCount?.count ?? 0,
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur recuperation organisation");
+    res.status(500).json({ error: "Erreur lors de la recuperation de l'organisation." });
+  }
 });
 
 router.post("/organisations", async (req: Request, res: Response): Promise<void> => {
@@ -242,10 +252,10 @@ router.post("/organisations", async (req: Request, res: Response): Promise<void>
       ...result,
       licenseKey,
       emailSent: emailResult ? emailResult.success : false,
-      emailNote: !sendTo ? "Aucun email fourni." : emailResult?.preview || (emailResult?.success ? "Email envoye avec licence et identifiants." : `Erreur: ${emailResult?.error}`),
+      emailNote: !sendTo ? "Aucun email fourni." : emailResult?.preview || (emailResult?.success ? "Email envoye avec licence et identifiants." : "Erreur lors de l'envoi de l'email."),
     });
   } catch (err: any) {
-    logger.error({ err: err }, "Erreur creation organisation:");
+    logger.error({ err }, "Erreur creation organisation");
     res.status(500).json({ error: "Erreur lors de la creation de l'organisation." });
   }
 });
@@ -254,82 +264,88 @@ router.post("/organisations/:id/resend-license", async (req: Request, res: Respo
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
-  const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, id));
-  if (!org) { res.status(404).json({ error: "Organisation non trouvee." }); return; }
+  try {
+    const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, id));
+    if (!org) { res.status(404).json({ error: "Organisation non trouvee." }); return; }
 
-  if (!org.email) {
-    res.status(400).json({ error: "Aucune adresse email associee a cette organisation." });
-    return;
-  }
+    if (!org.email) {
+      res.status(400).json({ error: "Aucune adresse email associee a cette organisation." });
+      return;
+    }
 
-  const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, id));
-  if (!sub || !sub.licenseKey) {
-    res.status(404).json({ error: "Aucune licence trouvee pour cette organisation." });
-    return;
-  }
+    const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, id));
+    if (!sub || !sub.licenseKey) {
+      res.status(404).json({ error: "Aucune licence trouvee pour cette organisation." });
+      return;
+    }
 
-  let adminPassword: string = generateTempCode();
-  let adminUser: any = null;
+    let adminPassword: string = generateTempCode();
+    let adminUser: any = null;
 
-  const [existingAdmin] = await db.select({
-    id: usersTable.id,
-    email: usersTable.email,
-    prenom: usersTable.prenom,
-    nom: usersTable.nom,
-  }).from(usersTable).where(eq(usersTable.organisationId, id));
-
-  if (existingAdmin) {
-    const passwordHash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
-    await db.update(usersTable).set({
-      passwordHash,
-      tentativesEchouees: 0,
-      verrouilleJusqua: null,
-      updatedAt: new Date(),
-    }).where(eq(usersTable.id, existingAdmin.id));
-    adminUser = existingAdmin;
-  } else {
-    const passwordHash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
-    const orgNameParts = org.name.trim().split(" ");
-    const prenom = orgNameParts[0] || "Admin";
-    const nom = orgNameParts.slice(1).join(" ") || org.name;
-    const avatar = `${prenom[0]}${nom[0]}`.toUpperCase();
-    const [newAdmin] = await db.insert(usersTable).values({
-      email: org.email!.toLowerCase().trim(),
-      passwordHash,
-      nom,
-      prenom,
-      role: "administrateur",
-      organisation: org.name,
-      organisationId: id,
-      avatar,
-    }).returning({
+    const [existingAdmin] = await db.select({
       id: usersTable.id,
       email: usersTable.email,
-      nom: usersTable.nom,
       prenom: usersTable.prenom,
-    });
-    adminUser = newAdmin;
-  }
+      nom: usersTable.nom,
+    }).from(usersTable).where(eq(usersTable.organisationId, id));
 
-  const plan = PLANS[sub.plan as PlanKey];
-  const result = await sendLicenseEmail({
-    to: org.email,
-    orgName: org.name,
-    plan: plan?.name || sub.plan,
-    licenseKey: sub.licenseKey,
-    trialEndsAt: sub.trialEndsAt,
-    adminName: `${adminUser.prenom} ${adminUser.nom}`,
-    adminEmail: adminUser.email,
-    adminPassword,
-  });
+    if (existingAdmin) {
+      const passwordHash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
+      await db.update(usersTable).set({
+        passwordHash,
+        tentativesEchouees: 0,
+        verrouilleJusqua: null,
+        updatedAt: new Date(),
+      }).where(eq(usersTable.id, existingAdmin.id));
+      adminUser = existingAdmin;
+    } else {
+      const passwordHash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
+      const orgNameParts = org.name.trim().split(" ");
+      const prenom = orgNameParts[0] || "Admin";
+      const nom = orgNameParts.slice(1).join(" ") || org.name;
+      const avatar = `${prenom[0]}${nom[0]}`.toUpperCase();
+      const [newAdmin] = await db.insert(usersTable).values({
+        email: org.email!.toLowerCase().trim(),
+        passwordHash,
+        nom,
+        prenom,
+        role: "administrateur",
+        organisation: org.name,
+        organisationId: id,
+        avatar,
+      }).returning({
+        id: usersTable.id,
+        email: usersTable.email,
+        nom: usersTable.nom,
+        prenom: usersTable.prenom,
+      });
+      adminUser = newAdmin;
+    }
 
-  if (result.success) {
-    res.json({
-      message: `Email envoye a ${org.email} avec le code de connexion temporaire pour ${adminUser.email}.`,
-      preview: result.preview,
+    const plan = PLANS[sub.plan as PlanKey];
+    const result = await sendLicenseEmail({
+      to: org.email,
+      orgName: org.name,
+      plan: plan?.name || sub.plan,
+      licenseKey: sub.licenseKey,
+      trialEndsAt: sub.trialEndsAt,
+      adminName: `${adminUser.prenom} ${adminUser.nom}`,
+      adminEmail: adminUser.email,
+      adminPassword,
     });
-  } else {
-    res.status(500).json({ error: `Erreur d'envoi: ${result.error}` });
+
+    if (result.success) {
+      res.json({
+        message: `Email envoye a ${org.email} avec le code de connexion temporaire pour ${adminUser.email}.`,
+        preview: result.preview,
+      });
+    } else {
+      logger.warn({ err: result.error }, "Envoi licence email echoue");
+      res.status(500).json({ error: "Mot de passe mis a jour mais erreur lors de l'envoi de l'email." });
+    }
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur renvoi licence");
+    res.status(500).json({ error: "Erreur lors du renvoi de la licence." });
   }
 });
 
@@ -362,10 +378,15 @@ router.put("/organisations/:id", async (req: Request, res: Response): Promise<vo
     return;
   }
 
-  const [updated] = await db.update(organisationsTable).set(updateData).where(eq(organisationsTable.id, id)).returning();
-  if (!updated) { res.status(404).json({ error: "Organisation non trouvee." }); return; }
+  try {
+    const [updated] = await db.update(organisationsTable).set(updateData).where(eq(organisationsTable.id, id)).returning();
+    if (!updated) { res.status(404).json({ error: "Organisation non trouvee." }); return; }
 
-  res.json({ message: "Organisation mise a jour.", organisation: updated });
+    res.json({ message: "Organisation mise a jour.", organisation: updated });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur mise a jour organisation");
+    res.status(500).json({ error: "Erreur lors de la mise a jour de l'organisation." });
+  }
 });
 
 router.put("/organisations/:id/plan", async (req: Request, res: Response): Promise<void> => {
@@ -407,8 +428,8 @@ router.put("/organisations/:id/plan", async (req: Request, res: Response): Promi
     if (err.message === "NOT_FOUND") {
       res.status(404).json({ error: "Abonnement non trouve pour cette organisation." });
     } else {
-      logger.error({ err: err }, "Erreur mise a jour plan:");
-      res.status(500).json({ error: "Erreur serveur." });
+      logger.error({ err }, "Erreur mise a jour plan");
+      res.status(500).json({ error: "Erreur lors de la mise a jour du plan." });
     }
   }
 });
@@ -422,10 +443,15 @@ router.delete("/organisations/:id", async (req: Request, res: Response): Promise
     return;
   }
 
-  const [deleted] = await db.delete(organisationsTable).where(eq(organisationsTable.id, id)).returning();
-  if (!deleted) { res.status(404).json({ error: "Organisation non trouvee." }); return; }
+  try {
+    const [deleted] = await db.delete(organisationsTable).where(eq(organisationsTable.id, id)).returning();
+    if (!deleted) { res.status(404).json({ error: "Organisation non trouvee." }); return; }
 
-  res.json({ message: `Organisation "${deleted.name}" supprimee.` });
+    res.json({ message: `Organisation "${deleted.name}" supprimee.` });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur suppression organisation");
+    res.status(500).json({ error: "Erreur lors de la suppression de l'organisation." });
+  }
 });
 
 export default router;

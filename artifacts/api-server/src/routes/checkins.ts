@@ -12,7 +12,6 @@ import {
 import { getOrgId } from "../middleware/tenant";
 import { syncGoogleCalendarToCheckins } from "../services/google-calendar-sync";
 import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
-import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -42,18 +41,22 @@ router.get("/checkins", async (req, res): Promise<void> => {
   if (dateTo) conditions.push(lte(checkinsTable.checkInAt, new Date(dateTo)));
 
   const where = and(...conditions);
-
   const sortCol = checkinSortColumns[sortBy ?? "checkInAt"] ?? checkinsTable.checkInAt;
   const order = sortOrder === "asc" ? asc(sortCol) : desc(sortCol);
 
-  const [checkins, countResult] = await Promise.all([
-    db.select().from(checkinsTable).where(where).orderBy(order).limit(limit ?? 50).offset(offset ?? 0),
-    db.select({ count: sql<number>`count(*)::int` }).from(checkinsTable).where(where),
-  ]);
+  try {
+    const [checkins, countResult] = await Promise.all([
+      db.select().from(checkinsTable).where(where).orderBy(order).limit(limit ?? 50).offset(offset ?? 0),
+      db.select({ count: sql<number>`count(*)::int` }).from(checkinsTable).where(where),
+    ]);
 
-  const userIds = checkins.flatMap((c: any) => [c.createdBy, c.updatedBy]);
-  const userMap = await resolveUserNames(userIds);
-  res.json({ checkins: enrichWithUserNames(checkins, userMap), total: countResult[0]?.count ?? 0 });
+    const userIds = checkins.flatMap((c: any) => [c.createdBy, c.updatedBy]);
+    const userMap = await resolveUserNames(userIds);
+    res.json({ checkins: enrichWithUserNames(checkins, userMap), total: countResult[0]?.count ?? 0 });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur liste pointages");
+    res.status(500).json({ error: "Erreur lors de la recuperation des pointages." });
+  }
 });
 
 router.post("/checkins", async (req, res): Promise<void> => {
@@ -65,17 +68,23 @@ router.post("/checkins", async (req, res): Promise<void> => {
 
   const orgId = getOrgId(req);
   const userId = (req.session as any)?.userId;
-  const [checkin] = await db.insert(checkinsTable).values({
-    ...body.data,
-    organisationId: orgId,
-    checkInAt: body.data.checkInAt ? new Date(body.data.checkInAt) : new Date(),
-    checkOutAt: body.data.checkOutAt ? new Date(body.data.checkOutAt) : null,
-    ipAddress: req.ip || null,
-    createdBy: userId,
-    updatedBy: userId,
-  }).returning();
 
-  res.status(201).json(checkin);
+  try {
+    const [checkin] = await db.insert(checkinsTable).values({
+      ...body.data,
+      organisationId: orgId,
+      checkInAt: body.data.checkInAt ? new Date(body.data.checkInAt) : new Date(),
+      checkOutAt: body.data.checkOutAt ? new Date(body.data.checkOutAt) : null,
+      ipAddress: req.ip || null,
+      createdBy: userId,
+      updatedBy: userId,
+    }).returning();
+
+    res.status(201).json(checkin);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur creation pointage");
+    res.status(500).json({ error: "Erreur lors de la creation du pointage." });
+  }
 });
 
 router.get("/checkins/stats", async (req, res): Promise<void> => {
@@ -95,20 +104,25 @@ router.get("/checkins/stats", async (req, res): Promise<void> => {
 
   const where = and(...conditions);
 
-  const [stats] = await db.select({
-    totalSessions: sql<number>`count(*)::int`,
-    totalMinutes: sql<number>`coalesce(sum(${checkinsTable.totalMinutes}), 0)::int`,
-    totalBreakMinutes: sql<number>`coalesce(sum(${checkinsTable.breakMinutes}), 0)::int`,
-    avgSessionMinutes: sql<number>`coalesce(avg(${checkinsTable.totalMinutes}), 0)::int`,
-    bureauCount: sql<number>`count(*) filter (where ${checkinsTable.type} = 'bureau')::int`,
-    distanceCount: sql<number>`count(*) filter (where ${checkinsTable.type} = 'distance')::int`,
-    terrainCount: sql<number>`count(*) filter (where ${checkinsTable.type} = 'terrain')::int`,
-    presentCount: sql<number>`count(*) filter (where ${checkinsTable.status} = 'present')::int`,
-    enPauseCount: sql<number>`count(*) filter (where ${checkinsTable.status} = 'en_pause')::int`,
-    terminatedCount: sql<number>`count(*) filter (where ${checkinsTable.status} = 'termine')::int`,
-  }).from(checkinsTable).where(where);
+  try {
+    const [stats] = await db.select({
+      totalSessions: sql<number>`count(*)::int`,
+      totalMinutes: sql<number>`coalesce(sum(${checkinsTable.totalMinutes}), 0)::int`,
+      totalBreakMinutes: sql<number>`coalesce(sum(${checkinsTable.breakMinutes}), 0)::int`,
+      avgSessionMinutes: sql<number>`coalesce(avg(${checkinsTable.totalMinutes}), 0)::int`,
+      bureauCount: sql<number>`count(*) filter (where ${checkinsTable.type} = 'bureau')::int`,
+      distanceCount: sql<number>`count(*) filter (where ${checkinsTable.type} = 'distance')::int`,
+      terrainCount: sql<number>`count(*) filter (where ${checkinsTable.type} = 'terrain')::int`,
+      presentCount: sql<number>`count(*) filter (where ${checkinsTable.status} = 'present')::int`,
+      enPauseCount: sql<number>`count(*) filter (where ${checkinsTable.status} = 'en_pause')::int`,
+      terminatedCount: sql<number>`count(*) filter (where ${checkinsTable.status} = 'termine')::int`,
+    }).from(checkinsTable).where(where);
 
-  res.json(stats);
+    res.json(stats);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur stats pointages");
+    res.status(500).json({ error: "Erreur lors de la recuperation des statistiques." });
+  }
 });
 
 router.get("/checkins/current", async (req, res): Promise<void> => {
@@ -120,25 +134,30 @@ router.get("/checkins/current", async (req, res): Promise<void> => {
   ];
   if (employeeName) conditions.push(eq(checkinsTable.employeeName, employeeName));
 
-  const activeCheckins = await db.select()
-    .from(checkinsTable)
-    .where(and(...conditions))
-    .orderBy(desc(checkinsTable.checkInAt))
-    .limit(10);
+  try {
+    const activeCheckins = await db.select()
+      .from(checkinsTable)
+      .where(and(...conditions))
+      .orderBy(desc(checkinsTable.checkInAt))
+      .limit(10);
 
-  const pauseConditions: any[] = [eq(checkinsTable.organisationId, orgId), eq(checkinsTable.status, "en_pause")];
-  if (employeeName) pauseConditions.push(eq(checkinsTable.employeeName, employeeName));
+    const pauseConditions: any[] = [eq(checkinsTable.organisationId, orgId), eq(checkinsTable.status, "en_pause")];
+    if (employeeName) pauseConditions.push(eq(checkinsTable.employeeName, employeeName));
 
-  const pausedCheckins = await db.select()
-    .from(checkinsTable)
-    .where(and(...pauseConditions))
-    .orderBy(desc(checkinsTable.checkInAt))
-    .limit(10);
+    const pausedCheckins = await db.select()
+      .from(checkinsTable)
+      .where(and(...pauseConditions))
+      .orderBy(desc(checkinsTable.checkInAt))
+      .limit(10);
 
-  const allCheckins = [...activeCheckins, ...pausedCheckins];
-  const userIds = allCheckins.flatMap((c: any) => [c.createdBy, c.updatedBy]);
-  const userMap = await resolveUserNames(userIds);
-  res.json({ active: enrichWithUserNames(activeCheckins, userMap), paused: enrichWithUserNames(pausedCheckins, userMap) });
+    const allCheckins = [...activeCheckins, ...pausedCheckins];
+    const userIds = allCheckins.flatMap((c: any) => [c.createdBy, c.updatedBy]);
+    const userMap = await resolveUserNames(userIds);
+    res.json({ active: enrichWithUserNames(activeCheckins, userMap), paused: enrichWithUserNames(pausedCheckins, userMap) });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur pointages actuels");
+    res.status(500).json({ error: "Erreur lors de la recuperation des pointages actuels." });
+  }
 });
 
 router.get("/checkins/:id", async (req, res): Promise<void> => {
@@ -149,13 +168,19 @@ router.get("/checkins/:id", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const [checkin] = await db.select().from(checkinsTable).where(and(eq(checkinsTable.id, params.data.id), eq(checkinsTable.organisationId, orgId)));
-  if (!checkin) {
-    res.status(404).json({ error: "Pointage introuvable" });
-    return;
+
+  try {
+    const [checkin] = await db.select().from(checkinsTable).where(and(eq(checkinsTable.id, params.data.id), eq(checkinsTable.organisationId, orgId)));
+    if (!checkin) {
+      res.status(404).json({ error: "Pointage introuvable" });
+      return;
+    }
+    const userMap = await resolveUserNames([checkin.createdBy, checkin.updatedBy]);
+    res.json(enrichSingle(checkin, userMap));
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur recuperation pointage");
+    res.status(500).json({ error: "Erreur lors de la recuperation du pointage." });
   }
-  const userMap = await resolveUserNames([checkin.createdBy, checkin.updatedBy]);
-  res.json(enrichSingle(checkin, userMap));
 });
 
 router.patch("/checkins/:id", async (req, res): Promise<void> => {
@@ -172,42 +197,48 @@ router.patch("/checkins/:id", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const [existing] = await db.select().from(checkinsTable).where(and(eq(checkinsTable.id, params.data.id), eq(checkinsTable.organisationId, orgId)));
-  if (!existing) {
-    res.status(404).json({ error: "Pointage introuvable" });
-    return;
-  }
 
-  const updateData: Record<string, any> = { ...body.data };
-  if (body.data.checkOutAt) {
-    const outDate = new Date(body.data.checkOutAt);
-    if (outDate.getTime() < existing.checkInAt.getTime()) {
-      res.status(400).json({ error: "L'heure de depart ne peut pas etre anterieure a l'heure d'arrivee" });
+  try {
+    const [existing] = await db.select().from(checkinsTable).where(and(eq(checkinsTable.id, params.data.id), eq(checkinsTable.organisationId, orgId)));
+    if (!existing) {
+      res.status(404).json({ error: "Pointage introuvable" });
       return;
     }
-    updateData.checkOutAt = outDate;
-  }
-  if (body.data.checkInAt) updateData.checkInAt = new Date(body.data.checkInAt);
 
-  if (body.data.status === "termine" && (body.data.checkOutAt || existing.checkOutAt)) {
-    const checkIn = existing.checkInAt.getTime();
-    const checkOut = body.data.checkOutAt ? new Date(body.data.checkOutAt).getTime() : existing.checkOutAt!.getTime();
-    const breakMins = body.data.breakMinutes ?? existing.breakMinutes ?? 0;
-    updateData.totalMinutes = Math.max(0, Math.round((checkOut - checkIn) / 60000) - breakMins);
-  }
+    const updateData: Record<string, any> = { ...body.data };
+    if (body.data.checkOutAt) {
+      const outDate = new Date(body.data.checkOutAt);
+      if (outDate.getTime() < existing.checkInAt.getTime()) {
+        res.status(400).json({ error: "L'heure de depart ne peut pas etre anterieure a l'heure d'arrivee" });
+        return;
+      }
+      updateData.checkOutAt = outDate;
+    }
+    if (body.data.checkInAt) updateData.checkInAt = new Date(body.data.checkInAt);
 
-  const userId = (req.session as any)?.userId;
-  updateData.updatedBy = userId;
-  const [updated] = await db.update(checkinsTable)
-    .set(updateData)
-    .where(and(eq(checkinsTable.id, params.data.id), eq(checkinsTable.organisationId, orgId)))
-    .returning();
+    if (body.data.status === "termine" && (body.data.checkOutAt || existing.checkOutAt)) {
+      const checkIn = existing.checkInAt.getTime();
+      const checkOut = body.data.checkOutAt ? new Date(body.data.checkOutAt).getTime() : existing.checkOutAt!.getTime();
+      const breakMins = body.data.breakMinutes ?? existing.breakMinutes ?? 0;
+      updateData.totalMinutes = Math.max(0, Math.round((checkOut - checkIn) / 60000) - breakMins);
+    }
 
-  if (!updated) {
-    res.status(404).json({ error: "Pointage introuvable" });
-    return;
+    const userId = (req.session as any)?.userId;
+    updateData.updatedBy = userId;
+    const [updated] = await db.update(checkinsTable)
+      .set(updateData)
+      .where(and(eq(checkinsTable.id, params.data.id), eq(checkinsTable.organisationId, orgId)))
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ error: "Pointage introuvable" });
+      return;
+    }
+    res.json(updated);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur mise a jour pointage");
+    res.status(500).json({ error: "Erreur lors de la mise a jour du pointage." });
   }
-  res.json(updated);
 });
 
 router.delete("/checkins/:id", async (req, res): Promise<void> => {
@@ -218,12 +249,18 @@ router.delete("/checkins/:id", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const [deleted] = await db.delete(checkinsTable).where(and(eq(checkinsTable.id, params.data.id), eq(checkinsTable.organisationId, orgId))).returning();
-  if (!deleted) {
-    res.status(404).json({ error: "Pointage introuvable" });
-    return;
+
+  try {
+    const [deleted] = await db.delete(checkinsTable).where(and(eq(checkinsTable.id, params.data.id), eq(checkinsTable.organisationId, orgId))).returning();
+    if (!deleted) {
+      res.status(404).json({ error: "Pointage introuvable" });
+      return;
+    }
+    res.sendStatus(204);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur suppression pointage");
+    res.status(500).json({ error: "Erreur lors de la suppression du pointage." });
   }
-  res.sendStatus(204);
 });
 
 router.post("/checkins/sync-google", async (req, res): Promise<void> => {
@@ -282,7 +319,7 @@ router.post("/checkins/sync-google", async (req, res): Promise<void> => {
       ...result,
     });
   } catch (err: any) {
-    logger.error({ err: err }, "Google Calendar sync error:");
+    req.log.error({ err }, "Erreur synchronisation Google Agenda");
     const safeMessages = [
       "Aucun compte Google connecte",
       "Google Workspace n'est pas configure",

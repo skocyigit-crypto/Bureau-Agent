@@ -19,7 +19,7 @@ telephonyWebhookRouter.post("/telephony/webhook/:provider", async (req, res): Pr
   const provider = String(req.params.provider);
   const payload = req.body;
 
-  logger.info({ err: JSON.stringify(payload).slice(0, 500) }, `[Telephony Webhook] ${provider}:`);
+  logger.info({ provider, payloadSize: JSON.stringify(payload).length }, "Telephony webhook received");
 
   try {
     if (provider === "twilio") {
@@ -68,7 +68,7 @@ telephonyWebhookRouter.post("/telephony/webhook/:provider", async (req, res): Pr
       }
     }
   } catch (err) {
-    logger.error({ err: err }, `[Telephony Webhook] Error processing ${provider}:`);
+    logger.error({ err }, "Erreur traitement webhook telephonie");
   }
 
   res.json({ received: true });
@@ -81,15 +81,21 @@ router.get("/telephony/providers/available", async (req, res): Promise<void> => 
 
 router.get("/telephony/providers", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const providers = await db.select().from(telephonyProvidersTable)
-    .where(eq(telephonyProvidersTable.organisationId, orgId))
-    .orderBy(desc(telephonyProvidersTable.isDefault), desc(telephonyProvidersTable.isActive));
 
-  const masked = providers.map(p => ({
-    ...p,
-    config: maskConfig(p.config as Record<string, any>, p.provider),
-  }));
-  res.json({ providers: masked });
+  try {
+    const providers = await db.select().from(telephonyProvidersTable)
+      .where(eq(telephonyProvidersTable.organisationId, orgId))
+      .orderBy(desc(telephonyProvidersTable.isDefault), desc(telephonyProvidersTable.isActive));
+
+    const masked = providers.map(p => ({
+      ...p,
+      config: maskConfig(p.config as Record<string, any>, p.provider),
+    }));
+    res.json({ providers: masked });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur liste fournisseurs telephonie");
+    res.status(500).json({ error: "Erreur lors de la recuperation des fournisseurs." });
+  }
 });
 
 router.post("/telephony/providers", async (req, res): Promise<void> => {
@@ -103,7 +109,7 @@ router.post("/telephony/providers", async (req, res): Promise<void> => {
 
   const info = getProviderInfo(provider);
   if (!info) {
-    res.status(400).json({ error: `Fournisseur inconnu: ${provider}` });
+    res.status(400).json({ error: "Fournisseur inconnu" });
     return;
   }
 
@@ -113,25 +119,30 @@ router.post("/telephony/providers", async (req, res): Promise<void> => {
     return;
   }
 
-  const existing = await db.select().from(telephonyProvidersTable)
-    .where(and(eq(telephonyProvidersTable.organisationId, orgId)));
-  const isFirst = existing.length === 0;
+  try {
+    const existing = await db.select().from(telephonyProvidersTable)
+      .where(and(eq(telephonyProvidersTable.organisationId, orgId)));
+    const isFirst = existing.length === 0;
 
-  const [created] = await db.insert(telephonyProvidersTable).values({
-    organisationId: orgId,
-    provider,
-    label: label || info.displayName,
-    config,
-    phoneNumbers: phoneNumbers || (config.fromNumber ? [config.fromNumber] : []),
-    capabilities: info.capabilities,
-    isDefault: isFirst,
-    isActive: true,
-  }).returning();
+    const [created] = await db.insert(telephonyProvidersTable).values({
+      organisationId: orgId,
+      provider,
+      label: label || info.displayName,
+      config,
+      phoneNumbers: phoneNumbers || (config.fromNumber ? [config.fromNumber] : []),
+      capabilities: info.capabilities,
+      isDefault: isFirst,
+      isActive: true,
+    }).returning();
 
-  res.json({
-    provider: { ...created, config: maskConfig(created.config as Record<string, any>, created.provider) },
-    message: `${info.displayName} configure avec succes`,
-  });
+    res.json({
+      provider: { ...created, config: maskConfig(created.config as Record<string, any>, created.provider) },
+      message: `${info.displayName} configure avec succes`,
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur creation fournisseur telephonie");
+    res.status(500).json({ error: "Erreur lors de la configuration du fournisseur." });
+  }
 });
 
 router.patch("/telephony/providers/:id", async (req, res): Promise<void> => {
@@ -139,85 +150,100 @@ router.patch("/telephony/providers/:id", async (req, res): Promise<void> => {
   const id = parseInt(String(req.params.id));
   const { label, config, isActive, isDefault, phoneNumbers } = req.body;
 
-  const [existing] = await db.select().from(telephonyProvidersTable)
-    .where(and(eq(telephonyProvidersTable.id, id), eq(telephonyProvidersTable.organisationId, orgId)));
-  if (!existing) {
-    res.status(404).json({ error: "Fournisseur non trouve" });
-    return;
-  }
-
-  const updates: any = {};
-  if (label !== undefined) updates.label = label;
-  if (config !== undefined) {
-    const validation = validateProviderConfig(existing.provider, config);
-    if (!validation.valid) {
-      res.status(400).json({ error: "Configuration invalide", details: validation.errors });
+  try {
+    const [existing] = await db.select().from(telephonyProvidersTable)
+      .where(and(eq(telephonyProvidersTable.id, id), eq(telephonyProvidersTable.organisationId, orgId)));
+    if (!existing) {
+      res.status(404).json({ error: "Fournisseur non trouve" });
       return;
     }
-    updates.config = config;
+
+    const updates: any = {};
+    if (label !== undefined) updates.label = label;
+    if (config !== undefined) {
+      const validation = validateProviderConfig(existing.provider, config);
+      if (!validation.valid) {
+        res.status(400).json({ error: "Configuration invalide", details: validation.errors });
+        return;
+      }
+      updates.config = config;
+    }
+    if (isActive !== undefined) updates.isActive = isActive;
+    if (phoneNumbers !== undefined) updates.phoneNumbers = phoneNumbers;
+
+    if (isDefault === true) {
+      await db.update(telephonyProvidersTable)
+        .set({ isDefault: false })
+        .where(eq(telephonyProvidersTable.organisationId, orgId));
+      updates.isDefault = true;
+    }
+
+    const [updated] = await db.update(telephonyProvidersTable)
+      .set(updates)
+      .where(eq(telephonyProvidersTable.id, id))
+      .returning();
+
+    res.json({
+      provider: { ...updated, config: maskConfig(updated.config as Record<string, any>, updated.provider) },
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur mise a jour fournisseur telephonie");
+    res.status(500).json({ error: "Erreur lors de la mise a jour du fournisseur." });
   }
-  if (isActive !== undefined) updates.isActive = isActive;
-  if (phoneNumbers !== undefined) updates.phoneNumbers = phoneNumbers;
-
-  if (isDefault === true) {
-    await db.update(telephonyProvidersTable)
-      .set({ isDefault: false })
-      .where(eq(telephonyProvidersTable.organisationId, orgId));
-    updates.isDefault = true;
-  }
-
-  const [updated] = await db.update(telephonyProvidersTable)
-    .set(updates)
-    .where(eq(telephonyProvidersTable.id, id))
-    .returning();
-
-  res.json({
-    provider: { ...updated, config: maskConfig(updated.config as Record<string, any>, updated.provider) },
-  });
 });
 
 router.delete("/telephony/providers/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
   const id = parseInt(String(req.params.id));
 
-  const [existing] = await db.select().from(telephonyProvidersTable)
-    .where(and(eq(telephonyProvidersTable.id, id), eq(telephonyProvidersTable.organisationId, orgId)));
-  if (!existing) {
-    res.status(404).json({ error: "Fournisseur non trouve" });
-    return;
-  }
+  try {
+    const [existing] = await db.select().from(telephonyProvidersTable)
+      .where(and(eq(telephonyProvidersTable.id, id), eq(telephonyProvidersTable.organisationId, orgId)));
+    if (!existing) {
+      res.status(404).json({ error: "Fournisseur non trouve" });
+      return;
+    }
 
-  await db.delete(telephonyProvidersTable).where(eq(telephonyProvidersTable.id, id));
-  res.json({ message: "Fournisseur supprime" });
+    await db.delete(telephonyProvidersTable).where(eq(telephonyProvidersTable.id, id));
+    res.json({ message: "Fournisseur supprime" });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur suppression fournisseur telephonie");
+    res.status(500).json({ error: "Erreur lors de la suppression du fournisseur." });
+  }
 });
 
 router.post("/telephony/providers/:id/test", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
   const id = parseInt(String(req.params.id));
 
-  const [provider] = await db.select().from(telephonyProvidersTable)
-    .where(and(eq(telephonyProvidersTable.id, id), eq(telephonyProvidersTable.organisationId, orgId)));
-  if (!provider) {
-    res.status(404).json({ error: "Fournisseur non trouve" });
-    return;
+  try {
+    const [provider] = await db.select().from(telephonyProvidersTable)
+      .where(and(eq(telephonyProvidersTable.id, id), eq(telephonyProvidersTable.organisationId, orgId)));
+    if (!provider) {
+      res.status(404).json({ error: "Fournisseur non trouve" });
+      return;
+    }
+
+    const config = provider.config as Record<string, any>;
+    const info = getProviderInfo(provider.provider);
+    const hasVoice = info?.capabilities.includes("voice");
+    const hasSms = info?.capabilities.includes("sms");
+
+    res.json({
+      provider: provider.provider,
+      label: provider.label,
+      status: provider.isActive ? "actif" : "inactif",
+      capabilities: provider.capabilities,
+      phoneNumbers: provider.phoneNumbers,
+      configValid: validateProviderConfig(provider.provider, config).valid,
+      voiceReady: hasVoice && !!config.fromNumber,
+      smsReady: hasSms && !!config.fromNumber,
+      message: "Configuration verifiee avec succes",
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur test fournisseur telephonie");
+    res.status(500).json({ error: "Erreur lors du test du fournisseur." });
   }
-
-  const config = provider.config as Record<string, any>;
-  const info = getProviderInfo(provider.provider);
-  const hasVoice = info?.capabilities.includes("voice");
-  const hasSms = info?.capabilities.includes("sms");
-
-  res.json({
-    provider: provider.provider,
-    label: provider.label,
-    status: provider.isActive ? "actif" : "inactif",
-    capabilities: provider.capabilities,
-    phoneNumbers: provider.phoneNumbers,
-    configValid: validateProviderConfig(provider.provider, config).valid,
-    voiceReady: hasVoice && !!config.fromNumber,
-    smsReady: hasSms && !!config.fromNumber,
-    message: "Configuration verifiee avec succes",
-  });
 });
 
 router.post("/telephony/call", async (req, res): Promise<void> => {
@@ -229,60 +255,65 @@ router.post("/telephony/call", async (req, res): Promise<void> => {
     return;
   }
 
-  let provider;
-  if (providerId) {
-    [provider] = await db.select().from(telephonyProvidersTable)
-      .where(and(eq(telephonyProvidersTable.id, providerId), eq(telephonyProvidersTable.organisationId, orgId)));
-  } else {
-    [provider] = await db.select().from(telephonyProvidersTable)
-      .where(and(eq(telephonyProvidersTable.organisationId, orgId), eq(telephonyProvidersTable.isDefault, true), eq(telephonyProvidersTable.isActive, true)));
-  }
-
-  if (!provider) {
-    res.status(400).json({ error: "Aucun fournisseur telephonique configure. Ajoutez un fournisseur dans les parametres." });
-    return;
-  }
-
-  const config = provider.config as Record<string, any>;
-  const result = await makeCall(provider.provider, config, { to, record: record === true });
-
-  const [log] = await db.insert(telephonyCallLogsTable).values({
-    organisationId: orgId,
-    providerId: provider.id,
-    providerCallSid: result.callSid || null,
-    direction: "sortant",
-    fromNumber: config.fromNumber || "",
-    toNumber: to,
-    status: result.success ? (result.status || "initiated") : "failed",
-    metadata: { error: result.error || undefined },
-  }).returning();
-
-  if (result.success) {
-    let contactName = "";
-    if (contactId) {
-      const [contact] = await db.select().from(contactsTable).where(eq(contactsTable.id, contactId));
-      if (contact) contactName = `${contact.firstName} ${contact.lastName}`;
+  try {
+    let provider;
+    if (providerId) {
+      [provider] = await db.select().from(telephonyProvidersTable)
+        .where(and(eq(telephonyProvidersTable.id, providerId), eq(telephonyProvidersTable.organisationId, orgId)));
+    } else {
+      [provider] = await db.select().from(telephonyProvidersTable)
+        .where(and(eq(telephonyProvidersTable.organisationId, orgId), eq(telephonyProvidersTable.isDefault, true), eq(telephonyProvidersTable.isActive, true)));
     }
-    await db.insert(callsTable).values({
-      organisationId: orgId,
-      contactId: contactId || null,
-      contactName: contactName || "",
-      phoneNumber: to,
-      direction: "sortant",
-      status: "repondu",
-      duration: 0,
-      notes: `Appel via ${provider.label}`,
-    });
-  }
 
-  res.json({
-    success: result.success,
-    callSid: result.callSid,
-    status: result.status,
-    provider: provider.label,
-    error: result.error,
-    logId: log.id,
-  });
+    if (!provider) {
+      res.status(400).json({ error: "Aucun fournisseur telephonique configure. Ajoutez un fournisseur dans les parametres." });
+      return;
+    }
+
+    const config = provider.config as Record<string, any>;
+    const result = await makeCall(provider.provider, config, { to, record: record === true });
+
+    const [log] = await db.insert(telephonyCallLogsTable).values({
+      organisationId: orgId,
+      providerId: provider.id,
+      providerCallSid: result.callSid || null,
+      direction: "sortant",
+      fromNumber: config.fromNumber || "",
+      toNumber: to,
+      status: result.success ? (result.status || "initiated") : "failed",
+      metadata: { error: result.error || undefined },
+    }).returning();
+
+    if (result.success) {
+      let contactName = "";
+      if (contactId) {
+        const [contact] = await db.select().from(contactsTable).where(eq(contactsTable.id, contactId));
+        if (contact) contactName = `${contact.firstName} ${contact.lastName}`;
+      }
+      await db.insert(callsTable).values({
+        organisationId: orgId,
+        contactId: contactId || null,
+        contactName: contactName || "",
+        phoneNumber: to,
+        direction: "sortant",
+        status: "repondu",
+        duration: 0,
+        notes: `Appel via ${provider.label}`,
+      });
+    }
+
+    res.json({
+      success: result.success,
+      callSid: result.callSid,
+      status: result.status,
+      provider: provider.label,
+      error: result.success ? undefined : "Appel echoue. Verifiez la configuration du fournisseur.",
+      logId: log.id,
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur appel telephonique");
+    res.status(500).json({ error: "Erreur lors de l'appel telephonique." });
+  }
 });
 
 router.post("/telephony/sms", async (req, res): Promise<void> => {
@@ -294,94 +325,114 @@ router.post("/telephony/sms", async (req, res): Promise<void> => {
     return;
   }
 
-  let provider;
-  if (providerId) {
-    [provider] = await db.select().from(telephonyProvidersTable)
-      .where(and(eq(telephonyProvidersTable.id, providerId), eq(telephonyProvidersTable.organisationId, orgId)));
-  } else {
-    [provider] = await db.select().from(telephonyProvidersTable)
-      .where(and(eq(telephonyProvidersTable.organisationId, orgId), eq(telephonyProvidersTable.isDefault, true), eq(telephonyProvidersTable.isActive, true)));
+  try {
+    let provider;
+    if (providerId) {
+      [provider] = await db.select().from(telephonyProvidersTable)
+        .where(and(eq(telephonyProvidersTable.id, providerId), eq(telephonyProvidersTable.organisationId, orgId)));
+    } else {
+      [provider] = await db.select().from(telephonyProvidersTable)
+        .where(and(eq(telephonyProvidersTable.organisationId, orgId), eq(telephonyProvidersTable.isDefault, true), eq(telephonyProvidersTable.isActive, true)));
+    }
+
+    if (!provider) {
+      res.status(400).json({ error: "Aucun fournisseur SMS configure" });
+      return;
+    }
+
+    const config = provider.config as Record<string, any>;
+    const result = await sendSms(provider.provider, config, { to, body: msgBody });
+
+    await db.insert(telephonySmsLogsTable).values({
+      organisationId: orgId,
+      providerId: provider.id,
+      providerMessageSid: result.messageSid || null,
+      direction: "sortant",
+      fromNumber: config.fromNumber || "",
+      toNumber: to,
+      body: msgBody,
+      status: result.success ? (result.status || "sent") : "failed",
+      metadata: { error: result.error || undefined },
+    });
+
+    res.json({
+      success: result.success,
+      messageSid: result.messageSid,
+      status: result.status,
+      provider: provider.label,
+      error: result.success ? undefined : "Envoi SMS echoue. Verifiez la configuration du fournisseur.",
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur envoi SMS");
+    res.status(500).json({ error: "Erreur lors de l'envoi du SMS." });
   }
-
-  if (!provider) {
-    res.status(400).json({ error: "Aucun fournisseur SMS configure" });
-    return;
-  }
-
-  const config = provider.config as Record<string, any>;
-  const result = await sendSms(provider.provider, config, { to, body: msgBody });
-
-  await db.insert(telephonySmsLogsTable).values({
-    organisationId: orgId,
-    providerId: provider.id,
-    providerMessageSid: result.messageSid || null,
-    direction: "sortant",
-    fromNumber: config.fromNumber || "",
-    toNumber: to,
-    body: msgBody,
-    status: result.success ? (result.status || "sent") : "failed",
-    metadata: { error: result.error || undefined },
-  });
-
-  res.json({
-    success: result.success,
-    messageSid: result.messageSid,
-    status: result.status,
-    provider: provider.label,
-    error: result.error,
-  });
 });
 
 router.get("/telephony/call-logs", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
   const limit = parseInt(String(req.query.limit || "50"));
 
-  const logs = await db.select().from(telephonyCallLogsTable)
-    .where(eq(telephonyCallLogsTable.organisationId, orgId))
-    .orderBy(desc(telephonyCallLogsTable.createdAt))
-    .limit(limit);
+  try {
+    const logs = await db.select().from(telephonyCallLogsTable)
+      .where(eq(telephonyCallLogsTable.organisationId, orgId))
+      .orderBy(desc(telephonyCallLogsTable.createdAt))
+      .limit(limit);
 
-  res.json({ logs, total: logs.length });
+    res.json({ logs, total: logs.length });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur logs appels telephonie");
+    res.status(500).json({ error: "Erreur lors de la recuperation des logs d'appels." });
+  }
 });
 
 router.get("/telephony/sms-logs", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
   const limit = parseInt(String(req.query.limit || "50"));
 
-  const logs = await db.select().from(telephonySmsLogsTable)
-    .where(eq(telephonySmsLogsTable.organisationId, orgId))
-    .orderBy(desc(telephonySmsLogsTable.createdAt))
-    .limit(limit);
+  try {
+    const logs = await db.select().from(telephonySmsLogsTable)
+      .where(eq(telephonySmsLogsTable.organisationId, orgId))
+      .orderBy(desc(telephonySmsLogsTable.createdAt))
+      .limit(limit);
 
-  res.json({ logs, total: logs.length });
+    res.json({ logs, total: logs.length });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur logs SMS telephonie");
+    res.status(500).json({ error: "Erreur lors de la recuperation des logs SMS." });
+  }
 });
 
 router.get("/telephony/stats", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
 
-  const [callStats] = await db.select({
-    total: sql<number>`count(*)::int`,
-    successful: sql<number>`count(*) filter (where ${telephonyCallLogsTable.status} != 'failed')::int`,
-    failed: sql<number>`count(*) filter (where ${telephonyCallLogsTable.status} = 'failed')::int`,
-    totalDuration: sql<number>`coalesce(sum(${telephonyCallLogsTable.duration}), 0)::int`,
-  }).from(telephonyCallLogsTable).where(eq(telephonyCallLogsTable.organisationId, orgId));
+  try {
+    const [callStats] = await db.select({
+      total: sql<number>`count(*)::int`,
+      successful: sql<number>`count(*) filter (where ${telephonyCallLogsTable.status} != 'failed')::int`,
+      failed: sql<number>`count(*) filter (where ${telephonyCallLogsTable.status} = 'failed')::int`,
+      totalDuration: sql<number>`coalesce(sum(${telephonyCallLogsTable.duration}), 0)::int`,
+    }).from(telephonyCallLogsTable).where(eq(telephonyCallLogsTable.organisationId, orgId));
 
-  const [smsStats] = await db.select({
-    total: sql<number>`count(*)::int`,
-    successful: sql<number>`count(*) filter (where ${telephonySmsLogsTable.status} != 'failed')::int`,
-    failed: sql<number>`count(*) filter (where ${telephonySmsLogsTable.status} = 'failed')::int`,
-  }).from(telephonySmsLogsTable).where(eq(telephonySmsLogsTable.organisationId, orgId));
+    const [smsStats] = await db.select({
+      total: sql<number>`count(*)::int`,
+      successful: sql<number>`count(*) filter (where ${telephonySmsLogsTable.status} != 'failed')::int`,
+      failed: sql<number>`count(*) filter (where ${telephonySmsLogsTable.status} = 'failed')::int`,
+    }).from(telephonySmsLogsTable).where(eq(telephonySmsLogsTable.organisationId, orgId));
 
-  const providers = await db.select({
-    total: sql<number>`count(*)::int`,
-    active: sql<number>`count(*) filter (where ${telephonyProvidersTable.isActive} = true)::int`,
-  }).from(telephonyProvidersTable).where(eq(telephonyProvidersTable.organisationId, orgId));
+    const providers = await db.select({
+      total: sql<number>`count(*)::int`,
+      active: sql<number>`count(*) filter (where ${telephonyProvidersTable.isActive} = true)::int`,
+    }).from(telephonyProvidersTable).where(eq(telephonyProvidersTable.organisationId, orgId));
 
-  res.json({
-    calls: callStats,
-    sms: smsStats,
-    providers: providers[0],
-  });
+    res.json({
+      calls: callStats,
+      sms: smsStats,
+      providers: providers[0],
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur stats telephonie");
+    res.status(500).json({ error: "Erreur lors de la recuperation des statistiques." });
+  }
 });
 
 const scheduledCallsStore: Map<number, { id: number; orgId: number; toNumber: string; scheduledAt: string; note: string; status: string; createdBy: number; createdAt: string }[]> = new Map();
