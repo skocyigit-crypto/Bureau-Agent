@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Activity, Phone, FileText, Receipt, Package, TrendingUp, ShoppingCart, User, MessageSquare, CheckSquare, RefreshCw, Clock, Printer } from "lucide-react";
+import { Activity, Phone, FileText, Receipt, Package, TrendingUp, ShoppingCart, User, MessageSquare, CheckSquare, RefreshCw, Clock, Printer, FolderKanban } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,15 +25,16 @@ function fmt(v: any) {
 }
 
 const ENTITY_CONFIG: Record<string, { icon: any; color: string; label: string; href: string }> = {
-  devis:    { icon: FileText,    color: "text-blue-500",   label: "Devis",           href: "/devis" },
-  facture:  { icon: Receipt,     color: "text-emerald-500", label: "Facture",         href: "/factures-client" },
-  prospect: { icon: TrendingUp,  color: "text-amber-500",  label: "Prospect",        href: "/prospects" },
-  stock:    { icon: Package,     color: "text-slate-500",  label: "Stock",           href: "/stock" },
-  commande: { icon: ShoppingCart, color: "text-violet-500", label: "Bon de Commande", href: "/commandes-fournisseur" },
-  contact:  { icon: User,        color: "text-blue-400",   label: "Contact",         href: "/contacts" },
-  appel:    { icon: Phone,       color: "text-green-500",  label: "Appel",           href: "/calls" },
-  tache:    { icon: CheckSquare, color: "text-orange-500", label: "Tâche",           href: "/tasks" },
-  message:  { icon: MessageSquare, color: "text-purple-500", label: "Message",       href: "/messages" },
+  devis:    { icon: FileText,      color: "text-blue-500",    label: "Devis",           href: "/devis" },
+  facture:  { icon: Receipt,       color: "text-emerald-500", label: "Facture",         href: "/factures-client" },
+  prospect: { icon: TrendingUp,    color: "text-amber-500",   label: "Prospect",        href: "/prospects" },
+  stock:    { icon: Package,       color: "text-slate-500",   label: "Stock",           href: "/stock" },
+  commande: { icon: ShoppingCart,  color: "text-violet-500",  label: "Bon de Commande", href: "/commandes-fournisseur" },
+  contact:  { icon: User,          color: "text-blue-400",    label: "Contact",         href: "/contacts" },
+  appel:    { icon: Phone,         color: "text-green-500",   label: "Appel",           href: "/appels" },
+  tache:    { icon: CheckSquare,   color: "text-orange-500",  label: "Tâche",           href: "/taches" },
+  message:  { icon: MessageSquare, color: "text-purple-500",  label: "Message",         href: "/messages" },
+  projet:   { icon: FolderKanban,  color: "text-indigo-500",  label: "Projet",          href: "/projets" },
 };
 
 interface ActivityItem {
@@ -50,13 +51,16 @@ export default function ActiviteRecentePage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const since = new Date(Date.now() - days * 86400000).toISOString();
-      const [devisR, facturesR, prospectsR, commandesR, contactsR] = await Promise.all([
-        fetch(`${BASE}/api/devis?limit=20&sortBy=createdAt&sortOrder=desc`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
-        fetch(`${BASE}/api/factures-client?limit=20&sortBy=createdAt&sortOrder=desc`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
-        fetch(`${BASE}/api/prospects?limit=20&sortBy=createdAt&sortOrder=desc`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
-        fetch(`${BASE}/api/commandes-fournisseur?limit=20&sortBy=createdAt&sortOrder=desc`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
-        fetch(`${BASE}/api/contacts?limit=20&sortBy=createdAt&sortOrder=desc`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
+      const [devisR, facturesR, prospectsR, commandesR, contactsR, callsR, tasksR, messagesR, projetsR] = await Promise.all([
+        fetch(`${BASE}/api/devis?limit=30&sortBy=createdAt&sortOrder=desc`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch(`${BASE}/api/factures-client?limit=30&sortBy=createdAt&sortOrder=desc`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch(`${BASE}/api/prospects?limit=30&sortBy=createdAt&sortOrder=desc`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch(`${BASE}/api/commandes-fournisseur?limit=30&sortBy=createdAt&sortOrder=desc`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch(`${BASE}/api/contacts?limit=30&sortBy=createdAt&sortOrder=desc`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch(`${BASE}/api/calls?limit=30&sortBy=createdAt&sortOrder=desc`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch(`${BASE}/api/tasks?limit=30&sortBy=createdAt&sortOrder=desc`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch(`${BASE}/api/messages?limit=30&sortBy=createdAt&sortOrder=desc`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch(`${BASE}/api/projets?limit=20&sortBy=createdAt&sortOrder=desc`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
       ]);
 
       const items: ActivityItem[] = [];
@@ -81,10 +85,27 @@ export default function ActiviteRecentePage() {
         type: "contact", title: `${c.firstName} ${c.lastName}`.trim(), subtitle: c.company || c.email,
         createdAt: c.createdAt,
       }));
+      (callsR?.calls || callsR?.data || []).forEach((c: any) => items.push({
+        type: "appel", title: c.phoneNumber || c.contactName || "Appel entrant",
+        subtitle: c.contactName || (c.direction === "inbound" ? "Entrant" : "Sortant"),
+        status: c.status, createdAt: c.createdAt,
+      }));
+      (tasksR?.tasks || tasksR?.data || []).forEach((t: any) => items.push({
+        type: "tache", title: t.title, subtitle: t.assignedTo || t.priority,
+        status: t.status, createdAt: t.createdAt,
+      }));
+      (messagesR?.messages || messagesR?.data || []).forEach((m: any) => items.push({
+        type: "message", title: m.subject || m.content?.slice(0, 50) || "Message",
+        subtitle: m.fromName || m.from, status: m.isRead ? "lu" : "non_lu", createdAt: m.createdAt,
+      }));
+      (projetsR?.projets || []).forEach((p: any) => items.push({
+        type: "projet", title: p.title, subtitle: p.clientName || p.clientCompany,
+        status: p.status, createdAt: p.createdAt,
+      }));
 
       items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       const cutoff = Date.now() - days * 86400000;
-      setActivities(items.filter(i => new Date(i.createdAt).getTime() > cutoff).slice(0, 100));
+      setActivities(items.filter(i => new Date(i.createdAt).getTime() > cutoff).slice(0, 150));
     } catch {
       toast({ title: "Erreur", description: "Impossible de charger l'activité.", variant: "destructive" });
     } finally {

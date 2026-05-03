@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Phone, Users, CheckSquare, MessageSquare, BarChart, LayoutDashboard, Settings, FileText, Puzzle, UserCog, Clock, Brain, Calendar, Shield, Zap, BarChart3, BarChart2, KeyRound, Globe, ScanSearch, Sparkles, PhoneCall, Download, Plus, PhoneIncoming, Wifi, WifiOff, Smartphone, Monitor, Tablet, Rocket, Mail, TrendingUp, Package, Receipt, ShoppingCart, AlertCircle, Target, StickyNote, Activity } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, BarChart, LayoutDashboard, Settings, FileText, Puzzle, UserCog, Clock, Brain, Calendar, Shield, Zap, BarChart3, BarChart2, KeyRound, Globe, ScanSearch, Sparkles, PhoneCall, Download, Plus, PhoneIncoming, Wifi, WifiOff, Smartphone, Monitor, Tablet, Rocket, Mail, TrendingUp, Package, Receipt, ShoppingCart, AlertCircle, Target, StickyNote, Activity, FolderKanban } from "lucide-react";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { SidebarIcon3D, Icon3D } from "@/components/icon-3d";
 import { AiAssistantButton } from "@/components/ai-assistant";
@@ -133,6 +133,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           { name: "Objectifs", href: "/objectifs-commerciaux", icon: Target },
           { name: "Relances", href: "/relances", icon: AlertCircle },
           { name: "Notes Internes", href: "/notes-internes", icon: StickyNote },
+          { name: "Projets", href: "/projets", icon: FolderKanban },
           { name: "Activité Récente", href: "/activite-recente", icon: Activity },
           { name: "Mouvements Stock", href: "/stock/mouvements", icon: Package },
         ],

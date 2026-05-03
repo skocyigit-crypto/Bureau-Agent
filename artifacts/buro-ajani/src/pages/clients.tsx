@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Search, Users, Mail, Phone, Building, FileText, Receipt, Euro, AlertCircle, ArrowRight, RefreshCw, ChevronLeft, Download, Printer } from "lucide-react";
+import { Search, Users, Mail, Phone, Building, FileText, Receipt, Euro, AlertCircle, ArrowRight, RefreshCw, ChevronLeft, Download, Printer, FolderKanban } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,8 +28,9 @@ interface ClientDetail extends Client {
     devisCount: number; devisAcceptes: number; totalDevis: number;
     facturesCount: number; facturesPayees: number; totalFactures: number;
     totalPaid: number; totalDue: number; overdueCount: number; overdueAmount: number;
+    projetsCount?: number; projetsActifs?: number;
   };
-  devis: any[]; factures: any[];
+  devis: any[]; factures: any[]; projets?: any[];
 }
 
 export default function ClientsPage() {
@@ -134,6 +135,19 @@ export default function ClientsPage() {
                   </div>
                 </CardContent>
               </Card>
+              {(detail.stats.projetsCount ?? 0) > 0 && (
+                <Card className="border-indigo-200 dark:border-indigo-900/30">
+                  <CardContent className="pt-5">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-indigo-500/10"><FolderKanban className="w-5 h-5 text-indigo-500" /></div>
+                      <div>
+                        <p className="text-2xl font-bold">{detail.stats.projetsCount}</p>
+                        <p className="text-xs text-muted-foreground">Projet{(detail.stats.projetsCount ?? 0) > 1 ? "s" : ""} · {detail.stats.projetsActifs ?? 0} actif{(detail.stats.projetsActifs ?? 0) > 1 ? "s" : ""}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
@@ -202,6 +216,33 @@ export default function ClientsPage() {
                               <Badge className="text-xs" variant={f.status === "payee" ? "default" : "secondary"}>{f.status}</Badge>
                             </TableCell>
                             <TableCell className="text-right text-sm font-medium">{fmt(f.totalAmount)}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
+
+            {(detail.projets?.length ?? 0) > 0 && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2"><FolderKanban className="w-4 h-4 text-indigo-500" />Projets ({detail.projets!.length})</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader><TableRow><TableHead>Titre</TableHead><TableHead>Statut</TableHead><TableHead>Avancement</TableHead><TableHead className="hidden sm:table-cell">Date fin</TableHead><TableHead className="text-right hidden md:table-cell">Budget</TableHead></TableRow></TableHeader>
+                    <TableBody>
+                      {detail.projets!.slice(0, 5).map(p => {
+                        const overdue = p.endDate && new Date(p.endDate) < new Date() && !["termine", "annule"].includes(p.status);
+                        return (
+                          <TableRow key={p.id}>
+                            <TableCell className="text-sm font-medium">{p.title}</TableCell>
+                            <TableCell><Badge className="text-xs" variant="secondary">{p.status}</Badge></TableCell>
+                            <TableCell className="text-xs">{p.progress ?? 0}%</TableCell>
+                            <TableCell className={`text-xs hidden sm:table-cell ${overdue ? "text-red-500 font-medium" : "text-muted-foreground"}`}>{fmtDate(p.endDate)}{overdue ? " ⚠️" : ""}</TableCell>
+                            <TableCell className="text-right text-sm hidden md:table-cell">{p.budget ? fmt(p.budget) : "—"}</TableCell>
                           </TableRow>
                         );
                       })}

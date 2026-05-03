@@ -12,8 +12,9 @@ import { Icon3D } from "@/components/icon-3d";
 import {
   Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, MapPin, Download,
   Users, CheckSquare, Trash2, Phone, Mail, Building, User, FileText,
-  AlertCircle, Star, Search, X, ChevronDown, Edit2, Eye, Printer, Copy
+  AlertCircle, Star, Search, X, ChevronDown, Edit2, Eye, Printer, Copy, FolderKanban, ExternalLink
 } from "lucide-react";
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -582,6 +583,30 @@ function EventDetailDialog({
                 </Button>
               </>
             )}
+            {event.source === "projet" && (
+              <a
+                href={`${baseUrl}/projets`}
+                className="flex-1"
+                onClick={() => onOpenChange(false)}
+              >
+                <Button variant="outline" size="sm" className="w-full text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 border-indigo-200">
+                  <FolderKanban className="w-3.5 h-3.5 mr-1.5" /> Voir les projets
+                  <ExternalLink className="w-3 h-3 ml-1.5 opacity-60" />
+                </Button>
+              </a>
+            )}
+            {event.source === "task" && (
+              <a
+                href={`${baseUrl}/taches`}
+                className="flex-1"
+                onClick={() => onOpenChange(false)}
+              >
+                <Button variant="outline" size="sm" className="w-full text-amber-600 hover:text-amber-700 hover:bg-amber-50 border-amber-200">
+                  <CheckSquare className="w-3.5 h-3.5 mr-1.5" /> Voir les tâches
+                  <ExternalLink className="w-3 h-3 ml-1.5 opacity-60" />
+                </Button>
+              </a>
+            )}
           </div>
         </div>
       </DialogContent>
@@ -689,7 +714,8 @@ export default function CalendarPage() {
     if (!data) return [];
     const calendar = (data.events || []).map((e: any) => ({ ...e, source: "calendar" }));
     const tasks = (data.taskEvents || []).map((e: any) => ({ ...e, source: "task" }));
-    return [...calendar, ...tasks];
+    const projets = (data.projetEvents || []).map((e: any) => ({ ...e, source: "projet" }));
+    return [...calendar, ...tasks, ...projets];
   }, [data]);
 
   function getEventsForDate(date: Date) {

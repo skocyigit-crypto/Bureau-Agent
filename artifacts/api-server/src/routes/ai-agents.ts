@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, aiAgentReportsTable, stockArticlesTable, invoicesTable, paymentsTable, subscriptionsTable, usersTable, automationRulesTable, notificationsTable, auditLogsTable, calendarEventsTable } from "@workspace/db";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, aiAgentReportsTable, stockArticlesTable, invoicesTable, paymentsTable, subscriptionsTable, usersTable, automationRulesTable, notificationsTable, auditLogsTable, calendarEventsTable, projetsTable } from "@workspace/db";
 import { sql, eq, gte, lte, and, count, desc, lt, ne, isNull, isNotNull, or, sum, avg } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "../services/ai-quota";
@@ -150,6 +150,13 @@ async function gatherAgentData(agentId: string, orgId: number) {
         db.select({ priority: tasksTable.priority, cnt: count() }).from(tasksTable).where(and(orgTask, ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))).groupBy(tasksTable.priority),
         db.select({ avg: sql<number>`coalesce(avg(extract(epoch from (${tasksTable.updatedAt} - ${tasksTable.createdAt})) / 86400), 0)::int` }).from(tasksTable).where(and(orgTask, eq(tasksTable.status, "termine"), gte(tasksTable.updatedAt, monthAgo))),
       ]);
+      const orgProjet = eq(projetsTable.organisationId, orgId);
+      const [projetsTotal, projetsActifs, projetsTermines, projetsEnRetard] = await Promise.all([
+        db.select({ count: count() }).from(projetsTable).where(orgProjet),
+        db.select({ count: count() }).from(projetsTable).where(and(orgProjet, eq(projetsTable.status, "en_cours"))),
+        db.select({ count: count() }).from(projetsTable).where(and(orgProjet, eq(projetsTable.status, "termine"))),
+        db.select({ count: count() }).from(projetsTable).where(and(orgProjet, lt(projetsTable.endDate, new Date()), ne(projetsTable.status, "termine"), ne(projetsTable.status, "annule"))),
+      ]);
       const compW = completedThisWeek[0]?.count ?? 0;
       const prevCompW = prevCompletedWeek[0]?.count ?? 0;
       const crW = createdThisWeek[0]?.count ?? 0;
@@ -163,6 +170,7 @@ async function gatherAgentData(agentId: string, orgId: number) {
         completed: completed[0]?.count ?? 0, cancelled: cancelled[0]?.count ?? 0, overdue: overdue[0]?.count ?? 0,
         highPriorityOpen: highPriority[0]?.count ?? 0, unassigned: unassigned[0]?.count ?? 0,
         completionRate: total[0]?.count ? Math.round(((completed[0]?.count ?? 0) / total[0].count) * 100) : 0,
+        projets: { total: projetsTotal[0]?.count ?? 0, actifs: projetsActifs[0]?.count ?? 0, termines: projetsTermines[0]?.count ?? 0, enRetard: projetsEnRetard[0]?.count ?? 0 },
       };
     }
     case "agent_messages": {
@@ -375,7 +383,7 @@ async function gatherAgentData(agentId: string, orgId: number) {
     }
     case "agent_performance": {
       const [totalCalls, answeredCalls, totalTasks, completedTasks, totalContacts, totalMessages, unreadMessages, totalCheckins, overdueT, newContacts, totalStock, lowStock,
-        prevCalls, prevAnswered, prevCompletedTasks, prevCheckins, totalInvoices, unpaidInvoices, totalUsers, activeUsers, negativeSentiment, outOfStock
+        prevCalls, prevAnswered, prevCompletedTasks, prevCheckins, totalInvoices, unpaidInvoices, totalUsers, activeUsers, negativeSentiment, outOfStock, projetsActifsPerf
       ] = await Promise.all([
         db.select({ count: count() }).from(callsTable).where(and(orgCall, gte(callsTable.createdAt, weekAgo))),
         db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.status, "repondu"), gte(callsTable.createdAt, weekAgo))),
@@ -399,6 +407,7 @@ async function gatherAgentData(agentId: string, orgId: number) {
         db.select({ count: count() }).from(usersTable).where(and(eq(usersTable.organisationId, orgId), eq(usersTable.actif, true))),
         db.select({ count: count() }).from(callsTable).where(and(orgCall, or(eq(callsTable.sentiment, "negatif"), eq(callsTable.sentiment, "tres_negatif")), gte(callsTable.createdAt, weekAgo))),
         db.select({ count: count() }).from(stockArticlesTable).where(and(eq(stockArticlesTable.organisationId, orgId), eq(stockArticlesTable.quantity, 0))),
+        db.select({ count: count() }).from(projetsTable).where(and(eq(projetsTable.organisationId, orgId), eq(projetsTable.status, "en_cours"))),
       ]);
       const tCalls = totalCalls[0]?.count ?? 0;
       const tTasks = totalTasks[0]?.count ?? 0;
@@ -410,7 +419,7 @@ async function gatherAgentData(agentId: string, orgId: number) {
         thisWeek: { calls: tCalls, answerRate: ansRate, checkins: totalCheckins[0]?.count ?? 0, negativeSentiment: negativeSentiment[0]?.count ?? 0 },
         prevWeek: { calls: pCalls, answerRate: prevAnsRate, completedTasks: prevCompletedTasks[0]?.count ?? 0, checkins: prevCheckins[0]?.count ?? 0 },
         trends: { callVolumeChange: pCalls ? Math.round(((tCalls - pCalls) / pCalls) * 100) : 0, answerRateChange: prevAnsRate ? ansRate - prevAnsRate : 0 },
-        crossDomain: { totalEmployees: totalUsers[0]?.count ?? 0, activeEmployees: activeUsers[0]?.count ?? 0, totalInvoices: totalInvoices[0]?.count ?? 0, unpaidInvoices: unpaidInvoices[0]?.count ?? 0, outOfStockItems: outOfStock[0]?.count ?? 0 },
+        crossDomain: { totalEmployees: totalUsers[0]?.count ?? 0, activeEmployees: activeUsers[0]?.count ?? 0, totalInvoices: totalInvoices[0]?.count ?? 0, unpaidInvoices: unpaidInvoices[0]?.count ?? 0, outOfStockItems: outOfStock[0]?.count ?? 0, projetsActifs: projetsActifsPerf[0]?.count ?? 0 },
         totalTasks: tTasks, taskCompletionRate: compRate,
         overdueTasks: overdueT[0]?.count ?? 0,
         totalContacts: totalContacts[0]?.count ?? 0, newContactsThisWeek: newContacts[0]?.count ?? 0,
@@ -509,8 +518,9 @@ ANALYSES DETAILLEES A FOURNIR:
 5. PREDICTION: Au rythme actuel, combien de jours pour eliminer le retard?
 6. ANOMALIE: Taches non assignees = responsabilite diluee
 7. SIGNAL FAIBLE: Augmentation des annulations = probleme de planification?
+8. PROJETS: Portefeuille projets (champ "projets" dans les donnees) — actifs/termines/en retard?
 
-Utilise les chiffres: "Velocity en baisse de 30% (5 taches cette semaine vs 7 la precedente). Backlog de 12 taches en retard = 8.5 jours de travail au rythme actuel".`,
+Utilise les chiffres: "Velocity en baisse de 30% (5 taches cette semaine vs 7 la precedente). Backlog de 12 taches en retard = 8.5 jours de travail au rythme actuel. 3 projets actifs dont 1 depassant sa deadline".`,
 
     agent_messages: `Tu es le Directeur Communication IA le plus vigilant d'un bureau professionnel en France. Tu detectes chaque signal de surcharge ou de negligence.
 

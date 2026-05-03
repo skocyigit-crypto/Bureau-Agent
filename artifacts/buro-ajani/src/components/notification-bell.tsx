@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
-import { Bell, Check, CheckCheck, ExternalLink, AlertTriangle, Info, Lightbulb, Clock, ArrowRight, Phone, MessageSquare, CheckSquare, Receipt, Package } from "lucide-react";
+import { Bell, Check, CheckCheck, ExternalLink, AlertTriangle, Info, Lightbulb, Clock, ArrowRight, Phone, MessageSquare, CheckSquare, Receipt, Package, FolderKanban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -24,6 +24,7 @@ const TYPE_ICONS: Record<string, any> = {
   facture_en_retard: Receipt,
   stock_rupture: Package,
   stock_alerte: Package,
+  projet_en_retard: FolderKanban,
 };
 
 export function NotificationBell() {

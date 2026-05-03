@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, asc, ilike, or, sql, and } from "drizzle-orm";
-import { db, contactsTable, callsTable, tasksTable, calendarEventsTable, usersTable } from "@workspace/db";
+import { db, contactsTable, callsTable, tasksTable, calendarEventsTable, usersTable, projetsTable } from "@workspace/db";
 import {
   ListContactsQueryParams,
   CreateContactBody,
@@ -352,6 +352,23 @@ router.get("/contacts/:id/tasks", async (req, res): Promise<void> => {
   } catch (err: any) {
     req.log.error({ err }, "Erreur taches contact");
     res.status(500).json({ error: "Erreur lors de la recuperation des taches." });
+  }
+});
+
+router.get("/contacts/:id/projets", async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw!, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const orgId = getOrgId(req);
+  try {
+    const contact = await db.select({ id: contactsTable.id }).from(contactsTable).where(and(eq(contactsTable.id, id), eq(contactsTable.organisationId, orgId))).limit(1);
+    if (!contact[0]) { res.status(404).json({ error: "Contact not found" }); return; }
+    const projets = await db.select({ id: projetsTable.id, title: projetsTable.title, status: projetsTable.status, progress: projetsTable.progress, endDate: projetsTable.endDate, budget: projetsTable.budget, clientName: projetsTable.clientName, createdAt: projetsTable.createdAt })
+      .from(projetsTable).where(and(eq(projetsTable.organisationId, orgId), eq(projetsTable.contactId, id))).orderBy(desc(projetsTable.createdAt)).limit(20);
+    res.json({ projets });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur projets contact");
+    res.status(500).json({ error: "Erreur lors de la récupération des projets." });
   }
 });
 

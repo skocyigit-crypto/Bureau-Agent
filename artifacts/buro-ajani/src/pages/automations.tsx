@@ -4,7 +4,7 @@ import {
   Zap, PlayCircle, PauseCircle, Clock, CheckCircle, AlertTriangle, Activity,
   BarChart3, RefreshCw, Settings2, Bot, CalendarClock, Mail, Phone, Users,
   FileText, TrendingUp, Loader2, Plus, Trash2, Bell, MessageSquare, ClipboardList, Copy, Pencil, Download, Printer,
-  CheckSquare, Square, X,
+  CheckSquare, Square, X, FolderKanban,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +42,26 @@ const TRIGGER_LABELS: Record<string, string> = {
   missed_call: "Appel manque",
   contact_no_activity: "Contact inactif",
   task_overdue: "Tache en retard",
+  projet_overdue: "Projet en retard",
+  projet_created: "Nouveau projet cree",
+};
+
+const TRIGGER_ICONS: Record<string, any> = {
+  schedule: CalendarClock,
+  missed_call: Phone,
+  contact_no_activity: Users,
+  task_overdue: CheckSquare,
+  projet_overdue: FolderKanban,
+  projet_created: FolderKanban,
+};
+
+const TRIGGER_COLORS: Record<string, string> = {
+  schedule: "bg-blue-500/10 text-blue-500",
+  missed_call: "bg-green-500/10 text-green-500",
+  contact_no_activity: "bg-amber-500/10 text-amber-500",
+  task_overdue: "bg-orange-500/10 text-orange-500",
+  projet_overdue: "bg-indigo-500/10 text-indigo-500",
+  projet_created: "bg-indigo-500/10 text-indigo-500",
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -714,8 +734,8 @@ export default function AutomationsPage() {
                       </div>
                     )}
                     <div className="flex items-start gap-3">
-                      <div className={`p-2.5 rounded-xl ${rule.enabled ? "bg-amber-500/10 text-amber-500" : "bg-gray-500/10 text-gray-500"}`}>
-                        <Zap className="w-5 h-5" />
+                      <div className={`p-2.5 rounded-xl ${rule.enabled ? (TRIGGER_COLORS[rule.trigger] || "bg-amber-500/10 text-amber-500") : "bg-gray-500/10 text-gray-500"}`}>
+                        {(() => { const Icon = TRIGGER_ICONS[rule.trigger] || Zap; return <Icon className="w-5 h-5" />; })()}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">

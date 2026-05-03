@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { db, callsTable, contactsTable, tasksTable, messagesTable, calendarEventsTable, facturesClientTable, compteClientTable, organisationsTable, prospectsTable, notificationsTable, paymentRemindersTable, licenseAuditLogTable } from "@workspace/db";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, calendarEventsTable, facturesClientTable, compteClientTable, organisationsTable, prospectsTable, notificationsTable, paymentRemindersTable, licenseAuditLogTable, projetsTable } from "@workspace/db";
 import { eq, sql, and, desc, gte, lte, lt, ne, isNull, isNotNull, or, ilike } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { Resend } from "resend";
@@ -171,6 +171,7 @@ router.post("/commandant/call-smart-response", async (req: Request, res: Respons
     const openTasks = contactContext.contactActivity?.openTasks || [];
     const upcomingEvents = contactContext.contactActivity?.upcomingEvents || [];
     const overdueInvoices = contactContext.contactActivity?.overdueInvoices || [];
+    const contactProjets = contactContext.contactActivity?.projets || [];
 
     const systemPrompt = `Tu es un assistant telephonique IA d'elite pour "Agent de Bureau", un logiciel de gestion de bureau francais.
 Tu dois generer la MEILLEURE reponse possible pour un appel ${callDirection === "entrant" ? "entrant" : "sortant"}.
@@ -191,6 +192,7 @@ ${recentCalls.length > 0 ? `\n- Derniers appels:\n${recentCalls.map(c => `  * ${
 ${openTasks.length > 0 ? `\n- Taches en cours pour ce contact:\n${openTasks.map((t: any) => `  * [${t.priority}] ${t.title} (${t.status})`).join("\n")}` : ""}
 ${overdueInvoices.length > 0 ? `\n- ⚠ FACTURES IMPAYEES:\n${overdueInvoices.map((i: any) => `  * ${i.reference} - ${i.amount}€ (echeance depassee)`).join("\n")}` : ""}
 ${upcomingEvents.length > 0 ? `\n- Prochains evenements:\n${upcomingEvents.map((e: any) => `  * ${e.title} - ${new Date(e.date).toLocaleDateString("fr-FR")}`).join("\n")}` : ""}
+${contactProjets.length > 0 ? `\n- Projets lies:\n${contactProjets.map((p: any) => `  * ${p.title} [${p.status}, ${p.progress ?? 0}%${p.endDate && new Date(p.endDate) < new Date() && p.status !== "termine" ? " ⚠EN RETARD" : ""}]`).join("\n")}` : ""}
 ${callNotes ? `\n- Notes de l'appel: ${callNotes}` : ""}
 
 Genere un JSON avec:
@@ -395,6 +397,9 @@ router.post("/commandant/email-smart-reply", async (req: Request, res: Response)
       }
       if (collabContext.contactActivity?.overdueInvoices?.length > 0) {
         contactContext += `\n⚠ FACTURES IMPAYEES: ${collabContext.contactActivity.overdueInvoices.map((i: any) => `${i.reference} (${i.amount}€)`).join(", ")}`;
+      }
+      if (collabContext.contactActivity?.projets?.length > 0) {
+        contactContext += `\nProjets: ${collabContext.contactActivity.projets.map((p: any) => `${p.title} [${p.status}${p.endDate && new Date(p.endDate) < new Date() && p.status !== "termine" ? " ⚠EN RETARD" : ""}]`).join(", ")}`;
       }
     } else if (emailFrom) {
       const contacts = await db.select().from(contactsTable).where(and(eq(contactsTable.organisationId, orgId), eq(contactsTable.email, emailFrom))).limit(1);
@@ -858,13 +863,15 @@ router.get("/commandant/daily-briefing", async (req: Request, res: Response): Pr
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const tomorrow = new Date(today.getTime() + 86400000);
 
-    const [taskCount, overdueCount, todayEvents, overdueInvoiceCount, recentCalls, agentInsights] = await Promise.all([
+    const [taskCount, overdueCount, todayEvents, overdueInvoiceCount, recentCalls, agentInsights, projetsActifs, projetsEnRetard] = await Promise.all([
       db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), ne(tasksTable.status, "termine"))).then(r => r[0]),
       db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), ne(tasksTable.status, "termine"), lt(tasksTable.dueDate, now))).then(r => r[0]),
       db.select().from(calendarEventsTable).where(and(eq(calendarEventsTable.organisationId, orgId), gte(calendarEventsTable.startDate, today), lt(calendarEventsTable.startDate, tomorrow))).orderBy(calendarEventsTable.startDate),
       db.select({ c: sql<number>`count(*)::int` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), ne(facturesClientTable.status, "payee"), ne(facturesClientTable.status, "brouillon"), lt(facturesClientTable.dueDate, now))).then(r => r[0]),
       db.select().from(callsTable).where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, new Date(now.getTime() - 24 * 3600000)))).orderBy(desc(callsTable.createdAt)).limit(5),
       getLatestAgentInsights(orgId),
+      db.select({ c: sql<number>`count(*)::int` }).from(projetsTable).where(and(eq(projetsTable.organisationId, orgId), ne(projetsTable.status, "termine"), ne(projetsTable.status, "annule"))).then(r => r[0]),
+      db.select({ c: sql<number>`count(*)::int` }).from(projetsTable).where(and(eq(projetsTable.organisationId, orgId), ne(projetsTable.status, "termine"), ne(projetsTable.status, "annule"), lt(projetsTable.endDate, now))).then(r => r[0]),
     ]);
 
     const collaborationPrompt = buildCommandantContextPrompt(agentInsights);
@@ -880,13 +887,14 @@ ${collaborationPrompt}`;
 DONNEES OPERATIONNELLES:
 - Taches ouvertes: ${taskCount?.c || 0} (${overdueCount?.c || 0} en retard)
 - Evenements aujourd'hui: ${todayEvents.length}
-${todayEvents.map(e => `  * ${new Date(e.startDate).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} - ${e.title} (${e.type})`).join("\n")}
+${todayEvents.map((e: any) => `  * ${new Date(e.startDate).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} - ${e.title} (${e.type})`).join("\n")}
 - Factures en retard: ${overdueInvoiceCount?.c || 0}
+- Projets actifs: ${projetsActifs?.c || 0}${(projetsEnRetard?.c || 0) > 0 ? ` (⚠ ${projetsEnRetard?.c} en retard sur planning)` : ""}
 - Appels derniers 24h: ${recentCalls.length}
-${recentCalls.map(c => `  * ${c.contactName || "Inconnu"} - ${c.status} - ${c.notes || "Pas de resume"}`).join("\n")}
+${recentCalls.map((c: any) => `  * ${c.contactName || "Inconnu"} - ${c.status} - ${c.notes || "Pas de resume"}`).join("\n")}
 
 ALERTES INTER-AGENTS (${crossIssuesList.length} problemes transversaux detectes):
-${crossIssuesList.map(i => `⚠ [${i.severity}] ${i.title}: ${i.description}`).join("\n") || "Aucune alerte transversale"}
+${crossIssuesList.map((i: any) => `⚠ [${i.severity}] ${i.title}: ${i.description}`).join("\n") || "Aucune alerte transversale"}
 
 JSON attendu:
 {
@@ -913,7 +921,7 @@ JSON attendu:
     res.json({
       success: true,
       briefing: parsed,
-      rawData: { openTasks: taskCount?.c || 0, overdueTasks: overdueCount?.c || 0, todayEvents: todayEvents.length, overdueInvoices: overdueInvoiceCount?.c || 0, recentCalls: recentCalls.length },
+      rawData: { openTasks: taskCount?.c || 0, overdueTasks: overdueCount?.c || 0, todayEvents: todayEvents.length, overdueInvoices: overdueInvoiceCount?.c || 0, recentCalls: recentCalls.length, projetsActifs: projetsActifs?.c || 0, projetsEnRetard: projetsEnRetard?.c || 0 },
       collaboration: {
         agentScores,
         crossIssues: crossIssuesList,
@@ -1406,6 +1414,9 @@ router.post("/commandant/gmail-draft-reply", async (req: Request, res: Response)
       }
       if (collabContext.contactActivity?.overdueInvoices?.length > 0) {
         contactInfo += `\n⚠ FACTURES IMPAYEES: ${collabContext.contactActivity.overdueInvoices.map((i: any) => `${i.reference} ${i.amount}€`).join(", ")}`;
+      }
+      if (collabContext.contactActivity?.projets?.length > 0) {
+        contactInfo += `\nProjets: ${collabContext.contactActivity.projets.map((p: any) => `${p.title} [${p.status}]`).join(", ")}`;
       }
     }
 

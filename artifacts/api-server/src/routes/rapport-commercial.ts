@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
-import { eq, sql, and, gte, lte } from "drizzle-orm";
+import { eq, sql, and, gte, ne } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { devisTable, facturesClientTable, prospectsTable, stockArticlesTable } from "@workspace/db/schema";
+import { devisTable, facturesClientTable, prospectsTable, stockArticlesTable, projetsTable } from "@workspace/db/schema";
 import { getOrgId } from "../middleware/tenant";
 
 const router = Router();
@@ -16,7 +16,7 @@ router.get("/commercial/rapport", async (req: Request, res: Response): Promise<v
     const prospFilter = eq(prospectsTable.organisationId, orgId);
     const stockFilter = eq(stockArticlesTable.organisationId, orgId);
 
-    const [devisStats, factureStats, prospectStats, stockStats, monthlyRevenue, devisByMonth, prospectsByStage, topProducts] = await Promise.all([
+    const [devisStats, factureStats, prospectStats, stockStats, monthlyRevenue, devisByMonth, prospectsByStage, topProducts, projetsStats] = await Promise.all([
       db.select({
         total: sql<number>`count(*)::int`,
         brouillon: sql<number>`count(*) filter (where ${devisTable.status} = 'brouillon')::int`,
@@ -97,6 +97,16 @@ router.get("/commercial/rapport", async (req: Request, res: Response): Promise<v
         .where(stockFilter)
         .orderBy(sql`(${stockArticlesTable.quantity}::numeric * ${stockArticlesTable.unitPrice}::numeric) desc`)
         .limit(5),
+
+      db.select({
+        total: sql<number>`count(*)::int`,
+        active: sql<number>`count(*) filter (where ${projetsTable.status} not in ('termine','annule'))::int`,
+        termine: sql<number>`count(*) filter (where ${projetsTable.status} = 'termine')::int`,
+        overdue: sql<number>`count(*) filter (where ${projetsTable.endDate} < now() and ${projetsTable.status} not in ('termine','annule'))::int`,
+        avgProgress: sql<number>`coalesce(avg(${projetsTable.progress}) filter (where ${projetsTable.status} not in ('annule')), 0)::int`,
+        totalBudget: sql<number>`coalesce(sum(${projetsTable.budget}::numeric) filter (where ${projetsTable.status} != 'annule'), 0)::numeric`,
+        totalSpent: sql<number>`coalesce(sum(${projetsTable.spent}::numeric) filter (where ${projetsTable.status} != 'annule'), 0)::numeric`,
+      }).from(projetsTable).where(and(eq(projetsTable.organisationId, orgId), ne(projetsTable.status, "annule"))),
     ]);
 
     const d = devisStats[0];
@@ -111,6 +121,7 @@ router.get("/commercial/rapport", async (req: Request, res: Response): Promise<v
       devisByMonth,
       prospectsByStage,
       topProducts,
+      projets: projetsStats[0] ?? { total: 0, active: 0, termine: 0, overdue: 0, avgProgress: 0, totalBudget: 0, totalSpent: 0 },
     });
   } catch (err: any) {
     req.log.error({ err }, "Erreur rapport commercial");

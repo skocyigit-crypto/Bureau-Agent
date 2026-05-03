@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, sql, desc, asc, gte, and, lt, or, lte, not, inArray } from "drizzle-orm";
-import { db, callsTable, contactsTable, tasksTable, messagesTable, facturesClientTable, stockArticlesTable } from "@workspace/db";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, facturesClientTable, stockArticlesTable, projetsTable } from "@workspace/db";
 import {
   GetCallAnalyticsQueryParams,
   GetRecentActivityQueryParams,
@@ -189,10 +189,11 @@ router.get("/dashboard/recent-activity", async (req, res): Promise<void> => {
   const limit = query.data.limit ?? 20;
 
   try {
-    const [recentCalls, recentTasks, recentMessages] = await Promise.all([
+    const [recentCalls, recentTasks, recentMessages, recentProjets] = await Promise.all([
       db.select().from(callsTable).where(eq(callsTable.organisationId, orgId)).orderBy(desc(callsTable.createdAt)).limit(limit),
       db.select().from(tasksTable).where(eq(tasksTable.organisationId, orgId)).orderBy(desc(tasksTable.createdAt)).limit(limit),
       db.select().from(messagesTable).where(eq(messagesTable.organisationId, orgId)).orderBy(desc(messagesTable.createdAt)).limit(limit),
+      db.select({ id: projetsTable.id, title: projetsTable.title, status: projetsTable.status, clientName: projetsTable.clientName, createdAt: projetsTable.createdAt }).from(projetsTable).where(eq(projetsTable.organisationId, orgId)).orderBy(desc(projetsTable.createdAt)).limit(limit),
     ]);
 
     const activities = [
@@ -216,6 +217,13 @@ router.get("/dashboard/recent-activity", async (req, res): Promise<void> => {
         description: `Message ${m.type}: ${m.content.substring(0, 50)}${m.content.length > 50 ? "..." : ""}`,
         timestamp: m.createdAt.toISOString(),
         metadata: { type: m.type, isRead: m.isRead },
+      })),
+      ...recentProjets.map((p) => ({
+        id: p.id + 30000,
+        type: "projet" as const,
+        description: `Projet: ${p.title}${p.clientName ? ` — ${p.clientName}` : ""} (${p.status})`,
+        timestamp: p.createdAt.toISOString(),
+        metadata: { status: p.status, clientName: p.clientName },
       })),
     ];
 
@@ -547,6 +555,30 @@ router.get("/dashboard/notifications", async (req, res): Promise<void> => {
         isRead: false,
         relatedId: art.id,
         createdAt: art.updatedAt.toISOString(),
+      });
+    }
+
+    const overdueProjects = await db.select({
+      id: projetsTable.id, title: projetsTable.title, endDate: projetsTable.endDate,
+      clientName: projetsTable.clientName, updatedAt: projetsTable.updatedAt,
+    }).from(projetsTable)
+      .where(and(
+        eq(projetsTable.organisationId, orgId),
+        not(inArray(projetsTable.status, ["termine", "annule"])),
+        lte(projetsTable.endDate, new Date())
+      ))
+      .orderBy(asc(projetsTable.endDate))
+      .limit(5);
+
+    for (const proj of overdueProjects) {
+      notifications.push({
+        id: notifId++,
+        type: "projet_en_retard",
+        title: "Projet en retard",
+        description: `${proj.title}${proj.clientName ? ` — ${proj.clientName}` : ""} — Échéance dépassée`,
+        isRead: false,
+        relatedId: proj.id,
+        createdAt: proj.endDate ? proj.endDate.toISOString() : proj.updatedAt.toISOString(),
       });
     }
 

@@ -20,6 +20,7 @@ function fmt(v: any) {
 const METRIC_LABELS: Record<string, string> = {
   revenue: "Chiffre d'affaires (€)", devis: "Nombre de devis", factures: "Nombre de factures",
   prospects: "Nombre de prospects", calls: "Nombre d'appels", contacts: "Nombre de contacts",
+  projets: "Nombre de projets", projets_termines: "Projets terminés",
 };
 const PERIOD_LABELS: Record<string, string> = {
   weekly: "Hebdomadaire", monthly: "Mensuel", quarterly: "Trimestriel", yearly: "Annuel",

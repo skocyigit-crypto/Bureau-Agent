@@ -51,6 +51,7 @@ export function CommandPalette() {
     { id: "abonnement", label: "Mon Abonnement", icon: KeyRound, action: () => navigate("/abonnement"), category: "Navigation", keywords: ["licence", "plan", "subscription"] },
     { id: "settings", label: "Parametres", icon: Settings, action: () => navigate("/parametres"), category: "Administration" },
     { id: "notifications", label: "Notifications", icon: MessageSquare, action: () => navigate("/notifications"), category: "Navigation" },
+    { id: "projets", label: "Projets", icon: FolderKanban, action: () => navigate("/projets"), category: "Navigation", keywords: ["chantier", "project", "kanban"] },
     { id: "google-workspace", label: "Google Workspace", icon: Search, action: () => navigate("/google-workspace"), category: "Navigation", keywords: ["gmail", "drive", "docs", "sheets", "calendar", "google"] },
   ];
 

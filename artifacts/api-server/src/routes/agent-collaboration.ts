@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { db, aiAgentReportsTable, notificationsTable, tasksTable, callsTable, contactsTable, messagesTable, calendarEventsTable, facturesClientTable } from "@workspace/db";
+import { db, aiAgentReportsTable, notificationsTable, tasksTable, callsTable, contactsTable, messagesTable, calendarEventsTable, facturesClientTable, projetsTable } from "@workspace/db";
 import { eq, desc, and, gte, ne, lt, isNull, sql, or, count } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
 import { getOrgId } from "../middleware/tenant";
@@ -139,12 +139,13 @@ export async function getContextForContact(orgId: number, contactId?: number, ph
     context.contact = contact;
 
     const now = new Date();
-    const [openTasks, recentCalls, unreadMsgs, overdueInvoices, upcomingEvents] = await Promise.all([
+    const [openTasks, recentCalls, unreadMsgs, overdueInvoices, upcomingEvents, contactProjets] = await Promise.all([
       db.select().from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.relatedContactId, contact.id), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"))).limit(5),
       db.select().from(callsTable).where(and(eq(callsTable.organisationId, orgId), eq(callsTable.contactId, contact.id))).orderBy(desc(callsTable.createdAt)).limit(5),
       db.select().from(messagesTable).where(and(eq(messagesTable.organisationId, orgId), eq(messagesTable.contactId, contact.id), eq(messagesTable.isRead, false))).limit(5),
       db.select().from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), sql`${facturesClientTable.clientEmail} = ${contact.email}`, ne(facturesClientTable.status, "payee"), lt(facturesClientTable.dueDate, now))).limit(5).catch(() => []),
       db.select().from(calendarEventsTable).where(and(eq(calendarEventsTable.organisationId, orgId), eq(calendarEventsTable.relatedContactId, contact.id), gte(calendarEventsTable.startDate, now))).orderBy(calendarEventsTable.startDate).limit(3).catch(() => []),
+      db.select({ id: projetsTable.id, title: projetsTable.title, status: projetsTable.status, progress: projetsTable.progress, endDate: projetsTable.endDate }).from(projetsTable).where(and(eq(projetsTable.organisationId, orgId), eq(projetsTable.contactId, contact.id))).orderBy(desc(projetsTable.updatedAt)).limit(5).catch(() => []),
     ]);
 
     context.contactActivity = {
@@ -153,6 +154,7 @@ export async function getContextForContact(orgId: number, contactId?: number, ph
       unreadMessages: unreadMsgs.length,
       overdueInvoices: overdueInvoices.map((i: any) => ({ id: i.id, reference: i.reference, amount: Number(i.totalAmount) - Number(i.paidAmount), dueDate: i.dueDate })),
       upcomingEvents: upcomingEvents.map(e => ({ id: e.id, title: e.title, date: e.startDate })),
+      projets: contactProjets.map((p: any) => ({ id: p.id, title: p.title, status: p.status, progress: p.progress, endDate: p.endDate })),
     };
   }
 
@@ -238,6 +240,9 @@ export function buildCommandantContextPrompt(agentInsights: Record<string, any>,
     }
     if (act.upcomingEvents.length > 0) {
       lines.push(`Prochains RDV: ${act.upcomingEvents.map((e: any) => e.title).join(", ")}`);
+    }
+    if (act.projets && act.projets.length > 0) {
+      lines.push(`Projets: ${act.projets.map((p: any) => `${p.title} [${p.status}, ${p.progress ?? 0}%${p.endDate && new Date(p.endDate) < new Date() && p.status !== "termine" ? " ⚠EN RETARD" : ""}]`).join(", ")}`);
     }
   }
 

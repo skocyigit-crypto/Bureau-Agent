@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Phone, Mail, Building, MapPin, Calendar, Clock, Edit, FileText, Plus, PhoneCall, ArrowLeft, MoreHorizontal, Voicemail, PhoneMissed, CheckSquare, AlertCircle, Send, Tag, X, Receipt, Euro, Save, Printer } from "lucide-react";
+import { Phone, Mail, Building, MapPin, Calendar, Clock, Edit, FileText, Plus, PhoneCall, ArrowLeft, MoreHorizontal, Voicemail, PhoneMissed, CheckSquare, AlertCircle, Send, Tag, X, Receipt, Euro, Save, Printer, FolderKanban } from "lucide-react";
 import { EmailComposer } from "@/components/email-composer";
 import { DocumentsPanel } from "@/components/file-upload";
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,8 @@ export default function ContactDetail() {
   const [isSavingTags, setIsSavingTags] = useState(false);
   const [devisData, setDevisData] = useState<{ devis: any[], factures: any[] } | null>(null);
   const [isDevisLoading, setIsDevisLoading] = useState(false);
+  const [projetsData, setProjetsData] = useState<any[]>([]);
+  const [isProjetsLoading, setIsProjetsLoading] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notesValue, setNotesValue] = useState("");
   const [isSavingNotes, setIsSavingNotes] = useState(false);
@@ -95,10 +97,20 @@ export default function ContactDetail() {
     finally { setIsDevisLoading(false); }
   }, [contactId, BASE]);
 
+  const loadProjetsData = useCallback(async () => {
+    if (!contactId) return;
+    setIsProjetsLoading(true);
+    try {
+      const res = await fetch(`${BASE}/api/projets?contactId=${contactId}&limit=20`, { credentials: "include" });
+      if (res.ok) { const d = await res.json(); setProjetsData(d.projets || []); }
+    } catch {}
+    finally { setIsProjetsLoading(false); }
+  }, [contactId, BASE]);
+
   const formInitialized = useRef(false);
   useEffect(() => {
-    if (contactId) loadDevisData();
-  }, [contactId, loadDevisData]);
+    if (contactId) { loadDevisData(); loadProjetsData(); }
+  }, [contactId, loadDevisData, loadProjetsData]);
 
   useEffect(() => {
     if (contact && !formInitialized.current) {
@@ -375,10 +387,11 @@ export default function ContactDetail() {
 
         <div className="md:col-span-2">
           <Tabs defaultValue="calls">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="calls">Appels</TabsTrigger>
               <TabsTrigger value="tasks">Tâches</TabsTrigger>
-              <TabsTrigger value="documents">Devis & Factures</TabsTrigger>
+              <TabsTrigger value="projets">Projets</TabsTrigger>
+              <TabsTrigger value="documents">Devis & Fact.</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
             </TabsList>
             
@@ -455,6 +468,47 @@ export default function ContactDetail() {
                     </div>
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">Aucune tâche liée à ce contact.</div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="projets" className="mt-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-3">
+                  <div>
+                    <CardTitle className="flex items-center gap-2"><FolderKanban className="w-4 h-4 text-indigo-500" />Projets liés</CardTitle>
+                    <CardDescription>Projets associés à ce contact</CardDescription>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => navigate(`/projets`)}>
+                    <Plus className="w-4 h-4 mr-1" />Nouveau
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {isProjetsLoading ? (
+                    <div className="space-y-3">{[1,2].map(i => <Skeleton key={i} className="h-14 w-full" />)}</div>
+                  ) : projetsData.length > 0 ? (
+                    <div className="space-y-2">
+                      {projetsData.map((p: any) => {
+                        const statusColors: Record<string, string> = { en_cours: "bg-blue-100 text-blue-700", planifie: "bg-amber-100 text-amber-700", termine: "bg-emerald-100 text-emerald-700", suspendu: "bg-gray-100 text-gray-700", annule: "bg-red-100 text-red-700" };
+                        const statusLabels: Record<string, string> = { en_cours: "En cours", planifie: "Planifié", termine: "Terminé", suspendu: "Suspendu", annule: "Annulé" };
+                        return (
+                          <div key={p.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 text-sm">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium truncate">{p.title}</div>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${statusColors[p.status] ?? "bg-gray-100 text-gray-700"}`}>{statusLabels[p.status] ?? p.status}</span>
+                                {p.progress != null && <span className="text-xs text-muted-foreground">{p.progress}%</span>}
+                                {p.endDate && <span className="text-xs text-muted-foreground flex items-center gap-0.5"><Calendar className="w-3 h-3" />{format(new Date(p.endDate), "dd/MM/yy")}</span>}
+                              </div>
+                            </div>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate(`/projets`)}><ArrowLeft className="w-3.5 h-3.5 rotate-180" /></Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground text-sm">Aucun projet lié à ce contact.</div>
                   )}
                 </CardContent>
               </Card>

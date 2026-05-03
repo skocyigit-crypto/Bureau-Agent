@@ -70,6 +70,7 @@ import NotesInternesPage from "@/pages/notes-internes";
 import ContactsImportPage from "@/pages/contacts-import";
 import ActiviteRecentePage from "@/pages/activite-recente";
 import StockMouvementsPage from "@/pages/stock-mouvements";
+import ProjetsPage from "@/pages/projets";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -179,6 +180,7 @@ function AppRoutes() {
         <Route path="/contacts/import" component={withLicenseGate(ContactsImportPage)} />
         <Route path="/activite-recente" component={withLicenseGate(ActiviteRecentePage)} />
         <Route path="/stock/mouvements" component={withLicenseGate(StockMouvementsPage)} />
+        <Route path="/projets" component={withLicenseGate(ProjetsPage)} />
         <Route component={NotFound} />
       </Switch>
         </AnimatedRouteContent>

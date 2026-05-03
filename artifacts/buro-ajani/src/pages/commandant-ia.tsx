@@ -16,7 +16,7 @@ import {
   Users, Zap, Send, RefreshCw, Loader2, AlertTriangle, Star, Clock, FileText,
   MapPin, BarChart3, Shield, Bell, TrendingUp, ArrowRight, Sparkles,
   MessageSquare, Target, Play, Eye, Coffee, Navigation, ExternalLink,
-  Search, Wand2, Copy, Mic, Bot, Printer,
+  Search, Wand2, Copy, Mic, Bot, Printer, FolderKanban,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -216,11 +216,15 @@ function BriefingTab() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <Card className="text-center p-3"><CheckSquare className="h-4 w-4 mx-auto mb-1 text-blue-500" /><div className="text-xl font-bold">{data.rawData?.openTasks || 0}</div><div className="text-[10px] text-muted-foreground">Taches ouvertes</div></Card>
-            <Card className="text-center p-3"><AlertTriangle className="h-4 w-4 mx-auto mb-1 text-red-500" /><div className="text-xl font-bold text-red-600">{data.rawData?.overdueTasks || 0}</div><div className="text-[10px] text-muted-foreground">En retard</div></Card>
+            <Card className="text-center p-3"><AlertTriangle className="h-4 w-4 mx-auto mb-1 text-red-500" /><div className="text-xl font-bold text-red-600">{data.rawData?.overdueTasks || 0}</div><div className="text-[10px] text-muted-foreground">Taches retard</div></Card>
             <Card className="text-center p-3"><Calendar className="h-4 w-4 mx-auto mb-1 text-emerald-500" /><div className="text-xl font-bold">{data.rawData?.todayEvents || 0}</div><div className="text-[10px] text-muted-foreground">Evenements</div></Card>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
             <Card className="text-center p-3"><DollarSign className="h-4 w-4 mx-auto mb-1 text-orange-500" /><div className="text-xl font-bold text-orange-600">{data.rawData?.overdueInvoices || 0}</div><div className="text-[10px] text-muted-foreground">Factures retard</div></Card>
+            <Card className="text-center p-3"><FolderKanban className="h-4 w-4 mx-auto mb-1 text-indigo-500" /><div className="text-xl font-bold text-indigo-600">{data.rawData?.projetsActifs || 0}</div><div className="text-[10px] text-muted-foreground">Projets actifs</div></Card>
+            <Card className={`text-center p-3 ${(data.rawData?.projetsEnRetard || 0) > 0 ? "border-red-200 bg-red-50/40" : ""}`}><FolderKanban className={`h-4 w-4 mx-auto mb-1 ${(data.rawData?.projetsEnRetard || 0) > 0 ? "text-red-500" : "text-slate-400"}`} /><div className={`text-xl font-bold ${(data.rawData?.projetsEnRetard || 0) > 0 ? "text-red-600" : "text-slate-600"}`}>{data.rawData?.projetsEnRetard || 0}</div><div className="text-[10px] text-muted-foreground">Projets retard</div></Card>
           </div>
 
           {data.briefing?.criticalItems?.length > 0 && (

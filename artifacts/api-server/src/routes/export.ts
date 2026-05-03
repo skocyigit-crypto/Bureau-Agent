@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { contactsTable, callsTable, tasksTable, messagesTable, prospectsTable, devisTable, facturesClientTable, stockArticlesTable, commandesFournisseurTable } from "@workspace/db/schema";
+import { contactsTable, callsTable, tasksTable, messagesTable, prospectsTable, devisTable, facturesClientTable, stockArticlesTable, commandesFournisseurTable, projetsTable } from "@workspace/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { logAudit } from "./audit";
 import { getOrgId } from "../middleware/tenant";
@@ -20,7 +20,7 @@ function toCsv(data: any[], columns: { key: string; label: string }[]): string {
   return [header, ...rows].join("\n");
 }
 
-const VALID_ENTITIES = ["contacts", "appels", "taches", "messages", "prospects", "devis", "factures", "stock", "commandes-fournisseur"] as const;
+const VALID_ENTITIES = ["contacts", "appels", "taches", "messages", "prospects", "devis", "factures", "stock", "commandes-fournisseur", "projets"] as const;
 
 router.get("/export/:entity", async (req: Request, res: Response): Promise<void> => {
   const userId = (req.session as any)?.userId;
@@ -198,6 +198,27 @@ router.get("/export/:entity", async (req: Request, res: Response): Promise<void>
         { key: "createdAt", label: "Date de creation" },
       ];
       filename = "commandes_fournisseur";
+      break;
+
+    case "projets":
+      data = await db.select().from(projetsTable).where(eq(projetsTable.organisationId, orgId)).orderBy(desc(projetsTable.updatedAt));
+      columns = [
+        { key: "title", label: "Titre" },
+        { key: "status", label: "Statut" },
+        { key: "priority", label: "Priorite" },
+        { key: "clientName", label: "Client" },
+        { key: "clientCompany", label: "Entreprise" },
+        { key: "progress", label: "Avancement (%)" },
+        { key: "budget", label: "Budget (EUR)" },
+        { key: "spent", label: "Depenses (EUR)" },
+        { key: "startDate", label: "Date debut" },
+        { key: "endDate", label: "Date fin prevue" },
+        { key: "assignedTo", label: "Responsable" },
+        { key: "description", label: "Description" },
+        { key: "notes", label: "Notes" },
+        { key: "createdAt", label: "Date de creation" },
+      ];
+      filename = "projets";
       break;
   }
 

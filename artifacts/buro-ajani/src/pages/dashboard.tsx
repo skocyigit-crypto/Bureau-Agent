@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Phone, Users, CheckSquare, MessageSquare, ArrowUpRight, ArrowDownRight, Clock, Plus, Activity, BarChart3, Send, LayoutDashboard, Shield, HardDriveDownload, Zap, UserCheck, Brain, TrendingUp, Lightbulb, Rocket, CircleCheck, Circle, X, Package, FileText, Receipt, AlertTriangle, ShoppingCart, StickyNote, Target, Upload, Printer } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, ArrowUpRight, ArrowDownRight, Clock, Plus, Activity, BarChart3, Send, LayoutDashboard, Shield, HardDriveDownload, Zap, UserCheck, Brain, TrendingUp, Lightbulb, Rocket, CircleCheck, Circle, X, Package, FileText, Receipt, AlertTriangle, ShoppingCart, StickyNote, Target, Upload, Printer, FolderKanban } from "lucide-react";
 import { StaggerContainer, StaggerItem, PressableCard, SlideUp } from "@/components/premium-animations";
 import { SmartPulsePanel } from "@/components/smart-pulse-panel";
 import { Icon3D, type Icon3DVariant } from "@/components/icon-3d";
@@ -115,7 +115,7 @@ function useTrialStatus() {
 
 function useCommercialStats() {
   const [data, setData] = useState<{
-    prospects: any; devis: any; factures: any; stock: any; commandes: any;
+    prospects: any; devis: any; factures: any; stock: any; commandes: any; projets: any;
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -128,8 +128,9 @@ function useCommercialStats() {
       fetch(`${BASE}/api/factures-client/stats`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
       fetch(`${BASE}/api/stock/stats`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
       fetch(`${BASE}/api/commandes-fournisseur/stats`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
-    ]).then(([prospects, devis, factures, stock, commandes]) => {
-      if (mounted) { setData({ prospects, devis, factures, stock, commandes }); setLoading(false); }
+      fetch(`${BASE}/api/projets/stats`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
+    ]).then(([prospects, devis, factures, stock, commandes, projets]) => {
+      if (mounted) { setData({ prospects, devis, factures, stock, commandes, projets }); setLoading(false); }
     });
     return () => { mounted = false; };
   }, []);
@@ -221,6 +222,22 @@ function CommercialSection() {
       textColor: "text-violet-600 dark:text-violet-400",
       href: "/commandes-fournisseur",
     },
+    {
+      title: "Projets actifs",
+      value: loading ? null : String(data?.projets?.active ?? 0),
+      sub: loading ? null : `${data?.projets?.avgProgress ?? 0}% avancement moyen${(data?.projets?.overdue ?? 0) > 0 ? ` · ⚠️ ${data?.projets?.overdue} en retard` : ""}`,
+      icon: FolderKanban,
+      color: (data?.projets?.overdue ?? 0) > 0
+        ? "from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/10"
+        : "from-indigo-50 to-indigo-100/50 dark:from-indigo-950/30 dark:to-indigo-900/10",
+      border: (data?.projets?.overdue ?? 0) > 0
+        ? "border-red-200/50 dark:border-red-800/30"
+        : "border-indigo-200/50 dark:border-indigo-800/30",
+      textColor: (data?.projets?.overdue ?? 0) > 0
+        ? "text-red-600 dark:text-red-400"
+        : "text-indigo-600 dark:text-indigo-400",
+      href: "/projets",
+    },
   ];
 
   return (
@@ -232,7 +249,7 @@ function CommercialSection() {
           </h2>
           <Link href="/prospects"><Button variant="ghost" size="sm" className="text-xs h-7">Voir tout →</Button></Link>
         </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {cards.map(card => (
             <Link key={card.title} href={card.href}>
               <Card className={`bg-gradient-to-br ${card.color} ${card.border} hover:shadow-md transition-shadow cursor-pointer`}>

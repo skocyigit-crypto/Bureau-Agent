@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
-import { Search, Phone, Users, CheckSquare, MessageSquare, X, Loader2, TrendingUp, FileText, Receipt, Package, ShoppingCart } from "lucide-react";
+import { Search, Phone, Users, CheckSquare, MessageSquare, X, Loader2, TrendingUp, FileText, Receipt, Package, ShoppingCart, FolderKanban } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -15,6 +15,7 @@ const ICON_MAP: Record<string, any> = {
   factures: Receipt,
   stock: Package,
   commandes: ShoppingCart,
+  projets: FolderKanban,
 };
 
 const LABEL_MAP: Record<string, string> = {
@@ -27,6 +28,7 @@ const LABEL_MAP: Record<string, string> = {
   factures: "Factures",
   stock: "Stock",
   commandes: "Bons de Commande",
+  projets: "Projets",
 };
 
 const COLOR_MAP: Record<string, string> = {
@@ -39,9 +41,10 @@ const COLOR_MAP: Record<string, string> = {
   factures: "text-emerald-500",
   stock: "text-slate-500",
   commandes: "text-violet-500",
+  projets: "text-indigo-500",
 };
 
-const ALL_TYPES = ["contacts", "calls", "tasks", "messages", "prospects", "devis", "factures", "stock", "commandes"] as const;
+const ALL_TYPES = ["contacts", "calls", "tasks", "messages", "prospects", "devis", "factures", "stock", "commandes", "projets"] as const;
 
 export function GlobalSearch() {
   const [query, setQuery] = useState("");
@@ -97,6 +100,7 @@ export function GlobalSearch() {
       case "factures": setLocation("/factures-client"); break;
       case "stock": setLocation("/stock"); break;
       case "commandes": setLocation("/commandes-fournisseur"); break;
+      case "projets": setLocation("/projets"); break;
     }
   }
 
@@ -111,6 +115,7 @@ export function GlobalSearch() {
       case "factures": return item.reference || `Facture #${item.id}`;
       case "stock": return item.name || item.sku || "";
       case "commandes": return item.reference || `BC #${item.id}`;
+      case "projets": return item.title || `Projet #${item.id}`;
       default: return "";
     }
   }
@@ -126,6 +131,7 @@ export function GlobalSearch() {
       case "factures": return `${item.clientName || ""} · ${item.status}${item.totalAmount ? ` · ${Number(item.totalAmount).toFixed(2)} €` : ""}`;
       case "stock": return `${item.category || ""}${item.quantity !== undefined ? ` · Qté: ${item.quantity}` : ""}`;
       case "commandes": return `${item.fournisseurName || ""} · ${item.status}${item.totalAmount ? ` · ${Number(item.totalAmount).toFixed(2)} €` : ""}`;
+      case "projets": return `${item.clientName || item.clientCompany || ""} · ${item.status}${item.progress !== undefined ? ` · ${item.progress}%` : ""}`;
       default: return "";
     }
   }

@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { db, callsTable, contactsTable, tasksTable, messagesTable, prospectsTable, calendarEventsTable } from "@workspace/db";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, prospectsTable, calendarEventsTable, projetsTable } from "@workspace/db";
 import { eq, sql, and, gte, lte, desc } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { logger } from "../lib/logger";
@@ -28,6 +28,7 @@ router.get("/smart-reports/executive-summary", async (req: Request, res: Respons
       prospectStats,
       prevProspectStats,
       eventStats,
+      projetsStats,
     ] = await Promise.all([
       db.select({
         total: sql<number>`count(*)::int`,
@@ -83,6 +84,14 @@ router.get("/smart-reports/executive-summary", async (req: Request, res: Respons
         total: sql<number>`count(*)::int`,
         upcoming: sql<number>`count(*) filter (where ${calendarEventsTable.startDate} > now())::int`,
       }).from(calendarEventsTable).where(and(eq(calendarEventsTable.organisationId, orgId), gte(calendarEventsTable.startDate, startDate))),
+
+      db.select({
+        total: sql<number>`count(*)::int`,
+        active: sql<number>`count(*) filter (where ${projetsTable.status} not in ('termine','annule'))::int`,
+        termine: sql<number>`count(*) filter (where ${projetsTable.status} = 'termine')::int`,
+        overdue: sql<number>`count(*) filter (where ${projetsTable.endDate} < now() and ${projetsTable.status} not in ('termine','annule'))::int`,
+        avgProgress: sql<number>`coalesce(avg(${projetsTable.progress}) filter (where ${projetsTable.status} not in ('annule')), 0)::int`,
+      }).from(projetsTable).where(eq(projetsTable.organisationId, orgId)),
     ]);
 
     const cs = callStats[0];
@@ -91,6 +100,7 @@ router.get("/smart-reports/executive-summary", async (req: Request, res: Respons
     const pts = prevTaskStats[0];
     const ps = prospectStats[0];
     const pps = prevProspectStats[0];
+    const proj = projetsStats[0] ?? { total: 0, active: 0, termine: 0, overdue: 0, avgProgress: 0 };
 
     const callTrend = pcs.total > 0 ? Math.round(((cs.total - pcs.total) / pcs.total) * 100) : 0;
     const responseRate = cs.total > 0 ? Math.round((cs.answered / cs.total) * 100) : 0;
@@ -119,6 +129,8 @@ router.get("/smart-reports/executive-summary", async (req: Request, res: Respons
     if (ps.lost > ps.won && ps.total > 5) insights.push({ type: "prospects", severity: "alerte", message: `Plus de prospects perdus (${ps.lost}) que gagnes (${ps.won})`, metric: `${winRate}%` });
 
     if (messageStats[0].unread > 20) insights.push({ type: "messages", severity: "alerte", message: `${messageStats[0].unread} messages non lus en attente`, metric: `${messageStats[0].unread}` });
+    if (proj.overdue > 0) insights.push({ type: "projets", severity: proj.overdue > 3 ? "critique" : "alerte", message: `${proj.overdue} projet${proj.overdue > 1 ? "s" : ""} en retard sur planning`, metric: `${proj.overdue}` });
+    if (proj.active > 0 && proj.avgProgress > 0) insights.push({ type: "projets", severity: "info", message: `${proj.active} projet${proj.active > 1 ? "s" : ""} actif${proj.active > 1 ? "s" : ""} — avancement moyen ${proj.avgProgress}%`, metric: `${proj.avgProgress}%` });
 
     res.json({
       period: { days: periodDays, start: startDate.toISOString(), end: new Date().toISOString() },
@@ -129,6 +141,7 @@ router.get("/smart-reports/executive-summary", async (req: Request, res: Respons
       messages: messageStats[0],
       prospects: { ...ps, winRate, prevWinRate, totalValue: Number(ps.totalValue), wonValue: Number(ps.wonValue) },
       events: eventStats[0],
+      projets: proj,
       insights,
       trends: {
         callTrend,
@@ -188,7 +201,7 @@ router.get("/smart-reports/reminders", async (req: Request, res: Response): Prom
     const in1h = new Date(now.getTime() + 60 * 60 * 1000);
     const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-    const [overdueTasks, upcomingEvents, urgentProspects, missedCalls] = await Promise.all([
+    const [overdueTasks, upcomingEvents, urgentProspects, missedCalls, overdueProjects] = await Promise.all([
       db.select().from(tasksTable).where(and(
         eq(tasksTable.organisationId, orgId),
         sql`${tasksTable.status} != 'terminee'`,
@@ -213,6 +226,17 @@ router.get("/smart-reports/reminders", async (req: Request, res: Response): Prom
         eq(callsTable.status, "missed"),
         gte(callsTable.createdAt, new Date(now.getTime() - 24 * 60 * 60 * 1000)),
       )).orderBy(desc(callsTable.createdAt)).limit(5),
+
+      db.select({
+        id: projetsTable.id,
+        title: projetsTable.title,
+        endDate: projetsTable.endDate,
+        status: projetsTable.status,
+      }).from(projetsTable).where(and(
+        eq(projetsTable.organisationId, orgId),
+        sql`${projetsTable.endDate} < now()`,
+        sql`${projetsTable.status} NOT IN ('termine', 'annule')`,
+      )).orderBy(projetsTable.endDate).limit(5),
     ]);
 
     const reminders: Array<{ id: string; type: string; severity: string; title: string; description: string; time: string; actionUrl?: string }> = [];
@@ -255,12 +279,23 @@ router.get("/smart-reports/reminders", async (req: Request, res: Response): Prom
       });
     }
 
+    for (const p of overdueProjects) {
+      const daysLate = Math.ceil((now.getTime() - new Date(p.endDate!).getTime()) / 86400000);
+      reminders.push({
+        id: `projet_${p.id}`, type: "projet",
+        severity: daysLate > 7 ? "critique" : "alerte",
+        title: `Projet en retard: ${p.title}`,
+        description: `Deadline depassee de ${daysLate} jour${daysLate > 1 ? "s" : ""}`,
+        time: new Date(p.endDate!).toISOString(), actionUrl: "/projets",
+      });
+    }
+
     reminders.sort((a, b) => {
       const severityOrder: Record<string, number> = { critique: 0, urgent: 1, alerte: 2, info: 3 };
       return (severityOrder[a.severity] || 3) - (severityOrder[b.severity] || 3);
     });
 
-    res.json({ reminders, counts: { overdue: overdueTasks.length, upcoming: upcomingEvents.length, urgentProspects: urgentProspects.length, missedCalls: missedCalls.length } });
+    res.json({ reminders, counts: { overdue: overdueTasks.length, upcoming: upcomingEvents.length, urgentProspects: urgentProspects.length, missedCalls: missedCalls.length, overdueProjects: overdueProjects.length } });
   } catch (err: any) {
     logger.error({ err: err }, "Erreur reminders:");
     res.status(500).json({ error: "Erreur" });

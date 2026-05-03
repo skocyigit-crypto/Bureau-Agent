@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { db, callsTable, contactsTable, tasksTable, messagesTable, prospectsTable, devisTable, facturesClientTable, commandesFournisseurTable, stockArticlesTable, checkinsTable, documentsTable, notesInternesTable, objectifsCommerciauxTable } from "@workspace/db";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, prospectsTable, devisTable, facturesClientTable, commandesFournisseurTable, stockArticlesTable, checkinsTable, documentsTable, notesInternesTable, objectifsCommerciauxTable, projetsTable } from "@workspace/db";
 import { eq, sql, and, inArray } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
@@ -497,6 +497,34 @@ router.post("/bulk/notes-internes/color", requireMinOperateur, async (req: Reque
     res.json({ success: true, updated: ids.length });
   } catch (err: any) {
     logger.error({ err }, "Bulk color notes-internes error");
+    res.status(500).json({ error: "Erreur" });
+  }
+});
+
+router.post("/bulk/projets/delete", requireMinAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const { ids } = req.body as { ids: number[] };
+    if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    const result = await db.delete(projetsTable).where(and(eq(projetsTable.organisationId, orgId), inArray(projetsTable.id, ids)));
+    res.json({ deleted: result.rowCount ?? ids.length });
+  } catch (err: any) {
+    logger.error({ err }, "Bulk delete projets error");
+    res.status(500).json({ error: "Erreur suppression" });
+  }
+});
+
+router.post("/bulk/projets/status", requireMinAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const { ids, status } = req.body as { ids: number[]; status: string };
+    if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    const validStatuses = ["planifie", "en_cours", "en_pause", "termine", "annule"];
+    if (!validStatuses.includes(status)) { res.status(400).json({ error: "Statut invalide" }); return; }
+    await db.update(projetsTable).set({ status, updatedAt: new Date() }).where(and(eq(projetsTable.organisationId, orgId), inArray(projetsTable.id, ids)));
+    res.json({ success: true, updated: ids.length });
+  } catch (err: any) {
+    logger.error({ err }, "Bulk status projets error");
     res.status(500).json({ error: "Erreur" });
   }
 });

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, callsTable, contactsTable, tasksTable, messagesTable, dailyReportsTable, platformConnectionsTable, platformSyncLogsTable } from "@workspace/db";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, dailyReportsTable, platformConnectionsTable, platformSyncLogsTable, projetsTable } from "@workspace/db";
 import { sql, eq, gte, lte, and, count, avg, desc, between, or } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middleware/auth";
@@ -365,6 +365,9 @@ async function gatherDailyData(dateStr: string, orgId: number) {
     unreadMessagesResult,
     urgentMessagesResult,
     contactsAddedResult,
+    projetsCreatedResult,
+    projetsEnRetardResult,
+    projetsActifsResult,
     recentCalls,
     recentTasks,
     recentMessages,
@@ -386,6 +389,9 @@ async function gatherDailyData(dateStr: string, orgId: number) {
     db.select({ count: count() }).from(messagesTable).where(and(orgMsg, gte(messagesTable.createdAt, dayStart), lte(messagesTable.createdAt, dayEnd), eq(messagesTable.isRead, false))),
     db.select({ count: count() }).from(messagesTable).where(and(orgMsg, gte(messagesTable.createdAt, dayStart), lte(messagesTable.createdAt, dayEnd), eq(messagesTable.priority, "haute"))),
     db.select({ count: count() }).from(contactsTable).where(and(orgContact, gte(contactsTable.createdAt, dayStart), lte(contactsTable.createdAt, dayEnd))),
+    db.select({ count: count() }).from(projetsTable).where(and(eq(projetsTable.organisationId, orgId), gte(projetsTable.createdAt, dayStart), lte(projetsTable.createdAt, dayEnd))),
+    db.select({ count: count() }).from(projetsTable).where(and(eq(projetsTable.organisationId, orgId), lte(projetsTable.endDate, new Date()), sql`${projetsTable.status} NOT IN ('termine', 'annule')`)),
+    db.select({ count: count() }).from(projetsTable).where(and(eq(projetsTable.organisationId, orgId), sql`${projetsTable.status} NOT IN ('termine', 'annule')`)),
     db.select({
       contactName: callsTable.contactName,
       phoneNumber: callsTable.phoneNumber,
@@ -425,6 +431,9 @@ async function gatherDailyData(dateStr: string, orgId: number) {
   const unreadMessages = Number(unreadMessagesResult[0]?.count ?? 0);
   const urgentMessages = Number(urgentMessagesResult[0]?.count ?? 0);
   const contactsAdded = Number(contactsAddedResult[0]?.count ?? 0);
+  const projetsCreated = Number(projetsCreatedResult[0]?.count ?? 0);
+  const projetsEnRetard = Number(projetsEnRetardResult[0]?.count ?? 0);
+  const projetsActifs = Number(projetsActifsResult[0]?.count ?? 0);
   const answerRate = totalCalls > 0 ? Math.round((answeredCalls / totalCalls) * 100) : 0;
 
   return {
@@ -456,6 +465,11 @@ async function gatherDailyData(dateStr: string, orgId: number) {
     },
     contacts: {
       added: contactsAdded,
+    },
+    projets: {
+      created: projetsCreated,
+      actifs: projetsActifs,
+      enRetard: projetsEnRetard,
     },
     details: {
       recentCalls,
@@ -522,6 +536,11 @@ ${dailyData.details.recentTasks.map((t, i) => `- Tache ${i + 1}: ${t.status}, pr
 
 DETAILS DES MESSAGES (anonymises):
 ${dailyData.details.recentMessages.map((m, i) => `- Message ${i + 1}: type ${m.type}, priorite ${m.priority}`).join("\n")}
+
+PROJETS:
+- Crees aujourd'hui: ${dailyData.projets.created}
+- Actifs au total: ${dailyData.projets.actifs}
+- En retard: ${dailyData.projets.enRetard}
 
 IMPORTANT:
 - N'utilise JAMAIS de noms de personnes reelles

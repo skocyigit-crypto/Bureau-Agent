@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { calendarEventsTable, insertCalendarEventSchema, tasksTable } from "@workspace/db/schema";
+import { calendarEventsTable, insertCalendarEventSchema, tasksTable, projetsTable } from "@workspace/db/schema";
 import { eq, and, gte, lte } from "drizzle-orm";
 import { logAudit } from "./audit";
 import { getOrgId } from "../middleware/tenant";
@@ -66,9 +66,35 @@ router.get("/calendar/events", async (req: Request, res: Response): Promise<void
         status: t.status,
       }));
 
+    const projetConditions: any[] = [
+      eq(projetsTable.organisationId, orgId),
+    ];
+    if (start && end) {
+      projetConditions.push(gte(projetsTable.endDate, new Date(start as string)));
+      projetConditions.push(lte(projetsTable.endDate, new Date(end as string)));
+    }
+    const projets = await db
+      .select({ id: projetsTable.id, title: projetsTable.title, endDate: projetsTable.endDate, status: projetsTable.status, priority: projetsTable.priority, clientName: projetsTable.clientName, progress: projetsTable.progress })
+      .from(projetsTable)
+      .where(and(...projetConditions));
+
+    const projetEvents = projets
+      .filter(p => p.endDate && p.status !== "annule")
+      .map(p => ({
+        id: `projet-${p.id}`,
+        title: `📁 ${p.title}${p.clientName ? ` — ${p.clientName}` : ""}`,
+        description: `Projet · ${p.progress ?? 0}% avancé`,
+        type: "projet",
+        startDate: p.endDate,
+        endDate: p.endDate,
+        allDay: true,
+        color: p.status === "termine" ? "#22c55e" : p.priority === "haute" ? "#ef4444" : "#6366f1",
+        status: p.status,
+      }));
+
     const userIds = events.flatMap((e: any) => [e.createdBy, e.updatedBy]);
     const userMap = await resolveUserNames(userIds);
-    res.json({ events: enrichWithUserNames(events, userMap), taskEvents });
+    res.json({ events: enrichWithUserNames(events, userMap), taskEvents, projetEvents });
   } catch (err: any) {
     req.log.error({ err }, "Erreur liste evenements agenda");
     res.status(500).json({ error: "Erreur lors de la recuperation des evenements." });

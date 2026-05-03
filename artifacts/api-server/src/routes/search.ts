@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { contactsTable, callsTable, tasksTable, messagesTable, prospectsTable, devisTable, facturesClientTable, stockArticlesTable, commandesFournisseurTable } from "@workspace/db/schema";
+import { contactsTable, callsTable, tasksTable, messagesTable, prospectsTable, devisTable, facturesClientTable, stockArticlesTable, commandesFournisseurTable, projetsTable } from "@workspace/db/schema";
 import { ilike, or, desc, and, eq } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 
@@ -13,7 +13,7 @@ router.get("/search", async (req: Request, res: Response): Promise<void> => {
   const { q, limit = "5" } = req.query;
 
   if (!q || typeof q !== "string" || q.trim().length < 2) {
-    res.json({ contacts: [], calls: [], tasks: [], messages: [], prospects: [], devis: [], factures: [], stock: [], commandes: [], totalResults: 0 });
+    res.json({ contacts: [], calls: [], tasks: [], messages: [], prospects: [], devis: [], factures: [], stock: [], commandes: [], projets: [], totalResults: 0 });
     return;
   }
 
@@ -24,7 +24,7 @@ router.get("/search", async (req: Request, res: Response): Promise<void> => {
   const maxResults = isNaN(parsedLimit) ? 5 : Math.min(Math.max(parsedLimit, 1), 10);
 
   try {
-  const [contacts, calls, tasks, messages, prospects, devis, factures, stock, commandes] = await Promise.all([
+  const [contacts, calls, tasks, messages, prospects, devis, factures, stock, commandes, projets] = await Promise.all([
     db.select()
       .from(contactsTable)
       .where(and(
@@ -147,6 +147,21 @@ router.get("/search", async (req: Request, res: Response): Promise<void> => {
       ))
       .orderBy(desc(commandesFournisseurTable.createdAt))
       .limit(maxResults),
+
+    db.select()
+      .from(projetsTable)
+      .where(and(
+        eq(projetsTable.organisationId, orgId),
+        or(
+          ilike(projetsTable.title, term),
+          ilike(projetsTable.clientName, term),
+          ilike(projetsTable.clientCompany, term),
+          ilike(projetsTable.description, term),
+          ilike(projetsTable.notes, term)
+        )
+      ))
+      .orderBy(desc(projetsTable.updatedAt))
+      .limit(maxResults),
   ]);
 
   res.json({
@@ -159,8 +174,9 @@ router.get("/search", async (req: Request, res: Response): Promise<void> => {
     factures,
     stock,
     commandes,
+    projets,
     totalResults: contacts.length + calls.length + tasks.length + messages.length
-      + prospects.length + devis.length + factures.length + stock.length + commandes.length,
+      + prospects.length + devis.length + factures.length + stock.length + commandes.length + projets.length,
   });
   } catch (err: any) {
     req.log.error({ err }, "Erreur recherche globale");

@@ -60,6 +60,7 @@ import commandesFournisseurRouter from "./commandes-fournisseur";
 import clientsRouter from "./clients";
 import objectifsCommerciauxRouter from "./objectifs-commerciaux";
 import notesInternesRouter from "./notes-internes";
+import projetsRouter from "./projets";
 
 const router: IRouter = Router();
 
@@ -130,5 +131,6 @@ router.use(commandesFournisseurRouter);
 router.use(clientsRouter);
 router.use(objectifsCommerciauxRouter);
 router.use(notesInternesRouter);
+router.use(projetsRouter);
 
 export default router;

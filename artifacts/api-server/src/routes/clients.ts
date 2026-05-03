@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, desc, sql, and, or, ilike } from "drizzle-orm";
-import { db, devisTable, facturesClientTable } from "@workspace/db";
+import { db, devisTable, facturesClientTable, projetsTable } from "@workspace/db";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
 
@@ -71,13 +71,22 @@ router.get("/clients/:name", requireRole("agent"), async (req: Request, res: Res
     const orgId = getOrgId(req);
     const clientName = decodeURIComponent(req.params.name as string);
 
-    const [devisList, facturesList] = await Promise.all([
+    const [devisList, facturesList, projetsList] = await Promise.all([
       db.select().from(devisTable).where(
         and(eq(devisTable.organisationId, orgId), ilike(devisTable.clientName, clientName))
       ).orderBy(desc(devisTable.createdAt)),
       db.select().from(facturesClientTable).where(
         and(eq(facturesClientTable.organisationId, orgId), ilike(facturesClientTable.clientName, clientName))
       ).orderBy(desc(facturesClientTable.createdAt)),
+      db.select({
+        id: projetsTable.id, title: projetsTable.title, status: projetsTable.status,
+        priority: projetsTable.priority, progress: projetsTable.progress,
+        budget: projetsTable.budget, spent: projetsTable.spent,
+        startDate: projetsTable.startDate, endDate: projetsTable.endDate,
+        createdAt: projetsTable.createdAt,
+      }).from(projetsTable).where(
+        and(eq(projetsTable.organisationId, orgId), ilike(projetsTable.clientName, clientName))
+      ).orderBy(desc(projetsTable.createdAt)),
     ]);
 
     const totalDevis = devisList.reduce((s, d) => s + parseFloat(d.totalAmount || "0"), 0);
@@ -86,6 +95,7 @@ router.get("/clients/:name", requireRole("agent"), async (req: Request, res: Res
     const devisAcceptes = devisList.filter(d => d.status === "accepte").length;
     const facturesPayees = facturesList.filter(f => f.status === "payee").length;
     const overdueFactures = facturesList.filter(f => f.dueDate && new Date(f.dueDate) < new Date() && !["payee", "annulee"].includes(f.status));
+    const projetsActifs = projetsList.filter(p => !["termine", "annule"].includes(p.status)).length;
 
     const profile = devisList[0] || facturesList[0];
 
@@ -106,9 +116,12 @@ router.get("/clients/:name", requireRole("agent"), async (req: Request, res: Res
         totalDue: Math.max(0, totalFactures - totalPaid),
         overdueCount: overdueFactures.length,
         overdueAmount: overdueFactures.reduce((s, f) => s + Math.max(0, parseFloat(f.totalAmount || "0") - parseFloat(f.paidAmount || "0")), 0),
+        projetsCount: projetsList.length,
+        projetsActifs,
       },
       devis: devisList,
       factures: facturesList,
+      projets: projetsList,
     });
   } catch (err) {
     req.log.error({ err }, "GET /clients/:name");

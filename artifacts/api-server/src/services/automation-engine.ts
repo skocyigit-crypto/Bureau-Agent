@@ -8,6 +8,7 @@ import {
   calendarEventsTable,
   contactsTable,
   messagesTable,
+  projetsTable,
 } from "@workspace/db/schema";
 import { eq, lte, and, gte, lt, sql, desc, isNull, or } from "drizzle-orm";
 import { logger } from "../lib/logger";
@@ -43,6 +44,7 @@ async function runAllAutomations() {
     await checkUnreadMessages();
     await checkInactiveContacts();
     await checkMissedCalls();
+    await checkOverdueProjects();
 
     const customRules = await db
       .select()
@@ -243,6 +245,51 @@ async function checkInactiveContacts() {
   await logAutomationRun("Contacts inactifs", "success", { count }, count, performance.now() - start);
 }
 
+async function checkOverdueProjects() {
+  const start = performance.now();
+  const now = new Date();
+
+  const overdueProjects = await db
+    .select({ id: projetsTable.id, title: projetsTable.title, endDate: projetsTable.endDate, organisationId: projetsTable.organisationId })
+    .from(projetsTable)
+    .where(and(
+      lte(projetsTable.endDate, now),
+      sql`${projetsTable.status} NOT IN ('termine', 'annule')`,
+    ))
+    .limit(50);
+
+  if (overdueProjects.length === 0) return;
+
+  for (const projet of overdueProjects) {
+    const existing = await db
+      .select({ id: notificationsTable.id })
+      .from(notificationsTable)
+      .where(and(
+        eq(notificationsTable.sourceType, "projet_en_retard"),
+        eq(notificationsTable.sourceId, String(projet.id)),
+        eq(notificationsTable.read, false)
+      ))
+      .limit(1);
+
+    if (existing.length > 0) continue;
+
+    const daysOverdue = Math.ceil((now.getTime() - new Date(projet.endDate!).getTime()) / (1000 * 60 * 60 * 24));
+
+    await db.insert(notificationsTable).values({
+      ...(projet.organisationId ? { organisationId: projet.organisationId } : {}),
+      type: "alerte",
+      title: "Projet en retard",
+      message: `Le projet "${projet.title}" est en retard de ${daysOverdue} jour(s).`,
+      priority: daysOverdue > 7 ? "urgente" : "haute",
+      actionUrl: "/projets",
+      sourceType: "projet_en_retard",
+      sourceId: String(projet.id),
+    });
+  }
+
+  await logAutomationRun("Projets en retard", "success", { count: overdueProjects.length }, overdueProjects.length, performance.now() - start);
+}
+
 async function checkMissedCalls() {
   const start = performance.now();
   const today = new Date();
@@ -339,6 +386,19 @@ async function getTriggerItems(rule: any): Promise<any[]> {
           lte(tasksTable.dueDate, new Date()),
           sql`${tasksTable.status} NOT IN ('terminee', 'annulee')`,
           ...(orgId ? [eq(tasksTable.organisationId, orgId)] : []),
+        ))
+        .limit(20);
+      return await query;
+    }
+
+    case "projet_overdue": {
+      const query = db
+        .select({ id: projetsTable.id, title: projetsTable.title, endDate: projetsTable.endDate, clientName: projetsTable.clientName, status: projetsTable.status })
+        .from(projetsTable)
+        .where(and(
+          lte(projetsTable.endDate, new Date()),
+          sql`${projetsTable.status} NOT IN ('termine', 'annule')`,
+          ...(orgId ? [eq(projetsTable.organisationId, orgId)] : []),
         ))
         .limit(20);
       return await query;

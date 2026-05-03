@@ -10,7 +10,7 @@ import {
   TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Clock, Phone, Users, CheckSquare,
   MessageSquare, Target, Calendar, BarChart3, FileText, Download, Printer,
   ArrowUpRight, ArrowDownRight, AlertCircle, Star, Zap, Activity, Shield,
-  DollarSign, Eye, RefreshCw, Brain,
+  DollarSign, Eye, RefreshCw, Brain, FolderKanban,
 } from "lucide-react";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -24,6 +24,7 @@ interface ExecutiveData {
   messages: { total: number; unread: number };
   prospects: { total: number; won: number; lost: number; totalValue: number; wonValue: number; avgProbability: number; winRate: number; prevWinRate: number };
   events: { total: number; upcoming: number };
+  projets?: { total: number; active: number; termine: number; overdue: number; avgProgress: number };
   insights: Array<{ type: string; severity: string; message: string; metric?: string }>;
   trends: { callTrend: number; taskTrend: number; prospectTrend: number; responseTrend: number };
 }
@@ -329,6 +330,43 @@ export default function ExecutiveReport() {
           </CardContent>
         </Card>
       </div>
+
+      {data.projets && data.projets.total > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2"><FolderKanban className="h-4 w-4 text-indigo-500" />Projets</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-4 gap-3 text-center">
+              <div>
+                <div className="text-xl font-bold">{data.projets.total}</div>
+                <div className="text-[10px] text-muted-foreground">Total</div>
+              </div>
+              <div>
+                <div className="text-xl font-bold text-amber-600">{data.projets.active}</div>
+                <div className="text-[10px] text-muted-foreground">Actifs</div>
+              </div>
+              <div>
+                <div className="text-xl font-bold text-emerald-600">{data.projets.termine}</div>
+                <div className="text-[10px] text-muted-foreground">Terminés</div>
+              </div>
+              <div>
+                <div className={`text-xl font-bold ${data.projets.overdue > 0 ? "text-red-600" : "text-slate-600"}`}>{data.projets.overdue}</div>
+                <div className="text-[10px] text-muted-foreground">En retard</div>
+              </div>
+            </div>
+            {data.projets.avgProgress > 0 && (
+              <div className="mt-3">
+                <div className="flex justify-between text-xs mb-1">
+                  <span>Avancement moyen</span>
+                  <span className="font-bold text-indigo-600">{data.projets.avgProgress}%</span>
+                </div>
+                <Progress value={data.projets.avgProgress} className="h-2" />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {reminders.length > 0 && (
         <Card>

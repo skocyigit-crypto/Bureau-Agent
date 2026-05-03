@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Bell, Check, CheckCheck, Trash2, Filter, Phone, Users, CheckSquare, MessageSquare, AlertTriangle, Info, Calendar, ExternalLink, Printer } from "lucide-react";
+import { Bell, Check, CheckCheck, Trash2, Filter, Phone, Users, CheckSquare, MessageSquare, AlertTriangle, Info, Calendar, ExternalLink, Printer, Receipt, Package, FolderKanban } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,11 +22,17 @@ async function apiFetch(path: string, opts?: RequestInit) {
 const TYPE_ICONS: Record<string, any> = {
   call: Phone, contact: Users, task: CheckSquare, message: MessageSquare,
   alert: AlertTriangle, info: Info, calendar: Calendar,
+  appel_manque: Phone, message_non_lu: MessageSquare, tache_urgente: CheckSquare,
+  facture_en_retard: Receipt, stock_rupture: Package, stock_alerte: Package,
+  projet_en_retard: FolderKanban,
 };
 
 const TYPE_COLORS: Record<string, string> = {
   call: "text-blue-500", contact: "text-emerald-500", task: "text-amber-500",
   message: "text-indigo-500", alert: "text-red-500", info: "text-gray-500", calendar: "text-purple-500",
+  appel_manque: "text-blue-500", message_non_lu: "text-indigo-500", tache_urgente: "text-amber-500",
+  facture_en_retard: "text-red-500", stock_rupture: "text-red-600", stock_alerte: "text-amber-600",
+  projet_en_retard: "text-indigo-600",
 };
 
 export default function Notifications() {

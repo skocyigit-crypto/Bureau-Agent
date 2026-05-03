@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
-import { TrendingUp, FileText, Receipt, Package, Target, Euro, AlertTriangle, CheckCircle, Clock, ArrowUpRight, Download, Printer } from "lucide-react";
+import { TrendingUp, FileText, Receipt, Package, Target, Euro, AlertTriangle, CheckCircle, Clock, ArrowUpRight, Download, Printer, FolderKanban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +43,7 @@ interface RapportData {
   factures: { total: number; brouillon: number; emise: number; payee: number; annulee: number; totalAmount: number; paidAmount: number; remainingAmount: number; overdueCount: number };
   prospects: { total: number; prospect: number; qualification: number; proposition: number; negociation: number; gagne: number; perdu: number; totalValue: number; wonValue: number };
   stock: { total: number; alerte: number; rupture: number; totalValue: number };
+  projets: { total: number; active: number; termine: number; overdue: number; avgProgress: number; totalBudget: number; totalSpent: number };
   monthlyRevenue: { month: string; revenue: number; invoiced: number; count: number }[];
   devisByMonth: { month: string; total: number; accepte: number; refuse: number }[];
   prospectsByStage: { stage: string; count: number; value: number }[];
@@ -86,7 +87,7 @@ export default function RapportCommercialPage() {
     );
   }
 
-  const { devis, factures, prospects, stock, monthlyRevenue, devisByMonth, prospectsByStage, topProducts } = data;
+  const { devis, factures, prospects, stock, projets, monthlyRevenue, devisByMonth, prospectsByStage, topProducts } = data;
 
   const revenueChartData = monthlyRevenue.map(r => ({
     name: fmtMonth(r.month),
@@ -302,6 +303,49 @@ export default function RapportCommercialPage() {
           </CardContent>
         </Card>
       </div>
+
+      {projets && projets.total > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2"><FolderKanban className="w-4 h-4 text-indigo-500" />Projets</CardTitle>
+            <CardDescription>Vue d'ensemble des projets ({projets.total} au total)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="text-center p-3 rounded-lg bg-muted/30">
+                <div className="text-2xl font-bold text-amber-600">{projets.active}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">Actifs</div>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-muted/30">
+                <div className="text-2xl font-bold text-emerald-600">{projets.termine}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">Terminés</div>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-muted/30">
+                <div className={`text-2xl font-bold ${projets.overdue > 0 ? "text-red-600" : "text-slate-600"}`}>{projets.overdue}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">En retard</div>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-muted/30">
+                <div className="text-2xl font-bold text-indigo-600">{projets.avgProgress}%</div>
+                <div className="text-xs text-muted-foreground mt-0.5">Avancement moy.</div>
+              </div>
+            </div>
+            {Number(projets.totalBudget) > 0 && (
+              <div className="mt-4 flex gap-4 flex-wrap text-sm">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">Budget total :</span>
+                  <span className="font-medium">{fmt(Number(projets.totalBudget))}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">Dépenses :</span>
+                  <span className={`font-medium ${Number(projets.totalSpent) > Number(projets.totalBudget) ? "text-red-600" : "text-emerald-600"}`}>
+                    {fmt(Number(projets.totalSpent))}
+                  </span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {topProducts.length > 0 && (
         <Card>

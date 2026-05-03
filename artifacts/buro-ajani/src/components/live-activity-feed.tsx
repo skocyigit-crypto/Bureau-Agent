@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { Phone, Users, CheckSquare, MessageSquare, Target, Calendar, FileText, TrendingUp, Clock, Activity, RefreshCw, Filter, Bell, Zap, ArrowRight } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, Target, Calendar, FileText, TrendingUp, Clock, Activity, RefreshCw, Filter, Bell, Zap, ArrowRight, FolderKanban, Receipt } from "lucide-react";
 import { Link } from "wouter";
 import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -28,6 +28,9 @@ const typeConfig: Record<string, { icon: typeof Phone; color: string; bg: string
   tache: { icon: CheckSquare, color: "text-green-600", bg: "bg-green-100", label: "Tache" },
   message: { icon: MessageSquare, color: "text-orange-600", bg: "bg-orange-100", label: "Message" },
   evenement: { icon: Calendar, color: "text-indigo-600", bg: "bg-indigo-100", label: "Evenement" },
+  prospect: { icon: TrendingUp, color: "text-amber-600", bg: "bg-amber-100", label: "Prospect" },
+  facture: { icon: Receipt, color: "text-emerald-600", bg: "bg-emerald-100", label: "Facture" },
+  projet: { icon: FolderKanban, color: "text-indigo-600", bg: "bg-indigo-100", label: "Projet" },
 };
 
 export function LiveActivityFeed({ compact = false }: { compact?: boolean }) {

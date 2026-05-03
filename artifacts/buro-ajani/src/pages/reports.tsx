@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Calendar, TrendingUp, TrendingDown, Minus, Phone, CheckSquare, MessageSquare, Users, Loader2, RefreshCw, Trash2, ChevronRight, Award, AlertTriangle, Clock, ArrowUp, ArrowDown, BarChart3, Sparkles, Download, Eye, Printer } from "lucide-react";
+import { FileText, Calendar, TrendingUp, TrendingDown, Minus, Phone, CheckSquare, MessageSquare, Users, Loader2, RefreshCw, Trash2, ChevronRight, Award, AlertTriangle, Clock, ArrowUp, ArrowDown, BarChart3, Sparkles, Download, Eye, Printer, FolderKanban } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -123,6 +123,8 @@ function CategoryIcon({ categorie }: { categorie?: string }) {
     message: <MessageSquare className="w-3.5 h-3.5 text-amber-500" />,
     contacts: <Users className="w-3.5 h-3.5 text-emerald-500" />,
     contact: <Users className="w-3.5 h-3.5 text-emerald-500" />,
+    projets: <FolderKanban className="w-3.5 h-3.5 text-indigo-500" />,
+    projet: <FolderKanban className="w-3.5 h-3.5 text-indigo-500" />,
     general: <BarChart3 className="w-3.5 h-3.5 text-gray-500" />,
   };
   return <>{icons[categorie || ""] || <BarChart3 className="w-3.5 h-3.5 text-gray-500" />}</>;
