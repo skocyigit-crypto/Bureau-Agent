@@ -6,7 +6,7 @@ import {
   Mail, Calendar, HardDrive, FileText, Table, Presentation, Users, CheckSquare,
   StickyNote, Video, Image, PlayCircle, MessageCircle, ClipboardList,
   Search, ExternalLink, RefreshCw, Shield, Zap, Grid3X3, ChevronRight,
-  Clock, Star, Eye, Folder, Link2, AlertCircle, Check, Loader2, Globe
+  Clock, Star, Eye, Folder, Link2, AlertCircle, Check, Loader2, Globe, Printer
 } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
@@ -89,6 +89,7 @@ export default function GoogleWorkspace() {
           ) : (
             <Badge variant="outline" className="gap-1"><AlertCircle className="h-3 w-3" /> Non connecte</Badge>
           )}
+          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { FileText, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, RefreshCw, Check, X, Send, ArrowRightLeft } from "lucide-react";
+import { FileText, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, RefreshCw, Check, X, Send, ArrowRightLeft, Mail, Printer, Download } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -125,6 +125,19 @@ export default function DevisPage() {
     if (res.ok) { toast({ title: "Statut mis a jour" }); load(); }
   };
 
+  const handleSendEmail = async (id: number) => {
+    const res = await fetch(`${BASE}/api/devis/${id}/send`, { method: "POST", credentials: "include" });
+    const d = await res.json();
+    if (res.ok) { toast({ title: "Devis envoyé", description: d.message }); load(); }
+    else { toast({ title: "Erreur d'envoi", description: d.error, variant: "destructive" }); }
+  };
+
+  const handleDuplicate = async (id: number) => {
+    const res = await fetch(`${BASE}/api/devis/${id}/duplicate`, { method: "POST", credentials: "include" });
+    if (res.ok) { toast({ title: "Devis dupliqué", description: "Une copie brouillon a été créée." }); load(); }
+    else { const d = await res.json(); toast({ title: "Erreur", description: d.error, variant: "destructive" }); }
+  };
+
   const handleConvert = async (id: number) => {
     const res = await fetch(`${BASE}/api/devis/${id}/convert`, { method: "POST", credentials: "include" });
     if (res.ok) { toast({ title: "Devis converti en facture" }); load(); }
@@ -167,6 +180,8 @@ export default function DevisPage() {
           <SelectContent><SelectItem value="all">Tous</SelectItem>{Object.entries(STATUS_CFG).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}</SelectContent>
         </Select>
         <Button variant="ghost" size="icon" onClick={load}><RefreshCw className="w-4 h-4" /></Button>
+        <a href={`${BASE}/api/devis/export/csv`} download><Button variant="outline" size="icon" title="Exporter CSV"><Download className="w-4 h-4" /></Button></a>
+        <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
       </div>
 
       <Card>
@@ -203,6 +218,9 @@ export default function DevisPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => openEdit(d)}><Edit className="w-3 h-3 mr-2" />Modifier</DropdownMenuItem>
+                          <DropdownMenuItem asChild><a href={`${(import.meta.env.BASE_URL || "/").replace(/\/$/, "")}/devis/${d.id}/apercu`} target="_blank" rel="noopener noreferrer" className="flex items-center"><Printer className="w-3 h-3 mr-2" />Aperçu / Imprimer</a></DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDuplicate(d.id)}><Download className="w-3 h-3 mr-2" />Dupliquer</DropdownMenuItem>
+                          {d.clientEmail && <DropdownMenuItem onClick={() => handleSendEmail(d.id)}><Mail className="w-3 h-3 mr-2" />Envoyer par email</DropdownMenuItem>}
                           {d.status === "brouillon" && <DropdownMenuItem onClick={() => handleStatus(d.id, "envoye")}><Send className="w-3 h-3 mr-2" />Marquer envoyé</DropdownMenuItem>}
                           {d.status === "envoye" && <DropdownMenuItem onClick={() => handleStatus(d.id, "accepte")}><Check className="w-3 h-3 mr-2" />Marquer accepté</DropdownMenuItem>}
                           {d.status === "envoye" && <DropdownMenuItem onClick={() => handleStatus(d.id, "refuse")}><X className="w-3 h-3 mr-2" />Marquer refusé</DropdownMenuItem>}

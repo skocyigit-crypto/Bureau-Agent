@@ -4,7 +4,7 @@ import {
   Timer, Users, BarChart3, Loader2, Play, Pause, Square, Plus, ChevronLeft,
   ChevronRight, ChevronsLeft, ChevronsRight, MoreHorizontal, Trash2, Eye,
   RefreshCw, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Sparkles,
-  Download, CheckCircle2, AlertCircle, CloudDownload
+  Download, CheckCircle2, AlertCircle, CloudDownload, Printer
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -100,6 +100,9 @@ export default function CheckinsPage() {
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [showGoogleSyncDialog, setShowGoogleSyncDialog] = useState(false);
   const [selectedCheckin, setSelectedCheckin] = useState<any>(null);
+  const [isEditingCheckin, setIsEditingCheckin] = useState(false);
+  const [editCheckinNotes, setEditCheckinNotes] = useState("");
+  const [editCheckinLocation, setEditCheckinLocation] = useState("");
   const [newCheckin, setNewCheckin] = useState({
     type: "bureau" as "bureau" | "distance" | "terrain",
     location: "",
@@ -266,6 +269,10 @@ export default function CheckinsPage() {
           <p className="text-muted-foreground">Gerez vos heures d'arrivee, de depart et votre temps de travail.</p>
         </div>
         <div className="flex gap-2">
+          <a href={`${(import.meta.env.BASE_URL || "/").replace(/\/$/, "")}/api/checkins/export/csv`} download>
+            <Button variant="outline" size="sm"><Download className="w-4 h-4 mr-2" />CSV</Button>
+          </a>
+          <Button variant="outline" size="sm" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
           <Button variant="outline" className="border-blue-300 text-blue-700 hover:bg-blue-50" onClick={() => { setGoogleSync(p => ({ ...p, result: null, error: null })); setShowGoogleSyncDialog(true); }}>
             <CloudDownload className="w-4 h-4 mr-2" /> Sync Google
           </Button>
@@ -703,7 +710,7 @@ export default function CheckinsPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
+      <Dialog open={showDetailDialog} onOpenChange={(o) => { setShowDetailDialog(o); if (!o) setIsEditingCheckin(false); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Details du pointage</DialogTitle>
@@ -767,8 +774,43 @@ export default function CheckinsPage() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDetailDialog(false)}>Fermer</Button>
+            {!isEditingCheckin ? (
+              <>
+                <Button variant="outline" onClick={() => setShowDetailDialog(false)}>Fermer</Button>
+                <Button variant="outline" onClick={() => { setEditCheckinNotes(selectedCheckin?.notes || ""); setEditCheckinLocation(selectedCheckin?.location || ""); setIsEditingCheckin(true); }}>
+                  Modifier
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setIsEditingCheckin(false)}>Annuler</Button>
+                <Button onClick={async () => {
+                  try {
+                    await updateCheckin.mutateAsync({ id: selectedCheckin.id, data: { notes: editCheckinNotes, location: editCheckinLocation } });
+                    setSelectedCheckin((c: any) => ({ ...c, notes: editCheckinNotes, location: editCheckinLocation }));
+                    setIsEditingCheckin(false);
+                    toast({ title: "Pointage mis a jour" });
+                  } catch {
+                    toast({ title: "Erreur", description: "Impossible de modifier le pointage", variant: "destructive" });
+                  }
+                }} disabled={updateCheckin.isPending}>
+                  {updateCheckin.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Enregistrer"}
+                </Button>
+              </>
+            )}
           </DialogFooter>
+          {isEditingCheckin && selectedCheckin && (
+            <div className="space-y-3 border-t pt-3">
+              <div>
+                <Label className="text-xs text-muted-foreground">Lieu</Label>
+                <Input value={editCheckinLocation} onChange={e => setEditCheckinLocation(e.target.value)} placeholder="Lieu de travail" className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Notes</Label>
+                <Textarea value={editCheckinNotes} onChange={e => setEditCheckinNotes(e.target.value)} placeholder="Notes..." className="mt-1 min-h-[80px]" />
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

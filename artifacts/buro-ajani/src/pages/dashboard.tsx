@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Phone, Users, CheckSquare, MessageSquare, ArrowUpRight, ArrowDownRight, Clock, Plus, Activity, BarChart3, Send, LayoutDashboard, Shield, HardDriveDownload, Zap, UserCheck, Brain, TrendingUp, Lightbulb, Rocket, CircleCheck, Circle, X } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, ArrowUpRight, ArrowDownRight, Clock, Plus, Activity, BarChart3, Send, LayoutDashboard, Shield, HardDriveDownload, Zap, UserCheck, Brain, TrendingUp, Lightbulb, Rocket, CircleCheck, Circle, X, Package, FileText, Receipt, AlertTriangle, ShoppingCart, StickyNote, Target, Upload, Printer } from "lucide-react";
 import { StaggerContainer, StaggerItem, PressableCard, SlideUp } from "@/components/premium-animations";
 import { SmartPulsePanel } from "@/components/smart-pulse-panel";
 import { Icon3D, type Icon3DVariant } from "@/components/icon-3d";
@@ -113,6 +113,152 @@ function useTrialStatus() {
   return { isTrial, dismissed, dismiss };
 }
 
+function useCommercialStats() {
+  const [data, setData] = useState<{
+    prospects: any; devis: any; factures: any; stock: any; commandes: any;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+    Promise.all([
+      fetch(`${BASE}/api/prospects/stats`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(`${BASE}/api/devis/stats`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(`${BASE}/api/factures-client/stats`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(`${BASE}/api/stock/stats`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(`${BASE}/api/commandes-fournisseur/stats`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
+    ]).then(([prospects, devis, factures, stock, commandes]) => {
+      if (mounted) { setData({ prospects, devis, factures, stock, commandes }); setLoading(false); }
+    });
+    return () => { mounted = false; };
+  }, []);
+
+  return { data, loading };
+}
+
+function fmtCurrency(v: any) {
+  if (!v) return "0 €";
+  const n = parseFloat(v);
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M €`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k €`;
+  return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
+}
+
+function CommercialSection() {
+  const { data, loading } = useCommercialStats();
+
+  const cards = [
+    {
+      title: "Pipeline prospects",
+      value: loading ? null : fmtCurrency(data?.prospects?.totalValue),
+      sub: loading ? null : `${data?.prospects?.total ?? 0} opportunité${(data?.prospects?.total ?? 0) !== 1 ? "s" : ""}`,
+      icon: TrendingUp,
+      color: "from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/10",
+      border: "border-amber-200/50 dark:border-amber-800/30",
+      textColor: "text-amber-600 dark:text-amber-400",
+      href: "/prospects",
+    },
+    {
+      title: "Devis en attente",
+      value: loading ? null : String(data?.devis?.envoye ?? 0),
+      sub: loading ? null : `${fmtCurrency(data?.devis?.amountAccepte)} accepté`,
+      icon: FileText,
+      color: "from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/10",
+      border: "border-blue-200/50 dark:border-blue-800/30",
+      textColor: "text-blue-600 dark:text-blue-400",
+      href: "/devis",
+    },
+    {
+      title: "Factures à encaisser",
+      value: loading ? null : fmtCurrency(
+        parseFloat(data?.factures?.totalAmount ?? "0") - parseFloat(data?.factures?.totalPaid ?? "0")
+      ),
+      sub: loading || !data?.factures?.en_retard ? null : data.factures.en_retard > 0
+        ? `⚠️ ${data.factures.en_retard} en retard`
+        : `${data.factures.payee ?? 0} payée${(data.factures.payee ?? 0) !== 1 ? "s" : ""}`,
+      icon: Receipt,
+      color: data?.factures?.en_retard > 0
+        ? "from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/10"
+        : "from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-emerald-900/10",
+      border: data?.factures?.en_retard > 0
+        ? "border-red-200/50 dark:border-red-800/30"
+        : "border-emerald-200/50 dark:border-emerald-800/30",
+      textColor: data?.factures?.en_retard > 0
+        ? "text-red-600 dark:text-red-400"
+        : "text-emerald-600 dark:text-emerald-400",
+      href: "/factures-client",
+    },
+    {
+      title: "Stock — Alertes",
+      value: loading ? null : String((data?.stock?.lowStock ?? 0) + (data?.stock?.outOfStock ?? 0)),
+      sub: loading ? null : `${data?.stock?.total ?? 0} article${(data?.stock?.total ?? 0) !== 1 ? "s" : ""} · ${fmtCurrency(data?.stock?.totalValue)} valeur`,
+      icon: Package,
+      color: (data?.stock?.outOfStock ?? 0) > 0
+        ? "from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/10"
+        : (data?.stock?.lowStock ?? 0) > 0
+          ? "from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/10"
+          : "from-slate-50 to-slate-100/50 dark:from-slate-950/30 dark:to-slate-900/10",
+      border: (data?.stock?.outOfStock ?? 0) > 0
+        ? "border-red-200/50 dark:border-red-800/30"
+        : (data?.stock?.lowStock ?? 0) > 0
+          ? "border-amber-200/50 dark:border-amber-800/30"
+          : "border-slate-200/50 dark:border-slate-800/30",
+      textColor: (data?.stock?.outOfStock ?? 0) > 0
+        ? "text-red-600 dark:text-red-400"
+        : (data?.stock?.lowStock ?? 0) > 0
+          ? "text-amber-600 dark:text-amber-400"
+          : "text-slate-600 dark:text-slate-400",
+      href: "/stock",
+    },
+    {
+      title: "Commandes Fournisseurs",
+      value: loading ? null : String(data?.commandes?.confirme ?? 0),
+      sub: loading ? null : `${fmtCurrency(data?.commandes?.pendingAmount)} en attente · ${data?.commandes?.recu ?? 0} reçue${(data?.commandes?.recu ?? 0) !== 1 ? "s" : ""}`,
+      icon: ShoppingCart,
+      color: "from-violet-50 to-violet-100/50 dark:from-violet-950/30 dark:to-violet-900/10",
+      border: "border-violet-200/50 dark:border-violet-800/30",
+      textColor: "text-violet-600 dark:text-violet-400",
+      href: "/commandes-fournisseur",
+    },
+  ];
+
+  return (
+    <SlideUp>
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+            <TrendingUp className="w-4 h-4" /> Activité Commerciale
+          </h2>
+          <Link href="/prospects"><Button variant="ghost" size="sm" className="text-xs h-7">Voir tout →</Button></Link>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {cards.map(card => (
+            <Link key={card.title} href={card.href}>
+              <Card className={`bg-gradient-to-br ${card.color} ${card.border} hover:shadow-md transition-shadow cursor-pointer`}>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className={`text-sm font-medium ${card.textColor}`}>{card.title}</span>
+                    <card.icon className={`w-4 h-4 ${card.textColor}`} />
+                  </div>
+                  {loading ? (
+                    <Skeleton className="h-8 w-24 mt-1" />
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold">{card.value}</div>
+                      {card.sub && <div className="text-xs text-muted-foreground mt-1">{card.sub}</div>}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </SlideUp>
+  );
+}
+
 export default function Dashboard() {
   const { user } = useWorkspaceUser();
   const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
@@ -209,6 +355,7 @@ export default function Dashboard() {
               Analyse
             </Button>
           </Link>
+          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
         </div>
       </div>
 
@@ -394,6 +541,39 @@ export default function Dashboard() {
           </StaggerItem>
         ))}
       </StaggerContainer>
+
+      <CommercialSection />
+
+      <SlideUp>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2"><Zap className="w-4 h-4 text-amber-500" />Actions rapides</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+              {[
+                { label: "Nouveau contact", href: "/contacts", icon: Users, color: "text-indigo-500 bg-indigo-50 dark:bg-indigo-950/30" },
+                { label: "Importer contacts", href: "/contacts/import", icon: Upload, color: "text-blue-500 bg-blue-50 dark:bg-blue-950/30" },
+                { label: "Nouveau devis", href: "/devis", icon: FileText, color: "text-sky-500 bg-sky-50 dark:bg-sky-950/30" },
+                { label: "Nouvelle facture", href: "/factures-client", icon: Receipt, color: "text-emerald-500 bg-emerald-50 dark:bg-emerald-950/30" },
+                { label: "Nouveau prospect", href: "/prospects", icon: TrendingUp, color: "text-amber-500 bg-amber-50 dark:bg-amber-950/30" },
+                { label: "Ajout stock", href: "/stock", icon: Package, color: "text-slate-500 bg-slate-50 dark:bg-slate-950/30" },
+                { label: "Activité récente", href: "/activite-recente", icon: Activity, color: "text-violet-500 bg-violet-50 dark:bg-violet-950/30" },
+                { label: "Notes internes", href: "/notes-internes", icon: StickyNote, color: "text-yellow-500 bg-yellow-50 dark:bg-yellow-950/30" },
+              ].map(item => (
+                <Link key={item.href} href={item.href}>
+                  <div className={`flex flex-col items-center gap-2 p-3 rounded-xl hover:opacity-80 transition-all cursor-pointer ${item.color.split(" ").slice(1).join(" ")}`}>
+                    <div className={`p-2 rounded-lg ${item.color.split(" ")[0]}`}>
+                      <item.icon className={`w-4 h-4 ${item.color.split(" ")[0]}`} />
+                    </div>
+                    <span className="text-xs font-medium text-center leading-tight">{item.label}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </SlideUp>
 
       <SafeComponent fallbackTitle="Pouls Intelligent">
         <SmartPulsePanel />

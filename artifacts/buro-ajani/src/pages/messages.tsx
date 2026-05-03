@@ -3,7 +3,7 @@ import { useListMessages, useUpdateMessage, useCreateMessage, useDeleteMessage, 
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { MessageSquare, Voicemail, FileText, Bell, Search, Filter, MoreHorizontal, MailOpen, Mail, Plus, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CheckCheck, Send } from "lucide-react";
+import { MessageSquare, Voicemail, FileText, Bell, Search, Filter, MoreHorizontal, MailOpen, Mail, Plus, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CheckCheck, Send, Download, Edit, Printer } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import messagingImg from "@/assets/images/messaging-center.png";
 import { EmailComposer } from "@/components/email-composer";
@@ -48,6 +48,7 @@ export default function Messages() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingMessage, setEditingMessage] = useState<any | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
 
@@ -142,18 +143,48 @@ export default function Messages() {
     }
   };
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    createMessage.mutate({ data: values }, {
-      onSuccess: () => {
-        toast({ title: "Message enregistre" });
-        setIsDialogOpen(false);
-        form.reset();
-        queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() });
-      },
-      onError: () => {
-        toast({ title: "Erreur", description: "Impossible d'enregistrer le message", variant: "destructive" });
-      }
+  const handleOpenEdit = (message: any) => {
+    setEditingMessage(message);
+    form.reset({
+      contactId: message.contactId ?? null,
+      phoneNumber: message.phoneNumber,
+      content: message.content,
+      type: message.type,
+      priority: message.priority,
     });
+    setIsDialogOpen(true);
+  };
+
+  const handleOpenCreate = () => {
+    setEditingMessage(null);
+    form.reset({ contactId: null as any, phoneNumber: "", content: "", type: "note", priority: "moyenne" });
+    setIsDialogOpen(true);
+  };
+
+  const onSubmit = (values: z.infer<typeof formSchema>) => {
+    if (editingMessage) {
+      updateMessage.mutate({ id: editingMessage.id, data: values }, {
+        onSuccess: () => {
+          toast({ title: "Message mis a jour" });
+          setIsDialogOpen(false);
+          setEditingMessage(null);
+          queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() });
+        },
+        onError: () => toast({ title: "Erreur", description: "Impossible de mettre a jour", variant: "destructive" }),
+      });
+    } else {
+      createMessage.mutate({ data: values }, {
+        onSuccess: () => {
+          toast({ title: "Message enregistre" });
+          setIsDialogOpen(false);
+          form.reset();
+          queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() });
+        },
+        onError: () => {
+          toast({ title: "Erreur", description: "Impossible d'enregistrer le message", variant: "destructive" });
+        }
+      });
+    }
   };
 
   const getTypeIcon = (type: string) => {
@@ -203,21 +234,25 @@ export default function Messages() {
               </Button>
             </>
           )}
+          <a href={`${(import.meta.env.BASE_URL || "/").replace(/\/$/, "")}/api/messages/export/csv`} download>
+            <Button variant="outline" size="sm"><Download className="w-4 h-4 mr-2" />CSV</Button>
+          </a>
+          <Button variant="outline" size="sm" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
           <Button onClick={() => setIsEmailComposerOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
             <Send className="w-4 h-4" />
             Rediger un e-mail IA
           </Button>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) setEditingMessage(null); }}>
             <DialogTrigger asChild>
-              <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={handleOpenCreate}>
                 <Plus className="w-4 h-4 mr-2" />
                 Nouveau Message
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
-                <DialogTitle>Enregistrer un message</DialogTitle>
-                <DialogDescription>Ajoutez une note, un rappel ou consignez un message vocal.</DialogDescription>
+                <DialogTitle>{editingMessage ? "Modifier le message" : "Enregistrer un message"}</DialogTitle>
+                <DialogDescription>{editingMessage ? "Modifiez les informations du message." : "Ajoutez une note, un rappel ou consignez un message vocal."}</DialogDescription>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -287,7 +322,7 @@ export default function Messages() {
                   <AiValidationFeedback result={aiValidation.result} isValidating={aiValidation.isValidating} />
                   <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => aiValidation.validate(form.getValues())} disabled={aiValidation.isValidating} className="mr-auto">Verifier IA</Button>
-                    <Button type="submit" disabled={createMessage.isPending}>Enregistrer</Button>
+                    <Button type="submit" disabled={createMessage.isPending || updateMessage.isPending}>{editingMessage ? "Mettre a jour" : "Enregistrer"}</Button>
                   </DialogFooter>
                 </form>
               </Form>
@@ -436,6 +471,10 @@ export default function Messages() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => handleOpenEdit(message)}>
+                          <Edit className="w-4 h-4 mr-2" />Modifier
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => handleReadToggle(message.id, !message.isRead)}>
                           {message.isRead ? (
                             <><Mail className="w-4 h-4 mr-2" /> Marquer non lu</>
@@ -443,6 +482,14 @@ export default function Messages() {
                             <><MailOpen className="w-4 h-4 mr-2" /> Marquer lu</>
                           )}
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => {
+                          if (!confirm("Supprimer ce message ?")) return;
+                          deleteMessage.mutate({ id: message.id }, {
+                            onSuccess: () => { toast({ title: "Message supprimé" }); queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() }); },
+                            onError: () => toast({ title: "Erreur", description: "Impossible de supprimer", variant: "destructive" }),
+                          });
+                        }}><Trash2 className="w-4 h-4 mr-2" />Supprimer</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

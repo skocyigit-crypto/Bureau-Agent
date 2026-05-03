@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileText, Calendar, TrendingUp, TrendingDown, Minus, Phone, CheckSquare, MessageSquare, Users, Loader2, RefreshCw, Trash2, ChevronRight, Award, AlertTriangle, Clock, ArrowUp, ArrowDown, BarChart3, Sparkles, Download, Eye } from "lucide-react";
+import { FileText, Calendar, TrendingUp, TrendingDown, Minus, Phone, CheckSquare, MessageSquare, Users, Loader2, RefreshCw, Trash2, ChevronRight, Award, AlertTriangle, Clock, ArrowUp, ArrowDown, BarChart3, Sparkles, Download, Eye, Printer } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -187,6 +187,7 @@ export default function Reports() {
             onChange={(e) => setSelectedDate(e.target.value)}
             className="w-44"
           />
+          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
           <Button onClick={handleGenerate} disabled={generateReport.isPending} className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white">
             {generateReport.isPending ? (
               <>

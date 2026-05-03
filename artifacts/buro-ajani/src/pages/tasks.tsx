@@ -3,7 +3,7 @@ import { useListTasks, useCreateTask, useUpdateTask, useDeleteTask, getListTasks
 import { useQueryClient } from "@tanstack/react-query";
 import { format, isPast, isToday } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CheckSquare, Search, Filter, MoreHorizontal, Plus, Calendar, Clock, AlertCircle, Edit, Users, LayoutList, Columns3, ArrowUpDown, ArrowUp, ArrowDown, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertTriangle, GripVertical } from "lucide-react";
+import { CheckSquare, Search, Filter, MoreHorizontal, Plus, Calendar, Clock, AlertCircle, Edit, Users, LayoutList, Columns3, ArrowUpDown, ArrowUp, ArrowDown, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertTriangle, GripVertical, Repeat, Download, Copy, Printer } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import taskManagementImg from "@/assets/images/task-management.png";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,9 @@ const formSchema = z.object({
   dueDate: z.string().optional().nullable(),
   assignedTo: z.string().optional().nullable(),
   relatedContactId: z.string().transform(v => v === "none" ? null : parseInt(v)).optional().nullable(),
+  isRecurring: z.boolean().optional().default(false),
+  recurrenceRule: z.string().optional().nullable(),
+  recurrenceEndDate: z.string().optional().nullable(),
 });
 
 const KANBAN_COLUMNS = [
@@ -97,6 +100,7 @@ export default function Tasks() {
     defaultValues: {
       title: "", description: "", status: "en_attente", priority: "moyenne",
       dueDate: "", assignedTo: "", relatedContactId: null as any,
+      isRecurring: false, recurrenceRule: "", recurrenceEndDate: "",
     }
   });
 
@@ -134,6 +138,9 @@ export default function Tasks() {
       dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : "",
       assignedTo: task.assignedTo || "",
       relatedContactId: task.relatedContactId?.toString() || "none" as any,
+      isRecurring: task.isRecurring || false,
+      recurrenceRule: task.recurrenceRule || "",
+      recurrenceEndDate: task.recurrenceEndDate ? new Date(task.recurrenceEndDate).toISOString().split('T')[0] : "",
     });
     setIsDialogOpen(true);
   };
@@ -143,6 +150,7 @@ export default function Tasks() {
     form.reset({
       title: "", description: "", status: "en_attente", priority: "moyenne",
       dueDate: "", assignedTo: "", relatedContactId: null as any,
+      isRecurring: false, recurrenceRule: "", recurrenceEndDate: "",
     });
     setIsDialogOpen(true);
   };
@@ -180,6 +188,18 @@ export default function Tasks() {
       },
       onError: () => toast({ title: "Erreur", description: "Impossible de changer le statut", variant: "destructive" }),
     });
+  };
+
+  const handleDuplicate = async (id: number) => {
+    const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+    const res = await fetch(`${BASE}/api/tasks/${id}/duplicate`, { method: "POST", credentials: "include" });
+    if (res.ok) {
+      toast({ title: "Tâche dupliquée" });
+      queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+    } else {
+      const d = await res.json();
+      toast({ title: "Erreur", description: d.error, variant: "destructive" });
+    }
   };
 
   const handleBulkDelete = async () => {
@@ -332,6 +352,45 @@ export default function Tasks() {
                 <FormMessage />
               </FormItem>
             )} />
+            <FormField control={form.control} name="isRecurring" render={({ field }) => (
+              <FormItem className="flex items-center gap-3 rounded-lg border border-border p-3">
+                <Checkbox checked={!!field.value} onCheckedChange={field.onChange} id="recurring-check" />
+                <div>
+                  <FormLabel htmlFor="recurring-check" className="flex items-center gap-2 cursor-pointer mb-0">
+                    <Repeat className="w-3.5 h-3.5 text-muted-foreground" />Tâche récurrente
+                  </FormLabel>
+                  <p className="text-xs text-muted-foreground">Cette tâche se répète automatiquement</p>
+                </div>
+              </FormItem>
+            )} />
+            {form.watch("isRecurring") && (
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="recurrenceRule" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fréquence</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <FormControl><SelectTrigger><SelectValue placeholder="Choisir…" /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="quotidien">Quotidien</SelectItem>
+                        <SelectItem value="hebdomadaire">Hebdomadaire</SelectItem>
+                        <SelectItem value="bihebdomadaire">Bi-hebdomadaire</SelectItem>
+                        <SelectItem value="mensuel">Mensuel</SelectItem>
+                        <SelectItem value="trimestriel">Trimestriel</SelectItem>
+                        <SelectItem value="annuel">Annuel</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="recurrenceEndDate" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fin de récurrence</FormLabel>
+                    <FormControl><Input type="date" {...field} value={field.value || ""} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+            )}
             <AiValidationFeedback result={aiValidation.result} isValidating={aiValidation.isValidating} />
             {editingTask && (editingTask.createdByName || editingTask.updatedByName) && (
               <div className="space-y-1 text-xs text-muted-foreground border-t border-border pt-3">
@@ -368,6 +427,10 @@ export default function Tasks() {
               Supprimer ({selectedIds.size})
             </Button>
           )}
+          <a href={`${(import.meta.env.BASE_URL || "/").replace(/\/$/, "")}/api/tasks/export/csv`} download>
+            <Button variant="outline" size="sm"><Download className="w-4 h-4 mr-2" />CSV</Button>
+          </a>
+          <Button variant="outline" size="sm" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
           <Button onClick={handleOpenCreate} className="bg-primary text-primary-foreground hover:bg-primary/90">
             <Plus className="w-4 h-4 mr-2" />
             Nouvelle Tache
@@ -471,9 +534,12 @@ export default function Tasks() {
                           )}
                           <div className="flex items-center justify-between gap-2">
                             {getDueDateDisplay(task.dueDate, task.status)}
-                            {task.assignedTo && (
-                              <span className="text-xs text-muted-foreground truncate max-w-[80px]">{task.assignedTo}</span>
-                            )}
+                            <div className="flex items-center gap-1">
+                              {(task as any).isRecurring && <span title={(task as any).recurrenceRule || "Récurrent"}><Repeat className="w-3 h-3 text-blue-500" /></span>}
+                              {task.assignedTo && (
+                                <span className="text-xs text-muted-foreground truncate max-w-[80px]">{task.assignedTo}</span>
+                              )}
+                            </div>
                           </div>
                           {contactName && (
                             <div className="text-xs text-primary flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -550,8 +616,9 @@ export default function Tasks() {
                           <Checkbox checked={selectedIds.has(task.id)} onCheckedChange={() => toggleSelect(task.id)} />
                         </TableCell>
                         <TableCell>
-                          <div className={`font-medium ${task.status === 'termine' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                          <div className={`font-medium flex items-center gap-2 ${task.status === 'termine' ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
                             {task.title}
+                            {(task as any).isRecurring && <Repeat className="w-3 h-3 text-blue-500 shrink-0" aria-label={(task as any).recurrenceRule || "Récurrent"} />}
                           </div>
                           <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
                             {task.description && <span className="max-w-xs truncate">{task.description}</span>}
@@ -598,12 +665,23 @@ export default function Tasks() {
                               <DropdownMenuItem onClick={() => handleOpenEdit(task)}>
                                 <Edit className="w-4 h-4 mr-2" /> Editer
                               </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDuplicate(task.id)}>
+                                <Copy className="w-4 h-4 mr-2" /> Dupliquer
+                              </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               {task.status !== 'termine' && (
                                 <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'termine')}>
                                   <CheckSquare className="w-4 h-4 mr-2" /> Marquer terminee
                                 </DropdownMenuItem>
                               )}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => {
+                                if (!confirm("Supprimer cette tâche ?")) return;
+                                deleteTask.mutate({ id: task.id }, {
+                                  onSuccess: () => { toast({ title: "Tâche supprimée" }); queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() }); },
+                                  onError: () => toast({ title: "Erreur", description: "Impossible de supprimer", variant: "destructive" }),
+                                });
+                              }}><Trash2 className="w-4 h-4 mr-2" />Supprimer</DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>

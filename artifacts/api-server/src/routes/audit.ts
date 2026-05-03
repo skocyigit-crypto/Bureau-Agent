@@ -110,6 +110,28 @@ router.get("/audit/stats", async (req: Request, res: Response): Promise<void> =>
   }
 });
 
+router.get("/audit/export/csv", async (req: Request, res: Response): Promise<void> => {
+  const orgId = (req as any).session?.organisationId;
+  try {
+    const rows = await db.select().from(auditLogsTable)
+      .where(orgId ? eq(auditLogsTable.userId, orgId) : undefined as any)
+      .orderBy(desc(auditLogsTable.createdAt)).limit(5000);
+    const escape = (v: any) => { if (v == null) return ""; const s = String(v).replace(/"/g, '""'); return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s; };
+    const headers = ["Date", "Utilisateur", "Action", "Ressource", "ID Ressource", "IP"];
+    const lines = [headers.join(","), ...rows.map(r => [
+      escape(r.createdAt ? new Date(r.createdAt).toLocaleString("fr-FR") : ""),
+      escape(r.userEmail), escape(r.action), escape(r.resource),
+      escape(r.resourceId), escape(r.ipAddress),
+    ].join(","))];
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="audit_${Date.now()}.csv"`);
+    res.send("\uFEFF" + lines.join("\n"));
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur export audit CSV");
+    res.status(500).json({ error: "Erreur lors de l'export." });
+  }
+});
+
 export default router;
 
 export async function logAudit(

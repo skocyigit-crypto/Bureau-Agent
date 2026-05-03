@@ -10,7 +10,7 @@ import { FileUpload } from "@/components/file-upload";
 import {
   FileText, FileSpreadsheet, Image as ImageIcon, File, Download,
   Trash2, Brain, Sparkles, Search, Filter, BarChart3, HardDrive,
-  Upload, Loader2, Eye,
+  Upload, Loader2, Eye, Printer,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -192,6 +192,7 @@ export default function DocumentsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Documents</h1>
           <p className="text-muted-foreground">Gestion centralisee de tous vos fichiers</p>
         </div>
+        <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
       </div>
 
       {stats && (

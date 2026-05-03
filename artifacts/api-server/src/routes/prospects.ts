@@ -163,6 +163,65 @@ router.patch("/prospects/:id", async (req: Request, res: Response): Promise<void
   }
 });
 
+router.get("/prospects/export/csv", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  try {
+    const rows = await db.select().from(prospectsTable).where(eq(prospectsTable.organisationId, orgId)).orderBy(desc(prospectsTable.createdAt));
+    const headers = ["Titre", "Contact", "Entreprise", "Email", "Téléphone", "Étape", "Priorité", "Valeur", "Probabilité", "Source", "Clôture prévue", "Créé le"];
+    const escape = (v: any) => {
+      if (v == null) return "";
+      const s = String(v).replace(/"/g, '""');
+      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s;
+    };
+    const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString("fr-FR") : "";
+    const lines = [headers.join(","), ...rows.map(r => [
+      escape(r.title), escape(r.contactName), escape(r.company), escape(r.email), escape(r.phone),
+      escape(r.stage), escape(r.priority), escape(r.value), escape(r.probability),
+      escape(r.source), escape(fmtDate(r.expectedCloseDate)), escape(fmtDate(r.createdAt)),
+    ].join(","))];
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="prospects_${Date.now()}.csv"`);
+    res.send("\uFEFF" + lines.join("\n"));
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur export prospects CSV");
+    res.status(500).json({ error: "Erreur lors de l'export." });
+  }
+});
+
+router.post("/prospects/:id/convert", requireRole("agent"), async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const id = parseInt(req.params.id as string);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  try {
+    const [prospect] = await db.select().from(prospectsTable)
+      .where(and(eq(prospectsTable.id, id), eq(prospectsTable.organisationId, orgId)));
+    if (!prospect) { res.status(404).json({ error: "Prospect non trouvé." }); return; }
+
+    const nameParts = (prospect.contactName || "").trim().split(" ");
+    const firstName = nameParts[0] || prospect.title || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
+
+    const [contact] = await db.insert(contactsTable).values({
+      organisationId: orgId,
+      firstName,
+      lastName,
+      email: prospect.email || null,
+      phone: prospect.phone || "",
+      company: prospect.company || null,
+      notes: `Converti depuis prospect: ${prospect.title}`,
+      category: "autre",
+    } as any).returning();
+
+    await db.update(prospectsTable).set({ stage: "gagne", updatedAt: new Date() } as any)
+      .where(eq(prospectsTable.id, id));
+
+    res.status(201).json({ contact, message: "Prospect converti en contact avec succès." });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur conversion prospect en contact");
+    res.status(500).json({ error: "Erreur lors de la conversion." });
+  }
+});
+
 router.delete("/prospects/:id", requireRole("administrateur", "super_admin"), async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);

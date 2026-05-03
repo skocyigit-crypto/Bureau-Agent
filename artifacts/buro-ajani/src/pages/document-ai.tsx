@@ -10,7 +10,7 @@ import {
   FileUp, Brain, CheckCircle2, XCircle, AlertTriangle,
   FileText, Users, ListChecks, Loader2, Sparkles, ArrowRight, Eye,
   Upload, Trash2, RefreshCw, Zap, ChevronDown, ChevronUp,
-  MessageSquare,
+  MessageSquare, Printer,
 } from "lucide-react";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -271,12 +271,15 @@ export default function DocumentAiPage() {
             Deposez n'importe quel document — l'IA l'analysera, l'identifiera et le classera automatiquement dans le bon module.
           </p>
         </div>
-        {analysisResult && (
-          <Button variant="outline" onClick={handleReset} className="gap-2">
-            <RefreshCw className="w-4 h-4" />
-            Nouveau document
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+          {analysisResult && (
+            <Button variant="outline" onClick={handleReset} className="gap-2">
+              <RefreshCw className="w-4 h-4" />
+              Nouveau document
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

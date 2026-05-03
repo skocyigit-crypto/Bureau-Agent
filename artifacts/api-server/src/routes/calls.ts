@@ -472,6 +472,34 @@ Reponds UNIQUEMENT en JSON:
   }
 });
 
+router.get("/calls/export/csv", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  try {
+    const rows = await db.select({
+      id: callsTable.id, contactName: callsTable.contactName, phoneNumber: callsTable.phoneNumber,
+      direction: callsTable.direction, status: callsTable.status, duration: callsTable.duration,
+      notes: callsTable.notes, createdAt: callsTable.createdAt,
+    }).from(callsTable).where(eq(callsTable.organisationId, orgId)).orderBy(desc(callsTable.createdAt)).limit(5000);
+    const headers = ["Contact", "Numéro", "Direction", "Statut", "Durée (s)", "Notes", "Date"];
+    const escape = (v: any) => {
+      if (v == null) return "";
+      const s = String(v).replace(/"/g, '""');
+      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s;
+    };
+    const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString("fr-FR") : "";
+    const lines = [headers.join(","), ...rows.map(r => [
+      escape(r.contactName), escape(r.phoneNumber), escape(r.direction),
+      escape(r.status), escape(r.duration), escape(r.notes), escape(fmtDate(r.createdAt)),
+    ].join(","))];
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="appels_${Date.now()}.csv"`);
+    res.send("\uFEFF" + lines.join("\n"));
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur export appels CSV");
+    res.status(500).json({ error: "Erreur lors de l'export." });
+  }
+});
+
 router.delete("/calls/:id", async (req, res): Promise<void> => {
   const params = DeleteCallParams.safeParse(req.params);
   if (!params.success) {

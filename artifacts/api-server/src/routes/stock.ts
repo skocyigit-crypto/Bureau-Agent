@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, desc, asc, ilike, or, sql, and, lte } from "drizzle-orm";
-import { db, stockArticlesTable } from "@workspace/db";
+import { db, stockArticlesTable, stockMouvementsTable } from "@workspace/db";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
 
@@ -158,12 +158,30 @@ router.patch("/stock/:id", async (req: Request, res: Response): Promise<void> =>
   }
 });
 
+router.get("/stock/mouvements", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const { search, type, limit = "30", offset = "0" } = req.query as any;
+  try {
+    const conditions: any[] = [eq(stockMouvementsTable.organisationId, orgId)];
+    if (search) conditions.push(ilike(stockMouvementsTable.articleName, `%${search}%`));
+    if (type && type !== "all") conditions.push(eq(stockMouvementsTable.type, type));
+
+    const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(stockMouvementsTable).where(and(...conditions));
+    const rows = await db.select().from(stockMouvementsTable).where(and(...conditions)).orderBy(desc(stockMouvementsTable.createdAt)).limit(parseInt(limit)).offset(parseInt(offset));
+    res.json({ mouvements: rows, total: count });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur mouvements stock");
+    res.status(500).json({ error: "Erreur lors de la recuperation." });
+  }
+});
+
 router.patch("/stock/:id/adjust", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
+  const userId = (req.session as any)?.userId;
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
-  const { delta } = req.body;
+  const { delta, reason, type = "ajustement" } = req.body;
   if (typeof delta !== "number") { res.status(400).json({ error: "Delta numerique requis." }); return; }
 
   try {
@@ -174,10 +192,63 @@ router.patch("/stock/:id/adjust", async (req: Request, res: Response): Promise<v
     const newStatus = newQty === 0 ? "rupture" : newQty <= existing.minQuantity ? "stock_faible" : "en_stock";
 
     const [row] = await db.update(stockArticlesTable).set({ quantity: newQty, status: newStatus, updatedAt: new Date() }).where(eq(stockArticlesTable.id, id)).returning();
+
+    await db.insert(stockMouvementsTable).values({
+      organisationId: orgId, articleId: id, articleName: existing.name,
+      articleReference: existing.reference, type, delta,
+      quantityBefore: existing.quantity, quantityAfter: newQty,
+      reason: reason || null, userId: userId || null,
+    } as any).catch(() => {});
+
     res.json(row);
   } catch (err: any) {
     req.log.error({ err }, "Erreur ajustement stock");
     res.status(500).json({ error: "Erreur lors de l'ajustement." });
+  }
+});
+
+router.get("/stock/mouvements/export/csv", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  try {
+    const rows = await db.select().from(stockMouvementsTable).where(eq(stockMouvementsTable.organisationId, orgId)).orderBy(desc(stockMouvementsTable.createdAt)).limit(5000);
+    const escape = (v: any) => { if (v == null) return ""; const s = String(v).replace(/"/g, '""'); return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s; };
+    const headers = ["Date", "Article", "Référence", "Type", "Delta", "Qté avant", "Qté après", "Raison"];
+    const lines = [headers.join(","), ...rows.map(r => [
+      escape(r.createdAt ? new Date(r.createdAt).toLocaleString("fr-FR") : ""),
+      escape(r.articleName), escape(r.articleReference), escape(r.type),
+      escape(r.delta), escape(r.quantityBefore), escape(r.quantityAfter), escape(r.reason),
+    ].join(","))];
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="mouvements_stock_${Date.now()}.csv"`);
+    res.send("\uFEFF" + lines.join("\n"));
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur export mouvements stock CSV");
+    res.status(500).json({ error: "Erreur lors de l'export." });
+  }
+});
+
+router.get("/stock/export/csv", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  try {
+    const rows = await db.select().from(stockArticlesTable).where(eq(stockArticlesTable.organisationId, orgId)).orderBy(asc(stockArticlesTable.name));
+    const headers = ["Nom", "Référence", "Description", "Quantité", "Stock min.", "Unité", "Prix unitaire", "Fournisseur", "Emplacement", "Catégorie", "Statut", "Créé le"];
+    const escape = (v: any) => {
+      if (v == null) return "";
+      const s = String(v).replace(/"/g, '""');
+      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s;
+    };
+    const lines = [headers.join(","), ...rows.map(r => [
+      escape(r.name), escape(r.reference), escape(r.description), escape(r.quantity),
+      escape(r.minQuantity), escape(r.unit), escape(r.unitPrice),
+      escape(r.supplier), escape(r.location), escape(r.category), escape(r.status),
+      escape(r.createdAt ? new Date(r.createdAt).toLocaleDateString("fr-FR") : ""),
+    ].join(","))];
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="stock_${Date.now()}.csv"`);
+    res.send("\uFEFF" + lines.join("\n"));
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur export stock CSV");
+    res.status(500).json({ error: "Erreur lors de l'export." });
   }
 });
 

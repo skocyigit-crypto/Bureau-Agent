@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Phone, Plus, Settings, Trash2, Star, Check, MessageSquare, PhoneCall, PhoneOff, Send, RefreshCw, ExternalLink, Shield, Zap, Users, Clock, FileText, CalendarClock } from "lucide-react";
+import { Phone, Plus, Settings, Trash2, Star, Check, MessageSquare, PhoneCall, PhoneOff, Send, RefreshCw, ExternalLink, Shield, Zap, Users, Clock, FileText, CalendarClock, Printer } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -277,12 +277,21 @@ export default function TelephonyPage() {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">Gerez vos fournisseurs telephoniques et passez des appels/SMS</p>
         </div>
-        <button
-          onClick={() => setShowAddForm(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
-        >
-          <Plus className="h-4 w-4" /> Ajouter un fournisseur
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg hover:bg-muted"
+            title="Imprimer"
+          >
+            <Printer className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
+          >
+            <Plus className="h-4 w-4" /> Ajouter un fournisseur
+          </button>
+        </div>
       </div>
 
       {actionResult && (

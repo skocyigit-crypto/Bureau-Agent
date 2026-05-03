@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Icon3D } from "@/components/icon-3d";
-import { Shield, ChevronLeft, ChevronRight, Activity, Users, AlertTriangle, Eye } from "lucide-react";
+import { Shield, ChevronLeft, ChevronRight, Activity, Users, AlertTriangle, Eye, Download, Printer } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -134,6 +134,10 @@ export default function AuditLogPage() {
                   {Object.entries(RESOURCE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
                 </SelectContent>
               </Select>
+              <a href={`${baseUrl}/api/audit/export/csv`} download="journal_audit.csv">
+                <Button variant="outline" size="sm" className="h-8 text-xs gap-1"><Download className="w-3 h-3" />CSV</Button>
+              </a>
+              <Button variant="outline" size="sm" className="h-8" title="Imprimer" onClick={() => window.print()}><Printer className="w-3 h-3" /></Button>
             </div>
           </div>
         </CardHeader>

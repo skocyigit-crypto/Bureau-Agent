@@ -96,6 +96,44 @@ router.post("/contacts", async (req, res): Promise<void> => {
   }
 });
 
+router.post("/contacts/import", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  const userId = (req.session as any)?.userId;
+  const { rows } = req.body;
+  if (!Array.isArray(rows) || rows.length === 0) { res.status(400).json({ error: "Aucune donnée fournie." }); return; }
+  if (rows.length > 500) { res.status(400).json({ error: "Maximum 500 contacts par import." }); return; }
+
+  let imported = 0, skipped = 0;
+  const errors: string[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const firstName = String(row.firstName || row.prenom || row["Prénom"] || row["Prenom"] || "").trim();
+    const lastName = String(row.lastName || row.nom || row["Nom"] || "").trim();
+    if (!firstName && !lastName) { skipped++; errors.push(`Ligne ${i + 2}: prénom et nom vides`); continue; }
+    try {
+      await db.insert(contactsTable).values({
+        organisationId: orgId,
+        createdBy: userId,
+        updatedBy: userId,
+        firstName: firstName || "-",
+        lastName: lastName || "-",
+        email: String(row.email || row.Email || "").trim() || null,
+        phone: String(row.phone || row.telephone || row.Téléphone || row.Tel || "").trim() || null,
+        company: String(row.company || row.entreprise || row.Entreprise || "").trim() || null,
+        notes: String(row.notes || row.Notes || "").trim() || null,
+        category: String(row.category || row.categorie || row.Catégorie || "client").toLowerCase() || "client",
+      } as any);
+      imported++;
+    } catch {
+      skipped++;
+      errors.push(`Ligne ${i + 2}: ${firstName} ${lastName} — doublon ou erreur`);
+    }
+  }
+
+  res.json({ imported, skipped, errors: errors.slice(0, 20) });
+});
+
 router.get("/contacts/:id", async (req, res): Promise<void> => {
   const params = GetContactParams.safeParse(req.params);
   if (!params.success) {
@@ -151,6 +189,30 @@ router.patch("/contacts/:id", async (req, res): Promise<void> => {
   } catch (err: any) {
     req.log.error({ err }, "Erreur mise a jour contact");
     res.status(500).json({ error: "Erreur lors de la mise a jour du contact." });
+  }
+});
+
+router.patch("/contacts/:id/tags", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  const id = parseInt(req.params.id as string);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  const { tags } = req.body;
+  if (!Array.isArray(tags)) { res.status(400).json({ error: "tags doit être un tableau." }); return; }
+
+  try {
+    const [contact] = await db.update(contactsTable)
+      .set({ updatedAt: new Date() } as any)
+      .where(and(eq(contactsTable.id, id), eq(contactsTable.organisationId, orgId)))
+      .returning();
+    if (!contact) { res.status(404).json({ error: "Contact non trouvé." }); return; }
+
+    await db.execute(
+      sql`UPDATE contacts SET tags = ${tags}::text[] WHERE id = ${id} AND organisation_id = ${orgId}`
+    );
+    res.json({ ...contact, tags });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur mise a jour tags contact");
+    res.status(500).json({ error: "Erreur lors de la mise à jour des tags." });
   }
 });
 
@@ -212,6 +274,34 @@ router.get("/contacts/:id/calls", async (req, res): Promise<void> => {
   }
 });
 
+router.get("/contacts/export/csv", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  try {
+    const rows = await db
+      .select()
+      .from(contactsTable)
+      .where(eq(contactsTable.organisationId, orgId))
+      .orderBy(asc(contactsTable.lastName));
+    const headers = ["Prénom", "Nom", "Email", "Téléphone", "Mobile", "Entreprise", "Catégorie", "Adresse", "Notes", "Créé le"];
+    const escape = (v: any) => {
+      if (v == null) return "";
+      const s = String(v).replace(/"/g, '""');
+      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s;
+    };
+    const lines = [headers.join(","), ...rows.map(r => [
+      escape(r.firstName), escape(r.lastName), escape(r.email), escape(r.phone),
+      escape(r.mobile), escape(r.company), escape(r.category), escape(r.address),
+      escape(r.notes), escape(r.createdAt ? new Date(r.createdAt).toLocaleDateString("fr-FR") : ""),
+    ].join(","))];
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="contacts_${Date.now()}.csv"`);
+    res.send("\uFEFF" + lines.join("\n"));
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur export contacts CSV");
+    res.status(500).json({ error: "Erreur lors de l'export." });
+  }
+});
+
 router.get("/contacts/:id/tasks", async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw!, 10);
@@ -233,6 +323,31 @@ router.get("/contacts/:id/tasks", async (req, res): Promise<void> => {
   } catch (err: any) {
     req.log.error({ err }, "Erreur taches contact");
     res.status(500).json({ error: "Erreur lors de la recuperation des taches." });
+  }
+});
+
+router.get("/contacts/:id/devis", async (req, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(raw!, 10);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const orgId = getOrgId(req);
+  try {
+    const contact = await db.select({ email: contactsTable.email, firstName: contactsTable.firstName, lastName: contactsTable.lastName, company: contactsTable.company }).from(contactsTable).where(and(eq(contactsTable.id, id), eq(contactsTable.organisationId, orgId))).limit(1);
+    if (!contact[0]) { res.status(404).json({ error: "Contact not found" }); return; }
+    const name = `${contact[0].firstName} ${contact[0].lastName}`.trim();
+    const { devisTable, facturesClientTable } = await import("@workspace/db");
+    const [devisList, facturesList] = await Promise.all([
+      db.select({ id: devisTable.id, reference: devisTable.reference, status: devisTable.status, totalAmount: devisTable.totalAmount, createdAt: devisTable.createdAt }).from(devisTable)
+        .where(and(eq(devisTable.organisationId, orgId), or(ilike(devisTable.clientEmail, contact[0].email || "__none__"), ilike(devisTable.clientName, `%${name}%`))))
+        .orderBy(desc(devisTable.createdAt)).limit(20),
+      db.select({ id: facturesClientTable.id, reference: facturesClientTable.reference, status: facturesClientTable.status, totalAmount: facturesClientTable.totalAmount, paidAmount: facturesClientTable.paidAmount, createdAt: facturesClientTable.createdAt }).from(facturesClientTable)
+        .where(and(eq(facturesClientTable.organisationId, orgId), or(ilike(facturesClientTable.clientEmail, contact[0].email || "__none__"), ilike(facturesClientTable.clientName, `%${name}%`))))
+        .orderBy(desc(facturesClientTable.createdAt)).limit(20),
+    ]);
+    res.json({ devis: devisList, factures: facturesList });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur devis/factures contact");
+    res.status(500).json({ error: "Erreur lors de la récupération." });
   }
 });
 

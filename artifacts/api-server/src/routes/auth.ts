@@ -571,6 +571,37 @@ router.post("/auth/users/create-and-send", async (req: Request, res: Response): 
   }
 });
 
+router.get("/auth/users/export/csv", async (req: Request, res: Response): Promise<void> => {
+  const userRole = (req.session as any)?.userRole;
+  const organisationId = (req.session as any)?.organisationId;
+  if (userRole !== "super_admin" && userRole !== "administrateur") {
+    res.status(403).json({ error: "Acces interdit." });
+    return;
+  }
+  try {
+    const conditions = [];
+    if (organisationId) conditions.push(eq(usersTable.organisationId, organisationId));
+    const users = await db.select({
+      id: usersTable.id, email: usersTable.email, nom: usersTable.nom,
+      prenom: usersTable.prenom, role: usersTable.role,
+      departement: usersTable.departement, actif: usersTable.actif,
+      createdAt: usersTable.createdAt,
+    }).from(usersTable).where(conditions.length > 0 ? and(...conditions) : undefined);
+
+    const header = "ID,Email,Prenom,Nom,Role,Departement,Actif,Date creation\n";
+    const rows = users.map(u =>
+      [u.id, u.email, u.prenom || "", u.nom || "", u.role, u.departement || "", u.actif ? "oui" : "non",
+        u.createdAt ? new Date(u.createdAt).toLocaleDateString("fr-FR") : ""].map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")
+    ).join("\n");
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="utilisateurs_${Date.now()}.csv"`);
+    res.send("\uFEFF" + header + rows);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur export users CSV");
+    res.status(500).json({ error: "Erreur lors de l'export." });
+  }
+});
+
 router.post("/auth/forgot-password", resetLimiter, async (req: Request, res: Response): Promise<void> => {
   const { email } = req.body;
   if (!email || typeof email !== "string") {

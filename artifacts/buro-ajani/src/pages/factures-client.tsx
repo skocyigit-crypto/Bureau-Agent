@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Receipt, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, RefreshCw, AlertTriangle, CheckCircle2, X } from "lucide-react";
+import { Receipt, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, RefreshCw, AlertTriangle, CheckCircle2, X, Mail, Printer, Download } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -141,6 +141,19 @@ export default function FacturesClientPage() {
     if (res.ok) { toast({ title: "Statut mis a jour" }); load(); }
   };
 
+  const handleSendEmail = async (id: number) => {
+    const res = await fetch(`${BASE}/api/factures-client/${id}/send`, { method: "POST", credentials: "include" });
+    const d = await res.json();
+    if (res.ok) { toast({ title: "Facture envoyée", description: d.message }); load(); }
+    else { toast({ title: "Erreur d'envoi", description: d.error, variant: "destructive" }); }
+  };
+
+  const handleDuplicate = async (id: number) => {
+    const res = await fetch(`${BASE}/api/factures-client/${id}/duplicate`, { method: "POST", credentials: "include" });
+    if (res.ok) { toast({ title: "Facture dupliquée", description: "Une copie brouillon a été créée." }); load(); }
+    else { const d = await res.json(); toast({ title: "Erreur", description: d.error, variant: "destructive" }); }
+  };
+
   const handleDelete = async (id: number) => {
     if (!confirm("Supprimer cette facture ?")) return;
     const res = await fetch(`${BASE}/api/factures-client/${id}`, { method: "DELETE", credentials: "include" });
@@ -178,6 +191,8 @@ export default function FacturesClientPage() {
         </Select>
         <Button variant={overdueOnly ? "default" : "outline"} size="sm" className="gap-1" onClick={() => setOverdueOnly(v => !v)}><AlertTriangle className="w-3 h-3" />En retard</Button>
         <Button variant="ghost" size="icon" onClick={load}><RefreshCw className="w-4 h-4" /></Button>
+        <a href={`${BASE}/api/factures-client/export/csv`} download><Button variant="outline" size="icon" title="Exporter CSV"><Download className="w-4 h-4" /></Button></a>
+        <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
       </div>
 
       <Card>
@@ -214,6 +229,9 @@ export default function FacturesClientPage() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem onClick={() => openEdit(f)}><Edit className="w-3 h-3 mr-2" />Modifier</DropdownMenuItem>
+                          <DropdownMenuItem asChild><a href={`${(import.meta.env.BASE_URL || "/").replace(/\/$/, "")}/factures-client/${f.id}/apercu`} target="_blank" rel="noopener noreferrer" className="flex items-center"><Printer className="w-3 h-3 mr-2" />Aperçu / Imprimer</a></DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDuplicate(f.id)}><Download className="w-3 h-3 mr-2" />Dupliquer</DropdownMenuItem>
+                          {f.clientEmail && <DropdownMenuItem onClick={() => handleSendEmail(f.id)}><Mail className="w-3 h-3 mr-2" />Envoyer par email</DropdownMenuItem>}
                           {!["payee", "annulee"].includes(f.status) && <DropdownMenuItem onClick={() => openPay(f)}><CheckCircle2 className="w-3 h-3 mr-2" />Enregistrer paiement</DropdownMenuItem>}
                           {f.status === "emise" && <DropdownMenuItem onClick={() => handleStatus(f.id, "annulee")}><X className="w-3 h-3 mr-2" />Annuler</DropdownMenuItem>}
                           <DropdownMenuSeparator />

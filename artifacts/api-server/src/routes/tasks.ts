@@ -155,6 +155,59 @@ router.patch("/tasks/:id", async (req, res): Promise<void> => {
   }
 });
 
+router.get("/tasks/export/csv", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  try {
+    const rows = await db.select().from(tasksTable).where(eq(tasksTable.organisationId, orgId)).orderBy(desc(tasksTable.createdAt));
+    const headers = ["Titre", "Statut", "Priorité", "Description", "Date d'échéance", "Récurrent", "Règle", "Créé le"];
+    const escape = (v: any) => {
+      if (v == null) return "";
+      const s = String(v).replace(/"/g, '""');
+      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s;
+    };
+    const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString("fr-FR") : "";
+    const lines = [headers.join(","), ...rows.map(r => [
+      escape(r.title), escape(r.status), escape(r.priority), escape(r.description),
+      escape(fmtDate(r.dueDate)), escape(r.isRecurring ? "Oui" : "Non"),
+      escape(r.recurrenceRule), escape(fmtDate(r.createdAt)),
+    ].join(","))];
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="taches_${Date.now()}.csv"`);
+    res.send("\uFEFF" + lines.join("\n"));
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur export taches CSV");
+    res.status(500).json({ error: "Erreur lors de l'export." });
+  }
+});
+
+router.post("/tasks/:id/duplicate", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  const userId = (req.session as any)?.userId;
+  const id = parseInt(req.params.id as string);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  try {
+    const [orig] = await db.select().from(tasksTable).where(and(eq(tasksTable.id, id), eq(tasksTable.organisationId, orgId)));
+    if (!orig) { res.status(404).json({ error: "Tâche introuvable." }); return; }
+    const [copy] = await db.insert(tasksTable).values({
+      organisationId: orgId,
+      title: `${orig.title} (copie)`,
+      description: orig.description,
+      status: "en_attente",
+      priority: orig.priority,
+      dueDate: orig.dueDate,
+      assignedTo: orig.assignedTo,
+      relatedContactId: orig.relatedContactId,
+      relatedCallId: orig.relatedCallId,
+      createdBy: userId,
+      updatedBy: userId,
+    }).returning();
+    res.status(201).json(copy);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur duplication tache");
+    res.status(500).json({ error: "Erreur lors de la duplication." });
+  }
+});
+
 router.delete("/tasks/:id", async (req, res): Promise<void> => {
   const params = DeleteTaskParams.safeParse(req.params);
   if (!params.success) {

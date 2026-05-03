@@ -3,7 +3,7 @@ import { useListCalls, useCreateCall, useUpdateCall, useDeleteCall, getListCalls
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Search, Filter, MoreHorizontal, Check, Clock, Voicemail, Plus, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CalendarIcon } from "lucide-react";
+import { Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Search, Filter, MoreHorizontal, Check, Clock, Voicemail, Plus, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CalendarIcon, Printer, Edit } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import callCenterImg from "@/assets/images/call-center.png";
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,7 @@ export default function Calls() {
   const [sortOrder, setSortOrder] = useState<string>("desc");
   const [page, setPage] = useState(0);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingCall, setEditingCall] = useState<any | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -169,33 +170,53 @@ export default function Calls() {
   };
 
   const exportCSV = () => {
-    if (!data?.calls) return;
-    const headers = ["ID", "Contact", "Numero", "Direction", "Statut", "Duree (s)", "Sentiment", "Date"];
-    const rows = data.calls.map(c => [
-      c.id, c.contactName || "Inconnu", c.phoneNumber, c.direction, c.status,
-      c.duration, c.sentiment || "", format(new Date(c.createdAt), "dd/MM/yyyy HH:mm")
-    ]);
-    const csv = [headers, ...rows].map(r => r.join(";")).join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
+    const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
     const a = document.createElement("a");
-    a.href = url; a.download = `appels_${format(new Date(), "yyyyMMdd")}.csv`; a.click();
-    URL.revokeObjectURL(url);
+    a.href = `${BASE}/api/calls/export/csv`;
+    a.download = `appels_${format(new Date(), "yyyyMMdd")}.csv`;
+    a.click();
+  };
+
+  const openEditCall = (call: any) => {
+    setEditingCall(call);
+    form.reset({
+      contactId: call.contactId ? String(call.contactId) : "none" as any,
+      phoneNumber: call.phoneNumber || "",
+      direction: call.direction || "entrant",
+      status: call.status || "repondu",
+      duration: call.duration || 0,
+      notes: call.notes || "",
+      sentiment: call.sentiment || "none" as any,
+    });
+    setIsDialogOpen(true);
   };
 
   const onSubmit = (values: any) => {
-    createCall.mutate({ data: values }, {
-      onSuccess: (newCall) => {
-        toast({ title: "Appel enregistre" });
-        setIsDialogOpen(false);
-        form.reset();
-        queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() });
-        setLocation(`/appels/${newCall.id}`);
-      },
-      onError: () => {
-        toast({ title: "Erreur", description: "Impossible d'enregistrer l'appel", variant: "destructive" });
-      }
-    });
+    if (editingCall) {
+      updateCall.mutate({ id: editingCall.id, data: values }, {
+        onSuccess: () => {
+          toast({ title: "Appel mis a jour" });
+          setIsDialogOpen(false);
+          setEditingCall(null);
+          form.reset();
+          queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() });
+        },
+        onError: () => toast({ title: "Erreur", description: "Impossible de modifier l'appel", variant: "destructive" }),
+      });
+    } else {
+      createCall.mutate({ data: values }, {
+        onSuccess: (newCall) => {
+          toast({ title: "Appel enregistre" });
+          setIsDialogOpen(false);
+          form.reset();
+          queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() });
+          setLocation(`/appels/${newCall.id}`);
+        },
+        onError: () => {
+          toast({ title: "Erreur", description: "Impossible d'enregistrer l'appel", variant: "destructive" });
+        }
+      });
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -252,7 +273,10 @@ export default function Calls() {
             <Download className="w-4 h-4 mr-2" />
             Exporter CSV
           </Button>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Button variant="outline" size="sm" title="Imprimer" onClick={() => window.print()}>
+            <Printer className="w-4 h-4" />
+          </Button>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) { setEditingCall(null); form.reset(); } }}>
             <DialogTrigger asChild>
               <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
                 <Plus className="w-4 h-4 mr-2" />
@@ -261,8 +285,8 @@ export default function Calls() {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
-                <DialogTitle>Enregistrer un appel</DialogTitle>
-                <DialogDescription>Saisissez les details de la communication.</DialogDescription>
+                <DialogTitle>{editingCall ? "Modifier l'appel" : "Enregistrer un appel"}</DialogTitle>
+                <DialogDescription>{editingCall ? "Modifiez les informations de l'appel." : "Saisissez les details de la communication."}</DialogDescription>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -360,7 +384,7 @@ export default function Calls() {
                     >
                       Verifier IA
                     </Button>
-                    <Button type="submit" disabled={createCall.isPending}>Enregistrer l'appel</Button>
+                    <Button type="submit" disabled={createCall.isPending || updateCall.isPending}>{editingCall ? "Mettre a jour" : "Enregistrer l'appel"}</Button>
                   </DialogFooter>
                 </form>
               </Form>
@@ -528,10 +552,19 @@ export default function Calls() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem asChild><Link href={`/appels/${call.id}`}>Voir les details</Link></DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEditCall(call); }}>Modifier</DropdownMenuItem>
                         {call.contactId && <DropdownMenuItem asChild><Link href={`/contacts/${call.contactId}`}>Aller au contact</Link></DropdownMenuItem>}
                         <DropdownMenuSeparator />
                         {call.status !== 'repondu' && <DropdownMenuItem onClick={() => handleStatusChange(call.id, 'repondu')}>Marquer comme repondu</DropdownMenuItem>}
                         {call.status !== 'messagerie' && <DropdownMenuItem onClick={() => handleStatusChange(call.id, 'messagerie')}>Marquer comme messagerie</DropdownMenuItem>}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={async (e) => {
+                          e.stopPropagation();
+                          if (!confirm("Supprimer cet appel ?")) return;
+                          const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+                          const res = await fetch(`${base}/api/calls/${call.id}`, { method: "DELETE", credentials: "include" });
+                          if (res.ok) { toast({ title: "Appel supprimé" }); queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() }); }
+                        }}><Trash2 className="w-4 h-4 mr-2" />Supprimer</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

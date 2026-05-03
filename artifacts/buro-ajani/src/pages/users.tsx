@@ -3,7 +3,7 @@ import {
   Users, UserPlus, Crown, ShieldCheck, Eye, Trash2, MoreHorizontal,
   Mail, Clock, CheckCircle2, XCircle, AlertTriangle, Search,
   Lock, Unlock, Edit, UserCog, Phone,
-  Loader2, ShieldAlert, RefreshCw, Send, LockKeyhole, MailPlus, RotateCcw, Ban
+  Loader2, ShieldAlert, RefreshCw, Send, LockKeyhole, MailPlus, RotateCcw, Ban, Download, Printer
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -387,6 +387,10 @@ export default function UsersPage() {
             <RefreshCw className="w-4 h-4" />
             <span className="hidden sm:inline">Actualiser</span>
           </Button>
+          <a href={`${BASE}api/auth/users/export/csv`} download="utilisateurs.csv">
+            <Button variant="outline" size="sm" title="Exporter CSV"><Download className="w-4 h-4" /></Button>
+          </a>
+          <Button variant="outline" size="sm" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
           <Button variant="outline" size="sm" className="gap-2 border-amber-200 text-amber-700 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-400 dark:hover:bg-amber-950/30" onClick={() => siegesRestants > 0 ? setShowInvite(true) : toast({ title: "Limite atteinte", description: "Nombre maximum d'utilisateurs atteint.", variant: "destructive" })}>
             <MailPlus className="w-4 h-4" />
             Inviter par email

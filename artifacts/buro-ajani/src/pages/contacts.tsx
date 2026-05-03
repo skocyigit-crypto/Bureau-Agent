@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { useListContacts, useCreateContact, useDeleteContact, getListContactsQueryKey } from "@workspace/api-client-react";
+import { useListContacts, useCreateContact, useUpdateContact, useDeleteContact, getListContactsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Users, Search, Filter, MoreHorizontal, Phone, Mail, Building, Plus, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, LayoutGrid, LayoutList } from "lucide-react";
+import { Users, Search, Filter, MoreHorizontal, Phone, Mail, Building, Plus, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, LayoutGrid, LayoutList, Upload, Printer, Edit } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import receptionImg from "@/assets/images/reception-desk.png";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { AiValidationFeedback } from "@/components/ai-validation-feedback";
 import { useAiValidation } from "@/hooks/use-ai-validation";
 import { QueryErrorAlert } from "@/components/safe-component";
+import { EmailComposer } from "@/components/email-composer";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -52,6 +53,9 @@ export default function Contacts() {
   const [page, setPage] = useState(0);
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState<any | null>(null);
+  const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
+  const [emailComposerContactId, setEmailComposerContactId] = useState<number | undefined>(undefined);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
@@ -86,6 +90,7 @@ export default function Contacts() {
   });
 
   const createContact = useCreateContact();
+  const updateContact = useUpdateContact();
   const deleteContact = useDeleteContact();
   const aiValidation = useAiValidation("contact");
 
@@ -149,32 +154,55 @@ export default function Contacts() {
   };
 
   const exportCSV = () => {
-    if (!data?.contacts) return;
-    const headers = ["Prenom", "Nom", "Entreprise", "Telephone", "Email", "Categorie", "Total Appels"];
-    const rows = data.contacts.map(c => [
-      c.firstName, c.lastName, c.company || "", c.phone, c.email || "", c.category, c.totalCalls
-    ]);
-    const csv = [headers, ...rows].map(r => r.join(";")).join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
+    const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
     const a = document.createElement("a");
-    a.href = url; a.download = `contacts_${format(new Date(), "yyyyMMdd")}.csv`; a.click();
-    URL.revokeObjectURL(url);
+    a.href = `${BASE}/api/contacts/export/csv`;
+    a.download = `contacts_${format(new Date(), "yyyyMMdd")}.csv`;
+    a.click();
+  };
+
+  const openEdit = (contact: any) => {
+    setEditingContact(contact);
+    form.reset({
+      firstName: contact.firstName || "",
+      lastName: contact.lastName || "",
+      company: contact.company || "",
+      email: contact.email || "",
+      phone: contact.phone || "",
+      mobile: contact.mobile || "",
+      category: contact.category || "client",
+      address: contact.address || "",
+      notes: contact.notes || "",
+    });
+    setIsDialogOpen(true);
   };
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    createContact.mutate({ data: values }, {
-      onSuccess: (newContact) => {
-        toast({ title: "Contact cree avec succes" });
-        setIsDialogOpen(false);
-        form.reset();
-        queryClient.invalidateQueries({ queryKey: getListContactsQueryKey() });
-        setLocation(`/contacts/${newContact.id}`);
-      },
-      onError: () => {
-        toast({ title: "Erreur", description: "Impossible de creer le contact", variant: "destructive" });
-      }
-    });
+    if (editingContact) {
+      updateContact.mutate({ id: editingContact.id, data: values }, {
+        onSuccess: () => {
+          toast({ title: "Contact mis a jour" });
+          setIsDialogOpen(false);
+          setEditingContact(null);
+          form.reset();
+          queryClient.invalidateQueries({ queryKey: getListContactsQueryKey() });
+        },
+        onError: () => toast({ title: "Erreur", description: "Impossible de modifier le contact", variant: "destructive" }),
+      });
+    } else {
+      createContact.mutate({ data: values }, {
+        onSuccess: (newContact) => {
+          toast({ title: "Contact cree avec succes" });
+          setIsDialogOpen(false);
+          form.reset();
+          queryClient.invalidateQueries({ queryKey: getListContactsQueryKey() });
+          setLocation(`/contacts/${newContact.id}`);
+        },
+        onError: () => {
+          toast({ title: "Erreur", description: "Impossible de creer le contact", variant: "destructive" });
+        }
+      });
+    }
   };
 
   const getCategoryBadge = (category: string) => {
@@ -205,7 +233,16 @@ export default function Contacts() {
             <Download className="w-4 h-4 mr-2" />
             Exporter CSV
           </Button>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Button variant="outline" size="sm" title="Imprimer" onClick={() => window.print()}>
+            <Printer className="w-4 h-4" />
+          </Button>
+          <Link href="/contacts/import">
+            <Button variant="outline" size="sm">
+              <Upload className="w-4 h-4 mr-2" />
+              Importer CSV
+            </Button>
+          </Link>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (!open) { setEditingContact(null); form.reset(); } }}>
             <DialogTrigger asChild>
               <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
                 <Plus className="w-4 h-4 mr-2" />
@@ -214,8 +251,8 @@ export default function Contacts() {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px]">
               <DialogHeader>
-                <DialogTitle>Nouveau contact</DialogTitle>
-                <DialogDescription>Ajouter une personne a l'annuaire.</DialogDescription>
+                <DialogTitle>{editingContact ? "Modifier le contact" : "Nouveau contact"}</DialogTitle>
+                <DialogDescription>{editingContact ? "Modifiez les informations du contact." : "Ajouter une personne a l'annuaire."}</DialogDescription>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -259,7 +296,7 @@ export default function Contacts() {
                   <AiValidationFeedback result={aiValidation.result} isValidating={aiValidation.isValidating} />
                   <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => aiValidation.validate(form.getValues())} disabled={aiValidation.isValidating} className="mr-auto">Verifier IA</Button>
-                    <Button type="submit" disabled={createContact.isPending}>Creer le contact</Button>
+                    <Button type="submit" disabled={createContact.isPending || updateContact.isPending}>{editingContact ? "Mettre a jour" : "Creer le contact"}</Button>
                   </DialogFooter>
                 </form>
               </Form>
@@ -409,6 +446,18 @@ export default function Contacts() {
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuItem asChild><Link href={`/contacts/${contact.id}`}>Voir le profil</Link></DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEdit(contact); }}><Edit className="w-3 h-3 mr-2" />Modifier</DropdownMenuItem>
+                          {contact.phone && <DropdownMenuItem onClick={() => setLocation(`/appels?phone=${encodeURIComponent(contact.phone)}`)}><Phone className="w-3 h-3 mr-2" />Appeler</DropdownMenuItem>}
+                          {contact.email && <DropdownMenuItem onClick={() => { setEmailComposerContactId(contact.id); setIsEmailComposerOpen(true); }}><Mail className="w-3 h-3 mr-2" />Envoyer email</DropdownMenuItem>}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={(e) => {
+                            e.stopPropagation();
+                            if (!confirm(`Supprimer le contact ${contact.firstName} ${contact.lastName} ?`)) return;
+                            deleteContact.mutate({ id: contact.id }, {
+                              onSuccess: () => { toast({ title: "Contact supprimé" }); queryClient.invalidateQueries({ queryKey: getListContactsQueryKey() }); },
+                              onError: () => toast({ title: "Erreur", description: "Impossible de supprimer", variant: "destructive" }),
+                            });
+                          }}><Trash2 className="w-3 h-3 mr-2" />Supprimer</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -460,6 +509,12 @@ export default function Contacts() {
       )}
 
       <AiSuggestionsCard page="contacts" title="Recommandations IA - Contacts" compact />
+
+      <EmailComposer
+        isOpen={isEmailComposerOpen}
+        onClose={() => { setIsEmailComposerOpen(false); setEmailComposerContactId(undefined); }}
+        preselectedContactId={emailComposerContactId}
+      />
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">

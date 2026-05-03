@@ -3,7 +3,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Zap, PlayCircle, PauseCircle, Clock, CheckCircle, AlertTriangle, Activity,
   BarChart3, RefreshCw, Settings2, Bot, CalendarClock, Mail, Phone, Users,
-  FileText, TrendingUp, Loader2, Plus, Trash2, Bell, MessageSquare, ClipboardList,
+  FileText, TrendingUp, Loader2, Plus, Trash2, Bell, MessageSquare, ClipboardList, Copy, Pencil, Download,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -179,6 +179,81 @@ function ActionEditor({ action, index, onChange, onRemove }: {
   );
 }
 
+function EditRuleDialog({ rule, onSaved, onClose }: { rule: any; onSaved: () => void; onClose: () => void }) {
+  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<{ name: string; description: string; schedule: string }>({
+    name: rule.name || "",
+    description: rule.description || "",
+    schedule: rule.schedule || "1h",
+  });
+
+  async function submit() {
+    if (!form.name.trim()) { toast({ title: "Nom requis", variant: "destructive" }); return; }
+    setSaving(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/automations/${rule.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: form.name.trim(), description: form.description.trim(), schedule: form.schedule }),
+      });
+      if (!res.ok) throw new Error("Erreur serveur");
+      toast({ title: "Regle mise a jour" });
+      onSaved();
+      onClose();
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de modifier la regle", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Pencil className="w-5 h-5 text-primary" /> Modifier la regle
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div>
+            <Label>Nom de la regle <span className="text-red-500">*</span></Label>
+            <Input className="mt-1" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+          </div>
+          <div>
+            <Label>Description</Label>
+            <Input className="mt-1" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+          </div>
+          <div>
+            <Label>Frequence d'execution</Label>
+            <Select value={form.schedule} onValueChange={v => setForm(f => ({ ...f, schedule: v }))}>
+              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5min">Toutes les 5 min</SelectItem>
+                <SelectItem value="15min">Toutes les 15 min</SelectItem>
+                <SelectItem value="30min">Toutes les 30 min</SelectItem>
+                <SelectItem value="1h">Toutes les heures</SelectItem>
+                <SelectItem value="6h">Toutes les 6h</SelectItem>
+                <SelectItem value="12h">Toutes les 12h</SelectItem>
+                <SelectItem value="24h">Une fois par jour</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Annuler</Button>
+          <Button onClick={submit} disabled={saving} className="gap-1.5">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pencil className="w-4 h-4" />}
+            Enregistrer
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function CreateRuleDialog({ onCreated }: { onCreated: () => void }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -347,6 +422,7 @@ export default function AutomationsPage() {
   const [logs, setLogs] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [editingRule, setEditingRule] = useState<any>(null);
 
   async function fetchData() {
     setLoading(true);
@@ -446,6 +522,9 @@ export default function AutomationsPage() {
           <Button onClick={fetchData} variant="outline" size="sm">
             <RefreshCw className="w-4 h-4 mr-2" /> Actualiser
           </Button>
+          <a href={`${baseUrl}/api/automations/export/csv`} download="automations.csv">
+            <Button variant="outline" size="sm" title="Exporter CSV"><Download className="w-4 h-4" /></Button>
+          </a>
           <CreateRuleDialog onCreated={fetchData} />
         </div>
       </div>
@@ -604,6 +683,15 @@ export default function AutomationsPage() {
                         {rule.enabled ? <PauseCircle className="w-3 h-3 mr-1" /> : <PlayCircle className="w-3 h-3 mr-1" />}
                         {rule.enabled ? "Suspendre" : "Activer"}
                       </Button>
+                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" title="Modifier" onClick={() => setEditingRule(rule)}>
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" title="Dupliquer" onClick={async () => {
+                        const res = await fetch(`${baseUrl}/api/automations/${rule.id}/duplicate`, { method: "POST", credentials: "include" });
+                        if (res.ok) { toast({ title: "Automation dupliquée" }); fetchData(); }
+                      }}>
+                        <Copy className="w-3.5 h-3.5" />
+                      </Button>
                       <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10" onClick={() => deleteRule(rule.id, rule.name)}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
@@ -659,6 +747,10 @@ export default function AutomationsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {editingRule && (
+        <EditRuleDialog rule={editingRule} onSaved={fetchData} onClose={() => setEditingRule(null)} />
+      )}
     </div>
   );
 }

@@ -18,7 +18,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Phone, PhoneIncoming, PhoneMissed, Voicemail, TrendingUp, TrendingDown,
   BarChart3, Clock, Target, AlertTriangle, CheckCircle2, Sparkles, Loader2,
-  ArrowUpRight, ArrowDownRight, Activity, Zap, Shield, Brain
+  ArrowUpRight, ArrowDownRight, Activity, Zap, Shield, Brain, Printer, Download
 } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL ?? "/";
@@ -128,6 +128,9 @@ export default function Analytics() {
           <p className="text-muted-foreground mt-1">Statistiques detaillees et performances du secretariat.</p>
         </div>
         <div className="flex items-center gap-3">
+          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}>
+            <Printer className="h-4 w-4" />
+          </Button>
           <Button
             onClick={requestAIAnalysis}
             disabled={aiLoading}

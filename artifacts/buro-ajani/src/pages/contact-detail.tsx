@@ -3,8 +3,8 @@ import { useGetContact, useGetContactCalls, useGetContactTasks, getGetContactQue
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { useState, useEffect, useRef } from "react";
-import { Phone, Mail, Building, MapPin, Calendar, Clock, Edit, FileText, Plus, PhoneCall, ArrowLeft, MoreHorizontal, Voicemail, PhoneMissed, CheckSquare, AlertCircle, Send } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Phone, Mail, Building, MapPin, Calendar, Clock, Edit, FileText, Plus, PhoneCall, ArrowLeft, MoreHorizontal, Voicemail, PhoneMissed, CheckSquare, AlertCircle, Send, Tag, X, Receipt, Euro, Save } from "lucide-react";
 import { EmailComposer } from "@/components/email-composer";
 import { DocumentsPanel } from "@/components/file-upload";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,16 @@ export default function ContactDetail() {
   const [, navigate] = useLocation();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
+  const [isSavingTags, setIsSavingTags] = useState(false);
+  const [devisData, setDevisData] = useState<{ devis: any[], factures: any[] } | null>(null);
+  const [isDevisLoading, setIsDevisLoading] = useState(false);
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [notesValue, setNotesValue] = useState("");
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
   const aiValidation = useAiValidation("contact");
+  const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
   const { data: contact, isLoading: isContactLoading } = useGetContact(contactId, {
     query: { enabled: !!contactId, queryKey: getGetContactQueryKey(contactId) }
@@ -76,7 +85,21 @@ export default function ContactDetail() {
     }
   });
 
+  const loadDevisData = useCallback(async () => {
+    if (!contactId) return;
+    setIsDevisLoading(true);
+    try {
+      const res = await fetch(`${BASE}/api/contacts/${contactId}/devis`, { credentials: "include" });
+      if (res.ok) setDevisData(await res.json());
+    } catch {}
+    finally { setIsDevisLoading(false); }
+  }, [contactId, BASE]);
+
   const formInitialized = useRef(false);
+  useEffect(() => {
+    if (contactId) loadDevisData();
+  }, [contactId, loadDevisData]);
+
   useEffect(() => {
     if (contact && !formInitialized.current) {
       form.reset({
@@ -91,8 +114,38 @@ export default function ContactDetail() {
         notes: contact.notes || "",
       });
       formInitialized.current = true;
+      if ((contact as any).tags) setTags((contact as any).tags as string[]);
     }
   }, [contact, form]);
+
+  const saveTags = async (newTags: string[]) => {
+    setIsSavingTags(true);
+    try {
+      await fetch(`${BASE}/api/contacts/${contactId}/tags`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tags: newTags }),
+      });
+      queryClient.invalidateQueries({ queryKey: getGetContactQueryKey(contactId) });
+    } finally {
+      setIsSavingTags(false);
+    }
+  };
+
+  const addTag = () => {
+    const t = tagInput.trim();
+    if (!t || tags.includes(t)) { setTagInput(""); return; }
+    const next = [...tags, t];
+    setTags(next);
+    setTagInput("");
+    saveTags(next);
+  };
+
+  const removeTag = (tag: string) => {
+    const next = tags.filter(t => t !== tag);
+    setTags(next);
+    saveTags(next);
+  };
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     updateContact.mutate({ id: contactId, data: values }, {
@@ -288,14 +341,43 @@ export default function ContactDetail() {
             </CardContent>
           </Card>
 
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2"><Tag className="w-4 h-4 text-muted-foreground" />Étiquettes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-1.5 mb-3 min-h-[28px]">
+                {tags.length === 0 && <span className="text-xs text-muted-foreground italic">Aucune étiquette</span>}
+                {tags.map(tag => (
+                  <span key={tag} className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full border border-primary/20">
+                    {tag}
+                    <button onClick={() => removeTag(tag)} disabled={isSavingTags} className="hover:text-destructive transition-colors"><X className="w-3 h-3" /></button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-1.5">
+                <input
+                  className="flex-1 text-xs border border-input rounded-md px-2 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                  placeholder="Ajouter une étiquette..."
+                  value={tagInput}
+                  onChange={e => setTagInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
+                  disabled={isSavingTags}
+                />
+                <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={addTag} disabled={!tagInput.trim() || isSavingTags}>+</Button>
+              </div>
+            </CardContent>
+          </Card>
+
           <DocumentsPanel entityType="contact" entityId={contact.id} />
         </div>
 
         <div className="md:col-span-2">
           <Tabs defaultValue="calls">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="calls">Historique des appels</TabsTrigger>
-              <TabsTrigger value="tasks">Tâches liées</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="calls">Appels</TabsTrigger>
+              <TabsTrigger value="tasks">Tâches</TabsTrigger>
+              <TabsTrigger value="documents">Devis & Factures</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
             </TabsList>
             
@@ -377,19 +459,107 @@ export default function ContactDetail() {
               </Card>
             </TabsContent>
 
+            <TabsContent value="documents" className="mt-4">
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-3">
+                    <div><CardTitle className="flex items-center gap-2"><FileText className="w-4 h-4 text-blue-500" />Devis</CardTitle></div>
+                    <Button variant="outline" size="sm" onClick={() => navigate(`/devis?clientName=${encodeURIComponent(contact.firstName + " " + contact.lastName)}`)}>
+                      <Plus className="w-4 h-4 mr-1" />Nouveau
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    {isDevisLoading ? <Skeleton className="h-20 w-full" /> : devisData?.devis && devisData.devis.length > 0 ? (
+                      <div className="space-y-2">
+                        {devisData.devis.map((d: any) => (
+                          <div key={d.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs text-muted-foreground">{d.reference}</span>
+                              <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${d.status === 'accepte' ? 'bg-green-100 text-green-700' : d.status === 'refuse' ? 'bg-red-100 text-red-700' : d.status === 'envoye' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>{d.status}</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="font-semibold text-emerald-600">{Number(d.totalAmount || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €</span>
+                              <span className="text-muted-foreground text-xs">{d.createdAt ? format(new Date(d.createdAt), "dd/MM/yy") : ""}</span>
+                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigate(`/devis`)}><ArrowLeft className="w-3 h-3 rotate-180" /></Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : <div className="text-center py-6 text-muted-foreground text-sm italic">Aucun devis.</div>}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-3">
+                    <div><CardTitle className="flex items-center gap-2"><Receipt className="w-4 h-4 text-purple-500" />Factures</CardTitle></div>
+                    <Button variant="outline" size="sm" onClick={() => navigate(`/factures-client`)}>
+                      <Plus className="w-4 h-4 mr-1" />Nouvelle
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    {isDevisLoading ? <Skeleton className="h-20 w-full" /> : devisData?.factures && devisData.factures.length > 0 ? (
+                      <div className="space-y-2">
+                        {devisData.factures.map((f: any) => (
+                          <div key={f.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs text-muted-foreground">{f.reference}</span>
+                              <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${f.status === 'payee' ? 'bg-green-100 text-green-700' : f.status === 'annulee' ? 'bg-red-100 text-red-700' : f.status === 'envoyee' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>{f.status}</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="font-semibold text-purple-600">{Number(f.totalAmount || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €</span>
+                              {Number(f.paidAmount) > 0 && <span className="text-xs text-emerald-600">(payé: {Number(f.paidAmount).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €)</span>}
+                              <span className="text-muted-foreground text-xs">{f.createdAt ? format(new Date(f.createdAt), "dd/MM/yy") : ""}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : <div className="text-center py-6 text-muted-foreground text-sm italic">Aucune facture.</div>}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+
             <TabsContent value="notes" className="mt-4">
               <Card>
-                <CardHeader>
-                  <CardTitle>Notes générales</CardTitle>
-                  <CardDescription>Informations supplémentaires sur le contact</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between pb-3">
+                  <div>
+                    <CardTitle>Notes générales</CardTitle>
+                    <CardDescription>Informations supplémentaires sur le contact</CardDescription>
+                  </div>
+                  {!isEditingNotes ? (
+                    <Button variant="outline" size="sm" onClick={() => { setNotesValue(contact.notes || ""); setIsEditingNotes(true); }}>
+                      <Edit className="w-3.5 h-3.5 mr-1" />Modifier
+                    </Button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setIsEditingNotes(false)}>Annuler</Button>
+                      <Button size="sm" disabled={isSavingNotes} onClick={async () => {
+                        setIsSavingNotes(true);
+                        try {
+                          await updateContact.mutateAsync({ id: contactId, data: { notes: notesValue } });
+                          queryClient.invalidateQueries({ queryKey: getGetContactQueryKey(contactId) });
+                          setIsEditingNotes(false);
+                        } finally { setIsSavingNotes(false); }
+                      }}>
+                        <Save className="w-3.5 h-3.5 mr-1" />{isSavingNotes ? "Enregistrement..." : "Enregistrer"}
+                      </Button>
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent>
-                  {contact.notes ? (
+                  {isEditingNotes ? (
+                    <Textarea
+                      className="resize-none min-h-[160px] text-sm"
+                      value={notesValue}
+                      onChange={e => setNotesValue(e.target.value)}
+                      placeholder="Entrez des notes sur ce contact..."
+                    />
+                  ) : contact.notes ? (
                     <div className="p-4 bg-muted/50 rounded-lg whitespace-pre-wrap text-sm border border-border">
                       {contact.notes}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-muted-foreground italic">Aucune note.</div>
+                    <div className="text-center py-8 text-muted-foreground italic">Aucune note. Cliquez sur Modifier pour en ajouter.</div>
                   )}
                 </CardContent>
               </Card>

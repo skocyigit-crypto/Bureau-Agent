@@ -4,7 +4,7 @@ import {
   Play, Loader2, AlertCircle, AlertTriangle, Lightbulb, CheckCircle2, RefreshCw,
   ChevronDown, ChevronUp, Zap, Target, ArrowRight, Power, PowerOff,
   Activity, BarChart3, FileText, Rocket, Eye, Wrench, MessageSquare, Cpu,
-  HeartPulse, Radar, Sparkles, CircleDot, Receipt, Package, UserCog
+  HeartPulse, Radar, Sparkles, CircleDot, Receipt, Package, UserCog, Printer
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -553,6 +553,7 @@ export default function AiAgentsPage() {
               Auto-correction
             </Button>
           )}
+          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
           {canRunAgents ? (
             <Button onClick={handleRunAll} disabled={isRunning || runAll.isPending} className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700">
               {isRunning || runAll.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}

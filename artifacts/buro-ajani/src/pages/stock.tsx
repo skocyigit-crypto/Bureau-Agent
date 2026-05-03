@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Package, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, AlertTriangle, RefreshCw, Minus, ArrowUp } from "lucide-react";
+import { Package, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, AlertTriangle, RefreshCw, Minus, ArrowUp, Download, History, Printer } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import { Link } from "wouter";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 const PAGE_SIZE = 20;
@@ -132,7 +133,12 @@ export default function StockPage() {
           </h1>
           <p className="text-muted-foreground">Inventaire, suivi des niveaux et alertes de rupture.</p>
         </div>
-        <Button onClick={openCreate} className="gap-2"><Plus className="w-4 h-4" /> Nouvel article</Button>
+        <div className="flex gap-2">
+          <a href={`${BASE}/api/stock/export/csv`} download><Button variant="outline" size="sm" className="gap-2"><Download className="w-4 h-4" />CSV</Button></a>
+          <Button variant="outline" size="sm" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+          <Link href="/stock/mouvements"><Button variant="outline" size="sm" className="gap-2"><History className="w-4 h-4" />Mouvements</Button></Link>
+          <Button onClick={openCreate} className="gap-2"><Plus className="w-4 h-4" /> Nouvel article</Button>
+        </div>
       </div>
 
       {stats && (

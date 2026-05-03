@@ -55,6 +55,11 @@ import prospectsRouter from "./prospects";
 import stockRouter from "./stock";
 import devisRouter from "./devis";
 import facturesClientRouter from "./factures-client";
+import rapportCommercialRouter from "./rapport-commercial";
+import commandesFournisseurRouter from "./commandes-fournisseur";
+import clientsRouter from "./clients";
+import objectifsCommerciauxRouter from "./objectifs-commerciaux";
+import notesInternesRouter from "./notes-internes";
 
 const router: IRouter = Router();
 
@@ -120,5 +125,10 @@ router.use(prospectsRouter);
 router.use(stockRouter);
 router.use(devisRouter);
 router.use(facturesClientRouter);
+router.use(rapportCommercialRouter);
+router.use(commandesFournisseurRouter);
+router.use(clientsRouter);
+router.use(objectifsCommerciauxRouter);
+router.use(notesInternesRouter);
 
 export default router;

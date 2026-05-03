@@ -162,4 +162,29 @@ router.delete("/calendar/events/:id", async (req: Request, res: Response): Promi
   }
 });
 
+router.get("/calendar/events/export/csv", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  try {
+    const rows = await db.select().from(calendarEventsTable).where(eq(calendarEventsTable.organisationId, orgId)).limit(5000);
+    const headers = ["Titre", "Type", "Statut", "Début", "Fin", "Lieu", "Contact", "Priorité", "Créé le"];
+    const escape = (v: any) => {
+      if (v == null) return "";
+      const s = String(v).replace(/"/g, '""');
+      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s;
+    };
+    const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString("fr-FR") : "";
+    const lines = [headers.join(","), ...rows.map(r => [
+      escape(r.title), escape(r.type), escape(r.status),
+      escape(fmtDate(r.startDate)), escape(fmtDate(r.endDate)), escape(r.location),
+      escape(r.contactName), escape(r.priority), escape(fmtDate(r.createdAt)),
+    ].join(","))];
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="evenements_${Date.now()}.csv"`);
+    res.send("\uFEFF" + lines.join("\n"));
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur export calendar CSV");
+    res.status(500).json({ error: "Erreur lors de l'export." });
+  }
+});
+
 export default router;

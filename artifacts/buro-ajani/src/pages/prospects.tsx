@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { TrendingUp, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, Filter, Target, Trophy, XCircle, DollarSign, RefreshCw, Kanban, LayoutList, ArrowUpDown } from "lucide-react";
+import { TrendingUp, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, Filter, Target, Trophy, XCircle, DollarSign, RefreshCw, Kanban, LayoutList, ArrowUpDown, Download, UserPlus, Printer } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -126,6 +126,14 @@ export default function ProspectsPage() {
     else { const d = await res.json(); toast({ title: "Erreur", description: d.error, variant: "destructive" }); }
   };
 
+  const handleConvert = async (id: number) => {
+    if (!confirm("Convertir ce prospect en contact ? Son statut passera à 'Gagné'.")) return;
+    const res = await fetch(`${BASE}/api/prospects/${id}/convert`, { method: "POST", credentials: "include" });
+    const d = await res.json();
+    if (res.ok) { toast({ title: "Converti !", description: d.message }); load(); }
+    else toast({ title: "Erreur", description: d.error, variant: "destructive" });
+  };
+
   const handleStageChange = async (id: number, stage: string) => {
     const res = await fetch(`${BASE}/api/prospects/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ stage }) });
     if (res.ok) { load(); toast({ title: "Etape mise a jour" }); }
@@ -142,7 +150,11 @@ export default function ProspectsPage() {
           </h1>
           <p className="text-muted-foreground">Gestion du pipeline commercial et suivi des opportunités.</p>
         </div>
-        <Button onClick={openCreate} className="gap-2"><Plus className="w-4 h-4" /> Nouveau prospect</Button>
+        <div className="flex gap-2">
+          <a href={`${BASE}/api/prospects/export/csv`} download><Button variant="outline" size="sm" className="gap-2"><Download className="w-4 h-4" />CSV</Button></a>
+          <Button variant="outline" size="sm" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+          <Button onClick={openCreate} className="gap-2"><Plus className="w-4 h-4" /> Nouveau prospect</Button>
+        </div>
       </div>
 
       {stats && (
@@ -237,6 +249,7 @@ export default function ProspectsPage() {
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                     <DropdownMenuItem onClick={() => openEdit(p)}><Edit className="w-3 h-3 mr-2" />Modifier</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleConvert(p.id)}><UserPlus className="w-3 h-3 mr-2" />Convertir en contact</DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(p.id)}><Trash2 className="w-3 h-3 mr-2" />Supprimer</DropdownMenuItem>
                   </DropdownMenuContent>

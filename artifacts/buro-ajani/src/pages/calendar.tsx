@@ -10,9 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Icon3D } from "@/components/icon-3d";
 import {
-  Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, MapPin,
+  Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, MapPin, Download,
   Users, CheckSquare, Trash2, Phone, Mail, Building, User, FileText,
-  AlertCircle, Star, Search, X, ChevronDown, Edit2, Eye
+  AlertCircle, Star, Search, X, ChevronDown, Edit2, Eye, Printer
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -754,6 +754,10 @@ export default function CalendarPage() {
             <Button variant={view === "mois" ? "default" : "ghost"} size="sm" onClick={() => setView("mois")} className="text-xs">Mois</Button>
           </div>
           <Button onClick={() => setCurrentDate(new Date())} variant="outline" size="sm" className="text-xs">Aujourd'hui</Button>
+          <a href={`${(import.meta.env.BASE_URL || "/").replace(/\/$/, "")}/api/calendar/events/export/csv`} download>
+            <Button variant="outline" size="sm" className="text-xs"><Download className="w-3 h-3 mr-1" />CSV</Button>
+          </a>
+          <Button variant="outline" size="sm" className="text-xs" title="Imprimer" onClick={() => window.print()}><Printer className="w-3 h-3" /></Button>
           <Button
             size="sm"
             className="bg-amber-500 hover:bg-amber-600 text-white"

@@ -9,10 +9,11 @@ import {
   Users, TrendingUp, Clock, Award, BarChart3, Brain, Loader2,
   Target, Phone, CheckSquare, Mail, Calendar, UserCheck,
   ArrowUpRight, ArrowDownRight, Minus, Smile, RefreshCw, History,
-  Shield, AlertTriangle, Lightbulb, Sparkles, Compass, Zap, Eye, Heart
+  Shield, AlertTriangle, Lightbulb, Sparkles, Compass, Zap, Eye, Heart, Download, Printer
 } from "lucide-react";
 
-const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+const baseUrl = BASE;
 
 async function fetchMetriques(periode: string) {
   const r = await fetch(`${baseUrl}/api/performance/metriques?periode=${periode}`, { credentials: "include" });
@@ -150,6 +151,10 @@ export default function PerformancePage() {
             )}
             Analyser avec IA
           </Button>
+          <a href={`${BASE}/api/performance/metriques/export/csv?periode=${periode}`} download={`performance_${periode}.csv`}>
+            <Button variant="outline" size="icon" title="Exporter CSV"><Download className="w-4 h-4" /></Button>
+          </a>
+          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
         </div>
       </div>
 

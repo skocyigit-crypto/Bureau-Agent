@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, sql, desc, gte, and, lt } from "drizzle-orm";
-import { db, callsTable, contactsTable, tasksTable, messagesTable } from "@workspace/db";
+import { eq, sql, desc, asc, gte, and, lt, or, lte, not, inArray } from "drizzle-orm";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, facturesClientTable, stockArticlesTable } from "@workspace/db";
 import {
   GetCallAnalyticsQueryParams,
   GetRecentActivityQueryParams,
@@ -503,6 +503,50 @@ router.get("/dashboard/notifications", async (req, res): Promise<void> => {
         isRead: false,
         relatedId: task.id,
         createdAt: task.createdAt.toISOString(),
+      });
+    }
+
+    const overdueInvoices = await db.select().from(facturesClientTable)
+      .where(and(
+        eq(facturesClientTable.organisationId, orgId),
+        not(inArray(facturesClientTable.status, ["payee", "annulee"])),
+        lte(facturesClientTable.dueDate, new Date())
+      ))
+      .orderBy(asc(facturesClientTable.dueDate))
+      .limit(5);
+
+    for (const inv of overdueInvoices) {
+      notifications.push({
+        id: notifId++,
+        type: "facture_en_retard",
+        title: "Facture en retard",
+        description: `${inv.reference} — ${inv.clientName} — ${Number(inv.totalAmount).toLocaleString("fr-FR", { style: "currency", currency: "EUR" })}`,
+        isRead: false,
+        relatedId: inv.id,
+        createdAt: inv.dueDate ? inv.dueDate.toISOString() : inv.createdAt.toISOString(),
+      });
+    }
+
+    const lowStockArticles = await db.select().from(stockArticlesTable)
+      .where(and(
+        eq(stockArticlesTable.organisationId, orgId),
+        or(
+          eq(stockArticlesTable.status, "rupture"),
+          eq(stockArticlesTable.status, "alerte")
+        )
+      ))
+      .orderBy(asc(stockArticlesTable.quantity))
+      .limit(5);
+
+    for (const art of lowStockArticles) {
+      notifications.push({
+        id: notifId++,
+        type: art.status === "rupture" ? "stock_rupture" : "stock_alerte",
+        title: art.status === "rupture" ? "Rupture de stock" : "Stock faible",
+        description: `${art.name} — Qté: ${art.quantity} (min: ${art.minQuantity})`,
+        isRead: false,
+        relatedId: art.id,
+        createdAt: art.updatedAt.toISOString(),
       });
     }
 

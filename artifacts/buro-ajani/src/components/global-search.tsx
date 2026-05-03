@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
-import { Search, Phone, Users, CheckSquare, MessageSquare, X, Loader2 } from "lucide-react";
+import { Search, Phone, Users, CheckSquare, MessageSquare, X, Loader2, TrendingUp, FileText, Receipt, Package, ShoppingCart } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -10,6 +10,11 @@ const ICON_MAP: Record<string, any> = {
   calls: Phone,
   tasks: CheckSquare,
   messages: MessageSquare,
+  prospects: TrendingUp,
+  devis: FileText,
+  factures: Receipt,
+  stock: Package,
+  commandes: ShoppingCart,
 };
 
 const LABEL_MAP: Record<string, string> = {
@@ -17,6 +22,11 @@ const LABEL_MAP: Record<string, string> = {
   calls: "Appels",
   tasks: "Taches",
   messages: "Messages",
+  prospects: "Prospects",
+  devis: "Devis",
+  factures: "Factures",
+  stock: "Stock",
+  commandes: "Bons de Commande",
 };
 
 const COLOR_MAP: Record<string, string> = {
@@ -24,7 +34,14 @@ const COLOR_MAP: Record<string, string> = {
   calls: "text-green-500",
   tasks: "text-amber-500",
   messages: "text-purple-500",
+  prospects: "text-orange-500",
+  devis: "text-sky-500",
+  factures: "text-emerald-500",
+  stock: "text-slate-500",
+  commandes: "text-violet-500",
 };
+
+const ALL_TYPES = ["contacts", "calls", "tasks", "messages", "prospects", "devis", "factures", "stock", "commandes"] as const;
 
 export function GlobalSearch() {
   const [query, setQuery] = useState("");
@@ -52,7 +69,6 @@ export function GlobalSearch() {
         setOpen(true);
       } catch (err: any) {
         if (err?.name === "AbortError") return;
-        console.error("[GlobalSearch] search failed:", err);
       } finally { setLoading(false); }
     }, 300);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); if (abortRef.current) abortRef.current.abort(); };
@@ -76,6 +92,11 @@ export function GlobalSearch() {
       case "calls": setLocation(`/appels/${item.id}`); break;
       case "tasks": setLocation("/taches"); break;
       case "messages": setLocation("/messages"); break;
+      case "prospects": setLocation("/prospects"); break;
+      case "devis": setLocation("/devis"); break;
+      case "factures": setLocation("/factures-client"); break;
+      case "stock": setLocation("/stock"); break;
+      case "commandes": setLocation("/commandes-fournisseur"); break;
     }
   }
 
@@ -85,6 +106,11 @@ export function GlobalSearch() {
       case "calls": return item.contactName || item.phoneNumber;
       case "tasks": return item.title;
       case "messages": return item.contactName || item.content?.substring(0, 40);
+      case "prospects": return item.title || item.contactName || item.company || item.email || "";
+      case "devis": return item.reference || `Devis #${item.id}`;
+      case "factures": return item.reference || `Facture #${item.id}`;
+      case "stock": return item.name || item.sku || "";
+      case "commandes": return item.reference || `BC #${item.id}`;
       default: return "";
     }
   }
@@ -95,6 +121,11 @@ export function GlobalSearch() {
       case "calls": return `${item.direction === "entrant" ? "Entrant" : "Sortant"} - ${item.status}`;
       case "tasks": return `${item.status} - ${item.priority}`;
       case "messages": return item.type || "";
+      case "prospects": return item.stage ? `${item.stage}${item.value ? ` · ${item.value} €` : ""}` : item.email || "";
+      case "devis": return `${item.clientName || ""} · ${item.status}${item.totalAmount ? ` · ${Number(item.totalAmount).toFixed(2)} €` : ""}`;
+      case "factures": return `${item.clientName || ""} · ${item.status}${item.totalAmount ? ` · ${Number(item.totalAmount).toFixed(2)} €` : ""}`;
+      case "stock": return `${item.category || ""}${item.quantity !== undefined ? ` · Qté: ${item.quantity}` : ""}`;
+      case "commandes": return `${item.fournisseurName || ""} · ${item.status}${item.totalAmount ? ` · ${Number(item.totalAmount).toFixed(2)} €` : ""}`;
       default: return "";
     }
   }
@@ -121,12 +152,12 @@ export function GlobalSearch() {
       )}
 
       {open && results && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg z-50 max-h-[400px] overflow-auto">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg z-50 max-h-[480px] overflow-auto">
           {!hasResults ? (
             <div className="p-4 text-center text-sm text-muted-foreground">Aucun resultat pour "{query}"</div>
           ) : (
             <>
-              {(["contacts", "calls", "tasks", "messages"] as const).map(type => {
+              {ALL_TYPES.map(type => {
                 const items = results[type];
                 if (!items || items.length === 0) return null;
                 const Icon = ICON_MAP[type];

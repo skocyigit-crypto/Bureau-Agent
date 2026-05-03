@@ -16,7 +16,7 @@ import {
   Users, Zap, Send, RefreshCw, Loader2, AlertTriangle, Star, Clock, FileText,
   MapPin, BarChart3, Shield, Bell, TrendingUp, ArrowRight, Sparkles,
   MessageSquare, Target, Play, Eye, Coffee, Navigation, ExternalLink,
-  Search, Wand2, Copy, Mic, Bot,
+  Search, Wand2, Copy, Mic, Bot, Printer,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -52,6 +52,7 @@ export default function CommandantIAPage() {
           <Badge className="bg-emerald-500 text-white text-xs">Gemini</Badge>
           <Badge className="bg-violet-500 text-white text-xs">OpenAI</Badge>
           <Badge className="bg-orange-500 text-white text-xs">Anthropic</Badge>
+          <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
         </div>
       </div>
 

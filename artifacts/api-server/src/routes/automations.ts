@@ -282,4 +282,55 @@ router.get("/automations/logs", async (req: Request, res: Response): Promise<voi
   }
 });
 
+router.post("/automations/:id/duplicate", async (req: Request, res: Response): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  const userRole = (req.session as any)?.userRole;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces refuse." }); return; }
+  const id = parseInt(String(req.params.id));
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  try {
+    const [original] = await db.select().from(automationRulesTable).where(eq(automationRulesTable.id, id));
+    if (!original) { res.status(404).json({ error: "Automation non trouvee." }); return; }
+    const [copy] = await db.insert(automationRulesTable).values({
+      name: `${original.name} (copie)`,
+      description: original.description,
+      type: original.type,
+      trigger: original.trigger,
+      conditions: original.conditions,
+      actions: original.actions,
+      schedule: original.schedule,
+      enabled: false,
+      createdBy: userId,
+    }).returning();
+    res.status(201).json(copy);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur duplication automation");
+    res.status(500).json({ error: "Erreur lors de la duplication." });
+  }
+});
+
+router.get("/automations/export/csv", async (req: Request, res: Response): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  const userRole = (req.session as any)?.userRole;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces refuse." }); return; }
+  try {
+    const rules = await db.select().from(automationRulesTable);
+    const header = "ID,Nom,Type,Declencheur,Frequence,Actif,Executions,Derniere execution,Date creation\n";
+    const rows = rules.map(r =>
+      [r.id, r.name, r.type, r.trigger, r.schedule || "", r.enabled ? "oui" : "non",
+        r.runCount, r.lastRun ? new Date(r.lastRun).toLocaleDateString("fr-FR") : "",
+        r.createdAt ? new Date(r.createdAt).toLocaleDateString("fr-FR") : ""]
+        .map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")
+    ).join("\n");
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="automations_${Date.now()}.csv"`);
+    res.send("\uFEFF" + header + rows);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur export automations CSV");
+    res.status(500).json({ error: "Erreur lors de l'export." });
+  }
+});
+
 export default router;

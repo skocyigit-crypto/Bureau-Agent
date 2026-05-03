@@ -334,4 +334,33 @@ router.post("/checkins/sync-google", async (req, res): Promise<void> => {
   }
 });
 
+router.get("/checkins/export/csv", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  try {
+    const rows = await db.select({
+      id: checkinsTable.id, employeeName: checkinsTable.employeeName, type: checkinsTable.type,
+      checkInAt: checkinsTable.checkInAt, checkOutAt: checkinsTable.checkOutAt,
+      location: checkinsTable.location, notes: checkinsTable.notes,
+    }).from(checkinsTable).where(eq(checkinsTable.organisationId, orgId)).orderBy(desc(checkinsTable.checkInAt)).limit(5000);
+    const headers = ["Employé", "Type", "Arrivée", "Départ", "Lieu", "Notes"];
+    const escape = (v: any) => {
+      if (v == null) return "";
+      const s = String(v).replace(/"/g, '""');
+      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s;
+    };
+    const fmtDate = (d: any) => d ? new Date(d).toLocaleString("fr-FR") : "";
+    const lines = [headers.join(","), ...rows.map(r => [
+      escape(r.employeeName), escape(r.type),
+      escape(fmtDate(r.checkInAt)), escape(fmtDate(r.checkOutAt)),
+      escape(r.location), escape(r.notes),
+    ].join(","))];
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="pointages_${Date.now()}.csv"`);
+    res.send("\uFEFF" + lines.join("\n"));
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur export checkins CSV");
+    res.status(500).json({ error: "Erreur lors de l'export." });
+  }
+});
+
 export default router;

@@ -156,6 +156,34 @@ router.patch("/messages/:id", async (req, res): Promise<void> => {
   }
 });
 
+router.get("/messages/export/csv", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  try {
+    const rows = await db.select({
+      id: messagesTable.id, type: messagesTable.type, contactName: messagesTable.contactName,
+      phoneNumber: messagesTable.phoneNumber, content: messagesTable.content,
+      priority: messagesTable.priority, isRead: messagesTable.isRead, createdAt: messagesTable.createdAt,
+    }).from(messagesTable).where(eq(messagesTable.organisationId, orgId)).orderBy(desc(messagesTable.createdAt)).limit(5000);
+    const headers = ["Type", "Contact", "Numéro", "Contenu", "Priorité", "Lu", "Date"];
+    const escape = (v: any) => {
+      if (v == null) return "";
+      const s = String(v).replace(/"/g, '""');
+      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s;
+    };
+    const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString("fr-FR") : "";
+    const lines = [headers.join(","), ...rows.map(r => [
+      escape(r.type), escape(r.contactName), escape(r.phoneNumber),
+      escape(r.content), escape(r.priority), r.isRead ? "Oui" : "Non", escape(fmtDate(r.createdAt)),
+    ].join(","))];
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="messages_${Date.now()}.csv"`);
+    res.send("\uFEFF" + lines.join("\n"));
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur export messages CSV");
+    res.status(500).json({ error: "Erreur lors de l'export." });
+  }
+});
+
 router.delete("/messages/:id", async (req, res): Promise<void> => {
   const params = DeleteMessageParams.safeParse(req.params);
   if (!params.success) {

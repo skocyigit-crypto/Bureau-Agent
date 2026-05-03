@@ -68,4 +68,32 @@ router.get("/performance/historique", async (req, res): Promise<void> => {
   }
 });
 
+router.get("/performance/metriques/export/csv", async (req, res): Promise<void> => {
+  const orgId = (req.session as any)?.organisationId;
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  if (!orgId) { res.status(403).json({ error: "Organisation non definie." }); return; }
+  const periode = (req.query.periode as string) || "semaine";
+  try {
+    const now = new Date();
+    const dateDebut = new Date(now);
+    if (periode === "jour") dateDebut.setDate(now.getDate() - 1);
+    else if (periode === "mois") dateDebut.setMonth(now.getMonth() - 1);
+    else dateDebut.setDate(now.getDate() - 7);
+    const metriques = await gatherUserMetrics(dateDebut, now, orgId);
+    const escape = (v: any) => { if (v == null) return ""; const s = String(v).replace(/"/g, '""'); return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s; };
+    const headers = ["Employé", "Appels", "Durée moy. (min)", "Taux réponse (%)", "Tâches terminées", "Score performance", "Niveau"];
+    const lines = [headers.join(","), ...metriques.map((m: any) => [
+      escape(m.userName || m.userEmail), escape(m.callCount), escape(m.avgDuration),
+      escape(m.answerRate), escape(m.tasksCompleted), escape(m.performanceScore), escape(m.performanceLevel),
+    ].join(","))];
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="performance_${periode}_${Date.now()}.csv"`);
+    res.send("\uFEFF" + lines.join("\n"));
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur export performance CSV");
+    res.status(500).json({ error: "Erreur lors de l'export." });
+  }
+});
+
 export default router;
