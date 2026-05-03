@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
-import { eq, and, sql } from "drizzle-orm";
-import { db, organisationsTable, subscriptionsTable, usersTable, contactsTable, callsTable } from "@workspace/db";
+import { eq, and, sql, desc } from "drizzle-orm";
+import { db, organisationsTable, subscriptionsTable, usersTable, contactsTable, callsTable, invoicesTable } from "@workspace/db";
 import { PLANS, type PlanKey } from "@workspace/db/schema";
 
 const router = Router();
@@ -133,6 +133,25 @@ router.post("/my-subscription/upgrade-request", async (req: Request, res: Respon
   } catch (err: any) {
     req.log.error({ err }, "Erreur demande upgrade abonnement");
     res.status(500).json({ error: "Erreur lors de l'envoi de la demande de changement de plan." });
+  }
+});
+
+router.get("/my-subscription/invoices", async (req: Request, res: Response): Promise<void> => {
+  const { orgId } = getSession(req);
+  if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+
+  try {
+    const invoices = await db
+      .select()
+      .from(invoicesTable)
+      .where(eq(invoicesTable.organisationId, orgId))
+      .orderBy(desc(invoicesTable.createdAt))
+      .limit(24);
+
+    res.json({ invoices });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur recuperation factures organisation");
+    res.status(500).json({ error: "Erreur lors de la recuperation des factures." });
   }
 });
 

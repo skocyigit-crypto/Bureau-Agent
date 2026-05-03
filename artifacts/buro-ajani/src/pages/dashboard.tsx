@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Phone, Users, CheckSquare, MessageSquare, ArrowUpRight, ArrowDownRight, Clock, Plus, Activity, BarChart3, Send, LayoutDashboard, Shield, HardDriveDownload, Zap, UserCheck, Brain, TrendingUp, Lightbulb } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, ArrowUpRight, ArrowDownRight, Clock, Plus, Activity, BarChart3, Send, LayoutDashboard, Shield, HardDriveDownload, Zap, UserCheck, Brain, TrendingUp, Lightbulb, Rocket, CircleCheck, Circle, X } from "lucide-react";
 import { StaggerContainer, StaggerItem, PressableCard, SlideUp } from "@/components/premium-animations";
 import { SmartPulsePanel } from "@/components/smart-pulse-panel";
 import { Icon3D, type Icon3DVariant } from "@/components/icon-3d";
@@ -98,11 +98,27 @@ function useAiQuota() {
   return quota;
 }
 
+function useTrialStatus() {
+  const [isTrial, setIsTrial] = useState(false);
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem("gs_dismissed") === "1");
+  useEffect(() => {
+    fetch(`${API}/api/my-subscription`, { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.subscription?.plan === "essai" || d?.subscription?.plan === "starter") setIsTrial(true);
+      })
+      .catch(() => {});
+  }, []);
+  const dismiss = () => { localStorage.setItem("gs_dismissed", "1"); setDismissed(true); };
+  return { isTrial, dismissed, dismiss };
+}
+
 export default function Dashboard() {
   const { user } = useWorkspaceUser();
   const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
   const now = useLiveClock();
   const { team: teamMembers, error: teamError } = useTeamStatus();
+  const { isTrial, dismissed, dismiss } = useTrialStatus();
   const { data: weekComparison, error: weekCompError } = useWeekComparison();
   const aiQuota = useAiQuota();
   const { data: summary, isLoading: isLoadingSummary, error: summaryError } = useGetDashboardSummary({ query: { queryKey: ["dashboardSummary"] } });
@@ -217,6 +233,68 @@ export default function Dashboard() {
         </div>
       </Card>
       </SlideUp>
+
+      {isTrial && !dismissed && (() => {
+        const steps = [
+          { label: "Compte cree", done: true, href: null },
+          { label: "Ajouter un premier contact", done: (summary?.totalContacts || 0) > 0, href: "/contacts" },
+          { label: "Passer un appel", done: (summary?.totalCallsToday || 0) > 0, href: "/appels" },
+          { label: "Inviter un membre d'equipe", done: teamMembers.length > 1, href: "/settings?tab=equipe" },
+          { label: "Configurer le profil entreprise", done: false, href: "/settings?tab=entreprise" },
+        ];
+        const doneCount = steps.filter(s => s.done).length;
+        const pct = Math.round((doneCount / steps.length) * 100);
+        return (
+          <SlideUp>
+            <Card className="border-amber-200 dark:border-amber-800/60 bg-gradient-to-br from-amber-50/60 to-orange-50/30 dark:from-amber-950/20 dark:to-orange-950/10">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/40">
+                      <Rocket className="w-4 h-4 text-amber-600" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-base">Demarrage rapide</CardTitle>
+                      <CardDescription className="text-xs">{doneCount}/{steps.length} etapes terminees</CardDescription>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-24 h-2 bg-amber-100 dark:bg-amber-900/40 rounded-full overflow-hidden">
+                        <div className="h-full bg-amber-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="text-xs font-bold text-amber-700 dark:text-amber-400">{pct}%</span>
+                    </div>
+                    <Button variant="ghost" size="icon" className="w-7 h-7 text-muted-foreground hover:text-foreground" onClick={dismiss}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+                  {steps.map((step, i) => (
+                    <div
+                      key={i}
+                      className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm transition-colors ${step.done ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800" : "bg-white/60 border-amber-100 dark:bg-white/5 dark:border-amber-900/40"}`}
+                    >
+                      {step.done
+                        ? <CircleCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                        : <Circle className="w-4 h-4 text-amber-400 shrink-0" />
+                      }
+                      {step.done || !step.href ? (
+                        <span className={`text-xs ${step.done ? "text-emerald-700 dark:text-emerald-400 font-medium" : "text-muted-foreground"}`}>{step.label}</span>
+                      ) : (
+                        <Link href={step.href} className="text-xs text-amber-700 dark:text-amber-400 hover:underline font-medium">{step.label}</Link>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </SlideUp>
+        );
+      })()}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="bg-gradient-to-br from-slate-50 to-slate-100/50 dark:from-slate-950/30 dark:to-slate-900/10 border-slate-200/50 dark:border-slate-800/30">

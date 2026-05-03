@@ -1,9 +1,33 @@
 import { useState, useEffect } from "react";
-import { Package, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+import { Package, AlertTriangle, CheckCircle2, Loader2, FileText, ArrowUpRight, Clock, CreditCard, ChevronDown, ChevronUp } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { Link } from "wouter";
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+const STATUS_LABELS: Record<string, { label: string; className: string }> = {
+  en_attente: { label: "En attente", className: "bg-amber-100 text-amber-700 border-0" },
+  payee: { label: "Payée", className: "bg-emerald-100 text-emerald-700 border-0" },
+  partiel: { label: "Partiel", className: "bg-blue-100 text-blue-700 border-0" },
+  annulee: { label: "Annulée", className: "bg-slate-100 text-slate-600 border-0" },
+  retard: { label: "En retard", className: "bg-red-100 text-red-700 border-0" },
+};
+
+interface Invoice {
+  id: number;
+  periodLabel: string;
+  plan: string;
+  baseAmount: string;
+  overageAmount: string;
+  totalAmount: string;
+  currency: string;
+  status: string;
+  paidAt: string | null;
+  createdAt: string;
+}
 
 export function TabAbonnement() {
   const { toast } = useToast();
@@ -13,15 +37,17 @@ export function TabAbonnement() {
   const [subLoading, setSubLoading] = useState(true);
   const [subError, setSubError] = useState<string | null>(null);
   const [upgrading, setUpgrading] = useState(false);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [invoicesLoading, setInvoicesLoading] = useState(false);
+  const [showAllInvoices, setShowAllInvoices] = useState(false);
 
   useEffect(() => {
     const loadSubscription = async () => {
       try {
-        const BASE = import.meta.env.BASE_URL || "/";
         const [subRes, usageRes, plansRes] = await Promise.all([
-          fetch(`${BASE}api/subscription`, { credentials: "include" }),
-          fetch(`${BASE}api/subscription/usage`, { credentials: "include" }),
-          fetch(`${BASE}api/subscription/plans`, { credentials: "include" }),
+          fetch(`${BASE}/api/subscription`, { credentials: "include" }),
+          fetch(`${BASE}/api/subscription/usage`, { credentials: "include" }),
+          fetch(`${BASE}/api/subscription/plans`, { credentials: "include" }),
         ]);
         if (subRes.ok) {
           setSubscription(await subRes.json());
@@ -35,8 +61,7 @@ export function TabAbonnement() {
           const data = await plansRes.json();
           setPlans(data.plans || []);
         }
-      } catch (e) {
-        console.error("Erreur chargement abonnement:", e);
+      } catch {
         setSubError("Impossible de charger les informations d'abonnement. Verifiez votre connexion.");
       } finally {
         setSubLoading(false);
@@ -45,31 +70,41 @@ export function TabAbonnement() {
     loadSubscription();
   }, []);
 
+  useEffect(() => {
+    const loadInvoices = async () => {
+      setInvoicesLoading(true);
+      try {
+        const res = await fetch(`${BASE}/api/my-subscription/invoices`, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          setInvoices(data.invoices || []);
+        }
+      } catch {
+      } finally {
+        setInvoicesLoading(false);
+      }
+    };
+    loadInvoices();
+  }, []);
+
   const handleUpgrade = async (planId: string) => {
     setUpgrading(true);
     try {
-      const BASE = import.meta.env.BASE_URL || "/";
-      const res = await fetch(`${BASE}api/subscription/upgrade`, {
+      const res = await fetch(`${BASE}/api/my-subscription/upgrade-request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ plan: planId }),
+        body: JSON.stringify({ targetPlan: planId }),
       });
       if (res.ok) {
         const data = await res.json();
-        toast({ title: "Abonnement mis a jour", description: data.message });
-        const [subRes, usageRes] = await Promise.all([
-          fetch(`${BASE}api/subscription`, { credentials: "include" }),
-          fetch(`${BASE}api/subscription/usage`, { credentials: "include" }),
-        ]);
-        if (subRes.ok) setSubscription(await subRes.json());
-        if (usageRes.ok) setUsage(await usageRes.json());
+        toast({ title: "Demande envoyee", description: data.message });
       } else {
         const err = await res.json();
         toast({ title: "Erreur", description: err.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Impossible de mettre a jour l'abonnement.", variant: "destructive" });
+      toast({ title: "Erreur", description: "Impossible d'envoyer la demande.", variant: "destructive" });
     } finally {
       setUpgrading(false);
     }
@@ -97,6 +132,8 @@ export function TabAbonnement() {
     );
   }
 
+  const visibleInvoices = showAllInvoices ? invoices : invoices.slice(0, 5);
+
   return (
     <div className="space-y-6">
       {subscription && (
@@ -108,7 +145,9 @@ export function TabAbonnement() {
                   <Package className="w-5 h-5 text-emerald-600" />
                   Abonnement actuel
                 </CardTitle>
-                <CardDescription>Plan {subscription.plan} - {subscription.status === "active" ? "Actif" : subscription.status}</CardDescription>
+                <CardDescription>
+                  Plan {subscription.plan} — {subscription.status === "active" ? "Actif" : subscription.status}
+                </CardDescription>
               </div>
               <Badge className="bg-emerald-100 text-emerald-700 border-0">{subscription.plan}</Badge>
             </div>
@@ -131,50 +170,135 @@ export function TabAbonnement() {
               </div>
             )}
             {subscription.trialEndsAt && (
-              <p className="text-sm text-amber-600">
-                Periode d'essai jusqu'au {new Date(subscription.trialEndsAt).toLocaleDateString("fr-FR")}
-              </p>
+              <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                <p className="text-sm text-amber-700 dark:text-amber-400">
+                  Periode d'essai jusqu'au <strong>{new Date(subscription.trialEndsAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</strong>
+                </p>
+              </div>
+            )}
+            {subscription.licenseKey && (
+              <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
+                <span className="text-xs text-muted-foreground">Cle de licence</span>
+                <code className="text-xs font-mono font-bold text-amber-600 select-all">{subscription.licenseKey}</code>
+              </div>
             )}
           </CardContent>
         </Card>
       )}
 
       {plans.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {plans.map((plan: any) => (
-            <Card key={plan.id} className={subscription?.plan === plan.id ? "border-emerald-500 border-2" : ""}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">{plan.name}</CardTitle>
-                <p className="text-2xl font-bold">{plan.price}€<span className="text-sm text-muted-foreground font-normal">/mois</span></p>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <p className="text-xs text-muted-foreground">{plan.maxUsers} utilisateurs, {plan.maxContacts} contacts</p>
-                <p className="text-xs text-muted-foreground">{plan.maxCallsPerMonth} appels/mois</p>
-                {plan.aiEnabled && <Badge className="text-[10px] bg-blue-100 text-blue-700 border-0">IA incluse</Badge>}
-                {plan.stockEnabled && <Badge className="text-[10px] bg-purple-100 text-purple-700 border-0">Stock</Badge>}
-                {plan.automationEnabled && <Badge className="text-[10px] bg-amber-100 text-amber-700 border-0">Automatisation</Badge>}
-                {subscription?.plan !== plan.id && (
-                  <Button
-                    className="w-full mt-2"
-                    size="sm"
-                    disabled={upgrading}
-                    onClick={() => handleUpgrade(plan.id)}
-                  >
-                    {upgrading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                    {subscription?.plan && plans.findIndex((p: any) => p.id === subscription.plan) < plans.findIndex((p: any) => p.id === plan.id) ? "Passer a ce plan" : "Choisir"}
-                  </Button>
-                )}
-                {subscription?.plan === plan.id && (
-                  <div className="flex items-center gap-1.5 text-emerald-600 text-xs mt-2">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    Plan actuel
+        <div>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Plans disponibles</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {plans.map((plan: any) => (
+              <Card key={plan.id} className={subscription?.plan === plan.id ? "border-emerald-500 border-2" : ""}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">{plan.name}</CardTitle>
+                  <p className="text-2xl font-bold">{plan.price}€<span className="text-sm text-muted-foreground font-normal">/mois</span></p>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <p className="text-xs text-muted-foreground">{plan.maxUsers} utilisateurs, {plan.maxContacts} contacts</p>
+                  <p className="text-xs text-muted-foreground">{plan.maxCallsPerMonth} appels/mois</p>
+                  <div className="flex flex-wrap gap-1">
+                    {plan.aiEnabled && <Badge className="text-[10px] bg-blue-100 text-blue-700 border-0">IA incluse</Badge>}
+                    {plan.stockEnabled && <Badge className="text-[10px] bg-purple-100 text-purple-700 border-0">Stock</Badge>}
+                    {plan.automationEnabled && <Badge className="text-[10px] bg-amber-100 text-amber-700 border-0">Automatisation</Badge>}
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                  {subscription?.plan === plan.id ? (
+                    <div className="flex items-center gap-1.5 text-emerald-600 text-xs mt-2">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Plan actuel
+                    </div>
+                  ) : (
+                    <Button
+                      className="w-full mt-2"
+                      size="sm"
+                      variant="outline"
+                      disabled={upgrading}
+                      onClick={() => handleUpgrade(plan.id)}
+                    >
+                      {upgrading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <ArrowUpRight className="w-4 h-4 mr-1" />}
+                      Demander ce plan
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       )}
+
+      <div>
+        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Historique de facturation</h3>
+        <Card>
+          <CardContent className="p-0">
+            {invoicesLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : invoices.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center gap-2">
+                <FileText className="w-10 h-10 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">Aucune facture pour le moment.</p>
+                <p className="text-xs text-muted-foreground">Les factures mensuelles apparaitront ici une fois generees.</p>
+              </div>
+            ) : (
+              <>
+                <div className="divide-y">
+                  {visibleInvoices.map((inv) => {
+                    const st = STATUS_LABELS[inv.status] || { label: inv.status, className: "bg-slate-100 text-slate-600 border-0" };
+                    return (
+                      <div key={inv.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/20 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/30">
+                            <CreditCard className="w-4 h-4 text-blue-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">{inv.periodLabel}</p>
+                            <p className="text-xs text-muted-foreground">Plan {inv.plan} · {new Date(inv.createdAt).toLocaleDateString("fr-FR")}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-bold">{parseFloat(inv.totalAmount).toFixed(2)} {inv.currency}</span>
+                          <Badge className={st.className}>{st.label}</Badge>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {invoices.length > 5 && (
+                  <div className="border-t p-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-xs text-muted-foreground"
+                      onClick={() => setShowAllInvoices(v => !v)}
+                    >
+                      {showAllInvoices ? (
+                        <><ChevronUp className="w-3 h-3 mr-1" /> Masquer</>
+                      ) : (
+                        <><ChevronDown className="w-3 h-3 mr-1" /> Voir toutes les factures ({invoices.length})</>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="pt-2 border-t flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          Pour toute question sur votre facturation, contactez notre support.
+        </p>
+        <Link href="mailto:support@agentdebureau.fr">
+          <Button variant="outline" size="sm" className="text-xs">
+            Contacter le support
+          </Button>
+        </Link>
+      </div>
     </div>
   );
 }
