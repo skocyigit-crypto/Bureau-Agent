@@ -60,21 +60,25 @@ export function Footer() {
             <ul className="space-y-4 text-primary-foreground/70 font-medium">
               <li><a href="#" className="hover:text-white transition-colors">À propos de nous</a></li>
               <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Carrières</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Mentions légales</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Politique de confidentialité</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Sécurité (RGPD)</a></li>
+              <li><Link href="/mentions-legales" className="hover:text-white transition-colors">Mentions légales</Link></li>
+              <li><Link href="/cgu" className="hover:text-white transition-colors">CGU</Link></li>
+              <li><Link href="/confidentialite" className="hover:text-white transition-colors">Politique de confidentialité</Link></li>
+              <li><Link href="/confidentialite" className="hover:text-white transition-colors">Sécurité (RGPD)</Link></li>
             </ul>
           </div>
         </div>
         
         <div className="pt-8 border-t border-primary-foreground/10 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-primary-foreground/50 font-medium">
-          <p>© {new Date().getFullYear()} Agent de Bureau. Tous droits réservés.</p>
+          <p>© {new Date().getFullYear()} Agent de Bureau SAS. Tous droits réservés.</p>
+          <div className="flex items-center gap-4">
+            <Link href="/mentions-legales" className="hover:text-white transition-colors">Mentions légales</Link>
+            <Link href="/cgu" className="hover:text-white transition-colors">CGU</Link>
+            <Link href="/confidentialite" className="hover:text-white transition-colors">Confidentialité</Link>
+          </div>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-green-500"></span>
-            <span>Tous les systèmes sont opérationnels</span>
+            <span>Fait avec passion à Paris</span>
           </div>
-          <p className="flex items-center gap-1">Fait avec passion à Paris</p>
         </div>
       </div>
     </footer>

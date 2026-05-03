@@ -19,6 +19,7 @@ import { SmartBrowserToolbar } from "@/components/smart-browser-panel";
 import { QuickActionHub } from "@/components/quick-action-hub";
 import { DataExportPanel } from "@/components/data-export-panel";
 import { useDeviceEnvContext, triggerHaptic } from "@/hooks/use-device-environment";
+import { TrialBanner } from "@/components/trial-banner";
 
 type IncomingCallContextType = { simulateIncomingCall: (phone?: string) => void };
 const IncomingCallContext = createContext<IncomingCallContextType>({ simulateIncomingCall: () => {} });
@@ -277,6 +278,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </header>
           
+          <TrialBanner />
           <main className="flex-1 p-4 lg:p-8 overflow-auto">
             <div className="mx-auto max-w-6xl">
               {children}
