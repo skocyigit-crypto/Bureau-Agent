@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Shield, ShieldCheck, ShieldAlert, ShieldBan, Lock, Clock,
   KeyRound, Fingerprint, ScanSearch, Ban, Server, UserCog,
-  TriangleAlert, CircleAlert, FileText, RefreshCw, AlertTriangle, Loader2
+  TriangleAlert, CircleAlert, FileText, RefreshCw, AlertTriangle, Loader2,
+  Zap, Bug, Crosshair, Activity, Eye, Globe, Bomb, Network,
+  TrendingUp, Radio
 } from "lucide-react";
 import securityServerImg from "@/assets/images/security-server.png";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -231,6 +233,336 @@ function SecurityMonitorPanel() {
   );
 }
 
+// ── Guardian WAF Paneli ───────────────────────────────────────────────────────
+
+const GUARDIAN_TYPE_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string }> = {
+  attack_tool:       { label: "Outil attaque",   icon: Bug,       color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
+  honeypot:          { label: "Honeypot",         icon: Crosshair, color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
+  suspicious_path:   { label: "Chemin suspect",   icon: Eye,       color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
+  json_bomb:         { label: "JSON bombe",        icon: Bomb,      color: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" },
+  http_anomaly:      { label: "Anomalie HTTP",     icon: Globe,     color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" },
+  behavioral_anomaly:{ label: "Comportement",      icon: Activity,  color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
+  behavioral_block:  { label: "Bloc comport.",     icon: Network,   color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
+};
+
+function GuardianWafPanel() {
+  const [stats, setStats] = useState<any>(null);
+  const [events, setEvents] = useState<any[]>([]);
+  const [bannedIps, setBannedIps] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [activeTab, setActiveTab] = useState<"events" | "banned" | "profiles">("events");
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { toast } = useToast();
+
+  const fetchAll = useCallback(async (silent = false) => {
+    if (!silent) setRefreshing(true);
+    try {
+      const [statsRes, eventsRes, bannedRes, profilesRes] = await Promise.all([
+        fetch(`${SECURITY_API}/guardian/stats`, { credentials: "include" }),
+        fetch(`${SECURITY_API}/guardian/events?limit=50`, { credentials: "include" }),
+        fetch(`${SECURITY_API}/guardian/banned`, { credentials: "include" }),
+        fetch(`${SECURITY_API}/guardian/profiles`, { credentials: "include" }),
+      ]);
+      if (statsRes.ok) setStats(await statsRes.json());
+      if (eventsRes.ok) setEvents((await eventsRes.json()).events || []);
+      if (bannedRes.ok) setBannedIps((await bannedRes.json()).bannedIps || []);
+      if (profilesRes.ok) setProfiles((await profilesRes.json()).profiles || []);
+    } catch { /* silently ignore */ } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  useEffect(() => {
+    if (autoRefresh) {
+      timerRef.current = setInterval(() => fetchAll(true), 8000);
+    } else if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [autoRefresh, fetchAll]);
+
+  const handleUnban = async (ip: string) => {
+    try {
+      const res = await fetch(`${SECURITY_API}/guardian/banned/${encodeURIComponent(ip)}`, {
+        method: "DELETE", credentials: "include",
+      });
+      if (res.ok) {
+        toast({ title: "IP debloquee", description: `${ip} retiree du Guardian.` });
+        fetchAll();
+      } else {
+        toast({ title: "Erreur", description: "Impossible de debloquer.", variant: "destructive" });
+      }
+    } catch { toast({ title: "Erreur reseau", variant: "destructive" } as any); }
+  };
+
+  const typeConf = (type: string) =>
+    GUARDIAN_TYPE_CONFIG[type] ?? { label: type, icon: Shield, color: "bg-slate-100 text-slate-700" };
+
+  const sevColor = (s: string) =>
+    s === "critical" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" :
+    s === "warning"  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" :
+    "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+
+  const formatTime = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit", day: "2-digit", month: "short" });
+    } catch { return iso; }
+  };
+
+  const uptimeLabel = (secs: number) => {
+    if (secs < 60) return `${secs}s`;
+    if (secs < 3600) return `${Math.floor(secs / 60)}m`;
+    return `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`;
+  };
+
+  if (loading) {
+    return (
+      <Card className="border-purple-200 dark:border-purple-900/50">
+        <CardContent className="p-8 flex items-center justify-center gap-2">
+          <Loader2 className="w-5 h-5 animate-spin text-purple-500" />
+          <span className="text-sm text-muted-foreground">Chargement Guardian WAF...</span>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const blockRate = stats && stats.totalInspected > 0
+    ? ((stats.totalBlocked / stats.totalInspected) * 100).toFixed(2)
+    : "0.00";
+
+  return (
+    <Card className="border-purple-200 dark:border-purple-900/50">
+      <CardHeader>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Zap className="w-5 h-5 text-purple-600" />
+              Guardian WAF — Pare-feu Applicatif
+            </CardTitle>
+            <CardDescription>
+              Inspection en temps reel de chaque requete entrante. Outils d'attaque, honeypots, comportements suspects, bombes JSON.
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5">
+              <Radio className={`w-3 h-3 ${autoRefresh ? "text-emerald-500 animate-pulse" : "text-slate-400"}`} />
+              <span className="text-[10px] text-muted-foreground">Auto</span>
+              <Switch checked={autoRefresh} onCheckedChange={setAutoRefresh} className="scale-75" />
+            </div>
+            <Button variant="outline" size="sm" onClick={() => fetchAll()} disabled={refreshing}>
+              <RefreshCw className={`w-3 h-3 mr-1 ${refreshing ? "animate-spin" : ""}`} />
+              Actualiser
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {/* Stat kartları */}
+        {stats && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="border rounded-lg p-3 text-center bg-slate-50 dark:bg-slate-900/30">
+              <div className="text-xl font-bold text-slate-700 dark:text-slate-300">{(stats.totalInspected ?? 0).toLocaleString()}</div>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Requetes inspectees</p>
+            </div>
+            <div className="border border-red-200 rounded-lg p-3 text-center bg-red-50 dark:bg-red-950/20">
+              <div className="text-xl font-bold text-red-600">{(stats.totalBlocked ?? 0).toLocaleString()}</div>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Bloquees ({blockRate}%)</p>
+            </div>
+            <div className="border border-purple-200 rounded-lg p-3 text-center bg-purple-50 dark:bg-purple-950/20">
+              <div className="text-xl font-bold text-purple-600">{(stats.bannedIpsActive ?? 0).toLocaleString()}</div>
+              <p className="text-[10px] text-muted-foreground mt-0.5">IP bannis actifs</p>
+            </div>
+            <div className="border border-emerald-200 rounded-lg p-3 text-center bg-emerald-50 dark:bg-emerald-950/20">
+              <div className="text-xl font-bold text-emerald-600">{uptimeLabel(stats.uptime ?? 0)}</div>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Uptime Guardian</p>
+            </div>
+          </div>
+        )}
+
+        {/* Detay istatistikleri */}
+        {stats && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {[
+              { label: "Outils d'attaque",    value: stats.attackToolsDetected ?? 0, icon: Bug,      color: "text-red-600" },
+              { label: "Honeypots declenches", value: stats.honeypotTriggered ?? 0,  icon: Crosshair, color: "text-purple-600" },
+              { label: "Chemins suspects",     value: stats.suspiciousPaths ?? 0,    icon: Eye,       color: "text-amber-600" },
+              { label: "Bombes JSON",          value: stats.jsonBombsBlocked ?? 0,   icon: Bomb,      color: "text-orange-600" },
+              { label: "Anomalies HTTP",       value: stats.httpAnomalies ?? 0,      icon: Globe,     color: "text-yellow-600" },
+              { label: "Blocs comportementaux",value: stats.behavioralBlocks ?? 0,   icon: Activity,  color: "text-blue-600" },
+            ].map(({ label, value, icon: Icon, color }) => (
+              <div key={label} className="flex items-center gap-2 border rounded-lg p-2.5">
+                <Icon className={`w-4 h-4 shrink-0 ${color}`} />
+                <div className="min-w-0">
+                  <div className={`text-sm font-bold ${color}`}>{value.toLocaleString()}</div>
+                  <p className="text-[10px] text-muted-foreground truncate">{label}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Activite recente */}
+        {stats && (
+          <div className="flex items-center gap-4 text-xs text-muted-foreground border rounded-lg px-3 py-2 bg-slate-50 dark:bg-slate-900/30">
+            <span className="flex items-center gap-1"><TrendingUp className="w-3 h-3" /> {stats.eventsLast5min ?? 0} ev/5min</span>
+            <span className="flex items-center gap-1"><TrendingUp className="w-3 h-3" /> {stats.eventsLast60min ?? 0} ev/1h</span>
+            <span className="flex items-center gap-1"><ShieldBan className="w-3 h-3" /> {stats.permanentBans ?? 0} bans permanents</span>
+            <span className="flex items-center gap-1"><Zap className="w-3 h-3" /> {stats.autobanCount ?? 0} bans auto</span>
+          </div>
+        )}
+
+        <Separator />
+
+        {/* Tabs: evenements / bans / profils */}
+        <div className="flex gap-1 border rounded-lg p-1 bg-muted/30 w-fit">
+          {([
+            { key: "events",   label: "Evenements", count: events.length },
+            { key: "banned",   label: "IP Bannis",  count: bannedIps.length },
+            { key: "profiles", label: "Profils",    count: profiles.length },
+          ] as const).map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-3 py-1 text-xs rounded-md font-medium transition-all ${activeTab === tab.key ? "bg-white dark:bg-slate-800 shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {tab.label}
+              {tab.count > 0 && (
+                <Badge className="ml-1 h-4 px-1 text-[9px] bg-purple-100 text-purple-700 border-0">{tab.count}</Badge>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Evenements */}
+        {activeTab === "events" && (
+          <div>
+            {events.length === 0 ? (
+              <div className="border rounded-lg p-6 text-center">
+                <ShieldCheck className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Aucun evenement Guardian detecte.</p>
+              </div>
+            ) : (
+              <div className="space-y-1 max-h-64 overflow-y-auto">
+                {events.map((ev: any, i: number) => {
+                  const tc = typeConf(ev.type);
+                  const TypeIcon = tc.icon;
+                  return (
+                    <div key={i} className={`flex items-start gap-2 rounded-lg p-2 text-xs border ${ev.blocked ? "border-red-200 dark:border-red-900/40 bg-red-50/30 dark:bg-red-950/10" : "border-border"}`}>
+                      <Badge className={`${tc.color} border-0 text-[9px] shrink-0 mt-0.5 flex items-center gap-0.5`}>
+                        <TypeIcon className="w-2.5 h-2.5" />
+                        {tc.label}
+                      </Badge>
+                      <Badge className={`${sevColor(ev.severity)} border-0 text-[9px] shrink-0 mt-0.5`}>
+                        {ev.severity === "critical" ? "CRITIQUE" : ev.severity === "warning" ? "ALERTE" : "INFO"}
+                      </Badge>
+                      <span className="truncate flex-1 text-muted-foreground">{ev.details}</span>
+                      <span className="font-mono shrink-0 text-muted-foreground">{ev.ip}</span>
+                      <span className="text-[9px] text-muted-foreground shrink-0">{formatTime(ev.timestamp)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* IP Bannis */}
+        {activeTab === "banned" && (
+          <div>
+            {bannedIps.length === 0 ? (
+              <div className="border rounded-lg p-6 text-center">
+                <ShieldCheck className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Aucune IP bannie par le Guardian.</p>
+              </div>
+            ) : (
+              <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                {bannedIps.map((entry: any, i: number) => (
+                  <div key={i} className="flex items-center gap-2 border border-red-200 dark:border-red-900/50 rounded-lg p-2.5 text-xs bg-red-50/30 dark:bg-red-950/10">
+                    <Badge className={`border-0 text-[9px] ${entry.permanent ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                      {entry.permanent ? "PERMANENT" : "TEMPORAIRE"}
+                    </Badge>
+                    <span className="font-mono font-medium">{entry.ip}</span>
+                    <span className="text-muted-foreground">{entry.count} infraction{entry.count > 1 ? "s" : ""}</span>
+                    {entry.reasons?.[0] && (
+                      <span className="text-muted-foreground truncate hidden sm:block">{entry.reasons[0]}</span>
+                    )}
+                    {!entry.permanent && (
+                      <span className="text-muted-foreground shrink-0 hidden md:block">jusqu'a {formatTime(entry.until)}</span>
+                    )}
+                    <Button
+                      variant="ghost" size="sm"
+                      className="ml-auto h-6 text-[10px] text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 shrink-0"
+                      onClick={() => handleUnban(entry.ip)}
+                    >
+                      Debloquer
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Profils de menace */}
+        {activeTab === "profiles" && (
+          <div>
+            {profiles.length === 0 ? (
+              <div className="border rounded-lg p-6 text-center">
+                <ShieldCheck className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">Aucun profil de menace actif.</p>
+              </div>
+            ) : (
+              <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                {profiles.map((p: any, i: number) => {
+                  const scoreColor = p.threatScore >= 60 ? "text-red-600" : p.threatScore >= 30 ? "text-amber-600" : "text-blue-600";
+                  const scoreBg = p.threatScore >= 60 ? "bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-900/50" : p.threatScore >= 30 ? "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900/50" : "bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-900/50";
+                  return (
+                    <div key={i} className={`border rounded-lg p-2.5 text-xs ${scoreBg}`}>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono font-medium">{p.ip}</span>
+                        <Badge className={`border-0 text-[9px] font-bold ${p.threatScore >= 60 ? "bg-red-100 text-red-700" : p.threatScore >= 30 ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"}`}>
+                          Score: {p.threatScore}
+                        </Badge>
+                        <span className="text-muted-foreground">{p.requests} req</span>
+                        <span className="text-muted-foreground">{p.uniquePaths} chemins</span>
+                        <span className={`font-medium ml-auto ${scoreColor}`}>
+                          {p.threatScore >= 60 ? "CRITIQUE" : p.threatScore >= 30 ? "SUSPECT" : "SURVEILLE"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Legende des protections */}
+        <div className="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-900/50 rounded-lg p-3">
+          <div className="flex items-start gap-2">
+            <Zap className="w-4 h-4 text-purple-600 mt-0.5 shrink-0" />
+            <div>
+              <h4 className="font-semibold text-xs text-purple-800 dark:text-purple-300">Guardian WAF — 8 couches de detection</h4>
+              <p className="text-[11px] text-purple-600 dark:text-purple-400 mt-0.5">
+                Outils d'attaque (sqlmap, nikto, burpsuite, nmap...) · Honeypots (50+ chemins pieges) ·
+                URL suspects (traversal, shells PHP...) · Bombes JSON · Anomalies HTTP ·
+                Profilage comportemental · Ban automatique escalade · 35+ signatures d'outils malveillants
+              </p>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function TabSecurite() {
   const { toast } = useToast();
   const [zeroTrustMode, setZeroTrustMode] = useState(true);
@@ -424,6 +756,8 @@ export function TabSecurite() {
       </Card>
 
       <SecurityMonitorPanel />
+
+      <GuardianWafPanel />
 
       <Card>
         <CardHeader>

@@ -10,6 +10,7 @@ import router from "./routes";
 import crypto from "crypto";
 import { logger } from "./lib/logger";
 import { ipProtection, threatDetection, csrfProtection } from "./middleware/security";
+import { guardian } from "./middleware/guardian";
 
 const app: Express = express();
 
@@ -142,6 +143,8 @@ app.use(session({
   },
 }));
 
+// Guardian WAF — tüm gelen istekleri denetler (en önce çalışır)
+app.use(guardian);
 app.use(ipProtection);
 
 app.use("/api/ai", aiLimiter);
