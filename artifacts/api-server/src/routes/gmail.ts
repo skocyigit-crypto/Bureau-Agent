@@ -392,6 +392,275 @@ router.delete("/gmail/message/:id/trash", async (req: Request, res: Response): P
   }
 });
 
+// ── URL phishing analysis helpers ────────────────────────────────────────────
+const URL_SHORTENERS = new Set([
+  "bit.ly","tinyurl.com","t.co","ow.ly","goo.gl","buff.ly","dlvr.it",
+  "is.gd","cli.gs","yfrog.com","migre.me","ff.im","tiny.cc","url4.eu",
+  "twit.ac","su.pr","twurl.nl","snipurl.com","short.to","BudURL.com",
+  "ping.fm","post.ly","Just.as","bkite.com","snipr.com","fic.kr","loopt.us",
+  "doiop.com","short.ie","kl.am","wp.me","rubyurl.com","om.ly","to.ly",
+  "cutt.ly","rebrand.ly","shorturl.at","tinycc.com","hyperurl.co",
+]);
+
+const SUSPICIOUS_TLDS = new Set([
+  ".tk",".ml",".ga",".cf",".gq",".xyz",".top",".club",".work",".date",
+  ".review",".stream",".download",".win",".loan",".bid",".racing",".trade",
+  ".accountant",".science",".faith",".party",".cricket",".trade",
+]);
+
+const SUSPICIOUS_PATTERNS = [
+  { pattern: /paypa[1l]/i,       name: "Lookalike 'PayPal'" },
+  { pattern: /micros[o0]ft/i,    name: "Lookalike 'Microsoft'" },
+  { pattern: /app[1l]e/i,        name: "Lookalike 'Apple'" },
+  { pattern: /g[o0]{2}gle/i,     name: "Lookalike 'Google'" },
+  { pattern: /amaz[o0]n/i,       name: "Lookalike 'Amazon'" },
+  { pattern: /faceb[o0]{2}k/i,   name: "Lookalike 'Facebook'" },
+  { pattern: /netf[1l]ix/i,      name: "Lookalike 'Netflix'" },
+  { pattern: /[a-z0-9-]+@[a-z0-9-]+\.[a-z]{2,}\.[a-z]{2,}/i, name: "Sous-domaine suspect" },
+  { pattern: /secure|verify|update|confirm|login|signin|account|password|credential|urgent|suspend/i, name: "Mot-clé phishing" },
+  { pattern: /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/,           name: "Adresse IP dans l'URL" },
+  { pattern: /xn--/,                                            name: "Domaine punycode (Unicode spoofing)" },
+];
+
+interface UrlScanResult {
+  url: string;
+  displayUrl: string;
+  domain: string;
+  risk: "safe" | "suspicious" | "dangerous";
+  reasons: string[];
+  isShortener: boolean;
+  isHttps: boolean;
+}
+
+function analyzeUrl(rawUrl: string): UrlScanResult {
+  const reasons: string[] = [];
+  let risk: UrlScanResult["risk"] = "safe";
+
+  let parsed: URL | null = null;
+  try { parsed = new URL(rawUrl); } catch { /* invalid */ }
+
+  const domain = parsed?.hostname ?? rawUrl.slice(0, 60);
+  const displayUrl = rawUrl.length > 80 ? rawUrl.slice(0, 77) + "…" : rawUrl;
+
+  if (!parsed) {
+    return { url: rawUrl, displayUrl, domain, risk: "suspicious", reasons: ["URL non parseable"], isShortener: false, isHttps: false };
+  }
+
+  const isHttps = parsed.protocol === "https:";
+  if (!isHttps && parsed.protocol !== "data:") reasons.push("Connexion non sécurisée (HTTP)");
+
+  const isShortener = URL_SHORTENERS.has(parsed.hostname.replace(/^www\./, ""));
+  if (isShortener) reasons.push("Service de raccourcissement d'URL (destination inconnue)");
+
+  const tld = "." + parsed.hostname.split(".").slice(-1)[0];
+  if (SUSPICIOUS_TLDS.has(tld)) reasons.push(`TLD gratuit souvent utilisé pour le phishing (${tld})`);
+
+  for (const sp of SUSPICIOUS_PATTERNS) {
+    if (sp.pattern.test(rawUrl)) reasons.push(sp.name);
+  }
+
+  if (rawUrl.length > 300) reasons.push("URL anormalement longue");
+  if ((parsed.hostname.match(/\./g) || []).length > 4) reasons.push("Trop de sous-domaines");
+
+  if (reasons.length === 0) risk = "safe";
+  else if (reasons.some(r => r.includes("Lookalike") || r.includes("phishing") || r.includes("IP") || r.includes("punycode"))) risk = "dangerous";
+  else risk = "suspicious";
+
+  return { url: rawUrl, displayUrl, domain, risk, reasons, isShortener, isHttps };
+}
+
+function extractUrls(text: string): string[] {
+  const urls = new Set<string>();
+  const re = /https?:\/\/[^\s"'<>)]+/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const url = m[0].replace(/[.,;!?]+$/, "");
+    if (url.length > 10) urls.add(url);
+  }
+  return [...urls].slice(0, 30);
+}
+
+export interface EmailScanReport {
+  messageId: string;
+  overallRisk: "safe" | "suspicious" | "dangerous";
+  riskScore: number; // 0–100
+  attachments: Array<{
+    filename: string;
+    mimeType: string;
+    size: number;
+    safe: boolean;
+    threats: string[];
+    sha256: string;
+    fileType: string | null;
+    scannedAt: string;
+  }>;
+  links: UrlScanResult[];
+  aiAnalysis: {
+    phishingScore: number; // 0–10
+    socialEngineering: string[];
+    impersonation: string | null;
+    verdict: "legitime" | "suspect" | "phishing";
+    summary: string;
+    recommendation: string;
+  } | null;
+  stats: {
+    attachmentsScanned: number;
+    attachmentsThreatened: number;
+    linksScanned: number;
+    linksDangerous: number;
+    linksSuspicious: number;
+  };
+  scannedAt: string;
+}
+
+router.post("/gmail/message/:id/scan", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req.session as any)?.userId;
+    if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+    const auth = await getAuthClient(userId);
+    if (!auth) { res.status(403).json({ error: "non_connecte" }); return; }
+
+    const msgId = String(req.params.id);
+    const gmail = google.gmail({ version: "v1", auth });
+
+    // 1. Fetch full message
+    const detailRes = await (gmail.users.messages as any).get({ userId: "me", id: msgId, format: "full" });
+    const detail = detailRes.data;
+    const headers = parseHeaders(detail.payload?.headers || []);
+    const { html, plain } = decodeEmailBody(detail.payload);
+    const attachmentMeta = getAttachments(detail.payload);
+
+    const bodyText = plain || html.replace(/<[^>]+>/g, " ") || detail.snippet || "";
+    const subject = headers["subject"] || "";
+    const fromHeader = headers["from"] || "";
+
+    // 2. Scan attachments
+    const { scanBase64Content } = await import("../middleware/security.js");
+    const scannedAttachments: EmailScanReport["attachments"] = [];
+
+    await Promise.all(attachmentMeta.map(async (att: any) => {
+      try {
+        const attRes = await (gmail.users.messages.attachments as any).get({
+          userId: "me", messageId: msgId, id: att.attachmentId,
+        });
+        const base64Data: string = attRes.data?.data || "";
+        const scanResult = scanBase64Content(base64Data, att.filename);
+        scannedAttachments.push({
+          filename: att.filename,
+          mimeType: att.mimeType,
+          size: att.size,
+          safe: scanResult.safe,
+          threats: scanResult.threats,
+          sha256: scanResult.sha256,
+          fileType: scanResult.fileType,
+          scannedAt: scanResult.scannedAt,
+        });
+      } catch (e: any) {
+        scannedAttachments.push({
+          filename: att.filename,
+          mimeType: att.mimeType,
+          size: att.size,
+          safe: false,
+          threats: [`Impossible de télécharger la pièce jointe: ${e?.message ?? "erreur"}`],
+          sha256: "",
+          fileType: null,
+          scannedAt: new Date().toISOString(),
+        });
+      }
+    }));
+
+    // 3. Extract & analyze URLs
+    const allText = `${subject} ${html} ${plain}`;
+    const rawUrls = extractUrls(allText);
+    const scannedLinks = rawUrls.map(analyzeUrl);
+
+    // 4. AI phishing analysis via Gemini
+    let aiAnalysis: EmailScanReport["aiAnalysis"] = null;
+    try {
+      const { ai } = await import("@workspace/integrations-gemini-ai");
+      const prompt = `Tu es un expert en cybersécurité. Analyse cet email pour détecter le phishing, l'ingénierie sociale et les tentatives d'usurpation d'identité.
+
+DE: ${fromHeader}
+OBJET: ${subject}
+CORPS (extrait): ${bodyText.slice(0, 3000)}
+
+URLs détectées: ${rawUrls.slice(0, 10).join(", ")}
+
+Réponds en JSON strict avec ce format:
+{
+  "phishingScore": <0-10, 0=légitime, 10=phishing confirmé>,
+  "socialEngineering": [<liste de tactiques détectées, ex: "urgence artificielle", "menace de suspension", "promesse de gain">],
+  "impersonation": <"nom de la marque usurpée ou null">,
+  "verdict": <"legitime"|"suspect"|"phishing">,
+  "summary": <"explication en 1-2 phrases">,
+  "recommendation": <"action recommandée en 1 phrase">
+}`;
+
+      const result = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        config: { temperature: 0.1, maxOutputTokens: 512 },
+      });
+
+      const raw = result.text?.trim() ?? "";
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        aiAnalysis = {
+          phishingScore: Math.max(0, Math.min(10, parsed.phishingScore ?? 0)),
+          socialEngineering: Array.isArray(parsed.socialEngineering) ? parsed.socialEngineering : [],
+          impersonation: parsed.impersonation ?? null,
+          verdict: parsed.verdict ?? "legitime",
+          summary: parsed.summary ?? "",
+          recommendation: parsed.recommendation ?? "",
+        };
+      }
+    } catch (aiErr: any) {
+      logger.warn({ err: aiErr }, "Gmail scan AI analysis failed (non-blocking)");
+    }
+
+    // 5. Compute overall risk
+    const hasUnsafeAttachment = scannedAttachments.some(a => !a.safe);
+    const hasDangerousLink = scannedLinks.some(l => l.risk === "dangerous");
+    const hasSuspiciousLink = scannedLinks.some(l => l.risk === "suspicious");
+    const aiScore = aiAnalysis?.phishingScore ?? 0;
+
+    let riskScore = 0;
+    if (hasUnsafeAttachment) riskScore += 60;
+    if (hasDangerousLink)    riskScore += 30;
+    else if (hasSuspiciousLink) riskScore += 10;
+    riskScore += aiScore * 4; // 0–40
+    riskScore = Math.min(100, riskScore);
+
+    let overallRisk: EmailScanReport["overallRisk"] = "safe";
+    if (riskScore >= 60 || aiAnalysis?.verdict === "phishing") overallRisk = "dangerous";
+    else if (riskScore >= 25 || aiAnalysis?.verdict === "suspect") overallRisk = "suspicious";
+
+    const report: EmailScanReport = {
+      messageId: msgId,
+      overallRisk,
+      riskScore,
+      attachments: scannedAttachments,
+      links: scannedLinks,
+      aiAnalysis,
+      stats: {
+        attachmentsScanned: scannedAttachments.length,
+        attachmentsThreatened: scannedAttachments.filter(a => !a.safe).length,
+        linksScanned: scannedLinks.length,
+        linksDangerous: scannedLinks.filter(l => l.risk === "dangerous").length,
+        linksSuspicious: scannedLinks.filter(l => l.risk === "suspicious").length,
+      },
+      scannedAt: new Date().toISOString(),
+    };
+
+    logger.info({ security: true, event: "email_scan", msgId, overallRisk, riskScore }, `Email scan: ${overallRisk}`);
+    res.json(report);
+  } catch (error: any) {
+    logger.error({ err: error }, "Gmail scan error");
+    res.status(500).json({ error: "Erreur lors du scan de sécurité." });
+  }
+});
+
 router.get("/gmail/labels", async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req.session as any)?.userId;
