@@ -444,11 +444,27 @@ export default function DevisScreen() {
         fields={detailFields}
         onClose={() => setSelected(null)}
         extraActions={selected ? [
-          ...(selected.status === "brouillon" && selected.clientEmail ? [{
+          ...(["brouillon", "envoye"].includes(selected.status) && selected.clientEmail ? [{
             label: sending === selected.id ? "Envoi..." : "Envoyer par email",
             icon: "send" as const,
             color: "#3b82f6",
             onPress: () => { const snap = selected; setSelected(null); handleSend(snap); },
+          }] : []),
+          ...(selected.status === "accepte" ? [{
+            label: "Convertir en facture",
+            icon: "dollar-sign" as const,
+            color: "#22c55e",
+            onPress: async () => {
+              const snap = selected;
+              setSelected(null);
+              try {
+                const res = await fetchAuth(`${API_BASE}/api/devis/${snap.id}/convert`, { method: "POST" });
+                if (res.ok) {
+                  Alert.alert("Facture créée", "Le devis a été converti en facture.");
+                  router.push("/factures");
+                }
+              } catch {}
+            },
           }] : []),
           {
             label: "Créer un projet",

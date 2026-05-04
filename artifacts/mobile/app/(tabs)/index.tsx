@@ -219,7 +219,7 @@ export default function DashboardScreen() {
             { icon: "phone-call" as const, label: "Appel", route: "/(tabs)/calls", color: "#3b82f6" },
             { icon: "user-plus" as const, label: "Contact", route: "/(tabs)/contacts", color: "#22c55e" },
             { icon: "plus-square" as const, label: "Tache", route: "/(tabs)/tasks", color: "#f59e0b" },
-            { icon: "video" as const, label: "Reunion IA", route: "/meetings", color: "#8b5cf6" },
+            { icon: "search" as const, label: "Recherche", route: "/recherche", color: "#64748b" },
           ].map((a) => (
             <Pressable
               key={a.label}

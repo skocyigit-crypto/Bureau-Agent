@@ -7,9 +7,11 @@ import {
   Alert,
   Animated,
   FlatList,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -227,6 +229,11 @@ export default function FacturesScreen() {
   const [formValues, setFormValues] = useState<Record<string, string>>({ status: "emise" });
   const [formLoading, setFormLoading] = useState(false);
   const [sending, setSending] = useState<number | null>(null);
+  const [showPayment, setShowPayment] = useState(false);
+  const [paymentTarget, setPaymentTarget] = useState<Facture | null>(null);
+  const [payAmount, setPayAmount] = useState("");
+  const [payMethod, setPayMethod] = useState("virement");
+  const [payLoading, setPayLoading] = useState(false);
 
   const { cached, isFromCache, updateCache } = useOfflineCache<Facture[]>("factures_list", []);
 
@@ -284,6 +291,32 @@ export default function FacturesScreen() {
       }
     } catch {}
     finally { setSending(null); }
+  }
+
+  function openPayment(f: Facture) {
+    setPaymentTarget(f);
+    const remaining = Math.max(0, parseFloat(f.totalAmount || "0") - parseFloat(f.paidAmount || "0"));
+    setPayAmount(remaining.toFixed(2));
+    setPayMethod("virement");
+    setSelected(null);
+    setShowPayment(true);
+  }
+
+  async function handlePayment() {
+    if (!paymentTarget || !payAmount) return;
+    setPayLoading(true);
+    try {
+      const res = await fetchAuth(`${API_BASE}/api/factures-client/${paymentTarget.id}/paiement`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: parseFloat(payAmount), method: payMethod }),
+      });
+      if (res.ok) {
+        setShowPayment(false);
+        setPaymentTarget(null);
+        load();
+      }
+    } finally { setPayLoading(false); }
   }
 
   async function handleSubmit() {
@@ -470,6 +503,12 @@ export default function FacturesScreen() {
         fields={detailFields}
         onClose={() => setSelected(null)}
         extraActions={selected ? [
+          ...(!["payee", "annulee"].includes(selected.status) ? [{
+            label: "Enregistrer paiement",
+            icon: "dollar-sign" as const,
+            color: "#22c55e",
+            onPress: () => { const snap = selected; openPayment(snap); },
+          }] : []),
           ...(selected.clientEmail && !["payee", "annulee"].includes(selected.status) ? [{
             label: sending === selected.id ? "Envoi..." : "Envoyer relance",
             icon: "mail" as const,
@@ -514,9 +553,91 @@ export default function FacturesScreen() {
           }
         } : undefined}
       />
+
+      {/* Payment Modal */}
+      <Modal visible={showPayment} transparent animationType="slide" onRequestClose={() => setShowPayment(false)}>
+        <View style={payStyles.overlay}>
+          <View style={payStyles.sheet}>
+            <View style={payStyles.handle} />
+            <View style={payStyles.header}>
+              <View style={payStyles.headerIcon}>
+                <Feather name="dollar-sign" size={18} color="#22c55e" />
+              </View>
+              <Text style={payStyles.title}>Enregistrer un paiement</Text>
+              <Pressable onPress={() => setShowPayment(false)} style={payStyles.closeBtn}>
+                <Feather name="x" size={20} color="#6b7280" />
+              </Pressable>
+            </View>
+            {paymentTarget && (
+              <Text style={payStyles.subtitle}>
+                Facture {paymentTarget.reference} · {paymentTarget.clientName}
+              </Text>
+            )}
+            <View style={payStyles.field}>
+              <Text style={payStyles.label}>Montant reçu (€) *</Text>
+              <TextInput
+                style={payStyles.input}
+                value={payAmount}
+                onChangeText={setPayAmount}
+                keyboardType="decimal-pad"
+                placeholder="0.00"
+                placeholderTextColor="#9ca3af"
+              />
+            </View>
+            <View style={payStyles.field}>
+              <Text style={payStyles.label}>Moyen de paiement</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 6 }}>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  {["virement", "cheque", "carte", "especes", "prelevement", "autre"].map(m => (
+                    <Pressable
+                      key={m}
+                      onPress={() => setPayMethod(m)}
+                      style={[payStyles.methodChip, { backgroundColor: payMethod === m ? "#22c55e" : "#f3f4f6", borderColor: payMethod === m ? "#22c55e" : "#e5e7eb" }]}
+                    >
+                      <Text style={[payStyles.methodText, { color: payMethod === m ? "#fff" : "#374151" }]}>
+                        {m.charAt(0).toUpperCase() + m.slice(1)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+            <Pressable
+              onPress={handlePayment}
+              disabled={payLoading || !payAmount}
+              style={[payStyles.submitBtn, { opacity: payLoading || !payAmount ? 0.6 : 1 }]}
+            >
+              {payLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Feather name="check" size={16} color="#fff" />
+              )}
+              <Text style={payStyles.submitText}>{payLoading ? "Enregistrement…" : "Confirmer le paiement"}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
+
+const payStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  sheet: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, gap: 14 },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#e5e7eb", alignSelf: "center", marginBottom: 4 },
+  header: { flexDirection: "row", alignItems: "center", gap: 10 },
+  headerIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: "#22c55e18", alignItems: "center", justifyContent: "center" },
+  title: { flex: 1, fontSize: 16, fontFamily: "Inter_700Bold", color: "#111827" },
+  closeBtn: { padding: 4 },
+  subtitle: { fontSize: 12, fontFamily: "Inter_400Regular", color: "#6b7280" },
+  field: { gap: 6 },
+  label: { fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#374151" },
+  input: { borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 10, padding: 12, fontSize: 16, fontFamily: "Inter_600SemiBold", color: "#111827" },
+  methodChip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },
+  methodText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  submitBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#22c55e", height: 48, borderRadius: 12 },
+  submitText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1 },

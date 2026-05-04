@@ -170,6 +170,7 @@ export default function MoreScreen() {
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>INVENTAIRE & DOCS</Text>
           <MenuItem icon="package" label="Stock" sublabel="Gestion des articles et inventaire" color="#7c3aed" onPress={() => nav("/stock")} />
           <MenuItem icon="shopping-cart" label="Commandes Fournisseur" sublabel="Bons de commande et suivi livraisons" color="#b45309" onPress={() => nav("/commandes-fournisseur")} />
+          <MenuItem icon="activity" label="Mouvements de Stock" sublabel="Historique entrées et sorties" color="#7c3aed" onPress={() => nav("/stock-mouvements")} />
           <MenuItem icon="folder" label="Documents" sublabel="Fichiers, contrats et pièces jointes" color="#0f766e" onPress={() => nav("/documents")} />
         </View>
 
@@ -177,10 +178,13 @@ export default function MoreScreen() {
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>RAPPORTS</Text>
           <MenuItem icon="trending-up" label="Rapport Commercial" sublabel="Vue consolidée CA, devis, factures" color="#1d4ed8" onPress={() => nav("/rapport-commercial")} />
           <MenuItem icon="bar-chart-2" label="Performance Équipe" sublabel="Métriques et rapport IA par employé" color="#0f4c81" onPress={() => nav("/performance")} />
+          <MenuItem icon="award" label="Rapport Exécutif" sublabel="Score global + insights IA opérationnels" color="#1e293b" onPress={() => nav("/rapport-executif")} />
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>OUTILS</Text>
+          <MenuItem icon="search" label="Recherche Globale" sublabel="Cherchez dans contacts, devis, tâches…" color="#1e293b" onPress={() => nav("/recherche")} />
+          <MenuItem icon="activity" label="Activité Récente" sublabel="Flux en temps réel de toutes les actions" color="#0f172a" onPress={() => nav("/activite-recente")} />
           <MenuItem icon="bar-chart-2" label="Analytique" sublabel="Rapports et statistiques" color="#f59e0b" onPress={() => nav("/analytics")} />
           <MenuItem icon="calendar" label="Calendrier" sublabel="Evenements et rendez-vous" color="#ec4899" onPress={() => nav("/calendar")} />
           <MenuItem icon="folder" label="Projets" sublabel="Gestion de portefeuille projets" color="#6366f1" onPress={() => nav("/projets")} />
