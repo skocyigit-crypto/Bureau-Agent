@@ -35,6 +35,7 @@ const QUICK_ACTIONS = [
   { icon: "bar-chart-2" as const, label: "Briefing du jour", prompt: "Donne-moi le briefing complet de la journee: appels, taches, rendez-vous, factures en retard." },
   { icon: "users" as const, label: "Analyse clients", prompt: "Analyse mes contacts et prospects: qui sont les plus importants, quels suivis faire?" },
   { icon: "trending-up" as const, label: "Performance", prompt: "Analyse mes performances de la semaine: appels, taches terminees, chiffre d'affaires." },
+  { icon: "folder" as const, label: "Etat projets", prompt: "Fais un bilan de mes projets: combien sont actifs, lesquels sont en retard, et quel est l'avancement global?" },
   { icon: "alert-circle" as const, label: "Risques", prompt: "Quels sont les risques actuels: factures en retard, taches urgentes, projets en danger?" },
   { icon: "zap" as const, label: "Suggestions", prompt: "Quelles actions me recommandes-tu pour ameliorer ma productivite aujourd'hui?" },
   { icon: "search" as const, label: "Recherche", prompt: "Recherche dans mes donnees: " },

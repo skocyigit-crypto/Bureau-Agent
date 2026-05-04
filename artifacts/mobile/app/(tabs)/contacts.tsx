@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -436,6 +437,18 @@ export default function ContactsScreen() {
             { label: "Appels", value: `${selected.totalCalls || 0}`, icon: "phone" },
             ...(selected.notes ? [{ label: "Notes", value: selected.notes, icon: "file-text" as const }] : []),
           ]}
+          extraActions={[{
+            label: "Créer un projet",
+            icon: "folder",
+            color: "#6366f1",
+            onPress: async () => {
+              try {
+                const name = `${selected.firstName} ${selected.lastName}`.trim() || selected.company || "Contact";
+                const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: `Projet - ${name}`, clientName: name, contactId: selected.id, status: "planifie", priority: "moyenne", progress: 0, notes: `Créé depuis le contact mobile` }) });
+                if (res.ok) { setSelected(null); router.push("/projets" as any); }
+              } catch {}
+            },
+          }]}
         />
       ) : null}
     </View>

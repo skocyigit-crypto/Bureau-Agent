@@ -21,7 +21,7 @@ const VALID_ROUTES = [
   "/import", "/pointage", "/telephonie", "/google-workspace",
   "/logiciels", "/utilisateurs", "/audit", "/automatisations",
   "/organisations", "/abonnement", "/parametres", "/notifications",
-  "/telecharger", "/gestion-licence",
+  "/telecharger", "/gestion-licence", "/projets",
 ];
 
 function safeLink(lien: string): string {

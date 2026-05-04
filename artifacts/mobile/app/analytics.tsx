@@ -27,6 +27,8 @@ interface AnalyticsData {
   answeredRate: number;
   totalRevenue?: number;
   conversionRate?: number;
+  projetsActifs: number;
+  projetsEnRetard: number;
 }
 
 interface WeeklyReport {
@@ -132,8 +134,8 @@ export default function AnalyticsScreen() {
       if (sumRes.ok) {
         const json = await sumRes.json();
         setData({
-          totalCalls: json.totalCalls ?? 0,
-          missedCalls: json.missedCalls ?? 0,
+          totalCalls: json.totalCalls ?? json.totalCallsToday ?? 0,
+          missedCalls: json.missedCalls ?? json.missedCallsToday ?? 0,
           totalContacts: json.totalContacts ?? 0,
           pendingTasks: json.pendingTasks ?? 0,
           completedTasks: json.completedTasks ?? 0,
@@ -142,6 +144,8 @@ export default function AnalyticsScreen() {
           answeredRate: json.answeredRate ?? 0,
           totalRevenue: json.totalRevenue,
           conversionRate: json.conversionRate,
+          projetsActifs: json.projetsActifs ?? 0,
+          projetsEnRetard: json.projetsEnRetard ?? 0,
         });
       }
       if (weekRes.ok) setWeekly(await weekRes.json());
@@ -223,6 +227,8 @@ export default function AnalyticsScreen() {
               <KpiCard icon="check-square" label="Taches" value={data.completedTasks} color="#8b5cf6" sub={`${completionRate}% complet`} />
               <KpiCard icon="message-square" label="Non lus" value={data.unreadMessages} color="#f59e0b" />
               <KpiCard icon="clock" label="Dur. moy." value={`${Math.floor(data.avgCallDuration / 60)}m${data.avgCallDuration % 60}s`} color="#64748b" />
+              <KpiCard icon="folder" label="Projets" value={data.projetsActifs} color="#6366f1" sub="En cours" />
+              <KpiCard icon="alert-circle" label="En retard" value={data.projetsEnRetard} color={data.projetsEnRetard > 0 ? "#ef4444" : "#64748b"} sub="Projets" />
             </View>
 
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>

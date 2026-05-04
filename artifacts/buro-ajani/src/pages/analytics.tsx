@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useGetCallAnalytics, useGetCallDistribution, useGetHourlyPerformance, useGetWeeklyReport, useGetTaskStats } from "@workspace/api-client-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
@@ -18,7 +18,8 @@ import { Separator } from "@/components/ui/separator";
 import {
   Phone, PhoneIncoming, PhoneMissed, Voicemail, TrendingUp, TrendingDown,
   BarChart3, Clock, Target, AlertTriangle, CheckCircle2, Sparkles, Loader2,
-  ArrowUpRight, ArrowDownRight, Activity, Zap, Shield, Brain, Printer, Download
+  ArrowUpRight, ArrowDownRight, Activity, Zap, Shield, Brain, Printer, Download,
+  FolderKanban
 } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL ?? "/";
@@ -58,6 +59,18 @@ export default function Analytics() {
   const { data: taskStats, isLoading: isTaskStatsLoading } = useGetTaskStats(
     { query: { queryKey: ["taskStats"] } }
   );
+
+  const [projetsStats, setProjetsStats] = useState<{
+    total: number; active: number; termine: number; overdue: number;
+    avgProgress: number; highPriority: number; byStatus: Record<string, number>;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch(`${BASE}api/projets/stats`, { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d && setProjetsStats(d))
+      .catch(() => {});
+  }, []);
 
   const COLORS = ['hsl(142.1 76.2% 36.3%)', 'hsl(215.4 16.3% 46.9%)', 'hsl(0 84.2% 60.2%)', 'hsl(43 96% 56%)', 'hsl(221 83% 53%)'];
   const SENTIMENT_COLORS: Record<string, string> = {
@@ -560,6 +573,48 @@ export default function Analytics() {
                 </div>
               </div>
             ) : null}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><FolderKanban className="w-4 h-4 text-indigo-500" />Performance Projets</CardTitle>
+            <CardDescription>Suivi du portefeuille projets</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!projetsStats ? (
+              <div className="space-y-4"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div>
+            ) : projetsStats.total === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Aucun projet créé.</p>
+            ) : (
+              <div className="space-y-5 mt-2">
+                <div>
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-muted-foreground">Avancement moyen</span>
+                    <span className="font-bold">{projetsStats.avgProgress}%</span>
+                  </div>
+                  <Progress value={projetsStats.avgProgress} className="h-2" />
+                </div>
+                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
+                  <div className="bg-indigo-50 dark:bg-indigo-950/30 p-3 rounded-lg text-center">
+                    <span className="block text-xl font-bold text-indigo-600">{projetsStats.active}</span>
+                    <span className="block text-[10px] text-muted-foreground mt-1">En cours</span>
+                  </div>
+                  <div className="bg-emerald-50 dark:bg-emerald-950/30 p-3 rounded-lg text-center">
+                    <span className="block text-xl font-bold text-emerald-600">{projetsStats.termine}</span>
+                    <span className="block text-[10px] text-muted-foreground mt-1">Terminés</span>
+                  </div>
+                  <div className={`p-3 rounded-lg text-center ${projetsStats.overdue > 0 ? "bg-red-50 dark:bg-red-950/30" : "bg-slate-50 dark:bg-slate-900/30"}`}>
+                    <span className={`block text-xl font-bold ${projetsStats.overdue > 0 ? "text-destructive" : "text-slate-600"}`}>{projetsStats.overdue}</span>
+                    <span className="block text-[10px] text-muted-foreground mt-1">En retard</span>
+                  </div>
+                  <div className="bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg text-center">
+                    <span className="block text-xl font-bold text-amber-600">{projetsStats.highPriority}</span>
+                    <span className="block text-[10px] text-muted-foreground mt-1">Haute priorité</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

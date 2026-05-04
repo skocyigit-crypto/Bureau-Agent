@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { TrendingUp, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, Filter, Target, Trophy, XCircle, DollarSign, RefreshCw, Kanban, LayoutList, ArrowUpDown, Download, UserPlus, Printer, Layers, Copy } from "lucide-react";
+import { TrendingUp, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, Filter, Target, Trophy, XCircle, DollarSign, RefreshCw, Kanban, LayoutList, ArrowUpDown, Download, UserPlus, Printer, Layers, Copy, FolderKanban } from "lucide-react";
+import { useLocation } from "wouter";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,7 @@ const EMPTY_FORM = { title: "", contactName: "", company: "", email: "", phone: 
 
 export default function ProspectsPage() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [total, setTotal] = useState(0);
   const [stats, setStats] = useState<any>(null);
@@ -140,6 +142,36 @@ export default function ProspectsPage() {
     const d = await res.json();
     if (res.ok) { toast({ title: "Converti !", description: d.message }); load(); }
     else toast({ title: "Erreur", description: d.error, variant: "destructive" });
+  };
+
+  const handleCreateProjet = async (p: Prospect) => {
+    try {
+      const res = await fetch(`${BASE}/api/projets`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          title: p.title,
+          clientName: p.contactName || "",
+          clientCompany: p.company || "",
+          status: "planifie",
+          priority: p.priority,
+          budget: p.value || undefined,
+          currency: p.currency || "EUR",
+          progress: 0,
+          notes: p.notes || "",
+        }),
+      });
+      if (res.ok) {
+        toast({ title: "Projet créé", description: `Le projet "${p.title}" a été créé.` });
+        setLocation("/projets");
+      } else {
+        const d = await res.json();
+        toast({ title: "Erreur", description: d.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de créer le projet.", variant: "destructive" });
+    }
   };
 
   const handleStageChange = async (id: number, stage: string) => {
@@ -348,6 +380,7 @@ export default function ProspectsPage() {
                     <DropdownMenuItem onClick={() => openEdit(p)}><Edit className="w-3 h-3 mr-2" />Modifier</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleDuplicate(p.id)}><Copy className="w-3 h-3 mr-2" />Dupliquer</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleConvert(p.id)}><UserPlus className="w-3 h-3 mr-2" />Convertir en contact</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleCreateProjet(p)} className="text-indigo-600"><FolderKanban className="w-3 h-3 mr-2" />Créer un projet</DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(p.id)}><Trash2 className="w-3 h-3 mr-2" />Supprimer</DropdownMenuItem>
                   </DropdownMenuContent>

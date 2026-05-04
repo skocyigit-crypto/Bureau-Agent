@@ -3,7 +3,7 @@ import { useListTasks, useCreateTask, useUpdateTask, useDeleteTask, getListTasks
 import { useQueryClient } from "@tanstack/react-query";
 import { format, isPast, isToday } from "date-fns";
 import { fr } from "date-fns/locale";
-import { CheckSquare, Search, Filter, MoreHorizontal, Plus, Calendar, Clock, AlertCircle, Edit, Users, LayoutList, Columns3, ArrowUpDown, ArrowUp, ArrowDown, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertTriangle, GripVertical, Repeat, Download, Copy, Printer, CheckCheck, UserCheck } from "lucide-react";
+import { CheckSquare, Search, Filter, MoreHorizontal, Plus, Calendar, Clock, AlertCircle, Edit, Users, LayoutList, Columns3, ArrowUpDown, ArrowUp, ArrowDown, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertTriangle, GripVertical, Repeat, Download, Copy, Printer, CheckCheck, UserCheck, FolderKanban } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import taskManagementImg from "@/assets/images/task-management.png";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { AiValidationFeedback } from "@/components/ai-validation-feedback";
 import { useAiValidation } from "@/hooks/use-ai-validation";
 import { QueryErrorAlert } from "@/components/safe-component";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 const PAGE_SIZE = 20;
 
@@ -53,6 +53,7 @@ const KANBAN_COLUMNS = [
 export default function Tasks() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [viewMode, setViewMode] = useState<"table" | "kanban">("table");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
@@ -781,6 +782,12 @@ export default function Tasks() {
                               <DropdownMenuItem onClick={() => handleDuplicate(task.id)}>
                                 <Copy className="w-4 h-4 mr-2" /> Dupliquer
                               </DropdownMenuItem>
+                              <DropdownMenuItem className="text-indigo-600" onClick={async () => {
+                                const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+                                const res = await fetch(`${BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: task.title, status: "planifie", priority: task.priority || "moyenne", progress: 0, notes: `Créé depuis la tâche #${task.id}` }) });
+                                if (res.ok) { toast({ title: "Projet créé" }); setLocation("/projets"); }
+                                else toast({ title: "Erreur", variant: "destructive" });
+                              }}><FolderKanban className="w-4 h-4 mr-2" />Créer un projet</DropdownMenuItem>
                               <DropdownMenuSeparator />
                               {task.status !== 'termine' && (
                                 <DropdownMenuItem onClick={() => handleStatusChange(task.id, 'termine')}>

@@ -7,11 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Phone, Users, CheckSquare, MessageSquare, CalendarDays, Zap, Plus, Send, Loader2 } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, CalendarDays, Zap, Plus, Send, Loader2, FolderKanban } from "lucide-react";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-type ActionType = "contact" | "tache" | "appel" | "message" | "evenement";
+type ActionType = "contact" | "tache" | "appel" | "message" | "evenement" | "projet";
 
 interface QuickActionHubProps {
   open: boolean;
@@ -63,12 +63,13 @@ export function QuickActionHub({ open, onOpenChange, defaultTab = "contact" }: Q
         </DialogHeader>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as ActionType)}>
-          <TabsList className="grid grid-cols-5 w-full">
+          <TabsList className="grid grid-cols-6 w-full">
             <TabsTrigger value="contact" className="text-xs gap-1"><Users className="h-3 w-3" />Contact</TabsTrigger>
             <TabsTrigger value="tache" className="text-xs gap-1"><CheckSquare className="h-3 w-3" />Tache</TabsTrigger>
             <TabsTrigger value="appel" className="text-xs gap-1"><Phone className="h-3 w-3" />Appel</TabsTrigger>
             <TabsTrigger value="message" className="text-xs gap-1"><MessageSquare className="h-3 w-3" />Message</TabsTrigger>
             <TabsTrigger value="evenement" className="text-xs gap-1"><CalendarDays className="h-3 w-3" />Evenement</TabsTrigger>
+            <TabsTrigger value="projet" className="text-xs gap-1"><FolderKanban className="h-3 w-3" />Projet</TabsTrigger>
           </TabsList>
 
           <TabsContent value="contact">
@@ -85,6 +86,9 @@ export function QuickActionHub({ open, onOpenChange, defaultTab = "contact" }: Q
           </TabsContent>
           <TabsContent value="evenement">
             <QuickEventForm onSubmit={(d) => handleSubmit("calendar/events", d, "Evenement")} loading={loading} />
+          </TabsContent>
+          <TabsContent value="projet">
+            <QuickProjetForm onSubmit={(d) => handleSubmit("projets", d, "Projet")} loading={loading} />
           </TabsContent>
         </Tabs>
       </DialogContent>
@@ -246,6 +250,46 @@ function QuickEventForm({ onSubmit, loading }: { onSubmit: (d: any) => void; loa
       </div>
       <div><Label className="text-xs">Description</Label><Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Details..." rows={2} /></div>
       <Button type="submit" className="w-full" disabled={loading}>{loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CalendarDays className="h-4 w-4 mr-2" />}Creer l'evenement</Button>
+    </form>
+  );
+}
+
+function QuickProjetForm({ onSubmit, loading }: { onSubmit: (d: any) => void; loading: boolean }) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [clientName, setClientName] = useState("");
+  const [priority, setPriority] = useState("moyenne");
+  const [budget, setBudget] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  return (
+    <form onSubmit={(e) => {
+      e.preventDefault();
+      onSubmit({ title, description, clientName, priority, status: "planifie", budget: budget || undefined, endDate: endDate || undefined, currency: "EUR", progress: 0 });
+    }} className="space-y-3 mt-3">
+      <div><Label className="text-xs">Titre du projet *</Label><Input value={title} onChange={e => setTitle(e.target.value)} required placeholder="Refonte site vitrine" /></div>
+      <div><Label className="text-xs">Description</Label><Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Contexte et objectifs..." rows={2} /></div>
+      <div className="grid grid-cols-2 gap-3">
+        <div><Label className="text-xs">Client</Label><Input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Acme Inc." /></div>
+        <div>
+          <Label className="text-xs">Priorite</Label>
+          <Select value={priority} onValueChange={setPriority}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="basse">Basse</SelectItem>
+              <SelectItem value="moyenne">Moyenne</SelectItem>
+              <SelectItem value="haute">Haute</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div><Label className="text-xs">Budget (€)</Label><Input type="number" value={budget} onChange={e => setBudget(e.target.value)} placeholder="5000" /></div>
+        <div><Label className="text-xs">Date de fin</Label><Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
+      </div>
+      <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700" disabled={loading}>
+        {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FolderKanban className="h-4 w-4 mr-2" />}Creer le projet
+      </Button>
     </form>
   );
 }

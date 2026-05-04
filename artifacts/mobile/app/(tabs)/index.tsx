@@ -31,6 +31,8 @@ interface DashboardData {
   answeredRate: number;
   todayCalls: number;
   todayTasks: number;
+  projetsActifs: number;
+  projetsEnRetard: number;
 }
 
 interface RecentCall {
@@ -86,15 +88,17 @@ export default function DashboardScreen() {
       if (summaryRes.ok) {
         const json = await summaryRes.json();
         const d: DashboardData = {
-          totalCalls: json.totalCalls ?? 0,
-          missedCalls: json.missedCalls ?? 0,
+          totalCalls: json.totalCalls ?? json.totalCallsToday ?? 0,
+          missedCalls: json.missedCalls ?? json.missedCallsToday ?? 0,
           totalContacts: json.totalContacts ?? 0,
           pendingTasks: json.pendingTasks ?? 0,
           unreadMessages: json.unreadMessages ?? 0,
           avgCallDuration: json.avgCallDuration ?? 0,
           answeredRate: json.answeredRate ?? 0,
-          todayCalls: json.todayCalls ?? json.totalCalls ?? 0,
+          todayCalls: json.todayCalls ?? json.totalCallsToday ?? 0,
           todayTasks: json.todayTasks ?? json.pendingTasks ?? 0,
+          projetsActifs: json.projetsActifs ?? 0,
+          projetsEnRetard: json.projetsEnRetard ?? 0,
         };
         setData(d);
         updateCache(d);
@@ -266,6 +270,10 @@ export default function DashboardScreen() {
               <StatCard title="Contacts" value={data.totalContacts} icon="users" color={colors.success ?? "#22c55e"} />
               <StatCard title="Taches" value={data.pendingTasks} icon="check-square" color={colors.warning ?? "#f59e0b"} subtitle="En attente" />
             </View>
+            <Pressable style={[styles.statsRow, { flex: undefined }]} onPress={() => quickNav("/projets")}>
+              <StatCard title="Projets" value={data.projetsActifs} icon="folder" color="#6366f1" subtitle="En cours" />
+              <StatCard title="En retard" value={data.projetsEnRetard} icon="alert-circle" color={data.projetsEnRetard > 0 ? colors.destructive : colors.mutedForeground} subtitle="Projets" />
+            </Pressable>
 
             <View style={[styles.performanceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Performance</Text>

@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
+import { useLocation } from "wouter";
 import {
   Clock, LogIn, LogOut, Coffee, MapPin, Building2, Wifi, Map, CalendarDays,
   Timer, Users, BarChart3, Loader2, Play, Pause, Square, Plus, ChevronLeft,
   ChevronRight, ChevronsLeft, ChevronsRight, MoreHorizontal, Trash2, Eye,
   RefreshCw, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Sparkles,
-  Download, CheckCircle2, AlertCircle, CloudDownload, Printer, Copy
+  Download, CheckCircle2, AlertCircle, CloudDownload, Printer, Copy, FolderKanban
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -86,6 +87,7 @@ function LiveTimer({ startTime }: { startTime: string }) {
 }
 
 export default function CheckinsPage() {
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useWorkspaceUser();
@@ -584,6 +586,12 @@ export default function CheckinsPage() {
                               <DropdownMenuItem onClick={() => handleDuplicate(checkin.id)}>
                                 <Copy className="w-4 h-4 mr-2" /> Dupliquer
                               </DropdownMenuItem>
+                              <DropdownMenuItem className="text-indigo-600" onClick={async () => {
+                                const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+                                const res = await fetch(`${BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: `Pointage - ${checkin.employeeName}`, status: "planifie", priority: "moyenne", progress: 0, notes: `Créé depuis un pointage de ${checkin.employeeName}` }) });
+                                if (res.ok) { toast({ title: "Projet créé" }); setLocation("/projets"); }
+                                else toast({ title: "Erreur", variant: "destructive" });
+                              }}><FolderKanban className="w-4 h-4 mr-2" />Créer un projet</DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(checkin.id)}>
                                 <Trash2 className="w-4 h-4 mr-2" /> Supprimer

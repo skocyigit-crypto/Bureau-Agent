@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useListContacts, useCreateContact, useUpdateContact, useDeleteContact, getListContactsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Users, Search, Filter, MoreHorizontal, Phone, Mail, Building, Plus, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, LayoutGrid, LayoutList, Upload, Printer, Edit, Tag, Copy } from "lucide-react";
+import { Users, Search, Filter, MoreHorizontal, Phone, Mail, Building, Plus, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, LayoutGrid, LayoutList, Upload, Printer, Edit, Tag, Copy, FolderKanban } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import receptionImg from "@/assets/images/reception-desk.png";
 import { Button } from "@/components/ui/button";
@@ -486,6 +486,14 @@ export default function Contacts() {
                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDuplicate(contact.id); }}><Copy className="w-3 h-3 mr-2" />Dupliquer</DropdownMenuItem>
                           {contact.phone && <DropdownMenuItem onClick={() => setLocation(`/appels?phone=${encodeURIComponent(contact.phone)}`)}><Phone className="w-3 h-3 mr-2" />Appeler</DropdownMenuItem>}
                           {contact.email && <DropdownMenuItem onClick={() => { setEmailComposerContactId(contact.id); setIsEmailComposerOpen(true); }}><Mail className="w-3 h-3 mr-2" />Envoyer email</DropdownMenuItem>}
+                          <DropdownMenuItem className="text-indigo-600" onClick={async (e) => {
+                            e.stopPropagation();
+                            const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+                            const name = [contact.firstName, contact.lastName].filter(Boolean).join(" ") || contact.company || "Contact";
+                            const res = await fetch(`${BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: `Projet - ${name}`, clientName: name, contactId: contact.id, status: "planifie", priority: "moyenne", progress: 0, notes: `Créé depuis le contact ${name}` }) });
+                            if (res.ok) { toast({ title: "Projet créé" }); setLocation("/projets"); }
+                            else toast({ title: "Erreur", variant: "destructive" });
+                          }}><FolderKanban className="w-3 h-3 mr-2" />Créer un projet</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={(e) => {
                             e.stopPropagation();

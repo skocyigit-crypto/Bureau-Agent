@@ -63,6 +63,9 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
   const defaultCount = [{ count: 0 }];
   const defaultAvg = [{ avg: 0 }];
 
+  const oProjet = eq(projetsTable.organisationId, orgId);
+  const now = new Date();
+
   const [
     todayCalls,
     answeredToday,
@@ -73,6 +76,8 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     unreadMessages,
     callsThisWeek,
     callsLastWeek,
+    projetsActifs,
+    projetsEnRetard,
   ] = await Promise.all([
     safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, todayStart))), defaultCount),
     safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, todayStart), eq(callsTable.status, "repondu"))), defaultCount),
@@ -83,6 +88,8 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(messagesTable).where(and(oMsg, eq(messagesTable.isRead, false))), defaultCount),
     safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, weekStart))), defaultCount),
     safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, prevWeekStart), sql`${callsTable.createdAt} < ${weekStart}`)), defaultCount),
+    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(projetsTable).where(and(oProjet, eq(projetsTable.status, "en_cours"))), defaultCount),
+    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(projetsTable).where(and(oProjet, lt(projetsTable.endDate, now), sql`${projetsTable.status} NOT IN ('termine','annule')`)), defaultCount),
   ]);
 
   const thisWeekCount = callsThisWeek[0]?.count ?? 0;
@@ -99,6 +106,8 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     unreadMessages: unreadMessages[0]?.count ?? 0,
     callsThisWeek: thisWeekCount,
     callsTrend: Math.round(trend * 10) / 10,
+    projetsActifs: projetsActifs[0]?.count ?? 0,
+    projetsEnRetard: projetsEnRetard[0]?.count ?? 0,
   });
 });
 

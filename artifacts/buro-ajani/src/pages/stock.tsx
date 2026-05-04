@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Package, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, AlertTriangle, RefreshCw, Minus, ArrowUp, Download, History, Printer, Copy } from "lucide-react";
+import { Package, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, AlertTriangle, RefreshCw, Minus, ArrowUp, Download, History, Printer, Copy, FolderKanban } from "lucide-react";
+import { useLocation } from "wouter";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ interface Article {
 const EMPTY = { name: "", reference: "", barcode: "", description: "", category: "general", quantity: "0", minQuantity: "5", unitPrice: "", supplier: "", location: "", unit: "piece", notes: "" };
 
 export default function StockPage() {
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [articles, setArticles] = useState<Article[]>([]);
   const [total, setTotal] = useState(0);
@@ -254,6 +256,11 @@ export default function StockPage() {
                           <DropdownMenuItem onClick={() => openAdjust(a)}><RefreshCw className="w-3 h-3 mr-2" />Ajuster stock</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => openEdit(a)}><Edit className="w-3 h-3 mr-2" />Modifier</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleDuplicate(a.id)}><Copy className="w-3 h-3 mr-2" />Dupliquer</DropdownMenuItem>
+                          <DropdownMenuItem className="text-indigo-600" onClick={async () => {
+                            const res = await fetch(`${BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: `Projet - ${a.name}`, status: "planifie", priority: "moyenne", progress: 0, notes: `Créé depuis l'article stock: ${a.reference || a.name}` }) });
+                            if (res.ok) { toast({ title: "Projet créé" }); setLocation("/projets"); }
+                            else toast({ title: "Erreur", variant: "destructive" });
+                          }}><FolderKanban className="w-3 h-3 mr-2" />Créer un projet</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(a.id)}><Trash2 className="w-3 h-3 mr-2" />Supprimer</DropdownMenuItem>
                         </DropdownMenuContent>

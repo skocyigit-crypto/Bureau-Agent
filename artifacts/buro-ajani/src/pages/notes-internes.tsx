@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { StickyNote, Plus, Trash2, Pin, PinOff, Search, RefreshCw, Edit, X, Check, Download, Copy, Printer, CheckSquare, Square, Palette } from "lucide-react";
+import { StickyNote, Plus, Trash2, Pin, PinOff, Search, RefreshCw, Edit, X, Check, Download, Copy, Printer, CheckSquare, Square, Palette, FolderKanban } from "lucide-react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,6 +40,7 @@ interface Note {
 }
 
 export default function NotesInternesPage() {
+  const [, setLocation] = useLocation();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -220,6 +222,9 @@ export default function NotesInternesPage() {
                   </Button>
                   <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => duplicate(n.id)} title="Dupliquer">
                     <Copy className="w-3 h-3" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-indigo-500" onClick={async (e) => { e.stopPropagation(); const res = await fetch(`${BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: n.title || n.content.slice(0, 50) || "Projet depuis note", status: "planifie", priority: "moyenne", progress: 0, notes: `Créé depuis une note interne` }) }); if (res.ok) { toast({ title: "Projet créé" }); setLocation("/projets"); } else toast({ title: "Erreur", variant: "destructive" }); }} title="Créer un projet">
+                    <FolderKanban className="w-3 h-3" />
                   </Button>
                   <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500" onClick={() => remove(n.id)} title="Supprimer">
                     <Trash2 className="w-3 h-3" />

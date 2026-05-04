@@ -175,6 +175,18 @@ router.get("/automations", async (req: Request, res: Response): Promise<void> =>
         lastRun: null,
         builtIn: true,
       },
+      {
+        id: -6,
+        name: "Projets en retard",
+        description: "Detecte les projets qui ont depassé leur date de fin et cree des alertes automatiques.",
+        type: "systeme",
+        trigger: "projet_overdue",
+        schedule: "1h",
+        enabled: true,
+        runCount: null,
+        lastRun: null,
+        builtIn: true,
+      },
     ];
 
     res.json({ rules: [...builtInRules, ...rules] });

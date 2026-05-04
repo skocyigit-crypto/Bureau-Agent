@@ -63,8 +63,10 @@ router.get("/projets/stats", async (req: Request, res: Response): Promise<void> 
       db.select({
         total: sql<number>`count(*)::int`,
         active: sql<number>`count(*) filter (where ${projetsTable.status} not in ('termine','annule'))::int`,
+        termine: sql<number>`count(*) filter (where ${projetsTable.status} = 'termine')::int`,
         overdue: sql<number>`count(*) filter (where ${projetsTable.endDate} < now() and ${projetsTable.status} not in ('termine','annule'))::int`,
         avgProgress: sql<number>`coalesce(avg(${projetsTable.progress}), 0)::int`,
+        highPriority: sql<number>`count(*) filter (where ${projetsTable.priority} = 'haute' and ${projetsTable.status} not in ('termine','annule'))::int`,
       }).from(projetsTable).where(eq(projetsTable.organisationId, orgId)),
       db.select({
         totalBudget: sql<number>`coalesce(sum(${projetsTable.budget}::numeric), 0)::numeric`,
@@ -180,6 +182,22 @@ router.patch("/projets/:id", async (req: Request, res: Response): Promise<void> 
   } catch (err: any) {
     req.log.error({ err }, "Erreur mise a jour projet");
     res.status(500).json({ error: "Erreur lors de la mise a jour." });
+  }
+});
+
+router.post("/projets/:id/duplicate", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const id = parseInt(req.params.id as string);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  try {
+    const [src] = await db.select().from(projetsTable).where(and(eq(projetsTable.id, id), eq(projetsTable.organisationId, orgId)));
+    if (!src) { res.status(404).json({ error: "Projet non trouve." }); return; }
+    const { id: _id, createdAt: _ca, updatedAt: _ua, ...rest } = src as any;
+    const [dup] = await db.insert(projetsTable).values({ ...rest, title: `${src.title} (copie)`, status: "planifie", progress: 0, actualEndDate: null }).returning();
+    res.status(201).json(dup);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur duplication projet");
+    res.status(500).json({ error: "Erreur lors de la duplication." });
   }
 });
 

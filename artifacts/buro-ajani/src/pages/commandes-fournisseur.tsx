@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Search, MoreHorizontal, Edit, Trash2, Mail, Copy, Check, X, Package, Truck, Clock, AlertCircle, Download, Printer } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Edit, Trash2, Mail, Copy, Check, X, Package, Truck, Clock, AlertCircle, Download, Printer, FolderKanban } from "lucide-react";
+import { useLocation } from "wouter";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,6 +93,7 @@ function ItemsEditor({ items, onChange }: { items: LineItem[]; onChange: (items:
 }
 
 export default function CommandesFournisseurPage() {
+  const [, setLocation] = useLocation();
   const [data, setData] = useState<BC[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -312,6 +314,11 @@ export default function CommandesFournisseurPage() {
                       {bc.status === "envoye" && <DropdownMenuItem onClick={() => handleStatus(bc.id, "confirme")}><Check className="w-3 h-3 mr-2" />Marquer confirmé</DropdownMenuItem>}
                       {bc.status === "confirme" && <DropdownMenuItem onClick={() => handleStatus(bc.id, "recu")}><Truck className="w-3 h-3 mr-2" />Marquer reçu</DropdownMenuItem>}
                       {!["recu", "annule"].includes(bc.status) && <DropdownMenuItem onClick={() => handleStatus(bc.id, "annule")}><X className="w-3 h-3 mr-2" />Annuler</DropdownMenuItem>}
+                      <DropdownMenuItem className="text-indigo-600" onClick={async () => {
+                        const res = await fetch(`${BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: `Projet - ${bc.fournisseurName || bc.reference || "Fournisseur"}`, clientName: bc.fournisseurName || "", status: "planifie", priority: "moyenne", progress: 0, notes: `Créé depuis la commande fournisseur ${bc.reference}` }) });
+                        if (res.ok) { toast({ title: "Projet créé" }); setLocation("/projets"); }
+                        else toast({ title: "Erreur", variant: "destructive" });
+                      }}><FolderKanban className="w-3 h-3 mr-2" />Créer un projet</DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(bc.id)}><Trash2 className="w-3 h-3 mr-2" />Supprimer</DropdownMenuItem>
                     </DropdownMenuContent>

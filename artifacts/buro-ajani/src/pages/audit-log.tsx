@@ -46,6 +46,7 @@ const RESOURCE_LABELS: Record<string, string> = {
   commande: "Commande",
   checkin: "Pointage",
   document: "Document",
+  projet: "Projet",
 };
 
 export default function AuditLogPage() {

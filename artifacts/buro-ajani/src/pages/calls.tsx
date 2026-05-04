@@ -3,7 +3,7 @@ import { useListCalls, useCreateCall, useUpdateCall, useDeleteCall, getListCalls
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Search, Filter, MoreHorizontal, Check, Clock, Voicemail, Plus, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CalendarIcon, Printer, Edit, Copy } from "lucide-react";
+import { Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Search, Filter, MoreHorizontal, Check, Clock, Voicemail, Plus, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CalendarIcon, Printer, Edit, Copy, FolderKanban } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import callCenterImg from "@/assets/images/call-center.png";
 import { Button } from "@/components/ui/button";
@@ -587,6 +587,13 @@ export default function Calls() {
                           if (res.ok) { toast({ title: "Appel dupliqué" }); queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() }); }
                           else toast({ title: "Erreur", variant: "destructive" });
                         }}><Copy className="w-4 h-4 mr-2" />Dupliquer</DropdownMenuItem>
+                        <DropdownMenuItem className="text-indigo-600" onClick={async (e) => {
+                          e.stopPropagation();
+                          const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+                          const res = await fetch(`${base}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: call.contactName ? `Projet - ${call.contactName}` : "Projet depuis appel", clientName: call.contactName || "", status: "planifie", priority: "moyenne", progress: 0, notes: `Créé depuis l'appel du ${new Date(call.createdAt || Date.now()).toLocaleDateString("fr-FR")}` }) });
+                          if (res.ok) { toast({ title: "Projet créé" }); setLocation("/projets"); }
+                          else toast({ title: "Erreur", variant: "destructive" });
+                        }}><FolderKanban className="w-4 h-4 mr-2" />Créer un projet</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={async (e) => {
                           e.stopPropagation();

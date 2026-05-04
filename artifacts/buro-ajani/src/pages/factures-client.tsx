@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Receipt, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, RefreshCw, AlertTriangle, CheckCircle2, X, Mail, Printer, Download } from "lucide-react";
+import { useLocation } from "wouter";
+import { Receipt, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, RefreshCw, AlertTriangle, CheckCircle2, X, Mail, Printer, Download, FolderKanban } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
@@ -178,6 +179,38 @@ export default function FacturesClientPage() {
     else toast({ title: "Erreur", variant: "destructive" });
   };
 
+  const [, setLocation] = useLocation();
+
+  const handleCreateProjetFromFacture = async (f: Facture) => {
+    try {
+      const res = await fetch(`${BASE}/api/projets`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          title: f.title,
+          clientName: f.clientName,
+          clientCompany: f.clientCompany || "",
+          status: "planifie",
+          priority: "moyenne",
+          budget: f.totalAmount || undefined,
+          currency: f.currency || "EUR",
+          progress: 0,
+          notes: `Créé depuis la facture ${f.reference}`,
+        }),
+      });
+      if (res.ok) {
+        toast({ title: "Projet créé", description: `Le projet "${f.title}" a été créé.` });
+        setLocation("/projets");
+      } else {
+        const e = await res.json();
+        toast({ title: "Erreur", description: e.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de créer le projet.", variant: "destructive" });
+    }
+  };
+
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
@@ -272,6 +305,7 @@ export default function FacturesClientPage() {
                           {f.clientEmail && <DropdownMenuItem onClick={() => handleSendEmail(f.id)}><Mail className="w-3 h-3 mr-2" />Envoyer par email</DropdownMenuItem>}
                           {!["payee", "annulee"].includes(f.status) && <DropdownMenuItem onClick={() => openPay(f)}><CheckCircle2 className="w-3 h-3 mr-2" />Enregistrer paiement</DropdownMenuItem>}
                           {f.status === "emise" && <DropdownMenuItem onClick={() => handleStatus(f.id, "annulee")}><X className="w-3 h-3 mr-2" />Annuler</DropdownMenuItem>}
+                          <DropdownMenuItem onClick={() => handleCreateProjetFromFacture(f)} className="text-indigo-600"><FolderKanban className="w-3 h-3 mr-2" />Créer un projet</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(f.id)}><Trash2 className="w-3 h-3 mr-2" />Supprimer</DropdownMenuItem>
                         </DropdownMenuContent>

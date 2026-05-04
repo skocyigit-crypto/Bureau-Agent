@@ -41,6 +41,7 @@ const MOBILE_ROUTE_MAP: Record<string, string> = {
   "/calendrier": "/calendar",
   "/analyse": "/analytics",
   "/messages": "/messages",
+  "/projets": "/projets",
 };
 
 const QUICK_COMMANDS = [
@@ -50,6 +51,7 @@ const QUICK_COMMANDS = [
   { icon: "users" as const, label: "Contacts recents", phrase: "Montre moi mes derniers contacts" },
   { icon: "calendar" as const, label: "Agenda", phrase: "Quels sont mes rendez-vous aujourd'hui?" },
   { icon: "trending-up" as const, label: "Performance", phrase: "Analyse mes performances de la semaine" },
+  { icon: "folder" as const, label: "Projets actifs", phrase: "Combien de projets actifs avons-nous?" },
   { icon: "alert-circle" as const, label: "Risques", phrase: "Quels sont les risques actuels?" },
   { icon: "zap" as const, label: "Suggestions", phrase: "Quelles actions me recommandes-tu pour aujourd'hui?" },
 ];

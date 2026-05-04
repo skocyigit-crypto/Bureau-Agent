@@ -23,6 +23,13 @@ interface DetailField {
   action?: "call" | "email" | "link";
 }
 
+interface ExtraAction {
+  label: string;
+  icon: keyof typeof Feather.glyphMap;
+  color?: string;
+  onPress: () => void;
+}
+
 interface DetailModalProps {
   visible: boolean;
   onClose: () => void;
@@ -34,6 +41,7 @@ interface DetailModalProps {
   iconColor?: string;
   fields: DetailField[];
   badge?: { label: string; color: string };
+  extraActions?: ExtraAction[];
 }
 
 export function DetailModal({
@@ -47,6 +55,7 @@ export function DetailModal({
   iconColor,
   fields,
   badge,
+  extraActions,
 }: DetailModalProps) {
   const colors = useColors();
 
@@ -147,6 +156,15 @@ export function DetailModal({
                 <Feather name="trash-2" size={18} color={colors.destructive} />
               </Pressable>
             ) : null}
+            {extraActions?.map((action, idx) => (
+              <Pressable
+                key={idx}
+                onPress={action.onPress}
+                style={[styles.actionBtn, { borderColor: action.color || colors.primary }]}
+              >
+                <Feather name={action.icon} size={16} color={action.color || colors.primary} />
+              </Pressable>
+            ))}
             {onEdit ? (
               <Pressable
                 onPress={onEdit}

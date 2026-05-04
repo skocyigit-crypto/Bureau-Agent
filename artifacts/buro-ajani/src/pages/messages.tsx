@@ -3,7 +3,7 @@ import { useListMessages, useUpdateMessage, useCreateMessage, useDeleteMessage, 
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { MessageSquare, Voicemail, FileText, Bell, Search, Filter, MoreHorizontal, MailOpen, Mail, Plus, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CheckCheck, Send, Download, Edit, Printer, Copy } from "lucide-react";
+import { MessageSquare, Voicemail, FileText, Bell, Search, Filter, MoreHorizontal, MailOpen, Mail, Plus, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CheckCheck, Send, Download, Edit, Printer, Copy, FolderKanban } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import messagingImg from "@/assets/images/messaging-center.png";
 import { EmailComposer } from "@/components/email-composer";
@@ -27,7 +27,7 @@ import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { AiValidationFeedback } from "@/components/ai-validation-feedback";
 import { useAiValidation } from "@/hooks/use-ai-validation";
 import { QueryErrorAlert } from "@/components/safe-component";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 const PAGE_SIZE = 15;
 
@@ -42,6 +42,7 @@ const formSchema = z.object({
 export default function Messages() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [readFilter, setReadFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
@@ -479,6 +480,12 @@ export default function Messages() {
                         <DropdownMenuItem onClick={() => handleDuplicate(message.id)}>
                           <Copy className="w-4 h-4 mr-2" />Dupliquer
                         </DropdownMenuItem>
+                        <DropdownMenuItem className="text-indigo-600" onClick={async () => {
+                          const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+                          const res = await fetch(`${BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: message.contactName ? `Projet - ${message.contactName}` : "Projet depuis message", status: "planifie", priority: (message.priority as string) || "moyenne", progress: 0, notes: `Créé depuis un message` }) });
+                          if (res.ok) { toast({ title: "Projet créé" }); setLocation("/projets"); }
+                          else toast({ title: "Erreur", variant: "destructive" });
+                        }}><FolderKanban className="w-4 h-4 mr-2" />Créer un projet</DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => handleReadToggle(message.id, !message.isRead)}>
                           {message.isRead ? (

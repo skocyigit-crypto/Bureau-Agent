@@ -10,7 +10,7 @@ import {
   FileUp, Brain, CheckCircle2, XCircle, AlertTriangle,
   FileText, Users, ListChecks, Loader2, Sparkles, ArrowRight, Eye,
   Upload, Trash2, RefreshCw, Zap, ChevronDown, ChevronUp,
-  MessageSquare, Printer,
+  MessageSquare, Printer, FolderKanban,
 } from "lucide-react";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -22,7 +22,7 @@ type DocumentType =
   | "note_frais" | "planning" | "inconnu";
 
 type DestinationModule =
-  | "contacts" | "taches" | "messages" | "aucun";
+  | "contacts" | "taches" | "messages" | "projets" | "aucun";
 
 interface SuggestedAction {
   action: string;
@@ -82,6 +82,7 @@ const MODULE_ICONS: Record<DestinationModule, any> = {
   contacts: Users,
   taches: ListChecks,
   messages: MessageSquare,
+  projets: FolderKanban,
   aucun: FileText,
 };
 
@@ -89,6 +90,7 @@ const MODULE_LABELS: Record<DestinationModule, string> = {
   contacts: "Contacts",
   taches: "Taches",
   messages: "Messages",
+  projets: "Projets",
   aucun: "Aucun",
 };
 

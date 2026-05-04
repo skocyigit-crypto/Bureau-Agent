@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -458,6 +459,17 @@ export default function TasksScreen() {
             ...(selected.assignedTo ? [{ label: "Assigne a", value: selected.assignedTo, icon: "user" as const }] : []),
             ...(selected.description ? [{ label: "Description", value: selected.description, icon: "file-text" as const }] : []),
           ]}
+          extraActions={[{
+            label: "Créer un projet",
+            icon: "folder",
+            color: "#6366f1",
+            onPress: async () => {
+              try {
+                const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: selected.title, status: "planifie", priority: selected.priority || "moyenne", progress: 0, notes: `Créé depuis la tâche mobile` }) });
+                if (res.ok) { setSelected(null); router.push("/projets" as any); }
+              } catch {}
+            },
+          }]}
         />
       ) : null}
     </View>

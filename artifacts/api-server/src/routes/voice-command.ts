@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { db, callsTable, contactsTable, tasksTable, calendarEventsTable } from "@workspace/db";
+import { db, callsTable, contactsTable, tasksTable, calendarEventsTable, projetsTable } from "@workspace/db";
 import { eq, desc, and, sql, ilike, or } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { safeJsonParse, aiCallWithRetry, sanitizePromptInput } from "../services/ai-utils";
@@ -47,6 +47,10 @@ function parseCommandRegex(text: string): VoiceCommand {
     const queryMatch = text.match(/(?:cherche|recherche|trouve|search|find)\s+(.+)/i);
     return { intent: "search", params: { query: queryMatch?.[1] || "" } };
   }
+  if (t.match(/combien.*(projet)|nombre.*(projet)|projets?.*(actif|retard|cours)/))
+    return { intent: "count_projets" };
+  if (t.match(/projets?.*(retard|late|overdue)|retard.*projet/))
+    return { intent: "projets_overdue" };
   if (t.match(/agenda|rendez.?vous|rdv|calendrier|calendar|evenement/))
     return { intent: "calendar" };
   if (t.match(/performance|statistique|stats|kpi/))
@@ -80,6 +84,8 @@ Intents possibles:
 - count_calls: combien d'appels
 - count_tasks: combien de taches
 - count_contacts: combien de contacts
+- count_projets: combien de projets actifs
+- projets_overdue: projets en retard
 - recent_calls: derniers appels
 - urgent_tasks: taches urgentes/haute priorite
 - create_task: creer une tache (params: {title: "..."})
@@ -178,6 +184,37 @@ router.post("/voice/command", async (req: Request, res: Response): Promise<void>
         spokenResponse = `Vous avez ${n} contact${n > 1 ? "s" : ""} au total.`;
         data = { count: n };
         navigate = "/contacts";
+        break;
+      }
+
+      case "count_projets": {
+        const [actifs, total] = await Promise.all([
+          db.select({ count: sql<number>`count(*)::int` }).from(projetsTable)
+            .where(and(eq(projetsTable.organisationId, orgId), sql`${projetsTable.status} NOT IN ('termine','annule')`)),
+          db.select({ count: sql<number>`count(*)::int` }).from(projetsTable)
+            .where(eq(projetsTable.organisationId, orgId)),
+        ]);
+        const na = actifs[0]?.count || 0;
+        const nt = total[0]?.count || 0;
+        spokenResponse = `Vous avez ${na} projet${na > 1 ? "s" : ""} actif${na > 1 ? "s" : ""} sur ${nt} au total.`;
+        data = { actifs: na, total: nt };
+        navigate = "/projets";
+        break;
+      }
+
+      case "projets_overdue": {
+        const [result] = await db.select({ count: sql<number>`count(*)::int` }).from(projetsTable)
+          .where(and(
+            eq(projetsTable.organisationId, orgId),
+            sql`${projetsTable.endDate} < now()`,
+            sql`${projetsTable.status} NOT IN ('termine','annule')`,
+          ));
+        const n = result?.count || 0;
+        spokenResponse = n > 0
+          ? `Attention: ${n} projet${n > 1 ? "s" : ""} ${n > 1 ? "sont" : "est"} en retard sur le planning.`
+          : "Aucun projet n'est en retard. Bravo!";
+        data = { overdue: n };
+        navigate = "/projets";
         break;
       }
 
@@ -319,7 +356,7 @@ router.post("/voice/command", async (req: Request, res: Response): Promise<void>
       }
 
       case "help": {
-        spokenResponse = "Vous pouvez me demander: le briefing du jour, compter vos appels ou taches, voir les taches urgentes, creer une tache, appeler un contact, chercher dans vos donnees, ou consulter l'agenda.";
+        spokenResponse = "Vous pouvez me demander: le briefing du jour, compter vos appels, taches ou projets, voir les projets en retard, les taches urgentes, creer une tache, appeler un contact, chercher dans vos donnees, ou consulter l'agenda.";
         break;
       }
 
@@ -364,6 +401,8 @@ router.get("/voice/commands", (_req: Request, res: Response): void => {
       { phrase: "Briefing du jour", description: "Resume complet de la journee" },
       { phrase: "Combien d'appels aujourd'hui", description: "Nombre d'appels du jour" },
       { phrase: "Taches en attente", description: "Nombre de taches en attente" },
+      { phrase: "Combien de projets actifs", description: "Nombre de projets en cours" },
+      { phrase: "Projets en retard", description: "Projets depasses sur le planning" },
       { phrase: "Derniers appels", description: "Les 5 derniers appels" },
       { phrase: "Taches urgentes", description: "Taches haute priorite" },
       { phrase: "Cree une tache [titre]", description: "Creer une nouvelle tache" },

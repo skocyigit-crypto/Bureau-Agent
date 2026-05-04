@@ -5,7 +5,7 @@ import {
   CheckCircle2, Clock, PauseCircle, XCircle, PlayCircle, ChevronLeft,
   ChevronRight, Calendar, Euro, Users, Target, AlertTriangle, TrendingUp,
   BarChart3, Loader2, Download, Printer, X, ChevronDown, ChevronUp,
-  CheckSquare, Square,
+  CheckSquare, Square, Copy,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -240,8 +240,8 @@ function EditProjetDialog({ projet, onSaved, onClose }: { projet: Projet; onSave
   );
 }
 
-function ProjetCard({ projet, onEdit, onDelete, selectMode, selected, onSelect }: {
-  projet: Projet; onEdit: () => void; onDelete: () => void;
+function ProjetCard({ projet, onEdit, onDelete, onDuplicate, selectMode, selected, onSelect }: {
+  projet: Projet; onEdit: () => void; onDelete: () => void; onDuplicate: () => void;
   selectMode: boolean; selected: boolean; onSelect: () => void;
 }) {
   const sc = STATUS_CONFIG[projet.status] || STATUS_CONFIG.planifie;
@@ -313,6 +313,9 @@ function ProjetCard({ projet, onEdit, onDelete, selectMode, selected, onSelect }
           <div className="flex items-center gap-1.5 pt-2 border-t">
             <Button size="sm" variant="outline" className="flex-1 h-7 text-xs" onClick={onEdit}>
               <Pencil className="w-3 h-3 mr-1" /> Modifier
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" title="Dupliquer" onClick={onDuplicate}>
+              <Copy className="w-3.5 h-3.5" />
             </Button>
             <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10" onClick={onDelete}>
               <Trash2 className="w-3.5 h-3.5" />
@@ -413,6 +416,12 @@ export default function ProjetsPage() {
     const res = await fetch(`${BASE}/api/projets/${id}`, { method: "DELETE", credentials: "include" });
     if (res.ok) { toast({ title: "Projet supprimé" }); load(); }
     else toast({ title: "Erreur", description: "Impossible de supprimer.", variant: "destructive" });
+  };
+
+  const duplicateProjet = async (id: number) => {
+    const res = await fetch(`${BASE}/api/projets/${id}/duplicate`, { method: "POST", credentials: "include" });
+    if (res.ok) { toast({ title: "Projet dupliqué" }); load(); }
+    else toast({ title: "Erreur", description: "Impossible de dupliquer.", variant: "destructive" });
   };
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -586,6 +595,7 @@ export default function ProjetsPage() {
                       key={p.id} projet={p}
                       onEdit={() => setEditingProjet(p)}
                       onDelete={() => deleteProjet(p.id, p.title)}
+                      onDuplicate={() => duplicateProjet(p.id)}
                       selectMode={selectMode} selected={selectedIds.has(p.id)} onSelect={() => toggleId(p.id)}
                     />
                   ))}
@@ -612,6 +622,7 @@ export default function ProjetsPage() {
                 key={p.id} projet={p}
                 onEdit={() => setEditingProjet(p)}
                 onDelete={() => deleteProjet(p.id, p.title)}
+                onDuplicate={() => duplicateProjet(p.id)}
                 selectMode={selectMode} selected={selectedIds.has(p.id)} onSelect={() => toggleId(p.id)}
               />
             ))}

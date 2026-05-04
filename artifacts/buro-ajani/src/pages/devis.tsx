@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { FileText, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, RefreshCw, Check, X, Send, ArrowRightLeft, Mail, Printer, Download } from "lucide-react";
+import { FileText, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, RefreshCw, Check, X, Send, ArrowRightLeft, Mail, Printer, Download, FolderKanban } from "lucide-react";
+import { useLocation } from "wouter";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,7 @@ const EMPTY_FORM = { title: "", clientName: "", clientEmail: "", clientPhone: ""
 
 export default function DevisPage() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [devis, setDevis] = useState<Devis[]>([]);
   const [total, setTotal] = useState(0);
   const [stats, setStats] = useState<any>(null);
@@ -144,6 +146,36 @@ export default function DevisPage() {
     const res = await fetch(`${BASE}/api/devis/${id}/convert`, { method: "POST", credentials: "include" });
     if (res.ok) { toast({ title: "Devis converti en facture" }); load(); }
     else { const d = await res.json(); toast({ title: "Erreur", description: d.error, variant: "destructive" }); }
+  };
+
+  const handleCreateProjetFromDevis = async (d: Devis) => {
+    try {
+      const res = await fetch(`${BASE}/api/projets`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          title: d.title,
+          clientName: d.clientName,
+          clientCompany: d.clientCompany || "",
+          status: "planifie",
+          priority: "moyenne",
+          budget: d.totalAmount || undefined,
+          currency: d.currency || "EUR",
+          progress: 0,
+          notes: `Créé depuis le devis ${d.reference}`,
+        }),
+      });
+      if (res.ok) {
+        toast({ title: "Projet créé", description: `Le projet "${d.title}" a été créé.` });
+        setLocation("/projets");
+      } else {
+        const e = await res.json();
+        toast({ title: "Erreur", description: e.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de créer le projet.", variant: "destructive" });
+    }
   };
 
   const handleDelete = async (id: number) => {
@@ -263,6 +295,7 @@ export default function DevisPage() {
                           {d.status === "envoye" && <DropdownMenuItem onClick={() => handleStatus(d.id, "accepte")}><Check className="w-3 h-3 mr-2" />Marquer accepté</DropdownMenuItem>}
                           {d.status === "envoye" && <DropdownMenuItem onClick={() => handleStatus(d.id, "refuse")}><X className="w-3 h-3 mr-2" />Marquer refusé</DropdownMenuItem>}
                           {d.status === "accepte" && !d.convertedToInvoice && <DropdownMenuItem onClick={() => handleConvert(d.id)}><ArrowRightLeft className="w-3 h-3 mr-2" />Convertir en facture</DropdownMenuItem>}
+                          {d.status === "accepte" && <DropdownMenuItem onClick={() => handleCreateProjetFromDevis(d)} className="text-indigo-600"><FolderKanban className="w-3 h-3 mr-2" />Créer un projet</DropdownMenuItem>}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(d.id)}><Trash2 className="w-3 h-3 mr-2" />Supprimer</DropdownMenuItem>
                         </DropdownMenuContent>
