@@ -179,6 +179,7 @@ export default function MoreScreen() {
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>RAPPORTS</Text>
+          <MenuItem icon="sun" label="Mon Bilan du Jour" sublabel="Resume IA de votre journee + recommandations" color="#f59e0b" onPress={() => nav("/daily-digest")} />
           <MenuItem icon="trending-up" label="Rapport Commercial" sublabel="Vue consolidée CA, devis, factures" color="#1d4ed8" onPress={() => nav("/rapport-commercial")} />
           <MenuItem icon="bar-chart-2" label="Performance Équipe" sublabel="Métriques et rapport IA par employé" color="#0f4c81" onPress={() => nav("/performance")} />
           <MenuItem icon="award" label="Rapport Exécutif" sublabel="Score global + insights IA opérationnels" color="#1e293b" onPress={() => nav("/rapport-executif")} />
