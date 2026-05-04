@@ -12,10 +12,12 @@ import { FileUpload } from "@/components/file-upload";
 import {
   FileText, FileSpreadsheet, Image as ImageIcon, File, Download,
   Trash2, Brain, Sparkles, Search, Filter, BarChart3, HardDrive,
-  Upload, Loader2, Eye, Printer, Edit,
+  Upload, Loader2, Eye, Printer, Edit, FolderKanban,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+
+import { useLocation } from "wouter";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -80,6 +82,7 @@ interface Stats {
 }
 
 export default function DocumentsPage() {
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [documents, setDocuments] = useState<Doc[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -426,6 +429,17 @@ export default function DocumentsPage() {
                             {analyzingId === doc.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
                           </Button>
                         )}
+                        <Button
+                          size="icon" variant="ghost" className="h-8 w-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-500/10"
+                          title="Créer un projet"
+                          onClick={async () => {
+                            const res = await fetch(`${API}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: `Document - ${doc.fileName}`, status: "planifie", priority: "moyenne", progress: 0, notes: `Projet créé depuis le document : ${doc.fileName}` }) });
+                            if (res.ok) { toast({ title: "Projet créé" }); setLocation("/projets"); }
+                            else toast({ title: "Erreur", variant: "destructive" });
+                          }}
+                        >
+                          <FolderKanban className="w-4 h-4" />
+                        </Button>
                         <Button size="icon" variant="ghost" className="h-8 w-8 hover:text-red-500" onClick={() => deleteDoc(doc.id)}>
                           <Trash2 className="w-4 h-4" />
                         </Button>

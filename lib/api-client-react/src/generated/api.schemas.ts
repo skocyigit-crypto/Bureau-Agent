@@ -622,7 +622,6 @@ export const AiDetectionSeverite = {
   alerte: "alerte",
   attention: "attention",
   info: "info",
-  tres_positif: "tres_positif",
   positif: "positif",
 } as const;
 
@@ -1453,6 +1452,7 @@ export const RequestAiSuggestionsBodyPage = {
   logiciels: "logiciels",
   pointage: "pointage",
   utilisateurs: "utilisateurs",
+  projets: "projets",
 } as const;
 
 export type RequestAiSuggestionsBody = {

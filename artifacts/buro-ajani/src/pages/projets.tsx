@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -474,6 +475,8 @@ export default function ProjetsPage() {
           <CreateProjetDialog onCreated={load} />
         </div>
       </div>
+
+      <AiSuggestionsCard page="projets" compact />
 
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

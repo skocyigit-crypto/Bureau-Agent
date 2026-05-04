@@ -11,7 +11,9 @@ export type UpdateCallBodySentiment =
   | null;
 
 export const UpdateCallBodySentiment = {
+  tres_positif: "tres_positif",
   positif: "positif",
   neutre: "neutre",
   negatif: "negatif",
+  tres_negatif: "tres_negatif",
 } as const;

@@ -19,4 +19,5 @@ export const RequestAiSuggestionsBodyPage = {
   logiciels: "logiciels",
   pointage: "pointage",
   utilisateurs: "utilisateurs",
+  projets: "projets",
 } as const;

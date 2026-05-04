@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { AlertCircle, Clock, CheckCircle2, Mail, RefreshCw, Euro, Calendar, ExternalLink, Search, Download, Printer } from "lucide-react";
+import { AlertCircle, Clock, CheckCircle2, Mail, RefreshCw, Euro, Calendar, ExternalLink, Search, Download, Printer, FolderKanban } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -28,6 +28,7 @@ interface OverdueFacture {
 }
 
 export default function RelancesPage() {
+  const [, setLocation] = useLocation();
   const [factures, setFactures] = useState<OverdueFacture[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState<number | null>(null);
@@ -219,6 +220,17 @@ export default function RelancesPage() {
                               <ExternalLink className="w-3.5 h-3.5" />
                             </Button>
                           </Link>
+                          <Button
+                            variant="ghost" size="icon" className="h-7 w-7 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-500/10"
+                            title="Créer un projet de recouvrement"
+                            onClick={async () => {
+                              const res = await fetch(`${BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ title: `Recouvrement - ${f.clientName}`, status: "planifie", priority: days >= 60 ? "haute" : days >= 30 ? "moyenne" : "basse", progress: 0, clientName: f.clientName, notes: `Relance créée depuis la facture ${f.reference} — ${days} jour(s) de retard` }) });
+                              if (res.ok) { toast({ title: "Projet créé" }); setLocation("/projets"); }
+                              else toast({ title: "Erreur", variant: "destructive" });
+                            }}
+                          >
+                            <FolderKanban className="w-3.5 h-3.5" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>

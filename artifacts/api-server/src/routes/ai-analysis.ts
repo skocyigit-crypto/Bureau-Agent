@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, platformConnectionsTable, notificationsTable, stockArticlesTable, calendarEventsTable, projetsTable, prospectsTable, automationRulesTable, facturesClientTable, compteClientTable, organisationsTable } from "@workspace/db";
 import { Resend } from "resend";
-import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNull, or } from "drizzle-orm";
+import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNull, or, not, inArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
 import { extractGeminiTokens, recordAiUsage } from "../services/ai-utils";
@@ -310,6 +310,17 @@ async function gatherContextForPage(page: string, orgId: number) {
       ]);
       return { totalCalls: totalCalls[0]?.count ?? 0, totalTasks: totalTasks[0]?.count ?? 0, totalContacts: totalContacts[0]?.count ?? 0, completedTasks: completedTasks[0]?.count ?? 0 };
     }
+    case "projets": {
+      const orgProjet = eq(projetsTable.organisationId, orgId);
+      const [overdue, highPriority, stalled, budgetOverrun, stats] = await Promise.all([
+        db.select({ id: projetsTable.id, title: projetsTable.title, clientName: projetsTable.clientName, endDate: projetsTable.endDate, progress: projetsTable.progress }).from(projetsTable).where(and(orgProjet, lt(projetsTable.endDate, now), not(inArray(projetsTable.status, ["termine", "annule"])))).orderBy(asc(projetsTable.endDate)).limit(10),
+        db.select({ id: projetsTable.id, title: projetsTable.title, clientName: projetsTable.clientName, progress: projetsTable.progress }).from(projetsTable).where(and(orgProjet, eq(projetsTable.priority, "haute"), not(inArray(projetsTable.status, ["termine", "annule"])))).limit(5),
+        db.select({ id: projetsTable.id, title: projetsTable.title, progress: projetsTable.progress, updatedAt: projetsTable.updatedAt }).from(projetsTable).where(and(orgProjet, eq(projetsTable.status, "en_cours"), lt(projetsTable.updatedAt, new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)))).limit(5),
+        db.select({ id: projetsTable.id, title: projetsTable.title, budget: projetsTable.budget, spent: projetsTable.spent }).from(projetsTable).where(and(orgProjet, not(inArray(projetsTable.status, ["termine", "annule"])), sql`${projetsTable.spent}::numeric > ${projetsTable.budget}::numeric and ${projetsTable.budget}::numeric > 0`)).limit(5),
+        db.select({ total: sql<number>`count(*)::int`, active: sql<number>`count(*) filter (where ${projetsTable.status} not in ('termine','annule'))::int`, termine: sql<number>`count(*) filter (where ${projetsTable.status} = 'termine')::int`, avgProgress: sql<number>`coalesce(avg(${projetsTable.progress}),0)::int` }).from(projetsTable).where(orgProjet),
+      ]);
+      return { overdueProjects: overdue, highPriorityProjects: highPriority, stalledProjects: stalled, budgetOverrunProjects: budgetOverrun, stats: stats[0] };
+    }
     default:
       return {};
   }
@@ -321,7 +332,7 @@ router.post("/ai/suggest", async (req, res): Promise<void> => {
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
     const { page } = req.body;
-    if (!page || !["dashboard", "calls", "contacts", "tasks", "messages", "rapports", "logiciels", "pointage", "utilisateurs"].includes(page)) {
+    if (!page || !["dashboard", "calls", "contacts", "tasks", "messages", "rapports", "logiciels", "pointage", "utilisateurs", "projets"].includes(page)) {
       res.status(400).json({ error: "Le parametre 'page' est requis." }); return;
     }
 
@@ -338,6 +349,7 @@ router.post("/ai/suggest", async (req, res): Promise<void> => {
       logiciels: `Tu es un assistant IA specialise dans l'integration de logiciels professionnels. En fonction des donnees du bureau, recommande quels logiciels connecter en priorite (CRM, communication, gestion de projet, comptabilite) pour maximiser la productivite de l'equipe.`,
       pointage: `Tu es un assistant IA specialise dans la gestion du temps et des presences. Analyse les donnees de pointage et fournis des recommandations: retards frequents a signaler, temps de travail anormalement court ou long, equilibre bureau/distance/terrain, pauses excessives, et optimisations d'organisation des horaires de l'equipe.`,
       utilisateurs: `Tu es un assistant IA specialise dans la gestion des equipes et des licences. Analyse les donnees des utilisateurs et fournis des recommandations: utilisateurs inactifs a desactiver, repartition des roles a optimiser, licences inutilisees a recuperer, securite MFA a renforcer, et productivite par utilisateur a analyser.`,
+      projets: `Tu es un assistant IA specialise dans la gestion de portefeuille projets. Analyse les donnees des projets et fournis des recommandations concretes: projets en retard a relancer, projets a haute priorite non demarres, depassements de budget a contenir, projets bloques sans activite recente, et actions pour ameliorer l'avancement global.`,
     };
 
     const response = await ai.models.generateContent({

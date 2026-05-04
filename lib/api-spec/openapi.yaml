@@ -855,7 +855,7 @@ paths:
               properties:
                 page:
                   type: string
-                  enum: [dashboard, calls, contacts, tasks, messages, rapports, logiciels, pointage, utilisateurs]
+                  enum: [dashboard, calls, contacts, tasks, messages, rapports, logiciels, pointage, utilisateurs, projets]
               required: [page]
       responses:
         "200":

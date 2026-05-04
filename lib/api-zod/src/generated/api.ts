@@ -49,7 +49,9 @@ export const ListCallsResponse = zod.object({
       status: zod.enum(["repondu", "manque", "messagerie", "en_cours"]),
       duration: zod.number().describe("Duration in seconds"),
       notes: zod.string().nullish(),
-      sentiment: zod.enum(["tres_positif", "positif", "neutre", "negatif", "tres_negatif"]).nullish(),
+      sentiment: zod
+        .enum(["tres_positif", "positif", "neutre", "negatif", "tres_negatif"])
+        .nullish(),
       tags: zod.array(zod.string()),
       createdAt: zod.coerce.date(),
       updatedAt: zod.coerce.date(),
@@ -68,7 +70,9 @@ export const CreateCallBody = zod.object({
   status: zod.enum(["repondu", "manque", "messagerie", "en_cours"]),
   duration: zod.number(),
   notes: zod.string().nullish(),
-  sentiment: zod.enum(["tres_positif", "positif", "neutre", "negatif", "tres_negatif"]).nullish(),
+  sentiment: zod
+    .enum(["tres_positif", "positif", "neutre", "negatif", "tres_negatif"])
+    .nullish(),
   tags: zod.array(zod.string()).optional(),
 });
 
@@ -88,7 +92,9 @@ export const GetCallResponse = zod.object({
   status: zod.enum(["repondu", "manque", "messagerie", "en_cours"]),
   duration: zod.number().describe("Duration in seconds"),
   notes: zod.string().nullish(),
-  sentiment: zod.enum(["tres_positif", "positif", "neutre", "negatif", "tres_negatif"]).nullish(),
+  sentiment: zod
+    .enum(["tres_positif", "positif", "neutre", "negatif", "tres_negatif"])
+    .nullish(),
   tags: zod.array(zod.string()),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
@@ -106,7 +112,9 @@ export const UpdateCallBody = zod.object({
   status: zod.enum(["repondu", "manque", "messagerie", "en_cours"]).optional(),
   duration: zod.number().optional(),
   notes: zod.string().nullish(),
-  sentiment: zod.enum(["tres_positif", "positif", "neutre", "negatif", "tres_negatif"]).nullish(),
+  sentiment: zod
+    .enum(["tres_positif", "positif", "neutre", "negatif", "tres_negatif"])
+    .nullish(),
   tags: zod.array(zod.string()).optional(),
 });
 
@@ -119,7 +127,9 @@ export const UpdateCallResponse = zod.object({
   status: zod.enum(["repondu", "manque", "messagerie", "en_cours"]),
   duration: zod.number().describe("Duration in seconds"),
   notes: zod.string().nullish(),
-  sentiment: zod.enum(["tres_positif", "positif", "neutre", "negatif", "tres_negatif"]).nullish(),
+  sentiment: zod
+    .enum(["tres_positif", "positif", "neutre", "negatif", "tres_negatif"])
+    .nullish(),
   tags: zod.array(zod.string()),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
@@ -529,7 +539,9 @@ export const GetContactCallsResponse = zod.object({
       status: zod.enum(["repondu", "manque", "messagerie", "en_cours"]),
       duration: zod.number().describe("Duration in seconds"),
       notes: zod.string().nullish(),
-      sentiment: zod.enum(["tres_positif", "positif", "neutre", "negatif", "tres_negatif"]).nullish(),
+      sentiment: zod
+        .enum(["tres_positif", "positif", "neutre", "negatif", "tres_negatif"])
+        .nullish(),
       tags: zod.array(zod.string()),
       createdAt: zod.coerce.date(),
       updatedAt: zod.coerce.date(),
@@ -813,6 +825,7 @@ export const RequestAiSuggestionsBody = zod.object({
     "logiciels",
     "pointage",
     "utilisateurs",
+    "projets",
   ]),
 });
 

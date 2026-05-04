@@ -8,7 +8,7 @@ import { useRequestAiSuggestions, type RequestAiSuggestionsBodyPage } from "@wor
 const VALID_PAGES: Record<string, RequestAiSuggestionsBodyPage> = {
   dashboard: "dashboard", calls: "calls", contacts: "contacts",
   tasks: "tasks", messages: "messages", rapports: "rapports", logiciels: "logiciels",
-  pointage: "pointage", utilisateurs: "utilisateurs",
+  pointage: "pointage", utilisateurs: "utilisateurs", projets: "projets",
 };
 
 interface AiSuggestionsCardProps {
