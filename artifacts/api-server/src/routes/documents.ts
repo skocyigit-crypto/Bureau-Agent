@@ -652,4 +652,100 @@ router.get("/documents/export/csv", requireMinAgent, async (req: Request, res: R
   }
 });
 
+// ── IN-APP PREVIEW — returns extractedText + base64 for images ──────────────
+router.get("/documents/:id/preview", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const docId = parseInt(String(req.params.id));
+    if (isNaN(docId)) { res.status(400).json({ error: "ID invalide" }); return; }
+
+    const [doc] = await db.select().from(documentsTable)
+      .where(and(eq(documentsTable.id, docId), eq(documentsTable.organisationId, orgId)));
+
+    if (!doc) { res.status(404).json({ error: "Document introuvable" }); return; }
+
+    const isImage = doc.mimeType?.startsWith("image/");
+    const isText = doc.mimeType === "text/plain" || doc.mimeType === "application/json" || doc.mimeType === "text/xml" || doc.mimeType === "application/xml";
+
+    res.json({
+      id: doc.id,
+      fileName: doc.originalName,
+      mimeType: doc.mimeType,
+      fileSize: doc.fileSize,
+      entityType: doc.entityType,
+      entityId: doc.entityId,
+      category: doc.category,
+      description: doc.description,
+      tags: doc.tags,
+      aiProcessed: doc.aiProcessed,
+      aiAnalysis: doc.aiAnalysis,
+      extractedText: doc.extractedText ?? null,
+      extractedData: doc.extractedData ?? null,
+      // For images: return the base64 so mobile can display inline
+      imageBase64: isImage && doc.fileContent ? `data:${doc.mimeType};base64,${doc.fileContent}` : null,
+      // For plain text files: also return decoded text content
+      rawText: isText && doc.fileContent ? Buffer.from(doc.fileContent, "base64").toString("utf-8").slice(0, 500000) : null,
+      status: doc.status,
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
+    });
+  } catch (err: any) {
+    logger.error({ err }, "Document preview error");
+    res.status(500).json({ error: "Erreur lors de la preview" });
+  }
+});
+
+// ── SEARCH ACROSS ENTITY TYPE ────────────────────────────────────────────────
+router.get("/documents/by-source", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const entityType = req.query.entityType ? String(req.query.entityType) : undefined;
+    const search = req.query.q ? String(req.query.q) : undefined;
+    const limit = Math.min(parseInt(String(req.query.limit || "60")), 200);
+
+    const conditions: any[] = [eq(documentsTable.organisationId, orgId)];
+    if (entityType && entityType !== "all") conditions.push(eq(documentsTable.entityType, entityType));
+    if (search) conditions.push(sql`(${documentsTable.originalName} ILIKE ${"%" + search + "%"} OR ${documentsTable.description} ILIKE ${"%" + search + "%"})`);
+
+    const docs = await db.select({
+      id: documentsTable.id,
+      fileName: documentsTable.originalName,
+      mimeType: documentsTable.mimeType,
+      fileSize: documentsTable.fileSize,
+      entityType: documentsTable.entityType,
+      entityId: documentsTable.entityId,
+      category: documentsTable.category,
+      description: documentsTable.description,
+      tags: documentsTable.tags,
+      aiProcessed: documentsTable.aiProcessed,
+      status: documentsTable.status,
+      uploadedBy: documentsTable.uploadedBy,
+      createdAt: documentsTable.createdAt,
+      hasText: sql<boolean>`(${documentsTable.extractedText} IS NOT NULL AND length(${documentsTable.extractedText}) > 0)`,
+    }).from(documentsTable)
+      .where(and(...conditions))
+      .orderBy(desc(documentsTable.createdAt))
+      .limit(limit);
+
+    // Count by entity type
+    const bySource = await db.execute(sql`
+      SELECT coalesce(entity_type, 'general') as entity_type, count(*)::int as count
+      FROM documents WHERE organisation_id = ${orgId}
+      GROUP BY coalesce(entity_type, 'general') ORDER BY count DESC
+    `);
+
+    res.json({
+      documents: docs.map(d => ({
+        ...d,
+        fileSizeFormatted: d.fileSize ? (d.fileSize > 1048576 ? `${(d.fileSize / 1048576).toFixed(1)} Mo` : `${Math.ceil(d.fileSize / 1024)} Ko`) : "—",
+      })),
+      total: docs.length,
+      bySource: (bySource as any).rows ?? [],
+    });
+  } catch (err: any) {
+    logger.error({ err }, "Documents by-source error");
+    res.status(500).json({ error: "Erreur" });
+  }
+});
+
 export default router;
