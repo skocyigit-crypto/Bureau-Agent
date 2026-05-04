@@ -280,6 +280,19 @@ export default function CallDetailScreen() {
             <Feather name="cpu" size={14} color="#7c3aed" />
             <Text style={[styles.cardTitle, { color: colors.foreground }]}>Outils IA</Text>
           </View>
+
+          {/* AI Call Assistant (full-screen) */}
+          <Pressable
+            onPress={() => router.push(
+              `/call-assistant?phone=${encodeURIComponent(call.phoneNumber)}&name=${encodeURIComponent(call.contactName ?? "")}&direction=${call.direction}&callId=${call.id}${call.contactId ? `&contactId=${call.contactId}` : ""}` as any
+            )}
+            style={[styles.aiBtn, { backgroundColor: "#166534", flexDirection: "row", alignItems: "center", paddingVertical: 12 }]}
+          >
+            <Feather name="zap" size={14} color="#fff" />
+            <Text style={styles.aiBtnText}>Assistant IA Appel complet</Text>
+            <Feather name="arrow-right" size={13} color="rgba(255,255,255,0.7)" style={{ marginLeft: "auto" }} />
+          </Pressable>
+
           <View style={{ flexDirection: "row", gap: 8 }}>
             <Pressable
               onPress={runAiBriefing}
