@@ -7,6 +7,18 @@ import { db, usersTable, organisationsTable } from "@workspace/db";
 import { logAudit } from "./audit";
 import { sendCredentialsEmail, sendEmail } from "../services/email";
 import { logger } from "../lib/logger";
+import {
+  isSuperAdmin,
+  assertRoleAllowed,
+  assertOrgOwnsUser,
+  assertTargetNotSuperAdmin,
+  assertCallerOutranks,
+  assertUserQuotaNotExceeded,
+  assertNotSelf,
+  sanitiseUserPatch,
+  logTenantViolation,
+  checkSensitiveRateLimit,
+} from "../middleware/tenant-guard";
 
 const router: IRouter = Router();
 
@@ -248,11 +260,21 @@ router.post("/auth/users", async (req: Request, res: Response): Promise<void> =>
     res.status(400).json({ error: "Email, mot de passe, nom et prenom sont obligatoires." });
     return;
   }
-
   if (password.length < 8) {
     res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caracteres." });
     return;
   }
+
+  // ── GUARD: prevent role escalation to super_admin by tenant admins ──────────
+  if (!assertRoleAllowed(req, res, role)) return;
+
+  // ── GUARD: enforce user quota ───────────────────────────────────────────────
+  if (organisationId && !isSuperAdmin(req)) {
+    if (!(await assertUserQuotaNotExceeded(req, res, organisationId))) return;
+  }
+
+  // ── GUARD: rate-limit user creation ────────────────────────────────────────
+  if (!checkSensitiveRateLimit(req, res, "create_user", 30, 60_000)) return;
 
   const validRoles = ["super_admin", "administrateur", "agent", "lecture_seule"];
   if (role && !validRoles.includes(role)) {
@@ -308,6 +330,8 @@ router.post("/auth/users", async (req: Request, res: Response): Promise<void> =>
       role: role || "agent",
     });
 
+    logAudit((req.session as any)?.userId, (req.session as any)?.userEmail, "create_user", "user", String(newUser.id), { targetEmail: email, role: role || "agent" }, req.ip, req.get("user-agent"));
+
     res.status(201).json({
       ...newUser,
       emailSent: emailResult.success,
@@ -329,24 +353,39 @@ router.patch("/auth/users/:id", async (req: Request, res: Response): Promise<voi
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
-  const { nom, prenom, role, departement, organisation, telephone, actif, password } = req.body;
+  // ── GUARD: verify target user belongs to caller's org ──────────────────────
+  const ownership = await assertOrgOwnsUser(req, res, id);
+  if (!ownership.ok) return;
+  const targetUser = ownership.user;
+
+  // ── GUARD: cannot modify super_admin accounts ───────────────────────────────
+  if (!assertTargetNotSuperAdmin(req, res, targetUser)) return;
+
+  // ── GUARD: caller must outrank target ───────────────────────────────────────
+  if (!assertCallerOutranks(req, res, targetUser.role)) return;
+
+  // ── GUARD: prevent role escalation ─────────────────────────────────────────
+  const { role } = req.body;
+  if (role !== undefined && !assertRoleAllowed(req, res, role)) return;
+
+  // ── Sanitise: strip unexpected / dangerous fields ───────────────────────────
+  const clean = sanitiseUserPatch(req.body);
   const updateData: Record<string, any> = { updatedAt: new Date() };
 
-  if (nom !== undefined) updateData.nom = nom;
-  if (prenom !== undefined) updateData.prenom = prenom;
-  if (role !== undefined) updateData.role = role;
-  if (departement !== undefined) updateData.departement = departement;
-  if (organisation !== undefined) updateData.organisation = organisation;
-  if (telephone !== undefined) updateData.telephone = telephone;
-  if (actif !== undefined) updateData.actif = actif;
-  if (prenom && nom) updateData.avatar = `${prenom[0]}${nom[0]}`.toUpperCase();
+  if (clean.nom !== undefined) updateData.nom = clean.nom;
+  if (clean.prenom !== undefined) updateData.prenom = clean.prenom;
+  if (clean.role !== undefined) updateData.role = clean.role;
+  if (clean.departement !== undefined) updateData.departement = clean.departement;
+  if (clean.telephone !== undefined) updateData.telephone = clean.telephone;
+  if (clean.actif !== undefined) updateData.actif = clean.actif;
+  if (clean.prenom && clean.nom) updateData.avatar = `${clean.prenom[0]}${clean.nom[0]}`.toUpperCase();
 
-  if (password) {
-    if (password.length < 8) {
+  if (clean.password) {
+    if (clean.password.length < 8) {
       res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caracteres." });
       return;
     }
-    updateData.passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    updateData.passwordHash = await bcrypt.hash(clean.password, SALT_ROUNDS);
   }
 
   try {
@@ -360,6 +399,8 @@ router.patch("/auth/users/:id", async (req: Request, res: Response): Promise<voi
     });
 
     if (!updated) { res.status(404).json({ error: "Utilisateur non trouve." }); return; }
+
+    logAudit((req.session as any)?.userId, (req.session as any)?.userEmail, "update_user", "user", String(id), { fields: Object.keys(updateData) }, req.ip, req.get("user-agent"));
     res.json(updated);
   } catch (err: any) {
     req.log.error({ err }, "Erreur mise a jour utilisateur");
@@ -368,7 +409,6 @@ router.patch("/auth/users/:id", async (req: Request, res: Response): Promise<voi
 });
 
 router.delete("/auth/users/:id", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
   const userRole = (req.session as any)?.userRole;
   if (userRole !== "super_admin" && userRole !== "administrateur") {
     res.status(403).json({ error: "Acces interdit." });
@@ -378,14 +418,25 @@ router.delete("/auth/users/:id", async (req: Request, res: Response): Promise<vo
   const id = Number(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
-  if (id === userId) {
-    res.status(400).json({ error: "Vous ne pouvez pas supprimer votre propre compte." });
-    return;
-  }
+  // ── GUARD: cannot delete own account ───────────────────────────────────────
+  if (!assertNotSelf(req, res, id)) return;
+
+  // ── GUARD: verify target user belongs to caller's org ──────────────────────
+  const ownership = await assertOrgOwnsUser(req, res, id);
+  if (!ownership.ok) return;
+  const targetUser = ownership.user;
+
+  // ── GUARD: cannot delete super_admin accounts ───────────────────────────────
+  if (!assertTargetNotSuperAdmin(req, res, targetUser)) return;
+
+  // ── GUARD: caller must outrank target ───────────────────────────────────────
+  if (!assertCallerOutranks(req, res, targetUser.role)) return;
 
   try {
     const [deleted] = await db.delete(usersTable).where(eq(usersTable.id, id)).returning();
     if (!deleted) { res.status(404).json({ error: "Utilisateur non trouve." }); return; }
+
+    logAudit((req.session as any)?.userId, (req.session as any)?.userEmail, "delete_user", "user", String(id), { targetEmail: targetUser.email, targetRole: targetUser.role }, req.ip, req.get("user-agent"));
     res.status(204).send();
   } catch (err: any) {
     req.log.error({ err }, "Erreur suppression utilisateur");
@@ -502,6 +553,17 @@ router.post("/auth/users/create-and-send", async (req: Request, res: Response): 
     res.status(400).json({ error: "Email, nom et prenom sont obligatoires." });
     return;
   }
+
+  // ── GUARD: prevent role escalation ─────────────────────────────────────────
+  if (!assertRoleAllowed(req, res, role)) return;
+
+  // ── GUARD: enforce user quota ───────────────────────────────────────────────
+  if (organisationId && !isSuperAdmin(req)) {
+    if (!(await assertUserQuotaNotExceeded(req, res, organisationId))) return;
+  }
+
+  // ── GUARD: rate-limit ───────────────────────────────────────────────────────
+  if (!checkSensitiveRateLimit(req, res, "create_user", 30, 60_000)) return;
 
   const validRoles = ["super_admin", "administrateur", "agent", "lecture_seule"];
   if (role && !validRoles.includes(role)) {
