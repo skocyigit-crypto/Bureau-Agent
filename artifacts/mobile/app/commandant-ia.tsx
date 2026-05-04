@@ -3,7 +3,6 @@ import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Platform,
   Pressable,
@@ -19,7 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
-type Tab = "briefing" | "search" | "email" | "taches" | "finance";
+type Tab = "briefing" | "search" | "email" | "taches" | "reunions" | "equipe" | "finance";
 
 interface BriefingData {
   greeting?: string;
@@ -69,6 +68,22 @@ function StatCard({ label, value, color, icon }: { label: string; value: string 
   );
 }
 
+function UrgencyBadge({ level }: { level: string }) {
+  const cfg: Record<string, { color: string; label: string }> = {
+    critique: { color: "#ef4444", label: "Critique" },
+    haute:    { color: "#f97316", label: "Haute" },
+    moyenne:  { color: "#f59e0b", label: "Moyenne" },
+    basse:    { color: "#22c55e", label: "Basse" },
+  };
+  const c = cfg[level] ?? cfg.basse;
+  return (
+    <View style={[styles.urgencyBadge, { backgroundColor: c.color + "18" }]}>
+      <Text style={[styles.urgencyBadgeText, { color: c.color }]}>{c.label}</Text>
+    </View>
+  );
+}
+
+// ─── BRIEFING ────────────────────────────────────────────────────────────────
 function BriefingSection({ data, loading, onRefresh }: { data: BriefingData | null; loading: boolean; onRefresh: () => void }) {
   const colors = useColors();
 
@@ -80,7 +95,6 @@ function BriefingSection({ data, loading, onRefresh }: { data: BriefingData | nu
       </View>
     );
   }
-
   if (!data) {
     return (
       <View style={styles.emptyBox}>
@@ -115,13 +129,11 @@ function BriefingSection({ data, loading, onRefresh }: { data: BriefingData | nu
               <Feather name="refresh-cw" size={14} color="#f59e0b" />
             </Pressable>
           </View>
-          {data.summary && (
-            <Text style={[styles.summaryText, { color: colors.foreground }]}>{data.summary}</Text>
-          )}
+          {data.summary && <Text style={[styles.summaryText, { color: colors.foreground }]}>{data.summary}</Text>}
         </View>
       )}
 
-      {Object.keys(s).some(k => (s as any)[k]) && (
+      {Object.keys(s).some(k => (s as any)[k] != null) && (
         <View>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Tableau de bord</Text>
           <View style={styles.statsGrid}>
@@ -132,12 +144,7 @@ function BriefingSection({ data, loading, onRefresh }: { data: BriefingData | nu
             {s.projetsEnRetard != null && s.projetsEnRetard > 0 && <StatCard label="Projets retard" value={s.projetsEnRetard} color="#f97316" icon="alert-triangle" />}
             {s.facturesImpayees != null && <StatCard label="Factures dues" value={s.facturesImpayees} color="#ef4444" icon="file-text" />}
             {s.montantImpaye != null && s.montantImpaye > 0 && (
-              <StatCard
-                label="Impayé"
-                value={new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(s.montantImpaye)}
-                color="#dc2626"
-                icon="dollar-sign"
-              />
+              <StatCard label="Impayé" value={new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(s.montantImpaye)} color="#dc2626" icon="dollar-sign" />
             )}
           </View>
         </View>
@@ -151,9 +158,7 @@ function BriefingSection({ data, loading, onRefresh }: { data: BriefingData | nu
               <View style={[styles.urgentDot, { backgroundColor: TYPE_COLORS[item.type] ?? "#64748b" }]} />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.urgentTitle, { color: colors.foreground }]}>{item.title}</Text>
-                {item.description && (
-                  <Text style={[styles.urgentDesc, { color: colors.mutedForeground }]}>{item.description}</Text>
-                )}
+                {item.description && <Text style={[styles.urgentDesc, { color: colors.mutedForeground }]}>{item.description}</Text>}
               </View>
               <View style={[styles.urgentBadge, { backgroundColor: (TYPE_COLORS[item.type] ?? "#64748b") + "18" }]}>
                 <Feather name={TYPE_ICONS[item.type] ?? "circle"} size={10} color={TYPE_COLORS[item.type] ?? "#64748b"} />
@@ -184,11 +189,7 @@ function BriefingSection({ data, loading, onRefresh }: { data: BriefingData | nu
               <Feather name="bell" size={13} color="#f59e0b" />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.reminderTitle, { color: colors.foreground }]}>{r.title}</Text>
-                {r.dueDate && (
-                  <Text style={[styles.reminderDate, { color: colors.mutedForeground }]}>
-                    {new Date(r.dueDate).toLocaleDateString("fr-FR")}
-                  </Text>
-                )}
+                {r.dueDate && <Text style={[styles.reminderDate, { color: colors.mutedForeground }]}>{new Date(r.dueDate).toLocaleDateString("fr-FR")}</Text>}
               </View>
               {r.priority && (
                 <View style={[styles.urgentBadge, { backgroundColor: r.priority === "haute" ? "#ef444418" : "#f59e0b18" }]}>
@@ -203,6 +204,7 @@ function BriefingSection({ data, loading, onRefresh }: { data: BriefingData | nu
   );
 }
 
+// ─── SEARCH ──────────────────────────────────────────────────────────────────
 function SearchSection() {
   const colors = useColors();
   const { fetchAuth } = useAuth();
@@ -215,8 +217,7 @@ function SearchSection() {
   async function doSearch() {
     if (!query.trim() || query.length < 2) return;
     setSearching(true);
-    setResults([]);
-    setAiSummary("");
+    setResults([]); setAiSummary("");
     try {
       const res = await fetchAuth(`${API_BASE}/api/commandant/smart-search`, {
         method: "POST",
@@ -229,7 +230,7 @@ function SearchSection() {
           const flatResults: SearchResult[] = [];
           if (d.results && typeof d.results === "object") {
             for (const items of Object.values(d.results)) {
-              if (Array.isArray(items)) flatResults.push(...items);
+              if (Array.isArray(items)) flatResults.push(...items as SearchResult[]);
             }
           }
           setResults(flatResults);
@@ -237,8 +238,7 @@ function SearchSection() {
           setTotal(d.totalResults ?? flatResults.length);
         }
       }
-    } catch {}
-    finally { setSearching(false); }
+    } catch {} finally { setSearching(false); }
   }
 
   return (
@@ -256,35 +256,25 @@ function SearchSection() {
         />
         {query ? <Pressable onPress={() => { setQuery(""); setResults([]); }}><Feather name="x" size={14} color={colors.mutedForeground} /></Pressable> : null}
         <Pressable onPress={doSearch} style={[styles.searchBtn, { backgroundColor: "#3b82f6" }]}>
-          {searching
-            ? <ActivityIndicator size="small" color="#fff" />
-            : <Feather name="arrow-right" size={14} color="#fff" />
-          }
+          {searching ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="arrow-right" size={14} color="#fff" />}
         </Pressable>
       </View>
-
       {aiSummary ? (
         <View style={[styles.aiSummaryBox, { backgroundColor: "#3b82f618", borderColor: "#3b82f630" }]}>
           <Feather name="cpu" size={12} color="#3b82f6" />
           <Text style={[styles.aiSummaryText, { color: colors.foreground }]}>{aiSummary}</Text>
         </View>
       ) : null}
-
-      {total > 0 && (
-        <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>{total} résultat{total !== 1 ? "s" : ""}</Text>
-      )}
-
+      {total > 0 && <Text style={[styles.resultCount, { color: colors.mutedForeground }]}>{total} résultat{total !== 1 ? "s" : ""}</Text>}
       <FlatList
         data={results}
         keyExtractor={(item, i) => `${item.type}-${item.id}-${i}`}
-        ListEmptyComponent={
-          !searching && query.length >= 2 ? (
-            <View style={styles.emptyBox}>
-              <Feather name="search" size={32} color={colors.mutedForeground} />
-              <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>Aucun résultat trouvé</Text>
-            </View>
-          ) : null
-        }
+        ListEmptyComponent={!searching && query.length >= 2 ? (
+          <View style={styles.emptyBox}>
+            <Feather name="search" size={32} color={colors.mutedForeground} />
+            <Text style={[styles.emptyTitle, { color: colors.mutedForeground }]}>Aucun résultat</Text>
+          </View>
+        ) : null}
         renderItem={({ item }) => (
           <View style={[styles.resultItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={[styles.resultIcon, { backgroundColor: (TYPE_COLORS[item.type] ?? "#64748b") + "18" }]}>
@@ -304,6 +294,7 @@ function SearchSection() {
   );
 }
 
+// ─── EMAIL ───────────────────────────────────────────────────────────────────
 function EmailSection() {
   const colors = useColors();
   const { fetchAuth } = useAuth();
@@ -315,8 +306,7 @@ function EmailSection() {
 
   async function generate() {
     if (!context.trim()) return;
-    setLoading(true);
-    setResult("");
+    setLoading(true); setResult("");
     try {
       const res = await fetchAuth(`${API_BASE}/api/commandant/email-compile`, {
         method: "POST",
@@ -327,45 +317,19 @@ function EmailSection() {
         const d = await res.json();
         if (d.success) setResult(d.emailContent ?? d.email ?? "");
       }
-    } catch {}
-    finally { setLoading(false); }
+    } catch {} finally { setLoading(false); }
   }
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Rédaction email IA</Text>
-      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Contexte</Text>
-      <TextInput
-        style={[styles.multilineInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]}
-        placeholder="Décrivez le contexte, l'objet, le ton souhaité..."
-        placeholderTextColor={colors.mutedForeground}
-        value={context}
-        onChangeText={setContext}
-        multiline
-        numberOfLines={4}
-        textAlignVertical="top"
-      />
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Contexte *</Text>
+      <TextInput style={[styles.multilineInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder="Contexte, objet, ton souhaité..." placeholderTextColor={colors.mutedForeground} value={context} onChangeText={setContext} multiline numberOfLines={4} textAlignVertical="top" />
       <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Destinataire (optionnel)</Text>
-      <TextInput
-        style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]}
-        placeholder="Nom du destinataire"
-        placeholderTextColor={colors.mutedForeground}
-        value={recipient}
-        onChangeText={setRecipient}
-      />
+      <TextInput style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder="Nom du destinataire" placeholderTextColor={colors.mutedForeground} value={recipient} onChangeText={setRecipient} />
       <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Objectif (optionnel)</Text>
-      <TextInput
-        style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]}
-        placeholder="Relance, proposition, remerciement..."
-        placeholderTextColor={colors.mutedForeground}
-        value={purpose}
-        onChangeText={setPurpose}
-      />
-      <Pressable
-        style={[styles.generateBtn, { backgroundColor: "#3b82f6", opacity: loading || !context.trim() ? 0.6 : 1 }]}
-        onPress={generate}
-        disabled={loading || !context.trim()}
-      >
+      <TextInput style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder="Relance, proposition, remerciement..." placeholderTextColor={colors.mutedForeground} value={purpose} onChangeText={setPurpose} />
+      <Pressable style={[styles.generateBtn, { backgroundColor: "#3b82f6", opacity: loading || !context.trim() ? 0.6 : 1 }]} onPress={generate} disabled={loading || !context.trim()}>
         {loading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="send" size={16} color="#fff" />}
         <Text style={styles.generateBtnText}>{loading ? "Génération..." : "Générer l'email"}</Text>
       </Pressable>
@@ -373,9 +337,7 @@ function EmailSection() {
         <View style={[styles.resultBox, { backgroundColor: colors.card, borderColor: "#3b82f630" }]}>
           <View style={styles.resultBoxHeader}>
             <Text style={[styles.resultBoxTitle, { color: colors.foreground }]}>Email généré</Text>
-            <Pressable onPress={() => setResult("")}>
-              <Feather name="x" size={14} color={colors.mutedForeground} />
-            </Pressable>
+            <Pressable onPress={() => setResult("")}><Feather name="x" size={14} color={colors.mutedForeground} /></Pressable>
           </View>
           <Text style={[styles.resultBoxText, { color: colors.foreground }]}>{result}</Text>
         </View>
@@ -384,6 +346,391 @@ function EmailSection() {
   );
 }
 
+// ─── TÂCHES & RAPPELS ────────────────────────────────────────────────────────
+function TachesSection() {
+  const colors = useColors();
+  const { fetchAuth } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<any>(null);
+  const [sendingEmails, setSendingEmails] = useState(false);
+
+  const load = useCallback(async (sendEmails = false) => {
+    sendEmails ? setSendingEmails(true) : setLoading(true);
+    setData(null);
+    try {
+      const res = await fetchAuth(`${API_BASE}/api/commandant/overdue-reminders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sendEmails }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        if (d.success) setData(d);
+      }
+    } catch {} finally { setLoading(false); setSendingEmails(false); }
+  }, [fetchAuth]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (loading) return <View style={styles.loadingBox}><ActivityIndicator size="large" color="#22c55e" /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Analyse IA des retards...</Text></View>;
+
+  return (
+    <ScrollView showsVerticalScrollIndicator={false}>
+      {/* Header counts */}
+      {data && (
+        <View style={styles.statsGrid}>
+          <StatCard label="Tâches retard" value={data.overdue?.tasks ?? 0} color="#ef4444" icon="check-square" />
+          <StatCard label="Factures dues" value={data.overdue?.invoices ?? 0} color="#f59e0b" icon="file-text" />
+          <StatCard label="Évènements 48h" value={data.overdue?.events ?? 0} color="#8b5cf6" icon="calendar" />
+          {data.emailsSent > 0 && <StatCard label="Emails envoyés" value={data.emailsSent} color="#22c55e" icon="send" />}
+        </View>
+      )}
+
+      {/* Daily summary */}
+      {data?.aiAnalysis?.dailySummary && (
+        <View style={[styles.resultBox, { backgroundColor: "#22c55e10", borderColor: "#22c55e30" }]}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 }}>
+            <Feather name="cpu" size={13} color="#22c55e" />
+            <Text style={[styles.resultBoxTitle, { color: colors.foreground }]}>Résumé IA</Text>
+          </View>
+          <Text style={[styles.resultBoxText, { color: colors.foreground }]}>{data.aiAnalysis.dailySummary}</Text>
+        </View>
+      )}
+
+      {/* Critical alerts */}
+      {data?.aiAnalysis?.criticalAlerts?.length > 0 && (
+        <View>
+          <Text style={[styles.sectionTitle, { color: "#ef4444" }]}>⚠ Alertes critiques</Text>
+          {data.aiAnalysis.criticalAlerts.map((a: string, i: number) => (
+            <View key={i} style={[styles.urgentItem, { backgroundColor: "#ef444410", borderColor: "#ef444430" }]}>
+              <Feather name="alert-circle" size={14} color="#ef4444" />
+              <Text style={[styles.urgentTitle, { color: "#ef4444" }]}>{a}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Task reminders */}
+      {data?.aiAnalysis?.taskReminders?.length > 0 && (
+        <View>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Tâches en retard</Text>
+          {data.aiAnalysis.taskReminders.map((r: any, i: number) => (
+            <View key={i} style={[styles.urgentItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Feather name="check-square" size={14} color="#ef4444" />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.urgentTitle, { color: colors.foreground }]}>{r.message}</Text>
+                {r.suggestedAction && <Text style={[styles.urgentDesc, { color: "#22c55e" }]}>→ {r.suggestedAction}</Text>}
+              </View>
+              <UrgencyBadge level={r.urgency ?? "moyenne"} />
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Invoice reminders */}
+      {data?.aiAnalysis?.invoiceReminders?.length > 0 && (
+        <View>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Factures impayées</Text>
+          {data.aiAnalysis.invoiceReminders.map((r: any, i: number) => (
+            <View key={i} style={[styles.urgentItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Feather name="file-text" size={14} color="#f59e0b" />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.urgentTitle, { color: colors.foreground }]}>{r.clientName} — {Number(r.amount ?? 0).toFixed(2)} EUR</Text>
+                <Text style={[styles.urgentDesc, { color: colors.mutedForeground }]}>{r.message}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Event reminders */}
+      {data?.aiAnalysis?.eventReminders?.length > 0 && (
+        <View style={{ marginBottom: 12 }}>
+          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Évènements proches</Text>
+          {data.aiAnalysis.eventReminders.map((r: any, i: number) => (
+            <View key={i} style={[styles.urgentItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Feather name="calendar" size={14} color="#8b5cf6" />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.urgentTitle, { color: colors.foreground }]}>{r.title}</Text>
+                <Text style={[styles.urgentDesc, { color: colors.mutedForeground }]}>{r.message}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Action buttons */}
+      <View style={{ gap: 8, marginBottom: 20 }}>
+        <Pressable onPress={() => load()} style={[styles.generateBtn, { backgroundColor: "#22c55e" }]} disabled={loading}>
+          {loading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="refresh-cw" size={16} color="#fff" />}
+          <Text style={styles.generateBtnText}>Actualiser l'analyse</Text>
+        </Pressable>
+        <Pressable onPress={() => load(true)} style={[styles.generateBtn, { backgroundColor: "#f59e0b", opacity: sendingEmails ? 0.6 : 1 }]} disabled={sendingEmails}>
+          {sendingEmails ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="send" size={16} color="#fff" />}
+          <Text style={styles.generateBtnText}>{sendingEmails ? "Envoi en cours..." : "Envoyer rappels par email"}</Text>
+        </Pressable>
+      </View>
+    </ScrollView>
+  );
+}
+
+// ─── RÉUNIONS ────────────────────────────────────────────────────────────────
+function ReunionsSection() {
+  const colors = useColors();
+  const { fetchAuth } = useAuth();
+  const [title, setTitle] = useState("");
+  const [participants, setParticipants] = useState("");
+  const [notes, setNotes] = useState("");
+  const [duration, setDuration] = useState("");
+  const [meetingType, setMeetingType] = useState("reunion");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<any>(null);
+
+  const MEETING_TYPES = [
+    { value: "reunion", label: "Réunion" },
+    { value: "appel", label: "Appel" },
+    { value: "negociation", label: "Négociation" },
+    { value: "formation", label: "Formation" },
+    { value: "retrospective", label: "Rétrospective" },
+  ];
+
+  async function compile() {
+    if (!notes.trim()) return;
+    setLoading(true); setResult(null);
+    try {
+      const res = await fetchAuth(`${API_BASE}/api/commandant/meeting-compile`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          meetingTitle: title || "Réunion",
+          participants: participants.split(",").map(p => p.trim()).filter(Boolean),
+          notes,
+          duration: parseInt(duration) || undefined,
+          meetingType,
+        }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        if (d.success) setResult(d);
+      }
+    } catch {} finally { setLoading(false); }
+  }
+
+  return (
+    <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Compilateur de réunion IA</Text>
+
+      {/* Form */}
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Titre de la réunion</Text>
+      <TextInput style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder="Ex: Point hebdomadaire équipe" placeholderTextColor={colors.mutedForeground} value={title} onChangeText={setTitle} />
+
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Type</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 8, paddingBottom: 2 }}>
+        {MEETING_TYPES.map(t => (
+          <Pressable key={t.value} onPress={() => setMeetingType(t.value)} style={[styles.typeChip, { backgroundColor: meetingType === t.value ? "#8b5cf6" : colors.card, borderColor: meetingType === t.value ? "#8b5cf6" : colors.border }]}>
+            <Text style={[styles.typeChipText, { color: meetingType === t.value ? "#fff" : colors.mutedForeground }]}>{t.label}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Participants (séparés par virgule)</Text>
+      <TextInput style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder="Marie Dupont, Jean Martin..." placeholderTextColor={colors.mutedForeground} value={participants} onChangeText={setParticipants} />
+
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Durée (minutes)</Text>
+      <TextInput style={[styles.singleInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]} placeholder="60" placeholderTextColor={colors.mutedForeground} value={duration} onChangeText={setDuration} keyboardType="numeric" />
+
+      <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Notes / compte-rendu *</Text>
+      <TextInput style={[styles.multilineInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border, minHeight: 100 }]} placeholder="Collez ici les notes brutes de la réunion, points discutés, décisions..." placeholderTextColor={colors.mutedForeground} value={notes} onChangeText={setNotes} multiline textAlignVertical="top" />
+
+      <Pressable onPress={compile} style={[styles.generateBtn, { backgroundColor: "#8b5cf6", opacity: loading || !notes.trim() ? 0.6 : 1 }]} disabled={loading || !notes.trim()}>
+        {loading ? <ActivityIndicator size="small" color="#fff" /> : <Feather name="cpu" size={16} color="#fff" />}
+        <Text style={styles.generateBtnText}>{loading ? "Compilation en cours..." : "Compiler la réunion"}</Text>
+      </Pressable>
+
+      {/* Result */}
+      {result && (
+        <View style={{ gap: 10, marginTop: 4, marginBottom: 24 }}>
+          {result.aiReport?.summary && (
+            <View style={[styles.resultBox, { backgroundColor: "#8b5cf610", borderColor: "#8b5cf630" }]}>
+              <Text style={[styles.resultBoxTitle, { color: colors.foreground }]}>📋 Résumé</Text>
+              <Text style={[styles.resultBoxText, { color: colors.foreground }]}>{result.aiReport.summary}</Text>
+              {result.aiReport.meetingEfficiency && (
+                <Text style={[styles.resultSub, { color: colors.mutedForeground, marginTop: 6 }]}>Efficacité: {result.aiReport.meetingEfficiency}</Text>
+              )}
+            </View>
+          )}
+
+          {result.aiReport?.keyDecisions?.length > 0 && (
+            <View style={[styles.resultBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.resultBoxTitle, { color: colors.foreground }]}>✅ Décisions</Text>
+              {result.aiReport.keyDecisions.map((d: string, i: number) => (
+                <View key={i} style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
+                  <Text style={{ color: "#22c55e" }}>•</Text>
+                  <Text style={[styles.resultBoxText, { color: colors.foreground }]}>{d}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {result.createdTasks?.length > 0 && (
+            <View style={[styles.resultBox, { backgroundColor: "#22c55e10", borderColor: "#22c55e30" }]}>
+              <Text style={[styles.resultBoxTitle, { color: colors.foreground }]}>🗂 {result.createdTasks.length} tâche{result.createdTasks.length > 1 ? "s" : ""} créée{result.createdTasks.length > 1 ? "s" : ""}</Text>
+              {result.createdTasks.slice(0, 5).map((t: any, i: number) => (
+                <Text key={i} style={[styles.resultBoxText, { color: colors.foreground, marginTop: 4 }]}>• {t.title}</Text>
+              ))}
+            </View>
+          )}
+
+          {result.aiReport?.risks?.length > 0 && (
+            <View style={[styles.resultBox, { backgroundColor: "#ef444410", borderColor: "#ef444430" }]}>
+              <Text style={[styles.resultBoxTitle, { color: "#ef4444" }]}>⚠ Risques identifiés</Text>
+              {result.aiReport.risks.map((r: string, i: number) => (
+                <Text key={i} style={[styles.resultBoxText, { color: colors.foreground, marginTop: 4 }]}>• {r}</Text>
+              ))}
+            </View>
+          )}
+
+          {result.aiReport?.nextSteps?.length > 0 && (
+            <View style={[styles.resultBox, { backgroundColor: "#3b82f610", borderColor: "#3b82f630" }]}>
+              <Text style={[styles.resultBoxTitle, { color: colors.foreground }]}>→ Prochaines étapes</Text>
+              {result.aiReport.nextSteps.map((s: string, i: number) => (
+                <Text key={i} style={[styles.resultBoxText, { color: colors.foreground, marginTop: 4 }]}>• {s}</Text>
+              ))}
+            </View>
+          )}
+
+          <Pressable onPress={() => setResult(null)} style={[styles.generateBtn, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}>
+            <Feather name="refresh-cw" size={14} color={colors.mutedForeground} />
+            <Text style={[styles.generateBtnText, { color: colors.mutedForeground }]}>Nouvelle réunion</Text>
+          </Pressable>
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+// ─── ÉQUIPE ──────────────────────────────────────────────────────────────────
+function EquipeSection() {
+  const colors = useColors();
+  const { fetchAuth } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<any>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetchAuth(`${API_BASE}/api/commandant/employee-stats`);
+      if (res.ok) {
+        const d = await res.json();
+        if (d.success) setData(d);
+      }
+    } catch {} finally { setLoading(false); }
+  }, [fetchAuth]);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (loading) return <View style={styles.loadingBox}><ActivityIndicator size="large" color="#ec4899" /><Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Analyse des performances...</Text></View>;
+  if (!data) return (
+    <View style={styles.emptyBox}>
+      <Feather name="users" size={40} color="#ec4899" />
+      <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Statistiques équipe</Text>
+      <Pressable style={[styles.refreshBtn, { backgroundColor: "#ec4899" }]} onPress={load}>
+        <Feather name="refresh-cw" size={16} color="#fff" />
+        <Text style={styles.refreshBtnText}>Charger</Text>
+      </Pressable>
+    </View>
+  );
+
+  return (
+    <ScrollView showsVerticalScrollIndicator={false}>
+      {/* AI analysis */}
+      {data.analysis && (
+        <View style={{ gap: 8, marginBottom: 4 }}>
+          {data.analysis.teamInsights && (
+            <View style={[styles.resultBox, { backgroundColor: "#ec489910", borderColor: "#ec489930" }]}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <Feather name="cpu" size={13} color="#ec4899" />
+                <Text style={[styles.resultBoxTitle, { color: colors.foreground }]}>Analyse IA équipe</Text>
+                {data.analysis.globalScore != null && (
+                  <View style={[styles.urgencyBadge, { backgroundColor: "#ec489918", marginLeft: "auto" }]}>
+                    <Text style={[styles.urgencyBadgeText, { color: "#ec4899" }]}>Score: {data.analysis.globalScore}/100</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={[styles.resultBoxText, { color: colors.foreground }]}>{data.analysis.teamInsights}</Text>
+            </View>
+          )}
+          {data.analysis.topPerformers?.length > 0 && (
+            <View style={[styles.resultBox, { backgroundColor: "#22c55e10", borderColor: "#22c55e30" }]}>
+              <Text style={[styles.resultBoxTitle, { color: "#22c55e" }]}>🏆 Top performers</Text>
+              {data.analysis.topPerformers.map((p: any, i: number) => (
+                <Text key={i} style={[styles.resultBoxText, { color: colors.foreground, marginTop: 4 }]}>• {p.name} — {p.reason}</Text>
+              ))}
+            </View>
+          )}
+          {data.analysis.needsAttention?.length > 0 && (
+            <View style={[styles.resultBox, { backgroundColor: "#f59e0b10", borderColor: "#f59e0b30" }]}>
+              <Text style={[styles.resultBoxTitle, { color: "#f59e0b" }]}>⚠ À surveiller</Text>
+              {data.analysis.needsAttention.map((p: any, i: number) => (
+                <View key={i} style={{ marginTop: 6 }}>
+                  <Text style={[styles.resultBoxText, { color: colors.foreground, fontFamily: "Inter_600SemiBold" }]}>{p.name}</Text>
+                  <Text style={[styles.resultBoxText, { color: colors.mutedForeground }]}>{p.issue}</Text>
+                  {p.suggestion && <Text style={[styles.resultBoxText, { color: "#22c55e" }]}>→ {p.suggestion}</Text>}
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Employee cards */}
+      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Membres de l'équipe ({data.employees?.length ?? 0})</Text>
+      {(data.employees ?? []).map((emp: any, i: number) => {
+        const score = emp.stats?.productivityScore ?? 0;
+        const scoreColor = score >= 70 ? "#22c55e" : score >= 40 ? "#f59e0b" : "#ef4444";
+        return (
+          <View key={i} style={[styles.urgentItem, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: "column", alignItems: "stretch" }]}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <View style={[styles.empAvatar, { backgroundColor: "#ec489918" }]}>
+                <Text style={[styles.empAvatarText, { color: "#ec4899" }]}>
+                  {(emp.name || "?")[0].toUpperCase()}
+                </Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.urgentTitle, { color: colors.foreground }]}>{emp.name}</Text>
+                <Text style={[styles.urgentDesc, { color: colors.mutedForeground }]}>{emp.role}{emp.department ? ` · ${emp.department}` : ""}</Text>
+              </View>
+              <View style={[styles.urgencyBadge, { backgroundColor: scoreColor + "18" }]}>
+                <Text style={[styles.urgencyBadgeText, { color: scoreColor }]}>{score} pts</Text>
+              </View>
+            </View>
+            <View style={[styles.empStatsRow]}>
+              {[
+                { icon: "check-square" as const, val: emp.stats?.tasksCompleted ?? 0, label: "Terminées", color: "#22c55e" },
+                { icon: "alert-circle" as const, val: emp.stats?.tasksOverdue ?? 0,   label: "Retard",     color: "#ef4444" },
+                { icon: "phone" as const,         val: emp.stats?.callsMade ?? 0,      label: "Appels",     color: "#3b82f6" },
+                { icon: "calendar" as const,      val: emp.stats?.eventsAttended ?? 0, label: "Évènements", color: "#8b5cf6" },
+              ].map(s => (
+                <View key={s.label} style={styles.empStat}>
+                  <Feather name={s.icon} size={12} color={s.color} />
+                  <Text style={[styles.empStatVal, { color: colors.foreground }]}>{s.val}</Text>
+                  <Text style={[styles.empStatLabel, { color: colors.mutedForeground }]}>{s.label}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        );
+      })}
+
+      <Pressable onPress={load} style={[styles.generateBtn, { backgroundColor: "#ec4899", marginTop: 8, marginBottom: 24 }]}>
+        <Feather name="refresh-cw" size={16} color="#fff" />
+        <Text style={styles.generateBtnText}>Actualiser</Text>
+      </Pressable>
+    </ScrollView>
+  );
+}
+
+// ─── FINANCE ─────────────────────────────────────────────────────────────────
 function FinanceSection() {
   const colors = useColors();
   const { fetchAuth } = useAuth();
@@ -398,8 +745,7 @@ function FinanceSection() {
         const d = await res.json();
         if (d.success) setData(d);
       }
-    } catch {}
-    finally { setLoading(false); }
+    } catch {} finally { setLoading(false); }
   }, [fetchAuth]);
 
   useEffect(() => { load(); }, [load]);
@@ -430,15 +776,23 @@ function FinanceSection() {
           <Text style={[styles.resultBoxText, { color: colors.foreground }]}>{data.aiInsights}</Text>
         </View>
       )}
+      <Pressable onPress={load} style={[styles.generateBtn, { backgroundColor: "#22c55e", marginTop: 4, marginBottom: 24 }]}>
+        <Feather name="refresh-cw" size={16} color="#fff" />
+        <Text style={styles.generateBtnText}>Actualiser</Text>
+      </Pressable>
     </ScrollView>
   );
 }
 
+// ─── MAIN ─────────────────────────────────────────────────────────────────────
 const TABS: { key: Tab; label: string; icon: keyof typeof Feather.glyphMap; color: string }[] = [
-  { key: "briefing", label: "Briefing", icon: "coffee",       color: "#f59e0b" },
-  { key: "search",   label: "Recherche", icon: "search",      color: "#3b82f6" },
-  { key: "email",    label: "Email",     icon: "mail",        color: "#8b5cf6" },
-  { key: "finance",  label: "Finance",   icon: "dollar-sign", color: "#22c55e" },
+  { key: "briefing",  label: "Briefing",  icon: "coffee",      color: "#f59e0b" },
+  { key: "taches",    label: "Tâches",    icon: "check-square",color: "#22c55e" },
+  { key: "reunions",  label: "Réunions",  icon: "users",       color: "#8b5cf6" },
+  { key: "equipe",    label: "Équipe",    icon: "user-check",  color: "#ec4899" },
+  { key: "email",     label: "Email",     icon: "mail",        color: "#3b82f6" },
+  { key: "search",    label: "Recherche", icon: "search",      color: "#6366f1" },
+  { key: "finance",   label: "Finance",   icon: "dollar-sign", color: "#16a34a" },
 ];
 
 export default function CommandantIAScreen() {
@@ -460,12 +814,10 @@ export default function CommandantIAScreen() {
         const d = await res.json();
         if (d.success) setBriefingData(d);
       }
-    } catch {}
-    finally { setBriefingLoading(false); setRefreshing(false); }
+    } catch {} finally { setBriefingLoading(false); setRefreshing(false); }
   }, [fetchAuth]);
 
   useEffect(() => { loadBriefing(); }, [loadBriefing]);
-
   function onRefresh() { setRefreshing(true); loadBriefing(); }
 
   const activeColor = TABS.find(t => t.key === tab)?.color ?? "#f59e0b";
@@ -487,21 +839,11 @@ export default function CommandantIAScreen() {
             </View>
           </View>
         </View>
-
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabBar} contentContainerStyle={{ gap: 8 }}>
           {TABS.map(t => (
-            <Pressable
-              key={t.key}
-              onPress={() => setTab(t.key)}
-              style={[
-                styles.tabChip,
-                { backgroundColor: tab === t.key ? t.color : "rgba(255,255,255,0.1)" },
-              ]}
-            >
+            <Pressable key={t.key} onPress={() => setTab(t.key)} style={[styles.tabChip, { backgroundColor: tab === t.key ? t.color : "rgba(255,255,255,0.1)" }]}>
               <Feather name={t.icon} size={13} color={tab === t.key ? "#fff" : "rgba(255,255,255,0.7)"} />
-              <Text style={[styles.tabChipText, { color: tab === t.key ? "#fff" : "rgba(255,255,255,0.7)" }]}>
-                {t.label}
-              </Text>
+              <Text style={[styles.tabChipText, { color: tab === t.key ? "#fff" : "rgba(255,255,255,0.7)" }]}>{t.label}</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -509,28 +851,39 @@ export default function CommandantIAScreen() {
 
       <View style={styles.content}>
         {tab === "briefing" && (
-          <ScrollView
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={activeColor} />}
-            contentContainerStyle={{ padding: 16, paddingBottom: isWeb ? 118 : 100 }}
-            showsVerticalScrollIndicator={false}
-          >
+          <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={activeColor} />} contentContainerStyle={{ padding: 16, paddingBottom: isWeb ? 118 : 100 }} showsVerticalScrollIndicator={false}>
             <BriefingSection data={briefingData} loading={briefingLoading} onRefresh={loadBriefing} />
           </ScrollView>
         )}
-        {tab === "search" && (
+        {tab === "taches" && (
+          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: isWeb ? 118 : 100 }} showsVerticalScrollIndicator={false}>
+            <TachesSection />
+          </ScrollView>
+        )}
+        {tab === "reunions" && (
           <View style={{ flex: 1, padding: 16, paddingBottom: isWeb ? 118 : 100 }}>
-            <SearchSection />
+            <ReunionsSection />
           </View>
+        )}
+        {tab === "equipe" && (
+          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: isWeb ? 118 : 100 }} showsVerticalScrollIndicator={false}>
+            <EquipeSection />
+          </ScrollView>
         )}
         {tab === "email" && (
           <View style={{ flex: 1, padding: 16, paddingBottom: isWeb ? 118 : 100 }}>
             <EmailSection />
           </View>
         )}
-        {tab === "finance" && (
+        {tab === "search" && (
           <View style={{ flex: 1, padding: 16, paddingBottom: isWeb ? 118 : 100 }}>
-            <FinanceSection />
+            <SearchSection />
           </View>
+        )}
+        {tab === "finance" && (
+          <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: isWeb ? 118 : 100 }} showsVerticalScrollIndicator={false}>
+            <FinanceSection />
+          </ScrollView>
         )}
       </View>
     </View>
@@ -574,28 +927,38 @@ const styles = StyleSheet.create({
   urgentDesc: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   urgentBadge: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
   urgentBadgeText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
+  urgencyBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  urgencyBadgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   suggestionItem: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 10, borderRadius: 10, borderWidth: 1, marginBottom: 8 },
-  suggestionText: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 19 },
+  suggestionText: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 18 },
   reminderItem: { flexDirection: "row", alignItems: "center", padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 8, gap: 10 },
   reminderTitle: { fontSize: 13, fontFamily: "Inter_500Medium" },
   reminderDate: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
-  searchBox: { flexDirection: "row", alignItems: "center", borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, height: 48, gap: 8, marginBottom: 12 },
+  searchBox: { flexDirection: "row", alignItems: "center", borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8, gap: 8, marginBottom: 8 },
   searchInput: { flex: 1, fontSize: 14, fontFamily: "Inter_400Regular" },
   searchBtn: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  aiSummaryBox: { flexDirection: "row", alignItems: "flex-start", gap: 6, padding: 10, borderRadius: 10, borderWidth: 1, marginBottom: 10 },
-  aiSummaryText: { fontSize: 12, fontFamily: "Inter_400Regular", flex: 1 },
-  resultCount: { fontSize: 12, fontFamily: "Inter_400Regular", marginBottom: 10 },
+  aiSummaryBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 8 },
+  aiSummaryText: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1, lineHeight: 18 },
+  resultCount: { fontSize: 12, fontFamily: "Inter_400Regular", marginBottom: 8 },
   resultItem: { flexDirection: "row", alignItems: "center", padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 8, gap: 10 },
   resultIcon: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   resultTitle: { fontSize: 13, fontFamily: "Inter_500Medium" },
   resultSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
-  fieldLabel: { fontSize: 12, fontFamily: "Inter_500Medium", marginBottom: 6, marginTop: 12 },
-  multilineInput: { borderRadius: 10, borderWidth: 1, padding: 12, fontSize: 13, fontFamily: "Inter_400Regular", minHeight: 100 },
-  singleInput: { borderRadius: 10, borderWidth: 1, padding: 12, fontSize: 13, fontFamily: "Inter_400Regular", height: 44 },
-  generateBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 44, borderRadius: 12, marginTop: 16, marginBottom: 16 },
-  generateBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  resultBox: { borderRadius: 12, borderWidth: 1, padding: 14, marginBottom: 16 },
+  fieldLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold", marginBottom: 6, marginTop: 4 },
+  singleInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, fontFamily: "Inter_400Regular", marginBottom: 10 },
+  multilineInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, fontFamily: "Inter_400Regular", marginBottom: 10, minHeight: 80 },
+  generateBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 12, marginBottom: 4 },
+  generateBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  resultBox: { borderRadius: 12, borderWidth: 1, padding: 14, marginBottom: 8 },
   resultBoxHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
-  resultBoxTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  resultBoxTitle: { fontSize: 14, fontFamily: "Inter_700Bold" },
   resultBoxText: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 20 },
+  typeChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1 },
+  typeChipText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  empAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  empAvatarText: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  empStatsRow: { flexDirection: "row", marginTop: 10, gap: 8 },
+  empStat: { flex: 1, alignItems: "center", gap: 3 },
+  empStatVal: { fontSize: 14, fontFamily: "Inter_700Bold" },
+  empStatLabel: { fontSize: 9, fontFamily: "Inter_400Regular" },
 });
