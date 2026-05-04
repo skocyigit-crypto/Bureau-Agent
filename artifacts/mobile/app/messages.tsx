@@ -402,6 +402,17 @@ export default function MessagesScreen() {
             { label: "Lu", value: selected.isRead ? "Oui" : "Non", icon: selected.isRead ? "check" : "circle" },
             ...(selected.phoneNumber ? [{ label: "Telephone", value: selected.phoneNumber, icon: "phone" as const, action: "call" as const }] : []),
           ]}
+          extraActions={[{
+            label: "Créer un projet",
+            icon: "folder",
+            color: "#6366f1",
+            onPress: async () => {
+              try {
+                const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: `Suivi message - ${selected.contactName || selected.phoneNumber}`, status: "planifie", priority: selected.priority || "moyenne", progress: 0, notes: `Créé depuis le message mobile` }) });
+                if (res.ok) { setSelected(null); router.push("/projets" as any); }
+              } catch {}
+            },
+          }]}
         />
       ) : null}
     </View>

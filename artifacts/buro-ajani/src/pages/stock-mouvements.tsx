@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { ArrowLeft, Package, TrendingUp, TrendingDown, RefreshCw, Search, Filter, ChevronLeft, ChevronRight, Download, Printer } from "lucide-react";
+import { ArrowLeft, Package, TrendingUp, TrendingDown, RefreshCw, Search, Filter, ChevronLeft, ChevronRight, Download, Printer, FolderKanban } from "lucide-react";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,12 +25,22 @@ interface Mouvement {
 }
 
 export default function StockMouvementsPage() {
+  const [, navigate] = useLocation();
   const [data, setData] = useState<{ mouvements: Mouvement[]; total: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [page, setPage] = useState(0);
   const { toast } = useToast();
+
+  async function navigateToProjets() {
+    const res = await fetch(`${BASE}/api/projets`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify({ title: "Projet stock", status: "planifie", priority: "moyenne", progress: 0, notes: "Créé depuis les mouvements de stock" }),
+    });
+    if (res.ok) { toast({ title: "Projet créé" }); navigate("/projets"); }
+    else toast({ title: "Erreur lors de la création", variant: "destructive" });
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -94,6 +105,9 @@ export default function StockMouvementsPage() {
           <Button variant="outline" size="sm" className="gap-2"><Download className="w-4 h-4" />CSV</Button>
         </a>
         <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+        <Button variant="outline" size="sm" className="gap-1.5 text-indigo-600 border-indigo-300 hover:bg-indigo-50" onClick={navigateToProjets}>
+          <FolderKanban className="w-4 h-4" />Créer un projet
+        </Button>
       </div>
 
       <Card>

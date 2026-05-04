@@ -408,6 +408,17 @@ export default function CalendarScreen() {
             ...(selected.contactPhone ? [{ label: "Telephone", value: selected.contactPhone, icon: "phone" as const, action: "call" as const }] : []),
             ...(selected.status ? [{ label: "Statut", value: selected.status, icon: "info" as const }] : []),
           ]}
+          extraActions={typeof selected.id === "number" ? [{
+            label: "Créer un projet",
+            icon: "folder",
+            color: "#6366f1",
+            onPress: async () => {
+              try {
+                const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: selected.title, status: "planifie", priority: "moyenne", progress: 0, notes: `Créé depuis l'événement calendrier mobile` }) });
+                if (res.ok) { setSelected(null); router.push("/projets" as any); }
+              } catch {}
+            },
+          }] : undefined}
         />
       ) : null}
     </View>

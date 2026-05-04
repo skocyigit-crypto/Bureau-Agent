@@ -8,8 +8,9 @@ import {
   CheckCircle2, Clock, Zap, Eye, Edit3, Copy, ExternalLink, Inbox,
   Filter, MoreHorizontal, Paperclip, Tag, ArrowLeft, Plus, RotateCcw,
   AlertCircle, TrendingUp, ShoppingCart, FileText, Info, MessageSquare,
-  CornerDownLeft, Check, Wifi, WifiOff, Printer
+  CornerDownLeft, Check, Wifi, WifiOff, Printer, FolderKanban
 } from "lucide-react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -220,8 +221,19 @@ function ComposeModal({ open, onClose, replyTo }: { open: boolean; onClose: () =
 
 export default function GmailAgentPage() {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const qc = useQueryClient();
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  async function navigateToProjets(emailSubject?: string) {
+    const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+    const res = await fetch(`${BASE}/api/projets`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify({ title: emailSubject ? `Suivi email : ${emailSubject}`.slice(0, 80) : "Projet depuis email", status: "planifie", priority: "moyenne", progress: 0, notes: "Créé depuis l'Agent Mail IA" }),
+    });
+    if (res.ok) { toast({ title: "Projet créé" }); navigate("/projets"); }
+    else toast({ title: "Erreur lors de la création", variant: "destructive" });
+  }
 
   const [selectedEmail, setSelectedEmail] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -381,6 +393,9 @@ export default function GmailAgentPage() {
             <RefreshCw className="h-4 w-4 mr-1" />Actualiser
           </Button>
           <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="h-4 w-4" /></Button>
+          <Button variant="outline" size="sm" className="gap-1.5 text-indigo-600 border-indigo-300 hover:bg-indigo-50" onClick={() => navigateToProjets(selectedEmail?.subject)}>
+            <FolderKanban className="h-4 w-4" />Créer un projet
+          </Button>
           <Button size="sm" onClick={() => { setComposeReplyTo(undefined); setComposeOpen(true); }}>
             <Plus className="h-4 w-4 mr-1" />Nouveau
           </Button>

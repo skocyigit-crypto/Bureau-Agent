@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Target, Plus, Trash2, Edit, TrendingUp, RefreshCw, CheckCircle, X, Download, Printer } from "lucide-react";
+import { Target, Plus, Trash2, Edit, TrendingUp, RefreshCw, CheckCircle, X, Download, Printer, FolderKanban } from "lucide-react";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ interface Objectif {
 const EMPTY_FORM = { title: "", metric: "revenue", targetValue: "", currentValue: "0", period: "monthly", startDate: "", endDate: "", notes: "" };
 
 export default function ObjectifsCommerciauxPage() {
+  const [, navigate] = useLocation();
   const [objectifs, setObjectifs] = useState<Objectif[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -41,6 +43,15 @@ export default function ObjectifsCommerciauxPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+
+  async function navigateToProjets() {
+    const res = await fetch(`${BASE}/api/projets`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify({ title: "Nouveau projet", status: "planifie", priority: "haute", progress: 0, notes: "Créé depuis les objectifs commerciaux" }),
+    });
+    if (res.ok) { toast({ title: "Projet créé" }); navigate("/projets"); }
+    else toast({ title: "Erreur lors de la création", variant: "destructive" });
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -108,6 +119,9 @@ export default function ObjectifsCommerciauxPage() {
             <Button variant="outline" size="sm"><Download className="w-4 h-4 mr-2" />CSV</Button>
           </a>
           <Button variant="outline" size="sm" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+          <Button variant="outline" size="sm" className="gap-1.5 text-indigo-600 border-indigo-300 hover:bg-indigo-50" onClick={navigateToProjets}>
+            <FolderKanban className="w-4 h-4" />Créer un projet
+          </Button>
           <Button size="sm" onClick={openCreate}><Plus className="w-4 h-4 mr-2" />Nouvel objectif</Button>
         </div>
       </div>

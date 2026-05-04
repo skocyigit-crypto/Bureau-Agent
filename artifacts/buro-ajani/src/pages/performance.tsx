@@ -9,8 +9,9 @@ import {
   Users, TrendingUp, Clock, Award, BarChart3, Brain, Loader2,
   Target, Phone, CheckSquare, Mail, Calendar, UserCheck,
   ArrowUpRight, ArrowDownRight, Minus, Smile, RefreshCw, History,
-  Shield, AlertTriangle, Lightbulb, Sparkles, Compass, Zap, Eye, Heart, Download, Printer
+  Shield, AlertTriangle, Lightbulb, Sparkles, Compass, Zap, Eye, Heart, Download, Printer, FolderKanban
 } from "lucide-react";
+import { useLocation } from "wouter";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 const baseUrl = BASE;
@@ -89,8 +90,18 @@ function MetriqueCard({ icon: Icon, label, value, color }: { icon: any; label: s
 
 export default function PerformancePage() {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [periode, setPeriode] = useState("semaine");
   const [rapport, setRapport] = useState<any>(null);
+
+  async function navigateToProjets() {
+    const res = await fetch(`${BASE}/api/projets`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify({ title: "Projet performance équipe", status: "planifie", priority: "moyenne", progress: 0, notes: "Créé depuis la page Performance" }),
+    });
+    if (res.ok) { toast({ title: "Projet créé" }); navigate("/projets"); }
+    else toast({ title: "Erreur lors de la création", variant: "destructive" });
+  }
 
   const metriquesQuery = useQuery({
     queryKey: ["performance-metriques", periode],
@@ -155,6 +166,9 @@ export default function PerformancePage() {
             <Button variant="outline" size="icon" title="Exporter CSV"><Download className="w-4 h-4" /></Button>
           </a>
           <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
+          <Button variant="outline" size="sm" className="gap-1.5 text-indigo-600 border-indigo-300 hover:bg-indigo-50" onClick={navigateToProjets}>
+            <FolderKanban className="w-4 h-4" />Créer un projet
+          </Button>
         </div>
       </div>
 

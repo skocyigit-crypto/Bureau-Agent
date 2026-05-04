@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Puzzle, Search, CheckCircle2, Settings2, Zap, RefreshCw, BarChart3, MessageSquare, Users, FolderOpen, Mail, CreditCard, Link2, Shield, Loader2, Sparkles, Brain, Radar, ChevronDown, ChevronUp, Target, TrendingUp, Globe, Cpu, Printer } from "lucide-react";
+import { Puzzle, Search, CheckCircle2, Settings2, Zap, RefreshCw, BarChart3, MessageSquare, Users, FolderOpen, Mail, CreditCard, Link2, Shield, Loader2, Sparkles, Brain, Radar, ChevronDown, ChevronUp, Target, TrendingUp, Globe, Cpu, Printer, FolderKanban } from "lucide-react";
+import { useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -76,6 +77,7 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function Software() {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
   const [selectedIntegration, setSelectedIntegration] = useState<SoftwareIntegration | null>(null);
@@ -86,6 +88,15 @@ export default function Software() {
   const [discoveryExpanded, setDiscoveryExpanded] = useState(true);
   const [discoveryError, setDiscoveryError] = useState(false);
   const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+  async function navigateToProjets() {
+    const res = await fetch(`${baseUrl}/api/projets`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify({ title: "Projet intégration logicielle", status: "planifie", priority: "moyenne", progress: 0, notes: "Créé depuis Logiciels & Intégrations" }),
+    });
+    if (res.ok) { toast({ title: "Projet créé" }); navigate("/projets"); }
+    else toast({ title: "Erreur lors de la création", variant: "destructive" });
+  }
 
   const { data: catalog, isLoading } = useGetIntegrationsCatalog({
     query: { queryKey: ["integrations-catalog"] },
@@ -210,6 +221,9 @@ export default function Software() {
           <Badge className="bg-emerald-100 text-emerald-700 text-sm px-3 py-1">
             {catalog?.totalAvailable ?? 0} logiciels disponibles
           </Badge>
+          <Button variant="outline" size="sm" className="gap-1.5 text-indigo-600 border-indigo-300 hover:bg-indigo-50" onClick={navigateToProjets}>
+            <FolderKanban className="w-4 h-4" />Créer un projet
+          </Button>
           <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
         </div>
       </div>

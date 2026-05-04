@@ -190,9 +190,19 @@ export default function AnalyticsScreen() {
             <Feather name="arrow-left" size={22} color="#ffffff" />
           </Pressable>
           <Text style={styles.headerTitle}>Analytique</Text>
-          <Pressable onPress={onRefresh} hitSlop={12}>
-            <Feather name="refresh-cw" size={18} color="rgba(255,255,255,0.7)" />
-          </Pressable>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+            <Pressable onPress={async () => {
+              try {
+                const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: "Projet analytique", status: "planifie", priority: "moyenne", progress: 0, notes: "Créé depuis la page Analytique mobile" }) });
+                if (res.ok) router.push("/projets" as any);
+              } catch {}
+            }} hitSlop={12}>
+              <Feather name="folder" size={18} color="rgba(255,255,255,0.85)" />
+            </Pressable>
+            <Pressable onPress={onRefresh} hitSlop={12}>
+              <Feather name="refresh-cw" size={18} color="rgba(255,255,255,0.7)" />
+            </Pressable>
+          </View>
         </View>
         <View style={styles.periodRow}>
           {PERIODS.map((p) => (

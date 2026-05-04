@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { Phone, Plus, Settings, Trash2, Star, Check, MessageSquare, PhoneCall, PhoneOff, Send, RefreshCw, ExternalLink, Shield, Zap, Users, Clock, FileText, CalendarClock, Printer } from "lucide-react";
+import { Phone, Plus, Settings, Trash2, Star, Check, MessageSquare, PhoneCall, PhoneOff, Send, RefreshCw, ExternalLink, Shield, Zap, Users, Clock, FileText, CalendarClock, Printer, FolderKanban } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -53,6 +54,16 @@ interface SmsLog {
 
 export default function TelephonyPage() {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
+  async function navigateToProjets() {
+    const res = await fetch(`${API}/api/projets`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify({ title: "Projet téléphonie", status: "planifie", priority: "moyenne", progress: 0, notes: "Créé depuis la page Téléphonie" }),
+    });
+    if (res.ok) { toast({ title: "Projet créé" }); window.location.href = `${API}/projets`; }
+    else toast({ title: "Erreur lors de la création", variant: "destructive" });
+  }
+
   const [tab, setTab] = useState<"providers" | "call" | "sms" | "bulk" | "schedule" | "logs" | "stats">("providers");
   const [bulkNumbers, setBulkNumbers] = useState("");
   const [bulkBody, setBulkBody] = useState("");
@@ -284,6 +295,13 @@ export default function TelephonyPage() {
             title="Imprimer"
           >
             <Printer className="h-4 w-4" />
+          </button>
+          <button
+            onClick={navigateToProjets}
+            className="flex items-center gap-2 px-3 py-2 border border-indigo-300 text-indigo-600 rounded-lg hover:bg-indigo-50"
+            title="Créer un projet"
+          >
+            <FolderKanban className="h-4 w-4" /><span className="text-sm">Créer un projet</span>
           </button>
           <button
             onClick={() => setShowAddForm(true)}
