@@ -2028,4 +2028,332 @@ router.get("/ai/anomalies", requireMinAgent, async (req, res): Promise<void> => 
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════
+// SUPER AGENT OTONOM — email + chantier + sistem yönetimi
+// ═══════════════════════════════════════════════════════════════════
+
+interface SuperAgentLog {
+  timestamp: string;
+  level: "info" | "success" | "warning" | "error";
+  source: "email" | "chantier" | "system" | "tache" | "appel";
+  message: string;
+  detail?: string;
+}
+
+interface SuperAgentState {
+  running: boolean;
+  lastRun?: string;
+  logs: SuperAgentLog[];
+  stats: {
+    tasksCreated: number;
+    tasksFixed: number;
+    emailsProcessed: number;
+    reportsProcessed: number;
+    fixesApplied: number;
+    cyclesRun: number;
+  };
+}
+
+const superAgentStates = new Map<number, SuperAgentState>();
+
+function getSuperAgentState(orgId: number): SuperAgentState {
+  if (!superAgentStates.has(orgId)) {
+    superAgentStates.set(orgId, {
+      running: false,
+      logs: [],
+      stats: { tasksCreated: 0, tasksFixed: 0, emailsProcessed: 0, reportsProcessed: 0, fixesApplied: 0, cyclesRun: 0 },
+    });
+  }
+  return superAgentStates.get(orgId)!;
+}
+
+function saLog(orgId: number, level: SuperAgentLog["level"], source: SuperAgentLog["source"], message: string, detail?: string) {
+  const state = getSuperAgentState(orgId);
+  state.logs.push({ timestamp: new Date().toISOString(), level, source, message, detail });
+  if (state.logs.length > 500) state.logs = state.logs.slice(-500);
+}
+
+async function superAgentAI(orgId: number, prompt: string, systemPrompt: string): Promise<string> {
+  const { ai } = await import("@workspace/integrations-gemini-ai");
+  const t0 = Date.now();
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\n${prompt}` }] }],
+      config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
+    });
+    const text = response.text ?? "{}";
+    const tokens = extractGeminiTokens(response);
+    recordAiUsage({ organisationId: orgId, provider: "gemini", model: "gemini-2.5-flash", route: "/ai/super-agent", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+    invalidateQuotaCache(orgId);
+    return text;
+  } catch (err: any) {
+    // fallback to OpenAI
+    try {
+      const { openai } = await import("@workspace/integrations-openai-ai-server");
+      const fb = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [{ role: "system", content: systemPrompt }, { role: "user", content: prompt + "\n\nReponds UNIQUEMENT en JSON valide." }],
+        max_tokens: 3000,
+      });
+      return fb.choices?.[0]?.message?.content ?? "{}";
+    } catch { return "{}"; }
+  }
+}
+
+async function runSuperAgentCycle(orgId: number, userId: number) {
+  const state = getSuperAgentState(orgId);
+  state.running = true;
+  state.stats.cyclesRun++;
+  saLog(orgId, "info", "system", "Démarrage du cycle Super Agent IA");
+
+  try {
+    await assertAiQuota(orgId);
+
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 86400000);
+    const orgTask = eq(tasksTable.organisationId, orgId);
+    const orgCall = eq(callsTable.organisationId, orgId);
+    const orgContact = eq(contactsTable.organisationId, orgId);
+
+    // ── 1. GMAIL — emails non traités ───────────────────────────────────────
+    saLog(orgId, "info", "email", "Analyse de la boîte mail...");
+    let emailTasksCreated = 0;
+    try {
+      const { googleOAuthTokensTable: googleTokens } = await import("@workspace/db");
+      const tokenRows = await db.select().from(googleTokens).where(eq(googleTokens.userId, userId)).limit(1);
+      if (tokenRows.length > 0) {
+        const { google } = await import("googleapis");
+        const oauth2Client = new google.auth.OAuth2(
+          process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET,
+          process.env.GOOGLE_REDIRECT_URI || `${process.env.APP_URL || "http://localhost"}/api/google-oauth/callback`
+        );
+        oauth2Client.setCredentials({ access_token: tokenRows[0].accessToken, refresh_token: tokenRows[0].refreshToken });
+        const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+
+        const listRes = await gmail.users.messages.list({ userId: "me", q: "is:unread is:inbox -category:promotions -category:social", maxResults: 15 }).catch(() => null);
+        const messages = listRes?.data?.messages ?? [];
+
+        for (const msg of messages.slice(0, 10)) {
+          try {
+            const detail = await gmail.users.messages.get({ userId: "me", id: msg.id!, format: "full" });
+            const headers = (detail.data.payload?.headers ?? []).reduce((acc: any, h: any) => { acc[h.name?.toLowerCase()] = h.value; return acc; }, {} as Record<string, string>);
+            const subject = headers["subject"] ?? "(Sans objet)";
+            const from = headers["from"] ?? "";
+            const snippet = detail.data.snippet ?? "";
+
+            let body = "";
+            function walkParts(part: any) {
+              if (!part) return;
+              if (part.mimeType === "text/plain" && part.body?.data) {
+                body = Buffer.from(part.body.data, "base64").toString("utf-8").slice(0, 2000);
+              }
+              if (part.parts) for (const p of part.parts) walkParts(p);
+            }
+            walkParts(detail.data.payload);
+            if (!body) body = snippet;
+
+            const aiText = await superAgentAI(orgId,
+              `Email reçu:\nDe: ${from}\nObjet: ${subject}\nContenu: ${body}\n\nAnalyse cet email et extrait les tâches/actions requises en JSON:\n{"tasks":[{"title":"string","priority":"haute|moyenne|basse","dueInDays":3,"description":"string"}],"needsReply":true/false,"urgency":"normale|haute|critique","summary":"string"}`,
+              `Tu es le Super Agent IA d'Agent de Bureau. Tu analyses les emails professionnels et extrais les actions requises. Sois précis et actionnable. Réponds UNIQUEMENT en JSON valide.`
+            );
+
+            let parsed: any = {};
+            try { const m = aiText.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : {}; } catch {}
+
+            if (parsed.tasks?.length > 0) {
+              for (const t of parsed.tasks) {
+                const dueDate = new Date(Date.now() + (t.dueInDays || 3) * 86400000);
+                await db.insert(tasksTable).values({
+                  organisationId: orgId, title: `[Email] ${t.title}`, description: `De: ${from}\nObjet: ${subject}\n\n${t.description || parsed.summary || ""}`, priority: t.priority || "moyenne", status: "en_attente", dueDate,
+                }).catch(() => {});
+                emailTasksCreated++;
+                state.stats.tasksCreated++;
+              }
+              saLog(orgId, "success", "email", `Email traité: "${subject}"`, `${parsed.tasks.length} tâche(s) créée(s) — Urgence: ${parsed.urgency || "normale"}`);
+            } else {
+              saLog(orgId, "info", "email", `Email analysé: "${subject}"`, `Aucune action requise — ${parsed.summary || from}`);
+            }
+            state.stats.emailsProcessed++;
+          } catch { /* skip this email */ }
+        }
+
+        if (messages.length === 0) saLog(orgId, "info", "email", "Aucun email non lu dans la boîte");
+      } else {
+        saLog(orgId, "info", "email", "Gmail non connecté — ignoré");
+      }
+    } catch (mailErr: any) {
+      saLog(orgId, "warning", "email", `Gmail non disponible: ${mailErr.message}`);
+    }
+
+    // ── 2. CHANTIERS / PROJETS — tâches en retard ──────────────────────────
+    saLog(orgId, "info", "chantier", "Analyse des projets et chantiers...");
+    try {
+      const projetsList = await db.select({ id: projetsTable.id, title: projetsTable.title, status: projetsTable.status, progress: projetsTable.progress, endDate: projetsTable.endDate })
+        .from(projetsTable).where(and(eq(projetsTable.organisationId, orgId), ne(projetsTable.status, "termine"), ne(projetsTable.status, "annule"))).limit(20);
+
+      let overdueProjects = 0;
+      for (const p of projetsList) {
+        const isLate = p.endDate && new Date(p.endDate) < now;
+        if (isLate || (p.progress ?? 0) < 20) {
+          overdueProjects++;
+          // Create follow-up task if not already one for this project recently
+          const existingTask = await db.select({ id: tasksTable.id }).from(tasksTable)
+            .where(and(orgTask, sql`${tasksTable.title} ILIKE ${"%" + p.title.slice(0, 30) + "%"}`, gte(tasksTable.createdAt, weekAgo))).limit(1);
+          if (existingTask.length === 0) {
+            await db.insert(tasksTable).values({
+              organisationId: orgId, title: `[Chantier] Suivi: ${p.title}`, description: `Projet ${isLate ? "en RETARD" : "peu avancé"} (${p.progress ?? 0}%). Action requise.`, priority: isLate ? "haute" : "moyenne", status: "en_attente", dueDate: new Date(Date.now() + 2 * 86400000),
+            }).catch(() => {});
+            state.stats.tasksCreated++;
+          }
+        }
+      }
+      if (overdueProjects > 0) saLog(orgId, "warning", "chantier", `${overdueProjects} projet(s) en retard`, "Tâches de suivi créées automatiquement");
+      else saLog(orgId, "success", "chantier", `${projetsList.length} projet(s) en cours — tous dans les délais`);
+    } catch (chErr: any) {
+      saLog(orgId, "warning", "chantier", `Analyse projets échouée: ${chErr.message}`);
+    }
+
+    // ── 3. TÂCHES — priorisation et relance auto ──────────────────────────
+    saLog(orgId, "info", "tache", "Analyse des tâches en retard...");
+    try {
+      const overdueTasks = await db.select({ id: tasksTable.id, title: tasksTable.title, priority: tasksTable.priority, dueDate: tasksTable.dueDate })
+        .from(tasksTable).where(and(orgTask, ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"), lt(tasksTable.dueDate, now))).limit(50);
+
+      if (overdueTasks.length > 0) {
+        // Auto-escalate priority for tasks overdue > 3 days
+        let escalated = 0;
+        for (const t of overdueTasks) {
+          if (!t.dueDate) continue;
+          const daysLate = Math.floor((now.getTime() - new Date(t.dueDate).getTime()) / 86400000);
+          if (daysLate >= 3 && t.priority !== "haute" && t.priority !== "critique") {
+            await db.update(tasksTable).set({ priority: "haute" }).where(eq(tasksTable.id, t.id)).catch(() => {});
+            escalated++;
+            state.stats.tasksFixed++;
+          }
+        }
+        saLog(orgId, overdueTasks.length > 5 ? "warning" : "info", "tache", `${overdueTasks.length} tâche(s) en retard`, escalated > 0 ? `${escalated} tâche(s) escaladée(s) en priorité haute` : "Aucune escalade nécessaire");
+      } else {
+        saLog(orgId, "success", "tache", "Aucune tâche en retard — excellent !");
+      }
+    } catch (taskErr: any) {
+      saLog(orgId, "warning", "tache", `Analyse tâches échouée: ${taskErr.message}`);
+    }
+
+    // ── 4. APPELS — liaison orphelins ─────────────────────────────────────
+    saLog(orgId, "info", "appel", "Liaison des appels sans contact...");
+    try {
+      const orphanCalls = await db.select({ id: callsTable.id, phoneNumber: callsTable.phoneNumber })
+        .from(callsTable).where(and(orgCall, isNull(callsTable.contactId), isNotNull(callsTable.phoneNumber))).limit(30);
+
+      let linked = 0;
+      for (const call of orphanCalls) {
+        if (!call.phoneNumber) continue;
+        const clean = call.phoneNumber.replace(/\s+/g, "").replace(/^\+33/, "0");
+        const match = await db.select({ id: contactsTable.id }).from(contactsTable)
+          .where(and(orgContact, or(eq(sql`REPLACE(${contactsTable.phone}, ' ', '')`, clean), eq(sql`REPLACE(${contactsTable.phone}, ' ', '')`, call.phoneNumber)))).limit(1);
+        if (match.length > 0) {
+          await db.update(callsTable).set({ contactId: match[0].id }).where(eq(callsTable.id, call.id)).catch(() => {});
+          linked++;
+          state.stats.fixesApplied++;
+        }
+      }
+      if (orphanCalls.length > 0) saLog(orphanCalls.length > 0 ? orgId : orgId, linked > 0 ? "success" : "info", "appel", `${orphanCalls.length} appel(s) sans contact`, linked > 0 ? `${linked} appel(s) liés automatiquement` : "Aucune correspondance trouvée");
+      else saLog(orgId, "success", "appel", "Tous les appels sont liés à un contact");
+    } catch (callErr: any) {
+      saLog(orgId, "warning", "appel", `Analyse appels échouée: ${callErr.message}`);
+    }
+
+    state.lastRun = new Date().toISOString();
+    saLog(orgId, "success", "system", `Cycle terminé — ${emailTasksCreated} tâches email, ${state.stats.tasksFixed} escalades, ${state.stats.fixesApplied} liaisons`);
+  } catch (err: any) {
+    if (err instanceof AiQuotaExceededError) {
+      saLog(orgId, "error", "system", `Quota IA atteint: ${err.message}`);
+    } else {
+      saLog(orgId, "error", "system", `Erreur cycle: ${err.message}`);
+    }
+  } finally {
+    state.running = false;
+  }
+}
+
+router.post("/ai/super-agent/run", requireAdmin, async (req, res): Promise<void> => {
+  const orgId = (req.session as any)?.organisationId;
+  const userId = (req.session as any)?.userId;
+  if (!orgId || !userId) { res.status(403).json({ error: "Organisation requise." }); return; }
+
+  const state = getSuperAgentState(orgId);
+  if (state.running) {
+    res.json({ status: "already_running", message: "Cycle déjà en cours." });
+    return;
+  }
+
+  res.json({ status: "started", message: "Cycle Super Agent lancé en arrière-plan." });
+  runSuperAgentCycle(orgId, userId).catch((e) => {
+    saLog(orgId, "error", "system", `Cycle échoué: ${e.message}`);
+  });
+});
+
+router.post("/ai/super-agent/process-report", requireAdmin, async (req, res): Promise<void> => {
+  const orgId = (req.session as any)?.organisationId;
+  const userId = (req.session as any)?.userId;
+  if (!orgId || !userId) { res.status(403).json({ error: "Organisation requise." }); return; }
+
+  const { report, reportType = "chantier", contactId, projectId } = req.body;
+  if (!report || !report.trim()) { res.status(400).json({ error: "Rapport requis." }); return; }
+
+  try {
+    await assertAiQuota(orgId);
+    saLog(orgId, "info", "chantier", `Traitement rapport ${reportType}...`);
+
+    const aiText = await superAgentAI(orgId,
+      `Rapport ${reportType}:\n${report.slice(0, 8000)}\n\nAnalyse ce rapport et extrait TOUTES les actions à faire:\n{"tasks":[{"title":"string","priority":"haute|moyenne|basse","dueInDays":3,"description":"string","assignedTo":"string|null"}],"appointments":[{"title":"string","date":"YYYY-MM-DD","time":"HH:MM","type":"rendez_vous|reunion|visite"}],"issues":[{"description":"string","severity":"haute|moyenne|basse"}],"summary":"string","nextStepUrgency":"normal|eleve|critique"}`,
+      `Tu es le Super Agent IA d'Agent de Bureau. Tu analyses des rapports de chantier, de visite ou de réunion professionnels. Tu extrais TOUTES les actions concrètes à réaliser. Sois exhaustif et précis. Réponds UNIQUEMENT en JSON valide.`
+    );
+
+    let parsed: any = {};
+    try { const m = aiText.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : {}; } catch {}
+
+    const createdTasks: any[] = [];
+    for (const t of (parsed.tasks ?? [])) {
+      try {
+        const dueDate = new Date(Date.now() + (t.dueInDays || 3) * 86400000);
+        const [inserted] = await db.insert(tasksTable).values({
+          organisationId: orgId, title: t.title, description: `${t.description || ""}\n\nSource: Rapport ${reportType}${t.assignedTo ? `\nAssigné à: ${t.assignedTo}` : ""}`.trim(), priority: t.priority || "moyenne", status: "en_attente", dueDate, relatedContactId: contactId || null,
+        }).returning();
+        createdTasks.push(inserted);
+        getSuperAgentState(orgId).stats.tasksCreated++;
+      } catch {}
+    }
+
+    const createdEvents: any[] = [];
+    for (const a of (parsed.appointments ?? [])) {
+      try {
+        const startDate = new Date(`${a.date}T${a.time || "09:00"}:00`);
+        const endDate = new Date(startDate.getTime() + 3600000);
+        const [inserted] = await db.insert(calendarEventsTable).values({
+          organisationId: orgId, title: a.title, type: a.type || "rendez_vous", startDate, endDate, status: "confirme", relatedContactId: contactId || null,
+        }).returning();
+        createdEvents.push(inserted);
+      } catch {}
+    }
+
+    getSuperAgentState(orgId).stats.reportsProcessed++;
+    saLog(orgId, "success", "chantier", `Rapport traité: ${createdTasks.length} tâche(s), ${createdEvents.length} RDV créés`, parsed.summary);
+
+    res.json({ success: true, summary: parsed.summary, nextStepUrgency: parsed.nextStepUrgency, issues: parsed.issues ?? [], createdTasks, createdEvents, tasksCount: createdTasks.length, eventsCount: createdEvents.length });
+  } catch (err: any) {
+    if (err instanceof AiQuotaExceededError) { res.status(429).json({ error: err.message, quotaExceeded: true }); return; }
+    logger.error({ err }, "[SuperAgent/ProcessReport]");
+    res.status(500).json({ error: "Erreur traitement rapport" });
+  }
+});
+
+router.get("/ai/super-agent/status", requireMinAgent, async (req, res): Promise<void> => {
+  const orgId = (req.session as any)?.organisationId;
+  if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
+  const state = getSuperAgentState(orgId);
+  res.json({ running: state.running, lastRun: state.lastRun, stats: state.stats, recentLogs: state.logs.slice(-50) });
+});
+
 export default router;

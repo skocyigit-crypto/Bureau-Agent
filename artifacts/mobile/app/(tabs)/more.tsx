@@ -202,6 +202,7 @@ export default function MoreScreen() {
           <MenuItem icon="file-text" label="Document IA" sublabel="Analyse intelligente de documents" color="#7c3aed" onPress={() => nav("/document-ai")} />
           <MenuItem icon="cpu" label="AI Commandant" sublabel="Briefing quotidien, email IA, finance" color="#7c3aed" onPress={() => nav("/commandant-ia")} />
           <MenuItem icon="phone-call" label="Assistant IA Appels" sublabel="Préparer, scripter et compiler vos appels" color="#166534" onPress={() => nav("/call-assistant")} />
+          <MenuItem icon="activity" label="Super Agent IA" sublabel="Agent otonom : email, chantier, système" color="#0f172a" onPress={() => nav("/super-agent")} />
           <MenuItem icon="message-circle" label="Assistant IA" sublabel="Chat conversationnel intelligent" color="#8b5cf6" onPress={() => nav("/ai-chat")} />
           <MenuItem icon="mic" label="Assistant Vocal" sublabel='Commandes vocales "Hey Bureau"' color="#ef4444" onPress={() => nav("/voice-assistant")} />
           <MenuItem icon="cpu" label="Agents IA" sublabel="Analyse et recommandations" color="#6366f1" onPress={() => nav("/ai-agents")} />
