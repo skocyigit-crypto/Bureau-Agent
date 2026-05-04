@@ -258,6 +258,12 @@ export default function ContactsScreen() {
   ] : [];
 
   const detailExtraActions = selected ? [
+    {
+      label: "Voir fiche",
+      icon: "external-link" as const,
+      color: "#0369a1",
+      onPress: () => { setSelected(null); router.push(`/contact-detail?id=${selected.id}` as any); },
+    },
     ...(selected.phone ? [{
       label: "Appeler",
       icon: "phone" as const,

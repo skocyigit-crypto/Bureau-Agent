@@ -148,6 +148,7 @@ export default function MoreScreen() {
           <MenuItem icon="phone-call" label="Telephonie" sublabel="Appels et SMS multi-fournisseurs" color="#22c55e" onPress={() => nav("/telephony")} />
           <MenuItem icon="phone" label="Journal d'Appels" sublabel="Historique et enregistrement des appels" color="#166534" onPress={() => nav("/calls")} />
           <MenuItem icon="users" label="Contacts" sublabel="Annuaire clients et partenaires" color="#0369a1" onPress={() => nav("/contacts")} />
+          <MenuItem icon="upload" label="Importer des contacts" sublabel="Import CSV ou saisie manuelle" color="#0369a1" onPress={() => nav("/contacts-import")} />
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -161,6 +162,7 @@ export default function MoreScreen() {
           <MenuItem icon="trending-up" label="Prospects" sublabel="Pipeline de vente et opportunités" color="#8b5cf6" onPress={() => nav("/prospects")} />
           <MenuItem icon="file-text" label="Devis" sublabel="Devis et propositions commerciales" color="#22c55e" onPress={() => nav("/devis")} />
           <MenuItem icon="file" label="Factures" sublabel="Factures et suivi des paiements" color="#0891b2" onPress={() => nav("/factures")} />
+          <MenuItem icon="file-text" label="Factures clients" sublabel="Gestion complete CRUD factures" color="#0f766e" onPress={() => nav("/factures-client")} />
           <MenuItem icon="alert-circle" label="Relances" sublabel="Factures en retard de paiement" color="#ef4444" onPress={() => nav("/relances")} />
           <MenuItem icon="edit-2" label="Notes internes" sublabel="Mémos colorés et mémorisation" color="#f59e0b" onPress={() => nav("/notes-internes")} />
           <MenuItem icon="target" label="Objectifs" sublabel="Objectifs commerciaux et suivi" color="#0d9488" onPress={() => nav("/objectifs-commerciaux")} />
@@ -172,6 +174,7 @@ export default function MoreScreen() {
           <MenuItem icon="shopping-cart" label="Commandes Fournisseur" sublabel="Bons de commande et suivi livraisons" color="#b45309" onPress={() => nav("/commandes-fournisseur")} />
           <MenuItem icon="activity" label="Mouvements de Stock" sublabel="Historique entrées et sorties" color="#7c3aed" onPress={() => nav("/stock-mouvements")} />
           <MenuItem icon="folder" label="Documents" sublabel="Fichiers, contrats et pièces jointes" color="#0f766e" onPress={() => nav("/documents")} />
+          <MenuItem icon="upload" label="Importer des Documents" sublabel="Upload PDF, images, Word, Excel" color="#0f766e" onPress={() => nav("/document-import")} />
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -179,6 +182,7 @@ export default function MoreScreen() {
           <MenuItem icon="trending-up" label="Rapport Commercial" sublabel="Vue consolidée CA, devis, factures" color="#1d4ed8" onPress={() => nav("/rapport-commercial")} />
           <MenuItem icon="bar-chart-2" label="Performance Équipe" sublabel="Métriques et rapport IA par employé" color="#0f4c81" onPress={() => nav("/performance")} />
           <MenuItem icon="award" label="Rapport Exécutif" sublabel="Score global + insights IA opérationnels" color="#1e293b" onPress={() => nav("/rapport-executif")} />
+          <MenuItem icon="file-text" label="Rapports & Tickets" sublabel="Signalements et demandes d'assistance" color="#7c3aed" onPress={() => nav("/reports")} />
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -194,6 +198,8 @@ export default function MoreScreen() {
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>INTELLIGENCE ARTIFICIELLE</Text>
+          <MenuItem icon="mail" label="Gmail Agent" sublabel="Boîte mail, réponses et envoi IA" color="#dc2626" onPress={() => nav("/gmail-agent")} />
+          <MenuItem icon="file-text" label="Document IA" sublabel="Analyse intelligente de documents" color="#7c3aed" onPress={() => nav("/document-ai")} />
           <MenuItem icon="cpu" label="AI Commandant" sublabel="Briefing quotidien, email IA, finance" color="#7c3aed" onPress={() => nav("/commandant-ia")} />
           <MenuItem icon="message-circle" label="Assistant IA" sublabel="Chat conversationnel intelligent" color="#8b5cf6" onPress={() => nav("/ai-chat")} />
           <MenuItem icon="mic" label="Assistant Vocal" sublabel='Commandes vocales "Hey Bureau"' color="#ef4444" onPress={() => nav("/voice-assistant")} />
@@ -209,6 +215,9 @@ export default function MoreScreen() {
             <MenuItem icon="users" label="Utilisateurs" sublabel="Gestion de l'equipe" color="#3b82f6" onPress={() => nav("/users")} />
             <MenuItem icon="shield" label="Journal d'audit" sublabel="Securite et historique" color="#ef4444" onPress={() => nav("/audit-log")} />
             <MenuItem icon="grid" label="Integrations" sublabel="Logiciels connectes" color="#22c55e" onPress={() => nav("/integrations")} />
+            <MenuItem icon="monitor" label="Logiciels" sublabel="Catalogue et connexions SaaS" color="#0891b2" onPress={() => nav("/integrations")} />
+            <MenuItem icon="globe" label="Google Workspace" sublabel="Gmail, Drive, Agenda, Meet" color="#4285f4" onPress={() => nav("/google-workspace")} />
+            <MenuItem icon="key" label="Licences & Facturation" sublabel="Tableau de bord licences et paiements" color="#166534" onPress={() => nav("/license-management")} />
             {user?.role === "super_admin" ? (
               <MenuItem icon="home" label="Organisations" sublabel="Gestion des licences" color="#f59e0b" onPress={() => nav("/organisations")} />
             ) : null}
@@ -218,6 +227,7 @@ export default function MoreScreen() {
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>COMPTE</Text>
           <MenuItem icon="settings" label="Parametres" sublabel="Profil et abonnement" color="#64748b" onPress={() => nav("/settings")} />
+          <MenuItem icon="credit-card" label="Mon Abonnement" sublabel="Plan, licences et facturation" color="#7c3aed" onPress={() => nav("/abonnement")} />
           <MenuItem icon="log-out" label="Se deconnecter" onPress={handleLogout} danger />
         </View>
 

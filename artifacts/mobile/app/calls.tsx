@@ -425,6 +425,12 @@ export default function CallsScreen() {
         onClose={() => setSelected(null)}
         extraActions={selected ? [
           {
+            label: "Voir détail",
+            icon: "external-link" as const,
+            color: "#0369a1",
+            onPress: () => { const id = selected.id; setSelected(null); router.push(`/call-detail?id=${id}` as any); },
+          },
+          {
             label: "Rappeler",
             icon: "phone" as const,
             color: "#22c55e",
