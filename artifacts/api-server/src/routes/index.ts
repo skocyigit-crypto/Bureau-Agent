@@ -63,6 +63,7 @@ import notesInternesRouter from "./notes-internes";
 import projetsRouter from "./projets";
 import dailyDigestRouter from "./daily-digest";
 import workforceIntelligenceRouter from "./workforce-intelligence";
+import workforceAgentRouter from "./workforce-agent";
 
 const router: IRouter = Router();
 
@@ -136,5 +137,6 @@ router.use(notesInternesRouter);
 router.use(projetsRouter);
 router.use(dailyDigestRouter);
 router.use(workforceIntelligenceRouter);
+router.use(workforceAgentRouter);
 
 export default router;
