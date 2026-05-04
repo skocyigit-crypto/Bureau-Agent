@@ -1,13 +1,16 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -15,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { useTheme } from "@/contexts/ThemeContext";
+import { usePrivacy } from "@/contexts/PrivacyContext";
 
 interface Subscription {
   plan: string;
@@ -130,6 +134,8 @@ export default function SettingsScreen() {
 
         <ThemeCard />
 
+        <PrivacyCard />
+
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.cardHeader}>
             <Feather name="info" size={18} color={colors.primary} />
@@ -143,6 +149,8 @@ export default function SettingsScreen() {
     </View>
   );
 }
+
+// ── Tema kartı ─────────────────────────────────────────────────────────────────
 
 function ThemeCard() {
   const colors = useColors();
@@ -174,6 +182,264 @@ function ThemeCard() {
   );
 }
 
+// ── Gizlilik kartı ─────────────────────────────────────────────────────────────
+
+const AUTO_LOCK_OPTIONS = [
+  { minutes: 0, label: "Desactive" },
+  { minutes: 1, label: "1 minute" },
+  { minutes: 5, label: "5 minutes" },
+  { minutes: 15, label: "15 minutes" },
+  { minutes: 30, label: "30 minutes" },
+];
+
+function PrivacyCard() {
+  const colors = useColors();
+  const {
+    settings,
+    updateSettings,
+    setPIN,
+    removePIN,
+    biometricAvailable,
+    biometricType,
+    lock,
+  } = usePrivacy();
+
+  const [showPinSetup, setShowPinSetup] = useState(false);
+  const [pinStep, setPinStep] = useState<"enter" | "confirm">("enter");
+  const [pinFirst, setPinFirst] = useState("");
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState("");
+
+  const handleSetPIN = useCallback(async () => {
+    if (pinStep === "enter") {
+      if (pinInput.length !== 4) { setPinError("Le code PIN doit contenir 4 chiffres"); return; }
+      setPinFirst(pinInput);
+      setPinInput("");
+      setPinStep("confirm");
+      setPinError("");
+    } else {
+      if (pinInput !== pinFirst) {
+        setPinError("Les codes PIN ne correspondent pas");
+        setPinInput("");
+        setPinStep("enter");
+        return;
+      }
+      await setPIN(pinInput);
+      setPinInput("");
+      setPinFirst("");
+      setPinStep("enter");
+      setPinError("");
+      setShowPinSetup(false);
+    }
+  }, [pinStep, pinInput, pinFirst, setPIN]);
+
+  const handleRemovePIN = useCallback(() => {
+    Alert.alert(
+      "Supprimer le code PIN",
+      "Etes-vous sur de vouloir supprimer le code PIN ? La protection par PIN sera desactivee.",
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Supprimer",
+          style: "destructive",
+          onPress: async () => {
+            await removePIN();
+            await updateSettings({ biometricEnabled: false });
+          },
+        },
+      ]
+    );
+  }, [removePIN, updateSettings]);
+
+  function ToggleRow({
+    icon,
+    label,
+    sublabel,
+    value,
+    onToggle,
+    disabled,
+  }: {
+    icon: keyof typeof Feather.glyphMap;
+    label: string;
+    sublabel?: string;
+    value: boolean;
+    onToggle: (v: boolean) => void;
+    disabled?: boolean;
+  }) {
+    return (
+      <View style={[styles.toggleRow, { borderBottomColor: colors.border, opacity: disabled ? 0.45 : 1 }]}>
+        <Feather name={icon} size={16} color={colors.mutedForeground} style={styles.infoIcon} />
+        <View style={styles.toggleText}>
+          <Text style={[styles.toggleLabel, { color: colors.foreground }]}>{label}</Text>
+          {sublabel ? <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>{sublabel}</Text> : null}
+        </View>
+        <Switch
+          value={value}
+          onValueChange={onToggle}
+          disabled={disabled}
+          trackColor={{ false: colors.border, true: colors.primary + "88" }}
+          thumbColor={value ? colors.primary : colors.mutedForeground}
+        />
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      {/* Başlık */}
+      <View style={styles.cardHeader}>
+        <Feather name="lock" size={18} color={colors.primary} />
+        <Text style={[styles.cardTitle, { color: colors.foreground }]}>Confidentialite et securite</Text>
+      </View>
+
+      {/* Arka plan örtüsü */}
+      <ToggleRow
+        icon="eye-off"
+        label="Ecran de confidentialite"
+        sublabel="Masque le contenu dans le selecteur d'applications"
+        value={settings.privacyScreenEnabled}
+        onToggle={v => updateSettings({ privacyScreenEnabled: v })}
+      />
+
+      {/* Hassas veri maskesi */}
+      <ToggleRow
+        icon="minus-circle"
+        label="Masquer les donnees sensibles"
+        sublabel="Telephone, e-mail — appuyez pour afficher"
+        value={settings.maskSensitiveData}
+        onToggle={v => updateSettings({ maskSensitiveData: v })}
+      />
+
+      {/* Biyometrik */}
+      <ToggleRow
+        icon="activity"
+        label={biometricType ? `Deverrouillage ${biometricType}` : "Biometrie"}
+        sublabel={
+          !biometricAvailable && Platform.OS !== "web"
+            ? "Non disponible sur cet appareil"
+            : !settings.hasPIN
+            ? "Definissez d'abord un code PIN"
+            : undefined
+        }
+        value={settings.biometricEnabled}
+        onToggle={v => updateSettings({ biometricEnabled: v })}
+        disabled={!biometricAvailable || !settings.hasPIN}
+      />
+
+      {/* Otomatik kilit süresi */}
+      <View style={[styles.toggleRow, { borderBottomColor: colors.border }]}>
+        <Feather name="clock" size={16} color={colors.mutedForeground} style={styles.infoIcon} />
+        <View style={styles.toggleText}>
+          <Text style={[styles.toggleLabel, { color: colors.foreground }]}>Verrouillage automatique</Text>
+          <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
+            Apres inactivite
+          </Text>
+        </View>
+      </View>
+      <View style={styles.lockOptionsRow}>
+        {AUTO_LOCK_OPTIONS.map(opt => (
+          <Pressable
+            key={opt.minutes}
+            onPress={() => updateSettings({ autoLockMinutes: opt.minutes })}
+            style={[
+              styles.lockOptionBtn,
+              {
+                borderColor: settings.autoLockMinutes === opt.minutes ? colors.primary : colors.border,
+                backgroundColor: settings.autoLockMinutes === opt.minutes ? colors.primary + "18" : "transparent",
+              },
+            ]}
+          >
+            <Text style={[
+              styles.lockOptionText,
+              { color: settings.autoLockMinutes === opt.minutes ? colors.primary : colors.mutedForeground },
+            ]}>
+              {opt.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {/* PIN Yönetimi */}
+      <View style={[styles.pinSection, { borderTopColor: colors.border }]}>
+        {!settings.hasPIN ? (
+          <Pressable
+            style={[styles.pinActionBtn, { borderColor: colors.primary, backgroundColor: colors.primary + "12" }]}
+            onPress={() => { setShowPinSetup(true); setPinStep("enter"); setPinInput(""); setPinError(""); }}
+          >
+            <Feather name="lock" size={15} color={colors.primary} />
+            <Text style={[styles.pinActionText, { color: colors.primary }]}>Definir un code PIN</Text>
+          </Pressable>
+        ) : (
+          <View style={styles.pinActionsRow}>
+            <Pressable
+              style={[styles.pinActionBtn, { flex: 1, borderColor: colors.border }]}
+              onPress={() => { setShowPinSetup(true); setPinStep("enter"); setPinInput(""); setPinError(""); }}
+            >
+              <Feather name="edit-2" size={14} color={colors.mutedForeground} />
+              <Text style={[styles.pinActionText, { color: colors.mutedForeground }]}>Changer le PIN</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.pinActionBtn, { flex: 1, borderColor: "#ef444444", backgroundColor: "#ef444408" }]}
+              onPress={handleRemovePIN}
+            >
+              <Feather name="trash-2" size={14} color="#ef4444" />
+              <Text style={[styles.pinActionText, { color: "#ef4444" }]}>Supprimer le PIN</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* PIN kurulum formu */}
+        {showPinSetup && (
+          <View style={[styles.pinForm, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+            <Text style={[styles.pinFormTitle, { color: colors.foreground }]}>
+              {pinStep === "enter" ? "Nouveau code PIN (4 chiffres)" : "Confirmez le code PIN"}
+            </Text>
+            <TextInput
+              style={[styles.pinInput, { borderColor: pinError ? "#ef4444" : colors.border, color: colors.foreground, backgroundColor: colors.card }]}
+              value={pinInput}
+              onChangeText={t => { setPinInput(t.replace(/\D/g, "").slice(0, 4)); setPinError(""); }}
+              keyboardType="numeric"
+              secureTextEntry
+              maxLength={4}
+              placeholder="••••"
+              placeholderTextColor={colors.mutedForeground}
+              autoFocus
+            />
+            {pinError ? <Text style={styles.pinErrText}>{pinError}</Text> : null}
+            <View style={styles.pinFormBtns}>
+              <Pressable
+                style={[styles.pinFormBtn, { borderColor: colors.border }]}
+                onPress={() => { setShowPinSetup(false); setPinInput(""); setPinError(""); setPinStep("enter"); }}
+              >
+                <Text style={[styles.pinFormBtnText, { color: colors.mutedForeground }]}>Annuler</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.pinFormBtn, { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                onPress={handleSetPIN}
+              >
+                <Text style={[styles.pinFormBtnText, { color: colors.secondary }]}>
+                  {pinStep === "enter" ? "Suivant" : "Confirmer"}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* Manuel kilit butonu */}
+      <Pressable
+        style={[styles.lockNowBtn, { borderTopColor: colors.border }]}
+        onPress={() => { lock(); router.back(); }}
+      >
+        <Feather name="lock" size={15} color="#ef4444" />
+        <Text style={[styles.lockNowText]}>Verrouiller maintenant</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+// ── Stiller ────────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { paddingHorizontal: 20, paddingBottom: 16 },
@@ -196,4 +462,32 @@ const styles = StyleSheet.create({
   themeRow: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingBottom: 16 },
   themeBtn: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 12, borderRadius: 10, borderWidth: 1.5, gap: 4 },
   themeBtnLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+
+  // Toggle rows
+  toggleRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  toggleText: { flex: 1 },
+  toggleLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  toggleSublabel: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
+
+  // Auto-lock options
+  lockOptionsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "transparent" },
+  lockOptionBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1 },
+  lockOptionText: { fontSize: 12, fontFamily: "Inter_500Medium" },
+
+  // PIN
+  pinSection: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth },
+  pinActionsRow: { flexDirection: "row", gap: 8 },
+  pinActionBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1 },
+  pinActionText: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  pinForm: { marginTop: 12, padding: 14, borderRadius: 10, borderWidth: 1, gap: 10 },
+  pinFormTitle: { fontSize: 13, fontFamily: "Inter_500Medium", textAlign: "center" },
+  pinInput: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 12, fontSize: 20, fontFamily: "Inter_700Bold", textAlign: "center", letterSpacing: 8 },
+  pinErrText: { color: "#ef4444", fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center" },
+  pinFormBtns: { flexDirection: "row", gap: 8 },
+  pinFormBtn: { flex: 1, alignItems: "center", paddingVertical: 10, borderRadius: 8, borderWidth: 1 },
+  pinFormBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+
+  // Kilit butonu
+  lockNowBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth },
+  lockNowText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#ef4444" },
 });
