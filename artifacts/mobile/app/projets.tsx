@@ -26,6 +26,13 @@ import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useColors } from "@/hooks/useColors";
 
+interface Milestone {
+  id: string;
+  title: string;
+  dueDate?: string;
+  completed: boolean;
+}
+
 interface Projet {
   id: number;
   title: string;
@@ -39,6 +46,8 @@ interface Projet {
   startDate?: string | null;
   endDate?: string | null;
   assignedTo?: string | null;
+  milestones?: Milestone[];
+  tags?: string[];
   notes?: string | null;
 }
 
@@ -202,7 +211,29 @@ function SwipeableProjet({ item, colors, onDelete, onOpen }: SwipeableProjetProp
               </Text>
             </View>
           ) : null}
+          {item.milestones && item.milestones.length > 0 ? (
+            <View style={styles.metaChip}>
+              <Feather name="check-square" size={10} color={colors.mutedForeground} />
+              <Text style={[styles.metaChipText, { color: colors.mutedForeground }]}>
+                {item.milestones.filter(m => m.completed).length}/{item.milestones.length}
+              </Text>
+            </View>
+          ) : null}
         </View>
+        {item.tags && item.tags.length > 0 ? (
+          <View style={styles.tagsRow}>
+            {item.tags.slice(0, 3).map(t => (
+              <View key={t} style={styles.tagPill}>
+                <Text style={styles.tagText}>{t}</Text>
+              </View>
+            ))}
+            {item.tags.length > 3 ? (
+              <View style={styles.tagPill}>
+                <Text style={styles.tagText}>+{item.tags.length - 3}</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
       </Pressable>
     </Swipeable>
   );
@@ -352,6 +383,16 @@ export default function ProjetsScreen() {
     { label: "Depenses", value: selected.spent && Number(selected.spent) > 0 ? `${new Intl.NumberFormat("fr-FR").format(Number(selected.spent))} €` : "—" },
     { label: "Debut", value: selected.startDate ? new Date(selected.startDate).toLocaleDateString("fr-FR") : "—" },
     { label: "Echeance", value: selected.endDate ? new Date(selected.endDate).toLocaleDateString("fr-FR") : "—" },
+    ...(selected.milestones && selected.milestones.length > 0 ? [{
+      label: "Jalons",
+      value: `${selected.milestones.filter(m => m.completed).length}/${selected.milestones.length} completes — ${selected.milestones.map(m => `${m.completed ? "✓" : "○"} ${m.title}`).join(", ")}`,
+      icon: "check-square" as const,
+    }] : []),
+    ...(selected.tags && selected.tags.length > 0 ? [{
+      label: "Tags",
+      value: selected.tags.join(", "),
+      icon: "tag" as const,
+    }] : []),
     { label: "Notes", value: selected.notes ?? "—" },
   ] : [];
 
@@ -543,4 +584,7 @@ const styles = StyleSheet.create({
   },
   swipeRight: { backgroundColor: "#ef4444" },
   swipeActionText: { color: "#fff", fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 6 },
+  tagPill: { backgroundColor: "#6366f118", paddingHorizontal: 7, paddingVertical: 2, borderRadius: 10 },
+  tagText: { fontSize: 10, fontFamily: "Inter_500Medium", color: "#6366f1" },
 });
