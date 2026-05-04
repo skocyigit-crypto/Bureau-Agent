@@ -5,7 +5,7 @@ import { requireRole } from "../middleware/auth";
 import { getOrgId } from "../middleware/tenant";
 import { scanBase64Content, logSecurityEvent } from "../middleware/security";
 import { logger } from "../lib/logger";
-import { analyzeDocument, processDocumentForImport, importRowsToModule } from "../services/document-ai";
+import { analyzeDocument, processDocumentForImport, importRowsToModule, analyzeDocumentMultiModel, askDocumentQuestion } from "../services/document-ai";
 
 const router = Router();
 const requireMinAgent = requireRole("super_admin", "administrateur", "agent");
@@ -649,6 +649,84 @@ router.get("/documents/export/csv", requireMinAgent, async (req: Request, res: R
   } catch (err: any) {
     logger.error({ err }, "Documents export CSV error");
     res.status(500).json({ error: "Erreur export" });
+  }
+});
+
+// ── MULTI-MODEL AI ANALYZE ───────────────────────────────────────────────────
+router.post("/documents/:id/analyze-multi", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const docId = parseInt(String(req.params.id));
+    if (isNaN(docId)) { res.status(400).json({ error: "ID invalide" }); return; }
+
+    const [doc] = await db.select().from(documentsTable)
+      .where(and(eq(documentsTable.id, docId), eq(documentsTable.organisationId, orgId)));
+
+    if (!doc || !doc.fileContent) {
+      res.status(404).json({ error: "Document introuvable ou contenu manquant" }); return;
+    }
+
+    const result = await analyzeDocumentMultiModel(doc.fileContent, doc.mimeType, doc.originalName);
+
+    // Merge multi-model result into existing aiAnalysis
+    const existing = (doc.aiAnalysis as Record<string, any>) ?? {};
+    const merged = { ...existing, multiModel: result };
+
+    await db.update(documentsTable).set({
+      aiProcessed: true,
+      aiAnalysis: merged as any,
+      updatedAt: new Date(),
+    }).where(eq(documentsTable.id, docId));
+
+    res.json({ success: true, documentId: docId, result });
+  } catch (err: any) {
+    logger.error({ err }, "Document multi-model analysis error");
+    res.status(500).json({ error: "Erreur lors de l'analyse multi-modèle" });
+  }
+});
+
+// ── DOCUMENT Q&A ─────────────────────────────────────────────────────────────
+router.post("/documents/:id/ask", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const docId = parseInt(String(req.params.id));
+    if (isNaN(docId)) { res.status(400).json({ error: "ID invalide" }); return; }
+
+    const { question, models } = req.body as { question: string; models?: Array<"gemini" | "openai" | "claude"> };
+    if (!question?.trim()) { res.status(400).json({ error: "question requise" }); return; }
+
+    const [doc] = await db.select({
+      originalName: documentsTable.originalName,
+      mimeType: documentsTable.mimeType,
+      fileContent: documentsTable.fileContent,
+      extractedText: documentsTable.extractedText,
+    }).from(documentsTable)
+      .where(and(eq(documentsTable.id, docId), eq(documentsTable.organisationId, orgId)));
+
+    if (!doc) { res.status(404).json({ error: "Document introuvable" }); return; }
+
+    const selectedModels: Array<"gemini" | "openai" | "claude"> = Array.isArray(models) && models.length > 0
+      ? models.filter(m => ["gemini", "openai", "claude"].includes(m))
+      : ["gemini", "openai", "claude"];
+
+    const isImage = doc.mimeType?.startsWith("image/");
+    const documentContext = doc.extractedText
+      || (doc.mimeType === "text/plain" && doc.fileContent ? Buffer.from(doc.fileContent, "base64").toString("utf-8").slice(0, 15000) : "")
+      || `Fichier: ${doc.originalName} (${doc.mimeType})`;
+
+    const answers = await askDocumentQuestion(
+      question,
+      documentContext,
+      doc.originalName,
+      doc.mimeType,
+      selectedModels,
+      isImage && doc.fileContent ? doc.fileContent : undefined,
+    );
+
+    res.json({ success: true, question, answers });
+  } catch (err: any) {
+    logger.error({ err }, "Document Q&A error");
+    res.status(500).json({ error: "Erreur lors de la question" });
   }
 });
 

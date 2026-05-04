@@ -700,6 +700,271 @@ REGLES IMPORTANTES:
 8. Detecte les doublons potentiels entre les lignes
 9. Retourne UNIQUEMENT du JSON valide`;
 
+// ── MULTI-MODEL AI ANALYSIS ───────────────────────────────────────────────────
+
+export interface ModelAnalysis {
+  model: string;
+  provider: "gemini" | "openai" | "claude";
+  summary: string;
+  keyPoints: string[];
+  insights: string;
+  recommendations: string[];
+  risks: string[];
+  sentiment: "positif" | "neutre" | "negatif";
+  urgency: "haute" | "moyenne" | "basse";
+  tokensUsed?: number;
+  durationMs?: number;
+  error?: string;
+}
+
+export interface MultiModelResult {
+  gemini?: ModelAnalysis;
+  openai?: ModelAnalysis;
+  claude?: ModelAnalysis;
+  consensus: {
+    summary: string;
+    topKeyPoints: string[];
+    agreementScore: number; // 0-100
+  };
+  analyzedAt: string;
+}
+
+const MULTI_ANALYSIS_PROMPT = (fileName: string, mimeType: string) => `Tu es un expert analyste documentaire pour un bureau professionnel français.
+Analyse CE DOCUMENT et retourne UNIQUEMENT un JSON valide avec cette structure:
+{
+  "summary": "résumé concis du document en 2-3 phrases",
+  "keyPoints": ["point clé 1", "point clé 2", "point clé 3", "point clé 4", "point clé 5"],
+  "insights": "analyse approfondie et observations uniques sur ce document (3-5 phrases)",
+  "recommendations": ["action recommandée 1", "action recommandée 2", "action recommandée 3"],
+  "risks": ["risque ou point d'attention 1", "risque 2"],
+  "sentiment": "positif|neutre|negatif",
+  "urgency": "haute|moyenne|basse"
+}
+Fichier: ${fileName}
+Type: ${mimeType}
+RETOURNE UNIQUEMENT DU JSON VALIDE.`;
+
+const QA_SYSTEM_PROMPT = `Tu es un assistant expert qui répond aux questions sur des documents professionnels en français.
+Réponds de manière précise, structurée et utile. Base-toi UNIQUEMENT sur le contenu du document fourni.
+Si l'information n'est pas dans le document, dis-le clairement.`;
+
+async function runGeminiAnalysis(contentParts: any[], fileName: string, mimeType: string): Promise<ModelAnalysis> {
+  const t0 = Date.now();
+  const { ai } = await import("@workspace/integrations-gemini-ai");
+  const response = await aiCallWithRetry(
+    () => ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{ role: "user", parts: [...contentParts, { text: MULTI_ANALYSIS_PROMPT(fileName, mimeType) }] }],
+      config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
+    }),
+    { label: "multi-gemini", maxRetries: 2 }
+  );
+  const parsed = safeJsonParse<any>(response.text ?? "{}", {});
+  return {
+    model: "gemini-2.5-flash", provider: "gemini",
+    summary: parsed.summary || "", keyPoints: parsed.keyPoints || [],
+    insights: parsed.insights || "", recommendations: parsed.recommendations || [],
+    risks: parsed.risks || [], sentiment: parsed.sentiment || "neutre",
+    urgency: parsed.urgency || "basse",
+    tokensUsed: response.usageMetadata?.totalTokenCount ?? 0,
+    durationMs: Date.now() - t0,
+  };
+}
+
+async function runOpenAIAnalysis(textContent: string, fileName: string, mimeType: string, imageBase64?: string): Promise<ModelAnalysis> {
+  const t0 = Date.now();
+  const { openai } = await import("@workspace/integrations-openai-ai-server");
+
+  const messages: any[] = [];
+  if (imageBase64 && (mimeType.startsWith("image/") || mimeType === "application/pdf")) {
+    messages.push({
+      role: "user", content: [
+        { type: "image_url", image_url: { url: `data:${mimeType.startsWith("image/") ? mimeType : "image/jpeg"};base64,${imageBase64}`, detail: "high" } },
+        { type: "text", text: MULTI_ANALYSIS_PROMPT(fileName, mimeType) },
+      ]
+    });
+  } else {
+    messages.push({ role: "user", content: `${MULTI_ANALYSIS_PROMPT(fileName, mimeType)}\n\nCONTENU DU DOCUMENT:\n${textContent.slice(0, 12000)}` });
+  }
+
+  const response = await aiCallWithRetry(
+    () => openai.chat.completions.create({
+      model: "gpt-4o",
+      messages,
+      max_tokens: 2048,
+      response_format: { type: "json_object" },
+    }),
+    { label: "multi-openai", maxRetries: 2 }
+  );
+  const parsed = safeJsonParse<any>(response.choices[0]?.message?.content ?? "{}", {});
+  return {
+    model: "gpt-4o", provider: "openai",
+    summary: parsed.summary || "", keyPoints: parsed.keyPoints || [],
+    insights: parsed.insights || "", recommendations: parsed.recommendations || [],
+    risks: parsed.risks || [], sentiment: parsed.sentiment || "neutre",
+    urgency: parsed.urgency || "basse",
+    tokensUsed: response.usage?.total_tokens ?? 0,
+    durationMs: Date.now() - t0,
+  };
+}
+
+async function runClaudeAnalysis(textContent: string, fileName: string, mimeType: string, imageBase64?: string): Promise<ModelAnalysis> {
+  const t0 = Date.now();
+  const { anthropic } = await import("@workspace/integrations-anthropic-ai");
+
+  let content: any;
+  if (imageBase64 && mimeType.startsWith("image/")) {
+    content = [
+      { type: "image", source: { type: "base64", media_type: mimeType as any, data: imageBase64 } },
+      { type: "text", text: MULTI_ANALYSIS_PROMPT(fileName, mimeType) },
+    ];
+  } else {
+    content = `${MULTI_ANALYSIS_PROMPT(fileName, mimeType)}\n\nCONTENU DU DOCUMENT:\n${textContent.slice(0, 12000)}`;
+  }
+
+  const response = await aiCallWithRetry(
+    () => anthropic.messages.create({
+      model: "claude-sonnet-4-5",
+      max_tokens: 2048,
+      system: "Tu es un analyste documentaire expert. Retourne uniquement du JSON valide.",
+      messages: [{ role: "user", content }],
+    }),
+    { label: "multi-claude", maxRetries: 2 }
+  );
+  const rawText = (response.content[0] as any)?.text ?? "{}";
+  const parsed = safeJsonParse<any>(rawText, {});
+  return {
+    model: "claude-sonnet-4-5", provider: "claude",
+    summary: parsed.summary || "", keyPoints: parsed.keyPoints || [],
+    insights: parsed.insights || "", recommendations: parsed.recommendations || [],
+    risks: parsed.risks || [], sentiment: parsed.sentiment || "neutre",
+    urgency: parsed.urgency || "basse",
+    tokensUsed: (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0),
+    durationMs: Date.now() - t0,
+  };
+}
+
+export async function analyzeDocumentMultiModel(
+  base64Content: string,
+  mimeType: string,
+  fileName: string,
+): Promise<MultiModelResult> {
+  const isVisual = VISUAL_MIME_TYPES.includes(mimeType);
+  const isImage = mimeType.startsWith("image/");
+
+  // Extract text for non-visual models
+  let textContent = "";
+  if (!isImage) {
+    const extracted = await extractTextFromFile(base64Content, mimeType, fileName);
+    textContent = extracted ?? `Fichier: ${fileName} (${mimeType})`;
+  } else {
+    textContent = `Image: ${fileName}`;
+  }
+
+  // Gemini content parts (native multimodal)
+  const geminiParts: any[] = isVisual
+    ? [{ inlineData: { mimeType, data: base64Content } }]
+    : [{ text: `CONTENU DU DOCUMENT:\n${textContent.slice(0, 20000)}` }];
+
+  // Run all 3 models in parallel
+  const [geminiRes, openaiRes, claudeRes] = await Promise.allSettled([
+    runGeminiAnalysis(geminiParts, fileName, mimeType),
+    runOpenAIAnalysis(textContent, fileName, mimeType, isImage ? base64Content : undefined),
+    runClaudeAnalysis(textContent, fileName, mimeType, isImage ? base64Content : undefined),
+  ]);
+
+  const gemini  = geminiRes.status  === "fulfilled" ? geminiRes.value  : { model: "gemini-2.5-flash", provider: "gemini"  as const, error: (geminiRes.reason as any)?.message, summary: "", keyPoints: [], insights: "", recommendations: [], risks: [], sentiment: "neutre" as const, urgency: "basse" as const };
+  const openai  = openaiRes.status  === "fulfilled" ? openaiRes.value  : { model: "gpt-4o",           provider: "openai"  as const, error: (openaiRes.reason as any)?.message, summary: "", keyPoints: [], insights: "", recommendations: [], risks: [], sentiment: "neutre" as const, urgency: "basse" as const };
+  const claude  = claudeRes.status  === "fulfilled" ? claudeRes.value  : { model: "claude-sonnet-4-5",provider: "claude"  as const, error: (claudeRes.reason as any)?.message, summary: "", keyPoints: [], insights: "", recommendations: [], risks: [], sentiment: "neutre" as const, urgency: "basse" as const };
+
+  // Build consensus
+  const allPoints = [...(gemini.keyPoints ?? []), ...(openai.keyPoints ?? []), ...(claude.keyPoints ?? [])];
+  const uniquePoints = [...new Set(allPoints)].slice(0, 8);
+  const summaries = [gemini.summary, openai.summary, claude.summary].filter(Boolean);
+  const successCount = [geminiRes, openaiRes, claudeRes].filter(r => r.status === "fulfilled").length;
+
+  return {
+    gemini, openai, claude,
+    consensus: {
+      summary: summaries[0] || "",
+      topKeyPoints: uniquePoints,
+      agreementScore: Math.round((successCount / 3) * 100),
+    },
+    analyzedAt: new Date().toISOString(),
+  };
+}
+
+// ── DOCUMENT Q&A ──────────────────────────────────────────────────────────────
+export interface QAAnswer {
+  model: string;
+  provider: string;
+  answer: string;
+  tokensUsed?: number;
+  durationMs?: number;
+  error?: string;
+}
+
+export async function askDocumentQuestion(
+  question: string,
+  documentContext: string,
+  fileName: string,
+  mimeType: string,
+  models: Array<"gemini" | "openai" | "claude">,
+  imageBase64?: string,
+): Promise<QAAnswer[]> {
+  const answers: QAAnswer[] = [];
+
+  const tasks = models.map(async (m) => {
+    const t0 = Date.now();
+    const context = documentContext.slice(0, 15000);
+    const userPrompt = `Document: "${fileName}"\n\n${imageBase64 && mimeType.startsWith("image/") ? "" : `CONTENU:\n${context}\n\n`}Question: ${question}`;
+
+    try {
+      if (m === "gemini") {
+        const { ai } = await import("@workspace/integrations-gemini-ai");
+        const parts: any[] = imageBase64 && VISUAL_MIME_TYPES.includes(mimeType)
+          ? [{ inlineData: { mimeType, data: imageBase64 } }, { text: `${QA_SYSTEM_PROMPT}\n\n${userPrompt}` }]
+          : [{ text: `${QA_SYSTEM_PROMPT}\n\n${userPrompt}` }];
+        const res = await ai.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: [{ role: "user", parts }],
+          config: { maxOutputTokens: 2048 },
+        });
+        answers.push({ model: "gemini-2.5-flash", provider: "gemini", answer: res.text ?? "", tokensUsed: res.usageMetadata?.totalTokenCount ?? 0, durationMs: Date.now() - t0 });
+      } else if (m === "openai") {
+        const { openai } = await import("@workspace/integrations-openai-ai-server");
+        const msgContent: any = imageBase64 && mimeType.startsWith("image/")
+          ? [{ type: "image_url", image_url: { url: `data:${mimeType};base64,${imageBase64}`, detail: "high" } }, { type: "text", text: userPrompt }]
+          : userPrompt;
+        const res = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [{ role: "system", content: QA_SYSTEM_PROMPT }, { role: "user", content: msgContent }],
+          max_tokens: 2048,
+        });
+        answers.push({ model: "gpt-4o", provider: "openai", answer: res.choices[0]?.message?.content ?? "", tokensUsed: res.usage?.total_tokens ?? 0, durationMs: Date.now() - t0 });
+      } else if (m === "claude") {
+        const { anthropic } = await import("@workspace/integrations-anthropic-ai");
+        const content: any = imageBase64 && mimeType.startsWith("image/")
+          ? [{ type: "image", source: { type: "base64", media_type: mimeType, data: imageBase64 } }, { type: "text", text: userPrompt }]
+          : userPrompt;
+        const res = await anthropic.messages.create({
+          model: "claude-sonnet-4-5",
+          max_tokens: 2048,
+          system: QA_SYSTEM_PROMPT,
+          messages: [{ role: "user", content }],
+        });
+        answers.push({ model: "claude-sonnet-4-5", provider: "claude", answer: (res.content[0] as any)?.text ?? "", tokensUsed: (res.usage?.input_tokens ?? 0) + (res.usage?.output_tokens ?? 0), durationMs: Date.now() - t0 });
+      }
+    } catch (err: any) {
+      const modelNames = { gemini: "gemini-2.5-flash", openai: "gpt-4o", claude: "claude-sonnet-4-5" };
+      answers.push({ model: modelNames[m], provider: m, answer: "", error: err.message });
+    }
+  });
+
+  await Promise.all(tasks);
+  return answers;
+}
+
 export async function processDocumentForImport(
   base64Content: string,
   mimeType: string,
