@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
-import { db, callsTable, contactsTable, tasksTable, messagesTable, calendarEventsTable, facturesClientTable, compteClientTable, organisationsTable, prospectsTable, notificationsTable, paymentRemindersTable, licenseAuditLogTable, projetsTable } from "@workspace/db";
-import { eq, sql, and, desc, gte, lte, lt, ne, isNull, isNotNull, or, ilike } from "drizzle-orm";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, calendarEventsTable, facturesClientTable, compteClientTable, organisationsTable, prospectsTable, notificationsTable, paymentRemindersTable, licenseAuditLogTable, projetsTable, usersTable, checkinsTable, auditLogsTable } from "@workspace/db";
+import { eq, sql, and, desc, gte, lte, lt, ne, isNull, isNotNull, or, ilike, count } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { Resend } from "resend";
 import { getContextForContact, getLatestAgentInsights, buildCommandantContextPrompt } from "./agent-collaboration";
@@ -1470,6 +1470,183 @@ Reponds UNIQUEMENT en JSON valide:
     res.json({ success: true, draft: parsed, contactFound: !!collabContext.contact });
   } catch (err: any) {
     handleCommandantError(err, res, "[Commandant/GmailDraftReply]");
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// EMPLOYEE QUALITY & EFFICIENCY DEEP ANALYSIS
+// ═══════════════════════════════════════════════════════════════
+
+router.get("/commandant/employee-quality", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const periode = (req.query.periode as string) || "mois";
+    const now = new Date();
+    let dateDebut: Date;
+    if (periode === "semaine") { dateDebut = new Date(now.getTime() - 7 * 86400000); }
+    else if (periode === "trimestre") { dateDebut = new Date(now.getTime() - 90 * 86400000); }
+    else { dateDebut = new Date(now.getTime() - 30 * 86400000); } // mois
+
+    const users = await db.select({
+      id: usersTable.id, prenom: usersTable.prenom, nom: usersTable.nom,
+      email: usersTable.email, role: usersTable.role, departement: usersTable.departement,
+    }).from(usersTable).where(and(eq(usersTable.actif, true), eq(usersTable.organisationId, orgId)));
+
+    const employees: any[] = [];
+
+    for (const user of users) {
+      const fullName = `${user.prenom ?? ""} ${user.nom ?? ""}`.trim();
+      const email = user.email ?? "";
+
+      // ── TÂCHES ────────────────────────────────────────────────
+      const [tasksAssigned] = await db.select({ c: sql<number>`count(*)::int` }).from(tasksTable)
+        .where(and(eq(tasksTable.organisationId, orgId), sql`${tasksTable.assignedTo} ILIKE ${"%" + fullName + "%"}`, gte(tasksTable.createdAt, dateDebut)));
+
+      const [tasksCompleted] = await db.select({ c: sql<number>`count(*)::int` }).from(tasksTable)
+        .where(and(eq(tasksTable.organisationId, orgId), sql`${tasksTable.assignedTo} ILIKE ${"%" + fullName + "%"}`, or(eq(tasksTable.status, "termine"), eq(tasksTable.status, "terminee")), gte(tasksTable.updatedAt, dateDebut)));
+
+      const [tasksOverdue] = await db.select({ c: sql<number>`count(*)::int` }).from(tasksTable)
+        .where(and(eq(tasksTable.organisationId, orgId), sql`${tasksTable.assignedTo} ILIKE ${"%" + fullName + "%"}`, ne(tasksTable.status, "termine"), ne(tasksTable.status, "terminee"), ne(tasksTable.status, "annule"), lt(tasksTable.dueDate, now)));
+
+      const [tasksPriHaute] = await db.select({ c: sql<number>`count(*)::int` }).from(tasksTable)
+        .where(and(eq(tasksTable.organisationId, orgId), sql`${tasksTable.assignedTo} ILIKE ${"%" + fullName + "%"}`, eq(tasksTable.priority, "haute"), or(eq(tasksTable.status, "termine"), eq(tasksTable.status, "terminee")), gte(tasksTable.updatedAt, dateDebut)));
+
+      // ── POINTAGES ─────────────────────────────────────────────
+      const pointagesData = await db.select({
+        totalMinutes: checkinsTable.totalMinutes, breakMinutes: checkinsTable.breakMinutes, checkInAt: checkinsTable.checkInAt,
+      }).from(checkinsTable).where(and(
+        eq(checkinsTable.organisationId, orgId),
+        sql`${checkinsTable.employeeName} ILIKE ${"%" + fullName + "%"}`,
+        gte(checkinsTable.checkInAt, dateDebut),
+      ));
+
+      const heuresTravaillees = Math.round(pointagesData.reduce((s, p) => s + (p.totalMinutes ?? 0), 0) / 60 * 10) / 10;
+      const pausesMinutes = pointagesData.reduce((s, p) => s + (p.breakMinutes ?? 0), 0);
+      const sessionCount = pointagesData.length;
+
+      // Punctuality: average check-in hour vs 9h
+      let avgCheckinHour: number | null = null;
+      if (pointagesData.length > 0) {
+        const hours = pointagesData.map(p => p.checkInAt ? new Date(p.checkInAt).getHours() + new Date(p.checkInAt).getMinutes() / 60 : 9);
+        avgCheckinHour = Math.round(hours.reduce((s, h) => s + h, 0) / hours.length * 10) / 10;
+      }
+
+      // ── ACTIONS / CONNEXIONS ────────────────────────────────
+      const [actionsTotal] = await db.select({ c: sql<number>`count(*)::int` }).from(auditLogsTable)
+        .where(and(eq(auditLogsTable.userId, user.id), gte(auditLogsTable.createdAt, dateDebut)));
+
+      const [connexions] = await db.select({ c: sql<number>`count(*)::int` }).from(auditLogsTable)
+        .where(and(eq(auditLogsTable.userId, user.id), eq(auditLogsTable.action, "login"), gte(auditLogsTable.createdAt, dateDebut)));
+
+      const [messagesEnvoyes] = await db.select({ c: sql<number>`count(*)::int` }).from(auditLogsTable)
+        .where(and(eq(auditLogsTable.userId, user.id), eq(auditLogsTable.action, "create"), eq(auditLogsTable.resource, "message"), gte(auditLogsTable.createdAt, dateDebut)));
+
+      const [appelsTraites] = await db.select({ c: sql<number>`count(*)::int` }).from(auditLogsTable)
+        .where(and(eq(auditLogsTable.userId, user.id), eq(auditLogsTable.action, "create"), eq(auditLogsTable.resource, "call"), gte(auditLogsTable.createdAt, dateDebut)));
+
+      const [contactsCrees] = await db.select({ c: sql<number>`count(*)::int` }).from(auditLogsTable)
+        .where(and(eq(auditLogsTable.userId, user.id), eq(auditLogsTable.action, "create"), eq(auditLogsTable.resource, "contact"), gte(auditLogsTable.createdAt, dateDebut)));
+
+      // ── SCORES ─────────────────────────────────────────────────
+      const ta = tasksAssigned?.c ?? 0;
+      const tc = tasksCompleted?.c ?? 0;
+      const to = tasksOverdue?.c ?? 0;
+
+      // Completion rate: tasks completed / tasks assigned (min 0, max 100)
+      const completionRate = ta > 0 ? Math.min(100, Math.round((tc / ta) * 100)) : (tc > 0 ? 100 : 50);
+
+      // Overdue penalty: overdues relative to assigned
+      const overduePenalty = ta > 0 ? Math.min(50, Math.round((to / ta) * 50)) : 0;
+
+      // Punctuality score: 100 if on time (≤9.25h), -10 per 30 min late, +5 if early
+      let punctualityScore = 70; // default if no pointages
+      if (avgCheckinHour !== null) {
+        const lateMins = Math.max(0, (avgCheckinHour - 9.25) * 60);
+        const earlyBonus = Math.max(0, (9.0 - avgCheckinHour) * 10);
+        punctualityScore = Math.min(100, Math.max(0, Math.round(100 - lateMins / 3 + earlyBonus)));
+      }
+
+      // Activity score: actions per working day
+      const workingDays = Math.max(1, Math.round((now.getTime() - dateDebut.getTime()) / 86400000 * 5 / 7));
+      const actionsPerDay = (actionsTotal?.c ?? 0) / workingDays;
+      const activityScore = Math.min(100, Math.round(actionsPerDay * 2.5));
+
+      // Engagement score: connexions regularity
+      const expectedConnexions = Math.max(1, Math.round(workingDays * 0.8));
+      const engagementScore = Math.min(100, Math.round(((connexions?.c ?? 0) / expectedConnexions) * 100));
+
+      // Quality score = completion(40%) + punctuality(25%) + engagement(20%) - overdue(15%)
+      const qualityScore = Math.min(100, Math.max(0, Math.round(
+        completionRate * 0.40 + punctualityScore * 0.25 + engagementScore * 0.20 - overduePenalty * 0.15
+      )));
+
+      // Efficiency score = output per hour
+      const totalOutput = tc * 10 + (appelsTraites?.c ?? 0) * 5 + (messagesEnvoyes?.c ?? 0) * 2 + (contactsCrees?.c ?? 0) * 8;
+      const efficiencyScore = heuresTravaillees > 0
+        ? Math.min(100, Math.round(totalOutput / heuresTravaillees * 2))
+        : Math.min(100, Math.round(totalOutput / 10));
+
+      const overallScore = Math.round(qualityScore * 0.55 + efficiencyScore * 0.45);
+
+      const grade = overallScore >= 85 ? "A" : overallScore >= 70 ? "B" : overallScore >= 55 ? "C" : overallScore >= 40 ? "D" : "F";
+      const risk = to >= 5 || overallScore < 40 ? "high" : to >= 2 || overallScore < 60 ? "medium" : "low";
+
+      employees.push({
+        id: user.id, name: fullName, email, role: user.role, department: user.departement,
+        qualityScore, efficiencyScore, overallScore, grade, risk,
+        metrics: {
+          tasksAssigned: ta, tasksCompleted: tc, tasksOverdue: to,
+          tasksPrioriteHaute: tasksPriHaute?.c ?? 0,
+          completionRate, overduePenalty, punctualityScore, activityScore, engagementScore,
+          heuresTravaillees, pausesMinutes, sessionCount,
+          avgCheckinHour, actionsTotal: actionsTotal?.c ?? 0,
+          connexions: connexions?.c ?? 0, messagesEnvoyes: messagesEnvoyes?.c ?? 0,
+          appelsTraites: appelsTraites?.c ?? 0, contactsCrees: contactsCrees?.c ?? 0,
+        },
+      });
+    }
+
+    // Sort by overallScore desc
+    employees.sort((a, b) => b.overallScore - a.overallScore);
+
+    const teamScore = employees.length > 0 ? Math.round(employees.reduce((s, e) => s + e.overallScore, 0) / employees.length) : 0;
+    const teamQuality = employees.length > 0 ? Math.round(employees.reduce((s, e) => s + e.qualityScore, 0) / employees.length) : 0;
+    const teamEfficiency = employees.length > 0 ? Math.round(employees.reduce((s, e) => s + e.efficiencyScore, 0) / employees.length) : 0;
+
+    // ── AI ANALYSIS ──────────────────────────────────────────────
+    const systemPrompt = `Tu es un expert RH senior spécialisé en performance et qualité de travail. Tu analyses des données objectives et génères des insights actionnables. Sois direct, précis et bienveillant. Réponds UNIQUEMENT en JSON valide.`;
+    const prompt = `Analyse de ${employees.length} employés sur la période (${periode}):
+
+${employees.map(e => `${e.name} (${e.role}${e.department ? ", " + e.department : ""}): score global ${e.overallScore}/100 (qualité: ${e.qualityScore}, efficacité: ${e.efficiencyScore}), grade ${e.grade}, risque ${e.risk}
+  → tâches: ${e.metrics.tasksCompleted}/${e.metrics.tasksAssigned} terminées, ${e.metrics.tasksOverdue} en retard (taux: ${e.metrics.completionRate}%)
+  → présence: ${e.metrics.heuresTravaillees}h travaillées, ${e.metrics.sessionCount} sessions
+  → activité: ${e.metrics.actionsTotal} actions, ${e.metrics.appelsTraites} appels, ${e.metrics.messagesEnvoyes} messages`).join("\n")}
+
+Score équipe: ${teamScore}/100 (qualité: ${teamQuality}, efficacité: ${teamEfficiency})
+
+Génère un rapport JSON complet:
+{
+  "globalInsight": "analyse synthétique de l'équipe en 2-3 phrases",
+  "teamHealth": "excellent|bon|moyen|préoccupant",
+  "topPerformers": [{"name": "nom", "score": 85, "strengths": ["point fort 1", "point fort 2"], "recognitionMessage": "message d'encouragement personnalisé"}],
+  "needsAttention": [{"name": "nom", "score": 45, "issues": ["problème détecté"], "rootCause": "analyse cause probable", "actionPlan": ["action concrète 1", "action concrète 2"]}],
+  "perEmployee": [{"name": "nom", "strengths": ["2-3 points forts"], "weaknesses": ["1-2 axes d'amélioration"], "tip": "conseil pratique personnalisé", "riskFlag": "motif si risque élevé ou null"}],
+  "teamRecommendations": ["recommandation stratégique 1", "recommandation 2", "recommandation 3"],
+  "workloadBalance": "analyse de la répartition de charge",
+  "qualityAlert": "alerte qualité si score < 60 ou null"
+}`;
+
+    await assertAiQuota(orgId);
+    const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
+    let analysis: any = {};
+    try {
+      const m = aiResponse.match(/\{[\s\S]*\}/);
+      analysis = m ? JSON.parse(m[0]) : { globalInsight: aiResponse };
+    } catch { analysis = { globalInsight: aiResponse }; }
+
+    res.json({ success: true, periode, teamScore, teamQuality, teamEfficiency, employees, analysis });
+  } catch (err: any) {
+    handleCommandantError(err, res, "[Commandant/EmployeeQuality]");
   }
 });
 
