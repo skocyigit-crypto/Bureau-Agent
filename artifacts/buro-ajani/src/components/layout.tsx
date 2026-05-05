@@ -111,24 +111,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
           { name: "Tableau de bord", href: "/", icon: LayoutDashboard },
           { name: "Analyse", href: "/analyse", icon: BarChart },
           { name: "Performance", href: "/performance", icon: BarChart3 },
+          { name: "Activité récente", href: "/activite-recente", icon: Activity },
         ],
       },
       {
         label: "Communication",
         items: [
-          { name: "Appels", href: "/appels", icon: Phone },
-          { name: "Telephonie", href: "/telephonie", icon: PhoneCall },
+          { name: "Historique appels", href: "/appels", icon: Phone },
           { name: "Messages", href: "/messages", icon: MessageSquare },
           { name: "Calendrier", href: "/calendrier", icon: Calendar },
         ],
       },
       {
-        label: "CRM & Agents",
+        label: "CRM",
         items: [
           { name: "Contacts", href: "/contacts", icon: Users },
           { name: "Tâches", href: "/taches", icon: CheckSquare },
-          { name: "Notes Internes", href: "/notes-internes", icon: StickyNote },
-          { name: "Activité Récente", href: "/activite-recente", icon: Activity },
         ],
       },
       ...(canUseAi
@@ -136,8 +134,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
             label: "Intelligence Artificielle",
             items: [
               { name: "Agents IA", href: "/agents-ia", icon: Brain },
-              { name: "AI Commandant", href: "/commandant-ia", icon: Sparkles },
+              { name: "Commandant IA", href: "/commandant-ia", icon: Sparkles },
               { name: "Document IA", href: "/document-ia", icon: ScanSearch },
+              { name: "Agent Mail IA", href: "/gmail-agent", icon: Mail },
             ],
           }]
         : []),
@@ -146,45 +145,41 @@ export function Layout({ children }: { children: React.ReactNode }) {
         items: [
           { name: "Documents", href: "/documents", icon: FileText },
           { name: "Rapports", href: "/rapports", icon: FileText },
-          { name: "Rapport Executif", href: "/rapport-executif", icon: BarChart3 },
-          { name: "Import Intelligent", href: "/import", icon: Download },
+          { name: "Rapport Exécutif", href: "/rapport-executif", icon: BarChart3 },
         ],
       },
       {
         label: "Équipe",
         items: [
           { name: "Pointage", href: "/pointage", icon: Clock },
+          { name: "Notes internes", href: "/notes-internes", icon: StickyNote },
           ...(isAdmin ? [{ name: "Utilisateurs", href: "/utilisateurs", icon: UserCog }] : []),
         ],
       },
       {
         label: "Intégrations",
         items: [
-          { name: "Agent Mail IA", href: "/gmail-agent", icon: Mail },
           { name: "Google Workspace", href: "/google-workspace", icon: Globe },
-          { name: "Logiciels", href: "/logiciels", icon: Puzzle },
+          { name: "Connecteurs", href: "/logiciels", icon: Puzzle },
           ...(isAdmin ? [{ name: "Automatisations", href: "/automatisations", icon: Zap }] : []),
-          { name: "Configuration initiale", href: "/onboarding", icon: Rocket },
         ],
       },
       {
-        label: "Licence",
+        label: "Licence & Conformité",
         items: [
           { name: "Licence & Facturation", href: "/gestion-licence", icon: Shield },
-          ...(isSuperAdmin ? [{ name: "Organisations", href: "/organisations", icon: KeyRound }] : []),
-        ],
-      },
-      {
-        label: "Conformité RGPD",
-        items: [
           { name: "Protection des données", href: "/protection-donnees", icon: Shield },
+          ...(isSuperAdmin ? [{ name: "Organisations", href: "/organisations", icon: KeyRound }] : []),
         ],
       },
       {
         label: "Système",
         items: [
-          { name: "Telecharger", href: "/telecharger", icon: Download },
-          { name: "Parametres", href: "/parametres", icon: Settings },
+          { name: "Téléphonie", href: "/telephonie", icon: PhoneCall },
+          { name: "Import intelligent", href: "/import", icon: Download },
+          { name: "Configuration initiale", href: "/onboarding", icon: Rocket },
+          { name: "Application mobile", href: "/telecharger", icon: Download },
+          { name: "Paramètres", href: "/parametres", icon: Settings },
         ],
       },
     ].filter(g => g.items.length > 0);
