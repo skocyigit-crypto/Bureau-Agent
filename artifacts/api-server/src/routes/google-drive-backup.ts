@@ -43,10 +43,30 @@ router.get("/google-drive-backup/files", async (req: Request, res: Response): Pr
     const result = await listGoogleDriveBackups();
     if (result.success) {
       res.json(result);
-    } else {
-      logger.warn({ err: result.error }, "Erreur liste sauvegardes Google Drive");
-      res.status(500).json({ error: "Erreur lors de la recuperation des sauvegardes." });
+      return;
     }
+    // Google Drive not configured / not connected is an expected state, not a server error.
+    // Return 200 with an empty list and a "configured: false" hint so the UI can render
+    // an empty state without triggering a 500 toast.
+    const errMsg = result.error ?? "";
+    const notConfigured = /non configure|non connecte|not configured|not connected/i.test(errMsg);
+    // Only expose internal error/reason text in non-production environments to
+    // avoid leaking provider/network diagnostics to end clients.
+    const isProd = process.env.NODE_ENV === "production";
+    if (notConfigured) {
+      res.json({
+        success: true,
+        files: [],
+        configured: false,
+        ...(isProd ? {} : { reason: errMsg }),
+      });
+      return;
+    }
+    logger.warn({ err: errMsg }, "Erreur liste sauvegardes Google Drive");
+    res.status(502).json({
+      error: "Erreur lors de la recuperation des sauvegardes.",
+      ...(isProd ? {} : { detail: errMsg }),
+    });
   } catch (err: any) {
     req.log.error({ err }, "Erreur liste sauvegardes Google Drive");
     res.status(500).json({ error: "Erreur lors de la recuperation des sauvegardes." });
