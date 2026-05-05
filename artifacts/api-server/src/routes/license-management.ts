@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { db, organisationsTable, subscriptionsTable, invoicesTable, paymentsTable, facturesClientTable, paymentRemindersTable, licenseAuditLogTable, PLANS } from "@workspace/db";
+import { db, organisationsTable, subscriptionsTable, invoicesTable, paymentsTable, facturesClientTable, paymentRemindersTable, licenseAuditLogTable, PLANS, usersTable, contactsTable, callsTable } from "@workspace/db";
 import { eq, sql, and, desc, gte, lte, lt, isNull, ne } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { Resend } from "resend";
@@ -84,6 +84,11 @@ router.get("/license-management/dashboard", async (req: Request, res: Response):
     const now = new Date();
     const trialDaysLeft = sub?.trialEndsAt ? Math.max(0, Math.ceil((new Date(sub.trialEndsAt).getTime() - now.getTime()) / 86400000)) : null;
 
+    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const [userCount] = await db.select({ c: sql<number>`count(*)::int` }).from(usersTable).where(and(eq(usersTable.organisationId, orgId), eq(usersTable.actif, true)));
+    const [contactCount] = await db.select({ c: sql<number>`count(*)::int` }).from(contactsTable).where(eq(contactsTable.organisationId, orgId));
+    const [callCount] = await db.select({ c: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, firstOfMonth)));
+
     const securityAlerts: Array<{ type: string; severity: string; message: string }> = [];
 
     if (sub?.plan === "essai" && trialDaysLeft !== null && trialDaysLeft <= 3) {
@@ -104,7 +109,7 @@ router.get("/license-management/dashboard", async (req: Request, res: Response):
 
     res.json({
       organisation: { id: org?.id, name: org?.name, bankIban: org?.bankIban ? `****${org.bankIban.slice(-4)}` : null, bankBic: org?.bankBic, siret: org?.siret, tvaNumber: org?.tvaNumber, autoInvoiceEnabled: org?.autoInvoiceEnabled, autoEmailInvoice: org?.autoEmailInvoice },
-      subscription: sub ? { plan: sub.plan, status: sub.status, price: Number(sub.price), licenseKey: sub.licenseKey, trialEndsAt: sub.trialEndsAt, currentPeriodStart: sub.currentPeriodStart, currentPeriodEnd: sub.currentPeriodEnd, trialDaysLeft, aiEnabled: sub.aiEnabled, stockEnabled: sub.stockEnabled, automationEnabled: sub.automationEnabled, maxUsers: sub.maxUsers, maxContacts: sub.maxContacts, maxCallsPerMonth: sub.maxCallsPerMonth } : null,
+      subscription: sub ? { plan: sub.plan, status: sub.status, price: Number(sub.price), licenseKey: sub.licenseKey, trialEndsAt: sub.trialEndsAt, currentPeriodStart: sub.currentPeriodStart, currentPeriodEnd: sub.currentPeriodEnd, trialDaysLeft, aiEnabled: sub.aiEnabled, stockEnabled: sub.stockEnabled, automationEnabled: sub.automationEnabled, maxUsers: sub.maxUsers, maxContacts: sub.maxContacts, maxCallsPerMonth: sub.maxCallsPerMonth, currentUsers: userCount?.c || 0, currentContacts: contactCount?.c || 0, currentCallsMonth: callCount?.c || 0 } : null,
       billing: { totalOwed, totalPaid, pendingCount: pendingInvoices.length, paidCount: paidInvoices.length, invoices: invoices.map(i => ({ ...i, totalAmount: Number(i.totalAmount), baseAmount: Number(i.baseAmount), overageAmount: Number(i.overageAmount) })) },
       clientBilling: { totalClientOwed, totalClientPaid, overdueCount: overdueClientInvoices.length, pendingCount: pendingClientInvoices.length, recentInvoices: clientInvoices.slice(0, 10).map(f => ({ id: f.id, reference: f.reference, clientName: f.clientName, clientEmail: f.clientEmail, totalAmount: Number(f.totalAmount), paidAmount: Number(f.paidAmount), status: f.status, dueDate: f.dueDate, createdAt: f.createdAt })) },
       payments: payments.map(p => ({ ...p, amount: Number(p.amount), matchConfidence: p.matchConfidence ? Number(p.matchConfidence) : null })),
@@ -457,6 +462,115 @@ router.post("/license-management/auto-reminders", async (req: Request, res: Resp
     res.json({ success: true, total: overdueInvoices.length, sent, skipped });
   } catch (err: any) {
     logger.error({ err: err }, "Erreur auto-reminders:");
+    res.status(500).json({ error: "Erreur" });
+  }
+});
+
+router.post("/license-management/create-client-invoice", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const userId = (req.session as any)?.userId;
+    const userRole = (req.session as any)?.userRole;
+    if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces refuse" }); return; }
+
+    const { clientName, clientEmail, clientPhone, clientAddress, clientCompany, title, items, dueDate, notes, conditions } = req.body;
+    if (!clientName || !title) { res.status(400).json({ error: "clientName et title sont obligatoires" }); return; }
+
+    const invoiceItems = (items || []) as Array<{ description: string; quantity: number; unitPrice: number; taxRate: number }>;
+    const processedItems = invoiceItems.map(item => ({
+      description: item.description,
+      quantity: Number(item.quantity || 1),
+      unitPrice: Number(item.unitPrice || 0),
+      taxRate: Number(item.taxRate ?? 20),
+      total: Number(item.quantity || 1) * Number(item.unitPrice || 0) * (1 + Number(item.taxRate ?? 20) / 100),
+    }));
+
+    const subtotal = processedItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+    const taxAmount = processedItems.reduce((s, i) => s + i.quantity * i.unitPrice * i.taxRate / 100, 0);
+    const totalAmount = subtotal + taxAmount;
+
+    const [seqRes] = await db.select({ c: sql<number>`count(*)::int` }).from(facturesClientTable).where(eq(facturesClientTable.organisationId, orgId));
+    const now = new Date();
+    const reference = `FAC-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String((seqRes?.c || 0) + 1).padStart(4, "0")}`;
+
+    const [facture] = await db.insert(facturesClientTable).values({
+      organisationId: orgId,
+      reference,
+      title,
+      clientName,
+      clientEmail: clientEmail || null,
+      clientPhone: clientPhone || null,
+      clientAddress: clientAddress || null,
+      clientCompany: clientCompany || null,
+      items: processedItems,
+      subtotal: subtotal.toFixed(2),
+      taxAmount: taxAmount.toFixed(2),
+      totalAmount: totalAmount.toFixed(2),
+      paidAmount: "0",
+      status: "brouillon",
+      dueDate: dueDate ? new Date(dueDate) : null,
+      notes: notes || null,
+      conditions: conditions || null,
+    }).returning();
+
+    await logAudit(orgId, "client_invoice_created", `Facture ${reference} creee pour ${clientName}: ${totalAmount.toFixed(2)} EUR`, userId, { invoiceId: facture.id, amount: totalAmount });
+    res.status(201).json({ success: true, facture: { ...facture, totalAmount: Number(facture.totalAmount), paidAmount: Number(facture.paidAmount), subtotal: Number(facture.subtotal), taxAmount: Number(facture.taxAmount) } });
+  } catch (err: any) {
+    logger.error({ err }, "Erreur creation facture client:");
+    res.status(500).json({ error: "Erreur creation facture" });
+  }
+});
+
+router.post("/license-management/mark-invoice-paid", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const userId = (req.session as any)?.userId;
+    const { factureClientId, paymentMethod } = req.body;
+    if (!factureClientId) { res.status(400).json({ error: "factureClientId requis" }); return; }
+
+    const [facture] = await db.select().from(facturesClientTable).where(and(eq(facturesClientTable.id, factureClientId), eq(facturesClientTable.organisationId, orgId)));
+    if (!facture) { res.status(404).json({ error: "Facture introuvable" }); return; }
+    if (facture.status === "payee") { res.status(400).json({ error: "Facture deja marquee comme payee" }); return; }
+
+    await db.update(facturesClientTable).set({
+      status: "payee",
+      paidAmount: facture.totalAmount,
+      paidAt: new Date(),
+      paymentMethod: paymentMethod || "virement",
+    }).where(eq(facturesClientTable.id, facture.id));
+
+    await logAudit(orgId, "invoice_marked_paid", `Facture ${facture.reference} marquee comme payee (${Number(facture.totalAmount).toFixed(2)} EUR)`, userId, { factureId: facture.id });
+    res.json({ success: true, message: `Facture ${facture.reference} marquee comme payee` });
+  } catch (err: any) {
+    logger.error({ err }, "Erreur mark invoice paid:");
+    res.status(500).json({ error: "Erreur" });
+  }
+});
+
+router.post("/license-management/record-payment", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const userId = (req.session as any)?.userId;
+    const { factureClientId, amount, paymentMethod, notes } = req.body;
+    if (!factureClientId || !amount) { res.status(400).json({ error: "factureClientId et amount requis" }); return; }
+
+    const [facture] = await db.select().from(facturesClientTable).where(and(eq(facturesClientTable.id, factureClientId), eq(facturesClientTable.organisationId, orgId)));
+    if (!facture) { res.status(404).json({ error: "Facture introuvable" }); return; }
+
+    const newPaid = Math.min(Number(facture.paidAmount) + Number(amount), Number(facture.totalAmount));
+    const isFullyPaid = newPaid >= Number(facture.totalAmount);
+
+    await db.update(facturesClientTable).set({
+      paidAmount: newPaid.toFixed(2),
+      status: isFullyPaid ? "payee" : facture.status !== "brouillon" ? facture.status : "envoyee",
+      paidAt: isFullyPaid ? new Date() : facture.paidAt,
+      paymentMethod: paymentMethod || facture.paymentMethod || null,
+    }).where(eq(facturesClientTable.id, facture.id));
+
+    await logAudit(orgId, "payment_recorded", `Paiement de ${Number(amount).toFixed(2)} EUR enregistre pour facture ${facture.reference}${isFullyPaid ? " (soldee)" : ""}`, userId, { factureId: facture.id, amount: Number(amount), isFullyPaid });
+    res.json({ success: true, newPaidAmount: newPaid, isFullyPaid, message: `Paiement de ${Number(amount).toFixed(2)} EUR enregistre${isFullyPaid ? " — facture soldee" : ""}` });
+  } catch (err: any) {
+    logger.error({ err }, "Erreur record payment:");
     res.status(500).json({ error: "Erreur" });
   }
 });
