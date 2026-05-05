@@ -223,7 +223,7 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                   <Select value={selectedContactId} onValueChange={(v) => {
                     setSelectedContactId(v);
                     const c = contactsData?.contacts?.find(ct => ct.id.toString() === v);
-                    if (c?.email) setRecipientEmail(c.email);
+                    setRecipientEmail(c?.email || "");
                   }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Choisir un contact..." />
