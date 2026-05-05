@@ -17,61 +17,97 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
-interface LicenseDashboard {
+interface ApiResponse {
   organisation: {
     id: number;
     name: string;
-    email: string;
-    plan: string;
-    licenceCount: number;
-    billingCycle?: string;
-    trialEndsAt?: string;
-    subscriptionStatus?: string;
+    bankIban?: string | null;
+    bankBic?: string | null;
+    siret?: string | null;
+    tvaNumber?: string | null;
+    autoInvoiceEnabled?: boolean;
+    autoEmailInvoice?: boolean;
   };
   subscription: {
-    id?: number;
     plan: string;
     status: string;
-    amount?: number;
-    billingCycle?: string;
-    startDate?: string;
-    renewalDate?: string;
-    licenceCount: number;
+    price: number;
+    licenseKey?: string | null;
+    trialEndsAt?: string | null;
+    currentPeriodStart?: string | null;
+    currentPeriodEnd?: string | null;
+    trialDaysLeft?: number | null;
+    aiEnabled?: boolean;
+    stockEnabled?: boolean;
+    automationEnabled?: boolean;
+    maxUsers?: number;
+    maxContacts?: number;
+    maxCallsPerMonth?: number;
   } | null;
-  invoices: Array<{
-    id: number;
-    reference: string;
-    amount: number;
-    totalAmount: number;
-    status: string;
-    dueDate?: string;
-    createdAt: string;
-  }>;
+  billing: {
+    totalOwed: number;
+    totalPaid: number;
+    pendingCount: number;
+    paidCount: number;
+    invoices: Array<{
+      id: number;
+      periodLabel?: string;
+      plan?: string;
+      baseAmount: number;
+      overageAmount: number;
+      totalAmount: number;
+      status: string;
+      createdAt?: string;
+    }>;
+  };
+  clientBilling: {
+    totalClientOwed: number;
+    totalClientPaid: number;
+    overdueCount: number;
+    pendingCount: number;
+    recentInvoices: Array<{
+      id: number;
+      reference: string;
+      clientName?: string;
+      clientEmail?: string;
+      totalAmount: number;
+      paidAmount: number;
+      status: string;
+      dueDate?: string | null;
+      createdAt?: string;
+    }>;
+  };
   payments: Array<{
     id: number;
     amount: number;
-    paymentDate: string;
-    method?: string;
+    bankDate?: string | null;
+    payerName?: string | null;
+    bankRef?: string | null;
     status: string;
-    reference?: string;
+    matchConfidence?: number | null;
   }>;
-  totalOwed: number;
-  totalPaid: number;
-  pendingInvoicesCount: number;
+  reminders: Array<{
+    id: number;
+    reminderLevel?: number;
+    recipientEmail?: string;
+    status?: string;
+    sentAt?: string | null;
+  }>;
+  securityAlerts: Array<{ type: string; severity: string; message: string }>;
 }
 
 const PLAN_COLORS: Record<string, { color: string; bg: string }> = {
-  starter:     { color: "#64748b", bg: "#f1f5f9" },
-  professional:{ color: "#3b82f6", bg: "#eff6ff" },
-  business:    { color: "#8b5cf6", bg: "#f5f3ff" },
-  enterprise:  { color: "#f59e0b", bg: "#fffbeb" },
-  trial:       { color: "#22c55e", bg: "#f0fdf4" },
+  starter:      { color: "#64748b", bg: "#f1f5f9" },
+  professional: { color: "#3b82f6", bg: "#eff6ff" },
+  business:     { color: "#8b5cf6", bg: "#f5f3ff" },
+  enterprise:   { color: "#f59e0b", bg: "#fffbeb" },
+  essai:        { color: "#22c55e", bg: "#f0fdf4" },
 };
 
 const STATUS_COLORS: Record<string, string> = {
   active:    "#22c55e",
   inactive:  "#ef4444",
-  trial:     "#3b82f6",
+  essai:     "#3b82f6",
   suspended: "#f59e0b",
   cancelled: "#94a3b8",
 };
@@ -80,7 +116,12 @@ const INVOICE_STATUS: Record<string, { label: string; color: string }> = {
   en_attente: { label: "En attente", color: "#f59e0b" },
   payee:      { label: "Payée",      color: "#22c55e" },
   annulee:    { label: "Annulée",    color: "#94a3b8" },
-  en_retard:  { label: "En retard",  color: "#ef4444" },
+};
+
+const ALERT_COLORS: Record<string, string> = {
+  critique: "#ef4444",
+  alerte:   "#f59e0b",
+  info:     "#3b82f6",
 };
 
 function fmtEur(v: number) {
@@ -107,7 +148,7 @@ export default function LicenseManagementScreen() {
   const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
 
-  const [data, setData] = useState<LicenseDashboard | null>(null);
+  const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -125,18 +166,6 @@ export default function LicenseManagementScreen() {
   useEffect(() => { load(); }, [load]);
   function onRefresh() { setRefreshing(true); load(); }
 
-  async function sendPaymentReminder(invoiceId: number) {
-    setActionLoading("reminder-" + invoiceId);
-    try {
-      const res = await fetchAuth(`${API_BASE}/api/license-management/send-payment-reminder`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ invoiceId }),
-      });
-      if (res.ok) Alert.alert("Rappel envoyé", "Un email de rappel a été envoyé.");
-    } finally { setActionLoading(null); }
-  }
-
   async function generateInvoice() {
     setActionLoading("generate");
     try {
@@ -145,7 +174,9 @@ export default function LicenseManagementScreen() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
+      const d = await res.json();
       if (res.ok) { Alert.alert("Facture générée", "La facture a été créée."); load(); }
+      else Alert.alert("Erreur", d.error ?? "Échec de génération");
     } finally { setActionLoading(null); }
   }
 
@@ -157,13 +188,19 @@ export default function LicenseManagementScreen() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
-      if (res.ok) { const d = await res.json(); Alert.alert("Rappels envoyés", d.message ?? "Rappels automatiques envoyés."); }
+      if (res.ok) {
+        const d = await res.json();
+        Alert.alert("Rappels envoyés", d.message ?? `${d.sent ?? 0} rappel(s) envoyé(s)`);
+      }
     } finally { setActionLoading(null); }
   }
 
-  const plan = data?.organisation?.plan ?? "starter";
+  const plan = data?.subscription?.plan ?? "starter";
   const planCfg = PLAN_COLORS[plan] ?? PLAN_COLORS.starter;
-  const subStatus = data?.subscription?.status ?? data?.organisation?.subscriptionStatus ?? "inactive";
+  const subStatus = data?.subscription?.status ?? "inactive";
+  const totalOwed = data?.billing?.totalOwed ?? 0;
+  const totalPaid = data?.billing?.totalPaid ?? 0;
+  const pendingCount = data?.billing?.pendingCount ?? 0;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -181,9 +218,9 @@ export default function LicenseManagementScreen() {
         {data && (
           <View style={styles.kpiRow}>
             {[
-              { label: "Dû",        value: fmtEur(data.totalOwed),          color: data.totalOwed > 0 ? "#fca5a5" : "#86efac" },
-              { label: "Encaissé",  value: fmtEur(data.totalPaid),          color: "#86efac" },
-              { label: "Factures",  value: String(data.pendingInvoicesCount), color: data.pendingInvoicesCount > 0 ? "#fde68a" : "#fff" },
+              { label: "Dû",        value: fmtEur(totalOwed),        color: totalOwed > 0 ? "#fca5a5" : "#86efac" },
+              { label: "Encaissé",  value: fmtEur(totalPaid),        color: "#86efac" },
+              { label: "En attente", value: String(pendingCount),     color: pendingCount > 0 ? "#fde68a" : "#fff" },
             ].map(k => (
               <View key={k.label} style={[styles.kpiChip, { backgroundColor: "rgba(255,255,255,0.15)" }]}>
                 <Text style={[styles.kpiVal, { color: k.color }]}>{k.value}</Text>
@@ -203,9 +240,21 @@ export default function LicenseManagementScreen() {
         </View>
       ) : (
         <ScrollView
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#166534" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#166834" />}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: isWeb ? 40 : 24 }]}
         >
+          {/* Security Alerts */}
+          {data.securityAlerts.length > 0 && (
+            <View style={{ gap: 6 }}>
+              {data.securityAlerts.map((alert, i) => (
+                <View key={i} style={[styles.alertRow, { borderColor: ALERT_COLORS[alert.severity] + "60", backgroundColor: ALERT_COLORS[alert.severity] + "15" }]}>
+                  <Feather name={alert.severity === "critique" ? "alert-triangle" : alert.severity === "alerte" ? "alert-circle" : "info"} size={14} color={ALERT_COLORS[alert.severity]} />
+                  <Text style={[styles.alertText, { color: ALERT_COLORS[alert.severity] }]}>{alert.message}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
           {/* Plan card */}
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={[styles.planBanner, { backgroundColor: planCfg.bg }]}>
@@ -217,9 +266,9 @@ export default function LicenseManagementScreen() {
                 <View style={[styles.statusDot, { backgroundColor: STATUS_COLORS[subStatus] ?? "#94a3b8" }]}>
                   <Text style={styles.statusDotText}>{subStatus}</Text>
                 </View>
-                {data.organisation.trialEndsAt && (
+                {data.subscription?.trialDaysLeft != null && (
                   <Text style={{ fontSize: 10, fontFamily: "Inter_400Regular", color: planCfg.color }}>
-                    Trial jusqu'au {fmtDate(data.organisation.trialEndsAt)}
+                    {data.subscription.trialDaysLeft > 0 ? `Essai: ${data.subscription.trialDaysLeft}j restants` : "Essai expiré"}
                   </Text>
                 )}
               </View>
@@ -229,14 +278,15 @@ export default function LicenseManagementScreen() {
 
             <View style={{ gap: 8 }}>
               {[
-                { label: "Organisation",    value: data.organisation.name },
-                { label: "Email",           value: data.organisation.email },
-                { label: "Licences",        value: String(data.organisation.licenceCount) },
+                { label: "Organisation", value: data.organisation.name },
+                { label: "SIRET",        value: data.organisation.siret ?? "—" },
+                { label: "Prix",         value: data.subscription ? fmtEur(data.subscription.price) + "/mois" : "—" },
+                { label: "Clé licence",  value: data.subscription?.licenseKey ? `****${data.subscription.licenseKey.slice(-4)}` : "—" },
+                { label: "Période début", value: fmtDate(data.subscription?.currentPeriodStart) },
+                { label: "Période fin",   value: fmtDate(data.subscription?.currentPeriodEnd) },
                 ...(data.subscription ? [
-                  { label: "Montant",       value: data.subscription.amount != null ? fmtEur(data.subscription.amount) : "—" },
-                  { label: "Facturation",   value: data.subscription.billingCycle === "annuel" ? "Annuelle" : "Mensuelle" },
-                  { label: "Début",         value: fmtDate(data.subscription.startDate) },
-                  { label: "Renouvellement", value: fmtDate(data.subscription.renewalDate) },
+                  { label: "IA",           value: data.subscription.aiEnabled ? "Activée" : "Désactivée" },
+                  { label: "Stock",        value: data.subscription.stockEnabled ? "Activé" : "Désactivé" },
                 ] : []),
               ].map(row => (
                 <View key={row.label} style={styles.infoRow}>
@@ -247,13 +297,32 @@ export default function LicenseManagementScreen() {
             </View>
           </View>
 
+          {/* Limites */}
+          {data.subscription && (
+            <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <SectionTitle title="Limites du plan" icon="sliders" color="#6366f1" />
+              <View style={{ gap: 8 }}>
+                {[
+                  { label: "Utilisateurs max", value: data.subscription.maxUsers ?? "—" },
+                  { label: "Contacts max",     value: data.subscription.maxContacts ?? "—" },
+                  { label: "Appels/mois max",  value: data.subscription.maxCallsPerMonth ?? "—" },
+                ].map(row => (
+                  <View key={row.label} style={styles.infoRow}>
+                    <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{row.label}</Text>
+                    <Text style={[styles.infoValue, { color: colors.foreground }]}>{String(row.value)}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
           {/* Actions */}
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <SectionTitle title="Actions rapides" icon="zap" color="#166534" />
+            <SectionTitle title="Actions rapides" icon="zap" color="#166834" />
             <View style={{ gap: 10 }}>
               <Pressable
                 onPress={generateInvoice}
-                style={[styles.actionBtn, { backgroundColor: "#166534" }]}
+                style={[styles.actionBtn, { backgroundColor: "#166834" }]}
                 disabled={actionLoading === "generate"}
               >
                 {actionLoading === "generate" ? (
@@ -282,43 +351,64 @@ export default function LicenseManagementScreen() {
             </View>
           </View>
 
-          {/* Invoices */}
-          {data.invoices.length > 0 && (
+          {/* Abonnement invoices */}
+          {data.billing.invoices.length > 0 && (
             <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <SectionTitle title="Factures récentes" icon="credit-card" color="#0369a1" />
+              <SectionTitle title="Factures abonnement" icon="file-text" color="#0369a1" />
               <View style={{ gap: 8 }}>
-                {data.invoices.slice(0, 8).map(inv => {
+                {data.billing.invoices.slice(0, 6).map(inv => {
                   const st = INVOICE_STATUS[inv.status] ?? { label: inv.status, color: "#64748b" };
-                  const isPending = inv.status === "en_attente" || inv.status === "en_retard";
                   return (
                     <View key={inv.id} style={[styles.invoiceRow, { borderColor: colors.border }]}>
                       <View style={{ flex: 1 }}>
-                        <Text style={[styles.invoiceRef, { color: colors.mutedForeground }]}>{inv.reference}</Text>
+                        <Text style={[styles.invoiceRef, { color: colors.mutedForeground }]}>{inv.periodLabel ?? "—"} · {inv.plan}</Text>
+                        <Text style={[styles.invoiceAmount, { color: colors.foreground }]}>{fmtEur(inv.totalAmount)}</Text>
+                      </View>
+                      <View style={[styles.miniPill, { backgroundColor: st.color + "20" }]}>
+                        <Text style={[styles.miniPillText, { color: st.color }]}>{st.label}</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {/* Client invoices */}
+          {data.clientBilling.recentInvoices.length > 0 && (
+            <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <SectionTitle title="Factures clients" icon="credit-card" color="#7c3aed" />
+              <View style={{ gap: 4, marginBottom: 10, flexDirection: "row" }}>
+                <View style={[styles.kpiSmall, { backgroundColor: "#fef2f2" }]}>
+                  <Text style={[styles.kpiSmallVal, { color: "#ef4444" }]}>{data.clientBilling.overdueCount}</Text>
+                  <Text style={styles.kpiSmallLbl}>En retard</Text>
+                </View>
+                <View style={[styles.kpiSmall, { backgroundColor: "#fffbeb" }]}>
+                  <Text style={[styles.kpiSmallVal, { color: "#f59e0b" }]}>{data.clientBilling.pendingCount}</Text>
+                  <Text style={styles.kpiSmallLbl}>En attente</Text>
+                </View>
+                <View style={[styles.kpiSmall, { backgroundColor: "#f0fdf4" }]}>
+                  <Text style={[styles.kpiSmallVal, { color: "#22c55e" }]}>{fmtEur(data.clientBilling.totalClientPaid)}</Text>
+                  <Text style={styles.kpiSmallLbl}>Encaissé</Text>
+                </View>
+              </View>
+              <View style={{ gap: 8 }}>
+                {data.clientBilling.recentInvoices.slice(0, 6).map(inv => {
+                  const isOverdue = inv.status !== "payee" && inv.dueDate && new Date(inv.dueDate) < new Date();
+                  const st = isOverdue
+                    ? { label: "En retard", color: "#ef4444" }
+                    : INVOICE_STATUS[inv.status] ?? { label: inv.status, color: "#64748b" };
+                  return (
+                    <View key={inv.id} style={[styles.invoiceRow, { borderColor: isOverdue ? "#fecaca" : colors.border }]}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.invoiceRef, { color: colors.mutedForeground }]}>{inv.reference} · {inv.clientName}</Text>
                         <Text style={[styles.invoiceAmount, { color: colors.foreground }]}>{fmtEur(inv.totalAmount)}</Text>
                         {inv.dueDate && (
                           <Text style={[styles.invoiceDue, { color: colors.mutedForeground }]}>Échéance : {fmtDate(inv.dueDate)}</Text>
                         )}
                       </View>
-                      <View style={{ alignItems: "flex-end", gap: 6 }}>
-                        <View style={[styles.miniPill, { backgroundColor: st.color + "20" }]}>
-                          <Text style={[styles.miniPillText, { color: st.color }]}>{st.label}</Text>
-                        </View>
-                        {isPending && (
-                          <Pressable
-                            onPress={() => sendPaymentReminder(inv.id)}
-                            style={[styles.reminderBtn, { borderColor: "#f59e0b" }]}
-                            disabled={actionLoading === "reminder-" + inv.id}
-                          >
-                            {actionLoading === "reminder-" + inv.id ? (
-                              <ActivityIndicator size="small" color="#f59e0b" />
-                            ) : (
-                              <>
-                                <Feather name="bell" size={11} color="#f59e0b" />
-                                <Text style={{ fontSize: 10, fontFamily: "Inter_600SemiBold", color: "#f59e0b" }}>Relancer</Text>
-                              </>
-                            )}
-                          </Pressable>
-                        )}
+                      <View style={[styles.miniPill, { backgroundColor: st.color + "20" }]}>
+                        <Text style={[styles.miniPillText, { color: st.color }]}>{st.label}</Text>
                       </View>
                     </View>
                   );
@@ -335,18 +425,39 @@ export default function LicenseManagementScreen() {
                 {data.payments.slice(0, 6).map(p => (
                   <View key={p.id} style={[styles.paymentRow, { borderColor: colors.border }]}>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.invoiceRef, { color: colors.mutedForeground }]}>{p.reference ?? "—"}</Text>
+                      <Text style={[styles.invoiceRef, { color: colors.mutedForeground }]}>{p.payerName ?? p.bankRef ?? "—"}</Text>
                       <Text style={[styles.invoiceAmount, { color: "#22c55e" }]}>{fmtEur(p.amount)}</Text>
                     </View>
                     <View style={{ alignItems: "flex-end" }}>
-                      <Text style={[styles.invoiceDue, { color: colors.mutedForeground }]}>{fmtDate(p.paymentDate)}</Text>
-                      {p.method && <Text style={[styles.invoiceDue, { color: colors.mutedForeground }]}>{p.method}</Text>}
+                      <Text style={[styles.invoiceDue, { color: colors.mutedForeground }]}>{fmtDate(p.bankDate)}</Text>
+                      <View style={[styles.miniPill, { backgroundColor: p.status === "matched" ? "#dcfce7" : "#f1f5f9" }]}>
+                        <Text style={[styles.miniPillText, { color: p.status === "matched" ? "#166534" : "#64748b" }]}>{p.status}</Text>
+                      </View>
                     </View>
                   </View>
                 ))}
               </View>
             </View>
           )}
+
+          {/* Organisation details */}
+          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <SectionTitle title="Coordonnées bancaires" icon="briefcase" color="#64748b" />
+            <View style={{ gap: 8 }}>
+              {[
+                { label: "IBAN",  value: data.organisation.bankIban ?? "Non configuré" },
+                { label: "BIC",   value: data.organisation.bankBic ?? "—" },
+                { label: "TVA",   value: data.organisation.tvaNumber ?? "—" },
+                { label: "Fact. auto", value: data.organisation.autoInvoiceEnabled ? "Activée" : "Désactivée" },
+                { label: "Email fact.", value: data.organisation.autoEmailInvoice ? "Activé" : "Désactivé" },
+              ].map(row => (
+                <View key={row.label} style={styles.infoRow}>
+                  <Text style={[styles.infoLabel, { color: colors.mutedForeground }]}>{row.label}</Text>
+                  <Text style={[styles.infoValue, { color: colors.foreground }]}>{row.value}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
         </ScrollView>
       )}
     </View>
@@ -355,7 +466,7 @@ export default function LicenseManagementScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { backgroundColor: "#166534", paddingHorizontal: 16, paddingBottom: 14, gap: 10 },
+  header: { backgroundColor: "#166834", paddingHorizontal: 16, paddingBottom: 14, gap: 10 },
   headerTop: { flexDirection: "row", alignItems: "center", gap: 10 },
   backBtn: { padding: 4 },
   headerTitle: { fontSize: 18, fontFamily: "Inter_700Bold", color: "#fff", flex: 1 },
@@ -366,6 +477,8 @@ const styles = StyleSheet.create({
   loadingBox: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   errorText: { fontSize: 14, fontFamily: "Inter_400Regular" },
   scrollContent: { padding: 12, gap: 12 },
+  alertRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 10, borderRadius: 8, borderWidth: 1 },
+  alertText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular" },
   card: { borderRadius: 12, borderWidth: 1, padding: 14 },
   planBanner: { borderRadius: 10, padding: 12, flexDirection: "row", alignItems: "flex-start", marginBottom: 12 },
   planLabel: { fontSize: 9, fontFamily: "Inter_600SemiBold", letterSpacing: 1 },
@@ -385,5 +498,8 @@ const styles = StyleSheet.create({
   invoiceDue: { fontSize: 11, fontFamily: "Inter_400Regular" },
   miniPill: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
   miniPillText: { fontSize: 10, fontFamily: "Inter_600SemiBold" },
+  kpiSmall: { flex: 1, borderRadius: 8, padding: 8, alignItems: "center" },
+  kpiSmallVal: { fontSize: 14, fontFamily: "Inter_700Bold" },
+  kpiSmallLbl: { fontSize: 9, fontFamily: "Inter_400Regular", color: "#64748b" },
   reminderBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1 },
 });
