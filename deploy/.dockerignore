@@ -16,7 +16,8 @@
 !**/.env.example
 **/*.log
 **/.DS_Store
-attached_assets
+# NOTE: do NOT ignore attached_assets — buro-ajani's vite.config.ts uses
+# the @assets alias to import images/files from this folder at build time.
 artifacts/mockup-sandbox
 artifacts/mobile
 artifacts/tanitim

@@ -16,7 +16,7 @@ async function getAuthClient(userId: number) {
   if (tokens.length === 0) return null;
 
   const redirectUri = process.env.GOOGLE_REDIRECT_URI ||
-    `${process.env.APP_URL || "http://localhost"}/api/google-oauth/callback`;
+    `${process.env.PUBLIC_URL || process.env.APP_URL || "http://localhost"}/api/google-oauth/callback`;
 
   const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
   oauth2Client.setCredentials({

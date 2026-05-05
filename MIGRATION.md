@@ -210,3 +210,19 @@ Sorun yaşarsanız `docker compose logs api` çıktısının son 50 satırını 
 ## Ek: Docker'sız alternatif
 
 Docker kullanmak istemiyorsanız (örneğin paylaşımlı bir sunucuda root erişiminiz yoksa), `deploy/non-docker/` klasöründe **PM2 + nginx + native Postgres** ile aynı kurulumu yapan dosyalar var. Detay için `deploy/non-docker/README.md`'ye bakın. Önerilen yol yine de Docker Compose'tur — taşınabilirlik en yüksek seviyededir.
+
+---
+
+## Replit-spesifik özellikler (sunucuda devre dışı kalır)
+
+Aşağıdaki özellikler Replit platformunun connector altyapısına bağlıdır ve sunucuya taşıdığınızda **otomatik devre dışı** olur (uygulama açılır ama bu özellikler hata verir):
+
+- **Google Workspace Hub** (`/google-workspace` route grubu): Replit Connectors üzerinden Drive/Docs/Sheets/Calendar/Gmail erişimi
+- **Replit Mail entegrasyonu**: Gmail API üzerinden mail gönderme
+
+**Çözüm — sunucuda aynı özellikleri kullanmak için:**
+1. Google Cloud Console'da bir OAuth client oluşturun, redirect URI'yi `https://app.sirketim.fr/api/google-oauth/callback` olarak ayarlayın
+2. `.env`'de `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` doldurun
+3. Mail için `RESEND_API_KEY` (Resend) veya `SMTP_*` (kendi sunucunuz) doldurun — `email.ts` graceful fallback yapar
+
+Bu kurulumla Google OAuth (giriş + Drive backup + Calendar sync + Gmail) tamamen çalışır. Yalnızca "Google Workspace Hub" görsel kontrol paneli sayfası (Replit'in connector listesini gösterir) etkisiz kalır.

@@ -60,6 +60,18 @@ services:
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
       # Public URL (used in email links, OAuth callbacks)
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost}
+      APP_BASE_PATH: ${APP_BASE_PATH:-/buro-ajani}
+      MOBILE_APP_URL: ${MOBILE_APP_URL:-}
+      # Ek güvenlik anahtarları (boşsa SESSION_SECRET'a düşer)
+      DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:-}
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      # SMTP fallback (Gmail/Resend yoksa)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-noreply@agentdebureau.fr}
 
   web:
     build:

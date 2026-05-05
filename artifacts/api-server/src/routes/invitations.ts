@@ -15,9 +15,10 @@ function generateSecureToken(): string {
 }
 
 function getAppUrl(): string {
-  const base = process.env.REPLIT_DEPLOYMENT_URL
-    || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
+  const base = process.env.PUBLIC_URL
     || process.env.APP_URL
+    || process.env.REPLIT_DEPLOYMENT_URL
+    || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
     || "https://agentdebureau.fr";
   const appPath = process.env.APP_BASE_PATH || "/buro-ajani";
   return `${base}${appPath}`;

@@ -731,7 +731,9 @@ router.post("/auth/forgot-password", resetLimiter, async (req: Request, res: Res
       updatedAt: new Date(),
     }).where(eq(usersTable.id, user.id));
 
-    const appUrl = process.env.REPLIT_DEPLOYMENT_URL
+    const appUrl = process.env.PUBLIC_URL
+      || process.env.APP_URL
+      || process.env.REPLIT_DEPLOYMENT_URL
       || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
       || "https://agentdebureau.fr";
     const appBase = process.env.APP_BASE_PATH || "/buro-ajani";

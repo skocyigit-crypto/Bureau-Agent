@@ -14,9 +14,11 @@ function getOAuth2Client() {
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   if (!clientId || !clientSecret) return null;
 
-  const protocol = "https";
-  const domain = process.env.REPLIT_DEV_DOMAIN || process.env.REPL_SLUG + ".repl.co";
-  const redirectUri = `${protocol}://${domain}/api/google-oauth/callback`;
+  const publicBase = process.env.PUBLIC_URL || process.env.APP_URL;
+  const replitDomain = process.env.REPLIT_DEV_DOMAIN || (process.env.REPL_SLUG ? `${process.env.REPL_SLUG}.repl.co` : null);
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI
+    || (publicBase ? `${publicBase.replace(/\/$/, "")}/api/google-oauth/callback` : null)
+    || (replitDomain ? `https://${replitDomain}/api/google-oauth/callback` : "http://localhost/api/google-oauth/callback");
 
   return new google.auth.OAuth2(clientId, clientSecret, redirectUri);
 }
