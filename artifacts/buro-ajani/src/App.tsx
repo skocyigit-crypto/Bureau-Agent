@@ -82,7 +82,7 @@ function LicenseGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!license.loading && !license.allowed) {
-      navigate("/abonnement");
+      navigate("/gestion-licence");
     }
   }, [license.loading, license.allowed, navigate]);
 
@@ -147,7 +147,7 @@ function AppRoutes() {
         <Route path="/organisations" component={OrganisationsPage} />
         <Route path="/parametres" component={SettingsPage} />
         <Route path="/rapport-executif" component={withLicenseGate(ExecutiveReportPage)} />
-        <Route path="/gestion-licence" component={withLicenseGate(LicenseManagementPage)} />
+        <Route path="/gestion-licence" component={LicenseManagementPage} />
         <Route path="/commandant-ia" component={withLicenseGate(CommandantIAPage)} />
         <Route path="/telephonie" component={withLicenseGate(TelephonyPage)} />
         <Route path="/telecharger" component={TelechargerPage} />
