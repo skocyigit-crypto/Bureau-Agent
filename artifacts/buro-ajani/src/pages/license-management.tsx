@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -19,6 +20,8 @@ import {
   Building2, Key, Zap, RefreshCw, Mail, BanknoteIcon, Receipt, AlertCircle as AlertCircleIcon,
   Eye, Calendar, TrendingUp, Lock, Loader2, Plus, Trash2, CheckCircle2,
   DollarSign, Users, Phone, Bell, History, Settings2, Download, BarChart3, Printer,
+  KeyRound, Crown, ArrowUpRight, BookUser, Brain, Package, Check, Activity,
+  ChevronLeft, ChevronRight, Search, X,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -118,17 +121,22 @@ export default function LicenseManagementPage() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="grid grid-cols-6 w-full">
-          <TabsTrigger value="overview" className="text-xs gap-1"><BarChart3 className="h-3 w-3" />Vue d'ensemble</TabsTrigger>
-          <TabsTrigger value="client-invoices" className="text-xs gap-1"><FileText className="h-3 w-3" />Factures clients</TabsTrigger>
+        <TabsList className="grid grid-cols-8 w-full">
+          <TabsTrigger value="overview" className="text-xs gap-1"><BarChart3 className="h-3 w-3" />Tableau</TabsTrigger>
+          <TabsTrigger value="abonnement" className="text-xs gap-1"><KeyRound className="h-3 w-3" />Abonnement</TabsTrigger>
+          <TabsTrigger value="client-invoices" className="text-xs gap-1"><FileText className="h-3 w-3" />Factures</TabsTrigger>
           <TabsTrigger value="payments" className="text-xs gap-1"><CreditCard className="h-3 w-3" />Paiements</TabsTrigger>
           <TabsTrigger value="reminders" className="text-xs gap-1"><Bell className="h-3 w-3" />Rappels</TabsTrigger>
           <TabsTrigger value="settings" className="text-xs gap-1"><Settings2 className="h-3 w-3" />Parametres</TabsTrigger>
-          <TabsTrigger value="audit" className="text-xs gap-1"><History className="h-3 w-3" />Journal</TabsTrigger>
+          <TabsTrigger value="licence-audit" className="text-xs gap-1"><History className="h-3 w-3" />Journal</TabsTrigger>
+          <TabsTrigger value="audit-systeme" className="text-xs gap-1"><Shield className="h-3 w-3" />Audit</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
           <OverviewTab data={data} onRefresh={fetchData} />
+        </TabsContent>
+        <TabsContent value="abonnement">
+          <AbonnementTab />
         </TabsContent>
         <TabsContent value="client-invoices">
           <ClientInvoicesTab data={data} onRefresh={fetchData} />
@@ -142,8 +150,11 @@ export default function LicenseManagementPage() {
         <TabsContent value="settings">
           <BillingSettingsTab data={data} onRefresh={fetchData} />
         </TabsContent>
-        <TabsContent value="audit">
-          <AuditTab />
+        <TabsContent value="licence-audit">
+          <LicenceAuditTab />
+        </TabsContent>
+        <TabsContent value="audit-systeme">
+          <SystemAuditTab />
         </TabsContent>
       </Tabs>
     </div>
@@ -793,7 +804,7 @@ function BillingSettingsTab({ data, onRefresh }: { data: any; onRefresh: () => v
   );
 }
 
-function AuditTab() {
+function LicenceAuditTab() {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -820,7 +831,7 @@ function AuditTab() {
           <CardTitle className="text-sm flex items-center gap-2"><History className="h-4 w-4 text-indigo-500" />Journal d'audit — Licence & Facturation</CardTitle>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="h-80">
+          <ScrollArea className="h-[500px]">
             {logs.length > 0 ? (
               <div className="space-y-1">
                 {logs.map((log: any) => (
@@ -840,6 +851,393 @@ function AuditTab() {
           </ScrollArea>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+const AUDIT_ACTION_COLORS: Record<string, string> = {
+  login: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+  logout: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+  create: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  update: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  delete: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+  view: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
+  export: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300",
+};
+
+const AUDIT_ACTION_LABELS: Record<string, string> = {
+  login: "Connexion", logout: "Deconnexion", create: "Creation",
+  update: "Modification", delete: "Suppression", view: "Consultation", export: "Export",
+};
+
+const AUDIT_RESOURCE_LABELS: Record<string, string> = {
+  auth: "Auth", contact: "Contact", call: "Appel", task: "Tache", message: "Message",
+  stock: "Stock", user: "Utilisateur", settings: "Parametres", calendar: "Calendrier",
+  prospect: "Prospect", devis: "Devis", facture: "Facture", commande: "Commande",
+  checkin: "Pointage", document: "Document", projet: "Projet",
+};
+
+function SystemAuditTab() {
+  const [page, setPage] = useState(1);
+  const [actionFilter, setActionFilter] = useState("all");
+  const [resourceFilter, setResourceFilter] = useState("all");
+  const [userEmailSearch, setUserEmailSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [appliedEmail, setAppliedEmail] = useState("");
+  const [appliedFrom, setAppliedFrom] = useState("");
+  const [appliedTo, setAppliedTo] = useState("");
+
+  const applyFilters = () => { setAppliedEmail(userEmailSearch); setAppliedFrom(dateFrom); setAppliedTo(dateTo); setPage(1); };
+  const clearFilters = () => {
+    setUserEmailSearch(""); setDateFrom(""); setDateTo(""); setAppliedEmail(""); setAppliedFrom(""); setAppliedTo("");
+    setActionFilter("all"); setResourceFilter("all"); setPage(1);
+  };
+
+  const hasActiveFilters = appliedEmail || appliedFrom || appliedTo || actionFilter !== "all" || resourceFilter !== "all";
+
+  const { data: logsData, isLoading } = useQuery({
+    queryKey: ["audit-logs", page, actionFilter, resourceFilter, appliedEmail, appliedFrom, appliedTo],
+    queryFn: async () => {
+      const params = new URLSearchParams({ page: String(page), limit: "30" });
+      if (actionFilter !== "all") params.set("action", actionFilter);
+      if (resourceFilter !== "all") params.set("resource", resourceFilter);
+      if (appliedEmail) params.set("userEmail", appliedEmail);
+      if (appliedFrom) params.set("from", appliedFrom);
+      if (appliedTo) { const to = new Date(appliedTo); to.setHours(23, 59, 59, 999); params.set("to", to.toISOString()); }
+      const res = await fetch(`${API}/api/audit/logs?${params}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Acces refuse");
+      return res.json();
+    },
+  });
+
+  const { data: statsData } = useQuery({
+    queryKey: ["audit-stats"],
+    queryFn: async () => {
+      const res = await fetch(`${API}/api/audit/stats`, { credentials: "include" });
+      if (!res.ok) throw new Error("Erreur");
+      return res.json();
+    },
+  });
+
+  const exportUrl = () => {
+    const params = new URLSearchParams();
+    if (actionFilter !== "all") params.set("action", actionFilter);
+    if (resourceFilter !== "all") params.set("resource", resourceFilter);
+    if (appliedEmail) params.set("userEmail", appliedEmail);
+    if (appliedFrom) params.set("from", appliedFrom);
+    if (appliedTo) { const to = new Date(appliedTo); to.setHours(23, 59, 59, 999); params.set("to", to.toISOString()); }
+    const qs = params.toString();
+    return `${API}/api/audit/export/csv${qs ? "?" + qs : ""}`;
+  };
+
+  return (
+    <div className="mt-4 space-y-4">
+      <div className="grid grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/40">
+              <Activity className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{statsData?.todayTotal || 0}</p>
+              <p className="text-xs text-muted-foreground">Actions aujourd'hui</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/40">
+              <Users className="w-5 h-5 text-green-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{statsData?.activeUsers?.length || 0}</p>
+              <p className="text-xs text-muted-foreground">Utilisateurs actifs</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/40">
+              <AlertTriangle className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{statsData?.actionBreakdown?.find((a: any) => a.action === "delete")?.count || 0}</p>
+              <p className="text-xs text-muted-foreground">Suppressions aujourd'hui</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <CardTitle className="text-base flex items-center gap-2"><Shield className="h-4 w-4 text-indigo-500" />Journal d'audit systeme</CardTitle>
+            <div className="flex items-center gap-2">
+              <a href={exportUrl()} download="journal_audit.csv">
+                <Button variant="outline" size="sm" className="h-8 text-xs gap-1"><Download className="w-3 h-3" />CSV</Button>
+              </a>
+              <Button variant="outline" size="sm" className="h-8" title="Imprimer" onClick={() => window.print()}><Printer className="w-3 h-3" /></Button>
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input value={userEmailSearch} onChange={e => setUserEmailSearch(e.target.value)} onKeyDown={e => { if (e.key === "Enter") applyFilters(); }} placeholder="Rechercher par email..." className="pl-8 h-8 text-xs" />
+            </div>
+            <Select value={actionFilter} onValueChange={v => { setActionFilter(v); setPage(1); }}>
+              <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder="Action" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes les actions</SelectItem>
+                {Object.entries(AUDIT_ACTION_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={resourceFilter} onValueChange={v => { setResourceFilter(v); setPage(1); }}>
+              <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder="Ressource" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes les ressources</SelectItem>
+                {Object.entries(AUDIT_RESOURCE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 pt-1">
+            <div className="flex items-center gap-2 flex-1">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">Du</span>
+              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="h-8 text-xs flex-1" />
+              <span className="text-xs text-muted-foreground whitespace-nowrap">au</span>
+              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="h-8 text-xs flex-1" />
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" className="h-8 text-xs px-3" onClick={applyFilters}><Search className="w-3 h-3 mr-1" />Filtrer</Button>
+              {hasActiveFilters && <Button size="sm" variant="outline" className="h-8 text-xs px-3" onClick={clearFilters}><X className="w-3 h-3 mr-1" />Effacer</Button>}
+            </div>
+          </div>
+          {hasActiveFilters && <p className="text-xs text-blue-600 dark:text-blue-400 pt-1">Filtres actifs — {logsData?.total ?? "..."} resultat(s)</p>}
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">Chargement...</div>
+          ) : !logsData?.logs?.length ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">Aucune activite enregistree</div>
+          ) : (
+            <div className="space-y-1">
+              {logsData.logs.map((log: any) => (
+                <div key={log.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/50 transition-colors">
+                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0">
+                    {(log.userEmail || "?")[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium">{log.userEmail || "Systeme"}</span>
+                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${AUDIT_ACTION_COLORS[log.action] || "bg-gray-100 text-gray-700"}`}>
+                        {AUDIT_ACTION_LABELS[log.action] || log.action}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">{AUDIT_RESOURCE_LABELS[log.resource] || log.resource}</span>
+                      {log.resourceId && <span className="text-xs text-muted-foreground/60">#{log.resourceId}</span>}
+                    </div>
+                    {log.details && typeof log.details === "object" && (
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">{JSON.stringify(log.details).substring(0, 120)}</p>
+                    )}
+                    {log.ipAddress && <p className="text-[10px] text-muted-foreground/50 mt-0.5">{log.ipAddress}</p>}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-xs text-muted-foreground">{new Date(log.createdAt).toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</p>
+                    <p className="text-[10px] text-muted-foreground/60">{new Date(log.createdAt).toLocaleDateString("fr-FR")}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {logsData && logsData.totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4 border-t mt-4">
+              <span className="text-xs text-muted-foreground">Page {logsData.page} sur {logsData.totalPages} ({logsData.total} entrees)</span>
+              <div className="flex gap-1">
+                <Button variant="outline" size="icon" className="h-7 w-7" disabled={page <= 1} onClick={() => setPage(p => p - 1)}><ChevronLeft className="w-4 h-4" /></Button>
+                <Button variant="outline" size="icon" className="h-7 w-7" disabled={page >= logsData.totalPages} onClick={() => setPage(p => p + 1)}><ChevronRight className="w-4 h-4" /></Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function AbonnementTab() {
+  const { toast } = useToast();
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<any>(null);
+  const [upgradeMessage, setUpgradeMessage] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["my-subscription"],
+    queryFn: async () => {
+      const res = await fetch(`${API}/api/my-subscription`, { credentials: "include" });
+      if (!res.ok) throw new Error("Erreur");
+      return res.json();
+    },
+  });
+
+  const sendUpgradeRequest = async () => {
+    if (!selectedPlan) return;
+    setSending(true);
+    try {
+      const res = await fetch(`${API}/api/my-subscription/upgrade-request`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({ targetPlan: selectedPlan.key, message: upgradeMessage }),
+      });
+      const result = await res.json();
+      if (res.ok) {
+        toast({ title: "Demande envoyee", description: result.message });
+        setShowUpgrade(false); setSelectedPlan(null); setUpgradeMessage("");
+      } else throw new Error(result.error || "Erreur");
+    } catch (err: any) {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    }
+    setSending(false);
+  };
+
+  if (isLoading) return <div className="mt-4 flex items-center justify-center h-40"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+  if (!data) return <div className="mt-4 text-center text-muted-foreground py-10">Impossible de charger les informations d'abonnement.</div>;
+
+  const { subscription: sub, limits, usage, isActive, plans } = data;
+  const usagePct = (cur: number, max: number) => max > 0 ? Math.min(100, Math.round((cur / max) * 100)) : 0;
+
+  const statusBadge = () => {
+    if (!sub) return <Badge variant="secondary">Aucun</Badge>;
+    if (sub.trialExpired) return <Badge variant="destructive">Essai expire</Badge>;
+    if (sub.status === "cancelled") return <Badge variant="destructive">Annule</Badge>;
+    if (sub.status === "active") return <Badge className="bg-emerald-500 text-white">Actif</Badge>;
+    return <Badge variant="secondary">{sub.status}</Badge>;
+  };
+
+  return (
+    <div className="mt-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">{statusBadge()}</div>
+        <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1"><RefreshCw className="h-3 w-3" />Actualiser</Button>
+      </div>
+
+      {!isActive && (
+        <Card className="border-destructive bg-destructive/5">
+          <CardContent className="p-4 flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+            <p className="text-sm font-medium text-destructive">
+              {sub?.trialExpired ? "Votre periode d'essai est terminee. Veuillez passer a un plan payant pour continuer a utiliser le service."
+                : sub?.status === "cancelled" ? "Votre abonnement a ete annule. Contactez l'administrateur pour le reactiver."
+                : "Votre compte est actuellement inactif."}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-1"><Crown className="h-4 w-4 text-amber-500" /><span className="text-sm text-muted-foreground">Plan actuel</span></div>
+            <p className="text-2xl font-bold">{sub?.planName || "Essai Gratuit"}</p>
+            {sub && Number(sub.price) > 0 && <p className="text-sm text-muted-foreground mt-1">{sub.price} {sub.currency}/{sub.billingCycle === "monthly" ? "mois" : "an"}</p>}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-1"><Clock className="h-4 w-4 text-blue-500" /><span className="text-sm text-muted-foreground">{sub?.plan === "essai" ? "Jours d'essai restants" : "Prochaine echeance"}</span></div>
+            <p className="text-2xl font-bold">{sub?.plan === "essai" ? (sub.daysRemaining !== null ? `${sub.daysRemaining} jours` : "—") : (sub?.periodDaysRemaining !== null ? `${sub?.periodDaysRemaining} jours` : "—")}</p>
+            {sub?.trialEndsAt && sub.plan === "essai" && <p className="text-xs text-muted-foreground mt-1">Expire le {new Date(sub.trialEndsAt).toLocaleDateString("fr-FR")}</p>}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-1"><Shield className="h-4 w-4 text-green-500" /><span className="text-sm text-muted-foreground">Cle de licence</span></div>
+            <p className="text-sm font-mono font-medium break-all select-all">{sub?.licenseKey || "—"}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Utilisation actuelle</CardTitle>
+          <CardDescription className="text-xs">Consommation par rapport aux limites de votre plan</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {[
+            { label: "Utilisateurs", current: usage.users, max: limits.maxUsers, icon: Users, color: "text-blue-500" },
+            { label: "Contacts", current: usage.contacts, max: limits.maxContacts, icon: BookUser, color: "text-green-500" },
+            { label: "Appels ce mois", current: usage.calls, max: limits.maxCallsPerMonth, icon: Phone, color: "text-purple-500" },
+          ].map(item => (
+            <div key={item.label}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2"><item.icon className={`h-4 w-4 ${item.color}`} /><span className="text-sm font-medium">{item.label}</span></div>
+                <span className="text-sm text-muted-foreground">{item.current} / {item.max}</span>
+              </div>
+              <Progress value={usagePct(item.current, item.max)} className={`h-2 ${usagePct(item.current, item.max) > 90 ? "[&>div]:bg-red-500" : usagePct(item.current, item.max) > 75 ? "[&>div]:bg-amber-500" : ""}`} />
+            </div>
+          ))}
+          <Separator />
+          <div className="grid grid-cols-3 gap-4 text-center">
+            <div className="flex flex-col items-center gap-1">
+              <Brain className={`h-5 w-5 ${limits.aiEnabled ? "text-emerald-500" : "text-muted-foreground"}`} />
+              <span className="text-xs font-medium">{limits.aiEnabled ? "IA Active" : "IA Inactive"}</span>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <Package className={`h-5 w-5 ${limits.stockEnabled ? "text-emerald-500" : "text-muted-foreground"}`} />
+              <span className="text-xs font-medium">{limits.stockEnabled ? "Stock Actif" : "Stock Inactif"}</span>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <Zap className={`h-5 w-5 ${limits.automationEnabled ? "text-emerald-500" : "text-muted-foreground"}`} />
+              <span className="text-xs font-medium">{limits.automationEnabled ? "Auto. Active" : "Auto. Inactive"}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Plans disponibles</CardTitle>
+          <CardDescription className="text-xs">Comparez les plans et demandez un changement</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {plans?.map((plan: any) => (
+              <div key={plan.key} className={`border rounded-lg p-4 relative ${plan.isCurrent ? "border-primary ring-2 ring-primary/20" : "border-border"}`}>
+                {plan.isCurrent && <Badge className="absolute -top-2 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[10px]">Plan actuel</Badge>}
+                <h3 className="font-bold text-base mt-2">{plan.name}</h3>
+                <p className="text-xl font-bold mt-1">{plan.price === 0 ? "Gratuit" : `${plan.price}€`}{plan.price > 0 && <span className="text-xs font-normal text-muted-foreground">/mois</span>}</p>
+                <ul className="mt-3 space-y-1.5 text-xs">
+                  <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" />{plan.maxUsers} utilisateurs</li>
+                  <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" />{plan.maxContacts.toLocaleString()} contacts</li>
+                  <li className="flex items-center gap-1.5"><Check className="h-3 w-3 text-emerald-500" />{plan.maxCallsPerMonth.toLocaleString()} appels/mois</li>
+                  <li className={`flex items-center gap-1.5 ${!plan.aiEnabled ? "text-muted-foreground" : ""}`}>{plan.aiEnabled ? <Check className="h-3 w-3 text-emerald-500" /> : <span className="w-3 text-center">—</span>}Intelligence Artificielle</li>
+                  <li className={`flex items-center gap-1.5 ${!plan.stockEnabled ? "text-muted-foreground" : ""}`}>{plan.stockEnabled ? <Check className="h-3 w-3 text-emerald-500" /> : <span className="w-3 text-center">—</span>}Gestion de stock</li>
+                  <li className={`flex items-center gap-1.5 ${!plan.automationEnabled ? "text-muted-foreground" : ""}`}>{plan.automationEnabled ? <Check className="h-3 w-3 text-emerald-500" /> : <span className="w-3 text-center">—</span>}Automatisations</li>
+                </ul>
+                {!plan.isCurrent && (
+                  <Button size="sm" className="w-full mt-3 text-xs" variant={plan.price > (Number(sub?.price) || 0) ? "default" : "outline"} onClick={() => { setSelectedPlan(plan); setShowUpgrade(true); }}>
+                    <ArrowUpRight className="h-3 w-3 mr-1" />{plan.price > (Number(sub?.price) || 0) ? "Passer a ce plan" : "Changer de plan"}
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={showUpgrade} onOpenChange={setShowUpgrade}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Demande de changement de plan</DialogTitle>
+            <DialogDescription>
+              Vous souhaitez passer au plan <strong>{selectedPlan?.name}</strong> ({selectedPlan?.price === 0 ? "Gratuit" : `${selectedPlan?.price}€/mois`}). Un administrateur examinera votre demande.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea placeholder="Message optionnel pour l'administrateur..." value={upgradeMessage} onChange={e => setUpgradeMessage(e.target.value)} rows={3} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowUpgrade(false)}>Annuler</Button>
+            <Button onClick={sendUpgradeRequest} disabled={sending}>{sending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Envoyer la demande</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

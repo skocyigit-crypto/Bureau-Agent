@@ -135,7 +135,7 @@ function AppRoutes() {
         <Route path="/pointage" component={withLicenseGate(CheckinsPage)} />
         <Route path="/agents-ia" component={withLicenseGate(AiAgentsPage)} />
         <Route path="/calendrier" component={withLicenseGate(CalendarPage)} />
-        <Route path="/audit" component={withLicenseGate(AuditLogPage)} />
+        <Route path="/audit" component={() => { const [, nav] = useLocation(); useEffect(() => nav("/gestion-licence"), []); return null; }} />
         <Route path="/automatisations" component={withLicenseGate(AutomationsPage)} />
         <Route path="/performance" component={withLicenseGate(PerformancePage)} />
         <Route path="/google-workspace" component={withLicenseGate(GoogleWorkspacePage)} />
@@ -143,7 +143,7 @@ function AppRoutes() {
         <Route path="/document-ia" component={withLicenseGate(DocumentAiPage)} />
         <Route path="/documents" component={withLicenseGate(DocumentsPage)} />
         <Route path="/import" component={withLicenseGate(DocumentImportPage)} />
-        <Route path="/abonnement" component={AbonnementPage} />
+        <Route path="/abonnement" component={() => { const [, nav] = useLocation(); useEffect(() => nav("/gestion-licence"), []); return null; }} />
         <Route path="/organisations" component={OrganisationsPage} />
         <Route path="/parametres" component={SettingsPage} />
         <Route path="/rapport-executif" component={withLicenseGate(ExecutiveReportPage)} />
