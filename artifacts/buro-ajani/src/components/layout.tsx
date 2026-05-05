@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Phone, Users, CheckSquare, MessageSquare, BarChart, LayoutDashboard, Settings, FileText, Puzzle, UserCog, Clock, Brain, Calendar, Shield, Zap, BarChart3, KeyRound, Globe, ScanSearch, Sparkles, PhoneCall, Download, Plus, PhoneIncoming, Wifi, WifiOff, Smartphone, Monitor, Tablet, Rocket, Mail, TrendingUp, StickyNote, Activity, FolderKanban } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, BarChart, LayoutDashboard, Settings, FileText, Puzzle, UserCog, Clock, Brain, Calendar, Shield, Zap, BarChart3, KeyRound, Globe, ScanSearch, Sparkles, PhoneCall, Download, Plus, PhoneIncoming, Wifi, WifiOff, Smartphone, Monitor, Tablet, Rocket, Mail, StickyNote, Activity } from "lucide-react";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { SidebarIcon3D, Icon3D } from "@/components/icon-3d";
 import { AiAssistantButton } from "@/components/ai-assistant";
@@ -109,8 +109,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         label: "Vue d'ensemble",
         items: [
           { name: "Tableau de bord", href: "/", icon: LayoutDashboard },
-          { name: "Analyse", href: "/analyse", icon: BarChart },
-          { name: "Performance", href: "/performance", icon: BarChart3 },
+          { name: "Statistiques", href: "/analyse", icon: BarChart },
+          { name: "Performance équipe", href: "/performance", icon: BarChart3 },
           { name: "Activité récente", href: "/activite-recente", icon: Activity },
         ],
       },
@@ -145,7 +145,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         items: [
           { name: "Documents", href: "/documents", icon: FileText },
           { name: "Rapports", href: "/rapports", icon: FileText },
-          { name: "Rapport Exécutif", href: "/rapport-executif", icon: BarChart3 },
         ],
       },
       {

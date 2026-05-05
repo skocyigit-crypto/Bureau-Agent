@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useGenerateDailyReport, useListDailyReports, useGetActivitySummary, useDeleteDailyReport, getListDailyReportsQueryKey, getGetActivitySummaryQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
+import ExecutiveReport from "@/components/executive-report";
 
 type Metrics = {
   calls?: { total?: number; answered?: number; missed?: number; avgDuration?: number; inbound?: number; outbound?: number; answerRate?: number; sentiment?: { tres_positif?: number; positif?: number; negatif?: number; tres_negatif?: number; neutre?: number } };
@@ -322,6 +323,7 @@ export default function Reports() {
           <TabsTrigger value="historique">
             Historique ({reports.length})
           </TabsTrigger>
+          <TabsTrigger value="executif">Synthèse exécutive</TabsTrigger>
         </TabsList>
 
         <TabsContent value="generer" className="space-y-4 mt-4">
@@ -411,6 +413,10 @@ export default function Reports() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="executif" className="mt-4">
+          <ExecutiveReport />
         </TabsContent>
       </Tabs>
 
