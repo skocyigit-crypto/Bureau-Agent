@@ -22,6 +22,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Link } from "wouter";
 import { useWorkspaceUser } from "@/components/workspace-user";
+import { QuickActionHub } from "@/components/quick-action-hub";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -279,6 +280,9 @@ function CommercialSection() {
 export default function Dashboard() {
   const { user } = useWorkspaceUser();
   const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
+  const [quickActionOpen, setQuickActionOpen] = useState(false);
+  const [quickActionTab, setQuickActionTab] = useState<"contact" | "tache" | "appel" | "message" | "evenement" | "projet">("contact");
+  const openQuickAction = (tab: typeof quickActionTab) => { setQuickActionTab(tab); setQuickActionOpen(true); };
   const now = useLiveClock();
   const { team: teamMembers, error: teamError } = useTeamStatus();
   const { isTrial, dismissed, dismiss } = useTrialStatus();
@@ -569,24 +573,27 @@ export default function Dashboard() {
           <CardContent>
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
               {[
-                { label: "Nouveau contact", href: "/contacts", icon: Users, color: "text-indigo-500 bg-indigo-50 dark:bg-indigo-950/30" },
-                { label: "Importer contacts", href: "/contacts/import", icon: Upload, color: "text-blue-500 bg-blue-50 dark:bg-blue-950/30" },
-                { label: "Nouveau devis", href: "/devis", icon: FileText, color: "text-sky-500 bg-sky-50 dark:bg-sky-950/30" },
-                { label: "Nouvelle facture", href: "/factures-client", icon: Receipt, color: "text-emerald-500 bg-emerald-50 dark:bg-emerald-950/30" },
-                { label: "Nouveau prospect", href: "/prospects", icon: TrendingUp, color: "text-amber-500 bg-amber-50 dark:bg-amber-950/30" },
-                { label: "Ajout stock", href: "/stock", icon: Package, color: "text-slate-500 bg-slate-50 dark:bg-slate-950/30" },
-                { label: "Activité récente", href: "/activite-recente", icon: Activity, color: "text-violet-500 bg-violet-50 dark:bg-violet-950/30" },
-                { label: "Notes internes", href: "/notes-internes", icon: StickyNote, color: "text-yellow-500 bg-yellow-50 dark:bg-yellow-950/30" },
-              ].map(item => (
-                <Link key={item.href} href={item.href}>
+                { key: "contact", label: "Nouveau contact", href: "/contacts", icon: Users, color: "text-indigo-500 bg-indigo-50 dark:bg-indigo-950/30" },
+                { key: "appel", label: "Nouvel appel", action: () => openQuickAction("appel"), icon: Phone, color: "text-sky-500 bg-sky-50 dark:bg-sky-950/30" },
+                { key: "tache", label: "Nouvelle tâche", action: () => openQuickAction("tache"), icon: CheckSquare, color: "text-emerald-500 bg-emerald-50 dark:bg-emerald-950/30" },
+                { key: "message", label: "Nouveau message", action: () => openQuickAction("message"), icon: MessageSquare, color: "text-amber-500 bg-amber-50 dark:bg-amber-950/30" },
+                { key: "evenement", label: "Nouveau RDV", action: () => openQuickAction("evenement"), icon: Clock, color: "text-rose-500 bg-rose-50 dark:bg-rose-950/30" },
+                { key: "import", label: "Importer contacts", href: "/contacts/import", icon: Upload, color: "text-blue-500 bg-blue-50 dark:bg-blue-950/30" },
+                { key: "activite", label: "Activité récente", href: "/activite-recente", icon: Activity, color: "text-violet-500 bg-violet-50 dark:bg-violet-950/30" },
+                { key: "notes", label: "Notes internes", href: "/notes-internes", icon: StickyNote, color: "text-yellow-500 bg-yellow-50 dark:bg-yellow-950/30" },
+              ].map(item => {
+                const Inner = (
                   <div className={`flex flex-col items-center gap-2 p-3 rounded-xl hover:opacity-80 transition-all cursor-pointer ${item.color.split(" ").slice(1).join(" ")}`}>
                     <div className={`p-2 rounded-lg ${item.color.split(" ")[0]}`}>
                       <item.icon className={`w-4 h-4 ${item.color.split(" ")[0]}`} />
                     </div>
                     <span className="text-xs font-medium text-center leading-tight">{item.label}</span>
                   </div>
-                </Link>
-              ))}
+                );
+                return item.href
+                  ? <Link key={item.key} href={item.href}>{Inner}</Link>
+                  : <button key={item.key} type="button" onClick={item.action} className="text-left">{Inner}</button>;
+              })}
             </div>
           </CardContent>
         </Card>
@@ -858,6 +865,12 @@ export default function Dashboard() {
       <EmailComposer
         isOpen={isEmailComposerOpen}
         onClose={() => setIsEmailComposerOpen(false)}
+      />
+
+      <QuickActionHub
+        open={quickActionOpen}
+        onOpenChange={setQuickActionOpen}
+        defaultTab={quickActionTab}
       />
     </div>
   );
