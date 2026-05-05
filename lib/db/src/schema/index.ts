@@ -1,5 +1,6 @@
 export * from "./organisations";
 export * from "./subscriptions";
+export * from "./stripe-webhook-events";
 export * from "./contacts";
 export * from "./calls";
 export * from "./tasks";

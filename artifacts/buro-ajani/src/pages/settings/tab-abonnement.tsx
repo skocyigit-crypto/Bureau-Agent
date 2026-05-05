@@ -40,6 +40,9 @@ export function TabAbonnement() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [invoicesLoading, setInvoicesLoading] = useState(false);
   const [showAllInvoices, setShowAllInvoices] = useState(false);
+  const [stripeStatus, setStripeStatus] = useState<{ configured: boolean; prices: Record<string, boolean> } | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   useEffect(() => {
     const loadSubscription = async () => {
@@ -87,9 +90,33 @@ export function TabAbonnement() {
     loadInvoices();
   }, []);
 
+  useEffect(() => {
+    fetch(`${BASE}/api/stripe/status`, { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setStripeStatus(d); })
+      .catch(() => {});
+  }, []);
+
   const handleUpgrade = async (planId: string) => {
     setUpgrading(true);
     try {
+      // If Stripe configured + price exists for this plan -> Stripe Checkout
+      if (stripeStatus?.configured && stripeStatus.prices?.[planId]) {
+        const res = await fetch(`${BASE}/api/stripe/create-checkout-session`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ plan: planId }),
+        });
+        const data = await res.json();
+        if (res.ok && data.url) {
+          window.location.href = data.url;
+          return;
+        }
+        toast({ title: "Erreur", description: data.error || "Paiement indisponible", variant: "destructive" });
+        return;
+      }
+      // Fallback: legacy upgrade request (admin manual processing)
       const res = await fetch(`${BASE}/api/my-subscription/upgrade-request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -107,6 +134,53 @@ export function TabAbonnement() {
       toast({ title: "Erreur", description: "Impossible d'envoyer la demande.", variant: "destructive" });
     } finally {
       setUpgrading(false);
+    }
+  };
+
+  const handleOpenPortal = async () => {
+    setPortalLoading(true);
+    try {
+      const res = await fetch(`${BASE}/api/stripe/create-portal-session`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        window.location.href = data.url;
+      } else {
+        toast({ title: "Erreur", description: data.error || "Portail indisponible", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Impossible d'ouvrir le portail.", variant: "destructive" });
+    } finally {
+      setPortalLoading(false);
+    }
+  };
+
+  const handleCancel = async (immediate: boolean) => {
+    const msg = immediate
+      ? "Annuler immediatement ? Vous perdrez l'acces aux fonctionnalites payantes maintenant."
+      : "Annuler a la fin de la periode ? Votre abonnement reste actif jusqu'a la fin du cycle facture.";
+    if (!window.confirm(msg)) return;
+    setCancelLoading(true);
+    try {
+      const res = await fetch(`${BASE}/api/stripe/cancel-subscription`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ immediate }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast({ title: "Abonnement annule", description: data.message });
+        window.location.reload();
+      } else {
+        toast({ title: "Erreur", description: data.error, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Annulation echouee.", variant: "destructive" });
+    } finally {
+      setCancelLoading(false);
     }
   };
 
@@ -182,6 +256,52 @@ export function TabAbonnement() {
                 <span className="text-xs text-muted-foreground">Cle de licence</span>
                 <code className="text-xs font-mono font-bold text-amber-600 select-all">{subscription.licenseKey}</code>
               </div>
+            )}
+            {stripeStatus?.configured && subscription.stripeSubscriptionId && (
+              <div className="flex flex-wrap gap-2 pt-2 border-t">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleOpenPortal}
+                  disabled={portalLoading}
+                  data-testid="button-stripe-portal"
+                >
+                  {portalLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CreditCard className="w-4 h-4 mr-2" />}
+                  Gerer mon abonnement (portail Stripe)
+                </Button>
+                {subscription.cancelledAt ? (
+                  <Badge className="bg-amber-100 text-amber-700 border-0 self-center">
+                    Annulation prevue le {new Date(subscription.cancelledAt).toLocaleDateString("fr-FR")}
+                  </Badge>
+                ) : (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCancel(false)}
+                      disabled={cancelLoading}
+                      data-testid="button-cancel-period-end"
+                    >
+                      Annuler en fin de periode
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleCancel(true)}
+                      disabled={cancelLoading}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      data-testid="button-cancel-immediate"
+                    >
+                      Annuler immediatement
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
+            {stripeStatus && !stripeStatus.configured && (
+              <p className="text-xs text-muted-foreground italic pt-2 border-t">
+                Paiements en ligne non actives sur cette installation. Contactez l'administrateur pour changer de plan.
+              </p>
             )}
           </CardContent>
         </Card>

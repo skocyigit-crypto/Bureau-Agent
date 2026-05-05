@@ -60,6 +60,7 @@ import workforceAgentRouter from "./workforce-agent";
 import syncRouter from "./sync";
 import { autoBroadcast } from "../middleware/auto-broadcast";
 import discoveryRouter from "./discovery";
+import stripeRouter from "./stripe";
 
 const router: IRouter = Router();
 
@@ -78,6 +79,7 @@ router.use(requireAuth);
 router.use(requireTenant);
 
 router.use(mySubscriptionRouter);
+router.use(stripeRouter);
 router.use(licenseCheck);
 
 router.use(autoBroadcast);

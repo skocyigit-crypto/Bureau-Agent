@@ -207,6 +207,66 @@ Sorun yaşarsanız `docker compose logs api` çıktısının son 50 satırını 
 
 ---
 
+## Stripe abonelik kurulumu (SaaS modeli için)
+
+Müşterileriniz aylık ödeme yapacaksa Stripe entegrasyonu hazırdır — sadece anahtarları girmeniz yeterli.
+
+### Adım 1 — Stripe hesabı açın
+https://dashboard.stripe.com/register → e-posta + şifre → işletme bilgilerinizi doldurun.
+**Önce test mode** ile çalışın (sol üst "Test mode" toggle'ı açık olsun).
+
+### Adım 2 — 3 ürün oluşturun
+Dashboard → **Products** → "+ Add product":
+- **Starter**: 29€/ay, recurring monthly, EUR
+- **Professionnel**: 79€/ay, recurring monthly, EUR
+- **Entreprise**: 199€/ay, recurring monthly, EUR
+
+Her ürünü kaydettikten sonra **Pricing** bölümündeki `price_xxx...` ID'sini kopyalayın.
+
+### Adım 3 — Webhook endpoint ekleyin
+Dashboard → **Developers → Webhooks** → "+ Add endpoint":
+- **Endpoint URL:** `https://<your-domain>/api/stripe/webhook`
+- **Events to listen:**
+  - `checkout.session.completed`
+  - `customer.subscription.created`
+  - `customer.subscription.updated`
+  - `customer.subscription.deleted`
+  - `invoice.paid`
+  - `invoice.payment_failed`
+- Kaydet → "Signing secret" (`whsec_xxx...`) ortaya çıkar, kopyalayın.
+
+### Adım 4 — `.env`'ye yapıştırın
+```
+STRIPE_SECRET_KEY=sk_test_xxx     # veya sk_live_xxx canlıya geçince
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+STRIPE_PRICE_STARTER=price_xxx
+STRIPE_PRICE_PROFESSIONNEL=price_xxx
+STRIPE_PRICE_ENTREPRISE=price_xxx
+```
+
+### Adım 5 — Yeniden başlatın
+```bash
+docker compose up -d --force-recreate api
+```
+
+Müşteri arayüzde "Plans disponibles → Starter" butonuna tıklayınca otomatik Stripe Checkout sayfasına yönlenir, kart girer, döner. Webhook abonelik durumunu DB'ye yansıtır.
+
+### Customer Portal (kart değiştirme + iptal)
+Dashboard → **Settings → Customer portal → Activate** (Stripe'ın hazır panelini etkinleştirir). Müşteri "Gérer mon abonnement" butonuyla buraya yönlenir; kart günceller, fatura geçmişini görür, kendisi iptal edebilir.
+
+### Otomatik fatura cron
+API başlangıçta `billing-cron` servisi otomatik çalışır. Her ayın 1'inde 02:00 UTC'de geçen ay için iç fatura kaydı üretir (`invoices` tablosu). Stripe'ın faturalandırması zaten paralel çalışır — bu cron sadece dahili kullanım/üst kullanım faturaları içindir.
+
+### Canlıya geçiş
+Test mode'da her şey çalışınca:
+1. Stripe dashboard sol üst → **Test mode** toggle'ını kapat (live'a geç)
+2. Aynı 3 ürünü live mode'da yeniden oluştur (price ID'ler farklı olacak)
+3. Aynı webhook endpoint'i live mode'da yeniden oluştur (yeni signing secret)
+4. `.env`'deki tüm `STRIPE_*` değerleri `sk_live_*`/`price_*`/`whsec_*` ile değiştir
+5. `docker compose up -d --force-recreate api`
+
+---
+
 ## Ek: Docker'sız alternatif
 
 Docker kullanmak istemiyorsanız (örneğin paylaşımlı bir sunucuda root erişiminiz yoksa), `deploy/non-docker/` klasöründe **PM2 + nginx + native Postgres** ile aynı kurulumu yapan dosyalar var. Detay için `deploy/non-docker/README.md`'ye bakın. Önerilen yol yine de Docker Compose'tur — taşınabilirlik en yüksek seviyededir.

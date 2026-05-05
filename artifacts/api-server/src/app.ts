@@ -102,6 +102,10 @@ const strictLimiter = rateLimit({
   validate: { xForwardedForHeader: false, ip: false },
 });
 
+// Stripe webhook needs RAW body (signature verification) — must come BEFORE express.json
+import { stripeWebhookRouter } from "./routes/stripe";
+app.use(stripeWebhookRouter);
+
 app.use("/api/document-ai", express.json({ limit: "15mb" }));
 app.use("/api/documents", express.json({ limit: "40mb" }));
 app.use(express.json({ limit: "1mb" }));
