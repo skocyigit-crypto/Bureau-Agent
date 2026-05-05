@@ -157,22 +157,13 @@ export default function MoreScreen() {
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>CRM & COMMERCIAL</Text>
-          <MenuItem icon="users" label="Clients" sublabel="Fiches clients, devis et factures" color="#0ea5e9" onPress={() => nav("/clients")} />
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>CRM & AGENTS</Text>
           <MenuItem icon="trending-up" label="Prospects" sublabel="Pipeline de vente et opportunités" color="#8b5cf6" onPress={() => nav("/prospects")} />
-          <MenuItem icon="file-text" label="Devis" sublabel="Devis et propositions commerciales" color="#22c55e" onPress={() => nav("/devis")} />
-          <MenuItem icon="file" label="Factures" sublabel="Factures et suivi des paiements" color="#0891b2" onPress={() => nav("/factures")} />
-          <MenuItem icon="file-text" label="Factures clients" sublabel="Gestion complete CRUD factures" color="#0f766e" onPress={() => nav("/factures-client")} />
-          <MenuItem icon="alert-circle" label="Relances" sublabel="Factures en retard de paiement" color="#ef4444" onPress={() => nav("/relances")} />
           <MenuItem icon="edit-2" label="Notes internes" sublabel="Mémos colorés et mémorisation" color="#f59e0b" onPress={() => nav("/notes-internes")} />
-          <MenuItem icon="target" label="Objectifs" sublabel="Objectifs commerciaux et suivi" color="#0d9488" onPress={() => nav("/objectifs-commerciaux")} />
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>INVENTAIRE & DOCS</Text>
-          <MenuItem icon="package" label="Stock" sublabel="Gestion des articles et inventaire" color="#7c3aed" onPress={() => nav("/stock")} />
-          <MenuItem icon="shopping-cart" label="Commandes Fournisseur" sublabel="Bons de commande et suivi livraisons" color="#b45309" onPress={() => nav("/commandes-fournisseur")} />
-          <MenuItem icon="activity" label="Mouvements de Stock" sublabel="Historique entrées et sorties" color="#7c3aed" onPress={() => nav("/stock-mouvements")} />
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>DOCUMENTS</Text>
           <MenuItem icon="folder" label="Documents" sublabel="Fichiers, contrats et pièces jointes" color="#0f766e" onPress={() => nav("/documents")} />
           <MenuItem icon="upload" label="Importer des Documents" sublabel="Upload PDF, images, Word, Excel" color="#0f766e" onPress={() => nav("/document-import")} />
         </View>
@@ -182,7 +173,6 @@ export default function MoreScreen() {
           <MenuItem icon="sun" label="Mon Bilan du Jour" sublabel="Resume IA de votre journee + recommandations" color="#f59e0b" onPress={() => nav("/daily-digest")} />
           <MenuItem icon="cpu" label="Agent IA Equipe" sublabel="Ajan IA otonom · 4 phases Gemini · Auto-apprentissage" color="#7c3aed" onPress={() => nav("/workforce-agent")} />
           <MenuItem icon="users" label="Intelligence Equipe" sublabel="Suivi IA continu de tous les collaborateurs" color="#6366f1" onPress={() => nav("/workforce-intelligence")} />
-          <MenuItem icon="trending-up" label="Rapport Commercial" sublabel="Vue consolidée CA, devis, factures" color="#1d4ed8" onPress={() => nav("/rapport-commercial")} />
           <MenuItem icon="bar-chart-2" label="Performance Équipe" sublabel="Métriques et rapport IA par employé" color="#0f4c81" onPress={() => nav("/performance")} />
           <MenuItem icon="award" label="Rapport Exécutif" sublabel="Score global + insights IA opérationnels" color="#1e293b" onPress={() => nav("/rapport-executif")} />
           <MenuItem icon="file-text" label="Rapports & Tickets" sublabel="Signalements et demandes d'assistance" color="#7c3aed" onPress={() => nav("/reports")} />

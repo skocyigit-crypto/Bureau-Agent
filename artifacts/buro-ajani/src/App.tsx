@@ -55,21 +55,9 @@ import { QuickActionHub } from "@/components/quick-action-hub";
 import InvitationAcceptPage from "@/pages/invitation-accept";
 import OnboardingPage from "@/pages/onboarding";
 import ProspectsPage from "@/pages/prospects";
-import StockPage from "@/pages/stock";
-import DevisPage from "@/pages/devis";
-import FacturesClientPage from "@/pages/factures-client";
-import DevisPrintPage from "@/pages/devis-print";
-import FacturePrintPage from "@/pages/facture-print";
-import RapportCommercialPage from "@/pages/rapport-commercial";
-import CommandesFournisseurPage from "@/pages/commandes-fournisseur";
-import BcPrintPage from "@/pages/bc-print";
-import RelancesPage from "@/pages/relances";
-import ClientsPage from "@/pages/clients";
-import ObjectifsCommerciauxPage from "@/pages/objectifs-commerciaux";
 import NotesInternesPage from "@/pages/notes-internes";
 import ContactsImportPage from "@/pages/contacts-import";
 import ActiviteRecentePage from "@/pages/activite-recente";
-import StockMouvementsPage from "@/pages/stock-mouvements";
 import ProjetsPage from "@/pages/projets";
 
 const queryClient = new QueryClient({
@@ -165,21 +153,9 @@ function AppRoutes() {
         <Route path="/notifications" component={NotificationsPage} />
         <Route path="/onboarding" component={() => <OnboardingPage />} />
         <Route path="/prospects" component={withLicenseGate(ProspectsPage)} />
-        <Route path="/stock" component={withLicenseGate(StockPage)} />
-        <Route path="/devis" component={withLicenseGate(DevisPage)} />
-        <Route path="/devis/:id/apercu" component={DevisPrintPage} />
-        <Route path="/factures-client" component={withLicenseGate(FacturesClientPage)} />
-        <Route path="/factures-client/:id/apercu" component={FacturePrintPage} />
-        <Route path="/rapport-commercial" component={withLicenseGate(RapportCommercialPage)} />
-        <Route path="/commandes-fournisseur" component={withLicenseGate(CommandesFournisseurPage)} />
-        <Route path="/commandes-fournisseur/:id/apercu" component={BcPrintPage} />
-        <Route path="/relances" component={withLicenseGate(RelancesPage)} />
-        <Route path="/clients" component={withLicenseGate(ClientsPage)} />
-        <Route path="/objectifs-commerciaux" component={withLicenseGate(ObjectifsCommerciauxPage)} />
         <Route path="/notes-internes" component={withLicenseGate(NotesInternesPage)} />
         <Route path="/contacts/import" component={withLicenseGate(ContactsImportPage)} />
         <Route path="/activite-recente" component={withLicenseGate(ActiviteRecentePage)} />
-        <Route path="/stock/mouvements" component={withLicenseGate(StockMouvementsPage)} />
         <Route path="/projets" component={withLicenseGate(ProjetsPage)} />
         <Route component={NotFound} />
       </Switch>
