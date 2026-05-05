@@ -174,6 +174,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
         ],
       },
       {
+        label: "Conformité RGPD",
+        items: [
+          { name: "Protection des données", href: "/protection-donnees", icon: Shield },
+        ],
+      },
+      {
         label: "Système",
         items: [
           ...(isAdmin ? [{ name: "Audit", href: "/audit", icon: Shield }] : []),

@@ -56,6 +56,7 @@ import InvitationAcceptPage from "@/pages/invitation-accept";
 import OnboardingPage from "@/pages/onboarding";
 import ProspectsPage from "@/pages/prospects";
 import NotesInternesPage from "@/pages/notes-internes";
+import DataProtectionPage from "@/pages/data-protection";
 import ContactsImportPage from "@/pages/contacts-import";
 import ActiviteRecentePage from "@/pages/activite-recente";
 import ProjetsPage from "@/pages/projets";
@@ -154,6 +155,7 @@ function AppRoutes() {
         <Route path="/onboarding" component={() => <OnboardingPage />} />
         <Route path="/prospects" component={withLicenseGate(ProspectsPage)} />
         <Route path="/notes-internes" component={withLicenseGate(NotesInternesPage)} />
+        <Route path="/protection-donnees" component={withLicenseGate(DataProtectionPage)} />
         <Route path="/contacts/import" component={withLicenseGate(ContactsImportPage)} />
         <Route path="/activite-recente" component={withLicenseGate(ActiviteRecentePage)} />
         <Route path="/projets" component={withLicenseGate(ProjetsPage)} />

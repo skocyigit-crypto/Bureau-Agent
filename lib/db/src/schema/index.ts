@@ -35,3 +35,4 @@ export * from "./ai-usage";
 export * from "./commandes-fournisseur";
 export * from "./objectifs-commerciaux";
 export * from "./notes-internes";
+export * from "./data-subject-requests";
