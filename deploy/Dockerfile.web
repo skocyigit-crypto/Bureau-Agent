@@ -1,0 +1,35 @@
+# syntax=docker/dockerfile:1.7
+# ---------- Build stage ----------
+FROM node:24-bookworm-slim AS builder
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+
+WORKDIR /app
+
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json tsconfig.json ./
+COPY artifacts/buro-ajani/package.json artifacts/buro-ajani/
+COPY lib ./lib
+COPY scripts ./scripts
+
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter @workspace/buro-ajani...
+
+COPY artifacts/buro-ajani ./artifacts/buro-ajani
+COPY attached_assets ./attached_assets
+
+ENV NODE_ENV=production
+ENV BASE_PATH=/
+RUN pnpm --filter @workspace/buro-ajani run build
+
+# ---------- Runtime stage: Caddy fronts static + reverse-proxies /api ----------
+FROM caddy:2-alpine AS runner
+
+# Built SPA assets
+COPY --from=builder /app/artifacts/buro-ajani/dist/public /srv
+
+# Caddy reverse-proxy + SPA fallback config (mounted from compose for easy editing)
+COPY deploy/Caddyfile /etc/caddy/Caddyfile
+
+EXPOSE 80 443

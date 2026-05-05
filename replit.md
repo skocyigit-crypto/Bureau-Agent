@@ -10,6 +10,18 @@ I prefer detailed explanations.
 Do not make changes to the folder `/tanitim/`.
 Do not make changes to the file `pnpm-workspace.yaml`.
 
+# Portable Deployment (off-Replit)
+
+The app is portable beyond Replit. Migration assets live under `deploy/` plus `MIGRATION.md` (Turkish step-by-step guide):
+- `deploy/Dockerfile.api`, `deploy/Dockerfile.web`, `deploy/docker-compose.yml`, `deploy/Caddyfile` — single-command Docker Compose stack (Postgres + API + Caddy reverse proxy with automatic Let's Encrypt TLS).
+- `deploy/.env.example` — full env template (DATABASE_URL, SESSION/JWT secrets, GEMINI/OPENAI/ANTHROPIC keys, Resend, Twilio, Google OAuth).
+- `deploy/scripts/export-from-replit.sh` + `deploy/scripts/restore-on-new-server.sh` — pg_dump/restore helpers.
+- `deploy/non-docker/` — alternative install (PM2 + nginx + native Postgres) for environments without Docker.
+
+The AI integration clients in `lib/integrations-{gemini,openai,anthropic}-ai/src/client.ts` accept either Replit AI proxy env vars (`AI_INTEGRATIONS_*_BASE_URL` / `_API_KEY`) OR direct provider API keys (`GEMINI_API_KEY` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`), so the same code runs both on Replit and self-hosted.
+
+Excluded from portable build: `mockup-sandbox` (Replit canvas tool), `mobile` (Expo dev), `tanitim` (vitrine site) — these stay Replit-side.
+
 # System Architecture
 
 The project is a pnpm workspace monorepo using Node.js 24 and TypeScript 5.9.

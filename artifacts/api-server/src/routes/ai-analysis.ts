@@ -208,15 +208,26 @@ Reponds en JSON avec cette structure exacte:
 });
 
 router.get("/ai/status", (_req, res) => {
-  const hasGemini = !!(process.env.AI_INTEGRATIONS_GEMINI_BASE_URL && process.env.AI_INTEGRATIONS_GEMINI_API_KEY);
-  const hasOpenAI = !!(process.env.AI_INTEGRATIONS_OPENAI_BASE_URL && process.env.AI_INTEGRATIONS_OPENAI_API_KEY);
-  const hasAnthropic = !!(process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL && process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY);
+  // A provider is "available" if EITHER the Replit AI proxy env vars are set,
+  // OR a direct provider API key is set (self-hosted off-Replit).
+  const geminiProxy = !!(process.env.AI_INTEGRATIONS_GEMINI_BASE_URL && process.env.AI_INTEGRATIONS_GEMINI_API_KEY);
+  const geminiDirect = !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY);
+  const hasGemini = geminiProxy || geminiDirect;
+
+  const openaiProxy = !!(process.env.AI_INTEGRATIONS_OPENAI_BASE_URL && process.env.AI_INTEGRATIONS_OPENAI_API_KEY);
+  const openaiDirect = !!process.env.OPENAI_API_KEY;
+  const hasOpenAI = openaiProxy || openaiDirect;
+
+  const anthropicProxy = !!(process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL && process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY);
+  const anthropicDirect = !!process.env.ANTHROPIC_API_KEY;
+  const hasAnthropic = anthropicProxy || anthropicDirect;
+
   res.json({
     available: hasGemini || hasOpenAI || hasAnthropic,
     providers: {
-      gemini: { available: hasGemini, model: "gemini-2.5-pro", role: "Analyse principale" },
-      openai: { available: hasOpenAI, model: "gpt-5.2", role: "Verification et synthese" },
-      anthropic: { available: hasAnthropic, model: "claude-sonnet-4-6", role: "Raisonnement avance" },
+      gemini: { available: hasGemini, model: "gemini-2.5-pro", role: "Analyse principale", source: geminiProxy ? "proxy" : geminiDirect ? "direct" : null },
+      openai: { available: hasOpenAI, model: "gpt-5.2", role: "Verification et synthese", source: openaiProxy ? "proxy" : openaiDirect ? "direct" : null },
+      anthropic: { available: hasAnthropic, model: "claude-sonnet-4-6", role: "Raisonnement avance", source: anthropicProxy ? "proxy" : anthropicDirect ? "direct" : null },
     },
   });
 });
