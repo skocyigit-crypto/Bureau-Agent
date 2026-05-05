@@ -20,6 +20,8 @@ import { QuickActionHub } from "@/components/quick-action-hub";
 import { DataExportPanel } from "@/components/data-export-panel";
 import { useDeviceEnvContext, triggerHaptic } from "@/hooks/use-device-environment";
 import { TrialBanner } from "@/components/trial-banner";
+import { useRealtimeSync } from "@/hooks/use-realtime-sync";
+import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 
 type IncomingCallContextType = { simulateIncomingCall: (phone?: string) => void };
 const IncomingCallContext = createContext<IncomingCallContextType>({ simulateIncomingCall: () => {} });
@@ -66,6 +68,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [exportOpen, setExportOpen] = useState(false);
   const [orgLogo, setOrgLogo] = useState<string | null>(null);
   const [orgName, setOrgName] = useState<string | null>(null);
+  useRealtimeSync();
 
   useEffect(() => {
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
@@ -307,6 +310,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </motion.button>
         <QuickActionHub open={quickActionOpen} onOpenChange={setQuickActionOpen} />
         <DataExportPanel open={exportOpen} onOpenChange={setExportOpen} />
+        <PwaInstallPrompt />
       </div>
     </SidebarProvider>
     </RecognitionProvider>

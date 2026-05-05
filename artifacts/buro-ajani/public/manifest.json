@@ -8,6 +8,29 @@
   "theme_color": "#1a2744",
   "orientation": "any",
   "categories": ["business", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Nouveau appel",
+      "short_name": "Appel",
+      "description": "Enregistrer un appel rapidement",
+      "url": "/appels?new=1",
+      "icons": [{ "src": "/icons/icon-96.svg", "sizes": "96x96" }]
+    },
+    {
+      "name": "Nouvelle tâche",
+      "short_name": "Tâche",
+      "description": "Créer une tâche rapidement",
+      "url": "/taches?new=1",
+      "icons": [{ "src": "/icons/icon-96.svg", "sizes": "96x96" }]
+    },
+    {
+      "name": "Tableau de bord",
+      "short_name": "Dashboard",
+      "description": "Vue d'ensemble",
+      "url": "/",
+      "icons": [{ "src": "/icons/icon-96.svg", "sizes": "96x96" }]
+    }
+  ],
   "lang": "fr",
   "dir": "ltr",
   "icons": [

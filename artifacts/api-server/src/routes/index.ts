@@ -57,6 +57,8 @@ import projetsRouter from "./projets";
 import dailyDigestRouter from "./daily-digest";
 import workforceIntelligenceRouter from "./workforce-intelligence";
 import workforceAgentRouter from "./workforce-agent";
+import syncRouter from "./sync";
+import { autoBroadcast } from "../middleware/auto-broadcast";
 
 const router: IRouter = Router();
 
@@ -69,12 +71,15 @@ router.use(twilioVoiceRouter);
 router.get("/invitations/verify/:token", (req, res, next) => invitationsRouter(req, res, next));
 router.post("/invitations/accept/:token", (req, res, next) => invitationsRouter(req, res, next));
 
+router.use(syncRouter);
+
 router.use(requireAuth);
 router.use(requireTenant);
 
 router.use(mySubscriptionRouter);
 router.use(licenseCheck);
 
+router.use(autoBroadcast);
 router.use(callsRouter);
 router.use(contactsRouter);
 router.use(tasksRouter);
