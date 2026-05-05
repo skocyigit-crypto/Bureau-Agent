@@ -59,6 +59,7 @@ import workforceIntelligenceRouter from "./workforce-intelligence";
 import workforceAgentRouter from "./workforce-agent";
 import syncRouter from "./sync";
 import { autoBroadcast } from "../middleware/auto-broadcast";
+import discoveryRouter from "./discovery";
 
 const router: IRouter = Router();
 
@@ -129,5 +130,6 @@ router.use(projetsRouter);
 router.use(dailyDigestRouter);
 router.use(workforceIntelligenceRouter);
 router.use(workforceAgentRouter);
+router.use(discoveryRouter);
 
 export default router;

@@ -22,6 +22,7 @@ import { useDeviceEnvContext, triggerHaptic } from "@/hooks/use-device-environme
 import { TrialBanner } from "@/components/trial-banner";
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
+import { IntegrationDiscovery } from "@/components/integration-discovery";
 
 type IncomingCallContextType = { simulateIncomingCall: (phone?: string) => void };
 const IncomingCallContext = createContext<IncomingCallContextType>({ simulateIncomingCall: () => {} });
@@ -287,6 +288,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <AiHealthBadge />
               <NotificationBell />
               
+              
               <UserProfileButton />
             </div>
           </header>
@@ -311,6 +313,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <QuickActionHub open={quickActionOpen} onOpenChange={setQuickActionOpen} />
         <DataExportPanel open={exportOpen} onOpenChange={setExportOpen} />
         <PwaInstallPrompt />
+        <IntegrationDiscovery />
       </div>
     </SidebarProvider>
     </RecognitionProvider>
