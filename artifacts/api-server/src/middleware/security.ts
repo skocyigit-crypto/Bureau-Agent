@@ -114,7 +114,7 @@ const THREAT_THRESHOLD = 5;
 const BAN_DURATION_MS = 30 * 60 * 1000;
 const PERMANENT_BAN_THRESHOLD = 15;
 const BURST_WINDOW_MS = 1000;
-const BURST_MAX_REQUESTS = 50;
+const BURST_MAX_REQUESTS = 300;
 
 function getClientIp(req: Request): string {
   return req.ip || req.socket?.remoteAddress || "unknown";
@@ -186,7 +186,6 @@ export function ipProtection(req: Request, res: Response, next: NextFunction): v
   }
 
   if (checkBurstRate(ip)) {
-    recordThreat(ip, "Rafale de requetes suspecte (burst)", req);
     res.status(429).json({ error: "Trop de requetes simultanees detectees." });
     return;
   }
