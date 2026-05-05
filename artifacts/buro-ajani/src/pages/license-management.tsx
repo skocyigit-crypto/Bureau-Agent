@@ -484,17 +484,17 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
             <div>
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Informations client</h4>
               <div className="grid grid-cols-2 gap-3">
-                <div><Label className="text-xs">Nom client *</Label><Input value={newInvoice.clientName} onChange={e => setNewInvoice(p => ({ ...p, clientName: e.target.value }))} placeholder="ACME SARL" /></div>
-                <div><Label className="text-xs">Entreprise</Label><Input value={newInvoice.clientCompany} onChange={e => setNewInvoice(p => ({ ...p, clientCompany: e.target.value }))} placeholder="Nom de la societe" /></div>
-                <div><Label className="text-xs">Email</Label><Input type="email" value={newInvoice.clientEmail} onChange={e => setNewInvoice(p => ({ ...p, clientEmail: e.target.value }))} placeholder="client@exemple.fr" /></div>
-                <div><Label className="text-xs">Telephone</Label><Input value={newInvoice.clientPhone} onChange={e => setNewInvoice(p => ({ ...p, clientPhone: e.target.value }))} placeholder="06 12 34 56 78" /></div>
+                <div className="space-y-1"><Label className="text-xs">Nom client *</Label><Input value={newInvoice.clientName} onChange={e => setNewInvoice(p => ({ ...p, clientName: e.target.value }))} placeholder="ACME SARL" /></div>
+                <div className="space-y-1"><Label className="text-xs">Entreprise</Label><Input value={newInvoice.clientCompany} onChange={e => setNewInvoice(p => ({ ...p, clientCompany: e.target.value }))} placeholder="Nom de la societe" /></div>
+                <div className="space-y-1"><Label className="text-xs">Email</Label><Input type="email" value={newInvoice.clientEmail} onChange={e => setNewInvoice(p => ({ ...p, clientEmail: e.target.value }))} placeholder="client@exemple.fr" /></div>
+                <div className="space-y-1"><Label className="text-xs">Telephone</Label><Input value={newInvoice.clientPhone} onChange={e => setNewInvoice(p => ({ ...p, clientPhone: e.target.value }))} placeholder="06 12 34 56 78" /></div>
               </div>
             </div>
             <div>
               <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Facture</h4>
               <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2"><Label className="text-xs">Titre *</Label><Input value={newInvoice.title} onChange={e => setNewInvoice(p => ({ ...p, title: e.target.value }))} placeholder="Prestation de service — Mai 2026" /></div>
-                <div><Label className="text-xs">Date d'echeance</Label><Input type="date" value={newInvoice.dueDate} onChange={e => setNewInvoice(p => ({ ...p, dueDate: e.target.value }))} /></div>
+                <div className="col-span-2 space-y-1"><Label className="text-xs">Titre *</Label><Input value={newInvoice.title} onChange={e => setNewInvoice(p => ({ ...p, title: e.target.value }))} placeholder="Prestation de service — Mai 2026" /></div>
+                <div className="space-y-1"><Label className="text-xs">Date d'echeance</Label><Input type="date" value={newInvoice.dueDate} onChange={e => setNewInvoice(p => ({ ...p, dueDate: e.target.value }))} /></div>
               </div>
             </div>
             <div>
@@ -527,7 +527,7 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
                 <div className="flex justify-between font-semibold"><span>Total TTC</span><span className="font-mono text-base">{totalTTC.toFixed(2)} EUR</span></div>
               </div>
             </div>
-            <div><Label className="text-xs">Notes internes (optionnel)</Label><Textarea value={newInvoice.notes} onChange={e => setNewInvoice(p => ({ ...p, notes: e.target.value }))} placeholder="Conditions de paiement, mentions..." rows={2} /></div>
+            <div className="space-y-1"><Label className="text-xs">Notes internes (optionnel)</Label><Textarea value={newInvoice.notes} onChange={e => setNewInvoice(p => ({ ...p, notes: e.target.value }))} placeholder="Conditions de paiement, mentions..." rows={2} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Annuler</Button>
@@ -547,8 +547,8 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
           <div className="space-y-3">
             <div className="text-sm"><span className="text-muted-foreground">Facture:</span> <span className="font-semibold">{paymentDialog?.reference}</span> — {paymentDialog?.clientName}</div>
             <div className="text-sm"><span className="text-muted-foreground">Reste a payer:</span> <span className="font-bold text-orange-600">{((paymentDialog?.totalAmount || 0) - (paymentDialog?.paidAmount || 0)).toFixed(2)} EUR</span></div>
-            <div><Label className="text-xs">Montant recu (EUR)</Label><Input type="number" step="0.01" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} placeholder="0.00" /></div>
-            <div><Label className="text-xs">Mode de paiement</Label>
+            <div className="space-y-1"><Label className="text-xs">Montant recu (EUR)</Label><Input type="number" step="0.01" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} placeholder="0.00" /></div>
+            <div className="space-y-1"><Label className="text-xs">Mode de paiement</Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                 <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -579,7 +579,7 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
             <div className="text-sm"><span className="text-muted-foreground">Facture:</span> <span className="font-semibold">{reminderDialog?.reference}</span></div>
             <div className="text-sm"><span className="text-muted-foreground">Client:</span> <span>{reminderDialog?.clientName} ({reminderDialog?.clientEmail})</span></div>
             <div className="text-sm"><span className="text-muted-foreground">Montant restant:</span> <span className="font-bold text-red-600">{((reminderDialog?.totalAmount || 0) - (reminderDialog?.paidAmount || 0)).toFixed(2)} EUR</span></div>
-            <div><Label className="text-xs">Message personnalise (optionnel)</Label><Textarea value={customMessage} onChange={e => setCustomMessage(e.target.value)} placeholder="Ajoutez un message personnalise..." rows={3} /></div>
+            <div className="space-y-1"><Label className="text-xs">Message personnalise (optionnel)</Label><Textarea value={customMessage} onChange={e => setCustomMessage(e.target.value)} placeholder="Ajoutez un message personnalise..." rows={3} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setReminderDialog(null)}>Annuler</Button>
@@ -739,17 +739,24 @@ function BillingSettingsTab({ data, onRefresh }: { data: any; onRefresh: () => v
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs">IBAN {data.organisation?.bankIban && <span className="text-muted-foreground font-normal">(actuel: {data.organisation.bankIban})</span>}</Label>
+              <div className="flex items-center justify-between mb-1">
+                <Label className="text-xs">IBAN</Label>
+                {data.organisation?.bankIban && (
+                  <span className="text-[10px] text-muted-foreground font-mono">{data.organisation.bankIban}</span>
+                )}
+              </div>
               <Input value={bankIban} onChange={e => setBankIban(e.target.value)} placeholder="FR76 1234 5678 9012 3456 7890 123" />
-              <p className="text-[10px] text-muted-foreground mt-1">Laissez vide pour conserver l'IBAN actuel</p>
+              {data.organisation?.bankIban && (
+                <p className="text-[10px] text-muted-foreground mt-1">Laissez vide pour conserver l'IBAN actuel</p>
+              )}
             </div>
-            <div><Label className="text-xs">BIC/SWIFT</Label><Input value={bankBic} onChange={e => setBankBic(e.target.value)} placeholder="BNPAFRPP" /></div>
+            <div className="space-y-1"><Label className="text-xs">BIC/SWIFT</Label><Input value={bankBic} onChange={e => setBankBic(e.target.value)} placeholder="BNPAFRPP" /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div><Label className="text-xs">SIRET</Label><Input value={siret} onChange={e => setSiret(e.target.value)} placeholder="123 456 789 00012" /></div>
-            <div><Label className="text-xs">N° TVA intracommunautaire</Label><Input value={tvaNumber} onChange={e => setTvaNumber(e.target.value)} placeholder="FR 12 123456789" /></div>
+            <div className="space-y-1"><Label className="text-xs">SIRET</Label><Input value={siret} onChange={e => setSiret(e.target.value)} placeholder="123 456 789 00012" /></div>
+            <div className="space-y-1"><Label className="text-xs">N° TVA intracommunautaire</Label><Input value={tvaNumber} onChange={e => setTvaNumber(e.target.value)} placeholder="FR 12 123456789" /></div>
           </div>
-          <div><Label className="text-xs">Mentions legales / pied de facture</Label><Textarea value={invoiceFooter} onChange={e => setInvoiceFooter(e.target.value)} placeholder="Conditions de paiement, mentions legales..." rows={3} /></div>
+          <div className="space-y-1"><Label className="text-xs">Mentions legales / pied de facture</Label><Textarea value={invoiceFooter} onChange={e => setInvoiceFooter(e.target.value)} placeholder="Conditions de paiement, mentions legales..." rows={3} /></div>
         </CardContent>
       </Card>
 
