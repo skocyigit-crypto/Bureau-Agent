@@ -15,7 +15,10 @@ function requireSuperAdmin(req: Request, res: Response, next: () => void): void 
   next();
 }
 
-router.use(requireSuperAdmin);
+// Path-scoped guard: only intercept /billing/* requests. Without a path
+// prefix, router.use(mw) would match every request that reaches this
+// sub-router and block downstream sub-routers in the parent chain.
+router.use("/billing", requireSuperAdmin);
 
 router.get("/billing/invoices", async (req: Request, res: Response): Promise<void> => {
   try {

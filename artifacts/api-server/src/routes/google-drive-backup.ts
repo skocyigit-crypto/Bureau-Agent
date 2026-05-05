@@ -15,7 +15,10 @@ const requireSuperAdmin = (req: Request, res: Response, next: Function) => {
   next();
 };
 
-router.use(requireSuperAdmin);
+// Path-scoped guard: only intercept /google-drive-backup/* requests.
+// Without a path prefix, router.use(mw) would match every request that
+// reaches this sub-router and block downstream sub-routers in the parent.
+router.use("/google-drive-backup", requireSuperAdmin);
 
 router.post("/google-drive-backup/run", async (req: Request, res: Response): Promise<void> => {
   try {

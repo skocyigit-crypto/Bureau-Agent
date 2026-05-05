@@ -15,7 +15,10 @@ const requireSuperAdmin = (req: Request, res: Response, next: Function) => {
   next();
 };
 
-router.use(requireSuperAdmin);
+// Path-scoped guard: only intercept /legal/* requests. Without a path
+// prefix, router.use(mw) would match every request that reaches this
+// sub-router and block downstream sub-routers in the parent chain.
+router.use("/legal", requireSuperAdmin);
 
 router.get("/legal/documents", async (_req: Request, res: Response): Promise<void> => {
   res.json({ documents: LEGAL_DOCUMENTS });

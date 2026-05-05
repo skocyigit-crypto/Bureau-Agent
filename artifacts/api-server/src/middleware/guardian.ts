@@ -280,6 +280,18 @@ function recordRequest(ip: string, path: string): void {
   p.requests = p.requests.filter(t => now - t < 300_000);
 }
 
+// ── Davranışsal anomali eşikleri (ortam bazlı) ────────────────────────────────
+// Production: dar eşikler — kötüye kullanım hızla durdurulsun.
+// Development/test: gevşek eşikler — yoğun e2e/test trafikleri ban yemesin.
+const IS_PROD = process.env.NODE_ENV === "production";
+const ANOMALY_THRESHOLDS = {
+  reqPer10s: IS_PROD ? 50 : 120,
+  reqPer60s: IS_PROD ? 200 : 500,
+  uniquePathsBurst: IS_PROD ? 100 : 200,
+  uniquePathsBurstReq60s: IS_PROD ? 50 : 100,
+  errorBurst: IS_PROD ? 40 : 80,
+};
+
 // ── Davranışsal anomali tespiti ───────────────────────────────────────────────
 function detectBehavioralAnomaly(ip: string): string | null {
   const p = getProfile(ip);
@@ -287,10 +299,10 @@ function detectBehavioralAnomaly(ip: string): string | null {
   const last60s = p.requests.filter(t => now - t < 60_000).length;
   const last10s = p.requests.filter(t => now - t < 10_000).length;
 
-  if (last10s > 30) return `Aşırı istek hızı: ${last10s} istek/10sn (bot davranışı)`;
-  if (last60s > 150) return `Yüksek istek hacmi: ${last60s} istek/dk`;
-  if (p.uniquePaths.size > 80 && last60s > 20) return `Path tarayıcı tespit edildi: ${p.uniquePaths.size} benzersiz yol`;
-  if (p.errors > 30) return `Otomatik hata taraması: ${p.errors} hata yanıtı`;
+  if (last10s > ANOMALY_THRESHOLDS.reqPer10s) return `Aşırı istek hızı: ${last10s} istek/10sn (bot davranışı)`;
+  if (last60s > ANOMALY_THRESHOLDS.reqPer60s) return `Yüksek istek hacmi: ${last60s} istek/dk`;
+  if (p.uniquePaths.size > ANOMALY_THRESHOLDS.uniquePathsBurst && last60s > ANOMALY_THRESHOLDS.uniquePathsBurstReq60s) return `Path tarayıcı tespit edildi: ${p.uniquePaths.size} benzersiz yol`;
+  if (p.errors > ANOMALY_THRESHOLDS.errorBurst) return `Otomatik hata taraması: ${p.errors} hata yanıtı`;
 
   return null;
 }

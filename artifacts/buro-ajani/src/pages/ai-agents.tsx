@@ -498,15 +498,21 @@ export default function AiAgentsPage() {
 
   const loadPredictions = async () => {
     setPredictionsLoading(true);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60_000);
     try {
-      const res = await fetch(`${BASE_URL}/api/ai/predictions`, { credentials: "include" });
+      const res = await fetch(`${BASE_URL}/api/ai/predictions`, { credentials: "include", signal: controller.signal });
       if (!res.ok) throw new Error("Erreur serveur");
       const data = await res.json();
       setPredictions(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error("[AIAgents] Predictions error:", err);
-      toast({ title: "Erreur", description: "Impossible de charger les predictions.", variant: "destructive" });
+      const msg = err?.name === "AbortError"
+        ? "Le moteur de prédictions a mis trop de temps à répondre. Réessayez."
+        : "Impossible de charger les prédictions.";
+      toast({ title: "Erreur", description: msg, variant: "destructive" });
     } finally {
+      clearTimeout(timeout);
       setPredictionsLoading(false);
     }
   };

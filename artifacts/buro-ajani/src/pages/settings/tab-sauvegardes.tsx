@@ -294,7 +294,7 @@ export function TabSauvegardes() {
 
   return (
     <div className="space-y-6">
-      {dataProtectionStatus && (
+      {dataProtectionStatus?.globalHealth && (
         <Card className="border-emerald-200 dark:border-emerald-800">
           <CardHeader>
             <div className="flex items-center justify-between">

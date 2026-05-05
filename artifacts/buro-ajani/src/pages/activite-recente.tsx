@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Activity, Phone, FileText, Receipt, Package, TrendingUp, ShoppingCart, User, MessageSquare, CheckSquare, RefreshCw, Clock, Printer, FolderKanban } from "lucide-react";
+import { Activity, Phone, TrendingUp, User, MessageSquare, CheckSquare, RefreshCw, Clock, Printer, FolderKanban } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,11 +25,7 @@ function fmt(v: any) {
 }
 
 const ENTITY_CONFIG: Record<string, { icon: any; color: string; label: string; href: string }> = {
-  devis:    { icon: FileText,      color: "text-blue-500",    label: "Devis",           href: "/devis" },
-  facture:  { icon: Receipt,       color: "text-emerald-500", label: "Facture",         href: "/factures-client" },
   prospect: { icon: TrendingUp,    color: "text-amber-500",   label: "Prospect",        href: "/prospects" },
-  stock:    { icon: Package,       color: "text-slate-500",   label: "Stock",           href: "/stock" },
-  commande: { icon: ShoppingCart,  color: "text-violet-500",  label: "Bon de Commande", href: "/commandes-fournisseur" },
   contact:  { icon: User,          color: "text-blue-400",    label: "Contact",         href: "/contacts" },
   appel:    { icon: Phone,         color: "text-green-500",   label: "Appel",           href: "/appels" },
   tache:    { icon: CheckSquare,   color: "text-orange-500",  label: "Tâche",           href: "/taches" },
@@ -51,35 +47,25 @@ export default function ActiviteRecentePage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [devisR, facturesR, prospectsR, commandesR, contactsR, callsR, tasksR, messagesR, projetsR] = await Promise.all([
-        fetch(`${BASE}/api/devis?limit=30&sortBy=createdAt&sortOrder=desc`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
-        fetch(`${BASE}/api/factures-client?limit=30&sortBy=createdAt&sortOrder=desc`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
-        fetch(`${BASE}/api/prospects?limit=30&sortBy=createdAt&sortOrder=desc`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
-        fetch(`${BASE}/api/commandes-fournisseur?limit=30&sortBy=createdAt&sortOrder=desc`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
-        fetch(`${BASE}/api/contacts?limit=30&sortBy=createdAt&sortOrder=desc`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
-        fetch(`${BASE}/api/calls?limit=30&sortBy=createdAt&sortOrder=desc`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
-        fetch(`${BASE}/api/tasks?limit=30&sortBy=createdAt&sortOrder=desc`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
-        fetch(`${BASE}/api/messages?limit=30&sortBy=createdAt&sortOrder=desc`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
-        fetch(`${BASE}/api/projets?limit=20&sortBy=createdAt&sortOrder=desc`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
+      const safe = (url: string) =>
+        fetch(url, { credentials: "include" })
+          .then(r => r.ok ? r.json() : null)
+          .catch(err => { console.error("[ActiviteRecente] fetch failed:", url, err); return null; });
+
+      const [prospectsR, contactsR, callsR, tasksR, messagesR, projetsR] = await Promise.all([
+        safe(`${BASE}/api/prospects?limit=30&sortBy=createdAt&sortOrder=desc`),
+        safe(`${BASE}/api/contacts?limit=30&sortBy=createdAt&sortOrder=desc`),
+        safe(`${BASE}/api/calls?limit=30&sortBy=createdAt&sortOrder=desc`),
+        safe(`${BASE}/api/tasks?limit=30&sortBy=createdAt&sortOrder=desc`),
+        safe(`${BASE}/api/messages?limit=30&sortBy=createdAt&sortOrder=desc`),
+        safe(`${BASE}/api/projets?limit=20&sortBy=createdAt&sortOrder=desc`),
       ]);
 
       const items: ActivityItem[] = [];
 
-      (devisR?.data || []).forEach((d: any) => items.push({
-        type: "devis", title: d.reference || `Devis #${d.id}`, subtitle: d.clientName,
-        amount: d.totalAmount, status: d.status, createdAt: d.createdAt,
-      }));
-      (facturesR?.data || []).forEach((f: any) => items.push({
-        type: "facture", title: f.reference || `Facture #${f.id}`, subtitle: f.clientName,
-        amount: f.totalAmount, status: f.status, createdAt: f.createdAt,
-      }));
       (prospectsR?.prospects || []).forEach((p: any) => items.push({
         type: "prospect", title: p.title, subtitle: p.company || p.contactName,
         amount: p.value, status: p.stage, createdAt: p.createdAt,
-      }));
-      (commandesR?.data || []).forEach((c: any) => items.push({
-        type: "commande", title: c.reference || `BC #${c.id}`, subtitle: c.fournisseurName,
-        amount: c.totalAmount, status: c.status, createdAt: c.createdAt,
       }));
       (contactsR?.contacts || []).forEach((c: any) => items.push({
         type: "contact", title: `${c.firstName} ${c.lastName}`.trim(), subtitle: c.company || c.email,
@@ -156,7 +142,7 @@ export default function ActiviteRecentePage() {
           <CardContent className="py-16 text-center">
             <Activity className="w-12 h-12 mx-auto mb-3 opacity-20" />
             <p className="font-medium text-muted-foreground">Aucune activité sur {days} jours</p>
-            <p className="text-sm text-muted-foreground mt-1">L'activité apparaît dès que vous créez des devis, factures, prospects, etc.</p>
+            <p className="text-sm text-muted-foreground mt-1">L'activité apparaît dès que vous créez des prospects, contacts, appels, tâches, messages ou projets.</p>
           </CardContent>
         </Card>
       ) : (
@@ -168,7 +154,7 @@ export default function ActiviteRecentePage() {
               </p>
               <div className="space-y-2">
                 {items.map((item, i) => {
-                  const cfg = ENTITY_CONFIG[item.type] || ENTITY_CONFIG.devis;
+                  const cfg = ENTITY_CONFIG[item.type] || ENTITY_CONFIG.contact;
                   const Icon = cfg.icon;
                   return (
                     <div key={i} className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/40 transition-colors border border-transparent hover:border-muted">

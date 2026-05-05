@@ -116,24 +116,24 @@ function useTrialStatus() {
 
 function useCommercialStats() {
   const [data, setData] = useState<{
-    prospects: any; devis: any; factures: any; stock: any; commandes: any; projets: any;
+    prospects: any; projets: any;
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
+    const controller = new AbortController();
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
     Promise.all([
-      fetch(`${BASE}/api/prospects/stats`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch(`${BASE}/api/devis/stats`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch(`${BASE}/api/factures-client/stats`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch(`${BASE}/api/stock/stats`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch(`${BASE}/api/commandes-fournisseur/stats`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch(`${BASE}/api/projets/stats`, { credentials: "include" }).then(r => r.ok ? r.json() : null).catch(() => null),
-    ]).then(([prospects, devis, factures, stock, commandes, projets]) => {
-      if (mounted) { setData({ prospects, devis, factures, stock, commandes, projets }); setLoading(false); }
+      fetch(`${BASE}/api/prospects/stats`, { credentials: "include", signal: controller.signal }).then(r => r.ok ? r.json() : null),
+      fetch(`${BASE}/api/projets/stats`, { credentials: "include", signal: controller.signal }).then(r => r.ok ? r.json() : null),
+    ]).then(([prospects, projets]) => {
+      if (mounted) { setData({ prospects, projets }); setLoading(false); }
+    }).catch(err => {
+      if (err?.name === "AbortError") return;
+      if (mounted) { console.error("[Dashboard] commercial stats failed:", err); setLoading(false); }
     });
-    return () => { mounted = false; };
+    return () => { mounted = false; controller.abort(); };
   }, []);
 
   return { data, loading };
@@ -162,68 +162,6 @@ function CommercialSection() {
       href: "/prospects",
     },
     {
-      title: "Devis en attente",
-      value: loading ? null : String(data?.devis?.envoye ?? 0),
-      sub: loading ? null : `${fmtCurrency(data?.devis?.amountAccepte)} accepté`,
-      icon: FileText,
-      color: "from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/10",
-      border: "border-blue-200/50 dark:border-blue-800/30",
-      textColor: "text-blue-600 dark:text-blue-400",
-      href: "/devis",
-    },
-    {
-      title: "Factures à encaisser",
-      value: loading ? null : fmtCurrency(
-        parseFloat(data?.factures?.totalAmount ?? "0") - parseFloat(data?.factures?.totalPaid ?? "0")
-      ),
-      sub: loading || !data?.factures?.en_retard ? null : data.factures.en_retard > 0
-        ? `⚠️ ${data.factures.en_retard} en retard`
-        : `${data.factures.payee ?? 0} payée${(data.factures.payee ?? 0) !== 1 ? "s" : ""}`,
-      icon: Receipt,
-      color: data?.factures?.en_retard > 0
-        ? "from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/10"
-        : "from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-emerald-900/10",
-      border: data?.factures?.en_retard > 0
-        ? "border-red-200/50 dark:border-red-800/30"
-        : "border-emerald-200/50 dark:border-emerald-800/30",
-      textColor: data?.factures?.en_retard > 0
-        ? "text-red-600 dark:text-red-400"
-        : "text-emerald-600 dark:text-emerald-400",
-      href: "/factures-client",
-    },
-    {
-      title: "Stock — Alertes",
-      value: loading ? null : String((data?.stock?.lowStock ?? 0) + (data?.stock?.outOfStock ?? 0)),
-      sub: loading ? null : `${data?.stock?.total ?? 0} article${(data?.stock?.total ?? 0) !== 1 ? "s" : ""} · ${fmtCurrency(data?.stock?.totalValue)} valeur`,
-      icon: Package,
-      color: (data?.stock?.outOfStock ?? 0) > 0
-        ? "from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/10"
-        : (data?.stock?.lowStock ?? 0) > 0
-          ? "from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/10"
-          : "from-slate-50 to-slate-100/50 dark:from-slate-950/30 dark:to-slate-900/10",
-      border: (data?.stock?.outOfStock ?? 0) > 0
-        ? "border-red-200/50 dark:border-red-800/30"
-        : (data?.stock?.lowStock ?? 0) > 0
-          ? "border-amber-200/50 dark:border-amber-800/30"
-          : "border-slate-200/50 dark:border-slate-800/30",
-      textColor: (data?.stock?.outOfStock ?? 0) > 0
-        ? "text-red-600 dark:text-red-400"
-        : (data?.stock?.lowStock ?? 0) > 0
-          ? "text-amber-600 dark:text-amber-400"
-          : "text-slate-600 dark:text-slate-400",
-      href: "/stock",
-    },
-    {
-      title: "Commandes Fournisseurs",
-      value: loading ? null : String(data?.commandes?.confirme ?? 0),
-      sub: loading ? null : `${fmtCurrency(data?.commandes?.pendingAmount)} en attente · ${data?.commandes?.recu ?? 0} reçue${(data?.commandes?.recu ?? 0) !== 1 ? "s" : ""}`,
-      icon: ShoppingCart,
-      color: "from-violet-50 to-violet-100/50 dark:from-violet-950/30 dark:to-violet-900/10",
-      border: "border-violet-200/50 dark:border-violet-800/30",
-      textColor: "text-violet-600 dark:text-violet-400",
-      href: "/commandes-fournisseur",
-    },
-    {
       title: "Projets actifs",
       value: loading ? null : String(data?.projets?.active ?? 0),
       sub: loading ? null : `${data?.projets?.avgProgress ?? 0}% avancement moyen${(data?.projets?.overdue ?? 0) > 0 ? ` · ⚠️ ${data?.projets?.overdue} en retard` : ""}`,
@@ -248,9 +186,8 @@ function CommercialSection() {
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
             <TrendingUp className="w-4 h-4" /> Activité Commerciale
           </h2>
-          <Link href="/prospects"><Button variant="ghost" size="sm" className="text-xs h-7">Voir tout →</Button></Link>
         </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid gap-4 md:grid-cols-2">
           {cards.map(card => (
             <Link key={card.title} href={card.href}>
               <Card className={`bg-gradient-to-br ${card.color} ${card.border} hover:shadow-md transition-shadow cursor-pointer`}>

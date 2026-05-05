@@ -10,6 +10,7 @@ import {
 import { eq, and, desc, sql } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
 import { logger } from "../lib/logger";
+import { getDataProtectionStatus } from "../services/data-protection-monitor";
 
 const router = Router();
 
@@ -220,12 +221,33 @@ router.get("/data-protection/requests", requireRole("super_admin", "administrate
 router.get("/data-protection/status", requireRole("super_admin", "administrateur"), async (req, res): Promise<void> => {
   try {
     const orgId = (req.session as any)?.organisationId;
+    const userRole = (req.session as any)?.userRole as string | undefined;
+    const isSuperAdmin = userRole === "super_admin";
+
     const [pending, completed, total] = await Promise.all([
       db.select({ count: sql<number>`count(*)::int` }).from(dataSubjectRequestsTable).where(and(eq(dataSubjectRequestsTable.organisationId, orgId), eq(dataSubjectRequestsTable.status, "pending"))),
       db.select({ count: sql<number>`count(*)::int` }).from(dataSubjectRequestsTable).where(and(eq(dataSubjectRequestsTable.organisationId, orgId), eq(dataSubjectRequestsTable.status, "completed"))),
       db.select({ count: sql<number>`count(*)::int` }).from(dataSubjectRequestsTable).where(eq(dataSubjectRequestsTable.organisationId, orgId)),
     ]);
-    res.json({ pending: pending[0]?.count || 0, completed: completed[0]?.count || 0, total: total[0]?.count || 0 });
+
+    const response: Record<string, unknown> = {
+      pending: pending[0]?.count || 0,
+      completed: completed[0]?.count || 0,
+      total: total[0]?.count || 0,
+    };
+
+    // Platform-wide infrastructure health (totalRecords, lastBackup,
+    // failedBackups24h, backupConfigured) is global and not tenant-scoped,
+    // so it must only be returned to super_admin. Tenant admins receive only
+    // their own organisation's GDPR request stats.
+    if (isSuperAdmin) {
+      const monitorStatus = await getDataProtectionStatus();
+      response.lastCheck = monitorStatus.lastCheck;
+      response.nextCheck = monitorStatus.nextCheck;
+      response.globalHealth = monitorStatus.globalHealth;
+    }
+
+    res.json(response);
   } catch (err: any) {
     logger.error({ err }, "Data protection status error");
     res.status(500).json({ error: "Erreur serveur." });
