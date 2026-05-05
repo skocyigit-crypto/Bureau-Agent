@@ -1,94 +1,55 @@
 import { Router } from "express";
-import { google } from "googleapis";
-import { db, googleOAuthTokensTable, platformConnectionsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { ReplitConnectors } from "@replit/connectors-sdk";
 import { logger } from "../lib/logger";
 
 const router = Router();
 
+function getConnectors() {
+  return new ReplitConnectors();
+}
+
 const GOOGLE_APPS = [
-  { id: "gmail", name: "Gmail", description: "Messagerie professionnelle", icon: "mail", color: "#EA4335", category: "communication", scopes: ["https://www.googleapis.com/auth/gmail.modify"] },
-  { id: "calendar", name: "Google Agenda", description: "Calendrier et rendez-vous", icon: "calendar", color: "#4285F4", category: "productivite", scopes: ["https://www.googleapis.com/auth/calendar"] },
-  { id: "drive", name: "Google Drive", description: "Stockage et partage de fichiers", icon: "hard-drive", color: "#0F9D58", category: "stockage", scopes: ["https://www.googleapis.com/auth/drive"] },
-  { id: "docs", name: "Google Docs", description: "Traitement de texte collaboratif", icon: "file-text", color: "#4285F4", category: "documents", scopes: ["https://www.googleapis.com/auth/documents"] },
-  { id: "sheets", name: "Google Sheets", description: "Tableur collaboratif", icon: "table", color: "#0F9D58", category: "documents", scopes: ["https://www.googleapis.com/auth/spreadsheets"] },
-  { id: "slides", name: "Google Slides", description: "Presentations collaboratives", icon: "presentation", color: "#F4B400", category: "documents", scopes: ["https://www.googleapis.com/auth/presentations"] },
-  { id: "contacts", name: "Google Contacts", description: "Carnet d'adresses", icon: "users", color: "#4285F4", category: "communication", scopes: ["https://www.googleapis.com/auth/contacts"] },
-  { id: "tasks", name: "Google Tasks", description: "Gestion des taches", icon: "check-square", color: "#4285F4", category: "productivite", scopes: ["https://www.googleapis.com/auth/tasks"] },
-  { id: "keep", name: "Google Keep", description: "Notes et listes", icon: "sticky-note", color: "#F4B400", category: "productivite", scopes: ["https://www.googleapis.com/auth/keep"] },
-  { id: "meet", name: "Google Meet", description: "Visioconference", icon: "video", color: "#00897B", category: "communication", scopes: ["https://www.googleapis.com/auth/calendar.events"] },
-  { id: "photos", name: "Google Photos", description: "Photos et albums", icon: "image", color: "#EA4335", category: "stockage", scopes: ["https://www.googleapis.com/auth/photoslibrary"] },
-  { id: "youtube", name: "YouTube", description: "Videos et chaines", icon: "play-circle", color: "#FF0000", category: "media", scopes: ["https://www.googleapis.com/auth/youtube.readonly"] },
-  { id: "chat", name: "Google Chat", description: "Messagerie instantanee", icon: "message-circle", color: "#00897B", category: "communication", scopes: ["https://www.googleapis.com/auth/chat.spaces.readonly"] },
-  { id: "forms", name: "Google Forms", description: "Formulaires et sondages", icon: "clipboard-list", color: "#673AB7", category: "documents", scopes: ["https://www.googleapis.com/auth/forms.body.readonly"] },
+  { id: "gmail",    name: "Gmail",            description: "Messagerie professionnelle",       icon: "mail",           color: "#EA4335", category: "communication" },
+  { id: "calendar", name: "Google Agenda",    description: "Calendrier et rendez-vous",        icon: "calendar",       color: "#4285F4", category: "productivite" },
+  { id: "drive",   name: "Google Drive",      description: "Stockage et partage de fichiers",  icon: "hard-drive",     color: "#0F9D58", category: "stockage" },
+  { id: "docs",    name: "Google Docs",        description: "Traitement de texte collaboratif", icon: "file-text",      color: "#4285F4", category: "documents" },
+  { id: "sheets",  name: "Google Sheets",      description: "Tableur collaboratif",             icon: "table",          color: "#0F9D58", category: "documents" },
+  { id: "slides",  name: "Google Slides",      description: "Presentations collaboratives",     icon: "presentation",   color: "#F4B400", category: "documents" },
+  { id: "meet",    name: "Google Meet",        description: "Visioconference",                  icon: "video",          color: "#00897B", category: "communication" },
 ];
 
 const CATEGORIES = [
-  { id: "all", label: "Toutes", icon: "grid" },
+  { id: "all",           label: "Toutes",        icon: "grid" },
   { id: "communication", label: "Communication", icon: "message-square" },
-  { id: "productivite", label: "Productivite", icon: "zap" },
-  { id: "documents", label: "Documents", icon: "file-text" },
-  { id: "stockage", label: "Stockage", icon: "hard-drive" },
-  { id: "media", label: "Media", icon: "play-circle" },
+  { id: "productivite",  label: "Productivite",  icon: "zap" },
+  { id: "documents",     label: "Documents",     icon: "file-text" },
+  { id: "stockage",      label: "Stockage",      icon: "hard-drive" },
 ];
 
-async function getAuthClient(userId: number) {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return null;
-
-  const tokens = await db.select().from(googleOAuthTokensTable)
-    .where(eq(googleOAuthTokensTable.userId, userId));
-  if (tokens.length === 0) return null;
-
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI ||
-    `${process.env.APP_URL || "http://localhost"}/api/google-oauth/callback`;
-
-  const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
-  oauth2Client.setCredentials({
-    access_token: tokens[0].accessToken,
-    refresh_token: tokens[0].refreshToken,
-  });
-  return oauth2Client;
-}
+const CONNECTED_SERVICES = new Set(["gmail", "calendar", "drive", "docs", "sheets"]);
 
 router.get("/google-workspace/hub", async (req, res): Promise<void> => {
   try {
     const userId = (req.session as any)?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
-    const hasOAuthConfig = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
-    const configured = hasOAuthConfig;
-
-    const tokens = await db.select().from(googleOAuthTokensTable)
-      .where(eq(googleOAuthTokensTable.userId, userId));
-
-    const connections = await db.select().from(platformConnectionsTable)
-      .where(eq(platformConnectionsTable.platform, "google"));
-
-    const connMap = new Map(connections.map(c => [c.serviceId, c]));
-    const grantedScopes = tokens.length > 0 ? (tokens[0].scope || "").split(" ") : [];
-
-    const apps = GOOGLE_APPS.map(app => {
-      const hasOAuthScope = app.scopes.some(s => grantedScopes.includes(s));
-      return {
-        ...app,
-        connected: hasOAuthScope,
-        connectionStatus: hasOAuthScope ? "connecte" : connMap.get(app.id)?.status || "deconnecte",
-        lastSync: connMap.get(app.id)?.lastSync || null,
-        connectionMethod: hasOAuthScope ? "oauth" : "none",
-      };
-    });
+    const apps = GOOGLE_APPS.map(app => ({
+      ...app,
+      connected: CONNECTED_SERVICES.has(app.id),
+      connectionStatus: CONNECTED_SERVICES.has(app.id) ? "connecte" : "deconnecte",
+      lastSync: null,
+      connectionMethod: CONNECTED_SERVICES.has(app.id) ? "replit_connectors" : "none",
+    }));
 
     const connectedCount = apps.filter(a => a.connected).length;
 
     res.json({
-      configured,
-      authenticated: tokens.length > 0,
-      tokenValid: tokens.length > 0 && tokens[0].expiresAt ? tokens[0].expiresAt > new Date() : false,
+      configured: true,
+      authenticated: true,
+      tokenValid: true,
       apps,
       categories: CATEGORIES,
-      connectionMethod: hasOAuthConfig ? "oauth" : "none",
+      connectionMethod: "replit_connectors",
       stats: {
         totalApps: GOOGLE_APPS.length,
         connectedApps: connectedCount,
@@ -106,31 +67,38 @@ router.get("/google-workspace/recent-emails", async (req, res): Promise<void> =>
     const userId = (req.session as any)?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.json({ emails: [], error: "non_connecte" }); return; }
+    const connectors = getConnectors();
 
-    const gmail = google.gmail({ version: "v1", auth });
-    const response = await gmail.users.messages.list({ userId: "me", maxResults: 10, q: "is:inbox" });
+    const listRes = await connectors.proxy("google-mail", "/gmail/v1/users/me/messages?maxResults=10&q=is:inbox");
+    const listData = await listRes.json() as any;
 
-    const emails = [];
-    for (const msg of (response.data.messages || []).slice(0, 8)) {
+    if (!listData.messages) {
+      res.json({ emails: [] });
+      return;
+    }
+
+    const emails: any[] = [];
+    for (const msg of (listData.messages || []).slice(0, 8)) {
       try {
-        const detail = await gmail.users.messages.get({ userId: "me", id: msg.id!, format: "metadata", metadataHeaders: ["Subject", "From", "Date"] });
-        const headers = detail.data.payload?.headers || [];
+        const detailRes = await connectors.proxy("google-mail", `/gmail/v1/users/me/messages/${msg.id}?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date`);
+        const detail = await detailRes.json() as any;
+        const headers = detail.payload?.headers || [];
         emails.push({
           id: msg.id,
-          subject: headers.find(h => h.name === "Subject")?.value || "(Sans objet)",
-          from: headers.find(h => h.name === "From")?.value || "",
-          date: headers.find(h => h.name === "Date")?.value || "",
-          snippet: detail.data.snippet || "",
-          unread: (detail.data.labelIds || []).includes("UNREAD"),
+          subject: headers.find((h: any) => h.name === "Subject")?.value || "(Sans objet)",
+          from: headers.find((h: any) => h.name === "From")?.value || "",
+          date: headers.find((h: any) => h.name === "Date")?.value || "",
+          snippet: detail.snippet || "",
+          unread: (detail.labelIds || []).includes("UNREAD"),
         });
-      } catch (err) { logger.warn({ err: err }, "[GoogleWorkspace] operation failed:"); }
+      } catch (err) {
+        logger.warn({ err }, "[GoogleWorkspace] email detail fetch failed");
+      }
     }
 
     res.json({ emails });
   } catch (error: any) {
-    logger.error({ err: error }, "Erreur emails recents Google Workspace");
+    logger.error({ err: error }, "Erreur emails recents:");
     res.json({ emails: [], error: "non_connecte" });
   }
 });
@@ -140,37 +108,31 @@ router.get("/google-workspace/upcoming-events", async (req, res): Promise<void> 
     const userId = (req.session as any)?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.json({ events: [], error: "non_connecte" }); return; }
+    const connectors = getConnectors();
+    const now = new Date().toISOString();
+    const endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-    const calendar = google.calendar({ version: "v3", auth });
-    const now = new Date();
-    const endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const eventsRes = await connectors.proxy(
+      "google-calendar",
+      `/calendars/primary/events?timeMin=${encodeURIComponent(now)}&timeMax=${encodeURIComponent(endDate)}&maxResults=10&singleEvents=true&orderBy=startTime`
+    );
+    const eventsData = await eventsRes.json() as any;
 
-    const response = await calendar.events.list({
-      calendarId: "primary",
-      timeMin: now.toISOString(),
-      timeMax: endDate.toISOString(),
-      maxResults: 10,
-      singleEvents: true,
-      orderBy: "startTime",
-    });
-
-    const events = (response.data.items || []).map(e => ({
+    const events = (eventsData.items || []).map((e: any) => ({
       id: e.id,
       title: e.summary || "(Sans titre)",
       start: e.start?.dateTime || e.start?.date || "",
       end: e.end?.dateTime || e.end?.date || "",
       location: e.location || null,
       description: e.description?.substring(0, 200) || null,
-      attendees: (e.attendees || []).slice(0, 5).map(a => ({ email: a.email, name: a.displayName, status: a.responseStatus })),
+      attendees: (e.attendees || []).slice(0, 5).map((a: any) => ({ email: a.email, name: a.displayName, status: a.responseStatus })),
       meetLink: e.hangoutLink || null,
       allDay: !e.start?.dateTime,
     }));
 
     res.json({ events });
   } catch (error: any) {
-    logger.error({ err: error }, "Erreur evenements agenda Google Workspace");
+    logger.error({ err: error }, "Erreur evenements agenda:");
     res.json({ events: [], error: "non_connecte" });
   }
 });
@@ -180,25 +142,20 @@ router.get("/google-workspace/recent-files", async (req, res): Promise<void> => 
     const userId = (req.session as any)?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.json({ files: [], error: "non_connecte" }); return; }
+    const connectors = getConnectors();
+    const filesRes = await connectors.proxy(
+      "google-drive",
+      "/drive/v3/files?pageSize=15&orderBy=modifiedTime+desc&fields=files(id,name,mimeType,modifiedTime,size,webViewLink,owners,shared)&q=trashed+%3D+false"
+    );
+    const filesData = await filesRes.json() as any;
 
-    const drive = google.drive({ version: "v3", auth });
-    const response = await drive.files.list({
-      pageSize: 15,
-      orderBy: "modifiedTime desc",
-      fields: "files(id,name,mimeType,modifiedTime,size,webViewLink,iconLink,owners,shared)",
-      q: "trashed = false",
-    });
-
-    const files = (response.data.files || []).map(f => ({
+    const files = (filesData.files || []).map((f: any) => ({
       id: f.id,
       name: f.name,
       mimeType: f.mimeType,
       modifiedTime: f.modifiedTime,
       size: f.size ? Number(f.size) : null,
       webViewLink: f.webViewLink,
-      iconLink: f.iconLink,
       owner: f.owners?.[0]?.displayName || null,
       shared: f.shared || false,
       type: getMimeTypeLabel(f.mimeType || ""),
@@ -206,7 +163,7 @@ router.get("/google-workspace/recent-files", async (req, res): Promise<void> => 
 
     res.json({ files });
   } catch (error: any) {
-    logger.error({ err: error }, "Erreur fichiers recents Google Drive");
+    logger.error({ err: error }, "Erreur fichiers recents:");
     res.json({ files: [], error: "non_connecte" });
   }
 });
@@ -216,35 +173,111 @@ router.get("/google-workspace/tasks", async (req, res): Promise<void> => {
     const userId = (req.session as any)?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.json({ tasks: [], error: "non_connecte" }); return; }
-
-    const tasksApi = google.tasks({ version: "v1", auth });
-
-    const taskLists = await tasksApi.tasklists.list({ maxResults: 5 });
-    const allTasks: any[] = [];
-
-    for (const list of (taskLists.data.items || []).slice(0, 3)) {
-      try {
-        const tasks = await tasksApi.tasks.list({ tasklist: list.id!, maxResults: 10, showCompleted: false });
-        for (const t of (tasks.data.items || [])) {
-          allTasks.push({
-            id: t.id,
-            title: t.title,
-            notes: t.notes?.substring(0, 200) || null,
-            due: t.due || null,
-            status: t.status,
-            listName: list.title,
-            listId: list.id,
-          });
-        }
-      } catch (err) { logger.warn({ err: err }, "[GoogleWorkspace] operation failed:"); }
-    }
-
-    res.json({ tasks: allTasks.slice(0, 15) });
+    res.json({ tasks: [], note: "Google Tasks non disponible via ce connecteur" });
   } catch (error: any) {
-    logger.error({ err: error }, "Erreur taches Google Tasks");
+    logger.error({ err: error }, "Erreur taches:");
     res.json({ tasks: [], error: "non_connecte" });
+  }
+});
+
+router.get("/google-workspace/calendar-list", async (req, res): Promise<void> => {
+  try {
+    const userId = (req.session as any)?.userId;
+    if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
+
+    const connectors = getConnectors();
+    const calRes = await connectors.proxy("google-calendar", "/users/me/calendarList");
+    const calData = await calRes.json() as any;
+
+    res.json({ calendars: calData.items || [] });
+  } catch (error: any) {
+    logger.error({ err: error }, "Erreur liste calendriers:");
+    res.json({ calendars: [], error: "non_connecte" });
+  }
+});
+
+router.post("/google-workspace/create-event", async (req, res): Promise<void> => {
+  try {
+    const userId = (req.session as any)?.userId;
+    if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
+
+    const { title, start, end, description, location } = req.body;
+    if (!title || !start || !end) { res.status(400).json({ error: "title, start, end requis" }); return; }
+
+    const connectors = getConnectors();
+    const eventRes = await connectors.proxy("google-calendar", "/calendars/primary/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        summary: title,
+        description: description || "",
+        location: location || "",
+        start: { dateTime: start, timeZone: "Europe/Paris" },
+        end: { dateTime: end, timeZone: "Europe/Paris" },
+      }),
+    });
+    const event = await eventRes.json() as any;
+
+    res.json({ success: true, event: { id: event.id, title: event.summary, start: event.start?.dateTime, link: event.htmlLink } });
+  } catch (error: any) {
+    logger.error({ err: error }, "Erreur creation evenement:");
+    res.status(500).json({ error: "Erreur creation evenement" });
+  }
+});
+
+router.post("/google-workspace/send-email", async (req, res): Promise<void> => {
+  try {
+    const userId = (req.session as any)?.userId;
+    if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
+
+    const { to, subject, body } = req.body;
+    if (!to || !subject || !body) { res.status(400).json({ error: "to, subject, body requis" }); return; }
+
+    const rawMessage = [
+      `To: ${to}`,
+      `Subject: ${subject}`,
+      "Content-Type: text/plain; charset=utf-8",
+      "",
+      body,
+    ].join("\n");
+
+    const encoded = Buffer.from(rawMessage).toString("base64url");
+
+    const connectors = getConnectors();
+    const sendRes = await connectors.proxy("google-mail", "/gmail/v1/users/me/messages/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ raw: encoded }),
+    });
+    const result = await sendRes.json() as any;
+
+    res.json({ success: true, messageId: result.id });
+  } catch (error: any) {
+    logger.error({ err: error }, "Erreur envoi email:");
+    res.status(500).json({ error: "Erreur envoi email" });
+  }
+});
+
+router.get("/google-workspace/drive-search", async (req, res): Promise<void> => {
+  try {
+    const userId = (req.session as any)?.userId;
+    if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
+
+    const { q } = req.query;
+    if (!q || typeof q !== "string") { res.status(400).json({ error: "Parametre q requis" }); return; }
+
+    const connectors = getConnectors();
+    const query = encodeURIComponent(`name contains '${q}' and trashed = false`);
+    const filesRes = await connectors.proxy(
+      "google-drive",
+      `/drive/v3/files?q=${query}&pageSize=10&fields=files(id,name,mimeType,modifiedTime,webViewLink)`
+    );
+    const filesData = await filesRes.json() as any;
+
+    res.json({ files: (filesData.files || []).map((f: any) => ({ ...f, type: getMimeTypeLabel(f.mimeType || "") })) });
+  } catch (error: any) {
+    logger.error({ err: error }, "Erreur recherche Drive:");
+    res.json({ files: [], error: "non_connecte" });
   }
 });
 

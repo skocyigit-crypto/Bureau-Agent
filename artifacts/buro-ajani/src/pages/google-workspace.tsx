@@ -59,10 +59,10 @@ export default function GoogleWorkspace() {
   const [activeTab, setActiveTab] = useState("apps");
 
   const { data: hub, isLoading: hubLoading } = useQuery({ queryKey: ["gw-hub"], queryFn: () => apiFetch("/google-workspace/hub") });
-  const { data: emailsData, isLoading: emailsLoading } = useQuery({ queryKey: ["gw-emails"], queryFn: () => apiFetch("/google-workspace/recent-emails"), enabled: hub?.authenticated });
-  const { data: eventsData, isLoading: eventsLoading } = useQuery({ queryKey: ["gw-events"], queryFn: () => apiFetch("/google-workspace/upcoming-events"), enabled: hub?.authenticated });
-  const { data: filesData, isLoading: filesLoading } = useQuery({ queryKey: ["gw-files"], queryFn: () => apiFetch("/google-workspace/recent-files"), enabled: hub?.authenticated });
-  const { data: tasksData, isLoading: tasksLoading } = useQuery({ queryKey: ["gw-tasks"], queryFn: () => apiFetch("/google-workspace/tasks"), enabled: hub?.authenticated });
+  const { data: emailsData, isLoading: emailsLoading } = useQuery({ queryKey: ["gw-emails"], queryFn: () => apiFetch("/google-workspace/recent-emails") });
+  const { data: eventsData, isLoading: eventsLoading } = useQuery({ queryKey: ["gw-events"], queryFn: () => apiFetch("/google-workspace/upcoming-events") });
+  const { data: filesData, isLoading: filesLoading } = useQuery({ queryKey: ["gw-files"], queryFn: () => apiFetch("/google-workspace/recent-files") });
+  const { data: tasksData, isLoading: tasksLoading } = useQuery({ queryKey: ["gw-tasks"], queryFn: () => apiFetch("/google-workspace/tasks") });
 
   const filteredApps = (hub?.apps || []).filter((app: any) => {
     const matchSearch = !search || app.name.toLowerCase().includes(search.toLowerCase()) || app.description.toLowerCase().includes(search.toLowerCase());
@@ -126,12 +126,10 @@ export default function GoogleWorkspace() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="apps">Applications ({hub?.stats?.totalApps || 0})</TabsTrigger>
-          {hub?.authenticated && <>
-            <TabsTrigger value="emails">Emails</TabsTrigger>
-            <TabsTrigger value="agenda">Agenda</TabsTrigger>
-            <TabsTrigger value="drive">Drive</TabsTrigger>
-            <TabsTrigger value="tasks">Taches</TabsTrigger>
-          </>}
+          <TabsTrigger value="emails">Emails</TabsTrigger>
+          <TabsTrigger value="agenda">Agenda</TabsTrigger>
+          <TabsTrigger value="drive">Drive</TabsTrigger>
+          <TabsTrigger value="tasks">Taches</TabsTrigger>
         </TabsList>
 
         <TabsContent value="apps" className="space-y-4">
