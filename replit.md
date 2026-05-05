@@ -172,3 +172,4 @@ The application features a French UI with a deep navy and warm amber color schem
 - **Security Middleware:** Helmet
 - **Google Workspace Services:** Gmail, Calendar, Drive
 - **Telephony Providers:** Twilio, Vonage, Telnyx, Plivo, Sinch, Bandwidth
+- **RGPD / Data Protection:** Full GDPR compliance system — `data_subject_requests` DB table, `GET /api/data-protection/summary` (inventory + legal doc status), `POST /api/data-protection/request` (6 data rights: access/portability/rectification/erasure/restriction/objection), `POST /api/data-protection/export` (Art. 20 JSON export), `POST /api/data-protection/accept-legal` (per-org legal doc acceptance). Web page `/protection-donnees` accessible from "Conformité RGPD" sidebar section. DPO contact info and CNIL authority link included.

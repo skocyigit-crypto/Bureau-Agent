@@ -227,17 +227,6 @@ export default function DataProtectionPage() {
               <CardDescription>Soumettez une demande — nous y répondrons dans un délai maximum de 30 jours.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {key === "portability" && (
-                <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">Export immédiat disponible</p>
-                    <p className="text-xs text-emerald-700 dark:text-emerald-400">Téléchargez toutes vos données maintenant (Art. 20 RGPD)</p>
-                  </div>
-                  <Button size="sm" variant="outline" onClick={handleExport} className="gap-2 shrink-0">
-                    <FileDown className="h-4 w-4" /> Exporter mes données
-                  </Button>
-                </div>
-              )}
               <div className="space-y-3">
                 <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
                   <div>
