@@ -127,9 +127,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         items: [
           { name: "Contacts", href: "/contacts", icon: Users },
           { name: "Tâches", href: "/taches", icon: CheckSquare },
-          { name: "Prospects", href: "/prospects", icon: TrendingUp },
           { name: "Notes Internes", href: "/notes-internes", icon: StickyNote },
-          { name: "Projets", href: "/projets", icon: FolderKanban },
           { name: "Activité Récente", href: "/activite-recente", icon: Activity },
         ],
       },
