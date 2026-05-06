@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useListContacts, useCreateContact, useUpdateContact, useDeleteContact, getListContactsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Users, Search, Filter, MoreHorizontal, Phone, Mail, Building, Plus, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, LayoutGrid, LayoutList, Upload, Printer, Edit, Tag, Copy, FolderKanban } from "lucide-react";
+import { EmptyOnboardingHint } from "@/components/empty-onboarding-hint";
 import { Icon3D } from "@/components/icon-3d";
 import receptionImg from "@/assets/images/reception-desk.png";
 import { Button } from "@/components/ui/button";
@@ -431,8 +432,16 @@ export default function Contacts() {
                 ))
               ) : data?.contacts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
-                    Aucun contact trouve.
+                  <TableCell colSpan={7} className="py-8">
+                    <EmptyOnboardingHint
+                      icon={Users}
+                      title="Aucun contact pour l'instant"
+                      description="Créez votre premier contact ou importez votre carnet d'adresses existant pour commencer à gérer vos clients et prospects."
+                      actionLabel="Créer mon premier contact"
+                      onAction={() => setIsDialogOpen(true)}
+                      tip="Astuce : importez un fichier CSV pour ajouter plusieurs contacts d'un coup."
+                      testIdPrefix="empty-contacts"
+                    />
                   </TableCell>
                 </TableRow>
               ) : (
@@ -519,7 +528,17 @@ export default function Contacts() {
               <Card key={i}><CardContent className="p-6"><Skeleton className="h-32 w-full" /></CardContent></Card>
             ))
           ) : data?.contacts.length === 0 ? (
-            <div className="col-span-full text-center text-muted-foreground py-12">Aucun contact trouve.</div>
+            <div className="col-span-full py-4">
+              <EmptyOnboardingHint
+                icon={Users}
+                title="Aucun contact pour l'instant"
+                description="Créez votre premier contact ou importez votre carnet d'adresses existant pour commencer."
+                actionLabel="Créer mon premier contact"
+                onAction={() => setIsDialogOpen(true)}
+                tip="Astuce : importez un fichier CSV pour ajouter plusieurs contacts d'un coup."
+                testIdPrefix="empty-contacts-grid"
+              />
+            </div>
           ) : (
             data?.contacts.map((contact) => (
               <Card key={contact.id} className={`cursor-pointer hover:shadow-md transition-shadow ${selectedIds.has(contact.id) ? 'ring-2 ring-primary' : ''}`} onClick={() => setLocation(`/contacts/${contact.id}`)}>

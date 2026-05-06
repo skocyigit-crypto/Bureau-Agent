@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useSimulateCall } from "@/components/layout";
+import { useWorkspaceUser } from "@/components/workspace-user";
 
 function WebhookUrlRow({ label, url }: { label: string; url: string }) {
   const [copied, setCopied] = useState(false);
@@ -35,6 +36,8 @@ export function TabAppels() {
   const [callRingDuration, setCallRingDuration] = useState("30");
   const [soundEnabled, setSoundEnabled] = useState(true);
   const { simulateIncomingCall } = useSimulateCall();
+  const { user } = useWorkspaceUser();
+  const isSuperAdmin = user.role === "super_admin";
 
   const baseUrl = `${window.location.protocol}//${window.location.host}/api`;
 
@@ -90,27 +93,31 @@ export function TabAppels() {
             </div>
             <Switch defaultChecked />
           </div>
-          <Separator />
-          <div>
-            <Label className="mb-2 block">Tester l'experience d'appel</Label>
-            <p className="text-xs text-muted-foreground mb-3">Simulez un appel entrant pour tester l'interface.</p>
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={() => simulateIncomingCall()} className="gap-2">
-                <PhoneIncoming className="w-4 h-4" />
-                Simuler un appel
-              </Button>
-              <Input placeholder="+33 1 XX XX XX XX" className="w-48" id="custom-phone" />
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  const input = document.getElementById("custom-phone") as HTMLInputElement;
-                  if (input?.value) simulateIncomingCall(input.value);
-                }}
-              >
-                Appeler ce numero
-              </Button>
-            </div>
-          </div>
+          {isSuperAdmin && (
+            <>
+              <Separator />
+              <div>
+                <Label className="mb-2 block">Tester l'experience d'appel <Badge variant="outline" className="ml-2 text-[10px]">Super admin</Badge></Label>
+                <p className="text-xs text-muted-foreground mb-3">Simulez un appel entrant pour tester l'interface (visible uniquement par le super-administrateur).</p>
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={() => simulateIncomingCall()} className="gap-2">
+                    <PhoneIncoming className="w-4 h-4" />
+                    Simuler un appel
+                  </Button>
+                  <Input placeholder="+33 1 XX XX XX XX" className="w-48" id="custom-phone" />
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      const input = document.getElementById("custom-phone") as HTMLInputElement;
+                      if (input?.value) simulateIncomingCall(input.value);
+                    }}
+                  >
+                    Appeler ce numero
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

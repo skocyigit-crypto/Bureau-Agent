@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format, isPast, isToday } from "date-fns";
 import { fr } from "date-fns/locale";
 import { CheckSquare, Search, Filter, MoreHorizontal, Plus, Calendar, Clock, AlertCircle, Edit, Users, LayoutList, Columns3, ArrowUpDown, ArrowUp, ArrowDown, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, AlertTriangle, GripVertical, Repeat, Download, Copy, Printer, CheckCheck, UserCheck, FolderKanban } from "lucide-react";
+import { EmptyOnboardingHint } from "@/components/empty-onboarding-hint";
 import { Icon3D } from "@/components/icon-3d";
 import taskManagementImg from "@/assets/images/task-management.png";
 import { Button } from "@/components/ui/button";
@@ -717,8 +718,16 @@ export default function Tasks() {
                   ))
                 ) : data?.tasks.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
-                      Aucune tache trouvee.
+                    <TableCell colSpan={7} className="py-8">
+                      <EmptyOnboardingHint
+                        icon={CheckSquare}
+                        title="Aucune tâche pour l'instant"
+                        description="Créez votre première tâche pour organiser votre travail. Vous pourrez l'attribuer à un collaborateur, fixer une échéance et un niveau de priorité."
+                        actionLabel="Créer ma première tâche"
+                        onAction={handleOpenCreate}
+                        tip="Astuce : utilisez le Commandant IA pour créer plusieurs tâches d'un coup en langage naturel."
+                        testIdPrefix="empty-tasks"
+                      />
                     </TableCell>
                   </TableRow>
                 ) : (

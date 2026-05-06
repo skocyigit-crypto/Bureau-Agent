@@ -70,6 +70,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [exportOpen, setExportOpen] = useState(false);
   const [orgLogo, setOrgLogo] = useState<string | null>(null);
   const [orgName, setOrgName] = useState<string | null>(null);
+  const isSuperAdmin = user.role === "super_admin";
   useRealtimeSync();
 
   useEffect(() => {
@@ -270,20 +271,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <GlobalSearch />
             </div>
             <div className="flex items-center gap-3">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="relative text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                    onClick={() => incomingCall.simulateIncomingCall()}
-                  >
-                    <PhoneIncoming className="w-5 h-5" />
-                    <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Simuler un appel entrant</TooltipContent>
-              </Tooltip>
+              {isSuperAdmin && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="relative text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                      onClick={() => incomingCall.simulateIncomingCall()}
+                      aria-label="Simuler un appel entrant (test)"
+                      title="Simuler un appel entrant (test)"
+                    >
+                      <PhoneIncoming className="w-5 h-5" />
+                      <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Simuler un appel entrant (test)</TooltipContent>
+                </Tooltip>
+              )}
               <ConnectionIndicator />
               <SmartBrowserToolbar />
               <div className="w-px h-4 bg-border" />

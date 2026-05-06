@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { TrendingUp, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, Filter, Target, Trophy, XCircle, DollarSign, RefreshCw, Kanban, LayoutList, ArrowUpDown, Download, UserPlus, Printer, Layers, Copy, FolderKanban } from "lucide-react";
+import { TrendingUp, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, Filter, Target, Trophy, XCircle, DollarSign, RefreshCw, Kanban, LayoutList, ArrowUpDown, Download, UserPlus, Printer, Layers, Copy, FolderKanban, Briefcase } from "lucide-react";
+import { EmptyOnboardingHint } from "@/components/empty-onboarding-hint";
 import { useLocation } from "wouter";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Icon3D } from "@/components/icon-3d";
@@ -274,6 +275,17 @@ export default function ProspectsPage() {
       {loading ? (
         <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
       ) : viewMode === "kanban" ? (
+        prospects.length === 0 ? (
+          <EmptyOnboardingHint
+            icon={Briefcase}
+            title="Aucun prospect pour l'instant"
+            description="Ajoutez vos premiers prospects pour suivre votre pipeline commercial. Vous pourrez les déplacer entre les étapes du Kanban et mesurer votre taux de conversion."
+            actionLabel="Créer mon premier prospect"
+            onAction={openCreate}
+            tip="Astuce : convertissez un contact existant en prospect depuis sa fiche détaillée."
+            testIdPrefix="empty-prospects-kanban"
+          />
+        ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 overflow-x-auto pb-2">
           {STAGES.map(col => {
             const items = prospects.filter(p => p.stage === col.key);
@@ -305,6 +317,7 @@ export default function ProspectsPage() {
             );
           })}
         </div>
+        )
       ) : (
         <>
           {selectedIds.length > 0 && (
@@ -362,7 +375,19 @@ export default function ProspectsPage() {
                 <span className="text-xs text-muted-foreground">Tout sélectionner</span>
               </div>
             )}
-            {prospects.length === 0 && <p className="text-center py-10 text-muted-foreground">Aucun prospect trouvé.</p>}
+            {prospects.length === 0 && (
+              <div className="py-4 px-4">
+                <EmptyOnboardingHint
+                  icon={Briefcase}
+                  title="Aucun prospect pour l'instant"
+                  description="Ajoutez vos premiers prospects pour suivre votre pipeline commercial. Vous pourrez les déplacer entre les étapes et mesurer votre taux de conversion."
+                  actionLabel="Créer mon premier prospect"
+                  onAction={openCreate}
+                  tip="Astuce : convertissez un contact existant en prospect depuis sa fiche détaillée."
+                  testIdPrefix="empty-prospects"
+                />
+              </div>
+            )}
             {prospects.map(p => (
               <div key={p.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20">
                 <Checkbox checked={selectedIds.includes(p.id)} onCheckedChange={() => toggleSelect(p.id)} />

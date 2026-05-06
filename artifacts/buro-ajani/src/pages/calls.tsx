@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Phone, PhoneIncoming, PhoneOutgoing, PhoneMissed, Search, Filter, MoreHorizontal, Check, Clock, Voicemail, Plus, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CalendarIcon, Printer, Edit, Copy, FolderKanban } from "lucide-react";
+import { EmptyOnboardingHint } from "@/components/empty-onboarding-hint";
 import { Icon3D } from "@/components/icon-3d";
 import callCenterImg from "@/assets/images/call-center.png";
 import { Button } from "@/components/ui/button";
@@ -524,8 +525,16 @@ export default function Calls() {
               ))
             ) : data?.calls.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
-                  Aucun appel trouve.
+                <TableCell colSpan={8} className="py-8">
+                  <EmptyOnboardingHint
+                    icon={Phone}
+                    title="Aucun appel pour l'instant"
+                    description="Vos appels téléphoniques apparaîtront ici dès que vous configurerez votre numéro Twilio. Chaque appel sera automatiquement enregistré et transcrit par l'IA."
+                    actionLabel="Configurer la téléphonie"
+                    onAction={() => { window.location.href = "/telephonie"; }}
+                    tip="Astuce : sans Twilio, vous pouvez aussi enregistrer manuellement vos appels pour suivre votre activité commerciale."
+                    testIdPrefix="empty-calls"
+                  />
                 </TableCell>
               </TableRow>
             ) : (

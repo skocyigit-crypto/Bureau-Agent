@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { MessageSquare, Voicemail, FileText, Bell, Search, Filter, MoreHorizontal, MailOpen, Mail, Plus, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, CheckCheck, Send, Download, Edit, Printer, Copy, FolderKanban } from "lucide-react";
+import { EmptyOnboardingHint } from "@/components/empty-onboarding-hint";
 import { Icon3D } from "@/components/icon-3d";
 import messagingImg from "@/assets/images/messaging-center.png";
 import { EmailComposer } from "@/components/email-composer";
@@ -419,8 +420,16 @@ export default function Messages() {
               ))
             ) : data?.messages.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
-                  Aucun message trouve.
+                <TableCell colSpan={8} className="py-8">
+                  <EmptyOnboardingHint
+                    icon={MessageSquare}
+                    title="Aucun message pour l'instant"
+                    description="Envoyez votre premier SMS ou enregistrez un message reçu pour suivre toutes vos conversations clients en un seul endroit."
+                    actionLabel="Créer mon premier message"
+                    onAction={handleOpenCreate}
+                    tip="Astuce : connectez Twilio pour envoyer et recevoir des SMS automatiquement."
+                    testIdPrefix="empty-messages"
+                  />
                 </TableCell>
               </TableRow>
             ) : (
