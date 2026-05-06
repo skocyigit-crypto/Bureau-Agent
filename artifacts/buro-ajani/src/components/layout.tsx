@@ -23,6 +23,7 @@ import { TrialBanner } from "@/components/trial-banner";
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import { IntegrationDiscovery } from "@/components/integration-discovery";
+import { HelpCenter } from "@/components/help-center";
 
 type IncomingCallContextType = { simulateIncomingCall: (phone?: string) => void };
 const IncomingCallContext = createContext<IncomingCallContextType>({ simulateIncomingCall: () => {} });
@@ -325,6 +326,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <DataExportPanel open={exportOpen} onOpenChange={setExportOpen} />
         <PwaInstallPrompt />
         <IntegrationDiscovery />
+        <HelpCenter />
       </div>
     </SidebarProvider>
     </RecognitionProvider>
