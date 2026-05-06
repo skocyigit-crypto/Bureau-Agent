@@ -276,15 +276,19 @@ export default function ProspectsPage() {
         <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
       ) : viewMode === "kanban" ? (
         prospects.length === 0 ? (
-          <EmptyOnboardingHint
-            icon={Briefcase}
-            title="Aucun prospect pour l'instant"
-            description="Ajoutez vos premiers prospects pour suivre votre pipeline commercial. Vous pourrez les déplacer entre les étapes du Kanban et mesurer votre taux de conversion."
-            actionLabel="Créer mon premier prospect"
-            onAction={openCreate}
-            tip="Astuce : convertissez un contact existant en prospect depuis sa fiche détaillée."
-            testIdPrefix="empty-prospects-kanban"
-          />
+          (search !== "" || stageFilter !== "all") ? (
+            <p className="text-center text-muted-foreground py-12" data-testid="no-results-prospects-kanban">Aucun prospect ne correspond à vos filtres.</p>
+          ) : (
+            <EmptyOnboardingHint
+              icon={Briefcase}
+              title="Aucun prospect pour l'instant"
+              description="Ajoutez vos premiers prospects pour suivre votre pipeline commercial. Vous pourrez les déplacer entre les étapes du Kanban et mesurer votre taux de conversion."
+              actionLabel="Créer mon premier prospect"
+              onAction={openCreate}
+              tip="Astuce : convertissez un contact existant en prospect depuis sa fiche détaillée."
+              testIdPrefix="empty-prospects-kanban"
+            />
+          )
         ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 overflow-x-auto pb-2">
           {STAGES.map(col => {
@@ -377,15 +381,19 @@ export default function ProspectsPage() {
             )}
             {prospects.length === 0 && (
               <div className="py-4 px-4">
-                <EmptyOnboardingHint
-                  icon={Briefcase}
-                  title="Aucun prospect pour l'instant"
-                  description="Ajoutez vos premiers prospects pour suivre votre pipeline commercial. Vous pourrez les déplacer entre les étapes et mesurer votre taux de conversion."
-                  actionLabel="Créer mon premier prospect"
-                  onAction={openCreate}
-                  tip="Astuce : convertissez un contact existant en prospect depuis sa fiche détaillée."
-                  testIdPrefix="empty-prospects"
-                />
+                {(search !== "" || stageFilter !== "all") ? (
+                  <p className="text-center text-muted-foreground py-8" data-testid="no-results-prospects">Aucun prospect ne correspond à vos filtres.</p>
+                ) : (
+                  <EmptyOnboardingHint
+                    icon={Briefcase}
+                    title="Aucun prospect pour l'instant"
+                    description="Ajoutez vos premiers prospects pour suivre votre pipeline commercial. Vous pourrez les déplacer entre les étapes et mesurer votre taux de conversion."
+                    actionLabel="Créer mon premier prospect"
+                    onAction={openCreate}
+                    tip="Astuce : convertissez un contact existant en prospect depuis sa fiche détaillée."
+                    testIdPrefix="empty-prospects"
+                  />
+                )}
               </div>
             )}
             {prospects.map(p => (

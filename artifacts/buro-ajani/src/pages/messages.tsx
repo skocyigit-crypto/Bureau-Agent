@@ -421,15 +421,19 @@ export default function Messages() {
             ) : data?.messages.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="py-8">
-                  <EmptyOnboardingHint
-                    icon={MessageSquare}
-                    title="Aucun message pour l'instant"
-                    description="Envoyez votre premier SMS ou enregistrez un message reçu pour suivre toutes vos conversations clients en un seul endroit."
-                    actionLabel="Créer mon premier message"
-                    onAction={handleOpenCreate}
-                    tip="Astuce : connectez Twilio pour envoyer et recevoir des SMS automatiquement."
-                    testIdPrefix="empty-messages"
-                  />
+                  {(search !== "" || readFilter !== "all" || typeFilter !== "all" || priorityFilter !== "all") ? (
+                    <p className="text-center text-muted-foreground" data-testid="no-results-messages">Aucun message ne correspond à vos filtres.</p>
+                  ) : (
+                    <EmptyOnboardingHint
+                      icon={MessageSquare}
+                      title="Aucun message pour l'instant"
+                      description="Envoyez votre premier SMS ou enregistrez un message reçu pour suivre toutes vos conversations clients en un seul endroit."
+                      actionLabel="Créer mon premier message"
+                      onAction={handleOpenCreate}
+                      tip="Astuce : connectez Twilio pour envoyer et recevoir des SMS automatiquement."
+                      testIdPrefix="empty-messages"
+                    />
+                  )}
                 </TableCell>
               </TableRow>
             ) : (

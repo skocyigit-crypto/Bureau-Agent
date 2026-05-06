@@ -433,15 +433,19 @@ export default function Contacts() {
               ) : data?.contacts.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="py-8">
-                    <EmptyOnboardingHint
-                      icon={Users}
-                      title="Aucun contact pour l'instant"
-                      description="Créez votre premier contact ou importez votre carnet d'adresses existant pour commencer à gérer vos clients et prospects."
-                      actionLabel="Créer mon premier contact"
-                      onAction={() => setIsDialogOpen(true)}
-                      tip="Astuce : importez un fichier CSV pour ajouter plusieurs contacts d'un coup."
-                      testIdPrefix="empty-contacts"
-                    />
+                    {(search !== "" || categoryFilter !== "all") ? (
+                      <p className="text-center text-muted-foreground" data-testid="no-results-contacts">Aucun contact ne correspond à votre recherche.</p>
+                    ) : (
+                      <EmptyOnboardingHint
+                        icon={Users}
+                        title="Aucun contact pour l'instant"
+                        description="Créez votre premier contact ou importez votre carnet d'adresses existant pour commencer à gérer vos clients et prospects."
+                        actionLabel="Créer mon premier contact"
+                        onAction={() => setIsDialogOpen(true)}
+                        tip="Astuce : importez un fichier CSV pour ajouter plusieurs contacts d'un coup."
+                        testIdPrefix="empty-contacts"
+                      />
+                    )}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -529,15 +533,19 @@ export default function Contacts() {
             ))
           ) : data?.contacts.length === 0 ? (
             <div className="col-span-full py-4">
-              <EmptyOnboardingHint
-                icon={Users}
-                title="Aucun contact pour l'instant"
-                description="Créez votre premier contact ou importez votre carnet d'adresses existant pour commencer."
-                actionLabel="Créer mon premier contact"
-                onAction={() => setIsDialogOpen(true)}
-                tip="Astuce : importez un fichier CSV pour ajouter plusieurs contacts d'un coup."
-                testIdPrefix="empty-contacts-grid"
-              />
+              {(search !== "" || categoryFilter !== "all") ? (
+                <p className="text-center text-muted-foreground py-8" data-testid="no-results-contacts-grid">Aucun contact ne correspond à votre recherche.</p>
+              ) : (
+                <EmptyOnboardingHint
+                  icon={Users}
+                  title="Aucun contact pour l'instant"
+                  description="Créez votre premier contact ou importez votre carnet d'adresses existant pour commencer."
+                  actionLabel="Créer mon premier contact"
+                  onAction={() => setIsDialogOpen(true)}
+                  tip="Astuce : importez un fichier CSV pour ajouter plusieurs contacts d'un coup."
+                  testIdPrefix="empty-contacts-grid"
+                />
+              )}
             </div>
           ) : (
             data?.contacts.map((contact) => (

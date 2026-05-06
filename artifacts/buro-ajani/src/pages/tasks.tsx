@@ -719,15 +719,19 @@ export default function Tasks() {
                 ) : data?.tasks.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="py-8">
-                      <EmptyOnboardingHint
-                        icon={CheckSquare}
-                        title="Aucune tâche pour l'instant"
-                        description="Créez votre première tâche pour organiser votre travail. Vous pourrez l'attribuer à un collaborateur, fixer une échéance et un niveau de priorité."
-                        actionLabel="Créer ma première tâche"
-                        onAction={handleOpenCreate}
-                        tip="Astuce : utilisez le Commandant IA pour créer plusieurs tâches d'un coup en langage naturel."
-                        testIdPrefix="empty-tasks"
-                      />
+                      {(search !== "" || statusFilter !== "all" || priorityFilter !== "all") ? (
+                        <p className="text-center text-muted-foreground" data-testid="no-results-tasks">Aucune tâche ne correspond à vos filtres.</p>
+                      ) : (
+                        <EmptyOnboardingHint
+                          icon={CheckSquare}
+                          title="Aucune tâche pour l'instant"
+                          description="Créez votre première tâche pour organiser votre travail. Vous pourrez l'attribuer à un collaborateur, fixer une échéance et un niveau de priorité."
+                          actionLabel="Créer ma première tâche"
+                          onAction={handleOpenCreate}
+                          tip="Astuce : utilisez le Commandant IA pour créer plusieurs tâches d'un coup en langage naturel."
+                          testIdPrefix="empty-tasks"
+                        />
+                      )}
                     </TableCell>
                   </TableRow>
                 ) : (

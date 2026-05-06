@@ -526,15 +526,19 @@ export default function Calls() {
             ) : data?.calls.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="py-8">
-                  <EmptyOnboardingHint
-                    icon={Phone}
-                    title="Aucun appel pour l'instant"
-                    description="Vos appels téléphoniques apparaîtront ici dès que vous configurerez votre numéro Twilio. Chaque appel sera automatiquement enregistré et transcrit par l'IA."
-                    actionLabel="Configurer la téléphonie"
-                    onAction={() => { window.location.href = "/telephonie"; }}
-                    tip="Astuce : sans Twilio, vous pouvez aussi enregistrer manuellement vos appels pour suivre votre activité commerciale."
-                    testIdPrefix="empty-calls"
-                  />
+                  {(search !== "" || statusFilter !== "all" || directionFilter !== "all") ? (
+                    <p className="text-center text-muted-foreground" data-testid="no-results-calls">Aucun appel ne correspond à vos filtres.</p>
+                  ) : (
+                    <EmptyOnboardingHint
+                      icon={Phone}
+                      title="Aucun appel pour l'instant"
+                      description="Vos appels téléphoniques apparaîtront ici dès que vous configurerez votre numéro Twilio. Chaque appel sera automatiquement enregistré et transcrit par l'IA."
+                      actionLabel="Configurer la téléphonie"
+                      onAction={() => { window.location.href = "/telephonie"; }}
+                      tip="Astuce : sans Twilio, vous pouvez aussi enregistrer manuellement vos appels pour suivre votre activité commerciale."
+                      testIdPrefix="empty-calls"
+                    />
+                  )}
                 </TableCell>
               </TableRow>
             ) : (
