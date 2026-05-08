@@ -72,7 +72,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className={`grid w-full lg:w-auto lg:inline-grid grid-cols-3 md:grid-cols-${Math.min(adminTabCount, 5)} lg:grid-cols-${adminTabCount}`}>
+        <TabsList className="flex flex-wrap h-auto w-full justify-start gap-1 p-1">
           {isAdmin && (
             <TabsTrigger value="profil" className="gap-2">
               <Building2 className="w-4 h-4" />
