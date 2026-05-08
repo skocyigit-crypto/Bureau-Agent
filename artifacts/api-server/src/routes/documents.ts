@@ -666,7 +666,7 @@ router.post("/documents/:id/analyze-multi", requireMinAgent, async (req: Request
       res.status(404).json({ error: "Document introuvable ou contenu manquant" }); return;
     }
 
-    const result = await analyzeDocumentMultiModel(doc.fileContent, doc.mimeType, doc.originalName);
+    const result = await analyzeDocumentMultiModel(doc.fileContent, doc.mimeType, doc.originalName, orgId);
 
     // Merge multi-model result into existing aiAnalysis
     const existing = (doc.aiAnalysis as Record<string, any>) ?? {};

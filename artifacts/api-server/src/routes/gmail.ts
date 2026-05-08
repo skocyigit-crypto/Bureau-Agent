@@ -574,11 +574,23 @@ router.post("/gmail/message/:id/scan", async (req: Request, res: Response): Prom
     const rawUrls = extractUrls(allText);
     const scannedLinks = rawUrls.map(analyzeUrl);
 
-    // 4. AI phishing analysis via Gemini
+    // 4. AI phishing analysis via Gemini (cached per message)
     let aiAnalysis: EmailScanReport["aiAnalysis"] = null;
-    try {
-      const { ai } = await import("@workspace/integrations-gemini-ai");
-      const prompt = `Tu es un expert en cybersécurité. Analyse cet email pour détecter le phishing, l'ingénierie sociale et les tentatives d'usurpation d'identité.
+    const { buildAiCacheKey: _buildKey, getCached: _getC, setCached: _setC, AI_CACHE_TTL: _ttl, withProviderTimeout: _to } = await import("../services/ai-cache");
+    const orgIdForCache = (req.session as any)?.organisationId ?? null;
+    const phishingKey = _buildKey({
+      route: "/gmail/scan",
+      organisationId: orgIdForCache,
+      userId,
+      input: { msgId, subjectHash: subject.slice(0, 200), urlCount: rawUrls.length },
+    });
+    const phishingCached = _getC<EmailScanReport["aiAnalysis"]>(phishingKey);
+    if (phishingCached) {
+      aiAnalysis = phishingCached;
+    } else {
+      try {
+        const { ai } = await import("@workspace/integrations-gemini-ai");
+        const prompt = `Tu es un expert en cybersécurité. Analyse cet email pour détecter le phishing, l'ingénierie sociale et les tentatives d'usurpation d'identité.
 
 DE: ${fromHeader}
 OBJET: ${subject}
@@ -596,27 +608,29 @@ Réponds en JSON strict avec ce format:
   "recommendation": <"action recommandée en 1 phrase">
 }`;
 
-      const result = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: { temperature: 0.1, maxOutputTokens: 512 },
-      });
+        const result = await _to(() => ai.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          config: { temperature: 0.1, maxOutputTokens: 512 },
+        }), { timeoutMs: 15_000, label: "gmail-scan" });
 
-      const raw = result.text?.trim() ?? "";
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        aiAnalysis = {
-          phishingScore: Math.max(0, Math.min(10, parsed.phishingScore ?? 0)),
-          socialEngineering: Array.isArray(parsed.socialEngineering) ? parsed.socialEngineering : [],
-          impersonation: parsed.impersonation ?? null,
-          verdict: parsed.verdict ?? "legitime",
-          summary: parsed.summary ?? "",
-          recommendation: parsed.recommendation ?? "",
-        };
+        const raw = result.text?.trim() ?? "";
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          aiAnalysis = {
+            phishingScore: Math.max(0, Math.min(10, parsed.phishingScore ?? 0)),
+            socialEngineering: Array.isArray(parsed.socialEngineering) ? parsed.socialEngineering : [],
+            impersonation: parsed.impersonation ?? null,
+            verdict: parsed.verdict ?? "legitime",
+            summary: parsed.summary ?? "",
+            recommendation: parsed.recommendation ?? "",
+          };
+          _setC(phishingKey, aiAnalysis, _ttl.VERY_LONG);
+        }
+      } catch (aiErr: any) {
+        logger.warn({ err: aiErr }, "Gmail scan AI analysis failed (non-blocking)");
       }
-    } catch (aiErr: any) {
-      logger.warn({ err: aiErr }, "Gmail scan AI analysis failed (non-blocking)");
     }
 
     // 5. Compute overall risk

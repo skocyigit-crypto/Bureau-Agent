@@ -751,12 +751,13 @@ Si l'information n'est pas dans le document, dis-le clairement.`;
 async function runGeminiAnalysis(contentParts: any[], fileName: string, mimeType: string): Promise<ModelAnalysis> {
   const t0 = Date.now();
   const { ai } = await import("@workspace/integrations-gemini-ai");
+  const { withProviderTimeout } = await import("./ai-cache");
   const response = await aiCallWithRetry(
-    () => ai.models.generateContent({
+    () => withProviderTimeout(() => ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: [{ role: "user", parts: [...contentParts, { text: MULTI_ANALYSIS_PROMPT(fileName, mimeType) }] }],
       config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
-    }),
+    }), { timeoutMs: 30_000, label: "doc-gemini" }),
     { label: "multi-gemini", maxRetries: 2 }
   );
   const parsed = safeJsonParse<any>(response.text ?? "{}", {});
@@ -787,13 +788,14 @@ async function runOpenAIAnalysis(textContent: string, fileName: string, mimeType
     messages.push({ role: "user", content: `${MULTI_ANALYSIS_PROMPT(fileName, mimeType)}\n\nCONTENU DU DOCUMENT:\n${textContent.slice(0, 12000)}` });
   }
 
+  const { withProviderTimeout: _to1 } = await import("./ai-cache");
   const response = await aiCallWithRetry(
-    () => openai.chat.completions.create({
+    () => _to1(() => openai.chat.completions.create({
       model: "gpt-4o",
       messages,
       max_tokens: 2048,
       response_format: { type: "json_object" },
-    }),
+    }), { timeoutMs: 30_000, label: "doc-openai" }),
     { label: "multi-openai", maxRetries: 2 }
   );
   const parsed = safeJsonParse<any>(response.choices[0]?.message?.content ?? "{}", {});
@@ -822,13 +824,14 @@ async function runClaudeAnalysis(textContent: string, fileName: string, mimeType
     content = `${MULTI_ANALYSIS_PROMPT(fileName, mimeType)}\n\nCONTENU DU DOCUMENT:\n${textContent.slice(0, 12000)}`;
   }
 
+  const { withProviderTimeout: _to2 } = await import("./ai-cache");
   const response = await aiCallWithRetry(
-    () => anthropic.messages.create({
+    () => _to2(() => anthropic.messages.create({
       model: "claude-sonnet-4-5",
       max_tokens: 2048,
       system: "Tu es un analyste documentaire expert. Retourne uniquement du JSON valide.",
       messages: [{ role: "user", content }],
-    }),
+    }), { timeoutMs: 30_000, label: "doc-claude" }),
     { label: "multi-claude", maxRetries: 2 }
   );
   const rawText = (response.content[0] as any)?.text ?? "{}";
@@ -848,7 +851,19 @@ export async function analyzeDocumentMultiModel(
   base64Content: string,
   mimeType: string,
   fileName: string,
+  organisationId: number,
 ): Promise<MultiModelResult> {
+  const crypto = await import("node:crypto");
+  const { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } = await import("./ai-cache");
+  const fileHash = crypto.createHash("sha256").update(base64Content).digest("hex");
+  const docCacheKey = buildAiCacheKey({
+    route: "document-ai/multi-model",
+    organisationId,
+    input: { fileHash, mimeType, fileName },
+  });
+  const docCached = getCached<MultiModelResult>(docCacheKey);
+  if (docCached) return docCached;
+
   const isVisual = VISUAL_MIME_TYPES.includes(mimeType);
   const isImage = mimeType.startsWith("image/");
 
@@ -883,7 +898,7 @@ export async function analyzeDocumentMultiModel(
   const summaries = [gemini.summary, openai.summary, claude.summary].filter(Boolean);
   const successCount = [geminiRes, openaiRes, claudeRes].filter(r => r.status === "fulfilled").length;
 
-  return {
+  const result: MultiModelResult = {
     gemini, openai, claude,
     consensus: {
       summary: summaries[0] || "",
@@ -892,6 +907,8 @@ export async function analyzeDocumentMultiModel(
     },
     analyzedAt: new Date().toISOString(),
   };
+  if (successCount > 0) setCached(docCacheKey, result, AI_CACHE_TTL.VERY_LONG);
+  return result;
 }
 
 // ── DOCUMENT Q&A ──────────────────────────────────────────────────────────────

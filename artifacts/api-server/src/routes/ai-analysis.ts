@@ -5,6 +5,7 @@ import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNul
 import { logger } from "../lib/logger";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
 import { extractGeminiTokens, recordAiUsage } from "../services/ai-utils";
+import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 
 const router = Router();
 
@@ -150,6 +151,14 @@ router.post("/ai/analyze", async (req, res): Promise<void> => {
     try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
     const analyticsData = await gatherAnalyticsData(orgId);
 
+    const cacheKey = buildAiCacheKey({
+      route: "/ai/analyze",
+      organisationId: orgId,
+      input: { period: new Date().toISOString().slice(0, 13), summary: JSON.stringify(analyticsData).slice(0, 200) },
+    });
+    const cached = getCached<any>(cacheKey);
+    if (cached) { res.json(cached); return; }
+
     const { ai } = await import("@workspace/integrations-gemini-ai");
 
     const systemPrompt = `Tu es un analyste de bureau expert en gestion de secretariat et centre d'appels en France. Tu analyses les donnees de performance d'un bureau professionnel et fournis des insights actionnables.
@@ -196,6 +205,7 @@ Reponds en JSON avec cette structure exacte:
       parsed = { resumeExecutif: text, pointsForts: [], pointsAttention: [], tendances: [], recommandations: [], scoreGlobal: 0 };
     }
 
+    setCached(cacheKey, parsed, AI_CACHE_TTL.LONG);
     res.json(parsed);
   } catch (error: any) {
     logger.error({ err: error }, "AI Analysis error:");
@@ -348,6 +358,15 @@ router.post("/ai/suggest", async (req, res): Promise<void> => {
     }
 
     const contextData = await gatherContextForPage(page, orgId);
+
+    const suggestKey = buildAiCacheKey({
+      route: "/ai/suggest",
+      organisationId: orgId,
+      input: { page, ctxHash: JSON.stringify(contextData).slice(0, 300) },
+    });
+    const suggestCached = getCached<any>(suggestKey);
+    if (suggestCached) { res.json(suggestCached); return; }
+
     const { ai } = await import("@workspace/integrations-gemini-ai");
 
     const pagePrompts: Record<string, string> = {
@@ -404,6 +423,7 @@ Donnees:\n${JSON.stringify(contextData, null, 2)}`
       parsed = { suggestions: [], resumeCourt: text };
     }
 
+    setCached(suggestKey, parsed, AI_CACHE_TTL.MEDIUM);
     res.json(parsed);
   } catch (error: any) {
     logger.error({ err: error }, "AI Suggest error:");
@@ -453,6 +473,14 @@ router.post("/ai/validate", async (req, res): Promise<void> => {
       }
     }
 
+    const validateKey = buildAiCacheKey({
+      route: "/ai/validate",
+      organisationId: orgId,
+      input: { entityType, data, contextInfo },
+    });
+    const validateCached = getCached<any>(validateKey);
+    if (validateCached) { res.json(validateCached); return; }
+
     const { ai } = await import("@workspace/integrations-gemini-ai");
 
     const response = await ai.models.generateContent({
@@ -498,6 +526,7 @@ Si tout est correct, errors et warnings seront vides. Sois utile mais pas trop s
       parsed = { isValid: true, errors: [], warnings: [], suggestions: [] };
     }
 
+    setCached(validateKey, parsed, AI_CACHE_TTL.SHORT);
     res.json(parsed);
   } catch (error: any) {
     logger.error({ err: error }, "AI Validate error:");

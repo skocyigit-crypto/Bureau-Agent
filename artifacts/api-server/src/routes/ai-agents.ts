@@ -4,6 +4,7 @@ import { sql, eq, gte, lte, and, count, desc, lt, ne, isNull, isNotNull, or, sum
 import { requireRole } from "../middleware/auth";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "../services/ai-quota";
 import { extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage } from "../services/ai-utils";
+import { withProviderTimeout, buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -766,42 +767,53 @@ ${trendHistory.map(h => `  ${h.reportDate}: score ${h.score}, ${h.errorsFound} e
 
     let text = "{}";
     const t0 = Date.now();
-    try {
-      const response = await ai.models.generateContent({
+    const agentCacheKey = buildAiCacheKey({
+      route: `/ai/agents/${agent.id}`,
+      organisationId: orgId,
+      input: { day: today, dataHash: JSON.stringify(data).slice(0, 400) },
+    });
+    const agentCached = getCached<string>(agentCacheKey);
+    if (agentCached) {
+      text = agentCached;
+    } else try {
+      const response = await withProviderTimeout(() => ai.models.generateContent({
         model: "gemini-2.5-pro",
         contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
         config: { maxOutputTokens: 8192, responseMimeType: "application/json", thinkingConfig: { thinkingBudget: 2048 } },
-      });
+      }), { timeoutMs: 45_000, label: `agent-${agent.id}-gemini` });
       text = response.text ?? "{}";
       const tokens = extractGeminiTokens(response);
       recordAiUsage({ organisationId: orgId, provider: "gemini", model: "gemini-2.5-pro", route: `/ai/agents/${agent.id}`, inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
       invalidateQuotaCache(orgId);
+      if (text && text.length > 10) setCached(agentCacheKey, text, AI_CACHE_TTL.MEDIUM);
     } catch (geminiErr: any) {
       if (geminiErr instanceof AiQuotaExceededError) throw geminiErr;
       logger.warn({ err: geminiErr, agentId: agent.id }, "Gemini failed, trying OpenAI fallback");
       try {
         const { openai } = await import("@workspace/integrations-openai-ai-server");
-        const fallback = await openai.chat.completions.create({
+        const fallback = await withProviderTimeout(() => openai.chat.completions.create({
           model: "gpt-5.2",
           messages: [{ role: "user", content: fullPrompt + "\n\nReponds UNIQUEMENT en JSON valide." }],
-        });
+        }), { timeoutMs: 45_000, label: `agent-${agent.id}-openai` });
         text = fallback.choices?.[0]?.message?.content ?? "{}";
         const ftokens = extractOpenAITokens(fallback);
         recordAiUsage({ organisationId: orgId, provider: "openai", model: "gpt-5.2", route: `/ai/agents/${agent.id}`, inputTokens: ftokens.input, outputTokens: ftokens.output, durationMs: Date.now() - t0 }).catch(() => {});
         invalidateQuotaCache(orgId);
+        if (text && text.length > 10) setCached(agentCacheKey, text, AI_CACHE_TTL.MEDIUM);
       } catch (openaiErr: any) {
         logger.warn({ err: openaiErr, agentId: agent.id }, "OpenAI fallback failed, trying Anthropic");
         try {
           const { anthropic } = await import("@workspace/integrations-anthropic-ai");
-          const fallback2 = await anthropic.messages.create({
+          const fallback2 = await withProviderTimeout(() => anthropic.messages.create({
             model: "claude-sonnet-4-6",
             max_tokens: 8192,
             messages: [{ role: "user", content: fullPrompt + "\n\nReponds UNIQUEMENT en JSON valide." }],
-          });
+          }), { timeoutMs: 45_000, label: `agent-${agent.id}-anthropic` });
           text = fallback2.content?.[0]?.type === "text" ? fallback2.content[0].text : "{}";
           const atokens = extractAnthropicTokens(fallback2);
           recordAiUsage({ organisationId: orgId, provider: "anthropic", model: "claude-sonnet-4-6", route: `/ai/agents/${agent.id}`, inputTokens: atokens.input, outputTokens: atokens.output, durationMs: Date.now() - t0 }).catch(() => {});
           invalidateQuotaCache(orgId);
+          if (text && text.length > 10) setCached(agentCacheKey, text, AI_CACHE_TTL.MEDIUM);
         } catch (anthropicErr: any) {
           logger.error({ err: anthropicErr, agentId: agent.id }, "All AI providers failed");
           throw new Error(`Tous les fournisseurs IA ont echoue pour ${agent.id}`);

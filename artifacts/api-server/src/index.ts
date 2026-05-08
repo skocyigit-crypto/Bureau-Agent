@@ -7,6 +7,7 @@ import { startGoogleAutoPointage } from "./services/google-auto-pointage";
 import { startGoogleDriveBackupScheduler } from "./services/google-drive-backup";
 import { startDataProtectionMonitor } from "./services/data-protection-monitor";
 import { startAiUsagePurgeJob } from "./services/ai-utils";
+import { startAiCachePurgeJob } from "./services/ai-cache";
 import { startBillingCron } from "./services/billing-cron";
 
 import { closePool, checkDbHealth } from "@workspace/db";
@@ -100,6 +101,7 @@ async function startServer(): Promise<void> {
     startGoogleDriveBackupScheduler().catch(err => logger.error({ err }, "[GoogleDriveBackup] Init error"));
     startDataProtectionMonitor();
     startAiUsagePurgeJob();
+    startAiCachePurgeJob();
     startBillingCron();
   });
 

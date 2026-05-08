@@ -19,6 +19,7 @@ import {
 import { eq, and, gte, lte, count, sql, desc, or } from "drizzle-orm";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "../services/ai-quota";
 import { extractGeminiTokens, recordAiUsage } from "../services/ai-utils";
+import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -308,14 +309,34 @@ Regles: 3-5 suggestions max, toutes en francais. Alertes si appels manques ou ta
     demain: { message: string; priorites: string[] };
   } | null = null;
 
-  try {
-    const raw = await aiGenerate(orgId, prompt);
-    aiResult = safeJson(raw, null);
-  } catch (err) {
-    if (err instanceof AiQuotaExceededError) {
-      logger.warn({ orgId }, "[daily-digest] AI quota exceeded");
-    } else {
-      logger.error({ err }, "[daily-digest] AI generation failed");
+  const digestKey = buildAiCacheKey({
+    route: "/daily-digest",
+    organisationId: orgId,
+    userId,
+    input: {
+      date: today,
+      callsTotal: data.calls.total,
+      tasksCreated: data.tasks.created,
+      tasksCompleted: data.tasks.completed,
+      tasksOverdue: data.tasks.overdue,
+      events: data.events.today,
+      messages: data.messages,
+    },
+  });
+  const digestCached = getCached<typeof aiResult>(digestKey);
+  if (digestCached) {
+    aiResult = digestCached;
+  } else {
+    try {
+      const raw = await aiGenerate(orgId, prompt);
+      aiResult = safeJson(raw, null);
+      if (aiResult) setCached(digestKey, aiResult, AI_CACHE_TTL.LONG);
+    } catch (err) {
+      if (err instanceof AiQuotaExceededError) {
+        logger.warn({ orgId }, "[daily-digest] AI quota exceeded");
+      } else {
+        logger.error({ err }, "[daily-digest] AI generation failed");
+      }
     }
   }
 

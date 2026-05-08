@@ -4,6 +4,8 @@ import { eq, sql, and, desc, ilike, or } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { logger } from "../lib/logger";
 import { assertAiQuota, AiQuotaExceededError } from "../services/ai-quota";
+import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL, withProviderTimeout } from "../services/ai-cache";
+import crypto from "node:crypto";
 
 const router = Router();
 
@@ -21,23 +23,23 @@ async function multiAiAnalyze(prompt: string, systemPrompt?: string): Promise<st
   const errors: string[] = [];
   try {
     const ai = await getGemini();
-    const r = await ai.models.generateContent({
+    const r = await withProviderTimeout(() => ai.models.generateContent({
       model: "gemini-2.5-pro",
       contents: systemPrompt ? [{ role: "user", parts: [{ text: systemPrompt + "\n\n" + prompt }] }] : prompt,
-    });
+    }), { timeoutMs: 20_000, label: "face-gemini" });
     const text = typeof r === "object" && r !== null && "text" in r ? String(r.text) : String(r);
     if (text && text.length > 10) return text;
   } catch (e: any) { errors.push("Gemini: " + e.message); }
 
   try {
     const openai = await getOpenAI();
-    const r = await openai.chat.completions.create({
+    const r = await withProviderTimeout(() => openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         ...(systemPrompt ? [{ role: "system" as const, content: systemPrompt }] : []),
         { role: "user" as const, content: prompt },
       ],
-    });
+    }), { timeoutMs: 20_000, label: "face-openai" });
     const text = r.choices?.[0]?.message?.content;
     if (text && text.length > 10) return text;
   } catch (e: any) { errors.push("OpenAI: " + e.message); }
@@ -148,7 +150,14 @@ router.post("/recognize", async (req: Request, res: Response): Promise<void> => 
       throw qe;
     }
 
-    const aiResult = await multiAiAnalyze(
+    const photoHash = photoBase64 ? crypto.createHash("sha256").update(String(photoBase64).slice(0, 200_000)).digest("hex").slice(0, 16) : "noimg";
+    const faceCacheKey = buildAiCacheKey({
+      route: "/face/recognize",
+      organisationId: orgId,
+      input: { photoHash, profileCount: profiles.length },
+    });
+    const faceCached = getCached<string>(faceCacheKey);
+    const aiResult = faceCached ?? await multiAiAnalyze(
       `Systeme de reconnaissance faciale de bureau.
        Voici les profils enregistres dans ce bureau:
        ${profileList}
@@ -174,6 +183,9 @@ router.post("/recognize", async (req: Request, res: Response): Promise<void> => 
        }`,
       "Tu es un systeme intelligent de reconnaissance faciale pour bureau professionnel francais. Tu identifies les personnes et suggeres des actions appropriees."
     );
+    if (!faceCached && aiResult && aiResult.length > 10) {
+      setCached(faceCacheKey, aiResult, AI_CACHE_TTL.LONG);
+    }
 
     let parsed: any = {};
     try {

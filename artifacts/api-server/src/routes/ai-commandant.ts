@@ -6,6 +6,7 @@ import { Resend } from "resend";
 import { getContextForContact, getLatestAgentInsights, buildCommandantContextPrompt } from "./agent-collaboration";
 import { safeJsonParse, extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, sanitizePromptInput } from "../services/ai-utils";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
+import { getOrCompute, buildAiCacheKey, withProviderTimeout, AI_CACHE_TTL } from "../services/ai-cache";
 import { logger } from "../lib/logger";
 
 function handleCommandantError(err: unknown, res: Response, logLabel: string): void {
@@ -47,10 +48,10 @@ async function multiAiGenerate(prompt: string, systemPrompt?: string, orgId?: nu
 
   try {
     const ai = await getGemini();
-    const r = await ai.models.generateContent({
+    const r = await withProviderTimeout(() => ai.models.generateContent({
       model: "gemini-2.5-pro",
       contents: safeSystem ? [{ role: "user", parts: [{ text: safeSystem + "\n\n" + safePrompt }] }] : safePrompt,
-    });
+    }), { timeoutMs: 25_000, label: "gemini" });
     const text = typeof r === "object" && r !== null && "text" in r ? String(r.text) : String(r);
     if (text && text.length > 10) {
       if (orgId) {
@@ -67,13 +68,13 @@ async function multiAiGenerate(prompt: string, systemPrompt?: string, orgId?: nu
 
   try {
     const openai = await getOpenAI();
-    const r = await openai.chat.completions.create({
+    const r = await withProviderTimeout(() => openai.chat.completions.create({
       model: "gpt-5.2",
       messages: [
         ...(safeSystem ? [{ role: "system" as const, content: safeSystem }] : []),
         { role: "user" as const, content: safePrompt },
       ],
-    });
+    }), { timeoutMs: 25_000, label: "openai" });
     const text = r.choices?.[0]?.message?.content;
     if (text && text.length > 10) {
       if (orgId) {
@@ -87,12 +88,12 @@ async function multiAiGenerate(prompt: string, systemPrompt?: string, orgId?: nu
 
   try {
     const anthropic = await getAnthropic();
-    const r = await anthropic.messages.create({
+    const r = await withProviderTimeout(() => anthropic.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 4096,
       ...(safeSystem ? { system: safeSystem } : {}),
       messages: [{ role: "user", content: safePrompt }],
-    });
+    }), { timeoutMs: 25_000, label: "anthropic" });
     const text = r.content?.[0]?.type === "text" ? r.content[0].text : "";
     if (text && text.length > 10) {
       if (orgId) {
@@ -105,6 +106,17 @@ async function multiAiGenerate(prompt: string, systemPrompt?: string, orgId?: nu
   } catch (e: any) { errors.push("Anthropic: " + e.message); }
 
   return `[AI indisponible] ${errors.join("; ")}`;
+}
+
+async function multiAiGenerateCached(
+  cacheKey: string,
+  ttlMs: number,
+  prompt: string,
+  systemPrompt: string | undefined,
+  orgId: number | undefined,
+  route: string | undefined,
+): Promise<string> {
+  return getOrCompute(cacheKey, ttlMs, () => multiAiGenerate(prompt, systemPrompt, orgId, route));
 }
 
 function escapeHtml(s: string) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
@@ -209,7 +221,12 @@ Genere un JSON avec:
   "agentInsightsSummary": "Resume des informations fournies par les agents IA specialises"
 }`;
 
-    const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
+    const cacheKey = buildAiCacheKey({
+      route: "/commandant/call-smart-response",
+      organisationId: orgId,
+      input: { callId, callerPhone, callerName, callDirection, contactId: contact?.id, openTasks: openTasks.length, overdueInvoices: overdueInvoices.length, recentCalls: recentCalls.length },
+    });
+    const aiResponse = await multiAiGenerateCached(cacheKey, AI_CACHE_TTL.MEDIUM, prompt, systemPrompt, orgId, req.path);
     const parsed: any = safeJsonParse<any>(aiResponse, { greeting: aiResponse, suggestedResponses: [], recommendedActions: [] });
 
     const activeAgents = Object.entries(agentInsights).map(([id, insight]) => ({ id, score: insight.score, summary: insight.summary?.slice(0, 80) }));
@@ -435,7 +452,12 @@ JSON attendu:
   "agentInsightsSummary": "Resume des informations des agents IA utilisees pour cette reponse"
 }`;
 
-    const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
+    const cacheKey = buildAiCacheKey({
+      route: "/commandant/email-smart-reply",
+      organisationId: orgId,
+      input: { emailFrom, emailSubject, emailBodyHash: (emailBody || "").slice(0, 500), tone, contactId },
+    });
+    const aiResponse = await multiAiGenerateCached(cacheKey, AI_CACHE_TTL.MEDIUM, prompt, systemPrompt, orgId, req.path);
     let parsed: any;
     try {
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
