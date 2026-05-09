@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   useRequestAiInlineSuggest,
+  recordAiInlineSuggestEvent,
   useGetMyPreferences,
   useUpdateMyPreferences,
   getGetMyPreferencesQueryKey,
@@ -150,6 +151,16 @@ interface UseInlineSuggestOptions {
 interface UseInlineSuggestResult {
   suggestion: string;
   clear: () => void;
+  trackAccepted: (length: number) => void;
+  trackDismissed: (length: number) => void;
+}
+
+function fireEvent(fieldType: InlineSuggestFieldType, event: "shown" | "accepted" | "dismissed", length: number): void {
+  try {
+    void recordAiInlineSuggestEvent({ fieldType, event, length: Math.max(0, Math.floor(length || 0)) }).catch(() => {});
+  } catch {
+    /* ignore */
+  }
 }
 
 export function useInlineSuggest(opts: UseInlineSuggestOptions): UseInlineSuggestResult {
@@ -211,6 +222,7 @@ export function useInlineSuggest(opts: UseInlineSuggestOptions): UseInlineSugges
             const s = (data?.suggestion ?? "").toString();
             lastReqTextRef.current = text;
             setSuggestion(s);
+            if (s) fireEvent(fieldType, "shown", s.length);
           },
           onError: () => {
             if (myReqId !== reqIdRef.current) return;
@@ -233,5 +245,13 @@ export function useInlineSuggest(opts: UseInlineSuggestOptions): UseInlineSugges
     setSuggestion("");
   }, [text]);
 
-  return { suggestion, clear };
+  const trackAccepted = useCallback((length: number) => {
+    fireEvent(fieldType, "accepted", length);
+  }, [fieldType]);
+
+  const trackDismissed = useCallback((length: number) => {
+    fireEvent(fieldType, "dismissed", length);
+  }, [fieldType]);
+
+  return { suggestion, clear, trackAccepted, trackDismissed };
 }

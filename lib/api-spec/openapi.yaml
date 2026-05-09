@@ -1055,6 +1055,97 @@ paths:
                     description: Short continuation to display as ghost text. Empty string when no suggestion is appropriate.
                 required: [suggestion]
 
+  /ai/inline-suggest/event:
+    post:
+      operationId: recordAiInlineSuggestEvent
+      tags: [ai]
+      summary: Record a ghost-text suggestion event (shown / accepted / dismissed)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fieldType:
+                  type: string
+                  enum: [note, prospect_note, email_body, call_note, task_description, message_content, project_description, project_note]
+                event:
+                  type: string
+                  enum: [shown, accepted, dismissed]
+                length:
+                  type: integer
+                  minimum: 0
+                  description: Length (in characters) of the suggestion involved in this event
+              required: [fieldType, event]
+      responses:
+        "204":
+          description: Event recorded
+
+  /ai/inline-suggest/metrics:
+    get:
+      operationId: getAiInlineSuggestMetrics
+      tags: [ai]
+      summary: Aggregated counters for ghost-text suggestion acceptance per field type
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 90
+            default: 30
+      responses:
+        "200":
+          description: Acceptance metrics per field type for the requested window
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  period:
+                    type: object
+                    properties:
+                      days:
+                        type: integer
+                      since:
+                        type: string
+                        format: date-time
+                    required: [days, since]
+                  totals:
+                    type: object
+                    properties:
+                      shown:
+                        type: integer
+                      accepted:
+                        type: integer
+                      dismissed:
+                        type: integer
+                      acceptanceRate:
+                        type: number
+                        description: accepted / shown (0..1), 0 when shown = 0
+                    required: [shown, accepted, dismissed, acceptanceRate]
+                  byField:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        fieldType:
+                          type: string
+                        shown:
+                          type: integer
+                        accepted:
+                          type: integer
+                        dismissed:
+                          type: integer
+                        acceptanceRate:
+                          type: number
+                        avgAcceptedLength:
+                          type: number
+                      required: [fieldType, shown, accepted, dismissed, acceptanceRate, avgAcceptedLength]
+                required: [period, totals, byField]
+
   /ai/agents/run:
     post:
       operationId: runAllAiAgents

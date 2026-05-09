@@ -1053,6 +1053,71 @@ export const RequestAiInlineSuggestResponse = zod.object({
 });
 
 /**
+ * @summary Record a ghost-text suggestion event (shown / accepted / dismissed)
+ */
+export const recordAiInlineSuggestEventBodyLengthMin = 0;
+
+export const RecordAiInlineSuggestEventBody = zod.object({
+  fieldType: zod.enum([
+    "note",
+    "prospect_note",
+    "email_body",
+    "call_note",
+    "task_description",
+    "message_content",
+    "project_description",
+    "project_note",
+  ]),
+  event: zod.enum(["shown", "accepted", "dismissed"]),
+  length: zod
+    .number()
+    .min(recordAiInlineSuggestEventBodyLengthMin)
+    .optional()
+    .describe(
+      "Length (in characters) of the suggestion involved in this event",
+    ),
+});
+
+/**
+ * @summary Aggregated counters for ghost-text suggestion acceptance per field type
+ */
+export const getAiInlineSuggestMetricsQueryDaysDefault = 30;
+export const getAiInlineSuggestMetricsQueryDaysMax = 90;
+
+export const GetAiInlineSuggestMetricsQueryParams = zod.object({
+  days: zod.coerce
+    .number()
+    .min(1)
+    .max(getAiInlineSuggestMetricsQueryDaysMax)
+    .default(getAiInlineSuggestMetricsQueryDaysDefault),
+});
+
+export const GetAiInlineSuggestMetricsResponse = zod.object({
+  period: zod.object({
+    days: zod.number(),
+    since: zod.coerce.date(),
+  }),
+  totals: zod.object({
+    shown: zod.number(),
+    accepted: zod.number(),
+    dismissed: zod.number(),
+    acceptanceRate: zod
+      .number()
+      .describe("accepted \/ shown (0..1), 0 when shown = 0"),
+  }),
+  byField: zod.array(
+    zod.object({
+      fieldType: zod.string(),
+      shown: zod.number(),
+      accepted: zod.number(),
+      dismissed: zod.number(),
+      acceptanceRate: zod.number(),
+      avgAcceptedLength: zod.number(),
+    }),
+  ),
+});
+
+/**
  * @summary Run all AI agents and generate reports with Super AI synthesis
  */
 export const RunAllAiAgentsResponse = zod.object({

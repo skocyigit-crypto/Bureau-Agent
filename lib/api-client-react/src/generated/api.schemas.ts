@@ -1562,6 +1562,75 @@ export type RequestAiInlineSuggest200 = {
   suggestion: string;
 };
 
+export type RecordAiInlineSuggestEventBodyFieldType =
+  (typeof RecordAiInlineSuggestEventBodyFieldType)[keyof typeof RecordAiInlineSuggestEventBodyFieldType];
+
+export const RecordAiInlineSuggestEventBodyFieldType = {
+  note: "note",
+  prospect_note: "prospect_note",
+  email_body: "email_body",
+  call_note: "call_note",
+  task_description: "task_description",
+  message_content: "message_content",
+  project_description: "project_description",
+  project_note: "project_note",
+} as const;
+
+export type RecordAiInlineSuggestEventBodyEvent =
+  (typeof RecordAiInlineSuggestEventBodyEvent)[keyof typeof RecordAiInlineSuggestEventBodyEvent];
+
+export const RecordAiInlineSuggestEventBodyEvent = {
+  shown: "shown",
+  accepted: "accepted",
+  dismissed: "dismissed",
+} as const;
+
+export type RecordAiInlineSuggestEventBody = {
+  fieldType: RecordAiInlineSuggestEventBodyFieldType;
+  event: RecordAiInlineSuggestEventBodyEvent;
+  /**
+   * Length (in characters) of the suggestion involved in this event
+   * @minimum 0
+   */
+  length?: number;
+};
+
+export type GetAiInlineSuggestMetricsParams = {
+  /**
+   * @minimum 1
+   * @maximum 90
+   */
+  days?: number;
+};
+
+export type GetAiInlineSuggestMetrics200Period = {
+  days: number;
+  since: string;
+};
+
+export type GetAiInlineSuggestMetrics200Totals = {
+  shown: number;
+  accepted: number;
+  dismissed: number;
+  /** accepted / shown (0..1), 0 when shown = 0 */
+  acceptanceRate: number;
+};
+
+export type GetAiInlineSuggestMetrics200ByFieldItem = {
+  fieldType: string;
+  shown: number;
+  accepted: number;
+  dismissed: number;
+  acceptanceRate: number;
+  avgAcceptedLength: number;
+};
+
+export type GetAiInlineSuggestMetrics200 = {
+  period: GetAiInlineSuggestMetrics200Period;
+  totals: GetAiInlineSuggestMetrics200Totals;
+  byField: GetAiInlineSuggestMetrics200ByFieldItem[];
+};
+
 export type RunAllAiAgents200 = {
   superReport?: AiAgentReport;
   agentReports?: AiAgentReport[];

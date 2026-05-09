@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { useGetCallAnalytics, useGetCallDistribution, useGetHourlyPerformance, useGetWeeklyReport, useGetTaskStats } from "@workspace/api-client-react";
+import { useGetCallAnalytics, useGetCallDistribution, useGetHourlyPerformance, useGetWeeklyReport, useGetTaskStats, useGetAiInlineSuggestMetrics } from "@workspace/api-client-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend, AreaChart, Area, LineChart, Line,
@@ -729,7 +729,97 @@ export default function Analytics() {
             )}
           </CardContent>
         </Card>
+        <InlineSuggestMetricsCard />
       </div>
     </div>
+  );
+}
+
+const FIELD_LABELS: Record<string, string> = {
+  note: "Notes internes",
+  prospect_note: "Notes prospect",
+  email_body: "Corps d'e-mail",
+  call_note: "Notes d'appel",
+  task_description: "Descriptions de tâche",
+  message_content: "Messages",
+  project_description: "Descriptions de projet",
+  project_note: "Notes de projet",
+};
+
+function formatPct(rate: number): string {
+  return `${Math.round((rate || 0) * 1000) / 10}%`;
+}
+
+function InlineSuggestMetricsCard() {
+  const { data, isLoading } = useGetAiInlineSuggestMetrics(
+    { days: 30 },
+    { query: { queryKey: ["aiInlineSuggestMetrics", 30] } },
+  );
+
+  const totals = data?.totals ?? { shown: 0, accepted: 0, dismissed: 0, acceptanceRate: 0 };
+  const byField = data?.byField ?? [];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Sparkles className="h-4 w-4 text-primary" />
+          Suggestions IA en ligne — taux d'acceptation (30 jours)
+        </CardTitle>
+        <CardDescription>
+          Mesure de l'utilité des propositions ghost-text : combien sont affichées et combien sont acceptées par Tab.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+            <Skeleton className="h-20 w-full" />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <div className="rounded-md border bg-muted/30 p-3">
+                <div className="text-xs text-muted-foreground">Affichées</div>
+                <div className="text-lg font-semibold">{totals.shown}</div>
+              </div>
+              <div className="rounded-md border bg-muted/30 p-3">
+                <div className="text-xs text-muted-foreground">Acceptées</div>
+                <div className="text-lg font-semibold text-primary">{totals.accepted}</div>
+              </div>
+              <div className="rounded-md border bg-muted/30 p-3">
+                <div className="text-xs text-muted-foreground">Rejetées</div>
+                <div className="text-lg font-semibold">{totals.dismissed}</div>
+              </div>
+              <div className="rounded-md border bg-muted/30 p-3">
+                <div className="text-xs text-muted-foreground">Taux d'acceptation</div>
+                <div className="text-lg font-semibold">{formatPct(totals.acceptanceRate)}</div>
+              </div>
+            </div>
+
+            {byField.length === 0 ? (
+              <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
+                Pas encore de suggestions affichées sur les 30 derniers jours.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {byField.map((row) => (
+                  <div key={row.fieldType} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-medium">{FIELD_LABELS[row.fieldType] ?? row.fieldType}</span>
+                      <span className="text-muted-foreground">
+                        {row.accepted} / {row.shown} acceptées · {formatPct(row.acceptanceRate)}
+                      </span>
+                    </div>
+                    <Progress value={Math.min(100, Math.round((row.acceptanceRate || 0) * 100))} className="h-2" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

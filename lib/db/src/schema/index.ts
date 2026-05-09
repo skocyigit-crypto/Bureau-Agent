@@ -33,6 +33,7 @@ export * from "./telephony";
 export * from "./invitations";
 export * from "./documents";
 export * from "./ai-usage";
+export * from "./ai-inline-suggest-events";
 export * from "./commandes-fournisseur";
 export * from "./objectifs-commerciaux";
 export * from "./notes-internes";

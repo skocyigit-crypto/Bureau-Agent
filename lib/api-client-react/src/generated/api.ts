@@ -53,6 +53,8 @@ import type {
   DraftAiEmailBody,
   GetAiAgentReportsParams,
   GetAiAgentsConfig200,
+  GetAiInlineSuggestMetrics200,
+  GetAiInlineSuggestMetricsParams,
   GetCalendarEvents200,
   GetCallAnalyticsParams,
   GetCheckinStatsParams,
@@ -87,6 +89,7 @@ import type {
   ListTasks200,
   ListTasksParams,
   Message,
+  RecordAiInlineSuggestEventBody,
   RequestAiAnalysisBody,
   RequestAiInlineSuggest200,
   RequestAiInlineSuggestBody,
@@ -3711,6 +3714,202 @@ export const useRequestAiInlineSuggest = <
 > => {
   return useMutation(getRequestAiInlineSuggestMutationOptions(options));
 };
+
+/**
+ * @summary Record a ghost-text suggestion event (shown / accepted / dismissed)
+ */
+export const getRecordAiInlineSuggestEventUrl = () => {
+  return `/api/ai/inline-suggest/event`;
+};
+
+export const recordAiInlineSuggestEvent = async (
+  recordAiInlineSuggestEventBody: RecordAiInlineSuggestEventBody,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getRecordAiInlineSuggestEventUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(recordAiInlineSuggestEventBody),
+  });
+};
+
+export const getRecordAiInlineSuggestEventMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof recordAiInlineSuggestEvent>>,
+    TError,
+    { data: BodyType<RecordAiInlineSuggestEventBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof recordAiInlineSuggestEvent>>,
+  TError,
+  { data: BodyType<RecordAiInlineSuggestEventBody> },
+  TContext
+> => {
+  const mutationKey = ["recordAiInlineSuggestEvent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof recordAiInlineSuggestEvent>>,
+    { data: BodyType<RecordAiInlineSuggestEventBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return recordAiInlineSuggestEvent(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RecordAiInlineSuggestEventMutationResult = NonNullable<
+  Awaited<ReturnType<typeof recordAiInlineSuggestEvent>>
+>;
+export type RecordAiInlineSuggestEventMutationBody =
+  BodyType<RecordAiInlineSuggestEventBody>;
+export type RecordAiInlineSuggestEventMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Record a ghost-text suggestion event (shown / accepted / dismissed)
+ */
+export const useRecordAiInlineSuggestEvent = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof recordAiInlineSuggestEvent>>,
+    TError,
+    { data: BodyType<RecordAiInlineSuggestEventBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof recordAiInlineSuggestEvent>>,
+  TError,
+  { data: BodyType<RecordAiInlineSuggestEventBody> },
+  TContext
+> => {
+  return useMutation(getRecordAiInlineSuggestEventMutationOptions(options));
+};
+
+/**
+ * @summary Aggregated counters for ghost-text suggestion acceptance per field type
+ */
+export const getGetAiInlineSuggestMetricsUrl = (
+  params?: GetAiInlineSuggestMetricsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/ai/inline-suggest/metrics?${stringifiedParams}`
+    : `/api/ai/inline-suggest/metrics`;
+};
+
+export const getAiInlineSuggestMetrics = async (
+  params?: GetAiInlineSuggestMetricsParams,
+  options?: RequestInit,
+): Promise<GetAiInlineSuggestMetrics200> => {
+  return customFetch<GetAiInlineSuggestMetrics200>(
+    getGetAiInlineSuggestMetricsUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetAiInlineSuggestMetricsQueryKey = (
+  params?: GetAiInlineSuggestMetricsParams,
+) => {
+  return [
+    `/api/ai/inline-suggest/metrics`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getGetAiInlineSuggestMetricsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAiInlineSuggestMetrics>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAiInlineSuggestMetricsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAiInlineSuggestMetrics>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetAiInlineSuggestMetricsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAiInlineSuggestMetrics>>
+  > = ({ signal }) =>
+    getAiInlineSuggestMetrics(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAiInlineSuggestMetrics>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAiInlineSuggestMetricsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAiInlineSuggestMetrics>>
+>;
+export type GetAiInlineSuggestMetricsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Aggregated counters for ghost-text suggestion acceptance per field type
+ */
+
+export function useGetAiInlineSuggestMetrics<
+  TData = Awaited<ReturnType<typeof getAiInlineSuggestMetrics>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetAiInlineSuggestMetricsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAiInlineSuggestMetrics>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAiInlineSuggestMetricsQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Run all AI agents and generate reports with Super AI synthesis

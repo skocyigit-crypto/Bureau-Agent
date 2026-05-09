@@ -29,7 +29,7 @@ export const GhostTextarea = React.forwardRef<HTMLTextAreaElement, GhostTextarea
 
     React.useImperativeHandle(forwardedRef, () => innerRef.current as HTMLTextAreaElement);
 
-    const { suggestion, clear } = useInlineSuggest({
+    const { suggestion, clear, trackAccepted, trackDismissed } = useInlineSuggest({
       fieldType,
       text: value,
       title: context?.title ?? null,
@@ -48,7 +48,8 @@ export const GhostTextarea = React.forwardRef<HTMLTextAreaElement, GhostTextarea
     const acceptSuggestion = React.useCallback(() => {
       if (!suggestion || !innerRef.current) return false;
       const el = innerRef.current;
-      const newValue = value + suggestion;
+      const accepted = suggestion;
+      const newValue = value + accepted;
       // Update via native setter so React picks up the change
       const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
       setter?.call(el, newValue);
@@ -59,9 +60,10 @@ export const GhostTextarea = React.forwardRef<HTMLTextAreaElement, GhostTextarea
           el.selectionStart = el.selectionEnd = newValue.length;
         } catch { /* noop */ }
       });
+      trackAccepted(accepted.length);
       clear();
       return true;
-    }, [suggestion, value, clear]);
+    }, [suggestion, value, clear, trackAccepted]);
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (suggestion && e.key === "Tab" && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
@@ -71,6 +73,7 @@ export const GhostTextarea = React.forwardRef<HTMLTextAreaElement, GhostTextarea
       }
       if (suggestion && e.key === "Escape") {
         e.preventDefault();
+        trackDismissed(suggestion.length);
         clear();
         return;
       }
