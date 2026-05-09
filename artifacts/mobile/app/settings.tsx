@@ -22,7 +22,18 @@ import { usePrivacy } from "@/contexts/PrivacyContext";
 import {
   INLINE_SUGGEST_LANGUAGES,
   useInlineSuggestPreferences,
+  type InlineSuggestConfigurableField,
 } from "@/hooks/useInlineSuggest";
+
+const INLINE_SUGGEST_FIELD_OPTIONS: ReadonlyArray<{
+  field: InlineSuggestConfigurableField;
+  label: string;
+  description: string;
+}> = [
+  { field: "note", label: "Notes internes", description: "Suggestions pendant la rédaction des notes internes." },
+  { field: "prospect_note", label: "Notes de prospect", description: "Suggestions dans les notes attachées à un prospect." },
+  { field: "email_body", label: "Corps des e-mails", description: "Suggestions dans le corps des messages d’e-mail." },
+];
 
 interface Subscription {
   plan: string;
@@ -451,10 +462,12 @@ function PreferencesIaCard() {
   const {
     enabled,
     language,
+    fields,
     loaded,
     isAuthenticated,
     setEnabled,
     setLanguage,
+    setField,
   } = useInlineSuggestPreferences();
 
   const onToggleEnabled = useCallback((v: boolean) => setEnabled(v), [setEnabled]);
@@ -521,7 +534,37 @@ function PreferencesIaCard() {
         })}
       </View>
 
-      <View style={{ paddingHorizontal: 16, paddingBottom: 14, paddingTop: 4 }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 6 }}>
+        <Text style={[styles.toggleLabel, { color: colors.foreground }]}>Champs concernés</Text>
+        <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
+          Activez ou désactivez les suggestions par type de champ. Le commutateur principal reste prioritaire.
+        </Text>
+      </View>
+      {INLINE_SUGGEST_FIELD_OPTIONS.map(opt => {
+        const value = fields[opt.field];
+        const disabled = !enabled || !loaded || !isAuthenticated;
+        return (
+          <View
+            key={opt.field}
+            style={[styles.toggleRow, { borderBottomColor: colors.border, opacity: disabled ? 0.45 : 1 }]}
+          >
+            <Feather name="edit-3" size={16} color={colors.mutedForeground} style={styles.infoIcon} />
+            <View style={styles.toggleText}>
+              <Text style={[styles.toggleLabel, { color: colors.foreground }]}>{opt.label}</Text>
+              <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>{opt.description}</Text>
+            </View>
+            <Switch
+              value={value}
+              disabled={disabled}
+              onValueChange={(v) => setField(opt.field, v)}
+              trackColor={{ false: colors.border, true: colors.primary + "88" }}
+              thumbColor={value ? colors.primary : colors.mutedForeground}
+            />
+          </View>
+        );
+      })}
+
+      <View style={{ paddingHorizontal: 16, paddingBottom: 14, paddingTop: 10 }}>
         <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
           {isAuthenticated
             ? "Cette préférence est enregistrée sur votre compte et synchronisée sur tous vos appareils."

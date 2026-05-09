@@ -30,9 +30,40 @@ export type InlineSuggestFieldType =
   | "quote_comment"
   | "invoice_comment";
 
+export type InlineSuggestConfigurableField = "note" | "prospect_note" | "email_body";
+
+export const INLINE_SUGGEST_CONFIGURABLE_FIELDS: ReadonlyArray<InlineSuggestConfigurableField> = [
+  "note",
+  "prospect_note",
+  "email_body",
+];
+
+export type InlineSuggestFieldFlags = Record<InlineSuggestConfigurableField, boolean>;
+
+const DEFAULT_INLINE_SUGGEST_FIELDS: InlineSuggestFieldFlags = {
+  note: true,
+  prospect_note: true,
+  email_body: true,
+};
+
+function isConfigurableField(field: InlineSuggestFieldType): field is InlineSuggestConfigurableField {
+  return field === "note" || field === "prospect_note" || field === "email_body";
+}
+
+function normalizeFieldFlags(value: unknown): InlineSuggestFieldFlags {
+  if (!value || typeof value !== "object") return { ...DEFAULT_INLINE_SUGGEST_FIELDS };
+  const src = value as Record<string, unknown>;
+  return {
+    note: typeof src.note === "boolean" ? src.note : true,
+    prospect_note: typeof src.prospect_note === "boolean" ? src.prospect_note : true,
+    email_body: typeof src.email_body === "boolean" ? src.email_body : true,
+  };
+}
+
 interface PreferencesState {
   enabled: boolean;
   language: string;
+  fields: InlineSuggestFieldFlags;
   loaded: boolean;
 }
 
@@ -43,7 +74,12 @@ interface CacheEntry {
 }
 
 const cache: CacheEntry = {
-  state: { enabled: true, language: DEFAULT_INLINE_SUGGEST_LANGUAGE, loaded: false },
+  state: {
+    enabled: true,
+    language: DEFAULT_INLINE_SUGGEST_LANGUAGE,
+    fields: { ...DEFAULT_INLINE_SUGGEST_FIELDS },
+    loaded: false,
+  },
   listeners: new Set(),
   fetchedFor: null,
 };
@@ -94,6 +130,9 @@ export function useInlineSuggestPreferences() {
           ) {
             next.language = data.inlineSuggestLanguage;
           }
+          if (data && "inlineSuggestFields" in data) {
+            next.fields = normalizeFieldFlags(data.inlineSuggestFields);
+          }
         } else {
           console.warn("[useInlineSuggestPreferences] non-OK response:", res.status);
         }
@@ -141,7 +180,17 @@ export function useInlineSuggestPreferences() {
     [patch],
   );
 
-  return { ...state, setEnabled, setLanguage, isAuthenticated };
+  const setField = useCallback(
+    (field: InlineSuggestConfigurableField, value: boolean) => {
+      if (cache.state.fields[field] === value) return;
+      const nextFields = { ...cache.state.fields, [field]: value };
+      setState({ fields: nextFields });
+      void patch({ inlineSuggestFields: { [field]: value } });
+    },
+    [patch],
+  );
+
+  return { ...state, setEnabled, setLanguage, setField, isAuthenticated };
 }
 
 interface UseInlineSuggestOptions {
@@ -163,12 +212,13 @@ const MIN_CHARS = 8;
 export function useInlineSuggest(opts: UseInlineSuggestOptions) {
   const { fieldType, text, title, contactName, enabled = true } = opts;
   const { fetchAuth, isAuthenticated } = useAuth();
-  const { enabled: globalEnabled, language, loaded } = useInlineSuggestPreferences();
+  const { enabled: globalEnabled, language, loaded, fields } = useInlineSuggestPreferences();
   const [suggestion, setSuggestion] = useState("");
   const reqIdRef = useRef(0);
   const lastReqTextRef = useRef("");
 
-  const active = enabled && globalEnabled && isAuthenticated && loaded;
+  const fieldEnabled = isConfigurableField(fieldType) ? fields[fieldType] : true;
+  const active = enabled && globalEnabled && fieldEnabled && isAuthenticated && loaded;
 
   useEffect(() => {
     if (!active) {
