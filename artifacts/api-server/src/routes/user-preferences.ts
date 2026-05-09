@@ -5,6 +5,7 @@ import { db, usersTable, type UserPreferences, type InlineSuggestFieldFlags } fr
 const router: IRouter = Router();
 
 const SUPPORTED_LANGUAGES = new Set([
+  "auto",
   "francais",
   "english",
   "deutsch",

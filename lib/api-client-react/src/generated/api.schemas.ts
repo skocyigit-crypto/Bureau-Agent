@@ -1569,7 +1569,10 @@ export type RequestAiInlineSuggestBody = {
   title?: string | null;
   /** Optional contact name for context */
   contactName?: string | null;
+  /** Preferred suggestion language (e.g. "francais", "english"). Pass "auto" to let the server detect the language from the submitted text. */
   language?: string | null;
+  /** Language to use when `language` is "auto" and detection is uncertain. Defaults to "francais". */
+  fallbackLanguage?: string | null;
 };
 
 export type RequestAiInlineSuggest200 = {

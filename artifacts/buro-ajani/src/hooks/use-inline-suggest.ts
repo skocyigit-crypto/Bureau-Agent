@@ -54,7 +54,9 @@ const DEBOUNCE_MS = 400;
 const MIN_CHARS = 8;
 
 const LANGUAGE_STORAGE_KEY = "aiInlineSuggest:language";
+const LAST_EXPLICIT_LANGUAGE_STORAGE_KEY = "aiInlineSuggest:lastExplicitLanguage";
 export const INLINE_SUGGEST_LANGUAGES = [
+  { value: "auto", label: "Auto (détection)" },
   { value: "francais", label: "Français" },
   { value: "english", label: "English" },
   { value: "deutsch", label: "Deutsch" },
@@ -67,6 +69,26 @@ export const INLINE_SUGGEST_LANGUAGES = [
 ] as const;
 const DEFAULT_LANGUAGE = "francais";
 const VALID_LANGUAGES: Set<string> = new Set(INLINE_SUGGEST_LANGUAGES.map((l) => l.value));
+
+function getLastExplicitLanguage(): string {
+  if (typeof window === "undefined") return DEFAULT_LANGUAGE;
+  try {
+    const v = window.localStorage.getItem(LAST_EXPLICIT_LANGUAGE_STORAGE_KEY);
+    if (v && VALID_LANGUAGES.has(v) && v !== "auto") return v;
+    return DEFAULT_LANGUAGE;
+  } catch {
+    return DEFAULT_LANGUAGE;
+  }
+}
+
+function setLastExplicitLanguage(language: string): void {
+  if (language === "auto" || !VALID_LANGUAGES.has(language)) return;
+  try {
+    window.localStorage.setItem(LAST_EXPLICIT_LANGUAGE_STORAGE_KEY, language);
+  } catch {
+    /* ignore */
+  }
+}
 
 export function getInlineSuggestEnabled(): boolean {
   if (typeof window === "undefined") return true;
@@ -265,6 +287,7 @@ export function useInlineSuggestLanguage(): [string, (v: string) => void] {
         /* ignore */
       }
       setLocalLanguage(v);
+      setLastExplicitLanguage(v);
     }
   }, [prefsQuery.data?.inlineSuggestLanguage]);
 
@@ -276,6 +299,7 @@ export function useInlineSuggestLanguage(): [string, (v: string) => void] {
       if (!VALID_LANGUAGES.has(v)) return;
       setInlineSuggestLanguageStorage(v);
       setLocalLanguage(v);
+      setLastExplicitLanguage(v);
       if (!isAuthenticated) return;
       queryClient.setQueryData<UserPreferences>(
         getGetMyPreferencesQueryKey(),
@@ -484,6 +508,7 @@ export function useInlineSuggest(opts: UseInlineSuggestOptions): UseInlineSugges
             title: title ?? null,
             contactName: contactName ?? null,
             language: language ?? null,
+            fallbackLanguage: language === "auto" ? getLastExplicitLanguage() : null,
           },
         },
         {

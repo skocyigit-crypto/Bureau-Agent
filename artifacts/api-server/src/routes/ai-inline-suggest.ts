@@ -3,7 +3,21 @@ import { getOrgId } from "../middleware/tenant";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
 import { extractGeminiTokens, recordAiUsage, sanitizePromptInput } from "../services/ai-utils";
 import { buildAiCacheKey, getCached, setCached, withProviderTimeout, AI_CACHE_TTL } from "../services/ai-cache";
+import { detectLanguage } from "../services/language-detect";
 import { logger } from "../lib/logger";
+
+const SUPPORTED_LANGUAGES = new Set([
+  "francais", "english", "deutsch", "espanol", "italiano",
+  "portugues", "nederlands", "turkce", "arabic",
+]);
+
+function normalizeLanguage(value: unknown, fallback: string): string {
+  if (typeof value !== "string") return fallback;
+  const v = value.trim().toLowerCase();
+  if (!v) return fallback;
+  if (SUPPORTED_LANGUAGES.has(v)) return v;
+  return fallback;
+}
 
 const router = Router();
 
@@ -101,10 +115,18 @@ router.post("/ai/inline-suggest", async (req: Request, res: Response): Promise<v
     const orgId = getOrgId(req);
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
 
-    const { fieldType, text, title, contactName, language: rawLanguage } = req.body ?? {};
-    const language = typeof rawLanguage === "string" && rawLanguage.trim()
+    const {
+      fieldType,
+      text,
+      title,
+      contactName,
+      language: rawLanguage,
+      fallbackLanguage: rawFallbackLanguage,
+    } = req.body ?? {};
+    const requestedLanguage = typeof rawLanguage === "string" && rawLanguage.trim()
       ? rawLanguage.trim().toLowerCase()
       : "francais";
+    const fallbackLanguage = normalizeLanguage(rawFallbackLanguage, "francais");
     if (!fieldType || !FIELD_TYPES.has(String(fieldType))) {
       res.status(400).json({ error: "fieldType invalide." });
       return;
@@ -113,6 +135,16 @@ router.post("/ai/inline-suggest", async (req: Request, res: Response): Promise<v
     if (!safeText || safeText.trim().length < 3) {
       res.json({ suggestion: "" });
       return;
+    }
+
+    // Auto-detect when the client opted into "auto"; otherwise honour the
+    // explicit choice (after validation against the supported set).
+    let language: string;
+    if (requestedLanguage === "auto") {
+      const detected = detectLanguage(safeText);
+      language = detected ?? fallbackLanguage;
+    } else {
+      language = normalizeLanguage(requestedLanguage, fallbackLanguage);
     }
 
     try {

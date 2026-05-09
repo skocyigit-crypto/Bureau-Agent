@@ -1116,7 +1116,18 @@ export const RequestAiInlineSuggestBody = zod.object({
     .string()
     .nullish()
     .describe("Optional contact name for context"),
-  language: zod.string().nullish(),
+  language: zod
+    .string()
+    .nullish()
+    .describe(
+      'Preferred suggestion language (e.g. \"francais\", \"english\"). Pass \"auto\" to let the server detect the language from the submitted text.',
+    ),
+  fallbackLanguage: zod
+    .string()
+    .nullish()
+    .describe(
+      'Language to use when `language` is \"auto\" and detection is uncertain. Defaults to \"francais\".',
+    ),
 });
 
 export const RequestAiInlineSuggestResponse = zod.object({

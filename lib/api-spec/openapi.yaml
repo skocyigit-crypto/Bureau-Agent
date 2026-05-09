@@ -1041,6 +1041,11 @@ paths:
                 language:
                   type: string
                   nullable: true
+                  description: Preferred suggestion language (e.g. "francais", "english"). Pass "auto" to let the server detect the language from the submitted text.
+                fallbackLanguage:
+                  type: string
+                  nullable: true
+                  description: Language to use when `language` is "auto" and detection is uncertain. Defaults to "francais".
               required: [fieldType, text]
       responses:
         "200":

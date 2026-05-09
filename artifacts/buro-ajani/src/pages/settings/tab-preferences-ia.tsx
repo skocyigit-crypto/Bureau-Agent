@@ -83,7 +83,8 @@ export function TabPreferencesIa() {
               </Label>
               <p className="text-xs text-muted-foreground">
                 Langue dans laquelle l'IA proposera la suite de votre texte.
-                Utile pour les equipes multilingues.
+                Choisissez « Auto » pour que la langue soit detectee
+                automatiquement a partir de ce que vous ecrivez.
               </p>
             </div>
             <Select value={language} onValueChange={setLanguage} disabled={!enabled}>
