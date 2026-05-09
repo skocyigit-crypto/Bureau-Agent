@@ -5,6 +5,8 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { DemoModal } from "@/components/DemoModal";
 import { AjanDemo } from "@/components/AjanDemo";
+import { HeroLiveScene, LiveActivityTicker } from "@/components/HeroLiveScene";
+import { AnimatedDashboardMock } from "@/components/AnimatedDashboardMock";
 import { 
   PhoneCall, 
   Users, 
@@ -49,7 +51,6 @@ import {
 } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 
-import heroDashboardPath from "@/assets/images/hero-dashboard.png";
 import featureCallsPath from "@/assets/images/feature-calls.png";
 import featureDashboardPath from "@/assets/images/feature-dashboard.png";
 import officeManagerPath from "@/assets/images/office-manager.png";
@@ -127,11 +128,10 @@ export default function Home() {
         {/* 1. HERO SECTION */}
         <section className="relative pt-24 pb-32 md:pt-36 md:pb-48 overflow-hidden bg-[#1a2744] text-primary-foreground">
           <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay pointer-events-none" style={{backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.65\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")'}}></div>
-          
-          {/* Ambient Glows */}
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#f59e0b] rounded-full mix-blend-screen filter blur-[150px] opacity-20"></div>
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500 rounded-full mix-blend-screen filter blur-[150px] opacity-20"></div>
-          
+
+          {/* Live 3D-feel scene: orbiting cards, particles, ECG, gradient mesh */}
+          <HeroLiveScene />
+
           <div className="container mx-auto px-4 relative z-10">
             <div className="max-w-5xl mx-auto text-center">
               <motion.div 
@@ -175,24 +175,21 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 2. DASHBOARD PREVIEW SECTION */}
+        {/* 2. DASHBOARD PREVIEW SECTION — animated live mockup with 3D tilt */}
         <section className="relative -mt-24 md:-mt-40 z-20 px-4 pb-12">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 80 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
             className="container mx-auto max-w-6xl"
           >
-            <div className="rounded-2xl md:rounded-[2rem] overflow-hidden shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] border border-white/20 bg-white/10 p-2 md:p-4 backdrop-blur-xl">
-              <img 
-                src={heroDashboardPath} 
-                alt="Interface d'Agent de Bureau" 
-                className="w-full h-auto rounded-xl md:rounded-3xl border border-border/10 shadow-inner"
-              />
-            </div>
+            <AnimatedDashboardMock />
           </motion.div>
         </section>
+
+        {/* 2.1 LIVE ACTIVITY TICKER — continuous motion strip */}
+        <LiveActivityTicker />
 
         {/* 2.5 AJAN DEMO — public Gemini-powered live demo */}
         <AjanDemo />
