@@ -984,7 +984,16 @@ export const DraftAiEmailResponse = zod.object({
  */
 export const RequestAiInlineSuggestBody = zod.object({
   fieldType: zod
-    .enum(["note", "prospect_note", "email_body"])
+    .enum([
+      "note",
+      "prospect_note",
+      "email_body",
+      "call_note",
+      "task_description",
+      "message_content",
+      "project_description",
+      "project_note",
+    ])
     .describe("Field type providing context for the suggestion"),
   text: zod
     .string()

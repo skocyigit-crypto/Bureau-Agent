@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
-import { Textarea } from "@/components/ui/textarea";
+import { GhostTextarea } from "@/components/ghost-textarea";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -273,11 +273,16 @@ export default function CallDetail() {
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-medium">Notes de l'appel</span>
                 </div>
-                <Textarea 
-                  className="min-h-[150px] resize-y" 
+                <GhostTextarea
+                  className="min-h-[150px] resize-y"
                   placeholder="Saisissez les notes de l'appel ici..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
+                  fieldType="call_note"
+                  context={{
+                    title: call.direction === 'entrant' ? `Appel entrant ${call.phoneNumber || ''}` : `Appel sortant ${call.phoneNumber || ''}`,
+                    contactName: contact ? `${contact.firstName} ${contact.lastName}` : call.contactName ?? null,
+                  }}
                 />
               </div>
               

@@ -19,7 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { GhostTextarea } from "@/components/ghost-textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -315,13 +315,30 @@ export default function Messages() {
                     </FormItem>
                   )} />
 
-                  <FormField control={form.control} name="content" render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Contenu du message</FormLabel>
-                      <FormControl><Textarea className="resize-none h-24" placeholder="Saisissez le contenu..." {...field} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
+                  <FormField control={form.control} name="content" render={({ field }) => {
+                    const cidStr = form.getValues("contactId")?.toString();
+                    const linkedContact = cidStr && cidStr !== "none"
+                      ? contactsData?.contacts.find(c => c.id.toString() === cidStr)
+                      : null;
+                    return (
+                      <FormItem>
+                        <FormLabel>Contenu du message</FormLabel>
+                        <FormControl>
+                          <GhostTextarea
+                            className="resize-none h-24"
+                            placeholder="Saisissez le contenu..."
+                            {...field}
+                            fieldType="message_content"
+                            context={{
+                              title: form.getValues("type") ? `Message ${form.getValues("type")}` : null,
+                              contactName: linkedContact ? `${linkedContact.firstName} ${linkedContact.lastName}` : null,
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }} />
 
                   <AiValidationFeedback result={aiValidation.result} isValidating={aiValidation.isValidating} />
                   <DialogFooter>

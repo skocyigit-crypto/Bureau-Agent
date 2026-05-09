@@ -16,7 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { GhostTextarea } from "@/components/ghost-textarea";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
@@ -195,7 +195,14 @@ function ProjetForm({ form, setForm }: { form: any; setForm: (f: any) => void })
       </div>
       <div>
         <Label>Description</Label>
-        <Textarea className="mt-1 min-h-[70px]" value={form.description} onChange={e => setForm((f: any) => ({ ...f, description: e.target.value }))} placeholder="Description du projet..." />
+        <GhostTextarea
+          className="mt-1 min-h-[70px]"
+          value={form.description}
+          onChange={e => setForm((f: any) => ({ ...f, description: e.target.value }))}
+          placeholder="Description du projet..."
+          fieldType="project_description"
+          context={{ title: form.title || null, contactName: form.clientName || form.clientCompany || null }}
+        />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -272,7 +279,14 @@ function ProjetForm({ form, setForm }: { form: any; setForm: (f: any) => void })
       </div>
       <div>
         <Label>Notes</Label>
-        <Textarea className="mt-1 min-h-[60px]" value={form.notes} onChange={e => setForm((f: any) => ({ ...f, notes: e.target.value }))} placeholder="Notes internes..." />
+        <GhostTextarea
+          className="mt-1 min-h-[60px]"
+          value={form.notes}
+          onChange={e => setForm((f: any) => ({ ...f, notes: e.target.value }))}
+          placeholder="Notes internes..."
+          fieldType="project_note"
+          context={{ title: form.title || null, contactName: form.clientName || form.clientCompany || null }}
+        />
       </div>
     </div>
   );

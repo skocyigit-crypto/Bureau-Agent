@@ -7,12 +7,26 @@ import { logger } from "../lib/logger";
 
 const router = Router();
 
-const FIELD_TYPES = new Set(["note", "prospect_note", "email_body"]);
+const FIELD_TYPES = new Set([
+  "note",
+  "prospect_note",
+  "email_body",
+  "call_note",
+  "task_description",
+  "message_content",
+  "project_description",
+  "project_note",
+]);
 
 const FIELD_GUIDANCE: Record<string, string> = {
   note: "Tu aides l'utilisateur a rediger une note interne professionnelle (memo de bureau, idee, rappel).",
   prospect_note: "Tu aides l'utilisateur a rediger une note de suivi commercial sur un prospect (CRM B2B).",
   email_body: "Tu aides l'utilisateur a rediger le corps d'un e-mail professionnel.",
+  call_note: "Tu aides l'utilisateur a rediger les notes d'un appel telephonique professionnel (compte-rendu bref, sujets evoques, decisions, prochaines etapes).",
+  task_description: "Tu aides l'utilisateur a rediger la description d'une tache (objectif, contexte, criteres de realisation, points d'attention).",
+  message_content: "Tu aides l'utilisateur a rediger le contenu d'un message professionnel court (SMS / message interne) clair et poli.",
+  project_description: "Tu aides l'utilisateur a rediger la description d'un projet (objectif, perimetre, livrables, contexte client).",
+  project_note: "Tu aides l'utilisateur a rediger une note interne sur un projet (avancement, point bloquant, decision, prochaine etape).",
 };
 
 function buildPrompt(opts: {

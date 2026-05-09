@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRequestAiInlineSuggest } from "@workspace/api-client-react";
 
-export type InlineSuggestFieldType = "note" | "prospect_note" | "email_body";
+export type InlineSuggestFieldType =
+  | "note"
+  | "prospect_note"
+  | "email_body"
+  | "call_note"
+  | "task_description"
+  | "message_content"
+  | "project_description"
+  | "project_note";
 
 const STORAGE_KEY = "aiInlineSuggest:enabled";
 const DEBOUNCE_MS = 400;
