@@ -1198,14 +1198,39 @@ router.post("/commandant/smart-search", async (req: Request, res: Response): Pro
     const { query } = req.body;
     if (!query || query.length < 2) { res.status(400).json({ error: "Requete trop courte" }); return; }
 
-    const q = `%${query}%`;
-    const [contacts, tasks, events, invoices, prospects] = await Promise.all([
-      db.select().from(contactsTable).where(and(eq(contactsTable.organisationId, orgId), or(ilike(contactsTable.firstName, q), ilike(contactsTable.lastName, q), ilike(contactsTable.email, q), ilike(contactsTable.phone, q), ilike(contactsTable.company, q)))).limit(10),
-      db.select().from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), or(ilike(tasksTable.title, q), ilike(tasksTable.description, q)))).limit(10),
-      db.select().from(calendarEventsTable).where(and(eq(calendarEventsTable.organisationId, orgId), or(ilike(calendarEventsTable.title, q), ilike(calendarEventsTable.description, q)))).limit(10),
-      db.select().from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), or(ilike(facturesClientTable.reference, q), ilike(facturesClientTable.clientName, q)))).limit(10),
-      db.select().from(prospectsTable).where(and(eq(prospectsTable.organisationId, orgId), or(ilike(prospectsTable.company, q), ilike(prospectsTable.contactName, q), ilike(prospectsTable.email, q)))).limit(10),
+    // Reuse the chat retriever's accent-stripping + light French stemmer so
+    // that queries like "impayé" still match rows like "factures impayées".
+    // When no usable keyword can be extracted (e.g. very short / numeric query)
+    // we fall back to a single accent-stripped substring pattern.
+    const useUnaccent = await ensureUnaccentExtension();
+    const keywords = extractKeywordsFromChat(query);
+    const patterns = keywords.length > 0
+      ? keywords.map(kw => `%${kw}%`)
+      : [`%${stripAccents(String(query))}%`];
+    const anyMatch = (...cols: Column[]): SQL => {
+      const conds = patterns.flatMap(p => cols.map(c => accentInsensitiveIlike(c, p, useUnaccent)));
+      return or(...conds) as SQL;
+    };
+
+    const dedupeById = <T extends { id: number }>(arr: T[]): T[] => {
+      const seen = new Set<number>();
+      const out: T[] = [];
+      for (const x of arr) { if (!seen.has(x.id)) { seen.add(x.id); out.push(x); } }
+      return out;
+    };
+
+    const [contactsRaw, tasksRaw, eventsRaw, invoicesRaw, prospectsRaw] = await Promise.all([
+      db.select().from(contactsTable).where(and(eq(contactsTable.organisationId, orgId), anyMatch(contactsTable.firstName, contactsTable.lastName, contactsTable.email, contactsTable.phone, contactsTable.company))).limit(10),
+      db.select().from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), anyMatch(tasksTable.title, tasksTable.description))).limit(10),
+      db.select().from(calendarEventsTable).where(and(eq(calendarEventsTable.organisationId, orgId), anyMatch(calendarEventsTable.title, calendarEventsTable.description))).limit(10),
+      db.select().from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), anyMatch(facturesClientTable.reference, facturesClientTable.clientName))).limit(10),
+      db.select().from(prospectsTable).where(and(eq(prospectsTable.organisationId, orgId), anyMatch(prospectsTable.company, prospectsTable.contactName, prospectsTable.email))).limit(10),
     ]);
+    const contacts = dedupeById(contactsRaw).slice(0, 10);
+    const tasks = dedupeById(tasksRaw).slice(0, 10);
+    const events = dedupeById(eventsRaw).slice(0, 10);
+    const invoices = dedupeById(invoicesRaw).slice(0, 10);
+    const prospects = dedupeById(prospectsRaw).slice(0, 10);
 
     const totalResults = contacts.length + tasks.length + events.length + invoices.length + prospects.length;
 
@@ -2002,7 +2027,13 @@ router.get("/commandant/conversations/search", async (req: Request, res: Respons
     const qRaw = typeof req.query.q === "string" ? req.query.q.trim() : "";
     if (qRaw.length < 1) { res.json({ success: true, results: [] }); return; }
     const q = qRaw.slice(0, 200);
-    const pattern = `%${q.replace(/[\\%_]/g, m => `\\${m}`)}%`;
+    // Accent-insensitive substring match: strip diacritics from the user's
+    // query and (when available) wrap the column in unaccent() so "impayé"
+    // matches stored "impayée". Stemming is intentionally NOT applied here so
+    // free-text history search keeps its substring semantics.
+    const useUnaccent = await ensureUnaccentExtension();
+    const qNorm = stripAccents(q);
+    const pattern = `%${qNorm.replace(/[\\%_]/g, m => `\\${m}`)}%`;
 
     const titleMatches = await db.select({
       id: commandantConversationsTable.id,
@@ -2012,7 +2043,7 @@ router.get("/commandant/conversations/search", async (req: Request, res: Respons
       .where(and(
         eq(commandantConversationsTable.organisationId, orgId),
         eq(commandantConversationsTable.userId, userId),
-        ilike(commandantConversationsTable.title, pattern),
+        accentInsensitiveIlike(commandantConversationsTable.title, pattern, useUnaccent),
       ))
       .orderBy(desc(commandantConversationsTable.updatedAt))
       .limit(50);
@@ -2031,7 +2062,7 @@ router.get("/commandant/conversations/search", async (req: Request, res: Respons
         eq(commandantMessagesTable.organisationId, orgId),
         eq(commandantConversationsTable.organisationId, orgId),
         eq(commandantConversationsTable.userId, userId),
-        ilike(commandantMessagesTable.content, pattern),
+        accentInsensitiveIlike(commandantMessagesTable.content, pattern, useUnaccent),
       ))
       .orderBy(desc(commandantMessagesTable.createdAt))
       .limit(100);
@@ -2049,9 +2080,15 @@ router.get("/commandant/conversations/search", async (req: Request, res: Respons
     for (const m of messageMatches) {
       const existing = byConv.get(m.conversationId);
       if (existing && existing.snippet) continue;
-      const idx = m.content.toLowerCase().indexOf(q.toLowerCase());
-      const start = Math.max(0, idx - 40);
-      const end = Math.min(m.content.length, idx + q.length + 80);
+      // Search the snippet position using the same accent-stripped form so we
+      // can locate matches even when the stored content carries diacritics
+      // that the user's query did not.
+      const haystack = stripAccents(m.content).toLowerCase();
+      const needle = qNorm.toLowerCase();
+      const idx = needle ? haystack.indexOf(needle) : -1;
+      const anchor = idx >= 0 ? idx : 0;
+      const start = Math.max(0, anchor - 40);
+      const end = Math.min(m.content.length, anchor + (needle.length || 0) + 80);
       const snippet = (start > 0 ? "..." : "") + m.content.slice(start, end) + (end < m.content.length ? "..." : "");
       if (existing) {
         existing.snippet = snippet;
