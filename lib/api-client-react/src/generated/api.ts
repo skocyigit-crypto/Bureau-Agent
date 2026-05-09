@@ -88,6 +88,8 @@ import type {
   ListTasksParams,
   Message,
   RequestAiAnalysisBody,
+  RequestAiInlineSuggest200,
+  RequestAiInlineSuggestBody,
   RequestAiRecognitionBody,
   RequestAiSuggestionsBody,
   RequestAiValidationBody,
@@ -3456,6 +3458,96 @@ export const useDraftAiEmail = <
   TContext
 > => {
   return useMutation(getDraftAiEmailMutationOptions(options));
+};
+
+/**
+ * @summary Suggest the next short continuation for inline ghost-text editing
+ */
+export const getRequestAiInlineSuggestUrl = () => {
+  return `/api/ai/inline-suggest`;
+};
+
+export const requestAiInlineSuggest = async (
+  requestAiInlineSuggestBody: RequestAiInlineSuggestBody,
+  options?: RequestInit,
+): Promise<RequestAiInlineSuggest200> => {
+  return customFetch<RequestAiInlineSuggest200>(
+    getRequestAiInlineSuggestUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(requestAiInlineSuggestBody),
+    },
+  );
+};
+
+export const getRequestAiInlineSuggestMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestAiInlineSuggest>>,
+    TError,
+    { data: BodyType<RequestAiInlineSuggestBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof requestAiInlineSuggest>>,
+  TError,
+  { data: BodyType<RequestAiInlineSuggestBody> },
+  TContext
+> => {
+  const mutationKey = ["requestAiInlineSuggest"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof requestAiInlineSuggest>>,
+    { data: BodyType<RequestAiInlineSuggestBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return requestAiInlineSuggest(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RequestAiInlineSuggestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof requestAiInlineSuggest>>
+>;
+export type RequestAiInlineSuggestMutationBody =
+  BodyType<RequestAiInlineSuggestBody>;
+export type RequestAiInlineSuggestMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Suggest the next short continuation for inline ghost-text editing
+ */
+export const useRequestAiInlineSuggest = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestAiInlineSuggest>>,
+    TError,
+    { data: BodyType<RequestAiInlineSuggestBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof requestAiInlineSuggest>>,
+  TError,
+  { data: BodyType<RequestAiInlineSuggestBody> },
+  TContext
+> => {
+  return useMutation(getRequestAiInlineSuggestMutationOptions(options));
 };
 
 /**

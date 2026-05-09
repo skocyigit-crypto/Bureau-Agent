@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
-import { Bot, Zap, DollarSign, Phone, RotateCcw, Save, Info, TrendingUp, Activity } from "lucide-react";
+import { Bot, Zap, DollarSign, Phone, RotateCcw, Save, Info, TrendingUp, Activity, Sparkles } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { useInlineSuggestEnabled } from "@/hooks/use-inline-suggest";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
   ResponsiveContainer, Legend, LineChart, Line,
@@ -208,6 +210,8 @@ export function TabIntelligenceArtificielle() {
   return (
     <TooltipProvider>
       <div className="space-y-6">
+
+        <InlineSuggestSettingCard />
 
         {quota && (
           <Card>
@@ -516,5 +520,40 @@ export function TabIntelligenceArtificielle() {
         </div>
       </div>
     </TooltipProvider>
+  );
+}
+
+function InlineSuggestSettingCard() {
+  const [enabled, setEnabled] = useInlineSuggestEnabled();
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Icon3D icon={Sparkles} variant="purple" size="sm" />
+          Suggestions IA en ligne
+        </CardTitle>
+        <CardDescription>
+          Affiche une suggestion grise (style ghost-text) pendant que vous redigez
+          des notes internes, des notes de prospects et le corps des e-mails.
+          Appuyez sur Tab pour accepter, Echap pour ignorer.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+          <div className="space-y-0.5">
+            <Label className="text-sm font-medium">Activer les suggestions en ligne</Label>
+            <p className="text-xs text-muted-foreground">
+              Lorsque cette option est desactivee, aucune suggestion n'est demandee
+              ni affichee dans les champs de texte.
+            </p>
+          </div>
+          <Switch
+            checked={enabled}
+            onCheckedChange={setEnabled}
+            aria-label="Activer les suggestions IA en ligne"
+          />
+        </div>
+      </CardContent>
+    </Card>
   );
 }

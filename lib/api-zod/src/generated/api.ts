@@ -980,6 +980,35 @@ export const DraftAiEmailResponse = zod.object({
 });
 
 /**
+ * @summary Suggest the next short continuation for inline ghost-text editing
+ */
+export const RequestAiInlineSuggestBody = zod.object({
+  fieldType: zod
+    .enum(["note", "prospect_note", "email_body"])
+    .describe("Field type providing context for the suggestion"),
+  text: zod
+    .string()
+    .describe("Current text content the user has typed in the field"),
+  title: zod
+    .string()
+    .nullish()
+    .describe("Note title or email subject for context"),
+  contactName: zod
+    .string()
+    .nullish()
+    .describe("Optional contact name for context"),
+  language: zod.string().nullish(),
+});
+
+export const RequestAiInlineSuggestResponse = zod.object({
+  suggestion: zod
+    .string()
+    .describe(
+      "Short continuation to display as ghost text. Empty string when no suggestion is appropriate.",
+    ),
+});
+
+/**
  * @summary Run all AI agents and generate reports with Super AI synthesis
  */
 export const RunAllAiAgentsResponse = zod.object({

@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { GhostTextarea } from "@/components/ghost-textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -190,7 +191,7 @@ export default function NotesInternesPage() {
         {isEditingThis && !selectMode ? (
           <>
             <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Titre (optionnel)" className="text-sm font-medium bg-transparent border-none shadow-none px-0 h-7" />
-            <Textarea ref={textareaRef} value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} rows={4} className="text-sm bg-transparent border-none shadow-none px-0 resize-none" />
+            <GhostTextarea ref={textareaRef} fieldType="note" context={{ title: form.title }} value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} rows={4} className="text-sm bg-transparent border-none shadow-none px-0 resize-none" showToggle={false} />
             <Input value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} placeholder="Tags : urgente, idée, réunion" className="text-xs bg-transparent border-none shadow-none px-0 h-6" />
             <div className="flex items-center gap-1.5 flex-wrap">
               {COLORS.map(c => (
@@ -299,7 +300,7 @@ export default function NotesInternesPage() {
       {creating && (
         <div className="bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800/50 rounded-xl p-4 space-y-2 ring-2 ring-primary">
           <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Titre (optionnel)" className="bg-transparent border-none shadow-none px-0 font-medium" />
-          <Textarea ref={textareaRef} value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} placeholder="Écrivez votre note ici..." rows={4} className="bg-transparent border-none shadow-none px-0 resize-none" />
+          <GhostTextarea ref={textareaRef} fieldType="note" context={{ title: form.title }} value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} placeholder="Écrivez votre note ici..." rows={4} className="bg-transparent border-none shadow-none px-0 resize-none" />
           <Input value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} placeholder="Tags : urgente, idée, réunion (séparés par virgule)" className="text-xs bg-transparent border-none shadow-none px-0 h-6" />
           <div className="flex items-center gap-1.5 flex-wrap">
             {COLORS.map(c => (

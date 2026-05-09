@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { useListContacts, useDraftAiEmail } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
+import { GhostTextarea } from "@/components/ghost-textarea";
 
 type ComposerStep = "configure" | "generating" | "preview" | "approved";
 
@@ -437,7 +438,12 @@ export function EmailComposer({ isOpen, onClose, preselectedContactId, preselect
                     </div>
                     <div className="p-4">
                       {isEditing ? (
-                        <Textarea
+                        <GhostTextarea
+                          fieldType="email_body"
+                          context={{
+                            title: editedSubject,
+                            contactName: selectedContact ? `${selectedContact.firstName} ${selectedContact.lastName}` : null,
+                          }}
                           value={editedBody}
                           onChange={(e) => setEditedBody(e.target.value)}
                           className="min-h-[250px] resize-none border-0 p-0 focus-visible:ring-0 text-sm leading-relaxed"

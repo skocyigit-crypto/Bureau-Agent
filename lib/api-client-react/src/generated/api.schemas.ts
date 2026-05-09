@@ -1521,6 +1521,35 @@ export type DraftAiEmailBody = {
   additionalContext?: string | null;
 };
 
+/**
+ * Field type providing context for the suggestion
+ */
+export type RequestAiInlineSuggestBodyFieldType =
+  (typeof RequestAiInlineSuggestBodyFieldType)[keyof typeof RequestAiInlineSuggestBodyFieldType];
+
+export const RequestAiInlineSuggestBodyFieldType = {
+  note: "note",
+  prospect_note: "prospect_note",
+  email_body: "email_body",
+} as const;
+
+export type RequestAiInlineSuggestBody = {
+  /** Field type providing context for the suggestion */
+  fieldType: RequestAiInlineSuggestBodyFieldType;
+  /** Current text content the user has typed in the field */
+  text: string;
+  /** Note title or email subject for context */
+  title?: string | null;
+  /** Optional contact name for context */
+  contactName?: string | null;
+  language?: string | null;
+};
+
+export type RequestAiInlineSuggest200 = {
+  /** Short continuation to display as ghost text. Empty string when no suggestion is appropriate. */
+  suggestion: string;
+};
+
 export type RunAllAiAgents200 = {
   superReport?: AiAgentReport;
   agentReports?: AiAgentReport[];
