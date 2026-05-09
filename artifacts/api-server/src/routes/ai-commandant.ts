@@ -121,6 +121,136 @@ async function multiAiGenerateCached(
 
 function escapeHtml(s: string) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 
+// Stop-words used to filter the user's chat message into useful keyword tokens.
+// Kept short and French-focused since the assistant always replies in French.
+const CHAT_RETRIEVAL_STOPWORDS = new Set([
+  "le","la","les","un","une","des","de","du","au","aux","et","ou","mais","donc","or","ni","car",
+  "je","tu","il","elle","on","nous","vous","ils","elles","me","te","se","mon","ma","mes","ton","ta","tes","son","sa","ses","notre","nos","votre","vos","leur","leurs",
+  "ce","cet","cette","ces","ca","cela","ceci",
+  "qui","que","quoi","quel","quelle","quels","quelles","dont","ou","comment","pourquoi","quand","combien",
+  "est","es","suis","sommes","etes","sont","ete","etre","etais","etait","etaient",
+  "ai","as","a","avons","avez","ont","avoir","eu",
+  "fait","faire","faut","peux","peut","pouvez","pouvons","peuvent",
+  "pas","plus","moins","tres","trop","bien","mal","encore","aussi","alors","puis","si","sinon",
+  "dans","sur","sous","avec","sans","pour","par","vers","chez","entre","apres","avant","depuis","jusqu","contre",
+  "the","and","or","of","to","in","for","on","with","is","are","was","were","be","been","i","you","my","your","me",
+  "moi","toi","lui","eux","leur","stp","svp","merci","bonjour","salut","ok","oui","non",
+  "show","montre","liste","afficher","donne","dis","peux","voir","voici","pls","please",
+]);
+
+function extractKeywordsFromChat(message: string, maxTokens = 4): string[] {
+  if (!message) return [];
+  const cleaned = message.toLowerCase().replace(/[^\p{L}\p{N}\s@.+-]/gu, " ");
+  const tokens = cleaned.split(/\s+/).filter(Boolean);
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const t of tokens) {
+    if (t.length < 3) continue;
+    if (CHAT_RETRIEVAL_STOPWORDS.has(t)) continue;
+    if (seen.has(t)) continue;
+    seen.add(t);
+    out.push(t);
+    if (out.length >= maxTokens) break;
+  }
+  return out;
+}
+
+// Lightweight, tenant-isolated retrieval that mirrors /commandant/smart-search.
+// Returns a "DONNEES PERTINENTES" markdown block, or "" if nothing useful was found
+// or no usable keywords were extracted from the message.
+async function retrieveRelevantDataForChat(orgId: number, userMessage: string): Promise<string> {
+  const keywords = extractKeywordsFromChat(userMessage);
+  if (keywords.length === 0) return "";
+
+  try {
+    const perKeyword = await Promise.all(keywords.map(async (kw) => {
+      const q = `%${kw}%`;
+      const [contacts, tasks, events, invoices, prospects] = await Promise.all([
+        db.select().from(contactsTable).where(and(
+          eq(contactsTable.organisationId, orgId),
+          or(ilike(contactsTable.firstName, q), ilike(contactsTable.lastName, q), ilike(contactsTable.email, q), ilike(contactsTable.phone, q), ilike(contactsTable.company, q)),
+        )).limit(5),
+        db.select().from(tasksTable).where(and(
+          eq(tasksTable.organisationId, orgId),
+          or(ilike(tasksTable.title, q), ilike(tasksTable.description, q)),
+        )).limit(5),
+        db.select().from(calendarEventsTable).where(and(
+          eq(calendarEventsTable.organisationId, orgId),
+          or(ilike(calendarEventsTable.title, q), ilike(calendarEventsTable.description, q)),
+        )).limit(5),
+        db.select().from(facturesClientTable).where(and(
+          eq(facturesClientTable.organisationId, orgId),
+          or(ilike(facturesClientTable.reference, q), ilike(facturesClientTable.clientName, q)),
+        )).limit(5),
+        db.select().from(prospectsTable).where(and(
+          eq(prospectsTable.organisationId, orgId),
+          or(ilike(prospectsTable.company, q), ilike(prospectsTable.contactName, q), ilike(prospectsTable.email, q)),
+        )).limit(5),
+      ]);
+      return { contacts, tasks, events, invoices, prospects };
+    }));
+
+    const dedupe = <T extends { id: number }>(arr: T[]): T[] => {
+      const seen = new Set<number>();
+      const out: T[] = [];
+      for (const x of arr) { if (!seen.has(x.id)) { seen.add(x.id); out.push(x); } }
+      return out;
+    };
+
+    const contacts = dedupe(perKeyword.flatMap(r => r.contacts)).slice(0, 5);
+    const tasks = dedupe(perKeyword.flatMap(r => r.tasks)).slice(0, 5);
+    const events = dedupe(perKeyword.flatMap(r => r.events)).slice(0, 5);
+    const invoices = dedupe(perKeyword.flatMap(r => r.invoices)).slice(0, 5);
+    const prospects = dedupe(perKeyword.flatMap(r => r.prospects)).slice(0, 5);
+
+    const total = contacts.length + tasks.length + events.length + invoices.length + prospects.length;
+    if (total === 0) return "";
+
+    const formatDate = (value: Date | string | null | undefined, fallback: string): string => {
+      if (!value) return fallback;
+      const d = value instanceof Date ? value : new Date(value);
+      return Number.isNaN(d.getTime()) ? fallback : d.toLocaleDateString("fr-FR");
+    };
+
+    const lines: string[] = [];
+    lines.push(`DONNEES PERTINENTES (recherche: ${keywords.join(", ")}):`);
+    if (contacts.length) {
+      lines.push("Contacts:");
+      for (const c of contacts) {
+        lines.push(`  - #${c.id} ${c.firstName ?? ""} ${c.lastName ?? ""}${c.company ? ` (${c.company})` : ""}${c.email ? ` <${c.email}>` : ""}${c.phone ? ` ${c.phone}` : ""}`.replace(/\s+/g, " ").trim());
+      }
+    }
+    if (tasks.length) {
+      lines.push("Taches:");
+      for (const t of tasks) {
+        lines.push(`  - #${t.id} [${t.status}/${t.priority}] ${t.title} (echeance: ${formatDate(t.dueDate, "sans echeance")})`);
+      }
+    }
+    if (events.length) {
+      lines.push("Evenements:");
+      for (const e of events) {
+        lines.push(`  - #${e.id} ${e.title} (${e.type}, ${formatDate(e.startDate, "?")})`);
+      }
+    }
+    if (invoices.length) {
+      lines.push("Factures:");
+      for (const f of invoices) {
+        lines.push(`  - #${f.id} ${f.reference} ${f.clientName ?? ""} ${Number(f.totalAmount ?? 0).toFixed(2)} EUR [${f.status}, echeance ${formatDate(f.dueDate, "?")}]`);
+      }
+    }
+    if (prospects.length) {
+      lines.push("Prospects:");
+      for (const p of prospects) {
+        lines.push(`  - #${p.id} ${p.company ?? p.contactName ?? p.title ?? ""} [${p.stage}${p.source ? `, ${p.source}` : ""}]`);
+      }
+    }
+    return lines.join("\n");
+  } catch (err) {
+    logger.warn({ err }, "[Commandant/Conv/Send] retrieval failed");
+    return "";
+  }
+}
+
 function emailWrap(title: string, body: string): string {
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-serif;">
@@ -1927,15 +2057,20 @@ router.post("/commandant/conversations/:id/messages", async (req: Request, res: 
       db.select({ c: sql<number>`count(*)::int` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), ne(facturesClientTable.status, "payee"), ne(facturesClientTable.status, "brouillon"), lt(facturesClientTable.dueDate, now))).then(r => r[0]?.c ?? 0),
     ]);
 
+    // Lightweight retrieval: keyword search across core entities (tenant-isolated)
+    // Reuses the same approach as /commandant/smart-search to ground replies in real data.
+    const retrievedDataSection = await retrieveRelevantDataForChat(orgId, userMessage);
+
     const systemPrompt = `Tu es le Commandant IA d'Agent de Bureau, un assistant conversationnel pour un dirigeant francais.
 Tu reponds de maniere claire, concise et actionnable, TOUJOURS en francais.
 Tu te souviens de la conversation precedente et tu fais reference aux echanges anterieurs quand c'est pertinent.
+Quand des DONNEES PERTINENTES sont fournies, appuie-toi dessus et cite des references concretes (noms, numeros de facture, dates) plutot que d'inventer.
 Tu ne renvoies PAS de JSON: tu ecris une reponse en texte naturel (markdown leger autorise).
 
 CONTEXTE BUREAU (instantane):
 - Taches ouvertes: ${taskCount} (${overdueCount} en retard)
 - Messages non lus: ${unreadMsgs}
-- Factures en retard: ${overdueInvoiceCount}`;
+- Factures en retard: ${overdueInvoiceCount}${retrievedDataSection ? `\n\n${retrievedDataSection}` : ""}`;
 
     // Format the prior conversation as a transcript prepended to the new user message.
     const transcript = history
