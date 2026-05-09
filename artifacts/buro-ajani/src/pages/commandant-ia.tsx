@@ -1067,6 +1067,24 @@ function RappelsTab() {
   );
 }
 
+function highlightMatches(text: string, query: string) {
+  if (!text) return text;
+  const terms = Array.from(new Set(
+    query.split(/\s+/).map(t => t.trim()).filter(t => t.length > 0)
+  ));
+  if (terms.length === 0) return text;
+  const escaped = terms
+    .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .sort((a, b) => b.length - a.length);
+  const re = new RegExp(`(${escaped.join("|")})`, "gi");
+  const parts = text.split(re);
+  return parts.map((part, i) =>
+    i % 2 === 1
+      ? <mark key={i} className="bg-amber-200 text-amber-950 rounded px-0.5">{part}</mark>
+      : <span key={i}>{part}</span>
+  );
+}
+
 function ChatTab() {
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -1270,10 +1288,10 @@ function ChatTab() {
                       className={`group rounded px-2 py-2 cursor-pointer text-xs ${selectedId === r.conversationId ? "bg-amber-50 border border-amber-200" : "hover:bg-muted/50"}`}
                       onClick={() => setSelectedId(r.conversationId)}
                     >
-                      <div className="font-medium truncate">{r.title}</div>
+                      <div className="font-medium truncate">{highlightMatches(r.title || "", searchQuery)}</div>
                       {r.snippet ? (
                         <div className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
-                          <span className="text-amber-600 mr-1">{r.role === "user" ? "Vous:" : "IA:"}</span>{r.snippet}
+                          <span className="text-amber-600 mr-1">{r.role === "user" ? "Vous:" : "IA:"}</span>{highlightMatches(r.snippet, searchQuery)}
                         </div>
                       ) : (
                         <div className="text-[10px] text-muted-foreground mt-0.5">Correspondance dans le titre</div>
