@@ -15,6 +15,18 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { streamSse } from "@/lib/sse-stream";
+
+type TimelineStatus = "pending" | "running" | "done" | "error" | "aborted";
+interface TimelineEntry {
+  agentId: string;
+  agentName: string;
+  agentIcon?: string;
+  status: TimelineStatus;
+  score?: number;
+  executionTimeMs?: number;
+  error?: string;
+}
 
 interface AgentConfig {
   id: string;
@@ -110,22 +122,25 @@ function SeverityBadge({ severity }: { severity: string }) {
 }
 
 // ─── AGENTS TAB ──────────────────────────────────────────────────────────────
-function AgentsTab() {
+interface AgentsTabProps {
+  runningAll: boolean;
+  timeline: TimelineEntry[];
+  onCancel: () => void;
+  superStatus: "idle" | "running" | "done" | "error";
+  externalRefreshTick: number;
+}
+
+function AgentsTab({ runningAll, timeline, onCancel, superStatus, externalRefreshTick }: AgentsTabProps) {
   const colors = useColors();
   const { fetchAuth } = useAuth();
   const [agents, setAgents] = useState<AgentConfig[]>([]);
   const [latestReports, setLatestReports] = useState<Record<string, AgentReport>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [runningAll, setRunningAll] = useState(false);
   const [runningAgent, setRunningAgent] = useState<string | null>(null);
   const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
   const [autoFixLoading, setAutoFixLoading] = useState(false);
   const [autoFixResult, setAutoFixResult] = useState<any>(null);
-
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pollStartRef = useRef<number>(0);
-  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
 
   const fetchData = useCallback(async () => {
     try {
@@ -139,37 +154,8 @@ function AgentsTab() {
   }, [fetchAuth]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { if (externalRefreshTick > 0) fetchData(); }, [externalRefreshTick, fetchData]);
   function onRefresh() { setRefreshing(true); fetchData(); }
-
-  function pollForCompletion() {
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollStartRef.current = Date.now();
-    pollRef.current = setInterval(async () => {
-      if (Date.now() - pollStartRef.current > 5 * 60 * 1000) {
-        clearInterval(pollRef.current!); pollRef.current = null; setRunningAll(false); fetchData(); return;
-      }
-      try {
-        const res = await fetchAuth(`${API_BASE}/api/ai/agents/run/status`);
-        if (!res.ok) { clearInterval(pollRef.current!); pollRef.current = null; setRunningAll(false); return; }
-        const data = await res.json();
-        if (["completed", "failed", "idle"].includes(data.status)) {
-          clearInterval(pollRef.current!); pollRef.current = null; setRunningAll(false); fetchData();
-        }
-      } catch { clearInterval(pollRef.current!); pollRef.current = null; setRunningAll(false); }
-    }, 4000);
-  }
-
-  async function runAllAgents() {
-    setRunningAll(true);
-    try {
-      const res = await fetchAuth(`${API_BASE}/api/ai/agents/run`, { method: "POST", headers: { "Content-Type": "application/json" } });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.status === "started" || data.status === "already_running") pollForCompletion();
-        else { fetchData(); setRunningAll(false); }
-      } else setRunningAll(false);
-    } catch { setRunningAll(false); }
-  }
 
   async function runSingleAgent(agentId: string) {
     setRunningAgent(agentId);
@@ -278,10 +264,72 @@ function AgentsTab() {
             </View>
           )}
 
-          {runningAll && (
-            <View style={[styles.runningBanner, { backgroundColor: colors.primary + "18" }]}>
-              <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={[styles.runningText, { color: colors.primary }]}>Analyse IA en cours, veuillez patienter...</Text>
+          {(runningAll || timeline.length > 0) && (
+            <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, padding: 14 }]}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                {runningAll
+                  ? <ActivityIndicator size="small" color={colors.primary} />
+                  : <Feather name="check-circle" size={16} color="#22c55e" />}
+                <Text style={[styles.cardTitle, { color: colors.foreground, flex: 1 }]}>
+                  {runningAll ? "Analyse IA en direct" : "Dernière exécution"}
+                </Text>
+                {runningAll && (
+                  <Pressable onPress={onCancel} style={[styles.cancelBtn, { backgroundColor: "#ef444418" }]} hitSlop={6}>
+                    <Feather name="x" size={12} color="#ef4444" />
+                    <Text style={styles.cancelBtnText}>Annuler</Text>
+                  </Pressable>
+                )}
+              </View>
+              {timeline.map((t, i) => {
+                const tColor = t.status === "done" ? "#22c55e"
+                  : t.status === "running" ? colors.primary
+                  : t.status === "error" ? "#ef4444"
+                  : t.status === "aborted" ? "#94a3b8"
+                  : colors.mutedForeground;
+                const tIcon: keyof typeof Feather.glyphMap = t.status === "done" ? "check"
+                  : t.status === "error" ? "alert-circle"
+                  : t.status === "aborted" ? "slash"
+                  : t.status === "running" ? "loader"
+                  : "circle";
+                return (
+                  <View key={`${t.agentId}-${i}`} style={styles.timelineRow}>
+                    <View style={[styles.timelineDot, { backgroundColor: tColor + "22", borderColor: tColor }]}>
+                      {t.status === "running"
+                        ? <ActivityIndicator size="small" color={tColor} />
+                        : <Feather name={tIcon} size={11} color={tColor} />}
+                    </View>
+                    <Text style={[styles.timelineName, { color: colors.foreground }]} numberOfLines={1}>{t.agentName}</Text>
+                    {t.status === "done" && typeof t.score === "number" && (
+                      <Text style={[styles.timelineScore, { color: tColor }]}>{t.score}</Text>
+                    )}
+                    {t.status === "running" && (
+                      <Text style={[styles.timelineMeta, { color: tColor }]}>en cours…</Text>
+                    )}
+                    {t.status === "error" && (
+                      <Text style={[styles.timelineMeta, { color: tColor }]} numberOfLines={1}>{t.error || "erreur"}</Text>
+                    )}
+                    {t.status === "aborted" && (
+                      <Text style={[styles.timelineMeta, { color: tColor }]}>annulé</Text>
+                    )}
+                    {t.status === "pending" && (
+                      <Text style={[styles.timelineMeta, { color: colors.mutedForeground }]}>en attente</Text>
+                    )}
+                  </View>
+                );
+              })}
+              {(superStatus !== "idle") && (
+                <View style={[styles.timelineRow, { marginTop: 4, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}>
+                  <View style={[styles.timelineDot, { backgroundColor: "#8b5cf622", borderColor: "#8b5cf6" }]}>
+                    {superStatus === "running"
+                      ? <ActivityIndicator size="small" color="#8b5cf6" />
+                      : <Feather name={superStatus === "done" ? "check" : "alert-circle"} size={11} color={superStatus === "error" ? "#ef4444" : "#8b5cf6"} />}
+                  </View>
+                  <Text style={[styles.timelineName, { color: colors.foreground }]}>Super Agent IA</Text>
+                  <Text style={[styles.timelineMeta, { color: superStatus === "running" ? "#8b5cf6" : superStatus === "error" ? "#ef4444" : "#22c55e" }]}>
+                    {superStatus === "running" ? "synthèse…" : superStatus === "done" ? "terminé" : "erreur"}
+                  </Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -643,51 +691,84 @@ function AnomaliesTab() {
 export default function AiAgentsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { fetchAuth } = useAuth();
+  const { fetchAuth, authHeaders } = useAuth();
   const isWeb = Platform.OS === "web";
   const [tab, setTab] = useState<MainTab>("agents");
   const [runningAll, setRunningAll] = useState(false);
-  const [agents, setAgents] = useState<AgentConfig[]>([]);
+  const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
+  const [superStatus, setSuperStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [refreshTick, setRefreshTick] = useState(0);
   const [latestReports, setLatestReports] = useState<Record<string, AgentReport>>({});
-  const [loadingInit, setLoadingInit] = useState(true);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current); }, []);
+  useEffect(() => () => { abortRef.current?.abort(); }, []);
 
-  const fetchData = useCallback(async () => {
+  const fetchLatest = useCallback(async () => {
     try {
-      const [configRes, latestRes] = await Promise.all([
-        fetchAuth(`${API_BASE}/api/ai/agents/config`),
-        fetchAuth(`${API_BASE}/api/ai/agents/latest`),
-      ]);
-      if (configRes.ok) { const d = await configRes.json(); setAgents(d.agents ?? []); }
+      const latestRes = await fetchAuth(`${API_BASE}/api/ai/agents/latest`);
       if (latestRes.ok) { const d = await latestRes.json(); setLatestReports(d ?? {}); }
-    } catch {} finally { setLoadingInit(false); }
+    } catch {}
   }, [fetchAuth]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchLatest(); }, [fetchLatest]);
 
   async function runAllAgents() {
+    if (runningAll) return;
+    const controller = new AbortController();
+    abortRef.current = controller;
     setRunningAll(true);
+    setTimeline([]);
+    setSuperStatus("idle");
     try {
-      const res = await fetchAuth(`${API_BASE}/api/ai/agents/run`, { method: "POST", headers: { "Content-Type": "application/json" } });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.status === "started" || data.status === "already_running") {
-          if (pollRef.current) clearInterval(pollRef.current);
-          const start = Date.now();
-          pollRef.current = setInterval(async () => {
-            if (Date.now() - start > 5 * 60 * 1000) { clearInterval(pollRef.current!); pollRef.current = null; setRunningAll(false); return; }
-            const r = await fetchAuth(`${API_BASE}/api/ai/agents/run/status`).catch(() => null);
-            if (!r) return;
-            const d = await r.json().catch(() => ({}));
-            if (["completed", "failed", "idle"].includes(d.status)) {
-              clearInterval(pollRef.current!); pollRef.current = null; setRunningAll(false); fetchData();
-            }
-          }, 4000);
-        } else { setRunningAll(false); fetchData(); }
-      } else setRunningAll(false);
-    } catch { setRunningAll(false); }
+      await streamSse(`${API_BASE}/api/ai/agents/run/stream`, {}, {
+        signal: controller.signal,
+        headers: authHeaders(),
+        onEvent: (event, data) => {
+          if (event === "start" && Array.isArray(data?.agents)) {
+            setTimeline(data.agents.map((a: any) => ({
+              agentId: a.agentId,
+              agentName: a.agentName,
+              agentIcon: a.agentIcon,
+              status: "pending" as TimelineStatus,
+            })));
+          } else if (event === "agent-start") {
+            setTimeline(prev => prev.map(t => t.agentId === data?.agentId ? { ...t, status: "running" } : t));
+          } else if (event === "agent-done") {
+            setTimeline(prev => prev.map(t => t.agentId === data?.agentId
+              ? { ...t, status: "done", score: data?.score, executionTimeMs: data?.executionTimeMs }
+              : t));
+            setRefreshTick(n => n + 1);
+          } else if (event === "agent-error") {
+            setTimeline(prev => prev.map(t => t.agentId === data?.agentId ? { ...t, status: "error", error: data?.error } : t));
+          } else if (event === "agent-aborted") {
+            setTimeline(prev => prev.map(t => t.agentId === data?.agentId ? { ...t, status: "aborted" } : t));
+          } else if (event === "super-start") {
+            setSuperStatus("running");
+          } else if (event === "super-done") {
+            setSuperStatus("done");
+            setRefreshTick(n => n + 1);
+          } else if (event === "super-error") {
+            setSuperStatus("error");
+          } else if (event === "done" || event === "aborted") {
+            setRefreshTick(n => n + 1);
+          }
+        },
+      });
+    } catch (err: any) {
+      if (err?.name !== "AbortError") {
+        console.warn("[AIAgents] stream failed:", err?.message);
+      }
+    } finally {
+      setRunningAll(false);
+      abortRef.current = null;
+      fetchLatest();
+    }
+  }
+
+  function cancelRunAll() {
+    abortRef.current?.abort();
+    setSuperStatus(prev => prev === "running" ? "idle" : prev);
+    setTimeline(prev => prev.map(t => t.status === "running" || t.status === "pending" ? { ...t, status: "aborted" } : t));
   }
 
   const reports = Object.values(latestReports).filter(r => !r.isSuperReport);
@@ -710,10 +791,17 @@ export default function AiAgentsScreen() {
             <Text style={styles.headerTitle}>Agents IA</Text>
             {lastRunAt && <Text style={styles.headerSub}>{timeAgo(lastRunAt)}</Text>}
           </View>
-          <Pressable onPress={runAllAgents} disabled={runningAll} style={[styles.runAllBtn, { backgroundColor: runningAll ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.2)" }]} hitSlop={8}>
-            {runningAll ? <ActivityIndicator size="small" color="#ffffff" /> : <Feather name="play" size={16} color="#ffffff" />}
-            <Text style={styles.runAllText}>{runningAll ? "En cours..." : "Tout lancer"}</Text>
-          </Pressable>
+          {runningAll ? (
+            <Pressable onPress={cancelRunAll} style={[styles.runAllBtn, { backgroundColor: "rgba(239,68,68,0.35)" }]} hitSlop={8}>
+              <Feather name="x" size={16} color="#ffffff" />
+              <Text style={styles.runAllText}>Annuler</Text>
+            </Pressable>
+          ) : (
+            <Pressable onPress={() => { setTab("agents"); runAllAgents(); }} style={[styles.runAllBtn, { backgroundColor: "rgba(255,255,255,0.2)" }]} hitSlop={8}>
+              <Feather name="play" size={16} color="#ffffff" />
+              <Text style={styles.runAllText}>Tout lancer</Text>
+            </Pressable>
+          )}
         </View>
 
         {/* Tab bar */}
@@ -728,7 +816,7 @@ export default function AiAgentsScreen() {
       </View>
 
       <View style={[styles.tabContent, { paddingBottom: isWeb ? 118 : 40 }]}>
-        {tab === "agents"    && <AgentsTab />}
+        {tab === "agents"    && <AgentsTab runningAll={runningAll} timeline={timeline} onCancel={cancelRunAll} superStatus={superStatus} externalRefreshTick={refreshTick} />}
         {tab === "autopilot" && <AutopilotTab />}
         {tab === "anomalies" && <AnomaliesTab />}
       </View>
@@ -768,6 +856,13 @@ const styles = StyleSheet.create({
   autoFixBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold", flex: 1 },
   runningBanner: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: 12 },
   runningText: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  cancelBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
+  cancelBtnText: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: "#ef4444" },
+  timelineRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 6 },
+  timelineDot: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  timelineName: { flex: 1, fontSize: 13, fontFamily: "Inter_500Medium" },
+  timelineMeta: { fontSize: 11, fontFamily: "Inter_500Medium" },
+  timelineScore: { fontSize: 13, fontFamily: "Inter_700Bold" },
   card: { borderRadius: 12, borderWidth: 1, overflow: "hidden", padding: 0 },
   cardHeader: { flexDirection: "row", alignItems: "center", padding: 14, gap: 12 },
   cardRight: { flexDirection: "row", alignItems: "center", gap: 8 },

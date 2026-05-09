@@ -19,6 +19,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   fetchAuth: (url: string, options?: RequestInit) => Promise<Response>;
+  authHeaders: () => Record<string, string>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -28,6 +29,7 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => ({ success: false }),
   logout: async () => {},
   fetchAuth: async () => new Response(),
+  authHeaders: () => ({}),
 });
 
 const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
@@ -121,8 +123,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const authHeaders = useCallback((): Record<string, string> => {
+    return sessionCookie ? { Cookie: sessionCookie } : {};
+  }, [sessionCookie]);
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, isAuthenticated: !!user, login, logout, fetchAuth }}>
+    <AuthContext.Provider value={{ user, isLoading, isAuthenticated: !!user, login, logout, fetchAuth, authHeaders }}>
       {children}
     </AuthContext.Provider>
   );
