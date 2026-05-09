@@ -107,7 +107,7 @@ function useTrialStatus() {
     fetch(`${API}/api/my-subscription`, { credentials: "include" })
       .then(r => r.ok ? r.json() : null)
       .then(d => {
-        if (d?.subscription?.plan === "essai" || d?.subscription?.plan === "starter") setIsTrial(true);
+        if (d?.subscription?.plan === "essai") setIsTrial(true);
       })
       .catch(() => {});
   }, []);
@@ -345,8 +345,8 @@ export default function Dashboard() {
           { label: "Compte cree", done: true, href: null },
           { label: "Ajouter un premier contact", done: (summary?.totalContacts || 0) > 0, href: "/contacts" },
           { label: "Passer un appel", done: (summary?.totalCallsToday || 0) > 0, href: "/appels" },
-          { label: "Inviter un membre d'equipe", done: teamMembers.length > 1, href: "/settings?tab=equipe" },
-          { label: "Configurer le profil entreprise", done: false, href: "/settings?tab=entreprise" },
+          { label: "Inviter un membre d'equipe", done: teamMembers.length > 1, href: "/parametres?tab=equipe" },
+          { label: "Configurer le profil entreprise", done: false, href: "/parametres?tab=entreprise" },
         ];
         const doneCount = steps.filter(s => s.done).length;
         const pct = Math.round((doneCount / steps.length) * 100);

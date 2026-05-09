@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
   ArrowLeft, Edit, Phone, Mail, Building, Calendar, Tag, X, Save, Printer,
-  TrendingUp, DollarSign, Target, FileText, Receipt, Trash2, Copy, UserPlus,
+  TrendingUp, DollarSign, Target, FileText, Trash2, Copy, UserPlus,
   FolderKanban, Loader2, User, Briefcase, ExternalLink, PhoneCall, PhoneMissed,
   Voicemail, CheckSquare, Clock, AlertCircle, History,
 } from "lucide-react";
@@ -73,8 +73,6 @@ export default function ProspectDetail() {
   const [prospect, setProspect] = useState<Prospect | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [docsData, setDocsData] = useState<{ devis: any[]; factures: any[] } | null>(null);
-  const [docsLoading, setDocsLoading] = useState(false);
   const [historyData, setHistoryData] = useState<{ calls: any[]; tasks: any[] } | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [linkedContact, setLinkedContact] = useState<any>(null);
@@ -117,15 +115,6 @@ export default function ProspectDetail() {
     }
   }, [prospectId, toast]);
 
-  const loadDocs = useCallback(async () => {
-    if (!prospectId) return;
-    setDocsLoading(true);
-    try {
-      const res = await fetch(`${BASE}/api/prospects/${prospectId}/devis`, { credentials: "include" });
-      if (res.ok) setDocsData(await res.json());
-    } catch {} finally { setDocsLoading(false); }
-  }, [prospectId]);
-
   const loadHistory = useCallback(async () => {
     if (!prospectId) return;
     setHistoryLoading(true);
@@ -135,7 +124,7 @@ export default function ProspectDetail() {
     } catch {} finally { setHistoryLoading(false); }
   }, [prospectId]);
 
-  useEffect(() => { load(); loadDocs(); loadHistory(); }, [load, loadDocs, loadHistory]);
+  useEffect(() => { load(); loadHistory(); }, [load, loadHistory]);
 
   const openEdit = () => {
     if (!prospect) return;
@@ -385,11 +374,10 @@ export default function ProspectDetail() {
 
         <div className="md:col-span-2">
           <Tabs defaultValue="overview">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="overview">Aperçu</TabsTrigger>
               <TabsTrigger value="history">Historique</TabsTrigger>
               <TabsTrigger value="contact">Contact lié</TabsTrigger>
-              <TabsTrigger value="documents">Devis & Fact.</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
             </TabsList>
 
@@ -540,73 +528,6 @@ export default function ProspectDetail() {
                       </div>
                     </div>
                   )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="documents" className="mt-4 space-y-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-3">
-                  <div><CardTitle className="flex items-center gap-2"><FileText className="w-4 h-4 text-blue-500" />Devis</CardTitle></div>
-                  <Button variant="outline" size="sm" onClick={() => navigate(`/devis`)}><ExternalLink className="w-4 h-4 mr-1" />Voir tous</Button>
-                </CardHeader>
-                <CardContent>
-                  {docsLoading ? <Skeleton className="h-20 w-full" /> : docsData?.devis && docsData.devis.length > 0 ? (
-                    <div className="space-y-2">
-                      {docsData.devis.map((d: any) => (
-                        <div
-                          key={d.id}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => navigate(`/devis?id=${d.id}`)}
-                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/devis?id=${d.id}`); } }}
-                          className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 text-sm cursor-pointer"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs text-muted-foreground">{d.reference}</span>
-                            <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${d.status === 'accepte' ? 'bg-green-100 text-green-700' : d.status === 'refuse' ? 'bg-red-100 text-red-700' : d.status === 'envoye' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>{d.status}</span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="font-semibold text-emerald-600">{Number(d.totalAmount || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €</span>
-                            <span className="text-muted-foreground text-xs">{d.createdAt ? format(new Date(d.createdAt), "dd/MM/yy") : ""}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : <div className="text-center py-6 text-muted-foreground text-sm italic">Aucun devis lié à ce prospect.</div>}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-3">
-                  <div><CardTitle className="flex items-center gap-2"><Receipt className="w-4 h-4 text-purple-500" />Factures</CardTitle></div>
-                  <Button variant="outline" size="sm" onClick={() => navigate(`/factures-client`)}><ExternalLink className="w-4 h-4 mr-1" />Voir toutes</Button>
-                </CardHeader>
-                <CardContent>
-                  {docsLoading ? <Skeleton className="h-20 w-full" /> : docsData?.factures && docsData.factures.length > 0 ? (
-                    <div className="space-y-2">
-                      {docsData.factures.map((f: any) => (
-                        <div
-                          key={f.id}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => navigate(`/factures-client?id=${f.id}`)}
-                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/factures-client?id=${f.id}`); } }}
-                          className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 text-sm cursor-pointer"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs text-muted-foreground">{f.reference}</span>
-                            <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${f.status === 'payee' ? 'bg-green-100 text-green-700' : f.status === 'annulee' ? 'bg-red-100 text-red-700' : f.status === 'envoyee' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>{f.status}</span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="font-semibold text-purple-600">{Number(f.totalAmount || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €</span>
-                            {Number(f.paidAmount) > 0 && <span className="text-xs text-emerald-600">(payé: {Number(f.paidAmount).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €)</span>}
-                            <span className="text-muted-foreground text-xs">{f.createdAt ? format(new Date(f.createdAt), "dd/MM/yy") : ""}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : <div className="text-center py-6 text-muted-foreground text-sm italic">Aucune facture liée à ce prospect.</div>}
                 </CardContent>
               </Card>
             </TabsContent>

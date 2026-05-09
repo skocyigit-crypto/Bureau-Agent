@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
-import { Search, Phone, Users, CheckSquare, MessageSquare, X, Loader2, TrendingUp, FileText, Receipt, Package, ShoppingCart, FolderKanban } from "lucide-react";
+import { Search, Phone, Users, CheckSquare, MessageSquare, X, Loader2, TrendingUp, FolderKanban } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -11,10 +11,6 @@ const ICON_MAP: Record<string, any> = {
   tasks: CheckSquare,
   messages: MessageSquare,
   prospects: TrendingUp,
-  devis: FileText,
-  factures: Receipt,
-  stock: Package,
-  commandes: ShoppingCart,
   projets: FolderKanban,
 };
 
@@ -24,10 +20,6 @@ const LABEL_MAP: Record<string, string> = {
   tasks: "Taches",
   messages: "Messages",
   prospects: "Prospects",
-  devis: "Devis",
-  factures: "Factures",
-  stock: "Stock",
-  commandes: "Bons de Commande",
   projets: "Projets",
 };
 
@@ -37,14 +29,10 @@ const COLOR_MAP: Record<string, string> = {
   tasks: "text-amber-500",
   messages: "text-purple-500",
   prospects: "text-orange-500",
-  devis: "text-sky-500",
-  factures: "text-emerald-500",
-  stock: "text-slate-500",
-  commandes: "text-violet-500",
   projets: "text-indigo-500",
 };
 
-const ALL_TYPES = ["contacts", "calls", "tasks", "messages", "prospects", "devis", "factures", "stock", "commandes", "projets"] as const;
+const ALL_TYPES = ["contacts", "calls", "tasks", "messages", "prospects", "projets"] as const;
 
 export function GlobalSearch() {
   const [query, setQuery] = useState("");
@@ -96,10 +84,6 @@ export function GlobalSearch() {
       case "tasks": setLocation("/taches"); break;
       case "messages": setLocation("/messages"); break;
       case "prospects": setLocation("/prospects"); break;
-      case "devis": setLocation("/devis"); break;
-      case "factures": setLocation("/factures-client"); break;
-      case "stock": setLocation("/stock"); break;
-      case "commandes": setLocation("/commandes-fournisseur"); break;
       case "projets": setLocation("/projets"); break;
     }
   }
@@ -111,10 +95,6 @@ export function GlobalSearch() {
       case "tasks": return item.title;
       case "messages": return item.contactName || item.content?.substring(0, 40);
       case "prospects": return item.title || item.contactName || item.company || item.email || "";
-      case "devis": return item.reference || `Devis #${item.id}`;
-      case "factures": return item.reference || `Facture #${item.id}`;
-      case "stock": return item.name || item.sku || "";
-      case "commandes": return item.reference || `BC #${item.id}`;
       case "projets": return item.title || `Projet #${item.id}`;
       default: return "";
     }
@@ -127,10 +107,6 @@ export function GlobalSearch() {
       case "tasks": return `${item.status} - ${item.priority}`;
       case "messages": return item.type || "";
       case "prospects": return item.stage ? `${item.stage}${item.value ? ` · ${item.value} €` : ""}` : item.email || "";
-      case "devis": return `${item.clientName || ""} · ${item.status}${item.totalAmount ? ` · ${Number(item.totalAmount).toFixed(2)} €` : ""}`;
-      case "factures": return `${item.clientName || ""} · ${item.status}${item.totalAmount ? ` · ${Number(item.totalAmount).toFixed(2)} €` : ""}`;
-      case "stock": return `${item.category || ""}${item.quantity !== undefined ? ` · Qté: ${item.quantity}` : ""}`;
-      case "commandes": return `${item.fournisseurName || ""} · ${item.status}${item.totalAmount ? ` · ${Number(item.totalAmount).toFixed(2)} €` : ""}`;
       case "projets": return `${item.clientName || item.clientCompany || ""} · ${item.status}${item.progress !== undefined ? ` · ${item.progress}%` : ""}`;
       default: return "";
     }

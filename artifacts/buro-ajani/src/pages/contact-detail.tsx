@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Phone, Mail, Building, MapPin, Calendar, Clock, Edit, FileText, Plus, PhoneCall, ArrowLeft, MoreHorizontal, Voicemail, PhoneMissed, CheckSquare, AlertCircle, Send, Tag, X, Receipt, Euro, Save, Printer, FolderKanban } from "lucide-react";
+import { Phone, Mail, Building, MapPin, Calendar, Clock, Edit, FileText, Plus, PhoneCall, ArrowLeft, MoreHorizontal, Voicemail, PhoneMissed, CheckSquare, AlertCircle, Send, Tag, X, Euro, Save, Printer, FolderKanban } from "lucide-react";
 import { EmailComposer } from "@/components/email-composer";
 import { DocumentsPanel } from "@/components/file-upload";
 import { Button } from "@/components/ui/button";
@@ -48,8 +48,6 @@ export default function ContactDetail() {
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [isSavingTags, setIsSavingTags] = useState(false);
-  const [devisData, setDevisData] = useState<{ devis: any[], factures: any[] } | null>(null);
-  const [isDevisLoading, setIsDevisLoading] = useState(false);
   const [projetsData, setProjetsData] = useState<any[]>([]);
   const [isProjetsLoading, setIsProjetsLoading] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
@@ -87,16 +85,6 @@ export default function ContactDetail() {
     }
   });
 
-  const loadDevisData = useCallback(async () => {
-    if (!contactId) return;
-    setIsDevisLoading(true);
-    try {
-      const res = await fetch(`${BASE}/api/contacts/${contactId}/devis`, { credentials: "include" });
-      if (res.ok) setDevisData(await res.json());
-    } catch {}
-    finally { setIsDevisLoading(false); }
-  }, [contactId, BASE]);
-
   const loadProjetsData = useCallback(async () => {
     if (!contactId) return;
     setIsProjetsLoading(true);
@@ -109,8 +97,8 @@ export default function ContactDetail() {
 
   const formInitialized = useRef(false);
   useEffect(() => {
-    if (contactId) { loadDevisData(); loadProjetsData(); }
-  }, [contactId, loadDevisData, loadProjetsData]);
+    if (contactId) { loadProjetsData(); }
+  }, [contactId, loadProjetsData]);
 
   useEffect(() => {
     if (contact && !formInitialized.current) {
@@ -387,11 +375,10 @@ export default function ContactDetail() {
 
         <div className="md:col-span-2">
           <Tabs defaultValue="calls">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="calls">Appels</TabsTrigger>
               <TabsTrigger value="tasks">Tâches</TabsTrigger>
               <TabsTrigger value="projets">Projets</TabsTrigger>
-              <TabsTrigger value="documents">Devis & Fact.</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
             </TabsList>
             
@@ -512,80 +499,6 @@ export default function ContactDetail() {
                   )}
                 </CardContent>
               </Card>
-            </TabsContent>
-
-            <TabsContent value="documents" className="mt-4">
-              <div className="space-y-4">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between pb-3">
-                    <div><CardTitle className="flex items-center gap-2"><FileText className="w-4 h-4 text-blue-500" />Devis</CardTitle></div>
-                    <Button variant="outline" size="sm" onClick={() => navigate(`/devis?clientName=${encodeURIComponent(contact.firstName + " " + contact.lastName)}`)}>
-                      <Plus className="w-4 h-4 mr-1" />Nouveau
-                    </Button>
-                  </CardHeader>
-                  <CardContent>
-                    {isDevisLoading ? <Skeleton className="h-20 w-full" /> : devisData?.devis && devisData.devis.length > 0 ? (
-                      <div className="space-y-2">
-                        {devisData.devis.map((d: any) => (
-                          <div
-                            key={d.id}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => navigate(`/devis?id=${d.id}`)}
-                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/devis?id=${d.id}`); } }}
-                            className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 text-sm cursor-pointer"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs text-muted-foreground">{d.reference}</span>
-                              <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${d.status === 'accepte' ? 'bg-green-100 text-green-700' : d.status === 'refuse' ? 'bg-red-100 text-red-700' : d.status === 'envoye' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>{d.status}</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span className="font-semibold text-emerald-600">{Number(d.totalAmount || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €</span>
-                              <span className="text-muted-foreground text-xs">{d.createdAt ? format(new Date(d.createdAt), "dd/MM/yy") : ""}</span>
-                              <ArrowLeft className="w-3 h-3 rotate-180 text-muted-foreground" />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : <div className="text-center py-6 text-muted-foreground text-sm italic">Aucun devis.</div>}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between pb-3">
-                    <div><CardTitle className="flex items-center gap-2"><Receipt className="w-4 h-4 text-purple-500" />Factures</CardTitle></div>
-                    <Button variant="outline" size="sm" onClick={() => navigate(`/factures-client`)}>
-                      <Plus className="w-4 h-4 mr-1" />Nouvelle
-                    </Button>
-                  </CardHeader>
-                  <CardContent>
-                    {isDevisLoading ? <Skeleton className="h-20 w-full" /> : devisData?.factures && devisData.factures.length > 0 ? (
-                      <div className="space-y-2">
-                        {devisData.factures.map((f: any) => (
-                          <div
-                            key={f.id}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => navigate(`/factures-client?id=${f.id}`)}
-                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/factures-client?id=${f.id}`); } }}
-                            className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 text-sm cursor-pointer"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs text-muted-foreground">{f.reference}</span>
-                              <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${f.status === 'payee' ? 'bg-green-100 text-green-700' : f.status === 'annulee' ? 'bg-red-100 text-red-700' : f.status === 'envoyee' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>{f.status}</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span className="font-semibold text-purple-600">{Number(f.totalAmount || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €</span>
-                              {Number(f.paidAmount) > 0 && <span className="text-xs text-emerald-600">(payé: {Number(f.paidAmount).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €)</span>}
-                              <span className="text-muted-foreground text-xs">{f.createdAt ? format(new Date(f.createdAt), "dd/MM/yy") : ""}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : <div className="text-center py-6 text-muted-foreground text-sm italic">Aucune facture.</div>}
-                  </CardContent>
-                </Card>
-              </div>
             </TabsContent>
 
             <TabsContent value="notes" className="mt-4">

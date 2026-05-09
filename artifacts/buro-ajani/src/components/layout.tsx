@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Phone, Users, CheckSquare, MessageSquare, BarChart, LayoutDashboard, Settings, FileText, Puzzle, UserCog, Clock, Brain, Calendar, Shield, Zap, BarChart3, KeyRound, Globe, ScanSearch, Sparkles, PhoneCall, Download, Plus, PhoneIncoming, Wifi, WifiOff, Smartphone, Monitor, Tablet, Rocket, Mail, StickyNote, Activity } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, BarChart, LayoutDashboard, Settings, FileText, Puzzle, UserCog, Clock, Brain, Calendar, Shield, Zap, BarChart3, KeyRound, Globe, Target, Sparkles, PhoneCall, Download, Plus, PhoneIncoming, Wifi, WifiOff, Smartphone, Monitor, Tablet, Rocket, Mail, StickyNote, Activity, ClipboardList, Plug, CreditCard, Trophy, ScanSearch } from "lucide-react";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { SidebarIcon3D, Icon3D } from "@/components/icon-3d";
 import { AiAssistantButton } from "@/components/ai-assistant";
@@ -34,7 +34,7 @@ function ConnectionIndicator() {
   const tierConfig = {
     offline: { icon: WifiOff, color: "text-red-500", label: "Hors ligne" },
     slow: { icon: Wifi, color: "text-amber-500", label: "Connexion lente" },
-    moderate: { icon: Wifi, color: "text-yellow-500", label: "Connexion moderee" },
+    moderate: { icon: Wifi, color: "text-yellow-500", label: "Connexion modérée" },
     fast: { icon: Wifi, color: "text-emerald-500", label: "Connexion rapide" },
   };
   const cfg = tierConfig[env.connectionTier];
@@ -114,7 +114,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
   //  10. la configuration / l'installation (rare, donc en bas)
   const navGroups = useMemo(() => {
     const isAdmin = user.role === "super_admin" || user.role === "administrateur";
-    const isSuperAdmin = user.role === "super_admin";
     const canUseAi = user.role !== "lecture_seule";
 
     return [
@@ -138,7 +137,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         label: "Carnet d'adresses",
         items: [
           { name: "Contacts", href: "/contacts", icon: Users },
-          { name: "Prospects", href: "/prospects", icon: ScanSearch },
+          { name: "Prospects", href: "/prospects", icon: Target },
         ],
       },
       {
@@ -155,7 +154,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         items: [
           { name: "Documents", href: "/documents", icon: FileText },
           ...(canUseAi ? [{ name: "Document IA", href: "/document-ia", icon: ScanSearch }] : []),
-          { name: "Rapports", href: "/rapports", icon: FileText },
+          { name: "Rapports", href: "/rapports", icon: ClipboardList },
           ...(isAdmin ? [{ name: "Rapport exécutif", href: "/rapport-executif", icon: BarChart3 }] : []),
         ],
       },
@@ -174,7 +173,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         label: "Analyse",
         items: [
           { name: "Statistiques", href: "/analyse", icon: BarChart },
-          ...(isAdmin ? [{ name: "Performance équipe", href: "/performance", icon: BarChart3 }] : []),
+          ...(isAdmin ? [{ name: "Performance équipe", href: "/performance", icon: Trophy }] : []),
         ],
       },
       {
@@ -182,7 +181,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         items: [
           { name: "Google Workspace", href: "/google-workspace", icon: Globe },
           { name: "Téléphonie", href: "/telephonie", icon: PhoneCall },
-          { name: "Connecteurs", href: "/logiciels", icon: Puzzle },
+          { name: "Connecteurs", href: "/logiciels", icon: Plug },
         ],
       },
       ...(isAdmin
@@ -190,7 +189,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             label: "Administration",
             items: [
               { name: "Utilisateurs", href: "/utilisateurs", icon: UserCog },
-              { name: "Licence & Facturation", href: "/gestion-licence", icon: Shield },
+              { name: "Licence & Facturation", href: "/gestion-licence", icon: CreditCard },
               { name: "Protection des données", href: "/protection-donnees", icon: Shield },
               ...(isSuperAdmin ? [{ name: "Organisations", href: "/organisations", icon: KeyRound }] : []),
             ],
@@ -295,14 +294,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <div className="w-px h-4 bg-border" />
               <ThemeToggle />
               <ExportMenu />
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setExportOpen(true)}>
-                    <Download className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Exporter les donnees (Ctrl+Shift+E)</TooltipContent>
-              </Tooltip>
               <AiHealthBadge />
               <NotificationBell />
               
