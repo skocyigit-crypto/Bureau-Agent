@@ -67,7 +67,7 @@ function isConfigurableField(
 
 const STORAGE_KEY = "aiInlineSuggest:enabled";
 const FIELDS_STORAGE_KEY = "aiInlineSuggest:fields";
-const DEBOUNCE_MS = 400;
+const DEBOUNCE_MS = 600;
 const MIN_CHARS = 8;
 
 const LANGUAGE_STORAGE_KEY = "aiInlineSuggest:language";

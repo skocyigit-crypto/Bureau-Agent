@@ -1,8 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Mic, MicOff, X, Volume2, MessageCircle, HelpCircle, Radio } from "lucide-react";
+import { Mic, MicOff, X, Volume2, MessageCircle, HelpCircle, Radio, Check, XCircle } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const WAKE_WORD_VARIANTS = ["hey bureau", "hé bureau", "hey buro", "hé buro", "hey burreau", "eh bureau"];
+
+interface PendingAction {
+  token: string;
+  intent: string;
+  summary: string;
+  fields: { label: string; value: string }[];
+  expiresInMs: number;
+}
 
 interface VoiceResult {
   success: boolean;
@@ -11,6 +19,8 @@ interface VoiceResult {
   data?: any;
   action?: string;
   navigate?: string;
+  requiresConfirmation?: boolean;
+  pendingAction?: PendingAction;
 }
 
 type VoiceState = "idle" | "listening_wake" | "listening_command" | "processing" | "speaking";
@@ -24,6 +34,8 @@ export function VoiceAssistant() {
   const [showHelp, setShowHelp] = useState(false);
   const [commands, setCommands] = useState<{ phrase: string; description: string }[]>([]);
   const [history, setHistory] = useState<{ type: "user" | "assistant"; text: string }[]>([]);
+  const [pending, setPending] = useState<PendingAction | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const recognitionRef = useRef<any>(null);
   const wakeListenerRef = useRef<any>(null);
   const stateRef = useRef<VoiceState>("idle");
@@ -79,6 +91,10 @@ export function VoiceAssistant() {
         setResponse(data.spoken);
         setHistory(prev => [...prev, { type: "assistant", text: data.spoken }]);
         speak(data.spoken);
+        if (data.requiresConfirmation && data.pendingAction) {
+          setPending(data.pendingAction);
+          return;
+        }
         if (data.navigate) {
           setTimeout(() => {
             window.location.pathname = BASE + data.navigate;
@@ -255,7 +271,57 @@ export function VoiceAssistant() {
     setTranscript("");
     setResponse("");
     setError("");
+    setPending(null);
   }
+
+  const confirmPending = useCallback(async () => {
+    if (!pending) return;
+    setConfirming(true);
+    try {
+      const res = await fetch(`${BASE}/api/voice/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ token: pending.token }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.success) {
+        const msg = data.spoken || "Action effectuee.";
+        setHistory(prev => [...prev, { type: "assistant", text: msg }]);
+        setResponse(msg);
+        speak(msg);
+        if (data.navigate) {
+          setTimeout(() => { window.location.pathname = BASE + data.navigate; }, 2500);
+        }
+      } else {
+        const msg = data?.error || "Impossible d'executer l'action.";
+        setHistory(prev => [...prev, { type: "assistant", text: msg }]);
+        setResponse(msg);
+        speak(msg);
+      }
+    } catch {
+      const msg = "Erreur reseau lors de la confirmation.";
+      setResponse(msg);
+      speak(msg);
+    } finally {
+      setPending(null);
+      setConfirming(false);
+    }
+  }, [pending, speak]);
+
+  const cancelPending = useCallback(() => {
+    if (!pending) return;
+    fetch(`${BASE}/api/voice/cancel`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ token: pending.token }),
+    }).catch(() => {});
+    const msg = "Action annulee.";
+    setHistory(prev => [...prev, { type: "assistant", text: msg }]);
+    setResponse(msg);
+    setPending(null);
+  }, [pending]);
 
   useEffect(() => {
     return () => {
@@ -351,6 +417,39 @@ export function VoiceAssistant() {
                   <div className="flex items-start gap-2">
                     <MessageCircle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0 animate-pulse" />
                     <p className="text-sm text-white italic">{transcript}...</p>
+                  </div>
+                </div>
+              )}
+
+              {pending && (
+                <div className="bg-amber-500/10 border border-amber-500/40 rounded-lg p-3 mb-3">
+                  <p className="text-xs font-semibold text-amber-300 mb-1.5">Confirmation requise</p>
+                  <p className="text-sm text-white mb-2">{pending.summary}</p>
+                  <div className="space-y-1 mb-3">
+                    {pending.fields.map((f, i) => (
+                      <div key={i} className="flex justify-between text-xs">
+                        <span className="text-slate-400">{f.label}</span>
+                        <span className="text-slate-200 text-right ml-2 truncate max-w-[180px]">{f.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={confirmPending}
+                      disabled={confirming}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-medium transition-colors"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      {confirming ? "..." : "Confirmer"}
+                    </button>
+                    <button
+                      onClick={cancelPending}
+                      disabled={confirming}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-slate-200 text-xs font-medium transition-colors"
+                    >
+                      <XCircle className="w-3.5 h-3.5" />
+                      Annuler
+                    </button>
                   </div>
                 </div>
               )}

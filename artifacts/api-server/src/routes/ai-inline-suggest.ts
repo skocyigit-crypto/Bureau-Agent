@@ -6,6 +6,40 @@ import { buildAiCacheKey, getCached, setCached, withProviderTimeout, AI_CACHE_TT
 import { detectLanguage } from "../services/language-detect";
 import { logger } from "../lib/logger";
 
+// Per-user sliding-window rate limiter: max 10 inline-suggest calls / minute.
+// Lightweight in-memory map; acceptable for a single-process API server.
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX = 10;
+const RATE_GC_MAX_KEYS = 5000;
+const rateBuckets = new Map<string, number[]>();
+let lastRateGc = 0;
+function gcRateBuckets(now: number): void {
+  // Periodic GC (≥30 s apart) OR forced when map exceeds the cap. Removes
+  // buckets whose newest hit fell outside the sliding window — prevents
+  // unbounded growth from one-shot users that never come back.
+  if (rateBuckets.size <= RATE_GC_MAX_KEYS && now - lastRateGc < 30_000) return;
+  lastRateGc = now;
+  const cutoff = now - RATE_WINDOW_MS;
+  for (const [k, v] of rateBuckets) {
+    if (v.length === 0 || v[v.length - 1] <= cutoff) {
+      rateBuckets.delete(k);
+    }
+  }
+}
+function checkInlineSuggestRate(key: string): boolean {
+  const now = Date.now();
+  const cutoff = now - RATE_WINDOW_MS;
+  const arr = (rateBuckets.get(key) ?? []).filter((t) => t > cutoff);
+  if (arr.length >= RATE_MAX) {
+    rateBuckets.set(key, arr);
+    return false;
+  }
+  arr.push(now);
+  rateBuckets.set(key, arr);
+  gcRateBuckets(now);
+  return true;
+}
+
 const SUPPORTED_LANGUAGES = new Set([
   "francais", "english", "deutsch", "espanol", "italiano",
   "portugues", "nederlands", "turkce", "arabic",
@@ -114,6 +148,15 @@ router.post("/ai/inline-suggest", async (req: Request, res: Response): Promise<v
   try {
     const orgId = getOrgId(req);
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+
+    const userId = (req.session as any)?.userId;
+    const rateKey = userId ? `u:${userId}` : `o:${orgId}:${req.ip || "ip"}`;
+    if (!checkInlineSuggestRate(rateKey)) {
+      res.setHeader("X-RateLimit-Limit", String(RATE_MAX));
+      res.setHeader("X-RateLimit-Window-Ms", String(RATE_WINDOW_MS));
+      res.json({ suggestion: "", rateLimited: true });
+      return;
+    }
 
     const {
       fieldType,
