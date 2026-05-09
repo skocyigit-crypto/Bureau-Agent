@@ -213,8 +213,8 @@ function BriefingTab() {
                       <div key={`${item.type}-${item.id}`} className="flex items-center gap-2 p-2 rounded hover:bg-muted/50 cursor-pointer">
                         <div className={`p-1 rounded ${colorClass}`}><Icon className="h-3 w-3" /></div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-xs font-medium truncate">{item.title}</div>
-                          {item.subtitle && <div className="text-[10px] text-muted-foreground truncate">{item.subtitle}</div>}
+                          <div className="text-xs font-medium truncate">{highlightMatches(item.title || "", searchResults.query || searchQuery)}</div>
+                          {item.subtitle && <div className="text-[10px] text-muted-foreground truncate">{highlightMatches(item.subtitle, searchResults.query || searchQuery)}</div>}
                         </div>
                         <Badge variant="outline" className="text-[9px] shrink-0">{item.type}</Badge>
                       </div>
