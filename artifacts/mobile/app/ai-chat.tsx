@@ -21,15 +21,67 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
+// Entity types come from the Commandant IA conversations endpoint
+// (POST /api/commandant/conversations/:id/messages -> assistantMessage.metadata.retrievedEntities).
+// The server uses English type names and web URLs; we map them to mobile routes here.
+type ServerEntityType = "contact" | "task" | "event" | "invoice" | "prospect";
+
+interface RetrievedEntity {
+  id: number;
+  type: ServerEntityType;
+  label: string;
+  url: string;
+}
+
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: string;
+  entities?: RetrievedEntity[];
 }
 
-const STORAGE_KEY = "ai_chat_history";
-const MAX_STORED = 60;
+const ENTITY_META: Record<ServerEntityType, { icon: keyof typeof Feather.glyphMap; color: string; bg: string; label: string }> = {
+  contact:  { icon: "user",         color: "#3b82f6", bg: "#3b82f618", label: "Contact" },
+  task:     { icon: "check-square", color: "#22c55e", bg: "#22c55e18", label: "Tache" },
+  event:    { icon: "calendar",     color: "#8b5cf6", bg: "#8b5cf618", label: "Evenement" },
+  invoice:  { icon: "file-text",    color: "#f97316", bg: "#f9731618", label: "Facture" },
+  prospect: { icon: "target",       color: "#ec4899", bg: "#ec489918", label: "Prospect" },
+};
+
+// Map a retrieved entity to the matching screen inside the mobile app.
+// The server's `url` field holds web routes; on mobile we redirect to the
+// equivalent native screen. Mobile factures live on the /abonnement screen
+// (see artifacts/mobile/app/abonnement.tsx, which fetches /api/my-subscription/invoices
+// and renders a "Factures recentes" section).
+function entityRoute(e: RetrievedEntity): string {
+  switch (e.type) {
+    case "contact":  return `/contact-detail?id=${e.id}`;
+    case "task":     return `/tasks?id=${e.id}`;
+    case "event":    return `/calendar?id=${e.id}`;
+    case "invoice":  return `/abonnement?factureId=${e.id}`;
+    case "prospect": return `/prospects?id=${e.id}`;
+    default:         return "/";
+  }
+}
+
+function normalizeEntities(raw: any): RetrievedEntity[] {
+  if (!Array.isArray(raw)) return [];
+  const out: RetrievedEntity[] = [];
+  for (const e of raw) {
+    if (!e || typeof e.id !== "number" || typeof e.type !== "string") continue;
+    if (!(e.type in ENTITY_META)) continue;
+    out.push({
+      id: e.id,
+      type: e.type as ServerEntityType,
+      label: typeof e.label === "string" && e.label ? e.label : `${ENTITY_META[e.type as ServerEntityType].label} #${e.id}`,
+      url: typeof e.url === "string" ? e.url : "",
+    });
+  }
+  return out;
+}
+
+const CONVERSATION_ID_KEY = "commandant_conversation_id";
 
 const QUICK_ACTIONS = [
   { icon: "bar-chart-2" as const, label: "Briefing du jour", prompt: "Donne-moi le briefing complet de la journee: appels, taches, rendez-vous, factures en retard." },
@@ -126,31 +178,89 @@ export default function AIChatScreen() {
     ? ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
     : null;
 
-  useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
-      if (raw) {
-        try {
-          const stored: Message[] = JSON.parse(raw);
-          if (stored.length > 0) {
-            setMessages(stored.slice(-MAX_STORED));
-            setHistoryLoaded(true);
-            return;
-          }
-        } catch {}
-      }
-      setMessages([{
-        id: "welcome",
-        role: "assistant",
-        content: `Bonjour ${user?.prenom || ""}! Je suis votre assistant IA Agent de Bureau. Je peux vous aider avec:\n\n- Briefing quotidien et analyses\n- Recherche dans vos donnees\n- Conseils strategiques CRM\n- Suivi des performances\n\nComment puis-je vous aider?`,
-        timestamp: new Date().toISOString(),
-      }]);
-      setHistoryLoaded(true);
-    });
-  }, []);
+  const conversationIdRef = useRef<number | null>(null);
 
-  async function persistMessages(msgs: Message[]) {
-    try { await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(msgs.slice(-MAX_STORED))); } catch {}
-  }
+  const welcomeMessage = useCallback((): Message => ({
+    id: "welcome",
+    role: "assistant",
+    content: `Bonjour ${user?.prenom || ""}! Je suis votre Commandant IA. Je peux vous aider avec:\n\n- Briefing quotidien et analyses\n- Recherche dans vos donnees\n- Conseils strategiques CRM\n- Suivi des performances\n\nComment puis-je vous aider?`,
+    timestamp: new Date().toISOString(),
+  }), [user?.prenom]);
+
+  // Load (or create) the persistent Commandant IA conversation, then hydrate
+  // history from the server. Server-side messages already include the
+  // metadata.retrievedEntities payload we want to render as chips.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const storedId = await AsyncStorage.getItem(CONVERSATION_ID_KEY);
+        let convId = storedId ? parseInt(storedId, 10) : NaN;
+
+        if (Number.isFinite(convId)) {
+          const r = await fetchAuth(`${API_BASE}/api/commandant/conversations/${convId}/messages`);
+          if (r.ok) {
+            const d = await r.json();
+            if (d?.success && Array.isArray(d.messages)) {
+              if (cancelled) return;
+              conversationIdRef.current = convId;
+              const hydrated: Message[] = d.messages.map((m: any) => ({
+                id: `s-${m.id}`,
+                role: m.role === "user" ? "user" : "assistant",
+                content: String(m.content ?? ""),
+                timestamp: m.createdAt ?? new Date().toISOString(),
+                entities: m.role === "assistant" ? normalizeEntities(m.metadata?.retrievedEntities) : undefined,
+              }));
+              setMessages(hydrated.length > 0 ? hydrated : [welcomeMessage()]);
+              setHistoryLoaded(true);
+              return;
+            }
+          }
+          // Stored conv no longer accessible — fall through to create a new one.
+          convId = NaN;
+        }
+
+        // Create a fresh conversation lazily; messages stay empty until the user sends one.
+        const c = await fetchAuth(`${API_BASE}/api/commandant/conversations`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: "Conversation mobile" }),
+        });
+        if (c.ok) {
+          const d = await c.json();
+          if (d?.conversation?.id) {
+            conversationIdRef.current = d.conversation.id;
+            await AsyncStorage.setItem(CONVERSATION_ID_KEY, String(d.conversation.id));
+          }
+        }
+      } catch {}
+      if (!cancelled) {
+        setMessages([welcomeMessage()]);
+        setHistoryLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [fetchAuth, welcomeMessage]);
+
+  const ensureConversationId = useCallback(async (): Promise<number | null> => {
+    if (conversationIdRef.current) return conversationIdRef.current;
+    try {
+      const c = await fetchAuth(`${API_BASE}/api/commandant/conversations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: "Conversation mobile" }),
+      });
+      if (c.ok) {
+        const d = await c.json();
+        if (d?.conversation?.id) {
+          conversationIdRef.current = d.conversation.id;
+          await AsyncStorage.setItem(CONVERSATION_ID_KEY, String(d.conversation.id));
+          return d.conversation.id;
+        }
+      }
+    } catch {}
+    return null;
+  }, [fetchAuth]);
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isTyping) return;
@@ -159,58 +269,68 @@ export default function AIChatScreen() {
     setMessages(updated);
     setInput("");
     setIsTyping(true);
-    persistMessages(updated);
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
 
     try {
-      const res = await fetchAuth(`${API_BASE}/api/commandant/smart-search`, {
+      const convId = await ensureConversationId();
+      if (!convId) throw new Error("no-conversation");
+
+      const res = await fetchAuth(`${API_BASE}/api/commandant/conversations/${convId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: text.trim() }),
+        body: JSON.stringify({ message: text.trim() }),
       });
+
       let reply = "Desole, je n'ai pas pu traiter votre demande. Veuillez reessayer.";
+      let entities: RetrievedEntity[] = [];
+      let serverId: number | undefined;
+      let serverTs: string | undefined;
       if (res.ok) {
         const data = await res.json();
-        if (data.aiSummary) {
-          reply = data.aiSummary;
-        } else if (data.answer || data.response || data.message) {
-          reply = data.answer || data.response || data.message;
-        } else if (data.results) {
-          const parts: string[] = [];
-          if (typeof data.results === "object" && !Array.isArray(data.results)) {
-            const r = data.results;
-            if (r.contacts?.length) parts.push(`**Contacts (${r.contacts.length}):**\n${r.contacts.slice(0, 3).map((c: any) => `- ${c.firstName || ""} ${c.lastName || ""} ${c.company ? `(${c.company})` : ""}`).join("\n")}`);
-            if (r.tasks?.length) parts.push(`**Taches (${r.tasks.length}):**\n${r.tasks.slice(0, 3).map((t: any) => `- ${t.title}`).join("\n")}`);
-            if (r.prospects?.length) parts.push(`**Prospects (${r.prospects.length}):**\n${r.prospects.slice(0, 3).map((p: any) => `- ${p.title || p.contactName}`).join("\n")}`);
-            if (r.invoices?.length) parts.push(`**Factures (${r.invoices.length}):**\n${r.invoices.slice(0, 3).map((f: any) => `- ${f.reference || f.title} - ${f.clientName}`).join("\n")}`);
-            if (r.events?.length) parts.push(`**Evenements (${r.events.length}):**\n${r.events.slice(0, 3).map((e: any) => `- ${e.title}`).join("\n")}`);
-          } else if (Array.isArray(data.results)) {
-            parts.push(data.results.slice(0, 5).map((r: any, i: number) => `${i + 1}. ${r.title || r.name || JSON.stringify(r)}`).join("\n"));
-          }
-          reply = parts.length > 0
-            ? `J'ai trouve ${data.totalResults || "des"} resultat(s):\n\n${parts.join("\n\n")}`
-            : "Aucun resultat trouve pour votre recherche.";
+        const am = data?.assistantMessage;
+        if (am?.content) {
+          reply = String(am.content);
+          entities = normalizeEntities(am.metadata?.retrievedEntities);
+          serverId = typeof am.id === "number" ? am.id : undefined;
+          serverTs = am.createdAt;
         }
       }
-      const aiMsg: Message = { id: `a-${Date.now()}`, role: "assistant", content: reply, timestamp: new Date().toISOString() };
-      const withReply = [...updated, aiMsg];
-      setMessages(withReply);
-      persistMessages(withReply);
+      const aiMsg: Message = {
+        id: serverId != null ? `s-${serverId}` : `a-${Date.now()}`,
+        role: "assistant",
+        content: reply,
+        timestamp: serverTs ?? new Date().toISOString(),
+        entities: entities.length > 0 ? entities : undefined,
+      };
+      setMessages([...updated, aiMsg]);
     } catch {
       const errorMsg: Message = { id: `e-${Date.now()}`, role: "assistant", content: "Une erreur est survenue. Verifiez votre connexion et reessayez.", timestamp: new Date().toISOString() };
-      const withError = [...updated, errorMsg];
-      setMessages(withError);
-      persistMessages(withError);
+      setMessages([...updated, errorMsg]);
     } finally {
       setIsTyping(false);
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 200);
     }
-  }, [fetchAuth, isTyping, messages]);
+  }, [fetchAuth, isTyping, messages, ensureConversationId]);
 
-  function clearHistory() {
-    const welcome: Message = { id: "welcome", role: "assistant", content: "Conversation reinitialise. Comment puis-je vous aider?", timestamp: new Date().toISOString() };
-    setMessages([welcome]);
-    persistMessages([welcome]);
+  async function clearHistory() {
+    // Start a brand-new server-side conversation so the assistant forgets prior context.
+    conversationIdRef.current = null;
+    try { await AsyncStorage.removeItem(CONVERSATION_ID_KEY); } catch {}
+    try {
+      const c = await fetchAuth(`${API_BASE}/api/commandant/conversations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: "Conversation mobile" }),
+      });
+      if (c.ok) {
+        const d = await c.json();
+        if (d?.conversation?.id) {
+          conversationIdRef.current = d.conversation.id;
+          await AsyncStorage.setItem(CONVERSATION_ID_KEY, String(d.conversation.id));
+        }
+      }
+    } catch {}
+    setMessages([{ ...welcomeMessage(), content: "Conversation reinitialise. Comment puis-je vous aider?" }]);
   }
 
   async function copyMessage(content: string, id: string) {
@@ -317,6 +437,27 @@ export default function AIChatScreen() {
             </View>
           )}
         </View>
+        {!isUser && item.entities && item.entities.length > 0 && (
+          <View style={styles.entityChipsRow}>
+            {item.entities.map((e, i) => {
+              const meta = ENTITY_META[e.type];
+              return (
+                <Pressable
+                  key={`${e.type}-${e.id}-${i}`}
+                  onPress={() => {
+                    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push(entityRoute(e) as any);
+                  }}
+                  style={[styles.entityChip, { backgroundColor: meta.bg, borderColor: meta.color + "40" }]}
+                >
+                  <Feather name={meta.icon} size={11} color={meta.color} />
+                  <Text style={[styles.entityChipText, { color: meta.color }]} numberOfLines={1}>{e.label}</Text>
+                  <Feather name="external-link" size={9} color={meta.color} style={{ opacity: 0.6 }} />
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
         {isLastAi && followUps.length > 0 && (
           <View style={styles.followUpsRow}>
             {followUps.map((fu, i) => (
@@ -535,6 +676,9 @@ const styles = StyleSheet.create({
   markdownContent: { gap: 0 },
   bubbleFooter: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 5, marginTop: 5 },
   timestamp: { fontSize: 10, fontFamily: "Inter_400Regular" },
+  entityChipsRow: { paddingLeft: 36, marginTop: -4, marginBottom: 8, flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  entityChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 12, borderWidth: 1, maxWidth: 220 },
+  entityChipText: { fontSize: 11, fontFamily: "Inter_500Medium", flexShrink: 1 },
   followUpsRow: { paddingLeft: 36, marginBottom: 12, gap: 6 },
   followUpChip: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, borderWidth: 1 },
   followUpText: { fontSize: 12, fontFamily: "Inter_500Medium" },
