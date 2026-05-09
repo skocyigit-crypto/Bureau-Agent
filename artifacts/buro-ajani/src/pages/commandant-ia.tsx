@@ -17,6 +17,7 @@ import {
   MapPin, BarChart3, Shield, Bell, TrendingUp, ArrowRight, Sparkles,
   MessageSquare, Target, Play, Eye, Coffee, Navigation, ExternalLink,
   Search, Wand2, Copy, Mic, Bot, Printer, FolderKanban,
+  MessageCircle, Plus, Trash2, Edit2, Check, X,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -33,9 +34,19 @@ async function apiGet(path: string) {
   if (!r.ok) { const err = await r.json().catch(() => ({})); throw new Error((err as any).error || `Erreur ${r.status}`); }
   return r.json();
 }
+async function apiPatch(path: string, body?: any) {
+  const r = await fetch(`${API}/api${path}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: body ? JSON.stringify(body) : undefined });
+  if (!r.ok) { const err = await r.json().catch(() => ({})); throw new Error((err as any).error || `Erreur ${r.status}`); }
+  return r.json();
+}
+async function apiDelete(path: string) {
+  const r = await fetch(`${API}/api${path}`, { method: "DELETE", credentials: "include" });
+  if (!r.ok) { const err = await r.json().catch(() => ({})); throw new Error((err as any).error || `Erreur ${r.status}`); }
+  return r.json();
+}
 
 export default function CommandantIAPage() {
-  const [tab, setTab] = useState("briefing");
+  const [tab, setTab] = useState("chat");
   const { toast } = useToast();
 
   return (
@@ -57,7 +68,8 @@ export default function CommandantIAPage() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="grid grid-cols-10 w-full">
+        <TabsList className="grid grid-cols-11 w-full">
+          <TabsTrigger value="chat" className="text-xs gap-1"><MessageCircle className="h-3 w-3" />Chat</TabsTrigger>
           <TabsTrigger value="briefing" className="text-xs gap-1"><Coffee className="h-3 w-3" />Briefing</TabsTrigger>
           <TabsTrigger value="phone" className="text-xs gap-1"><Phone className="h-3 w-3" />Telephone</TabsTrigger>
           <TabsTrigger value="email" className="text-xs gap-1"><Mail className="h-3 w-3" />Email</TabsTrigger>
@@ -70,6 +82,7 @@ export default function CommandantIAPage() {
           <TabsTrigger value="stats" className="text-xs gap-1"><BarChart3 className="h-3 w-3" />Stats</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="chat"><ChatTab /></TabsContent>
         <TabsContent value="briefing"><BriefingTab /></TabsContent>
         <TabsContent value="phone"><PhoneTab /></TabsContent>
         <TabsContent value="email"><EmailTab /></TabsContent>
@@ -1050,6 +1063,254 @@ function RappelsTab() {
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function ChatTab() {
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [input, setInput] = useState("");
+  const [loadingList, setLoadingList] = useState(false);
+  const [loadingMsgs, setLoadingMsgs] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [renamingId, setRenamingId] = useState<number | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const { toast } = useToast();
+
+  const loadConversations = useCallback(async (selectFirst = false) => {
+    setLoadingList(true);
+    try {
+      const d = await apiGet("/commandant/conversations");
+      if (d.success) {
+        setConversations(d.conversations || []);
+        if (selectFirst && d.conversations?.length > 0 && selectedId === null) {
+          setSelectedId(d.conversations[0].id);
+        }
+      }
+    } catch (err: any) {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    } finally {
+      setLoadingList(false);
+    }
+  }, [selectedId, toast]);
+
+  const loadMessages = useCallback(async (id: number) => {
+    setLoadingMsgs(true);
+    setMessages([]);
+    try {
+      const d = await apiGet(`/commandant/conversations/${id}/messages`);
+      if (d.success) setMessages(d.messages || []);
+    } catch (err: any) {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    } finally {
+      setLoadingMsgs(false);
+    }
+  }, [toast]);
+
+  useEffect(() => { loadConversations(true); }, []);
+  useEffect(() => { if (selectedId) loadMessages(selectedId); }, [selectedId, loadMessages]);
+
+  const newChat = async () => {
+    try {
+      const d = await apiPost("/commandant/conversations", {});
+      if (d.success && d.conversation) {
+        setConversations(prev => [d.conversation, ...prev]);
+        setSelectedId(d.conversation.id);
+        setMessages([]);
+      }
+    } catch (err: any) {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const sendMessage = async () => {
+    const text = input.trim();
+    if (!text || sending) return;
+    let convId = selectedId;
+    if (!convId) {
+      try {
+        const d = await apiPost("/commandant/conversations", {});
+        if (!d.success || !d.conversation) throw new Error("Impossible de creer la conversation");
+        convId = d.conversation.id;
+        setConversations(prev => [d.conversation, ...prev]);
+        setSelectedId(convId);
+      } catch (err: any) {
+        toast({ title: "Erreur", description: err.message, variant: "destructive" });
+        return;
+      }
+    }
+    setInput("");
+    const optimistic = { id: `tmp-${Date.now()}`, role: "user", content: text, createdAt: new Date().toISOString() };
+    setMessages(prev => [...prev, optimistic]);
+    setSending(true);
+    try {
+      const d = await apiPost(`/commandant/conversations/${convId}/messages`, { message: text });
+      if (d.success) {
+        setMessages(prev => {
+          const without = prev.filter(m => m.id !== optimistic.id);
+          return [...without, d.userMessage, d.assistantMessage];
+        });
+        if (d.conversation) {
+          setConversations(prev => {
+            const others = prev.filter(c => c.id !== d.conversation.id);
+            return [d.conversation, ...others];
+          });
+        }
+      }
+    } catch (err: any) {
+      setMessages(prev => prev.filter(m => m.id !== optimistic.id));
+      setInput(text);
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const startRename = (c: any) => { setRenamingId(c.id); setRenameValue(c.title); };
+  const cancelRename = () => { setRenamingId(null); setRenameValue(""); };
+  const saveRename = async (id: number) => {
+    const title = renameValue.trim();
+    if (!title) { cancelRename(); return; }
+    try {
+      const d = await apiPatch(`/commandant/conversations/${id}`, { title });
+      if (d.success) {
+        setConversations(prev => prev.map(c => c.id === id ? { ...c, title: d.conversation.title } : c));
+      }
+    } catch (err: any) {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    } finally {
+      cancelRename();
+    }
+  };
+
+  const deleteConv = async (id: number) => {
+    if (!confirm("Supprimer cette conversation ?")) return;
+    try {
+      await apiDelete(`/commandant/conversations/${id}`);
+      setConversations(prev => prev.filter(c => c.id !== id));
+      if (selectedId === id) {
+        setSelectedId(null);
+        setMessages([]);
+      }
+    } catch (err: any) {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    }
+  };
+
+  return (
+    <div className="mt-4 grid grid-cols-12 gap-4 h-[calc(100vh-220px)] min-h-[500px]">
+      <Card className="col-span-3 flex flex-col">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-sm flex items-center gap-1"><MessageCircle className="h-4 w-4 text-amber-500" />Conversations</CardTitle>
+            <Button size="sm" variant="default" className="h-7 gap-1 bg-amber-600 hover:bg-amber-700" onClick={newChat}>
+              <Plus className="h-3 w-3" />Nouveau
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="flex-1 overflow-hidden p-2">
+          <ScrollArea className="h-full pr-2">
+            {loadingList && conversations.length === 0 ? (
+              <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
+            ) : conversations.length === 0 ? (
+              <div className="text-center py-8 text-xs text-muted-foreground">
+                <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                Aucune conversation. Cliquez sur "Nouveau" pour commencer.
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {conversations.map(c => (
+                  <div
+                    key={c.id}
+                    className={`group rounded px-2 py-2 cursor-pointer text-xs flex items-center gap-1 ${selectedId === c.id ? "bg-amber-50 border border-amber-200" : "hover:bg-muted/50"}`}
+                    onClick={() => renamingId !== c.id && setSelectedId(c.id)}
+                  >
+                    {renamingId === c.id ? (
+                      <>
+                        <Input
+                          autoFocus
+                          value={renameValue}
+                          onChange={e => setRenameValue(e.target.value)}
+                          onKeyDown={e => { if (e.key === "Enter") saveRename(c.id); if (e.key === "Escape") cancelRename(); }}
+                          className="h-6 text-xs flex-1"
+                          onClick={e => e.stopPropagation()}
+                        />
+                        <Button size="icon" variant="ghost" className="h-5 w-5" onClick={e => { e.stopPropagation(); saveRename(c.id); }}><Check className="h-3 w-3" /></Button>
+                        <Button size="icon" variant="ghost" className="h-5 w-5" onClick={e => { e.stopPropagation(); cancelRename(); }}><X className="h-3 w-3" /></Button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{c.title}</div>
+                          <div className="text-[10px] text-muted-foreground">{format(new Date(c.updatedAt), "d MMM HH:mm", { locale: fr })}</div>
+                        </div>
+                        <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100" onClick={e => { e.stopPropagation(); startRename(c); }}><Edit2 className="h-3 w-3" /></Button>
+                        <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100 text-red-500" onClick={e => { e.stopPropagation(); deleteConv(c.id); }}><Trash2 className="h-3 w-3" /></Button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </CardContent>
+      </Card>
+
+      <Card className="col-span-9 flex flex-col">
+        <CardHeader className="pb-2 border-b">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Brain className="h-4 w-4 text-amber-500" />
+            {selectedId ? (conversations.find(c => c.id === selectedId)?.title || "Conversation") : "Commandant IA"}
+          </CardTitle>
+          <CardDescription className="text-xs">Posez vos questions, je me souviens de notre echange.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex-1 overflow-hidden p-0 flex flex-col">
+          <ScrollArea className="flex-1 p-4">
+            {loadingMsgs ? (
+              <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
+            ) : messages.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Sparkles className="h-10 w-10 mx-auto mb-3 text-amber-500 opacity-50" />
+                <p className="text-sm">Demandez-moi n'importe quoi sur votre bureau.</p>
+                <p className="text-xs mt-1">Ex: "Quelles sont mes urgences ?", "Resume-moi la situation"</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {messages.map((m: any) => (
+                  <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${m.role === "user" ? "bg-amber-600 text-white" : "bg-muted"}`}>
+                      {m.content}
+                    </div>
+                  </div>
+                ))}
+                {sending && (
+                  <div className="flex justify-start">
+                    <div className="bg-muted rounded-lg px-3 py-2 text-sm flex items-center gap-2">
+                      <Loader2 className="h-3 w-3 animate-spin" />Le Commandant reflechit...
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </ScrollArea>
+          <div className="border-t p-3 flex gap-2">
+            <Textarea
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+              placeholder="Tapez votre message... (Entree pour envoyer, Maj+Entree pour saut de ligne)"
+              rows={2}
+              disabled={sending}
+              className="flex-1 resize-none text-sm"
+            />
+            <Button onClick={sendMessage} disabled={sending || !input.trim()} className="bg-amber-600 hover:bg-amber-700 self-end">
+              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

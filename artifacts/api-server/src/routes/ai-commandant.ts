@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
-import { db, callsTable, contactsTable, tasksTable, messagesTable, calendarEventsTable, facturesClientTable, compteClientTable, organisationsTable, prospectsTable, notificationsTable, paymentRemindersTable, licenseAuditLogTable, projetsTable, usersTable, checkinsTable, auditLogsTable } from "@workspace/db";
-import { eq, sql, and, desc, gte, lte, lt, ne, isNull, isNotNull, or, ilike, count } from "drizzle-orm";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, calendarEventsTable, facturesClientTable, compteClientTable, organisationsTable, prospectsTable, notificationsTable, paymentRemindersTable, licenseAuditLogTable, projetsTable, usersTable, checkinsTable, auditLogsTable, commandantConversationsTable, commandantMessagesTable } from "@workspace/db";
+import { eq, sql, and, desc, gte, lte, lt, ne, isNull, isNotNull, or, ilike, count, asc } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { Resend } from "resend";
 import { getContextForContact, getLatestAgentInsights, buildCommandantContextPrompt } from "./agent-collaboration";
@@ -1669,6 +1669,240 @@ Génère un rapport JSON complet:
     res.json({ success: true, periode, teamScore, teamQuality, teamEfficiency, employees, analysis });
   } catch (err: any) {
     handleCommandantError(err, res, "[Commandant/EmployeeQuality]");
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// CONVERSATIONS (Chat persistant avec historique)
+// ═══════════════════════════════════════════════════════
+
+const MAX_HISTORY_MESSAGES = 10;
+const MAX_HISTORY_CHARS = 12000;
+
+function getUserId(req: Request): number | null {
+  const u = (req.session as any)?.userId;
+  return typeof u === "number" ? u : null;
+}
+
+async function ensureConversationOwnership(orgId: number, userId: number, conversationId: number) {
+  const [conv] = await db.select().from(commandantConversationsTable)
+    .where(and(
+      eq(commandantConversationsTable.id, conversationId),
+      eq(commandantConversationsTable.organisationId, orgId),
+      eq(commandantConversationsTable.userId, userId),
+    ));
+  return conv || null;
+}
+
+router.get("/commandant/conversations", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const userId = getUserId(req);
+    if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
+    const rows = await db.select().from(commandantConversationsTable)
+      .where(and(
+        eq(commandantConversationsTable.organisationId, orgId),
+        eq(commandantConversationsTable.userId, userId),
+      ))
+      .orderBy(desc(commandantConversationsTable.updatedAt))
+      .limit(100);
+    res.json({ success: true, conversations: rows });
+  } catch (err: any) {
+    logger.error({ err }, "[Commandant/Conv/List]");
+    res.status(500).json({ error: "Erreur interne" });
+  }
+});
+
+router.post("/commandant/conversations", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const userId = getUserId(req);
+    if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
+    const title = typeof req.body?.title === "string" && req.body.title.trim() ? req.body.title.trim().slice(0, 200) : "Nouvelle conversation";
+    const [conv] = await db.insert(commandantConversationsTable)
+      .values({ organisationId: orgId, userId, title })
+      .returning();
+    res.json({ success: true, conversation: conv });
+  } catch (err: any) {
+    logger.error({ err }, "[Commandant/Conv/Create]");
+    res.status(500).json({ error: "Erreur interne" });
+  }
+});
+
+router.get("/commandant/conversations/:id/messages", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const userId = getUserId(req);
+    if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
+    const id = parseInt(String(req.params.id));
+    if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+    const conv = await ensureConversationOwnership(orgId, userId, id);
+    if (!conv) { res.status(404).json({ error: "Conversation introuvable" }); return; }
+    const msgs = await db.select().from(commandantMessagesTable)
+      .where(and(
+        eq(commandantMessagesTable.conversationId, id),
+        eq(commandantMessagesTable.organisationId, orgId),
+      ))
+      .orderBy(asc(commandantMessagesTable.createdAt));
+    res.json({ success: true, conversation: conv, messages: msgs });
+  } catch (err: any) {
+    logger.error({ err }, "[Commandant/Conv/Messages]");
+    res.status(500).json({ error: "Erreur interne" });
+  }
+});
+
+router.patch("/commandant/conversations/:id", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const userId = getUserId(req);
+    if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
+    const id = parseInt(String(req.params.id));
+    if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+    const title = typeof req.body?.title === "string" ? req.body.title.trim().slice(0, 200) : "";
+    if (!title) { res.status(400).json({ error: "Titre requis" }); return; }
+    const conv = await ensureConversationOwnership(orgId, userId, id);
+    if (!conv) { res.status(404).json({ error: "Conversation introuvable" }); return; }
+    const [updated] = await db.update(commandantConversationsTable)
+      .set({ title })
+      .where(and(
+        eq(commandantConversationsTable.id, id),
+        eq(commandantConversationsTable.organisationId, orgId),
+        eq(commandantConversationsTable.userId, userId),
+      ))
+      .returning();
+    res.json({ success: true, conversation: updated });
+  } catch (err: any) {
+    logger.error({ err }, "[Commandant/Conv/Rename]");
+    res.status(500).json({ error: "Erreur interne" });
+  }
+});
+
+router.delete("/commandant/conversations/:id", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const userId = getUserId(req);
+    if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
+    const id = parseInt(String(req.params.id));
+    if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+    const conv = await ensureConversationOwnership(orgId, userId, id);
+    if (!conv) { res.status(404).json({ error: "Conversation introuvable" }); return; }
+    await db.delete(commandantConversationsTable)
+      .where(and(
+        eq(commandantConversationsTable.id, id),
+        eq(commandantConversationsTable.organisationId, orgId),
+        eq(commandantConversationsTable.userId, userId),
+      ));
+    res.json({ success: true });
+  } catch (err: any) {
+    logger.error({ err }, "[Commandant/Conv/Delete]");
+    res.status(500).json({ error: "Erreur interne" });
+  }
+});
+
+router.post("/commandant/conversations/:id/messages", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const userId = getUserId(req);
+    if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
+    const id = parseInt(String(req.params.id));
+    if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+    const userMessage = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+    if (!userMessage || userMessage.length < 1) { res.status(400).json({ error: "Message requis" }); return; }
+    if (userMessage.length > 8000) { res.status(400).json({ error: "Message trop long (max 8000 caracteres)" }); return; }
+
+    const conv = await ensureConversationOwnership(orgId, userId, id);
+    if (!conv) { res.status(404).json({ error: "Conversation introuvable" }); return; }
+
+    // Save user message
+    const [savedUser] = await db.insert(commandantMessagesTable)
+      .values({ conversationId: id, organisationId: orgId, role: "user", content: userMessage })
+      .returning();
+
+    // Build history with token-budget guard: take last N messages, drop from oldest if over budget
+    const recent = await db.select().from(commandantMessagesTable)
+      .where(and(
+        eq(commandantMessagesTable.conversationId, id),
+        eq(commandantMessagesTable.organisationId, orgId),
+      ))
+      .orderBy(desc(commandantMessagesTable.createdAt))
+      .limit(MAX_HISTORY_MESSAGES + 1); // include the just-saved user msg
+
+    // recent is desc; reverse to chronological, then trim from the oldest end if over char budget
+    let history = recent.slice().reverse();
+    let totalChars = history.reduce((acc, m) => acc + (m.content?.length || 0), 0);
+    while (history.length > 2 && totalChars > MAX_HISTORY_CHARS) {
+      const dropped = history.shift();
+      totalChars -= (dropped?.content?.length || 0);
+    }
+
+    // Lightweight org context (reuse cheap counts only — keep latency low)
+    const now = new Date();
+    const [taskCount, overdueCount, unreadMsgs, overdueInvoiceCount] = await Promise.all([
+      db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), ne(tasksTable.status, "termine"))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"), lt(tasksTable.dueDate, now))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(messagesTable).where(and(eq(messagesTable.organisationId, orgId), eq(messagesTable.isRead, false))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), ne(facturesClientTable.status, "payee"), ne(facturesClientTable.status, "brouillon"), lt(facturesClientTable.dueDate, now))).then(r => r[0]?.c ?? 0),
+    ]);
+
+    const systemPrompt = `Tu es le Commandant IA d'Agent de Bureau, un assistant conversationnel pour un dirigeant francais.
+Tu reponds de maniere claire, concise et actionnable, TOUJOURS en francais.
+Tu te souviens de la conversation precedente et tu fais reference aux echanges anterieurs quand c'est pertinent.
+Tu ne renvoies PAS de JSON: tu ecris une reponse en texte naturel (markdown leger autorise).
+
+CONTEXTE BUREAU (instantane):
+- Taches ouvertes: ${taskCount} (${overdueCount} en retard)
+- Messages non lus: ${unreadMsgs}
+- Factures en retard: ${overdueInvoiceCount}`;
+
+    // Format the prior conversation as a transcript prepended to the new user message.
+    const transcript = history
+      .slice(0, -1) // exclude the brand-new user message (we'll send it as the prompt)
+      .map(m => `${m.role === "user" ? "Utilisateur" : "Commandant"}: ${m.content}`)
+      .join("\n\n");
+
+    const prompt = transcript
+      ? `Conversation precedente:\n${transcript}\n\nNouvelle question de l'utilisateur:\n${userMessage}`
+      : userMessage;
+
+    const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
+
+    const [savedAssistant] = await db.insert(commandantMessagesTable)
+      .values({ conversationId: id, organisationId: orgId, role: "assistant", content: aiResponse })
+      .returning();
+
+    // Bump conversation updatedAt + auto-title from first user message if still default
+    let updatedConv = conv;
+    if (conv.title === "Nouvelle conversation") {
+      const autoTitle = userMessage.replace(/\s+/g, " ").trim().slice(0, 60);
+      const [u] = await db.update(commandantConversationsTable)
+        .set({ title: autoTitle || "Nouvelle conversation", updatedAt: new Date() })
+        .where(and(
+          eq(commandantConversationsTable.id, id),
+          eq(commandantConversationsTable.organisationId, orgId),
+          eq(commandantConversationsTable.userId, userId),
+        ))
+        .returning();
+      if (u) updatedConv = u;
+    } else {
+      const [u] = await db.update(commandantConversationsTable)
+        .set({ updatedAt: new Date() })
+        .where(and(
+          eq(commandantConversationsTable.id, id),
+          eq(commandantConversationsTable.organisationId, orgId),
+          eq(commandantConversationsTable.userId, userId),
+        ))
+        .returning();
+      if (u) updatedConv = u;
+    }
+
+    res.json({
+      success: true,
+      conversation: updatedConv,
+      userMessage: savedUser,
+      assistantMessage: savedAssistant,
+    });
+  } catch (err: any) {
+    handleCommandantError(err, res, "[Commandant/Conv/Send]");
   }
 });
 
