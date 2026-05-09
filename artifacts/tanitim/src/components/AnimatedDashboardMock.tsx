@@ -51,16 +51,27 @@ function Counter({ end, suffix = "", duration = 1500 }: { end: number; suffix?: 
 }
 
 function Sparkbar() {
-  const heights = [40, 65, 35, 80, 55, 90, 70, 95, 60, 85, 75, 100];
+  const [heights, setHeights] = useState<number[]>(() =>
+    Array.from({ length: 16 }, () => 30 + Math.floor(Math.random() * 70))
+  );
+  useEffect(() => {
+    const id = setInterval(() => {
+      setHeights((prev) => {
+        const next = prev.slice(1);
+        next.push(20 + Math.floor(Math.random() * 80));
+        return next;
+      });
+    }, 600);
+    return () => clearInterval(id);
+  }, []);
   return (
     <div className="flex items-end gap-1 h-12">
       {heights.map((h, i) => (
         <motion.div
           key={i}
           className="w-1.5 rounded-t bg-gradient-to-t from-amber-500 to-amber-300"
-          initial={{ height: 0 }}
           animate={{ height: `${h}%` }}
-          transition={{ duration: 0.6, delay: i * 0.05, ease: "easeOut", repeat: Infinity, repeatType: "reverse", repeatDelay: 3 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
         />
       ))}
     </div>
@@ -80,11 +91,11 @@ export function AnimatedDashboardMock() {
       const pick = ACTIVITY_POOL[Math.floor(Math.random() * ACTIVITY_POOL.length)];
       const now = new Date();
       const time = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
-      setActivities((prev) => [{ ...pick, id: id++, time }, ...prev].slice(0, 5));
-      // small counter bumps
-      if (Math.random() > 0.5) setCallsCount((c) => c + 1);
-      if (Math.random() > 0.6) setRevenue((r) => r + Math.floor(50 + Math.random() * 800));
-    }, 2500);
+      setActivities((prev) => [{ ...pick, id: id++, time }, ...prev].slice(0, 6));
+      // counter bumps every tick now (more lively)
+      setCallsCount((c) => c + 1);
+      if (Math.random() > 0.3) setRevenue((r) => r + Math.floor(80 + Math.random() * 1200));
+    }, 1300);
     return () => clearInterval(interval);
   }, []);
 

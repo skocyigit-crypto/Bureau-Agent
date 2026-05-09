@@ -8,11 +8,15 @@ import { Phone, Mail, Calendar, CheckSquare, DollarSign, Bot, Sparkles, Bell, Us
 
 const ORBIT_CARDS = [
   { icon: Phone, label: "Appel entrant", sub: "Jean Dupont", color: "from-emerald-400 to-emerald-600", delay: 0 },
-  { icon: Calendar, label: "RDV 14h30", sub: "Iota Group", color: "from-blue-400 to-blue-600", delay: 1.2 },
-  { icon: Bot, label: "IA suggere", sub: "Devis Beta SAS", color: "from-amber-400 to-amber-600", delay: 2.4 },
-  { icon: CheckSquare, label: "Tache OK", sub: "Rappel envoye", color: "from-violet-400 to-violet-600", delay: 3.6 },
-  { icon: Mail, label: "Email recu", sub: "Marie Lambert", color: "from-pink-400 to-pink-600", delay: 4.8 },
-  { icon: DollarSign, label: "Facture +850 EUR", sub: "Acme Corp", color: "from-cyan-400 to-cyan-600", delay: 6.0 },
+  { icon: Calendar, label: "RDV 14h30", sub: "Iota Group", color: "from-blue-400 to-blue-600", delay: 0.6 },
+  { icon: Bot, label: "IA suggere", sub: "Devis Beta SAS", color: "from-amber-400 to-amber-600", delay: 1.2 },
+  { icon: CheckSquare, label: "Tache OK", sub: "Rappel envoye", color: "from-violet-400 to-violet-600", delay: 1.8 },
+  { icon: Mail, label: "Email recu", sub: "Marie Lambert", color: "from-pink-400 to-pink-600", delay: 2.4 },
+  { icon: DollarSign, label: "Facture +850 EUR", sub: "Acme Corp", color: "from-cyan-400 to-cyan-600", delay: 3.0 },
+  { icon: Bell, label: "Rappel 17h", sub: "Marie Lambert", color: "from-orange-400 to-orange-600", delay: 3.6 },
+  { icon: Users, label: "+1 prospect", sub: "Beta SAS", color: "from-teal-400 to-teal-600", delay: 4.2 },
+  { icon: Sparkles, label: "Anomalie", sub: "Facture J+12", color: "from-red-400 to-red-600", delay: 4.8 },
+  { icon: Phone, label: "Appel sortant", sub: "Thomas Girard", color: "from-indigo-400 to-indigo-600", delay: 5.4 },
 ];
 
 function Particles({ count = 30 }: { count?: number }) {
@@ -129,12 +133,12 @@ function OrbitingCard({
         transform: `translate3d(calc(-50% + ${x}px), calc(-50% + ${y}px), 0)`,
       }}
       initial={{ opacity: 0, scale: 0.6 }}
-      animate={{ opacity: [0, 1, 1, 0], scale: [0.6, 1, 1, 0.6], y: [0, -8, 0, 8] }}
+      animate={{ opacity: [0, 1, 1, 0], scale: [0.5, 1.05, 1, 0.5], y: [0, -12, 4, 12] }}
       transition={{
-        duration: 8,
+        duration: 6,
         repeat: Infinity,
         delay: card.delay,
-        times: [0, 0.15, 0.85, 1],
+        times: [0, 0.18, 0.82, 1],
         ease: "easeInOut",
       }}
     >
@@ -168,7 +172,7 @@ export function HeroLiveScene() {
       const cy = r.top + r.height / 2;
       const dx = (e.clientX - cx) / r.width;
       const dy = (e.clientY - cy) / r.height;
-      setTilt({ x: dx * 8, y: dy * 8 });
+      setTilt({ x: dx * 18, y: dy * 18 });
     };
     window.addEventListener("mousemove", handler);
     return () => window.removeEventListener("mousemove", handler);
@@ -194,15 +198,33 @@ export function HeroLiveScene() {
           <ellipse cx="600" cy="300" rx="380" ry="160" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1" strokeDasharray="4 6" />
         </svg>
 
-        {/* rotating orbit container */}
+        {/* rotating orbit container — outer ring */}
         <div
           className="absolute inset-0"
-          style={{ animation: "orbit-rotate 40s linear infinite", transformOrigin: "center" }}
+          style={{ animation: "orbit-rotate 22s linear infinite", transformOrigin: "center" }}
         >
           {ORBIT_CARDS.map((card, i) => (
-            <OrbitingCard key={i} card={card} angle={(360 / ORBIT_CARDS.length) * i} radius={420} />
+            <OrbitingCard key={i} card={card} angle={(360 / ORBIT_CARDS.length) * i} radius={460} />
           ))}
         </div>
+        {/* inner counter-rotating ring with offset cards */}
+        <div
+          className="absolute inset-0"
+          style={{ animation: "orbit-rotate-rev 30s linear infinite", transformOrigin: "center" }}
+        >
+          {ORBIT_CARDS.slice(0, 5).map((card, i) => (
+            <OrbitingCard
+              key={`inner-${i}`}
+              card={card}
+              angle={(360 / 5) * i + 36}
+              radius={290}
+            />
+          ))}
+        </div>
+        {/* shooting star streaks */}
+        <span className="absolute left-0 top-[20%] w-32 h-0.5 bg-gradient-to-r from-amber-300 to-transparent" style={{ animation: "shooting-star 5s linear infinite" }} />
+        <span className="absolute left-0 top-[65%] w-24 h-0.5 bg-gradient-to-r from-blue-300 to-transparent" style={{ animation: "shooting-star 7s linear infinite", animationDelay: "2.5s" }} />
+        <span className="absolute left-0 top-[40%] w-40 h-0.5 bg-gradient-to-r from-pink-300 to-transparent" style={{ animation: "shooting-star 9s linear infinite", animationDelay: "5s" }} />
 
         {/* Center glow + AI badge */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
@@ -270,6 +292,16 @@ export function HeroLiveScene() {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
+        @keyframes orbit-rotate-rev {
+          0% { transform: rotate(360deg); }
+          100% { transform: rotate(0deg); }
+        }
+        @keyframes shooting-star {
+          0% { transform: translate3d(-10%, 0, 0) rotate(15deg); opacity: 0; }
+          10% { opacity: 0.9; }
+          70% { opacity: 0.9; }
+          100% { transform: translate3d(120vw, 0, 0) rotate(15deg); opacity: 0; }
+        }
         @keyframes core-pulse {
           0%, 100% { transform: scale(1); box-shadow: 0 0 60px -5px rgba(245,158,11,0.7); }
           50% { transform: scale(1.08); box-shadow: 0 0 90px -5px rgba(245,158,11,0.9); }
@@ -299,35 +331,80 @@ export function LiveActivityTicker() {
   ];
   // duplicate list so the marquee loop seamless
   const items = [...events, ...events];
+  const reverseItems = [...events.slice().reverse(), ...events.slice().reverse()];
+
+  const Row = ({ data, anim }: { data: typeof items; anim: string }) => (
+    <div className="flex gap-8 whitespace-nowrap" style={{ animation: anim }}>
+      {data.map((e, i) => {
+        const Icon = e.icon;
+        return (
+          <div key={i} className="flex items-center gap-2 text-sm text-white/80">
+            <span className="inline-flex items-center gap-1.5">
+              <span className={`w-1.5 h-1.5 rounded-full ${e.color.replace("text-", "bg-")} animate-pulse`} />
+              <Icon className={`w-4 h-4 ${e.color}`} />
+            </span>
+            <span>{e.text}</span>
+            <span className="text-white/20 ml-2">•</span>
+          </div>
+        );
+      })}
+    </div>
+  );
 
   return (
-    <div className="relative bg-slate-950 border-y border-white/5 overflow-hidden py-3">
+    <div className="relative bg-slate-950 border-y border-white/5 overflow-hidden py-2 space-y-2">
       <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-slate-950 to-transparent z-10 pointer-events-none" />
       <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-slate-950 to-transparent z-10 pointer-events-none" />
-      <div className="flex gap-8 whitespace-nowrap" style={{ animation: "ticker-scroll 50s linear infinite" }}>
-        {items.map((e, i) => {
-          const Icon = e.icon;
-          return (
-            <div key={i} className="flex items-center gap-2 text-sm text-white/80">
-              <span className="inline-flex items-center gap-1.5">
-                <span className={`w-1.5 h-1.5 rounded-full ${e.color.replace("text-", "bg-")} animate-pulse`} />
-                <Icon className={`w-4 h-4 ${e.color}`} />
-              </span>
-              <span>{e.text}</span>
-              <span className="text-white/20 ml-2">•</span>
-            </div>
-          );
-        })}
-      </div>
+      <Row data={items} anim="ticker-scroll 22s linear infinite" />
+      <Row data={reverseItems} anim="ticker-scroll-rev 28s linear infinite" />
       <style>{`
         @keyframes ticker-scroll {
           0% { transform: translateX(0); }
           100% { transform: translateX(-50%); }
         }
+        @keyframes ticker-scroll-rev {
+          0% { transform: translateX(-50%); }
+          100% { transform: translateX(0); }
+        }
         @media (prefers-reduced-motion: reduce) {
-          [style*="ticker-scroll"] { animation-duration: 200s !important; }
+          [style*="ticker-scroll"] { animation-duration: 180s !important; }
         }
       `}</style>
     </div>
+  );
+}
+
+// Soft glow that follows the mouse — adds a "premium / alive" cursor feel.
+// Pure CSS, no extra deps. Fades out on inactivity.
+export function CursorGlow() {
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onMove = (e: MouseEvent) => {
+      setPos({ x: e.clientX, y: e.clientY });
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => setPos(null), 1500);
+    };
+    window.addEventListener("mousemove", onMove);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+  if (!pos) return null;
+  return (
+    <div
+      className="pointer-events-none fixed z-[9999] hidden lg:block"
+      style={{
+        left: pos.x,
+        top: pos.y,
+        width: 380,
+        height: 380,
+        transform: "translate(-50%, -50%)",
+        background: "radial-gradient(circle, rgba(245,158,11,0.18) 0%, rgba(245,158,11,0.05) 35%, transparent 70%)",
+        mixBlendMode: "screen",
+        transition: "opacity 200ms ease",
+      }}
+    />
   );
 }

@@ -5,7 +5,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { DemoModal } from "@/components/DemoModal";
 import { AjanDemo } from "@/components/AjanDemo";
-import { HeroLiveScene, LiveActivityTicker } from "@/components/HeroLiveScene";
+import { HeroLiveScene, LiveActivityTicker, CursorGlow } from "@/components/HeroLiveScene";
 import { AnimatedDashboardMock } from "@/components/AnimatedDashboardMock";
 import { 
   PhoneCall, 
@@ -131,6 +131,7 @@ export default function Home() {
 
           {/* Live 3D-feel scene: orbiting cards, particles, ECG, gradient mesh */}
           <HeroLiveScene />
+          <CursorGlow />
 
           <div className="container mx-auto px-4 relative z-10">
             <div className="max-w-5xl mx-auto text-center">
