@@ -35,6 +35,16 @@ export default function LicenseManagementPage() {
   const [deepLinkInvoice, setDeepLinkInvoice] = useState<any>(null);
   const { toast } = useToast();
 
+  const reloadDeepLinkInvoice = useCallback(async (id: number) => {
+    try {
+      const r = await fetch(`${API}/api/license-management/client-invoices/${id}`, { credentials: "include" });
+      if (!r.ok) throw new Error("introuvable");
+      setDeepLinkInvoice(await r.json());
+    } catch {
+      toast({ title: "Erreur", description: "Impossible d'ouvrir cette facture.", variant: "destructive" });
+    }
+  }, [toast]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const fId = params.get("factureId");
@@ -42,16 +52,8 @@ export default function LicenseManagementPage() {
     const id = parseInt(fId);
     window.history.replaceState({}, "", window.location.pathname);
     setTab("client-invoices");
-    (async () => {
-      try {
-        const r = await fetch(`${API}/api/license-management/client-invoices/${id}`, { credentials: "include" });
-        if (!r.ok) throw new Error("introuvable");
-        setDeepLinkInvoice(await r.json());
-      } catch {
-        toast({ title: "Erreur", description: "Impossible d'ouvrir cette facture.", variant: "destructive" });
-      }
-    })();
-  }, [toast]);
+    reloadDeepLinkInvoice(id);
+  }, [reloadDeepLinkInvoice]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -177,15 +179,62 @@ export default function LicenseManagementPage() {
         </TabsContent>
       </Tabs>
 
-      <InvoiceDetailDialog invoice={deepLinkInvoice} onClose={() => setDeepLinkInvoice(null)} />
+      <InvoiceDetailDialog
+        invoice={deepLinkInvoice}
+        onClose={() => setDeepLinkInvoice(null)}
+        onRefresh={fetchData}
+        onReloadInvoice={reloadDeepLinkInvoice}
+      />
     </div>
   );
 }
 
-function InvoiceDetailDialog({ invoice, onClose }: { invoice: any; onClose: () => void }) {
+function InvoiceDetailDialog({ invoice, onClose, onRefresh, onReloadInvoice }: { invoice: any; onClose: () => void; onRefresh: () => void; onReloadInvoice: (id: number) => Promise<void> }) {
+  const { toast } = useToast();
+  const [busy, setBusy] = useState<null | "send" | "paid" | "payment" | "reminder">(null);
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("virement");
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [customMessage, setCustomMessage] = useState("");
+
   if (!invoice) return null;
   const remaining = (invoice.totalAmount || 0) - (invoice.paidAmount || 0);
   const isOverdue = invoice.status !== "payee" && invoice.dueDate && new Date(invoice.dueDate) < new Date();
+  const isPaid = invoice.status === "payee";
+
+  const callAction = async (kind: "send" | "paid" | "payment" | "reminder", url: string, body: any, successMsg: (d: any) => string) => {
+    setBusy(kind);
+    try {
+      const r = await fetch(`${API}${url}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify(body),
+      });
+      const d = await r.json();
+      if (!d.success) throw new Error(d.error || "Erreur");
+      toast({ title: "Succes", description: successMsg(d) });
+      await Promise.all([onReloadInvoice(invoice.id), Promise.resolve(onRefresh())]);
+      return true;
+    } catch (err: any) {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+      return false;
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const sendInvoice = () => callAction("send", "/api/license-management/send-invoice-email", { factureClientId: invoice.id }, (d) => d.message || "Facture envoyee");
+  const markPaid = () => callAction("paid", "/api/license-management/mark-invoice-paid", { factureClientId: invoice.id, paymentMethod: "virement" }, (d) => d.message || "Facture soldee");
+  const recordPayment = async () => {
+    if (!paymentAmount) return;
+    const ok = await callAction("payment", "/api/license-management/record-payment", { factureClientId: invoice.id, amount: parseFloat(paymentAmount), paymentMethod }, (d) => d.message || "Paiement enregistre");
+    if (ok) { setPaymentOpen(false); setPaymentAmount(""); }
+  };
+  const sendReminder = async () => {
+    const ok = await callAction("reminder", "/api/license-management/send-payment-reminder", { factureClientId: invoice.id, customMessage }, (d) => `Rappel niveau ${d.reminderLevel} envoye`);
+    if (ok) { setReminderOpen(false); setCustomMessage(""); }
+  };
+
   return (
     <Dialog open={!!invoice} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
@@ -233,10 +282,81 @@ function InvoiceDetailDialog({ invoice, onClose }: { invoice: any; onClose: () =
             {remaining > 0 && invoice.status !== "payee" && <div className="flex justify-between text-sm font-semibold text-orange-600"><span>Reste a payer</span><span className="font-mono">{remaining.toFixed(2)} EUR</span></div>}
           </div>
         </div>
+        {!isPaid && (
+          <div className="flex flex-wrap gap-2 pt-2">
+            <Button size="sm" variant="outline" onClick={sendInvoice} disabled={busy !== null || !invoice.clientEmail} title={!invoice.clientEmail ? "Aucun email client" : "Envoyer la facture par email"}>
+              {busy === "send" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />}
+              Envoyer
+            </Button>
+            <Button size="sm" variant="outline" className="text-blue-600 hover:text-blue-700" onClick={() => { setPaymentAmount(remaining.toFixed(2)); setPaymentOpen(true); }} disabled={busy !== null || remaining <= 0}>
+              <DollarSign className="h-3.5 w-3.5 mr-1" />Enregistrer un paiement
+            </Button>
+            <Button size="sm" variant="outline" className="text-green-600 hover:text-green-700" onClick={markPaid} disabled={busy !== null}>
+              {busy === "paid" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
+              Marquer payee
+            </Button>
+            <Button size="sm" variant="outline" className="text-orange-600 hover:text-orange-700" onClick={() => setReminderOpen(true)} disabled={busy !== null || !invoice.clientEmail} title={!invoice.clientEmail ? "Aucun email client" : "Envoyer un rappel"}>
+              <Bell className="h-3.5 w-3.5 mr-1" />Envoyer un rappel
+            </Button>
+          </div>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Fermer</Button>
         </DialogFooter>
       </DialogContent>
+
+      <Dialog open={paymentOpen} onOpenChange={(o) => { if (!o) { setPaymentOpen(false); setPaymentAmount(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><DollarSign className="h-5 w-5 text-blue-500" />Enregistrer un paiement</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="text-sm"><span className="text-muted-foreground">Facture:</span> <span className="font-semibold">{invoice.reference}</span> — {invoice.clientName}</div>
+            <div className="text-sm"><span className="text-muted-foreground">Reste a payer:</span> <span className="font-bold text-orange-600">{remaining.toFixed(2)} EUR</span></div>
+            <div className="space-y-1"><Label className="text-xs">Montant recu (EUR)</Label><Input type="number" step="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder="0.00" /></div>
+            <div className="space-y-1"><Label className="text-xs">Mode de paiement</Label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="virement">Virement bancaire</SelectItem>
+                  <SelectItem value="cheque">Cheque</SelectItem>
+                  <SelectItem value="especes">Especes</SelectItem>
+                  <SelectItem value="carte">Carte bancaire</SelectItem>
+                  <SelectItem value="prelevement">Prelevement automatique</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setPaymentOpen(false); setPaymentAmount(""); }}>Annuler</Button>
+            <Button onClick={recordPayment} disabled={!paymentAmount || parseFloat(paymentAmount) <= 0 || busy === "payment"} className="bg-blue-500 hover:bg-blue-600">
+              {busy === "payment" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <DollarSign className="h-4 w-4 mr-2" />}
+              Enregistrer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={reminderOpen} onOpenChange={(o) => { if (!o) { setReminderOpen(false); setCustomMessage(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Bell className="h-5 w-5 text-orange-500" />Envoyer un rappel de paiement</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="text-sm"><span className="text-muted-foreground">Facture:</span> <span className="font-semibold">{invoice.reference}</span></div>
+            <div className="text-sm"><span className="text-muted-foreground">Client:</span> <span>{invoice.clientName}{invoice.clientEmail ? ` (${invoice.clientEmail})` : ""}</span></div>
+            <div className="text-sm"><span className="text-muted-foreground">Montant restant:</span> <span className="font-bold text-red-600">{remaining.toFixed(2)} EUR</span></div>
+            <div className="space-y-1"><Label className="text-xs">Message personnalise (optionnel)</Label><Textarea value={customMessage} onChange={(e) => setCustomMessage(e.target.value)} placeholder="Ajoutez un message personnalise..." rows={3} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setReminderOpen(false); setCustomMessage(""); }}>Annuler</Button>
+            <Button onClick={sendReminder} disabled={busy === "reminder"} className="bg-orange-500 hover:bg-orange-600">
+              {busy === "reminder" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+              Envoyer le rappel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
