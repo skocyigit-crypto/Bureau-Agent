@@ -22,6 +22,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useColors } from "@/hooks/useColors";
+import { useInlineSuggest } from "@/hooks/useInlineSuggest";
 
 interface Note {
   id: number;
@@ -146,6 +147,17 @@ function NoteEditor({ note, onSave, onClose, saving, colors, isDark }: NoteEdito
   const [tags, setTags] = useState(note?.tags?.join(", ") ?? "");
   const cardBg = isDark ? DARK_CARD_COLORS[color] ?? "#1e293b" : COLOR_MAP[color] ?? "#ffffff";
 
+  const { suggestion, clear } = useInlineSuggest({
+    fieldType: "note",
+    text: content,
+    title: title || null,
+  });
+  const acceptSuggestion = useCallback(() => {
+    if (!suggestion) return;
+    setContent(prev => prev + suggestion);
+    clear();
+  }, [suggestion, clear]);
+
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={[styles.editorOverlay, { backgroundColor: "rgba(0,0,0,0.5)" }]}>
@@ -187,6 +199,27 @@ function NoteEditor({ note, onSave, onClose, saving, colors, isDark }: NoteEdito
             autoFocus={!note}
             textAlignVertical="top"
           />
+
+          {suggestion ? (
+            <View style={styles.suggestionRow}>
+              <Feather name="zap" size={12} color={colors.mutedForeground} />
+              <Text
+                style={[styles.suggestionText, { color: colors.mutedForeground }]}
+                numberOfLines={3}
+              >
+                {suggestion}
+              </Text>
+              <Pressable
+                onPress={acceptSuggestion}
+                style={[styles.suggestionBtn, { borderColor: colors.primary }]}
+                hitSlop={6}
+              >
+                <Text style={[styles.suggestionBtnText, { color: colors.primary }]}>
+                  Ajouter
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
 
           <TextInput
             style={[styles.editorTagsInput, { color: colors.foreground, borderTopColor: COLOR_ACCENTS[color] }]}
@@ -459,6 +492,29 @@ const styles = StyleSheet.create({
   editorSaveBtn: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   editorTitleInput: { fontSize: 16, fontFamily: "Inter_600SemiBold", paddingVertical: 8, borderBottomWidth: 1, marginBottom: 12 },
   editorContentInput: { fontSize: 14, fontFamily: "Inter_400Regular", minHeight: 120, marginBottom: 12, lineHeight: 22 },
+  suggestionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  suggestionText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    fontStyle: "italic",
+  },
+  suggestionBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  suggestionBtnText: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+  },
   editorTagsInput: { fontSize: 13, fontFamily: "Inter_400Regular", paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
   colorRow: { flexDirection: "row", gap: 8, marginTop: 12 },
   colorDot: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, alignItems: "center", justifyContent: "center" },

@@ -19,6 +19,10 @@ import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { useTheme } from "@/contexts/ThemeContext";
 import { usePrivacy } from "@/contexts/PrivacyContext";
+import {
+  INLINE_SUGGEST_LANGUAGES,
+  useInlineSuggestPreferences,
+} from "@/hooks/useInlineSuggest";
 
 interface Subscription {
   plan: string;
@@ -133,6 +137,8 @@ export default function SettingsScreen() {
         </View>
 
         <ThemeCard />
+
+        <PreferencesIaCard />
 
         <PrivacyCard />
 
@@ -434,6 +440,94 @@ function PrivacyCard() {
         <Feather name="lock" size={15} color="#ef4444" />
         <Text style={[styles.lockNowText]}>Verrouiller maintenant</Text>
       </Pressable>
+    </View>
+  );
+}
+
+// ── Préférences IA ─────────────────────────────────────────────────────────────
+
+function PreferencesIaCard() {
+  const colors = useColors();
+  const {
+    enabled,
+    language,
+    loaded,
+    isAuthenticated,
+    setEnabled,
+    setLanguage,
+  } = useInlineSuggestPreferences();
+
+  const onToggleEnabled = useCallback((v: boolean) => setEnabled(v), [setEnabled]);
+  const onSelectLanguage = useCallback((v: string) => setLanguage(v), [setLanguage]);
+
+  return (
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={styles.cardHeader}>
+        <Feather name="cpu" size={18} color={colors.primary} />
+        <Text style={[styles.cardTitle, { color: colors.foreground }]}>Préférences IA</Text>
+      </View>
+
+      <View style={[styles.toggleRow, { borderBottomColor: colors.border }]}>
+        <Feather name="zap" size={16} color={colors.mutedForeground} style={styles.infoIcon} />
+        <View style={styles.toggleText}>
+          <Text style={[styles.toggleLabel, { color: colors.foreground }]}>Suggestions IA en ligne</Text>
+          <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
+            Affiche une suggestion grise pendant que vous rédigez.
+          </Text>
+        </View>
+        <Switch
+          value={enabled}
+          onValueChange={onToggleEnabled}
+          disabled={!loaded || !isAuthenticated}
+          trackColor={{ false: colors.border, true: colors.primary + "88" }}
+          thumbColor={enabled ? colors.primary : colors.mutedForeground}
+        />
+      </View>
+
+      <View style={[styles.toggleRow, { borderBottomColor: colors.border }]}>
+        <Feather name="globe" size={16} color={colors.mutedForeground} style={styles.infoIcon} />
+        <View style={styles.toggleText}>
+          <Text style={[styles.toggleLabel, { color: colors.foreground }]}>Langue des suggestions</Text>
+          <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
+            Langue dans laquelle l’IA proposera la suite de votre texte.
+          </Text>
+        </View>
+      </View>
+      <View style={[styles.lockOptionsRow, { opacity: enabled && isAuthenticated ? 1 : 0.45 }]}>
+        {INLINE_SUGGEST_LANGUAGES.map(opt => {
+          const active = language === opt.value;
+          const disabled = !enabled || !loaded || !isAuthenticated;
+          return (
+            <Pressable
+              key={opt.value}
+              onPress={() => !disabled && onSelectLanguage(opt.value)}
+              disabled={disabled}
+              style={[
+                styles.lockOptionBtn,
+                {
+                  borderColor: active ? colors.primary : colors.border,
+                  backgroundColor: active ? colors.primary + "18" : "transparent",
+                },
+              ]}
+            >
+              <Text style={[
+                styles.lockOptionText,
+                { color: active ? colors.primary : colors.mutedForeground },
+              ]}>
+                {opt.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <View style={{ paddingHorizontal: 16, paddingBottom: 14, paddingTop: 4 }}>
+        <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
+          {isAuthenticated
+            ? "Cette préférence est enregistrée sur votre compte et synchronisée sur tous vos appareils."
+            : "Connectez-vous pour synchroniser cette préférence sur vos appareils."}
+        </Text>
+      </View>
     </View>
   );
 }
