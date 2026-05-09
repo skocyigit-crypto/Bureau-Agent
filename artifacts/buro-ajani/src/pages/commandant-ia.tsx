@@ -1223,6 +1223,30 @@ function ChatTab() {
   const messageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const { toast } = useToast();
 
+  // Cross-app handoff: when arriving from /tanitim/ demo with ?demo=BASE64,
+  // decode the conversation and pre-fill the chat input with the last user
+  // question + a short context note so the assistant continues naturally.
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      const raw = url.searchParams.get("demo");
+      if (!raw) return;
+      const json = decodeURIComponent(escape(atob(decodeURIComponent(raw))));
+      const slim = JSON.parse(json) as { r: string; t: string }[];
+      if (!Array.isArray(slim) || slim.length === 0) return;
+      const lastUser = [...slim].reverse().find(s => s?.r === "u" && typeof s.t === "string" && s.t.trim());
+      if (lastUser) {
+        setInput(`[Suite de la demo du site] ${String(lastUser.t).slice(0, 400)}`);
+      }
+      url.searchParams.delete("demo");
+      window.history.replaceState({}, "", url.pathname + (url.search ? url.search : "") + url.hash);
+      toast({ title: "Demo importee", description: "Votre conversation du site est prete a continuer." });
+    } catch {
+      // ignore malformed handoff payloads
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const q = searchQuery.trim();
     if (!q) { setSearchResults([]); setSearching(false); return; }

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { DemoModal } from "@/components/DemoModal";
+import { AjanDemo } from "@/components/AjanDemo";
 import { 
   PhoneCall, 
   Users, 
@@ -192,6 +193,9 @@ export default function Home() {
             </div>
           </motion.div>
         </section>
+
+        {/* 2.5 AJAN DEMO — public Gemini-powered live demo */}
+        <AjanDemo />
 
         {/* 3. LOGOS / TRUST SECTION */}
         <section className="py-12 bg-background overflow-hidden border-b border-border/40">

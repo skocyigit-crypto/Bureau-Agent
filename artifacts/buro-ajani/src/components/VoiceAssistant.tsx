@@ -351,19 +351,44 @@ export function VoiceAssistant() {
   return (
     <>
       {!expanded ? (
-        <button
-          onClick={toggleVoice}
-          className={`fixed bottom-6 left-6 z-50 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 hover:scale-110 ${stateColors[state]} ${state === "listening_wake" ? "animate-pulse" : ""}`}
-          title={stateLabels[state]}
-        >
-          <Mic className="w-6 h-6 text-white" />
-          {state === "listening_wake" && (
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-400 rounded-full animate-ping" />
+        <div className="fixed bottom-6 left-6 z-50">
+          {/* Animated outer rings during active states — premium "alive" feel */}
+          {(state === "listening_command" || state === "listening_wake" || state === "speaking") && (
+            <>
+              <span className={`absolute inset-0 rounded-full ${state === "listening_command" ? "bg-red-500/40" : state === "speaking" ? "bg-emerald-500/40" : "bg-amber-500/40"} animate-ping`} />
+              <span className={`absolute -inset-2 rounded-full ${state === "listening_command" ? "bg-red-500/20" : state === "speaking" ? "bg-emerald-500/20" : "bg-amber-500/20"} blur-md animate-pulse`} />
+            </>
           )}
-        </button>
+          {/* Animated gradient ring */}
+          <span className="absolute -inset-[2px] rounded-full bg-gradient-to-tr from-amber-400 via-amber-500 to-orange-500 opacity-90 blur-[2px]" />
+          <button
+            onClick={toggleVoice}
+            className={`relative w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 backdrop-blur-xl border border-white/20 ${
+              state === "listening_command"
+                ? "bg-gradient-to-br from-red-500 to-red-600"
+                : state === "processing"
+                  ? "bg-gradient-to-br from-blue-500 to-blue-600"
+                  : state === "speaking"
+                    ? "bg-gradient-to-br from-emerald-500 to-emerald-600"
+                    : state === "listening_wake"
+                      ? "bg-gradient-to-br from-amber-400 to-amber-600"
+                      : "bg-gradient-to-br from-slate-700 to-slate-900"
+            }`}
+            title={stateLabels[state]}
+          >
+            {state === "processing" ? (
+              <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Mic className="w-6 h-6 text-white drop-shadow-md" />
+            )}
+            {state === "listening_wake" && (
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-300 rounded-full animate-ping shadow-lg shadow-amber-400/50" />
+            )}
+          </button>
+        </div>
       ) : (
-        <div className="fixed bottom-6 left-6 z-50 w-80 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 bg-slate-800/80 border-b border-slate-700">
+        <div className="fixed bottom-6 left-6 z-50 w-80 rounded-2xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.6)] overflow-hidden border border-white/10 backdrop-blur-2xl bg-gradient-to-br from-slate-900/95 to-slate-950/95 ring-1 ring-amber-500/20">
+          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-slate-800/80 via-slate-900/60 to-slate-800/80 border-b border-white/10">
             <div className="flex items-center gap-2">
               <div className={`w-2.5 h-2.5 rounded-full ${state === "listening_command" ? "bg-red-500 animate-pulse" : state === "processing" ? "bg-blue-400 animate-pulse" : state === "speaking" ? "bg-green-400" : state === "listening_wake" ? "bg-amber-400 animate-pulse" : "bg-slate-500"}`} />
               <span className="text-sm font-semibold text-white">Assistant Vocal IA</span>

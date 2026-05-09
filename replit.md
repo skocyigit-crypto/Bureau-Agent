@@ -74,8 +74,9 @@ Agent de Bureau offers comprehensive office management with AI-powered features:
 I want iterative development.
 Ask before making major changes.
 I prefer detailed explanations.
-Do not make changes to the folder `/tanitim/`.
 Do not make changes to the file `pnpm-workspace.yaml`.
+The marketing site (`/tanitim/`) hosts a public AI demo and must stay aligned with the
+in-app assistant — it can be edited freely.
 
 ## Gotchas
 
