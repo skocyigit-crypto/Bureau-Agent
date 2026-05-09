@@ -1260,6 +1260,115 @@ Resume:`;
   }
 });
 
+router.post("/commandant/smart-search/stream", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const userId = (req.session as any)?.userId;
+  const { query } = req.body || {};
+  if (!query || typeof query !== "string" || query.length < 2) {
+    res.status(400).json({ error: "Requete trop courte" });
+    return;
+  }
+
+  const stream = openSseStream(res);
+  try {
+    // Mirror /commandant/smart-search: accent-insensitive ILIKE + light French
+    // stemming so streaming results match the blocking endpoint's quality.
+    const useUnaccent = await ensureUnaccentExtension();
+    const keywords = extractKeywordsFromChat(query);
+    const patterns = keywords.length > 0
+      ? keywords.map(kw => `%${kw}%`)
+      : [`%${stripAccents(String(query))}%`];
+    const anyMatch = (...cols: Column[]): SQL => {
+      const conds = patterns.flatMap(p => cols.map(c => accentInsensitiveIlike(c, p, useUnaccent)));
+      return or(...conds) as SQL;
+    };
+    const dedupeById = <T extends { id: number }>(arr: T[]): T[] => {
+      const seen = new Set<number>();
+      const out: T[] = [];
+      for (const x of arr) { if (!seen.has(x.id)) { seen.add(x.id); out.push(x); } }
+      return out;
+    };
+
+    const [contactsRaw, tasksRaw, eventsRaw, invoicesRaw, prospectsRaw] = await Promise.all([
+      db.select().from(contactsTable).where(and(eq(contactsTable.organisationId, orgId), anyMatch(contactsTable.firstName, contactsTable.lastName, contactsTable.email, contactsTable.phone, contactsTable.company))).limit(10),
+      db.select().from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), anyMatch(tasksTable.title, tasksTable.description))).limit(10),
+      db.select().from(calendarEventsTable).where(and(eq(calendarEventsTable.organisationId, orgId), anyMatch(calendarEventsTable.title, calendarEventsTable.description))).limit(10),
+      db.select().from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), anyMatch(facturesClientTable.reference, facturesClientTable.clientName))).limit(10),
+      db.select().from(prospectsTable).where(and(eq(prospectsTable.organisationId, orgId), anyMatch(prospectsTable.company, prospectsTable.contactName, prospectsTable.email))).limit(10),
+    ]);
+    const contacts = dedupeById(contactsRaw).slice(0, 10);
+    const tasks = dedupeById(tasksRaw).slice(0, 10);
+    const events = dedupeById(eventsRaw).slice(0, 10);
+    const invoices = dedupeById(invoicesRaw).slice(0, 10);
+    const prospects = dedupeById(prospectsRaw).slice(0, 10);
+
+    const totalResults = contacts.length + tasks.length + events.length + invoices.length + prospects.length;
+    const results = {
+      contacts: contacts.map(c => ({ id: c.id, type: "contact", title: `${c.firstName} ${c.lastName}`, subtitle: c.company || c.email, phone: c.phone })),
+      tasks: tasks.map(t => ({ id: t.id, type: "tache", title: t.title, subtitle: `${t.status} - ${t.priority}`, dueDate: t.dueDate })),
+      events: events.map(e => ({ id: e.id, type: "evenement", title: e.title, subtitle: e.type, startDate: e.startDate })),
+      invoices: invoices.map(f => ({ id: f.id, type: "facture", title: f.reference, subtitle: `${f.clientName} - ${Number(f.totalAmount).toFixed(2)} EUR`, status: f.status })),
+      prospects: prospects.map(p => ({ id: p.id, type: "prospect", title: p.company || p.contactName || p.title, subtitle: `${p.stage} - ${p.source || ""}` })),
+    };
+
+    stream.send("results", { query, totalResults, results });
+
+    if (totalResults === 0) {
+      stream.send("done", { success: true, query, totalResults, results, aiSummary: "" });
+      stream.end();
+      return;
+    }
+
+    const cacheKey = buildAiCacheKey({
+      route: "/commandant/smart-search",
+      organisationId: orgId,
+      userId,
+      input: { query, ids: { c: contacts.map(c => c.id), t: tasks.map(t => t.id), e: events.map(e => e.id), i: invoices.map(i => i.id), p: prospects.map(p => p.id) } },
+    });
+    const cached = getCached<string>(cacheKey);
+    if (cached) {
+      stream.send("cached", { aiSummary: cached });
+      stream.send("done", { success: true, query, totalResults, results, aiSummary: cached, cached: true });
+      stream.end();
+      return;
+    }
+
+    const prompt = `Analyse ces resultats de recherche pour "${query}" et donne un resume utile en francais (2-3 phrases max):
+Contacts: ${contacts.length} (${contacts.map(c => `${c.firstName} ${c.lastName}`).join(", ")})
+Taches: ${tasks.length} (${tasks.map(t => t.title).join(", ")})
+Evenements: ${events.length}
+Factures: ${invoices.length}
+Prospects: ${prospects.length}
+Resume:`;
+
+    const result = await multiAiGenerateStream({
+      prompt, organisationId: orgId, route: "/commandant/smart-search",
+      signal: stream.signal,
+      onToken: (chunk) => stream.send("token", { chunk }),
+      maxOutputTokens: 512,
+    });
+
+    if (stream.signal.aborted) { stream.end(); return; }
+    if (result.fullText && result.fullText.length > 10) setCached(cacheKey, result.fullText, AI_CACHE_TTL.MEDIUM);
+    stream.send("done", { success: true, query, totalResults, results, aiSummary: result.fullText, provider: result.provider, model: result.model });
+    stream.end();
+  } catch (err: any) {
+    if (err instanceof StreamAbortedError) {
+      stream.send("aborted", { partialText: err.partial.fullText, provider: err.partial.provider, model: err.partial.model });
+      stream.end();
+      return;
+    }
+    if (stream.signal.aborted || err?.message === "aborted") { stream.send("aborted", {}); stream.end(); return; }
+    if (err instanceof AiQuotaExceededError) {
+      stream.send("error", { error: err.message, quotaExceeded: true });
+    } else {
+      logger.error({ err }, "[Commandant/SmartSearch/stream]");
+      stream.send("error", { error: err?.message || "Erreur lors de la recherche" });
+    }
+    stream.end();
+  }
+});
+
 // ═══════════════════════════════════════════
 // AI TEXT ANALYSIS (Analyze any text with AI)
 // ═══════════════════════════════════════════
@@ -1452,6 +1561,122 @@ Reponds en JSON:
   }
 });
 
+router.post("/commandant/execute-command/stream", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const userId = (req.session as any)?.userId;
+  const { command } = req.body || {};
+  if (!command || typeof command !== "string" || command.length < 3) {
+    res.status(400).json({ error: "Commande requise (minimum 3 caracteres)" });
+    return;
+  }
+
+  const stream = openSseStream(res);
+  try {
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 86400000);
+
+    const [taskCount, overdueCount, contactCount, unreadMsgs, missedCalls, overdueInvoiceCount] = await Promise.all([
+      db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), ne(tasksTable.status, "termine"))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"), lt(tasksTable.dueDate, now))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(contactsTable).where(eq(contactsTable.organisationId, orgId)).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(messagesTable).where(and(eq(messagesTable.organisationId, orgId), eq(messagesTable.isRead, false))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), ne(facturesClientTable.status, "payee"), ne(facturesClientTable.status, "brouillon"), lt(facturesClientTable.dueDate, now))).then(r => r[0]?.c ?? 0),
+    ]);
+
+    const context = {
+      openTasks: taskCount, overdueTasks: overdueCount, contacts: contactCount,
+      unreadMessages: unreadMsgs, missedCalls, overdueInvoices: overdueInvoiceCount,
+    };
+    stream.send("context", { context });
+
+    const agentInsights = await getLatestAgentInsights(orgId);
+    const agentSummary = Object.entries(agentInsights).map(([id, i]) => `${id}: score ${i.score}/100`).join(", ");
+
+    const systemPrompt = `Tu es le Commandant IA d'Agent de Bureau. Tu recois des commandes en langage naturel et tu dois les interpreter pour fournir une reponse actionnable.
+
+CONTEXTE ACTUEL DU BUREAU:
+- Taches ouvertes: ${taskCount} (${overdueCount} en retard)
+- Contacts: ${contactCount}
+- Messages non lus: ${unreadMsgs}
+- Appels manques cette semaine: ${missedCalls}
+- Factures en retard: ${overdueInvoiceCount}
+- Scores agents: ${agentSummary || "Aucun rapport disponible"}
+
+Tu peux repondre a des commandes comme:
+- "Resume-moi la situation" → briefing rapide
+- "Quelles sont les urgences?" → liste des items critiques
+- "Comment va le bureau?" → etat general
+- "Quelles taches sont en retard?" → liste des taches en retard
+- "Analyse les appels" → insights telephonie
+- "Previsions pour la semaine" → predictions
+
+Reponds en JSON:
+{
+  "interpretation": "ce que tu as compris de la commande",
+  "response": "ta reponse detaillee en francais",
+  "category": "briefing|urgences|analyse|action|recherche|prediction",
+  "data": {},
+  "suggestedFollowUps": ["commandes de suivi suggerees"],
+  "confidence": 0-100
+}`;
+
+    const cacheKey = buildAiCacheKey({
+      route: "/commandant/execute-command",
+      organisationId: orgId,
+      userId,
+      input: { command, ctx: context },
+    });
+    const cached = getCached<string>(cacheKey);
+    if (cached) {
+      let parsed: any;
+      try { const m = cached.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : { interpretation: command, response: cached, category: "general", confidence: 50 }; }
+      catch { parsed = { interpretation: command, response: cached, category: "general", confidence: 50 }; }
+      parsed.context = context;
+      stream.send("cached", { text: cached });
+      stream.send("done", { success: true, command, result: parsed, cached: true });
+      stream.end();
+      return;
+    }
+
+    const result = await multiAiGenerateStream({
+      prompt: `Commande utilisateur: "${command}"`,
+      systemPrompt, organisationId: orgId, route: "/commandant/execute-command",
+      signal: stream.signal,
+      onToken: (chunk) => stream.send("token", { chunk }),
+      maxOutputTokens: 2048,
+    });
+
+    if (stream.signal.aborted) { stream.end(); return; }
+
+    let parsed: any;
+    try {
+      const m = result.fullText.match(/\{[\s\S]*\}/);
+      parsed = m ? JSON.parse(m[0]) : { interpretation: command, response: result.fullText, category: "general", confidence: 50 };
+    } catch {
+      parsed = { interpretation: command, response: result.fullText, category: "general", confidence: 50 };
+    }
+    parsed.context = context;
+    if (result.fullText && result.fullText.length > 10) setCached(cacheKey, result.fullText, AI_CACHE_TTL.SHORT);
+    stream.send("done", { success: true, command, result: parsed, provider: result.provider, model: result.model });
+    stream.end();
+  } catch (err: any) {
+    if (err instanceof StreamAbortedError) {
+      stream.send("aborted", { partialText: err.partial.fullText, provider: err.partial.provider, model: err.partial.model });
+      stream.end();
+      return;
+    }
+    if (stream.signal.aborted || err?.message === "aborted") { stream.send("aborted", {}); stream.end(); return; }
+    if (err instanceof AiQuotaExceededError) {
+      stream.send("error", { error: err.message, quotaExceeded: true });
+    } else {
+      logger.error({ err }, "[Commandant/ExecuteCommand/stream]");
+      stream.send("error", { error: err?.message || "Erreur lors de l'execution" });
+    }
+    stream.end();
+  }
+});
+
 router.get("/commandant/weekly-digest", async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
@@ -1545,6 +1770,148 @@ JSON attendu:
   } catch (err: any) {
     logger.error({ err: err }, "[Commandant/WeeklyDigest]");
     res.status(500).json({ error: "Erreur lors de la generation du digest" });
+  }
+});
+
+router.post("/commandant/weekly-digest/stream", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const userId = (req.session as any)?.userId;
+
+  const stream = openSseStream(res);
+  try {
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 86400000);
+    const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000);
+
+    const [
+      tasksCompleted, tasksCreated, tasksOverdue,
+      callsTotal, callsMissed, callsAnswered,
+      messagesReceived, messagesUnread,
+      invoicesCreated, invoicesPaid, invoicesOverdue,
+      newContacts, eventsHeld,
+      prevCallsTotal, prevCallsMissed, prevTasksCompleted,
+    ] = await Promise.all([
+      db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.status, "termine"), gte(tasksTable.updatedAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), gte(tasksTable.createdAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"), lt(tasksTable.dueDate, now))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), eq(callsTable.status, "manque"), gte(callsTable.createdAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), eq(callsTable.status, "repondu"), gte(callsTable.createdAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(messagesTable).where(and(eq(messagesTable.organisationId, orgId), gte(messagesTable.createdAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(messagesTable).where(and(eq(messagesTable.organisationId, orgId), eq(messagesTable.isRead, false))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), gte(facturesClientTable.createdAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), eq(facturesClientTable.status, "payee"), gte(facturesClientTable.updatedAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), ne(facturesClientTable.status, "payee"), ne(facturesClientTable.status, "brouillon"), lt(facturesClientTable.dueDate, now))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(contactsTable).where(and(eq(contactsTable.organisationId, orgId), gte(contactsTable.createdAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(calendarEventsTable).where(and(eq(calendarEventsTable.organisationId, orgId), gte(calendarEventsTable.startDate, weekAgo), lt(calendarEventsTable.startDate, now))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, twoWeeksAgo), lt(callsTable.createdAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), eq(callsTable.status, "manque"), gte(callsTable.createdAt, twoWeeksAgo), lt(callsTable.createdAt, weekAgo))).then(r => r[0]?.c ?? 0),
+      db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.status, "termine"), gte(tasksTable.updatedAt, twoWeeksAgo), lt(tasksTable.updatedAt, weekAgo))).then(r => r[0]?.c ?? 0),
+    ]);
+
+    const agentInsights = await getLatestAgentInsights(orgId);
+    let crossIssues: any[] = [];
+    try {
+      const collab = await import("./agent-collaboration");
+      crossIssues = await collab.detectCrossAgentIssues(orgId);
+    } catch (e) { logger.warn({ err: e }, "[Commandant/Digest/stream] cross-agent issues detection failed:"); }
+
+    const weekData = {
+      taches: { terminees: tasksCompleted, creees: tasksCreated, enRetard: tasksOverdue, prevTerminees: prevTasksCompleted },
+      appels: { total: callsTotal, manques: callsMissed, repondus: callsAnswered, tauxReponse: callsTotal > 0 ? Math.round((callsAnswered / callsTotal) * 100) : 0, prevTotal: prevCallsTotal, prevManques: prevCallsMissed },
+      messages: { recus: messagesReceived, nonLus: messagesUnread },
+      factures: { creees: invoicesCreated, payees: invoicesPaid, enRetard: invoicesOverdue },
+      contacts: { nouveaux: newContacts },
+      evenements: { tenus: eventsHeld },
+    };
+
+    const period = { from: weekAgo.toISOString(), to: now.toISOString() };
+    const agentScores = Object.entries(agentInsights).map(([id, i]) => ({ id, score: i.score, status: i.status }));
+
+    stream.send("metrics", { period, rawData: weekData, agentScores, crossIssues: crossIssues.length });
+
+    // Bucket cache key by ISO day so repeated views within a day reuse the same digest.
+    const dayBucket = now.toISOString().slice(0, 10);
+    const cacheKey = buildAiCacheKey({
+      route: "/commandant/weekly-digest",
+      organisationId: orgId,
+      userId,
+      input: { day: dayBucket, weekData, agentScores, crossIssues: crossIssues.length },
+    });
+    const cached = getCached<string>(cacheKey);
+    if (cached) {
+      let parsed: any;
+      try { const m = cached.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : { headline: "Digest hebdomadaire", executiveSummary: cached }; }
+      catch { parsed = { headline: "Digest hebdomadaire", executiveSummary: cached }; }
+      stream.send("cached", { text: cached });
+      stream.send("done", {
+        success: true, period, digest: parsed, rawData: weekData, agentScores,
+        crossIssues: crossIssues.length, cached: true,
+      });
+      stream.end();
+      return;
+    }
+
+    const systemPrompt = `Tu es le Commandant IA d'Agent de Bureau. Genere un digest hebdomadaire complet pour le dirigeant. Sois strategique, concret et utilise les chiffres. Francais uniquement.`;
+    const prompt = `Genere le digest hebdomadaire (${weekAgo.toLocaleDateString("fr-FR")} au ${now.toLocaleDateString("fr-FR")}):
+
+DONNEES DE LA SEMAINE:
+${JSON.stringify(weekData, null, 2)}
+
+SCORES DES AGENTS IA:
+${Object.entries(agentInsights).map(([id, i]) => `${id}: ${i.score}/100 - ${i.summary?.slice(0, 80)}`).join("\n") || "Aucun rapport"}
+
+PROBLEMES TRANSVERSAUX: ${crossIssues.length > 0 ? crossIssues.map(i => `[${i.severity}] ${i.title}`).join(", ") : "Aucun"}
+
+JSON attendu:
+{
+  "weekScore": 0-100,
+  "headline": "titre accrocheur du digest",
+  "executiveSummary": "resume executif en 3-5 phrases",
+  "wins": ["reussites de la semaine"],
+  "concerns": ["points de vigilance"],
+  "weekOverWeekChanges": [{"metric": "nom", "current": 0, "previous": 0, "change": "+X%", "assessment": "bon/attention/critique"}],
+  "topPriorities": ["3 priorites pour la semaine prochaine"],
+  "agentHighlights": ["faits saillants des agents IA"],
+  "outlook": "perspectives pour la semaine prochaine"
+}`;
+
+    const result = await multiAiGenerateStream({
+      prompt, systemPrompt, organisationId: orgId, route: "/commandant/weekly-digest",
+      signal: stream.signal,
+      onToken: (chunk) => stream.send("token", { chunk }),
+      maxOutputTokens: 3072,
+    });
+
+    if (stream.signal.aborted) { stream.end(); return; }
+
+    let parsed: any;
+    try {
+      const m = result.fullText.match(/\{[\s\S]*\}/);
+      parsed = m ? JSON.parse(m[0]) : { headline: "Digest hebdomadaire", executiveSummary: result.fullText };
+    } catch {
+      parsed = { headline: "Digest hebdomadaire", executiveSummary: result.fullText };
+    }
+    if (result.fullText && result.fullText.length > 10) setCached(cacheKey, result.fullText, AI_CACHE_TTL.LONG);
+    stream.send("done", {
+      success: true, period, digest: parsed, rawData: weekData, agentScores,
+      crossIssues: crossIssues.length, provider: result.provider, model: result.model,
+    });
+    stream.end();
+  } catch (err: any) {
+    if (err instanceof StreamAbortedError) {
+      stream.send("aborted", { partialText: err.partial.fullText, provider: err.partial.provider, model: err.partial.model });
+      stream.end();
+      return;
+    }
+    if (stream.signal.aborted || err?.message === "aborted") { stream.send("aborted", {}); stream.end(); return; }
+    if (err instanceof AiQuotaExceededError) {
+      stream.send("error", { error: err.message, quotaExceeded: true });
+    } else {
+      logger.error({ err }, "[Commandant/WeeklyDigest/stream]");
+      stream.send("error", { error: err?.message || "Erreur lors de la generation du digest" });
+    }
+    stream.end();
   }
 });
 

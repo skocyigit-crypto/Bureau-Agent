@@ -70,9 +70,10 @@ export default function CommandantIAPage() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="grid grid-cols-11 w-full">
+        <TabsList className="grid grid-cols-12 w-full">
           <TabsTrigger value="chat" className="text-xs gap-1"><MessageCircle className="h-3 w-3" />Chat</TabsTrigger>
           <TabsTrigger value="briefing" className="text-xs gap-1"><Coffee className="h-3 w-3" />Briefing</TabsTrigger>
+          <TabsTrigger value="commandes" className="text-xs gap-1"><Zap className="h-3 w-3" />Commandes</TabsTrigger>
           <TabsTrigger value="phone" className="text-xs gap-1"><Phone className="h-3 w-3" />Telephone</TabsTrigger>
           <TabsTrigger value="email" className="text-xs gap-1"><Mail className="h-3 w-3" />Email</TabsTrigger>
           <TabsTrigger value="meetings" className="text-xs gap-1"><Calendar className="h-3 w-3" />Reunions</TabsTrigger>
@@ -86,6 +87,7 @@ export default function CommandantIAPage() {
 
         <TabsContent value="chat"><ChatTab /></TabsContent>
         <TabsContent value="briefing"><BriefingTab /></TabsContent>
+        <TabsContent value="commandes"><CommandesTab /></TabsContent>
         <TabsContent value="phone"><PhoneTab /></TabsContent>
         <TabsContent value="email"><EmailTab /></TabsContent>
         <TabsContent value="meetings"><MeetingsTab /></TabsContent>
@@ -106,6 +108,8 @@ function BriefingTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any>(null);
   const [searching, setSearching] = useState(false);
+  const [searchStreamingSummary, setSearchStreamingSummary] = useState("");
+  const searchAbortRef = useRef<AbortController | null>(null);
   const [analysisText, setAnalysisText] = useState("");
   const [analysisType, setAnalysisType] = useState("summary");
   const [analysisResult, setAnalysisResult] = useState<any>(null);
@@ -128,12 +132,42 @@ function BriefingTab() {
     if (!searchQuery || searchQuery.length < 2) return;
     setSearching(true);
     setSearchResults(null);
+    setSearchStreamingSummary("");
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
     try {
-      const d = await apiPost("/commandant/smart-search", { query: searchQuery });
-      if (d.success) setSearchResults(d);
-      else toast({ title: "Erreur", description: d.error || "Recherche echouee", variant: "destructive" });
-    } catch (err: any) { toast({ title: "Erreur", description: err.message, variant: "destructive" }); }
-    finally { setSearching(false); }
+      await streamSse("/commandant/smart-search/stream", { query: searchQuery }, {
+        signal: controller.signal,
+        onEvent: (event, data) => {
+          if (event === "results") {
+            setSearchResults({ query: data?.query, totalResults: data?.totalResults, results: data?.results, aiSummary: "" });
+          } else if (event === "token" && data?.chunk) {
+            setSearchStreamingSummary(prev => prev + data.chunk);
+          } else if (event === "cached" && typeof data?.aiSummary === "string") {
+            setSearchStreamingSummary(data.aiSummary);
+          } else if (event === "done") {
+            setSearchResults({ query: data?.query, totalResults: data?.totalResults, results: data?.results, aiSummary: data?.aiSummary || "" });
+            setSearchStreamingSummary("");
+          } else if (event === "aborted") {
+            if (data?.partialText) setSearchStreamingSummary(data.partialText);
+          } else if (event === "error") {
+            toast({ title: "Erreur", description: data?.error || "Recherche echouee", variant: "destructive" });
+          }
+        },
+      });
+    } catch (err: any) {
+      if (err?.name !== "AbortError") toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    } finally {
+      setSearching(false);
+      searchAbortRef.current = null;
+    }
+  };
+
+  const cancelSearch = () => {
+    if (searchAbortRef.current) {
+      searchAbortRef.current.abort();
+      toast({ title: "Annule", description: "Recherche interrompue." });
+    }
   };
 
   const analyzeText = async () => {
@@ -190,6 +224,11 @@ function BriefingTab() {
             <Button onClick={smartSearch} disabled={searching} size="sm" className="bg-blue-600 hover:bg-blue-700">
               {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             </Button>
+            {searching && (
+              <Button onClick={cancelSearch} size="sm" variant="outline" className="border-red-300 text-red-700 hover:bg-red-50">
+                <X className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -199,11 +238,17 @@ function BriefingTab() {
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm flex items-center gap-2"><Wand2 className="h-4 w-4 text-blue-500" />{searchResults.totalResults} resultat{searchResults.totalResults > 1 ? "s" : ""} pour "{searchResults.query}"</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => setSearchResults(null)} className="text-xs h-6">Fermer</Button>
+              <Button variant="ghost" size="sm" onClick={() => { setSearchResults(null); setSearchStreamingSummary(""); }} className="text-xs h-6">Fermer</Button>
             </div>
           </CardHeader>
           <CardContent>
-            {searchResults.aiSummary && <p className="text-xs text-muted-foreground mb-3 p-2 bg-blue-50 rounded">{searchResults.aiSummary}</p>}
+            {searchStreamingSummary && (!searchResults.aiSummary || searching) && (
+              <div className="text-xs text-muted-foreground mb-3 p-2 bg-blue-50 rounded flex gap-2">
+                {searching && <Loader2 className="h-3 w-3 animate-spin text-blue-500 shrink-0 mt-0.5" />}
+                <span className="whitespace-pre-wrap">{searchStreamingSummary}</span>
+              </div>
+            )}
+            {!searching && searchResults.aiSummary && <p className="text-xs text-muted-foreground mb-3 p-2 bg-blue-50 rounded">{searchResults.aiSummary}</p>}
             <ScrollArea className="max-h-48">
               <div className="space-y-1">
                 {(searchResults.results && typeof searchResults.results === "object" ? Object.entries(searchResults.results) : []).flatMap(([category, items]: [string, any]) =>
@@ -1533,6 +1578,301 @@ function ChatTab() {
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function CommandesTab() {
+  const { toast } = useToast();
+
+  // Execute-command state
+  const [command, setCommand] = useState("");
+  const [cmdContext, setCmdContext] = useState<any>(null);
+  const [cmdStreamText, setCmdStreamText] = useState("");
+  const [cmdResult, setCmdResult] = useState<any>(null);
+  const [cmdRunning, setCmdRunning] = useState(false);
+  const cmdAbortRef = useRef<AbortController | null>(null);
+
+  // Weekly digest state
+  const [digestMetrics, setDigestMetrics] = useState<any>(null);
+  const [digestStreamText, setDigestStreamText] = useState("");
+  const [digestResult, setDigestResult] = useState<any>(null);
+  const [digestRunning, setDigestRunning] = useState(false);
+  const digestAbortRef = useRef<AbortController | null>(null);
+
+  function tryParseJson(text: string): any | null {
+    if (!text) return null;
+    const m = text.match(/\{[\s\S]*\}/);
+    if (!m) return null;
+    try { return JSON.parse(m[0]); } catch { return null; }
+  }
+
+  const runCommand = async () => {
+    if (!command || command.trim().length < 3) return;
+    setCmdRunning(true);
+    setCmdContext(null);
+    setCmdStreamText("");
+    setCmdResult(null);
+    const controller = new AbortController();
+    cmdAbortRef.current = controller;
+    try {
+      await streamSse("/commandant/execute-command/stream", { command }, {
+        signal: controller.signal,
+        onEvent: (event, data) => {
+          if (event === "context") {
+            setCmdContext(data?.context || null);
+          } else if (event === "token" && data?.chunk) {
+            setCmdStreamText(prev => prev + data.chunk);
+          } else if (event === "cached" && typeof data?.text === "string") {
+            setCmdStreamText(data.text);
+          } else if (event === "done") {
+            const parsedResult = data?.result || tryParseJson(data?.text || "") || null;
+            setCmdResult(parsedResult);
+            const nextCtx = data?.context ?? parsedResult?.context ?? null;
+            if (nextCtx) setCmdContext(nextCtx);
+            setCmdStreamText("");
+          } else if (event === "aborted") {
+            if (data?.partialText) setCmdStreamText(data.partialText);
+          } else if (event === "error") {
+            setCmdStreamText("");
+            toast({ title: "Erreur", description: data?.error || "Commande echouee", variant: "destructive" });
+          }
+        },
+      });
+    } catch (err: any) {
+      if (err?.name !== "AbortError") toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    } finally {
+      setCmdRunning(false);
+      cmdAbortRef.current = null;
+    }
+  };
+
+  const cancelCommand = () => {
+    if (cmdAbortRef.current) {
+      cmdAbortRef.current.abort();
+      toast({ title: "Annule", description: "Commande interrompue." });
+    }
+  };
+
+  const runDigest = async () => {
+    setDigestRunning(true);
+    setDigestMetrics(null);
+    setDigestStreamText("");
+    setDigestResult(null);
+    const controller = new AbortController();
+    digestAbortRef.current = controller;
+    try {
+      await streamSse("/commandant/weekly-digest/stream", {}, {
+        signal: controller.signal,
+        onEvent: (event, data) => {
+          if (event === "metrics") {
+            setDigestMetrics(data || null);
+          } else if (event === "token" && data?.chunk) {
+            setDigestStreamText(prev => prev + data.chunk);
+          } else if (event === "cached" && typeof data?.text === "string") {
+            setDigestStreamText(data.text);
+          } else if (event === "done") {
+            setDigestResult(data?.digest || null);
+            setDigestStreamText("");
+          } else if (event === "aborted") {
+            if (data?.partialText) setDigestStreamText(data.partialText);
+          } else if (event === "error") {
+            setDigestStreamText("");
+            toast({ title: "Erreur", description: data?.error || "Digest echoue", variant: "destructive" });
+          }
+        },
+      });
+    } catch (err: any) {
+      if (err?.name !== "AbortError") toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    } finally {
+      setDigestRunning(false);
+      digestAbortRef.current = null;
+    }
+  };
+
+  const cancelDigest = () => {
+    if (digestAbortRef.current) {
+      digestAbortRef.current.abort();
+      toast({ title: "Annule", description: "Digest interrompu." });
+    }
+  };
+
+  return (
+    <div className="space-y-4 mt-4">
+      {/* Execute command */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Zap className="h-4 w-4 text-amber-500" />
+            Commande naturelle
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Demandez en francais : "Quelles sont mes urgences ?", "Resume mes appels manques", "Que dois-je faire en priorite ?"
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-2 rounded-lg border bg-background px-3 py-2">
+            <Wand2 className="h-4 w-4 text-amber-500 shrink-0" />
+            <Input
+              value={command}
+              onChange={e => setCommand(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && !cmdRunning && runCommand()}
+              placeholder="Tapez votre commande en francais..."
+              className="flex-1 border-0 bg-transparent text-base focus-visible:ring-0 placeholder:text-muted-foreground/60"
+            />
+            <Button onClick={runCommand} disabled={cmdRunning} size="sm" className="bg-amber-600 hover:bg-amber-700">
+              {cmdRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </Button>
+            {cmdRunning && (
+              <Button onClick={cancelCommand} size="sm" variant="outline" className="border-red-300 text-red-700 hover:bg-red-50">
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+
+          {cmdContext && (
+            <div className="flex flex-wrap gap-2 text-xs">
+              {Object.entries(cmdContext).map(([k, v]) => (
+                <Badge key={k} variant="outline" className="text-[10px]">
+                  {k}: {typeof v === "object" ? JSON.stringify(v) : String(v)}
+                </Badge>
+              ))}
+            </div>
+          )}
+
+          {(cmdRunning || cmdStreamText) && !cmdResult && (
+            <div className="text-xs text-muted-foreground p-3 bg-amber-50 rounded border border-amber-100 flex gap-2">
+              {cmdRunning && <Loader2 className="h-3 w-3 animate-spin text-amber-500 shrink-0 mt-0.5" />}
+              <span className="whitespace-pre-wrap break-words">{cmdStreamText || "En attente..."}</span>
+            </div>
+          )}
+
+          {cmdResult && (
+            <div className="space-y-2">
+              {cmdResult.category && <Badge className="bg-amber-100 text-amber-800 text-xs">{cmdResult.category}</Badge>}
+              {cmdResult.response && <p className="text-sm whitespace-pre-wrap">{cmdResult.response}</p>}
+              {(() => {
+                const followUps: any[] = Array.isArray(cmdResult.suggestedFollowUps)
+                  ? cmdResult.suggestedFollowUps
+                  : Array.isArray(cmdResult.suggestedActions)
+                    ? cmdResult.suggestedActions
+                    : [];
+                if (followUps.length === 0) return null;
+                return (
+                  <div>
+                    <Label className="text-xs">Suggestions de suivi</Label>
+                    <ul className="text-xs space-y-1 mt-1">
+                      {followUps.map((a: any, i: number) => (
+                        <li key={i} className="flex items-start gap-1.5"><ArrowRight className="h-3 w-3 mt-0.5 text-amber-500" />{typeof a === "string" ? a : a?.label || a?.command || JSON.stringify(a)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Weekly digest */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Coffee className="h-4 w-4 text-blue-500" />
+              Digest hebdomadaire
+            </CardTitle>
+            <div className="flex gap-2">
+              <Button onClick={runDigest} disabled={digestRunning} size="sm" className="bg-blue-600 hover:bg-blue-700">
+                {digestRunning ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Sparkles className="h-4 w-4 mr-1" />}
+                Generer
+              </Button>
+              {digestRunning && (
+                <Button onClick={cancelDigest} size="sm" variant="outline" className="border-red-300 text-red-700 hover:bg-red-50">
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+          <CardDescription className="text-xs">
+            Resume executif des 7 derniers jours : reussites, points de vigilance, perspectives.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {digestMetrics?.rawData && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+              {digestMetrics.rawData.taches && (
+                <div className="p-2 bg-emerald-50 rounded border border-emerald-100">
+                  <div className="font-semibold">Taches</div>
+                  <div className="text-muted-foreground">{digestMetrics.rawData.taches.terminees} terminees / {digestMetrics.rawData.taches.creees} creees</div>
+                </div>
+              )}
+              {digestMetrics.rawData.appels && (
+                <div className="p-2 bg-blue-50 rounded border border-blue-100">
+                  <div className="font-semibold">Appels</div>
+                  <div className="text-muted-foreground">{digestMetrics.rawData.appels.total} total ({digestMetrics.rawData.appels.tauxReponse}% repondu)</div>
+                </div>
+              )}
+              {digestMetrics.rawData.factures && (
+                <div className="p-2 bg-amber-50 rounded border border-amber-100">
+                  <div className="font-semibold">Factures</div>
+                  <div className="text-muted-foreground">{digestMetrics.rawData.factures.payees} payees / {digestMetrics.rawData.factures.enRetard} en retard</div>
+                </div>
+              )}
+              {digestMetrics.rawData.contacts && (
+                <div className="p-2 bg-violet-50 rounded border border-violet-100">
+                  <div className="font-semibold">Contacts</div>
+                  <div className="text-muted-foreground">{digestMetrics.rawData.contacts.nouveaux} nouveaux</div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {(digestRunning || digestStreamText) && !digestResult && (
+            <div className="text-xs text-muted-foreground p-3 bg-blue-50 rounded border border-blue-100 flex gap-2">
+              {digestRunning && <Loader2 className="h-3 w-3 animate-spin text-blue-500 shrink-0 mt-0.5" />}
+              <span className="whitespace-pre-wrap break-words">{digestStreamText || "En attente..."}</span>
+            </div>
+          )}
+
+          {digestResult && (
+            <div className="space-y-3">
+              {digestResult.headline && (
+                <div className="flex items-center gap-2">
+                  {typeof digestResult.weekScore === "number" && (
+                    <Badge className="bg-blue-600 text-white">{digestResult.weekScore}/100</Badge>
+                  )}
+                  <h3 className="text-sm font-semibold">{digestResult.headline}</h3>
+                </div>
+              )}
+              {digestResult.executiveSummary && <p className="text-sm text-muted-foreground">{digestResult.executiveSummary}</p>}
+              {Array.isArray(digestResult.wins) && digestResult.wins.length > 0 && (
+                <div>
+                  <Label className="text-xs flex items-center gap-1"><Star className="h-3 w-3 text-emerald-500" />Reussites</Label>
+                  <ul className="text-xs space-y-1 mt-1">{digestResult.wins.map((w: string, i: number) => <li key={i}>• {w}</li>)}</ul>
+                </div>
+              )}
+              {Array.isArray(digestResult.concerns) && digestResult.concerns.length > 0 && (
+                <div>
+                  <Label className="text-xs flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-amber-500" />Points de vigilance</Label>
+                  <ul className="text-xs space-y-1 mt-1">{digestResult.concerns.map((c: string, i: number) => <li key={i}>• {c}</li>)}</ul>
+                </div>
+              )}
+              {Array.isArray(digestResult.topPriorities) && digestResult.topPriorities.length > 0 && (
+                <div>
+                  <Label className="text-xs flex items-center gap-1"><Target className="h-3 w-3 text-violet-500" />Priorites</Label>
+                  <ul className="text-xs space-y-1 mt-1">{digestResult.topPriorities.map((p: string, i: number) => <li key={i}>• {p}</li>)}</ul>
+                </div>
+              )}
+              {digestResult.outlook && (
+                <div className="p-2 bg-blue-50 rounded text-xs">
+                  <span className="font-semibold">Perspectives : </span>{digestResult.outlook}
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
