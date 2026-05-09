@@ -47,6 +47,7 @@ import { SmartBrowserOverlays, SmartBrowserShortcuts } from "@/components/smart-
 import ExecutiveReportPage from "@/pages/rapport-executif";
 import LicenseManagementPage from "@/pages/license-management";
 import CommandantIAPage from "@/pages/commandant-ia";
+import AsistanPage from "@/pages/asistan";
 import TelephonyPage from "@/pages/telephony";
 import TelechargerPage from "@/pages/telecharger";
 import { QuickActionHub } from "@/components/quick-action-hub";
@@ -147,6 +148,7 @@ function AppRoutes() {
         <Route path="/rapport-executif" component={withLicenseGate(ExecutiveReportPage)} />
         <Route path="/gestion-licence" component={LicenseManagementPage} />
         <Route path="/commandant-ia" component={withLicenseGate(CommandantIAPage)} />
+        <Route path="/asistan" component={withLicenseGate(AsistanPage)} />
         <Route path="/telephonie" component={withLicenseGate(TelephonyPage)} />
         <Route path="/telecharger" component={TelechargerPage} />
         <Route path="/notifications" component={NotificationsPage} />

@@ -38,3 +38,4 @@ export * from "./objectifs-commerciaux";
 export * from "./notes-internes";
 export * from "./data-subject-requests";
 export * from "./ai-insights";
+export * from "./assistant";

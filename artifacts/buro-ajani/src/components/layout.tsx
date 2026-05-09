@@ -164,6 +164,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             label: "Assistants IA",
             items: [
               { name: "Commandant IA", href: "/commandant-ia", icon: Sparkles },
+              { name: "Assistant Universel", href: "/asistan", icon: Sparkles },
               { name: "Agents IA", href: "/agents-ia", icon: Brain },
               ...(isAdmin ? [{ name: "Automatisations", href: "/automatisations", icon: Zap }] : []),
             ],
