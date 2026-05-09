@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { confirmAction } from "@/hooks/use-confirm";
 import { useListCalls, useCreateCall, useUpdateCall, useDeleteCall, getListCallsQueryKey, useListContacts } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -127,7 +128,7 @@ export default function Calls() {
     updateCall.mutate({ id, data: { status } }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() });
-        toast({ title: "Statut mis a jour" });
+        toast({ title: "Statut mis à jour" });
       },
       onError: () => toast({ title: "Erreur", description: "Impossible de changer le statut de l'appel", variant: "destructive" }),
     });
@@ -161,7 +162,7 @@ export default function Calls() {
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Supprimer ${selectedIds.size} appel(s) ?`)) return;
+    if (!(await confirmAction({ title: `Supprimer ${selectedIds.size} appel(s) ?`, confirmLabel: "Supprimer", destructive: true }))) return;
     const ids = Array.from(selectedIds);
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
     const res = await fetch(`${BASE}/api/bulk/calls/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
@@ -200,7 +201,7 @@ export default function Calls() {
     if (editingCall) {
       updateCall.mutate({ id: editingCall.id, data: values }, {
         onSuccess: () => {
-          toast({ title: "Appel mis a jour" });
+          toast({ title: "Appel mis à jour" });
           setIsDialogOpen(false);
           setEditingCall(null);
           form.reset();
@@ -610,7 +611,7 @@ export default function Calls() {
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={async (e) => {
                           e.stopPropagation();
-                          if (!confirm("Supprimer cet appel ?")) return;
+                          if (!(await confirmAction({ title: "Supprimer cet appel ?", confirmLabel: "Supprimer", destructive: true }))) return;
                           const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
                           const res = await fetch(`${base}/api/calls/${call.id}`, { method: "DELETE", credentials: "include" });
                           if (res.ok) { toast({ title: "Appel supprimé" }); queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() }); }

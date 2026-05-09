@@ -49,16 +49,16 @@ export default function TelechargerPage() {
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === "accepted") {
         setIsInstalled(true);
-        toast({ title: "Installation reussie !", description: "Agent de Bureau a ete installe sur votre appareil." });
+        toast({ title: "Installation réussie !", description: "Agent de Bureau a été installé sur votre appareil." });
       }
       setDeferredPrompt(null);
     } else {
       toast({
         title: "Installation manuelle",
         description: isIOS
-          ? "Safari : Partager (↑) > Sur l'ecran d'accueil"
+          ? "Safari : Partager (↑) > Sur l'écran d'accueil"
           : isAndroid
-          ? "Chrome : Menu (⋮) > Ajouter a l'ecran d'accueil"
+          ? "Chrome : Menu (⋮) > Ajouter a l'écran d'accueil"
           : "Chrome : Menu (⋮) > Installer | Safari : Partager > Ajouter au Dock",
       });
     }
@@ -299,7 +299,7 @@ export default function TelechargerPage() {
                           {[
                             { icon: <Globe className="w-4 h-4" />, text: "Ouvrez cette page dans Safari" },
                             { icon: <Share className="w-4 h-4" />, text: "Appuyez sur le bouton Partager (↑)" },
-                            { icon: <PlusSquare className="w-4 h-4" />, text: "Selectionnez \"Sur l'ecran d'accueil\"" },
+                            { icon: <PlusSquare className="w-4 h-4" />, text: "Selectionnez \"Sur l'écran d'accueil\"" },
                             { icon: <CheckCircle2 className="w-4 h-4" />, text: "Appuyez sur \"Ajouter\"" },
                           ].map((step, i) => (
                             <li key={i} className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -321,7 +321,7 @@ export default function TelechargerPage() {
                           {[
                             { text: "Ouvrez cette page dans Chrome" },
                             { text: "Appuyez sur le menu ⋮ (3 points)" },
-                            { text: "Selectionnez \"Ajouter a l'ecran d'accueil\"" },
+                            { text: "Selectionnez \"Ajouter a l'écran d'accueil\"" },
                             { text: "Confirmez l'installation" },
                           ].map((step, i) => (
                             <li key={i} className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -409,7 +409,7 @@ export default function TelechargerPage() {
                         "Scannez le QR code avec l'appareil photo",
                         "Ouvrez le lien dans votre navigateur",
                         "Connectez-vous a votre compte",
-                        "Ajoutez a l'ecran d'accueil (Partager > Ajouter)",
+                        "Ajoutez a l'écran d'accueil (Partager > Ajouter)",
                       ].map((step, i) => (
                         <li key={i} className="flex items-start gap-2">
                           <span className="w-5 h-5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 flex items-center justify-center text-[10px] font-bold shrink-0">{i + 1}</span>
@@ -437,7 +437,7 @@ export default function TelechargerPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { icon: Zap, title: "Acces rapide", desc: "Lancez en un clic depuis votre bureau ou ecran d'accueil", color: "text-amber-600 bg-amber-100 dark:bg-amber-900/30" },
-              { icon: Wifi, title: "Mode hors ligne", desc: "Consultez vos donnees meme sans connexion Internet", color: "text-blue-600 bg-blue-100 dark:bg-blue-900/30" },
+              { icon: Wifi, title: "Mode hors ligne", desc: "Consultez vos données meme sans connexion Internet", color: "text-blue-600 bg-blue-100 dark:bg-blue-900/30" },
               { icon: Bell, title: "Notifications", desc: "Recevez les alertes d'appels et taches en temps reel", color: "text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30" },
               { icon: Shield, title: "Securite", desc: "Connexion securisee et donnees chiffrees", color: "text-purple-600 bg-purple-100 dark:bg-purple-900/30" },
             ].map((item) => (

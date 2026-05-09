@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { confirmAction } from "@/hooks/use-confirm";
 import { useLocation } from "wouter";
 import {
   Clock, LogIn, LogOut, Coffee, MapPin, Building2, Wifi, Map, CalendarDays,
@@ -249,7 +250,7 @@ export default function CheckinsPage() {
 
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
-    if (!confirm(`Supprimer ${selectedIds.length} pointage(s) ?`)) return;
+    if (!(await confirmAction({ title: `Supprimer ${selectedIds.length} pointage(s) ?`, confirmLabel: "Supprimer", destructive: true }))) return;
     const baseUrl = import.meta.env.BASE_URL || "/";
     const res = await fetch(`${baseUrl}api/bulk/checkins/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds }) });
     if (res.ok) { toast({ title: `${selectedIds.length} pointage(s) supprime(s)` }); setSelectedIds([]); invalidateAll(); }
@@ -705,7 +706,7 @@ export default function CheckinsPage() {
             <Card className="bg-blue-50 border-blue-200">
               <CardContent className="p-4 text-center">
                 <p className="text-3xl font-bold text-blue-700">{(currentData?.active?.length ?? 0) + (currentData?.paused?.length ?? 0)}</p>
-                <p className="text-sm text-blue-600 mt-1">Total connectes</p>
+                <p className="text-sm text-blue-600 mt-1">Total connectés</p>
               </CardContent>
             </Card>
           </div>
@@ -849,7 +850,7 @@ export default function CheckinsPage() {
                     await updateCheckin.mutateAsync({ id: selectedCheckin.id, data: { notes: editCheckinNotes, location: editCheckinLocation } });
                     setSelectedCheckin((c: any) => ({ ...c, notes: editCheckinNotes, location: editCheckinLocation }));
                     setIsEditingCheckin(false);
-                    toast({ title: "Pointage mis a jour" });
+                    toast({ title: "Pointage mis à jour" });
                   } catch {
                     toast({ title: "Erreur", description: "Impossible de modifier le pointage", variant: "destructive" });
                   }

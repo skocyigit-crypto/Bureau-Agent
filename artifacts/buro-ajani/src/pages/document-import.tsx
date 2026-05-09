@@ -312,7 +312,7 @@ export default function DocumentImportPage() {
               <h3 className="text-xl font-semibold">L'IA analyse votre fichier...</h3>
               <p className="text-muted-foreground mt-1">{selectedFile?.name}</p>
               <p className="text-sm text-muted-foreground mt-2">
-                Lecture du contenu, detection des colonnes, extraction des donnees, verification des doublons...
+                Lecture du contenu, detection des colonnes, extraction des données, verification des doublons...
               </p>
             </div>
             <Progress value={progress} className="max-w-md mx-auto" />

@@ -26,7 +26,7 @@ export function TabInstallation() {
               </CardTitle>
               <CardDescription className="mt-1">
                 Installez Agent de Bureau et Google Workspace sur votre Mac pour une experience native.
-                Toutes les fonctionnalites, la securite et les integrations sont preservees.
+                Toutes les fonctionnalites, la sécurité et les intégrations sont preservees.
               </CardDescription>
             </div>
             <Badge variant="outline" className="text-xs gap-1">
@@ -50,14 +50,14 @@ export function TabInstallation() {
                   </div>
                 </div>
                 <div className="space-y-2 mb-4">
-                  {["Fonctionne hors connexion (mode degrade)", "Notifications natives macOS", "Integration Dock et barre des menus", "Raccourcis clavier Mac (Cmd+K, Cmd+N...)", "Synchronisation automatique avec le cloud"].map((f) => (
+                  {["Fonctionne hors connexion (mode degrade)", "Notifications natives macOS", "Intégration Dock et barre des menus", "Raccourcis clavier Mac (Cmd+K, Cmd+N...)", "Synchronisation automatique avec le cloud"].map((f) => (
                     <div key={f} className="flex items-center gap-2 text-xs text-muted-foreground">
                       <CheckCheck className="w-3.5 h-3.5 text-emerald-500" />
                       <span>{f}</span>
                     </div>
                   ))}
                 </div>
-                <Button className="w-full gap-2" onClick={() => toast({ title: "Telechargement en cours", description: "Le fichier AgentDeBureau-v2.4.dmg est en cours de telechargement..." })}>
+                <Button className="w-full gap-2" onClick={() => toast({ title: "Téléchargement en cours", description: "Le fichier AgentDeBureau-v2.4.dmg est en cours de téléchargement..." })}>
                   <CloudDownload className="w-4 h-4" />
                   Telecharger pour Mac (.dmg)
                 </Button>
@@ -78,7 +78,7 @@ export function TabInstallation() {
                   </div>
                 </div>
                 <div className="space-y-2 mb-4">
-                  {["Installation en un clic depuis Safari/Chrome", "Mises a jour automatiques", "Apparait dans le Launchpad Mac", "Aucun telechargement supplementaire", "Toujours la derniere version"].map((f) => (
+                  {["Installation en un clic depuis Safari/Chrome", "Mises a jour automatiques", "Apparait dans le Launchpad Mac", "Aucun téléchargement supplementaire", "Toujours la derniere version"].map((f) => (
                     <div key={f} className="flex items-center gap-2 text-xs text-muted-foreground">
                       <CheckCheck className="w-3.5 h-3.5 text-emerald-500" />
                       <span>{f}</span>
@@ -102,13 +102,13 @@ export function TabInstallation() {
             <Globe className="w-5 h-5 text-blue-600" />
             Migration Google Workspace vers Mac
           </CardTitle>
-          <CardDescription>Transferez l'ensemble de votre configuration Google Workspace sur votre Mac. Tous les parametres, connexions et donnees de securite sont migres automatiquement.</CardDescription>
+          <CardDescription>Transferez l'ensemble de votre configuration Google Workspace sur votre Mac. Tous les paramètres, connexions et données de sécurité sont migres automatiquement.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-lg p-4">
             <h4 className="font-semibold text-sm text-blue-800 dark:text-blue-300 mb-2">Elements migres automatiquement :</h4>
             <div className="grid grid-cols-2 gap-2">
-              {["Comptes Google connectes", "Parametres de securite", "Configuration antivirus", "Regles DLP et phishing", "Roles et permissions", "Historique des appels", "Contacts et taches", "Integrations logicielles"].map((item) => (
+              {["Comptes Google connectés", "Parametres de sécurité", "Configuration antivirus", "Règles DLP et phishing", "Roles et permissions", "Historique des appels", "Contacts et taches", "Intégrations logicielles"].map((item) => (
                 <div key={item} className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-400">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>{item}</span>
@@ -120,10 +120,10 @@ export function TabInstallation() {
           <div className="space-y-3">
             <h4 className="text-sm font-medium">Processus de migration</h4>
             {[
-              { step: 1, title: "Exporter la configuration", desc: "Generer un fichier de configuration chiffre contenant tous vos parametres Workspace.", btn: "Exporter (.enc)", icon: Download, action: "Generation du fichier agent-bureau-config.enc en cours..." },
+              { step: 1, title: "Exporter la configuration", desc: "Générer un fichier de configuration chiffre contenant tous vos paramètres Workspace.", btn: "Exporter (.enc)", icon: Download, action: "Generation du fichier agent-bureau-config.enc en cours..." },
               { step: 2, title: "Installer sur Mac", desc: "Telecharger et installer l'application Agent de Bureau sur votre Mac.", multiBtn: true },
               { step: 3, title: "Importer la configuration", desc: "Ouvrez l'application sur Mac et importez le fichier de configuration chiffre. Vos identifiants Google seront automatiquement restaures.", btn: "Importer (.enc)", icon: Upload, action: "Selectionnez le fichier .enc exporte a l'etape 1 pour restaurer votre configuration." },
-              { step: 4, title: "Verification et synchronisation", desc: "L'application verifie la connexion Google Workspace, restaure les services et synchronise les donnees. Le processus est entierement automatique.", btn: "Verifier la migration", icon: RefreshCcw, action: "Test de connexion et synchronisation avec Google Workspace...", highlight: true },
+              { step: 4, title: "Vérification et synchronisation", desc: "L'application verifie la connexion Google Workspace, restaure les services et synchronisé les données. Le processus est entierement automatique.", btn: "Vérifier la migration", icon: RefreshCcw, action: "Test de connexion et synchronisation avec Google Workspace...", highlight: true },
             ].map((s) => (
               <div key={s.step} className={`border rounded-lg p-4 ${s.highlight ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50/30 dark:bg-emerald-950/10" : ""}`}>
                 <div className="flex items-start gap-4">
@@ -133,15 +133,15 @@ export function TabInstallation() {
                     <p className="text-xs text-muted-foreground mt-1">{s.desc}</p>
                     {s.multiBtn ? (
                       <div className="flex gap-2 mt-2">
-                        <Button variant="outline" size="sm" className="gap-2" onClick={() => toast({ title: "Telechargement", description: "AgentDeBureau-v2.4-arm64.dmg (Apple Silicon) en cours..." })}>
+                        <Button variant="outline" size="sm" className="gap-2" onClick={() => toast({ title: "Téléchargement", description: "AgentDeBureau-v2.4-arm64.dmg (Apple Silicon) en cours..." })}>
                           <Cpu className="w-3.5 h-3.5" /> Apple Silicon (M1/M2/M3/M4)
                         </Button>
-                        <Button variant="outline" size="sm" className="gap-2" onClick={() => toast({ title: "Telechargement", description: "AgentDeBureau-v2.4-x64.dmg (Intel) en cours..." })}>
+                        <Button variant="outline" size="sm" className="gap-2" onClick={() => toast({ title: "Téléchargement", description: "AgentDeBureau-v2.4-x64.dmg (Intel) en cours..." })}>
                           <HardDrive className="w-3.5 h-3.5" /> Intel
                         </Button>
                       </div>
                     ) : s.btn && s.icon && (
-                      <Button variant="outline" size="sm" className={`mt-2 gap-2 ${s.highlight ? "border-emerald-200 text-emerald-700 hover:bg-emerald-50" : ""}`} onClick={() => toast({ title: s.step === 1 ? "Export en cours" : s.step === 3 ? "Import" : "Verification", description: s.action! })}>
+                      <Button variant="outline" size="sm" className={`mt-2 gap-2 ${s.highlight ? "border-emerald-200 text-emerald-700 hover:bg-emerald-50" : ""}`} onClick={() => toast({ title: s.step === 1 ? "Export en cours" : s.step === 3 ? "Import" : "Vérification", description: s.action! })}>
                         <s.icon className="w-3.5 h-3.5" /> {s.btn}
                       </Button>
                     )}
@@ -239,16 +239,16 @@ export function TabInstallation() {
                 <h4 className="text-sm font-semibold">Fonctionnalites mobiles</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {[
-                    { label: "Tableau de bord en temps reel", desc: "KPIs, activite recente, score IA" },
+                    { label: "Tableau de bord en temps réel", desc: "KPIs, activite recente, score IA" },
                     { label: "Gestion des appels", desc: "Journal d'appels, filtres, rappels rapides" },
-                    { label: "Repertoire contacts", desc: "Recherche, categories, fiches completes" },
+                    { label: "Repertoire contacts", desc: "Recherche, catégories, fiches completes" },
                     { label: "Suivi des taches", desc: "Statuts, priorites, echeances" },
                     { label: "Messages et notifications", desc: "Vocaux, notes, rappels, priorites" },
-                    { label: "Gestion de stock", desc: "Inventaire, alertes seuils, categories" },
+                    { label: "Gestion de stock", desc: "Inventaire, alertes seuils, catégories" },
                     { label: "7 Agents IA embarques", desc: "Scores, alertes, suggestions en mobilite" },
-                    { label: "58 integrations natives", desc: "Google, Microsoft, Apple synchronises" },
+                    { label: "58 intégrations natives", desc: "Google, Microsoft, Apple synchronisés" },
                     { label: "Notifications push", desc: "Appels manques, taches urgentes, alertes IA" },
-                    { label: "Mode hors connexion", desc: "Acces aux donnees sans connexion Internet" },
+                    { label: "Mode hors connexion", desc: "Accès aux données sans connexion Internet" },
                   ].map((f, i) => (
                     <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-muted/30">
                       <CheckCircle2 className="w-3.5 h-3.5 text-amber-600 mt-0.5 shrink-0" />

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { confirmAction } from "@/hooks/use-confirm";
 import { useListContacts, useCreateContact, useUpdateContact, useDeleteContact, getListContactsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Users, Search, Filter, MoreHorizontal, Phone, Mail, Building, Plus, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, LayoutGrid, LayoutList, Upload, Printer, Edit, Tag, Copy, FolderKanban } from "lucide-react";
@@ -139,7 +140,7 @@ export default function Contacts() {
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Supprimer ${selectedIds.size} contact(s) ?`)) return;
+    if (!(await confirmAction({ title: `Supprimer ${selectedIds.size} contact(s) ?`, confirmLabel: "Supprimer", destructive: true }))) return;
     const ids = Array.from(selectedIds);
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
     const res = await fetch(`${BASE}/api/bulk/contacts/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
@@ -201,7 +202,7 @@ export default function Contacts() {
     if (editingContact) {
       updateContact.mutate({ id: editingContact.id, data: values }, {
         onSuccess: () => {
-          toast({ title: "Contact mis a jour" });
+          toast({ title: "Contact mis à jour" });
           setIsDialogOpen(false);
           setEditingContact(null);
           form.reset();
@@ -508,9 +509,9 @@ export default function Contacts() {
                             else toast({ title: "Erreur", variant: "destructive" });
                           }}><FolderKanban className="w-3 h-3 mr-2" />Créer un projet</DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={(e) => {
+                          <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={async (e) => {
                             e.stopPropagation();
-                            if (!confirm(`Supprimer le contact ${contact.firstName} ${contact.lastName} ?`)) return;
+                            if (!(await confirmAction({ title: `Supprimer ${contact.firstName} ${contact.lastName} ?`, confirmLabel: "Supprimer", destructive: true }))) return;
                             deleteContact.mutate({ id: contact.id }, {
                               onSuccess: () => { toast({ title: "Contact supprimé" }); queryClient.invalidateQueries({ queryKey: getListContactsQueryKey() }); },
                               onError: () => toast({ title: "Erreur", description: "Impossible de supprimer", variant: "destructive" }),

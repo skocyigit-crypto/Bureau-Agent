@@ -223,8 +223,13 @@ function InvoiceDetailDialog({ invoice, onClose, onRefresh, onReloadInvoice }: {
     }
   };
 
-  const sendInvoice = () => callAction("send", "/api/license-management/send-invoice-email", { factureClientId: invoice.id }, (d) => d.message || "Facture envoyee");
-  const markPaid = () => callAction("paid", "/api/license-management/mark-invoice-paid", { factureClientId: invoice.id, paymentMethod: "virement" }, (d) => d.message || "Facture soldee");
+  const [markPaidOpen, setMarkPaidOpen] = useState(false);
+  const [markPaidMethod, setMarkPaidMethod] = useState("virement");
+  const sendInvoice = () => callAction("send", "/api/license-management/send-invoice-email", { factureClientId: invoice.id }, (d) => d.message || "Facture envoyée");
+  const markPaid = async () => {
+    const ok = await callAction("paid", "/api/license-management/mark-invoice-paid", { factureClientId: invoice.id, paymentMethod: markPaidMethod }, (d) => d.message || "Facture soldée");
+    if (ok) setMarkPaidOpen(false);
+  };
   const recordPayment = async () => {
     if (!paymentAmount) return;
     const ok = await callAction("payment", "/api/license-management/record-payment", { factureClientId: invoice.id, amount: parseFloat(paymentAmount), paymentMethod }, (d) => d.message || "Paiement enregistre");
@@ -291,9 +296,9 @@ function InvoiceDetailDialog({ invoice, onClose, onRefresh, onReloadInvoice }: {
             <Button size="sm" variant="outline" className="text-blue-600 hover:text-blue-700" onClick={() => { setPaymentAmount(remaining.toFixed(2)); setPaymentOpen(true); }} disabled={busy !== null || remaining <= 0}>
               <DollarSign className="h-3.5 w-3.5 mr-1" />Enregistrer un paiement
             </Button>
-            <Button size="sm" variant="outline" className="text-green-600 hover:text-green-700" onClick={markPaid} disabled={busy !== null}>
-              {busy === "paid" ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
-              Marquer payee
+            <Button size="sm" variant="outline" className="text-green-600 hover:text-green-700" onClick={() => setMarkPaidOpen(true)} disabled={busy !== null}>
+              <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+              Marquer payée
             </Button>
             <Button size="sm" variant="outline" className="text-orange-600 hover:text-orange-700" onClick={() => setReminderOpen(true)} disabled={busy !== null || !invoice.clientEmail} title={!invoice.clientEmail ? "Aucun email client" : "Envoyer un rappel"}>
               <Bell className="h-3.5 w-3.5 mr-1" />Envoyer un rappel
@@ -332,6 +337,38 @@ function InvoiceDetailDialog({ invoice, onClose, onRefresh, onReloadInvoice }: {
             <Button onClick={recordPayment} disabled={!paymentAmount || parseFloat(paymentAmount) <= 0 || busy === "payment"} className="bg-blue-500 hover:bg-blue-600">
               {busy === "payment" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <DollarSign className="h-4 w-4 mr-2" />}
               Enregistrer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={markPaidOpen} onOpenChange={(o) => { if (!o) setMarkPaidOpen(false); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-green-500" />Marquer la facture payée</DialogTitle>
+            <DialogDescription>Confirmez le mode de paiement utilisé. Le montant restant ({remaining.toFixed(2)} EUR) sera enregistré comme payé.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="text-sm"><span className="text-muted-foreground">Facture :</span> <span className="font-semibold">{invoice.reference}</span> — {invoice.clientName}</div>
+            <div className="space-y-1"><Label className="text-xs">Mode de paiement</Label>
+              <Select value={markPaidMethod} onValueChange={setMarkPaidMethod}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="virement">Virement bancaire</SelectItem>
+                  <SelectItem value="cheque">Chèque</SelectItem>
+                  <SelectItem value="especes">Espèces</SelectItem>
+                  <SelectItem value="carte">Carte bancaire</SelectItem>
+                  <SelectItem value="prelevement">Prélèvement automatique</SelectItem>
+                  <SelectItem value="stripe">Stripe</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMarkPaidOpen(false)}>Annuler</Button>
+            <Button onClick={markPaid} disabled={busy === "paid"} className="bg-green-600 hover:bg-green-700">
+              {busy === "paid" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+              Confirmer
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -526,15 +563,18 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
     setSendingId(null);
   };
 
-  const markPaid = async (id: number) => {
-    setMarkingId(id);
+  const [markPaidDialog, setMarkPaidDialog] = useState<{ id: number; ref: string } | null>(null);
+  const [markPaidMethod, setMarkPaidMethod] = useState("virement");
+  const markPaid = async () => {
+    if (!markPaidDialog) return;
+    setMarkingId(markPaidDialog.id);
     try {
       const r = await fetch(`${API}/api/license-management/mark-invoice-paid`, {
         method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-        body: JSON.stringify({ factureClientId: id, paymentMethod: "virement" }),
+        body: JSON.stringify({ factureClientId: markPaidDialog.id, paymentMethod: markPaidMethod }),
       });
       const d = await r.json();
-      if (d.success) { toast({ title: "Payee", description: d.message }); onRefresh(); }
+      if (d.success) { toast({ title: "Payée", description: d.message }); onRefresh(); setMarkPaidDialog(null); }
       else throw new Error(d.error || "Erreur");
     } catch (err: any) {
       toast({ title: "Erreur", description: err.message, variant: "destructive" });
@@ -664,7 +704,7 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
                           <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 text-blue-600 hover:text-blue-700" onClick={() => { setPaymentDialog(inv); setPaymentAmount(remaining.toFixed(2)); }}>
                             <DollarSign className="h-3 w-3 mr-0.5" />Paiement partiel
                           </Button>
-                          <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 text-green-600 hover:text-green-700" onClick={() => markPaid(inv.id)} disabled={markingId === inv.id}>
+                          <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 text-green-600 hover:text-green-700" onClick={() => { setMarkPaidMethod("virement"); setMarkPaidDialog({ id: inv.id, ref: inv.reference }); }} disabled={markingId === inv.id}>
                             {markingId === inv.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3 mr-0.5" />}
                             Soldee
                           </Button>
@@ -776,6 +816,38 @@ function ClientInvoicesTab({ data, onRefresh }: { data: any; onRefresh: () => vo
             <Button variant="outline" onClick={() => setPaymentDialog(null)}>Annuler</Button>
             <Button onClick={recordPayment} disabled={!paymentAmount || parseFloat(paymentAmount) <= 0} className="bg-blue-500 hover:bg-blue-600">
               <DollarSign className="h-4 w-4 mr-2" />Enregistrer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!markPaidDialog} onOpenChange={(o) => { if (!o) setMarkPaidDialog(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-green-500" />Marquer la facture payée</DialogTitle>
+            <DialogDescription>Confirmez le mode de paiement utilisé pour solder cette facture.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="text-sm"><span className="text-muted-foreground">Facture :</span> <span className="font-semibold">{markPaidDialog?.ref}</span></div>
+            <div className="space-y-1"><Label className="text-xs">Mode de paiement</Label>
+              <Select value={markPaidMethod} onValueChange={setMarkPaidMethod}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="virement">Virement bancaire</SelectItem>
+                  <SelectItem value="cheque">Chèque</SelectItem>
+                  <SelectItem value="especes">Espèces</SelectItem>
+                  <SelectItem value="carte">Carte bancaire</SelectItem>
+                  <SelectItem value="prelevement">Prélèvement automatique</SelectItem>
+                  <SelectItem value="stripe">Stripe</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMarkPaidDialog(null)}>Annuler</Button>
+            <Button onClick={markPaid} disabled={markingId !== null} className="bg-green-600 hover:bg-green-700">
+              {markingId !== null ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+              Confirmer
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -932,7 +1004,7 @@ function BillingSettingsTab({ data, onRefresh }: { data: any; onRefresh: () => v
         body: JSON.stringify(payload),
       });
       const d = await r.json();
-      if (d.success) { toast({ title: "Enregistre", description: "Parametres mis a jour" }); setBankIban(""); onRefresh(); }
+      if (d.success) { toast({ title: "Enregistre", description: "Parametres mis à jour" }); setBankIban(""); onRefresh(); }
       else throw new Error(d.error || "Erreur");
     } catch (err: any) {
       toast({ title: "Erreur", description: err.message, variant: "destructive" });
@@ -1289,7 +1361,7 @@ function AbonnementTab() {
       });
       const result = await res.json();
       if (res.ok) {
-        toast({ title: "Demande envoyee", description: result.message });
+        toast({ title: "Demande envoyée", description: result.message });
         setShowUpgrade(false); setSelectedPlan(null); setUpgradeMessage("");
       } else throw new Error(result.error || "Erreur");
     } catch (err: any) {
@@ -1349,7 +1421,7 @@ function AbonnementTab() {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-1"><Shield className="h-4 w-4 text-green-500" /><span className="text-sm text-muted-foreground">Cle de licence</span></div>
+            <div className="flex items-center gap-2 mb-1"><Shield className="h-4 w-4 text-green-500" /><span className="text-sm text-muted-foreground">Clé de licence</span></div>
             <p className="text-sm font-mono font-medium break-all select-all">{sub?.licenseKey || "—"}</p>
           </CardContent>
         </Card>

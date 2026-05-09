@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { confirmAction } from "@/hooks/use-confirm";
 import {
   Users, UserPlus, Crown, ShieldCheck, Eye, Trash2, MoreHorizontal,
   Mail, Clock, CheckCircle2, XCircle, AlertTriangle, Search,
@@ -140,7 +141,7 @@ export default function UsersPage() {
       if (res.ok) {
         toast({
           title: "Invitation envoyee",
-          description: data.emailSent ? `Un email d'invitation a ete envoye a ${inviteEmail}.` : data.message,
+          description: data.emailSent ? `Un email d'invitation a été envoyé a ${inviteEmail}.` : data.message,
         });
         setInviteEmail("");
         setInviteRole("agent");
@@ -284,7 +285,7 @@ export default function UsersPage() {
         body: JSON.stringify(editUserForm),
       });
       if (res.ok) {
-        toast({ title: "Utilisateur modifie", description: `${editUserForm.prenom} ${editUserForm.nom} mis a jour.` });
+        toast({ title: "Utilisateur modifie", description: `${editUserForm.prenom} ${editUserForm.nom} mis à jour.` });
         setShowEditUser(false);
         loadUsers();
       } else {
@@ -309,7 +310,7 @@ export default function UsersPage() {
         body: JSON.stringify({ role: editRole }),
       });
       if (res.ok) {
-        toast({ title: "Role mis a jour", description: `${selectedUser.prenom} ${selectedUser.nom} est maintenant ${ROLE_CONFIG[editRole].label}.` });
+        toast({ title: "Role mis à jour", description: `${selectedUser.prenom} ${selectedUser.nom} est maintenant ${ROLE_CONFIG[editRole].label}.` });
         setShowRoleChange(false);
         loadUsers();
       } else {
@@ -324,7 +325,7 @@ export default function UsersPage() {
   };
 
   const handleSendCredentials = async (user: ApiUser) => {
-    if (!confirm(`Generer un code de connexion temporaire et l'envoyer par email a ${user.prenom} ${user.nom} (${user.email}) ?`)) return;
+    if (!(await confirmAction({ title: "Envoyer un code de connexion ?", description: `Un code temporaire sera envoyé à ${user.prenom} ${user.nom} (${user.email}).`, confirmLabel: "Envoyer" }))) return;
     setSaving(true);
     try {
       const res = await fetch(`${BASE}api/auth/users/${user.id}/send-credentials`, {
@@ -367,7 +368,7 @@ export default function UsersPage() {
       if (res.ok) {
         toast({
           title: "Utilisateur cree",
-          description: `${newUser.prenom} ${newUser.nom} a ete cree. ${data.emailSent ? "Identifiants envoyes par email." : data.emailNote}`,
+          description: `${newUser.prenom} ${newUser.nom} a été créé. ${data.emailSent ? "Identifiants envoyes par email." : data.emailNote}`,
         });
         setNewUser({ prenom: "", nom: "", email: "", password: "", role: "agent", departement: "" });
         setShowAddUser(false);
@@ -384,17 +385,17 @@ export default function UsersPage() {
 
   const handleDelete = async (user: ApiUser) => {
     if (user.role === "super_admin") {
-      toast({ title: "Action interdite", description: "Le Super Administrateur ne peut pas etre supprime.", variant: "destructive" });
+      toast({ title: "Action interdite", description: "Le Super Administrateur ne peut pas etre supprimé.", variant: "destructive" });
       return;
     }
-    if (!confirm(`Supprimer ${user.prenom} ${user.nom} ? Cette action est irreversible.`)) return;
+    if (!(await confirmAction({ title: `Supprimer ${user.prenom} ${user.nom} ?`, description: "Cette action est irréversible.", confirmLabel: "Supprimer", destructive: true }))) return;
     try {
       const res = await fetch(`${BASE}api/auth/users/${user.id}`, {
         method: "DELETE",
         credentials: "include",
       });
       if (res.ok) {
-        toast({ title: "Utilisateur supprime", description: `${user.prenom} ${user.nom} a ete supprime.` });
+        toast({ title: "Utilisateur supprime", description: `${user.prenom} ${user.nom} a été supprimé.` });
         loadUsers();
       } else {
         const data = await res.json();
@@ -415,7 +416,7 @@ export default function UsersPage() {
 
   const handleBulkDeactivate = async () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Desactiver ${selectedIds.size} utilisateur(s) ?`)) return;
+    if (!(await confirmAction({ title: `Désactiver ${selectedIds.size} utilisateur(s) ?`, confirmLabel: "Désactiver", destructive: true }))) return;
     const ids = Array.from(selectedIds);
     const res = await fetch(`${BASE}api/auth/users/bulk/deactivate`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
     if (res.ok) {
@@ -429,7 +430,7 @@ export default function UsersPage() {
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Supprimer ${selectedIds.size} utilisateur(s) ? Cette action est irreversible.`)) return;
+    if (!(await confirmAction({ title: `Supprimer ${selectedIds.size} utilisateur(s) ?`, description: "Cette action est irréversible.", confirmLabel: "Supprimer", destructive: true }))) return;
     const ids = Array.from(selectedIds);
     const res = await fetch(`${BASE}api/auth/users/bulk/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
     if (res.ok) {
@@ -446,7 +447,7 @@ export default function UsersPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-3"><Icon3D icon={Users} variant="teal" size="md" /> Gestion des utilisateurs</h1>
-          <p className="text-sm text-muted-foreground">Gerez votre equipe et les permissions d'acces.</p>
+          <p className="text-sm text-muted-foreground">Gerez votre equipe et les permissions d'accès.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {selectMode && selectedIds.size > 0 && (
@@ -474,7 +475,7 @@ export default function UsersPage() {
             <MailPlus className="w-4 h-4" />
             Inviter par email
           </Button>
-          <Button size="sm" className="gap-2" onClick={() => siegesRestants > 0 ? setShowAddUser(true) : toast({ title: "Limite atteinte", description: "Nombre maximum d'utilisateurs atteint. Mettez a jour votre plan dans les parametres.", variant: "destructive" })}>
+          <Button size="sm" className="gap-2" onClick={() => siegesRestants > 0 ? setShowAddUser(true) : toast({ title: "Limite atteinte", description: "Nombre maximum d'utilisateurs atteint. Mettez a jour votre plan dans les paramètres.", variant: "destructive" })}>
             <UserPlus className="w-4 h-4" />
             Ajouter
           </Button>
@@ -794,7 +795,7 @@ export default function UsersPage() {
                 Il ne reste que {siegesRestants} place(s) disponible(s) sur votre plan
               </p>
               <p className="text-xs text-amber-600 dark:text-amber-400">
-                Mettez a jour votre abonnement dans les parametres pour ajouter plus d'utilisateurs.
+                Mettez a jour votre abonnement dans les paramètres pour ajouter plus d'utilisateurs.
               </p>
             </div>
           </CardContent>

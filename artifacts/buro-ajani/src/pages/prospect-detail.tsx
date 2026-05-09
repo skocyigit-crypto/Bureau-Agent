@@ -1,4 +1,5 @@
 import { useRoute, useLocation, Link } from "wouter";
+import { confirmAction } from "@/hooks/use-confirm";
 import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -210,14 +211,14 @@ export default function ProspectDetail() {
   };
 
   const handleDelete = async () => {
-    if (!confirm("Supprimer ce prospect ?")) return;
+    if (!(await confirmAction({ title: "Supprimer ce prospect ?", confirmLabel: "Supprimer", destructive: true }))) return;
     const res = await fetch(`${BASE}/api/prospects/${prospectId}`, { method: "DELETE", credentials: "include" });
     if (res.ok) { toast({ title: "Prospect supprimé" }); navigate("/prospects"); }
     else { const d = await res.json(); toast({ title: "Erreur", description: d.error, variant: "destructive" }); }
   };
 
   const handleConvert = async () => {
-    if (!confirm("Convertir ce prospect en contact ? Son statut passera à 'Gagné'.")) return;
+    if (!(await confirmAction({ title: "Convertir en contact ?", description: "Le statut du prospect passera à « Gagné ».", confirmLabel: "Convertir" }))) return;
     const res = await fetch(`${BASE}/api/prospects/${prospectId}/convert`, { method: "POST", credentials: "include" });
     const d = await res.json();
     if (res.ok) { toast({ title: "Converti !", description: d.message }); load(); }

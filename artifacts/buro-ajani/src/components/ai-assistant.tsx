@@ -314,7 +314,7 @@ function AiAssistantPanel({ onClose }: { onClose: () => void }) {
   ];
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 w-[440px] h-[650px] bg-card border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 w-[calc(100vw-2rem)] sm:w-[440px] max-w-[440px] h-[min(80vh,650px)] bg-card border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden">
       <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-violet-600 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2 text-white">
           <div className="relative">

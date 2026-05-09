@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { confirmAction } from "@/hooks/use-confirm";
 import { Sparkles, Send, Plus, Trash2, Wrench, CheckCircle2, AlertCircle, Loader2, MessageSquare, ShieldAlert, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -125,7 +126,7 @@ export default function AsistanPage() {
   };
 
   const deleteConversation = async (id: number) => {
-    if (!confirm("Supprimer cette conversation ?")) return;
+    if (!(await confirmAction({ title: "Supprimer cette conversation ?", confirmLabel: "Supprimer", destructive: true }))) return;
     try {
       await fetch(`${API}/api/assistant/conversations/${id}`, { method: "DELETE", credentials: "include" });
       if (activeId === id) newConversation();

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { confirmAction } from "@/hooks/use-confirm";
 import { TrendingUp, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, Filter, Target, Trophy, XCircle, DollarSign, RefreshCw, Kanban, LayoutList, ArrowUpDown, Download, UserPlus, Printer, Layers, Copy, FolderKanban, Briefcase } from "lucide-react";
 import { EmptyOnboardingHint } from "@/components/empty-onboarding-hint";
 import { useLocation } from "wouter";
@@ -127,7 +128,7 @@ export default function ProspectsPage() {
       const method = editingId ? "PATCH" : "POST";
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ...form, probability: Number(form.probability), value: form.value || null }) });
       if (res.ok) {
-        toast({ title: editingId ? "Prospect mis a jour" : "Prospect cree" });
+        toast({ title: editingId ? "Prospect mis à jour" : "Prospect cree" });
         setDialogOpen(false); load();
       } else { const d = await res.json(); toast({ title: "Erreur", description: d.error, variant: "destructive" }); }
     } catch { toast({ title: "Erreur", description: "Sauvegarde echouee.", variant: "destructive" }); }
@@ -141,14 +142,14 @@ export default function ProspectsPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Supprimer ce prospect ?")) return;
+    if (!(await confirmAction({ title: "Supprimer ce prospect ?", confirmLabel: "Supprimer", destructive: true }))) return;
     const res = await fetch(`${BASE}/api/prospects/${id}`, { method: "DELETE", credentials: "include" });
     if (res.ok) { toast({ title: "Prospect supprime" }); load(); }
     else { const d = await res.json(); toast({ title: "Erreur", description: d.error, variant: "destructive" }); }
   };
 
   const handleConvert = async (id: number) => {
-    if (!confirm("Convertir ce prospect en contact ? Son statut passera à 'Gagné'.")) return;
+    if (!(await confirmAction({ title: "Convertir en contact ?", description: "Le statut du prospect passera à « Gagné ».", confirmLabel: "Convertir" }))) return;
     const res = await fetch(`${BASE}/api/prospects/${id}/convert`, { method: "POST", credentials: "include" });
     const d = await res.json();
     if (res.ok) { toast({ title: "Converti !", description: d.message }); load(); }
@@ -194,7 +195,7 @@ export default function ProspectsPage() {
   const toggleAll = () => setSelectedIds(selectedIds.length === prospects.length ? [] : prospects.map(p => p.id));
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
-    if (!confirm(`Supprimer ${selectedIds.length} prospect(s) ?`)) return;
+    if (!(await confirmAction({ title: `Supprimer ${selectedIds.length} prospect(s) ?`, confirmLabel: "Supprimer", destructive: true }))) return;
     const res = await fetch(`${BASE}/api/bulk/prospects/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds }) });
     if (res.ok) { toast({ title: `${selectedIds.length} prospect(s) supprimé(s)` }); setSelectedIds([]); load(); }
     else toast({ title: "Erreur", variant: "destructive" });

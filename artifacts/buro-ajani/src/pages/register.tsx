@@ -37,12 +37,21 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
       setError("Le prenom et le nom sont requis.");
       return;
     }
-    if (!email.trim() || !email.includes("@")) {
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setError("Une adresse email valide est requise.");
       return;
     }
+    const normalizedPhone = phone.trim().replace(/[\s.\-()]/g, "");
+    if (normalizedPhone && !/^(\+?\d{8,15})$/.test(normalizedPhone)) {
+      setError("Le numéro de téléphone n'est pas valide (8 à 15 chiffres, format international accepté).");
+      return;
+    }
     if (password.length < 8) {
-      setError("Le mot de passe doit contenir au moins 8 caracteres.");
+      setError("Le mot de passe doit contenir au moins 8 caractères.");
+      return;
+    }
+    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/\d/.test(password)) {
+      setError("Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre.");
       return;
     }
     if (password !== confirmPassword) {
@@ -63,7 +72,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           email: email.trim(),
-          phone: phone.trim() || undefined,
+          phone: normalizedPhone || undefined,
           password,
         }),
       });
@@ -133,7 +142,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Cle de licence</span>
+                  <span className="text-muted-foreground">Clé de licence</span>
                   <span className="font-mono text-xs font-bold text-amber-600">{result.licenseKey}</span>
                 </div>
               </div>
@@ -146,8 +155,8 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
               </div>
               <p className="text-xs text-blue-700 dark:text-blue-400">
                 {result.emailSent
-                  ? `Un email avec vos identifiants et les instructions d'acces a ete envoye a ${email}.`
-                  : `${result.emailNote || "Verifiez votre boite mail pour les details d'acces."}`}
+                  ? `Un email avec vos identifiants et les instructions d'accès a été envoyé a ${email}.`
+                  : `${result.emailNote || "Vérifiez votre boîte mail pour les détails d'accès."}`}
               </p>
             </div>
 
@@ -173,7 +182,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
             </Button>
 
             <p className="text-xs text-center text-muted-foreground">
-              Conservez votre cle de licence : <strong className="text-amber-600">{result.licenseKey}</strong>
+              Conservez votre clé de licence : <strong className="text-amber-600">{result.licenseKey}</strong>
             </p>
           </CardContent>
         </Card>

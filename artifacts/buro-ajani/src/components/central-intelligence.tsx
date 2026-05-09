@@ -139,7 +139,7 @@ const TON_CONFIG: Record<string, { label: string; color: string; icon: typeof Us
 };
 
 const MODULE_CONFIG: Record<string, { icon: typeof Calculator; label: string; color: string }> = {
-  comptabilite: { icon: Calculator, label: "Comptabilite", color: "text-violet-500" },
+  comptabilite: { icon: Calculator, label: "Comptabilité", color: "text-violet-500" },
   secretariat: { icon: Briefcase, label: "Secretariat", color: "text-blue-500" },
   logistique: { icon: Package, label: "Logistique", color: "text-emerald-500" },
 };

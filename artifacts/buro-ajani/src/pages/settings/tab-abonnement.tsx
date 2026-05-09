@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { confirmAction } from "@/hooks/use-confirm";
 import { Package, AlertTriangle, CheckCircle2, Loader2, FileText, ArrowUpRight, Clock, CreditCard, ChevronDown, ChevronUp } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -125,7 +126,7 @@ export function TabAbonnement() {
       });
       if (res.ok) {
         const data = await res.json();
-        toast({ title: "Demande envoyee", description: data.message });
+        toast({ title: "Demande envoyée", description: data.message });
       } else {
         const err = await res.json();
         toast({ title: "Erreur", description: err.error, variant: "destructive" });
@@ -159,9 +160,9 @@ export function TabAbonnement() {
 
   const handleCancel = async (immediate: boolean) => {
     const msg = immediate
-      ? "Annuler immediatement ? Vous perdrez l'acces aux fonctionnalites payantes maintenant."
-      : "Annuler a la fin de la periode ? Votre abonnement reste actif jusqu'a la fin du cycle facture.";
-    if (!window.confirm(msg)) return;
+      ? "Annuler immédiatement ? Vous perdrez l'accès aux fonctionnalités payantes maintenant."
+      : "Annuler à la fin de la période ? Votre abonnement reste actif jusqu'à la fin du cycle facturé.";
+    if (!(await confirmAction({ title: immediate ? "Annuler immédiatement ?" : "Annuler à la fin de la période ?", description: msg, confirmLabel: "Annuler l'abonnement", destructive: true }))) return;
     setCancelLoading(true);
     try {
       const res = await fetch(`${BASE}/api/stripe/cancel-subscription`, {
@@ -172,13 +173,13 @@ export function TabAbonnement() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Abonnement annule", description: data.message });
+        toast({ title: "Abonnement annulé", description: data.message });
         window.location.reload();
       } else {
         toast({ title: "Erreur", description: data.error, variant: "destructive" });
       }
     } catch {
-      toast({ title: "Erreur", description: "Annulation echouee.", variant: "destructive" });
+      toast({ title: "Erreur", description: "Annulation échouée.", variant: "destructive" });
     } finally {
       setCancelLoading(false);
     }
@@ -253,7 +254,7 @@ export function TabAbonnement() {
             )}
             {subscription.licenseKey && (
               <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
-                <span className="text-xs text-muted-foreground">Cle de licence</span>
+                <span className="text-xs text-muted-foreground">Clé de licence</span>
                 <code className="text-xs font-mono font-bold text-amber-600 select-all">{subscription.licenseKey}</code>
               </div>
             )}
@@ -292,7 +293,7 @@ export function TabAbonnement() {
                       className="text-red-600 hover:text-red-700 hover:bg-red-50"
                       data-testid="button-cancel-immediate"
                     >
-                      Annuler immediatement
+                      Annuler immédiatement
                     </Button>
                   </>
                 )}

@@ -220,7 +220,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <img
                   src={orgLogo}
                   alt={orgName || "Logo"}
-                  className="h-8 w-8 rounded-lg object-contain border border-sidebar-border bg-white shrink-0"
+                  className="h-8 w-8 rounded-lg object-contain border border-sidebar-border bg-white dark:bg-sidebar-accent shrink-0"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                 />
               ) : (

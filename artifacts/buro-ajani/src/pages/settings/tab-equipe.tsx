@@ -96,7 +96,7 @@ export function TabEquipe() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Invitation envoyee", description: `Un email a ete envoye a ${inviteEmail}.` });
+        toast({ title: "Invitation envoyee", description: `Un email a été envoyé a ${inviteEmail}.` });
         setInviteEmail("");
         load();
       } else {

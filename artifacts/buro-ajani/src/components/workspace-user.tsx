@@ -382,8 +382,8 @@ export function UserProfileButton() {
                 {(Object.entries(user.permissions) as [keyof UserPermissions, boolean][]).map(([key, val]) => {
                   const labels: Record<keyof UserPermissions, string> = {
                     telechargerFichiers: "Telecharger des fichiers",
-                    supprimerDonnees: "Supprimer des donnees",
-                    exporterDonnees: "Exporter des donnees",
+                    supprimerDonnees: "Supprimer des données",
+                    exporterDonnees: "Exporter des données",
                     gererUtilisateurs: "Gerer les utilisateurs",
                     modifierSecurite: "Modifier la securite",
                     accesAudit: "Acces aux audits",

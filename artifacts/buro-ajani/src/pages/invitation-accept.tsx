@@ -143,7 +143,7 @@ export default function InvitationAcceptPage() {
               <CheckCircle2 className="w-8 h-8 text-emerald-500" />
             </div>
             <h2 className="text-xl font-bold">Bienvenue !</h2>
-            <p className="text-muted-foreground">Votre compte a ete cree avec succes. Redirection en cours...</p>
+            <p className="text-muted-foreground">Votre compte a été créé avec succes. Redirection en cours...</p>
             <Loader2 className="w-5 h-5 animate-spin mx-auto text-amber-500" />
           </CardContent>
         </Card>

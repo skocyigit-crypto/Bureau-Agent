@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import { confirmAction } from "@/hooks/use-confirm";
 import { useListTasks, useCreateTask, useUpdateTask, useDeleteTask, getListTasksQueryKey, useListContacts, useGetTask } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format, isPast, isToday } from "date-fns";
@@ -205,7 +206,7 @@ export default function Tasks() {
     updateTask.mutate({ id, data: { status } }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
-        toast({ title: "Statut mis a jour" });
+        toast({ title: "Statut mis à jour" });
       },
       onError: () => toast({ title: "Erreur", description: "Impossible de changer le statut", variant: "destructive" }),
     });
@@ -225,7 +226,7 @@ export default function Tasks() {
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Supprimer ${selectedIds.size} tâche(s) ?`)) return;
+    if (!(await confirmAction({ title: `Supprimer ${selectedIds.size} tâche(s) ?`, confirmLabel: "Supprimer", destructive: true }))) return;
     const ids = Array.from(selectedIds);
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
     const res = await fetch(`${BASE}/api/bulk/tasks/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
@@ -827,8 +828,8 @@ export default function Tasks() {
                                 </DropdownMenuItem>
                               )}
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => {
-                                if (!confirm("Supprimer cette tâche ?")) return;
+                              <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={async () => {
+                                if (!(await confirmAction({ title: "Supprimer cette tâche ?", confirmLabel: "Supprimer", destructive: true }))) return;
                                 deleteTask.mutate({ id: task.id }, {
                                   onSuccess: () => { toast({ title: "Tâche supprimée" }); queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() }); },
                                   onError: () => toast({ title: "Erreur", description: "Impossible de supprimer", variant: "destructive" }),

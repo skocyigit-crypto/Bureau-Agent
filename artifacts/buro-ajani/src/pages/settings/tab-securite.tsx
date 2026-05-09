@@ -88,7 +88,7 @@ function SecurityMonitorPanel() {
               <ScanSearch className="w-5 h-5 text-blue-600" />
               Moniteur de Securite en Temps Reel
             </CardTitle>
-            <CardDescription>Surveillance des menaces, detection de virus et protection des donnees clients.</CardDescription>
+            <CardDescription>Surveillance des menaces, detection de virus et protection des données clients.</CardDescription>
           </div>
           <div className="flex items-center gap-2">
             <Badge className={`${levelColor === "text-emerald-600" ? "bg-emerald-100 text-emerald-700" : levelColor === "text-amber-600" ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"} border-0`}>
@@ -765,13 +765,13 @@ export function TabSecurite() {
             <UserCog className="w-5 h-5" />
             Roles et permissions
           </CardTitle>
-          <CardDescription>Gestion des niveaux d'acces par role.</CardDescription>
+          <CardDescription>Gestion des niveaux d'accès par role.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             {[
               { badge: "Super Admin", color: "bg-red-100 text-red-700", level: "Niveau 4", title: "Acces total", desc: "Seul role autorise a telecharger des fichiers externes, modifier les parametres de securite, gerer les utilisateurs et acceder aux journaux d'audit. Peut lever les restrictions temporairement." },
-              { badge: "Administrateur", color: "bg-amber-100 text-amber-700", level: "Niveau 3", title: "Gestion avancee", desc: "Gestion des contacts, taches et rapports. Pas d'acces aux telechargements externes ni aux parametres de securite critiques. Peut consulter les alertes de securite." },
+              { badge: "Administrateur", color: "bg-amber-100 text-amber-700", level: "Niveau 3", title: "Gestion avancee", desc: "Gestion des contacts, taches et rapports. Pas d'accès aux telechargements externes ni aux parametres de securite critiques. Peut consulter les alertes de securite." },
               { badge: "Agent", color: "bg-blue-100 text-blue-700", level: "Niveau 2", title: "Operations courantes", desc: "Gestion des appels, consultation des contacts et taches. Aucun acces aux fichiers externes, aux exports de donnees ni aux parametres systeme." },
               { badge: "Lecture seule", color: "bg-gray-100 text-gray-700", level: "Niveau 1", title: "Consultation uniquement", desc: "Consultation des tableaux de bord et rapports uniquement. Aucune modification, aucun telechargement, aucun export. Acces le plus restreint." },
             ].map((role) => (
@@ -797,11 +797,11 @@ export function TabSecurite() {
         </CardHeader>
         <CardContent className="space-y-4">
           {[
-            { label: "Chiffrement des donnees au repos", desc: "Les donnees sensibles sont chiffrees dans la base de donnees (AES-256)" },
+            { label: "Chiffrement des données au repos", desc: "Les donnees sensibles sont chiffrees dans la base de donnees (AES-256)" },
             { label: "Journal d'audit", desc: "Enregistrer toutes les actions des utilisateurs avec horodatage et adresse IP" },
-            { label: "Droit a l'oubli", desc: "Permettre la suppression complete des donnees d'un contact" },
-            { label: "Export des donnees personnelles", desc: "Permettre l'export des donnees au format standard (RGPD Art. 20)" },
-            { label: "Conservation limitee des donnees", desc: "Suppression automatique des donnees au-dela de la duree legale de conservation" },
+            { label: "Droit a l'oubli", desc: "Permettre la suppression complete des données d'un contact" },
+            { label: "Export des données personnelles", desc: "Permettre l'export des données au format standard (RGPD Art. 20)" },
+            { label: "Conservation limitee des données", desc: "Suppression automatique des données au-dela de la duree legale de conservation" },
             { label: "Consentement explicite", desc: "Recueillir et enregistrer le consentement avant tout traitement de donnees" },
           ].map((item, i) => (
             <div key={item.label}>

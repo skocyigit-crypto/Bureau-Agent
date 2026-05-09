@@ -1199,7 +1199,7 @@ export default function AiAgentsPage() {
                 <TrendingUp className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4" />
                 <h3 className="text-lg font-semibold mb-2">Predictions IA</h3>
                 <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
-                  Analysez vos donnees historiques pour predire le volume d'appels, la productivite et les risques operationnels des 7 prochains jours.
+                  Analysez vos données historiques pour predire le volume d'appels, la productivite et les risques operationnels des 7 prochains jours.
                 </p>
                 <Button onClick={loadPredictions} disabled={predictionsLoading} className="gap-2 bg-gradient-to-r from-purple-600 to-indigo-600">
                   <Sparkles className="w-4 h-4" /> Generer les predictions

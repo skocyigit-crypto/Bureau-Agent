@@ -3,6 +3,7 @@ import { HealthCheckResponse } from "@workspace/api-zod";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, stockArticlesTable, calendarEventsTable, appReleasesTable, checkDbHealth } from "@workspace/db";
 import { sql, desc, eq, and } from "drizzle-orm";
 import crypto from "crypto";
+import { requireAuth, requireRole } from "../middleware/auth";
 
 const router: IRouter = Router();
 
@@ -68,13 +69,7 @@ router.get("/app-releases", async (req, res) => {
   }
 });
 
-router.post("/app-releases", async (req, res): Promise<void> => {
-  const userRole = (req.session as any)?.userRole;
-  if (userRole !== "super_admin") {
-    res.status(403).json({ error: "Acces reserve au super administrateur." });
-    return;
-  }
-
+router.post("/app-releases", requireAuth, requireRole("super_admin"), async (req, res): Promise<void> => {
   const { version, title, description, changes, type, forceUpdate } = req.body;
   if (!version || !title) {
     res.status(400).json({ error: "Version et titre requis." });
@@ -100,12 +95,7 @@ router.post("/app-releases", async (req, res): Promise<void> => {
   }
 });
 
-router.delete("/app-releases/:id", async (req, res): Promise<void> => {
-  const userRole = (req.session as any)?.userRole;
-  if (userRole !== "super_admin") {
-    res.status(403).json({ error: "Acces reserve." });
-    return;
-  }
+router.delete("/app-releases/:id", requireAuth, requireRole("super_admin"), async (req, res): Promise<void> => {
   const id = parseInt(String(req.params.id), 10);
   if (!id) { res.status(400).json({ error: "ID invalide." }); return; }
   try {

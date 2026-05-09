@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { confirmAction } from "@/hooks/use-confirm";
 import {
   Building2, Plus, Edit, Trash2, Crown, Users, Phone, Mail,
   MapPin, CheckCircle2, XCircle, Loader2, Key, AlertTriangle,
@@ -339,7 +340,7 @@ export default function OrganisationsPage() {
   };
 
   const handleRevokeLegal = async (agreementId: number, docTitle: string) => {
-    if (!confirm(`Revoquer l'acceptation de "${docTitle}" ? Cette action peut affecter la conformite de l'organisation.`)) return;
+    if (!(await confirmAction({ title: `Révoquer l'acceptation de « ${docTitle} » ?`, description: "Cette action peut affecter la conformité de l'organisation.", confirmLabel: "Révoquer", destructive: true }))) return;
     try {
       const res = await fetch(`${BASE}api/legal/revoke`, {
         method: "POST",
@@ -481,7 +482,7 @@ export default function OrganisationsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Mis a jour", description: data.message });
+        toast({ title: "Mis à jour", description: data.message });
         setShowEdit(false);
         loadOrganisations();
       } else {
@@ -506,7 +507,7 @@ export default function OrganisationsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Plan mis a jour", description: data.message });
+        toast({ title: "Plan mis à jour", description: data.message });
         setShowPlan(false);
         loadOrganisations();
       } else {
@@ -555,7 +556,7 @@ export default function OrganisationsPage() {
       toast({ title: "Erreur", description: "Aucun email associe a cette organisation.", variant: "destructive" });
       return;
     }
-    if (resetPassword && !confirm(`Reinitialiser le mot de passe de l'administrateur de ${org.name} et envoyer les nouveaux identifiants ?`)) return;
+    if (resetPassword && !(await confirmAction({ title: "Réinitialiser le mot de passe ?", description: `Les nouveaux identifiants de l'administrateur de ${org.name} seront envoyés par email.`, confirmLabel: "Réinitialiser", destructive: true }))) return;
     setSendingEmail(org.id);
     try {
       const res = await fetch(`${BASE}api/organisations/${org.id}/resend-license`, {
@@ -677,7 +678,7 @@ export default function OrganisationsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Statut mis a jour", description: data.message });
+        toast({ title: "Statut mis à jour", description: data.message });
         if (billingOrg) openBilling(billingOrg);
         loadBillingSummary();
       } else {
@@ -1712,7 +1713,7 @@ export default function OrganisationsPage() {
               )}
             </div>
           ) : (
-            <p className="text-muted-foreground text-center py-8">Aucune donnee.</p>
+            <p className="text-muted-foreground text-center py-8">Aucune donnée.</p>
           )}
         </DialogContent>
       </Dialog>

@@ -258,6 +258,12 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
     return next();
   }
 
+  // Bypass for telephony webhooks: they are authenticated via signature/HMAC
+  // (Twilio x-twilio-signature, Vonage/Telnyx shared secret) and never include Origin/Referer.
+  if (req.path.startsWith("/telephony/webhook/") || req.originalUrl.startsWith("/api/telephony/webhook/")) {
+    return next();
+  }
+
   if (process.env.NODE_ENV !== "production") {
     return next();
   }

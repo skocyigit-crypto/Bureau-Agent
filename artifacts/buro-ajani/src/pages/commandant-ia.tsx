@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { confirmAction } from "@/hooks/use-confirm";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -70,7 +71,7 @@ export default function CommandantIAPage() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="grid grid-cols-12 w-full">
+        <TabsList className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 w-full h-auto">
           <TabsTrigger value="chat" className="text-xs gap-1"><MessageCircle className="h-3 w-3" />Chat</TabsTrigger>
           <TabsTrigger value="briefing" className="text-xs gap-1"><Coffee className="h-3 w-3" />Briefing</TabsTrigger>
           <TabsTrigger value="commandes" className="text-xs gap-1"><Zap className="h-3 w-3" />Commandes</TabsTrigger>
@@ -543,7 +544,7 @@ function EmailTab() {
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Mail className="h-4 w-4 text-blue-500" />Reponse email intelligente</CardTitle></CardHeader>
           <CardContent className="space-y-3">
-            <div><Label className="text-xs">De</Label><Input value={emailFrom} onChange={e => setEmailFrom(e.target.value)} placeholder="client@example.com" /></div>
+            <div><Label className="text-xs">De</Label><Input value={emailFrom} onChange={e => setEmailFrom(e.target.value)} placeholder="contact@entreprise.fr" /></div>
             <div><Label className="text-xs">Objet</Label><Input value={emailSubject} onChange={e => setEmailSubject(e.target.value)} placeholder="Demande d'informations" /></div>
             <div><Label className="text-xs">Corps du mail</Label><Textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} placeholder="Contenu de l'email recu..." rows={4} /></div>
             <div><Label className="text-xs">Ton</Label>
@@ -588,7 +589,7 @@ function EmailTab() {
           <CardDescription className="text-xs">Collez vos emails separes par "---" (ligne 1: expediteur, ligne 2: objet, reste: contenu)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Textarea value={emails} onChange={e => setEmails(e.target.value)} placeholder={"client@example.com\nDemande d'informations\nBonjour, je souhaite des informations sur...\n---\nautreclient@example.com\nSuivi de dossier\nMerci de nous envoyer les documents..."} rows={5} />
+          <Textarea value={emails} onChange={e => setEmails(e.target.value)} placeholder={"contact@entreprise.fr\nDemande d'informations\nBonjour, je souhaite des informations sur...\n---\nautre.contact@entreprise.fr\nSuivi de dossier\nMerci de nous envoyer les documents..."} rows={5} />
           <Button onClick={compileEmails} disabled={compilingEmails} className="bg-purple-600 hover:bg-purple-700">{compilingEmails ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2" />}Compiler les emails</Button>
           {compilation && (
             <div className="space-y-2">
@@ -847,7 +848,7 @@ function DriveTab() {
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Send className="h-4 w-4 text-blue-500" />Envoyer un fichier par email</CardTitle><CardDescription className="text-xs">Envoyez un fichier Google Drive par email avec onay</CardDescription></CardHeader>
           <CardContent className="space-y-3">
-            <div><Label className="text-xs">Email destinataire</Label><Input value={recipientEmail} onChange={e => setRecipientEmail(e.target.value)} placeholder="client@example.com" /></div>
+            <div><Label className="text-xs">Email destinataire</Label><Input value={recipientEmail} onChange={e => setRecipientEmail(e.target.value)} placeholder="contact@entreprise.fr" /></div>
             <div><Label className="text-xs">Objet</Label><Input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Document demande" /></div>
             <div><Label className="text-xs">Nom du fichier</Label><Input value={fileName} onChange={e => setFileName(e.target.value)} placeholder="rapport-mensuel.pdf" /></div>
             <div><Label className="text-xs">Message</Label><Textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Veuillez trouver ci-joint..." rows={2} /></div>
@@ -1377,7 +1378,7 @@ function ChatTab() {
   };
 
   const deleteConv = async (id: number) => {
-    if (!confirm("Supprimer cette conversation ?")) return;
+    if (!(await confirmAction({ title: "Supprimer cette conversation ?", confirmLabel: "Supprimer", destructive: true }))) return;
     try {
       await apiDelete(`/commandant/conversations/${id}`);
       setConversations(prev => prev.filter(c => c.id !== id));
@@ -1391,7 +1392,7 @@ function ChatTab() {
   };
 
   return (
-    <div className="mt-4 grid grid-cols-12 gap-4 h-[calc(100vh-220px)] min-h-[500px]">
+    <div className="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4 lg:h-[calc(100vh-220px)] lg:min-h-[500px]">
       <Card className="col-span-3 flex flex-col">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between gap-2">

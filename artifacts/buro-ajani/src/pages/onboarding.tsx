@@ -16,7 +16,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   crm: "CRM",
   communication: "Communication",
   gestion_projet: "Gestion de projet",
-  comptabilite: "Comptabilite",
+  comptabilite: "Comptabilité",
   documents: "Documents",
   messagerie: "Messagerie",
   marketing: "Marketing",
@@ -110,7 +110,7 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
     { title: "Bienvenue", icon: Rocket },
     { title: "Installer", icon: Download },
     { title: "Integrations", icon: Zap },
-    { title: "Pret !", icon: Check },
+    { title: "Prêt !", icon: Check },
   ];
 
   return (
@@ -144,7 +144,7 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
                   <h2 className="text-2xl font-bold mb-2">Bienvenue sur Agent de Bureau !</h2>
                   <p className="text-white/60 text-sm leading-relaxed max-w-md mx-auto">
                     Configurons votre espace de travail en quelques etapes. 
-                    Nous allons vous aider a installer l'application et connecter vos outils preferes.
+                    Nous allons vous aider a installer l'application et connecter vos outils préférés.
                   </p>
                 </div>
                 <div className="grid grid-cols-3 gap-4 pt-4">
@@ -169,7 +169,7 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
                 <div className="text-center">
                   <h2 className="text-xl font-bold mb-2">Installer l'application</h2>
                   <p className="text-white/60 text-sm">
-                    Installez Agent de Bureau sur vos appareils pour un acces rapide.
+                    Installez Agent de Bureau sur vos appareils pour un accès rapide.
                   </p>
                 </div>
 
@@ -183,7 +183,7 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
                         <h3 className="font-semibold text-sm">Application Desktop / Navigateur</h3>
                         <p className="text-white/50 text-xs mt-1">
                           {isPwaInstalled
-                            ? "L'application est installee sur cet appareil !"
+                            ? "L'application est installée sur cet appareil !"
                             : "Installez comme une application native depuis votre navigateur."}
                         </p>
                       </div>
@@ -210,12 +210,17 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
                       <div className="flex-1">
                         <h3 className="font-semibold text-sm">Application Mobile (iOS / Android)</h3>
                         <p className="text-white/50 text-xs mt-1">
-                          Telechargez l'app mobile pour gerer votre bureau en deplacement.
+                          Telechargez l'app mobile pour gerer votre bureau en déplacement.
                         </p>
                       </div>
-                      <Button size="sm" variant="outline" className="border-white/20 text-white/70 hover:text-white text-xs">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-white/20 text-white/70 hover:text-white text-xs"
+                        onClick={() => window.open(`${baseUrl}/telecharger`, "_blank")}
+                      >
                         <ExternalLink className="w-3.5 h-3.5 mr-1" />
-                        Bientot
+                        Voir
                       </Button>
                     </div>
                   </div>
@@ -245,7 +250,7 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
                 <div className="text-center">
                   <h2 className="text-xl font-bold mb-2">Connectez vos outils</h2>
                   <p className="text-white/60 text-sm">
-                    Selectionnez les applications que vous utilisez deja. Vous pourrez les configurer plus tard.
+                    Selectionnez les applications que vous utilisez déjà. Vous pourrez les configurer plus tard.
                   </p>
                 </div>
 
@@ -305,10 +310,10 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
                   <Check className="w-10 h-10 text-emerald-400" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold mb-2">Tout est pret !</h2>
+                  <h2 className="text-2xl font-bold mb-2">Tout est prêt !</h2>
                   <p className="text-white/60 text-sm leading-relaxed max-w-md mx-auto">
                     Votre espace Agent de Bureau est configure. Vous pouvez commencer a 
-                    gerer vos appels, contacts et taches des maintenant.
+                    gerer vos appels, contacts et taches dès maintenant.
                   </p>
                 </div>
                 <div className="bg-white/5 rounded-xl p-5 text-left space-y-3">
@@ -320,7 +325,7 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
                     </li>
                     <li className="flex items-center gap-2">
                       <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center text-xs text-amber-400">2</div>
-                      Configurez vos integrations dans les parametres
+                      Configurez vos integrations dans les paramètres
                     </li>
                     <li className="flex items-center gap-2">
                       <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center text-xs text-amber-400">3</div>

@@ -855,7 +855,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                       </Badge>
                     )}
                     <Badge className="bg-blue-500/10 text-blue-300 border-blue-500/20 text-[10px]">
-                      {aiDetectedLanguage === "fr" ? "Francais" : aiDetectedLanguage === "en" ? "English" : aiDetectedLanguage === "tr" ? "Turkce" : aiDetectedLanguage === "de" ? "Deutsch" : aiDetectedLanguage === "es" ? "Espanol" : aiDetectedLanguage === "ar" ? "Arabic" : aiDetectedLanguage}
+                      {aiDetectedLanguage === "fr" ? "Francais" : aiDetectedLanguage === "en" ? "English" : aiDetectedLanguage === "tr" ? "Turc" : aiDetectedLanguage === "de" ? "Allemand" : aiDetectedLanguage === "es" ? "Espagnol" : aiDetectedLanguage === "ar" ? "Arabe" : aiDetectedLanguage}
                     </Badge>
                     {aiDetectedIntents.map((i, idx) => (
                       <Badge key={idx} className="bg-violet-500/10 text-violet-300 border-violet-500/20 text-[10px]">
@@ -986,7 +986,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                     </div>
                   )}
                   <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
-                    {aiDetectedLanguage === "fr" ? "Francais" : aiDetectedLanguage === "en" ? "English" : aiDetectedLanguage === "tr" ? "Turkce" : aiDetectedLanguage === "de" ? "Deutsch" : aiDetectedLanguage === "es" ? "Espanol" : aiDetectedLanguage === "ar" ? "Arabic" : aiDetectedLanguage}
+                    {aiDetectedLanguage === "fr" ? "Francais" : aiDetectedLanguage === "en" ? "English" : aiDetectedLanguage === "tr" ? "Turc" : aiDetectedLanguage === "de" ? "Allemand" : aiDetectedLanguage === "es" ? "Espagnol" : aiDetectedLanguage === "ar" ? "Arabe" : aiDetectedLanguage}
                   </div>
                 </div>
 

@@ -18,7 +18,7 @@ const CATEGORY_META: Record<string, { label: string; icon: React.ElementType; co
   crm: { label: "CRM", icon: Users, color: "text-blue-600 bg-blue-100" },
   communication: { label: "Communication", icon: MessageSquare, color: "text-green-600 bg-green-100" },
   gestion_projet: { label: "Gestion de projet", icon: BarChart3, color: "text-purple-600 bg-purple-100" },
-  comptabilite: { label: "Comptabilite", icon: CreditCard, color: "text-amber-600 bg-amber-100" },
+  comptabilite: { label: "Comptabilité", icon: CreditCard, color: "text-amber-600 bg-amber-100" },
   documents: { label: "Documents", icon: FolderOpen, color: "text-orange-600 bg-orange-100" },
   messagerie: { label: "Messagerie", icon: Mail, color: "text-sky-600 bg-sky-100" },
   marketing: { label: "Marketing", icon: Zap, color: "text-pink-600 bg-pink-100" },

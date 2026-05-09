@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { confirmAction } from "@/hooks/use-confirm";
 import {
   Save, Cloud, Server, HardDrive, Shield, Clock,
   RefreshCw, CheckCircle2, XCircle, FolderOpen, Lock,
@@ -165,7 +166,7 @@ export function TabSauvegardes() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Configuration sauvegardee", description: "Les parametres de sauvegarde Google Drive ont ete mis a jour." });
+        toast({ title: "Configuration sauvegardee", description: "Les parametres de sauvegarde Google Drive ont ete mis à jour." });
         setDriveConfig(data.config);
         setDriveConfigEditing(false);
       } else {
@@ -230,7 +231,7 @@ export function TabSauvegardes() {
   };
 
   const handleFullRestore = async (fileId: string) => {
-    if (!confirm("ATTENTION: Cette operation va restaurer les donnees depuis la sauvegarde. Les enregistrements existants seront preserves (pas de suppression). Continuer ?")) return;
+    if (!(await confirmAction({ title: "Restaurer depuis la sauvegarde ?", description: "ATTENTION : les enregistrements existants seront préservés (aucune suppression).", confirmLabel: "Restaurer", destructive: true }))) return;
     setRestoringFileId(fileId);
     try {
       const res = await fetch(`${API_BASE}/google-drive-backup/restore/${fileId}`, {
@@ -315,8 +316,8 @@ export function TabSauvegardes() {
                   }`} />
                 </div>
                 <div>
-                  <CardTitle className="text-lg">Protection des donnees</CardTitle>
-                  <CardDescription>Surveillance automatique de la securite et de l'integrite de vos donnees (toutes les 6h).</CardDescription>
+                  <CardTitle className="text-lg">Protection des données</CardTitle>
+                  <CardDescription>Surveillance automatique de la securite et de l'integrite de vos données (toutes les 6h).</CardDescription>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -397,7 +398,7 @@ export function TabSauvegardes() {
               </div>
               <div>
                 <CardTitle className="text-lg">Sauvegarde automatique</CardTitle>
-                <CardDescription>Toutes les 2 minutes, vos donnees sont sauvegardees et synchronisees de maniere securisee.</CardDescription>
+                <CardDescription>Toutes les 2 minutes, vos données sont sauvegardees et synchronisees de maniere securisee.</CardDescription>
               </div>
             </div>
             <Badge className="bg-emerald-100 text-emerald-700 border-0 text-xs gap-1">

@@ -143,7 +143,7 @@ export function QueryErrorAlert({ error, title, queryKeys }: { error: Error | nu
     ? "Acces refuse. Votre session a peut-etre expire."
     : isServerError
     ? "Le serveur rencontre un probleme temporaire."
-    : "Une erreur est survenue lors du chargement des donnees.";
+    : "Une erreur est survenue lors du chargement des données.";
 
   return (
     <Card className="border-dashed border-red-500/30 bg-red-500/5">

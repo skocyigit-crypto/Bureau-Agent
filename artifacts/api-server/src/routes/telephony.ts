@@ -1,5 +1,6 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request } from "express";
 import { eq, desc, and, sql } from "drizzle-orm";
+import crypto from "crypto";
 import { db, telephonyProvidersTable, telephonyCallLogsTable, telephonySmsLogsTable, callsTable, contactsTable } from "@workspace/db";
 import { getOrgId } from "../middleware/tenant";
 import { logger } from "../lib/logger";
@@ -15,9 +16,87 @@ import {
 const router: IRouter = Router();
 export const telephonyWebhookRouter: IRouter = Router();
 
+function validateTwilioSignature(req: Request, authToken: string): boolean {
+  const signature = req.headers["x-twilio-signature"] as string | undefined;
+  if (!signature || !authToken) return false;
+  const proto = (req.headers["x-forwarded-proto"] as string) || "https";
+  const host = (req.headers["x-forwarded-host"] as string) || (req.headers.host as string) || "";
+  const url = `${proto}://${host}${req.originalUrl}`;
+  let urlWithParams = url;
+  if (req.body && typeof req.body === "object") {
+    const sortedKeys = Object.keys(req.body as Record<string, string>).sort();
+    for (const key of sortedKeys) {
+      urlWithParams += key + ((req.body as Record<string, string>)[key] ?? "");
+    }
+  }
+  const expected = crypto.createHmac("sha1", authToken).update(urlWithParams).digest("base64");
+  try {
+    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+  } catch {
+    return false;
+  }
+}
+
+async function validateProviderWebhook(provider: string, req: Request): Promise<{ ok: boolean; orgId?: number | null }> {
+  try {
+    if (provider === "twilio") {
+      // Twilio includes AccountSid in every webhook body. Bind verification to
+      // the provider config that owns that AccountSid (per-tenant scoping).
+      const accountSid = (req.body as any)?.AccountSid as string | undefined;
+      if (!accountSid) return { ok: false };
+
+      const matches = await db.select({ orgId: telephonyProvidersTable.organisationId, config: telephonyProvidersTable.config })
+        .from(telephonyProvidersTable)
+        .where(and(
+          eq(telephonyProvidersTable.provider, "twilio"),
+          eq(telephonyProvidersTable.isActive, true),
+          sql`${telephonyProvidersTable.config}->>'accountSid' = ${accountSid}`,
+        ));
+
+      for (const m of matches) {
+        const tok = (m.config as any)?.authToken;
+        if (tok && validateTwilioSignature(req, tok)) return { ok: true, orgId: m.orgId };
+      }
+      // Dev/no-DB fallback: only accept env token if AccountSid also matches env
+      const envSid = process.env.TWILIO_ACCOUNT_SID;
+      const envToken = process.env.TWILIO_AUTH_TOKEN;
+      if (envSid && envToken && envSid === accountSid && validateTwilioSignature(req, envToken)) {
+        return { ok: true, orgId: null };
+      }
+      return { ok: false };
+    }
+    const providers = await db.select({ orgId: telephonyProvidersTable.organisationId, config: telephonyProvidersTable.config })
+      .from(telephonyProvidersTable)
+      .where(and(eq(telephonyProvidersTable.provider, provider), eq(telephonyProvidersTable.isActive, true)));
+    if (provider === "vonage") {
+      const expected = process.env.VONAGE_WEBHOOK_SECRET;
+      const got = req.headers["x-webhook-secret"];
+      if (expected && got === expected) return { ok: true, orgId: null };
+      return { ok: false };
+    }
+    if (provider === "telnyx") {
+      const expected = process.env.TELNYX_WEBHOOK_SECRET;
+      const got = req.headers["x-webhook-secret"];
+      if (expected && got === expected) return { ok: true, orgId: null };
+      return { ok: false };
+    }
+    return { ok: false };
+  } catch (err) {
+    logger.error({ err, provider }, "Webhook signature validation failed");
+    return { ok: false };
+  }
+}
+
 telephonyWebhookRouter.post("/telephony/webhook/:provider", async (req, res): Promise<void> => {
   const provider = String(req.params.provider);
   const payload = req.body;
+
+  const { ok: valid } = await validateProviderWebhook(provider, req);
+  if (!valid) {
+    logger.warn({ provider, ip: req.ip }, "Rejected unsigned telephony webhook");
+    res.status(401).json({ error: "Signature invalide." });
+    return;
+  }
 
   logger.info({ provider, payloadSize: JSON.stringify(payload).length }, "Telephony webhook received");
 

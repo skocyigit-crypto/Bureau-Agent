@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { confirmAction } from "@/hooks/use-confirm";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,7 +44,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   correspondance: "Correspondance",
   technique: "Technique",
   juridique: "Juridique",
-  comptabilite: "Comptabilite",
+  comptabilite: "Comptabilité",
 };
 
 function getFileIcon(mimeType: string) {
@@ -166,7 +167,7 @@ export default function DocumentsPage() {
   const toggleAll = () => setSelectedIds(selectedIds.length === filtered.length ? [] : filtered.map((d: any) => d.id));
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
-    if (!confirm(`Supprimer ${selectedIds.length} document(s) ?`)) return;
+    if (!(await confirmAction({ title: `Supprimer ${selectedIds.length} document(s) ?`, confirmLabel: "Supprimer", destructive: true }))) return;
     const res = await fetch(`${API}/api/bulk/documents/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds }) });
     if (res.ok) { toast({ title: `${selectedIds.length} document(s) supprime(s)` }); setSelectedIds([]); loadDocuments(); }
     else toast({ title: "Erreur", variant: "destructive" });
@@ -207,7 +208,7 @@ export default function DocumentsPage() {
         body: JSON.stringify(body),
       });
       if (res.ok) {
-        toast({ title: "Document mis a jour" });
+        toast({ title: "Document mis à jour" });
         setEditingDoc(null);
         loadDocuments();
       } else {

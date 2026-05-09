@@ -110,7 +110,7 @@ export function TabProfilOrg() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast({ title: "Profil mis a jour", description: "Les informations ont ete enregistrees." });
+        toast({ title: "Profil mis à jour", description: "Les informations ont ete enregistrees." });
         if (data.organisation) {
           setProfile((prev) => prev ? { ...prev, ...data.organisation } : prev);
         }

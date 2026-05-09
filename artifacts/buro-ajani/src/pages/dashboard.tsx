@@ -115,6 +115,42 @@ function useTrialStatus() {
   return { isTrial, dismissed, dismiss };
 }
 
+function useOrgProfileComplete() {
+  const [complete, setComplete] = useState(false);
+  useEffect(() => {
+    fetch(`${API}/api/org-profile`, { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const o = d?.profile || d?.organisation || d;
+        if (o && (o.siret || o.iban || o.address || o.adresse)) setComplete(true);
+      })
+      .catch(() => {});
+  }, []);
+  return complete;
+}
+
+function useSystemHealth() {
+  const [healthy, setHealthy] = useState<boolean | null>(null);
+  useEffect(() => {
+    let mounted = true;
+    const check = async () => {
+      try {
+        const r = await fetch(`${API}/api/healthz`, { credentials: "include" });
+        if (!mounted) return;
+        if (!r.ok) { setHealthy(false); return; }
+        const d = await r.json();
+        setHealthy(d?.status === "ok" || d?.status === "healthy" || d?.success === true);
+      } catch {
+        if (mounted) setHealthy(false);
+      }
+    };
+    check();
+    const t = setInterval(check, 60000);
+    return () => { mounted = false; clearInterval(t); };
+  }, []);
+  return healthy;
+}
+
 function useCommercialStats() {
   const [data, setData] = useState<{
     prospects: any; projets: any;
@@ -224,6 +260,8 @@ export default function Dashboard() {
   const now = useLiveClock();
   const { team: teamMembers, error: teamError } = useTeamStatus();
   const { isTrial, dismissed, dismiss } = useTrialStatus();
+  const orgProfileComplete = useOrgProfileComplete();
+  const systemHealthy = useSystemHealth();
   const { data: weekComparison, error: weekCompError } = useWeekComparison();
   const aiQuota = useAiQuota();
   const { data: summary, isLoading: isLoadingSummary, error: summaryError } = useGetDashboardSummary({ query: { queryKey: ["dashboardSummary"] } });
@@ -326,11 +364,11 @@ export default function Dashboard() {
           <div className="absolute inset-0 flex items-center p-6 md:p-8">
             <div className="text-white">
               <h2 className="text-xl md:text-2xl font-bold">Bienvenue, {user.prenom || user.nom}</h2>
-              <p className="text-white/80 text-sm mt-1">Votre bureau est operationnel. Consultez les indicateurs du jour.</p>
+              <p className="text-white/80 text-sm mt-1">Votre bureau est opérationnel. Consultez les indicateurs du jour.</p>
               <div className="flex items-center gap-4 mt-3">
-                <div className="flex items-center gap-1.5 text-sm text-emerald-300">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  Systeme actif
+                <div className={`flex items-center gap-1.5 text-sm ${systemHealthy === false ? "text-red-300" : systemHealthy === null ? "text-white/60" : "text-emerald-300"}`}>
+                  <div className={`w-2 h-2 rounded-full ${systemHealthy === false ? "bg-red-400" : systemHealthy === null ? "bg-white/40" : "bg-emerald-400 animate-pulse"}`} />
+                  {systemHealthy === false ? "Système indisponible" : systemHealthy === null ? "Vérification…" : "Système actif"}
                 </div>
                 <div className="text-sm text-amber-300">{user.organisation || "Bureau"}</div>
               </div>
@@ -345,8 +383,8 @@ export default function Dashboard() {
           { label: "Compte cree", done: true, href: null },
           { label: "Ajouter un premier contact", done: (summary?.totalContacts || 0) > 0, href: "/contacts" },
           { label: "Passer un appel", done: (summary?.totalCallsToday || 0) > 0, href: "/appels" },
-          { label: "Inviter un membre d'equipe", done: teamMembers.length > 1, href: "/parametres?tab=equipe" },
-          { label: "Configurer le profil entreprise", done: false, href: "/parametres?tab=entreprise" },
+          { label: "Inviter un membre d'équipe", done: teamMembers.length > 1, href: "/parametres?tab=equipe" },
+          { label: "Configurer le profil entreprise", done: orgProfileComplete, href: "/parametres?tab=entreprise" },
         ];
         const doneCount = steps.filter(s => s.done).length;
         const pct = Math.round((doneCount / steps.length) * 100);
@@ -360,7 +398,7 @@ export default function Dashboard() {
                       <Rocket className="w-4 h-4 text-amber-600" />
                     </div>
                     <div>
-                      <CardTitle className="text-base">Demarrage rapide</CardTitle>
+                      <CardTitle className="text-base">Démarrage rapide</CardTitle>
                       <CardDescription className="text-xs">{doneCount}/{steps.length} etapes terminees</CardDescription>
                     </div>
                   </div>
@@ -438,7 +476,7 @@ export default function Dashboard() {
             ) : (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <UserCheck className="w-3.5 h-3.5" />
-                <span>{teamError ? "Erreur de chargement de l'equipe" : "Chargement de l'equipe..."}</span>
+                <span>{teamError ? "Erreur de chargement de l'équipe" : "Chargement de l'équipe..."}</span>
               </div>
             )}
           </CardContent>
@@ -457,7 +495,7 @@ export default function Dashboard() {
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="text-xs text-muted-foreground">{weekCompError ? "Erreur de chargement" : "Pas assez de donnees"}</div>
+              <div className="text-xs text-muted-foreground">{weekCompError ? "Erreur de chargement" : "Pas assez de données"}</div>
             )}
           </CardContent>
         </Card>
@@ -624,7 +662,7 @@ export default function Dashboard() {
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="h-[250px] flex items-center justify-center text-muted-foreground">Aucune donnee pour aujourd'hui</div>
+              <div className="h-[250px] flex items-center justify-center text-muted-foreground">Aucune donnée pour aujourd'hui</div>
             )}
           </CardContent>
         </Card>

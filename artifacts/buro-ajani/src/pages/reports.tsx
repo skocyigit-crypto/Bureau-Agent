@@ -163,7 +163,7 @@ export default function Reports() {
   const handleDelete = (id: number) => {
     deleteReport.mutate({ id }, {
       onSuccess: () => {
-        toast({ title: "Rapport supprime", description: "Le rapport a ete supprime." });
+        toast({ title: "Rapport supprime", description: "Le rapport a été supprimé." });
         queryClient.invalidateQueries({ queryKey: getListDailyReportsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetActivitySummaryQueryKey() });
         if (viewingReport?.id === id) setViewingReport(null);

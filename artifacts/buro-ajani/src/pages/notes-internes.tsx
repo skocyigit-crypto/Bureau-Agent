@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { confirmAction } from "@/hooks/use-confirm";
 import { StickyNote, Plus, Trash2, Pin, PinOff, Search, RefreshCw, Edit, X, Check, Download, Copy, Printer, CheckSquare, Square, Palette, FolderKanban } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -135,7 +136,7 @@ export default function NotesInternesPage() {
   }
 
   async function remove(id: number) {
-    if (!confirm("Supprimer cette note ?")) return;
+    if (!(await confirmAction({ title: "Supprimer cette note ?", confirmLabel: "Supprimer", destructive: true }))) return;
     await fetch(`${BASE}/api/notes-internes/${id}`, { method: "DELETE", credentials: "include" });
     load();
   }
@@ -150,7 +151,7 @@ export default function NotesInternesPage() {
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Supprimer ${selectedIds.size} note(s) ?`)) return;
+    if (!(await confirmAction({ title: `Supprimer ${selectedIds.size} note(s) ?`, confirmLabel: "Supprimer", destructive: true }))) return;
     const ids = Array.from(selectedIds);
     const res = await fetch(`${BASE}/api/bulk/notes-internes/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
     if (res.ok) { toast({ title: `${ids.length} note(s) supprimée(s)` }); exitSelectMode(); load(); }

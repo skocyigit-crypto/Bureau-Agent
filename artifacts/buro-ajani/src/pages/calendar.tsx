@@ -678,7 +678,7 @@ export default function CalendarPage() {
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
       setShowEventForm(false);
       setEditingEvent(null);
-      toast({ title: "Evenement mis a jour" });
+      toast({ title: "Evenement mis à jour" });
     },
     onError: () => toast({ title: "Erreur", description: "Impossible de modifier l'evenement", variant: "destructive" }),
   });

@@ -163,7 +163,7 @@ export function TabIntelligenceArtificielle() {
         toast({ title: "Erreur", description: data.error || "Echec de la sauvegarde.", variant: "destructive" });
         return;
       }
-      toast({ title: "Sauvegarde reussie", description: "Parametres IA mis a jour." });
+      toast({ title: "Sauvegarde reussie", description: "Parametres IA mis à jour." });
       await loadData();
     } catch {
       toast({ title: "Erreur reseau", description: "Impossible de sauvegarder.", variant: "destructive" });
@@ -351,7 +351,7 @@ export function TabIntelligenceArtificielle() {
               ) : (
                 <div className="flex items-center justify-center h-[220px] text-muted-foreground text-sm">
                   <Activity className="w-4 h-4 mr-2" />
-                  Aucune donnee d'utilisation sur cette periode.
+                  Aucune donnée d'utilisation sur cette periode.
                 </div>
               )}
 

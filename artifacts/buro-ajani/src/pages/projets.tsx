@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { confirmAction } from "@/hooks/use-confirm";
 import { useToast } from "@/hooks/use-toast";
 import {
   FolderKanban, Plus, Search, RefreshCw, Trash2, Pencil, Filter,
@@ -561,7 +562,7 @@ export default function ProjetsPage() {
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Supprimer ${selectedIds.size} projet(s) définitivement ?`)) return;
+    if (!(await confirmAction({ title: `Supprimer ${selectedIds.size} projet(s) définitivement ?`, confirmLabel: "Supprimer", destructive: true }))) return;
     const res = await fetch(`${BASE}/api/bulk/projets/delete`, {
       method: "POST", credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -593,7 +594,7 @@ export default function ProjetsPage() {
   };
 
   const deleteProjet = async (id: number, title: string) => {
-    if (!confirm(`Supprimer le projet "${title}" ?`)) return;
+    if (!(await confirmAction({ title: `Supprimer le projet « ${title} » ?`, confirmLabel: "Supprimer", destructive: true }))) return;
     const res = await fetch(`${BASE}/api/projets/${id}`, { method: "DELETE", credentials: "include" });
     if (res.ok) { toast({ title: "Projet supprimé" }); load(); }
     else toast({ title: "Erreur", description: "Impossible de supprimer.", variant: "destructive" });

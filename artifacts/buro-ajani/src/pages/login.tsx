@@ -123,7 +123,7 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
           <CardDescription className="text-sm">
             {mode === "login" && "Connectez-vous a votre espace de travail"}
             {mode === "forgot" && "Entrez votre email pour recevoir un lien de reinitialisation"}
-            {mode === "forgot_done" && `Verifiez votre boite mail : ${email}`}
+            {mode === "forgot_done" && `Vérifiez votre boîte mail : ${email}`}
             {mode === "reset" && "Choisissez votre nouveau mot de passe"}
           </CardDescription>
         </CardHeader>

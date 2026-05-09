@@ -168,7 +168,7 @@ export default function Analytics() {
 
       <Card className="overflow-hidden border-0 shadow-lg">
         <div className="relative h-32">
-          <img src={analyticsWorkImg} alt="Analyse des donnees" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+          <img src={analyticsWorkImg} alt="Analyse des données" className="w-full h-full object-cover" loading="lazy" decoding="async" />
           <div className="absolute inset-0 bg-gradient-to-r from-cyan-900/80 via-cyan-800/50 to-transparent" />
           <div className="absolute inset-0 flex items-center px-6">
             <div className="text-white">
@@ -206,7 +206,7 @@ export default function Analytics() {
             {aiLoading && (
               <div className="flex items-center gap-3 py-8 justify-center text-muted-foreground">
                 <Loader2 className="h-5 w-5 animate-spin text-violet-600" />
-                <span>Gemini analyse vos donnees en profondeur...</span>
+                <span>Gemini analyse vos données en profondeur...</span>
               </div>
             )}
             {aiError && (

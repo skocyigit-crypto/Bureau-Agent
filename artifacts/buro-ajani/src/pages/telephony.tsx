@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { confirmAction } from "@/hooks/use-confirm";
 import { Phone, Plus, Settings, Trash2, Star, Check, MessageSquare, PhoneCall, PhoneOff, Send, RefreshCw, ExternalLink, Shield, Zap, Users, Clock, FileText, CalendarClock, Printer, FolderKanban } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -155,7 +156,7 @@ export default function TelephonyPage() {
   }
 
   async function deleteProvider(id: number) {
-    if (!confirm("Supprimer ce fournisseur ?")) return;
+    if (!(await confirmAction({ title: "Supprimer ce fournisseur ?", confirmLabel: "Supprimer", destructive: true }))) return;
     try {
       const res = await fetch(`${API}/api/telephony/providers/${id}`, { method: "DELETE", credentials: "include" });
       if (!res.ok) { toast({ title: "Erreur", description: "Impossible de supprimer le fournisseur.", variant: "destructive" }); return; }

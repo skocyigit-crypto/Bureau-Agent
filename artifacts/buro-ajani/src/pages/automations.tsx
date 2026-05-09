@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { confirmAction } from "@/hooks/use-confirm";
 import { useToast } from "@/hooks/use-toast";
 import {
   Zap, PlayCircle, PauseCircle, Clock, CheckCircle, AlertTriangle, Activity,
@@ -188,7 +189,7 @@ function ActionEditor({ action, index, onChange, onRemove }: {
         <>
           <div>
             <Label className="text-xs">Numero destinataire <span className="text-muted-foreground">(laisser vide = numero du contact)</span></Label>
-            <Input className="h-7 text-xs mt-1" value={action.params.to ?? ""} onChange={e => setParam("to", e.target.value)} placeholder="+33612345678 ou vide" />
+            <Input className="h-7 text-xs mt-1" value={action.params.to ?? ""} onChange={e => setParam("to", e.target.value)} placeholder="+33612345678 (laisser vide pour utiliser le destinataire par défaut)" />
           </div>
           <div>
             <Label className="text-xs">Message SMS <span className="text-muted-foreground">({"{{phoneNumber}}"} disponible)</span></Label>
@@ -476,7 +477,7 @@ export default function AutomationsPage() {
   }
 
   async function deleteRule(id: number, name: string) {
-    if (!confirm(`Supprimer la regle "${name}" ?`)) return;
+    if (!(await confirmAction({ title: `Supprimer la règle « ${name} » ?`, confirmLabel: "Supprimer", destructive: true }))) return;
     try {
       const res = await fetch(`${baseUrl}/api/automations/${id}`, { method: "DELETE", credentials: "include" });
       if (!res.ok) throw new Error("Erreur serveur");
@@ -512,7 +513,7 @@ export default function AutomationsPage() {
   };
   const handleBulkDelete = async (customRules: any[]) => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Supprimer ${selectedIds.size} automatisation(s) ?`)) return;
+    if (!(await confirmAction({ title: `Supprimer ${selectedIds.size} automatisation(s) ?`, confirmLabel: "Supprimer", destructive: true }))) return;
     const ids = Array.from(selectedIds);
     const res = await fetch(`${baseUrl}/api/automations/bulk/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
     if (res.ok) { toast({ title: `${selectedIds.size} automatisation(s) supprimee(s)` }); setSelectedIds(new Set()); setSelectMode(false); fetchData(); }

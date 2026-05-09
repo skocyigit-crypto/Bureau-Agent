@@ -180,7 +180,7 @@ export default function PerformancePage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <Users className="w-12 h-12 text-muted-foreground/30 mb-4" />
-            <h3 className="text-lg font-medium mb-2">Aucune donnee de performance</h3>
+            <h3 className="text-lg font-medium mb-2">Aucune donnée de performance</h3>
             <p className="text-muted-foreground text-sm max-w-md">
               Les metriques apparaitront ici au fur et a mesure que les employes utilisent l'application.
               Ajoutez des utilisateurs et commencez a travailler pour voir les statistiques.

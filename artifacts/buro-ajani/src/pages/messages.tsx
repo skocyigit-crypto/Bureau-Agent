@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { confirmAction } from "@/hooks/use-confirm";
 import { useListMessages, useUpdateMessage, useCreateMessage, useDeleteMessage, getListMessagesQueryKey, useListContacts } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -127,7 +128,7 @@ export default function Messages() {
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`Supprimer ${selectedIds.size} message(s) ?`)) return;
+    if (!(await confirmAction({ title: `Supprimer ${selectedIds.size} message(s) ?`, confirmLabel: "Supprimer", destructive: true }))) return;
     const ids = Array.from(selectedIds);
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
     const res = await fetch(`${BASE}/api/bulk/messages/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
@@ -169,7 +170,7 @@ export default function Messages() {
     if (editingMessage) {
       updateMessage.mutate({ id: editingMessage.id, data: values }, {
         onSuccess: () => {
-          toast({ title: "Message mis a jour" });
+          toast({ title: "Message mis à jour" });
           setIsDialogOpen(false);
           setEditingMessage(null);
           queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() });
@@ -525,8 +526,8 @@ export default function Messages() {
                           )}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => {
-                          if (!confirm("Supprimer ce message ?")) return;
+                        <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={async () => {
+                          if (!(await confirmAction({ title: "Supprimer ce message ?", confirmLabel: "Supprimer", destructive: true }))) return;
                           deleteMessage.mutate({ id: message.id }, {
                             onSuccess: () => { toast({ title: "Message supprimé" }); queryClient.invalidateQueries({ queryKey: getListMessagesQueryKey() }); },
                             onError: () => toast({ title: "Erreur", description: "Impossible de supprimer", variant: "destructive" }),
