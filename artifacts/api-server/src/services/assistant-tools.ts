@@ -4,6 +4,7 @@ import {
   callsTable, messagesTable, facturesClientTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, gte, lte, sql, ilike, or } from "drizzle-orm";
+import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { sendEmail } from "./email";
 import { sendSms as providerSendSms } from "./telephony-providers";
 import { generateImage } from "@workspace/integrations-gemini-ai/image";
@@ -154,12 +155,13 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
       const conds = [eq(contactsTable.organisationId, orgId)];
       if (a.query) {
         const q = `%${a.query}%`;
+        const useUnaccent = await ensureUnaccentExtension();
         conds.push(or(
-          ilike(contactsTable.firstName, q),
-          ilike(contactsTable.lastName, q),
-          ilike(contactsTable.company, q),
-          ilike(contactsTable.email, q),
-          ilike(contactsTable.phone, q),
+          accentInsensitiveIlike(contactsTable.firstName, q, useUnaccent),
+          accentInsensitiveIlike(contactsTable.lastName, q, useUnaccent),
+          accentInsensitiveIlike(contactsTable.company, q, useUnaccent),
+          accentInsensitiveIlike(contactsTable.email, q, useUnaccent),
+          accentInsensitiveIlike(contactsTable.phone, q, useUnaccent),
         )!);
       }
       const rows = await db.select({

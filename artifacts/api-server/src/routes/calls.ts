@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, asc, ilike, or, sql, and, gte, lte } from "drizzle-orm";
 import { db, callsTable, contactsTable, tasksTable, calendarEventsTable, messagesTable, organisationsTable } from "@workspace/db";
+import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import {
   ListCallsQueryParams,
   CreateCallBody,
@@ -86,11 +87,13 @@ router.get("/calls", async (req, res): Promise<void> => {
     conditions.push(eq(callsTable.direction, direction));
   }
   if (search) {
+    const useUnaccent = await ensureUnaccentExtension();
+    const pattern = `%${search}%`;
     conditions.push(
       or(
-        ilike(callsTable.phoneNumber, `%${search}%`),
-        ilike(callsTable.contactName, `%${search}%`),
-        ilike(callsTable.notes, `%${search}%`)
+        accentInsensitiveIlike(callsTable.phoneNumber, pattern, useUnaccent),
+        accentInsensitiveIlike(callsTable.contactName, pattern, useUnaccent),
+        accentInsensitiveIlike(callsTable.notes, pattern, useUnaccent)
       )!
     );
   }

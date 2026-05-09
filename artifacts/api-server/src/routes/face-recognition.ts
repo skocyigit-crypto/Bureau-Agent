@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { db, faceProfilesTable, faceRecognitionLogsTable, contactsTable } from "@workspace/db";
 import { eq, sql, and, desc, ilike, or } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
+import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { logger } from "../lib/logger";
 import { assertAiQuota, AiQuotaExceededError } from "../services/ai-quota";
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL, withProviderTimeout } from "../services/ai-cache";
@@ -317,6 +318,8 @@ router.post("/search-contact", async (req: Request, res: Response): Promise<void
     if (!query || typeof query !== "string") { res.json({ success: true, contacts: [] }); return; }
 
     const sanitizedQuery = query.substring(0, 100);
+    const useUnaccent = await ensureUnaccentExtension();
+    const pattern = `%${sanitizedQuery}%`;
     const contacts = await db.select({
       id: contactsTable.id,
       firstName: contactsTable.firstName,
@@ -328,9 +331,9 @@ router.post("/search-contact", async (req: Request, res: Response): Promise<void
       .where(and(
         eq(contactsTable.organisationId, orgId),
         or(
-          ilike(contactsTable.firstName, `%${sanitizedQuery}%`),
-          ilike(contactsTable.lastName, `%${sanitizedQuery}%`),
-          ilike(contactsTable.company, `%${sanitizedQuery}%`),
+          accentInsensitiveIlike(contactsTable.firstName, pattern, useUnaccent),
+          accentInsensitiveIlike(contactsTable.lastName, pattern, useUnaccent),
+          accentInsensitiveIlike(contactsTable.company, pattern, useUnaccent),
         )
       ))
       .limit(10);

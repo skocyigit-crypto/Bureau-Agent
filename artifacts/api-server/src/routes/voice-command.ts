@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, callsTable, contactsTable, tasksTable, calendarEventsTable, projetsTable } from "@workspace/db";
 import { eq, desc, and, sql, ilike, or } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
+import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { safeJsonParse, aiCallWithRetry, sanitizePromptInput } from "../services/ai-utils";
 import { assertAiQuota, AiQuotaExceededError } from "../services/ai-quota";
 import { logger } from "../lib/logger";
@@ -265,12 +266,14 @@ router.post("/voice/command", async (req: Request, res: Response): Promise<void>
           spokenResponse = "Quel contact souhaitez-vous appeler?";
           break;
         }
+        const useUnaccent = await ensureUnaccentExtension();
+        const namePattern = `%${name}%`;
         const [contact] = await db.select().from(contactsTable)
           .where(and(
             eq(contactsTable.organisationId, orgId),
             or(
-              ilike(contactsTable.firstName, `%${name}%`),
-              ilike(contactsTable.lastName, `%${name}%`)
+              accentInsensitiveIlike(contactsTable.firstName, namePattern, useUnaccent),
+              accentInsensitiveIlike(contactsTable.lastName, namePattern, useUnaccent)
             )
           )).limit(1);
         if (contact && contact.phone) {
@@ -289,15 +292,17 @@ router.post("/voice/command", async (req: Request, res: Response): Promise<void>
           spokenResponse = "Que souhaitez-vous rechercher?";
           break;
         }
+        const useUnaccent = await ensureUnaccentExtension();
+        const qPattern = `%${query}%`;
         const [contacts, tasks] = await Promise.all([
           db.select().from(contactsTable)
             .where(and(eq(contactsTable.organisationId, orgId), or(
-              ilike(contactsTable.firstName, `%${query}%`),
-              ilike(contactsTable.lastName, `%${query}%`),
-              ilike(contactsTable.company, `%${query}%`)
+              accentInsensitiveIlike(contactsTable.firstName, qPattern, useUnaccent),
+              accentInsensitiveIlike(contactsTable.lastName, qPattern, useUnaccent),
+              accentInsensitiveIlike(contactsTable.company, qPattern, useUnaccent)
             ))).limit(3),
           db.select().from(tasksTable)
-            .where(and(eq(tasksTable.organisationId, orgId), ilike(tasksTable.title, `%${query}%`))).limit(3),
+            .where(and(eq(tasksTable.organisationId, orgId), accentInsensitiveIlike(tasksTable.title, qPattern, useUnaccent))).limit(3),
         ]);
         const total = contacts.length + tasks.length;
         spokenResponse = total > 0

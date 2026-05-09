@@ -1,5 +1,6 @@
 import { db, contactsTable, tasksTable, stockArticlesTable, devisTable, facturesClientTable, projetsTable, prospectsTable } from "@workspace/db";
 import { eq, ilike, or, and } from "drizzle-orm";
+import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { logger } from "../lib/logger";
 import { safeJsonParse, aiCallWithRetry } from "./ai-utils";
 
@@ -302,6 +303,7 @@ async function findRelatedEntities(
 ): Promise<RelatedEntity[]> {
   const entities: RelatedEntity[] = [];
   const orgFilter = eq(contactsTable.organisationId, orgId);
+  const useUnaccent = await ensureUnaccentExtension();
 
   try {
     if (hints.emails?.length) {
@@ -346,7 +348,7 @@ async function findRelatedEntities(
       for (const company of hints.companyNames.slice(0, 5)) {
         const contacts = await db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName, company: contactsTable.company })
           .from(contactsTable)
-          .where(and(orgFilter, ilike(contactsTable.company, `%${company}%`)))
+          .where(and(orgFilter, accentInsensitiveIlike(contactsTable.company, `%${company}%`, useUnaccent)))
           .limit(3);
         for (const c of contacts) {
           if (!entities.find(e => e.type === "contact" && e.id === c.id)) {
@@ -368,8 +370,8 @@ async function findRelatedEntities(
         const contacts = await db.select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName })
           .from(contactsTable)
           .where(and(orgFilter, or(
-            and(ilike(contactsTable.firstName, `%${parts[0]}%`), ilike(contactsTable.lastName, `%${parts[parts.length - 1]}%`)),
-            and(ilike(contactsTable.firstName, `%${parts[parts.length - 1]}%`), ilike(contactsTable.lastName, `%${parts[0]}%`))
+            and(accentInsensitiveIlike(contactsTable.firstName, `%${parts[0]}%`, useUnaccent), accentInsensitiveIlike(contactsTable.lastName, `%${parts[parts.length - 1]}%`, useUnaccent)),
+            and(accentInsensitiveIlike(contactsTable.firstName, `%${parts[parts.length - 1]}%`, useUnaccent), accentInsensitiveIlike(contactsTable.lastName, `%${parts[0]}%`, useUnaccent))
           )))
           .limit(2);
         for (const c of contacts) {

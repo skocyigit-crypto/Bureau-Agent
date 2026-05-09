@@ -1,7 +1,8 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, desc, ilike, or, sql, and } from "drizzle-orm";
+import { eq, desc, ilike, or, sql, and, type Column, type SQL } from "drizzle-orm";
 import { db, devisTable } from "@workspace/db";
 import { getOrgId } from "../middleware/tenant";
+import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 
 const router: IRouter = Router();
 
@@ -13,11 +14,14 @@ router.get("/devis", async (req: Request, res: Response): Promise<void> => {
   const conditions = [eq(devisTable.organisationId, orgId)];
   if (status && status !== "all") conditions.push(eq(devisTable.status, status));
   if (search) {
+    const useUnaccent = await ensureUnaccentExtension();
+    const pattern = `%${search}%`;
+    const il = (col: Column): SQL => accentInsensitiveIlike(col, pattern, useUnaccent);
     conditions.push(or(
-      ilike(devisTable.title, `%${search}%`),
-      ilike(devisTable.reference, `%${search}%`),
-      ilike(devisTable.clientName, `%${search}%`),
-      ilike(devisTable.clientCompany, `%${search}%`),
+      il(devisTable.title),
+      il(devisTable.reference),
+      il(devisTable.clientName),
+      il(devisTable.clientCompany),
     )!);
   }
   const where = and(...conditions);

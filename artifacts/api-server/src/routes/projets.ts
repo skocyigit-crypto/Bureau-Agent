@@ -1,7 +1,8 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, desc, asc, ilike, or, sql, and, ne } from "drizzle-orm";
+import { eq, desc, asc, ilike, or, sql, and, ne, type Column, type SQL } from "drizzle-orm";
 import { db, projetsTable } from "@workspace/db";
 import { getOrgId } from "../middleware/tenant";
+import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 
 const router: IRouter = Router();
 
@@ -25,14 +26,17 @@ router.get("/projets", async (req: Request, res: Response): Promise<void> => {
   const conditions = [eq(projetsTable.organisationId, orgId)];
   if (status && status !== "all") conditions.push(eq(projetsTable.status, status));
   if (priority && priority !== "all") conditions.push(eq(projetsTable.priority, priority));
-  if (assignedTo) conditions.push(ilike(projetsTable.assignedTo, `%${assignedTo}%`));
+  const useUnaccent = await ensureUnaccentExtension();
+  if (assignedTo) conditions.push(accentInsensitiveIlike(projetsTable.assignedTo, `%${assignedTo}%`, useUnaccent));
   if (contactIdQ) conditions.push(eq(projetsTable.contactId, Number(contactIdQ)));
   if (search) {
+    const pattern = `%${search}%`;
+    const il = (col: Column): SQL => accentInsensitiveIlike(col, pattern, useUnaccent);
     conditions.push(or(
-      ilike(projetsTable.title, `%${search}%`),
-      ilike(projetsTable.clientName, `%${search}%`),
-      ilike(projetsTable.clientCompany, `%${search}%`),
-      ilike(projetsTable.description, `%${search}%`),
+      il(projetsTable.title),
+      il(projetsTable.clientName),
+      il(projetsTable.clientCompany),
+      il(projetsTable.description),
     )!);
   }
 

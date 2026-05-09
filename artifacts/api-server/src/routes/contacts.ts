@@ -386,12 +386,14 @@ router.get("/contacts/:id/devis", async (req, res): Promise<void> => {
     if (!contact[0]) { res.status(404).json({ error: "Contact not found" }); return; }
     const name = `${contact[0].firstName} ${contact[0].lastName}`.trim();
     const { devisTable, facturesClientTable } = await import("@workspace/db");
+    const useUnaccent = await ensureUnaccentExtension();
+    const namePattern = `%${name}%`;
     const [devisList, facturesList] = await Promise.all([
       db.select({ id: devisTable.id, reference: devisTable.reference, status: devisTable.status, totalAmount: devisTable.totalAmount, createdAt: devisTable.createdAt }).from(devisTable)
-        .where(and(eq(devisTable.organisationId, orgId), or(ilike(devisTable.clientEmail, contact[0].email || "__none__"), ilike(devisTable.clientName, `%${name}%`))))
+        .where(and(eq(devisTable.organisationId, orgId), or(ilike(devisTable.clientEmail, contact[0].email || "__none__"), accentInsensitiveIlike(devisTable.clientName, namePattern, useUnaccent))))
         .orderBy(desc(devisTable.createdAt)).limit(20),
       db.select({ id: facturesClientTable.id, reference: facturesClientTable.reference, status: facturesClientTable.status, totalAmount: facturesClientTable.totalAmount, paidAmount: facturesClientTable.paidAmount, createdAt: facturesClientTable.createdAt }).from(facturesClientTable)
-        .where(and(eq(facturesClientTable.organisationId, orgId), or(ilike(facturesClientTable.clientEmail, contact[0].email || "__none__"), ilike(facturesClientTable.clientName, `%${name}%`))))
+        .where(and(eq(facturesClientTable.organisationId, orgId), or(ilike(facturesClientTable.clientEmail, contact[0].email || "__none__"), accentInsensitiveIlike(facturesClientTable.clientName, namePattern, useUnaccent))))
         .orderBy(desc(facturesClientTable.createdAt)).limit(20),
     ]);
     res.json({ devis: devisList, factures: facturesList });
