@@ -1077,7 +1077,30 @@ function ChatTab() {
   const [sending, setSending] = useState(false);
   const [renamingId, setRenamingId] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q) { setSearchResults([]); setSearching(false); return; }
+    setSearching(true);
+    let cancelled = false;
+    const handle = setTimeout(async () => {
+      try {
+        const d = await apiGet(`/commandant/conversations/search?q=${encodeURIComponent(q)}`);
+        if (cancelled) return;
+        if (d.success) setSearchResults(d.results || []);
+      } catch (err: any) {
+        if (cancelled) return;
+        toast({ title: "Erreur", description: err.message, variant: "destructive" });
+      } finally {
+        if (!cancelled) setSearching(false);
+      }
+    }, 250);
+    return () => { cancelled = true; clearTimeout(handle); };
+  }, [searchQuery, toast]);
 
   const loadConversations = useCallback(async (selectFirst = false) => {
     setLoadingList(true);
@@ -1209,10 +1232,57 @@ function ChatTab() {
               <Plus className="h-3 w-3" />Nouveau
             </Button>
           </div>
+          <div className="relative mt-2">
+            <Search className="h-3 w-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Rechercher dans les conversations..."
+              className="h-7 text-xs pl-7 pr-7"
+            />
+            {searchQuery && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-5 w-5 absolute right-1 top-1/2 -translate-y-1/2"
+                onClick={() => setSearchQuery("")}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="flex-1 overflow-hidden p-2">
           <ScrollArea className="h-full pr-2">
-            {loadingList && conversations.length === 0 ? (
+            {searchQuery.trim() ? (
+              searching && searchResults.length === 0 ? (
+                <div className="space-y-2">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
+              ) : searchResults.length === 0 ? (
+                <div className="text-center py-8 text-xs text-muted-foreground">
+                  <Search className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                  Aucun resultat pour "{searchQuery}".
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {searchResults.map((r: any) => (
+                    <div
+                      key={r.conversationId}
+                      className={`group rounded px-2 py-2 cursor-pointer text-xs ${selectedId === r.conversationId ? "bg-amber-50 border border-amber-200" : "hover:bg-muted/50"}`}
+                      onClick={() => setSelectedId(r.conversationId)}
+                    >
+                      <div className="font-medium truncate">{r.title}</div>
+                      {r.snippet ? (
+                        <div className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
+                          <span className="text-amber-600 mr-1">{r.role === "user" ? "Vous:" : "IA:"}</span>{r.snippet}
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-muted-foreground mt-0.5">Correspondance dans le titre</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : loadingList && conversations.length === 0 ? (
               <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
             ) : conversations.length === 0 ? (
               <div className="text-center py-8 text-xs text-muted-foreground">

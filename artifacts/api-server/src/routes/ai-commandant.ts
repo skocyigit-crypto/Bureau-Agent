@@ -1713,6 +1713,89 @@ router.get("/commandant/conversations", async (req: Request, res: Response): Pro
   }
 });
 
+router.get("/commandant/conversations/search", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const userId = getUserId(req);
+    if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
+    const qRaw = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    if (qRaw.length < 1) { res.json({ success: true, results: [] }); return; }
+    const q = qRaw.slice(0, 200);
+    const pattern = `%${q.replace(/[\\%_]/g, m => `\\${m}`)}%`;
+
+    const titleMatches = await db.select({
+      id: commandantConversationsTable.id,
+      title: commandantConversationsTable.title,
+      updatedAt: commandantConversationsTable.updatedAt,
+    }).from(commandantConversationsTable)
+      .where(and(
+        eq(commandantConversationsTable.organisationId, orgId),
+        eq(commandantConversationsTable.userId, userId),
+        ilike(commandantConversationsTable.title, pattern),
+      ))
+      .orderBy(desc(commandantConversationsTable.updatedAt))
+      .limit(50);
+
+    const messageMatches = await db.select({
+      conversationId: commandantMessagesTable.conversationId,
+      messageId: commandantMessagesTable.id,
+      role: commandantMessagesTable.role,
+      content: commandantMessagesTable.content,
+      messageCreatedAt: commandantMessagesTable.createdAt,
+      title: commandantConversationsTable.title,
+      updatedAt: commandantConversationsTable.updatedAt,
+    }).from(commandantMessagesTable)
+      .innerJoin(commandantConversationsTable, eq(commandantMessagesTable.conversationId, commandantConversationsTable.id))
+      .where(and(
+        eq(commandantMessagesTable.organisationId, orgId),
+        eq(commandantConversationsTable.organisationId, orgId),
+        eq(commandantConversationsTable.userId, userId),
+        ilike(commandantMessagesTable.content, pattern),
+      ))
+      .orderBy(desc(commandantMessagesTable.createdAt))
+      .limit(100);
+
+    const byConv = new Map<number, any>();
+    for (const t of titleMatches) {
+      byConv.set(t.id, {
+        conversationId: t.id,
+        title: t.title,
+        updatedAt: t.updatedAt,
+        matchType: "title" as const,
+        snippet: null as string | null,
+      });
+    }
+    for (const m of messageMatches) {
+      const existing = byConv.get(m.conversationId);
+      if (existing && existing.snippet) continue;
+      const idx = m.content.toLowerCase().indexOf(q.toLowerCase());
+      const start = Math.max(0, idx - 40);
+      const end = Math.min(m.content.length, idx + q.length + 80);
+      const snippet = (start > 0 ? "..." : "") + m.content.slice(start, end) + (end < m.content.length ? "..." : "");
+      if (existing) {
+        existing.snippet = snippet;
+        existing.matchType = existing.matchType === "title" ? "title+message" : "message";
+        existing.role = m.role;
+      } else {
+        byConv.set(m.conversationId, {
+          conversationId: m.conversationId,
+          title: m.title,
+          updatedAt: m.updatedAt,
+          matchType: "message" as const,
+          snippet,
+          role: m.role,
+        });
+      }
+    }
+
+    const results = Array.from(byConv.values()).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 50);
+    res.json({ success: true, results });
+  } catch (err: any) {
+    logger.error({ err }, "[Commandant/Conv/Search]");
+    res.status(500).json({ error: "Erreur interne" });
+  }
+});
+
 router.post("/commandant/conversations", async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
