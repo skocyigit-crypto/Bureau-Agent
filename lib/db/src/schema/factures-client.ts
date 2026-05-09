@@ -1,4 +1,5 @@
 import { pgTable, serial, integer, text, timestamp, numeric, jsonb, index } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { organisationsTable } from "./organisations";
 import { contactsTable } from "./contacts";
 import { devisTable } from "./devis";
@@ -39,6 +40,14 @@ export const facturesClientTable = pgTable("factures_client", {
   index("factures_client_org_id_idx").on(table.organisationId),
   index("factures_client_status_idx").on(table.status),
   index("factures_client_contact_id_idx").on(table.contactId),
+  // Accent-insensitive trigram search index used by the Commandant chat
+  // retriever and smart search. Requires `pg_trgm` + `unaccent` and the
+  // IMMUTABLE `f_unaccent()` wrapper (see lib/db/scripts/ensure-search-extensions.sql).
+  index("factures_client_search_trgm_idx").using(
+    "gin",
+    sql`f_unaccent(${table.reference}) gin_trgm_ops`,
+    sql`f_unaccent(${table.clientName}) gin_trgm_ops`,
+  ),
 ]);
 
 export type FactureClient = typeof facturesClientTable.$inferSelect;

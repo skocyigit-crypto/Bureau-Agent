@@ -1,4 +1,5 @@
 import { pgTable, serial, integer, text, timestamp, index, boolean } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { organisationsTable } from "./organisations";
@@ -28,6 +29,14 @@ export const tasksTable = pgTable("tasks", {
   index("tasks_related_call_idx").on(table.relatedCallId),
   index("tasks_due_date_idx").on(table.dueDate),
   index("tasks_org_id_idx").on(table.organisationId),
+  // Accent-insensitive trigram search index used by the Commandant chat
+  // retriever and smart search. Requires `pg_trgm` + `unaccent` and the
+  // IMMUTABLE `f_unaccent()` wrapper (see lib/db/scripts/ensure-search-extensions.sql).
+  index("tasks_search_trgm_idx").using(
+    "gin",
+    sql`f_unaccent(${table.title}) gin_trgm_ops`,
+    sql`f_unaccent(coalesce(${table.description}, '')) gin_trgm_ops`,
+  ),
 ]);
 
 export const insertTaskSchema = createInsertSchema(tasksTable).omit({ id: true, createdAt: true, updatedAt: true, createdBy: true, updatedBy: true });

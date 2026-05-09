@@ -1,4 +1,5 @@
 import { pgTable, serial, integer, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { organisationsTable } from "./organisations";
@@ -39,6 +40,14 @@ export const calendarEventsTable = pgTable("calendar_events", {
   index("cal_events_type_idx").on(table.type),
   index("cal_events_org_id_idx").on(table.organisationId),
   index("cal_events_created_by_idx").on(table.createdBy),
+  // Accent-insensitive trigram search index used by the Commandant chat
+  // retriever and smart search. Requires `pg_trgm` + `unaccent` and the
+  // IMMUTABLE `f_unaccent()` wrapper (see lib/db/scripts/ensure-search-extensions.sql).
+  index("cal_events_search_trgm_idx").using(
+    "gin",
+    sql`f_unaccent(${table.title}) gin_trgm_ops`,
+    sql`f_unaccent(coalesce(${table.description}, '')) gin_trgm_ops`,
+  ),
 ]);
 
 export const insertCalendarEventSchema = createInsertSchema(calendarEventsTable).omit({ id: true, createdAt: true, updatedAt: true, createdBy: true, updatedBy: true });

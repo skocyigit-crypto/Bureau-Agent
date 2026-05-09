@@ -28,6 +28,17 @@ export const contactsTable = pgTable("contacts", {
   index("contacts_category_idx").on(table.category),
   index("contacts_created_at_idx").on(table.createdAt),
   index("contacts_org_id_idx").on(table.organisationId),
+  // Accent-insensitive trigram search index used by the Commandant chat
+  // retriever and smart search. Requires the `pg_trgm` + `unaccent` extensions
+  // and the IMMUTABLE `f_unaccent()` wrapper (see lib/db/scripts/ensure-search-extensions.sql).
+  index("contacts_search_trgm_idx").using(
+    "gin",
+    sql`f_unaccent(${table.firstName}) gin_trgm_ops`,
+    sql`f_unaccent(${table.lastName}) gin_trgm_ops`,
+    sql`f_unaccent(coalesce(${table.company}, '')) gin_trgm_ops`,
+    sql`f_unaccent(coalesce(${table.email}, '')) gin_trgm_ops`,
+    sql`f_unaccent(${table.phone}) gin_trgm_ops`,
+  ),
 ]);
 
 export const insertContactSchema = createInsertSchema(contactsTable).omit({ id: true, createdAt: true, updatedAt: true, createdBy: true, updatedBy: true });

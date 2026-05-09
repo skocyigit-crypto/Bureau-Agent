@@ -1,4 +1,5 @@
 import { pgTable, serial, integer, text, timestamp, numeric, index } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { organisationsTable } from "./organisations";
 import { contactsTable } from "./contacts";
 
@@ -31,6 +32,15 @@ export const prospectsTable = pgTable("prospects", {
   index("prospects_org_id_idx").on(table.organisationId),
   index("prospects_stage_idx").on(table.stage),
   index("prospects_contact_id_idx").on(table.contactId),
+  // Accent-insensitive trigram search index used by the Commandant chat
+  // retriever and smart search. Requires `pg_trgm` + `unaccent` and the
+  // IMMUTABLE `f_unaccent()` wrapper (see lib/db/scripts/ensure-search-extensions.sql).
+  index("prospects_search_trgm_idx").using(
+    "gin",
+    sql`f_unaccent(coalesce(${table.company}, '')) gin_trgm_ops`,
+    sql`f_unaccent(coalesce(${table.contactName}, '')) gin_trgm_ops`,
+    sql`f_unaccent(coalesce(${table.email}, '')) gin_trgm_ops`,
+  ),
 ]);
 
 export type Prospect = typeof prospectsTable.$inferSelect;

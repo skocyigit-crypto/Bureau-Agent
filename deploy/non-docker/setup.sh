@@ -88,6 +88,21 @@ sudo -u postgres psql -v ON_ERROR_STOP=1 <<SQL
   GRANT ALL PRIVILEGES ON DATABASE ${PG_DB} TO ${PG_USER};
 SQL
 
+# Install extensions and the f_unaccent() IMMUTABLE wrapper used by the
+# accent-insensitive trigram search indexes declared in the Drizzle schema.
+sudo -u postgres psql -v ON_ERROR_STOP=1 -d "${PG_DB}" <<'SQL'
+  CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+  CREATE EXTENSION IF NOT EXISTS pg_trgm;
+  CREATE EXTENSION IF NOT EXISTS unaccent;
+  CREATE OR REPLACE FUNCTION f_unaccent(text)
+    RETURNS text
+    LANGUAGE sql
+    IMMUTABLE
+    PARALLEL SAFE
+    STRICT
+  AS $$ SELECT public.unaccent('public.unaccent', $1) $$;
+SQL
+
 DATABASE_URL="postgresql://${PG_USER}:${PG_PASS}@localhost:5432/${PG_DB}"
 ok "PostgreSQL configured. Database URL saved below — add to .env"
 
