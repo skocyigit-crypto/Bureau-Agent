@@ -144,7 +144,7 @@ function AppRoutes() {
         <Route path="/document-ia" component={withLicenseGate(DocumentAiPage)} />
         <Route path="/documents" component={withLicenseGate(DocumentsPage)} />
         <Route path="/import" component={withLicenseGate(DocumentImportPage)} />
-        <Route path="/abonnement" component={() => { const [, nav] = useLocation(); useEffect(() => nav("/gestion-licence"), []); return null; }} />
+        <Route path="/abonnement" component={() => { const [, nav] = useLocation(); useEffect(() => nav(`/gestion-licence${window.location.search}`), []); return null; }} />
         <Route path="/organisations" component={OrganisationsPage} />
         <Route path="/parametres" component={SettingsPage} />
         <Route path="/rapport-executif" component={withLicenseGate(ExecutiveReportPage)} />

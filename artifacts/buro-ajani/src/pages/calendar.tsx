@@ -625,6 +625,7 @@ export default function CalendarPage() {
   const [selectedHour, setSelectedHour] = useState<number | undefined>();
   const [editingEvent, setEditingEvent] = useState<any>(null);
   const [viewingEvent, setViewingEvent] = useState<any>(null);
+  const deepLinkHandledRef = useRef(false);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -734,6 +735,29 @@ export default function CalendarPage() {
     setViewingEvent(event);
     setShowEventDetail(true);
   }
+
+  useEffect(() => {
+    if (deepLinkHandledRef.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const eId = params.get("id");
+    if (!eId || isNaN(parseInt(eId))) return;
+    deepLinkHandledRef.current = true;
+    const id = parseInt(eId);
+    window.history.replaceState({}, "", window.location.pathname);
+
+    (async () => {
+      try {
+        const res = await fetch(`${baseUrl}/api/calendar/events/${id}`, { credentials: "include" });
+        if (!res.ok) throw new Error("Evenement introuvable");
+        const event = await res.json();
+        setCurrentDate(new Date(event.startDate));
+        setViewingEvent({ ...event, source: "calendar" });
+        setShowEventDetail(true);
+      } catch {
+        toast({ title: "Erreur", description: "Impossible d'ouvrir cet evenement.", variant: "destructive" });
+      }
+    })();
+  }, []);
 
   function handleEditFromDetail() {
     setShowEventDetail(false);

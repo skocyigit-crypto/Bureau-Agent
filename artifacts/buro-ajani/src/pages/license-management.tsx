@@ -32,7 +32,26 @@ export default function LicenseManagementPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("overview");
+  const [deepLinkInvoice, setDeepLinkInvoice] = useState<any>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const fId = params.get("factureId");
+    if (!fId || isNaN(parseInt(fId))) return;
+    const id = parseInt(fId);
+    window.history.replaceState({}, "", window.location.pathname);
+    setTab("client-invoices");
+    (async () => {
+      try {
+        const r = await fetch(`${API}/api/license-management/client-invoices/${id}`, { credentials: "include" });
+        if (!r.ok) throw new Error("introuvable");
+        setDeepLinkInvoice(await r.json());
+      } catch {
+        toast({ title: "Erreur", description: "Impossible d'ouvrir cette facture.", variant: "destructive" });
+      }
+    })();
+  }, [toast]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -157,7 +176,68 @@ export default function LicenseManagementPage() {
           <SystemAuditTab />
         </TabsContent>
       </Tabs>
+
+      <InvoiceDetailDialog invoice={deepLinkInvoice} onClose={() => setDeepLinkInvoice(null)} />
     </div>
+  );
+}
+
+function InvoiceDetailDialog({ invoice, onClose }: { invoice: any; onClose: () => void }) {
+  if (!invoice) return null;
+  const remaining = (invoice.totalAmount || 0) - (invoice.paidAmount || 0);
+  const isOverdue = invoice.status !== "payee" && invoice.dueDate && new Date(invoice.dueDate) < new Date();
+  return (
+    <Dialog open={!!invoice} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Receipt className="h-5 w-5 text-primary" />
+            Facture {invoice.reference}
+          </DialogTitle>
+          <DialogDescription>{invoice.title}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 text-sm">
+          <div className="flex items-center justify-between">
+            <Badge variant={invoice.status === "payee" ? "default" : invoice.status === "envoyee" ? "secondary" : isOverdue ? "destructive" : "outline"}>
+              {invoice.status === "payee" ? "Payee" : invoice.status === "envoyee" ? "Envoyee" : isOverdue ? "En retard" : invoice.status === "brouillon" ? "Brouillon" : invoice.status}
+            </Badge>
+            <span className="text-xs text-muted-foreground">Creee le {format(new Date(invoice.createdAt), "dd/MM/yyyy", { locale: fr })}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 p-3 rounded-lg bg-muted/50">
+            <div><div className="text-xs text-muted-foreground">Client</div><div className="font-semibold">{invoice.clientName}</div></div>
+            {invoice.clientCompany && <div><div className="text-xs text-muted-foreground">Entreprise</div><div>{invoice.clientCompany}</div></div>}
+            {invoice.clientEmail && <div><div className="text-xs text-muted-foreground">Email</div><div>{invoice.clientEmail}</div></div>}
+            {invoice.clientPhone && <div><div className="text-xs text-muted-foreground">Telephone</div><div>{invoice.clientPhone}</div></div>}
+            {invoice.dueDate && <div><div className="text-xs text-muted-foreground">Echeance</div><div>{format(new Date(invoice.dueDate), "dd/MM/yyyy", { locale: fr })}</div></div>}
+          </div>
+          {Array.isArray(invoice.items) && invoice.items.length > 0 && (
+            <div className="space-y-1">
+              <div className="text-xs font-semibold text-muted-foreground uppercase">Lignes</div>
+              <div className="space-y-1">
+                {invoice.items.map((it: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between text-xs border-b pb-1">
+                    <span className="flex-1 truncate">{it.description}</span>
+                    <span className="text-muted-foreground mx-2">x{it.quantity}</span>
+                    <span className="font-mono">{((it.total ?? it.quantity * it.unitPrice) || 0).toFixed(2)} EUR</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <Separator />
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs"><span className="text-muted-foreground">Sous-total HT</span><span className="font-mono">{(invoice.subtotal || 0).toFixed(2)} EUR</span></div>
+            <div className="flex justify-between text-xs"><span className="text-muted-foreground">TVA</span><span className="font-mono">{(invoice.taxAmount || 0).toFixed(2)} EUR</span></div>
+            <div className="flex justify-between font-semibold"><span>Total TTC</span><span className="font-mono">{(invoice.totalAmount || 0).toFixed(2)} EUR</span></div>
+            {invoice.paidAmount > 0 && <div className="flex justify-between text-xs text-green-600"><span>Paye</span><span className="font-mono">{invoice.paidAmount.toFixed(2)} EUR</span></div>}
+            {remaining > 0 && invoice.status !== "payee" && <div className="flex justify-between text-sm font-semibold text-orange-600"><span>Reste a payer</span><span className="font-mono">{remaining.toFixed(2)} EUR</span></div>}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Fermer</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

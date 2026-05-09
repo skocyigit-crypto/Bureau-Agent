@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useListTasks, useCreateTask, useUpdateTask, useDeleteTask, getListTasksQueryKey, useListContacts } from "@workspace/api-client-react";
+import { useListTasks, useCreateTask, useUpdateTask, useDeleteTask, getListTasksQueryKey, useListContacts, useGetTask } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format, isPast, isToday } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -65,16 +65,35 @@ export default function Tasks() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [deepLinkTaskId, setDeepLinkTaskId] = useState<number | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const cId = params.get("contactId");
+    const tId = params.get("id");
     if (cId) {
       form.setValue("relatedContactId", cId as any);
       setIsDialogOpen(true);
+    }
+    if (tId && !isNaN(parseInt(tId))) {
+      setDeepLinkTaskId(parseInt(tId));
+    }
+    if (cId || tId) {
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
+
+  const { data: deepLinkTask } = useGetTask(deepLinkTaskId as number, {
+    query: { enabled: deepLinkTaskId !== null, queryKey: ["task-deeplink", deepLinkTaskId] },
+  });
+
+  useEffect(() => {
+    if (deepLinkTask && deepLinkTaskId !== null) {
+      handleOpenEdit(deepLinkTask);
+      setDeepLinkTaskId(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkTask]);
 
   const queryParams = {
     status: statusFilter !== "all" ? statusFilter as any : undefined,

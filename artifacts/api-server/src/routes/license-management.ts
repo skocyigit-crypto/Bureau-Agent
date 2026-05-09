@@ -122,6 +122,40 @@ router.get("/license-management/dashboard", async (req: Request, res: Response):
   }
 });
 
+router.get("/license-management/client-invoices/:id", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const id = parseInt(String(req.params.id));
+    if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+
+    const [facture] = await db.select().from(facturesClientTable).where(and(eq(facturesClientTable.id, id), eq(facturesClientTable.organisationId, orgId)));
+    if (!facture) { res.status(404).json({ error: "Facture introuvable" }); return; }
+
+    res.json({
+      id: facture.id,
+      reference: facture.reference,
+      clientName: facture.clientName,
+      clientEmail: facture.clientEmail,
+      clientCompany: facture.clientCompany,
+      clientPhone: facture.clientPhone,
+      title: facture.title,
+      totalAmount: Number(facture.totalAmount),
+      paidAmount: Number(facture.paidAmount),
+      subtotal: Number(facture.subtotal),
+      taxAmount: Number(facture.taxAmount),
+      status: facture.status,
+      dueDate: facture.dueDate,
+      createdAt: facture.createdAt,
+      items: facture.items || [],
+      notes: facture.notes,
+      conditions: facture.conditions,
+    });
+  } catch (err: any) {
+    logger.error({ err }, "Erreur get facture client:");
+    res.status(500).json({ error: "Erreur" });
+  }
+});
+
 router.post("/license-management/send-payment-reminder", async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);

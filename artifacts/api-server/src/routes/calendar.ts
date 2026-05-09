@@ -269,4 +269,28 @@ router.get("/calendar/events/export/csv", async (req: Request, res: Response): P
   }
 });
 
+router.get("/calendar/events/:id", async (req: Request, res: Response): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+
+  const orgId = getOrgId(req);
+  const id = parseInt(String(req.params.id));
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+
+  try {
+    const [event] = await db
+      .select()
+      .from(calendarEventsTable)
+      .where(and(eq(calendarEventsTable.id, id), eq(calendarEventsTable.organisationId, orgId)));
+    if (!event) { res.status(404).json({ error: "Evenement introuvable." }); return; }
+
+    const userMap = await resolveUserNames([event.createdBy, event.updatedBy].filter(Boolean) as any);
+    const [enriched] = enrichWithUserNames([event], userMap);
+    res.json(enriched);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur recuperation evenement agenda");
+    res.status(500).json({ error: "Erreur lors de la recuperation de l'evenement." });
+  }
+});
+
 export default router;

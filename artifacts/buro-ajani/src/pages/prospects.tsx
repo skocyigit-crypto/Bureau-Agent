@@ -96,6 +96,25 @@ export default function ProspectsPage() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { setPage(0); }, [search, stageFilter]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const pId = params.get("id");
+    if (!pId || isNaN(parseInt(pId))) return;
+    const id = parseInt(pId);
+    window.history.replaceState({}, "", window.location.pathname);
+    (async () => {
+      try {
+        const res = await fetch(`${BASE}/api/prospects/${id}`, { credentials: "include" });
+        if (!res.ok) throw new Error("introuvable");
+        const p = await res.json();
+        openEdit(p);
+      } catch {
+        toast({ title: "Erreur", description: "Impossible d'ouvrir ce prospect.", variant: "destructive" });
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const openCreate = () => { setEditingId(null); setForm({ ...EMPTY_FORM }); setDialogOpen(true); };
   const openEdit = (p: Prospect) => {
     setEditingId(p.id);
