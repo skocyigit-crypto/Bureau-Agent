@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Settings, Shield, Bell, Save, Monitor, Package,
-  PhoneIncoming, Layers, Rocket, BrainCircuit, Building2, Users, Printer
+  PhoneIncoming, Layers, Rocket, BrainCircuit, Building2, Users, Printer, Sparkles
 } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import { TabSecurite } from "./settings/tab-securite";
 import { TabMisesAJour } from "./settings/tab-mises-a-jour";
 import { TabIntelligenceArtificielle } from "./settings/tab-intelligence-artificielle";
 import { TabProfilOrg } from "./settings/tab-profil-org";
+import { TabPreferencesIa } from "./settings/tab-preferences-ia";
 
 export default function SettingsPage() {
   const { user } = useWorkspaceUser();
@@ -50,7 +51,7 @@ export default function SettingsPage() {
       window.history.replaceState({}, "", window.location.pathname);
     }
     const tabParam = params.get("tab");
-    const VALID_TABS = ["profil", "abonnement", "equipe", "google", "appels", "sauvegardes", "installation", "notifications", "securite", "mises-a-jour", "intelligence-artificielle"];
+    const VALID_TABS = ["profil", "abonnement", "equipe", "google", "appels", "sauvegardes", "installation", "notifications", "securite", "mises-a-jour", "intelligence-artificielle", "preferences-ia"];
     if (tabParam && VALID_TABS.includes(tabParam)) {
       setActiveTab(tabParam);
       window.history.replaceState({}, "", window.location.pathname);
@@ -107,6 +108,10 @@ export default function SettingsPage() {
               Sauvegardes
             </TabsTrigger>
           )}
+          <TabsTrigger value="preferences-ia" className="gap-2">
+            <Sparkles className="w-4 h-4" />
+            Preferences IA
+          </TabsTrigger>
           <TabsTrigger value="installation" className="gap-2">
             <Monitor className="w-4 h-4" />
             Installation
@@ -157,6 +162,10 @@ export default function SettingsPage() {
 
         <TabsContent value="sauvegardes" className="space-y-6 mt-6">
           <TabSauvegardes />
+        </TabsContent>
+
+        <TabsContent value="preferences-ia" className="space-y-6 mt-6">
+          <TabPreferencesIa />
         </TabsContent>
 
         <TabsContent value="installation" className="space-y-6 mt-6">

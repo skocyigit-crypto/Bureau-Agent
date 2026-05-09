@@ -9,6 +9,11 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface UserPreferences {
+  /** When true, inline ghost-text AI suggestions are shown while typing notes, prospect notes, and email bodies. */
+  inlineSuggestEnabled?: boolean;
+}
+
 export type CallDirection = (typeof CallDirection)[keyof typeof CallDirection];
 
 export const CallDirection = {

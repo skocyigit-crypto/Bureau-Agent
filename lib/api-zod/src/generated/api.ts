@@ -980,6 +980,39 @@ export const DraftAiEmailResponse = zod.object({
 });
 
 /**
+ * @summary Get the current user's preferences (AI assistance, etc.)
+ */
+export const GetMyPreferencesResponse = zod.object({
+  inlineSuggestEnabled: zod
+    .boolean()
+    .optional()
+    .describe(
+      "When true, inline ghost-text AI suggestions are shown while typing notes, prospect notes, and email bodies.",
+    ),
+});
+
+/**
+ * @summary Update the current user's preferences
+ */
+export const UpdateMyPreferencesBody = zod.object({
+  inlineSuggestEnabled: zod
+    .boolean()
+    .optional()
+    .describe(
+      "When true, inline ghost-text AI suggestions are shown while typing notes, prospect notes, and email bodies.",
+    ),
+});
+
+export const UpdateMyPreferencesResponse = zod.object({
+  inlineSuggestEnabled: zod
+    .boolean()
+    .optional()
+    .describe(
+      "When true, inline ghost-text AI suggestions are shown while typing notes, prospect notes, and email bodies.",
+    ),
+});
+
+/**
  * @summary Suggest the next short continuation for inline ghost-text editing
  */
 export const RequestAiInlineSuggestBody = zod.object({

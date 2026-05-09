@@ -1,5 +1,9 @@
-import { pgTable, serial, varchar, text, timestamp, boolean, integer, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, text, timestamp, boolean, integer, index, jsonb } from "drizzle-orm/pg-core";
 import { organisationsTable } from "./organisations";
+
+export interface UserPreferences {
+  inlineSuggestEnabled?: boolean;
+}
 
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -20,6 +24,7 @@ export const usersTable = pgTable("users", {
   verrouilleJusqua: timestamp("verrouille_jusqua"),
   resetPasswordToken: varchar("reset_password_token", { length: 128 }),
   resetPasswordExpiry: timestamp("reset_password_expiry", { withTimezone: true }),
+  preferences: jsonb("preferences").$type<UserPreferences>(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [

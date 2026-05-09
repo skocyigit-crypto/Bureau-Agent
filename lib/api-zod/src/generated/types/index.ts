@@ -217,6 +217,7 @@ export * from "./updateStockArticleBody";
 export * from "./updateTaskBody";
 export * from "./updateTaskBodyPriority";
 export * from "./updateTaskBodyStatus";
+export * from "./userPreferences";
 export * from "./weeklyReport";
 export * from "./weeklyReportComparisonPrevWeek";
 export * from "./workspaceService";

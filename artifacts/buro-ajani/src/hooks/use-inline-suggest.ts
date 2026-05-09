@@ -1,5 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRequestAiInlineSuggest } from "@workspace/api-client-react";
+import {
+  useRequestAiInlineSuggest,
+  useGetMyPreferences,
+  useUpdateMyPreferences,
+  getGetMyPreferencesQueryKey,
+  type UserPreferences,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+
+interface FetchLikeError {
+  status?: number;
+}
+
+function isUnauthenticatedError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const status = (err as FetchLikeError).status;
+  return status === 401 || status === 403;
+}
 
 export type InlineSuggestFieldType =
   | "note"
@@ -35,10 +52,18 @@ export function setInlineSuggestEnabled(enabled: boolean): void {
   }
 }
 
+/**
+ * Returns the user's inline-suggestion preference, persisted server-side
+ * when authenticated, with a localStorage shim as graceful fallback for
+ * unauthenticated/offline contexts.
+ */
 export function useInlineSuggestEnabled(): [boolean, (v: boolean) => void] {
-  const [enabled, setEnabledState] = useState<boolean>(() => getInlineSuggestEnabled());
+  const queryClient = useQueryClient();
+  const [localEnabled, setLocalEnabled] = useState<boolean>(() => getInlineSuggestEnabled());
+
+  // Listen to local cross-tab/local-storage changes (fallback path).
   useEffect(() => {
-    const onChange = () => setEnabledState(getInlineSuggestEnabled());
+    const onChange = () => setLocalEnabled(getInlineSuggestEnabled());
     window.addEventListener("inline-suggest-toggle", onChange as EventListener);
     window.addEventListener("storage", onChange);
     return () => {
@@ -46,10 +71,69 @@ export function useInlineSuggestEnabled(): [boolean, (v: boolean) => void] {
       window.removeEventListener("storage", onChange);
     };
   }, []);
-  const set = useCallback((v: boolean) => {
-    setInlineSuggestEnabled(v);
-    setEnabledState(v);
-  }, []);
+
+  const prefsQuery = useGetMyPreferences({
+    query: {
+      queryKey: getGetMyPreferencesQueryKey(),
+      retry: false,
+      staleTime: 60_000,
+      refetchOnWindowFocus: false,
+    },
+  });
+
+  // Mirror server value into localStorage shim so it works when offline.
+  useEffect(() => {
+    const v = prefsQuery.data?.inlineSuggestEnabled;
+    if (typeof v === "boolean") {
+      try {
+        const stored = window.localStorage.getItem(STORAGE_KEY);
+        const desired = v ? "true" : "false";
+        if (stored !== desired) {
+          window.localStorage.setItem(STORAGE_KEY, desired);
+        }
+      } catch {
+        /* ignore */
+      }
+      setLocalEnabled(v);
+    }
+  }, [prefsQuery.data?.inlineSuggestEnabled]);
+
+  const updateMutation = useUpdateMyPreferences();
+
+  // If the preferences fetch indicates the user is not authenticated, skip
+  // server writes entirely so the localStorage shim remains the sole source
+  // of truth (no noisy 401 churn on every toggle).
+  const isAuthenticated = !isUnauthenticatedError(prefsQuery.error);
+
+  const set = useCallback(
+    (v: boolean) => {
+      setInlineSuggestEnabled(v);
+      setLocalEnabled(v);
+      if (!isAuthenticated) return;
+      // Optimistically update the cached server preference.
+      queryClient.setQueryData<UserPreferences>(
+        getGetMyPreferencesQueryKey(),
+        (prev) => ({
+          ...(prev ?? {}),
+          inlineSuggestEnabled: v,
+        }),
+      );
+      updateMutation.mutate(
+        { data: { inlineSuggestEnabled: v } },
+        {
+          onError: () => {
+            queryClient.invalidateQueries({ queryKey: getGetMyPreferencesQueryKey() });
+          },
+        },
+      );
+    },
+    [queryClient, updateMutation, isAuthenticated],
+  );
+
+  // Server value wins when available; otherwise fall back to localStorage shim.
+  const serverValue = prefsQuery.data?.inlineSuggestEnabled;
+  const enabled = typeof serverValue === "boolean" ? serverValue : localEnabled;
+
   return [enabled, set];
 }
 

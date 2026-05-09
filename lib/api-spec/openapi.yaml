@@ -981,6 +981,36 @@ paths:
               schema:
                 $ref: "#/components/schemas/AiEmailDraft"
 
+  /me/preferences:
+    get:
+      operationId: getMyPreferences
+      tags: [ai]
+      summary: Get the current user's preferences (AI assistance, etc.)
+      responses:
+        "200":
+          description: Current user preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPreferences"
+    patch:
+      operationId: updateMyPreferences
+      tags: [ai]
+      summary: Update the current user's preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserPreferences"
+      responses:
+        "200":
+          description: Updated user preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPreferences"
+
   /ai/inline-suggest:
     post:
       operationId: requestAiInlineSuggest
@@ -1955,6 +1985,13 @@ components:
           type: string
       required:
         - status
+
+    UserPreferences:
+      type: object
+      properties:
+        inlineSuggestEnabled:
+          type: boolean
+          description: When true, inline ghost-text AI suggestions are shown while typing notes, prospect notes, and email bodies.
 
     Call:
       type: object
