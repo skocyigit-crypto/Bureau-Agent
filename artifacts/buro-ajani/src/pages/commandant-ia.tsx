@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1125,6 +1126,39 @@ function highlightMatches(text: string, query: string) {
   );
 }
 
+function entityTypeLabel(type: string): string {
+  switch (type) {
+    case "contact": return "le contact";
+    case "task": return "la tache";
+    case "event": return "l'evenement";
+    case "invoice": return "la facture";
+    case "prospect": return "le prospect";
+    default: return "la fiche";
+  }
+}
+
+function entityChipClass(type: string): string {
+  switch (type) {
+    case "contact": return "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100";
+    case "task": return "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100";
+    case "event": return "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100";
+    case "invoice": return "bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100";
+    case "prospect": return "bg-pink-50 text-pink-700 border-pink-200 hover:bg-pink-100";
+    default: return "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100";
+  }
+}
+
+function entityTypeIcon(type: string) {
+  switch (type) {
+    case "contact": return <Users className="h-3 w-3" />;
+    case "task": return <CheckSquare className="h-3 w-3" />;
+    case "event": return <Calendar className="h-3 w-3" />;
+    case "invoice": return <DollarSign className="h-3 w-3" />;
+    case "prospect": return <Target className="h-3 w-3" />;
+    default: return <FileText className="h-3 w-3" />;
+  }
+}
+
 function ChatTab() {
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -1439,6 +1473,8 @@ function ChatTab() {
               <div className="space-y-3">
                 {messages.map((m: any) => {
                   const isHighlighted = typeof m.id === "number" && highlightedMessageId === m.id;
+                  const entities: Array<{ id: number; type: string; label: string; url: string }> =
+                    m.role === "assistant" && m.metadata?.retrievedEntities ? m.metadata.retrievedEntities : [];
                   return (
                     <div
                       key={m.id}
@@ -1447,13 +1483,29 @@ function ChatTab() {
                         if (el) messageRefs.current.set(m.id, el);
                         else messageRefs.current.delete(m.id);
                       }}
-                      className={`flex ${m.role === "user" ? "justify-end" : "justify-start"} transition-all duration-500 ${isHighlighted ? "scale-[1.01]" : ""}`}
+                      className={`flex flex-col ${m.role === "user" ? "items-end" : "items-start"} transition-all duration-500 ${isHighlighted ? "scale-[1.01]" : ""}`}
                     >
                       <div
                         className={`max-w-[80%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap transition-all duration-500 ${m.role === "user" ? "bg-amber-600 text-white" : "bg-muted"} ${isHighlighted ? "ring-2 ring-amber-400 ring-offset-2 shadow-lg" : ""}`}
                       >
                         {m.content}
                       </div>
+                      {entities.length > 0 && (
+                        <div className="mt-1.5 max-w-[80%] flex flex-wrap gap-1">
+                          {entities.map((e) => (
+                            <Link
+                              key={`${e.type}-${e.id}`}
+                              href={e.url}
+                              className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border transition-colors hover:opacity-80 ${entityChipClass(e.type)}`}
+                              title={`Ouvrir ${entityTypeLabel(e.type)}: ${e.label}`}
+                            >
+                              {entityTypeIcon(e.type)}
+                              <span className="truncate max-w-[180px]">{e.label}</span>
+                              <ExternalLink className="h-2.5 w-2.5 opacity-60" />
+                            </Link>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

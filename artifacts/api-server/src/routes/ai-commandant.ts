@@ -194,6 +194,18 @@ function extractKeywordsFromChat(message: string, maxTokens = 4): string[] {
   return out;
 }
 
+export type RetrievedEntity = {
+  id: number;
+  type: "contact" | "task" | "event" | "invoice" | "prospect";
+  label: string;
+  url: string;
+};
+
+export type ChatRetrievalResult = {
+  context: string;
+  entities: RetrievedEntity[];
+};
+
 // Lazily detect whether the Postgres `unaccent` extension is available so that
 // retrieval queries can match accented DB rows ("impayée") from accent-stripped
 // keywords ("impaye"). We try to enable it once; if that fails (insufficient
@@ -226,11 +238,13 @@ function accentInsensitiveIlike(column: Column, pattern: string, useUnaccent: bo
 }
 
 // Lightweight, tenant-isolated retrieval that mirrors /commandant/smart-search.
-// Returns a "DONNEES PERTINENTES" markdown block, or "" if nothing useful was found
-// or no usable keywords were extracted from the message.
-async function retrieveRelevantDataForChat(orgId: number, userMessage: string): Promise<string> {
+// Returns a "DONNEES PERTINENTES" markdown block plus the structured list of
+// matched entities (so the UI can render clickable chips). Returns empty
+// values if no usable keywords were extracted or nothing matched.
+async function retrieveRelevantDataForChat(orgId: number, userMessage: string): Promise<ChatRetrievalResult> {
+  const empty: ChatRetrievalResult = { context: "", entities: [] };
   const keywords = extractKeywordsFromChat(userMessage);
-  if (keywords.length === 0) return "";
+  if (keywords.length === 0) return empty;
 
   try {
     const useUnaccent = await ensureUnaccentExtension();
@@ -275,13 +289,31 @@ async function retrieveRelevantDataForChat(orgId: number, userMessage: string): 
     const prospects = dedupe(perKeyword.flatMap(r => r.prospects)).slice(0, 5);
 
     const total = contacts.length + tasks.length + events.length + invoices.length + prospects.length;
-    if (total === 0) return "";
+    if (total === 0) return empty;
 
     const formatDate = (value: Date | string | null | undefined, fallback: string): string => {
       if (!value) return fallback;
       const d = value instanceof Date ? value : new Date(value);
       return Number.isNaN(d.getTime()) ? fallback : d.toLocaleDateString("fr-FR");
     };
+
+    const entities: RetrievedEntity[] = [];
+    for (const c of contacts) {
+      const name = `${c.firstName ?? ""} ${c.lastName ?? ""}`.replace(/\s+/g, " ").trim();
+      entities.push({ id: c.id, type: "contact", label: name || c.company || c.email || `Contact #${c.id}`, url: `/contacts/${c.id}` });
+    }
+    for (const t of tasks) {
+      entities.push({ id: t.id, type: "task", label: t.title || `Tache #${t.id}`, url: `/taches?id=${t.id}` });
+    }
+    for (const e of events) {
+      entities.push({ id: e.id, type: "event", label: e.title || `Evenement #${e.id}`, url: `/calendrier?id=${e.id}` });
+    }
+    for (const f of invoices) {
+      entities.push({ id: f.id, type: "invoice", label: f.reference || f.clientName || `Facture #${f.id}`, url: `/abonnement?factureId=${f.id}` });
+    }
+    for (const p of prospects) {
+      entities.push({ id: p.id, type: "prospect", label: p.company || p.contactName || p.title || `Prospect #${p.id}`, url: `/prospects?id=${p.id}` });
+    }
 
     const lines: string[] = [];
     lines.push(`DONNEES PERTINENTES (recherche: ${keywords.join(", ")}):`);
@@ -315,10 +347,10 @@ async function retrieveRelevantDataForChat(orgId: number, userMessage: string): 
         lines.push(`  - #${p.id} ${p.company ?? p.contactName ?? p.title ?? ""} [${p.stage}${p.source ? `, ${p.source}` : ""}]`);
       }
     }
-    return lines.join("\n");
+    return { context: lines.join("\n"), entities };
   } catch (err) {
     logger.warn({ err }, "[Commandant/Conv/Send] retrieval failed");
-    return "";
+    return empty;
   }
 }
 
@@ -2249,7 +2281,8 @@ router.post("/commandant/conversations/:id/messages", async (req: Request, res: 
 
     // Lightweight retrieval: keyword search across core entities (tenant-isolated)
     // Reuses the same approach as /commandant/smart-search to ground replies in real data.
-    const retrievedDataSection = await retrieveRelevantDataForChat(orgId, userMessage);
+    const retrieved = await retrieveRelevantDataForChat(orgId, userMessage);
+    const retrievedDataSection = retrieved.context;
 
     const systemPrompt = `Tu es le Commandant IA d'Agent de Bureau, un assistant conversationnel pour un dirigeant francais.
 Tu reponds de maniere claire, concise et actionnable, TOUJOURS en francais.
@@ -2274,8 +2307,9 @@ CONTEXTE BUREAU (instantane):
 
     const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
 
+    const assistantMetadata = retrieved.entities.length > 0 ? { retrievedEntities: retrieved.entities } : null;
     const [savedAssistant] = await db.insert(commandantMessagesTable)
-      .values({ conversationId: id, organisationId: orgId, role: "assistant", content: aiResponse })
+      .values({ conversationId: id, organisationId: orgId, role: "assistant", content: aiResponse, metadata: assistantMetadata })
       .returning();
 
     // Bump conversation updatedAt + auto-title from first user message if still default

@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, index, jsonb } from "drizzle-orm/pg-core";
 import { organisationsTable } from "./organisations";
 import { usersTable } from "./users";
 
@@ -19,6 +19,7 @@ export const commandantMessagesTable = pgTable("commandant_messages", {
   organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
   role: text("role").notNull(),
   content: text("content").notNull().default(""),
+  metadata: jsonb("metadata").$type<{ retrievedEntities?: Array<{ id: number; type: string; label: string; url: string }> } | null>(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("commandant_msg_conv_idx").on(t.conversationId, t.createdAt),
