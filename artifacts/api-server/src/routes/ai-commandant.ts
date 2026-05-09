@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, calendarEventsTable, facturesClientTable, compteClientTable, organisationsTable, prospectsTable, notificationsTable, paymentRemindersTable, licenseAuditLogTable, projetsTable, usersTable, checkinsTable, auditLogsTable, commandantConversationsTable, commandantMessagesTable } from "@workspace/db";
-import { eq, sql, and, desc, gte, lte, lt, ne, isNull, isNotNull, or, ilike, count, asc } from "drizzle-orm";
+import { eq, sql, and, desc, gte, lte, lt, ne, isNull, isNotNull, or, ilike, count, asc, type Column, type SQL } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { Resend } from "resend";
 import { getContextForContact, getLatestAgentInsights, buildCommandantContextPrompt } from "./agent-collaboration";
@@ -139,21 +139,90 @@ const CHAT_RETRIEVAL_STOPWORDS = new Set([
   "show","montre","liste","afficher","donne","dis","peux","voir","voici","pls","please",
 ]);
 
+// Strip diacritics (NFD + remove combining marks) so "impayées" -> "impayees".
+// Used both before stemming and when building DB patterns paired with unaccent().
+function stripAccents(s: string): string {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+// Suffixes ordered longest-first so that the longest applicable French suffix
+// is removed (a tiny, deliberately conservative French stemmer). Keeping this
+// in-house avoids pulling a heavy NLP dep just for keyword retrieval. We only
+// apply if the resulting stem stays >= 4 chars to avoid overstemming.
+const FR_SUFFIXES = [
+  "issements","issantes","issement","issants","issante","issant",
+  "ations","ation","atrice","ateurs","ateur",
+  "eraient","erions","eriez","erait","erais","eront","erons","erez","erai","era",
+  "iraient","irions","iriez","irait","irais","iront","irons","irez","irai","ira",
+  "ssions","ssiez","ssent","ssais","ssait","ssant",
+  "aient","aions","aiez","ions","iez",
+  "ables","able","ibles","ible",
+  "euses","euse","eures","eure","eurs","eur",
+  "elles","elle",
+  "asses","asse",
+  "ees","ee","es","er","ir","re","ai","as","ant","ent","ons","ez","is","it",
+  "e","s","x",
+];
+
+function stemFr(token: string): string {
+  if (token.length < 5) return token;
+  for (const suf of FR_SUFFIXES) {
+    if (token.length - suf.length >= 4 && token.endsWith(suf)) {
+      return token.slice(0, token.length - suf.length);
+    }
+  }
+  return token;
+}
+
 function extractKeywordsFromChat(message: string, maxTokens = 4): string[] {
   if (!message) return [];
-  const cleaned = message.toLowerCase().replace(/[^\p{L}\p{N}\s@.+-]/gu, " ");
+  const cleaned = stripAccents(message.toLowerCase()).replace(/[^\p{L}\p{N}\s@.+-]/gu, " ");
   const tokens = cleaned.split(/\s+/).filter(Boolean);
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const t of tokens) {
-    if (t.length < 3) continue;
-    if (CHAT_RETRIEVAL_STOPWORDS.has(t)) continue;
-    if (seen.has(t)) continue;
-    seen.add(t);
-    out.push(t);
+  for (const raw of tokens) {
+    if (raw.length < 3) continue;
+    if (CHAT_RETRIEVAL_STOPWORDS.has(raw)) continue;
+    const stem = stemFr(raw);
+    if (stem.length < 3) continue;
+    if (CHAT_RETRIEVAL_STOPWORDS.has(stem)) continue;
+    if (seen.has(stem)) continue;
+    seen.add(stem);
+    out.push(stem);
     if (out.length >= maxTokens) break;
   }
   return out;
+}
+
+// Lazily detect whether the Postgres `unaccent` extension is available so that
+// retrieval queries can match accented DB rows ("impayée") from accent-stripped
+// keywords ("impaye"). We try to enable it once; if that fails (insufficient
+// privileges, hosted DB without it), we fall back to plain ILIKE matching.
+let unaccentAvailable: boolean | null = null;
+async function ensureUnaccentExtension(): Promise<boolean> {
+  if (unaccentAvailable !== null) return unaccentAvailable;
+  try {
+    await db.execute(sql`CREATE EXTENSION IF NOT EXISTS unaccent`);
+    unaccentAvailable = true;
+  } catch {
+    try {
+      const r = await db.execute<{ exists: number }>(sql`SELECT 1 AS exists FROM pg_extension WHERE extname = 'unaccent'`);
+      unaccentAvailable = r.rows.length > 0;
+    } catch {
+      unaccentAvailable = false;
+    }
+  }
+  return unaccentAvailable;
+}
+
+// Builds an accent-insensitive ILIKE condition. When the unaccent extension is
+// installed both sides are wrapped in unaccent(); otherwise we fall back to a
+// plain ILIKE (the keyword is already accent-stripped).
+function accentInsensitiveIlike(column: Column, pattern: string, useUnaccent: boolean): SQL {
+  if (useUnaccent) {
+    return sql`unaccent(${column}) ILIKE unaccent(${pattern})`;
+  }
+  return ilike(column, pattern);
 }
 
 // Lightweight, tenant-isolated retrieval that mirrors /commandant/smart-search.
@@ -164,28 +233,29 @@ async function retrieveRelevantDataForChat(orgId: number, userMessage: string): 
   if (keywords.length === 0) return "";
 
   try {
+    const useUnaccent = await ensureUnaccentExtension();
+    const il = (col: Column, kw: string): SQL => accentInsensitiveIlike(col, `%${kw}%`, useUnaccent);
     const perKeyword = await Promise.all(keywords.map(async (kw) => {
-      const q = `%${kw}%`;
       const [contacts, tasks, events, invoices, prospects] = await Promise.all([
         db.select().from(contactsTable).where(and(
           eq(contactsTable.organisationId, orgId),
-          or(ilike(contactsTable.firstName, q), ilike(contactsTable.lastName, q), ilike(contactsTable.email, q), ilike(contactsTable.phone, q), ilike(contactsTable.company, q)),
+          or(il(contactsTable.firstName, kw), il(contactsTable.lastName, kw), il(contactsTable.email, kw), il(contactsTable.phone, kw), il(contactsTable.company, kw)),
         )).limit(5),
         db.select().from(tasksTable).where(and(
           eq(tasksTable.organisationId, orgId),
-          or(ilike(tasksTable.title, q), ilike(tasksTable.description, q)),
+          or(il(tasksTable.title, kw), il(tasksTable.description, kw)),
         )).limit(5),
         db.select().from(calendarEventsTable).where(and(
           eq(calendarEventsTable.organisationId, orgId),
-          or(ilike(calendarEventsTable.title, q), ilike(calendarEventsTable.description, q)),
+          or(il(calendarEventsTable.title, kw), il(calendarEventsTable.description, kw)),
         )).limit(5),
         db.select().from(facturesClientTable).where(and(
           eq(facturesClientTable.organisationId, orgId),
-          or(ilike(facturesClientTable.reference, q), ilike(facturesClientTable.clientName, q)),
+          or(il(facturesClientTable.reference, kw), il(facturesClientTable.clientName, kw)),
         )).limit(5),
         db.select().from(prospectsTable).where(and(
           eq(prospectsTable.organisationId, orgId),
-          or(ilike(prospectsTable.company, q), ilike(prospectsTable.contactName, q), ilike(prospectsTable.email, q)),
+          or(il(prospectsTable.company, kw), il(prospectsTable.contactName, kw), il(prospectsTable.email, kw)),
         )).limit(5),
       ]);
       return { contacts, tasks, events, invoices, prospects };
