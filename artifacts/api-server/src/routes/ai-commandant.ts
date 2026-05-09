@@ -276,7 +276,7 @@ async function retrieveRelevantDataForChat(orgId: number, userMessage: string): 
       entities.push({ id: f.id, type: "invoice", label: f.reference || f.clientName || `Facture #${f.id}`, url: `/abonnement?factureId=${f.id}` });
     }
     for (const p of prospects) {
-      entities.push({ id: p.id, type: "prospect", label: p.company || p.contactName || p.title || `Prospect #${p.id}`, url: `/prospects?id=${p.id}` });
+      entities.push({ id: p.id, type: "prospect", label: p.company || p.contactName || p.title || `Prospect #${p.id}`, url: `/prospects/${p.id}` });
     }
 
     const lines: string[] = [];

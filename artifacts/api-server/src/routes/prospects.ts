@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, desc, asc, ilike, or, sql, and, gte, lte, type Column, type SQL } from "drizzle-orm";
-import { db, prospectsTable, contactsTable } from "@workspace/db";
+import { db, prospectsTable, contactsTable, devisTable, facturesClientTable, callsTable, tasksTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
@@ -253,6 +253,108 @@ router.post("/prospects/:id/duplicate", async (req: Request, res: Response): Pro
   } catch (err: any) {
     req.log.error({ err }, "Erreur duplication prospect");
     res.status(500).json({ error: "Erreur lors de la duplication." });
+  }
+});
+
+router.get("/prospects/:id/devis", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const id = parseInt(req.params.id as string);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  try {
+    const [prospect] = await db.select({
+      contactName: prospectsTable.contactName,
+      company: prospectsTable.company,
+      email: prospectsTable.email,
+    }).from(prospectsTable).where(and(eq(prospectsTable.id, id), eq(prospectsTable.organisationId, orgId))).limit(1);
+    if (!prospect) { res.status(404).json({ error: "Prospect non trouve." }); return; }
+
+    const name = (prospect.contactName || "").trim();
+    const company = (prospect.company || "").trim();
+    const email = (prospect.email || "").trim();
+
+    const nameMatch = (col: Column): SQL[] => {
+      const arr: SQL[] = [];
+      if (name) arr.push(ilike(col, `%${name}%`));
+      if (company) arr.push(ilike(col, `%${company}%`));
+      return arr;
+    };
+    const emailMatch = (col: Column): SQL | null => email ? ilike(col, email) : null;
+
+    const devisConds: SQL[] = [eq(devisTable.prospectId, id), ...nameMatch(devisTable.clientName)];
+    const dEmail = emailMatch(devisTable.clientEmail); if (dEmail) devisConds.push(dEmail);
+
+    const factureConds: SQL[] = [...nameMatch(facturesClientTable.clientName)];
+    const fEmail = emailMatch(facturesClientTable.clientEmail); if (fEmail) factureConds.push(fEmail);
+
+    const [devisList, facturesList] = await Promise.all([
+      db.select({ id: devisTable.id, reference: devisTable.reference, status: devisTable.status, totalAmount: devisTable.totalAmount, createdAt: devisTable.createdAt })
+        .from(devisTable)
+        .where(and(eq(devisTable.organisationId, orgId), or(...devisConds)))
+        .orderBy(desc(devisTable.createdAt)).limit(20),
+      factureConds.length > 0
+        ? db.select({ id: facturesClientTable.id, reference: facturesClientTable.reference, status: facturesClientTable.status, totalAmount: facturesClientTable.totalAmount, paidAmount: facturesClientTable.paidAmount, createdAt: facturesClientTable.createdAt })
+            .from(facturesClientTable)
+            .where(and(eq(facturesClientTable.organisationId, orgId), or(...factureConds)))
+            .orderBy(desc(facturesClientTable.createdAt)).limit(20)
+        : Promise.resolve([] as any[]),
+    ]);
+
+    res.json({ devis: devisList, factures: facturesList });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur devis/factures prospect");
+    res.status(500).json({ error: "Erreur lors de la recuperation." });
+  }
+});
+
+router.get("/prospects/:id/history", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const id = parseInt(req.params.id as string);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  try {
+    const [prospect] = await db.select().from(prospectsTable)
+      .where(and(eq(prospectsTable.id, id), eq(prospectsTable.organisationId, orgId))).limit(1);
+    if (!prospect) { res.status(404).json({ error: "Prospect non trouve." }); return; }
+
+    const name = (prospect.contactName || "").trim();
+    const phone = (prospect.phone || "").trim();
+    const email = (prospect.email || "").trim();
+
+    const callConds: SQL[] = [];
+    if (prospect.contactId) callConds.push(eq(callsTable.contactId, prospect.contactId));
+    if (phone) callConds.push(ilike(callsTable.phoneNumber, `%${phone}%`));
+    if (name) callConds.push(ilike(callsTable.contactName, `%${name}%`));
+
+    const taskConds: SQL[] = [];
+    if (prospect.contactId) taskConds.push(eq(tasksTable.relatedContactId, prospect.contactId));
+    if (name) taskConds.push(ilike(tasksTable.title, `%${name}%`));
+    const company = (prospect.company || "").trim();
+    if (company) taskConds.push(ilike(tasksTable.title, `%${company}%`));
+    if (prospect.title) taskConds.push(ilike(tasksTable.title, `%${prospect.title}%`));
+
+    const [calls, tasks] = await Promise.all([
+      callConds.length > 0
+        ? db.select({
+            id: callsTable.id, direction: callsTable.direction, status: callsTable.status,
+            phoneNumber: callsTable.phoneNumber, contactName: callsTable.contactName,
+            duration: callsTable.duration, notes: callsTable.notes, createdAt: callsTable.createdAt,
+          }).from(callsTable)
+            .where(and(eq(callsTable.organisationId, orgId), or(...callConds)))
+            .orderBy(desc(callsTable.createdAt)).limit(20)
+        : Promise.resolve([] as any[]),
+      taskConds.length > 0
+        ? db.select({
+            id: tasksTable.id, title: tasksTable.title, status: tasksTable.status,
+            priority: tasksTable.priority, dueDate: tasksTable.dueDate, createdAt: tasksTable.createdAt,
+          }).from(tasksTable)
+            .where(and(eq(tasksTable.organisationId, orgId), or(...taskConds)))
+            .orderBy(desc(tasksTable.createdAt)).limit(20)
+        : Promise.resolve([] as any[]),
+    ]);
+
+    res.json({ calls, tasks });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur historique prospect");
+    res.status(500).json({ error: "Erreur lors de la recuperation de l'historique." });
   }
 });
 

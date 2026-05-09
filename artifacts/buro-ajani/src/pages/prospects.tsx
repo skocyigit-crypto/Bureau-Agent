@@ -101,17 +101,7 @@ export default function ProspectsPage() {
     const pId = params.get("id");
     if (!pId || isNaN(parseInt(pId))) return;
     const id = parseInt(pId);
-    window.history.replaceState({}, "", window.location.pathname);
-    (async () => {
-      try {
-        const res = await fetch(`${BASE}/api/prospects/${id}`, { credentials: "include" });
-        if (!res.ok) throw new Error("introuvable");
-        const p = await res.json();
-        openEdit(p);
-      } catch {
-        toast({ title: "Erreur", description: "Impossible d'ouvrir ce prospect.", variant: "destructive" });
-      }
-    })();
+    setLocation(`/prospects/${id}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -321,7 +311,7 @@ export default function ProspectsPage() {
                 </div>
                 <div className="space-y-2">
                   {items.map(p => (
-                    <Card key={p.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => openEdit(p)}>
+                    <Card key={p.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setLocation(`/prospects/${p.id}`)}>
                       <CardContent className="p-3 space-y-2">
                         <p className="text-xs font-semibold leading-tight line-clamp-2">{p.title}</p>
                         {p.company && <p className="text-xs text-muted-foreground">{p.company}</p>}
@@ -419,8 +409,8 @@ export default function ProspectsPage() {
             {prospects.map(p => (
               <div key={p.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20">
                 <Checkbox checked={selectedIds.includes(p.id)} onCheckedChange={() => toggleSelect(p.id)} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{p.title}</p>
+                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setLocation(`/prospects/${p.id}`)}>
+                  <p className="text-sm font-medium truncate hover:text-primary">{p.title}</p>
                   <p className="text-xs text-muted-foreground">{[p.company, p.contactName].filter(Boolean).join(" · ")}</p>
                 </div>
                 <StageBadge stage={p.stage} />
@@ -430,7 +420,7 @@ export default function ProspectsPage() {
                   <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                    <DropdownMenuItem onClick={() => openEdit(p)}><Edit className="w-3 h-3 mr-2" />Modifier</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setLocation(`/prospects/${p.id}`)}><Edit className="w-3 h-3 mr-2" />Ouvrir</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleDuplicate(p.id)}><Copy className="w-3 h-3 mr-2" />Dupliquer</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleConvert(p.id)}><UserPlus className="w-3 h-3 mr-2" />Convertir en contact</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleCreateProjet(p)} className="text-indigo-600"><FolderKanban className="w-3 h-3 mr-2" />Créer un projet</DropdownMenuItem>
