@@ -527,7 +527,14 @@ export default function ContactDetail() {
                     {isDevisLoading ? <Skeleton className="h-20 w-full" /> : devisData?.devis && devisData.devis.length > 0 ? (
                       <div className="space-y-2">
                         {devisData.devis.map((d: any) => (
-                          <div key={d.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 text-sm">
+                          <div
+                            key={d.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => navigate(`/devis?id=${d.id}`)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/devis?id=${d.id}`); } }}
+                            className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 text-sm cursor-pointer"
+                          >
                             <div className="flex items-center gap-2">
                               <span className="font-mono text-xs text-muted-foreground">{d.reference}</span>
                               <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${d.status === 'accepte' ? 'bg-green-100 text-green-700' : d.status === 'refuse' ? 'bg-red-100 text-red-700' : d.status === 'envoye' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>{d.status}</span>
@@ -535,7 +542,7 @@ export default function ContactDetail() {
                             <div className="flex items-center gap-3">
                               <span className="font-semibold text-emerald-600">{Number(d.totalAmount || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €</span>
                               <span className="text-muted-foreground text-xs">{d.createdAt ? format(new Date(d.createdAt), "dd/MM/yy") : ""}</span>
-                              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => navigate(`/devis`)}><ArrowLeft className="w-3 h-3 rotate-180" /></Button>
+                              <ArrowLeft className="w-3 h-3 rotate-180 text-muted-foreground" />
                             </div>
                           </div>
                         ))}
@@ -555,7 +562,14 @@ export default function ContactDetail() {
                     {isDevisLoading ? <Skeleton className="h-20 w-full" /> : devisData?.factures && devisData.factures.length > 0 ? (
                       <div className="space-y-2">
                         {devisData.factures.map((f: any) => (
-                          <div key={f.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 text-sm">
+                          <div
+                            key={f.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => navigate(`/factures-client?id=${f.id}`)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/factures-client?id=${f.id}`); } }}
+                            className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 text-sm cursor-pointer"
+                          >
                             <div className="flex items-center gap-2">
                               <span className="font-mono text-xs text-muted-foreground">{f.reference}</span>
                               <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${f.status === 'payee' ? 'bg-green-100 text-green-700' : f.status === 'annulee' ? 'bg-red-100 text-red-700' : f.status === 'envoyee' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>{f.status}</span>

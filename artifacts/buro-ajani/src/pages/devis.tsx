@@ -99,6 +99,13 @@ export default function DevisPage() {
       setEditingId(null);
       setDialogOpen(true);
     }
+    const idParam = sp.get("id");
+    if (idParam) {
+      const id = parseInt(idParam, 10);
+      if (!isNaN(id)) {
+        openEdit({ id, reference: "", title: "", clientName: "", status: "brouillon" } as Devis);
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

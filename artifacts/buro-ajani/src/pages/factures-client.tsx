@@ -94,6 +94,17 @@ export default function FacturesClientPage() {
   }, [page, search, statusFilter, toast]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const idParam = sp.get("id");
+    if (idParam) {
+      const id = parseInt(idParam, 10);
+      if (!isNaN(id)) {
+        openEdit({ id, reference: "", title: "", clientName: "", status: "brouillon" } as Facture);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openCreate = () => { setEditingId(null); setForm({ ...EMPTY_FORM }); setDialogOpen(true); };
   const openEdit = async (f: Facture) => {
