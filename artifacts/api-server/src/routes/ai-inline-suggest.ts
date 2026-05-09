@@ -16,6 +16,8 @@ const FIELD_TYPES = new Set([
   "message_content",
   "project_description",
   "project_note",
+  "quote_comment",
+  "invoice_comment",
 ]);
 
 const FIELD_GUIDANCE: Record<string, string> = {
@@ -27,6 +29,8 @@ const FIELD_GUIDANCE: Record<string, string> = {
   message_content: "Tu aides l'utilisateur a rediger le contenu d'un message professionnel court (SMS / message interne) clair et poli.",
   project_description: "Tu aides l'utilisateur a rediger la description d'un projet (objectif, perimetre, livrables, contexte client).",
   project_note: "Tu aides l'utilisateur a rediger une note interne sur un projet (avancement, point bloquant, decision, prochaine etape).",
+  quote_comment: "Tu aides l'utilisateur a rediger un commentaire ou une note commerciale sur un devis (formulation professionnelle, conditions particulieres, remerciements, validite de l'offre, modalites).",
+  invoice_comment: "Tu aides l'utilisateur a rediger un commentaire ou une note sur une facture client (mention de paiement, reference de commande, conditions de reglement, remerciements, formulation comptable professionnelle).",
 };
 
 function buildPrompt(opts: {

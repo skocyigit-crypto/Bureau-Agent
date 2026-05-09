@@ -1026,6 +1026,8 @@ export const RequestAiInlineSuggestBody = zod.object({
       "message_content",
       "project_description",
       "project_note",
+      "quote_comment",
+      "invoice_comment",
     ])
     .describe("Field type providing context for the suggestion"),
   text: zod

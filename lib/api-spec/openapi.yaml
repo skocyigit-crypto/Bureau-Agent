@@ -1025,7 +1025,7 @@ paths:
               properties:
                 fieldType:
                   type: string
-                  enum: [note, prospect_note, email_body, call_note, task_description, message_content, project_description, project_note]
+                  enum: [note, prospect_note, email_body, call_note, task_description, message_content, project_description, project_note, quote_comment, invoice_comment]
                   description: Field type providing context for the suggestion
                 text:
                   type: string

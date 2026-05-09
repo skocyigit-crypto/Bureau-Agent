@@ -26,7 +26,9 @@ export type InlineSuggestFieldType =
   | "task_description"
   | "message_content"
   | "project_description"
-  | "project_note";
+  | "project_note"
+  | "quote_comment"
+  | "invoice_comment";
 
 const STORAGE_KEY = "aiInlineSuggest:enabled";
 const DEBOUNCE_MS = 400;

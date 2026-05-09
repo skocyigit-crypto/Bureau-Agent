@@ -21,4 +21,6 @@ export const RequestAiInlineSuggestBodyFieldType = {
   message_content: "message_content",
   project_description: "project_description",
   project_note: "project_note",
+  quote_comment: "quote_comment",
+  invoice_comment: "invoice_comment",
 } as const;
