@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { streamSse } from "@/lib/ai-stream-client";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -108,6 +109,8 @@ function BriefingTab() {
   const [analysisType, setAnalysisType] = useState("summary");
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [streamingText, setStreamingText] = useState("");
+  const analyzeAbortRef = useRef<AbortController | null>(null);
   const { toast } = useToast();
 
   const loadBriefing = async () => {
@@ -136,12 +139,32 @@ function BriefingTab() {
     if (!analysisText) return;
     setAnalyzing(true);
     setAnalysisResult(null);
+    setStreamingText("");
+    const controller = new AbortController();
+    analyzeAbortRef.current = controller;
     try {
-      const d = await apiPost("/commandant/analyze-text", { text: analysisText, analysisType });
-      if (d.success) setAnalysisResult(d.analysis);
-      else toast({ title: "Erreur", description: d.error || "Analyse echouee", variant: "destructive" });
-    } catch (err: any) { toast({ title: "Erreur", description: err.message, variant: "destructive" }); }
-    finally { setAnalyzing(false); }
+      await streamSse("/commandant/analyze-text/stream", { text: analysisText, analysisType }, {
+        signal: controller.signal,
+        onEvent: (event, data) => {
+          if (event === "token" && data?.chunk) setStreamingText(prev => prev + data.chunk);
+          else if (event === "cached" && typeof data?.text === "string") setStreamingText(data.text);
+          else if (event === "done" && data?.analysis) setAnalysisResult(data.analysis);
+          else if (event === "error") toast({ title: "Erreur", description: data?.error || "Analyse echouee", variant: "destructive" });
+        },
+      });
+    } catch (err: any) {
+      if (err?.name !== "AbortError") toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    } finally {
+      setAnalyzing(false);
+      analyzeAbortRef.current = null;
+    }
+  };
+
+  const cancelAnalyze = () => {
+    if (analyzeAbortRef.current) {
+      analyzeAbortRef.current.abort();
+      toast({ title: "Annule", description: "Analyse interrompue." });
+    }
   };
 
   useEffect(() => { loadBriefing(); }, []);
@@ -298,9 +321,26 @@ function BriefingTab() {
             placeholder="Collez ou tapez un texte a analyser (email, contrat, notes de reunion, message client...)"
             rows={4}
           />
-          <Button onClick={analyzeText} disabled={analyzing || !analysisText} className="w-full bg-violet-600 hover:bg-violet-700">
-            {analyzing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Brain className="h-4 w-4 mr-2" />}Analyser avec l'IA
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={analyzeText} disabled={analyzing || !analysisText} className="flex-1 bg-violet-600 hover:bg-violet-700">
+              {analyzing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Brain className="h-4 w-4 mr-2" />}Analyser avec l'IA
+            </Button>
+            {analyzing && (
+              <Button onClick={cancelAnalyze} variant="outline" className="border-red-300 text-red-700 hover:bg-red-50">
+                <X className="h-4 w-4 mr-1" />Annuler
+              </Button>
+            )}
+          </div>
+          {analyzing && streamingText && !analysisResult && (
+            <Card className="border-violet-200 bg-violet-50/30">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 mb-2 text-xs text-violet-700">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Reponse en cours...
+                </div>
+                <pre className="text-xs whitespace-pre-wrap font-mono text-muted-foreground max-h-40 overflow-auto">{streamingText}</pre>
+              </CardContent>
+            </Card>
+          )}
           {analysisResult && (
             <Card className="border-violet-200 bg-violet-50/30">
               <CardContent className="p-4">

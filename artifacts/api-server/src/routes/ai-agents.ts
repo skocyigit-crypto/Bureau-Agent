@@ -5,6 +5,7 @@ import { requireRole } from "../middleware/auth";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "../services/ai-quota";
 import { extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage } from "../services/ai-utils";
 import { withProviderTimeout, buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
+import { openSseStream, multiAiGenerateStream, StreamAbortedError } from "../services/ai-stream";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -1167,6 +1168,162 @@ router.post("/ai/agents/run/:agentId", requireAdmin, async (req, res) => {
     if (error instanceof AiQuotaExceededError) { res.status(429).json({ error: error.message, quotaExceeded: true }); return; }
     logger.error({ err: error }, "AI Agent run error");
     res.status(500).json({ error: "Erreur lors de l'execution de l'agent" });
+  }
+});
+
+router.post("/ai/agents/run/:agentId/stream", requireAdmin, async (req, res) => {
+  const orgId = (req.session as any)?.organisationId;
+  if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+  const { agentId } = req.params;
+  const agent = AGENTS.find(a => a.id === agentId);
+  if (!agent) { res.status(404).json({ error: "Agent introuvable" }); return; }
+
+  const stream = openSseStream(res);
+  const startTime = Date.now();
+  const today = new Date().toISOString().split("T")[0];
+
+  try {
+    stream.send("status", { phase: "gathering", agentId, agentName: agent.name });
+    const data = await gatherAgentData(agent.id, orgId);
+
+    let collaborationContext = "";
+    let trendContext = "";
+    try {
+      const { getLatestAgentInsights, buildCollaborationPrompt, getAgentTrendHistory } = await import("./agent-collaboration");
+      const [insights, trendHistory] = await Promise.all([
+        getLatestAgentInsights(orgId),
+        getAgentTrendHistory(orgId, agent.id, 5),
+      ]);
+      collaborationContext = buildCollaborationPrompt(insights, agent.id);
+      if (trendHistory.length > 1) {
+        const scores = trendHistory.map(h => h.score ?? 0);
+        const isDecaying = scores.length >= 3 && scores[0] < scores[1] && scores[1] < scores[2];
+        const isImproving = scores.length >= 3 && scores[0] > scores[1] && scores[1] > scores[2];
+        trendContext = `\n\n=== HISTORIQUE DE TES SCORES ===\nTes ${trendHistory.length} derniers scores: ${scores.join(" → ")}\nTendance: ${isDecaying ? "⚠ EN DEGRADATION CONTINUE" : isImproving ? "✅ EN AMELIORATION" : "Stable"}\n=== FIN HISTORIQUE ===`;
+      }
+    } catch {}
+
+    const fullPrompt = `${getAgentPrompt(agent)}${collaborationContext}${trendContext}\n\n${AGENT_RESPONSE_FORMAT}\n\nDate du rapport: ${today}\nDonnees actuelles (cette semaine + semaine precedente + patterns):\n${JSON.stringify(data, null, 2)}`;
+
+    const cacheKey = buildAiCacheKey({
+      route: `/ai/agents/${agent.id}`,
+      organisationId: orgId,
+      input: { day: today, dataHash: JSON.stringify(data).slice(0, 400) },
+    });
+
+    let text = "";
+    let providerLabel: string | undefined;
+    const cached = getCached<string>(cacheKey);
+    if (cached) {
+      text = cached;
+      stream.send("cached", { text: cached });
+    } else {
+      stream.send("status", { phase: "generating", agentId });
+      const result = await multiAiGenerateStream({
+        prompt: fullPrompt,
+        organisationId: orgId,
+        route: `/ai/agents/${agent.id}`,
+        signal: stream.signal,
+        onToken: (chunk) => stream.send("token", { chunk }),
+        maxOutputTokens: 8192,
+        responseMimeType: "application/json",
+      });
+      text = result.fullText;
+      providerLabel = result.provider;
+      if (text && text.length > 10) setCached(cacheKey, text, AI_CACHE_TTL.MEDIUM);
+    }
+
+    if (stream.signal.aborted) {
+      stream.send("aborted", { agentId });
+      stream.end();
+      return;
+    }
+
+    let parsed: any;
+    try { parsed = JSON.parse(text); }
+    catch {
+      parsed = { score: 50, summary: text, errors: [], warnings: [], suggestions: [], corrections: [], kpis: [], detectedPatterns: [], predictions: [], automations: [], trendAnalysis: "" };
+    }
+
+    const executionTimeMs = Date.now() - startTime;
+    const [report] = await db.insert(aiAgentReportsTable).values({
+      agentId: agent.id,
+      agentName: agent.name,
+      agentIcon: agent.icon,
+      organisationId: orgId,
+      reportDate: today,
+      status: "termine",
+      score: parsed.score || 50,
+      errorsFound: parsed.errors?.length || 0,
+      warningsFound: parsed.warnings?.length || 0,
+      suggestionsCount: parsed.suggestions?.length || 0,
+      summary: parsed.summary || "Aucun resume disponible",
+      details: {
+        kpis: parsed.kpis || [],
+        rawData: data,
+        trendAnalysis: parsed.trendAnalysis || "",
+        detectedPatterns: parsed.detectedPatterns || [],
+        predictions: parsed.predictions || [],
+        automations: parsed.automations || [],
+      },
+      errors: parsed.errors || [],
+      warnings: parsed.warnings || [],
+      suggestions: parsed.suggestions || [],
+      corrections: parsed.corrections || [],
+      isSuperReport: false,
+      childReportIds: [],
+      executionTimeMs,
+    }).returning();
+
+    stream.send("report", { report });
+    stream.send("done", { success: true, provider: providerLabel, executionTimeMs });
+    stream.end();
+  } catch (error: any) {
+    if (error instanceof StreamAbortedError) {
+      stream.send("aborted", {
+        agentId,
+        provider: error.partial.provider,
+        model: error.partial.model,
+        partialText: error.partial.fullText,
+        usage: { inputTokens: error.partial.inputTokens, outputTokens: error.partial.outputTokens },
+      });
+      stream.end();
+      return;
+    }
+    if (stream.signal.aborted || error?.message === "aborted") {
+      stream.send("aborted", { agentId });
+      stream.end();
+      return;
+    }
+    if (error instanceof AiQuotaExceededError) {
+      stream.send("error", { error: error.message, quotaExceeded: true });
+      stream.end();
+      return;
+    }
+    logger.error({ err: error, agentId }, "AI Agent stream run error");
+    try {
+      const executionTimeMs = Date.now() - startTime;
+      const [report] = await db.insert(aiAgentReportsTable).values({
+        agentId: agent.id,
+        agentName: agent.name,
+        agentIcon: agent.icon,
+        organisationId: orgId,
+        reportDate: today,
+        status: "erreur",
+        score: 0,
+        errorsFound: 1,
+        summary: `Erreur lors de l'execution: ${error.message}`,
+        details: {},
+        errors: [{ titre: "Erreur d'execution", description: error.message, severity: "critique", action: "Verifier la configuration IA" }],
+        warnings: [],
+        suggestions: [],
+        corrections: [],
+        executionTimeMs,
+      }).returning();
+      stream.send("report", { report });
+    } catch {}
+    stream.send("error", { error: error?.message || "Erreur lors de l'execution de l'agent" });
+    stream.end();
   }
 });
 

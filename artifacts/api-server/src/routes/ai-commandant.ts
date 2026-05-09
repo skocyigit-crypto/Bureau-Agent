@@ -6,7 +6,8 @@ import { Resend } from "resend";
 import { getContextForContact, getLatestAgentInsights, buildCommandantContextPrompt } from "./agent-collaboration";
 import { safeJsonParse, extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, sanitizePromptInput } from "../services/ai-utils";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
-import { getOrCompute, buildAiCacheKey, withProviderTimeout, AI_CACHE_TTL } from "../services/ai-cache";
+import { getOrCompute, buildAiCacheKey, getCached, setCached, withProviderTimeout, AI_CACHE_TTL } from "../services/ai-cache";
+import { openSseStream, multiAiGenerateStream, StreamAbortedError } from "../services/ai-stream";
 import { logger } from "../lib/logger";
 
 function handleCommandantError(err: unknown, res: Response, logLabel: string): void {
@@ -1199,6 +1200,86 @@ router.post("/commandant/analyze-text", async (req: Request, res: Response): Pro
     res.json({ success: true, analysisType: analysisType || "summary", analysis: parsed });
   } catch (err: any) {
     handleCommandantError(err, res, "[Commandant/AnalyzeText]");
+  }
+});
+
+router.post("/commandant/analyze-text/stream", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const userId = (req.session as any)?.userId;
+  const { text, analysisType } = req.body || {};
+  if (!text || typeof text !== "string") { res.status(400).json({ error: "Texte requis" }); return; }
+
+  const typePrompts: Record<string, string> = {
+    sentiment: "Analyse le sentiment de ce texte. Reponds en JSON: {sentiment: 'positif/neutre/negatif', score: 0-100, emotions: ['joie','colere',...], keyPhrases: ['...'], summary: '...'}",
+    summary: "Resume ce texte en 3-5 points cles. JSON: {summary: '...', keyPoints: ['...'], wordCount: N, readingTime: '...', complexity: 'simple/moyen/complexe'}",
+    entities: "Extrais toutes les entites de ce texte. JSON: {people: ['...'], companies: ['...'], dates: ['...'], amounts: ['...'], locations: ['...'], emails: ['...'], phones: ['...'], urls: ['...']}",
+    action_items: "Extrais les actions et taches de ce texte. JSON: {actions: [{title: '...', priority: 'haute/moyenne/basse', deadline: '...', assignee: '...'}], decisions: ['...'], questions: ['...']}",
+    translate: "Traduis ce texte en anglais professionnel. JSON: {translation: '...', sourceLanguage: '...', formalityLevel: 'formel/informel'}",
+    rewrite: "Reecris ce texte de maniere plus professionnelle et claire en francais. JSON: {rewritten: '...', improvements: ['...'], tone: '...'}",
+  };
+
+  const systemPrompt = "Tu es un expert en analyse de texte. Reponds UNIQUEMENT en JSON valide.";
+  const prompt = `${typePrompts[analysisType] || typePrompts.summary}\n\nTexte a analyser:\n${text}`;
+  const cacheKey = buildAiCacheKey({
+    route: "/commandant/analyze-text",
+    organisationId: orgId,
+    userId,
+    input: { analysisType: analysisType || "summary", text },
+  });
+
+  const stream = openSseStream(res);
+  try {
+    const cached = getCached<string>(cacheKey);
+    if (cached) {
+      stream.send("cached", { text: cached });
+      let parsed: any;
+      try { parsed = safeJsonParse(cached, { result: cached }); } catch { parsed = { result: cached }; }
+      stream.send("done", { success: true, analysisType: analysisType || "summary", analysis: parsed, cached: true });
+      stream.end();
+      return;
+    }
+
+    const result = await multiAiGenerateStream({
+      prompt, systemPrompt, organisationId: orgId, route: "/commandant/analyze-text",
+      signal: stream.signal,
+      onToken: (chunk) => stream.send("token", { chunk }),
+      maxOutputTokens: 2048,
+    });
+
+    if (stream.signal.aborted) { stream.end(); return; }
+
+    let parsed: any;
+    try { parsed = safeJsonParse(result.fullText, { result: result.fullText }); } catch { parsed = { result: result.fullText }; }
+    if (result.fullText && result.fullText.length > 10) {
+      setCached(cacheKey, result.fullText, AI_CACHE_TTL.MEDIUM);
+    }
+    stream.send("done", {
+      success: true, analysisType: analysisType || "summary", analysis: parsed,
+      provider: result.provider, model: result.model,
+    });
+    stream.end();
+  } catch (err: any) {
+    if (err instanceof StreamAbortedError) {
+      stream.send("aborted", {
+        provider: err.partial.provider, model: err.partial.model,
+        partialText: err.partial.fullText,
+        usage: { inputTokens: err.partial.inputTokens, outputTokens: err.partial.outputTokens },
+      });
+      stream.end();
+      return;
+    }
+    if (stream.signal.aborted || err?.message === "aborted") {
+      stream.send("aborted", {});
+      stream.end();
+      return;
+    }
+    if (err instanceof AiQuotaExceededError) {
+      stream.send("error", { error: err.message, quotaExceeded: true });
+    } else {
+      logger.error({ err }, "[Commandant/AnalyzeText/stream]");
+      stream.send("error", { error: err?.message || "Erreur lors de l'analyse" });
+    }
+    stream.end();
   }
 });
 

@@ -1,4 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { streamSse } from "@/lib/ai-stream-client";
+import { X } from "lucide-react";
 import {
   Brain, Crown, Phone, Users, ClipboardList, Mail, Clock, Shield, TrendingUp,
   Play, Loader2, AlertCircle, AlertTriangle, Lightbulb, CheckCircle2, RefreshCw,
@@ -416,6 +418,9 @@ export default function AiAgentsPage() {
   const [autoFixResult, setAutoFixResult] = useState<any>(null);
   const [predictions, setPredictions] = useState<any>(null);
   const [predictionsLoading, setPredictionsLoading] = useState(false);
+  const [streamingAgentId, setStreamingAgentId] = useState<string | null>(null);
+  const [streamingAgentText, setStreamingAgentText] = useState("");
+  const singleAgentAbortRef = useRef<AbortController | null>(null);
 
   const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -523,16 +528,44 @@ export default function AiAgentsPage() {
     }
   }, [activeTab]);
 
-  const handleRunSingle = (agentId: string) => {
-    runSingle.mutate({ agentId }, {
-      onSuccess: () => {
-        toast({ title: "Agent termine", description: "L'analyse de l'agent est terminee." });
-        invalidateAgentQueries();
-      },
-      onError: () => {
-        toast({ title: "Erreur", description: "Impossible d'executer cet agent.", variant: "destructive" });
+  const handleRunSingle = async (agentId: string) => {
+    if (streamingAgentId) return;
+    setStreamingAgentId(agentId);
+    setStreamingAgentText("");
+    const controller = new AbortController();
+    singleAgentAbortRef.current = controller;
+    try {
+      await streamSse(`/ai/agents/run/${agentId}/stream`, {}, {
+        signal: controller.signal,
+        onEvent: (event, data) => {
+          if (event === "token" && data?.chunk) setStreamingAgentText(prev => prev + data.chunk);
+          else if (event === "cached" && typeof data?.text === "string") setStreamingAgentText(data.text);
+          else if (event === "report") {
+            invalidateAgentQueries();
+          } else if (event === "done") {
+            toast({ title: "Agent termine", description: "L'analyse de l'agent est terminee." });
+            invalidateAgentQueries();
+          } else if (event === "aborted") {
+            toast({ title: "Annule", description: "Analyse interrompue." });
+          } else if (event === "error") {
+            toast({ title: "Erreur", description: data?.error || "Impossible d'executer cet agent.", variant: "destructive" });
+          }
+        },
+      });
+    } catch (err: any) {
+      if (err?.name !== "AbortError") {
+        toast({ title: "Erreur", description: err?.message || "Impossible d'executer cet agent.", variant: "destructive" });
       }
-    });
+    } finally {
+      setStreamingAgentId(null);
+      singleAgentAbortRef.current = null;
+    }
+  };
+
+  const cancelSingleAgent = () => {
+    if (singleAgentAbortRef.current) {
+      singleAgentAbortRef.current.abort();
+    }
   };
 
   const latestMap = (latestReports || {}) as Record<string, any>;
@@ -648,6 +681,29 @@ export default function AiAgentsPage() {
                 Les 10 agents IA analysent votre bureau. Le Super Agent synthetisera ensuite les resultats.
               </p>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {streamingAgentId && (
+        <Card className="border-violet-300 bg-violet-50/40 dark:bg-violet-950/10">
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-violet-600" />
+                <span className="text-sm font-semibold text-violet-700">
+                  Agent {streamingAgentId} — reponse en cours...
+                </span>
+              </div>
+              <Button onClick={cancelSingleAgent} variant="outline" size="sm" className="border-red-300 text-red-700 hover:bg-red-50">
+                <X className="w-3.5 h-3.5 mr-1" />Annuler
+              </Button>
+            </div>
+            {streamingAgentText && (
+              <pre className="text-[10px] whitespace-pre-wrap font-mono text-muted-foreground max-h-48 overflow-auto bg-white/60 dark:bg-black/20 rounded p-2">
+                {streamingAgentText}
+              </pre>
+            )}
           </CardContent>
         </Card>
       )}
