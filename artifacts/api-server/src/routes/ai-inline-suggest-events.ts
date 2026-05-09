@@ -28,7 +28,7 @@ router.post("/ai/inline-suggest/event", async (req: Request, res: Response): Pro
     if (!fieldType || !FIELD_TYPES.has(String(fieldType))) { res.status(204).end(); return; }
     if (!event || !EVENTS.has(String(event))) { res.status(204).end(); return; }
     const len = Math.max(0, Math.min(2000, Math.floor(Number(length) || 0)));
-    const userId = (req as any).user?.id ?? null;
+    const userId = (req.session as any)?.userId ?? (req as any).user?.id ?? null;
 
     await db.insert(aiInlineSuggestEventsTable).values({
       organisationId: orgId,
