@@ -1987,6 +1987,7 @@ router.get("/commandant/conversations/search", async (req: Request, res: Respons
         existing.snippet = snippet;
         existing.matchType = existing.matchType === "title" ? "title+message" : "message";
         existing.role = m.role;
+        existing.messageId = m.messageId;
       } else {
         byConv.set(m.conversationId, {
           conversationId: m.conversationId,
@@ -1995,6 +1996,7 @@ router.get("/commandant/conversations/search", async (req: Request, res: Respons
           matchType: "message" as const,
           snippet,
           role: m.role,
+          messageId: m.messageId,
         });
       }
     }

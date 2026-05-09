@@ -1138,6 +1138,9 @@ function ChatTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
+  const [pendingScrollMessageId, setPendingScrollMessageId] = useState<number | null>(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<number | null>(null);
+  const messageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -1192,6 +1195,34 @@ function ChatTab() {
 
   useEffect(() => { loadConversations(true); }, []);
   useEffect(() => { if (selectedId) loadMessages(selectedId); }, [selectedId, loadMessages]);
+
+  useEffect(() => {
+    if (!pendingScrollMessageId || loadingMsgs) return;
+    if (!messages.some(m => m.id === pendingScrollMessageId)) return;
+    const targetId = pendingScrollMessageId;
+    const handle = window.setTimeout(() => {
+      const el = messageRefs.current.get(targetId);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        setHighlightedMessageId(targetId);
+        window.setTimeout(() => {
+          setHighlightedMessageId(prev => prev === targetId ? null : prev);
+        }, 2200);
+      }
+      setPendingScrollMessageId(null);
+    }, 50);
+    return () => window.clearTimeout(handle);
+  }, [pendingScrollMessageId, loadingMsgs, messages]);
+
+  const openSearchResult = (r: any) => {
+    const targetMessageId = typeof r.messageId === "number" ? r.messageId : null;
+    if (selectedId === r.conversationId) {
+      if (targetMessageId) setPendingScrollMessageId(targetMessageId);
+    } else {
+      if (targetMessageId) setPendingScrollMessageId(targetMessageId);
+      setSelectedId(r.conversationId);
+    }
+  };
 
   const newChat = async () => {
     try {
@@ -1324,9 +1355,9 @@ function ChatTab() {
                 <div className="space-y-1">
                   {searchResults.map((r: any) => (
                     <div
-                      key={r.conversationId}
+                      key={`${r.conversationId}-${r.messageId ?? "title"}`}
                       className={`group rounded px-2 py-2 cursor-pointer text-xs ${selectedId === r.conversationId ? "bg-amber-50 border border-amber-200" : "hover:bg-muted/50"}`}
-                      onClick={() => setSelectedId(r.conversationId)}
+                      onClick={() => openSearchResult(r)}
                     >
                       <div className="font-medium truncate">{highlightMatches(r.title || "", searchQuery)}</div>
                       {r.snippet ? (
@@ -1406,13 +1437,26 @@ function ChatTab() {
               </div>
             ) : (
               <div className="space-y-3">
-                {messages.map((m: any) => (
-                  <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap ${m.role === "user" ? "bg-amber-600 text-white" : "bg-muted"}`}>
-                      {m.content}
+                {messages.map((m: any) => {
+                  const isHighlighted = typeof m.id === "number" && highlightedMessageId === m.id;
+                  return (
+                    <div
+                      key={m.id}
+                      ref={el => {
+                        if (typeof m.id !== "number") return;
+                        if (el) messageRefs.current.set(m.id, el);
+                        else messageRefs.current.delete(m.id);
+                      }}
+                      className={`flex ${m.role === "user" ? "justify-end" : "justify-start"} transition-all duration-500 ${isHighlighted ? "scale-[1.01]" : ""}`}
+                    >
+                      <div
+                        className={`max-w-[80%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap transition-all duration-500 ${m.role === "user" ? "bg-amber-600 text-white" : "bg-muted"} ${isHighlighted ? "ring-2 ring-amber-400 ring-offset-2 shadow-lg" : ""}`}
+                      >
+                        {m.content}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {sending && (
                   <div className="flex justify-start">
                     <div className="bg-muted rounded-lg px-3 py-2 text-sm flex items-center gap-2">
