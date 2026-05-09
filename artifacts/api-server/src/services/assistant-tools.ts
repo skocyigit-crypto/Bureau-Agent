@@ -14,15 +14,67 @@ export interface ToolContext {
   userId: number;
 }
 
-export interface ToolDef {
+export type FieldSpec =
+  | { kind: "string"; required?: boolean; min?: number; max?: number; enum?: readonly string[]; email?: boolean }
+  | { kind: "number"; required?: boolean; min?: number; max?: number; integer?: boolean }
+  | { kind: "iso-date"; required?: boolean };
+
+export interface ToolDef<TArgs = Record<string, unknown>> {
   name: string;
   description: string;
   parameters: {
     type: "object";
-    properties: Record<string, unknown>;
+    properties: Record<string, { type: string; description?: string }>;
     required?: string[];
   };
-  execute: (args: any, ctx: ToolContext) => Promise<unknown>;
+  /** Field-by-field validation spec used at execution time. */
+  fields: Record<string, FieldSpec>;
+  /** If true, the engine MUST NOT call execute() directly — it must emit a
+   *  pending_action event and wait for an explicit user approve/reject. */
+  requiresConfirmation?: boolean;
+  /** Short human-readable summary of what running this tool will do. */
+  summarize?: (args: TArgs) => string;
+  execute: (args: TArgs, ctx: ToolContext) => Promise<unknown>;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/;
+
+export function validateArgs(
+  fields: Record<string, FieldSpec>,
+  raw: unknown,
+): { ok: true; data: Record<string, unknown> } | { ok: false; error: string } {
+  if (raw == null || typeof raw !== "object") return { ok: false, error: "arguments doivent etre un objet" };
+  const input = raw as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const [key, spec] of Object.entries(fields)) {
+    const v = input[key];
+    if (v == null || v === "") {
+      if (spec.required) return { ok: false, error: `${key} est obligatoire` };
+      continue;
+    }
+    if (spec.kind === "string") {
+      if (typeof v !== "string") return { ok: false, error: `${key} doit etre une chaine` };
+      if (spec.min != null && v.length < spec.min) return { ok: false, error: `${key} trop court (min ${spec.min})` };
+      if (spec.max != null && v.length > spec.max) return { ok: false, error: `${key} trop long (max ${spec.max})` };
+      if (spec.email && !EMAIL_RE.test(v)) return { ok: false, error: `${key} doit etre un e-mail valide` };
+      if (spec.enum && !spec.enum.includes(v)) return { ok: false, error: `${key} doit etre l'une de: ${spec.enum.join(", ")}` };
+      out[key] = v;
+    } else if (spec.kind === "number") {
+      const n = typeof v === "number" ? v : Number(v);
+      if (!Number.isFinite(n)) return { ok: false, error: `${key} doit etre un nombre` };
+      if (spec.integer && !Number.isInteger(n)) return { ok: false, error: `${key} doit etre un entier` };
+      if (spec.min != null && n < spec.min) return { ok: false, error: `${key} doit etre >= ${spec.min}` };
+      if (spec.max != null && n > spec.max) return { ok: false, error: `${key} doit etre <= ${spec.max}` };
+      out[key] = n;
+    } else if (spec.kind === "iso-date") {
+      if (typeof v !== "string" || !ISO_DATE_RE.test(v)) return { ok: false, error: `${key} doit etre une date ISO 8601` };
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return { ok: false, error: `${key} date invalide` };
+      out[key] = v;
+    }
+  }
+  return { ok: true, data: out };
 }
 
 const trim = (s: unknown, n = 200): string => {
@@ -30,11 +82,34 @@ const trim = (s: unknown, n = 200): string => {
   return v.length > n ? v.slice(0, n) + "…" : v;
 };
 
-const ALL_TOOLS: ToolDef[] = [
+// Field specs (one per tool, defined inline below)
+const F_QUERY_LIMIT: Record<string, FieldSpec> = {
+  query: { kind: "string", max: 200 },
+  limit: { kind: "number", integer: true, min: 1, max: 50 },
+};
+const F_STATUS_LIMIT: Record<string, FieldSpec> = {
+  status: { kind: "string", max: 50 },
+  limit: { kind: "number", integer: true, min: 1, max: 50 },
+};
+const F_STAGE_LIMIT: Record<string, FieldSpec> = {
+  stage: { kind: "string", max: 50 },
+  limit: { kind: "number", integer: true, min: 1, max: 50 },
+};
+const F_LIMIT_ONLY: Record<string, FieldSpec> = {
+  limit: { kind: "number", integer: true, min: 1, max: 50 },
+};
+const F_DATE_RANGE: Record<string, FieldSpec> = {
+  start: { kind: "iso-date" },
+  end: { kind: "iso-date" },
+};
+
+// Tool registry — strongly typed
+const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
   {
     name: "get_current_datetime",
     description: "Retourne la date et l'heure actuelles (Europe/Paris).",
     parameters: { type: "object", properties: {} },
+    fields: {},
     execute: async () => ({
       iso: new Date().toISOString(),
       humanFr: new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" }),
@@ -44,6 +119,7 @@ const ALL_TOOLS: ToolDef[] = [
     name: "get_dashboard_summary",
     description: "Resume rapide de l'activite (nb contacts, taches, prospects, factures impayees, appels du jour).",
     parameters: { type: "object", properties: {} },
+    fields: {},
     execute: async (_a, { orgId }) => {
       const [c, t, p, f, calls] = await Promise.all([
         db.select({ n: sql<number>`count(*)::int` }).from(contactsTable).where(eq(contactsTable.organisationId, orgId)),
@@ -72,8 +148,9 @@ const ALL_TOOLS: ToolDef[] = [
         limit: { type: "integer", description: "Max 50, defaut 20" },
       },
     },
-    execute: async (a: { query?: string; limit?: number }, { orgId }) => {
-      const limit = Math.min(Math.max(Number(a.limit ?? 20), 1), 50);
+    fields: F_QUERY_LIMIT,
+    execute: async (a, { orgId }) => {
+      const limit = a.limit ?? 20;
       const conds = [eq(contactsTable.organisationId, orgId)];
       if (a.query) {
         const q = `%${a.query}%`;
@@ -112,7 +189,16 @@ const ALL_TOOLS: ToolDef[] = [
       },
       required: ["firstName", "lastName", "phone"],
     },
-    execute: async (a: any, { orgId, userId }) => {
+    fields: {
+      firstName: { kind: "string", required: true, min: 1, max: 120 },
+      lastName: { kind: "string", required: true, min: 1, max: 120 },
+      phone: { kind: "string", required: true, min: 3, max: 40 },
+      email: { kind: "string", email: true, max: 200 },
+      company: { kind: "string", max: 200 },
+      category: { kind: "string", max: 50 },
+      notes: { kind: "string", max: 2000 },
+    },
+    execute: async (a, { orgId, userId }) => {
       const [row] = await db.insert(contactsTable).values({
         organisationId: orgId,
         firstName: a.firstName,
@@ -138,8 +224,9 @@ const ALL_TOOLS: ToolDef[] = [
         limit: { type: "integer" },
       },
     },
-    execute: async (a: any, { orgId }) => {
-      const limit = Math.min(Math.max(Number(a.limit ?? 20), 1), 50);
+    fields: F_STATUS_LIMIT,
+    execute: async (a, { orgId }) => {
+      const limit = a.limit ?? 20;
       const conds = [eq(tasksTable.organisationId, orgId)];
       if (a.status) conds.push(eq(tasksTable.status, a.status));
       const rows = await db.select({
@@ -162,13 +249,23 @@ const ALL_TOOLS: ToolDef[] = [
       },
       required: ["title"],
     },
-    execute: async (a: any, { orgId, userId }) => {
+    fields: {
+      title: { kind: "string", required: true, min: 1, max: 300 },
+      description: { kind: "string", max: 4000 },
+      dueDate: { kind: "iso-date" },
+      priority: { kind: "string", enum: ["basse", "moyenne", "haute"] as const },
+    },
+    execute: async (a, { orgId, userId }) => {
+      const due = a.dueDate ? new Date(a.dueDate) : null;
+      if (due && Number.isNaN(due.getTime())) {
+        return { success: false, error: "dueDate invalide (utilisez ISO 8601)." };
+      }
       const [row] = await db.insert(tasksTable).values({
         organisationId: orgId,
         title: a.title,
         description: a.description ?? null,
         priority: a.priority ?? "moyenne",
-        dueDate: a.dueDate ? new Date(a.dueDate) : null,
+        dueDate: due,
         createdBy: userId,
       }).returning({ id: tasksTable.id });
       return { success: true, id: row.id, url: `/taches` };
@@ -182,8 +279,9 @@ const ALL_TOOLS: ToolDef[] = [
       type: "object",
       properties: { stage: { type: "string" }, limit: { type: "integer" } },
     },
-    execute: async (a: any, { orgId }) => {
-      const limit = Math.min(Math.max(Number(a.limit ?? 20), 1), 50);
+    fields: F_STAGE_LIMIT,
+    execute: async (a, { orgId }) => {
+      const limit = a.limit ?? 20;
       const conds = [eq(prospectsTable.organisationId, orgId)];
       if (a.stage) conds.push(eq(prospectsTable.stage, a.stage));
       const rows = await db.select({
@@ -210,7 +308,17 @@ const ALL_TOOLS: ToolDef[] = [
       },
       required: ["title"],
     },
-    execute: async (a: any, { orgId }) => {
+    fields: {
+      title: { kind: "string", required: true, min: 1, max: 300 },
+      company: { kind: "string", max: 200 },
+      contactName: { kind: "string", max: 200 },
+      phone: { kind: "string", max: 40 },
+      email: { kind: "string", email: true, max: 200 },
+      value: { kind: "number", min: 0 },
+      stage: { kind: "string", max: 50 },
+      notes: { kind: "string", max: 4000 },
+    },
+    execute: async (a, { orgId }) => {
       const [row] = await db.insert(prospectsTable).values({
         organisationId: orgId,
         title: a.title,
@@ -233,9 +341,13 @@ const ALL_TOOLS: ToolDef[] = [
       type: "object",
       properties: { start: { type: "string" }, end: { type: "string" } },
     },
-    execute: async (a: any, { orgId }) => {
+    fields: F_DATE_RANGE,
+    execute: async (a, { orgId }) => {
       const start = a.start ? new Date(a.start) : new Date();
       const end = a.end ? new Date(a.end) : new Date(Date.now() + 7 * 86400_000);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        return { error: "Dates invalides (utilisez ISO 8601)." };
+      }
       const rows = await db.select({
         id: calendarEventsTable.id, title: calendarEventsTable.title,
         startDate: calendarEventsTable.startDate, endDate: calendarEventsTable.endDate,
@@ -263,24 +375,40 @@ const ALL_TOOLS: ToolDef[] = [
       },
       required: ["title", "startDate", "endDate"],
     },
-    execute: async (a: any, { orgId, userId }) => {
+    fields: {
+      title: { kind: "string", required: true, min: 1, max: 300 },
+      startDate: { kind: "iso-date", required: true },
+      endDate: { kind: "iso-date", required: true },
+      description: { kind: "string", max: 4000 },
+      location: { kind: "string", max: 300 },
+      type: { kind: "string", max: 50 },
+    },
+    execute: async (a, { orgId, userId }) => {
+      const start = new Date(a.startDate);
+      const end = new Date(a.endDate);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        return { success: false, error: "Dates invalides (utilisez ISO 8601)." };
+      }
+      if (end < start) {
+        return { success: false, error: "endDate doit etre apres startDate." };
+      }
       const [row] = await db.insert(calendarEventsTable).values({
         organisationId: orgId,
         title: a.title,
         description: a.description ?? null,
         type: a.type ?? "rendez_vous",
-        startDate: new Date(a.startDate),
-        endDate: new Date(a.endDate),
+        startDate: start,
+        endDate: end,
         location: a.location ?? null,
         createdBy: userId,
       }).returning({ id: calendarEventsTable.id });
       return { success: true, id: row.id, url: "/calendrier" };
     },
   },
-  // ---------- COMMS ----------
+  // ---------- COMMS (CONFIRMATION REQUIRED) ----------
   {
     name: "send_email",
-    description: "Envoie un e-mail. Utilisez du HTML simple ou du texte brut.",
+    description: "Envoie un e-mail. NECESSITE UNE CONFIRMATION EXPLICITE de l'utilisateur avant execution.",
     parameters: {
       type: "object",
       properties: {
@@ -290,7 +418,14 @@ const ALL_TOOLS: ToolDef[] = [
       },
       required: ["to", "subject", "body"],
     },
-    execute: async (a: any) => {
+    fields: {
+      to: { kind: "string", required: true, email: true, max: 200 },
+      subject: { kind: "string", required: true, min: 1, max: 300 },
+      body: { kind: "string", required: true, min: 1, max: 20000 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Envoyer un e-mail à ${a.to} — sujet: « ${trim(a.subject, 80)} »`,
+    execute: async (a) => {
       const html = /<\w+/.test(a.body) ? a.body : `<div style="font-family:system-ui">${a.body.replace(/\n/g, "<br>")}</div>`;
       const text = a.body.replace(/<[^>]+>/g, "");
       const r = await sendEmail(a.to, a.subject, html, text);
@@ -299,7 +434,7 @@ const ALL_TOOLS: ToolDef[] = [
   },
   {
     name: "send_sms",
-    description: "Envoie un SMS via Twilio (utilise les identifiants Twilio configures dans l'environnement).",
+    description: "Envoie un SMS via Twilio. NECESSITE UNE CONFIRMATION EXPLICITE de l'utilisateur avant execution.",
     parameters: {
       type: "object",
       properties: {
@@ -308,7 +443,13 @@ const ALL_TOOLS: ToolDef[] = [
       },
       required: ["to", "message"],
     },
-    execute: async (a: any) => {
+    fields: {
+      to: { kind: "string", required: true, min: 3, max: 40 },
+      message: { kind: "string", required: true, min: 1, max: 1600 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Envoyer un SMS à ${a.to} : « ${trim(a.message, 80)} »`,
+    execute: async (a) => {
       const sid = process.env.TWILIO_ACCOUNT_SID;
       const token = process.env.TWILIO_AUTH_TOKEN;
       const from = process.env.TWILIO_PHONE_NUMBER;
@@ -326,12 +467,16 @@ const ALL_TOOLS: ToolDef[] = [
       properties: { prompt: { type: "string" } },
       required: ["prompt"],
     },
-    execute: async (a: any) => {
+    fields: {
+      prompt: { kind: "string", required: true, min: 3, max: 1000 },
+    },
+    execute: async (a) => {
       try {
         const img = await generateImage(a.prompt);
         return { success: true, dataUrl: `data:${img.mimeType};base64,${img.b64_json}` };
-      } catch (e: any) {
-        return { success: false, error: trim(e?.message) };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { success: false, error: trim(msg) };
       }
     },
   },
@@ -340,8 +485,9 @@ const ALL_TOOLS: ToolDef[] = [
     name: "list_recent_calls",
     description: "Liste les derniers appels (entrants / sortants).",
     parameters: { type: "object", properties: { limit: { type: "integer" } } },
-    execute: async (a: any, { orgId }) => {
-      const limit = Math.min(Math.max(Number(a.limit ?? 10), 1), 50);
+    fields: F_LIMIT_ONLY,
+    execute: async (a, { orgId }) => {
+      const limit = a.limit ?? 10;
       const rows = await db.select({
         id: callsTable.id, direction: callsTable.direction, phoneNumber: callsTable.phoneNumber,
         contactName: callsTable.contactName, status: callsTable.status, duration: callsTable.duration,
@@ -352,10 +498,11 @@ const ALL_TOOLS: ToolDef[] = [
   },
   {
     name: "list_recent_messages",
-    description: "Liste les derniers messages (SMS/whatsapp/email entrants ou sortants).",
+    description: "Liste les derniers messages (notes, SMS, e-mails enregistres).",
     parameters: { type: "object", properties: { limit: { type: "integer" } } },
-    execute: async (a: any, { orgId }) => {
-      const limit = Math.min(Math.max(Number(a.limit ?? 10), 1), 50);
+    fields: F_LIMIT_ONLY,
+    execute: async (a, { orgId }) => {
+      const limit = a.limit ?? 10;
       const rows = await db.select({
         id: messagesTable.id, type: messagesTable.type, phoneNumber: messagesTable.phoneNumber,
         contactName: messagesTable.contactName, content: messagesTable.content,
@@ -368,21 +515,51 @@ const ALL_TOOLS: ToolDef[] = [
 
 const TOOL_MAP = new Map(ALL_TOOLS.map(t => [t.name, t] as const));
 
-export function getAllTools(): ToolDef[] { return ALL_TOOLS; }
+export function getAllTools(): ReadonlyArray<ToolDef<any>> { return ALL_TOOLS; }
+export function getTool(name: string): ToolDef<unknown> | undefined { return TOOL_MAP.get(name); }
 
-export async function executeTool(name: string, args: any, ctx: ToolContext): Promise<{ ok: boolean; result?: unknown; error?: string }> {
+export interface ToolExecutionResult {
+  ok: boolean;
+  result?: unknown;
+  error?: string;
+  /** When the tool requires confirmation, no execution happens; engine
+   *  must emit pending_action and wait for user approval. */
+  pending?: { summary: string };
+}
+
+export async function executeTool(
+  name: string,
+  rawArgs: unknown,
+  ctx: ToolContext,
+  opts: { skipConfirmation?: boolean } = {},
+): Promise<ToolExecutionResult> {
   const tool = TOOL_MAP.get(name);
   if (!tool) return { ok: false, error: `Outil inconnu: ${name}` };
+
+  // Validate args against the tool's field spec
+  const parsed = validateArgs(tool.fields, rawArgs ?? {});
+  if (!parsed.ok) {
+    return { ok: false, error: `Argument invalide pour ${name}: ${parsed.error}` };
+  }
+  const args = parsed.data;
+
+  // Confirmation gate for high-impact tools (server-enforced, NOT prompt-only)
+  if (tool.requiresConfirmation && !opts.skipConfirmation) {
+    const summary = tool.summarize ? tool.summarize(args) : `Confirmer l'execution de ${name}`;
+    return { ok: false, pending: { summary } };
+  }
+
   try {
-    const result = await tool.execute(args ?? {}, ctx);
+    const result = await tool.execute(args, ctx);
     return { ok: true, result };
-  } catch (err: any) {
-    logger.error({ err, tool: name, args }, "[assistant] tool execution failed");
-    return { ok: false, error: trim(err?.message ?? "Erreur interne", 500) };
+  } catch (err) {
+    logger.error({ err, tool: name }, "[assistant] tool execution failed");
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: trim(msg, 500) };
   }
 }
 
-export function getGeminiToolDeclarations(): { functionDeclarations: any[] } {
+export function getGeminiToolDeclarations(): { functionDeclarations: Array<{ name: string; description: string; parameters: ToolDef["parameters"] }> } {
   return {
     functionDeclarations: ALL_TOOLS.map(t => ({
       name: t.name,

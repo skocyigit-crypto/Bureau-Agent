@@ -3,19 +3,23 @@ import { db } from "@workspace/db";
 import { assistantConversationsTable, assistantMessagesTable } from "@workspace/db/schema";
 import { and, eq, desc, asc } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
-import { runAssistantTurn } from "../services/assistant-engine";
+import { runAssistantTurn, resolvePendingAction, type StreamEvent } from "../services/assistant-engine";
 import { getAllTools } from "../services/assistant-tools";
 import { logger } from "../lib/logger";
 
 const router = Router();
 
 function getUserId(req: Request): number | null {
-  return (req.session as any)?.userId ?? null;
+  return (req.session as { userId?: number } | undefined)?.userId ?? null;
 }
 
 router.get("/assistant/tools", (_req, res) => {
   res.json({
-    tools: getAllTools().map(t => ({ name: t.name, description: t.description })),
+    tools: getAllTools().map(t => ({
+      name: t.name,
+      description: t.description,
+      requiresConfirmation: Boolean(t.requiresConfirmation),
+    })),
   });
 });
 
@@ -78,19 +82,30 @@ router.delete("/assistant/conversations/:id", async (req: Request, res: Response
   }
 });
 
+function setupSse(res: Response): (event: string, data: unknown) => void {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders?.();
+  return (event, data) => {
+    res.write(`event: ${event}\n`);
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
+}
+
 // SSE streaming endpoint. Body: { conversationId?: number, message: string }
 router.post("/assistant/chat", async (req: Request, res: Response): Promise<void> => {
   const userId = getUserId(req);
   const orgId = getOrgId(req);
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
-  const message = String(req.body?.message ?? "").trim();
+  const message = String((req.body as { message?: unknown })?.message ?? "").trim();
   if (!message) { res.status(400).json({ error: "Message vide." }); return; }
   if (message.length > 4000) { res.status(400).json({ error: "Message trop long (max 4000)." }); return; }
 
-  let conversationId = Number(req.body?.conversationId ?? 0);
+  let conversationId = Number((req.body as { conversationId?: unknown })?.conversationId ?? 0);
 
-  // Create or verify conversation
   try {
     if (conversationId > 0) {
       const [conv] = await db.select({ id: assistantConversationsTable.id })
@@ -110,31 +125,72 @@ router.post("/assistant/chat", async (req: Request, res: Response): Promise<void
     return;
   }
 
-  // Set up SSE
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache, no-transform");
-  res.setHeader("Connection", "keep-alive");
-  res.setHeader("X-Accel-Buffering", "no");
-  res.flushHeaders?.();
-
-  const send = (event: string, data: unknown): void => {
-    res.write(`event: ${event}\n`);
-    res.write(`data: ${JSON.stringify(data)}\n\n`);
-  };
-
+  const send = setupSse(res);
   send("init", { conversationId });
 
   let aborted = false;
   req.on("close", () => { aborted = true; });
 
+  const emit = (ev: StreamEvent): void => {
+    if (aborted) return;
+    send(ev.type, ev);
+  };
+
   try {
-    await runAssistantTurn(conversationId, message, { orgId, userId }, (ev) => {
-      if (aborted) return;
-      send(ev.type, ev);
-    });
-  } catch (err: any) {
+    await runAssistantTurn(conversationId, message, { orgId, userId }, emit);
+  } catch (err) {
     logger.error({ err }, "[assistant] turn failed");
-    send("error", { error: err?.message ?? "Erreur interne." });
+    const msg = err instanceof Error ? err.message : "Erreur interne.";
+    if (!aborted) send("error", { error: msg });
+  } finally {
+    if (!aborted) {
+      send("close", {});
+      res.end();
+    }
+  }
+});
+
+// Confirm or reject a pending tool action.
+// Body: { conversationId: number, messageId: number, decision: "approve" | "reject" }
+router.post("/assistant/confirm", async (req: Request, res: Response): Promise<void> => {
+  const userId = getUserId(req);
+  const orgId = getOrgId(req);
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+
+  const body = req.body as { conversationId?: unknown; messageId?: unknown; decision?: unknown } | undefined;
+  const conversationId = Number(body?.conversationId);
+  const messageId = Number(body?.messageId);
+  const decision = body?.decision === "approve" ? "approve" : body?.decision === "reject" ? "reject" : null;
+  if (!Number.isFinite(conversationId) || !Number.isFinite(messageId) || !decision) {
+    res.status(400).json({ error: "Parametres invalides." });
+    return;
+  }
+
+  // Verify conversation ownership
+  const [conv] = await db.select({ id: assistantConversationsTable.id })
+    .from(assistantConversationsTable)
+    .where(and(
+      eq(assistantConversationsTable.id, conversationId),
+      eq(assistantConversationsTable.organisationId, orgId),
+      eq(assistantConversationsTable.userId, userId),
+    ));
+  if (!conv) { res.status(404).json({ error: "Conversation introuvable." }); return; }
+
+  const send = setupSse(res);
+  let aborted = false;
+  req.on("close", () => { aborted = true; });
+
+  const emit = (ev: StreamEvent): void => {
+    if (aborted) return;
+    send(ev.type, ev);
+  };
+
+  try {
+    await resolvePendingAction(conversationId, messageId, decision, { orgId, userId }, emit);
+  } catch (err) {
+    logger.error({ err }, "[assistant] confirm failed");
+    const msg = err instanceof Error ? err.message : "Erreur interne.";
+    if (!aborted) send("error", { error: msg });
   } finally {
     if (!aborted) {
       send("close", {});

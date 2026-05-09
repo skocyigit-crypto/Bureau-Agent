@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Sparkles, Send, Plus, Trash2, Wrench, CheckCircle2, AlertCircle, Loader2, MessageSquare } from "lucide-react";
+import { Sparkles, Send, Plus, Trash2, Wrench, CheckCircle2, AlertCircle, Loader2, MessageSquare, ShieldAlert, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -17,6 +17,13 @@ interface Message {
 
 interface StepEvent {
   type: "step"; toolName: string; toolArgs?: any; toolResult?: any;
+}
+
+interface PendingAction {
+  messageId: number;
+  toolName: string;
+  toolArgs: any;
+  summary: string;
 }
 
 function ToolStep({ name, args, result }: { name: string; args?: any; result?: any }) {
@@ -79,6 +86,7 @@ export default function AsistanPage() {
   const [streaming, setStreaming] = useState(false);
   const [liveSteps, setLiveSteps] = useState<StepEvent[]>([]);
   const [liveText, setLiveText] = useState<string | null>(null);
+  const [pending, setPending] = useState<PendingAction | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const loadConversations = useCallback(async () => {
@@ -125,6 +133,68 @@ export default function AsistanPage() {
     } catch {}
   };
 
+  const consumeStream = async (res: Response, convIdRef: { current: number | null }) => {
+    if (!res.ok || !res.body) {
+      const err = await res.json().catch(() => ({ error: "Erreur reseau" }));
+      toast({ title: "Echec", description: err.error ?? "Echec de la requete", variant: "destructive" });
+      return;
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+
+      let idx;
+      while ((idx = buf.indexOf("\n\n")) >= 0) {
+        const block = buf.slice(0, idx);
+        buf = buf.slice(idx + 2);
+
+        let event = "message";
+        const dataLines: string[] = [];
+        for (const line of block.split("\n")) {
+          if (line.startsWith("event: ")) event = line.slice(7).trim();
+          else if (line.startsWith("data: ")) dataLines.push(line.slice(6));
+        }
+        let data: any;
+        try { data = JSON.parse(dataLines.join("\n")); } catch { continue; }
+
+        if (event === "init") {
+          convIdRef.current = data.conversationId;
+          setActiveId(data.conversationId);
+        } else if (event === "step") {
+          setLiveSteps(prev => {
+            const last = prev[prev.length - 1];
+            if (data.toolResult !== undefined && last && last.toolName === data.toolName && last.toolResult === undefined) {
+              return [...prev.slice(0, -1), data];
+            }
+            return [...prev, data];
+          });
+        } else if (event === "text") {
+          setLiveText(data.text);
+        } else if (event === "pending_action") {
+          setPending({ messageId: data.messageId, toolName: data.toolName, toolArgs: data.toolArgs, summary: data.summary });
+        } else if (event === "done") {
+          if (convIdRef.current) {
+            const cr = await fetch(`${API}/api/assistant/conversations/${convIdRef.current}`, { credentials: "include" });
+            if (cr.ok) {
+              const d = await cr.json();
+              setMessages(d.messages ?? []);
+            }
+          }
+          setLiveSteps([]);
+          setLiveText(null);
+          loadConversations();
+        } else if (event === "error") {
+          toast({ title: "Erreur", description: data.error ?? "Erreur de l'assistant", variant: "destructive" });
+        }
+      }
+    }
+  };
+
   const send = async () => {
     const text = input.trim();
     if (!text || streaming) return;
@@ -132,14 +202,14 @@ export default function AsistanPage() {
     setStreaming(true);
     setLiveSteps([]);
     setLiveText(null);
+    setPending(null);
 
-    // Append user message optimistically
     const tempUserMsg: Message = {
       id: -Date.now(), role: "user", content: text, createdAt: new Date().toISOString(),
     };
     setMessages(prev => [...prev, tempUserMsg]);
 
-    let assignedConvId = activeId;
+    const convRef = { current: activeId };
 
     try {
       const res = await fetch(`${API}/api/assistant/chat`, {
@@ -148,69 +218,27 @@ export default function AsistanPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ conversationId: activeId ?? undefined, message: text }),
       });
-      if (!res.ok || !res.body) {
-        const err = await res.json().catch(() => ({ error: "Erreur reseau" }));
-        toast({ title: "Echec", description: err.error ?? "Echec de la requete", variant: "destructive" });
-        setStreaming(false);
-        return;
-      }
+      await consumeStream(res, convRef);
+    } catch (err: any) {
+      toast({ title: "Connexion perdue", description: err?.message ?? "", variant: "destructive" });
+    } finally {
+      setStreaming(false);
+    }
+  };
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buf = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-
-        let idx;
-        while ((idx = buf.indexOf("\n\n")) >= 0) {
-          const block = buf.slice(0, idx);
-          buf = buf.slice(idx + 2);
-
-          let event = "message";
-          let dataLines: string[] = [];
-          for (const line of block.split("\n")) {
-            if (line.startsWith("event: ")) event = line.slice(7).trim();
-            else if (line.startsWith("data: ")) dataLines.push(line.slice(6));
-          }
-          let data: any;
-          try { data = JSON.parse(dataLines.join("\n")); } catch { continue; }
-
-          if (event === "init") {
-            assignedConvId = data.conversationId;
-            setActiveId(data.conversationId);
-          } else if (event === "step") {
-            setLiveSteps(prev => {
-              const last = prev[prev.length - 1];
-              // If step has result and matches last open step, complete it
-              if (data.toolResult !== undefined && last && last.toolName === data.toolName && last.toolResult === undefined) {
-                return [...prev.slice(0, -1), data];
-              }
-              return [...prev, data];
-            });
-          } else if (event === "text") {
-            setLiveText(data.text);
-          } else if (event === "done") {
-            // refresh full thread to get persisted IDs
-            if (assignedConvId) {
-              const cr = await fetch(`${API}/api/assistant/conversations/${assignedConvId}`, { credentials: "include" });
-              if (cr.ok) {
-                const d = await cr.json();
-                setMessages(d.messages ?? []);
-              }
-            }
-            setLiveSteps([]);
-            setLiveText(null);
-            loadConversations();
-          } else if (event === "error") {
-            toast({ title: "Erreur", description: data.error ?? "Erreur de l'assistant", variant: "destructive" });
-          } else if (event === "close") {
-            // server signaled stream end
-          }
-        }
-      }
+  const resolvePending = async (decision: "approve" | "reject") => {
+    if (!pending || !activeId) return;
+    const p = pending;
+    setPending(null);
+    setStreaming(true);
+    try {
+      const res = await fetch(`${API}/api/assistant/confirm`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId: activeId, messageId: p.messageId, decision }),
+      });
+      await consumeStream(res, { current: activeId });
     } catch (err: any) {
       toast({ title: "Connexion perdue", description: err?.message ?? "", variant: "destructive" });
     } finally {
@@ -284,6 +312,31 @@ export default function AsistanPage() {
                   <Sparkles className="h-4 w-4 text-white" />
                 </div>
                 <div className="max-w-[80%] rounded-2xl rounded-tl-sm bg-muted px-4 py-2.5 text-sm whitespace-pre-wrap">{liveText}</div>
+              </div>
+            )}
+            {pending && (
+              <div className="ml-10 max-w-2xl rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 p-3 space-y-3" data-testid="pending-action-card">
+                <div className="flex items-start gap-2">
+                  <ShieldAlert className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                  <div className="flex-1 min-w-0 text-sm">
+                    <div className="font-medium text-amber-900 dark:text-amber-100">Confirmation requise</div>
+                    <div className="text-amber-800 dark:text-amber-200 mt-0.5">{pending.summary}</div>
+                    {pending.toolArgs && (
+                      <details className="mt-1.5">
+                        <summary className="text-[11px] text-amber-700 dark:text-amber-300 cursor-pointer">Voir les details</summary>
+                        <pre className="text-[11px] mt-1 p-2 rounded bg-white/60 dark:bg-black/30 overflow-x-auto">{JSON.stringify(pending.toolArgs, null, 2)}</pre>
+                      </details>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button size="sm" variant="ghost" onClick={() => resolvePending("reject")} disabled={streaming} data-testid="pending-reject">
+                    <X className="h-4 w-4 mr-1" /> Annuler
+                  </Button>
+                  <Button size="sm" onClick={() => resolvePending("approve")} disabled={streaming} data-testid="pending-approve">
+                    <Check className="h-4 w-4 mr-1" /> Confirmer et executer
+                  </Button>
+                </div>
               </div>
             )}
           </div>
