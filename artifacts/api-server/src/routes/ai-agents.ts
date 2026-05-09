@@ -7,6 +7,7 @@ import { extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recor
 import { withProviderTimeout, buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 import { openSseStream, multiAiGenerateStream, StreamAbortedError } from "../services/ai-stream";
 import { logger } from "../lib/logger";
+import { EventEmitter } from "events";
 
 const router = Router();
 
@@ -1103,50 +1104,167 @@ Rapports des agents:\n${JSON.stringify(reportsSummary, null, 2)}`
   }
 }
 
-const runningJobs = new Map<number, { status: string; startedAt: number; completedAgents: number; totalAgents: number }>();
+type StoredEvent = { event: string; data: any };
+type JobState = {
+  status: "running" | "completed" | "failed" | "cancelled";
+  startedAt: number;
+  completedAgents: number;
+  totalAgents: number;
+  events: StoredEvent[];
+  emitter: EventEmitter;
+  abortController: AbortController;
+  finishedAt?: number;
+  cleanupTimer?: NodeJS.Timeout;
+};
+
+const runningJobs = new Map<number, JobState>();
+const JOB_RETENTION_MS = 5 * 60 * 1000;
+
+function emitJobEvent(job: JobState, event: string, data: any) {
+  job.events.push({ event, data });
+  job.emitter.emit("event", event, data);
+}
+
+function scheduleJobCleanup(orgId: number, job: JobState) {
+  if (job.cleanupTimer) clearTimeout(job.cleanupTimer);
+  job.cleanupTimer = setTimeout(() => {
+    if (runningJobs.get(orgId) === job) runningJobs.delete(orgId);
+  }, JOB_RETENTION_MS);
+  job.cleanupTimer.unref?.();
+}
+
+async function runAgentsJob(orgId: number, job: JobState) {
+  const startedAt = job.startedAt;
+  const childReports: any[] = [];
+
+  emitJobEvent(job, "start", {
+    totalAgents: AGENTS.length,
+    agents: AGENTS.map((a, idx) => ({ index: idx, agentId: a.id, agentName: a.name, agentIcon: a.icon })),
+  });
+
+  const signal = job.abortController.signal;
+  const isAbortError = (err: any) =>
+    signal.aborted || err?.message === "aborted" || err?.name === "APIUserAbortError";
+
+  try {
+    const CONCURRENCY = 3;
+    let nextIndex = 0;
+
+    const runOne = async (agent: typeof AGENTS[0]) => {
+      const idx = AGENTS.indexOf(agent);
+      emitJobEvent(job, "agent-start", {
+        index: idx, agentId: agent.id, agentName: agent.name, agentIcon: agent.icon,
+      });
+      try {
+        const report = await runSingleAgent(agent, orgId, signal);
+        childReports.push(report);
+        emitJobEvent(job, "agent-done", {
+          index: idx, agentId: agent.id, agentName: agent.name, agentIcon: agent.icon,
+          report, score: report?.score ?? 0, executionTimeMs: report?.executionTimeMs ?? 0,
+        });
+      } catch (err: any) {
+        if (isAbortError(err)) {
+          emitJobEvent(job, "agent-aborted", { index: idx, agentId: agent.id, agentName: agent.name });
+          return;
+        }
+        logger.error({ err, agentId: agent.id }, `Agent ${agent.id} failed (stream)`);
+        emitJobEvent(job, "agent-error", {
+          index: idx, agentId: agent.id, agentName: agent.name,
+          error: err?.message || "Erreur inconnue",
+        });
+      } finally {
+        job.completedAgents++;
+        emitJobEvent(job, "progress", { completedAgents: job.completedAgents, totalAgents: AGENTS.length });
+      }
+    };
+
+    const worker = async () => {
+      while (true) {
+        if (signal.aborted) return;
+        const i = nextIndex++;
+        if (i >= AGENTS.length) return;
+        await runOne(AGENTS[i]);
+      }
+    };
+
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, AGENTS.length) }, () => worker()));
+
+    if (signal.aborted) {
+      job.status = "cancelled";
+      emitJobEvent(job, "aborted", {
+        completedAgents: job.completedAgents,
+        totalAgents: AGENTS.length,
+        reportsGenerated: childReports.length,
+      });
+      return;
+    }
+
+    emitJobEvent(job, "super-start", {});
+    let superReport: any = null;
+    try {
+      superReport = await runSuperAgent(childReports, orgId);
+      emitJobEvent(job, "super-done", { report: superReport });
+    } catch (superErr: any) {
+      logger.error({ err: superErr }, "Super Agent failed in stream");
+      emitJobEvent(job, "super-error", { error: superErr?.message || "Echec du Super Agent" });
+    }
+
+    job.status = "completed";
+    emitJobEvent(job, "done", {
+      success: true,
+      completedAgents: job.completedAgents,
+      totalAgents: AGENTS.length,
+      executionTimeMs: Date.now() - startedAt,
+      hasSuperReport: !!superReport,
+    });
+  } catch (error: any) {
+    if (signal.aborted) {
+      job.status = "cancelled";
+      emitJobEvent(job, "aborted", {
+        completedAgents: job.completedAgents,
+        totalAgents: AGENTS.length,
+        reportsGenerated: childReports.length,
+      });
+    } else if (error instanceof AiQuotaExceededError) {
+      job.status = "failed";
+      emitJobEvent(job, "error", { error: error.message, quotaExceeded: true });
+    } else {
+      logger.error({ err: error }, "AI Agents stream run error");
+      job.status = "failed";
+      emitJobEvent(job, "error", { error: error?.message || "Erreur lors de l'execution des agents IA" });
+    }
+  } finally {
+    job.finishedAt = Date.now();
+    job.emitter.emit("end");
+    scheduleJobCleanup(orgId, job);
+  }
+}
 
 router.post("/ai/agents/run", requireAdmin, async (_req, res) => {
   try {
     const orgId = (_req.session as any)?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
 
-    if (runningJobs.has(orgId) && runningJobs.get(orgId)!.status === "running") {
+    const existing = runningJobs.get(orgId);
+    if (existing && existing.status === "running") {
       res.json({ status: "already_running", message: "Une analyse est deja en cours." });
       return;
     }
 
-    const jobState = { status: "running", startedAt: Date.now(), completedAgents: 0, totalAgents: AGENTS.length };
-    runningJobs.set(orgId, jobState);
+    const job: JobState = {
+      status: "running",
+      startedAt: Date.now(),
+      completedAgents: 0,
+      totalAgents: AGENTS.length,
+      events: [],
+      emitter: new EventEmitter(),
+      abortController: new AbortController(),
+    };
+    job.emitter.setMaxListeners(50);
+    runningJobs.set(orgId, job);
+    runAgentsJob(orgId, job).catch(err => logger.error({ err }, "runAgentsJob failed"));
 
     res.json({ status: "started", message: "Analyse lancee en arriere-plan.", totalAgents: AGENTS.length });
-
-    (async () => {
-      try {
-        const BATCH_SIZE = 3;
-        const childReports: any[] = [];
-        for (let i = 0; i < AGENTS.length; i += BATCH_SIZE) {
-          const batch = AGENTS.slice(i, i + BATCH_SIZE);
-          const batchResults = await Promise.allSettled(batch.map(agent => runSingleAgent(agent, orgId)));
-          for (let j = 0; j < batchResults.length; j++) {
-            const result = batchResults[j];
-            if (result.status === "fulfilled") {
-              childReports.push(result.value);
-            } else {
-              logger.error({ err: result.reason, agentId: batch[j].id }, `Agent ${batch[j].id} failed`);
-              childReports.push({ id: 0, agentName: batch[j].name, score: 0, status: "erreur", errorsFound: 1, executionTimeMs: 0 });
-            }
-            jobState.completedAgents++;
-          }
-        }
-        await runSuperAgent(childReports, orgId);
-        jobState.status = "completed";
-      } catch (err: any) {
-        logger.error({ err }, "AI Agents background run error");
-        jobState.status = "failed";
-      } finally {
-        setTimeout(() => runningJobs.delete(orgId), 60000);
-      }
-    })();
   } catch (error: any) {
     logger.error({ err: error }, "AI Agents run error");
     res.status(500).json({ error: "Erreur lors de l'execution des agents IA" });
@@ -1161,155 +1279,73 @@ router.get("/ai/agents/run/status", requireAdmin, async (req, res) => {
     res.json({ status: "idle" });
     return;
   }
-  res.json(job);
+  res.json({
+    status: job.status,
+    startedAt: job.startedAt,
+    completedAgents: job.completedAgents,
+    totalAgents: job.totalAgents,
+    finishedAt: job.finishedAt,
+  });
+});
+
+router.post("/ai/agents/run/cancel", requireAdmin, async (req, res) => {
+  const orgId = (req.session as any)?.organisationId;
+  if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+  const job = runningJobs.get(orgId);
+  if (!job || job.status !== "running") {
+    res.json({ status: "idle" });
+    return;
+  }
+  try { job.abortController.abort(); } catch {}
+  res.json({ status: "cancelling" });
 });
 
 router.post("/ai/agents/run/stream", requireAdmin, async (req, res) => {
   const orgId = (req.session as any)?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
 
-  if (runningJobs.has(orgId) && runningJobs.get(orgId)!.status === "running") {
-    res.status(409).json({ error: "Une analyse est deja en cours.", alreadyRunning: true });
-    return;
+  let job = runningJobs.get(orgId);
+  if (!job || job.status !== "running") {
+    job = {
+      status: "running",
+      startedAt: Date.now(),
+      completedAgents: 0,
+      totalAgents: AGENTS.length,
+      events: [],
+      emitter: new EventEmitter(),
+      abortController: new AbortController(),
+    };
+    job.emitter.setMaxListeners(50);
+    runningJobs.set(orgId, job);
+    runAgentsJob(orgId, job).catch(err => logger.error({ err }, "runAgentsJob failed"));
   }
 
   const stream = openSseStream(res);
-  const jobState = { status: "running", startedAt: Date.now(), completedAgents: 0, totalAgents: AGENTS.length };
-  runningJobs.set(orgId, jobState);
+  const activeJob = job;
 
-  const startedAt = Date.now();
-  const childReports: any[] = [];
+  // Replay buffered events so reattaching clients see current state
+  for (const ev of activeJob.events) stream.send(ev.event, ev.data);
 
-  stream.send("start", {
-    totalAgents: AGENTS.length,
-    agents: AGENTS.map((a, idx) => ({ index: idx, agentId: a.id, agentName: a.name, agentIcon: a.icon })),
-  });
+  if (activeJob.status !== "running") {
+    stream.end();
+    return;
+  }
 
-  let cleanedUp = false;
-  const cleanup = () => {
-    if (cleanedUp) return;
-    cleanedUp = true;
-    jobState.status = stream.signal.aborted ? "cancelled" : (jobState.status === "running" ? "completed" : jobState.status);
-    setTimeout(() => runningJobs.delete(orgId), 60000);
+  const onEvent = (event: string, data: any) => stream.send(event, data);
+  const onEnd = () => stream.end();
+
+  activeJob.emitter.on("event", onEvent);
+  activeJob.emitter.once("end", onEnd);
+
+  const detach = () => {
+    activeJob.emitter.off("event", onEvent);
+    activeJob.emitter.off("end", onEnd);
   };
 
-  try {
-    const CONCURRENCY = 3;
-    let nextIndex = 0;
-
-    const isAbortError = (err: any) =>
-      stream.signal.aborted || err?.message === "aborted" || err?.name === "APIUserAbortError";
-
-    const runOne = async (agent: typeof AGENTS[0]) => {
-      const idx = AGENTS.indexOf(agent);
-      stream.send("agent-start", {
-        index: idx,
-        agentId: agent.id,
-        agentName: agent.name,
-        agentIcon: agent.icon,
-      });
-      try {
-        const report = await runSingleAgent(agent, orgId, stream.signal);
-        childReports.push(report);
-        stream.send("agent-done", {
-          index: idx,
-          agentId: agent.id,
-          agentName: agent.name,
-          agentIcon: agent.icon,
-          report,
-          score: report?.score ?? 0,
-          executionTimeMs: report?.executionTimeMs ?? 0,
-        });
-      } catch (err: any) {
-        if (isAbortError(err)) {
-          stream.send("agent-aborted", {
-            index: idx,
-            agentId: agent.id,
-            agentName: agent.name,
-          });
-          return;
-        }
-        logger.error({ err, agentId: agent.id }, `Agent ${agent.id} failed (stream)`);
-        stream.send("agent-error", {
-          index: idx,
-          agentId: agent.id,
-          agentName: agent.name,
-          error: err?.message || "Erreur inconnue",
-        });
-      } finally {
-        jobState.completedAgents++;
-        stream.send("progress", { completedAgents: jobState.completedAgents, totalAgents: AGENTS.length });
-      }
-    };
-
-    const worker = async () => {
-      while (true) {
-        if (stream.signal.aborted) return;
-        const i = nextIndex++;
-        if (i >= AGENTS.length) return;
-        await runOne(AGENTS[i]);
-      }
-    };
-
-    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, AGENTS.length) }, () => worker()));
-
-    if (stream.signal.aborted) {
-      jobState.status = "cancelled";
-      stream.send("aborted", {
-        completedAgents: jobState.completedAgents,
-        totalAgents: AGENTS.length,
-        reportsGenerated: childReports.length,
-      });
-      stream.end();
-      cleanup();
-      return;
-    }
-
-    stream.send("super-start", {});
-    let superReport: any = null;
-    try {
-      superReport = await runSuperAgent(childReports, orgId);
-      stream.send("super-done", { report: superReport });
-    } catch (superErr: any) {
-      logger.error({ err: superErr }, "Super Agent failed in stream");
-      stream.send("super-error", { error: superErr?.message || "Echec du Super Agent" });
-    }
-
-    jobState.status = "completed";
-    stream.send("done", {
-      success: true,
-      completedAgents: jobState.completedAgents,
-      totalAgents: AGENTS.length,
-      executionTimeMs: Date.now() - startedAt,
-      hasSuperReport: !!superReport,
-    });
-    stream.end();
-  } catch (error: any) {
-    if (stream.signal.aborted) {
-      jobState.status = "cancelled";
-      stream.send("aborted", {
-        completedAgents: jobState.completedAgents,
-        totalAgents: AGENTS.length,
-        reportsGenerated: childReports.length,
-      });
-      stream.end();
-      cleanup();
-      return;
-    }
-    if (error instanceof AiQuotaExceededError) {
-      jobState.status = "failed";
-      stream.send("error", { error: error.message, quotaExceeded: true });
-      stream.end();
-      cleanup();
-      return;
-    }
-    logger.error({ err: error }, "AI Agents stream run error");
-    jobState.status = "failed";
-    stream.send("error", { error: error?.message || "Erreur lors de l'execution des agents IA" });
-    stream.end();
-  } finally {
-    cleanup();
-  }
+  // When the request closes (tab switched / navigated away), just detach this
+  // subscriber. The background run continues so the user can reattach later.
+  stream.signal.addEventListener("abort", detach);
+  res.on("close", detach);
 });
 
 router.post("/ai/agents/run/:agentId", requireAdmin, async (req, res) => {

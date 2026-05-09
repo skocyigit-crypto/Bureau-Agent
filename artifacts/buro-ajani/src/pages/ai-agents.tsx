@@ -441,15 +441,18 @@ export default function AiAgentsPage() {
     });
   };
 
-  const handleRunAll = async () => {
-    if (isRunning) return;
+  const attachToRun = async (opts: { reattach: boolean }) => {
     const controller = new AbortController();
     runAllAbortRef.current = controller;
     setIsRunning(true);
-    setRunProgress({ completedAgents: 0, totalAgents: 10 });
-    setRunTimeline([]);
-    setSuperStatus("idle");
-    toast({ title: "Analyse lancee", description: "Les agents IA s'executent en direct..." });
+    if (!opts.reattach) {
+      setRunProgress({ completedAgents: 0, totalAgents: 10 });
+      setRunTimeline([]);
+      setSuperStatus("idle");
+      toast({ title: "Analyse lancee", description: "Les agents IA s'executent en direct..." });
+    } else {
+      toast({ title: "Analyse en cours", description: "Reconnexion au flux en direct..." });
+    }
 
     try {
       await streamSse("/ai/agents/run/stream", {}, {
@@ -507,13 +510,40 @@ export default function AiAgentsPage() {
     }
   };
 
-  const cancelRunAll = () => {
-    if (runAllAbortRef.current) runAllAbortRef.current.abort();
-    setSuperStatus(prev => prev === "running" ? "idle" : prev);
-    setRunTimeline(prev => prev.map(t => t.status === "running" || t.status === "pending" ? { ...t, status: "aborted" } : t));
-    toast({ title: "Analyse annulee", description: "Les agents en cours ont ete interrompus." });
-    invalidateAgentQueries();
+  const handleRunAll = async () => {
+    if (isRunning) return;
+    await attachToRun({ reattach: false });
   };
+
+  const cancelRunAll = async () => {
+    try {
+      await fetch(`${BASE_URL}/api/ai/agents/run/cancel`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (err) {
+      console.error("[AIAgents] cancel failed:", err);
+    }
+    toast({ title: "Annulation demandee", description: "Les agents en cours s'arretent..." });
+  };
+
+  // Reattach to an in-flight run when the page mounts (after tab switch / refresh)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${BASE_URL}/api/ai/agents/run/status`, { credentials: "include" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled) return;
+        if (data?.status === "running" && !runAllAbortRef.current) {
+          await attachToRun({ reattach: true });
+        }
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleAutoFix = async () => {
     setAutoFixLoading(true);
