@@ -19,7 +19,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import {
-  useRunAllAiAgents, useGetLatestAiAgentReports, useGetAiAgentReports,
+  useGetLatestAiAgentReports, useGetAiAgentReports,
   useRunSingleAiAgent
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -414,6 +414,9 @@ export default function AiAgentsPage() {
   const canRunAgents = isAtLeast("administrateur");
   const [isRunning, setIsRunning] = useState(false);
   const [runProgress, setRunProgress] = useState({ completedAgents: 0, totalAgents: 10 });
+  const [runTimeline, setRunTimeline] = useState<Array<{ agentId: string; agentName: string; agentIcon: string; status: "pending" | "running" | "done" | "error" | "aborted"; score?: number; executionTimeMs?: number; error?: string }>>([]);
+  const [superStatus, setSuperStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const runAllAbortRef = useRef<AbortController | null>(null);
   const [autoFixLoading, setAutoFixLoading] = useState(false);
   const [autoFixResult, setAutoFixResult] = useState<any>(null);
   const [predictions, setPredictions] = useState<any>(null);
@@ -424,7 +427,6 @@ export default function AiAgentsPage() {
 
   const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-  const runAll = useRunAllAiAgents();
   const runSingle = useRunSingleAiAgent();
 
   const { data: latestReports, isLoading: loadingLatest, isError: errorLatest } = useGetLatestAiAgentReports();
@@ -439,46 +441,78 @@ export default function AiAgentsPage() {
     });
   };
 
-  useEffect(() => {
-    if (!isRunning) return;
+  const handleRunAll = async () => {
+    if (isRunning) return;
     const controller = new AbortController();
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`${BASE_URL}/api/ai/agents/run/status`, { credentials: "include", signal: controller.signal });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.status === "completed" || data.status === "failed" || data.status === "idle") {
-          setIsRunning(false);
-          invalidateAgentQueries();
-          if (data.status === "completed") {
-            toast({ title: "Analyse terminee", description: "Tous les agents IA ont termine leur analyse." });
-          } else if (data.status === "failed") {
-            toast({ title: "Erreur", description: "L'analyse a rencontre des erreurs.", variant: "destructive" });
-          }
-        } else if (data.status === "running") {
-          setRunProgress({ completedAgents: data.completedAgents || 0, totalAgents: data.totalAgents || 10 });
-        }
-      } catch (err: any) {
-        if (err?.name === "AbortError") return;
-        console.error("[AIAgents] polling failed:", err);
-      }
-    }, 3000);
-    return () => { controller.abort(); clearInterval(interval); };
-  }, [isRunning]);
+    runAllAbortRef.current = controller;
+    setIsRunning(true);
+    setRunProgress({ completedAgents: 0, totalAgents: 10 });
+    setRunTimeline([]);
+    setSuperStatus("idle");
+    toast({ title: "Analyse lancee", description: "Les agents IA s'executent en direct..." });
 
-  const handleRunAll = () => {
-    runAll.mutate(undefined, {
-      onSuccess: (data: any) => {
-        if (data?.status === "started" || data?.status === "already_running") {
-          setIsRunning(true);
-          setRunProgress({ completedAgents: 0, totalAgents: data?.totalAgents || 10 });
-          toast({ title: "Analyse lancee", description: "Les agents IA travaillent en arriere-plan..." });
-        }
-      },
-      onError: () => {
-        toast({ title: "Erreur", description: "Impossible d'executer les agents IA.", variant: "destructive" });
+    try {
+      await streamSse("/ai/agents/run/stream", {}, {
+        signal: controller.signal,
+        onEvent: (event, data) => {
+          if (event === "start") {
+            setRunProgress({ completedAgents: 0, totalAgents: data?.totalAgents || 10 });
+            if (Array.isArray(data?.agents)) {
+              setRunTimeline(data.agents.map((a: any) => ({
+                agentId: a.agentId,
+                agentName: a.agentName,
+                agentIcon: a.agentIcon,
+                status: "pending" as const,
+              })));
+            }
+          } else if (event === "agent-start") {
+            setRunTimeline(prev => prev.map(t => t.agentId === data?.agentId ? { ...t, status: "running" } : t));
+          } else if (event === "agent-done") {
+            setRunTimeline(prev => prev.map(t => t.agentId === data?.agentId ? { ...t, status: "done", score: data?.score, executionTimeMs: data?.executionTimeMs } : t));
+            invalidateAgentQueries();
+          } else if (event === "agent-error") {
+            setRunTimeline(prev => prev.map(t => t.agentId === data?.agentId ? { ...t, status: "error", error: data?.error } : t));
+          } else if (event === "agent-aborted") {
+            setRunTimeline(prev => prev.map(t => t.agentId === data?.agentId ? { ...t, status: "aborted" } : t));
+          } else if (event === "progress") {
+            setRunProgress({ completedAgents: data?.completedAgents || 0, totalAgents: data?.totalAgents || 10 });
+          } else if (event === "super-start") {
+            setSuperStatus("running");
+          } else if (event === "super-done") {
+            setSuperStatus("done");
+            invalidateAgentQueries();
+          } else if (event === "super-error") {
+            setSuperStatus("error");
+          } else if (event === "done") {
+            toast({ title: "Analyse terminee", description: "Tous les agents IA ont termine leur analyse." });
+            invalidateAgentQueries();
+          } else if (event === "aborted") {
+            toast({ title: "Analyse annulee", description: `Interrompue apres ${data?.completedAgents ?? 0}/${data?.totalAgents ?? 10} agents.` });
+            invalidateAgentQueries();
+          } else if (event === "error") {
+            toast({ title: "Erreur", description: data?.error || "L'analyse a rencontre des erreurs.", variant: "destructive" });
+          }
+        },
+      });
+    } catch (err: any) {
+      if (err?.name === "AbortError") {
+        // already handled by aborted event if server got the chance to emit it
+      } else {
+        console.error("[AIAgents] stream failed:", err);
+        toast({ title: "Erreur", description: err?.message || "Impossible d'executer les agents IA.", variant: "destructive" });
       }
-    });
+    } finally {
+      setIsRunning(false);
+      runAllAbortRef.current = null;
+    }
+  };
+
+  const cancelRunAll = () => {
+    if (runAllAbortRef.current) runAllAbortRef.current.abort();
+    setSuperStatus(prev => prev === "running" ? "idle" : prev);
+    setRunTimeline(prev => prev.map(t => t.status === "running" || t.status === "pending" ? { ...t, status: "aborted" } : t));
+    toast({ title: "Analyse annulee", description: "Les agents en cours ont ete interrompus." });
+    invalidateAgentQueries();
   };
 
   const handleAutoFix = async () => {
@@ -594,10 +628,17 @@ export default function AiAgentsPage() {
           )}
           <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
           {canRunAgents ? (
-            <Button onClick={handleRunAll} disabled={isRunning || runAll.isPending} className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700">
-              {isRunning || runAll.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
-              {isRunning ? `Analyse en cours (${runProgress.completedAgents}/${runProgress.totalAgents})` : "Lancer tous les agents"}
-            </Button>
+            <>
+              <Button onClick={handleRunAll} disabled={isRunning} className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700">
+                {isRunning ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
+                {isRunning ? `Analyse en cours (${runProgress.completedAgents}/${runProgress.totalAgents})` : "Lancer tous les agents"}
+              </Button>
+              {isRunning && (
+                <Button variant="outline" size="sm" onClick={cancelRunAll} className="border-red-300 text-red-700 hover:bg-red-50">
+                  <X className="w-3.5 h-3.5 mr-1" />Annuler
+                </Button>
+              )}
+            </>
           ) : (
             <Badge variant="secondary" className="py-1.5 px-3 text-xs">
               <Eye className="w-3 h-3 mr-1.5" /> Mode lecture
@@ -671,16 +712,70 @@ export default function AiAgentsPage() {
         </Card>
       </div>
 
-      {isRunning && (
-        <Card className="border-purple-300 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/10">
-          <CardContent className="p-6 flex items-center gap-4">
-            <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
-            <div>
-              <p className="font-semibold">Analyse en cours...</p>
-              <p className="text-sm text-muted-foreground">
-                Les 10 agents IA analysent votre bureau. Le Super Agent synthetisera ensuite les resultats.
-              </p>
+      {(isRunning || runTimeline.length > 0) && (
+        <Card className="border-purple-300 bg-gradient-to-br from-purple-50/60 to-indigo-50/40 dark:from-purple-950/20 dark:to-indigo-950/10">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                {isRunning ? <Loader2 className="w-5 h-5 animate-spin text-purple-600" /> : <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
+                <div>
+                  <CardTitle className="text-base">
+                    {isRunning ? "Analyse multi-agents en direct" : "Analyse terminee"}
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    {runProgress.completedAgents}/{runProgress.totalAgents} agents - Super Agent: {superStatus === "idle" ? "en attente" : superStatus === "running" ? "en cours" : superStatus === "done" ? "termine" : "erreur"}
+                  </CardDescription>
+                </div>
+              </div>
+              <div className="w-40">
+                <Progress value={runProgress.totalAgents ? (runProgress.completedAgents / runProgress.totalAgents) * 100 : 0} className="h-2" />
+              </div>
             </div>
+          </CardHeader>
+          <CardContent className="space-y-1.5">
+            {runTimeline.map((t) => {
+              const Icon = AGENT_ICONS[t.agentIcon] || Brain;
+              return (
+                <div key={t.agentId} className="flex items-center gap-3 px-2 py-1.5 rounded-md bg-background/40">
+                  <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center shrink-0">
+                    <Icon className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="text-xs font-medium flex-1 truncate">{t.agentName}</span>
+                  {t.status === "pending" && (
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-1"><CircleDot className="w-3 h-3" />En attente</span>
+                  )}
+                  {t.status === "running" && (
+                    <span className="text-[10px] text-purple-600 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />Analyse...</span>
+                  )}
+                  {t.status === "done" && (
+                    <span className="text-[10px] flex items-center gap-2">
+                      <span className={`font-bold ${getScoreColor(t.score ?? 0)}`}>{t.score}</span>
+                      {typeof t.executionTimeMs === "number" && t.executionTimeMs > 0 && (
+                        <span className="text-muted-foreground">{(t.executionTimeMs / 1000).toFixed(1)}s</span>
+                      )}
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    </span>
+                  )}
+                  {t.status === "error" && (
+                    <span className="text-[10px] text-destructive flex items-center gap-1" title={t.error}><AlertCircle className="w-3.5 h-3.5" />Erreur</span>
+                  )}
+                  {t.status === "aborted" && (
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-1"><X className="w-3 h-3" />Annule</span>
+                  )}
+                </div>
+              );
+            })}
+            {superStatus !== "idle" && (
+              <div className="flex items-center gap-3 px-2 py-1.5 rounded-md bg-gradient-to-r from-purple-100/40 to-indigo-100/40 dark:from-purple-900/20 dark:to-indigo-900/20 mt-2">
+                <div className="w-7 h-7 rounded-md bg-gradient-to-br from-purple-500 to-indigo-600 text-white flex items-center justify-center shrink-0">
+                  <Crown className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-xs font-medium flex-1 truncate">Super Agent (synthese)</span>
+                {superStatus === "running" && <span className="text-[10px] text-purple-600 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" />Synthese...</span>}
+                {superStatus === "done" && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
+                {superStatus === "error" && <AlertCircle className="w-3.5 h-3.5 text-destructive" />}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -792,8 +887,8 @@ export default function AiAgentsPage() {
                   Lancez les agents IA pour obtenir une analyse complete de votre bureau.
                 </p>
                 {canRunAgents && (
-                  <Button onClick={handleRunAll} disabled={isRunning || runAll.isPending} className="bg-gradient-to-r from-purple-600 to-indigo-600">
-                    {isRunning || runAll.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
+                  <Button onClick={handleRunAll} disabled={isRunning} className="bg-gradient-to-r from-purple-600 to-indigo-600">
+                    {isRunning ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
                     {isRunning ? `Analyse en cours (${runProgress.completedAgents}/${runProgress.totalAgents})` : "Lancer l'analyse"}
                   </Button>
                 )}

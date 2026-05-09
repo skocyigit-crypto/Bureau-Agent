@@ -732,11 +732,13 @@ Reponds en JSON avec cette structure exacte:
 }
 IMPORTANT: Genere 3-6 elements pertinents pour chaque categorie. Sois ULTRA concret avec les chiffres. Chaque erreur doit avoir une cause racine. Chaque suggestion doit avoir un ROI estime. Chaque prediction doit etre basee sur les tendances observees.`;
 
-async function runSingleAgent(agent: typeof AGENTS[0], orgId: number): Promise<any> {
+async function runSingleAgent(agent: typeof AGENTS[0], orgId: number, signal?: AbortSignal): Promise<any> {
   const startTime = Date.now();
   const today = new Date().toISOString().split("T")[0];
+  const checkAbort = () => { if (signal?.aborted) throw new Error("aborted"); };
 
   try {
+    checkAbort();
     await assertAiQuota(orgId);
 
     const data = await gatherAgentData(agent.id, orgId);
@@ -777,10 +779,11 @@ ${trendHistory.map(h => `  ${h.reportDate}: score ${h.score}, ${h.errorsFound} e
     if (agentCached) {
       text = agentCached;
     } else try {
+      checkAbort();
       const response = await withProviderTimeout(() => ai.models.generateContent({
         model: "gemini-2.5-pro",
         contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
-        config: { maxOutputTokens: 8192, responseMimeType: "application/json", thinkingConfig: { thinkingBudget: 2048 } },
+        config: { maxOutputTokens: 8192, responseMimeType: "application/json", thinkingConfig: { thinkingBudget: 2048 }, ...(signal ? { abortSignal: signal } : {}) } as any,
       }), { timeoutMs: 45_000, label: `agent-${agent.id}-gemini` });
       text = response.text ?? "{}";
       const tokens = extractGeminiTokens(response);
@@ -789,38 +792,44 @@ ${trendHistory.map(h => `  ${h.reportDate}: score ${h.score}, ${h.errorsFound} e
       if (text && text.length > 10) setCached(agentCacheKey, text, AI_CACHE_TTL.MEDIUM);
     } catch (geminiErr: any) {
       if (geminiErr instanceof AiQuotaExceededError) throw geminiErr;
+      if (signal?.aborted || geminiErr?.message === "aborted") throw geminiErr;
       logger.warn({ err: geminiErr, agentId: agent.id }, "Gemini failed, trying OpenAI fallback");
       try {
+        checkAbort();
         const { openai } = await import("@workspace/integrations-openai-ai-server");
         const fallback = await withProviderTimeout(() => openai.chat.completions.create({
           model: "gpt-5.2",
           messages: [{ role: "user", content: fullPrompt + "\n\nReponds UNIQUEMENT en JSON valide." }],
-        }), { timeoutMs: 45_000, label: `agent-${agent.id}-openai` });
+        }, signal ? { signal } as any : undefined), { timeoutMs: 45_000, label: `agent-${agent.id}-openai` });
         text = fallback.choices?.[0]?.message?.content ?? "{}";
         const ftokens = extractOpenAITokens(fallback);
         recordAiUsage({ organisationId: orgId, provider: "openai", model: "gpt-5.2", route: `/ai/agents/${agent.id}`, inputTokens: ftokens.input, outputTokens: ftokens.output, durationMs: Date.now() - t0 }).catch(() => {});
         invalidateQuotaCache(orgId);
         if (text && text.length > 10) setCached(agentCacheKey, text, AI_CACHE_TTL.MEDIUM);
       } catch (openaiErr: any) {
+        if (signal?.aborted || openaiErr?.message === "aborted" || openaiErr?.name === "APIUserAbortError") throw openaiErr;
         logger.warn({ err: openaiErr, agentId: agent.id }, "OpenAI fallback failed, trying Anthropic");
         try {
+          checkAbort();
           const { anthropic } = await import("@workspace/integrations-anthropic-ai");
-          const fallback2 = await withProviderTimeout(() => anthropic.messages.create({
+          const fallback2: any = await withProviderTimeout(() => (anthropic.messages.create as any)({
             model: "claude-sonnet-4-6",
             max_tokens: 8192,
             messages: [{ role: "user", content: fullPrompt + "\n\nReponds UNIQUEMENT en JSON valide." }],
-          }), { timeoutMs: 45_000, label: `agent-${agent.id}-anthropic` });
+          }, signal ? { signal } : undefined), { timeoutMs: 45_000, label: `agent-${agent.id}-anthropic` });
           text = fallback2.content?.[0]?.type === "text" ? fallback2.content[0].text : "{}";
           const atokens = extractAnthropicTokens(fallback2);
           recordAiUsage({ organisationId: orgId, provider: "anthropic", model: "claude-sonnet-4-6", route: `/ai/agents/${agent.id}`, inputTokens: atokens.input, outputTokens: atokens.output, durationMs: Date.now() - t0 }).catch(() => {});
           invalidateQuotaCache(orgId);
           if (text && text.length > 10) setCached(agentCacheKey, text, AI_CACHE_TTL.MEDIUM);
         } catch (anthropicErr: any) {
+          if (signal?.aborted || anthropicErr?.message === "aborted" || anthropicErr?.name === "APIUserAbortError") throw anthropicErr;
           logger.error({ err: anthropicErr, agentId: agent.id }, "All AI providers failed");
           throw new Error(`Tous les fournisseurs IA ont echoue pour ${agent.id}`);
         }
       }
     }
+    checkAbort();
     let parsed;
     try {
       parsed = JSON.parse(text);
@@ -861,6 +870,9 @@ ${trendHistory.map(h => `  ${h.reportDate}: score ${h.score}, ${h.errorsFound} e
 
     return report;
   } catch (error: any) {
+    if (signal?.aborted || error?.message === "aborted" || error?.name === "APIUserAbortError") {
+      throw error;
+    }
     const executionTimeMs = Date.now() - startTime;
     const [report] = await db.insert(aiAgentReportsTable).values({
       agentId: agent.id,
@@ -1150,6 +1162,154 @@ router.get("/ai/agents/run/status", requireAdmin, async (req, res) => {
     return;
   }
   res.json(job);
+});
+
+router.post("/ai/agents/run/stream", requireAdmin, async (req, res) => {
+  const orgId = (req.session as any)?.organisationId;
+  if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+
+  if (runningJobs.has(orgId) && runningJobs.get(orgId)!.status === "running") {
+    res.status(409).json({ error: "Une analyse est deja en cours.", alreadyRunning: true });
+    return;
+  }
+
+  const stream = openSseStream(res);
+  const jobState = { status: "running", startedAt: Date.now(), completedAgents: 0, totalAgents: AGENTS.length };
+  runningJobs.set(orgId, jobState);
+
+  const startedAt = Date.now();
+  const childReports: any[] = [];
+
+  stream.send("start", {
+    totalAgents: AGENTS.length,
+    agents: AGENTS.map((a, idx) => ({ index: idx, agentId: a.id, agentName: a.name, agentIcon: a.icon })),
+  });
+
+  let cleanedUp = false;
+  const cleanup = () => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    jobState.status = stream.signal.aborted ? "cancelled" : (jobState.status === "running" ? "completed" : jobState.status);
+    setTimeout(() => runningJobs.delete(orgId), 60000);
+  };
+
+  try {
+    const CONCURRENCY = 3;
+    let nextIndex = 0;
+
+    const isAbortError = (err: any) =>
+      stream.signal.aborted || err?.message === "aborted" || err?.name === "APIUserAbortError";
+
+    const runOne = async (agent: typeof AGENTS[0]) => {
+      const idx = AGENTS.indexOf(agent);
+      stream.send("agent-start", {
+        index: idx,
+        agentId: agent.id,
+        agentName: agent.name,
+        agentIcon: agent.icon,
+      });
+      try {
+        const report = await runSingleAgent(agent, orgId, stream.signal);
+        childReports.push(report);
+        stream.send("agent-done", {
+          index: idx,
+          agentId: agent.id,
+          agentName: agent.name,
+          agentIcon: agent.icon,
+          report,
+          score: report?.score ?? 0,
+          executionTimeMs: report?.executionTimeMs ?? 0,
+        });
+      } catch (err: any) {
+        if (isAbortError(err)) {
+          stream.send("agent-aborted", {
+            index: idx,
+            agentId: agent.id,
+            agentName: agent.name,
+          });
+          return;
+        }
+        logger.error({ err, agentId: agent.id }, `Agent ${agent.id} failed (stream)`);
+        stream.send("agent-error", {
+          index: idx,
+          agentId: agent.id,
+          agentName: agent.name,
+          error: err?.message || "Erreur inconnue",
+        });
+      } finally {
+        jobState.completedAgents++;
+        stream.send("progress", { completedAgents: jobState.completedAgents, totalAgents: AGENTS.length });
+      }
+    };
+
+    const worker = async () => {
+      while (true) {
+        if (stream.signal.aborted) return;
+        const i = nextIndex++;
+        if (i >= AGENTS.length) return;
+        await runOne(AGENTS[i]);
+      }
+    };
+
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, AGENTS.length) }, () => worker()));
+
+    if (stream.signal.aborted) {
+      jobState.status = "cancelled";
+      stream.send("aborted", {
+        completedAgents: jobState.completedAgents,
+        totalAgents: AGENTS.length,
+        reportsGenerated: childReports.length,
+      });
+      stream.end();
+      cleanup();
+      return;
+    }
+
+    stream.send("super-start", {});
+    let superReport: any = null;
+    try {
+      superReport = await runSuperAgent(childReports, orgId);
+      stream.send("super-done", { report: superReport });
+    } catch (superErr: any) {
+      logger.error({ err: superErr }, "Super Agent failed in stream");
+      stream.send("super-error", { error: superErr?.message || "Echec du Super Agent" });
+    }
+
+    jobState.status = "completed";
+    stream.send("done", {
+      success: true,
+      completedAgents: jobState.completedAgents,
+      totalAgents: AGENTS.length,
+      executionTimeMs: Date.now() - startedAt,
+      hasSuperReport: !!superReport,
+    });
+    stream.end();
+  } catch (error: any) {
+    if (stream.signal.aborted) {
+      jobState.status = "cancelled";
+      stream.send("aborted", {
+        completedAgents: jobState.completedAgents,
+        totalAgents: AGENTS.length,
+        reportsGenerated: childReports.length,
+      });
+      stream.end();
+      cleanup();
+      return;
+    }
+    if (error instanceof AiQuotaExceededError) {
+      jobState.status = "failed";
+      stream.send("error", { error: error.message, quotaExceeded: true });
+      stream.end();
+      cleanup();
+      return;
+    }
+    logger.error({ err: error }, "AI Agents stream run error");
+    jobState.status = "failed";
+    stream.send("error", { error: error?.message || "Erreur lors de l'execution des agents IA" });
+    stream.end();
+  } finally {
+    cleanup();
+  }
 });
 
 router.post("/ai/agents/run/:agentId", requireAdmin, async (req, res) => {
