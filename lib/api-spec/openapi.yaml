@@ -2083,6 +2083,9 @@ components:
         inlineSuggestEnabled:
           type: boolean
           description: When true, inline ghost-text AI suggestions are shown while typing notes, prospect notes, and email bodies.
+        inlineSuggestLanguage:
+          type: string
+          description: Language hint passed to the inline-suggest AI prompt (e.g. "francais", "english", "deutsch"). Defaults to "francais" when unset.
 
     Call:
       type: object

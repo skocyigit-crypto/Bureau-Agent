@@ -1,12 +1,24 @@
-import { Sparkles, Info } from "lucide-react";
+import { Sparkles, Info, Languages } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Icon3D } from "@/components/icon-3d";
-import { useInlineSuggestEnabled } from "@/hooks/use-inline-suggest";
+import {
+  useInlineSuggestEnabled,
+  useInlineSuggestLanguage,
+  INLINE_SUGGEST_LANGUAGES,
+} from "@/hooks/use-inline-suggest";
 
 export function TabPreferencesIa() {
   const [enabled, setEnabled] = useInlineSuggestEnabled();
+  const [language, setLanguage] = useInlineSuggestLanguage();
 
   return (
     <div className="space-y-6">
@@ -37,6 +49,32 @@ export function TabPreferencesIa() {
               aria-label="Activer les suggestions IA en ligne"
             />
           </div>
+
+          <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-medium flex items-center gap-1.5">
+                <Languages className="w-3.5 h-3.5" />
+                Langue des suggestions
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Langue dans laquelle l'IA proposera la suite de votre texte.
+                Utile pour les equipes multilingues.
+              </p>
+            </div>
+            <Select value={language} onValueChange={setLanguage} disabled={!enabled}>
+              <SelectTrigger className="w-44" aria-label="Langue des suggestions IA">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {INLINE_SUGGEST_LANGUAGES.map((lang) => (
+                  <SelectItem key={lang.value} value={lang.value}>
+                    {lang.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
             <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
             Cette preference est enregistree sur votre compte et s'applique a tous

@@ -35,6 +35,21 @@ const STORAGE_KEY = "aiInlineSuggest:enabled";
 const DEBOUNCE_MS = 400;
 const MIN_CHARS = 8;
 
+const LANGUAGE_STORAGE_KEY = "aiInlineSuggest:language";
+export const INLINE_SUGGEST_LANGUAGES = [
+  { value: "francais", label: "Français" },
+  { value: "english", label: "English" },
+  { value: "deutsch", label: "Deutsch" },
+  { value: "espanol", label: "Español" },
+  { value: "italiano", label: "Italiano" },
+  { value: "portugues", label: "Português" },
+  { value: "nederlands", label: "Nederlands" },
+  { value: "turkce", label: "Türkçe" },
+  { value: "arabic", label: "العربية" },
+] as const;
+const DEFAULT_LANGUAGE = "francais";
+const VALID_LANGUAGES: Set<string> = new Set(INLINE_SUGGEST_LANGUAGES.map((l) => l.value));
+
 export function getInlineSuggestEnabled(): boolean {
   if (typeof window === "undefined") return true;
   try {
@@ -50,6 +65,26 @@ export function setInlineSuggestEnabled(enabled: boolean): void {
   try {
     window.localStorage.setItem(STORAGE_KEY, enabled ? "true" : "false");
     window.dispatchEvent(new CustomEvent("inline-suggest-toggle", { detail: enabled }));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function getInlineSuggestLanguage(): string {
+  if (typeof window === "undefined") return DEFAULT_LANGUAGE;
+  try {
+    const v = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    if (v && VALID_LANGUAGES.has(v)) return v;
+    return DEFAULT_LANGUAGE;
+  } catch {
+    return DEFAULT_LANGUAGE;
+  }
+}
+
+export function setInlineSuggestLanguageStorage(language: string): void {
+  try {
+    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+    window.dispatchEvent(new CustomEvent("inline-suggest-language", { detail: language }));
   } catch {
     /* ignore */
   }
@@ -140,6 +175,83 @@ export function useInlineSuggestEnabled(): [boolean, (v: boolean) => void] {
   return [enabled, set];
 }
 
+/**
+ * Returns the user's inline-suggestion language preference, persisted
+ * server-side when authenticated and shimmed via localStorage otherwise.
+ */
+export function useInlineSuggestLanguage(): [string, (v: string) => void] {
+  const queryClient = useQueryClient();
+  const [localLanguage, setLocalLanguage] = useState<string>(() => getInlineSuggestLanguage());
+
+  useEffect(() => {
+    const onChange = () => setLocalLanguage(getInlineSuggestLanguage());
+    window.addEventListener("inline-suggest-language", onChange as EventListener);
+    window.addEventListener("storage", onChange);
+    return () => {
+      window.removeEventListener("inline-suggest-language", onChange as EventListener);
+      window.removeEventListener("storage", onChange);
+    };
+  }, []);
+
+  const prefsQuery = useGetMyPreferences({
+    query: {
+      queryKey: getGetMyPreferencesQueryKey(),
+      retry: false,
+      staleTime: 60_000,
+      refetchOnWindowFocus: false,
+    },
+  });
+
+  useEffect(() => {
+    const v = prefsQuery.data?.inlineSuggestLanguage;
+    if (typeof v === "string" && VALID_LANGUAGES.has(v)) {
+      try {
+        const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+        if (stored !== v) window.localStorage.setItem(LANGUAGE_STORAGE_KEY, v);
+      } catch {
+        /* ignore */
+      }
+      setLocalLanguage(v);
+    }
+  }, [prefsQuery.data?.inlineSuggestLanguage]);
+
+  const updateMutation = useUpdateMyPreferences();
+  const isAuthenticated = !isUnauthenticatedError(prefsQuery.error);
+
+  const set = useCallback(
+    (v: string) => {
+      if (!VALID_LANGUAGES.has(v)) return;
+      setInlineSuggestLanguageStorage(v);
+      setLocalLanguage(v);
+      if (!isAuthenticated) return;
+      queryClient.setQueryData<UserPreferences>(
+        getGetMyPreferencesQueryKey(),
+        (prev) => ({
+          ...(prev ?? {}),
+          inlineSuggestLanguage: v,
+        }),
+      );
+      updateMutation.mutate(
+        { data: { inlineSuggestLanguage: v } },
+        {
+          onError: () => {
+            queryClient.invalidateQueries({ queryKey: getGetMyPreferencesQueryKey() });
+          },
+        },
+      );
+    },
+    [queryClient, updateMutation, isAuthenticated],
+  );
+
+  const serverValue = prefsQuery.data?.inlineSuggestLanguage;
+  const language =
+    typeof serverValue === "string" && VALID_LANGUAGES.has(serverValue)
+      ? serverValue
+      : localLanguage;
+
+  return [language, set];
+}
+
 interface UseInlineSuggestOptions {
   fieldType: InlineSuggestFieldType;
   text: string;
@@ -166,6 +278,7 @@ function fireEvent(fieldType: InlineSuggestFieldType, event: "shown" | "accepted
 export function useInlineSuggest(opts: UseInlineSuggestOptions): UseInlineSuggestResult {
   const { fieldType, text, title, contactName, enabled = true } = opts;
   const [globalEnabled] = useInlineSuggestEnabled();
+  const [language] = useInlineSuggestLanguage();
   const [suggestion, setSuggestion] = useState("");
   const lastReqTextRef = useRef<string>("");
   const reqIdRef = useRef(0);
@@ -214,6 +327,7 @@ export function useInlineSuggest(opts: UseInlineSuggestOptions): UseInlineSugges
             text,
             title: title ?? null,
             contactName: contactName ?? null,
+            language: language ?? null,
           },
         },
         {
@@ -237,7 +351,7 @@ export function useInlineSuggest(opts: UseInlineSuggestOptions): UseInlineSugges
       window.clearTimeout(handle);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, fieldType, title, contactName, enabled, globalEnabled]);
+  }, [text, fieldType, title, contactName, enabled, globalEnabled, language]);
 
   const clear = useCallback(() => {
     reqIdRef.current++;

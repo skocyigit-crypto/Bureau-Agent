@@ -101,7 +101,10 @@ router.post("/ai/inline-suggest", async (req: Request, res: Response): Promise<v
     const orgId = getOrgId(req);
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
 
-    const { fieldType, text, title, contactName, language } = req.body ?? {};
+    const { fieldType, text, title, contactName, language: rawLanguage } = req.body ?? {};
+    const language = typeof rawLanguage === "string" && rawLanguage.trim()
+      ? rawLanguage.trim().toLowerCase()
+      : "francais";
     if (!fieldType || !FIELD_TYPES.has(String(fieldType))) {
       res.status(400).json({ error: "fieldType invalide." });
       return;
@@ -131,7 +134,7 @@ router.post("/ai/inline-suggest", async (req: Request, res: Response): Promise<v
     const cacheKey = buildAiCacheKey({
       route: "/ai/inline-suggest",
       organisationId: orgId,
-      input: { fieldType, lastWindow, title: safeTitle, contactName: safeContact },
+      input: { fieldType, lastWindow, title: safeTitle, contactName: safeContact, language },
     });
     const cached = getCached<{ suggestion: string }>(cacheKey);
     if (cached) { res.json(cached); return; }

@@ -3,6 +3,7 @@ import { organisationsTable } from "./organisations";
 
 export interface UserPreferences {
   inlineSuggestEnabled?: boolean;
+  inlineSuggestLanguage?: string;
 }
 
 export const usersTable = pgTable("users", {

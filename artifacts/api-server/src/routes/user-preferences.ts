@@ -4,6 +4,18 @@ import { db, usersTable, type UserPreferences } from "@workspace/db";
 
 const router: IRouter = Router();
 
+const SUPPORTED_LANGUAGES = new Set([
+  "francais",
+  "english",
+  "deutsch",
+  "espanol",
+  "italiano",
+  "portugues",
+  "nederlands",
+  "turkce",
+  "arabic",
+]);
+
 function parsePreferencesPatch(body: unknown): UserPreferences | null {
   if (!body || typeof body !== "object") return null;
   const out: UserPreferences = {};
@@ -12,12 +24,19 @@ function parsePreferencesPatch(body: unknown): UserPreferences | null {
     if (typeof src.inlineSuggestEnabled !== "boolean") return null;
     out.inlineSuggestEnabled = src.inlineSuggestEnabled;
   }
+  if ("inlineSuggestLanguage" in src) {
+    if (typeof src.inlineSuggestLanguage !== "string") return null;
+    const v = src.inlineSuggestLanguage.trim().toLowerCase();
+    if (!SUPPORTED_LANGUAGES.has(v)) return null;
+    out.inlineSuggestLanguage = v;
+  }
   return out;
 }
 
 function normalizePreferences(prefs: UserPreferences | null | undefined): UserPreferences {
   return {
     inlineSuggestEnabled: prefs?.inlineSuggestEnabled ?? true,
+    inlineSuggestLanguage: prefs?.inlineSuggestLanguage ?? "francais",
   };
 }
 
