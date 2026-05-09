@@ -10,6 +10,7 @@ import { AiSuggestionsCard } from "@/components/ai-suggestions-card";
 import { AiRecognitionPanel } from "@/components/ai-recognition-panel";
 import { AiDiscoveryPanel } from "@/components/ai-discovery-panel";
 import { CentralIntelligence } from "@/components/central-intelligence";
+import { AiSpot } from "@/components/ai-spot";
 import { EmailComposer } from "@/components/email-composer";
 import { LiveActivityFeed } from "@/components/live-activity-feed";
 import { SafeComponent, QueryErrorAlert } from "@/components/safe-component";
@@ -461,6 +462,12 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <SafeComponent fallbackTitle="AI Spot">
+        <SlideUp>
+          <AiSpot />
+        </SlideUp>
+      </SafeComponent>
 
       <SafeComponent fallbackTitle="Intelligence Centrale">
         <CentralIntelligence />

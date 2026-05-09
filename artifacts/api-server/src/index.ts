@@ -9,6 +9,7 @@ import { startDataProtectionMonitor } from "./services/data-protection-monitor";
 import { startAiUsagePurgeJob } from "./services/ai-utils";
 import { startAiCachePurgeJob } from "./services/ai-cache";
 import { startBillingCron } from "./services/billing-cron";
+import { startAiInsightsCron } from "./services/ai-insights";
 
 import { closePool, checkDbHealth } from "@workspace/db";
 import type { Server } from "http";
@@ -103,6 +104,7 @@ async function startServer(): Promise<void> {
     startAiUsagePurgeJob();
     startAiCachePurgeJob();
     startBillingCron();
+    startAiInsightsCron();
   });
 
   server.keepAliveTimeout = 65000;
