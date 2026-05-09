@@ -9,11 +9,24 @@ export interface HealthStatus {
   status: string;
 }
 
+/**
+ * Per-field opt-in for inline AI suggestions. Each flag is independent and combined with `inlineSuggestEnabled` (master switch). When omitted, defaults to true.
+ */
+export interface InlineSuggestFieldFlags {
+  /** Suggestions in internal notes (notes internes). */
+  note?: boolean;
+  /** Suggestions in prospect notes (notes de prospect). */
+  prospect_note?: boolean;
+  /** Suggestions in email bodies (corps des e-mails). */
+  email_body?: boolean;
+}
+
 export interface UserPreferences {
   /** When true, inline ghost-text AI suggestions are shown while typing notes, prospect notes, and email bodies. */
   inlineSuggestEnabled?: boolean;
   /** Language hint passed to the inline-suggest AI prompt (e.g. "francais", "english", "deutsch"). Defaults to "francais" when unset. */
   inlineSuggestLanguage?: string;
+  inlineSuggestFields?: InlineSuggestFieldFlags;
 }
 
 export type CallDirection = (typeof CallDirection)[keyof typeof CallDirection];
@@ -1576,6 +1589,8 @@ export const RecordAiInlineSuggestEventBodyFieldType = {
   message_content: "message_content",
   project_description: "project_description",
   project_note: "project_note",
+  quote_comment: "quote_comment",
+  invoice_comment: "invoice_comment",
 } as const;
 
 export type RecordAiInlineSuggestEventBodyEvent =

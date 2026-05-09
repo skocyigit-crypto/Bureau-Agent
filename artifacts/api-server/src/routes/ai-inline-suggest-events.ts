@@ -14,6 +14,8 @@ const FIELD_TYPES = new Set([
   "message_content",
   "project_description",
   "project_note",
+  "quote_comment",
+  "invoice_comment",
 ]);
 
 const EVENTS = new Set(["shown", "accepted", "dismissed"]);

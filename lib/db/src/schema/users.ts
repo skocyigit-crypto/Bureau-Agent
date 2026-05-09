@@ -1,9 +1,16 @@
 import { pgTable, serial, varchar, text, timestamp, boolean, integer, index, jsonb } from "drizzle-orm/pg-core";
 import { organisationsTable } from "./organisations";
 
+export interface InlineSuggestFieldFlags {
+  note?: boolean;
+  prospect_note?: boolean;
+  email_body?: boolean;
+}
+
 export interface UserPreferences {
   inlineSuggestEnabled?: boolean;
   inlineSuggestLanguage?: string;
+  inlineSuggestFields?: InlineSuggestFieldFlags;
 }
 
 export const usersTable = pgTable("users", {

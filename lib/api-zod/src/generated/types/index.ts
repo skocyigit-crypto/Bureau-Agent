@@ -138,6 +138,7 @@ export * from "./getTopContacts200";
 export * from "./getTopContactsParams";
 export * from "./healthStatus";
 export * from "./importStockPdfBody";
+export * from "./inlineSuggestFieldFlags";
 export * from "./integrationConfigField";
 export * from "./integrationConfigFieldType";
 export * from "./integrationsCatalog";

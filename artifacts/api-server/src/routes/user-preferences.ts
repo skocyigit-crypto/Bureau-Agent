@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq } from "drizzle-orm";
-import { db, usersTable, type UserPreferences } from "@workspace/db";
+import { db, usersTable, type UserPreferences, type InlineSuggestFieldFlags } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -16,6 +16,28 @@ const SUPPORTED_LANGUAGES = new Set([
   "arabic",
 ]);
 
+const INLINE_SUGGEST_FIELD_KEYS: ReadonlyArray<keyof InlineSuggestFieldFlags> = [
+  "note",
+  "prospect_note",
+  "email_body",
+];
+
+function parseInlineSuggestFields(value: unknown): InlineSuggestFieldFlags | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== "object") return null;
+  const src = value as Record<string, unknown>;
+  const out: InlineSuggestFieldFlags = {};
+  for (const key of INLINE_SUGGEST_FIELD_KEYS) {
+    if (key in src) {
+      const v = src[key];
+      if (typeof v !== "boolean") return null;
+      out[key] = v;
+    }
+  }
+  return out;
+}
+
 function parsePreferencesPatch(body: unknown): UserPreferences | null {
   if (!body || typeof body !== "object") return null;
   const out: UserPreferences = {};
@@ -30,13 +52,29 @@ function parsePreferencesPatch(body: unknown): UserPreferences | null {
     if (!SUPPORTED_LANGUAGES.has(v)) return null;
     out.inlineSuggestLanguage = v;
   }
+  if ("inlineSuggestFields" in src) {
+    const parsed = parseInlineSuggestFields(src.inlineSuggestFields);
+    if (parsed === null) return null;
+    if (parsed !== undefined) out.inlineSuggestFields = parsed;
+  }
   return out;
+}
+
+function normalizeInlineSuggestFields(
+  flags: InlineSuggestFieldFlags | null | undefined,
+): Required<InlineSuggestFieldFlags> {
+  return {
+    note: flags?.note ?? true,
+    prospect_note: flags?.prospect_note ?? true,
+    email_body: flags?.email_body ?? true,
+  };
 }
 
 function normalizePreferences(prefs: UserPreferences | null | undefined): UserPreferences {
   return {
     inlineSuggestEnabled: prefs?.inlineSuggestEnabled ?? true,
     inlineSuggestLanguage: prefs?.inlineSuggestLanguage ?? "francais",
+    inlineSuggestFields: normalizeInlineSuggestFields(prefs?.inlineSuggestFields),
   };
 }
 
@@ -82,10 +120,17 @@ router.patch("/me/preferences", async (req: Request, res: Response): Promise<voi
       res.status(404).json({ error: "Utilisateur introuvable." });
       return;
     }
+    const existingPrefs = existing.preferences ?? {};
     const merged: UserPreferences = {
-      ...(existing.preferences ?? {}),
+      ...existingPrefs,
       ...parsed,
     };
+    if (parsed.inlineSuggestFields !== undefined) {
+      merged.inlineSuggestFields = {
+        ...(existingPrefs.inlineSuggestFields ?? {}),
+        ...parsed.inlineSuggestFields,
+      };
+    }
     await db
       .update(usersTable)
       .set({ preferences: merged, updatedAt: new Date() })

@@ -14,11 +14,36 @@ import {
   useInlineSuggestEnabled,
   useInlineSuggestLanguage,
   INLINE_SUGGEST_LANGUAGES,
+  useInlineSuggestFields,
+  type InlineSuggestConfigurableField,
 } from "@/hooks/use-inline-suggest";
+
+const FIELD_OPTIONS: ReadonlyArray<{
+  field: InlineSuggestConfigurableField;
+  label: string;
+  description: string;
+}> = [
+  {
+    field: "note",
+    label: "Notes internes",
+    description: "Suggestions pendant la rédaction des notes internes.",
+  },
+  {
+    field: "prospect_note",
+    label: "Notes de prospect",
+    description: "Suggestions dans les notes attachées à un prospect.",
+  },
+  {
+    field: "email_body",
+    label: "Corps des e-mails",
+    description: "Suggestions dans le corps des messages d'e-mail.",
+  },
+];
 
 export function TabPreferencesIa() {
   const [enabled, setEnabled] = useInlineSuggestEnabled();
   const [language, setLanguage] = useInlineSuggestLanguage();
+  const [fieldFlags, setFieldFlag] = useInlineSuggestFields();
 
   return (
     <div className="space-y-6">
@@ -73,6 +98,36 @@ export function TabPreferencesIa() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2 rounded-lg border p-3">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-medium">Champs concernés</Label>
+              <p className="text-xs text-muted-foreground">
+                Choisissez où les suggestions doivent apparaître. Chaque type de champ
+                peut être activé ou désactivé indépendamment ; le commutateur principal
+                ci-dessus reste prioritaire.
+              </p>
+            </div>
+            <div className="space-y-2 pt-1">
+              {FIELD_OPTIONS.map((opt) => (
+                <div
+                  key={opt.field}
+                  className="flex items-center justify-between gap-4 rounded-md border bg-background/50 p-2.5"
+                >
+                  <div className="space-y-0.5">
+                    <Label className="text-sm font-medium">{opt.label}</Label>
+                    <p className="text-xs text-muted-foreground">{opt.description}</p>
+                  </div>
+                  <Switch
+                    checked={fieldFlags[opt.field]}
+                    onCheckedChange={(v) => setFieldFlag(opt.field, v)}
+                    disabled={!enabled}
+                    aria-label={`Suggestions IA pour ${opt.label}`}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
 
           <p className="flex items-start gap-1.5 text-xs text-muted-foreground">

@@ -995,6 +995,25 @@ export const GetMyPreferencesResponse = zod.object({
     .describe(
       'Language hint passed to the inline-suggest AI prompt (e.g. \"francais\", \"english\", \"deutsch\"). Defaults to \"francais\" when unset.',
     ),
+  inlineSuggestFields: zod
+    .object({
+      note: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in internal notes (notes internes)."),
+      prospect_note: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in prospect notes (notes de prospect)."),
+      email_body: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in email bodies (corps des e-mails)."),
+    })
+    .optional()
+    .describe(
+      "Per-field opt-in for inline AI suggestions. Each flag is independent and combined with `inlineSuggestEnabled` (master switch). When omitted, defaults to true.",
+    ),
 });
 
 /**
@@ -1013,6 +1032,25 @@ export const UpdateMyPreferencesBody = zod.object({
     .describe(
       'Language hint passed to the inline-suggest AI prompt (e.g. \"francais\", \"english\", \"deutsch\"). Defaults to \"francais\" when unset.',
     ),
+  inlineSuggestFields: zod
+    .object({
+      note: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in internal notes (notes internes)."),
+      prospect_note: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in prospect notes (notes de prospect)."),
+      email_body: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in email bodies (corps des e-mails)."),
+    })
+    .optional()
+    .describe(
+      "Per-field opt-in for inline AI suggestions. Each flag is independent and combined with `inlineSuggestEnabled` (master switch). When omitted, defaults to true.",
+    ),
 });
 
 export const UpdateMyPreferencesResponse = zod.object({
@@ -1027,6 +1065,25 @@ export const UpdateMyPreferencesResponse = zod.object({
     .optional()
     .describe(
       'Language hint passed to the inline-suggest AI prompt (e.g. \"francais\", \"english\", \"deutsch\"). Defaults to \"francais\" when unset.',
+    ),
+  inlineSuggestFields: zod
+    .object({
+      note: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in internal notes (notes internes)."),
+      prospect_note: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in prospect notes (notes de prospect)."),
+      email_body: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in email bodies (corps des e-mails)."),
+    })
+    .optional()
+    .describe(
+      "Per-field opt-in for inline AI suggestions. Each flag is independent and combined with `inlineSuggestEnabled` (master switch). When omitted, defaults to true.",
     ),
 });
 
@@ -1085,6 +1142,8 @@ export const RecordAiInlineSuggestEventBody = zod.object({
     "message_content",
     "project_description",
     "project_note",
+    "quote_comment",
+    "invoice_comment",
   ]),
   event: zod.enum(["shown", "accepted", "dismissed"]),
   length: zod

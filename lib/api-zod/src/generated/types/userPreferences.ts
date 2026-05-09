@@ -5,10 +5,12 @@
  * Bureau Agent API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { InlineSuggestFieldFlags } from "./inlineSuggestFieldFlags";
 
 export interface UserPreferences {
   /** When true, inline ghost-text AI suggestions are shown while typing notes, prospect notes, and email bodies. */
   inlineSuggestEnabled?: boolean;
   /** Language hint passed to the inline-suggest AI prompt (e.g. "francais", "english", "deutsch"). Defaults to "francais" when unset. */
   inlineSuggestLanguage?: string;
+  inlineSuggestFields?: InlineSuggestFieldFlags;
 }

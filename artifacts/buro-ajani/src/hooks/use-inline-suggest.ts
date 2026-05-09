@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useRequestAiInlineSuggest,
   recordAiInlineSuggestEvent,
@@ -6,6 +6,7 @@ import {
   useUpdateMyPreferences,
   getGetMyPreferencesQueryKey,
   type UserPreferences,
+  type InlineSuggestFieldFlags,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -31,7 +32,24 @@ export type InlineSuggestFieldType =
   | "quote_comment"
   | "invoice_comment";
 
+export type InlineSuggestConfigurableField = "note" | "prospect_note" | "email_body";
+
+export const INLINE_SUGGEST_CONFIGURABLE_FIELDS: ReadonlyArray<InlineSuggestConfigurableField> = [
+  "note",
+  "prospect_note",
+  "email_body",
+];
+
+function isConfigurableField(
+  field: InlineSuggestFieldType,
+): field is InlineSuggestConfigurableField {
+  return (
+    field === "note" || field === "prospect_note" || field === "email_body"
+  );
+}
+
 const STORAGE_KEY = "aiInlineSuggest:enabled";
+const FIELDS_STORAGE_KEY = "aiInlineSuggest:fields";
 const DEBOUNCE_MS = 400;
 const MIN_CHARS = 8;
 
@@ -85,6 +103,41 @@ export function setInlineSuggestLanguageStorage(language: string): void {
   try {
     window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
     window.dispatchEvent(new CustomEvent("inline-suggest-language", { detail: language }));
+  } catch {
+    /* ignore */
+  }
+}
+
+function defaultFieldFlags(): Required<InlineSuggestFieldFlags> {
+  return { note: true, prospect_note: true, email_body: true };
+}
+
+export function getInlineSuggestFields(): Required<InlineSuggestFieldFlags> {
+  const def = defaultFieldFlags();
+  if (typeof window === "undefined") return def;
+  try {
+    const raw = window.localStorage.getItem(FIELDS_STORAGE_KEY);
+    if (!raw) return def;
+    const parsed = JSON.parse(raw) as Partial<InlineSuggestFieldFlags> | null;
+    if (!parsed || typeof parsed !== "object") return def;
+    return {
+      note: typeof parsed.note === "boolean" ? parsed.note : true,
+      prospect_note:
+        typeof parsed.prospect_note === "boolean" ? parsed.prospect_note : true,
+      email_body:
+        typeof parsed.email_body === "boolean" ? parsed.email_body : true,
+    };
+  } catch {
+    return def;
+  }
+}
+
+export function setInlineSuggestFields(flags: Required<InlineSuggestFieldFlags>): void {
+  try {
+    window.localStorage.setItem(FIELDS_STORAGE_KEY, JSON.stringify(flags));
+    window.dispatchEvent(
+      new CustomEvent("inline-suggest-fields-toggle", { detail: flags }),
+    );
   } catch {
     /* ignore */
   }
@@ -252,6 +305,107 @@ export function useInlineSuggestLanguage(): [string, (v: string) => void] {
   return [language, set];
 }
 
+/**
+ * Returns the user's per-field inline-suggestion preferences. Each
+ * configurable field type ("note", "prospect_note", "email_body") can be
+ * toggled independently; the master switch from `useInlineSuggestEnabled`
+ * still applies on top. Persisted server-side when authenticated, with a
+ * localStorage shim for unauthenticated/offline contexts.
+ */
+export function useInlineSuggestFields(): [
+  Required<InlineSuggestFieldFlags>,
+  (field: InlineSuggestConfigurableField, value: boolean) => void,
+] {
+  const queryClient = useQueryClient();
+  const [localFlags, setLocalFlags] = useState<Required<InlineSuggestFieldFlags>>(
+    () => getInlineSuggestFields(),
+  );
+
+  useEffect(() => {
+    const onChange = () => setLocalFlags(getInlineSuggestFields());
+    window.addEventListener(
+      "inline-suggest-fields-toggle",
+      onChange as EventListener,
+    );
+    window.addEventListener("storage", onChange);
+    return () => {
+      window.removeEventListener(
+        "inline-suggest-fields-toggle",
+        onChange as EventListener,
+      );
+      window.removeEventListener("storage", onChange);
+    };
+  }, []);
+
+  const prefsQuery = useGetMyPreferences({
+    query: {
+      queryKey: getGetMyPreferencesQueryKey(),
+      retry: false,
+      staleTime: 60_000,
+      refetchOnWindowFocus: false,
+    },
+  });
+
+  const serverFlags = prefsQuery.data?.inlineSuggestFields;
+
+  // Mirror server flags into localStorage shim.
+  useEffect(() => {
+    if (!serverFlags) return;
+    const merged: Required<InlineSuggestFieldFlags> = {
+      note: serverFlags.note ?? true,
+      prospect_note: serverFlags.prospect_note ?? true,
+      email_body: serverFlags.email_body ?? true,
+    };
+    try {
+      window.localStorage.setItem(FIELDS_STORAGE_KEY, JSON.stringify(merged));
+    } catch {
+      /* ignore */
+    }
+    setLocalFlags(merged);
+  }, [serverFlags?.note, serverFlags?.prospect_note, serverFlags?.email_body]);
+
+  const updateMutation = useUpdateMyPreferences();
+  const isAuthenticated = !isUnauthenticatedError(prefsQuery.error);
+
+  const effective = useMemo<Required<InlineSuggestFieldFlags>>(() => {
+    if (serverFlags) {
+      return {
+        note: serverFlags.note ?? true,
+        prospect_note: serverFlags.prospect_note ?? true,
+        email_body: serverFlags.email_body ?? true,
+      };
+    }
+    return localFlags;
+  }, [serverFlags?.note, serverFlags?.prospect_note, serverFlags?.email_body, localFlags]);
+
+  const setField = useCallback(
+    (field: InlineSuggestConfigurableField, value: boolean) => {
+      const next: Required<InlineSuggestFieldFlags> = { ...effective, [field]: value };
+      setInlineSuggestFields(next);
+      setLocalFlags(next);
+      if (!isAuthenticated) return;
+      queryClient.setQueryData<UserPreferences>(
+        getGetMyPreferencesQueryKey(),
+        (prev) => ({
+          ...(prev ?? {}),
+          inlineSuggestFields: { ...(prev?.inlineSuggestFields ?? {}), [field]: value },
+        }),
+      );
+      updateMutation.mutate(
+        { data: { inlineSuggestFields: { [field]: value } } },
+        {
+          onError: () => {
+            queryClient.invalidateQueries({ queryKey: getGetMyPreferencesQueryKey() });
+          },
+        },
+      );
+    },
+    [effective, queryClient, updateMutation, isAuthenticated],
+  );
+
+  return [effective, setField];
+}
+
 interface UseInlineSuggestOptions {
   fieldType: InlineSuggestFieldType;
   text: string;
@@ -279,6 +433,8 @@ export function useInlineSuggest(opts: UseInlineSuggestOptions): UseInlineSugges
   const { fieldType, text, title, contactName, enabled = true } = opts;
   const [globalEnabled] = useInlineSuggestEnabled();
   const [language] = useInlineSuggestLanguage();
+  const [fieldFlags] = useInlineSuggestFields();
+  const fieldEnabled = isConfigurableField(fieldType) ? fieldFlags[fieldType] : true;
   const [suggestion, setSuggestion] = useState("");
   const lastReqTextRef = useRef<string>("");
   const reqIdRef = useRef(0);
@@ -302,7 +458,7 @@ export function useInlineSuggest(opts: UseInlineSuggestOptions): UseInlineSugges
   }, [text, suggestion]);
 
   useEffect(() => {
-    if (!enabled || !globalEnabled) {
+    if (!enabled || !globalEnabled || !fieldEnabled) {
       // Invalidate any in-flight request so its onSuccess is ignored,
       // and clear any currently-shown suggestion.
       reqIdRef.current++;
@@ -351,7 +507,7 @@ export function useInlineSuggest(opts: UseInlineSuggestOptions): UseInlineSugges
       window.clearTimeout(handle);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, fieldType, title, contactName, enabled, globalEnabled, language]);
+  }, [text, fieldType, title, contactName, enabled, globalEnabled, language, fieldEnabled]);
 
   const clear = useCallback(() => {
     reqIdRef.current++;
