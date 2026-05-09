@@ -8,7 +8,7 @@
 import type { InlineSuggestFieldFlags } from "./inlineSuggestFieldFlags";
 
 export interface UserPreferences {
-  /** When true, inline ghost-text AI suggestions are shown while typing notes, prospect notes, and email bodies. */
+  /** Master switch for inline ghost-text AI suggestions. When true, suggestions are shown while typing in any field type covered by `inlineSuggestFields` (notes, prospect notes, email bodies, call notes, task descriptions, message bodies, project descriptions, project notes, quote and invoice comments). */
   inlineSuggestEnabled?: boolean;
   /** Language hint passed to the inline-suggest AI prompt (e.g. "francais", "english", "deutsch"). Defaults to "francais" when unset. */
   inlineSuggestLanguage?: string;

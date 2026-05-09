@@ -16,4 +16,18 @@ export interface InlineSuggestFieldFlags {
   prospect_note?: boolean;
   /** Suggestions in email bodies (corps des e-mails). */
   email_body?: boolean;
+  /** Suggestions in call notes (notes d'appel). */
+  call_note?: boolean;
+  /** Suggestions in task descriptions (descriptions de tâches). */
+  task_description?: boolean;
+  /** Suggestions in message bodies (corps des messages). */
+  message_content?: boolean;
+  /** Suggestions in project descriptions (descriptions de projets). */
+  project_description?: boolean;
+  /** Suggestions in project notes (notes de projet). */
+  project_note?: boolean;
+  /** Suggestions in quote comments (commentaires de devis). */
+  quote_comment?: boolean;
+  /** Suggestions in invoice comments (commentaires de facture). */
+  invoice_comment?: boolean;
 }

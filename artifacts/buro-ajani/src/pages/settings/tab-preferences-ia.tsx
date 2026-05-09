@@ -38,6 +38,41 @@ const FIELD_OPTIONS: ReadonlyArray<{
     label: "Corps des e-mails",
     description: "Suggestions dans le corps des messages d'e-mail.",
   },
+  {
+    field: "call_note",
+    label: "Notes d'appel",
+    description: "Suggestions dans les notes attachées aux appels téléphoniques.",
+  },
+  {
+    field: "task_description",
+    label: "Descriptions de tâches",
+    description: "Suggestions pendant la rédaction des descriptions de tâches.",
+  },
+  {
+    field: "message_content",
+    label: "Messages",
+    description: "Suggestions dans le corps des messages internes.",
+  },
+  {
+    field: "project_description",
+    label: "Descriptions de projet",
+    description: "Suggestions dans la description d'un projet.",
+  },
+  {
+    field: "project_note",
+    label: "Notes de projet",
+    description: "Suggestions dans les notes attachées à un projet.",
+  },
+  {
+    field: "quote_comment",
+    label: "Commentaires de devis",
+    description: "Suggestions dans les commentaires associés à un devis.",
+  },
+  {
+    field: "invoice_comment",
+    label: "Commentaires de facture",
+    description: "Suggestions dans les commentaires associés à une facture.",
+  },
 ];
 
 export function TabPreferencesIa() {
@@ -55,8 +90,8 @@ export function TabPreferencesIa() {
           </CardTitle>
           <CardDescription>
             Affiche une suggestion grise (style ghost-text) pendant que vous redigez
-            des notes internes, des notes de prospects et le corps des e-mails.
-            Appuyez sur Tab pour accepter, Echap pour ignorer.
+            vos notes, vos messages, vos taches, vos projets, vos devis, vos factures
+            et le corps de vos e-mails. Appuyez sur Tab pour accepter, Echap pour ignorer.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

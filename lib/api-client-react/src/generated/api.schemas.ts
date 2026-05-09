@@ -19,10 +19,24 @@ export interface InlineSuggestFieldFlags {
   prospect_note?: boolean;
   /** Suggestions in email bodies (corps des e-mails). */
   email_body?: boolean;
+  /** Suggestions in call notes (notes d'appel). */
+  call_note?: boolean;
+  /** Suggestions in task descriptions (descriptions de tâches). */
+  task_description?: boolean;
+  /** Suggestions in message bodies (corps des messages). */
+  message_content?: boolean;
+  /** Suggestions in project descriptions (descriptions de projets). */
+  project_description?: boolean;
+  /** Suggestions in project notes (notes de projet). */
+  project_note?: boolean;
+  /** Suggestions in quote comments (commentaires de devis). */
+  quote_comment?: boolean;
+  /** Suggestions in invoice comments (commentaires de facture). */
+  invoice_comment?: boolean;
 }
 
 export interface UserPreferences {
-  /** When true, inline ghost-text AI suggestions are shown while typing notes, prospect notes, and email bodies. */
+  /** Master switch for inline ghost-text AI suggestions. When true, suggestions are shown while typing in any field type covered by `inlineSuggestFields` (notes, prospect notes, email bodies, call notes, task descriptions, message bodies, project descriptions, project notes, quote and invoice comments). */
   inlineSuggestEnabled?: boolean;
   /** Language hint passed to the inline-suggest AI prompt (e.g. "francais", "english", "deutsch"). Defaults to "francais" when unset. */
   inlineSuggestLanguage?: string;

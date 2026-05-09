@@ -5,6 +5,13 @@ export interface InlineSuggestFieldFlags {
   note?: boolean;
   prospect_note?: boolean;
   email_body?: boolean;
+  call_note?: boolean;
+  task_description?: boolean;
+  message_content?: boolean;
+  project_description?: boolean;
+  project_note?: boolean;
+  quote_comment?: boolean;
+  invoice_comment?: boolean;
 }
 
 export interface UserPreferences {

@@ -21,6 +21,13 @@ const INLINE_SUGGEST_FIELD_KEYS: ReadonlyArray<keyof InlineSuggestFieldFlags> = 
   "note",
   "prospect_note",
   "email_body",
+  "call_note",
+  "task_description",
+  "message_content",
+  "project_description",
+  "project_note",
+  "quote_comment",
+  "invoice_comment",
 ];
 
 function parseInlineSuggestFields(value: unknown): InlineSuggestFieldFlags | null | undefined {
@@ -68,6 +75,13 @@ function normalizeInlineSuggestFields(
     note: flags?.note ?? true,
     prospect_note: flags?.prospect_note ?? true,
     email_body: flags?.email_body ?? true,
+    call_note: flags?.call_note ?? true,
+    task_description: flags?.task_description ?? true,
+    message_content: flags?.message_content ?? true,
+    project_description: flags?.project_description ?? true,
+    project_note: flags?.project_note ?? true,
+    quote_comment: flags?.quote_comment ?? true,
+    invoice_comment: flags?.invoice_comment ?? true,
   };
 }
 

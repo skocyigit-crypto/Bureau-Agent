@@ -987,7 +987,7 @@ export const GetMyPreferencesResponse = zod.object({
     .boolean()
     .optional()
     .describe(
-      "When true, inline ghost-text AI suggestions are shown while typing notes, prospect notes, and email bodies.",
+      "Master switch for inline ghost-text AI suggestions. When true, suggestions are shown while typing in any field type covered by `inlineSuggestFields` (notes, prospect notes, email bodies, call notes, task descriptions, message bodies, project descriptions, project notes, quote and invoice comments).",
     ),
   inlineSuggestLanguage: zod
     .string()
@@ -1009,6 +1009,36 @@ export const GetMyPreferencesResponse = zod.object({
         .boolean()
         .optional()
         .describe("Suggestions in email bodies (corps des e-mails)."),
+      call_note: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in call notes (notes d'appel)."),
+      task_description: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in task descriptions (descriptions de tâches)."),
+      message_content: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in message bodies (corps des messages)."),
+      project_description: zod
+        .boolean()
+        .optional()
+        .describe(
+          "Suggestions in project descriptions (descriptions de projets).",
+        ),
+      project_note: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in project notes (notes de projet)."),
+      quote_comment: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in quote comments (commentaires de devis)."),
+      invoice_comment: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in invoice comments (commentaires de facture)."),
     })
     .optional()
     .describe(
@@ -1024,7 +1054,7 @@ export const UpdateMyPreferencesBody = zod.object({
     .boolean()
     .optional()
     .describe(
-      "When true, inline ghost-text AI suggestions are shown while typing notes, prospect notes, and email bodies.",
+      "Master switch for inline ghost-text AI suggestions. When true, suggestions are shown while typing in any field type covered by `inlineSuggestFields` (notes, prospect notes, email bodies, call notes, task descriptions, message bodies, project descriptions, project notes, quote and invoice comments).",
     ),
   inlineSuggestLanguage: zod
     .string()
@@ -1046,6 +1076,36 @@ export const UpdateMyPreferencesBody = zod.object({
         .boolean()
         .optional()
         .describe("Suggestions in email bodies (corps des e-mails)."),
+      call_note: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in call notes (notes d'appel)."),
+      task_description: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in task descriptions (descriptions de tâches)."),
+      message_content: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in message bodies (corps des messages)."),
+      project_description: zod
+        .boolean()
+        .optional()
+        .describe(
+          "Suggestions in project descriptions (descriptions de projets).",
+        ),
+      project_note: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in project notes (notes de projet)."),
+      quote_comment: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in quote comments (commentaires de devis)."),
+      invoice_comment: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in invoice comments (commentaires de facture)."),
     })
     .optional()
     .describe(
@@ -1058,7 +1118,7 @@ export const UpdateMyPreferencesResponse = zod.object({
     .boolean()
     .optional()
     .describe(
-      "When true, inline ghost-text AI suggestions are shown while typing notes, prospect notes, and email bodies.",
+      "Master switch for inline ghost-text AI suggestions. When true, suggestions are shown while typing in any field type covered by `inlineSuggestFields` (notes, prospect notes, email bodies, call notes, task descriptions, message bodies, project descriptions, project notes, quote and invoice comments).",
     ),
   inlineSuggestLanguage: zod
     .string()
@@ -1080,6 +1140,36 @@ export const UpdateMyPreferencesResponse = zod.object({
         .boolean()
         .optional()
         .describe("Suggestions in email bodies (corps des e-mails)."),
+      call_note: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in call notes (notes d'appel)."),
+      task_description: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in task descriptions (descriptions de tâches)."),
+      message_content: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in message bodies (corps des messages)."),
+      project_description: zod
+        .boolean()
+        .optional()
+        .describe(
+          "Suggestions in project descriptions (descriptions de projets).",
+        ),
+      project_note: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in project notes (notes de projet)."),
+      quote_comment: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in quote comments (commentaires de devis)."),
+      invoice_comment: zod
+        .boolean()
+        .optional()
+        .describe("Suggestions in invoice comments (commentaires de facture)."),
     })
     .optional()
     .describe(

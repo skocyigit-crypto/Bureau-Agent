@@ -32,20 +32,37 @@ export type InlineSuggestFieldType =
   | "quote_comment"
   | "invoice_comment";
 
-export type InlineSuggestConfigurableField = "note" | "prospect_note" | "email_body";
+export type InlineSuggestConfigurableField =
+  | "note"
+  | "prospect_note"
+  | "email_body"
+  | "call_note"
+  | "task_description"
+  | "message_content"
+  | "project_description"
+  | "project_note"
+  | "quote_comment"
+  | "invoice_comment";
 
 export const INLINE_SUGGEST_CONFIGURABLE_FIELDS: ReadonlyArray<InlineSuggestConfigurableField> = [
   "note",
   "prospect_note",
   "email_body",
+  "call_note",
+  "task_description",
+  "message_content",
+  "project_description",
+  "project_note",
+  "quote_comment",
+  "invoice_comment",
 ];
+
+const CONFIGURABLE_FIELD_SET: ReadonlySet<string> = new Set(INLINE_SUGGEST_CONFIGURABLE_FIELDS);
 
 function isConfigurableField(
   field: InlineSuggestFieldType,
 ): field is InlineSuggestConfigurableField {
-  return (
-    field === "note" || field === "prospect_note" || field === "email_body"
-  );
+  return CONFIGURABLE_FIELD_SET.has(field);
 }
 
 const STORAGE_KEY = "aiInlineSuggest:enabled";
@@ -131,7 +148,31 @@ export function setInlineSuggestLanguageStorage(language: string): void {
 }
 
 function defaultFieldFlags(): Required<InlineSuggestFieldFlags> {
-  return { note: true, prospect_note: true, email_body: true };
+  return {
+    note: true,
+    prospect_note: true,
+    email_body: true,
+    call_note: true,
+    task_description: true,
+    message_content: true,
+    project_description: true,
+    project_note: true,
+    quote_comment: true,
+    invoice_comment: true,
+  };
+}
+
+function mergeFieldFlags(
+  partial: Partial<InlineSuggestFieldFlags> | null | undefined,
+): Required<InlineSuggestFieldFlags> {
+  const def = defaultFieldFlags();
+  if (!partial || typeof partial !== "object") return def;
+  const out = { ...def };
+  for (const field of INLINE_SUGGEST_CONFIGURABLE_FIELDS) {
+    const v = (partial as Record<string, unknown>)[field];
+    if (typeof v === "boolean") out[field] = v;
+  }
+  return out;
 }
 
 export function getInlineSuggestFields(): Required<InlineSuggestFieldFlags> {
@@ -141,14 +182,7 @@ export function getInlineSuggestFields(): Required<InlineSuggestFieldFlags> {
     const raw = window.localStorage.getItem(FIELDS_STORAGE_KEY);
     if (!raw) return def;
     const parsed = JSON.parse(raw) as Partial<InlineSuggestFieldFlags> | null;
-    if (!parsed || typeof parsed !== "object") return def;
-    return {
-      note: typeof parsed.note === "boolean" ? parsed.note : true,
-      prospect_note:
-        typeof parsed.prospect_note === "boolean" ? parsed.prospect_note : true,
-      email_body:
-        typeof parsed.email_body === "boolean" ? parsed.email_body : true,
-    };
+    return mergeFieldFlags(parsed);
   } catch {
     return def;
   }
@@ -331,10 +365,11 @@ export function useInlineSuggestLanguage(): [string, (v: string) => void] {
 
 /**
  * Returns the user's per-field inline-suggestion preferences. Each
- * configurable field type ("note", "prospect_note", "email_body") can be
- * toggled independently; the master switch from `useInlineSuggestEnabled`
- * still applies on top. Persisted server-side when authenticated, with a
- * localStorage shim for unauthenticated/offline contexts.
+ * configurable field type — see `INLINE_SUGGEST_CONFIGURABLE_FIELDS` for
+ * the authoritative list — can be toggled independently; the master
+ * switch from `useInlineSuggestEnabled` still applies on top. Persisted
+ * server-side when authenticated, with a localStorage shim for
+ * unauthenticated/offline contexts.
  */
 export function useInlineSuggestFields(): [
   Required<InlineSuggestFieldFlags>,
@@ -373,34 +408,32 @@ export function useInlineSuggestFields(): [
   const serverFlags = prefsQuery.data?.inlineSuggestFields;
 
   // Mirror server flags into localStorage shim.
+  const serverFlagsKey = serverFlags
+    ? INLINE_SUGGEST_CONFIGURABLE_FIELDS.map((f) =>
+        typeof serverFlags[f] === "boolean" ? (serverFlags[f] ? "1" : "0") : "_",
+      ).join("")
+    : "";
+
   useEffect(() => {
     if (!serverFlags) return;
-    const merged: Required<InlineSuggestFieldFlags> = {
-      note: serverFlags.note ?? true,
-      prospect_note: serverFlags.prospect_note ?? true,
-      email_body: serverFlags.email_body ?? true,
-    };
+    const merged = mergeFieldFlags(serverFlags);
     try {
       window.localStorage.setItem(FIELDS_STORAGE_KEY, JSON.stringify(merged));
     } catch {
       /* ignore */
     }
     setLocalFlags(merged);
-  }, [serverFlags?.note, serverFlags?.prospect_note, serverFlags?.email_body]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverFlagsKey]);
 
   const updateMutation = useUpdateMyPreferences();
   const isAuthenticated = !isUnauthenticatedError(prefsQuery.error);
 
   const effective = useMemo<Required<InlineSuggestFieldFlags>>(() => {
-    if (serverFlags) {
-      return {
-        note: serverFlags.note ?? true,
-        prospect_note: serverFlags.prospect_note ?? true,
-        email_body: serverFlags.email_body ?? true,
-      };
-    }
+    if (serverFlags) return mergeFieldFlags(serverFlags);
     return localFlags;
-  }, [serverFlags?.note, serverFlags?.prospect_note, serverFlags?.email_body, localFlags]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverFlagsKey, localFlags]);
 
   const setField = useCallback(
     (field: InlineSuggestConfigurableField, value: boolean) => {

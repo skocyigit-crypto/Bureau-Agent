@@ -2087,7 +2087,7 @@ components:
       properties:
         inlineSuggestEnabled:
           type: boolean
-          description: When true, inline ghost-text AI suggestions are shown while typing notes, prospect notes, and email bodies.
+          description: Master switch for inline ghost-text AI suggestions. When true, suggestions are shown while typing in any field type covered by `inlineSuggestFields` (notes, prospect notes, email bodies, call notes, task descriptions, message bodies, project descriptions, project notes, quote and invoice comments).
         inlineSuggestLanguage:
           type: string
           description: Language hint passed to the inline-suggest AI prompt (e.g. "francais", "english", "deutsch"). Defaults to "francais" when unset.
@@ -2107,6 +2107,27 @@ components:
         email_body:
           type: boolean
           description: Suggestions in email bodies (corps des e-mails).
+        call_note:
+          type: boolean
+          description: Suggestions in call notes (notes d'appel).
+        task_description:
+          type: boolean
+          description: Suggestions in task descriptions (descriptions de tâches).
+        message_content:
+          type: boolean
+          description: Suggestions in message bodies (corps des messages).
+        project_description:
+          type: boolean
+          description: Suggestions in project descriptions (descriptions de projets).
+        project_note:
+          type: boolean
+          description: Suggestions in project notes (notes de projet).
+        quote_comment:
+          type: boolean
+          description: Suggestions in quote comments (commentaires de devis).
+        invoice_comment:
+          type: boolean
+          description: Suggestions in invoice comments (commentaires de facture).
 
     Call:
       type: object
