@@ -175,6 +175,61 @@ function deterministicInsights(signals: RawSignals): InsightDraft[] {
   return out;
 }
 
+// Generic productivity tips used to top up to a 3-item minimum on quiet days.
+const GENERIC_TIPS: InsightDraft[] = [
+  {
+    category: "general", severity: "info",
+    title: "Planifiez votre journee en 5 minutes",
+    message: "Bloquez vos 3 priorites du jour dans le calendrier pour rester concentre.",
+    actionUrl: "/calendrier", actionLabel: "Ouvrir le calendrier",
+  },
+  {
+    category: "contacts", severity: "info",
+    title: "Renforcez la relation client",
+    message: "Prenez 10 min pour appeler un contact que vous n'avez pas joint depuis longtemps.",
+    actionUrl: "/contacts", actionLabel: "Voir mes contacts",
+  },
+  {
+    category: "tasks", severity: "info",
+    title: "Cloturez 3 petites taches",
+    message: "Terminer 3 micro-taches en debut de journee booste l'elan productif.",
+    actionUrl: "/taches", actionLabel: "Voir mes taches",
+  },
+  {
+    category: "general", severity: "info",
+    title: "Sauvegardez vos donnees",
+    message: "Verifiez que la derniere sauvegarde automatique est bien recente.",
+    actionUrl: "/backups", actionLabel: "Voir les sauvegardes",
+  },
+  {
+    category: "prospects", severity: "info",
+    title: "Relancez un prospect qualifie",
+    message: "Un suivi regulier multiplie les chances de conversion.",
+    actionUrl: "/prospects", actionLabel: "Ouvrir prospects",
+  },
+];
+
+const MIN_INSIGHTS = 3;
+const MAX_INSIGHTS = 5;
+
+function topUpToMinimum(drafts: InsightDraft[]): InsightDraft[] {
+  const out = [...drafts];
+  const usedCategories = new Set(out.map(d => d.category));
+  for (const tip of GENERIC_TIPS) {
+    if (out.length >= MIN_INSIGHTS) break;
+    if (usedCategories.has(tip.category)) continue;
+    out.push(tip);
+    usedCategories.add(tip.category);
+  }
+  // If still short (very small org), allow duplicate categories from tips.
+  for (const tip of GENERIC_TIPS) {
+    if (out.length >= MIN_INSIGHTS) break;
+    if (out.some(d => d.title === tip.title)) continue;
+    out.push(tip);
+  }
+  return out.slice(0, MAX_INSIGHTS);
+}
+
 async function maybeEnrichWithAi(orgId: number, signals: RawSignals, drafts: InsightDraft[]): Promise<InsightDraft[]> {
   // If no signals worth mentioning, skip AI entirely.
   if (drafts.length === 0) return drafts;
@@ -245,7 +300,8 @@ Reponds UNIQUEMENT avec un tableau JSON de la meme structure que les drafts. Pas
 
 export async function generateInsightsForOrg(orgId: number): Promise<number> {
   const signals = await gatherSignals(orgId);
-  const drafts = deterministicInsights(signals);
+  const rawDrafts = deterministicInsights(signals);
+  const drafts = topUpToMinimum(rawDrafts);
   if (drafts.length === 0) return 0;
 
   const enriched = await maybeEnrichWithAi(orgId, signals, drafts);
@@ -272,7 +328,8 @@ export async function generateInsightsForOrg(orgId: number): Promise<number> {
 }
 
 let cronTimer: NodeJS.Timeout | null = null;
-const CRON_INTERVAL_MS = Number(process.env.AI_INSIGHTS_CRON_INTERVAL_MS ?? 6 * 60 * 60 * 1000);
+// Default: once per day. Override with AI_INSIGHTS_CRON_INTERVAL_MS for tests.
+const CRON_INTERVAL_MS = Number(process.env.AI_INSIGHTS_CRON_INTERVAL_MS ?? 24 * 60 * 60 * 1000);
 
 async function purgeOldInsights(): Promise<void> {
   try {

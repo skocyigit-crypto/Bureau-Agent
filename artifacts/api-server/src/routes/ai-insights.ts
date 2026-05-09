@@ -96,16 +96,23 @@ router.post("/ai-insights/regenerate", async (req: Request, res: Response): Prom
       res.status(429).json({ error: `Patientez ${waitSec}s avant la prochaine actualisation.` });
       return;
     }
-    lastRegenByOrg.set(orgId, now);
-    pruneRegenMap();
-
-    const count = await generateInsightsForOrg(orgId);
-    res.json({ success: true, generated: count });
-  } catch (err) {
-    if (err instanceof AiQuotaExceededError) {
-      res.status(429).json({ error: err.message, quotaExceeded: true });
-      return;
+    try {
+      const count = await generateInsightsForOrg(orgId);
+      // Set cooldown only after success so transient failures don't lock the user out.
+      lastRegenByOrg.set(orgId, Date.now());
+      pruneRegenMap();
+      res.json({ success: true, generated: count });
+    } catch (innerErr) {
+      if (innerErr instanceof AiQuotaExceededError) {
+        // Quota errors should still cool down (avoid hammering quota).
+        lastRegenByOrg.set(orgId, Date.now());
+        pruneRegenMap();
+        res.status(429).json({ error: innerErr.message, quotaExceeded: true });
+        return;
+      }
+      throw innerErr;
     }
+  } catch (err) {
     logger.error({ err }, "[ai-insights] regenerate failed");
     res.status(500).json({ error: "Erreur lors de la regeneration." });
   }
