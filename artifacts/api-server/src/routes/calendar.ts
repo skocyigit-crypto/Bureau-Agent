@@ -1,10 +1,11 @@
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { calendarEventsTable, insertCalendarEventSchema, tasksTable, projetsTable } from "@workspace/db/schema";
-import { eq, and, gte, lte } from "drizzle-orm";
+import { eq, and, gte, lte, or, type Column, type SQL } from "drizzle-orm";
 import { logAudit } from "./audit";
 import { getOrgId } from "../middleware/tenant";
 import { resolveUserNames, enrichWithUserNames } from "../helpers/user-tracking";
+import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 
 const router = Router();
 
@@ -20,7 +21,7 @@ router.get("/calendar/events", async (req: Request, res: Response): Promise<void
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   const orgId = getOrgId(req);
-  const { start, end, type } = req.query;
+  const { start, end, type, search, q } = req.query;
 
   let conditions: any[] = [eq(calendarEventsTable.organisationId, orgId)];
   if (start && typeof start === "string") {
@@ -32,6 +33,20 @@ router.get("/calendar/events", async (req: Request, res: Response): Promise<void
     if (!isNaN(d.getTime())) conditions.push(lte(calendarEventsTable.endDate, d));
   }
   if (type && type !== "tous" && typeof type === "string") conditions.push(eq(calendarEventsTable.type, type));
+
+  const searchTerm = (typeof search === "string" && search.trim()) || (typeof q === "string" && q.trim()) || "";
+  if (searchTerm) {
+    const useUnaccent = await ensureUnaccentExtension();
+    const pattern = `%${searchTerm.replace(/[%_\\]/g, "\\$&")}%`;
+    const il = (col: Column): SQL => accentInsensitiveIlike(col, pattern, useUnaccent);
+    conditions.push(or(
+      il(calendarEventsTable.title),
+      il(calendarEventsTable.description),
+      il(calendarEventsTable.location),
+      il(calendarEventsTable.contactName),
+      il(calendarEventsTable.contactCompany),
+    )!);
+  }
 
   try {
     const events = await db

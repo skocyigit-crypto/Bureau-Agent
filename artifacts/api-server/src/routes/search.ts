@@ -1,8 +1,9 @@
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { contactsTable, callsTable, tasksTable, messagesTable, prospectsTable, devisTable, facturesClientTable, stockArticlesTable, commandesFournisseurTable, projetsTable } from "@workspace/db/schema";
-import { ilike, or, desc, and, eq } from "drizzle-orm";
+import { ilike, or, desc, and, eq, type Column, type SQL } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
+import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 
 const router = Router();
 
@@ -24,17 +25,19 @@ router.get("/search", async (req: Request, res: Response): Promise<void> => {
   const maxResults = isNaN(parsedLimit) ? 5 : Math.min(Math.max(parsedLimit, 1), 10);
 
   try {
+  const useUnaccent = await ensureUnaccentExtension();
+  const il = (col: Column): SQL => accentInsensitiveIlike(col, term, useUnaccent);
   const [contacts, calls, tasks, messages, prospects, devis, factures, stock, commandes, projets] = await Promise.all([
     db.select()
       .from(contactsTable)
       .where(and(
         eq(contactsTable.organisationId, orgId),
         or(
-          ilike(contactsTable.lastName, term),
-          ilike(contactsTable.firstName, term),
-          ilike(contactsTable.company, term),
-          ilike(contactsTable.email, term),
-          ilike(contactsTable.phone, term)
+          il(contactsTable.lastName),
+          il(contactsTable.firstName),
+          il(contactsTable.company),
+          il(contactsTable.email),
+          il(contactsTable.phone)
         )
       ))
       .orderBy(desc(contactsTable.updatedAt))
@@ -45,9 +48,9 @@ router.get("/search", async (req: Request, res: Response): Promise<void> => {
       .where(and(
         eq(callsTable.organisationId, orgId),
         or(
-          ilike(callsTable.contactName, term),
-          ilike(callsTable.phoneNumber, term),
-          ilike(callsTable.notes, term)
+          il(callsTable.contactName),
+          il(callsTable.phoneNumber),
+          il(callsTable.notes)
         )
       ))
       .orderBy(desc(callsTable.createdAt))
@@ -58,8 +61,8 @@ router.get("/search", async (req: Request, res: Response): Promise<void> => {
       .where(and(
         eq(tasksTable.organisationId, orgId),
         or(
-          ilike(tasksTable.title, term),
-          ilike(tasksTable.description, term)
+          il(tasksTable.title),
+          il(tasksTable.description)
         )
       ))
       .orderBy(desc(tasksTable.updatedAt))
@@ -70,8 +73,8 @@ router.get("/search", async (req: Request, res: Response): Promise<void> => {
       .where(and(
         eq(messagesTable.organisationId, orgId),
         or(
-          ilike(messagesTable.content, term),
-          ilike(messagesTable.contactName, term)
+          il(messagesTable.content),
+          il(messagesTable.contactName)
         )
       ))
       .orderBy(desc(messagesTable.createdAt))
@@ -82,11 +85,11 @@ router.get("/search", async (req: Request, res: Response): Promise<void> => {
       .where(and(
         eq(prospectsTable.organisationId, orgId),
         or(
-          ilike(prospectsTable.title, term),
-          ilike(prospectsTable.contactName, term),
-          ilike(prospectsTable.company, term),
-          ilike(prospectsTable.email, term),
-          ilike(prospectsTable.phone, term)
+          il(prospectsTable.title),
+          il(prospectsTable.contactName),
+          il(prospectsTable.company),
+          il(prospectsTable.email),
+          il(prospectsTable.phone)
         )
       ))
       .orderBy(desc(prospectsTable.updatedAt))
@@ -97,10 +100,10 @@ router.get("/search", async (req: Request, res: Response): Promise<void> => {
       .where(and(
         eq(devisTable.organisationId, orgId),
         or(
-          ilike(devisTable.reference, term),
-          ilike(devisTable.clientName, term),
-          ilike(devisTable.clientEmail, term),
-          ilike(devisTable.notes, term)
+          il(devisTable.reference),
+          il(devisTable.clientName),
+          il(devisTable.clientEmail),
+          il(devisTable.notes)
         )
       ))
       .orderBy(desc(devisTable.updatedAt))
@@ -111,10 +114,10 @@ router.get("/search", async (req: Request, res: Response): Promise<void> => {
       .where(and(
         eq(facturesClientTable.organisationId, orgId),
         or(
-          ilike(facturesClientTable.reference, term),
-          ilike(facturesClientTable.clientName, term),
-          ilike(facturesClientTable.clientEmail, term),
-          ilike(facturesClientTable.notes, term)
+          il(facturesClientTable.reference),
+          il(facturesClientTable.clientName),
+          il(facturesClientTable.clientEmail),
+          il(facturesClientTable.notes)
         )
       ))
       .orderBy(desc(facturesClientTable.updatedAt))
@@ -125,10 +128,10 @@ router.get("/search", async (req: Request, res: Response): Promise<void> => {
       .where(and(
         eq(stockArticlesTable.organisationId, orgId),
         or(
-          ilike(stockArticlesTable.name, term),
-          ilike(stockArticlesTable.reference, term),
-          ilike(stockArticlesTable.category, term),
-          ilike(stockArticlesTable.description, term)
+          il(stockArticlesTable.name),
+          il(stockArticlesTable.reference),
+          il(stockArticlesTable.category),
+          il(stockArticlesTable.description)
         )
       ))
       .orderBy(desc(stockArticlesTable.updatedAt))
@@ -139,10 +142,10 @@ router.get("/search", async (req: Request, res: Response): Promise<void> => {
       .where(and(
         eq(commandesFournisseurTable.organisationId, orgId),
         or(
-          ilike(commandesFournisseurTable.reference, term),
-          ilike(commandesFournisseurTable.fournisseurName, term),
-          ilike(commandesFournisseurTable.fournisseurEmail, term),
-          ilike(commandesFournisseurTable.notes, term)
+          il(commandesFournisseurTable.reference),
+          il(commandesFournisseurTable.fournisseurName),
+          il(commandesFournisseurTable.fournisseurEmail),
+          il(commandesFournisseurTable.notes)
         )
       ))
       .orderBy(desc(commandesFournisseurTable.createdAt))
@@ -153,11 +156,11 @@ router.get("/search", async (req: Request, res: Response): Promise<void> => {
       .where(and(
         eq(projetsTable.organisationId, orgId),
         or(
-          ilike(projetsTable.title, term),
-          ilike(projetsTable.clientName, term),
-          ilike(projetsTable.clientCompany, term),
-          ilike(projetsTable.description, term),
-          ilike(projetsTable.notes, term)
+          il(projetsTable.title),
+          il(projetsTable.clientName),
+          il(projetsTable.clientCompany),
+          il(projetsTable.description),
+          il(projetsTable.notes)
         )
       ))
       .orderBy(desc(projetsTable.updatedAt))

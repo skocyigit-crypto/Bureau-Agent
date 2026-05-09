@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, calendarEventsTable, facturesClientTable, compteClientTable, organisationsTable, prospectsTable, notificationsTable, paymentRemindersTable, licenseAuditLogTable, projetsTable, usersTable, checkinsTable, auditLogsTable, commandantConversationsTable, commandantMessagesTable } from "@workspace/db";
 import { eq, sql, and, desc, gte, lte, lt, ne, isNull, isNotNull, or, ilike, count, asc, type Column, type SQL } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
+import { stripAccents, ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { Resend } from "resend";
 import { getContextForContact, getLatestAgentInsights, buildCommandantContextPrompt } from "./agent-collaboration";
 import { safeJsonParse, extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, sanitizePromptInput } from "../services/ai-utils";
@@ -139,12 +140,6 @@ const CHAT_RETRIEVAL_STOPWORDS = new Set([
   "show","montre","liste","afficher","donne","dis","peux","voir","voici","pls","please",
 ]);
 
-// Strip diacritics (NFD + remove combining marks) so "impayées" -> "impayees".
-// Used both before stemming and when building DB patterns paired with unaccent().
-function stripAccents(s: string): string {
-  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-}
-
 // Suffixes ordered longest-first so that the longest applicable French suffix
 // is removed (a tiny, deliberately conservative French stemmer). Keeping this
 // in-house avoids pulling a heavy NLP dep just for keyword retrieval. We only
@@ -205,54 +200,6 @@ export type ChatRetrievalResult = {
   context: string;
   entities: RetrievedEntity[];
 };
-
-// Lazily detect whether the Postgres `unaccent` extension AND the immutable
-// `f_unaccent()` wrapper are available so that retrieval queries can match
-// accented DB rows ("impayée") from accent-stripped keywords ("impaye"). The
-// wrapper is what lets the GIN trigram expression indexes
-// (`gin (f_unaccent(col) gin_trgm_ops)`) be picked up by the planner. We try to
-// install both once; if that fails (insufficient privileges, hosted DB without
-// the extension), we fall back to plain ILIKE matching.
-let unaccentAvailable: boolean | null = null;
-async function ensureUnaccentExtension(): Promise<boolean> {
-  if (unaccentAvailable !== null) return unaccentAvailable;
-  try {
-    await db.execute(sql`CREATE EXTENSION IF NOT EXISTS unaccent`);
-    await db.execute(sql`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
-    await db.execute(sql.raw(
-      `CREATE OR REPLACE FUNCTION f_unaccent(text) RETURNS text ` +
-      `LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT ` +
-      `AS $$ SELECT public.unaccent('public.unaccent', $1) $$`
-    ));
-    unaccentAvailable = true;
-  } catch {
-    try {
-      const r = await db.execute<{ exists: number }>(sql`
-        SELECT 1 AS exists
-        FROM pg_extension e
-        JOIN pg_proc p ON p.proname = 'f_unaccent'
-        WHERE e.extname = 'unaccent'
-        LIMIT 1
-      `);
-      unaccentAvailable = r.rows.length > 0;
-    } catch {
-      unaccentAvailable = false;
-    }
-  }
-  return unaccentAvailable;
-}
-
-// Builds an accent-insensitive ILIKE condition. When the unaccent extension is
-// installed both sides are wrapped in f_unaccent() (an IMMUTABLE wrapper around
-// unaccent()) so the planner can use the GIN trigram expression indexes
-// declared in the schema. Otherwise we fall back to a plain ILIKE (the keyword
-// is already accent-stripped).
-function accentInsensitiveIlike(column: Column, pattern: string, useUnaccent: boolean): SQL {
-  if (useUnaccent) {
-    return sql`f_unaccent(${column}) ILIKE f_unaccent(${pattern})`;
-  }
-  return ilike(column, pattern);
-}
 
 // Lightweight, tenant-isolated retrieval that mirrors /commandant/smart-search.
 // Returns a "DONNEES PERTINENTES" markdown block plus the structured list of

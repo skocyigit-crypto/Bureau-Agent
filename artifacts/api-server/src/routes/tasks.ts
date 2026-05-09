@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, asc, ilike, or, sql, and } from "drizzle-orm";
+import { eq, desc, asc, ilike, or, sql, and, type Column, type SQL } from "drizzle-orm";
 import { db, tasksTable } from "@workspace/db";
+import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import {
   ListTasksQueryParams,
   CreateTaskBody,
@@ -39,12 +40,15 @@ router.get("/tasks", async (req, res): Promise<void> => {
   if (priority && priority !== "all") {
     conditions.push(eq(tasksTable.priority, priority));
   }
+  const useUnaccent = await ensureUnaccentExtension();
   if (search) {
+    const pattern = `%${search}%`;
+    const il = (col: Column): SQL => accentInsensitiveIlike(col, pattern, useUnaccent);
     conditions.push(
       or(
-        ilike(tasksTable.title, `%${search}%`),
-        ilike(tasksTable.description, `%${search}%`),
-        ilike(tasksTable.assignedTo, `%${search}%`)
+        il(tasksTable.title),
+        il(tasksTable.description),
+        il(tasksTable.assignedTo),
       )!
     );
   }
