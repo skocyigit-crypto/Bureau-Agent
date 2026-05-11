@@ -12,6 +12,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, lte, and, gte, lt, sql, desc, isNull, or } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { sendEmail } from "./email";
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 
@@ -475,25 +476,17 @@ async function executeAction(
     }
 
     case "send_email": {
-      const apiKey = process.env.RESEND_API_KEY;
       const to: string = p.to ?? context.email ?? "";
-      if (!apiKey || !to) {
-        logger.warn({ to, hasKey: !!apiKey }, "[Automation] send_email: config Resend manquante ou email cible absent");
+      if (!to) {
+        logger.warn({ to }, "[Automation] send_email: email cible absent");
         break;
       }
-      const resp = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from: "no-reply@agentdebureau.fr",
-          to: [to],
-          subject: interpolate(p.subject ?? ruleName, context),
-          html: `<p>${interpolate(p.body ?? `Automatisation: ${ruleName}`, context).replace(/\n/g, "<br>")}</p>`,
-        }),
-      });
-      if (!resp.ok) {
-        const err = await resp.text().catch(() => "");
-        logger.warn({ status: resp.status, err: err.slice(0, 200) }, "[Automation] send_email: echec Resend");
+      const subject = interpolate(p.subject ?? ruleName, context);
+      const bodyText = interpolate(p.body ?? `Automatisation: ${ruleName}`, context);
+      const html = `<p>${bodyText.replace(/\n/g, "<br>")}</p>`;
+      const result = await sendEmail(to, subject, html, bodyText);
+      if (!result.success) {
+        logger.warn({ to, err: result.error }, "[Automation] send_email: echec envoi");
       }
       break;
     }
