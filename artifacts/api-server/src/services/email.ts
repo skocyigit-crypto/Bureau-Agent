@@ -1,5 +1,6 @@
 import { google } from "googleapis";
 import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import { logger } from "../lib/logger";
 
 function escapeHtml(str: string): string {
@@ -18,6 +19,53 @@ const SMTP_PASS = process.env.SMTP_PASS || "";
 const SMTP_FROM = process.env.SMTP_FROM || "noreply@agentdebureau.fr";
 const APP_URL = process.env.PUBLIC_URL || process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "agentdebureau.fr"}`;
 const MOBILE_APP_URL = process.env.MOBILE_APP_URL || "";
+
+let resendCache: { client: Resend; from: string; fetchedAt: number } | null = null;
+
+async function getResendClient(): Promise<{ client: Resend; from: string } | null> {
+  if (resendCache && Date.now() - resendCache.fetchedAt < 5 * 60 * 1000) {
+    return { client: resendCache.client, from: resendCache.from };
+  }
+
+  const directKey = process.env.RESEND_API_KEY;
+  if (directKey) {
+    const from = process.env.RESEND_FROM_EMAIL || `Agent de Bureau <${SMTP_FROM}>`;
+    const client = new Resend(directKey);
+    resendCache = { client, from, fetchedAt: Date.now() };
+    return { client, from };
+  }
+
+  try {
+    const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
+    if (!hostname) return null;
+    const xReplitToken = process.env.REPL_IDENTITY
+      ? "repl " + process.env.REPL_IDENTITY
+      : process.env.WEB_REPL_RENEWAL
+        ? "depl " + process.env.WEB_REPL_RENEWAL
+        : null;
+    if (!xReplitToken) return null;
+
+    const response = await fetch(
+      "https://" + hostname + "/api/v2/connection?include_secrets=true&connector_names=resend",
+      { headers: { "Accept": "application/json", "X-Replit-Token": xReplitToken } }
+    );
+    const data = await response.json() as any;
+    const conn = data.items?.[0];
+    const apiKey = conn?.settings?.api_key;
+    const fromEmail = conn?.settings?.from_email;
+    if (!apiKey) return null;
+
+    const fromAddress = fromEmail
+      ? `Agent de Bureau <${fromEmail}>`
+      : "Agent de Bureau <onboarding@resend.dev>";
+    const client = new Resend(apiKey);
+    resendCache = { client, from: fromAddress, fetchedAt: Date.now() };
+    return { client, from: fromAddress };
+  } catch (err: any) {
+    logger.error({ err: err.message }, "[Email/Resend] Erreur recuperation connecteur:");
+    return null;
+  }
+}
 
 let gmailConnectionSettings: any = null;
 
@@ -77,6 +125,27 @@ function createSmtpTransport() {
 }
 
 export async function sendEmail(to: string, subject: string, html: string, text: string): Promise<{ success: boolean; error?: string; preview?: string }> {
+  const resend = await getResendClient();
+  if (resend) {
+    try {
+      const result = await resend.client.emails.send({
+        from: resend.from,
+        to: [to],
+        subject,
+        html,
+        text,
+      });
+      if (result.error) {
+        logger.error({ err: result.error }, `[Email/Resend] Erreur envoi a ${to}:`);
+      } else {
+        logger.info(`[Email/Resend] Envoye a ${to}: ${result.data?.id}`);
+        return { success: true };
+      }
+    } catch (err: any) {
+      logger.error({ err: err.message }, `[Email/Resend] Exception envoi a ${to}:`);
+    }
+  }
+
   const gmail = await getGmailClient();
   if (gmail) {
     try {

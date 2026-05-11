@@ -38,28 +38,24 @@ export function Footer() {
               <li><a href="#analytique" className="hover:text-white transition-colors">Analytique</a></li>
               <li><a href="#tarifs" className="hover:text-white transition-colors">Tarifs</a></li>
               <li><a href="#integrations" className="hover:text-white transition-colors">Intégrations</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Nouveautés</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Roadmap</a></li>
+              <li><a href="#temoignages" className="hover:text-white transition-colors">Témoignages</a></li>
             </ul>
           </div>
 
           <div>
             <h4 className="font-bold mb-6 text-accent uppercase tracking-wider text-sm">Ressources</h4>
             <ul className="space-y-4 text-primary-foreground/70 font-medium">
-              <li><a href="#" className="hover:text-white transition-colors">Centre d'aide</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Tutoriels vidéo</a></li>
               <li><a href="#faq" className="hover:text-white transition-colors">FAQ</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">API & Docs</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Statut du système</a></li>
+              <li><a href="mailto:support@agent-de-bureau.fr" className="hover:text-white transition-colors">Centre d'aide</a></li>
+              <li><a href="/register" className="hover:text-white transition-colors">Essai gratuit 14 jours</a></li>
+              <li><a href="/" className="hover:text-white transition-colors">Connexion</a></li>
             </ul>
           </div>
 
           <div>
             <h4 className="font-bold mb-6 text-accent uppercase tracking-wider text-sm">Légal & Entreprise</h4>
             <ul className="space-y-4 text-primary-foreground/70 font-medium">
-              <li><a href="#" className="hover:text-white transition-colors">À propos de nous</a></li>
-              <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
+              <li><a href="mailto:contact@agent-de-bureau.fr" className="hover:text-white transition-colors">Contact</a></li>
               <li><Link href="/mentions-legales" className="hover:text-white transition-colors">Mentions légales</Link></li>
               <li><Link href="/cgu" className="hover:text-white transition-colors">CGU</Link></li>
               <li><Link href="/confidentialite" className="hover:text-white transition-colors">Politique de confidentialité</Link></li>

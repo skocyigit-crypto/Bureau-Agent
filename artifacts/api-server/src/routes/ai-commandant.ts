@@ -3,7 +3,7 @@ import { db, callsTable, contactsTable, tasksTable, messagesTable, calendarEvent
 import { eq, sql, and, desc, gte, lte, lt, ne, isNull, isNotNull, or, ilike, count, asc, type Column, type SQL } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { stripAccents, ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
-import { Resend } from "resend";
+import { sendEmail } from "../services/email";
 import { getContextForContact, getLatestAgentInsights, buildCommandantContextPrompt } from "./agent-collaboration";
 import { safeJsonParse, extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, sanitizePromptInput } from "../services/ai-utils";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
@@ -332,12 +332,14 @@ function emailWrap(title: string, body: string): string {
 </div></div></body></html>`;
 }
 
+function htmlToTextCmd(html: string): string {
+  return html.replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
 async function sendEmailViaResend(to: string, subject: string, html: string): Promise<boolean> {
   try {
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) { logger.info(`[Commandant/Email] Pas de cle Resend. Email pour ${to}`); return false; }
-    const resend = new Resend(apiKey);
-    await resend.emails.send({ from: "Agent de Bureau <onboarding@resend.dev>", to: [to], subject, html });
+    const result = await sendEmail(to, subject, html, htmlToTextCmd(html));
+    if (!result.success) { logger.info(`[Commandant/Email] Echec envoi a ${to}: ${result.error || "inconnu"}`); return false; }
     return true;
   } catch (err: any) {
     logger.error({ err: err.message }, "[Commandant/Email] Erreur:");

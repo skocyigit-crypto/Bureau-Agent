@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { db, organisationsTable, subscriptionsTable, invoicesTable, paymentsTable, facturesClientTable, paymentRemindersTable, licenseAuditLogTable, PLANS, usersTable, contactsTable, callsTable } from "@workspace/db";
 import { eq, sql, and, desc, gte, lte, lt, isNull, ne } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
-import { Resend } from "resend";
+import { sendEmail } from "../services/email";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -29,18 +29,13 @@ function generateEmailWrapper(title: string, body: string): string {
 </div></div></body></html>`;
 }
 
+function htmlToText(html: string): string {
+  return html.replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
 async function sendEmailViaResend(to: string, subject: string, html: string): Promise<boolean> {
-  try {
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) { logger.info(`[Email] Pas de cle Resend. Email pour ${to}: ${subject}`); return false; }
-    const resend = new Resend(apiKey);
-    await resend.emails.send({ from: "Agent de Bureau <onboarding@resend.dev>", to: [to], subject, html });
-    logger.info(`[Email/Resend] Envoye a ${to}: ${subject}`);
-    return true;
-  } catch (err: any) {
-    logger.error({ err: err.message }, `[Email/Resend] Erreur:`);
-    return false;
-  }
+  const result = await sendEmail(to, subject, html, htmlToText(html));
+  return result.success;
 }
 
 async function logAudit(orgId: number, action: string, details: string, userId?: number, metadata?: Record<string, any>) {

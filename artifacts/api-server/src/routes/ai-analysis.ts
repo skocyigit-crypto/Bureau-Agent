@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, platformConnectionsTable, notificationsTable, stockArticlesTable, calendarEventsTable, projetsTable, prospectsTable, automationRulesTable, facturesClientTable, compteClientTable, organisationsTable } from "@workspace/db";
-import { Resend } from "resend";
+import { sendEmail } from "../services/email";
 import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNull, or, not, inArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
@@ -2324,15 +2324,9 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees d'email invalides." }); return; }
         if (!data.to || !data.subject || !data.body) { res.status(400).json({ error: "Destinataire, sujet et corps requis." }); return; }
         try {
-          const resendApiKey = process.env.RESEND_API_KEY;
-          if (!resendApiKey) { result = { success: false, message: "Service email non configure." }; break; }
-          const resend = new Resend(resendApiKey);
-          await resend.emails.send({
-            from: "Agent de Bureau <onboarding@resend.dev>",
-            to: data.to,
-            subject: data.subject,
-            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;"><h2 style="color:#6366f1;">${data.subject}</h2><div style="line-height:1.6;color:#333;">${data.body.replace(/\n/g, '<br>')}</div><hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;"><p style="font-size:12px;color:#9ca3af;">Envoye via Agent de Bureau — Votre assistant de bureau intelligent</p></div>`,
-          });
+          const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;"><h2 style="color:#6366f1;">${data.subject}</h2><div style="line-height:1.6;color:#333;">${data.body.replace(/\n/g, '<br>')}</div><hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;"><p style="font-size:12px;color:#9ca3af;">Envoye via Agent de Bureau — Votre assistant de bureau intelligent</p></div>`;
+          const sendRes = await sendEmail(Array.isArray(data.to) ? data.to[0] : data.to, data.subject, html, data.body);
+          if (!sendRes.success) { result = { success: false, message: sendRes.error || "Service email non configure." }; break; }
           result = { success: true, message: `Email envoye a ${data.to} — Sujet: "${data.subject}"` };
         } catch (emailErr: any) {
           result = { success: false, message: `Erreur d'envoi: ${emailErr.message}` };
@@ -2623,10 +2617,10 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         const email2 = contact2?.email;
         if (!email2) { result = { success: false, message: "Aucun email trouve pour ce client." }; break; }
         try {
-          const resendKey = process.env.RESEND_API_KEY;
-          if (!resendKey) { result = { success: false, message: "Service email non configure." }; break; }
-          const resend = new Resend(resendKey);
-          await resend.emails.send({ from: "Agent de Bureau <onboarding@resend.dev>", to: [email2], subject: `Facture ${inv2.reference} — ${inv2.totalAmount}€ TTC`, html: `<h2>Facture ${inv2.reference}</h2><p>Cher(e) ${inv2.clientName},</p><p>Veuillez trouver ci-joint votre facture d'un montant de <strong>${inv2.totalAmount}€ TTC</strong>.</p><p>Date d'echeance: ${inv2.dueDate ? new Date(inv2.dueDate).toLocaleDateString("fr-FR") : "30 jours"}</p><p>Cordialement,<br>Agent de Bureau</p>` });
+          const invHtml = `<h2>Facture ${inv2.reference}</h2><p>Cher(e) ${inv2.clientName},</p><p>Veuillez trouver ci-joint votre facture d'un montant de <strong>${inv2.totalAmount}€ TTC</strong>.</p><p>Date d'echeance: ${inv2.dueDate ? new Date(inv2.dueDate).toLocaleDateString("fr-FR") : "30 jours"}</p><p>Cordialement,<br>Agent de Bureau</p>`;
+          const invText = `Facture ${inv2.reference} - ${inv2.totalAmount} EUR TTC. Echeance: ${inv2.dueDate ? new Date(inv2.dueDate).toLocaleDateString("fr-FR") : "30 jours"}.`;
+          const sendRes2 = await sendEmail(email2, `Facture ${inv2.reference} — ${inv2.totalAmount}€ TTC`, invHtml, invText);
+          if (!sendRes2.success) { result = { success: false, message: sendRes2.error || "Service email non configure." }; break; }
           await db.update(facturesClientTable).set({ status: inv2.status === "brouillon" ? "envoyee" : inv2.status }).where(eq(facturesClientTable.id, invoiceId));
           result = { success: true, message: `Facture ${inv2.reference} envoyee a ${email2}.` };
         } catch (e: any) { result = { success: false, message: `Erreur envoi email: ${e.message}` }; }
@@ -2641,10 +2635,10 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         const acctEmail = contactForAcct?.email;
         if (!acctEmail) { result = { success: false, message: "Aucun email pour ce client." }; break; }
         try {
-          const resendKey2 = process.env.RESEND_API_KEY;
-          if (!resendKey2) { result = { success: false, message: "Service email non configure." }; break; }
-          const resend2 = new Resend(resendKey2);
-          await resend2.emails.send({ from: "Agent de Bureau <onboarding@resend.dev>", to: [acctEmail], subject: `Rappel de paiement — ${Number(acct.montantEnRetard || 0).toFixed(2)}€ en retard`, html: `<h2>Rappel de paiement</h2><p>Cher(e) ${acct.clientName},</p><p>Nous vous rappelons que vous avez un solde impaye de <strong>${Number(acct.solde || 0).toFixed(2)}€</strong> dont <strong>${Number(acct.montantEnRetard || 0).toFixed(2)}€ en retard</strong>.</p><p>Merci de regulariser votre situation dans les meilleurs delais.</p><p>Cordialement,<br>Agent de Bureau</p>` });
+          const remHtml = `<h2>Rappel de paiement</h2><p>Cher(e) ${acct.clientName},</p><p>Nous vous rappelons que vous avez un solde impaye de <strong>${Number(acct.solde || 0).toFixed(2)}€</strong> dont <strong>${Number(acct.montantEnRetard || 0).toFixed(2)}€ en retard</strong>.</p><p>Merci de regulariser votre situation dans les meilleurs delais.</p><p>Cordialement,<br>Agent de Bureau</p>`;
+          const remText = `Rappel de paiement: solde impaye ${Number(acct.solde || 0).toFixed(2)} EUR dont ${Number(acct.montantEnRetard || 0).toFixed(2)} EUR en retard.`;
+          const sendRes3 = await sendEmail(acctEmail, `Rappel de paiement — ${Number(acct.montantEnRetard || 0).toFixed(2)}€ en retard`, remHtml, remText);
+          if (!sendRes3.success) { result = { success: false, message: sendRes3.error || "Service email non configure." }; break; }
           await db.update(compteClientTable).set({ lastReminderAt: new Date(), reminderCount: (acct.reminderCount || 0) + 1 }).where(eq(compteClientTable.id, accountId));
           result = { success: true, message: `Rappel de paiement envoye a ${acctEmail} pour ${acct.clientName} (${Number(acct.montantEnRetard || 0).toFixed(2)}€ en retard).` };
         } catch (e: any) { result = { success: false, message: `Erreur envoi rappel: ${e.message}` }; }
