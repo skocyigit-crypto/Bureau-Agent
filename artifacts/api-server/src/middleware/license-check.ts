@@ -64,16 +64,24 @@ async function checkLicense(orgId: number, method: string, path: string): Promis
   const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, orgId));
   if (!sub) return { allowed: true };
 
+  // Data protection: GET requests + data export endpoints toujours autorises
+  // pour les statuts bloques — l'utilisateur conserve l'acces a ses donnees
+  // (lecture/export) meme suspendu/annule/expire (RGPD: droit d'acces & portabilite).
+  const isReadOnlyAllowed = method === "GET" || path.startsWith("/api/data-export") || path.startsWith("/api/my-subscription");
+
   if (sub.status === "annulee" || sub.status === "cancelled") {
-    return { allowed: false, reason: "cancelled", message: "Votre abonnement a ete annule. Souscrivez un nouveau plan pour continuer." };
+    if (isReadOnlyAllowed) return { allowed: true };
+    return { allowed: false, reason: "cancelled", message: "Votre abonnement a ete annule. Vos donnees restent accessibles en lecture seule. Souscrivez un nouveau plan pour reprendre l'acces complet." };
   }
 
   if (sub.status === "suspended") {
-    return { allowed: false, reason: "suspended", message: "Votre abonnement est suspendu suite a plusieurs echecs de paiement. Mettez a jour votre moyen de paiement dans le portail Stripe." };
+    if (isReadOnlyAllowed) return { allowed: true };
+    return { allowed: false, reason: "suspended", message: "Votre abonnement est suspendu. Acces en lecture seule preserve. Mettez a jour votre paiement pour reprendre l'ecriture." };
   }
 
   if (sub.plan === "essai" && sub.trialEndsAt && new Date(sub.trialEndsAt) < new Date()) {
-    return { allowed: false, reason: "trial_expired", message: "Votre periode d'essai est terminee. Veuillez passer a un plan payant pour continuer." };
+    if (isReadOnlyAllowed) return { allowed: true };
+    return { allowed: false, reason: "trial_expired", message: "Votre periode d'essai est terminee. Vos donnees restent accessibles en lecture seule. Souscrivez un plan pour reprendre l'ecriture." };
   }
 
   if (sub.status === "past_due") {

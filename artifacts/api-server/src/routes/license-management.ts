@@ -647,6 +647,22 @@ router.post("/license-management/update-billing-settings", async (req: Request, 
   }
 });
 
+async function loadOrgForAdmin(targetOrgId: number): Promise<{ org: any; sub: any } | null> {
+  const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, targetOrgId)).limit(1);
+  if (!org) return null;
+  const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, targetOrgId)).limit(1);
+  return { org, sub: sub ?? null };
+}
+
+function ensureConfirmation(req: Request, expectedName: string): { ok: boolean; error?: string } {
+  const provided = String(req.body?.confirmOrgName || "").trim();
+  if (!provided) return { ok: false, error: "confirmOrgName requis pour confirmer l'action" };
+  if (provided.toLowerCase() !== expectedName.toLowerCase()) {
+    return { ok: false, error: `confirmOrgName ne correspond pas. Tapez exactement: ${expectedName}` };
+  }
+  return { ok: true };
+}
+
 router.post("/license-management/orgs/:id/extend-trial", async (req: Request, res: Response): Promise<void> => {
   const userRole = (req.session as any)?.userRole;
   if (userRole !== "super_admin") { res.status(403).json({ error: "Reserve aux super-administrateurs" }); return; }
@@ -655,28 +671,37 @@ router.post("/license-management/orgs/:id/extend-trial", async (req: Request, re
   if (!Number.isFinite(targetOrgId) || targetOrgId <= 0) { res.status(400).json({ error: "ID organisation invalide" }); return; }
   if (!Number.isInteger(days) || days < 1 || days > 365) { res.status(400).json({ error: "days doit etre un entier entre 1 et 365" }); return; }
   try {
-    const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, targetOrgId)).limit(1);
-    if (!sub) { res.status(404).json({ error: "Abonnement introuvable" }); return; }
+    const loaded = await loadOrgForAdmin(targetOrgId);
+    if (!loaded || !loaded.sub) { res.status(404).json({ error: "Abonnement introuvable" }); return; }
+    const { org, sub } = loaded;
     const base = sub.trialEndsAt && new Date(sub.trialEndsAt) > new Date() ? new Date(sub.trialEndsAt) : new Date();
     const newEnd = new Date(base.getTime() + days * 86400000);
+    const previousState = { plan: sub.plan, status: sub.status, trialEndsAt: sub.trialEndsAt };
     await db.update(subscriptionsTable).set({ trialEndsAt: newEnd, plan: "essai", status: "active", updatedAt: new Date() }).where(eq(subscriptionsTable.organisationId, targetOrgId));
-    await logAudit(targetOrgId, "trial_extended_by_admin", `Trial prolonge de ${days} jours par super_admin (nouvelle fin: ${newEnd.toISOString()})`, (req.session as any)?.userId, { days, newTrialEndsAt: newEnd });
-    res.json({ success: true, trialEndsAt: newEnd });
+    await logAudit(targetOrgId, "trial_extended_by_admin", `Trial prolonge de ${days} jours par super_admin (org: ${org.name}, nouvelle fin: ${newEnd.toISOString()})`, (req.session as any)?.userId, { days, newTrialEndsAt: newEnd, previousState, orgName: org.name, ipAddress: req.ip ?? null });
+    res.json({ success: true, trialEndsAt: newEnd, previousState });
   } catch (err: any) { logger.error({ err }, "Erreur extend-trial"); res.status(500).json({ error: "Erreur" }); }
 });
 
 router.post("/license-management/orgs/:id/suspend", async (req: Request, res: Response): Promise<void> => {
   const userRole = (req.session as any)?.userRole;
+  const adminUserId = (req.session as any)?.userId;
+  const adminOrgId = (req.session as any)?.organisationId;
   if (userRole !== "super_admin") { res.status(403).json({ error: "Reserve aux super-administrateurs" }); return; }
   const targetOrgId = Number(req.params.id);
   const reason = String(req.body?.reason || "").trim().substring(0, 500) || "Suspension manuelle";
   if (!Number.isFinite(targetOrgId) || targetOrgId <= 0) { res.status(400).json({ error: "ID organisation invalide" }); return; }
+  if (targetOrgId === adminOrgId) { res.status(400).json({ error: "Impossible de suspendre votre propre organisation" }); return; }
   try {
-    const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, targetOrgId)).limit(1);
-    if (!sub) { res.status(404).json({ error: "Abonnement introuvable" }); return; }
+    const loaded = await loadOrgForAdmin(targetOrgId);
+    if (!loaded || !loaded.sub) { res.status(404).json({ error: "Abonnement introuvable" }); return; }
+    const { org, sub } = loaded;
+    const conf = ensureConfirmation(req, org.name);
+    if (!conf.ok) { res.status(400).json({ error: conf.error }); return; }
+    const previousState = { status: sub.status, suspendedAt: sub.suspendedAt, suspensionReason: sub.suspensionReason };
     await db.update(subscriptionsTable).set({ status: "suspended", suspendedAt: new Date(), suspensionReason: "manual", updatedAt: new Date() }).where(eq(subscriptionsTable.organisationId, targetOrgId));
-    await logAudit(targetOrgId, "manual_suspended_by_admin", `Suspendu manuellement par super_admin: ${reason}`, (req.session as any)?.userId, { reason, previousStatus: sub.status });
-    res.json({ success: true });
+    await logAudit(targetOrgId, "manual_suspended_by_admin", `Suspendu manuellement par super_admin (org: ${org.name}): ${reason}`, adminUserId, { reason, previousState, orgName: org.name, ipAddress: req.ip ?? null });
+    res.json({ success: true, previousState, dataAccess: "Donnees preservees — acces lecture seule maintenu pour l'organisation" });
   } catch (err: any) { logger.error({ err }, "Erreur suspend"); res.status(500).json({ error: "Erreur" }); }
 });
 
@@ -686,11 +711,13 @@ router.post("/license-management/orgs/:id/reactivate", async (req: Request, res:
   const targetOrgId = Number(req.params.id);
   if (!Number.isFinite(targetOrgId) || targetOrgId <= 0) { res.status(400).json({ error: "ID organisation invalide" }); return; }
   try {
-    const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, targetOrgId)).limit(1);
-    if (!sub) { res.status(404).json({ error: "Abonnement introuvable" }); return; }
+    const loaded = await loadOrgForAdmin(targetOrgId);
+    if (!loaded || !loaded.sub) { res.status(404).json({ error: "Abonnement introuvable" }); return; }
+    const { org, sub } = loaded;
+    const previousState = { status: sub.status, suspendedAt: sub.suspendedAt, suspensionReason: sub.suspensionReason, paymentFailedCount: sub.paymentFailedCount };
     await db.update(subscriptionsTable).set({ status: "active", suspendedAt: null, suspensionReason: null, paymentFailedCount: 0, updatedAt: new Date() }).where(eq(subscriptionsTable.organisationId, targetOrgId));
-    await logAudit(targetOrgId, "manual_reactivated_by_admin", `Reactive manuellement par super_admin`, (req.session as any)?.userId, { previousStatus: sub.status });
-    res.json({ success: true });
+    await logAudit(targetOrgId, "manual_reactivated_by_admin", `Reactive manuellement par super_admin (org: ${org.name})`, (req.session as any)?.userId, { previousState, orgName: org.name, ipAddress: req.ip ?? null });
+    res.json({ success: true, previousState });
   } catch (err: any) { logger.error({ err }, "Erreur reactivate"); res.status(500).json({ error: "Erreur" }); }
 });
 
@@ -701,8 +728,11 @@ router.post("/license-management/orgs/:id/regenerate-key", async (req: Request, 
   if (!Number.isFinite(targetOrgId) || targetOrgId <= 0) { res.status(400).json({ error: "ID organisation invalide" }); return; }
   try {
     const { generateUniqueLicenseKey, isUniqueViolation } = await import("../services/license-key");
-    const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, targetOrgId)).limit(1);
-    if (!sub) { res.status(404).json({ error: "Abonnement introuvable" }); return; }
+    const loaded = await loadOrgForAdmin(targetOrgId);
+    if (!loaded || !loaded.sub) { res.status(404).json({ error: "Abonnement introuvable" }); return; }
+    const { org, sub } = loaded;
+    const conf = ensureConfirmation(req, org.name);
+    if (!conf.ok) { res.status(400).json({ error: conf.error }); return; }
     let newKey = "";
     let attempt = 0;
     while (attempt < 5) {
@@ -715,9 +745,71 @@ router.post("/license-management/orgs/:id/regenerate-key", async (req: Request, 
         attempt++;
       }
     }
-    await logAudit(targetOrgId, "license_key_regenerated", `Cle de licence regeneree par super_admin`, (req.session as any)?.userId, { plan: sub.plan, oldKeyMasked: sub.licenseKey ? sub.licenseKey.substring(0, 8) + "..." : null });
+    const previousState = { plan: sub.plan, status: sub.status, oldKeyMasked: sub.licenseKey ? sub.licenseKey.substring(0, 8) + "..." : null, updatedAt: sub.updatedAt };
+    await logAudit(targetOrgId, "license_key_regenerated", `Cle de licence regeneree par super_admin (org: ${org.name})`, (req.session as any)?.userId, { previousState, newKeyMasked: newKey.substring(0, 8) + "...", orgName: org.name, ipAddress: req.ip ?? null });
     res.json({ success: true, licenseKey: newKey });
   } catch (err: any) { logger.error({ err }, "Erreur regenerate-key"); res.status(500).json({ error: "Erreur" }); }
+});
+
+const EXPORT_MAX_ITERATIONS = 10000;
+
+async function fetchAllChunked<T extends { id: number }>(table: any, orgId: number, chunkSize = 1000): Promise<{ rows: T[]; hitCap: boolean }> {
+  const all: T[] = [];
+  let lastId = 0;
+  let i = 0;
+  for (; i < EXPORT_MAX_ITERATIONS; i++) {
+    const rows: T[] = await db.select().from(table)
+      .where(and(eq(table.organisationId, orgId), sql`${table.id} > ${lastId}`))
+      .orderBy(table.id)
+      .limit(chunkSize) as T[];
+    if (rows.length === 0) return { rows: all, hitCap: false };
+    all.push(...rows);
+    lastId = rows[rows.length - 1].id;
+    if (rows.length < chunkSize) return { rows: all, hitCap: false };
+  }
+  return { rows: all, hitCap: true };
+}
+
+router.get("/license-management/orgs/:id/export", async (req: Request, res: Response): Promise<void> => {
+  const userRole = (req.session as any)?.userRole;
+  if (userRole !== "super_admin") { res.status(403).json({ error: "Reserve aux super-administrateurs" }); return; }
+  const targetOrgId = Number(req.params.id);
+  if (!Number.isFinite(targetOrgId) || targetOrgId <= 0) { res.status(400).json({ error: "ID organisation invalide" }); return; }
+  try {
+    const loaded = await loadOrgForAdmin(targetOrgId);
+    if (!loaded) { res.status(404).json({ error: "Organisation introuvable" }); return; }
+    const users = await db.select().from(usersTable).where(eq(usersTable.organisationId, targetOrgId));
+    const usersSafe = users.map(u => { const { passwordHash: _ph, mfaSecret: _ms, ...safe } = u as any; return safe; });
+    const contactsR = await fetchAllChunked<any>(contactsTable, targetOrgId);
+    const callsR = await fetchAllChunked<any>(callsTable, targetOrgId);
+    const invoicesR = await fetchAllChunked<any>(invoicesTable, targetOrgId);
+    const paymentsR = await fetchAllChunked<any>(paymentsTable, targetOrgId);
+    const auditR = await fetchAllChunked<any>(licenseAuditLogTable, targetOrgId);
+    const counts = { users: usersSafe.length, contacts: contactsR.rows.length, calls: callsR.rows.length, invoices: invoicesR.rows.length, payments: paymentsR.rows.length, audit: auditR.rows.length };
+    const cappedEntities = Object.entries({ contacts: contactsR.hitCap, calls: callsR.hitCap, invoices: invoicesR.hitCap, payments: paymentsR.hitCap, audit: auditR.hitCap }).filter(([, capped]) => capped).map(([k]) => k);
+    const truncated = cappedEntities.length > 0;
+    const complete = !truncated;
+    await logAudit(targetOrgId, "data_exported_by_admin", `Export ${complete ? "complet" : "tronque"} de donnees realise par super_admin (org: ${loaded.org.name})`, (req.session as any)?.userId, { orgName: loaded.org.name, counts, complete, truncated, cappedEntities, maxRowsPerEntity: EXPORT_MAX_ITERATIONS * 1000, ipAddress: req.ip ?? null });
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="org-${targetOrgId}-export-${new Date().toISOString().slice(0,10)}.json"`);
+    res.json({
+      exportedAt: new Date().toISOString(),
+      exportedBy: (req.session as any)?.userId,
+      complete,
+      truncated,
+      cappedEntities,
+      maxRowsPerEntity: EXPORT_MAX_ITERATIONS * 1000,
+      counts,
+      organisation: loaded.org,
+      subscription: loaded.sub,
+      users: usersSafe,
+      contacts: contactsR.rows,
+      calls: callsR.rows,
+      invoices: invoicesR.rows,
+      payments: paymentsR.rows,
+      auditLog: auditR.rows,
+    });
+  } catch (err: any) { logger.error({ err }, "Erreur export"); res.status(500).json({ error: "Erreur lors de l'export" }); }
 });
 
 export default router;
