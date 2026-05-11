@@ -108,7 +108,12 @@ async function getGmailClient() {
     const oauth2Client = new google.auth.OAuth2();
     oauth2Client.setCredentials({ access_token: accessToken });
 
-    return google.gmail({ version: "v1", auth: oauth2Client });
+    const fromEmail = gmailConnectionSettings?.settings?.from_email
+      || gmailConnectionSettings?.settings?.email_address
+      || gmailConnectionSettings?.settings?.oauth?.credentials?.email
+      || null;
+
+    return { client: google.gmail({ version: "v1", auth: oauth2Client }), fromEmail };
   } catch {
     return null;
   }
@@ -149,7 +154,11 @@ export async function sendEmail(to: string, subject: string, html: string, text:
   const gmail = await getGmailClient();
   if (gmail) {
     try {
+      const fromHeader = gmail.fromEmail
+        ? `=?UTF-8?B?${Buffer.from("Agent de Bureau").toString("base64")}?= <${gmail.fromEmail}>`
+        : `=?UTF-8?B?${Buffer.from("Agent de Bureau").toString("base64")}?= <me>`;
       const rawLines = [
+        `From: ${fromHeader}`,
         `To: ${to}`,
         `Subject: =?UTF-8?B?${Buffer.from(subject).toString("base64")}?=`,
         `MIME-Version: 1.0`,
@@ -160,7 +169,7 @@ export async function sendEmail(to: string, subject: string, html: string, text:
       const raw = rawLines.join("\r\n");
       const encodedMessage = Buffer.from(raw).toString("base64url");
 
-      const result = await gmail.users.messages.send({
+      const result = await gmail.client.users.messages.send({
         userId: "me",
         requestBody: { raw: encodedMessage },
       });
