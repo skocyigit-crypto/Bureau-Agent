@@ -8,6 +8,7 @@ import { logAudit } from "./audit";
 import { sendCredentialsEmail, sendEmail } from "../services/email";
 import { logger } from "../lib/logger";
 import { escapeHtml } from "../lib/html-escape";
+import { mintApiToken } from "../lib/api-token";
 import {
   isSuperAdmin,
   assertRoleAllowed,
@@ -126,7 +127,12 @@ const changePasswordLimiter = rateLimit({
 });
 
 router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Promise<void> => {
-  const { email, password, totpCode } = req.body;
+  // `wantsToken` permet aux clients non-navigateur (app mobile Expo) de
+  // recevoir un Bearer token API en plus — ou a la place — du cookie de
+  // session. Le web ne le passe pas et conserve donc le flux cookie
+  // historique (`__Host-` + Secure + SameSite + HttpOnly), strictement
+  // intact. Aucune branche supplementaire pour l'utilisateur web.
+  const { email, password, totpCode, wantsToken } = req.body;
 
   if (!email || !password) {
     res.status(400).json({ error: "Email et mot de passe sont obligatoires." });
@@ -218,6 +224,20 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
     // Notification de nouvelle connexion (best-effort, ne bloque pas la reponse)
     void sendLoginNotificationIfNew(user, req.ip, req.get("user-agent")).catch(err => req.log.error({ err }, "Erreur notif login"));
 
+    // Token API stateless pour les clients qui le demandent explicitement.
+    // Genere a partir des memes champs que la session — donc une route en
+    // aval ne distingue pas les deux flux apres `requireAuth`.
+    const apiToken = wantsToken === true
+      ? mintApiToken({
+          userId: user.id,
+          userRole: user.role,
+          organisationId: user.organisationId ?? undefined,
+          userEmail: user.email,
+          prenom: user.prenom ?? undefined,
+          nom: user.nom ?? undefined,
+        })
+      : undefined;
+
     res.json({
       id: user.id,
       email: user.email,
@@ -228,6 +248,7 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
       organisation: user.organisation,
       organisationId: user.organisationId,
       avatar: user.avatar,
+      ...(apiToken ? { apiToken } : {}),
       mfaActif: user.mfaActif,
     });
   } catch (err: any) {

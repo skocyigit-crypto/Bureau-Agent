@@ -49,8 +49,16 @@ export const API_BASE = deriveApiBase();
  * redemarrages de l'app. Constante partagee pour eviter les fautes
  * de frappe (`adb_session` vs `adb-session` etc.) qui invalident
  * silencieusement la session a chaque deploiement.
+ *
+ * NB: depuis la migration vers les Bearer tokens, ce slot ne contient
+ * plus de cookie de session manuel mais un token API HMAC opaque.
+ * La cle a ete renommee pour signaler ce changement et invalider
+ * proprement les sessions cookies legacy au prochain demarrage —
+ * AsyncStorage.getItem("adb_session") renverra null, ce qui declenche
+ * un retour propre a l'ecran de login plutot que d'envoyer un cookie
+ * que le backend ne reconnait plus.
  */
-export const SESSION_STORAGE_KEY = "adb_session";
+export const SESSION_STORAGE_KEY = "adb_api_token_v1";
 
 /**
  * Construit une URL absolue d'API a partir d'un chemin relatif.
