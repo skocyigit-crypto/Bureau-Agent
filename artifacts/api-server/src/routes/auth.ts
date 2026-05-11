@@ -64,11 +64,24 @@ function checkForgotRateByEmail(email: string): boolean {
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Trop de tentatives de connexion. Reessayez dans 15 minutes." },
   skipSuccessfulRequests: true,
+});
+
+// Limiteur des routes admin qui declenchent l'envoi d'emails (creation de
+// compte + envoi d'identifiants). Sans ce garde, un compte admin compromis
+// pourrait etre utilise pour spammer des centaines d'emails (email bomb /
+// reputation harvesting). 30 envois / 15 min par IP est largement suffisant
+// pour l'usage legitime d'onboarding d'equipe.
+const adminEmailLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop d'envois d'emails. Reessayez dans 15 minutes." },
 });
 
 const resetLimiter = rateLimit({
@@ -466,7 +479,7 @@ router.get("/auth/users", async (req: Request, res: Response): Promise<void> => 
   }
 });
 
-router.post("/auth/users", async (req: Request, res: Response): Promise<void> => {
+router.post("/auth/users", adminEmailLimiter, async (req: Request, res: Response): Promise<void> => {
   const userRole = req.session?.userRole;
   const organisationId = req.session?.organisationId;
 
@@ -725,7 +738,7 @@ function generateSecurePassword(): string {
   return pw.split("").sort(() => crypto.randomInt(3) - 1).join("");
 }
 
-router.post("/auth/users/:id/send-credentials", async (req: Request, res: Response): Promise<void> => {
+router.post("/auth/users/:id/send-credentials", adminEmailLimiter, async (req: Request, res: Response): Promise<void> => {
   const userRole = req.session?.userRole;
   const organisationId = req.session?.organisationId;
   const sessionUserId = req.session?.userId;
@@ -789,7 +802,7 @@ router.post("/auth/users/:id/send-credentials", async (req: Request, res: Respon
   }
 });
 
-router.post("/auth/users/create-and-send", async (req: Request, res: Response): Promise<void> => {
+router.post("/auth/users/create-and-send", adminEmailLimiter, async (req: Request, res: Response): Promise<void> => {
   const userRole = req.session?.userRole;
   const organisationId = req.session?.organisationId;
   const sessionUserId = req.session?.userId;
