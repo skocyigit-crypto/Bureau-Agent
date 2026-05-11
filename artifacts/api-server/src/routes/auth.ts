@@ -9,6 +9,7 @@ import { sendCredentialsEmail, sendEmail } from "../services/email";
 import { logger } from "../lib/logger";
 import { escapeHtml } from "../lib/html-escape";
 import { mintApiToken } from "../lib/api-token";
+import { clearTokenInvalidationCache } from "../middleware/auth";
 import {
   isSuperAdmin,
   assertRoleAllowed,
@@ -418,7 +419,17 @@ router.post("/auth/change-password", changePasswordLimiter, async (req: Request,
     }
 
     const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-    await db.update(usersTable).set({ passwordHash: newHash, updatedAt: new Date() }).where(eq(usersTable.id, userId));
+    // `tokenInvalidatedAt` invalide TOUS les Bearer tokens API existants
+    // de cet utilisateur (mobile). C'est le pendant stateless de
+    // `invalidateUserSessions` (cookie/web). Sans ce champ, un attaquant
+    // qui aurait vole un token long-lived (30j) garderait l'acces meme
+    // apres une rotation legitime du mot de passe.
+    await db.update(usersTable).set({
+      passwordHash: newHash,
+      tokenInvalidatedAt: new Date(),
+      updatedAt: new Date(),
+    }).where(eq(usersTable.id, userId));
+    clearTokenInvalidationCache(userId);
 
     logAudit(userId, user.email, "password_changed", "auth", undefined, undefined, req.ip, req.get("user-agent"), user.organisationId);
 
@@ -1094,8 +1105,12 @@ router.post("/auth/reset-password", resetLimiter, async (req: Request, res: Resp
       resetPasswordExpiry: null,
       tentativesEchouees: 0,
       verrouilleJusqua: null,
+      // Idem change-password: invalide les Bearer tokens stateless en plus
+      // des sessions cookie. Fail-closed pour les deux flux d'auth.
+      tokenInvalidatedAt: new Date(),
       updatedAt: new Date(),
     }).where(eq(usersTable.id, user.id));
+    clearTokenInvalidationCache(user.id);
 
     // Invalider toutes les sessions existantes de cet utilisateur — fail-closed.
     try {

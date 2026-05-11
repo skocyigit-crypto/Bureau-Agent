@@ -1,5 +1,52 @@
 import type { Request, Response, NextFunction } from "express";
+import { eq } from "drizzle-orm";
+import { db, usersTable } from "@workspace/db";
 import { extractBearerToken, verifyApiToken } from "../lib/api-token";
+
+/**
+ * Cache court (60s) du plancher d'invalidation par utilisateur. Sans
+ * cache, chaque requete Bearer ajoute un round-trip Postgres juste pour
+ * lire `users.token_invalidated_at`, ce qui doublerait la latence des
+ * endpoints les plus chauds (calls/contacts/tasks). 60s est court devant
+ * la duree de vie d'un token (30j) et d'une compromission realiste, et
+ * couvre l'effet de pic d'une requete de changement de mot de passe.
+ *
+ * Sentinelle `null` = utilisateur n'a jamais invalide ses tokens.
+ * Sentinelle `undefined` = pas en cache.
+ */
+const invalidationCache = new Map<number, { value: number | null; fetchedAt: number }>();
+const INVALIDATION_TTL_MS = 60 * 1000;
+const INVALIDATION_CACHE_MAX = 10_000;
+
+async function getTokenInvalidatedAt(userId: number): Promise<number | null> {
+  const now = Date.now();
+  const cached = invalidationCache.get(userId);
+  if (cached && now - cached.fetchedAt < INVALIDATION_TTL_MS) return cached.value;
+  // GC opportuniste pour borner la map. Une expulsion FIFO suffit, on ne
+  // cherche pas d'eviction LRU exacte ici.
+  if (invalidationCache.size > INVALIDATION_CACHE_MAX) {
+    const cutoff = now - INVALIDATION_TTL_MS;
+    for (const [k, v] of invalidationCache) if (v.fetchedAt < cutoff) invalidationCache.delete(k);
+  }
+  const [row] = await db
+    .select({ tokenInvalidatedAt: usersTable.tokenInvalidatedAt, actif: usersTable.actif })
+    .from(usersTable)
+    .where(eq(usersTable.id, userId));
+  // Compte inactif/supprime: traiter comme une invalidation "infinie"
+  // pour rejeter le token sans 2e requete cote middleware.
+  if (!row || !row.actif) {
+    invalidationCache.set(userId, { value: Number.POSITIVE_INFINITY, fetchedAt: now });
+    return Number.POSITIVE_INFINITY;
+  }
+  const value = row.tokenInvalidatedAt ? new Date(row.tokenInvalidatedAt).getTime() : null;
+  invalidationCache.set(userId, { value, fetchedAt: now });
+  return value;
+}
+
+/** Vide l'entree cache pour `userId` apres un changement de mot de passe. */
+export function clearTokenInvalidationCache(userId: number): void {
+  invalidationCache.delete(userId);
+}
 
 /**
  * Hydrate `req.session` a partir d'un Bearer token HMAC valide.
@@ -9,13 +56,22 @@ import { extractBearerToken, verifyApiToken } from "../lib/api-token";
  * Apres cette etape, les routes en aval lisent `req.session.userId`,
  * `req.session.userRole`, etc. de la meme maniere que pour le flux
  * cookie, ce qui evite tout fork des controleurs existants.
+ *
+ * Verifie aussi le plancher `users.token_invalidated_at`: tout token
+ * dont `iat < tokenInvalidatedAt` est rejete, meme si la signature
+ * HMAC est valide. C'est la voie de revocation pour les tokens
+ * stateless long-lived.
  */
-function hydrateFromBearer(req: Request): void {
+async function hydrateFromBearer(req: Request): Promise<void> {
   if (req.session?.userId) return;
   const token = extractBearerToken(req.get("authorization"));
   if (!token) return;
   const payload = verifyApiToken(token);
   if (!payload) return;
+
+  const invAt = await getTokenInvalidatedAt(payload.userId);
+  if (invAt !== null && payload.iat < invAt) return;
+
   // express-session expose req.session comme un objet mutable; assigner
   // les champs sans appeler session.save() le maintient en memoire pour
   // la duree de la requete uniquement (comportement stateless souhaite).
@@ -28,8 +84,8 @@ function hydrateFromBearer(req: Request): void {
   s.nom = payload.nom;
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
-  hydrateFromBearer(req);
+export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+  await hydrateFromBearer(req);
   const userId = req.session?.userId;
   if (!userId) {
     res.status(401).json({ error: "Non authentifie. Veuillez vous connecter." });
@@ -84,8 +140,8 @@ export function requireRole(...roles: string[]) {
     }
   }
 
-  return (req: Request, res: Response, next: NextFunction): void => {
-    hydrateFromBearer(req);
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    await hydrateFromBearer(req);
     const userId = req.session?.userId;
     if (!userId) {
       res.status(401).json({ error: "Non authentifie." });

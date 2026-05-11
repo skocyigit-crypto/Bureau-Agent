@@ -46,6 +46,13 @@ export const usersTable = pgTable("users", {
   emailVerificationToken: varchar("email_verification_token", { length: 128 }),
   emailVerificationExpiry: timestamp("email_verification_expiry", { withTimezone: true }),
   preferences: jsonb("preferences").$type<UserPreferences>(),
+  // Plancher d'invalidation des Bearer tokens API stateless. Tout token
+  // dont `iat` est anterieur a cette date est rejete par le middleware,
+  // meme si sa signature HMAC est valide. Ecrit a chaque action sensible:
+  // changement de mot de passe, reset, force-reset admin. Permet de
+  // revoquer en masse les tokens long-lived (30j) qui ne sont pas dans
+  // user_sessions (les Bearer sont stateless cote serveur).
+  tokenInvalidatedAt: timestamp("token_invalidated_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
