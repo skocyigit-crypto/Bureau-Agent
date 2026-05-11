@@ -148,6 +148,9 @@ app.use("/api/documents", express.json({ limit: "40mb" }));
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
+import { protoPollutionGuard } from "./middleware/proto-pollution";
+app.use(protoPollutionGuard);
+
 app.use(hpp());
 
 app.disable("x-powered-by");
