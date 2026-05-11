@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { API_BASE, SESSION_STORAGE_KEY } from "@/lib/api-config";
 
 interface User {
   id: number;
@@ -32,8 +33,6 @@ const AuthContext = createContext<AuthContextType>({
   authHeaders: () => ({}),
 });
 
-const API_BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function restoreSession() {
     try {
-      const stored = await AsyncStorage.getItem("adb_session");
+      const stored = await AsyncStorage.getItem(SESSION_STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         setSessionCookie(parsed.cookie);
@@ -66,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const data = await res.json();
           setUser(data);
         } else {
-          await AsyncStorage.removeItem("adb_session");
+          await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
           setSessionCookie(null);
         }
       }
@@ -96,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (setCookieHeader) {
         const cookieValue = setCookieHeader.split(";")[0];
         setSessionCookie(cookieValue);
-        await AsyncStorage.setItem("adb_session", JSON.stringify({ cookie: cookieValue }));
+        await AsyncStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({ cookie: cookieValue }));
       }
 
       setUser(data);
@@ -119,7 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setUser(null);
       setSessionCookie(null);
-      await AsyncStorage.removeItem("adb_session");
+      await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
     }
   }
 
@@ -138,4 +137,6 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
+// Re-export pour conserver les imports existants (`from "@/contexts/AuthContext"`).
+// La source de verite est desormais `@/lib/api-config`.
 export { API_BASE };
