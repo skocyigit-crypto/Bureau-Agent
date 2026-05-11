@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import rateLimit from "express-rate-limit";
-import { eq, and, inArray, ne } from "drizzle-orm";
+import { eq, and, inArray, ne, sql } from "drizzle-orm";
 import { db, usersTable, organisationsTable } from "@workspace/db";
 import { logAudit } from "./audit";
 import { sendCredentialsEmail, sendEmail } from "../services/email";
@@ -113,12 +113,23 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
       dernierAcces: new Date(),
     }).where(eq(usersTable.id, user.id));
 
+    // Prevention de la fixation de session: regenerer l'ID avant d'attacher l'identite.
+    await new Promise<void>((resolve, reject) => {
+      req.session.regenerate((err) => err ? reject(err) : resolve());
+    });
+
     (req.session as any).userId = user.id;
     (req.session as any).userRole = user.role;
     (req.session as any).organisationId = user.organisationId;
     (req.session as any).userEmail = user.email;
+    (req.session as any).loginIp = req.ip;
+    (req.session as any).loginUserAgent = req.get("user-agent");
+    (req.session as any).loginAt = Date.now();
 
-    logAudit(user.id, user.email, "login", "auth", undefined, { role: user.role, mfaUsed: user.mfaActif }, req.ip, req.get("user-agent"));
+    logAudit(user.id, user.email, "login", "auth", undefined, { role: user.role, mfaUsed: user.mfaActif, ip: req.ip, ua: req.get("user-agent") }, req.ip, req.get("user-agent"));
+
+    // Notification de nouvelle connexion (best-effort, ne bloque pas la reponse)
+    void sendLoginNotificationIfNew(user, req.ip, req.get("user-agent")).catch(err => req.log.error({ err }, "Erreur notif login"));
 
     res.json({
       id: user.id,
@@ -847,10 +858,11 @@ router.post("/auth/forgot-password", resetLimiter, async (req: Request, res: Res
     }
 
     const token = crypto.randomBytes(48).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
     const expiry = new Date(Date.now() + 60 * 60 * 1000);
 
     await db.update(usersTable).set({
-      resetPasswordToken: token,
+      resetPasswordToken: tokenHash,
       resetPasswordExpiry: expiry,
       updatedAt: new Date(),
     }).where(eq(usersTable.id, user.id));
@@ -900,8 +912,18 @@ router.post("/auth/reset-password", resetLimiter, async (req: Request, res: Resp
   }
 
   try {
-    const [user] = await db.select({ id: usersTable.id, resetPasswordToken: usersTable.resetPasswordToken, resetPasswordExpiry: usersTable.resetPasswordExpiry })
-      .from(usersTable).where(eq(usersTable.resetPasswordToken, token));
+    const rawToken = String(token);
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    // Lookup par hash uniquement. Fallback plaintext autorise SEULEMENT pour
+    // les anciens tokens (96 caracteres hex = 48 bytes), jamais pour les
+    // longueurs correspondant a un hash SHA-256 (64 hex), ce qui empecherait
+    // l'utilisation directe d'un hash leak comme bearer.
+    let [user] = await db.select({ id: usersTable.id, email: usersTable.email, prenom: usersTable.prenom, resetPasswordExpiry: usersTable.resetPasswordExpiry })
+      .from(usersTable).where(eq(usersTable.resetPasswordToken, tokenHash));
+    if (!user && rawToken.length === 96 && /^[0-9a-f]+$/i.test(rawToken)) {
+      [user] = await db.select({ id: usersTable.id, email: usersTable.email, prenom: usersTable.prenom, resetPasswordExpiry: usersTable.resetPasswordExpiry })
+        .from(usersTable).where(eq(usersTable.resetPasswordToken, rawToken));
+    }
 
     if (!user || !user.resetPasswordExpiry || new Date(user.resetPasswordExpiry) < new Date()) {
       res.status(400).json({ error: "Lien invalide ou expire. Veuillez refaire une demande." });
@@ -918,11 +940,65 @@ router.post("/auth/reset-password", resetLimiter, async (req: Request, res: Resp
       updatedAt: new Date(),
     }).where(eq(usersTable.id, user.id));
 
-    res.json({ message: "Mot de passe reinitialise avec succes. Vous pouvez maintenant vous connecter." });
+    // Invalider toutes les sessions existantes de cet utilisateur — fail-closed.
+    try {
+      await invalidateUserSessions(user.id);
+    } catch (err: any) {
+      req.log.error({ err }, "Echec invalidation sessions apres reset");
+      res.status(500).json({ error: "Mot de passe mis a jour mais l'invalidation des sessions a echoue. Contactez le support." });
+      return;
+    }
+
+    // Notification de securite (best-effort).
+    void sendPasswordChangedEmail(user.email, user.prenom || "", req.ip).catch(err => req.log.error({ err }, "Erreur notif password reset"));
+
+    logAudit(user.id, user.email, "password_reset", "auth", String(user.id), { ip: req.ip }, req.ip, req.get("user-agent"));
+
+    res.json({ message: "Mot de passe reinitialise avec succes. Toutes vos sessions ont ete deconnectees. Vous pouvez maintenant vous reconnecter." });
   } catch (err: any) {
     req.log.error({ err }, "Erreur reset-password");
     res.status(500).json({ error: "Erreur lors de la reinitialisation." });
   }
 });
+
+async function invalidateUserSessions(userId: number): Promise<void> {
+  // Connect-pg-simple stocke session JSON dans user_sessions(sess jsonb).
+  await db.execute(sql`DELETE FROM user_sessions WHERE (sess->>'userId')::int = ${userId}`);
+}
+
+async function sendPasswordChangedEmail(email: string, prenom: string, ip: string | undefined): Promise<void> {
+  const when = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
+  const html = `<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px">
+    <h2 style="color:#1a2744">Votre mot de passe a ete modifie</h2>
+    <p>Bonjour ${prenom},</p>
+    <p>Le mot de passe de votre compte Agent de Bureau a ete reinitialise le <strong>${when}</strong>${ip ? ` depuis l'IP <strong>${ip}</strong>` : ""}.</p>
+    <p>Toutes vos sessions actives ont ete deconnectees par securite.</p>
+    <p style="background:#fff7ed;border-left:4px solid #f59e0b;padding:12px;margin:16px 0">
+      <strong>Vous n'etes pas a l'origine de cette action ?</strong> Contactez immediatement support@agentdebureau.fr.
+    </p>
+  </div>`;
+  await sendEmail(email, "Securite: votre mot de passe a ete modifie", html, `Votre mot de passe a ete reinitialise le ${when}. Si ce n'est pas vous, contactez support@agentdebureau.fr.`);
+}
+
+async function sendLoginNotificationIfNew(user: any, ip: string | undefined, ua: string | undefined): Promise<void> {
+  if (process.env.LOGIN_NOTIFICATIONS !== "1") return;
+  if (!ip) return;
+  // Empreinte simple IP+UA, comparee a la derniere connexion stockee.
+  const fp = crypto.createHash("sha256").update(`${ip}|${ua || ""}`).digest("hex").slice(0, 32);
+  const knownFp = (user.lastLoginFingerprint as string | null) || null;
+  if (knownFp === fp) return;
+  await db.update(usersTable).set({ lastLoginFingerprint: fp }).where(eq(usersTable.id, user.id)).catch(() => {});
+  const when = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
+  const html = `<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px">
+    <h2 style="color:#1a2744">Nouvelle connexion detectee</h2>
+    <p>Bonjour ${user.prenom || ""},</p>
+    <p>Une connexion a votre compte Agent de Bureau a ete detectee depuis un nouvel appareil :</p>
+    <ul><li>Date : <strong>${when}</strong></li><li>IP : <strong>${ip}</strong></li>${ua ? `<li>Navigateur : ${String(ua).slice(0, 200)}</li>` : ""}</ul>
+    <p style="background:#fff7ed;border-left:4px solid #f59e0b;padding:12px;margin:16px 0">
+      <strong>Ce n'est pas vous ?</strong> Changez immediatement votre mot de passe et contactez support@agentdebureau.fr.
+    </p>
+  </div>`;
+  await sendEmail(user.email, "Nouvelle connexion a votre compte", html, `Nouvelle connexion ${when} depuis ${ip}. Si ce n'est pas vous, changez votre mot de passe.`);
+}
 
 export default router;

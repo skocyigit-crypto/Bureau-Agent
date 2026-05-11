@@ -40,6 +40,8 @@ export const usersTable = pgTable("users", {
   verrouilleJusqua: timestamp("verrouille_jusqua"),
   resetPasswordToken: varchar("reset_password_token", { length: 128 }),
   resetPasswordExpiry: timestamp("reset_password_expiry", { withTimezone: true }),
+  lastLoginFingerprint: varchar("last_login_fingerprint", { length: 64 }),
+  lastLoginIp: varchar("last_login_ip", { length: 64 }),
   preferences: jsonb("preferences").$type<UserPreferences>(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
