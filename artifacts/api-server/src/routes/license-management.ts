@@ -49,7 +49,7 @@ async function logAudit(orgId: number, action: string, details: string, userId?:
 router.get("/license-management/dashboard", async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
-    const userRole = (req.session as any)?.userRole;
+    const userRole = req.session?.userRole;
     if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces refuse" }); return; }
 
     const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId));
@@ -154,7 +154,7 @@ router.get("/license-management/client-invoices/:id", async (req: Request, res: 
 router.post("/license-management/send-payment-reminder", async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     const { factureClientId, customMessage } = req.body;
 
     if (!factureClientId) { res.status(400).json({ error: "factureClientId requis" }); return; }
@@ -246,8 +246,8 @@ router.post("/license-management/send-payment-reminder", async (req: Request, re
 router.post("/license-management/auto-generate-invoice", async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
-    const userId = (req.session as any)?.userId;
-    const userRole = (req.session as any)?.userRole;
+    const userId = req.session?.userId;
+    const userRole = req.session?.userRole;
     if (userRole !== "super_admin") { res.status(403).json({ error: "Super admin requis" }); return; }
 
     const { targetOrgId } = req.body;
@@ -415,7 +415,7 @@ router.post("/license-management/send-invoice-email", async (req: Request, res: 
       await db.update(facturesClientTable).set({ status: "envoyee" }).where(eq(facturesClientTable.id, facture.id));
     }
 
-    await logAudit(orgId, "invoice_email_sent", `Facture ${facture.reference} envoyee a ${facture.clientEmail}`, (req.session as any)?.userId);
+    await logAudit(orgId, "invoice_email_sent", `Facture ${facture.reference} envoyee a ${facture.clientEmail}`, req.session?.userId);
 
     res.json({ success: sent, message: sent ? `Facture envoyee a ${facture.clientEmail}` : "Echec de l'envoi" });
   } catch (err: any) {
@@ -427,7 +427,7 @@ router.post("/license-management/send-invoice-email", async (req: Request, res: 
 router.post("/license-management/auto-reminders", async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
-    const userRole = (req.session as any)?.userRole;
+    const userRole = req.session?.userRole;
     if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces refuse" }); return; }
 
     const now = new Date();
@@ -486,7 +486,7 @@ router.post("/license-management/auto-reminders", async (req: Request, res: Resp
       if (emailSent) sent++;
     }
 
-    await logAudit(orgId, "auto_reminders_run", `${sent} rappels envoyes, ${skipped} ignores sur ${overdueInvoices.length} factures en retard`, (req.session as any)?.userId);
+    await logAudit(orgId, "auto_reminders_run", `${sent} rappels envoyes, ${skipped} ignores sur ${overdueInvoices.length} factures en retard`, req.session?.userId);
 
     res.json({ success: true, total: overdueInvoices.length, sent, skipped });
   } catch (err: any) {
@@ -498,8 +498,8 @@ router.post("/license-management/auto-reminders", async (req: Request, res: Resp
 router.post("/license-management/create-client-invoice", async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
-    const userId = (req.session as any)?.userId;
-    const userRole = (req.session as any)?.userRole;
+    const userId = req.session?.userId;
+    const userRole = req.session?.userRole;
     if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces refuse" }); return; }
 
     const { clientName, clientEmail, clientPhone, clientAddress, clientCompany, title, items, dueDate, notes, conditions } = req.body;
@@ -553,7 +553,7 @@ router.post("/license-management/create-client-invoice", async (req: Request, re
 router.post("/license-management/mark-invoice-paid", async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     const { factureClientId, paymentMethod } = req.body;
     if (!factureClientId) { res.status(400).json({ error: "factureClientId requis" }); return; }
 
@@ -579,7 +579,7 @@ router.post("/license-management/mark-invoice-paid", async (req: Request, res: R
 router.post("/license-management/record-payment", async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     const { factureClientId, amount, paymentMethod, notes } = req.body;
     if (!factureClientId || !amount) { res.status(400).json({ error: "factureClientId et amount requis" }); return; }
 
@@ -618,7 +618,7 @@ router.get("/license-management/audit-log", async (req: Request, res: Response):
 router.post("/license-management/update-billing-settings", async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
-    const userRole = (req.session as any)?.userRole;
+    const userRole = req.session?.userRole;
     if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces refuse" }); return; }
 
     const { bankName, bankIban, bankBic, siret, tvaNumber, legalForm, capital, invoiceFooter, autoInvoiceEnabled, autoEmailInvoice } = req.body;
@@ -638,7 +638,7 @@ router.post("/license-management/update-billing-settings", async (req: Request, 
     if (Object.keys(updateData).length === 0) { res.status(400).json({ error: "Aucune donnee a mettre a jour" }); return; }
 
     await db.update(organisationsTable).set(updateData).where(eq(organisationsTable.id, orgId));
-    await logAudit(orgId, "billing_settings_updated", `Parametres de facturation mis a jour: ${Object.keys(updateData).join(", ")}`, (req.session as any)?.userId);
+    await logAudit(orgId, "billing_settings_updated", `Parametres de facturation mis a jour: ${Object.keys(updateData).join(", ")}`, req.session?.userId);
 
     res.json({ success: true });
   } catch (err: any) {
@@ -664,7 +664,7 @@ function ensureConfirmation(req: Request, expectedName: string): { ok: boolean; 
 }
 
 router.post("/license-management/orgs/:id/extend-trial", async (req: Request, res: Response): Promise<void> => {
-  const userRole = (req.session as any)?.userRole;
+  const userRole = req.session?.userRole;
   if (userRole !== "super_admin") { res.status(403).json({ error: "Reserve aux super-administrateurs" }); return; }
   const targetOrgId = Number(req.params.id);
   const days = Number(req.body?.days);
@@ -678,15 +678,15 @@ router.post("/license-management/orgs/:id/extend-trial", async (req: Request, re
     const newEnd = new Date(base.getTime() + days * 86400000);
     const previousState = { plan: sub.plan, status: sub.status, trialEndsAt: sub.trialEndsAt };
     await db.update(subscriptionsTable).set({ trialEndsAt: newEnd, plan: "essai", status: "active", updatedAt: new Date() }).where(eq(subscriptionsTable.organisationId, targetOrgId));
-    await logAudit(targetOrgId, "trial_extended_by_admin", `Trial prolonge de ${days} jours par super_admin (org: ${org.name}, nouvelle fin: ${newEnd.toISOString()})`, (req.session as any)?.userId, { days, newTrialEndsAt: newEnd, previousState, orgName: org.name, ipAddress: req.ip ?? null });
+    await logAudit(targetOrgId, "trial_extended_by_admin", `Trial prolonge de ${days} jours par super_admin (org: ${org.name}, nouvelle fin: ${newEnd.toISOString()})`, req.session?.userId, { days, newTrialEndsAt: newEnd, previousState, orgName: org.name, ipAddress: req.ip ?? null });
     res.json({ success: true, trialEndsAt: newEnd, previousState });
   } catch (err: any) { logger.error({ err }, "Erreur extend-trial"); res.status(500).json({ error: "Erreur" }); }
 });
 
 router.post("/license-management/orgs/:id/suspend", async (req: Request, res: Response): Promise<void> => {
-  const userRole = (req.session as any)?.userRole;
-  const adminUserId = (req.session as any)?.userId;
-  const adminOrgId = (req.session as any)?.organisationId;
+  const userRole = req.session?.userRole;
+  const adminUserId = req.session?.userId;
+  const adminOrgId = req.session?.organisationId;
   if (userRole !== "super_admin") { res.status(403).json({ error: "Reserve aux super-administrateurs" }); return; }
   const targetOrgId = Number(req.params.id);
   const reason = String(req.body?.reason || "").trim().substring(0, 500) || "Suspension manuelle";
@@ -706,7 +706,7 @@ router.post("/license-management/orgs/:id/suspend", async (req: Request, res: Re
 });
 
 router.post("/license-management/orgs/:id/reactivate", async (req: Request, res: Response): Promise<void> => {
-  const userRole = (req.session as any)?.userRole;
+  const userRole = req.session?.userRole;
   if (userRole !== "super_admin") { res.status(403).json({ error: "Reserve aux super-administrateurs" }); return; }
   const targetOrgId = Number(req.params.id);
   if (!Number.isFinite(targetOrgId) || targetOrgId <= 0) { res.status(400).json({ error: "ID organisation invalide" }); return; }
@@ -716,13 +716,13 @@ router.post("/license-management/orgs/:id/reactivate", async (req: Request, res:
     const { org, sub } = loaded;
     const previousState = { status: sub.status, suspendedAt: sub.suspendedAt, suspensionReason: sub.suspensionReason, paymentFailedCount: sub.paymentFailedCount };
     await db.update(subscriptionsTable).set({ status: "active", suspendedAt: null, suspensionReason: null, paymentFailedCount: 0, updatedAt: new Date() }).where(eq(subscriptionsTable.organisationId, targetOrgId));
-    await logAudit(targetOrgId, "manual_reactivated_by_admin", `Reactive manuellement par super_admin (org: ${org.name})`, (req.session as any)?.userId, { previousState, orgName: org.name, ipAddress: req.ip ?? null });
+    await logAudit(targetOrgId, "manual_reactivated_by_admin", `Reactive manuellement par super_admin (org: ${org.name})`, req.session?.userId, { previousState, orgName: org.name, ipAddress: req.ip ?? null });
     res.json({ success: true, previousState });
   } catch (err: any) { logger.error({ err }, "Erreur reactivate"); res.status(500).json({ error: "Erreur" }); }
 });
 
 router.post("/license-management/orgs/:id/regenerate-key", async (req: Request, res: Response): Promise<void> => {
-  const userRole = (req.session as any)?.userRole;
+  const userRole = req.session?.userRole;
   if (userRole !== "super_admin") { res.status(403).json({ error: "Reserve aux super-administrateurs" }); return; }
   const targetOrgId = Number(req.params.id);
   if (!Number.isFinite(targetOrgId) || targetOrgId <= 0) { res.status(400).json({ error: "ID organisation invalide" }); return; }
@@ -746,7 +746,7 @@ router.post("/license-management/orgs/:id/regenerate-key", async (req: Request, 
       }
     }
     const previousState = { plan: sub.plan, status: sub.status, oldKeyMasked: sub.licenseKey ? sub.licenseKey.substring(0, 8) + "..." : null, updatedAt: sub.updatedAt };
-    await logAudit(targetOrgId, "license_key_regenerated", `Cle de licence regeneree par super_admin (org: ${org.name})`, (req.session as any)?.userId, { previousState, newKeyMasked: newKey.substring(0, 8) + "...", orgName: org.name, ipAddress: req.ip ?? null });
+    await logAudit(targetOrgId, "license_key_regenerated", `Cle de licence regeneree par super_admin (org: ${org.name})`, req.session?.userId, { previousState, newKeyMasked: newKey.substring(0, 8) + "...", orgName: org.name, ipAddress: req.ip ?? null });
     res.json({ success: true, licenseKey: newKey });
   } catch (err: any) { logger.error({ err }, "Erreur regenerate-key"); res.status(500).json({ error: "Erreur" }); }
 });
@@ -771,7 +771,7 @@ async function fetchAllChunked<T extends { id: number }>(table: any, orgId: numb
 }
 
 router.get("/license-management/orgs/:id/export", async (req: Request, res: Response): Promise<void> => {
-  const userRole = (req.session as any)?.userRole;
+  const userRole = req.session?.userRole;
   if (userRole !== "super_admin") { res.status(403).json({ error: "Reserve aux super-administrateurs" }); return; }
   const targetOrgId = Number(req.params.id);
   if (!Number.isFinite(targetOrgId) || targetOrgId <= 0) { res.status(400).json({ error: "ID organisation invalide" }); return; }
@@ -789,12 +789,12 @@ router.get("/license-management/orgs/:id/export", async (req: Request, res: Resp
     const cappedEntities = Object.entries({ contacts: contactsR.hitCap, calls: callsR.hitCap, invoices: invoicesR.hitCap, payments: paymentsR.hitCap, audit: auditR.hitCap }).filter(([, capped]) => capped).map(([k]) => k);
     const truncated = cappedEntities.length > 0;
     const complete = !truncated;
-    await logAudit(targetOrgId, "data_exported_by_admin", `Export ${complete ? "complet" : "tronque"} de donnees realise par super_admin (org: ${loaded.org.name})`, (req.session as any)?.userId, { orgName: loaded.org.name, counts, complete, truncated, cappedEntities, maxRowsPerEntity: EXPORT_MAX_ITERATIONS * 1000, ipAddress: req.ip ?? null });
+    await logAudit(targetOrgId, "data_exported_by_admin", `Export ${complete ? "complet" : "tronque"} de donnees realise par super_admin (org: ${loaded.org.name})`, req.session?.userId, { orgName: loaded.org.name, counts, complete, truncated, cappedEntities, maxRowsPerEntity: EXPORT_MAX_ITERATIONS * 1000, ipAddress: req.ip ?? null });
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="org-${targetOrgId}-export-${new Date().toISOString().slice(0,10)}.json"`);
     res.json({
       exportedAt: new Date().toISOString(),
-      exportedBy: (req.session as any)?.userId,
+      exportedBy: req.session?.userId,
       complete,
       truncated,
       cappedEntities,

@@ -77,7 +77,7 @@ router.post("/app-releases", requireAuth, requireRole("super_admin"), async (req
   }
 
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     const [release] = await db.insert(appReleasesTable).values({
       version,
       title,
@@ -118,7 +118,7 @@ router.get("/data-version", async (req, res) => {
       return;
     }
 
-    const orgId = (req.session as any)?.organisationId;
+    const orgId = req.session?.organisationId;
     const tables = [
       { t: callsTable, col: callsTable.updatedAt, org: callsTable.organisationId },
       { t: contactsTable, col: contactsTable.updatedAt, org: contactsTable.organisationId },

@@ -34,12 +34,12 @@ const PROTECTED_ROLE = "super_admin";
 
 // ── Helper: read session fields safely ───────────────────────────────────────
 export function getSession(req: Request) {
-  const s = req.session as any;
+  const s = req.session;
   return {
-    userId:         s?.userId         as number | undefined,
-    userRole:       s?.userRole       as string | undefined,
-    organisationId: s?.organisationId as number | undefined,
-    userEmail:      s?.userEmail      as string | undefined,
+    userId:         s?.userId,
+    userRole:       s?.userRole,
+    organisationId: s?.organisationId,
+    userEmail:      s?.userEmail,
   };
 }
 

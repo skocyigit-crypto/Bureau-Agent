@@ -30,11 +30,15 @@ function getAppUrl(): string {
 }
 
 router.get("/invitations", async (req: Request, res: Response): Promise<void> => {
-  const userRole = (req.session as any)?.userRole;
-  const organisationId = (req.session as any)?.organisationId;
+  const userRole = req.session?.userRole;
+  const organisationId = req.session?.organisationId;
 
   if (userRole !== "super_admin" && userRole !== "administrateur") {
     res.status(403).json({ error: "Acces reserve aux administrateurs." });
+    return;
+  }
+  if (!organisationId) {
+    res.status(403).json({ error: "Organisation non identifiee." });
     return;
   }
 
@@ -57,12 +61,16 @@ router.get("/invitations", async (req: Request, res: Response): Promise<void> =>
 });
 
 router.post("/invitations", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
-  const userRole = (req.session as any)?.userRole;
-  const organisationId = (req.session as any)?.organisationId;
+  const userId = req.session?.userId;
+  const userRole = req.session?.userRole;
+  const organisationId = req.session?.organisationId;
 
   if (userRole !== "super_admin" && userRole !== "administrateur") {
     res.status(403).json({ error: "Seuls les administrateurs peuvent envoyer des invitations." });
+    return;
+  }
+  if (!userId || !organisationId) {
+    res.status(401).json({ error: "Session invalide." });
     return;
   }
 
@@ -238,12 +246,16 @@ router.post("/invitations", async (req: Request, res: Response): Promise<void> =
 });
 
 router.post("/invitations/:id/resend", async (req: Request, res: Response): Promise<void> => {
-  const userRole = (req.session as any)?.userRole;
-  const organisationId = (req.session as any)?.organisationId;
+  const userRole = req.session?.userRole;
+  const organisationId = req.session?.organisationId;
   const invitationId = parseInt(String(req.params.id));
 
   if (userRole !== "super_admin" && userRole !== "administrateur") {
     res.status(403).json({ error: "Acces reserve aux administrateurs." });
+    return;
+  }
+  if (!organisationId) {
+    res.status(403).json({ error: "Organisation non identifiee." });
     return;
   }
 
@@ -307,12 +319,16 @@ router.post("/invitations/:id/resend", async (req: Request, res: Response): Prom
 });
 
 router.delete("/invitations/:id", async (req: Request, res: Response): Promise<void> => {
-  const userRole = (req.session as any)?.userRole;
-  const organisationId = (req.session as any)?.organisationId;
+  const userRole = req.session?.userRole;
+  const organisationId = req.session?.organisationId;
   const invitationId = parseInt(String(req.params.id));
 
   if (userRole !== "super_admin" && userRole !== "administrateur") {
     res.status(403).json({ error: "Acces reserve aux administrateurs." });
+    return;
+  }
+  if (!organisationId) {
+    res.status(403).json({ error: "Organisation non identifiee." });
     return;
   }
 
@@ -454,6 +470,8 @@ router.post("/invitations/accept/:token", async (req: Request, res: Response): P
     req.session.userRole = newUser.role;
     req.session.organisationId = invitation.organisationId;
     req.session.userEmail = newUser.email;
+    req.session.prenom = newUser.prenom ?? undefined;
+    req.session.nom = newUser.nom ?? undefined;
 
     logAudit(newUser.id, newUser.email, "invitation_accepted", "invitation", String(invitation.id), { role: invitation.role }, req.ip, req.get("user-agent"), invitation.organisationId);
 

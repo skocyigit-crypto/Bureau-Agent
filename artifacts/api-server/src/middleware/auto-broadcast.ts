@@ -33,8 +33,8 @@ const BROADCAST_RULES: Array<{
 ];
 
 export function autoBroadcast(req: Request, res: Response, next: NextFunction): void {
-  const orgId: number | undefined = (req.session as any)?.organisationId;
-  const userId: number | undefined = (req.session as any)?.userId;
+  const orgId: number | undefined = req.session?.organisationId;
+  const userId: number | undefined = req.session?.userId;
 
   if (!orgId || !userId) { next(); return; }
 

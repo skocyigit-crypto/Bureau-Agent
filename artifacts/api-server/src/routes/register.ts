@@ -177,6 +177,8 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
       req.session.userRole = result.user.role;
       req.session.organisationId = result.user.organisationId ?? undefined;
       req.session.userEmail = result.user.email;
+      req.session.prenom = result.user.prenom ?? undefined;
+      req.session.nom = result.user.nom ?? undefined;
     }
 
     res.status(201).json({

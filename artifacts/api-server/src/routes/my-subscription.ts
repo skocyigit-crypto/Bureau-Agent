@@ -6,11 +6,11 @@ import { PLANS, type PlanKey } from "@workspace/db/schema";
 const router = Router();
 
 function getSession(req: Request) {
-  const s = req.session as any;
+  const s = req.session;
   return {
-    userId: s?.userId as number | undefined,
-    orgId: s?.organisationId as number | undefined,
-    role: s?.userRole as string | undefined,
+    userId: s?.userId,
+    orgId: s?.organisationId,
+    role: s?.userRole,
   };
 }
 

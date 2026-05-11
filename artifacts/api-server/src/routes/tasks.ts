@@ -90,7 +90,7 @@ router.post("/tasks", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
 
   try {
     const [task] = await db.insert(tasksTable).values({ ...parsed.data, organisationId: orgId, createdBy: userId, updatedBy: userId }).returning();
@@ -139,7 +139,7 @@ router.patch("/tasks/:id", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
 
   try {
     const [task] = await db.update(tasksTable)
@@ -186,7 +186,7 @@ router.get("/tasks/export/csv", async (req, res): Promise<void> => {
 
 router.post("/tasks/:id/duplicate", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {

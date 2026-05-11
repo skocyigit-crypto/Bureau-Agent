@@ -6,7 +6,7 @@ import { logger } from "../lib/logger";
 const router = Router();
 
 function getOrgId(req: any): number {
-  return (req.session as any)?.organisationId || 0;
+  return req.session?.organisationId || 0;
 }
 
 interface SoftwareIntegration {

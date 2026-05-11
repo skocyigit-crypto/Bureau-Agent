@@ -233,8 +233,8 @@ async function scanEnvironment(orgId: number, userId: number): Promise<Discovere
 
 router.get("/discovery/scan", async (req, res): Promise<void> => {
   try {
-    const orgId = (req.session as any)?.organisationId;
-    const userId = (req.session as any)?.userId;
+    const orgId = req.session?.organisationId;
+    const userId = req.session?.userId;
     if (!orgId || !userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
     const services = await scanEnvironment(orgId, userId);

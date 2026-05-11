@@ -23,7 +23,7 @@ function toCsv(data: any[], columns: { key: string; label: string }[]): string {
 const VALID_ENTITIES = ["contacts", "appels", "taches", "messages", "prospects", "devis", "factures", "stock", "commandes-fournisseur", "projets"] as const;
 
 router.get("/export/:entity", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   const orgId = getOrgId(req);

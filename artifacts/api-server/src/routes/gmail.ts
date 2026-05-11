@@ -76,7 +76,7 @@ function getAttachments(payload: any): any[] {
 
 router.get("/gmail/profile", async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
     const auth = await getAuthClient(userId);
     if (!auth) { res.json({ authenticated: false }); return; }
@@ -96,7 +96,7 @@ router.get("/gmail/profile", async (req: Request, res: Response): Promise<void> 
 
 router.get("/gmail/inbox", async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
     const auth = await getAuthClient(userId);
     if (!auth) { res.json({ emails: [], authenticated: false }); return; }
@@ -153,7 +153,7 @@ router.get("/gmail/inbox", async (req: Request, res: Response): Promise<void> =>
 
 router.get("/gmail/message/:id", async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
     const auth = await getAuthClient(userId);
     if (!auth) { res.status(403).json({ error: "non_connecte" }); return; }
@@ -199,7 +199,7 @@ router.get("/gmail/message/:id", async (req: Request, res: Response): Promise<vo
 
 router.get("/gmail/thread/:threadId", async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
     const auth = await getAuthClient(userId);
     if (!auth) { res.status(403).json({ error: "non_connecte" }); return; }
@@ -237,7 +237,7 @@ router.get("/gmail/thread/:threadId", async (req: Request, res: Response): Promi
 
 router.post("/gmail/send", async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
     const auth = await getAuthClient(userId);
     if (!auth) { res.status(403).json({ error: "non_connecte" }); return; }
@@ -275,7 +275,7 @@ router.post("/gmail/send", async (req: Request, res: Response): Promise<void> =>
 
 router.post("/gmail/reply", async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
     const auth = await getAuthClient(userId);
     if (!auth) { res.status(403).json({ error: "non_connecte" }); return; }
@@ -313,7 +313,7 @@ router.post("/gmail/reply", async (req: Request, res: Response): Promise<void> =
 
 router.patch("/gmail/message/:id/star", async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
     const auth = await getAuthClient(userId);
     if (!auth) { res.status(403).json({ error: "non_connecte" }); return; }
@@ -335,7 +335,7 @@ router.patch("/gmail/message/:id/star", async (req: Request, res: Response): Pro
 
 router.patch("/gmail/message/:id/read", async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
     const auth = await getAuthClient(userId);
     if (!auth) { res.status(403).json({ error: "non_connecte" }); return; }
@@ -357,7 +357,7 @@ router.patch("/gmail/message/:id/read", async (req: Request, res: Response): Pro
 
 router.post("/gmail/message/:id/archive", async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
     const auth = await getAuthClient(userId);
     if (!auth) { res.status(403).json({ error: "non_connecte" }); return; }
@@ -377,7 +377,7 @@ router.post("/gmail/message/:id/archive", async (req: Request, res: Response): P
 
 router.delete("/gmail/message/:id/trash", async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
     const auth = await getAuthClient(userId);
     if (!auth) { res.status(403).json({ error: "non_connecte" }); return; }
@@ -515,7 +515,7 @@ export interface EmailScanReport {
 
 router.post("/gmail/message/:id/scan", async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
     const auth = await getAuthClient(userId);
     if (!auth) { res.status(403).json({ error: "non_connecte" }); return; }
@@ -577,7 +577,7 @@ router.post("/gmail/message/:id/scan", async (req: Request, res: Response): Prom
     // 4. AI phishing analysis via Gemini (cached per message)
     let aiAnalysis: EmailScanReport["aiAnalysis"] = null;
     const { buildAiCacheKey: _buildKey, getCached: _getC, setCached: _setC, AI_CACHE_TTL: _ttl, withProviderTimeout: _to } = await import("../services/ai-cache");
-    const orgIdForCache = (req.session as any)?.organisationId ?? null;
+    const orgIdForCache = req.session?.organisationId ?? null;
     const phishingKey = _buildKey({
       route: "/gmail/scan",
       organisationId: orgIdForCache,
@@ -677,7 +677,7 @@ Réponds en JSON strict avec ce format:
 
 router.get("/gmail/labels", async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
     const auth = await getAuthClient(userId);
     if (!auth) { res.json({ labels: [], authenticated: false }); return; }

@@ -182,6 +182,8 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
     req.session.userRole = user.role;
     req.session.organisationId = user.organisationId ?? undefined;
     req.session.userEmail = user.email;
+    req.session.prenom = user.prenom ?? undefined;
+    req.session.nom = user.nom ?? undefined;
     req.session.loginIp = req.ip;
     req.session.loginUserAgent = req.get("user-agent");
     req.session.loginAt = Date.now();

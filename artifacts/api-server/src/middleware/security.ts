@@ -140,7 +140,7 @@ function recordThreat(ip: string, reason: string, req: Request): void {
   }
   ipBlacklist.set(ip, entry);
 
-  const userId = (req.session as any)?.userId || null;
+  const userId = req.session?.userId || null;
   const severity = entry.count >= THREAT_THRESHOLD ? "critical" as const : "warning" as const;
 
   logger.warn({
@@ -281,7 +281,7 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
       url: req.originalUrl,
       ip,
     }, "[SECURITE] Requete sans origin/referer bloquee");
-    logSecurityEvent("csrf_blocked", ip, (req.session as any)?.userId || null,
+    logSecurityEvent("csrf_blocked", ip, req.session?.userId || null,
       `Requete sans origin/referer (${req.method} ${req.originalUrl})`, "warning");
     res.status(403).json({ error: "Requete non autorisee - origine manquante." });
     return;
@@ -314,7 +314,7 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
     url: req.originalUrl,
     ip,
   }, "[SECURITE] Origine CSRF non correspondante");
-  logSecurityEvent("csrf_blocked", ip, (req.session as any)?.userId || null,
+  logSecurityEvent("csrf_blocked", ip, req.session?.userId || null,
     `Origine CSRF invalide: ${requestOrigin} (${req.method} ${req.originalUrl})`, "warning");
   res.status(403).json({ error: "Requete non autorisee - origine invalide." });
 }

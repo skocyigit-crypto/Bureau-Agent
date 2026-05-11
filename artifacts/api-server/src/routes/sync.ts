@@ -4,8 +4,8 @@ import { broadcaster, type SyncEventType } from "../services/broadcaster";
 const router = Router();
 
 router.get("/sync/events", (req, res): void => {
-  const orgId = (req.session as any)?.organisationId;
-  const userId = (req.session as any)?.userId;
+  const orgId = req.session?.organisationId;
+  const userId = req.session?.userId;
   if (!orgId || !userId) { res.status(401).end(); return; }
 
   res.setHeader("Content-Type", "text/event-stream");
@@ -34,8 +34,8 @@ router.get("/sync/events", (req, res): void => {
 });
 
 router.post("/sync/broadcast", (req, res): void => {
-  const orgId = (req.session as any)?.organisationId;
-  const userId = (req.session as any)?.userId;
+  const orgId = req.session?.organisationId;
+  const userId = req.session?.userId;
   if (!orgId || !userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   const { type, action, resourceId } = req.body as {
@@ -51,7 +51,7 @@ router.post("/sync/broadcast", (req, res): void => {
 });
 
 router.get("/sync/status", (req, res): void => {
-  const orgId = (req.session as any)?.organisationId;
+  const orgId = req.session?.organisationId;
   res.json({
     orgConnections: orgId ? broadcaster.connectionCount(orgId) : 0,
     totalConnections: broadcaster.totalConnections(),

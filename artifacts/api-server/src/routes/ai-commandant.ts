@@ -577,10 +577,10 @@ JSON attendu:
       } catch (e) { logger.error({ err: e }, "[Commandant/AutoCreate] event insert failed:"); }
     }
 
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     for (const reminder of (parsed.reminders || [])) {
       try {
-        await createNotification(orgId, userId, reminder.title, reminder.message, "rappel");
+        await createNotification(orgId, userId ?? null, reminder.title, reminder.message, "rappel");
       } catch (e) { logger.error({ err: e }, "[Commandant/AutoCreate] reminder failed:"); }
     }
 
@@ -766,9 +766,9 @@ JSON attendu:
       }
     }
 
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     for (const alert of (parsed.criticalAlerts || [])) {
-      await createNotification(orgId, userId, "Alerte critique", alert, "alerte");
+      await createNotification(orgId, userId ?? null, "Alerte critique", alert, "alerte");
     }
 
     res.json({
@@ -841,9 +841,9 @@ JSON attendu:
       } catch (e) { logger.error({ err: e }, "[Commandant/MeetingCompile] event insert failed:"); }
     }
 
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     for (const reminder of (parsed.reminders || [])) {
-      await createNotification(orgId, userId, `[Reunion] ${reminder.title}`, reminder.message, "rappel");
+      await createNotification(orgId, userId ?? null, `[Reunion] ${reminder.title}`, reminder.message, "rappel");
     }
 
     res.json({ success: true, compilation: parsed, createdTasks, createdEvents, remindersCreated: (parsed.reminders || []).length });
@@ -1264,7 +1264,7 @@ Resume:`;
 
 router.post("/commandant/smart-search/stream", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   const { query } = req.body || {};
   if (!query || typeof query !== "string" || query.length < 2) {
     res.status(400).json({ error: "Requete trop courte" });
@@ -1407,7 +1407,7 @@ router.post("/commandant/analyze-text", async (req: Request, res: Response): Pro
 
 router.post("/commandant/analyze-text/stream", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   const { text, analysisType } = req.body || {};
   if (!text || typeof text !== "string") { res.status(400).json({ error: "Texte requis" }); return; }
 
@@ -1488,7 +1488,7 @@ router.post("/commandant/analyze-text/stream", async (req: Request, res: Respons
 router.post("/commandant/execute-command", async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     const { command } = req.body;
     if (!command || typeof command !== "string" || command.length < 3) {
       res.status(400).json({ error: "Commande requise (minimum 3 caracteres)" });
@@ -1565,7 +1565,7 @@ Reponds en JSON:
 
 router.post("/commandant/execute-command/stream", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   const { command } = req.body || {};
   if (!command || typeof command !== "string" || command.length < 3) {
     res.status(400).json({ error: "Commande requise (minimum 3 caracteres)" });
@@ -1777,7 +1777,7 @@ JSON attendu:
 
 router.post("/commandant/weekly-digest/stream", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
 
   const stream = openSseStream(res);
   try {
@@ -2351,7 +2351,7 @@ const MAX_HISTORY_MESSAGES = 10;
 const MAX_HISTORY_CHARS = 12000;
 
 function getUserId(req: Request): number | null {
-  const u = (req.session as any)?.userId;
+  const u = req.session?.userId;
   return typeof u === "number" ? u : null;
 }
 

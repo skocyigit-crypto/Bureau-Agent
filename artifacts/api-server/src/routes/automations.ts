@@ -11,7 +11,7 @@ import { logAudit } from "./audit";
 const router = Router();
 
 router.get("/notifications", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 20, 1), 100);
@@ -44,7 +44,7 @@ router.get("/notifications", async (req: Request, res: Response): Promise<void> 
 });
 
 router.patch("/notifications/:id/read", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   const id = parseInt(String(req.params.id));
@@ -61,7 +61,7 @@ router.patch("/notifications/:id/read", async (req: Request, res: Response): Pro
 });
 
 router.post("/notifications/read-all", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   try {
@@ -75,7 +75,7 @@ router.post("/notifications/read-all", async (req: Request, res: Response): Prom
 });
 
 router.delete("/notifications/:id", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   const id = parseInt(String(req.params.id));
@@ -92,7 +92,7 @@ router.delete("/notifications/:id", async (req: Request, res: Response): Promise
 });
 
 router.post("/notifications/delete-all", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   try {
@@ -105,7 +105,7 @@ router.post("/notifications/delete-all", async (req: Request, res: Response): Pr
 });
 
 router.get("/automations", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   try {
@@ -197,8 +197,8 @@ router.get("/automations", async (req: Request, res: Response): Promise<void> =>
 });
 
 router.post("/automations", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
-  const userRole = (req.session as any)?.userRole;
+  const userId = req.session?.userId;
+  const userRole = req.session?.userRole;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
   if (userRole !== "super_admin" && userRole !== "administrateur") {
     res.status(403).json({ error: "Acces refuse." }); return;
@@ -232,8 +232,8 @@ router.post("/automations", async (req: Request, res: Response): Promise<void> =
 });
 
 router.patch("/automations/:id", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
-  const userRole = (req.session as any)?.userRole;
+  const userId = req.session?.userId;
+  const userRole = req.session?.userRole;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
   if (userRole !== "super_admin" && userRole !== "administrateur") {
     res.status(403).json({ error: "Acces refuse." }); return;
@@ -271,8 +271,8 @@ router.patch("/automations/:id", async (req: Request, res: Response): Promise<vo
 });
 
 router.delete("/automations/:id", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
-  const userRole = (req.session as any)?.userRole;
+  const userId = req.session?.userId;
+  const userRole = req.session?.userRole;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
   if (userRole !== "super_admin" && userRole !== "administrateur") {
     res.status(403).json({ error: "Acces refuse." }); return;
@@ -292,8 +292,8 @@ router.delete("/automations/:id", async (req: Request, res: Response): Promise<v
 });
 
 router.post("/automations/bulk/delete", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
-  const userRole = (req.session as any)?.userRole;
+  const userId = req.session?.userId;
+  const userRole = req.session?.userRole;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
   if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces refuse." }); return; }
   const { ids } = req.body as { ids: number[] };
@@ -308,8 +308,8 @@ router.post("/automations/bulk/delete", async (req: Request, res: Response): Pro
 });
 
 router.post("/automations/bulk/toggle", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
-  const userRole = (req.session as any)?.userRole;
+  const userId = req.session?.userId;
+  const userRole = req.session?.userRole;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
   if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces refuse." }); return; }
   const { ids, enabled } = req.body as { ids: number[]; enabled: boolean };
@@ -325,7 +325,7 @@ router.post("/automations/bulk/toggle", async (req: Request, res: Response): Pro
 });
 
 router.get("/automations/logs", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 50, 1), 200);
@@ -358,8 +358,8 @@ router.get("/automations/logs", async (req: Request, res: Response): Promise<voi
 });
 
 router.post("/automations/:id/duplicate", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
-  const userRole = (req.session as any)?.userRole;
+  const userId = req.session?.userId;
+  const userRole = req.session?.userRole;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
   if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces refuse." }); return; }
   const id = parseInt(String(req.params.id));
@@ -386,8 +386,8 @@ router.post("/automations/:id/duplicate", async (req: Request, res: Response): P
 });
 
 router.get("/automations/export/csv", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
-  const userRole = (req.session as any)?.userRole;
+  const userId = req.session?.userId;
+  const userRole = req.session?.userRole;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
   if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces refuse." }); return; }
   try {

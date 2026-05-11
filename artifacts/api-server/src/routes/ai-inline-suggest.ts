@@ -149,7 +149,7 @@ router.post("/ai/inline-suggest", async (req: Request, res: Response): Promise<v
     const orgId = getOrgId(req);
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
 
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     const rateKey = userId ? `u:${userId}` : `o:${orgId}:${req.ip || "ip"}`;
     if (!checkInlineSuggestRate(rateKey)) {
       res.setHeader("X-RateLimit-Limit", String(RATE_MAX));

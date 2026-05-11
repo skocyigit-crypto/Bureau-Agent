@@ -19,8 +19,8 @@ const READ_ONLY_PATHS_WHEN_PAST_DUE = [
 ];
 
 export function licenseCheck(req: Request, res: Response, next: NextFunction): void {
-  const orgId = (req.session as any)?.organisationId as number | undefined;
-  const userRole = (req.session as any)?.userRole as string | undefined;
+  const orgId = req.session?.organisationId as number | undefined;
+  const userRole = req.session?.userRole as string | undefined;
 
   if (!orgId || userRole === "super_admin") {
     next();

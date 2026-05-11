@@ -228,7 +228,7 @@ function banIp(ip: string, reason: string, req: Request): void {
 
   guardianBlocklist.set(ip, entry);
 
-  const userId = (req.session as any)?.userId ?? null;
+  const userId = req.session?.userId ?? null;
   logSecurityEvent(
     entry.permanent ? "guardian_permanent_ban" : "guardian_temp_ban",
     ip,

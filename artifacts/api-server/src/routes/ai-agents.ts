@@ -1242,7 +1242,7 @@ async function runAgentsJob(orgId: number, job: JobState) {
 
 router.post("/ai/agents/run", requireAdmin, async (_req, res) => {
   try {
-    const orgId = (_req.session as any)?.organisationId;
+    const orgId = _req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
 
     const existing = runningJobs.get(orgId);
@@ -1272,7 +1272,7 @@ router.post("/ai/agents/run", requireAdmin, async (_req, res) => {
 });
 
 router.get("/ai/agents/run/status", requireAdmin, async (req, res) => {
-  const orgId = (req.session as any)?.organisationId;
+  const orgId = req.session?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
   const job = runningJobs.get(orgId);
   if (!job) {
@@ -1289,7 +1289,7 @@ router.get("/ai/agents/run/status", requireAdmin, async (req, res) => {
 });
 
 router.post("/ai/agents/run/cancel", requireAdmin, async (req, res) => {
-  const orgId = (req.session as any)?.organisationId;
+  const orgId = req.session?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
   const job = runningJobs.get(orgId);
   if (!job || job.status !== "running") {
@@ -1301,7 +1301,7 @@ router.post("/ai/agents/run/cancel", requireAdmin, async (req, res) => {
 });
 
 router.post("/ai/agents/run/stream", requireAdmin, async (req, res) => {
-  const orgId = (req.session as any)?.organisationId;
+  const orgId = req.session?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
 
   let job = runningJobs.get(orgId);
@@ -1350,7 +1350,7 @@ router.post("/ai/agents/run/stream", requireAdmin, async (req, res) => {
 
 router.post("/ai/agents/run/:agentId", requireAdmin, async (req, res) => {
   try {
-    const orgId = (req.session as any)?.organisationId;
+    const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const { agentId } = req.params;
     const agent = AGENTS.find(a => a.id === agentId);
@@ -1368,7 +1368,7 @@ router.post("/ai/agents/run/:agentId", requireAdmin, async (req, res) => {
 });
 
 router.post("/ai/agents/run/:agentId/stream", requireAdmin, async (req, res) => {
-  const orgId = (req.session as any)?.organisationId;
+  const orgId = req.session?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
   const { agentId } = req.params;
   const agent = AGENTS.find(a => a.id === agentId);
@@ -1525,7 +1525,7 @@ router.post("/ai/agents/run/:agentId/stream", requireAdmin, async (req, res) => 
 
 router.post("/ai/agents/super", requireAdmin, async (req, res) => {
   try {
-    const orgId = (req.session as any)?.organisationId;
+    const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const today = new Date().toISOString().split("T")[0];
     const todayReports = await db.select().from(aiAgentReportsTable)
@@ -1548,7 +1548,7 @@ router.post("/ai/agents/super", requireAdmin, async (req, res) => {
 });
 
 router.get("/ai/agents/reports", requireMinAgent, async (req, res) => {
-  const orgId = (req.session as any)?.organisationId;
+  const orgId = req.session?.organisationId;
   const { date, agentId, superOnly } = req.query as Record<string, string>;
   const conditions = [];
 
@@ -1568,7 +1568,7 @@ router.get("/ai/agents/reports", requireMinAgent, async (req, res) => {
 });
 
 router.get("/ai/agents/reports/:id", requireMinAgent, async (req, res): Promise<void> => {
-  const orgId = (req.session as any)?.organisationId;
+  const orgId = req.session?.organisationId;
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) {
     res.status(400).json({ error: "ID invalide" });
@@ -1585,7 +1585,7 @@ router.get("/ai/agents/reports/:id", requireMinAgent, async (req, res): Promise<
 });
 
 router.get("/ai/agents/latest", requireMinAgent, async (req, res) => {
-  const orgId = (req.session as any)?.organisationId;
+  const orgId = req.session?.organisationId;
   const latestByAgent: Record<string, any> = {};
   const allAgentIds = [...AGENTS.map(a => a.id), "super_agent"];
 
@@ -1603,14 +1603,14 @@ router.get("/ai/agents/latest", requireMinAgent, async (req, res) => {
 });
 
 router.get("/ai/agents/config", requireMinAgent, async (req, res) => {
-  const orgId = (req.session as any)?.organisationId;
+  const orgId = req.session?.organisationId;
   res.json({ agents: AGENTS, autoRunEnabled: orgId ? autoRunState.has(orgId) : false, autoRunIntervalMinutes: 120 });
 });
 
 const autoRunState = new Map<number, { interval: ReturnType<typeof setInterval>; running: boolean }>();
 
 router.post("/ai/agents/auto-start", requireAdmin, async (_req, res) => {
-  const orgId = (_req.session as any)?.organisationId;
+  const orgId = _req.session?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
 
   const existing = autoRunState.get(orgId);
@@ -1658,7 +1658,7 @@ router.post("/ai/agents/auto-start", requireAdmin, async (_req, res) => {
 });
 
 router.post("/ai/agents/auto-stop", requireAdmin, async (_req, res) => {
-  const orgId = (_req.session as any)?.organisationId;
+  const orgId = _req.session?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
 
   const state = autoRunState.get(orgId);
@@ -1996,7 +1996,7 @@ Reponds en JSON:
 const runningAutopilotJobs = new Map<number, boolean>();
 
 router.post("/ai/autopilot/run", requireAdmin, async (req, res): Promise<void> => {
-  const orgId = (req.session as any)?.organisationId;
+  const orgId = req.session?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
 
   if (runningAutopilotJobs.get(orgId)) {
@@ -2022,7 +2022,7 @@ router.post("/ai/autopilot/run", requireAdmin, async (req, res): Promise<void> =
 });
 
 router.post("/ai/autopilot/start", requireAdmin, async (req, res): Promise<void> => {
-  const orgId = (req.session as any)?.organisationId;
+  const orgId = req.session?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
 
   const state = getOrgAutopilot(orgId);
@@ -2061,7 +2061,7 @@ router.post("/ai/autopilot/start", requireAdmin, async (req, res): Promise<void>
 });
 
 router.post("/ai/autopilot/stop", requireAdmin, async (req, res): Promise<void> => {
-  const orgId = (req.session as any)?.organisationId;
+  const orgId = req.session?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
 
   const state = getOrgAutopilot(orgId);
@@ -2075,7 +2075,7 @@ router.post("/ai/autopilot/stop", requireAdmin, async (req, res): Promise<void> 
 });
 
 router.get("/ai/autopilot/status", requireMinAgent, async (req, res): Promise<void> => {
-  const orgId = (req.session as any)?.organisationId;
+  const orgId = req.session?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
 
   const state = getOrgAutopilot(orgId);
@@ -2086,7 +2086,7 @@ router.get("/ai/autopilot/status", requireMinAgent, async (req, res): Promise<vo
 });
 
 router.get("/ai/autopilot/logs", requireMinAgent, async (req, res): Promise<void> => {
-  const orgId = (req.session as any)?.organisationId;
+  const orgId = req.session?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
 
   const state = getOrgAutopilot(orgId);
@@ -2095,8 +2095,8 @@ router.get("/ai/autopilot/logs", requireMinAgent, async (req, res): Promise<void
 
 router.post("/ai/agents/auto-fix", requireAdmin, async (req, res): Promise<void> => {
   try {
-    const orgId = (req.session as any)?.organisationId;
-    const userId = (req.session as any)?.userId;
+    const orgId = req.session?.organisationId;
+    const userId = req.session?.userId;
     if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
 
     const now = new Date();
@@ -2280,7 +2280,7 @@ router.post("/ai/agents/auto-fix", requireAdmin, async (req, res): Promise<void>
 
 router.get("/ai/anomalies", requireMinAgent, async (req, res): Promise<void> => {
   try {
-    const orgId = (req.session as any)?.organisationId;
+    const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
 
     const now = new Date();
@@ -2643,8 +2643,8 @@ async function runSuperAgentCycle(orgId: number, userId: number) {
 }
 
 router.post("/ai/super-agent/run", requireAdmin, async (req, res): Promise<void> => {
-  const orgId = (req.session as any)?.organisationId;
-  const userId = (req.session as any)?.userId;
+  const orgId = req.session?.organisationId;
+  const userId = req.session?.userId;
   if (!orgId || !userId) { res.status(403).json({ error: "Organisation requise." }); return; }
 
   const state = getSuperAgentState(orgId);
@@ -2660,8 +2660,8 @@ router.post("/ai/super-agent/run", requireAdmin, async (req, res): Promise<void>
 });
 
 router.post("/ai/super-agent/process-report", requireAdmin, async (req, res): Promise<void> => {
-  const orgId = (req.session as any)?.organisationId;
-  const userId = (req.session as any)?.userId;
+  const orgId = req.session?.organisationId;
+  const userId = req.session?.userId;
   if (!orgId || !userId) { res.status(403).json({ error: "Organisation requise." }); return; }
 
   const { report, reportType = "chantier", contactId, projectId } = req.body;
@@ -2715,7 +2715,7 @@ router.post("/ai/super-agent/process-report", requireAdmin, async (req, res): Pr
 });
 
 router.get("/ai/super-agent/status", requireMinAgent, async (req, res): Promise<void> => {
-  const orgId = (req.session as any)?.organisationId;
+  const orgId = req.session?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
   const state = getSuperAgentState(orgId);
   res.json({ running: state.running, lastRun: state.lastRun, stats: state.stats, recentLogs: state.logs.slice(-50) });

@@ -27,8 +27,8 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
 // ---------------------------------------------------------------------------
 router.post("/meetings/compile", async (req, res): Promise<void> => {
   try {
-    const orgId = (req.session as any)?.organisationId;
-    const userId = (req.session as any)?.userId;
+    const orgId = req.session?.organisationId;
+    const userId = req.session?.userId;
     if (!orgId || !userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
     const { notes, transcript, latitude, longitude } = req.body as {
@@ -255,7 +255,7 @@ Regles:
 // ---------------------------------------------------------------------------
 router.get("/meetings/chantiers", async (req, res): Promise<void> => {
   try {
-    const orgId = (req.session as any)?.organisationId;
+    const orgId = req.session?.organisationId;
     if (!orgId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
     const projets = await db
@@ -284,7 +284,7 @@ router.get("/meetings/chantiers", async (req, res): Promise<void> => {
 // ---------------------------------------------------------------------------
 router.patch("/meetings/chantiers/:id/location", async (req, res): Promise<void> => {
   try {
-    const orgId = (req.session as any)?.organisationId;
+    const orgId = req.session?.organisationId;
     if (!orgId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
     const id = parseInt(req.params.id);

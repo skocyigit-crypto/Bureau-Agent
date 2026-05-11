@@ -7,7 +7,7 @@ import { logger } from "../lib/logger";
 const router = Router();
 
 function requireSuperAdmin(req: Request, res: Response, next: () => void): void {
-  const userRole = (req.session as any)?.userRole;
+  const userRole = req.session?.userRole;
   if (userRole !== "super_admin") {
     res.status(403).json({ error: "Acces reserve au super administrateur." });
     return;

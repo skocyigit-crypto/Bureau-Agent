@@ -46,7 +46,7 @@ router.get("/subscription/plans", async (_req: Request, res: Response): Promise<
 });
 
 router.post("/subscription/upgrade", async (req: Request, res: Response): Promise<void> => {
-  const userRole = (req.session as any)?.userRole;
+  const userRole = req.session?.userRole;
   if (userRole !== "super_admin") {
     res.status(403).json({
       error: "Le changement de plan se fait via votre portail de facturation Stripe.",

@@ -17,7 +17,7 @@ const ALLOWED_UPDATE_FIELDS = new Set([
 ]);
 
 router.get("/calendar/events", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   const orgId = getOrgId(req);
@@ -117,7 +117,7 @@ router.get("/calendar/events", async (req: Request, res: Response): Promise<void
 });
 
 router.post("/calendar/events", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   const orgId = getOrgId(req);
@@ -148,7 +148,7 @@ router.post("/calendar/events", async (req: Request, res: Response): Promise<voi
 });
 
 router.patch("/calendar/events/:id", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   const orgId = getOrgId(req);
@@ -186,7 +186,7 @@ router.patch("/calendar/events/:id", async (req: Request, res: Response): Promis
 });
 
 router.post("/calendar/events/:id/duplicate", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
   const orgId = getOrgId(req);
   const id = parseInt(String(req.params.id));
@@ -227,7 +227,7 @@ router.post("/calendar/events/:id/duplicate", async (req: Request, res: Response
 });
 
 router.delete("/calendar/events/:id", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   const orgId = getOrgId(req);
@@ -270,7 +270,7 @@ router.get("/calendar/events/export/csv", async (req: Request, res: Response): P
 });
 
 router.get("/calendar/events/:id", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   const orgId = getOrgId(req);

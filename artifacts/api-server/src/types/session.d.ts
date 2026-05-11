@@ -5,6 +5,8 @@ declare module "express-session" {
     userId?: number;
     userRole?: string;
     userEmail?: string;
+    prenom?: string;
+    nom?: string;
     organisationId?: number;
     pendingMfaUserId?: number;
     pendingMfaExpiresAt?: number;

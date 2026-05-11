@@ -481,7 +481,7 @@ async function gatherDailyData(dateStr: string, orgId: number) {
 
 router.post("/daily-report", async (req, res): Promise<void> => {
   try {
-    const orgId = (req.session as any)?.organisationId;
+    const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const body = req.body || {};
     const date = typeof body.date === "string" ? body.date.trim() : "";
@@ -713,7 +713,8 @@ router.get("/activity-summary", async (req, res): Promise<void> => {
     const todayStr = now.toISOString().split("T")[0];
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    const orgId = (req.session as any)?.organisationId;
+    const orgId = req.session?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const dailyData = await gatherDailyData(todayStr, orgId);
 
     const weekReports = await db.select().from(dailyReportsTable)

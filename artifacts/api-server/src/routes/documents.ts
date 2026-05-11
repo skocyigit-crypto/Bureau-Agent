@@ -62,7 +62,7 @@ function resolveMime(fileName: string, provided: string): string {
 router.post("/documents/upload", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     const { fileContent, fileName, mimeType: rawMime, entityType, entityId, category, description, tags, analyzeWithAi } = req.body;
 
     if (!fileContent || !fileName) {
@@ -86,7 +86,7 @@ router.post("/documents/upload", requireMinAgent, async (req: Request, res: Resp
     const scanResult = scanBase64Content(fileContent, fileName);
     if (!scanResult.safe) {
       const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.socket?.remoteAddress || "unknown";
-      logSecurityEvent("malicious_upload_blocked", ip, userId, `Upload bloque: ${scanResult.threats.join(", ")}`, "critical");
+      logSecurityEvent("malicious_upload_blocked", ip, userId ?? null, `Upload bloque: ${scanResult.threats.join(", ")}`, "critical");
       res.status(400).json({ error: "Fichier bloque pour raisons de securite.", threats: scanResult.threats });
       return;
     }
@@ -156,7 +156,7 @@ router.post("/documents/upload", requireMinAgent, async (req: Request, res: Resp
 router.post("/documents/upload-multiple", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     const { files, entityType, entityId, category } = req.body;
 
     if (!Array.isArray(files) || files.length === 0) {
@@ -372,7 +372,7 @@ router.post("/documents/process", requireMinAgent, async (req: Request, res: Res
 router.post("/documents/import", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
-    const userId = (req.session as any)?.userId || null;
+    const userId = req.session?.userId || null;
     const { rows, targetModule, skipDuplicates, selectedRows, documentId } = req.body;
 
     if (!rows || !Array.isArray(rows) || !targetModule) {

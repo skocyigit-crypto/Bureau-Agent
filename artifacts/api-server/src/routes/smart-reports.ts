@@ -195,7 +195,7 @@ router.get("/smart-reports/daily-timeline", async (req: Request, res: Response):
 router.get("/smart-reports/reminders", async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
 
     const now = new Date();
     const in1h = new Date(now.getTime() + 60 * 60 * 1000);

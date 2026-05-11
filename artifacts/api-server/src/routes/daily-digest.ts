@@ -242,9 +242,9 @@ async function gatherDailyData(userId: number, orgId: number) {
 // ── Endpoint ──────────────────────────────────────────────────────────────────
 
 router.get("/daily-digest", async (req, res): Promise<void> => {
-  const userId = (req.session as any)?.userId as number | undefined;
-  const orgId = (req.session as any)?.organisationId as number | undefined;
-  const prenom: string = (req.session as any)?.prenom ?? "Utilisateur";
+  const userId = req.session?.userId as number | undefined;
+  const orgId = req.session?.organisationId as number | undefined;
+  const prenom: string = req.session?.prenom ?? "Utilisateur";
 
   if (!userId || !orgId) {
     res.status(401).json({ error: "Non authentifie." });

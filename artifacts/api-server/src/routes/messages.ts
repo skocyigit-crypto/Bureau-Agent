@@ -90,7 +90,7 @@ router.post("/messages", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
 
   try {
     const [message] = await db.insert(messagesTable).values({ ...parsed.data, organisationId: orgId, createdBy: userId, updatedBy: userId }).returning();
@@ -139,7 +139,7 @@ router.patch("/messages/:id", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
 
   try {
     const [message] = await db.update(messagesTable)
@@ -192,7 +192,7 @@ router.post("/messages/:id/duplicate", async (req, res): Promise<void> => {
   const id = parseInt(raw!, 10);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   const orgId = getOrgId(req);
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   try {
     const [original] = await db.select().from(messagesTable).where(and(eq(messagesTable.id, id), eq(messagesTable.organisationId, orgId)));
     if (!original) { res.status(404).json({ error: "Message non trouve." }); return; }

@@ -502,7 +502,7 @@ router.post("/voice/command", async (req: Request, res: Response): Promise<void>
       intent: command.intent,
       params,
       orgId,
-      userId: (req.session as any)?.userId ?? null,
+      userId: req.session?.userId ?? null,
       exp: Date.now() + PENDING_TTL_MS,
       raw: text.slice(0, 500),
     });
@@ -533,8 +533,8 @@ router.post("/voice/command", async (req: Request, res: Response): Promise<void>
 
 router.post("/voice/confirm", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
-  const userId = (req.session as any)?.userId;
-  const userEmail = (req.session as any)?.userEmail;
+  const userId = req.session?.userId;
+  const userEmail = req.session?.userEmail;
   const { token } = req.body ?? {};
 
   const tokenStr = String(token || "");

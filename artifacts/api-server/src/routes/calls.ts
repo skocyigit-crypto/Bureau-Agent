@@ -158,7 +158,7 @@ router.post("/calls", async (req, res): Promise<void> => {
         .where(and(eq(contactsTable.id, data.contactId), eq(contactsTable.organisationId, orgId)));
     }
 
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     const [call] = await db.insert(callsTable).values({
       ...data,
       tags: data.tags ?? [],
@@ -199,7 +199,7 @@ router.post("/calls", async (req, res): Promise<void> => {
 });
 
 router.post("/calls/:id/process", async (req, res): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   const id = parseInt(String(req.params.id));
@@ -281,7 +281,7 @@ router.patch("/calls/:id", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   const [call] = await db.update(callsTable)
     .set({ ...parsed.data, updatedBy: userId })
     .where(and(eq(callsTable.id, params.data.id), eq(callsTable.organisationId, orgId)))
@@ -510,7 +510,7 @@ router.post("/calls/:id/duplicate", async (req, res): Promise<void> => {
     const orgId = getOrgId(req);
     const [original] = await db.select().from(callsTable).where(and(eq(callsTable.id, id), eq(callsTable.organisationId, orgId)));
     if (!original) { res.status(404).json({ error: "Appel introuvable" }); return; }
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     const [copy] = await db.insert(callsTable).values({
       organisationId: orgId,
       contactId: original.contactId,

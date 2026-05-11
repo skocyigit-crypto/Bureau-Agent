@@ -89,7 +89,7 @@ router.post("/contacts", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
 
   try {
     const [contact] = await db.insert(contactsTable).values({ ...parsed.data, organisationId: orgId, createdBy: userId, updatedBy: userId }).returning();
@@ -102,7 +102,7 @@ router.post("/contacts", async (req, res): Promise<void> => {
 
 router.post("/contacts/import", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   const { rows } = req.body;
   if (!Array.isArray(rows) || rows.length === 0) { res.status(400).json({ error: "Aucune donnée fournie." }); return; }
   if (rows.length > 500) { res.status(400).json({ error: "Maximum 500 contacts par import." }); return; }
@@ -176,7 +176,7 @@ router.patch("/contacts/:id", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
 
   try {
     const [contact] = await db.update(contactsTable)
@@ -225,7 +225,7 @@ router.post("/contacts/:id/duplicate", async (req, res): Promise<void> => {
   const id = parseInt(raw!, 10);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   const orgId = getOrgId(req);
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   try {
     const [original] = await db.select().from(contactsTable).where(and(eq(contactsTable.id, id), eq(contactsTable.organisationId, orgId)));
     if (!original) { res.status(404).json({ error: "Contact non trouve." }); return; }

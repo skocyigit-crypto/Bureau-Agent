@@ -30,7 +30,7 @@ const CONNECTED_SERVICES = new Set(["gmail", "calendar", "drive", "docs", "sheet
 
 router.get("/google-workspace/hub", async (req, res): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
     const apps = GOOGLE_APPS.map(app => ({
@@ -64,7 +64,7 @@ router.get("/google-workspace/hub", async (req, res): Promise<void> => {
 
 router.get("/google-workspace/recent-emails", async (req, res): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
     const connectors = getConnectors();
@@ -105,7 +105,7 @@ router.get("/google-workspace/recent-emails", async (req, res): Promise<void> =>
 
 router.get("/google-workspace/upcoming-events", async (req, res): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
     const connectors = getConnectors();
@@ -139,7 +139,7 @@ router.get("/google-workspace/upcoming-events", async (req, res): Promise<void> 
 
 router.get("/google-workspace/recent-files", async (req, res): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
     const connectors = getConnectors();
@@ -170,7 +170,7 @@ router.get("/google-workspace/recent-files", async (req, res): Promise<void> => 
 
 router.get("/google-workspace/tasks", async (req, res): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
     res.json({ tasks: [], note: "Google Tasks non disponible via ce connecteur" });
@@ -182,7 +182,7 @@ router.get("/google-workspace/tasks", async (req, res): Promise<void> => {
 
 router.get("/google-workspace/calendar-list", async (req, res): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
     const connectors = getConnectors();
@@ -198,7 +198,7 @@ router.get("/google-workspace/calendar-list", async (req, res): Promise<void> =>
 
 router.post("/google-workspace/create-event", async (req, res): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
     const { title, start, end, description, location } = req.body;
@@ -227,7 +227,7 @@ router.post("/google-workspace/create-event", async (req, res): Promise<void> =>
 
 router.post("/google-workspace/send-email", async (req, res): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
     const { to, subject, body } = req.body;
@@ -260,7 +260,7 @@ router.post("/google-workspace/send-email", async (req, res): Promise<void> => {
 
 router.get("/google-workspace/drive-search", async (req, res): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
     const { q } = req.query;

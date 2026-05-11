@@ -228,7 +228,7 @@ router.post("/prospects/:id/convert", requireRole("agent"), async (req: Request,
 
 router.post("/prospects/:id/duplicate", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {

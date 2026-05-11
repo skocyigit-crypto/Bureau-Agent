@@ -4,8 +4,8 @@ import { generatePerformanceReport, getPerformanceHistory, gatherUserMetrics } f
 const router: IRouter = Router();
 
 router.get("/performance/metriques", async (req, res): Promise<void> => {
-  const userId = (req.session as any)?.userId;
-  const orgId = (req.session as any)?.organisationId;
+  const userId = req.session?.userId;
+  const orgId = req.session?.organisationId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
   if (!orgId) { res.status(403).json({ error: "Organisation non definie." }); return; }
 
@@ -34,8 +34,8 @@ router.get("/performance/metriques", async (req, res): Promise<void> => {
 });
 
 router.post("/performance/rapport", async (req, res): Promise<void> => {
-  const userId = (req.session as any)?.userId;
-  const orgId = (req.session as any)?.organisationId;
+  const userId = req.session?.userId;
+  const orgId = req.session?.organisationId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
   if (!orgId) { res.status(403).json({ error: "Organisation non definie." }); return; }
 
@@ -53,8 +53,8 @@ router.post("/performance/rapport", async (req, res): Promise<void> => {
 });
 
 router.get("/performance/historique", async (req, res): Promise<void> => {
-  const userId = (req.session as any)?.userId;
-  const orgId = (req.session as any)?.organisationId;
+  const userId = req.session?.userId;
+  const orgId = req.session?.organisationId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
   if (!orgId) { res.status(403).json({ error: "Organisation non definie." }); return; }
 
@@ -69,8 +69,8 @@ router.get("/performance/historique", async (req, res): Promise<void> => {
 });
 
 router.get("/performance/metriques/export/csv", async (req, res): Promise<void> => {
-  const orgId = (req.session as any)?.organisationId;
-  const userId = (req.session as any)?.userId;
+  const orgId = req.session?.organisationId;
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
   if (!orgId) { res.status(403).json({ error: "Organisation non definie." }); return; }
   const periode = (req.query.periode as string) || "semaine";

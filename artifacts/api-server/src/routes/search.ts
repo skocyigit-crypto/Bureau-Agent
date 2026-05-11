@@ -8,7 +8,7 @@ import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/acce
 const router = Router();
 
 router.get("/search", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   const { q, limit = "5" } = req.query;

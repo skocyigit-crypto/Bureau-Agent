@@ -7,7 +7,7 @@ import { eq, sql, and } from "drizzle-orm";
 const router = Router();
 
 const requireSuperAdmin = (req: Request, res: Response, next: Function) => {
-  const role = (req.session as any)?.userRole;
+  const role = req.session?.userRole;
   if (role !== "super_admin") {
     res.status(403).json({ error: "Acces reserve au super administrateur." });
     return;
@@ -155,9 +155,9 @@ router.post("/legal/accept", async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const session = req.session as any;
-    const prenom = session?.userPrenom || "";
-    const nom = session?.userNom || "";
+    const session = req.session;
+    const prenom = session?.prenom || "";
+    const nom = session?.nom || "";
     const signerName = (prenom && nom) ? `${prenom} ${nom}` : "Administrateur";
     const clientIp = req.ip || "unknown";
 
@@ -198,9 +198,9 @@ router.post("/legal/accept-all", async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const session = req.session as any;
-    const prenom = session?.userPrenom || "";
-    const nom = session?.userNom || "";
+    const session = req.session;
+    const prenom = session?.prenom || "";
+    const nom = session?.nom || "";
     const signer = (prenom && nom) ? `${prenom} ${nom}` : "Administrateur";
     const clientIp = req.ip || "unknown";
 

@@ -317,7 +317,7 @@ router.get(
   requireAuth,
   requireRole("administrateur", "super_admin"),
   async (req, res): Promise<void> => {
-    const orgId = (req.session as any)?.organisationId as number | undefined;
+    const orgId = req.session?.organisationId as number | undefined;
     if (!orgId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
     try {
@@ -337,8 +337,8 @@ router.get(
   requireAuth,
   requireRole("administrateur", "super_admin"),
   async (req, res): Promise<void> => {
-    const orgId = (req.session as any)?.organisationId as number | undefined;
-    const managerName: string = (req.session as any)?.prenom ?? "Responsable";
+    const orgId = req.session?.organisationId as number | undefined;
+    const managerName: string = req.session?.prenom ?? "Responsable";
     if (!orgId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
     // 1. Çalışan verisi

@@ -52,7 +52,7 @@ router.get("/org-profile", async (req: Request, res: Response): Promise<void> =>
 
 router.put("/org-profile", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
-  const userRole = (req.session as any)?.userRole;
+  const userRole = req.session?.userRole;
 
   if (!orgId) {
     res.status(403).json({ error: "Non autorise." });

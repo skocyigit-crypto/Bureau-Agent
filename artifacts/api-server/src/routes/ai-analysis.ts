@@ -146,7 +146,7 @@ async function gatherAnalyticsData(orgId: number) {
 
 router.post("/ai/analyze", async (req, res): Promise<void> => {
   try {
-    const orgId = (req.session as any)?.organisationId;
+    const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
     const analyticsData = await gatherAnalyticsData(orgId);
@@ -349,7 +349,7 @@ async function gatherContextForPage(page: string, orgId: number) {
 
 router.post("/ai/suggest", async (req, res): Promise<void> => {
   try {
-    const orgId = (req.session as any)?.organisationId;
+    const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
     const { page } = req.body;
@@ -437,7 +437,7 @@ Donnees:\n${JSON.stringify(contextData, null, 2)}`
 
 router.post("/ai/validate", async (req, res): Promise<void> => {
   try {
-    const orgId = (req.session as any)?.organisationId;
+    const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
     const { entityType, data } = req.body;
@@ -540,7 +540,7 @@ Si tout est correct, errors et warnings seront vides. Sois utile mais pas trop s
 
 router.post("/ai/assistant", async (req, res): Promise<void> => {
   try {
-    const orgId = (req.session as any)?.organisationId;
+    const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
     const { question, currentPage } = req.body;
@@ -703,7 +703,7 @@ Sois precis, base-toi sur les donnees reelles. Pour les calculs mathematiques, u
 
 router.post("/ai/recognize", async (req, res): Promise<void> => {
   try {
-    const orgId = (req.session as any)?.organisationId;
+    const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
     const now = new Date();
@@ -912,7 +912,7 @@ router.post("/ai/recognize", async (req, res): Promise<void> => {
 
 router.post("/ai/draft-email", async (req, res): Promise<void> => {
   try {
-    const orgId = (req.session as any)?.organisationId;
+    const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
     const { contactId, contactName, contactEmail, company, category, purpose, tone, language, additionalContext } = req.body;
@@ -1051,7 +1051,7 @@ Reponds en JSON avec cette structure exacte:
 
 router.post("/ai/discovery", async (req, res): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) {
       res.status(401).json({ error: "Non authentifie." });
       return;
@@ -1292,8 +1292,8 @@ Sois concret, personnalise, et adapte tes recommandations au role (${userProfile
 
 router.post("/ai/central-intelligence", async (req, res): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
-    const orgId = (req.session as any)?.organisationId;
+    const userId = req.session?.userId;
+    const orgId = req.session?.organisationId;
     if (!userId) {
       res.status(401).json({ error: "Non authentifie." });
       return;
@@ -1849,7 +1849,7 @@ IMPORTANT: Tu ES l'assistant d'Aurelie. Agis, ne suggere pas. Chaque resolution 
 
 router.post("/ai/chat", async (req, res): Promise<void> => {
   try {
-    const orgId = (req.session as any)?.organisationId;
+    const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
         try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
     const { message, context, history } = req.body;
@@ -2166,8 +2166,8 @@ FORMAT DE REPONSE JSON:
 
 router.post("/ai/execute", async (req, res): Promise<void> => {
   try {
-    const orgId = (req.session as any)?.organisationId;
-    const userId = (req.session as any)?.userId;
+    const orgId = req.session?.organisationId;
+    const userId = req.session?.userId;
     if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
         try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
 
@@ -2895,7 +2895,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
 
 router.get("/ai/predictions", async (req, res): Promise<void> => {
   try {
-    const orgId = (req.session as any)?.organisationId;
+    const orgId = req.session?.organisationId;
     if (!orgId) { res.status(403).json({ error: "Organisation requise." }); return; }
         try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
 

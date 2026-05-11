@@ -531,7 +531,7 @@ router.post("/telephony/schedule", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Numero et date/heure requis" });
     return;
   }
-  const userId = (req.session as any)?.userId || 0;
+  const userId = req.session?.userId || 0;
   const entry = {
     id: scheduleIdCounter++,
     orgId,

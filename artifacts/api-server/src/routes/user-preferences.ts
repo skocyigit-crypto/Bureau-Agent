@@ -94,7 +94,7 @@ function normalizePreferences(prefs: UserPreferences | null | undefined): UserPr
 }
 
 router.get("/me/preferences", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) {
     res.status(401).json({ error: "Non authentifie." });
     return;
@@ -116,7 +116,7 @@ router.get("/me/preferences", async (req: Request, res: Response): Promise<void>
 });
 
 router.patch("/me/preferences", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) {
     res.status(401).json({ error: "Non authentifie." });
     return;

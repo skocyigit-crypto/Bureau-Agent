@@ -5,13 +5,16 @@ import { eq, desc, and, count, sql } from "drizzle-orm";
 const router: IRouter = Router();
 
 router.get("/admin-reports", async (req, res): Promise<void> => {
-  const session = req.session as any;
+  const session = req.session;
   const userId = session?.userId;
   const userRole = session?.userRole;
   const organisationId = session?.organisationId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
   if (userRole !== "super_admin" && userRole !== "administrateur") {
     res.status(403).json({ error: "Acces reserve aux administrateurs." }); return;
+  }
+  if (userRole !== "super_admin" && !organisationId) {
+    res.status(403).json({ error: "Organisation non identifiee." }); return;
   }
 
   try {
@@ -30,6 +33,7 @@ router.get("/admin-reports", async (req, res): Promise<void> => {
         conditions.push(eq(adminReportsTable.organisationId, parseInt(req.query.organisationId as string)));
       }
     } else {
+      if (!organisationId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
       conditions.push(eq(adminReportsTable.organisationId, organisationId));
     }
 
@@ -57,7 +61,7 @@ router.get("/admin-reports", async (req, res): Promise<void> => {
 });
 
 router.post("/admin-reports", async (req, res): Promise<void> => {
-  const session = req.session as any;
+  const session = req.session;
   const userId = session?.userId;
   const userRole = session?.userRole;
   const organisationId = session?.organisationId;
@@ -65,6 +69,7 @@ router.post("/admin-reports", async (req, res): Promise<void> => {
   if (userRole !== "administrateur" && userRole !== "super_admin") {
     res.status(403).json({ error: "Acces reserve aux administrateurs." }); return;
   }
+  if (!organisationId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
 
   const { subject, message, category, priority } = req.body || {};
   if (!subject?.trim() || !message?.trim()) {
@@ -106,7 +111,7 @@ router.post("/admin-reports", async (req, res): Promise<void> => {
 });
 
 router.patch("/admin-reports/:id", async (req, res): Promise<void> => {
-  const session = req.session as any;
+  const session = req.session;
   const userId = session?.userId;
   const userRole = session?.userRole;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
@@ -142,7 +147,7 @@ router.patch("/admin-reports/:id", async (req, res): Promise<void> => {
 });
 
 router.patch("/admin-reports/:id/read", async (req, res): Promise<void> => {
-  const session = req.session as any;
+  const session = req.session;
   const userId = session?.userId;
   const userRole = session?.userRole;
   const organisationId = session?.organisationId;
@@ -157,6 +162,7 @@ router.patch("/admin-reports/:id/read", async (req, res): Promise<void> => {
   try {
     const conditions = [eq(adminReportsTable.id, id)];
     if (userRole !== "super_admin") {
+      if (!organisationId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
       conditions.push(eq(adminReportsTable.organisationId, organisationId));
     }
 
@@ -173,7 +179,7 @@ router.patch("/admin-reports/:id/read", async (req, res): Promise<void> => {
 });
 
 router.get("/admin-reports/stats", async (req, res): Promise<void> => {
-  const session = req.session as any;
+  const session = req.session;
   const userId = session?.userId;
   const userRole = session?.userRole;
   const organisationId = session?.organisationId;
@@ -185,6 +191,7 @@ router.get("/admin-reports/stats", async (req, res): Promise<void> => {
   try {
     const conditions: any[] = [];
     if (userRole !== "super_admin") {
+      if (!organisationId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
       conditions.push(eq(adminReportsTable.organisationId, organisationId));
     }
     const where = conditions.length > 0 ? and(...conditions) : undefined;

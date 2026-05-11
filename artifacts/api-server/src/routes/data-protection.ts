@@ -16,8 +16,8 @@ const router = Router();
 
 router.get("/data-protection/summary", async (req, res): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
-    const orgId = (req.session as any)?.organisationId;
+    const userId = req.session?.userId;
+    const orgId = req.session?.organisationId;
     if (!userId || !orgId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
     const [users, contacts, calls, tasks, prospects, checkins, notes] = await Promise.all([
@@ -86,9 +86,9 @@ router.get("/data-protection/summary", async (req, res): Promise<void> => {
 
 router.post("/data-protection/request", async (req, res): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
-    const orgId = (req.session as any)?.organisationId;
-    const prenom = (req.session as any)?.prenom || "";
+    const userId = req.session?.userId;
+    const orgId = req.session?.organisationId;
+    const prenom = req.session?.prenom || "";
     if (!userId || !orgId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
     const { requestType, details } = req.body;
@@ -119,8 +119,8 @@ router.post("/data-protection/request", async (req, res): Promise<void> => {
 
 router.post("/data-protection/export", async (req, res): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
-    const orgId = (req.session as any)?.organisationId;
+    const userId = req.session?.userId;
+    const orgId = req.session?.organisationId;
     if (!userId || !orgId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
     const [users, contacts, calls, tasks, prospects, notes] = await Promise.all([
@@ -168,10 +168,10 @@ router.post("/data-protection/export", async (req, res): Promise<void> => {
 
 router.post("/data-protection/accept-legal", async (req, res): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
-    const orgId = (req.session as any)?.organisationId;
-    const userRole = (req.session as any)?.userRole;
-    const prenom = (req.session as any)?.prenom || "";
+    const userId = req.session?.userId;
+    const orgId = req.session?.organisationId;
+    const userRole = req.session?.userRole;
+    const prenom = req.session?.prenom || "";
     if (!userId || !orgId) { res.status(401).json({ error: "Non authentifie." }); return; }
     if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Réservé aux administrateurs." }); return; }
 
@@ -207,7 +207,8 @@ router.post("/data-protection/accept-legal", async (req, res): Promise<void> => 
 
 router.get("/data-protection/requests", requireRole("super_admin", "administrateur"), async (req, res): Promise<void> => {
   try {
-    const orgId = (req.session as any)?.organisationId;
+    const orgId = req.session?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const requests = await db.select().from(dataSubjectRequestsTable)
       .where(eq(dataSubjectRequestsTable.organisationId, orgId))
       .orderBy(desc(dataSubjectRequestsTable.createdAt));
@@ -220,8 +221,9 @@ router.get("/data-protection/requests", requireRole("super_admin", "administrate
 
 router.get("/data-protection/status", requireRole("super_admin", "administrateur"), async (req, res): Promise<void> => {
   try {
-    const orgId = (req.session as any)?.organisationId;
-    const userRole = (req.session as any)?.userRole as string | undefined;
+    const orgId = req.session?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+    const userRole = req.session?.userRole as string | undefined;
     const isSuperAdmin = userRole === "super_admin";
 
     const [pending, completed, total] = await Promise.all([

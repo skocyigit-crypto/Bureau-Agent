@@ -47,9 +47,9 @@ router.get("/security/blacklist", requireAdmin, (_req, res) => {
 
 router.delete("/security/blacklist/:ip", requireAdmin, (req, res) => {
   const ip = String(req.params.ip);
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (unblockIp(ip)) {
-    logSecurityEvent("ip_unblocked", ip, userId, `IP ${ip} debloquee par admin ${userId}`, "info");
+    logSecurityEvent("ip_unblocked", ip, userId ?? null, `IP ${ip} debloquee par admin ${userId}`, "info");
     res.json({ success: true, message: `IP ${ip} debloquee.` });
   } else {
     res.status(404).json({ error: "IP non trouvee dans la liste noire." });
@@ -63,12 +63,12 @@ router.post("/security/scan", requireAdmin, (req, res) => {
     return;
   }
   const result = scanBase64Content(content, filename);
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!result.safe) {
     logSecurityEvent(
       "file_threat_detected",
       (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.socket?.remoteAddress || "unknown",
-      userId,
+      userId ?? null,
       `Fichier dangereux detecte: ${filename || "inconnu"} - ${result.threats.join(", ")}`,
       "critical",
     );
@@ -119,9 +119,9 @@ router.get("/security/guardian/profiles", requireAdmin, (_req, res) => {
 
 router.delete("/security/guardian/banned/:ip", requireAdmin, (req, res) => {
   const ip = String(req.params.ip);
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (unbanGuardianIp(ip)) {
-    logSecurityEvent("guardian_ip_unbanned", ip, userId, `Guardian IP ${ip} engeli kaldırıldı`, "info");
+    logSecurityEvent("guardian_ip_unbanned", ip, userId ?? null, `Guardian IP ${ip} engeli kaldırıldı`, "info");
     res.json({ success: true, message: `IP ${ip} Guardian engel listesinden kaldırıldı.` });
   } else {
     res.status(404).json({ error: "IP Guardian engel listesinde bulunamadı." });

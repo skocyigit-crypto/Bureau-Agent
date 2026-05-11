@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) {
     res.status(401).json({ error: "Non authentifie. Veuillez vous connecter." });
     return;
@@ -56,12 +56,12 @@ export function requireRole(...roles: string[]) {
   }
 
   return (req: Request, res: Response, next: NextFunction): void => {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) {
       res.status(401).json({ error: "Non authentifie." });
       return;
     }
-    const userRole = (req.session as any)?.userRole as string | undefined;
+    const userRole = req.session?.userRole as string | undefined;
     if (!userHasAccess(userRole, roles)) {
       res.status(403).json({ error: "Acces refuse. Permissions insuffisantes." });
       return;

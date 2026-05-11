@@ -80,7 +80,7 @@ router.post("/document-ai/analyze", async (req, res): Promise<void> => {
   const scanResult = scanBase64Content(fileContent, fileName);
   if (!scanResult.safe) {
     const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.socket?.remoteAddress || "unknown";
-    logSecurityEvent("malicious_document_upload", ip, (req.session as any)?.userId, `Document IA bloque: ${scanResult.threats.join(", ")}`, "critical");
+    logSecurityEvent("malicious_document_upload", ip, req.session?.userId ?? null, `Document IA bloque: ${scanResult.threats.join(", ")}`, "critical");
     res.status(400).json({
       error: "Le fichier contient du contenu potentiellement dangereux et a ete bloque.",
       threats: scanResult.threats,
@@ -120,7 +120,8 @@ router.post("/document-ai/execute-action", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   try {
     const result = await executeDocumentAction(
@@ -155,7 +156,8 @@ router.post("/document-ai/batch-execute", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   const results = [];
   for (const action of actions) {

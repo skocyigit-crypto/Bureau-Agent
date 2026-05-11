@@ -67,7 +67,7 @@ router.post("/checkins", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
 
   try {
     const [checkin] = await db.insert(checkinsTable).values({
@@ -223,7 +223,7 @@ router.patch("/checkins/:id", async (req, res): Promise<void> => {
       updateData.totalMinutes = Math.max(0, Math.round((checkOut - checkIn) / 60000) - breakMins);
     }
 
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     updateData.updatedBy = userId;
     const [updated] = await db.update(checkinsTable)
       .set(updateData)
@@ -246,7 +246,7 @@ router.post("/checkins/:id/duplicate", async (req, res): Promise<void> => {
   const id = parseInt(raw!, 10);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   const orgId = getOrgId(req);
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   try {
     const [original] = await db.select().from(checkinsTable).where(and(eq(checkinsTable.id, id), eq(checkinsTable.organisationId, orgId)));
     if (!original) { res.status(404).json({ error: "Pointage non trouve." }); return; }
@@ -292,7 +292,7 @@ router.delete("/checkins/:id", async (req, res): Promise<void> => {
 
 router.post("/checkins/sync-google", async (req, res): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) {
       res.status(401).json({ error: "Non authentifie." });
       return;
