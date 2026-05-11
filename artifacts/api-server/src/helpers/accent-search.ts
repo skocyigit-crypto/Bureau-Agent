@@ -21,8 +21,9 @@ export async function ensureUnaccentExtension(): Promise<boolean> {
   try {
     await db.execute(sql`CREATE EXTENSION IF NOT EXISTS unaccent`);
     await db.execute(sql`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
-    // Static DDL with no user input. Wrapped in a drizzle sql`` template so
-    // we don't reach for sql.raw() (banned by the in-repo semgrep rule).
+    // Static DDL with no user input. Wrapped in a drizzle sql`` template
+    // (preferred over sql.raw) so the same code shape is used across the repo
+    // and any future ${} interpolation would automatically be parameter-bound.
     // The `$1` inside the function body is a SQL function argument reference
     // (not a node-postgres bind placeholder) — drizzle ships this through as
     // literal text because there are no ${} interpolations in this template.
