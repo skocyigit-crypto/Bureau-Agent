@@ -29,6 +29,37 @@ const SALT_ROUNDS = (() => {
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const REQUIRE_EMAIL_VERIFICATION = process.env.REQUIRE_EMAIL_VERIFICATION === "1";
+
+export function validatePasswordStrength(pw: string): { ok: boolean; error?: string } {
+  if (typeof pw !== "string" || pw.length < 10) return { ok: false, error: "Le mot de passe doit contenir au moins 10 caracteres." };
+  if (pw.length > 128) return { ok: false, error: "Le mot de passe est trop long (max 128 caracteres)." };
+  let classes = 0;
+  if (/[a-z]/.test(pw)) classes++;
+  if (/[A-Z]/.test(pw)) classes++;
+  if (/\d/.test(pw)) classes++;
+  if (/[^A-Za-z0-9]/.test(pw)) classes++;
+  if (classes < 3) return { ok: false, error: "Le mot de passe doit combiner au moins 3 types parmi : minuscules, majuscules, chiffres, symboles." };
+  const lower = pw.toLowerCase();
+  const common = ["password", "motdepasse", "azerty", "qwerty", "123456", "111111", "admin", "welcome", "agentdebureau"];
+  if (common.some(c => lower.includes(c))) return { ok: false, error: "Mot de passe trop commun. Choisissez une combinaison moins previsible." };
+  return { ok: true };
+}
+
+const forgotByEmail = new Map<string, { count: number; resetAt: number }>();
+const FORGOT_PER_EMAIL_MAX = 3;
+const FORGOT_PER_EMAIL_WINDOW_MS = 60 * 60 * 1000;
+function checkForgotRateByEmail(email: string): boolean {
+  const now = Date.now();
+  const entry = forgotByEmail.get(email);
+  if (!entry || entry.resetAt < now) {
+    forgotByEmail.set(email, { count: 1, resetAt: now + FORGOT_PER_EMAIL_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= FORGOT_PER_EMAIL_MAX) return false;
+  entry.count++;
+  return true;
+}
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -63,14 +94,15 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
       return;
     }
 
+    // Reduire l'enumeration: meme code 401 pour compte desactive ou verrouille,
+    // avec message generique. Les details (lockout time) ne sont plus reveles.
     if (!user.actif) {
-      res.status(403).json({ error: "Ce compte est desactive. Contactez votre administrateur." });
+      res.status(401).json({ error: "Identifiants invalides." });
       return;
     }
 
     if (user.verrouilleJusqua && new Date(user.verrouilleJusqua) > new Date()) {
-      const remaining = Math.ceil((new Date(user.verrouilleJusqua).getTime() - Date.now()) / 60000);
-      res.status(423).json({ error: `Compte verrouille. Reessayez dans ${remaining} minute(s).` });
+      res.status(401).json({ error: "Identifiants invalides." });
       return;
     }
 
@@ -105,6 +137,12 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
         res.status(401).json({ error: "Code TOTP invalide.", requiresMfa: true });
         return;
       }
+    }
+
+    // Email verification gate (opt-in)
+    if (REQUIRE_EMAIL_VERIFICATION && !user.emailVerifiedAt) {
+      res.status(403).json({ error: "Veuillez verifier votre adresse email avant de vous connecter.", code: "email_not_verified" });
+      return;
     }
 
     await db.update(usersTable).set({
@@ -290,8 +328,9 @@ router.post("/auth/change-password", async (req: Request, res: Response): Promis
     return;
   }
 
-  if (newPassword.length < 8) {
-    res.status(400).json({ error: "Le nouveau mot de passe doit contenir au moins 8 caracteres." });
+  const strength = validatePasswordStrength(String(newPassword));
+  if (!strength.ok) {
+    res.status(400).json({ error: strength.error });
     return;
   }
 
@@ -301,6 +340,11 @@ router.post("/auth/change-password", async (req: Request, res: Response): Promis
 
     const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!isValid) { res.status(401).json({ error: "Mot de passe actuel incorrect." }); return; }
+
+    if (currentPassword === newPassword) {
+      res.status(400).json({ error: "Le nouveau mot de passe doit etre different de l'ancien." });
+      return;
+    }
 
     const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
     await db.update(usersTable).set({ passwordHash: newHash, updatedAt: new Date() }).where(eq(usersTable.id, userId));
@@ -847,6 +891,11 @@ router.post("/auth/forgot-password", resetLimiter, async (req: Request, res: Res
   }
 
   const emailClean = email.toLowerCase().trim();
+  // Rate-limit par email (en plus du rate-limit IP) pour eviter le spam d'un compte donne.
+  if (!checkForgotRateByEmail(emailClean)) {
+    res.json({ message: "Si un compte existe avec cet email, un lien de reinitialisation a ete envoye." });
+    return;
+  }
 
   try {
     const [user] = await db.select({ id: usersTable.id, email: usersTable.email, prenom: usersTable.prenom, nom: usersTable.nom, actif: usersTable.actif })
@@ -906,8 +955,9 @@ router.post("/auth/reset-password", resetLimiter, async (req: Request, res: Resp
     res.status(400).json({ error: "Token et nouveau mot de passe obligatoires." });
     return;
   }
-  if (newPassword.length < 8) {
-    res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caracteres." });
+  const strength = validatePasswordStrength(String(newPassword));
+  if (!strength.ok) {
+    res.status(400).json({ error: strength.error });
     return;
   }
 
@@ -960,6 +1010,67 @@ router.post("/auth/reset-password", resetLimiter, async (req: Request, res: Resp
     res.status(500).json({ error: "Erreur lors de la reinitialisation." });
   }
 });
+
+router.get("/auth/verify-email/:token", async (req: Request, res: Response): Promise<void> => {
+  const rawToken = String(req.params.token || "");
+  if (!rawToken || rawToken.length < 16) { res.status(400).json({ error: "Token invalide." }); return; }
+  try {
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const [user] = await db.select({ id: usersTable.id, email: usersTable.email, emailVerifiedAt: usersTable.emailVerifiedAt, emailVerificationExpiry: usersTable.emailVerificationExpiry })
+      .from(usersTable).where(eq(usersTable.emailVerificationToken, tokenHash));
+    if (!user || !user.emailVerificationExpiry || new Date(user.emailVerificationExpiry) < new Date()) {
+      res.status(400).json({ error: "Lien de verification invalide ou expire. Demandez un nouvel envoi." });
+      return;
+    }
+    if (user.emailVerifiedAt) { res.json({ message: "Email deja verifie.", alreadyVerified: true }); return; }
+    await db.update(usersTable).set({ emailVerifiedAt: new Date(), emailVerificationToken: null, emailVerificationExpiry: null, updatedAt: new Date() }).where(eq(usersTable.id, user.id));
+    logAudit(user.id, user.email, "email_verified", "auth", String(user.id), { ip: req.ip }, req.ip, req.get("user-agent"));
+    res.json({ message: "Email verifie avec succes. Vous pouvez maintenant vous connecter." });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur verify-email");
+    res.status(500).json({ error: "Erreur lors de la verification." });
+  }
+});
+
+const resendVerifyByEmail = new Map<string, { count: number; resetAt: number }>();
+router.post("/auth/resend-verification", resetLimiter, async (req: Request, res: Response): Promise<void> => {
+  const email = String(req.body?.email || "").toLowerCase().trim();
+  if (!EMAIL_REGEX.test(email)) { res.json({ message: "Si un compte existe et n'est pas verifie, un email a ete envoye." }); return; }
+  const now = Date.now();
+  const entry = resendVerifyByEmail.get(email);
+  if (entry && entry.resetAt > now && entry.count >= 3) { res.json({ message: "Si un compte existe et n'est pas verifie, un email a ete envoye." }); return; }
+  resendVerifyByEmail.set(email, { count: (entry && entry.resetAt > now ? entry.count : 0) + 1, resetAt: now + 60 * 60 * 1000 });
+  try {
+    const [user] = await db.select({ id: usersTable.id, email: usersTable.email, prenom: usersTable.prenom, emailVerifiedAt: usersTable.emailVerifiedAt }).from(usersTable).where(eq(usersTable.email, email));
+    if (!user || user.emailVerifiedAt) { res.json({ message: "Si un compte existe et n'est pas verifie, un email a ete envoye." }); return; }
+    await issueAndSendEmailVerification(user.id, user.email, user.prenom || "");
+    res.json({ message: "Si un compte existe et n'est pas verifie, un email a ete envoye." });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur resend-verification");
+    res.json({ message: "Si un compte existe et n'est pas verifie, un email a ete envoye." });
+  }
+});
+
+export async function issueAndSendEmailVerification(userId: number, email: string, prenom: string): Promise<string> {
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+  const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  await db.update(usersTable).set({ emailVerificationToken: tokenHash, emailVerificationExpiry: expiry, updatedAt: new Date() }).where(eq(usersTable.id, userId));
+  const appUrl = process.env.PUBLIC_URL || process.env.APP_URL || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "https://agentdebureau.fr");
+  const appBase = process.env.APP_BASE_PATH || "/buro-ajani";
+  const link = `${appUrl}${appBase}?verify_email=${rawToken}`;
+  const html = `<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px">
+    <h2 style="color:#1a2744">Verifiez votre adresse email</h2>
+    <p>Bonjour ${prenom},</p>
+    <p>Pour activer votre compte Agent de Bureau, cliquez sur le bouton ci-dessous :</p>
+    <div style="text-align:center;margin:32px 0">
+      <a href="${link}" style="background:#1a2744;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Verifier mon email</a>
+    </div>
+    <p style="color:#666;font-size:13px">Ce lien est valable pendant <strong>24 heures</strong>. Si vous n'avez pas cree de compte, ignorez cet email.</p>
+  </div>`;
+  await sendEmail(email, "Verifiez votre email - Agent de Bureau", html, `Verifiez votre email: ${link} (valide 24h)`);
+  return rawToken;
+}
 
 async function invalidateUserSessions(userId: number): Promise<void> {
   // Connect-pg-simple stocke session JSON dans user_sessions(sess jsonb).

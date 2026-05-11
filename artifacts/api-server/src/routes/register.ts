@@ -40,8 +40,10 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
     return;
   }
 
-  if (!password || password.length < 8) {
-    res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caracteres." });
+  const { validatePasswordStrength } = await import("./auth");
+  const strength = validatePasswordStrength(String(password || ""));
+  if (!strength.ok) {
+    res.status(400).json({ error: strength.error });
     return;
   }
 
@@ -149,6 +151,14 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
       metadata: { trialEndsAt: result.subscription.trialEndsAt },
     });
 
+    // Email verification: cree et envoie un lien (gate de connexion s'active si REQUIRE_EMAIL_VERIFICATION=1).
+    try {
+      const { issueAndSendEmailVerification } = await import("./auth");
+      await issueAndSendEmailVerification(result.user.id, emailLower, firstName.trim());
+    } catch (verifyErr) {
+      logger.error({ err: verifyErr }, "[Register] Erreur envoi email verification (non bloquant)");
+    }
+
     const emailResult = await sendWelcomeEmail({
       to: emailLower,
       orgName: orgName.trim(),
@@ -159,13 +169,21 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
       trialEndsAt: result.subscription.trialEndsAt,
     });
 
-    (req.session as any).userId = result.user.id;
-    (req.session as any).userRole = result.user.role;
-    (req.session as any).organisationId = result.user.organisationId;
-    (req.session as any).userEmail = result.user.email;
+    const requireVerification = process.env.REQUIRE_EMAIL_VERIFICATION === "1";
+    if (!requireVerification) {
+      // Auto-login uniquement si la verification email n'est pas requise.
+      await new Promise<void>((resolve, reject) => req.session.regenerate((e) => e ? reject(e) : resolve()));
+      (req.session as any).userId = result.user.id;
+      (req.session as any).userRole = result.user.role;
+      (req.session as any).organisationId = result.user.organisationId;
+      (req.session as any).userEmail = result.user.email;
+    }
 
     res.status(201).json({
-      message: `Votre compte a ete cree avec succes ! Bienvenue sur Agent de Bureau.`,
+      requiresEmailVerification: requireVerification,
+      message: requireVerification
+        ? `Votre compte a ete cree. Verifiez votre email pour activer la connexion.`
+        : `Votre compte a ete cree avec succes ! Bienvenue sur Agent de Bureau.`,
       user: result.user,
       organisation: {
         id: result.organisation.id,
