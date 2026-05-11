@@ -257,9 +257,12 @@ router.patch("/telephony/providers/:id", async (req, res): Promise<void> => {
       updates.isDefault = true;
     }
 
+    // Defense-in-depth: even though `existing` was scoped to (id, orgId)
+    // above, the UPDATE re-asserts the orgId predicate to close any
+    // theoretical TOCTOU window between the SELECT and the UPDATE.
     const [updated] = await db.update(telephonyProvidersTable)
       .set(updates)
-      .where(eq(telephonyProvidersTable.id, id))
+      .where(and(eq(telephonyProvidersTable.id, id), eq(telephonyProvidersTable.organisationId, orgId)))
       .returning();
 
     res.json({
@@ -283,7 +286,10 @@ router.delete("/telephony/providers/:id", async (req, res): Promise<void> => {
       return;
     }
 
-    await db.delete(telephonyProvidersTable).where(eq(telephonyProvidersTable.id, id));
+    // Defense-in-depth: re-assert orgId on the DELETE to close any TOCTOU
+    // window between the preceding SELECT (id, orgId) and this DELETE.
+    await db.delete(telephonyProvidersTable)
+      .where(and(eq(telephonyProvidersTable.id, id), eq(telephonyProvidersTable.organisationId, orgId)));
     res.json({ message: "Fournisseur supprime" });
   } catch (err: any) {
     req.log.error({ err }, "Erreur suppression fournisseur telephonie");

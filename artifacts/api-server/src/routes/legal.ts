@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { legalAgreementsTable, LEGAL_DOCUMENTS, type LegalDocumentCode } from "@workspace/db";
 import { organisationsTable } from "@workspace/db";
 import { eq, sql, and } from "drizzle-orm";
+import { getOrgId } from "../middleware/tenant";
 
 const router = Router();
 
@@ -227,15 +228,22 @@ router.post("/legal/accept-all", async (req: Request, res: Response): Promise<vo
 });
 
 router.post("/legal/revoke", async (req: Request, res: Response): Promise<void> => {
+  // IDOR fix: previously the SELECT and UPDATE used eq(id, agreementId) only,
+  // letting any authenticated user revoke ANY organisation's legal agreement
+  // by guessing/iterating numeric ids. Scope every query to the caller's
+  // organisation; cross-tenant ids return 404 (info-disclosure-safe).
+  const orgId = getOrgId(req);
   const { agreementId, reason } = req.body;
+  const agreementIdNum = Number(agreementId);
 
-  if (!agreementId) {
+  if (!Number.isInteger(agreementIdNum) || agreementIdNum <= 0) {
     res.status(400).json({ error: "agreementId est requis." });
     return;
   }
 
   try {
-    const [agreement] = await db.select().from(legalAgreementsTable).where(eq(legalAgreementsTable.id, agreementId));
+    const [agreement] = await db.select().from(legalAgreementsTable)
+      .where(and(eq(legalAgreementsTable.id, agreementIdNum), eq(legalAgreementsTable.organisationId, orgId)));
     if (!agreement) {
       res.status(404).json({ error: "Accord introuvable." });
       return;
@@ -250,7 +258,7 @@ router.post("/legal/revoke", async (req: Request, res: Response): Promise<void> 
       revoked: true,
       revokedAt: new Date(),
       revokedReason: reason || "Revocation par l'administrateur",
-    }).where(eq(legalAgreementsTable.id, agreementId));
+    }).where(and(eq(legalAgreementsTable.id, agreementIdNum), eq(legalAgreementsTable.organisationId, orgId)));
 
     res.json({ message: "Accord revoque avec succes." });
   } catch (err: any) {
