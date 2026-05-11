@@ -82,15 +82,50 @@ async function getGoogleDriveAccessToken(): Promise<string | null> {
 // Direct Google Drive API calls (no Replit connector SDK)
 // ---------------------------------------------------------------------------
 
+// Defense-in-depth SSRF guard: even though all current callers pass hardcoded
+// path strings, lock the absolute-URL branch to the official Google API hosts
+// so a future caller cannot accidentally turn this into an open relay (e.g.
+// hitting 169.254.169.254 metadata service or internal services).
+const GOOGLE_API_HOSTS = new Set([
+  "www.googleapis.com",
+  "oauth2.googleapis.com",
+  "drive.googleapis.com",
+  "storage.googleapis.com",
+  "content.googleapis.com",
+]);
+
 async function googleDriveRequest(accessToken: string, path: string, options: RequestInit = {}): Promise<any> {
-  const base = path.startsWith("https://") ? path : `https://www.googleapis.com${path}`;
-  const response = await fetch(base, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      ...(options.headers as Record<string, string> || {}),
-    },
-  });
+  let base: string;
+  if (path.startsWith("https://")) {
+    let parsed: URL;
+    try { parsed = new URL(path); } catch { throw new Error("googleDriveRequest: URL invalide."); }
+    if (!GOOGLE_API_HOSTS.has(parsed.host)) {
+      throw new Error(`googleDriveRequest: host non autorise (${parsed.host}).`);
+    }
+    base = parsed.toString();
+  } else if (path.startsWith("/")) {
+    base = `https://www.googleapis.com${path}`;
+  } else {
+    throw new Error("googleDriveRequest: chemin invalide (doit commencer par / ou https://).");
+  }
+
+  // Hard timeout: an unresponsive Drive endpoint must not pin the request
+  // handler indefinitely. 30s covers normal latency + multipart uploads.
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 30_000);
+  let response: Response;
+  try {
+    response = await fetch(base, {
+      ...options,
+      signal: ac.signal,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        ...(options.headers as Record<string, string> || {}),
+      },
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (response.status === 204) return {};
 

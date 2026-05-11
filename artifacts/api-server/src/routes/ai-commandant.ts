@@ -862,14 +862,31 @@ router.post("/commandant/photo-location", async (req: Request, res: Response): P
 
     let address = "";
     let mapUrl = "";
-    if (latitude && longitude) {
-      mapUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
+    // Strict numeric + WGS-84 bounds validation before interpolating into ANY
+    // outbound URL. Without this, a string like `1&inject=...` would corrupt
+    // the nominatim query (and could be used to DoS via huge payloads). The
+    // host is hardcoded so this is defense-in-depth, not a primary SSRF fix.
+    const latNum = typeof latitude === "number" ? latitude : Number(latitude);
+    const lonNum = typeof longitude === "number" ? longitude : Number(longitude);
+    const coordsValid = Number.isFinite(latNum) && Number.isFinite(lonNum)
+      && latNum >= -90 && latNum <= 90 && lonNum >= -180 && lonNum <= 180;
+    if (coordsValid) {
+      const latStr = latNum.toFixed(6);
+      const lonStr = lonNum.toFixed(6);
+      mapUrl = `https://www.google.com/maps?q=${latStr},${lonStr}`;
+      const ac = new AbortController();
+      const timer = setTimeout(() => ac.abort(), 5_000);
       try {
-        const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=fr`);
+        const geoRes = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${latStr}&lon=${lonStr}&format=json&accept-language=fr`,
+          { signal: ac.signal, headers: { "User-Agent": "AgentDeBureau/1.0" } },
+        );
         const geoData = await geoRes.json() as any;
-        address = geoData?.display_name || `${latitude}, ${longitude}`;
+        address = geoData?.display_name || `${latStr}, ${lonStr}`;
       } catch {
-        address = `${latitude}, ${longitude}`;
+        address = `${latStr}, ${lonStr}`;
+      } finally {
+        clearTimeout(timer);
       }
     }
 
