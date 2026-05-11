@@ -280,7 +280,19 @@ async function appendTurn(
 // POST /telephony/twilio/voice
 // ---------------------------------------------------------------------------
 twilioVoiceRouter.post("/telephony/twilio/voice", async (req: Request, res: Response): Promise<void> => {
-  logger.info({ body: JSON.stringify(req.body).slice(0, 300) }, "[TwilioVoice] Incoming call");
+  const _twBody = (req.body ?? {}) as Record<string, string>;
+  const _maskTel = (n: string | undefined): string => {
+    if (!n) return "";
+    const s = String(n);
+    return s.length <= 4 ? "***" : `${s.slice(0, 3)}***${s.slice(-2)}`;
+  };
+  logger.info({
+    callSid: _twBody.CallSid,
+    from: _maskTel(_twBody.From),
+    to: _maskTel(_twBody.To),
+    direction: _twBody.Direction,
+    callStatus: _twBody.CallStatus,
+  }, "[TwilioVoice] Incoming call");
 
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   if (authToken && !validateTwilioSignature(req, authToken)) {
