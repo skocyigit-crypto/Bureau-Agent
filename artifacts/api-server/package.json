@@ -37,7 +37,7 @@
     "qrcode": "^1.5.4",
     "resend": "4.0.0",
     "stripe": "^22.1.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",

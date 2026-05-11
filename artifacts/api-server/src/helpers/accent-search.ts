@@ -21,11 +21,14 @@ export async function ensureUnaccentExtension(): Promise<boolean> {
   try {
     await db.execute(sql`CREATE EXTENSION IF NOT EXISTS unaccent`);
     await db.execute(sql`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
-    await db.execute(sql.raw(
-      `CREATE OR REPLACE FUNCTION f_unaccent(text) RETURNS text ` +
-      `LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT ` +
-      `AS $$ SELECT public.unaccent('public.unaccent', $1) $$`
-    ));
+    // Static DDL with no user input. Wrapped in a drizzle sql`` template so
+    // we don't reach for sql.raw() (banned by the in-repo semgrep rule).
+    // The `$1` inside the function body is a SQL function argument reference
+    // (not a node-postgres bind placeholder) — drizzle ships this through as
+    // literal text because there are no ${} interpolations in this template.
+    await db.execute(
+      sql`CREATE OR REPLACE FUNCTION f_unaccent(text) RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT AS 'SELECT public.unaccent(''public.unaccent'', $1)'`
+    );
     unaccentAvailable = true;
   } catch {
     try {
