@@ -100,6 +100,17 @@ const mfaSetupLimiter = rateLimit({
   message: { error: "Trop de demarrages de configuration MFA. Reessayez dans 15 minutes." },
 });
 
+// Limiteur de changement de mot de passe: bloque le brute force sur l'ancien
+// mot de passe par un attaquant ayant pris le controle d'une session.
+const changePasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop de tentatives de changement de mot de passe. Reessayez dans 15 minutes." },
+  skipSuccessfulRequests: true,
+});
+
 router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Promise<void> => {
   const { email, password, totpCode } = req.body;
 
@@ -342,7 +353,7 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-router.post("/auth/change-password", async (req: Request, res: Response): Promise<void> => {
+router.post("/auth/change-password", changePasswordLimiter, async (req: Request, res: Response): Promise<void> => {
   const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
@@ -372,6 +383,25 @@ router.post("/auth/change-password", async (req: Request, res: Response): Promis
 
     const newHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
     await db.update(usersTable).set({ passwordHash: newHash, updatedAt: new Date() }).where(eq(usersTable.id, userId));
+
+    logAudit(userId, user.email, "password_changed", "auth", undefined, undefined, req.ip, req.get("user-agent"), user.organisationId);
+
+    // Apres un changement de mot de passe, on regenere la session courante pour
+    // couper toute session detournee silencieusement et forcer un nouvel ID.
+    const userRole = req.session.userRole;
+    const organisationId = req.session.organisationId;
+    const userEmail = req.session.userEmail;
+    const prenom = req.session.prenom;
+    const nom = req.session.nom;
+    await new Promise<void>((resolve, reject) => {
+      req.session.regenerate((err) => err ? reject(err) : resolve());
+    });
+    req.session.userId = userId;
+    req.session.userRole = userRole;
+    req.session.organisationId = organisationId;
+    req.session.userEmail = userEmail;
+    req.session.prenom = prenom;
+    req.session.nom = nom;
 
     res.json({ message: "Mot de passe modifie avec succes." });
   } catch (err: any) {
@@ -437,8 +467,9 @@ router.post("/auth/users", async (req: Request, res: Response): Promise<void> =>
     res.status(400).json({ error: "Format d'email invalide." });
     return;
   }
-  if (password.length < 8) {
-    res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caracteres." });
+  const adminCreateStrength = validatePasswordStrength(String(password));
+  if (!adminCreateStrength.ok) {
+    res.status(400).json({ error: adminCreateStrength.error });
     return;
   }
   if (typeof nom !== "string" || nom.trim().length < 1 || nom.length > 100 || typeof prenom !== "string" || prenom.trim().length < 1 || prenom.length > 100) {
