@@ -18,21 +18,41 @@ app.set("trust proxy", 1);
 
 const isProduction = process.env.NODE_ENV === "production";
 
+// CSP for API responses. The /api/* surface is JSON-only, so the policy is
+// intentionally tighter than the SPA CSP (script-src 'none' — there is no
+// case where the API legitimately serves HTML+inline JS):
+//   - baseUri 'none'     blocks <base> tag injection in any future HTML response
+//   - formAction 'none'  there are no <form> targets here
+//   - frameAncestors     'none' prevents clickjacking + replaces X-Frame-Options
+//   - upgradeInsecureRequests in production only (causes false positives in dev)
+const cspDirectives: Record<string, string[]> = {
+  defaultSrc: ["'self'"],
+  scriptSrc: ["'none'"],
+  styleSrc: ["'self'", "'unsafe-inline'"],
+  imgSrc: ["'self'", "data:", "https:"],
+  connectSrc: ["'self'"],
+  fontSrc: ["'self'", "https:"],
+  objectSrc: ["'none'"],
+  mediaSrc: ["'self'"],
+  frameSrc: ["'none'"],
+  frameAncestors: ["'none'"],
+  baseUri: ["'none'"],
+  formAction: ["'none'"],
+};
+if (isProduction) {
+  cspDirectives.upgradeInsecureRequests = [];
+}
+
 app.use(helmet({
   contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'"],
-      fontSrc: ["'self'", "https:"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'"],
-      frameSrc: ["'none'"],
-    },
+    directives: cspDirectives,
   },
   crossOriginEmbedderPolicy: false,
+  // COOP/CORP isolate the JSON API from cross-origin window references and
+  // sub-resource embedding. Set on every response (even errors), `same-origin`
+  // is the strictest option compatible with our same-origin SPA.
+  crossOriginOpenerPolicy: { policy: "same-origin" },
+  crossOriginResourcePolicy: { policy: "same-origin" },
   hsts: {
     maxAge: 31536000,
     includeSubDomains: true,
