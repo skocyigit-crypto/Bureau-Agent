@@ -178,6 +178,12 @@ router.post("/documents/upload-multiple", requireMinAgent, async (req: Request, 
         }
 
         const mimeType = resolveMime(file.fileName, file.mimeType || "application/octet-stream");
+
+        if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
+          results.push({ fileName: file.fileName, success: false, error: `Type non autorise: ${mimeType}` });
+          continue;
+        }
+
         const buffer = Buffer.from(file.fileContent, "base64");
 
         if (buffer.length > MAX_FILE_SIZE_MB * 1024 * 1024) {
@@ -191,7 +197,7 @@ router.post("/documents/upload-multiple", requireMinAgent, async (req: Request, 
           continue;
         }
 
-        const storedName = `${Date.now()}_${file.fileName.replace(/[^a-zA-Z0-9._\-\s()]/g, "_")}`;
+        const storedName = `${Date.now()}_${file.fileName.replace(/[^a-zA-Z0-9._\-\s()àâéèêëïîôùûüÿçÀÂÉÈÊËÏÎÔÙÛÜŸÇ]/g, "_")}`;
 
         const [doc] = await db.insert(documentsTable).values({
           organisationId: orgId,

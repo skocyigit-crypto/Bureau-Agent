@@ -2,9 +2,11 @@ import { Router } from "express";
 import { analyzeDocument, executeDocumentAction, type SuggestedAction } from "../services/document-ai";
 import { scanBase64Content, logSecurityEvent } from "../middleware/security";
 import { getOrgId } from "../middleware/tenant";
+import { requireRole } from "../middleware/auth";
 import { logger } from "../lib/logger";
 
 const router = Router();
+const requireMinAgent = requireRole("super_admin", "administrateur", "agent");
 
 const SUPPORTED_MIME_TYPES = [
   "application/pdf",
@@ -53,7 +55,7 @@ function resolveMimeType(fileName: string, providedMime: string): string {
   return EXTENSION_MIME_MAP[ext] || providedMime;
 }
 
-router.post("/document-ai/analyze", async (req, res): Promise<void> => {
+router.post("/document-ai/analyze", requireMinAgent, async (req, res): Promise<void> => {
   const { fileContent, mimeType: rawMimeType, fileName } = req.body;
 
   if (!fileContent || !fileName) {
@@ -111,7 +113,7 @@ router.post("/document-ai/analyze", async (req, res): Promise<void> => {
   }
 });
 
-router.post("/document-ai/execute-action", async (req, res): Promise<void> => {
+router.post("/document-ai/execute-action", requireMinAgent, async (req, res): Promise<void> => {
   const { action, extractedFields } = req.body;
 
   if (!action || !action.action || !action.module) {
@@ -147,11 +149,15 @@ router.post("/document-ai/execute-action", async (req, res): Promise<void> => {
   }
 });
 
-router.post("/document-ai/batch-execute", async (req, res): Promise<void> => {
+router.post("/document-ai/batch-execute", requireMinAgent, async (req, res): Promise<void> => {
   const { actions, extractedFields } = req.body;
 
   if (!Array.isArray(actions) || actions.length === 0) {
     res.status(400).json({ error: "Un tableau d'actions est requis." });
+    return;
+  }
+  if (actions.length > 50) {
+    res.status(400).json({ error: "Maximum 50 actions par lot." });
     return;
   }
 
