@@ -12,16 +12,16 @@ const requireMinOperateur = requireRole("super_admin", "administrateur", "agent"
 const requireMinAdmin = requireRole("super_admin", "administrateur");
 
 function auditBulk(req: Request, action: string, resource: string, ids: any[], extra?: any): void {
-  const sess = (req.session as any) || {};
   void logAudit(
-    sess.userId,
-    sess.userEmail,
+    req.session?.userId,
+    req.session?.userEmail,
     action,
     resource,
     undefined,
     { count: ids.length, ids: ids.slice(0, 100), ...(extra || {}) },
     req.ip,
     req.get("user-agent"),
+    req.session?.organisationId,
   );
 }
 

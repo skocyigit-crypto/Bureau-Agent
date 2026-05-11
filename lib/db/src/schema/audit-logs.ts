@@ -3,6 +3,7 @@ import { usersTable } from "./users";
 
 export const auditLogsTable = pgTable("audit_logs", {
   id: serial("id").primaryKey(),
+  organisationId: integer("organisation_id"),
   userId: integer("user_id").references(() => usersTable.id, { onDelete: "set null" }),
   userEmail: text("user_email"),
   action: text("action").notNull(),
@@ -13,6 +14,7 @@ export const auditLogsTable = pgTable("audit_logs", {
   userAgent: text("user_agent"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
+  index("audit_logs_org_id_idx").on(table.organisationId),
   index("audit_logs_user_id_idx").on(table.userId),
   index("audit_logs_action_idx").on(table.action),
   index("audit_logs_resource_idx").on(table.resource),

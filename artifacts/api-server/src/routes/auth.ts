@@ -164,7 +164,7 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
     (req.session as any).loginUserAgent = req.get("user-agent");
     (req.session as any).loginAt = Date.now();
 
-    logAudit(user.id, user.email, "login", "auth", undefined, { role: user.role, mfaUsed: user.mfaActif, ip: req.ip, ua: req.get("user-agent") }, req.ip, req.get("user-agent"));
+    logAudit(user.id, user.email, "login", "auth", undefined, { role: user.role, mfaUsed: user.mfaActif, ip: req.ip, ua: req.get("user-agent") }, req.ip, req.get("user-agent"), user.organisationId);
 
     // Notification de nouvelle connexion (best-effort, ne bloque pas la reponse)
     void sendLoginNotificationIfNew(user, req.ip, req.get("user-agent")).catch(err => req.log.error({ err }, "Erreur notif login"));
@@ -217,7 +217,7 @@ router.post("/auth/mfa/enable", async (req: Request, res: Response): Promise<voi
     const { verifyMfaToken } = await import("../services/mfa");
     if (!verifyMfaToken(totpCode, user.mfaSecret)) { res.status(400).json({ error: "Code TOTP invalide." }); return; }
     await db.update(usersTable).set({ mfaActif: true, updatedAt: new Date() }).where(eq(usersTable.id, userId));
-    logAudit(userId, user.email, "mfa_enabled", "user", String(userId), undefined, req.ip, req.get("user-agent"));
+    logAudit(userId, user.email, "mfa_enabled", "user", String(userId), undefined, req.ip, req.get("user-agent"), user.organisationId);
     res.json({ message: "Authentification a deux facteurs activee." });
   } catch (err: any) {
     req.log.error({ err }, "Erreur MFA enable");
@@ -240,7 +240,7 @@ router.post("/auth/mfa/disable", async (req: Request, res: Response): Promise<vo
       if (!totpCode || !verifyMfaToken(totpCode, user.mfaSecret)) { res.status(400).json({ error: "Code TOTP invalide." }); return; }
     }
     await db.update(usersTable).set({ mfaActif: false, mfaSecret: null, updatedAt: new Date() }).where(eq(usersTable.id, userId));
-    logAudit(userId, user.email, "mfa_disabled", "user", String(userId), undefined, req.ip, req.get("user-agent"));
+    logAudit(userId, user.email, "mfa_disabled", "user", String(userId), undefined, req.ip, req.get("user-agent"), user.organisationId);
     res.json({ message: "Authentification a deux facteurs desactivee." });
   } catch (err: any) {
     req.log.error({ err }, "Erreur MFA disable");
@@ -268,7 +268,7 @@ router.post("/auth/complete-onboarding", (req: Request, res: Response): void => 
 router.post("/auth/logout", (req: Request, res: Response): void => {
   const userId = (req.session as any)?.userId;
   const userEmail = (req.session as any)?.userEmail;
-  if (userId) logAudit(userId, userEmail, "logout", "auth");
+  if (userId) logAudit(userId, userEmail, "logout", "auth", undefined, undefined, req.ip, req.get("user-agent"), req.session?.organisationId);
   res.clearCookie("adb.sid", { path: "/" });
   if (req.session) {
     req.session.destroy(() => {
@@ -491,7 +491,7 @@ router.post("/auth/users", async (req: Request, res: Response): Promise<void> =>
       role: role || "agent",
     });
 
-    logAudit((req.session as any)?.userId, (req.session as any)?.userEmail, "create_user", "user", String(newUser.id), { targetEmail: email, role: role || "agent" }, req.ip, req.get("user-agent"));
+    logAudit(req.session?.userId, req.session?.userEmail, "create_user", "user", String(newUser.id), { targetEmail: email, role: role || "agent" }, req.ip, req.get("user-agent"), req.session?.organisationId);
 
     res.status(201).json({
       ...newUser,
@@ -579,7 +579,7 @@ router.patch("/auth/users/:id", async (req: Request, res: Response): Promise<voi
 
     if (!updated) { res.status(404).json({ error: "Utilisateur non trouve." }); return; }
 
-    logAudit((req.session as any)?.userId, (req.session as any)?.userEmail, "update_user", "user", String(id), { fields: Object.keys(updateData) }, req.ip, req.get("user-agent"));
+    logAudit(req.session?.userId, req.session?.userEmail, "update_user", "user", String(id), { fields: Object.keys(updateData) }, req.ip, req.get("user-agent"), req.session?.organisationId);
     res.json(updated);
   } catch (err: any) {
     req.log.error({ err }, "Erreur mise a jour utilisateur");
@@ -615,7 +615,7 @@ router.delete("/auth/users/:id", async (req: Request, res: Response): Promise<vo
     const [deleted] = await db.delete(usersTable).where(eq(usersTable.id, id)).returning();
     if (!deleted) { res.status(404).json({ error: "Utilisateur non trouve." }); return; }
 
-    logAudit((req.session as any)?.userId, (req.session as any)?.userEmail, "delete_user", "user", String(id), { targetEmail: targetUser.email, targetRole: targetUser.role }, req.ip, req.get("user-agent"));
+    logAudit(req.session?.userId, req.session?.userEmail, "delete_user", "user", String(id), { targetEmail: targetUser.email, targetRole: targetUser.role }, req.ip, req.get("user-agent"), req.session?.organisationId);
     res.status(204).send();
   } catch (err: any) {
     req.log.error({ err }, "Erreur suppression utilisateur");
@@ -699,7 +699,7 @@ router.post("/auth/users/:id/send-credentials", async (req: Request, res: Respon
       role: user.role,
     });
 
-    logAudit(sessionUserId, (req.session as any)?.userEmail, "send_credentials", "user", String(id), { targetEmail: user.email }, req.ip, req.get("user-agent"));
+    logAudit(sessionUserId, req.session?.userEmail, "send_credentials", "user", String(id), { targetEmail: user.email }, req.ip, req.get("user-agent"), req.session?.organisationId);
 
     if (emailResult.success) {
       res.json({
@@ -799,7 +799,7 @@ router.post("/auth/users/create-and-send", async (req: Request, res: Response): 
       role: role || "agent",
     });
 
-    logAudit(sessionUserId, (req.session as any)?.userEmail, "create_and_send_credentials", "user", String(newUser.id), { targetEmail: email }, req.ip, req.get("user-agent"));
+    logAudit(sessionUserId, req.session?.userEmail, "create_and_send_credentials", "user", String(newUser.id), { targetEmail: email }, req.ip, req.get("user-agent"), req.session?.organisationId);
 
     res.status(201).json({
       ...newUser,
@@ -968,10 +968,10 @@ router.post("/auth/reset-password", resetLimiter, async (req: Request, res: Resp
     // les anciens tokens (96 caracteres hex = 48 bytes), jamais pour les
     // longueurs correspondant a un hash SHA-256 (64 hex), ce qui empecherait
     // l'utilisation directe d'un hash leak comme bearer.
-    let [user] = await db.select({ id: usersTable.id, email: usersTable.email, prenom: usersTable.prenom, resetPasswordExpiry: usersTable.resetPasswordExpiry })
+    let [user] = await db.select({ id: usersTable.id, email: usersTable.email, prenom: usersTable.prenom, organisationId: usersTable.organisationId, resetPasswordExpiry: usersTable.resetPasswordExpiry })
       .from(usersTable).where(eq(usersTable.resetPasswordToken, tokenHash));
     if (!user && rawToken.length === 96 && /^[0-9a-f]+$/i.test(rawToken)) {
-      [user] = await db.select({ id: usersTable.id, email: usersTable.email, prenom: usersTable.prenom, resetPasswordExpiry: usersTable.resetPasswordExpiry })
+      [user] = await db.select({ id: usersTable.id, email: usersTable.email, prenom: usersTable.prenom, organisationId: usersTable.organisationId, resetPasswordExpiry: usersTable.resetPasswordExpiry })
         .from(usersTable).where(eq(usersTable.resetPasswordToken, rawToken));
     }
 
@@ -1002,7 +1002,7 @@ router.post("/auth/reset-password", resetLimiter, async (req: Request, res: Resp
     // Notification de securite (best-effort).
     void sendPasswordChangedEmail(user.email, user.prenom || "", req.ip).catch(err => req.log.error({ err }, "Erreur notif password reset"));
 
-    logAudit(user.id, user.email, "password_reset", "auth", String(user.id), { ip: req.ip }, req.ip, req.get("user-agent"));
+    logAudit(user.id, user.email, "password_reset", "auth", String(user.id), { ip: req.ip }, req.ip, req.get("user-agent"), user.organisationId);
 
     res.json({ message: "Mot de passe reinitialise avec succes. Toutes vos sessions ont ete deconnectees. Vous pouvez maintenant vous reconnecter." });
   } catch (err: any) {
@@ -1016,7 +1016,7 @@ router.get("/auth/verify-email/:token", async (req: Request, res: Response): Pro
   if (!rawToken || rawToken.length < 16) { res.status(400).json({ error: "Token invalide." }); return; }
   try {
     const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
-    const [user] = await db.select({ id: usersTable.id, email: usersTable.email, emailVerifiedAt: usersTable.emailVerifiedAt, emailVerificationExpiry: usersTable.emailVerificationExpiry })
+    const [user] = await db.select({ id: usersTable.id, email: usersTable.email, organisationId: usersTable.organisationId, emailVerifiedAt: usersTable.emailVerifiedAt, emailVerificationExpiry: usersTable.emailVerificationExpiry })
       .from(usersTable).where(eq(usersTable.emailVerificationToken, tokenHash));
     if (!user || !user.emailVerificationExpiry || new Date(user.emailVerificationExpiry) < new Date()) {
       res.status(400).json({ error: "Lien de verification invalide ou expire. Demandez un nouvel envoi." });
@@ -1024,7 +1024,7 @@ router.get("/auth/verify-email/:token", async (req: Request, res: Response): Pro
     }
     if (user.emailVerifiedAt) { res.json({ message: "Email deja verifie.", alreadyVerified: true }); return; }
     await db.update(usersTable).set({ emailVerifiedAt: new Date(), emailVerificationToken: null, emailVerificationExpiry: null, updatedAt: new Date() }).where(eq(usersTable.id, user.id));
-    logAudit(user.id, user.email, "email_verified", "auth", String(user.id), { ip: req.ip }, req.ip, req.get("user-agent"));
+    logAudit(user.id, user.email, "email_verified", "auth", String(user.id), { ip: req.ip }, req.ip, req.get("user-agent"), user.organisationId);
     res.json({ message: "Email verifie avec succes. Vous pouvez maintenant vous connecter." });
   } catch (err: any) {
     req.log.error({ err }, "Erreur verify-email");

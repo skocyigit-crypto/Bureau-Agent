@@ -578,7 +578,7 @@ router.post("/voice/confirm", async (req: Request, res: Response): Promise<void>
           priority: "moyenne",
           createdBy: userId || null,
         }).returning({ id: tasksTable.id });
-        await logAudit(userId, userEmail, "voice_create_task", "task", String(row?.id), { title, raw: payload.raw }, ip, ua);
+        await logAudit(userId, userEmail, "voice_create_task", "task", String(row?.id), { title, raw: payload.raw }, ip, ua, orgId);
         res.json({ success: true, action: "task_created", spoken: `La tache "${title}" a ete creee.`, navigate: "/taches", id: row?.id });
         return;
       }
@@ -594,7 +594,7 @@ router.post("/voice/confirm", async (req: Request, res: Response): Promise<void>
           email: params.email || null,
           createdBy: userId || null,
         } as any).returning({ id: contactsTable.id });
-        await logAudit(userId, userEmail, "voice_create_contact", "contact", String(row?.id), { name: fullName, phone: params.phone, email: params.email }, ip, ua);
+        await logAudit(userId, userEmail, "voice_create_contact", "contact", String(row?.id), { name: fullName, phone: params.phone, email: params.email }, ip, ua, orgId);
         res.json({ success: true, action: "contact_created", spoken: `Le contact ${fullName} a ete cree.`, navigate: "/contacts", id: row?.id });
         return;
       }
@@ -615,7 +615,7 @@ router.post("/voice/confirm", async (req: Request, res: Response): Promise<void>
           contactName: params.contactName || null,
           createdBy: userId || null,
         } as any).returning({ id: calendarEventsTable.id });
-        await logAudit(userId, userEmail, "voice_schedule_meeting", "calendar_event", String(row?.id), { title, contactName: params.contactName, startDate: start.toISOString() }, ip, ua);
+        await logAudit(userId, userEmail, "voice_schedule_meeting", "calendar_event", String(row?.id), { title, contactName: params.contactName, startDate: start.toISOString() }, ip, ua, orgId);
         res.json({ success: true, action: "meeting_scheduled", spoken: `Rendez-vous "${title}" planifie pour demain a 10 heures.`, navigate: "/calendrier", id: row?.id });
         return;
       }
@@ -653,7 +653,7 @@ router.post("/voice/confirm", async (req: Request, res: Response): Promise<void>
           priority: "moyenne",
           createdBy: userId || null,
         } as any).returning({ id: messagesTable.id });
-        await logAudit(userId, userEmail, "voice_send_message", "message", String(row?.id), { contactName: who, phone, body: body.slice(0, 200) }, ip, ua);
+        await logAudit(userId, userEmail, "voice_send_message", "message", String(row?.id), { contactName: who, phone, body: body.slice(0, 200) }, ip, ua, orgId);
         res.json({ success: true, action: "message_sent", spoken: `Message a ${who || "destinataire"} enregistre.`, navigate: "/messages", id: row?.id });
         return;
       }
@@ -679,7 +679,7 @@ router.post("/voice/confirm", async (req: Request, res: Response): Promise<void>
           notes: (params.note || "").slice(0, 1000),
           createdBy: userId || null,
         } as any).returning({ id: callsTable.id });
-        await logAudit(userId, userEmail, "voice_log_call", "call", String(row?.id), { contactName: who, note: params.note }, ip, ua);
+        await logAudit(userId, userEmail, "voice_log_call", "call", String(row?.id), { contactName: who, note: params.note }, ip, ua, orgId);
         res.json({ success: true, action: "call_logged", spoken: `Appel avec ${who || "le contact"} enregistre.`, navigate: "/appels", id: row?.id });
         return;
       }

@@ -339,7 +339,7 @@ Reponds UNIQUEMENT en JSON avec cette structure:
     tasksCreated: createdTasks.length,
     appointmentCreated: !!createdAppointment,
     sentiment: analysis.sentiment,
-  });
+  }, undefined, undefined, call.organisationId ?? null);
 
   return { analysis, createdTasks, createdAppointment };
 }

@@ -7,14 +7,23 @@ import { logger } from "../lib/logger";
 const router = Router();
 
 function requireAdmin(req: Request, res: Response): boolean {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return false; }
-  const role = (req.session as any)?.userRole;
+  const role = req.session?.userRole;
   if (role !== "super_admin" && role !== "administrateur") {
     res.status(403).json({ error: "Acces refuse." });
     return false;
   }
   return true;
+}
+
+// Tenant scoping: super_admin voit tout; administrateur ne voit que son organisation.
+function tenantCondition(req: Request) {
+  const role = req.session?.userRole;
+  const orgId = req.session?.organisationId;
+  if (role === "super_admin") return undefined;
+  if (!orgId) return eq(auditLogsTable.organisationId, -1); // verrou par defaut
+  return eq(auditLogsTable.organisationId, orgId);
 }
 
 function safeInt(val: any, defaultVal: number, min: number, max: number): number {
@@ -32,6 +41,8 @@ router.get("/audit/logs", async (req: Request, res: Response): Promise<void> => 
   const { action, resource, userId, from, to, userEmail } = req.query;
 
   let conditions: any[] = [];
+  const tenant = tenantCondition(req);
+  if (tenant) conditions.push(tenant);
   if (action && typeof action === "string") conditions.push(eq(auditLogsTable.action, action));
   if (resource && typeof resource === "string") conditions.push(eq(auditLogsTable.resource, resource));
   if (userId) {
@@ -75,10 +86,13 @@ router.get("/audit/stats", async (req: Request, res: Response): Promise<void> =>
   today.setHours(0, 0, 0, 0);
 
   try {
+    const tenant = tenantCondition(req);
+    const baseWhere = tenant ? and(gte(auditLogsTable.createdAt, today), tenant) : gte(auditLogsTable.createdAt, today);
+
     const [todayStats] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(auditLogsTable)
-      .where(gte(auditLogsTable.createdAt, today));
+      .where(baseWhere);
 
     const actionBreakdown = await db
       .select({
@@ -86,7 +100,7 @@ router.get("/audit/stats", async (req: Request, res: Response): Promise<void> =>
         count: sql<number>`count(*)::int`,
       })
       .from(auditLogsTable)
-      .where(gte(auditLogsTable.createdAt, today))
+      .where(baseWhere)
       .groupBy(auditLogsTable.action)
       .orderBy(desc(sql`count(*)`))
       .limit(10);
@@ -97,7 +111,7 @@ router.get("/audit/stats", async (req: Request, res: Response): Promise<void> =>
         count: sql<number>`count(*)::int`,
       })
       .from(auditLogsTable)
-      .where(gte(auditLogsTable.createdAt, today))
+      .where(baseWhere)
       .groupBy(auditLogsTable.userEmail)
       .orderBy(desc(sql`count(*)`))
       .limit(5);
@@ -118,6 +132,8 @@ router.get("/audit/export/csv", async (req: Request, res: Response): Promise<voi
   try {
     const { action, resource, from, to, userEmail } = req.query;
     const conditions: any[] = [];
+    const tenant = tenantCondition(req);
+    if (tenant) conditions.push(tenant);
     if (action && typeof action === "string") conditions.push(eq(auditLogsTable.action, action));
     if (resource && typeof resource === "string") conditions.push(eq(auditLogsTable.resource, resource));
     if (userEmail && typeof userEmail === "string" && userEmail.trim()) {
@@ -161,10 +177,14 @@ export async function logAudit(
   resourceId?: string,
   details?: any,
   ipAddress?: string,
-  userAgent?: string
+  userAgent?: string,
+  organisationId?: number | null,
 ) {
   try {
+    // L'appelant doit fournir organisationId quand il l'a (req.session.organisationId).
+    // Pas de lookup DB ici: logAudit est sur les chemins chauds.
     await db.insert(auditLogsTable).values({
+      organisationId: organisationId ?? null,
       userId: userId || null,
       userEmail: userEmail || null,
       action,

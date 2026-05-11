@@ -139,7 +139,7 @@ router.post("/calendar/events", async (req: Request, res: Response): Promise<voi
       updatedBy: userId,
     }).returning();
 
-    logAudit(userId, (req.session as any)?.userEmail, "create", "calendar_event", String(event.id), { title: event.title });
+    logAudit(userId, req.session?.userEmail, "create", "calendar_event", String(event.id), { title: event.title }, req.ip, req.get("user-agent"), req.session?.organisationId);
     res.status(201).json(event);
   } catch (err: any) {
     req.log.error({ err }, "Erreur creation evenement agenda");
@@ -177,7 +177,7 @@ router.patch("/calendar/events/:id", async (req: Request, res: Response): Promis
       .returning();
 
     if (!updated) { res.status(404).json({ error: "Evenement non trouve." }); return; }
-    logAudit(userId, (req.session as any)?.userEmail, "update", "calendar_event", String(id), updateData);
+    logAudit(userId, req.session?.userEmail, "update", "calendar_event", String(id), updateData, req.ip, req.get("user-agent"), req.session?.organisationId);
     res.json(updated);
   } catch (err: any) {
     req.log.error({ err }, "Erreur mise a jour evenement agenda");
@@ -236,7 +236,7 @@ router.delete("/calendar/events/:id", async (req: Request, res: Response): Promi
 
   try {
     await db.delete(calendarEventsTable).where(and(eq(calendarEventsTable.id, id), eq(calendarEventsTable.organisationId, orgId)));
-    logAudit(userId, (req.session as any)?.userEmail, "delete", "calendar_event", String(id));
+    logAudit(userId, req.session?.userEmail, "delete", "calendar_event", String(id), undefined, req.ip, req.get("user-agent"), req.session?.organisationId);
     res.json({ success: true });
   } catch (err: any) {
     req.log.error({ err }, "Erreur suppression evenement agenda");

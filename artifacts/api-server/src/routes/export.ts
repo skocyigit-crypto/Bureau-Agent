@@ -222,7 +222,7 @@ router.get("/export/:entity", async (req: Request, res: Response): Promise<void>
       break;
   }
 
-  logAudit(userId, (req.session as any)?.userEmail, "export", entity, undefined, { count: data.length });
+  logAudit(userId, req.session?.userEmail, "export", entity, undefined, { count: data.length }, req.ip, req.get("user-agent"), req.session?.organisationId);
 
   const csv = toCsv(data, columns);
   const date = new Date().toISOString().split("T")[0];

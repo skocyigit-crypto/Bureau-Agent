@@ -167,7 +167,7 @@ router.post("/calls", async (req, res): Promise<void> => {
       updatedBy: userId,
     }).returning();
 
-    logAudit((req.session as any)?.userId, (req.session as any)?.userEmail, "create", "call", String(call.id), { contactName: call.contactName, direction: call.direction });
+    logAudit(req.session?.userId, req.session?.userEmail, "create", "call", String(call.id), { contactName: call.contactName, direction: call.direction }, req.ip, req.get("user-agent"), req.session?.organisationId);
 
     if (call.status === "repondu" && call.notes && call.notes.trim().length > 5) {
       processCallWithAI(call.id).catch(async (err) => {

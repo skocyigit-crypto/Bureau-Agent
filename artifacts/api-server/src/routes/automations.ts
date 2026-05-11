@@ -223,7 +223,7 @@ router.post("/automations", async (req: Request, res: Response): Promise<void> =
       createdBy: userId,
     }).returning();
 
-    logAudit(userId, (req.session as any)?.userEmail, "create", "automation_rule", String(rule.id), { name });
+    logAudit(userId, req.session?.userEmail, "create", "automation_rule", String(rule.id), { name }, req.ip, req.get("user-agent"), req.session?.organisationId);
     res.status(201).json(rule);
   } catch (err: any) {
     req.log.error({ err }, "Erreur creation automation");
@@ -262,7 +262,7 @@ router.patch("/automations/:id", async (req: Request, res: Response): Promise<vo
       .returning();
 
     if (!updated) { res.status(404).json({ error: "Regle non trouvee." }); return; }
-    logAudit(userId, (req.session as any)?.userEmail, "update", "automation_rule", String(id), updateData);
+    logAudit(userId, req.session?.userEmail, "update", "automation_rule", String(id), updateData, req.ip, req.get("user-agent"), req.session?.organisationId);
     res.json(updated);
   } catch (err: any) {
     req.log.error({ err }, "Erreur mise a jour automation");
@@ -283,7 +283,7 @@ router.delete("/automations/:id", async (req: Request, res: Response): Promise<v
 
   try {
     await db.delete(automationRulesTable).where(eq(automationRulesTable.id, id));
-    logAudit(userId, (req.session as any)?.userEmail, "delete", "automation_rule", String(id));
+    logAudit(userId, req.session?.userEmail, "delete", "automation_rule", String(id), undefined, req.ip, req.get("user-agent"), req.session?.organisationId);
     res.json({ success: true });
   } catch (err: any) {
     req.log.error({ err }, "Erreur suppression automation");

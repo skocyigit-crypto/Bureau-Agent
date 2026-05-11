@@ -231,6 +231,7 @@ export function logTenantViolation(req: Request, event: string, detail: string):
       { detail, path: req.originalUrl, userRole, organisationId },
       ip,
       req.get("user-agent"),
+      organisationId ?? null,
     );
   }
 }
