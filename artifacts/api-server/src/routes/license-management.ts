@@ -7,9 +7,7 @@ import { logger } from "../lib/logger";
 
 const router = Router();
 
-function escapeHtml(str: string): string {
-  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
+import { escapeHtml } from "../lib/html-escape";
 
 const APP_URL = process.env.PUBLIC_URL || process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "agentdebureau.fr"}`;
 

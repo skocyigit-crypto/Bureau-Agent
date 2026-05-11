@@ -2,15 +2,7 @@ import { google } from "googleapis";
 import nodemailer from "nodemailer";
 import { Resend } from "resend";
 import { logger } from "../lib/logger";
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+import { escapeHtml } from "../lib/html-escape";
 
 const SMTP_HOST = process.env.SMTP_HOST || "";
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || "587");

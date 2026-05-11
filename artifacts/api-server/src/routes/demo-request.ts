@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import { sendEmail } from "../services/email";
 import { logger } from "../lib/logger";
+import { escapeHtml, escapeAttr } from "../lib/html-escape";
 
 const router = Router();
 
@@ -29,20 +30,35 @@ router.post("/public/demo-request", demoLimiter, async (req: Request, res: Respo
   try {
     const adminEmail = process.env.ADMIN_EMAIL || "admin@agentdebureau.fr";
 
+    // Public endpoint — every interpolated field is attacker-controlled.
+    // Escape into HTML body context (escapeHtml) and into attribute context
+    // (escapeAttr / mailto link) separately. mailtoHref is a sanitised email
+    // string used only inside an href quoted attribute; if email is somehow
+    // not a real address we fall back to "#".
+    const fnSafe = escapeHtml(firstName);
+    const lnSafe = escapeHtml(lastName);
+    const emailSafe = escapeHtml(email);
+    const mailtoHref = /^[^@\s<>"']{1,254}@[^@\s<>"']{1,254}$/.test(String(email))
+      ? `mailto:${escapeAttr(email)}`
+      : "#";
+    const phoneSafe = phone ? escapeHtml(phone) : "—";
+    const companySafe = escapeHtml(company);
+    const employeeCountSafe = employeeCount ? escapeHtml(employeeCount) : "—";
+    const messageSafe = message ? escapeHtml(message) : "";
     const adminHtml = `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
         <h2 style="color: #1a2744; margin-bottom: 24px;">📅 Nouvelle demande de démonstration</h2>
         <table style="width: 100%; border-collapse: collapse;">
-          <tr><td style="padding: 8px 0; color: #6b7280; width: 160px;"><strong>Prénom</strong></td><td style="padding: 8px 0; color: #111827;">${firstName}</td></tr>
-          <tr><td style="padding: 8px 0; color: #6b7280;"><strong>Nom</strong></td><td style="padding: 8px 0; color: #111827;">${lastName}</td></tr>
-          <tr><td style="padding: 8px 0; color: #6b7280;"><strong>Email</strong></td><td style="padding: 8px 0; color: #111827;"><a href="mailto:${email}">${email}</a></td></tr>
-          <tr><td style="padding: 8px 0; color: #6b7280;"><strong>Téléphone</strong></td><td style="padding: 8px 0; color: #111827;">${phone || "—"}</td></tr>
-          <tr><td style="padding: 8px 0; color: #6b7280;"><strong>Société</strong></td><td style="padding: 8px 0; color: #111827;">${company}</td></tr>
-          <tr><td style="padding: 8px 0; color: #6b7280;"><strong>Taille équipe</strong></td><td style="padding: 8px 0; color: #111827;">${employeeCount || "—"}</td></tr>
-          ${message ? `<tr><td style="padding: 8px 0; color: #6b7280;"><strong>Message</strong></td><td style="padding: 8px 0; color: #111827;">${message}</td></tr>` : ""}
+          <tr><td style="padding: 8px 0; color: #6b7280; width: 160px;"><strong>Prénom</strong></td><td style="padding: 8px 0; color: #111827;">${fnSafe}</td></tr>
+          <tr><td style="padding: 8px 0; color: #6b7280;"><strong>Nom</strong></td><td style="padding: 8px 0; color: #111827;">${lnSafe}</td></tr>
+          <tr><td style="padding: 8px 0; color: #6b7280;"><strong>Email</strong></td><td style="padding: 8px 0; color: #111827;"><a href="${mailtoHref}">${emailSafe}</a></td></tr>
+          <tr><td style="padding: 8px 0; color: #6b7280;"><strong>Téléphone</strong></td><td style="padding: 8px 0; color: #111827;">${phoneSafe}</td></tr>
+          <tr><td style="padding: 8px 0; color: #6b7280;"><strong>Société</strong></td><td style="padding: 8px 0; color: #111827;">${companySafe}</td></tr>
+          <tr><td style="padding: 8px 0; color: #6b7280;"><strong>Taille équipe</strong></td><td style="padding: 8px 0; color: #111827;">${employeeCountSafe}</td></tr>
+          ${messageSafe ? `<tr><td style="padding: 8px 0; color: #6b7280;"><strong>Message</strong></td><td style="padding: 8px 0; color: #111827;">${messageSafe}</td></tr>` : ""}
         </table>
         <div style="margin-top: 24px; padding: 16px; background: #f9fafb; border-radius: 8px; border-left: 4px solid #f59e0b;">
-          <p style="margin: 0; color: #6b7280; font-size: 14px;">Répondre directement à : <a href="mailto:${email}" style="color: #1a2744; font-weight: bold;">${email}</a></p>
+          <p style="margin: 0; color: #6b7280; font-size: 14px;">Répondre directement à : <a href="${mailtoHref}" style="color: #1a2744; font-weight: bold;">${emailSafe}</a></p>
         </div>
       </div>
     `;
@@ -55,9 +71,9 @@ router.post("/public/demo-request", demoLimiter, async (req: Request, res: Respo
           </div>
           <h1 style="color: #1a2744; font-size: 24px; margin: 0;">Demande bien reçue !</h1>
         </div>
-        <p style="color: #374151; font-size: 16px; line-height: 1.6;">Bonjour <strong>${firstName}</strong>,</p>
+        <p style="color: #374151; font-size: 16px; line-height: 1.6;">Bonjour <strong>${fnSafe}</strong>,</p>
         <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-          Merci pour votre intérêt pour Agent de Bureau. Nous avons bien reçu votre demande de démonstration pour <strong>${company}</strong>.
+          Merci pour votre intérêt pour Agent de Bureau. Nous avons bien reçu votre demande de démonstration pour <strong>${companySafe}</strong>.
         </p>
         <p style="color: #374151; font-size: 16px; line-height: 1.6;">
           Notre équipe vous contactera dans les <strong>24 heures ouvrées</strong> pour planifier une session personnalisée selon vos besoins.

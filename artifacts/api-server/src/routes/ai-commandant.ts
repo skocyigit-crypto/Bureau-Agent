@@ -121,7 +121,7 @@ async function multiAiGenerateCached(
   return getOrCompute(cacheKey, ttlMs, () => multiAiGenerate(prompt, systemPrompt, orgId, route));
 }
 
-function escapeHtml(s: string) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+import { escapeHtml } from "../lib/html-escape";
 
 // Stop-words used to filter the user's chat message into useful keyword tokens.
 // Kept short and French-focused since the assistant always replies in French.

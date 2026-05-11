@@ -3,6 +3,7 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { eq, and, sql } from "drizzle-orm";
 import { db, usersTable, organisationsTable, subscriptionsTable, invitationsTable } from "@workspace/db";
+import { escapeHtml } from "../lib/html-escape";
 import { sendEmail } from "../services/email";
 import { logAudit } from "./audit";
 import { validatePasswordStrength } from "./auth";
@@ -184,18 +185,18 @@ router.post("/invitations", async (req: Request, res: Response): Promise<void> =
       <div style="padding:32px;">
         <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 20px;">
           Bonjour,<br><br>
-          <strong style="color:#0f1729;">${inviterName}</strong> vous invite a rejoindre
-          <strong style="color:#f59e0b;">${orgName}</strong> sur Agent de Bureau.
+          <strong style="color:#0f1729;">${escapeHtml(inviterName)}</strong> vous invite a rejoindre
+          <strong style="color:#f59e0b;">${escapeHtml(orgName)}</strong> sur Agent de Bureau.
         </p>
         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin:0 0 24px;">
           <table style="width:100%;border-collapse:collapse;">
             <tr>
               <td style="padding:6px 0;color:#64748b;font-size:13px;">Organisation</td>
-              <td style="padding:6px 0;color:#0f1729;font-size:13px;font-weight:600;text-align:right;">${orgName}</td>
+              <td style="padding:6px 0;color:#0f1729;font-size:13px;font-weight:600;text-align:right;">${escapeHtml(orgName)}</td>
             </tr>
             <tr>
               <td style="padding:6px 0;color:#64748b;font-size:13px;">Role attribue</td>
-              <td style="padding:6px 0;color:#0f1729;font-size:13px;font-weight:600;text-align:right;">${roleLabels[assignedRole] || assignedRole}</td>
+              <td style="padding:6px 0;color:#0f1729;font-size:13px;font-weight:600;text-align:right;">${escapeHtml(roleLabels[assignedRole] || assignedRole)}</td>
             </tr>
             <tr>
               <td style="padding:6px 0;color:#64748b;font-size:13px;">Expire dans</td>
@@ -295,7 +296,7 @@ router.post("/invitations/:id/resend", async (req: Request, res: Response): Prom
     <div style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
       <div style="background:linear-gradient(135deg,#0f1729 0%,#1e293b 100%);padding:32px;text-align:center;">
         <h1 style="color:#ffffff;font-size:22px;margin:0;">Rappel d'invitation</h1>
-        <p style="color:#94a3b8;font-size:14px;margin:8px 0 0;">Rejoignez ${orgName} sur Agent de Bureau</p>
+        <p style="color:#94a3b8;font-size:14px;margin:8px 0 0;">Rejoignez ${escapeHtml(orgName)} sur Agent de Bureau</p>
       </div>
       <div style="padding:32px;text-align:center;">
         <p style="color:#334155;font-size:15px;line-height:1.7;">Votre invitation est toujours valable ! Cliquez ci-dessous pour creer votre compte.</p>

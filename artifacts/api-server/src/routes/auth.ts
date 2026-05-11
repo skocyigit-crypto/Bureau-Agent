@@ -7,6 +7,7 @@ import { db, usersTable, organisationsTable } from "@workspace/db";
 import { logAudit } from "./audit";
 import { sendCredentialsEmail, sendEmail } from "../services/email";
 import { logger } from "../lib/logger";
+import { escapeHtml } from "../lib/html-escape";
 import {
   isSuperAdmin,
   assertRoleAllowed,
@@ -998,7 +999,7 @@ router.post("/auth/forgot-password", resetLimiter, async (req: Request, res: Res
     const html = `
       <div style="font-family:sans-serif;max-width:500px;margin:auto;padding:24px">
         <h2 style="color:#1a2744">Reinitialisation de votre mot de passe</h2>
-        <p>Bonjour ${user.prenom},</p>
+        <p>Bonjour ${escapeHtml(user.prenom)},</p>
         <p>Vous avez demande la reinitialisation de votre mot de passe. Cliquez sur le bouton ci-dessous pour choisir un nouveau mot de passe :</p>
         <div style="text-align:center;margin:32px 0">
           <a href="${resetLink}" style="background:#1a2744;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">
@@ -1132,7 +1133,7 @@ export async function issueAndSendEmailVerification(userId: number, email: strin
   const link = `${appUrl}${appBase}?verify_email=${rawToken}`;
   const html = `<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px">
     <h2 style="color:#1a2744">Verifiez votre adresse email</h2>
-    <p>Bonjour ${prenom},</p>
+    <p>Bonjour ${escapeHtml(prenom)},</p>
     <p>Pour activer votre compte Agent de Bureau, cliquez sur le bouton ci-dessous :</p>
     <div style="text-align:center;margin:32px 0">
       <a href="${link}" style="background:#1a2744;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Verifier mon email</a>
@@ -1152,8 +1153,8 @@ async function sendPasswordChangedEmail(email: string, prenom: string, ip: strin
   const when = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
   const html = `<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px">
     <h2 style="color:#1a2744">Votre mot de passe a ete modifie</h2>
-    <p>Bonjour ${prenom},</p>
-    <p>Le mot de passe de votre compte Agent de Bureau a ete reinitialise le <strong>${when}</strong>${ip ? ` depuis l'IP <strong>${ip}</strong>` : ""}.</p>
+    <p>Bonjour ${escapeHtml(prenom)},</p>
+    <p>Le mot de passe de votre compte Agent de Bureau a ete reinitialise le <strong>${escapeHtml(when)}</strong>${ip ? ` depuis l'IP <strong>${escapeHtml(ip)}</strong>` : ""}.</p>
     <p>Toutes vos sessions actives ont ete deconnectees par securite.</p>
     <p style="background:#fff7ed;border-left:4px solid #f59e0b;padding:12px;margin:16px 0">
       <strong>Vous n'etes pas a l'origine de cette action ?</strong> Contactez immediatement support@agentdebureau.fr.
@@ -1171,11 +1172,17 @@ async function sendLoginNotificationIfNew(user: any, ip: string | undefined, ua:
   if (knownFp === fp) return;
   await db.update(usersTable).set({ lastLoginFingerprint: fp }).where(eq(usersTable.id, user.id)).catch(() => {});
   const when = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
+  // Critical: User-Agent (`ua`) is fully attacker-controlled at the HTTP
+  // layer (any client can send any string), and IP can be spoofed via
+  // X-Forwarded-For if the proxy chain is misconfigured. Both must be
+  // escaped before being placed in the email HTML, otherwise an attacker
+  // who logs in as the victim can stage stored XSS in the victim's mail
+  // client. Cap UA at 200 chars after escaping for visual hygiene.
   const html = `<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px">
     <h2 style="color:#1a2744">Nouvelle connexion detectee</h2>
-    <p>Bonjour ${user.prenom || ""},</p>
+    <p>Bonjour ${escapeHtml(user.prenom || "")},</p>
     <p>Une connexion a votre compte Agent de Bureau a ete detectee depuis un nouvel appareil :</p>
-    <ul><li>Date : <strong>${when}</strong></li><li>IP : <strong>${ip}</strong></li>${ua ? `<li>Navigateur : ${String(ua).slice(0, 200)}</li>` : ""}</ul>
+    <ul><li>Date : <strong>${escapeHtml(when)}</strong></li><li>IP : <strong>${escapeHtml(ip)}</strong></li>${ua ? `<li>Navigateur : ${escapeHtml(String(ua).slice(0, 200))}</li>` : ""}</ul>
     <p style="background:#fff7ed;border-left:4px solid #f59e0b;padding:12px;margin:16px 0">
       <strong>Ce n'est pas vous ?</strong> Changez immediatement votre mot de passe et contactez support@agentdebureau.fr.
     </p>
