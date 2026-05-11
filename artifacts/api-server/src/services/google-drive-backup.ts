@@ -108,8 +108,21 @@ async function googleDriveRequest(accessToken: string, path: string, options: Re
 // Encryption helpers
 // ---------------------------------------------------------------------------
 
+let _devBackupKeyWarned = false;
 function deriveEncryptionKey(): Buffer {
-  const secret = process.env.BACKUP_ENCRYPTION_KEY || process.env.SESSION_SECRET || "agent-de-bureau-backup-key-2025";
+  let secret = process.env.BACKUP_ENCRYPTION_KEY || process.env.SESSION_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("BACKUP_ENCRYPTION_KEY (ou SESSION_SECRET) est requis en production pour chiffrer les sauvegardes.");
+    }
+    if (!_devBackupKeyWarned) {
+      _devBackupKeyWarned = true;
+      // eslint-disable-next-line no-console
+      console.warn("[Security] BACKUP_ENCRYPTION_KEY non defini — cle ephemere generee (dev uniquement). Les sauvegardes anciennes ne pourront pas etre dechiffrees apres redemarrage.");
+    }
+    secret = crypto.randomBytes(48).toString("hex");
+    process.env.BACKUP_ENCRYPTION_KEY = secret;
+  }
   return crypto.createHash("sha256").update(secret).digest();
 }
 
