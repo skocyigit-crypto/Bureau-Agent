@@ -10,6 +10,7 @@ import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../se
 import { getOrCompute, buildAiCacheKey, getCached, setCached, withProviderTimeout, AI_CACHE_TTL } from "../services/ai-cache";
 import { openSseStream, multiAiGenerateStream, StreamAbortedError } from "../services/ai-stream";
 import { logger } from "../lib/logger";
+import { scanBase64Content } from "../middleware/security";
 
 function handleCommandantError(err: unknown, res: Response, logLabel: string): void {
   if (err instanceof AiQuotaExceededError) {
@@ -859,6 +860,27 @@ router.post("/commandant/photo-location", async (req: Request, res: Response): P
   try {
     const orgId = getOrgId(req);
     const { photoBase64, latitude, longitude, description, linkedEntity, linkedEntityId } = req.body;
+
+    if (photoBase64 != null) {
+      if (typeof photoBase64 !== "string") {
+        res.status(400).json({ success: false, error: "photoBase64 doit etre une chaine base64" });
+        return;
+      }
+      if (photoBase64.length > 2_000_000) {
+        res.status(413).json({ success: false, error: "Photo trop volumineuse (max ~1.5MB)" });
+        return;
+      }
+      const cleaned = photoBase64.replace(/^data:[^;]+;base64,/, "");
+      const scan = scanBase64Content(cleaned, "photo.jpg");
+      if (!scan.safe) {
+        res.status(400).json({ success: false, error: "Photo refusee par l'antivirus", threats: scan.threats });
+        return;
+      }
+      if (scan.fileType && !["JPEG", "PNG"].includes(scan.fileType)) {
+        res.status(400).json({ success: false, error: `Type de fichier non autorise: ${scan.fileType}. Seuls JPEG et PNG sont acceptes.` });
+        return;
+      }
+    }
 
     let address = "";
     let mapUrl = "";

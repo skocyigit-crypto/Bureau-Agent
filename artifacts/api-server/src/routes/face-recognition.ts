@@ -7,6 +7,30 @@ import { logger } from "../lib/logger";
 import { assertAiQuota, AiQuotaExceededError } from "../services/ai-quota";
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL, withProviderTimeout } from "../services/ai-cache";
 import crypto from "node:crypto";
+import { scanBase64Content } from "../middleware/security";
+
+function rejectIfUnsafePhoto(photoBase64: unknown, res: Response): boolean {
+  if (photoBase64 == null) return false;
+  if (typeof photoBase64 !== "string") {
+    res.status(400).json({ success: false, error: "photoBase64 doit etre une chaine base64" });
+    return true;
+  }
+  if (photoBase64.length > 2_000_000) {
+    res.status(413).json({ success: false, error: "Photo trop volumineuse (max ~1.5MB)" });
+    return true;
+  }
+  const cleaned = photoBase64.replace(/^data:[^;]+;base64,/, "");
+  const scan = scanBase64Content(cleaned, "photo.jpg");
+  if (!scan.safe) {
+    res.status(400).json({ success: false, error: "Photo refusee par l'antivirus", threats: scan.threats });
+    return true;
+  }
+  if (scan.fileType && !["JPEG", "PNG"].includes(scan.fileType)) {
+    res.status(400).json({ success: false, error: `Type de fichier non autorise: ${scan.fileType}. Seuls JPEG et PNG sont acceptes.` });
+    return true;
+  }
+  return false;
+}
 
 const router = Router();
 
@@ -80,6 +104,8 @@ router.post("/register", async (req: Request, res: Response): Promise<void> => {
       }
     }
 
+    if (rejectIfUnsafePhoto(photoBase64, res)) return;
+
     let aiAnalysis = "";
     if (photoBase64) {
       try { await assertAiQuota(orgId); } catch (qe) {
@@ -130,6 +156,8 @@ router.post("/recognize", async (req: Request, res: Response): Promise<void> => 
   try {
     const orgId = getOrgId(req);
     const { photoBase64, location, deviceInfo } = req.body;
+
+    if (rejectIfUnsafePhoto(photoBase64, res)) return;
 
     const profiles = await db.select().from(faceProfilesTable)
       .where(eq(faceProfilesTable.organisationId, orgId));
