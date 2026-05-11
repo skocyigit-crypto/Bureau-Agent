@@ -78,6 +78,20 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        // Vendor chunks separes: les libs animations/icones changent
+        // beaucoup moins souvent que le code applicatif, donc isoler
+        // permet aux navigateurs de garder le hash en cache long-terme
+        // entre deux deploiements ou seul le code applicatif bouge.
+        // Limites pratiques aussi la taille du chunk principal.
+        manualChunks: {
+          "vendor-framer": ["framer-motion"],
+          "vendor-icons": ["lucide-react"],
+          "vendor-react": ["react", "react-dom", "wouter"],
+        },
+      },
+    },
   },
   server: {
     port,

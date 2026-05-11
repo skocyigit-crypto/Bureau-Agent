@@ -1,10 +1,17 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { motion, useScroll, useTransform, useInView } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
-import { DemoModal } from "@/components/DemoModal";
 import { AjanDemo } from "@/components/AjanDemo";
+
+// DemoModal n'est rendu que sur clic — chargement paresseux pour
+// retirer ses 215 lignes (+ framer-motion deja en cache + lucide
+// icones) du bundle d'entree. Suspense avec fallback null car le
+// modal est invisible tant qu'il n'est pas ouvert.
+const DemoModal = lazy(() =>
+  import("@/components/DemoModal").then((m) => ({ default: m.DemoModal })),
+);
 import { HeroLiveScene, LiveActivityTicker, CursorGlow } from "@/components/HeroLiveScene";
 import { AnimatedDashboardMock } from "@/components/AnimatedDashboardMock";
 import { 
@@ -120,7 +127,11 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col overflow-x-hidden font-sans">
-      <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
+      {demoOpen && (
+        <Suspense fallback={null}>
+          <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
+        </Suspense>
+      )}
       <Navbar onDemoClick={() => setDemoOpen(true)} />
 
       <main className="flex-grow pt-20">
