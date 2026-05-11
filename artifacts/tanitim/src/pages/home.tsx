@@ -51,12 +51,11 @@ import {
 } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
 
-import featureCallsPath from "@/assets/images/feature-calls.png";
-import featureDashboardPath from "@/assets/images/feature-dashboard.png";
-import officeManagerPath from "@/assets/images/office-manager.png";
-import testimonial1Path from "@/assets/images/testimonial-1.png";
-import testimonial2Path from "@/assets/images/testimonial-2.png";
-import testimonial3Path from "@/assets/images/testimonial-3.png";
+import featureCallsPath from "@/assets/images/feature-calls.webp";
+import featureDashboardPath from "@/assets/images/feature-dashboard.webp";
+import testimonial1Path from "@/assets/images/testimonial-1.webp";
+import testimonial2Path from "@/assets/images/testimonial-2.webp";
+import testimonial3Path from "@/assets/images/testimonial-3.webp";
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 40 },
@@ -433,10 +432,14 @@ export default function Home() {
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-accent/20 to-primary/5 rounded-[2.5rem] transform rotate-3 scale-105 blur-lg"></div>
                 <div className="absolute inset-0 bg-background rounded-[2.5rem] transform rotate-3 border border-border shadow-2xl"></div>
-                <img 
-                  src={featureCallsPath} 
-                  alt="Illustration de routage d'appels" 
-                  className="rounded-[2rem] relative z-10 shadow-2xl border border-border w-full object-cover"
+                <img
+                  src={featureCallsPath}
+                  alt="Illustration de routage d'appels"
+                  width={1280}
+                  height={698}
+                  loading="lazy"
+                  decoding="async"
+                  className="rounded-[2rem] relative z-10 shadow-2xl border border-border w-full h-auto object-cover"
                 />
                 
                 {/* Floating UI Elements */}
@@ -512,10 +515,14 @@ export default function Home() {
                 className="flex-1 relative w-full max-w-xl lg:max-w-none mx-auto"
               >
                 <div className="absolute inset-0 bg-gradient-to-tr from-accent/30 to-blue-500/20 rounded-[2.5rem] transform -rotate-3 scale-105 blur-lg"></div>
-                <img 
-                  src={featureDashboardPath} 
-                  alt="Tableau de bord analytique" 
-                  className="rounded-[2rem] relative z-10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 w-full object-cover"
+                <img
+                  src={featureDashboardPath}
+                  alt="Tableau de bord analytique"
+                  width={1280}
+                  height={698}
+                  loading="lazy"
+                  decoding="async"
+                  className="rounded-[2rem] relative z-10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 w-full h-auto object-cover"
                 />
               </motion.div>
             </div>
@@ -778,9 +785,13 @@ export default function Home() {
                     "{testimonial.quote}"
                   </blockquote>
                   <div className="flex items-center gap-4 mt-auto">
-                    <img 
-                      src={testimonial.image} 
-                      alt={testimonial.name} 
+                    <img
+                      src={testimonial.image}
+                      alt={testimonial.name}
+                      width={56}
+                      height={56}
+                      loading="lazy"
+                      decoding="async"
                       className="w-14 h-14 rounded-full object-cover border-2 border-primary/10"
                     />
                     <div>
