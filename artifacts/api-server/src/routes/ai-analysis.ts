@@ -2859,23 +2859,52 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         break;
       }
       case "chain_actions": {
+        // Garde-fou: refuser tout enchainement imbrique (un appel /ai/execute
+        // de type chain_actions ne doit pas declencher un autre chain_actions
+        // via la self-call interne). Detecte par un header X-Chain-Depth.
+        const incomingDepth = parseInt(String(req.headers["x-chain-depth"] || "0"), 10);
+        if (Number.isFinite(incomingDepth) && incomingDepth > 0) {
+          res.status(400).json({ error: "Chainage d'actions imbrique interdit." });
+          return;
+        }
         let actions: any[];
         try { actions = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Liste d'actions invalide." }); return; }
         if (!Array.isArray(actions) || actions.length === 0) { res.status(400).json({ error: "Tableau d'actions requis." }); return; }
         if (actions.length > 10) { res.status(400).json({ error: "Maximum 10 actions par chaine." }); return; }
+        // Validation prealable des types pour eviter une self-call inutile.
+        for (const a of actions) {
+          if (!a || typeof a.type !== "string" || a.type.length > 64) {
+            res.status(400).json({ error: "Action invalide: type requis." });
+            return;
+          }
+          if (a.type === "chain_actions") {
+            res.status(400).json({ error: "Une action chainee ne peut pas etre elle-meme un chain_actions." });
+            return;
+          }
+        }
         const chainResults: any[] = [];
         const port = process.env.PORT || 8080;
         for (const action of actions) {
+          const ac = new AbortController();
+          const timer = setTimeout(() => ac.abort(), 30_000);
           try {
             const chainRes = await fetch(`http://127.0.0.1:${port}/api/ai/execute`, {
               method: "POST",
-              headers: { "Content-Type": "application/json", cookie: req.headers.cookie || "" },
+              headers: {
+                "Content-Type": "application/json",
+                cookie: req.headers.cookie || "",
+                "X-Chain-Depth": "1",
+              },
               body: JSON.stringify({ type: action.type, target: action.target }),
+              signal: ac.signal,
             });
             const chainData = await chainRes.json() as Record<string, any>;
             chainResults.push({ type: action.type, success: chainData.success, message: chainData.message });
           } catch (e: any) {
-            chainResults.push({ type: action.type, success: false, message: e.message });
+            const msg = e?.name === "AbortError" ? "Action expiree (>30s)." : (e?.message || "Erreur action");
+            chainResults.push({ type: action.type, success: false, message: msg });
+          } finally {
+            clearTimeout(timer);
           }
         }
         const successCount = chainResults.filter((r: any) => r.success).length;
