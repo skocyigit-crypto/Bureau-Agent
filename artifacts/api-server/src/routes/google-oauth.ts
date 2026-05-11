@@ -46,7 +46,7 @@ function getOAuth2Client() {
 
 router.get("/status", async (req, res): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -74,7 +74,7 @@ router.get("/status", async (req, res): Promise<void> => {
 
 router.post("/auth-url", async (req, res): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
     const oauth2Client = getOAuth2Client();
@@ -98,8 +98,8 @@ router.post("/auth-url", async (req, res): Promise<void> => {
     }
 
     const state = crypto.randomBytes(16).toString("hex");
-    (req.session as any).googleOAuthState = state;
-    (req.session as any).googleOAuthServices = services || Object.keys(GOOGLE_SCOPES_MAP);
+    req.session.googleOAuthState = state;
+    req.session.googleOAuthServices = services || Object.keys(GOOGLE_SCOPES_MAP);
 
     const authUrl = oauth2Client.generateAuthUrl({
       access_type: "offline",
@@ -132,13 +132,13 @@ router.get("/callback", async (req, res): Promise<void> => {
       return;
     }
 
-    const sessionState = (req.session as any)?.googleOAuthState;
+    const sessionState = req.session?.googleOAuthState;
     if (!state || state !== sessionState) {
       res.redirect(`${baseUrl}parametres?google_error=invalid_state`);
       return;
     }
 
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) {
       res.redirect(`${baseUrl}parametres?google_error=not_authenticated`);
       return;
@@ -177,7 +177,7 @@ router.get("/callback", async (req, res): Promise<void> => {
       });
     }
 
-    const services = (req.session as any)?.googleOAuthServices || Object.keys(GOOGLE_SCOPES_MAP);
+    const services = req.session?.googleOAuthServices || Object.keys(GOOGLE_SCOPES_MAP);
     const grantedScopes = (tokens.scope || "").split(" ");
 
     for (const svcId of services) {
@@ -221,8 +221,8 @@ router.get("/callback", async (req, res): Promise<void> => {
       itemsProcessed: String(services.length),
     });
 
-    delete (req.session as any).googleOAuthState;
-    delete (req.session as any).googleOAuthServices;
+    delete req.session.googleOAuthState;
+    delete req.session.googleOAuthServices;
 
     res.redirect(`${baseUrl}parametres?google_success=true`); return;
   } catch (error: any) {
@@ -233,7 +233,7 @@ router.get("/callback", async (req, res): Promise<void> => {
 
 router.post("/disconnect", async (req, res): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
     const tokens = await db.select().from(googleOAuthTokensTable)
@@ -273,7 +273,7 @@ router.post("/disconnect", async (req, res): Promise<void> => {
 
 router.post("/refresh", async (req, res): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
     const tokens = await db.select().from(googleOAuthTokensTable)
@@ -310,7 +310,7 @@ router.post("/refresh", async (req, res): Promise<void> => {
 
 router.get("/config", async (req, res): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
+    const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -330,8 +330,8 @@ router.get("/config", async (req, res): Promise<void> => {
 
 router.post("/config", async (req, res): Promise<void> => {
   try {
-    const userId = (req.session as any)?.userId;
-    const userRole = (req.session as any)?.userRole;
+    const userId = req.session?.userId;
+    const userRole = req.session?.userRole;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
     if (userRole !== "super_admin") { res.status(403).json({ error: "Acces reserve au Super Administrateur." }); return; }
 

@@ -3,13 +3,13 @@ import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 
 export function requireTenant(req: Request, res: Response, next: NextFunction): void {
-  const organisationId = (req.session as any)?.organisationId;
+  const organisationId = req.session?.organisationId;
   if (organisationId) {
     next();
     return;
   }
 
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) {
     res.status(403).json({ error: "Aucune organisation associee a ce compte." });
     return;
@@ -20,7 +20,7 @@ export function requireTenant(req: Request, res: Response, next: NextFunction): 
     .where(eq(usersTable.id, userId))
     .then(([user]) => {
       if (user?.organisationId) {
-        (req.session as any).organisationId = user.organisationId;
+        req.session.organisationId = user.organisationId;
         next();
       } else {
         res.status(403).json({ error: "Aucune organisation associee a ce compte." });
@@ -32,5 +32,9 @@ export function requireTenant(req: Request, res: Response, next: NextFunction): 
 }
 
 export function getOrgId(req: Request): number {
-  return (req.session as any).organisationId;
+  const orgId = req.session?.organisationId;
+  if (!orgId) {
+    throw new Error("Organisation manquante dans la session. Appelez requireTenant en amont.");
+  }
+  return orgId;
 }

@@ -78,6 +78,28 @@ const resetLimiter = rateLimit({
   message: { error: "Trop de demandes de reinitialisation. Reessayez dans 1 heure." },
 });
 
+// Limiteur de verification MFA: protege contre le brute force du code TOTP
+// (6 chiffres = ~1M combinaisons). On ne compte que les echecs pour ne pas
+// penaliser un utilisateur legitime apres une saisie correcte.
+const mfaVerifyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop de tentatives MFA. Reessayez dans 15 minutes." },
+  skipSuccessfulRequests: true,
+});
+
+// Limiteur dedie a /mfa/setup: empeche le spam de generation de secrets/QR
+// (chaque appel reussi ecrase le secret stocke). On compte TOUS les appels.
+const mfaSetupLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop de demarrages de configuration MFA. Reessayez dans 15 minutes." },
+});
+
 router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Promise<void> => {
   const { email, password, totpCode } = req.body;
 
@@ -156,13 +178,13 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
       req.session.regenerate((err) => err ? reject(err) : resolve());
     });
 
-    (req.session as any).userId = user.id;
-    (req.session as any).userRole = user.role;
-    (req.session as any).organisationId = user.organisationId;
-    (req.session as any).userEmail = user.email;
-    (req.session as any).loginIp = req.ip;
-    (req.session as any).loginUserAgent = req.get("user-agent");
-    (req.session as any).loginAt = Date.now();
+    req.session.userId = user.id;
+    req.session.userRole = user.role;
+    req.session.organisationId = user.organisationId ?? undefined;
+    req.session.userEmail = user.email;
+    req.session.loginIp = req.ip;
+    req.session.loginUserAgent = req.get("user-agent");
+    req.session.loginAt = Date.now();
 
     logAudit(user.id, user.email, "login", "auth", undefined, { role: user.role, mfaUsed: user.mfaActif, ip: req.ip, ua: req.get("user-agent") }, req.ip, req.get("user-agent"), user.organisationId);
 
@@ -187,8 +209,8 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
   }
 });
 
-router.post("/auth/mfa/setup", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+router.post("/auth/mfa/setup", mfaSetupLimiter, async (req: Request, res: Response): Promise<void> => {
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
   try {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
@@ -206,8 +228,8 @@ router.post("/auth/mfa/setup", async (req: Request, res: Response): Promise<void
   }
 });
 
-router.post("/auth/mfa/enable", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+router.post("/auth/mfa/enable", mfaVerifyLimiter, async (req: Request, res: Response): Promise<void> => {
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
   const { totpCode } = req.body;
   if (!totpCode || typeof totpCode !== "string") { res.status(400).json({ error: "Code TOTP requis." }); return; }
@@ -225,8 +247,8 @@ router.post("/auth/mfa/enable", async (req: Request, res: Response): Promise<voi
   }
 });
 
-router.post("/auth/mfa/disable", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+router.post("/auth/mfa/disable", mfaVerifyLimiter, async (req: Request, res: Response): Promise<void> => {
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
   const { password, totpCode } = req.body;
   if (!password) { res.status(400).json({ error: "Mot de passe requis pour desactiver MFA." }); return; }
@@ -249,7 +271,7 @@ router.post("/auth/mfa/disable", async (req: Request, res: Response): Promise<vo
 });
 
 router.get("/auth/mfa/status", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
   try {
     const [user] = await db.select({ mfaActif: usersTable.mfaActif, hasSecret: usersTable.mfaSecret }).from(usersTable).where(eq(usersTable.id, userId));
@@ -260,14 +282,14 @@ router.get("/auth/mfa/status", async (req: Request, res: Response): Promise<void
 });
 
 router.post("/auth/complete-onboarding", (req: Request, res: Response): void => {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
   res.json({ success: true });
 });
 
 router.post("/auth/logout", (req: Request, res: Response): void => {
-  const userId = (req.session as any)?.userId;
-  const userEmail = (req.session as any)?.userEmail;
+  const userId = req.session?.userId;
+  const userEmail = req.session?.userEmail;
   if (userId) logAudit(userId, userEmail, "logout", "auth", undefined, undefined, req.ip, req.get("user-agent"), req.session?.organisationId);
   res.clearCookie("adb.sid", { path: "/" });
   if (req.session) {
@@ -280,7 +302,7 @@ router.post("/auth/logout", (req: Request, res: Response): void => {
 });
 
 router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
 
   if (!userId) {
     res.status(401).json({ error: "Non authentifie." });
@@ -319,7 +341,7 @@ router.get("/auth/me", async (req: Request, res: Response): Promise<void> => {
 });
 
 router.post("/auth/change-password", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
+  const userId = req.session?.userId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
   const { currentPassword, newPassword } = req.body;
@@ -357,9 +379,9 @@ router.post("/auth/change-password", async (req: Request, res: Response): Promis
 });
 
 router.get("/auth/users", async (req: Request, res: Response): Promise<void> => {
-  const userId = (req.session as any)?.userId;
-  const userRole = (req.session as any)?.userRole;
-  const organisationId = (req.session as any)?.organisationId;
+  const userId = req.session?.userId;
+  const userRole = req.session?.userRole;
+  const organisationId = req.session?.organisationId;
 
   if (!userId || (userRole !== "super_admin" && userRole !== "administrateur")) {
     res.status(403).json({ error: "Acces interdit." });
@@ -395,8 +417,8 @@ router.get("/auth/users", async (req: Request, res: Response): Promise<void> => 
 });
 
 router.post("/auth/users", async (req: Request, res: Response): Promise<void> => {
-  const userRole = (req.session as any)?.userRole;
-  const organisationId = (req.session as any)?.organisationId;
+  const userRole = req.session?.userRole;
+  const organisationId = req.session?.organisationId;
 
   if (userRole !== "super_admin" && userRole !== "administrateur") {
     res.status(403).json({ error: "Seuls les administrateurs peuvent creer des utilisateurs." });
@@ -505,7 +527,7 @@ router.post("/auth/users", async (req: Request, res: Response): Promise<void> =>
 });
 
 router.patch("/auth/users/:id", async (req: Request, res: Response): Promise<void> => {
-  const userRole = (req.session as any)?.userRole;
+  const userRole = req.session?.userRole;
   if (userRole !== "super_admin" && userRole !== "administrateur") {
     res.status(403).json({ error: "Acces interdit." });
     return;
@@ -588,7 +610,7 @@ router.patch("/auth/users/:id", async (req: Request, res: Response): Promise<voi
 });
 
 router.delete("/auth/users/:id", async (req: Request, res: Response): Promise<void> => {
-  const userRole = (req.session as any)?.userRole;
+  const userRole = req.session?.userRole;
   if (userRole !== "super_admin" && userRole !== "administrateur") {
     res.status(403).json({ error: "Acces interdit." });
     return;
@@ -653,9 +675,9 @@ function generateSecurePassword(): string {
 }
 
 router.post("/auth/users/:id/send-credentials", async (req: Request, res: Response): Promise<void> => {
-  const userRole = (req.session as any)?.userRole;
-  const organisationId = (req.session as any)?.organisationId;
-  const sessionUserId = (req.session as any)?.userId;
+  const userRole = req.session?.userRole;
+  const organisationId = req.session?.organisationId;
+  const sessionUserId = req.session?.userId;
 
   if (userRole !== "super_admin" && userRole !== "administrateur") {
     res.status(403).json({ error: "Acces interdit." });
@@ -717,9 +739,9 @@ router.post("/auth/users/:id/send-credentials", async (req: Request, res: Respon
 });
 
 router.post("/auth/users/create-and-send", async (req: Request, res: Response): Promise<void> => {
-  const userRole = (req.session as any)?.userRole;
-  const organisationId = (req.session as any)?.organisationId;
-  const sessionUserId = (req.session as any)?.userId;
+  const userRole = req.session?.userRole;
+  const organisationId = req.session?.organisationId;
+  const sessionUserId = req.session?.userId;
 
   if (userRole !== "super_admin" && userRole !== "administrateur") {
     res.status(403).json({ error: "Seuls les administrateurs peuvent creer des utilisateurs." });
@@ -813,9 +835,9 @@ router.post("/auth/users/create-and-send", async (req: Request, res: Response): 
 });
 
 router.post("/auth/users/bulk/deactivate", async (req: Request, res: Response): Promise<void> => {
-  const userRole = (req.session as any)?.userRole;
-  const organisationId = (req.session as any)?.organisationId;
-  const sessionUserId = (req.session as any)?.userId;
+  const userRole = req.session?.userRole;
+  const organisationId = req.session?.organisationId;
+  const sessionUserId = req.session?.userId;
   if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces interdit." }); return; }
   const { ids } = req.body as { ids: number[] };
   if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
@@ -833,9 +855,9 @@ router.post("/auth/users/bulk/deactivate", async (req: Request, res: Response): 
 });
 
 router.post("/auth/users/bulk/delete", async (req: Request, res: Response): Promise<void> => {
-  const userRole = (req.session as any)?.userRole;
-  const organisationId = (req.session as any)?.organisationId;
-  const sessionUserId = (req.session as any)?.userId;
+  const userRole = req.session?.userRole;
+  const organisationId = req.session?.organisationId;
+  const sessionUserId = req.session?.userId;
   if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces interdit." }); return; }
   const { ids } = req.body as { ids: number[] };
   if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
@@ -853,8 +875,8 @@ router.post("/auth/users/bulk/delete", async (req: Request, res: Response): Prom
 });
 
 router.get("/auth/users/export/csv", async (req: Request, res: Response): Promise<void> => {
-  const userRole = (req.session as any)?.userRole;
-  const organisationId = (req.session as any)?.organisationId;
+  const userRole = req.session?.userRole;
+  const organisationId = req.session?.organisationId;
   if (userRole !== "super_admin" && userRole !== "administrateur") {
     res.status(403).json({ error: "Acces interdit." });
     return;

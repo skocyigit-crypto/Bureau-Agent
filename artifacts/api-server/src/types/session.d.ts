@@ -11,5 +11,7 @@ declare module "express-session" {
     loginIp?: string;
     loginUserAgent?: string;
     loginAt?: number;
+    googleOAuthState?: string;
+    googleOAuthServices?: string[];
   }
 }

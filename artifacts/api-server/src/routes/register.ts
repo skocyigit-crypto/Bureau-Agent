@@ -173,10 +173,10 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
     if (!requireVerification) {
       // Auto-login uniquement si la verification email n'est pas requise.
       await new Promise<void>((resolve, reject) => req.session.regenerate((e) => e ? reject(e) : resolve()));
-      (req.session as any).userId = result.user.id;
-      (req.session as any).userRole = result.user.role;
-      (req.session as any).organisationId = result.user.organisationId;
-      (req.session as any).userEmail = result.user.email;
+      req.session.userId = result.user.id;
+      req.session.userRole = result.user.role;
+      req.session.organisationId = result.user.organisationId ?? undefined;
+      req.session.userEmail = result.user.email;
     }
 
     res.status(201).json({
