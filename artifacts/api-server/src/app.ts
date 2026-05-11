@@ -104,6 +104,10 @@ app.use(cors({
   origin: allowedOrigins && allowedOrigins.length > 0 ? allowedOrigins : (isProduction ? false : true),
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
+  // Expose rate-limit headers to the SPA so it can render a precise
+  // "trop de requetes — reessayer dans Xs" UX instead of a generic 429.
+  // These are safe to expose (no auth material).
+  exposedHeaders: ["RateLimit-Limit", "RateLimit-Remaining", "RateLimit-Reset", "Retry-After"],
   credentials: true,
   maxAge: 86400,
 }));
@@ -150,6 +154,15 @@ app.disable("x-powered-by");
 
 const PgStore = connectPgSimple(session);
 
+// `__Host-` prefix is a browser-enforced cookie name lock that GUARANTEES:
+//   - Secure flag is set (no plaintext leak over HTTP)
+//   - No Domain attribute (blocks subdomain cookie injection / fixation)
+//   - Path=/ is required
+// In production we use the locked variant; in dev we keep the plain name
+// because `__Host-` requires Secure which can't be set on plain http://.
+// Any place that reads/writes this cookie by name MUST use SESSION_COOKIE_NAME.
+export const SESSION_COOKIE_NAME = isProduction ? "__Host-adb.sid" : "adb.sid";
+
 app.use(session({
   store: new PgStore({
     conString: process.env.DATABASE_URL,
@@ -157,7 +170,7 @@ app.use(session({
     createTableIfMissing: true,
     pruneSessionInterval: 15 * 60,
   }),
-  name: "adb.sid",
+  name: SESSION_COOKIE_NAME,
   secret: (() => {
     const s = process.env.SESSION_SECRET;
     if (s) return s;

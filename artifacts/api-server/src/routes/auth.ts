@@ -305,7 +305,8 @@ router.post("/auth/logout", (req: Request, res: Response): void => {
   const userId = req.session?.userId;
   const userEmail = req.session?.userEmail;
   if (userId) logAudit(userId, userEmail, "logout", "auth", undefined, undefined, req.ip, req.get("user-agent"), req.session?.organisationId);
-  res.clearCookie("adb.sid", { path: "/" });
+  // Must match SESSION_COOKIE_NAME from app.ts (uses __Host- prefix in prod).
+  res.clearCookie(process.env.NODE_ENV === "production" ? "__Host-adb.sid" : "adb.sid", { path: "/" });
   if (req.session) {
     req.session.destroy(() => {
       res.json({ message: "Deconnecte avec succes." });

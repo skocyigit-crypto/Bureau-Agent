@@ -264,7 +264,12 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
     return next();
   }
 
-  if (process.env.NODE_ENV !== "production") {
+  // CSRF bypass for local development. Previously this was a bare
+  // `NODE_ENV !== "production"` check, which silently disabled CSRF on any
+  // preview/staging environment that forgot to set NODE_ENV=production.
+  // Now we require an explicit opt-in flag (DISABLE_CSRF_DEV=1) AND
+  // NODE_ENV !== "production" — fail-closed by default everywhere else.
+  if (process.env.NODE_ENV !== "production" && process.env.DISABLE_CSRF_DEV === "1") {
     return next();
   }
 
