@@ -5,6 +5,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { db, usersTable, organisationsTable, subscriptionsTable, invitationsTable } from "@workspace/db";
 import { sendEmail } from "../services/email";
 import { logAudit } from "./audit";
+import { validatePasswordStrength } from "./auth";
 
 const router: IRouter = Router();
 const SALT_ROUNDS = 12;
@@ -12,6 +13,10 @@ const INVITATION_EXPIRY_HOURS = 72;
 
 function generateSecureToken(): string {
   return crypto.randomBytes(32).toString("hex");
+}
+
+function hashToken(raw: string): string {
+  return crypto.createHash("sha256").update(raw).digest("hex");
 }
 
 function getAppUrl(): string {
@@ -131,21 +136,22 @@ router.post("/invitations", async (req: Request, res: Response): Promise<void> =
     .from(organisationsTable).where(eq(organisationsTable.id, organisationId));
   const orgName = org?.name || "Agent de Bureau";
 
-  const token = generateSecureToken();
+  const rawToken = generateSecureToken();
+  const tokenHash = hashToken(rawToken);
   const expiresAt = new Date(Date.now() + INVITATION_EXPIRY_HOURS * 60 * 60 * 1000);
 
   const [invitation] = await db.insert(invitationsTable).values({
     organisationId,
     email: emailClean,
     role: assignedRole,
-    token,
+    token: tokenHash, // sha256 stocke; le token brut n'est envoye que par email
     invitedBy: userId,
     invitedByName: inviterName,
     expiresAt,
   }).returning();
 
   const appUrl = getAppUrl();
-  const acceptUrl = `${appUrl}/invitation/${token}`;
+  const acceptUrl = `${appUrl}/invitation/${rawToken}`;
 
   const roleLabels: Record<string, string> = {
     administrateur: "Administrateur",
@@ -255,17 +261,18 @@ router.post("/invitations/:id/resend", async (req: Request, res: Response): Prom
     return;
   }
 
-  const newToken = generateSecureToken();
+  const newRawToken = generateSecureToken();
+  const newTokenHash = hashToken(newRawToken);
   const newExpiresAt = new Date(Date.now() + INVITATION_EXPIRY_HOURS * 60 * 60 * 1000);
 
-  await db.update(invitationsTable).set({ token: newToken, expiresAt: newExpiresAt }).where(eq(invitationsTable.id, invitationId));
+  await db.update(invitationsTable).set({ token: newTokenHash, expiresAt: newExpiresAt }).where(eq(invitationsTable.id, invitationId));
 
   const [org] = await db.select({ name: organisationsTable.name })
     .from(organisationsTable).where(eq(organisationsTable.id, organisationId));
   const orgName = org?.name || "Agent de Bureau";
 
   const appUrl = getAppUrl();
-  const acceptUrl = `${appUrl}/invitation/${newToken}`;
+  const acceptUrl = `${appUrl}/invitation/${newRawToken}`;
 
   const html = `
 <!DOCTYPE html>
@@ -327,7 +334,8 @@ router.delete("/invitations/:id", async (req: Request, res: Response): Promise<v
 });
 
 router.get("/invitations/verify/:token", async (req: Request, res: Response): Promise<void> => {
-  const token = String(req.params.token);
+  const rawToken = String(req.params.token);
+  const tokenHash = hashToken(rawToken);
 
   try {
     const [invitation] = await db.select({
@@ -338,7 +346,7 @@ router.get("/invitations/verify/:token", async (req: Request, res: Response): Pr
       expiresAt: invitationsTable.expiresAt,
       invitedByName: invitationsTable.invitedByName,
       orgId: invitationsTable.organisationId,
-    }).from(invitationsTable).where(eq(invitationsTable.token, token));
+    }).from(invitationsTable).where(eq(invitationsTable.token, tokenHash));
 
     if (!invitation) {
       res.status(404).json({ error: "Invitation invalide ou introuvable.", valid: false });
@@ -372,7 +380,8 @@ router.get("/invitations/verify/:token", async (req: Request, res: Response): Pr
 });
 
 router.post("/invitations/accept/:token", async (req: Request, res: Response): Promise<void> => {
-  const token = String(req.params.token);
+  const rawToken = String(req.params.token);
+  const tokenHash = hashToken(rawToken);
   const { nom, prenom, password } = req.body;
 
   if (!nom || !prenom || !password) {
@@ -380,21 +389,14 @@ router.post("/invitations/accept/:token", async (req: Request, res: Response): P
     return;
   }
 
-  if (typeof password !== "string" || password.length < 8) {
-    res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caracteres." });
-    return;
-  }
-
-  const hasUppercase = /[A-Z]/.test(password);
-  const hasLowercase = /[a-z]/.test(password);
-  const hasNumber = /[0-9]/.test(password);
-  if (!hasUppercase || !hasLowercase || !hasNumber) {
-    res.status(400).json({ error: "Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre." });
+  const strength = validatePasswordStrength(String(password));
+  if (!strength.ok) {
+    res.status(400).json({ error: strength.error });
     return;
   }
 
   try {
-    const [invitation] = await db.select().from(invitationsTable).where(eq(invitationsTable.token, token));
+    const [invitation] = await db.select().from(invitationsTable).where(eq(invitationsTable.token, tokenHash));
 
     if (!invitation) {
       res.status(404).json({ error: "Invitation invalide." });
@@ -446,10 +448,12 @@ router.post("/invitations/accept/:token", async (req: Request, res: Response): P
       acceptedAt: new Date(),
     }).where(eq(invitationsTable.id, invitation.id));
 
-    (req.session as any).userId = newUser.id;
-    (req.session as any).userRole = newUser.role;
-    (req.session as any).organisationId = invitation.organisationId;
-    (req.session as any).userEmail = newUser.email;
+    // Prevention de la fixation de session avant d'attacher l'identite.
+    await new Promise<void>((resolve, reject) => req.session.regenerate((e) => e ? reject(e) : resolve()));
+    req.session.userId = newUser.id;
+    req.session.userRole = newUser.role;
+    req.session.organisationId = invitation.organisationId;
+    req.session.userEmail = newUser.email;
 
     logAudit(newUser.id, newUser.email, "invitation_accepted", "invitation", String(invitation.id), { role: invitation.role }, req.ip, req.get("user-agent"));
 
