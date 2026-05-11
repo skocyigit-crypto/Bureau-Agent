@@ -65,10 +65,29 @@ function serveManifest(platform, res) {
   res.end(manifest);
 }
 
+// Strict hostname allowlist: RFC 1123 host chars + optional :port. Used to
+// validate Host / X-Forwarded-Host before injecting them into the landing
+// page template — the template embeds the value into an HTML attribute
+// (`<a href="exps://...">`) and a JS string literal (`const deepLink =
+// "exps://..."`), so a header like `evil.com" onclick="x` or
+// `evil.com"; alert(1); //` would otherwise break out of either context.
+const VALID_HOST_RE = /^[a-zA-Z0-9.\-]+(?::[0-9]{1,5})?$/;
+
+function pickSafeHost(req) {
+  const candidates = [req.headers["x-forwarded-host"], req.headers["host"]];
+  for (const c of candidates) {
+    if (typeof c === "string" && c.length <= 253 && VALID_HOST_RE.test(c)) {
+      return c;
+    }
+  }
+  return "localhost";
+}
+
 function serveLandingPage(req, res, landingPageTemplate, appName) {
   const forwardedProto = req.headers["x-forwarded-proto"];
-  const protocol = forwardedProto || "https";
-  const host = req.headers["x-forwarded-host"] || req.headers["host"];
+  // Only allow http/https for the protocol, default https.
+  const protocol = forwardedProto === "http" ? "http" : "https";
+  const host = pickSafeHost(req);
   const baseUrl = `${protocol}://${host}`;
   const expsUrl = `${host}`;
 
@@ -82,10 +101,28 @@ function serveLandingPage(req, res, landingPageTemplate, appName) {
 }
 
 function serveStaticFile(urlPath, res) {
-  const safePath = path.normalize(urlPath).replace(/^(\.\.(\/|\\|$))+/, "");
-  const filePath = path.join(STATIC_ROOT, safePath);
+  // Defense in depth against ../ traversal:
+  //   1. decodeURIComponent so `%2e%2e%2f` is normalised before checks.
+  //   2. path.resolve to collapse all . / .. segments.
+  //   3. boundary check uses path.sep — startsWith(STATIC_ROOT) alone is
+  //      bypassable when another sibling dir shares the prefix
+  //      (e.g. STATIC_ROOT="/srv/static-build" matches "/srv/static-build-evil").
+  let decoded;
+  try {
+    decoded = decodeURIComponent(urlPath);
+  } catch {
+    res.writeHead(400);
+    res.end("Bad Request");
+    return;
+  }
+  if (decoded.indexOf("\0") !== -1) {
+    res.writeHead(400);
+    res.end("Bad Request");
+    return;
+  }
+  const filePath = path.resolve(STATIC_ROOT, "." + (decoded.startsWith("/") ? decoded : "/" + decoded));
 
-  if (!filePath.startsWith(STATIC_ROOT)) {
+  if (filePath !== STATIC_ROOT && !filePath.startsWith(STATIC_ROOT + path.sep)) {
     res.writeHead(403);
     res.end("Forbidden");
     return;
