@@ -46,6 +46,13 @@ app.use(helmet({
 app.use(
   pinoHttp({
     logger,
+    // Reduit la verbosite des healthchecks/probes
+    autoLogging: {
+      ignore: (req) => {
+        const u = (req.url || "").split("?")[0];
+        return u === "/api/healthz" || u === "/api/health" || u === "/healthz";
+      },
+    },
     serializers: {
       req(req) {
         return {
@@ -64,11 +71,17 @@ app.use(
 );
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",").map(o => o.trim())
+  ? process.env.ALLOWED_ORIGINS.split(",").map(o => o.trim()).filter(Boolean)
   : undefined;
 
+if (isProduction && (!allowedOrigins || allowedOrigins.length === 0)) {
+  logger.error("FATAL: ALLOWED_ORIGINS doit etre defini en production (CORS reflect=true interdit).");
+  process.exit(1);
+}
+
 app.use(cors({
-  origin: allowedOrigins || true,
+  // En production: liste blanche stricte. En dev: reflexion (true) pour confort.
+  origin: allowedOrigins && allowedOrigins.length > 0 ? allowedOrigins : (isProduction ? false : true),
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
@@ -138,6 +151,9 @@ app.use(session({
   })(),
   resave: false,
   saveUninitialized: false,
+  // rolling=false volontairement: PgStore ferait un UPDATE par requete (amplification d'ecriture).
+  // La fenetre fixe maxAge=24h + logout explicite + invalidation au reset suffisent.
+  rolling: false,
   cookie: {
     maxAge: 24 * 60 * 60 * 1000,
     httpOnly: true,
