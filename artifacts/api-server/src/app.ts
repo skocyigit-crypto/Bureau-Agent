@@ -54,14 +54,65 @@ app.use(helmet({
   crossOriginOpenerPolicy: { policy: "same-origin" },
   crossOriginResourcePolicy: { policy: "same-origin" },
   hsts: {
-    maxAge: 31536000,
+    // 2 ans (63072000s) — exigence du Chrome HSTS preload list. Le precedent
+    // 1 an etait conforme RFC mais hors limites pour la soumission preload.
+    maxAge: 63072000,
     includeSubDomains: true,
     preload: true,
   },
+  // CSP `frame-ancestors 'none'` est deja la defense moderne, mais X-Frame-
+  // Options reste utile pour les vieux navigateurs qui ne parsent pas CSP3.
+  // DENY est strictement plus fort que SAMEORIGIN et coherent avec frame-
+  // ancestors 'none'. L'API n'a aucune raison d'etre embarquee.
+  frameguard: { action: "deny" },
   referrerPolicy: { policy: "strict-origin-when-cross-origin" },
   noSniff: true,
   xssFilter: true,
 }));
+
+// Permissions-Policy (anciennement Feature-Policy). Helmet n'a pas de helper
+// pour ce header, on l'ajoute manuellement. Pour une API JSON server-side
+// pure, AUCUNE de ces capacites navigateur ne devrait etre activee. La liste
+// suit le registre W3C des politiques connues. `interest-cohort=()` neutralise
+// le tracking FLoC/Topics que Chrome tente d'activer par defaut.
+const PERMISSIONS_POLICY = [
+  "accelerometer=()",
+  "ambient-light-sensor=()",
+  "autoplay=()",
+  "battery=()",
+  "camera=()",
+  "cross-origin-isolated=()",
+  "display-capture=()",
+  "document-domain=()",
+  "encrypted-media=()",
+  "execution-while-not-rendered=()",
+  "execution-while-out-of-viewport=()",
+  "fullscreen=()",
+  "geolocation=()",
+  "gyroscope=()",
+  "hid=()",
+  "identity-credentials-get=()",
+  "idle-detection=()",
+  "interest-cohort=()",
+  "keyboard-map=()",
+  "magnetometer=()",
+  "microphone=()",
+  "midi=()",
+  "navigation-override=()",
+  "payment=()",
+  "picture-in-picture=()",
+  "publickey-credentials-get=()",
+  "screen-wake-lock=()",
+  "serial=()",
+  "sync-xhr=()",
+  "usb=()",
+  "web-share=()",
+  "xr-spatial-tracking=()",
+].join(", ");
+app.use((_req, res, next) => {
+  res.setHeader("Permissions-Policy", PERMISSIONS_POLICY);
+  next();
+});
 
 app.use(
   pinoHttp({
