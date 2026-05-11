@@ -12,6 +12,7 @@ import {
 import { getOrgId } from "../middleware/tenant";
 import { syncGoogleCalendarToCheckins } from "../services/google-calendar-sync";
 import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
+import { zodErrorResponse } from "../lib/zod-error";
 
 const router: IRouter = Router();
 
@@ -26,7 +27,7 @@ const checkinSortColumns: Record<string, any> = {
 router.get("/checkins", async (req, res): Promise<void> => {
   const query = ListCheckinsQueryParams.safeParse(req.query);
   if (!query.success) {
-    res.status(400).json({ error: query.error.message });
+    res.status(400).json(zodErrorResponse(query.error));
     return;
   }
 
@@ -62,7 +63,7 @@ router.get("/checkins", async (req, res): Promise<void> => {
 router.post("/checkins", async (req, res): Promise<void> => {
   const body = CreateCheckinBody.safeParse(req.body);
   if (!body.success) {
-    res.status(400).json({ error: body.error.message });
+    res.status(400).json(zodErrorResponse(body.error));
     return;
   }
 
@@ -163,7 +164,7 @@ router.get("/checkins/current", async (req, res): Promise<void> => {
 router.get("/checkins/:id", async (req, res): Promise<void> => {
   const params = GetCheckinParams.safeParse(req.params);
   if (!params.success) {
-    res.status(400).json({ error: params.error.message });
+    res.status(400).json(zodErrorResponse(params.error));
     return;
   }
 
@@ -186,13 +187,13 @@ router.get("/checkins/:id", async (req, res): Promise<void> => {
 router.patch("/checkins/:id", async (req, res): Promise<void> => {
   const params = UpdateCheckinParams.safeParse(req.params);
   if (!params.success) {
-    res.status(400).json({ error: params.error.message });
+    res.status(400).json(zodErrorResponse(params.error));
     return;
   }
 
   const body = UpdateCheckinBody.safeParse(req.body);
   if (!body.success) {
-    res.status(400).json({ error: body.error.message });
+    res.status(400).json(zodErrorResponse(body.error));
     return;
   }
 
@@ -271,7 +272,7 @@ router.post("/checkins/:id/duplicate", async (req, res): Promise<void> => {
 router.delete("/checkins/:id", async (req, res): Promise<void> => {
   const params = DeleteCheckinParams.safeParse(req.params);
   if (!params.success) {
-    res.status(400).json({ error: params.error.message });
+    res.status(400).json(zodErrorResponse(params.error));
     return;
   }
 

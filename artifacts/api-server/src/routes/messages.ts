@@ -12,6 +12,7 @@ import {
 } from "@workspace/api-zod";
 import { getOrgId } from "../middleware/tenant";
 import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
+import { zodErrorResponse } from "../lib/zod-error";
 
 const router: IRouter = Router();
 
@@ -24,7 +25,7 @@ const messageSortColumns: Record<string, any> = {
 router.get("/messages", async (req, res): Promise<void> => {
   const query = ListMessagesQueryParams.safeParse(req.query);
   if (!query.success) {
-    res.status(400).json({ error: query.error.message });
+    res.status(400).json(zodErrorResponse(query.error));
     return;
   }
 
@@ -85,7 +86,7 @@ router.get("/messages", async (req, res): Promise<void> => {
 router.post("/messages", async (req, res): Promise<void> => {
   const parsed = CreateMessageBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+    res.status(400).json(zodErrorResponse(parsed.error));
     return;
   }
 
@@ -104,7 +105,7 @@ router.post("/messages", async (req, res): Promise<void> => {
 router.get("/messages/:id", async (req, res): Promise<void> => {
   const params = GetMessageParams.safeParse(req.params);
   if (!params.success) {
-    res.status(400).json({ error: params.error.message });
+    res.status(400).json(zodErrorResponse(params.error));
     return;
   }
 
@@ -128,13 +129,13 @@ router.get("/messages/:id", async (req, res): Promise<void> => {
 router.patch("/messages/:id", async (req, res): Promise<void> => {
   const params = UpdateMessageParams.safeParse(req.params);
   if (!params.success) {
-    res.status(400).json({ error: params.error.message });
+    res.status(400).json(zodErrorResponse(params.error));
     return;
   }
 
   const parsed = UpdateMessageBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+    res.status(400).json(zodErrorResponse(parsed.error));
     return;
   }
 
@@ -218,7 +219,7 @@ router.post("/messages/:id/duplicate", async (req, res): Promise<void> => {
 router.delete("/messages/:id", async (req, res): Promise<void> => {
   const params = DeleteMessageParams.safeParse(req.params);
   if (!params.success) {
-    res.status(400).json({ error: params.error.message });
+    res.status(400).json(zodErrorResponse(params.error));
     return;
   }
 

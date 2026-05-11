@@ -8,6 +8,7 @@ import {
 } from "@workspace/api-zod";
 import { getOrgId } from "../middleware/tenant";
 import { logger } from "../lib/logger";
+import { zodErrorResponse } from "../lib/zod-error";
 
 const router: IRouter = Router();
 
@@ -114,7 +115,7 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
 router.get("/dashboard/call-analytics", async (req, res): Promise<void> => {
   const query = GetCallAnalyticsQueryParams.safeParse(req.query);
   if (!query.success) {
-    res.status(400).json({ error: query.error.message });
+    res.status(400).json(zodErrorResponse(query.error));
     return;
   }
 
@@ -190,7 +191,7 @@ router.get("/dashboard/call-analytics", async (req, res): Promise<void> => {
 router.get("/dashboard/recent-activity", async (req, res): Promise<void> => {
   const query = GetRecentActivityQueryParams.safeParse(req.query);
   if (!query.success) {
-    res.status(400).json({ error: query.error.message });
+    res.status(400).json(zodErrorResponse(query.error));
     return;
   }
 
@@ -288,7 +289,7 @@ router.get("/dashboard/call-distribution", async (req, res): Promise<void> => {
 router.get("/dashboard/top-contacts", async (req, res): Promise<void> => {
   const query = GetTopContactsQueryParams.safeParse(req.query);
   if (!query.success) {
-    res.status(400).json({ error: query.error.message });
+    res.status(400).json(zodErrorResponse(query.error));
     return;
   }
 

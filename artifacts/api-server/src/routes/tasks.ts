@@ -12,6 +12,7 @@ import {
 } from "@workspace/api-zod";
 import { getOrgId } from "../middleware/tenant";
 import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
+import { zodErrorResponse } from "../lib/zod-error";
 
 const router: IRouter = Router();
 
@@ -26,7 +27,7 @@ const taskSortColumns: Record<string, any> = {
 router.get("/tasks", async (req, res): Promise<void> => {
   const query = ListTasksQueryParams.safeParse(req.query);
   if (!query.success) {
-    res.status(400).json({ error: query.error.message });
+    res.status(400).json(zodErrorResponse(query.error));
     return;
   }
 
@@ -85,7 +86,7 @@ router.get("/tasks", async (req, res): Promise<void> => {
 router.post("/tasks", async (req, res): Promise<void> => {
   const parsed = CreateTaskBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+    res.status(400).json(zodErrorResponse(parsed.error));
     return;
   }
 
@@ -104,7 +105,7 @@ router.post("/tasks", async (req, res): Promise<void> => {
 router.get("/tasks/:id", async (req, res): Promise<void> => {
   const params = GetTaskParams.safeParse(req.params);
   if (!params.success) {
-    res.status(400).json({ error: params.error.message });
+    res.status(400).json(zodErrorResponse(params.error));
     return;
   }
 
@@ -128,13 +129,13 @@ router.get("/tasks/:id", async (req, res): Promise<void> => {
 router.patch("/tasks/:id", async (req, res): Promise<void> => {
   const params = UpdateTaskParams.safeParse(req.params);
   if (!params.success) {
-    res.status(400).json({ error: params.error.message });
+    res.status(400).json(zodErrorResponse(params.error));
     return;
   }
 
   const parsed = UpdateTaskBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+    res.status(400).json(zodErrorResponse(parsed.error));
     return;
   }
 
@@ -215,7 +216,7 @@ router.post("/tasks/:id/duplicate", async (req, res): Promise<void> => {
 router.delete("/tasks/:id", async (req, res): Promise<void> => {
   const params = DeleteTaskParams.safeParse(req.params);
   if (!params.success) {
-    res.status(400).json({ error: params.error.message });
+    res.status(400).json(zodErrorResponse(params.error));
     return;
   }
 

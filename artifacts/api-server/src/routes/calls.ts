@@ -17,6 +17,7 @@ import { logAudit } from "./audit";
 import { getOrgId } from "../middleware/tenant";
 import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
 import { logger } from "../lib/logger";
+import { zodErrorResponse } from "../lib/zod-error";
 
 const router: IRouter = Router();
 
@@ -68,7 +69,7 @@ const callSortColumns: Record<string, any> = {
 router.get("/calls", async (req, res): Promise<void> => {
   const query = ListCallsQueryParams.safeParse(req.query);
   if (!query.success) {
-    res.status(400).json({ error: query.error.message });
+    res.status(400).json(zodErrorResponse(query.error));
     return;
   }
 
@@ -136,7 +137,7 @@ router.get("/calls", async (req, res): Promise<void> => {
 router.post("/calls", async (req, res): Promise<void> => {
   const parsed = CreateCallBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+    res.status(400).json(zodErrorResponse(parsed.error));
     return;
   }
 
@@ -246,7 +247,7 @@ router.post("/calls/:id/process", async (req, res): Promise<void> => {
 router.get("/calls/:id", async (req, res): Promise<void> => {
   const params = GetCallParams.safeParse(req.params);
   if (!params.success) {
-    res.status(400).json({ error: params.error.message });
+    res.status(400).json(zodErrorResponse(params.error));
     return;
   }
 
@@ -270,13 +271,13 @@ router.get("/calls/:id", async (req, res): Promise<void> => {
 router.patch("/calls/:id", async (req, res): Promise<void> => {
   const params = UpdateCallParams.safeParse(req.params);
   if (!params.success) {
-    res.status(400).json({ error: params.error.message });
+    res.status(400).json(zodErrorResponse(params.error));
     return;
   }
 
   const parsed = UpdateCallBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+    res.status(400).json(zodErrorResponse(parsed.error));
     return;
   }
 
@@ -534,7 +535,7 @@ router.post("/calls/:id/duplicate", async (req, res): Promise<void> => {
 router.delete("/calls/:id", async (req, res): Promise<void> => {
   const params = DeleteCallParams.safeParse(req.params);
   if (!params.success) {
-    res.status(400).json({ error: params.error.message });
+    res.status(400).json(zodErrorResponse(params.error));
     return;
   }
 

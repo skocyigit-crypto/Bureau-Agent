@@ -12,6 +12,7 @@ import {
 } from "@workspace/api-zod";
 import { getOrgId } from "../middleware/tenant";
 import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
+import { zodErrorResponse } from "../lib/zod-error";
 
 const router: IRouter = Router();
 
@@ -26,7 +27,7 @@ const contactSortColumns: Record<string, any> = {
 router.get("/contacts", async (req, res): Promise<void> => {
   const query = ListContactsQueryParams.safeParse(req.query);
   if (!query.success) {
-    res.status(400).json({ error: query.error.message });
+    res.status(400).json(zodErrorResponse(query.error));
     return;
   }
 
@@ -84,7 +85,7 @@ router.get("/contacts", async (req, res): Promise<void> => {
 router.post("/contacts", async (req, res): Promise<void> => {
   const parsed = CreateContactBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+    res.status(400).json(zodErrorResponse(parsed.error));
     return;
   }
 
@@ -141,7 +142,7 @@ router.post("/contacts/import", async (req, res): Promise<void> => {
 router.get("/contacts/:id", async (req, res): Promise<void> => {
   const params = GetContactParams.safeParse(req.params);
   if (!params.success) {
-    res.status(400).json({ error: params.error.message });
+    res.status(400).json(zodErrorResponse(params.error));
     return;
   }
 
@@ -165,13 +166,13 @@ router.get("/contacts/:id", async (req, res): Promise<void> => {
 router.patch("/contacts/:id", async (req, res): Promise<void> => {
   const params = UpdateContactParams.safeParse(req.params);
   if (!params.success) {
-    res.status(400).json({ error: params.error.message });
+    res.status(400).json(zodErrorResponse(params.error));
     return;
   }
 
   const parsed = UpdateContactBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+    res.status(400).json(zodErrorResponse(parsed.error));
     return;
   }
 
@@ -252,7 +253,7 @@ router.post("/contacts/:id/duplicate", async (req, res): Promise<void> => {
 router.delete("/contacts/:id", async (req, res): Promise<void> => {
   const params = DeleteContactParams.safeParse(req.params);
   if (!params.success) {
-    res.status(400).json({ error: params.error.message });
+    res.status(400).json(zodErrorResponse(params.error));
     return;
   }
 
