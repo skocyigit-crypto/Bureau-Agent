@@ -6,6 +6,7 @@ import { db, organisationsTable, subscriptionsTable, usersTable } from "@workspa
 import { PLANS, type PlanKey } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { sendWelcomeEmail } from "../services/email";
+import { generateLicenseKey } from "../services/license-key";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -62,7 +63,7 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
   const [existingSlug] = await db.select({ id: organisationsTable.id }).from(organisationsTable).where(eq(organisationsTable.slug, slug));
   const finalSlug = existingSlug ? `${slug}-${Date.now()}` : slug;
 
-  const licenseKey = `ADB-ESS-${crypto.randomBytes(8).toString("hex").toUpperCase()}`;
+  const licenseKey = generateLicenseKey("essai");
 
   try {
     const result = await db.transaction(async (tx) => {

@@ -492,12 +492,31 @@ export async function sendLicenseEmail(params: {
   adminName?: string;
   adminEmail?: string;
   adminPassword?: string;
+  resetLink?: string;
 }): Promise<{ success: boolean; error?: string; preview?: string }> {
-  const { to, orgName, plan, licenseKey, trialEndsAt, adminName, adminEmail, adminPassword } = params;
+  const { to, orgName, plan, licenseKey, trialEndsAt, adminName, adminEmail, adminPassword, resetLink } = params;
 
   const trialInfo = trialEndsAt
     ? `<p style="color:#e67e22;font-size:14px;margin:16px 0 0;">Votre periode d'essai se termine le <strong>${new Date(trialEndsAt).toLocaleDateString("fr-FR")}</strong>.</p>`
     : "";
+
+  const resetSection = (adminEmail && resetLink) ? `
+      <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:24px;margin:24px 0;">
+        <h3 style="color:#065f46;font-size:16px;margin:0 0 12px;">&#128273; Definissez votre mot de passe</h3>
+        <p style="color:#065f46;font-size:13px;margin:0 0 16px;line-height:1.6;">
+          Cliquez sur le bouton ci-dessous pour creer (ou reinitialiser) le mot de passe de l'administrateur
+          <strong>${escapeHtml(adminEmail)}</strong>. Ce lien securise est valide <strong>24 heures</strong> et
+          ne peut etre utilise qu'une seule fois.
+        </p>
+        <div style="text-align:center;margin:8px 0 4px;">
+          <a href="${resetLink}" style="display:inline-block;background:#059669;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:700;">
+            Definir mon mot de passe
+          </a>
+        </div>
+        <p style="color:#065f46;font-size:11px;margin:12px 0 0;text-align:center;word-break:break-all;">
+          Ou copiez ce lien : ${escapeHtml(resetLink)}
+        </p>
+      </div>` : "";
 
   const credentialsSection = (adminEmail && adminPassword) ? `
       <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:12px;padding:24px;margin:24px 0;">
@@ -547,6 +566,8 @@ export async function sendLicenseEmail(params: {
       </p>
 
       ${trialInfo}
+
+      ${resetSection}
 
       ${credentialsSection}
 
@@ -603,9 +624,10 @@ export async function sendLicenseEmail(params: {
 </body>
 </html>`;
 
+  const resetText = (adminEmail && resetLink) ? `\nDEFINISSEZ VOTRE MOT DE PASSE:\n- Administrateur: ${adminName || adminEmail}\n- Email: ${adminEmail}\n- Lien securise (valide 24h, usage unique): ${resetLink}\n` : "";
   const credText = (adminEmail && adminPassword) ? `\nCODE DE CONNEXION TEMPORAIRE:\n- Administrateur: ${adminName || adminEmail}\n- Email: ${adminEmail}\n- Code temporaire: ${adminPassword}\n- ATTENTION: Ce code est temporaire. Changez votre mot de passe des votre premiere connexion.\n` : "";
 
-  const text = `Bienvenue${adminName ? ` ${adminName}` : ` ${orgName}`} !\n\nVotre compte Agent de Bureau pour ${orgName} (plan ${plan}) a ete cree.\n${credText}\nAccedez a l'application: ${APP_URL}\n\nPOUR COMMENCER:\n1. Connectez-vous avec votre code temporaire\n2. Changez votre mot de passe\n3. Ajoutez vos premiers contacts\n4. Invitez vos collaborateurs\n\nSupport: support@agentdebureau.fr\nAgent de Bureau SAS`;
+  const text = `Bienvenue${adminName ? ` ${adminName}` : ` ${orgName}`} !\n\nVotre compte Agent de Bureau pour ${orgName} (plan ${plan}) a ete cree.\n${resetText}${credText}\nAccedez a l'application: ${APP_URL}\n\nPOUR COMMENCER:\n1. Connectez-vous avec votre code temporaire\n2. Changez votre mot de passe\n3. Ajoutez vos premiers contacts\n4. Invitez vos collaborateurs\n\nSupport: support@agentdebureau.fr\nAgent de Bureau SAS`;
 
   return sendEmail(to, `Bienvenue sur Agent de Bureau - ${orgName}`, html, text);
 }

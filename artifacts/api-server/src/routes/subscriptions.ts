@@ -47,8 +47,12 @@ router.get("/subscription/plans", async (_req: Request, res: Response): Promise<
 
 router.post("/subscription/upgrade", async (req: Request, res: Response): Promise<void> => {
   const userRole = (req.session as any)?.userRole;
-  if (userRole !== "super_admin" && userRole !== "administrateur") {
-    res.status(403).json({ error: "Seuls les administrateurs peuvent modifier l'abonnement." });
+  if (userRole !== "super_admin") {
+    res.status(403).json({
+      error: "Le changement de plan se fait via votre portail de facturation Stripe.",
+      hint: "Utilisez le bouton 'Gerer mon abonnement' pour modifier votre plan en toute securite.",
+      code: "stripe_portal_required",
+    });
     return;
   }
 

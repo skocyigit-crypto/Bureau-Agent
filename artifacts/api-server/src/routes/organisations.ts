@@ -5,6 +5,7 @@ import { db, organisationsTable, subscriptionsTable, usersTable } from "@workspa
 import { PLANS, type PlanKey } from "@workspace/db/schema";
 import crypto from "crypto";
 import { sendLicenseEmail } from "../services/email";
+import { generateLicenseKey } from "../services/license-key";
 import { logger } from "../lib/logger";
 
 const SALT_ROUNDS = 12;
@@ -172,7 +173,7 @@ router.post("/organisations", async (req: Request, res: Response): Promise<void>
   const finalSlug = existingSlug ? `${slug}-${Date.now()}` : slug;
 
   const planConfig = PLANS[planKey];
-  const licenseKey = `ADB-${planKey.toUpperCase().substring(0, 3)}-${crypto.randomBytes(8).toString("hex").toUpperCase()}`;
+  const licenseKey = generateLicenseKey(planKey);
 
   let generatedPassword: string | null = null;
   if (adminEmail && adminPrenom && adminNom) {
@@ -282,7 +283,6 @@ router.post("/organisations/:id/resend-license", async (req: Request, res: Respo
       return;
     }
 
-    let adminPassword: string = generateTempCode();
     let adminUser: any = null;
 
     const [existingAdmin] = await db.select({
@@ -293,16 +293,10 @@ router.post("/organisations/:id/resend-license", async (req: Request, res: Respo
     }).from(usersTable).where(eq(usersTable.organisationId, id));
 
     if (existingAdmin) {
-      const passwordHash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
-      await db.update(usersTable).set({
-        passwordHash,
-        tentativesEchouees: 0,
-        verrouilleJusqua: null,
-        updatedAt: new Date(),
-      }).where(eq(usersTable.id, existingAdmin.id));
       adminUser = existingAdmin;
     } else {
-      const passwordHash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
+      const tempPassword = generateTempCode() + crypto.randomBytes(8).toString("hex");
+      const passwordHash = await bcrypt.hash(tempPassword, SALT_ROUNDS);
       const orgNameParts = org.name.trim().split(" ");
       const prenom = orgNameParts[0] || "Admin";
       const nom = orgNameParts.slice(1).join(" ") || org.name;
@@ -325,6 +319,24 @@ router.post("/organisations/:id/resend-license", async (req: Request, res: Respo
       adminUser = newAdmin;
     }
 
+    const resetToken = crypto.randomBytes(48).toString("hex");
+    const resetExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await db.update(usersTable).set({
+      resetPasswordToken: resetToken,
+      resetPasswordExpiry: resetExpiry,
+      tentativesEchouees: 0,
+      verrouilleJusqua: null,
+      updatedAt: new Date(),
+    }).where(eq(usersTable.id, adminUser.id));
+
+    const appUrl = process.env.PUBLIC_URL
+      || process.env.APP_URL
+      || process.env.REPLIT_DEPLOYMENT_URL
+      || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
+      || "https://agentdebureau.fr";
+    const appBase = process.env.APP_BASE_PATH || "/buro-ajani";
+    const resetLink = `${appUrl}${appBase}?reset_token=${resetToken}`;
+
     const plan = PLANS[sub.plan as PlanKey];
     const result = await sendLicenseEmail({
       to: org.email,
@@ -334,17 +346,17 @@ router.post("/organisations/:id/resend-license", async (req: Request, res: Respo
       trialEndsAt: sub.trialEndsAt,
       adminName: `${adminUser.prenom} ${adminUser.nom}`,
       adminEmail: adminUser.email,
-      adminPassword,
+      resetLink,
     });
 
     if (result.success) {
       res.json({
-        message: `Email envoye a ${org.email} avec le code de connexion temporaire pour ${adminUser.email}.`,
+        message: `Email envoye a ${org.email} avec le lien securise de definition du mot de passe pour ${adminUser.email}. Lien valide 24 heures.`,
         preview: result.preview,
       });
     } else {
       logger.warn({ err: result.error }, "Envoi licence email echoue");
-      res.status(500).json({ error: "Mot de passe mis a jour mais erreur lors de l'envoi de l'email." });
+      res.status(500).json({ error: "Lien de reinitialisation cree mais erreur lors de l'envoi de l'email." });
     }
   } catch (err: any) {
     req.log.error({ err }, "Erreur renvoi licence");

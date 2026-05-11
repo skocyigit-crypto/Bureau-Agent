@@ -22,9 +22,13 @@ import {
 
 const router: IRouter = Router();
 
-const SALT_ROUNDS = 12;
+const SALT_ROUNDS = (() => {
+  const raw = parseInt(String(process.env.BCRYPT_SALT_ROUNDS || ""), 10);
+  return Number.isFinite(raw) && raw >= 10 && raw <= 15 ? raw : 12;
+})();
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -44,7 +48,7 @@ const resetLimiter = rateLimit({
 });
 
 router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Promise<void> => {
-  const { email, password } = req.body;
+  const { email, password, totpCode } = req.body;
 
   if (!email || !password) {
     res.status(400).json({ error: "Email et mot de passe sont obligatoires." });
@@ -85,6 +89,24 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
       return;
     }
 
+    if (user.mfaActif && user.mfaSecret) {
+      if (!totpCode || typeof totpCode !== "string") {
+        res.status(200).json({ requiresMfa: true, message: "Code TOTP requis." });
+        return;
+      }
+      const { verifyMfaToken } = await import("../services/mfa");
+      if (!verifyMfaToken(totpCode, user.mfaSecret)) {
+        const newAttempts = user.tentativesEchouees + 1;
+        const updateData: Record<string, any> = { tentativesEchouees: newAttempts };
+        if (newAttempts >= MAX_FAILED_ATTEMPTS) {
+          updateData.verrouilleJusqua = new Date(Date.now() + LOCKOUT_DURATION_MS);
+        }
+        await db.update(usersTable).set(updateData).where(eq(usersTable.id, user.id));
+        res.status(401).json({ error: "Code TOTP invalide.", requiresMfa: true });
+        return;
+      }
+    }
+
     await db.update(usersTable).set({
       tentativesEchouees: 0,
       verrouilleJusqua: null,
@@ -96,7 +118,7 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
     (req.session as any).organisationId = user.organisationId;
     (req.session as any).userEmail = user.email;
 
-    logAudit(user.id, user.email, "login", "auth", undefined, { role: user.role }, req.ip, req.get("user-agent"));
+    logAudit(user.id, user.email, "login", "auth", undefined, { role: user.role, mfaUsed: user.mfaActif }, req.ip, req.get("user-agent"));
 
     res.json({
       id: user.id,
@@ -113,6 +135,78 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
   } catch (err: any) {
     req.log.error({ err }, "Erreur login");
     res.status(500).json({ error: "Erreur lors de la connexion." });
+  }
+});
+
+router.post("/auth/mfa/setup", async (req: Request, res: Response): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  try {
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    if (!user) { res.status(404).json({ error: "Utilisateur introuvable." }); return; }
+    if (user.mfaActif) { res.status(400).json({ error: "MFA deja active. Desactivez-la avant de reconfigurer." }); return; }
+    const { generateMfaSecret, buildMfaOtpAuthUrl, buildMfaQrDataUrl } = await import("../services/mfa");
+    const secret = generateMfaSecret();
+    const otpAuthUrl = buildMfaOtpAuthUrl(user.email, secret);
+    const qrDataUrl = await buildMfaQrDataUrl(otpAuthUrl);
+    await db.update(usersTable).set({ mfaSecret: secret, mfaActif: false, updatedAt: new Date() }).where(eq(usersTable.id, userId));
+    res.json({ secret, otpAuthUrl, qrDataUrl });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur MFA setup");
+    res.status(500).json({ error: "Erreur lors de la configuration MFA." });
+  }
+});
+
+router.post("/auth/mfa/enable", async (req: Request, res: Response): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  const { totpCode } = req.body;
+  if (!totpCode || typeof totpCode !== "string") { res.status(400).json({ error: "Code TOTP requis." }); return; }
+  try {
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    if (!user || !user.mfaSecret) { res.status(400).json({ error: "Lancez d'abord la configuration MFA." }); return; }
+    const { verifyMfaToken } = await import("../services/mfa");
+    if (!verifyMfaToken(totpCode, user.mfaSecret)) { res.status(400).json({ error: "Code TOTP invalide." }); return; }
+    await db.update(usersTable).set({ mfaActif: true, updatedAt: new Date() }).where(eq(usersTable.id, userId));
+    logAudit(userId, user.email, "mfa_enabled", "user", String(userId), undefined, req.ip, req.get("user-agent"));
+    res.json({ message: "Authentification a deux facteurs activee." });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur MFA enable");
+    res.status(500).json({ error: "Erreur lors de l'activation MFA." });
+  }
+});
+
+router.post("/auth/mfa/disable", async (req: Request, res: Response): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  const { password, totpCode } = req.body;
+  if (!password) { res.status(400).json({ error: "Mot de passe requis pour desactiver MFA." }); return; }
+  try {
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+    if (!user) { res.status(404).json({ error: "Utilisateur introuvable." }); return; }
+    const pwOk = await bcrypt.compare(password, user.passwordHash);
+    if (!pwOk) { res.status(401).json({ error: "Mot de passe incorrect." }); return; }
+    if (user.mfaActif && user.mfaSecret) {
+      const { verifyMfaToken } = await import("../services/mfa");
+      if (!totpCode || !verifyMfaToken(totpCode, user.mfaSecret)) { res.status(400).json({ error: "Code TOTP invalide." }); return; }
+    }
+    await db.update(usersTable).set({ mfaActif: false, mfaSecret: null, updatedAt: new Date() }).where(eq(usersTable.id, userId));
+    logAudit(userId, user.email, "mfa_disabled", "user", String(userId), undefined, req.ip, req.get("user-agent"));
+    res.json({ message: "Authentification a deux facteurs desactivee." });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur MFA disable");
+    res.status(500).json({ error: "Erreur lors de la desactivation MFA." });
+  }
+});
+
+router.get("/auth/mfa/status", async (req: Request, res: Response): Promise<void> => {
+  const userId = (req.session as any)?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  try {
+    const [user] = await db.select({ mfaActif: usersTable.mfaActif, hasSecret: usersTable.mfaSecret }).from(usersTable).where(eq(usersTable.id, userId));
+    res.json({ mfaActif: user?.mfaActif ?? false, setupInProgress: !!user?.hasSecret && !user?.mfaActif });
+  } catch (err: any) {
+    res.status(500).json({ error: "Erreur." });
   }
 });
 
@@ -260,8 +354,20 @@ router.post("/auth/users", async (req: Request, res: Response): Promise<void> =>
     res.status(400).json({ error: "Email, mot de passe, nom et prenom sont obligatoires." });
     return;
   }
+  if (typeof email !== "string" || !EMAIL_REGEX.test(email.trim())) {
+    res.status(400).json({ error: "Format d'email invalide." });
+    return;
+  }
   if (password.length < 8) {
     res.status(400).json({ error: "Le mot de passe doit contenir au moins 8 caracteres." });
+    return;
+  }
+  if (typeof nom !== "string" || nom.trim().length < 1 || nom.length > 100 || typeof prenom !== "string" || prenom.trim().length < 1 || prenom.length > 100) {
+    res.status(400).json({ error: "Nom et prenom doivent contenir entre 1 et 100 caracteres." });
+    return;
+  }
+  if (telephone !== undefined && telephone !== null && telephone !== "" && (typeof telephone !== "string" || telephone.length > 30)) {
+    res.status(400).json({ error: "Telephone invalide." });
     return;
   }
 
@@ -372,11 +478,29 @@ router.patch("/auth/users/:id", async (req: Request, res: Response): Promise<voi
   const clean = sanitiseUserPatch(req.body);
   const updateData: Record<string, any> = { updatedAt: new Date() };
 
-  if (clean.nom !== undefined) updateData.nom = clean.nom;
-  if (clean.prenom !== undefined) updateData.prenom = clean.prenom;
+  // ── GUARD: cannot deactivate own account ───────────────────────────────────
+  if (clean.actif === false && !assertNotSelf(req, res, id)) return;
+
+  if (clean.nom !== undefined) {
+    if (typeof clean.nom !== "string" || clean.nom.trim().length < 1 || clean.nom.length > 100) {
+      res.status(400).json({ error: "Nom invalide (1-100 caracteres)." }); return;
+    }
+    updateData.nom = clean.nom;
+  }
+  if (clean.prenom !== undefined) {
+    if (typeof clean.prenom !== "string" || clean.prenom.trim().length < 1 || clean.prenom.length > 100) {
+      res.status(400).json({ error: "Prenom invalide (1-100 caracteres)." }); return;
+    }
+    updateData.prenom = clean.prenom;
+  }
   if (clean.role !== undefined) updateData.role = clean.role;
   if (clean.departement !== undefined) updateData.departement = clean.departement;
-  if (clean.telephone !== undefined) updateData.telephone = clean.telephone;
+  if (clean.telephone !== undefined) {
+    if (clean.telephone !== null && clean.telephone !== "" && (typeof clean.telephone !== "string" || clean.telephone.length > 30)) {
+      res.status(400).json({ error: "Telephone invalide." }); return;
+    }
+    updateData.telephone = clean.telephone;
+  }
   if (clean.actif !== undefined) updateData.actif = clean.actif;
   if (clean.prenom && clean.nom) updateData.avatar = `${clean.prenom[0]}${clean.nom[0]}`.toUpperCase();
 

@@ -85,8 +85,16 @@ export async function handleSubscriptionUpdated(sub: Stripe.Subscription) {
   const subAny = sub as unknown as { current_period_end?: number; current_period_start?: number };
   const periodEnd = itemAny?.current_period_end ?? subAny.current_period_end ?? null;
   const periodStart = itemAny?.current_period_start ?? subAny.current_period_start ?? null;
+  const existing = await db
+    .select({ status: subscriptionsTable.status })
+    .from(subscriptionsTable)
+    .where(eq(subscriptionsTable.organisationId, orgId))
+    .limit(1);
+  const currentStatus = existing[0]?.status ?? null;
+  const stripeStatus = statusFromStripe(sub.status);
+  const preserveSuspended = currentStatus === "suspended" && sub.status !== "active" && sub.status !== "trialing";
   const updates: Record<string, unknown> = {
-    status: statusFromStripe(sub.status),
+    status: preserveSuspended ? "suspended" : stripeStatus,
     stripeSubscriptionId: sub.id,
     currentPeriodStart: periodStart ? new Date(periodStart * 1000) : null,
     currentPeriodEnd: periodEnd ? new Date(periodEnd * 1000) : null,
@@ -162,17 +170,41 @@ export async function handleInvoicePaid(invoice: Stripe.Invoice) {
     paidAt: new Date(),
     notes: `Stripe invoice ${invoice.id}`,
   }).onConflictDoNothing?.().catch(() => {});
+  if ((sub?.paymentFailedCount ?? 0) > 0 || sub?.status === "past_due" || sub?.status === "suspended") {
+    await db.update(subscriptionsTable).set({
+      paymentFailedCount: 0,
+      suspendedAt: null,
+      status: sub?.status === "suspended" || sub?.status === "past_due" ? "active" : sub?.status ?? "active",
+      updatedAt: new Date(),
+    }).where(eq(subscriptionsTable.organisationId, orgId));
+    logger.info({ orgId }, "[stripe-sync] payment recovered -> compteur reinitialise");
+  }
   logger.info({ orgId, invoice: invoice.id, total, currency }, "[stripe-sync] invoice.paid recorded");
 }
+
+const MAX_PAYMENT_FAILURES_BEFORE_SUSPEND = 3;
 
 export async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
   if (!customerId) return;
   const orgId = await findOrgByCustomer(customerId);
   if (!orgId) return;
+  const [current] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, orgId)).limit(1);
+  const newCount = (current?.paymentFailedCount ?? 0) + 1;
+  const shouldSuspend = newCount >= MAX_PAYMENT_FAILURES_BEFORE_SUSPEND;
+  const now = new Date();
   await db
     .update(subscriptionsTable)
-    .set({ status: "past_due", updatedAt: new Date() })
+    .set({
+      status: shouldSuspend ? "suspended" : "past_due",
+      paymentFailedCount: newCount,
+      lastPaymentFailedAt: now,
+      suspendedAt: shouldSuspend ? now : current?.suspendedAt ?? null,
+      updatedAt: now,
+    })
     .where(eq(subscriptionsTable.organisationId, orgId));
-  logger.warn({ orgId, invoice: invoice.id }, "[stripe-sync] invoice.payment_failed -> past_due");
+  logger.warn(
+    { orgId, invoice: invoice.id, attempts: newCount, suspended: shouldSuspend },
+    `[stripe-sync] invoice.payment_failed -> ${shouldSuspend ? "suspended (3+ echecs)" : "past_due"}`,
+  );
 }

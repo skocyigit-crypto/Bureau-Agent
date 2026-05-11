@@ -335,39 +335,19 @@ router.post("/config", async (req, res): Promise<void> => {
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
     if (userRole !== "super_admin") { res.status(403).json({ error: "Acces reserve au Super Administrateur." }); return; }
 
-    const { clientId, clientSecret } = req.body;
-    if (!clientId || typeof clientId !== "string" || clientId.length < 10) {
-      res.status(400).json({ error: "Client ID invalide." }); return;
-    }
-    if (!clientSecret || typeof clientSecret !== "string" || clientSecret.length < 5) {
-      res.status(400).json({ error: "Client Secret invalide." }); return;
-    }
-
-    process.env.GOOGLE_CLIENT_ID = clientId.trim();
-    process.env.GOOGLE_CLIENT_SECRET = clientSecret.trim();
-
-    await db.insert(platformSyncLogsTable).values({
-      platform: "google",
-      serviceId: "config",
-      action: "configuration_oauth",
-      status: "succes",
-      details: JSON.stringify({
-        message: "Identifiants Google OAuth configures par l'administrateur.",
-        clientIdPrefix: clientId.trim().substring(0, 8) + "...",
-        configuredAt: new Date().toISOString(),
-        note: "Configuration volatile — sera perdue au redemarrage du serveur. Definir GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET comme variables d'environnement pour la persistance.",
-      }),
-    });
-
-    res.json({
-      status: "configure",
-      message: "Identifiants Google OAuth enregistres avec succes. Attention : cette configuration est temporaire et sera perdue au redemarrage du serveur. Pour une configuration permanente, definissez les variables d'environnement GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET.",
-      configured: true,
-      warning: "volatile_config",
+    res.status(410).json({
+      error: "Configuration runtime desactivee pour des raisons de securite.",
+      code: "runtime_oauth_config_disabled",
+      message:
+        "Les identifiants Google OAuth doivent etre configures via les variables d'environnement (Replit Secrets) "
+        + "GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET. La configuration runtime est desactivee car elle etait volatile "
+        + "(perdue au redemarrage) et exposait les identifiants en memoire. Ajoutez-les dans l'onglet 'Secrets' de Replit "
+        + "puis redemarrez le serveur.",
+      docsUrl: "https://docs.replit.com/replit-workspace/workspace-features/secrets",
     });
   } catch (error: any) {
     logger.error({ err: error }, "Google OAuth config error:");
-    res.status(500).json({ error: "Erreur lors de la configuration." });
+    res.status(500).json({ error: "Erreur." });
   }
 });
 

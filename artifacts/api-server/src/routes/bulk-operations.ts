@@ -3,12 +3,27 @@ import { db, callsTable, contactsTable, tasksTable, messagesTable, prospectsTabl
 import { eq, sql, and, inArray } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
+import { logAudit } from "./audit";
 import { logger } from "../lib/logger";
 
 const router = Router();
 
 const requireMinOperateur = requireRole("super_admin", "administrateur", "agent");
 const requireMinAdmin = requireRole("super_admin", "administrateur");
+
+function auditBulk(req: Request, action: string, resource: string, ids: any[], extra?: any): void {
+  const sess = (req.session as any) || {};
+  void logAudit(
+    sess.userId,
+    sess.userEmail,
+    action,
+    resource,
+    undefined,
+    { count: ids.length, ids: ids.slice(0, 100), ...(extra || {}) },
+    req.ip,
+    req.get("user-agent"),
+  );
+}
 
 router.post("/bulk/tasks/complete", requireMinOperateur, async (req: Request, res: Response): Promise<void> => {
   try {
@@ -32,6 +47,8 @@ router.post("/bulk/tasks/delete", requireMinAdmin, async (req: Request, res: Res
     const orgId = getOrgId(req);
     const { ids } = req.body;
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+
+    auditBulk(req, "bulk_delete", "tasks", ids);
 
     await db.delete(tasksTable).where(and(eq(tasksTable.organisationId, orgId), inArray(tasksTable.id, ids)));
     res.json({ success: true, deleted: ids.length });
@@ -96,6 +113,8 @@ router.post("/bulk/contacts/delete", requireMinAdmin, async (req: Request, res: 
     const orgId = getOrgId(req);
     const { ids } = req.body;
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+
+    auditBulk(req, "bulk_delete", "contacts", ids);
 
     await db.delete(contactsTable).where(and(eq(contactsTable.organisationId, orgId), inArray(contactsTable.id, ids)));
     res.json({ success: true, deleted: ids.length });
@@ -184,6 +203,7 @@ router.post("/bulk/calls/delete", requireMinAdmin, async (req: Request, res: Res
     const orgId = getOrgId(req);
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    auditBulk(req, "bulk_delete", "calls", ids);
     const result = await db.delete(callsTable).where(and(eq(callsTable.organisationId, orgId), inArray(callsTable.id, ids)));
     res.json({ deleted: result.rowCount ?? ids.length });
   } catch (err: any) {
@@ -197,6 +217,7 @@ router.post("/bulk/messages/delete", requireMinAdmin, async (req: Request, res: 
     const orgId = getOrgId(req);
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    auditBulk(req, "bulk_delete", "messages", ids);
     const result = await db.delete(messagesTable).where(and(eq(messagesTable.organisationId, orgId), inArray(messagesTable.id, ids)));
     res.json({ deleted: result.rowCount ?? ids.length });
   } catch (err: any) {
@@ -331,6 +352,7 @@ router.post("/bulk/devis/delete", requireMinAdmin, async (req: Request, res: Res
     const orgId = getOrgId(req);
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    auditBulk(req, "bulk_delete", "devis", ids);
     const result = await db.delete(devisTable).where(and(eq(devisTable.organisationId, orgId), inArray(devisTable.id, ids)));
     res.json({ deleted: result.rowCount ?? ids.length });
   } catch (err: any) {
@@ -344,6 +366,7 @@ router.post("/bulk/factures/delete", requireMinAdmin, async (req: Request, res: 
     const orgId = getOrgId(req);
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    auditBulk(req, "bulk_delete", "factures", ids);
     const result = await db.delete(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), inArray(facturesClientTable.id, ids)));
     res.json({ deleted: result.rowCount ?? ids.length });
   } catch (err: any) {
@@ -357,6 +380,7 @@ router.post("/bulk/commandes/delete", requireMinAdmin, async (req: Request, res:
     const orgId = getOrgId(req);
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    auditBulk(req, "bulk_delete", "commandes", ids);
     const result = await db.delete(commandesFournisseurTable).where(and(eq(commandesFournisseurTable.organisationId, orgId), inArray(commandesFournisseurTable.id, ids)));
     res.json({ deleted: result.rowCount ?? ids.length });
   } catch (err: any) {
@@ -398,6 +422,7 @@ router.post("/bulk/stock/delete", requireMinAdmin, async (req: Request, res: Res
     const orgId = getOrgId(req);
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    auditBulk(req, "bulk_delete", "stock", ids);
     const result = await db.delete(stockArticlesTable).where(and(eq(stockArticlesTable.organisationId, orgId), inArray(stockArticlesTable.id, ids)));
     res.json({ deleted: result.rowCount ?? ids.length });
   } catch (err: any) {
@@ -411,6 +436,7 @@ router.post("/bulk/prospects/delete", requireMinAdmin, async (req: Request, res:
     const orgId = getOrgId(req);
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    auditBulk(req, "bulk_delete", "prospects", ids);
     const result = await db.delete(prospectsTable).where(and(eq(prospectsTable.organisationId, orgId), inArray(prospectsTable.id, ids)));
     res.json({ deleted: result.rowCount ?? ids.length });
   } catch (err: any) {
@@ -424,6 +450,7 @@ router.post("/bulk/checkins/delete", requireMinAdmin, async (req: Request, res: 
     const orgId = getOrgId(req);
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    auditBulk(req, "bulk_delete", "checkins", ids);
     const result = await db.delete(checkinsTable).where(and(eq(checkinsTable.organisationId, orgId), inArray(checkinsTable.id, ids)));
     res.json({ deleted: result.rowCount ?? ids.length });
   } catch (err: any) {
@@ -437,6 +464,7 @@ router.post("/bulk/documents/delete", requireMinAdmin, async (req: Request, res:
     const orgId = getOrgId(req);
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    auditBulk(req, "bulk_delete", "documents", ids);
     const result = await db.delete(documentsTable).where(and(eq(documentsTable.organisationId, orgId), inArray(documentsTable.id, ids)));
     res.json({ deleted: result.rowCount ?? ids.length });
   } catch (err: any) {
@@ -450,6 +478,7 @@ router.post("/bulk/objectifs-commerciaux/delete", requireMinAdmin, async (req: R
     const orgId = getOrgId(req);
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    auditBulk(req, "bulk_delete", "objectifs", ids);
     const result = await db.delete(objectifsCommerciauxTable).where(and(eq(objectifsCommerciauxTable.organisationId, orgId), inArray(objectifsCommerciauxTable.id, ids)));
     res.json({ deleted: result.rowCount ?? ids.length });
   } catch (err: any) {
@@ -478,6 +507,7 @@ router.post("/bulk/notes-internes/delete", requireMinOperateur, async (req: Requ
     const orgId = getOrgId(req);
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    auditBulk(req, "bulk_delete", "notes_internes", ids);
     const result = await db.delete(notesInternesTable).where(and(eq(notesInternesTable.organisationId, orgId), inArray(notesInternesTable.id, ids)));
     res.json({ deleted: result.rowCount ?? ids.length });
   } catch (err: any) {
@@ -506,6 +536,7 @@ router.post("/bulk/projets/delete", requireMinAdmin, async (req: Request, res: R
     const orgId = getOrgId(req);
     const { ids } = req.body as { ids: number[] };
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    auditBulk(req, "bulk_delete", "projets", ids);
     const result = await db.delete(projetsTable).where(and(eq(projetsTable.organisationId, orgId), inArray(projetsTable.id, ids)));
     res.json({ deleted: result.rowCount ?? ids.length });
   } catch (err: any) {

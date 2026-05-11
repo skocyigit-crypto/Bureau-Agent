@@ -34,6 +34,7 @@ export const usersTable = pgTable("users", {
   avatar: varchar("avatar", { length: 10 }),
   actif: boolean("actif").notNull().default(true),
   mfaActif: boolean("mfa_actif").notNull().default(false),
+  mfaSecret: text("mfa_secret"),
   dernierAcces: timestamp("dernier_acces"),
   tentativesEchouees: integer("tentatives_echouees").notNull().default(0),
   verrouilleJusqua: timestamp("verrouille_jusqua"),
