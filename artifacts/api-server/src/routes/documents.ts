@@ -536,8 +536,23 @@ router.get("/documents/:id/download", requireMinAgent, async (req: Request, res:
     }
 
     const buffer = Buffer.from(doc.fileContent, "base64");
+    // Defense-in-depth on user-uploaded file downloads:
+    // - nosniff prevents the browser from MIME-sniffing an HTML/JS payload
+    //   out of a file we declared as e.g. application/pdf (XSS via download).
+    // - X-Download-Options: noopen blocks legacy IE "Open" action.
+    // - Restrictive CSP neuters any inline script if the file is rendered
+    //   inline (e.g. SVG/HTML the upload validator missed).
+    // - Content-Disposition: attachment + sanitised filename forces a save
+    //   dialog and prevents header injection via \r\n in originalName.
+    const safeName = String(doc.originalName).replace(/[\r\n"\\]/g, "_");
     res.setHeader("Content-Type", doc.mimeType);
-    res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(doc.originalName)}"`);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Download-Options", "noopen");
+    res.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${encodeURIComponent(safeName)}"; filename*=UTF-8''${encodeURIComponent(safeName)}`
+    );
     res.setHeader("Content-Length", buffer.length);
     res.send(buffer);
   } catch (err: any) {

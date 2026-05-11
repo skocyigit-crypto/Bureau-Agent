@@ -110,7 +110,16 @@ export function TabAbonnement() {
           body: JSON.stringify({ plan: planId }),
         });
         const data = await res.json();
-        if (res.ok && data.url) {
+        // Open-redirect hardening: only follow URLs that come from Stripe's
+        // checkout/billing domains. The server already only returns Stripe
+        // URLs, but we double-check on the client so a compromised or
+        // misconfigured backend cannot bounce the browser anywhere it likes.
+        if (
+          res.ok &&
+          typeof data.url === "string" &&
+          (data.url.startsWith("https://checkout.stripe.com/") ||
+            data.url.startsWith("https://billing.stripe.com/"))
+        ) {
           window.location.href = data.url;
           return;
         }
