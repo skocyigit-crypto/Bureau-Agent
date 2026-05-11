@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { startAutoBackup } from "./services/auto-backup";
 import { startAutomationEngine } from "./services/automation-engine";
 import { ensureSuperAdmin } from "./services/ensure-admin";
+import { ensureAuditAppendOnly } from "./services/ensure-audit-append-only";
 import { startGoogleAutoPointage } from "./services/google-auto-pointage";
 import { startGoogleDriveBackupScheduler } from "./services/google-drive-backup";
 import { startDataProtectionMonitor } from "./services/data-protection-monitor";
@@ -98,6 +99,7 @@ async function startServer(): Promise<void> {
     logger.info({ port }, "Server listening");
 
     ensureSuperAdmin().catch(err => logger.error({ err }, "Erreur seed admin"));
+    void ensureAuditAppendOnly();
     startAutoBackup();
     startAutomationEngine();
     startGoogleAutoPointage();
