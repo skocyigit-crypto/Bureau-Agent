@@ -386,13 +386,26 @@ router.post("/auth/change-password", changePasswordLimiter, async (req: Request,
 
     logAudit(userId, user.email, "password_changed", "auth", undefined, undefined, req.ip, req.get("user-agent"), user.organisationId);
 
-    // Apres un changement de mot de passe, on regenere la session courante pour
-    // couper toute session detournee silencieusement et forcer un nouvel ID.
+    // Capture les champs de session avant invalidation+regeneration.
     const userRole = req.session.userRole;
     const organisationId = req.session.organisationId;
     const userEmail = req.session.userEmail;
     const prenom = req.session.prenom;
     const nom = req.session.nom;
+
+    // Invalide TOUTES les sessions existantes de cet utilisateur (y compris
+    // toute session detournee silencieusement). Fail-closed: si l'invalidation
+    // echoue, on retourne 500 plutot que de laisser des sessions actives.
+    try {
+      await invalidateUserSessions(userId);
+    } catch (err: any) {
+      req.log.error({ err }, "Echec invalidation sessions apres changement");
+      res.status(500).json({ error: "Mot de passe mis a jour mais l'invalidation des sessions a echoue. Contactez le support." });
+      return;
+    }
+
+    // Regenere un sid neuf pour l'appelant et restaure ses claims pour eviter
+    // de le forcer a se reconnecter immediatement apres son propre changement.
     await new Promise<void>((resolve, reject) => {
       req.session.regenerate((err) => err ? reject(err) : resolve());
     });
@@ -403,7 +416,10 @@ router.post("/auth/change-password", changePasswordLimiter, async (req: Request,
     req.session.prenom = prenom;
     req.session.nom = nom;
 
-    res.json({ message: "Mot de passe modifie avec succes." });
+    // Notification de securite (best-effort).
+    void sendPasswordChangedEmail(user.email, user.prenom || "", req.ip).catch(err => req.log.error({ err }, "Erreur notif password change"));
+
+    res.json({ message: "Mot de passe modifie avec succes. Toutes vos autres sessions ont ete deconnectees." });
   } catch (err: any) {
     req.log.error({ err }, "Erreur changement mot de passe");
     res.status(500).json({ error: "Erreur lors du changement de mot de passe." });
