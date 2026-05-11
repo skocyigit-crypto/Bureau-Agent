@@ -673,7 +673,11 @@ router.get("/daily-reports/:id", async (req, res): Promise<void> => {
       return;
     }
 
-    const [report] = await db.select().from(dailyReportsTable).where(eq(dailyReportsTable.id, id));
+    const orgId = req.session?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+
+    const [report] = await db.select().from(dailyReportsTable)
+      .where(and(eq(dailyReportsTable.id, id), eq(dailyReportsTable.organisationId, orgId)));
     if (!report) {
       res.status(404).json({ error: "Rapport non trouve." });
       return;
@@ -694,7 +698,12 @@ router.delete("/daily-reports/:id", async (req, res): Promise<void> => {
       return;
     }
 
-    const [deleted] = await db.delete(dailyReportsTable).where(eq(dailyReportsTable.id, id)).returning();
+    const orgId = req.session?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+
+    const [deleted] = await db.delete(dailyReportsTable)
+      .where(and(eq(dailyReportsTable.id, id), eq(dailyReportsTable.organisationId, orgId)))
+      .returning();
     if (!deleted) {
       res.status(404).json({ error: "Rapport non trouve." });
       return;

@@ -2138,7 +2138,7 @@ router.post("/ai/agents/auto-fix", requireAdmin, async (req, res): Promise<void>
     if (overdueTasks.length > 0) {
       const overdueIds = overdueTasks.map(t => t.id);
       for (const id of overdueIds) {
-        await db.update(tasksTable).set({ priority: "haute" }).where(eq(tasksTable.id, id));
+        await db.update(tasksTable).set({ priority: "haute" }).where(and(eq(tasksTable.id, id), orgTask));
       }
       fixes.push({ type: "overdue_tasks_escalated", description: "Taches en retard escaladees en haute priorite", count: overdueTasks.length, details: overdueTasks.map(t => t.title).join(", ") });
     }
