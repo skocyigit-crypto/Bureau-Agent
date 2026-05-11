@@ -225,11 +225,28 @@ app.use(session({
     pruneSessionInterval: 15 * 60,
   }),
   name: SESSION_COOKIE_NAME,
+  // Secret rotation: SESSION_SECRETS (comma-separated, newest first) is preferred.
+  // express-session signs new cookies with secrets[0] but accepts ANY entry as
+  // valid during verification — so operators can rotate by:
+  //   1. Prepending a fresh secret:  SESSION_SECRETS=NEW,OLD
+  //   2. Letting maxAge (24h) expire all OLD-signed cookies
+  //   3. Removing OLD:  SESSION_SECRETS=NEW
+  // No user is logged out, no downtime. SESSION_SECRET (singular) remains
+  // supported for backward compatibility.
   secret: (() => {
+    const list = process.env.SESSION_SECRETS;
+    if (list) {
+      const parts = list.split(",").map((s) => s.trim()).filter((s) => s.length >= 16);
+      if (parts.length === 0) {
+        logger.error("FATAL: SESSION_SECRETS defini mais aucune entree valide (>=16 chars).");
+        process.exit(1);
+      }
+      return parts;
+    }
     const s = process.env.SESSION_SECRET;
     if (s) return s;
     if (isProduction) {
-      logger.error("FATAL: SESSION_SECRET est requis en production.");
+      logger.error("FATAL: SESSION_SECRET (ou SESSION_SECRETS) est requis en production.");
       process.exit(1);
     }
     const devSecret = crypto.randomBytes(32).toString("hex");

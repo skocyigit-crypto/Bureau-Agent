@@ -30,13 +30,26 @@ const WRITE_INTENTS = new Set([
   "log_call",
 ]);
 
-function getPendingSecret(): string {
-  const s = process.env.SESSION_SECRET || process.env.JWT_SECRET;
-  if (s && s.length >= 16) return s;
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("SESSION_SECRET (or JWT_SECRET) is required in production for voice action signing");
+// Secret rotation: returns ALL valid secrets (newest first). Sign uses [0],
+// verify accepts any entry. SESSION_SECRETS (comma-separated) is preferred;
+// SESSION_SECRET / JWT_SECRET kept for backward compatibility.
+function getPendingSecrets(): string[] {
+  const out: string[] = [];
+  const list = process.env.SESSION_SECRETS;
+  if (list) {
+    for (const p of list.split(",").map((s) => s.trim())) {
+      if (p.length >= 16) out.push(p);
+    }
   }
-  return "dev-voice-pending-secret-do-not-use-in-prod";
+  for (const env of ["SESSION_SECRET", "JWT_SECRET"]) {
+    const v = process.env[env];
+    if (v && v.length >= 16 && !out.includes(v)) out.push(v);
+  }
+  if (out.length > 0) return out;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("SESSION_SECRETS (or SESSION_SECRET / JWT_SECRET) is required in production for voice action signing");
+  }
+  return ["dev-voice-pending-secret-do-not-use-in-prod"];
 }
 
 // One-shot replay protection: tokens may only be redeemed once within their
@@ -56,17 +69,27 @@ function consumeTokenOnce(sig: string, exp: number): boolean {
 
 function signPendingAction(payload: object): string {
   const json = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  const sig = crypto.createHmac("sha256", getPendingSecret()).update(json).digest("base64url");
+  // Sign with the freshest secret; verify accepts any active secret.
+  const sig = crypto.createHmac("sha256", getPendingSecrets()[0]).update(json).digest("base64url");
   return `${json}.${sig}`;
 }
 
 function verifyPendingAction(token: string): any | null {
   if (typeof token !== "string" || !token.includes(".")) return null;
   const [json, sig] = token.split(".");
-  const expected = crypto.createHmac("sha256", getPendingSecret()).update(json).digest("base64url");
-  try {
-    if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
-  } catch { return null; }
+  let sigBuf: Buffer;
+  try { sigBuf = Buffer.from(sig, "base64url"); } catch { return null; }
+  // Constant-time compare against EVERY active secret. Loop runs to completion
+  // (no short-circuit on first match) so total work depends only on secret
+  // count, not on which secret signed the token — preserves timing-safety.
+  let matched = false;
+  for (const secret of getPendingSecrets()) {
+    const expected = crypto.createHmac("sha256", secret).update(json).digest();
+    if (expected.length === sigBuf.length && crypto.timingSafeEqual(expected, sigBuf)) {
+      matched = true;
+    }
+  }
+  if (!matched) return null;
   try {
     const payload = JSON.parse(Buffer.from(json, "base64url").toString("utf8"));
     if (!payload || typeof payload !== "object") return null;
