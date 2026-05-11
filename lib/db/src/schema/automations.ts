@@ -6,6 +6,7 @@ import { organisationsTable } from "./organisations";
 
 export const automationRulesTable = pgTable("automation_rules", {
   id: serial("id").primaryKey(),
+  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description"),
   type: text("type").notNull(),
@@ -22,7 +23,9 @@ export const automationRulesTable = pgTable("automation_rules", {
   createdBy: integer("created_by").references(() => usersTable.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (table) => [
+  index("automation_rules_org_id_idx").on(table.organisationId),
+]);
 
 export const automationLogsTable = pgTable("automation_logs", {
   id: serial("id").primaryKey(),

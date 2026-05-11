@@ -10,7 +10,7 @@ import {
   messagesTable,
   projetsTable,
 } from "@workspace/db/schema";
-import { eq, lte, and, gte, lt, sql, desc, isNull, or } from "drizzle-orm";
+import { eq, lte, and, gte, lt, sql, desc, isNull, isNotNull, or } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendEmail } from "./email";
 
@@ -53,6 +53,7 @@ async function runAllAutomations() {
       .where(
         and(
           eq(automationRulesTable.enabled, true),
+          isNotNull(automationRulesTable.organisationId),
           or(
             isNull(automationRulesTable.nextRun),
             lte(automationRulesTable.nextRun, new Date())

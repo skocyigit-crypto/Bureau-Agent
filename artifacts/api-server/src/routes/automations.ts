@@ -106,12 +106,15 @@ router.post("/notifications/delete-all", async (req: Request, res: Response): Pr
 
 router.get("/automations", async (req: Request, res: Response): Promise<void> => {
   const userId = req.session?.userId;
+  const orgId = req.session?.organisationId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
 
   try {
     const rules = await db
       .select()
       .from(automationRulesTable)
+      .where(eq(automationRulesTable.organisationId, orgId))
       .orderBy(desc(automationRulesTable.updatedAt));
 
     const builtInRules = [
@@ -199,7 +202,9 @@ router.get("/automations", async (req: Request, res: Response): Promise<void> =>
 router.post("/automations", async (req: Request, res: Response): Promise<void> => {
   const userId = req.session?.userId;
   const userRole = req.session?.userRole;
+  const orgId = req.session?.organisationId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
   if (userRole !== "super_admin" && userRole !== "administrateur") {
     res.status(403).json({ error: "Acces refuse." }); return;
   }
@@ -212,6 +217,7 @@ router.post("/automations", async (req: Request, res: Response): Promise<void> =
 
   try {
     const [rule] = await db.insert(automationRulesTable).values({
+      organisationId: orgId,
       name,
       description: description || null,
       type,
@@ -234,7 +240,9 @@ router.post("/automations", async (req: Request, res: Response): Promise<void> =
 router.patch("/automations/:id", async (req: Request, res: Response): Promise<void> => {
   const userId = req.session?.userId;
   const userRole = req.session?.userRole;
+  const orgId = req.session?.organisationId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
   if (userRole !== "super_admin" && userRole !== "administrateur") {
     res.status(403).json({ error: "Acces refuse." }); return;
   }
@@ -258,7 +266,7 @@ router.patch("/automations/:id", async (req: Request, res: Response): Promise<vo
     const [updated] = await db
       .update(automationRulesTable)
       .set(updateData)
-      .where(eq(automationRulesTable.id, id))
+      .where(and(eq(automationRulesTable.id, id), eq(automationRulesTable.organisationId, orgId)))
       .returning();
 
     if (!updated) { res.status(404).json({ error: "Regle non trouvee." }); return; }
@@ -273,7 +281,9 @@ router.patch("/automations/:id", async (req: Request, res: Response): Promise<vo
 router.delete("/automations/:id", async (req: Request, res: Response): Promise<void> => {
   const userId = req.session?.userId;
   const userRole = req.session?.userRole;
+  const orgId = req.session?.organisationId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
   if (userRole !== "super_admin" && userRole !== "administrateur") {
     res.status(403).json({ error: "Acces refuse." }); return;
   }
@@ -282,8 +292,11 @@ router.delete("/automations/:id", async (req: Request, res: Response): Promise<v
   if (isNaN(id) || id < 1) { res.status(400).json({ error: "ID invalide." }); return; }
 
   try {
-    await db.delete(automationRulesTable).where(eq(automationRulesTable.id, id));
-    logAudit(userId, req.session?.userEmail, "delete", "automation_rule", String(id), undefined, req.ip, req.get("user-agent"), req.session?.organisationId);
+    const result = await db.delete(automationRulesTable)
+      .where(and(eq(automationRulesTable.id, id), eq(automationRulesTable.organisationId, orgId)))
+      .returning({ id: automationRulesTable.id });
+    if (result.length === 0) { res.status(404).json({ error: "Regle non trouvee." }); return; }
+    logAudit(userId, req.session?.userEmail, "delete", "automation_rule", String(id), undefined, req.ip, req.get("user-agent"), orgId);
     res.json({ success: true });
   } catch (err: any) {
     req.log.error({ err }, "Erreur suppression automation");
@@ -294,13 +307,17 @@ router.delete("/automations/:id", async (req: Request, res: Response): Promise<v
 router.post("/automations/bulk/delete", async (req: Request, res: Response): Promise<void> => {
   const userId = req.session?.userId;
   const userRole = req.session?.userRole;
+  const orgId = req.session?.organisationId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
   if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces refuse." }); return; }
   const { ids } = req.body as { ids: number[] };
-  if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+  if (!Array.isArray(ids) || ids.length === 0 || ids.length > 200) { res.status(400).json({ error: "ids requis (1-200)" }); return; }
   try {
-    await db.delete(automationRulesTable).where(inArray(automationRulesTable.id, ids));
-    res.json({ success: true, deleted: ids.length });
+    const result = await db.delete(automationRulesTable)
+      .where(and(inArray(automationRulesTable.id, ids), eq(automationRulesTable.organisationId, orgId)))
+      .returning({ id: automationRulesTable.id });
+    res.json({ success: true, deleted: result.length });
   } catch (err: any) {
     req.log.error({ err }, "Bulk delete automations error");
     res.status(500).json({ error: "Erreur suppression" });
@@ -310,14 +327,18 @@ router.post("/automations/bulk/delete", async (req: Request, res: Response): Pro
 router.post("/automations/bulk/toggle", async (req: Request, res: Response): Promise<void> => {
   const userId = req.session?.userId;
   const userRole = req.session?.userRole;
+  const orgId = req.session?.organisationId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
   if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces refuse." }); return; }
   const { ids, enabled } = req.body as { ids: number[]; enabled: boolean };
-  if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+  if (!Array.isArray(ids) || ids.length === 0 || ids.length > 200) { res.status(400).json({ error: "ids requis (1-200)" }); return; }
   if (typeof enabled !== "boolean") { res.status(400).json({ error: "enabled requis (boolean)" }); return; }
   try {
-    await db.update(automationRulesTable).set({ enabled }).where(inArray(automationRulesTable.id, ids));
-    res.json({ success: true, updated: ids.length });
+    const result = await db.update(automationRulesTable).set({ enabled })
+      .where(and(inArray(automationRulesTable.id, ids), eq(automationRulesTable.organisationId, orgId)))
+      .returning({ id: automationRulesTable.id });
+    res.json({ success: true, updated: result.length });
   } catch (err: any) {
     req.log.error({ err }, "Bulk toggle automations error");
     res.status(500).json({ error: "Erreur mise a jour" });
@@ -326,14 +347,28 @@ router.post("/automations/bulk/toggle", async (req: Request, res: Response): Pro
 
 router.get("/automations/logs", async (req: Request, res: Response): Promise<void> => {
   const userId = req.session?.userId;
+  const orgId = req.session?.organisationId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
 
   const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 50, 1), 200);
 
   try {
+    const orgRuleIds = await db
+      .select({ id: automationRulesTable.id })
+      .from(automationRulesTable)
+      .where(eq(automationRulesTable.organisationId, orgId));
+    const ruleIds = orgRuleIds.map(r => r.id);
+
+    if (ruleIds.length === 0) {
+      res.json({ logs: [], stats: { totalToday: 0, successToday: 0, errorToday: 0, itemsToday: 0 } });
+      return;
+    }
+
     const logs = await db
       .select()
       .from(automationLogsTable)
+      .where(inArray(automationLogsTable.ruleId, ruleIds))
       .orderBy(desc(automationLogsTable.createdAt))
       .limit(limit);
 
@@ -348,7 +383,7 @@ router.get("/automations/logs", async (req: Request, res: Response): Promise<voi
         itemsToday: sql<number>`coalesce(sum(items_processed), 0)::int`,
       })
       .from(automationLogsTable)
-      .where(gte(automationLogsTable.createdAt, today));
+      .where(and(inArray(automationLogsTable.ruleId, ruleIds), gte(automationLogsTable.createdAt, today)));
 
     res.json({ logs, stats });
   } catch (err: any) {
@@ -360,14 +395,18 @@ router.get("/automations/logs", async (req: Request, res: Response): Promise<voi
 router.post("/automations/:id/duplicate", async (req: Request, res: Response): Promise<void> => {
   const userId = req.session?.userId;
   const userRole = req.session?.userRole;
+  const orgId = req.session?.organisationId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
   if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces refuse." }); return; }
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
-    const [original] = await db.select().from(automationRulesTable).where(eq(automationRulesTable.id, id));
+    const [original] = await db.select().from(automationRulesTable)
+      .where(and(eq(automationRulesTable.id, id), eq(automationRulesTable.organisationId, orgId)));
     if (!original) { res.status(404).json({ error: "Automation non trouvee." }); return; }
     const [copy] = await db.insert(automationRulesTable).values({
+      organisationId: orgId,
       name: `${original.name} (copie)`,
       description: original.description,
       type: original.type,
@@ -388,10 +427,13 @@ router.post("/automations/:id/duplicate", async (req: Request, res: Response): P
 router.get("/automations/export/csv", async (req: Request, res: Response): Promise<void> => {
   const userId = req.session?.userId;
   const userRole = req.session?.userRole;
+  const orgId = req.session?.organisationId;
   if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
   if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces refuse." }); return; }
   try {
-    const rules = await db.select().from(automationRulesTable);
+    const rules = await db.select().from(automationRulesTable)
+      .where(eq(automationRulesTable.organisationId, orgId));
     const header = "ID,Nom,Type,Declencheur,Frequence,Actif,Executions,Derniere execution,Date creation\n";
     const rows = rules.map(r =>
       [r.id, r.name, r.type, r.trigger, r.schedule || "", r.enabled ? "oui" : "non",
