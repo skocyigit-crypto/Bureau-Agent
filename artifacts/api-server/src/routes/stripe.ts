@@ -44,7 +44,12 @@ stripeWebhookRouter.post(
       res.status(400).json({ error: "Signature invalide" });
       return;
     }
-    // Idempotency: dedupe by event.id (Stripe retries failed deliveries)
+    // Idempotency: dedupe by event.id (Stripe retries failed deliveries).
+    // The schema has event_id as PRIMARY KEY, so onConflictDoNothing is safe.
+    // If the dedupe insert itself fails (DB outage, etc.) we return 500 so
+    // Stripe retries later. Processing a paid invoice twice can double-charge
+    // / double-credit the customer; a transient retry is the safer failure
+    // mode than a silent "continue anyway".
     try {
       const inserted = await db
         .insert(stripeWebhookEventsTable)
@@ -57,8 +62,9 @@ stripeWebhookRouter.post(
         return;
       }
     } catch (err) {
-      logger.error({ err, eventId: event.id }, "[stripe-webhook] dedupe insert failed");
-      // Continue anyway — better to risk duplicate than miss event
+      logger.error({ err, eventId: event.id, type: event.type }, "[stripe-webhook] dedupe insert failed - asking Stripe to retry");
+      res.status(500).json({ error: "Dedupe store unavailable, retry later" });
+      return;
     }
     try {
       switch (event.type) {
