@@ -23,6 +23,7 @@ export const subscriptionsTable = pgTable("subscriptions", {
   paymentFailedCount: integer("payment_failed_count").notNull().default(0),
   lastPaymentFailedAt: timestamp("last_payment_failed_at", { withTimezone: true }),
   suspendedAt: timestamp("suspended_at", { withTimezone: true }),
+  suspensionReason: varchar("suspension_reason", { length: 30 }),
   stripeCustomerId: text("stripe_customer_id").unique(),
   stripeSubscriptionId: text("stripe_subscription_id").unique(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

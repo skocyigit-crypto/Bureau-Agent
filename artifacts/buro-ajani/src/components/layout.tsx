@@ -20,6 +20,7 @@ import { QuickActionHub } from "@/components/quick-action-hub";
 import { DataExportPanel } from "@/components/data-export-panel";
 import { useDeviceEnvContext, triggerHaptic } from "@/hooks/use-device-environment";
 import { TrialBanner } from "@/components/trial-banner";
+import { LicenseStatusBanner } from "@/components/license-status-banner";
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import { IntegrationDiscovery } from "@/components/integration-discovery";
@@ -302,6 +303,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </header>
           
+          <LicenseStatusBanner />
           <TrialBanner />
           <main className="flex-1 p-4 lg:p-8 overflow-auto">
             <div className="mx-auto max-w-6xl">

@@ -647,4 +647,77 @@ router.post("/license-management/update-billing-settings", async (req: Request, 
   }
 });
 
+router.post("/license-management/orgs/:id/extend-trial", async (req: Request, res: Response): Promise<void> => {
+  const userRole = (req.session as any)?.userRole;
+  if (userRole !== "super_admin") { res.status(403).json({ error: "Reserve aux super-administrateurs" }); return; }
+  const targetOrgId = Number(req.params.id);
+  const days = Number(req.body?.days);
+  if (!Number.isFinite(targetOrgId) || targetOrgId <= 0) { res.status(400).json({ error: "ID organisation invalide" }); return; }
+  if (!Number.isInteger(days) || days < 1 || days > 365) { res.status(400).json({ error: "days doit etre un entier entre 1 et 365" }); return; }
+  try {
+    const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, targetOrgId)).limit(1);
+    if (!sub) { res.status(404).json({ error: "Abonnement introuvable" }); return; }
+    const base = sub.trialEndsAt && new Date(sub.trialEndsAt) > new Date() ? new Date(sub.trialEndsAt) : new Date();
+    const newEnd = new Date(base.getTime() + days * 86400000);
+    await db.update(subscriptionsTable).set({ trialEndsAt: newEnd, plan: "essai", status: "active", updatedAt: new Date() }).where(eq(subscriptionsTable.organisationId, targetOrgId));
+    await logAudit(targetOrgId, "trial_extended_by_admin", `Trial prolonge de ${days} jours par super_admin (nouvelle fin: ${newEnd.toISOString()})`, (req.session as any)?.userId, { days, newTrialEndsAt: newEnd });
+    res.json({ success: true, trialEndsAt: newEnd });
+  } catch (err: any) { logger.error({ err }, "Erreur extend-trial"); res.status(500).json({ error: "Erreur" }); }
+});
+
+router.post("/license-management/orgs/:id/suspend", async (req: Request, res: Response): Promise<void> => {
+  const userRole = (req.session as any)?.userRole;
+  if (userRole !== "super_admin") { res.status(403).json({ error: "Reserve aux super-administrateurs" }); return; }
+  const targetOrgId = Number(req.params.id);
+  const reason = String(req.body?.reason || "").trim().substring(0, 500) || "Suspension manuelle";
+  if (!Number.isFinite(targetOrgId) || targetOrgId <= 0) { res.status(400).json({ error: "ID organisation invalide" }); return; }
+  try {
+    const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, targetOrgId)).limit(1);
+    if (!sub) { res.status(404).json({ error: "Abonnement introuvable" }); return; }
+    await db.update(subscriptionsTable).set({ status: "suspended", suspendedAt: new Date(), suspensionReason: "manual", updatedAt: new Date() }).where(eq(subscriptionsTable.organisationId, targetOrgId));
+    await logAudit(targetOrgId, "manual_suspended_by_admin", `Suspendu manuellement par super_admin: ${reason}`, (req.session as any)?.userId, { reason, previousStatus: sub.status });
+    res.json({ success: true });
+  } catch (err: any) { logger.error({ err }, "Erreur suspend"); res.status(500).json({ error: "Erreur" }); }
+});
+
+router.post("/license-management/orgs/:id/reactivate", async (req: Request, res: Response): Promise<void> => {
+  const userRole = (req.session as any)?.userRole;
+  if (userRole !== "super_admin") { res.status(403).json({ error: "Reserve aux super-administrateurs" }); return; }
+  const targetOrgId = Number(req.params.id);
+  if (!Number.isFinite(targetOrgId) || targetOrgId <= 0) { res.status(400).json({ error: "ID organisation invalide" }); return; }
+  try {
+    const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, targetOrgId)).limit(1);
+    if (!sub) { res.status(404).json({ error: "Abonnement introuvable" }); return; }
+    await db.update(subscriptionsTable).set({ status: "active", suspendedAt: null, suspensionReason: null, paymentFailedCount: 0, updatedAt: new Date() }).where(eq(subscriptionsTable.organisationId, targetOrgId));
+    await logAudit(targetOrgId, "manual_reactivated_by_admin", `Reactive manuellement par super_admin`, (req.session as any)?.userId, { previousStatus: sub.status });
+    res.json({ success: true });
+  } catch (err: any) { logger.error({ err }, "Erreur reactivate"); res.status(500).json({ error: "Erreur" }); }
+});
+
+router.post("/license-management/orgs/:id/regenerate-key", async (req: Request, res: Response): Promise<void> => {
+  const userRole = (req.session as any)?.userRole;
+  if (userRole !== "super_admin") { res.status(403).json({ error: "Reserve aux super-administrateurs" }); return; }
+  const targetOrgId = Number(req.params.id);
+  if (!Number.isFinite(targetOrgId) || targetOrgId <= 0) { res.status(400).json({ error: "ID organisation invalide" }); return; }
+  try {
+    const { generateUniqueLicenseKey, isUniqueViolation } = await import("../services/license-key");
+    const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, targetOrgId)).limit(1);
+    if (!sub) { res.status(404).json({ error: "Abonnement introuvable" }); return; }
+    let newKey = "";
+    let attempt = 0;
+    while (attempt < 5) {
+      newKey = await generateUniqueLicenseKey(sub.plan);
+      try {
+        await db.update(subscriptionsTable).set({ licenseKey: newKey, updatedAt: new Date() }).where(eq(subscriptionsTable.organisationId, targetOrgId));
+        break;
+      } catch (e) {
+        if (!isUniqueViolation(e) || attempt >= 4) throw e;
+        attempt++;
+      }
+    }
+    await logAudit(targetOrgId, "license_key_regenerated", `Cle de licence regeneree par super_admin`, (req.session as any)?.userId, { plan: sub.plan, oldKeyMasked: sub.licenseKey ? sub.licenseKey.substring(0, 8) + "..." : null });
+    res.json({ success: true, licenseKey: newKey });
+  } catch (err: any) { logger.error({ err }, "Erreur regenerate-key"); res.status(500).json({ error: "Erreur" }); }
+});
+
 export default router;

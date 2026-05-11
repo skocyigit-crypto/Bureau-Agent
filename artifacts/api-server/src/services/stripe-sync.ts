@@ -1,8 +1,15 @@
 import type Stripe from "stripe";
-import { db, subscriptionsTable, invoicesTable, organisationsTable, PLANS } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, subscriptionsTable, invoicesTable, organisationsTable, usersTable, contactsTable, PLANS } from "@workspace/db";
+import { and, eq, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { getPlanForPriceId } from "./stripe-client";
+import { logLicenseEvent } from "./license-audit";
+import { sendSubscriptionSuspendedEmail, sendSubscriptionRecoveredEmail } from "./email";
+
+async function getOrgEmail(orgId: number): Promise<{ email: string | null; name: string }> {
+  const [org] = await db.select({ email: organisationsTable.email, name: organisationsTable.name }).from(organisationsTable).where(eq(organisationsTable.id, orgId)).limit(1);
+  return { email: org?.email ?? null, name: org?.name ?? "" };
+}
 
 function statusFromStripe(s: Stripe.Subscription.Status): string {
   switch (s) {
@@ -86,13 +93,15 @@ export async function handleSubscriptionUpdated(sub: Stripe.Subscription) {
   const periodEnd = itemAny?.current_period_end ?? subAny.current_period_end ?? null;
   const periodStart = itemAny?.current_period_start ?? subAny.current_period_start ?? null;
   const existing = await db
-    .select({ status: subscriptionsTable.status })
+    .select({ status: subscriptionsTable.status, suspensionReason: subscriptionsTable.suspensionReason })
     .from(subscriptionsTable)
     .where(eq(subscriptionsTable.organisationId, orgId))
     .limit(1);
   const currentStatus = existing[0]?.status ?? null;
+  const currentReason = existing[0]?.suspensionReason ?? null;
   const stripeStatus = statusFromStripe(sub.status);
-  const preserveSuspended = currentStatus === "suspended" && sub.status !== "active" && sub.status !== "trialing";
+  const isManualSuspended = currentStatus === "suspended" && currentReason === "manual";
+  const preserveSuspended = isManualSuspended || (currentStatus === "suspended" && sub.status !== "active" && sub.status !== "trialing");
   const updates: Record<string, unknown> = {
     status: preserveSuspended ? "suspended" : stripeStatus,
     stripeSubscriptionId: sub.id,
@@ -101,6 +110,7 @@ export async function handleSubscriptionUpdated(sub: Stripe.Subscription) {
     cancelledAt: sub.canceled_at ? new Date(sub.canceled_at * 1000) : sub.cancel_at_period_end ? new Date((sub.cancel_at ?? periodEnd ?? 0) * 1000) : null,
     updatedAt: new Date(),
   };
+  const previousPlan = (await db.select({ plan: subscriptionsTable.plan }).from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, orgId)).limit(1))[0]?.plan ?? null;
   if (planFromPrice && planDef) {
     updates.plan = planFromPrice;
     updates.maxUsers = planDef.maxUsers;
@@ -113,6 +123,35 @@ export async function handleSubscriptionUpdated(sub: Stripe.Subscription) {
   }
   await db.update(subscriptionsTable).set(updates).where(eq(subscriptionsTable.organisationId, orgId));
   logger.info({ orgId, status: sub.status, plan: planFromPrice }, "[stripe-sync] subscription updated");
+
+  if (planFromPrice && planDef && previousPlan && previousPlan !== planFromPrice) {
+    const prev = PLANS[previousPlan as keyof typeof PLANS];
+    const isUpgrade = prev ? planDef.price > prev.price : false;
+    await logLicenseEvent(orgId, isUpgrade ? "plan_upgraded" : "plan_downgraded", `Plan ${previousPlan} -> ${planFromPrice}`, {
+      metadata: { from: previousPlan, to: planFromPrice, priceFrom: prev?.price, priceTo: planDef.price },
+    });
+    if (!isUpgrade) {
+      await checkDowngradeQuotaBreach(orgId, planDef);
+    }
+  }
+}
+
+async function checkDowngradeQuotaBreach(orgId: number, planDef: { maxUsers: number; maxContacts: number }) {
+  try {
+    const [usersAgg] = await db.select({ c: sql<number>`count(*)::int` }).from(usersTable).where(and(eq(usersTable.organisationId, orgId), eq(usersTable.actif, true)));
+    const [contactsAgg] = await db.select({ c: sql<number>`count(*)::int` }).from(contactsTable).where(eq(contactsTable.organisationId, orgId));
+    const breaches: string[] = [];
+    if ((usersAgg?.c ?? 0) > planDef.maxUsers) breaches.push(`utilisateurs: ${usersAgg!.c}/${planDef.maxUsers}`);
+    if ((contactsAgg?.c ?? 0) > planDef.maxContacts) breaches.push(`contacts: ${contactsAgg!.c}/${planDef.maxContacts}`);
+    if (breaches.length > 0) {
+      await logLicenseEvent(orgId, "downgrade_quota_breach", `Downgrade depasse limites: ${breaches.join(", ")}`, {
+        metadata: { breaches, newLimits: { maxUsers: planDef.maxUsers, maxContacts: planDef.maxContacts } },
+      });
+      logger.warn({ orgId, breaches }, "[stripe-sync] downgrade depasse les limites");
+    }
+  } catch (err) {
+    logger.warn({ err, orgId }, "[stripe-sync] checkDowngradeQuotaBreach failed");
+  }
 }
 
 export async function handleSubscriptionDeleted(sub: Stripe.Subscription) {
@@ -120,6 +159,9 @@ export async function handleSubscriptionDeleted(sub: Stripe.Subscription) {
   const orgId = await findOrgByCustomer(customerId);
   if (!orgId) return;
   const essai = PLANS.essai;
+  await logLicenseEvent(orgId, "subscription_cancelled", "Abonnement Stripe supprime — downgrade vers essai", {
+    metadata: { stripeSubscriptionId: sub.id },
+  });
   await db
     .update(subscriptionsTable)
     .set({
@@ -170,14 +212,28 @@ export async function handleInvoicePaid(invoice: Stripe.Invoice) {
     paidAt: new Date(),
     notes: `Stripe invoice ${invoice.id}`,
   }).onConflictDoNothing?.().catch(() => {});
-  if ((sub?.paymentFailedCount ?? 0) > 0 || sub?.status === "past_due" || sub?.status === "suspended") {
+  const isPaymentSuspension = sub?.status === "suspended" && (sub as any)?.suspensionReason !== "manual";
+  if ((sub?.paymentFailedCount ?? 0) > 0 || sub?.status === "past_due" || isPaymentSuspension) {
+    const wasSuspended = isPaymentSuspension;
     await db.update(subscriptionsTable).set({
       paymentFailedCount: 0,
       suspendedAt: null,
-      status: sub?.status === "suspended" || sub?.status === "past_due" ? "active" : sub?.status ?? "active",
+      suspensionReason: null,
+      status: isPaymentSuspension || sub?.status === "past_due" ? "active" : sub?.status ?? "active",
       updatedAt: new Date(),
     }).where(eq(subscriptionsTable.organisationId, orgId));
     logger.info({ orgId }, "[stripe-sync] payment recovered -> compteur reinitialise");
+    await logLicenseEvent(orgId, "payment_recovered", "Paiement recupere — compteur d'echecs reinitialise", {
+      metadata: { previousStatus: sub?.status, previousFailedCount: sub?.paymentFailedCount },
+    });
+    if (wasSuspended) {
+      const { email: orgEmail, name: orgName } = await getOrgEmail(orgId);
+      if (orgEmail) {
+        await logLicenseEvent(orgId, "subscription_reactivated", "Abonnement reactive apres paiement", {});
+        sendSubscriptionRecoveredEmail({ to: orgEmail, orgName, plan: sub?.plan ?? "starter" })
+          .catch(err => logger.warn({ err, orgId }, "[stripe-sync] envoi email recovered echoue"));
+      }
+    }
   }
   logger.info({ orgId, invoice: invoice.id, total, currency }, "[stripe-sync] invoice.paid recorded");
 }
@@ -192,7 +248,20 @@ export async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   const [current] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, orgId)).limit(1);
   const newCount = (current?.paymentFailedCount ?? 0) + 1;
   const shouldSuspend = newCount >= MAX_PAYMENT_FAILURES_BEFORE_SUSPEND;
+  const isManualSuspension = (current as any)?.suspensionReason === "manual";
   const now = new Date();
+  if (isManualSuspension) {
+    await db.update(subscriptionsTable).set({
+      paymentFailedCount: newCount,
+      lastPaymentFailedAt: now,
+      updatedAt: now,
+    }).where(eq(subscriptionsTable.organisationId, orgId));
+    await logLicenseEvent(orgId, "payment_failed", `Echec de paiement #${newCount} (suspension manuelle preservee)`, {
+      metadata: { invoice: invoice.id, attempts: newCount, manualSuspensionPreserved: true },
+    });
+    logger.warn({ orgId, invoice: invoice.id, attempts: newCount }, "[stripe-sync] payment failed sur suspension manuelle — statut preserve");
+    return;
+  }
   await db
     .update(subscriptionsTable)
     .set({
@@ -200,11 +269,24 @@ export async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
       paymentFailedCount: newCount,
       lastPaymentFailedAt: now,
       suspendedAt: shouldSuspend ? now : current?.suspendedAt ?? null,
+      suspensionReason: shouldSuspend ? "payment_failed" : (current as any)?.suspensionReason ?? null,
       updatedAt: now,
     })
     .where(eq(subscriptionsTable.organisationId, orgId));
+  const transitionedToSuspended = shouldSuspend && current?.status !== "suspended";
   logger.warn(
     { orgId, invoice: invoice.id, attempts: newCount, suspended: shouldSuspend },
     `[stripe-sync] invoice.payment_failed -> ${shouldSuspend ? "suspended (3+ echecs)" : "past_due"}`,
   );
+  await logLicenseEvent(orgId, transitionedToSuspended ? "subscription_suspended" : "payment_failed",
+    transitionedToSuspended ? `Suspendu apres ${newCount} echecs consecutifs` : `Echec de paiement #${newCount}`,
+    { metadata: { invoice: invoice.id, attempts: newCount } },
+  );
+  if (transitionedToSuspended) {
+    const { email: orgEmail, name: orgName } = await getOrgEmail(orgId);
+    if (orgEmail) {
+      sendSubscriptionSuspendedEmail({ to: orgEmail, orgName, plan: current?.plan ?? "starter", failedAttempts: newCount })
+        .catch(err => logger.warn({ err, orgId }, "[stripe-sync] envoi email suspended echoue"));
+    }
+  }
 }

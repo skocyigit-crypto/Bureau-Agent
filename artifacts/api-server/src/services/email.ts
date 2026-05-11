@@ -631,3 +631,108 @@ export async function sendLicenseEmail(params: {
 
   return sendEmail(to, `Bienvenue sur Agent de Bureau - ${orgName}`, html, text);
 }
+
+export async function sendSubscriptionSuspendedEmail(params: {
+  to: string;
+  orgName: string;
+  plan: string;
+  failedAttempts: number;
+}): Promise<{ success: boolean; error?: string; preview?: string }> {
+  const { to, orgName, plan, failedAttempts } = params;
+  const portalUrl = `${APP_URL}/abonnement`;
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:600px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+<div style="background:linear-gradient(135deg,#7f1d1d 0%,#991b1b 100%);padding:32px;text-align:center;">
+<h1 style="color:#fff;font-size:22px;margin:0;">Abonnement suspendu</h1>
+<p style="color:rgba(255,255,255,0.7);font-size:13px;margin:8px 0 0;">Action requise — Agent de Bureau</p>
+</div>
+<div style="padding:32px;">
+<p style="color:#0f1729;font-size:15px;line-height:1.6;">Bonjour,</p>
+<p style="color:#0f1729;font-size:15px;line-height:1.6;">L'abonnement <strong>${escapeHtml(plan)}</strong> de votre organisation <strong>${escapeHtml(orgName)}</strong> a ete <strong style="color:#991b1b;">suspendu</strong> apres ${failedAttempts} echecs consecutifs de paiement.</p>
+<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:16px;margin:20px 0;">
+<p style="color:#991b1b;font-size:13px;margin:0;">L'acces en ecriture a votre compte est bloque jusqu'au reglement. Les donnees sont conservees et seront accessibles des le retablissement du paiement.</p>
+</div>
+<div style="text-align:center;margin:24px 0;">
+<a href="${portalUrl}" style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:700;">Mettre a jour mon paiement</a>
+</div>
+<p style="color:#64748b;font-size:13px;line-height:1.6;">Apres mise a jour, votre abonnement sera reactive automatiquement sous quelques minutes.</p>
+</div>
+<div style="background:#f8fafc;padding:20px 32px;text-align:center;border-top:1px solid #e2e8f0;">
+<p style="color:#94a3b8;font-size:11px;margin:0;">Support: <a href="mailto:support@agentdebureau.fr" style="color:#f59e0b;">support@agentdebureau.fr</a></p>
+</div></div></body></html>`;
+  const text = `Abonnement suspendu - Agent de Bureau\n\nL'abonnement ${plan} de ${orgName} a ete suspendu apres ${failedAttempts} echecs consecutifs de paiement.\n\nL'acces en ecriture est bloque. Les donnees sont conservees.\n\nMettez a jour votre moyen de paiement: ${portalUrl}\n\nSupport: support@agentdebureau.fr`;
+  return sendEmail(to, `[Agent de Bureau] Abonnement suspendu - ${orgName}`, html, text);
+}
+
+export async function sendSubscriptionRecoveredEmail(params: {
+  to: string;
+  orgName: string;
+  plan: string;
+}): Promise<{ success: boolean; error?: string; preview?: string }> {
+  const { to, orgName, plan } = params;
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:600px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+<div style="background:linear-gradient(135deg,#065f46 0%,#047857 100%);padding:32px;text-align:center;">
+<h1 style="color:#fff;font-size:22px;margin:0;">Paiement recu — abonnement reactive</h1>
+</div>
+<div style="padding:32px;">
+<p style="color:#0f1729;font-size:15px;line-height:1.6;">Bonjour,</p>
+<p style="color:#0f1729;font-size:15px;line-height:1.6;">Votre paiement a bien ete recu. L'abonnement <strong>${escapeHtml(plan)}</strong> de <strong>${escapeHtml(orgName)}</strong> est de nouveau <strong style="color:#047857;">actif</strong>.</p>
+<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:16px;margin:20px 0;">
+<p style="color:#065f46;font-size:13px;margin:0;">L'acces complet a toutes les fonctionnalites est restaure. Merci de votre confiance.</p>
+</div>
+<div style="text-align:center;margin:24px 0;">
+<a href="${APP_URL}" style="display:inline-block;background:#059669;color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:700;">Acceder a l'application</a>
+</div>
+</div>
+<div style="background:#f8fafc;padding:20px 32px;text-align:center;border-top:1px solid #e2e8f0;">
+<p style="color:#94a3b8;font-size:11px;margin:0;">Support: <a href="mailto:support@agentdebureau.fr" style="color:#f59e0b;">support@agentdebureau.fr</a></p>
+</div></div></body></html>`;
+  const text = `Paiement recu - Agent de Bureau\n\nL'abonnement ${plan} de ${orgName} est de nouveau actif.\n\nMerci de votre confiance.\n\n${APP_URL}`;
+  return sendEmail(to, `[Agent de Bureau] Abonnement reactive - ${orgName}`, html, text);
+}
+
+export async function sendTrialEndingEmail(params: {
+  to: string;
+  orgName: string;
+  daysLeft: number;
+  trialEndsAt: Date | string;
+  expired?: boolean;
+}): Promise<{ success: boolean; error?: string; preview?: string }> {
+  const { to, orgName, daysLeft, trialEndsAt, expired } = params;
+  const endStr = new Date(trialEndsAt).toLocaleDateString("fr-FR");
+  const portalUrl = `${APP_URL}/settings?tab=abonnement`;
+  const headerColor = expired ? "#7f1d1d" : daysLeft <= 1 ? "#9a3412" : "#92400e";
+  const title = expired
+    ? "Periode d'essai terminee"
+    : daysLeft <= 1
+      ? "Votre essai se termine demain"
+      : `Plus que ${daysLeft} jours d'essai`;
+  const intro = expired
+    ? `La periode d'essai gratuit de <strong>${escapeHtml(orgName)}</strong> est <strong style="color:#991b1b;">terminee</strong>. Choisissez un plan pour continuer a utiliser Agent de Bureau.`
+    : `Il vous reste <strong>${daysLeft} jour${daysLeft > 1 ? "s" : ""}</strong> avant la fin de votre periode d'essai gratuit (${endStr}).`;
+
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:600px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+<div style="background:linear-gradient(135deg,${headerColor} 0%,#0f1729 100%);padding:32px;text-align:center;">
+<h1 style="color:#fff;font-size:22px;margin:0;">${title}</h1>
+</div>
+<div style="padding:32px;">
+<p style="color:#0f1729;font-size:15px;line-height:1.6;">Bonjour,</p>
+<p style="color:#0f1729;font-size:15px;line-height:1.6;">${intro}</p>
+<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px;margin:20px 0;">
+<p style="color:#92400e;font-size:13px;margin:0;line-height:1.6;">Choisissez un plan adapte a votre activite a partir de <strong>29 EUR / mois</strong>. Pas d'engagement, annulable a tout moment.</p>
+</div>
+<div style="text-align:center;margin:24px 0;">
+<a href="${portalUrl}" style="display:inline-block;background:#f59e0b;color:#0f1729;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:700;">Voir les plans</a>
+</div>
+</div>
+<div style="background:#f8fafc;padding:20px 32px;text-align:center;border-top:1px solid #e2e8f0;">
+<p style="color:#94a3b8;font-size:11px;margin:0;">Support: <a href="mailto:support@agentdebureau.fr" style="color:#f59e0b;">support@agentdebureau.fr</a></p>
+</div></div></body></html>`;
+  const text = `${title} - Agent de Bureau\n\n${expired ? `La periode d'essai gratuit de ${orgName} est terminee.` : `Il vous reste ${daysLeft} jour(s) avant la fin de votre essai gratuit (${endStr}).`}\n\nVoir les plans: ${portalUrl}\n\nSupport: support@agentdebureau.fr`;
+  return sendEmail(to, `[Agent de Bureau] ${title} - ${orgName}`, html, text);
+}

@@ -6,7 +6,8 @@ import { db, organisationsTable, subscriptionsTable, usersTable } from "@workspa
 import { PLANS, type PlanKey } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { sendWelcomeEmail } from "../services/email";
-import { generateLicenseKey } from "../services/license-key";
+import { generateUniqueLicenseKey, isUniqueViolation } from "../services/license-key";
+import { logLicenseEvent } from "../services/license-audit";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -63,10 +64,14 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
   const [existingSlug] = await db.select({ id: organisationsTable.id }).from(organisationsTable).where(eq(organisationsTable.slug, slug));
   const finalSlug = existingSlug ? `${slug}-${Date.now()}` : slug;
 
-  const licenseKey = generateLicenseKey("essai");
+  let licenseKey = await generateUniqueLicenseKey("essai");
 
   try {
-    const result = await db.transaction(async (tx) => {
+    let attempt = 0;
+    let result: any;
+    while (true) {
+      try {
+        result = await db.transaction(async (tx) => {
       const trialEnd = new Date(Date.now() + (planConfig.trialDays || 14) * 86400000);
 
       const [org] = await tx.insert(organisationsTable).values({
@@ -122,6 +127,26 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
       });
 
       return { organisation: org, subscription: sub, user };
+    });
+        break;
+      } catch (e) {
+        if (isUniqueViolation(e) && attempt < 4) {
+          attempt++;
+          licenseKey = await generateUniqueLicenseKey("essai");
+          continue;
+        }
+        throw e;
+      }
+    }
+
+    void logLicenseEvent(result.organisation.id, "subscription_created", `Inscription initiale: plan ${planConfig.name}`, {
+      performedBy: result.user.id,
+      ipAddress: req.ip ?? null,
+      metadata: { plan: planKey, licenseKey, trialEndsAt: result.subscription.trialEndsAt },
+    });
+    void logLicenseEvent(result.organisation.id, "trial_started", `Periode d'essai demarree (${planConfig.trialDays || 14} jours)`, {
+      performedBy: result.user.id,
+      metadata: { trialEndsAt: result.subscription.trialEndsAt },
     });
 
     const emailResult = await sendWelcomeEmail({
