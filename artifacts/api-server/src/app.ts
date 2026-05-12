@@ -25,6 +25,13 @@ const isProduction = process.env.NODE_ENV === "production";
 //   - formAction 'none'  there are no <form> targets here
 //   - frameAncestors     'none' prevents clickjacking + replaces X-Frame-Options
 //   - upgradeInsecureRequests in production only (causes false positives in dev)
+// En developpement Replit, l'iframe Canvas charge depuis *.spock.replit.dev.
+// On garde frame-ancestors strict en prod, mais on relache pour permettre
+// l'apercu Replit en dev (sinon le proxy preview reflete les pages d'API
+// dans un iframe et ecran blanc). La JSON API n'est de toute facon jamais
+// embarquee directement par les utilisateurs finaux.
+const FRAME_ANCESTORS_DEV = ["'self'", "https://*.replit.dev", "https://*.repl.co", "https://replit.com", "https://*.spock.replit.dev"];
+
 const cspDirectives: Record<string, string[]> = {
   defaultSrc: ["'self'"],
   scriptSrc: ["'none'"],
@@ -35,7 +42,7 @@ const cspDirectives: Record<string, string[]> = {
   objectSrc: ["'none'"],
   mediaSrc: ["'self'"],
   frameSrc: ["'none'"],
-  frameAncestors: ["'none'"],
+  frameAncestors: isProduction ? ["'none'"] : FRAME_ANCESTORS_DEV,
   baseUri: ["'none'"],
   formAction: ["'none'"],
 };
@@ -49,10 +56,11 @@ app.use(helmet({
   },
   crossOriginEmbedderPolicy: false,
   // COOP/CORP isolate the JSON API from cross-origin window references and
-  // sub-resource embedding. Set on every response (even errors), `same-origin`
-  // is the strictest option compatible with our same-origin SPA.
+  // sub-resource embedding. En prod: same-origin (strictest). En dev: CORP
+  // doit etre cross-origin sinon l'iframe Replit (cross-site) ne peut pas
+  // recevoir les reponses JSON depuis l'API meme via fetch -> ecran blanc.
   crossOriginOpenerPolicy: { policy: "same-origin" },
-  crossOriginResourcePolicy: { policy: "same-origin" },
+  crossOriginResourcePolicy: { policy: isProduction ? "same-origin" : "cross-origin" },
   hsts: {
     // 2 ans (63072000s) — exigence du Chrome HSTS preload list. Le precedent
     // 1 an etait conforme RFC mais hors limites pour la soumission preload.
@@ -60,11 +68,11 @@ app.use(helmet({
     includeSubDomains: true,
     preload: true,
   },
-  // CSP `frame-ancestors 'none'` est deja la defense moderne, mais X-Frame-
-  // Options reste utile pour les vieux navigateurs qui ne parsent pas CSP3.
-  // DENY est strictement plus fort que SAMEORIGIN et coherent avec frame-
-  // ancestors 'none'. L'API n'a aucune raison d'etre embarquee.
-  frameguard: { action: "deny" },
+  // CSP `frame-ancestors` est deja la defense moderne. XFO DENY est strictement
+  // plus fort mais ignore les whitelists CSP -> on le desactive en dev pour
+  // permettre l'apercu Replit, et on le reactive en prod via helmet OU le
+  // reverse proxy de deploiement (deploy/Caddyfile).
+  frameguard: isProduction ? { action: "deny" } : false,
   referrerPolicy: { policy: "strict-origin-when-cross-origin" },
   noSniff: true,
   xssFilter: true,

@@ -30,13 +30,28 @@ const PERMISSIONS_POLICY = [
   "sync-xhr=()", "usb=()", "xr-spatial-tracking=()",
 ].join(", ");
 
+// IMPORTANT: en developpement Replit, l'apercu de l'app est rendu DANS
+// un iframe cross-origin servi par `*.spock.replit.dev` (Canvas + preview
+// pane). X-Frame-Options: DENY bloque tout iframe -> ecran blanc dans
+// l'apercu. La parade: ne jamais emettre XFO en dev, et utiliser CSP
+// `frame-ancestors` whitelistant les domaines Replit. En production
+// (Caddy/nginx), XFO DENY + frame-ancestors 'none' restent appliques par
+// le reverse proxy de deploiement (voir deploy/Caddyfile).
+const IS_DEV_REPLIT = process.env.NODE_ENV !== "production" || process.env.REPL_ID !== undefined;
+const FRAME_ANCESTORS_DEV = "'self' https://*.replit.dev https://*.repl.co https://replit.com https://*.spock.replit.dev";
+
 function applySecurityHeaders(res: { setHeader(k: string, v: string): void }) {
   res.setHeader("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
-  res.setHeader("X-Frame-Options", "DENY");
+  if (IS_DEV_REPLIT) {
+    res.setHeader("Content-Security-Policy", `frame-ancestors ${FRAME_ANCESTORS_DEV}`);
+  } else {
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Content-Security-Policy", "frame-ancestors 'none'");
+  }
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
-  res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+  res.setHeader("Cross-Origin-Resource-Policy", IS_DEV_REPLIT ? "cross-origin" : "same-origin");
   res.setHeader("Permissions-Policy", PERMISSIONS_POLICY);
 }
 
