@@ -1067,17 +1067,43 @@ router.get("/auth/users/export/csv", async (req: Request, res: Response): Promis
   }
 });
 
+// Reponse uniforme pour /auth/forgot-password — JAMAIS varier le message,
+// le code HTTP, ni le temps de reponse selon que l'email existe ou non.
+// Toute variation observable permet l'enumeration d'utilisateurs.
+const FORGOT_PASSWORD_GENERIC_RESPONSE = {
+  message: "Si un compte existe avec cet email, un lien de reinitialisation a ete envoye.",
+};
+// Latence minimale constante (ms). On attend AU MOINS ce temps, qu'on ait
+// trouve l'utilisateur, qu'on ait envoye un mail, ou qu'on ait rien fait.
+// Couvre le bcrypt/lookup/email send pour qu'aucun timing oracle ne reste.
+const FORGOT_PASSWORD_MIN_LATENCY_MS = 250;
+
 router.post("/auth/forgot-password", resetLimiter, async (req: Request, res: Response): Promise<void> => {
+  const startedAt = Date.now();
+
+  // Reponse "constant time" — on attend toujours au moins MIN_LATENCY_MS
+  // avant de repondre, pour neutraliser les oracles temporels.
+  const respondGeneric = async (statusCode = 200) => {
+    const elapsed = Date.now() - startedAt;
+    const remaining = Math.max(0, FORGOT_PASSWORD_MIN_LATENCY_MS - elapsed);
+    if (remaining > 0) await new Promise(r => setTimeout(r, remaining));
+    if (!res.headersSent) res.status(statusCode).json(FORGOT_PASSWORD_GENERIC_RESPONSE);
+  };
+
   const { email } = req.body;
+  // Validation d'entree: on garde le 400 SEULEMENT pour les inputs malformes
+  // (pas un email du tout). Pour un email VALIDE qui n'existe pas en base,
+  // on doit retourner exactement le meme corps que pour un email existant.
   if (!email || typeof email !== "string") {
     res.status(400).json({ error: "Email obligatoire." });
     return;
   }
 
   const emailClean = email.toLowerCase().trim();
-  // Rate-limit par email (en plus du rate-limit IP) pour eviter le spam d'un compte donne.
+  // Rate-limit par email (en plus du rate-limit IP). Reponse generique pour
+  // ne pas reveler "cet email a deja demande recemment".
   if (!checkForgotRateByEmail(emailClean)) {
-    res.json({ message: "Si un compte existe avec cet email, un lien de reinitialisation a ete envoye." });
+    await respondGeneric();
     return;
   }
 
@@ -1086,7 +1112,8 @@ router.post("/auth/forgot-password", resetLimiter, async (req: Request, res: Res
       .from(usersTable).where(eq(usersTable.email, emailClean));
 
     if (!user || !user.actif) {
-      res.json({ message: "Si un compte existe avec cet email, un lien de reinitialisation a ete envoye." });
+      // IMPORTANT: meme corps, meme statut, meme latence minimale.
+      await respondGeneric();
       return;
     }
 
@@ -1123,13 +1150,21 @@ router.post("/auth/forgot-password", resetLimiter, async (req: Request, res: Res
         <p style="color:#999;font-size:11px">Agent de Bureau &mdash; ${appUrl}</p>
       </div>`;
 
-    await sendEmail(emailClean, "Reinitialisation de votre mot de passe - Agent de Bureau", html,
-      `Bonjour ${user.prenom}, reinitialiser votre mot de passe: ${resetLink} (valide 1h)`);
+    // Envoi email en BACKGROUND (fire-and-forget) — sinon la latence varie
+    // selon que le provider Resend/Gmail/SMTP repond vite ou non. Avec
+    // background send, le client recoit toujours la meme reponse en
+    // ~MIN_LATENCY_MS, qu'il y ait un user ou non.
+    void sendEmail(emailClean, "Reinitialisation de votre mot de passe - Agent de Bureau", html,
+      `Bonjour ${user.prenom}, reinitialiser votre mot de passe: ${resetLink} (valide 1h)`)
+      .catch(err => req.log.error({ err, to: emailClean }, "forgot-password: envoi email echoue"));
 
-    res.json({ message: "Si un compte existe avec cet email, un lien de reinitialisation a ete envoye." });
+    await respondGeneric();
   } catch (err: any) {
     req.log.error({ err }, "Erreur forgot-password");
-    res.status(500).json({ error: "Erreur lors de l'envoi du lien de reinitialisation." });
+    // Meme en cas d'erreur DB, on renvoie la reponse generique pour ne pas
+    // reveler "cet email a declenche un comportement different" (oracle
+    // par exception). Erreur loggee cote serveur uniquement.
+    await respondGeneric();
   }
 });
 
