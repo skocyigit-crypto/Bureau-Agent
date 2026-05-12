@@ -14,17 +14,62 @@ const MOBILE_APP_URL = process.env.MOBILE_APP_URL || "";
 
 let resendCache: { client: Resend; from: string; fetchedAt: number } | null = null;
 
-async function getResendClient(): Promise<{ client: Resend; from: string } | null> {
+// ── Resend "from" address policy ──────────────────────────────────────────
+// Resend n'autorise l'envoi qu'a partir de:
+//   1) un domaine verifie dans le compte Resend du client (ex: agentdebureau.fr)
+//   2) le domaine de test public `onboarding@resend.dev`
+// Si le client connecte son compte Resend mais saisit comme `from_email`
+// une adresse personnelle (gmail.com / hotmail.com / yahoo / outlook /
+// icloud / etc), Resend rejette l'envoi avec 403 "domain not verified".
+// C'etait le bug: le connecteur avait `from_email = ...@gmail.com` -> tous
+// les envois echouaient silencieusement, et le fallback Gmail OAuth ne
+// rattrapait pas toujours (rotation de token). On filtre maintenant les
+// "free email providers" et on retombe sur `onboarding@resend.dev` qui
+// fonctionne dans tous les plans Resend.
+const FREE_EMAIL_DOMAINS = new Set([
+  "gmail.com", "googlemail.com",
+  "yahoo.com", "yahoo.fr", "yahoo.co.uk", "ymail.com",
+  "hotmail.com", "hotmail.fr", "outlook.com", "outlook.fr", "live.com", "live.fr", "msn.com",
+  "icloud.com", "me.com", "mac.com",
+  "aol.com", "protonmail.com", "proton.me",
+  "free.fr", "orange.fr", "wanadoo.fr", "laposte.net", "sfr.fr", "bbox.fr", "neuf.fr",
+]);
+
+function pickResendFrom(rawFromEmail: string | null | undefined): { from: string; usedFallback: boolean; reason?: string } {
+  // Override explicite via env -> on fait confiance a l'admin.
+  const envOverride = process.env.RESEND_FROM_EMAIL?.trim();
+  if (envOverride) return { from: envOverride, usedFallback: false };
+
+  if (!rawFromEmail || !rawFromEmail.includes("@")) {
+    return { from: "Agent de Bureau <onboarding@resend.dev>", usedFallback: true, reason: "no_from_email_set" };
+  }
+  const domain = rawFromEmail.split("@")[1].toLowerCase().trim();
+  if (FREE_EMAIL_DOMAINS.has(domain)) {
+    return {
+      from: "Agent de Bureau <onboarding@resend.dev>",
+      usedFallback: true,
+      reason: `from_domain_not_verifiable:${domain}`,
+    };
+  }
+  // Domaine corporate -> on suppose qu'il est verifie cote Resend. Si non
+  // verifie, Resend renverra une erreur explicite que l'on remonte au front.
+  return { from: `Agent de Bureau <${rawFromEmail}>`, usedFallback: false };
+}
+
+async function getResendClient(): Promise<{ client: Resend; from: string; usedFallback: boolean } | null> {
   if (resendCache && Date.now() - resendCache.fetchedAt < 5 * 60 * 1000) {
-    return { client: resendCache.client, from: resendCache.from };
+    return { client: resendCache.client, from: resendCache.from, usedFallback: false };
   }
 
   const directKey = process.env.RESEND_API_KEY;
   if (directKey) {
-    const from = process.env.RESEND_FROM_EMAIL || `Agent de Bureau <${SMTP_FROM}>`;
+    const picked = pickResendFrom(process.env.RESEND_FROM_EMAIL || SMTP_FROM);
     const client = new Resend(directKey);
-    resendCache = { client, from, fetchedAt: Date.now() };
-    return { client, from };
+    resendCache = { client, from: picked.from, fetchedAt: Date.now() };
+    if (picked.usedFallback) {
+      logger.warn({ reason: picked.reason }, `[Email/Resend] from_email non verifiable, fallback onboarding@resend.dev`);
+    }
+    return { client, from: picked.from, usedFallback: picked.usedFallback };
   }
 
   try {
@@ -47,12 +92,13 @@ async function getResendClient(): Promise<{ client: Resend; from: string } | nul
     const fromEmail = conn?.settings?.from_email;
     if (!apiKey) return null;
 
-    const fromAddress = fromEmail
-      ? `Agent de Bureau <${fromEmail}>`
-      : "Agent de Bureau <onboarding@resend.dev>";
+    const picked = pickResendFrom(fromEmail);
     const client = new Resend(apiKey);
-    resendCache = { client, from: fromAddress, fetchedAt: Date.now() };
-    return { client, from: fromAddress };
+    resendCache = { client, from: picked.from, fetchedAt: Date.now() };
+    if (picked.usedFallback) {
+      logger.warn({ reason: picked.reason, raw: fromEmail }, `[Email/Resend] connecteur from_email non verifiable, fallback onboarding@resend.dev`);
+    }
+    return { client, from: picked.from, usedFallback: picked.usedFallback };
   } catch (err: any) {
     logger.error({ err: err.message }, "[Email/Resend] Erreur recuperation connecteur:");
     return null;
@@ -121,7 +167,12 @@ function createSmtpTransport() {
   });
 }
 
-export async function sendEmail(to: string, subject: string, html: string, text: string): Promise<{ success: boolean; error?: string; preview?: string }> {
+export async function sendEmail(to: string, subject: string, html: string, text: string): Promise<{ success: boolean; error?: string; preview?: string; provider?: string }> {
+  // On collecte la derniere erreur de chaque provider pour pouvoir la
+  // remonter au frontend si TOUS les providers echouent. Sans ca, l'admin
+  // voit "Envoi email echoue" sans aucun moyen de savoir pourquoi.
+  let lastError: string | undefined;
+
   const resend = await getResendClient();
   if (resend) {
     try {
@@ -133,13 +184,38 @@ export async function sendEmail(to: string, subject: string, html: string, text:
         text,
       });
       if (result.error) {
-        logger.error({ err: result.error }, `[Email/Resend] Erreur envoi a ${to}:`);
+        const errMsg = (result.error as any)?.message || JSON.stringify(result.error);
+        logger.error({ err: result.error, from: resend.from, to }, `[Email/Resend] Erreur envoi a ${to}`);
+        lastError = `Resend: ${errMsg}`;
+        // Cas typique: domaine non verifie. Si on n'a PAS deja utilise le
+        // fallback, on retente immediatement avec onboarding@resend.dev.
+        if (!resend.usedFallback && /domain|verif|forbidden|not allowed/i.test(errMsg)) {
+          try {
+            const retry = await resend.client.emails.send({
+              from: "Agent de Bureau <onboarding@resend.dev>",
+              to: [to],
+              subject,
+              html,
+              text,
+            });
+            if (!retry.error) {
+              logger.info(`[Email/Resend] Envoye via fallback onboarding@resend.dev a ${to}: ${retry.data?.id}`);
+              // On force le cache a utiliser le fallback pour les prochains envois.
+              resendCache = resend ? { client: resend.client, from: "Agent de Bureau <onboarding@resend.dev>", fetchedAt: Date.now() } : null;
+              return { success: true, provider: "resend-fallback" };
+            }
+            lastError = `Resend retry: ${(retry.error as any)?.message || JSON.stringify(retry.error)}`;
+          } catch (retryErr: any) {
+            lastError = `Resend retry exception: ${retryErr.message}`;
+          }
+        }
       } else {
-        logger.info(`[Email/Resend] Envoye a ${to}: ${result.data?.id}`);
-        return { success: true };
+        logger.info(`[Email/Resend] Envoye a ${to}: ${result.data?.id} (from=${resend.from})`);
+        return { success: true, provider: "resend" };
       }
     } catch (err: any) {
       logger.error({ err: err.message }, `[Email/Resend] Exception envoi a ${to}:`);
+      lastError = `Resend exception: ${err.message}`;
     }
   }
 
@@ -167,9 +243,10 @@ export async function sendEmail(to: string, subject: string, html: string, text:
       });
 
       logger.info(`[Email/Gmail] Envoye a ${to}: ${result.data.id}`);
-      return { success: true };
+      return { success: true, provider: "gmail" };
     } catch (err: any) {
       logger.error({ err: err.message }, `[Email/Gmail] Erreur envoi a ${to}:`);
+      lastError = `Gmail: ${err.message}`;
     }
   }
 
@@ -184,16 +261,18 @@ export async function sendEmail(to: string, subject: string, html: string, text:
         html,
       });
       logger.info(`[Email/SMTP] Envoye a ${to}: ${info.messageId}`);
-      return { success: true };
+      return { success: true, provider: "smtp" };
     } catch (err: any) {
       logger.error({ err: err.message }, `[Email/SMTP] Erreur envoi a ${to}:`);
+      lastError = `SMTP: ${err.message}`;
     }
   }
 
-  logger.info(`[Email] Aucun service configure. Email pour ${to}:`);
-  logger.info(`  Sujet: ${subject}`);
-  logger.info(`  Contenu texte: ${text.substring(0, 300)}...`);
-  return { success: false, error: "Aucun service email configure (ni Gmail, ni SMTP)." };
+  logger.warn({ to, subject, lastError }, "[Email] Aucun provider n'a pu envoyer le message");
+  return {
+    success: false,
+    error: lastError || "Aucun service email configure (Resend, Gmail OAuth ou SMTP).",
+  };
 }
 
 export async function sendWelcomeEmail(params: {
@@ -204,7 +283,7 @@ export async function sendWelcomeEmail(params: {
   loginEmail: string;
   adminName: string;
   trialEndsAt?: Date | null;
-}): Promise<{ success: boolean; error?: string; preview?: string }> {
+}): Promise<{ success: boolean; error?: string; preview?: string; provider?: string }> {
   const { to, orgName, plan, licenseKey, loginEmail, adminName, trialEndsAt } = params;
 
   const trialInfo = trialEndsAt
@@ -366,7 +445,7 @@ export async function sendCredentialsEmail(params: {
   password: string;
   orgName: string;
   role: string;
-}): Promise<{ success: boolean; error?: string; preview?: string }> {
+}): Promise<{ success: boolean; error?: string; preview?: string; provider?: string }> {
   const { to, prenom, nom, password, orgName, role } = params;
 
   const roleLabels: Record<string, string> = {
@@ -485,7 +564,7 @@ export async function sendLicenseEmail(params: {
   adminEmail?: string;
   adminPassword?: string;
   resetLink?: string;
-}): Promise<{ success: boolean; error?: string; preview?: string }> {
+}): Promise<{ success: boolean; error?: string; preview?: string; provider?: string }> {
   const { to, orgName, plan, licenseKey, trialEndsAt, adminName, adminEmail, adminPassword, resetLink } = params;
 
   const trialInfo = trialEndsAt
@@ -629,7 +708,7 @@ export async function sendSubscriptionSuspendedEmail(params: {
   orgName: string;
   plan: string;
   failedAttempts: number;
-}): Promise<{ success: boolean; error?: string; preview?: string }> {
+}): Promise<{ success: boolean; error?: string; preview?: string; provider?: string }> {
   const { to, orgName, plan, failedAttempts } = params;
   const portalUrl = `${APP_URL}/abonnement`;
   const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>
@@ -661,7 +740,7 @@ export async function sendSubscriptionRecoveredEmail(params: {
   to: string;
   orgName: string;
   plan: string;
-}): Promise<{ success: boolean; error?: string; preview?: string }> {
+}): Promise<{ success: boolean; error?: string; preview?: string; provider?: string }> {
   const { to, orgName, plan } = params;
   const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-serif;">
@@ -692,7 +771,7 @@ export async function sendTrialEndingEmail(params: {
   daysLeft: number;
   trialEndsAt: Date | string;
   expired?: boolean;
-}): Promise<{ success: boolean; error?: string; preview?: string }> {
+}): Promise<{ success: boolean; error?: string; preview?: string; provider?: string }> {
   const { to, orgName, daysLeft, trialEndsAt, expired } = params;
   const endStr = new Date(trialEndsAt).toLocaleDateString("fr-FR");
   const portalUrl = `${APP_URL}/settings?tab=abonnement`;

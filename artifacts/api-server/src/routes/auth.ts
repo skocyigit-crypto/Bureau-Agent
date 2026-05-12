@@ -876,10 +876,17 @@ router.post("/auth/users/:id/send-credentials", adminEmailLimiter, async (req: R
       res.json({
         message: `Code de connexion temporaire genere et envoye a ${user.email}.`,
         preview: emailResult.preview,
+        provider: emailResult.provider,
       });
     } else {
-      logger.warn({ err: emailResult.error }, "Envoi credentials email echoue");
-      res.status(500).json({ error: "Mot de passe mis a jour mais erreur lors de l'envoi de l'email." });
+      logger.warn({ err: emailResult.error, to: user.email }, "Envoi credentials email echoue");
+      // On expose la cause precise au frontend pour que l'admin puisse agir
+      // (ex: "domain not verified" -> il sait qu'il faut configurer Resend).
+      res.status(502).json({
+        error: "Mot de passe mis a jour mais l'envoi de l'email a echoue.",
+        detail: emailResult.error || "Aucun service email disponible.",
+        hint: "Verifiez la configuration Resend (domaine verifie) ou Gmail OAuth dans les integrations Replit.",
+      });
     }
   } catch (err: any) {
     req.log.error({ err }, "Erreur envoi credentials");
@@ -972,10 +979,16 @@ router.post("/auth/users/create-and-send", adminEmailLimiter, async (req: Reques
 
     logAudit(sessionUserId, req.session?.userEmail, "create_and_send_credentials", "user", String(newUser.id), { targetEmail: email }, req.ip, req.get("user-agent"), req.session?.organisationId);
 
+    if (!emailResult.success) {
+      logger.warn({ err: emailResult.error, to: email }, "create-and-send: utilisateur cree mais email non envoye");
+    }
     res.status(201).json({
       ...newUser,
       emailSent: emailResult.success,
-      emailNote: emailResult.preview || (emailResult.success ? "Identifiants envoyes par email." : "Utilisateur cree. Envoi email echoue."),
+      emailProvider: emailResult.provider,
+      emailNote: emailResult.success
+        ? `Identifiants envoyes par email (via ${emailResult.provider}).`
+        : `Utilisateur cree, mais l'envoi email a echoue: ${emailResult.error || "aucun service disponible"}. Verifiez la configuration Resend ou Gmail.`,
     });
   } catch (err: any) {
     req.log.error({ err }, "Erreur creation et envoi utilisateur");
