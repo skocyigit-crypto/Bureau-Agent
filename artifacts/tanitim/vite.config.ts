@@ -14,16 +14,20 @@ const basePath = process.env.BASE_PATH || "/";
 // referrer). CSP is intentionally NOT set here because Vite dev needs
 // inline scripts + eval for HMR; CSP belongs on the production reverse
 // proxy (Caddy/nginx) where it is wired up in deploy/.
+// Liste alignee sur les noms reconnus par Chromium courant. Les directives
+// `ambient-light-sensor`, `battery`, `document-domain`,
+// `execution-while-not-rendered`, `execution-while-out-of-viewport`,
+// `navigation-override` et `web-share` ont ete retirees: elles produisaient
+// des warnings "Unrecognized feature" en console sans renforcer la politique
+// (un nom inconnu est ignore par le navigateur).
 const PERMISSIONS_POLICY = [
-  "accelerometer=()", "ambient-light-sensor=()", "autoplay=()", "battery=()",
-  "camera=()", "cross-origin-isolated=()", "display-capture=()",
-  "document-domain=()", "encrypted-media=()", "execution-while-not-rendered=()",
-  "execution-while-out-of-viewport=()", "fullscreen=()", "geolocation=()",
+  "accelerometer=()", "autoplay=()", "camera=()", "cross-origin-isolated=()",
+  "display-capture=()", "encrypted-media=()", "fullscreen=()", "geolocation=()",
   "gyroscope=()", "hid=()", "identity-credentials-get=()", "idle-detection=()",
   "interest-cohort=()", "keyboard-map=()", "magnetometer=()", "microphone=()",
-  "midi=()", "navigation-override=()", "payment=()", "picture-in-picture=()",
+  "midi=()", "payment=()", "picture-in-picture=()",
   "publickey-credentials-get=()", "screen-wake-lock=()", "serial=()",
-  "sync-xhr=()", "usb=()", "web-share=()", "xr-spatial-tracking=()",
+  "sync-xhr=()", "usb=()", "xr-spatial-tracking=()",
 ].join(", ");
 
 function applySecurityHeaders(res: { setHeader(k: string, v: string): void }) {

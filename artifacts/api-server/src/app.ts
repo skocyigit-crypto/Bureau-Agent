@@ -72,21 +72,24 @@ app.use(helmet({
 
 // Permissions-Policy (anciennement Feature-Policy). Helmet n'a pas de helper
 // pour ce header, on l'ajoute manuellement. Pour une API JSON server-side
-// pure, AUCUNE de ces capacites navigateur ne devrait etre activee. La liste
-// suit le registre W3C des politiques connues. `interest-cohort=()` neutralise
-// le tracking FLoC/Topics que Chrome tente d'activer par defaut.
+// pure, AUCUNE de ces capacites navigateur ne devrait etre activee.
+// `interest-cohort=()` neutralise le tracking FLoC/Topics que Chrome tente
+// d'activer par defaut.
+//
+// NB: les directives suivantes ont ete retirees apres avoir genere des
+// warnings "Unrecognized feature" en console (Chromium les a deprecees ou
+// renommees): ambient-light-sensor, battery, document-domain,
+// execution-while-not-rendered, execution-while-out-of-viewport,
+// navigation-override, web-share. Conserver uniquement les directives
+// reconnues evite la pollution de la console et n'affaiblit pas la
+// politique — un nom inconnu est de toute facon ignore par le navigateur.
 const PERMISSIONS_POLICY = [
   "accelerometer=()",
-  "ambient-light-sensor=()",
   "autoplay=()",
-  "battery=()",
   "camera=()",
   "cross-origin-isolated=()",
   "display-capture=()",
-  "document-domain=()",
   "encrypted-media=()",
-  "execution-while-not-rendered=()",
-  "execution-while-out-of-viewport=()",
   "fullscreen=()",
   "geolocation=()",
   "gyroscope=()",
@@ -98,7 +101,6 @@ const PERMISSIONS_POLICY = [
   "magnetometer=()",
   "microphone=()",
   "midi=()",
-  "navigation-override=()",
   "payment=()",
   "picture-in-picture=()",
   "publickey-credentials-get=()",
@@ -106,7 +108,6 @@ const PERMISSIONS_POLICY = [
   "serial=()",
   "sync-xhr=()",
   "usb=()",
-  "web-share=()",
   "xr-spatial-tracking=()",
 ].join(", ");
 app.use((_req, res, next) => {
