@@ -47,3 +47,19 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Secrets — ASLA commit etme. deploy/.env.example sablon olarak takip edilir.
+.env
+.env.*
+!.env.example
+!**/.env.example
+deploy/.env
+deploy/.env.local
+deploy/.env.production
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Local agent state
+.local/.commit_message

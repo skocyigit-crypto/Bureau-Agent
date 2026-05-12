@@ -1,0 +1,43 @@
+name: Deploy production
+
+# `production` branch'e push olunca platform deploy webhook'unu tetikle.
+#
+# Iki secret gerekli (GitHub repo Settings -> Secrets and variables -> Actions):
+#   - RAILWAY_DEPLOY_HOOK   (Railway: Project -> Settings -> Deploy hook URL)
+#   - SCALEWAY_DEPLOY_HOOK  (Scaleway Containers: Container -> "Trigger" webhook)
+#
+# Sadece tanimlanan webhook'lar tetiklenir (yoksa adim atlanir).
+# Railway zaten git auto-deploy yapiyorsa bu workflow ekstra emniyet katmanidir
+# (CI yesilse + branch'te degisiklik varsa => deploy garantili).
+
+on:
+  push:
+    branches: [production]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  trigger-deploy:
+    name: Trigger production deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Trigger Railway deploy hook
+        if: ${{ vars.HAS_RAILWAY == 'true' || secrets.RAILWAY_DEPLOY_HOOK != '' }}
+        env:
+          HOOK: ${{ secrets.RAILWAY_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then echo "RAILWAY_DEPLOY_HOOK bos, atlaniyor"; exit 0; fi
+          curl -fsS -X POST "$HOOK" && echo "Railway deploy tetiklendi"
+
+      - name: Trigger Scaleway deploy hook
+        if: ${{ vars.HAS_SCALEWAY == 'true' || secrets.SCALEWAY_DEPLOY_HOOK != '' }}
+        env:
+          HOOK: ${{ secrets.SCALEWAY_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then echo "SCALEWAY_DEPLOY_HOOK bos, atlaniyor"; exit 0; fi
+          curl -fsS -X POST "$HOOK" && echo "Scaleway deploy tetiklendi"
