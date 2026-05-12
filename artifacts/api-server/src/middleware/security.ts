@@ -292,9 +292,25 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
     return;
   }
 
-  const allowedOrigins = process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(",").map(o => o.trim())
-    : [];
+  // Resolution multi-source identique a app.ts pour rester coherent en
+  // deploiement Replit ou un admin n'aurait configure que REPLIT_DOMAINS
+  // ou PUBLIC_URL (pas de ALLOWED_ORIGINS explicite). Sinon on rejetterait
+  // les requetes legitimes du SPA hebergé sur le meme domaine.
+  const allowedOrigins: string[] = [];
+  if (process.env.ALLOWED_ORIGINS) {
+    process.env.ALLOWED_ORIGINS.split(",").map(o => o.trim()).filter(Boolean).forEach(o => allowedOrigins.push(o));
+  }
+  if (process.env.REPLIT_DOMAINS) {
+    process.env.REPLIT_DOMAINS.split(",").map(d => d.trim()).filter(Boolean).forEach(d => {
+      allowedOrigins.push(d.startsWith("http") ? d : `https://${d}`);
+    });
+  }
+  for (const envName of ["PUBLIC_URL", "APP_URL", "REPLIT_DEPLOYMENT_URL"] as const) {
+    const v = process.env[envName];
+    if (v) {
+      try { allowedOrigins.push(new URL(v).origin); } catch { /* ignore */ }
+    }
+  }
 
   const requestOrigin = origin || (referer ? new URL(referer).origin : "");
 

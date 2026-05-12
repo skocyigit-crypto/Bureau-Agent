@@ -170,18 +170,60 @@ app.use(
   }),
 );
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",").map(o => o.trim()).filter(Boolean)
-  : undefined;
+// ── CORS allowlist resolution ──────────────────────────────────────────────
+// En production, on REFUSE le mode "reflect=true" (Access-Control-Allow-Origin
+// echoant l'Origin du client) car associe a `credentials: true` il revient a
+// desactiver toute protection CORS. Donc une allowlist explicite est requise.
+//
+// Resolution dans cet ordre:
+//   1. ALLOWED_ORIGINS env (CSV) — override explicite par l'admin.
+//   2. REPLIT_DOMAINS env (CSV) — fournie automatiquement par la plateforme
+//      Replit en deploiement (custom domain ou .replit.app). On y ajoute le
+//      schema https:// et on dedupe.
+//   3. PUBLIC_URL / APP_URL — fallback final si l'admin n'a configure que ca.
+// Si APRES ces trois passes la liste reste vide en production, on hard-fail
+// pour eviter un deploiement accidentellement world-CORS.
+function resolveAllowedOrigins(): string[] {
+  const out = new Set<string>();
+  const explicit = process.env.ALLOWED_ORIGINS;
+  if (explicit) {
+    explicit.split(",").map(o => o.trim()).filter(Boolean).forEach(o => out.add(o));
+  }
+  const replitDomains = process.env.REPLIT_DOMAINS;
+  if (replitDomains) {
+    replitDomains.split(",").map(d => d.trim()).filter(Boolean).forEach(d => {
+      // REPLIT_DOMAINS vient sans schema -> on prefixe https.
+      const url = d.startsWith("http://") || d.startsWith("https://") ? d : `https://${d}`;
+      out.add(url);
+    });
+  }
+  for (const envName of ["PUBLIC_URL", "APP_URL", "REPLIT_DEPLOYMENT_URL"]) {
+    const v = process.env[envName];
+    if (v) {
+      try {
+        out.add(new URL(v).origin);
+      } catch { /* ignore malformed */ }
+    }
+  }
+  return Array.from(out);
+}
 
-if (isProduction && (!allowedOrigins || allowedOrigins.length === 0)) {
-  logger.error("FATAL: ALLOWED_ORIGINS doit etre defini en production (CORS reflect=true interdit).");
+const allowedOrigins = resolveAllowedOrigins();
+
+if (isProduction && allowedOrigins.length === 0) {
+  logger.error(
+    "FATAL: aucune origine autorisee detectee en production. Definir ALLOWED_ORIGINS, REPLIT_DOMAINS ou PUBLIC_URL.",
+  );
   process.exit(1);
+}
+
+if (allowedOrigins.length > 0) {
+  logger.info({ allowedOrigins }, "[CORS] Origines autorisees");
 }
 
 app.use(cors({
   // En production: liste blanche stricte. En dev: reflexion (true) pour confort.
-  origin: allowedOrigins && allowedOrigins.length > 0 ? allowedOrigins : (isProduction ? false : true),
+  origin: allowedOrigins.length > 0 ? allowedOrigins : (isProduction ? false : true),
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
   // Expose rate-limit headers to the SPA so it can render a precise
