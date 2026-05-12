@@ -85,6 +85,31 @@ in-app assistant — it can be edited freely.
 - **Tenant Guard Security**: Be mindful of the Tenant Guard Security Layer when making changes related to multi-tenancy.
 - **Deployment-Specific Configurations**: AI integrations can use either Replit AI proxy environment variables or direct provider API keys; ensure correct configuration for the deployment environment.
 
+### Faux positifs "l'app ne marche pas" — checklist avant de paniquer
+
+L'utilisateur a deja signale plusieurs fois que "rien ne marche" alors que
+tout fonctionnait. Avant de toucher au code, verifier dans cet ordre:
+
+1. **`/api/auth/me` -> 401** dans la console est ATTENDU pour un visiteur
+   anonyme (sonde de session). Ce n'est PAS une erreur.
+2. **Mobile preview "ecran blanc" au premier chargement**: le bundle Metro
+   met ~13s a se compiler la premiere fois. Recharger apres ~15s, ou
+   capturer directement `/login` au lieu de `/` (la redirection passe par
+   un loader sur fond clair quasi invisible).
+3. **`screenshot` tool sur tanitim**: NE PAS passer `path="/tanitim/"` —
+   le tool ajoute deja le prefix de l'artefact. Utiliser `path="/"`,
+   sinon URL devient `/tanitim/tanitim/` -> 404 (false positive).
+4. **Permissions-Policy**: utiliser uniquement les directives reconnues
+   par Chromium courant. Liste autorisee dans `api-server/src/app.ts`,
+   `buro-ajani/vite.config.ts`, `tanitim/vite.config.ts` (commentaires
+   en tete). NE PAS reintroduire ambient-light-sensor, battery,
+   document-domain, execution-while-not-rendered/out-of-viewport,
+   navigation-override, web-share -> warnings console inutiles.
+5. **Smoke obligatoire avant de declarer un bug**: lancer
+   `curl -s -o /dev/null -w "%{http_code}\n" localhost:80{/api/healthz,/,/tanitim/}`
+   et ouvrir Expo via `https://$REPLIT_EXPO_DEV_DOMAIN/`. Si tout est
+   200 + body > 1KB, le serveur va bien et le probleme est cosmetique.
+
 ## Pointers
 
 - **Drizzle ORM Documentation**: _Populate as you build_
