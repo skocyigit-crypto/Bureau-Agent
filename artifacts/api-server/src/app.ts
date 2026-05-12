@@ -112,6 +112,26 @@ const PERMISSIONS_POLICY = [
 ].join(", ");
 app.use((_req, res, next) => {
   res.setHeader("Permissions-Policy", PERMISSIONS_POLICY);
+  // Defense-in-depth: relique Adobe Flash mais toujours exigee par les
+  // outils de scan SAST (ASVS V14.4.5). `none` interdit Flash/Acrobat
+  // de charger une crossdomain.xml politique cross-origin sur ce domaine.
+  res.setHeader("X-Permitted-Cross-Domain-Policies", "none");
+  next();
+});
+
+// Cache-Control strict pour TOUTES les reponses /api/auth/*: aucun proxy
+// intermediaire, CDN, navigateur ou extension ne doit cacher une reponse
+// authentifiee (donnees de session, profil, tokens). Sans cet en-tete,
+// un proxy partage peut servir le profil de l'utilisateur A a
+// l'utilisateur B (incident classique de fuite de session).
+//   - no-store: jamais sur disque
+//   - no-cache: revalidation systematique
+//   - must-revalidate: si stale, refus de servir
+//   - private: jamais dans un cache partage
+app.use("/api/auth", (_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private, max-age=0");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
   next();
 });
 

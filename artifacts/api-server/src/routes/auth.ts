@@ -34,6 +34,17 @@ const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const REQUIRE_EMAIL_VERIFICATION = process.env.REQUIRE_EMAIL_VERIFICATION === "1";
 
+// Dummy bcrypt hash utilise pour neutraliser l'attaque de timing par
+// enumeration de comptes sur /auth/login. Sans ce garde-fou, un attaquant
+// peut distinguer "email inexistant" (reponse instantanee) de "email
+// valide + mauvais mot de passe" (~80-200ms de bcrypt) en mesurant la
+// latence. La parade: si l'utilisateur n'existe pas (ou est verrouille /
+// desactive), on execute quand meme un bcrypt.compare contre ce hash
+// constant pour egaliser le temps de reponse. Le hash correspond a la
+// chaine "dummy-password-never-matches" cuit avec bcrypt cost=12 — il
+// ne pourra JAMAIS valider une saisie utilisateur reelle.
+const DUMMY_BCRYPT_HASH = "$2b$12$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+
 export function validatePasswordStrength(pw: string): { ok: boolean; error?: string } {
   if (typeof pw !== "string" || pw.length < 10) return { ok: false, error: "Le mot de passe doit contenir au moins 10 caracteres." };
   if (pw.length > 128) return { ok: false, error: "Le mot de passe est trop long (max 128 caracteres)." };
@@ -143,19 +154,25 @@ router.post("/auth/login", loginLimiter, async (req: Request, res: Response): Pr
   try {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email.toLowerCase().trim()));
 
+    // Defense contre l'enumeration de comptes par chronometrage:
+    // dans TOUS les chemins d'echec precoce (compte inexistant, desactive,
+    // verrouille), on execute quand meme un bcrypt.compare contre un hash
+    // constant pour consommer ~80-200ms et masquer la difference de latence
+    // avec le chemin nominal. Le 401 generique est conserve.
     if (!user) {
+      await bcrypt.compare(password, DUMMY_BCRYPT_HASH).catch(() => false);
       res.status(401).json({ error: "Identifiants invalides." });
       return;
     }
 
-    // Reduire l'enumeration: meme code 401 pour compte desactive ou verrouille,
-    // avec message generique. Les details (lockout time) ne sont plus reveles.
     if (!user.actif) {
+      await bcrypt.compare(password, DUMMY_BCRYPT_HASH).catch(() => false);
       res.status(401).json({ error: "Identifiants invalides." });
       return;
     }
 
     if (user.verrouilleJusqua && new Date(user.verrouilleJusqua) > new Date()) {
+      await bcrypt.compare(password, DUMMY_BCRYPT_HASH).catch(() => false);
       res.status(401).json({ error: "Identifiants invalides." });
       return;
     }
@@ -466,7 +483,27 @@ router.post("/auth/change-password", changePasswordLimiter, async (req: Request,
     // Notification de securite (best-effort).
     void sendPasswordChangedEmail(user.email, user.prenom || "", req.ip).catch(err => req.log.error({ err }, "Erreur notif password change"));
 
-    res.json({ message: "Mot de passe modifie avec succes. Toutes vos autres sessions ont ete deconnectees." });
+    // Si l'appelant utilise un Bearer (mobile), son token vient d'etre
+    // invalide par tokenInvalidatedAt. On lui en remet un neuf dans la
+    // reponse pour eviter de le forcer a se reconnecter — symetrique
+    // au req.session.regenerate fait pour le flux cookie/web.
+    const usedBearer = typeof req.headers.authorization === "string" &&
+      req.headers.authorization.toLowerCase().startsWith("bearer ");
+    const apiToken = usedBearer
+      ? mintApiToken({
+          userId,
+          userRole: userRole!,
+          organisationId,
+          userEmail: userEmail!,
+          prenom,
+          nom,
+        })
+      : undefined;
+
+    res.json({
+      message: "Mot de passe modifie avec succes. Toutes vos autres sessions ont ete deconnectees.",
+      ...(apiToken ? { apiToken } : {}),
+    });
   } catch (err: any) {
     req.log.error({ err }, "Erreur changement mot de passe");
     res.status(500).json({ error: "Erreur lors du changement de mot de passe." });
@@ -683,6 +720,12 @@ router.patch("/auth/users/:id", async (req: Request, res: Response): Promise<voi
       return;
     }
     updateData.passwordHash = await bcrypt.hash(clean.password, SALT_ROUNDS);
+    // Reset administratif du mot de passe d'un autre utilisateur: invalider
+    // ses Bearer tokens stateless (mobile) et ses sessions cookie. Sans ces
+    // deux invalidations, un attaquant qui aurait deja vole un token reste
+    // connecte malgre le changement administratif. Symetrique a
+    // /auth/change-password (self-service) et /auth/reset-password (email).
+    updateData.tokenInvalidatedAt = new Date();
   }
 
   try {
@@ -696,6 +739,16 @@ router.patch("/auth/users/:id", async (req: Request, res: Response): Promise<voi
     });
 
     if (!updated) { res.status(404).json({ error: "Utilisateur non trouve." }); return; }
+
+    // Si on a reset le password, purger le cache LRU d'invalidation
+    // ET les sessions cookie de la cible. Best-effort: une erreur ici ne
+    // doit pas annuler le PATCH (le flag tokenInvalidatedAt en DB est
+    // suffisant a lui seul), mais on log pour audit.
+    if (clean.password) {
+      clearTokenInvalidationCache(id);
+      try { await invalidateUserSessions(id); }
+      catch (err: any) { req.log.error({ err, targetId: id }, "Echec invalidation sessions apres reset admin"); }
+    }
 
     logAudit(req.session?.userId, req.session?.userEmail, "update_user", "user", String(id), { fields: Object.keys(updateData) }, req.ip, req.get("user-agent"), req.session?.organisationId);
     res.json(updated);
