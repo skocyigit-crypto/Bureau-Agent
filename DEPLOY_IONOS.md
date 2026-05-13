@@ -1,7 +1,7 @@
 # Replit -> GitHub -> IONOS deploy rehberi
 
 > **Hedef:** Agent de Bureau'yu IONOS'ta satin aldigin VPS'te (orn. Server L XL)
-> kendi domain'inle (`https://app.senindomainin.com`) musterilere actigin
+> kendi domain'inle (`https://app.agentdebureau.fr`) musterilere actigin
 > production sunucusu olarak calistirmak.
 >
 > **Sure:** ilk kurulum 30-45 dakika + DNS yayilimi (5 dakika - 1 saat).
@@ -13,7 +13,7 @@
 >                                  production                      Docker Compose
 >                                                                  Caddy + HTTPS
 >                                                                  Postgres + API + Web
->   musteriler ────────────────► https://app.senindomainin.com
+>   musteriler ────────────────► https://app.agentdebureau.fr
 > ```
 >
 > Bu rehber `MIGRATION.md`'nin IONOS'a ozellesmis halidir + GitHub branch
@@ -180,7 +180,7 @@ echo "BACKUP_ENCRYPTION_KEY=$(openssl rand -hex 32)"
 | `JWT_SECRET` | Yukaridaki openssl ciktisi (SESSION'dan FARKLI) |
 | `DATA_ENCRYPTION_KEY` | Yukaridaki openssl ciktisi |
 | `BACKUP_ENCRYPTION_KEY` | Yukaridaki openssl ciktisi |
-| `ADMIN_EMAIL` | Senin email'in (orn. `serkan@senindomainin.com`) |
+| `ADMIN_EMAIL` | Senin email'in (orn. `serkan@agentdebureau.fr`) |
 | `ADMIN_PASSWORD` | Yukaridaki openssl ciktisi (SAKLA — bir daha gorunmez) |
 | `GEMINI_API_KEY` | https://aistudio.google.com/apikey |
 | `RESEND_API_KEY` | Replit Secrets'tan kopyala |
@@ -189,10 +189,10 @@ echo "BACKUP_ENCRYPTION_KEY=$(openssl rand -hex 32)"
 | `TWILIO_PHONE_NUMBER` | Replit Secrets'tan |
 | `GOOGLE_CLIENT_ID` | Replit Secrets'tan |
 | `GOOGLE_CLIENT_SECRET` | Replit Secrets'tan |
-| `GOOGLE_REDIRECT_URI` | `https://app.senindomainin.com/api/auth/google/callback` |
-| `DOMAIN` | `app.senindomainin.com` (Caddy Let's Encrypt icin sart) |
-| `PUBLIC_URL` | `https://app.senindomainin.com` |
-| `ALLOWED_ORIGINS` | `https://app.senindomainin.com` |
+| `GOOGLE_REDIRECT_URI` | `https://app.agentdebureau.fr/api/auth/google/callback` |
+| `DOMAIN` | `app.agentdebureau.fr` (Caddy Let's Encrypt icin sart) |
+| `PUBLIC_URL` | `https://app.agentdebureau.fr` |
+| `ALLOWED_ORIGINS` | `https://app.agentdebureau.fr` |
 | `STRIPE_SECRET_KEY` | (varsa) sk_live_... |
 | `STRIPE_WEBHOOK_SECRET` | (varsa) whsec_... |
 | `STRIPE_PRICE_*` | (varsa) Stripe dashboard'dan price ID'leri |
@@ -212,7 +212,7 @@ IONOS panelinde **Domain** -> domain'i sec -> **DNS**:
 
 DNS yayilimi 5 dakika - 1 saat. Test:
 ```bash
-dig +short app.senindomainin.com    # sunucu-ip donmeli
+dig +short app.agentdebureau.fr    # sunucu-ip donmeli
 ```
 
 ### C.4 — Konteynerleri ayaga kaldir
@@ -246,7 +246,7 @@ Ilk acilista `ADMIN_EMAIL` / `ADMIN_PASSWORD` ile super-admin otomatik olusur.
 
 ### C.6 — Tarayicidan test
 
-`https://app.senindomainin.com` ac. **Ilk acilista** Caddy Let's Encrypt
+`https://app.agentdebureau.fr` ac. **Ilk acilista** Caddy Let's Encrypt
 sertifikasi alir (~30 saniye). Sayfa yuklenince `ADMIN_EMAIL` / `ADMIN_PASSWORD`
 ile giris yap.
 
@@ -254,7 +254,7 @@ ile giris yap.
 
 https://console.cloud.google.com/apis/credentials -> OAuth Client'ini ac:
 - **Authorized redirect URIs** -> "+ Add URI":
-  `https://app.senindomainin.com/api/auth/google/callback`
+  `https://app.agentdebureau.fr/api/auth/google/callback`
 - Save
 
 (Replit zamanindaki eski URI'yi silebilirsin.)
@@ -262,7 +262,7 @@ https://console.cloud.google.com/apis/credentials -> OAuth Client'ini ac:
 ### C.8 — Stripe webhook URL guncelle (varsa)
 
 https://dashboard.stripe.com/webhooks -> mevcut webhook'u sil, yenisini olustur:
-- Endpoint URL: `https://app.senindomainin.com/api/stripe/webhook`
+- Endpoint URL: `https://app.agentdebureau.fr/api/stripe/webhook`
 - Events: `checkout.session.completed`, `customer.subscription.*`, `invoice.*`
 - Yeni `whsec_...` signing secret'i kopyala -> `.env`'de
   `STRIPE_WEBHOOK_SECRET` degerini guncelle -> `docker compose restart api`
@@ -294,7 +294,7 @@ veya IONOS otomatik snapshot abonelik aksesuarini ac.
 
 https://uptimerobot.com (ucretsiz) -> "+ Add New Monitor":
 - Type: HTTP(s)
-- URL: `https://app.senindomainin.com/api/healthz`
+- URL: `https://app.agentdebureau.fr/api/healthz`
 - Interval: 5 dakika
 - Alerts: email'ine
 
@@ -385,7 +385,7 @@ sema migration'u bozuk gelirse otomatik rollback yok.)
 | Belirti | Sebep | Cozum |
 |---|---|---|
 | `502 Bad Gateway` | api konteyner ayakta degil | `docker compose ps` + `logs api` |
-| `api` CrashLoop, "ALLOWED_ORIGINS bos" | `.env`'de eksik | `https://app.senindomainin.com` ekle, restart |
+| `api` CrashLoop, "ALLOWED_ORIGINS bos" | `.env`'de eksik | `https://app.agentdebureau.fr` ekle, restart |
 | HTTPS sertifikasi alamadi | DNS daha yayilmadi veya port 80 kapali | `dig`, `ufw status`, IONOS firewall paneli |
 | Google login "redirect_uri_mismatch" | Console'da eski URI | Adim C.7 |
 | Build "out of memory" | Server L XL'de RAM yetmiyor | Adim B.4 swap kontrol; `docker compose build --no-cache api` tek tek build |
