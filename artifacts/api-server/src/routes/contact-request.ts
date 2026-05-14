@@ -3,6 +3,7 @@ import rateLimit from "express-rate-limit";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { db, organisationsTable, prospectsTable } from "@workspace/db";
 import { sendEmail } from "../services/email";
+import { sendSms } from "../services/telephony-providers";
 import { logger } from "../lib/logger";
 import { escapeHtml, escapeAttr } from "../lib/html-escape";
 
@@ -115,6 +116,50 @@ async function createProspectFromContactRequest(payload: ContactPayload): Promis
   }).returning({ id: prospectsTable.id });
 
   logger.info({ prospectId: created?.id, email: emailNorm, company: payload.company, kind: payload.kind }, "[ContactRequest] Prospect cree depuis le site vitrine.");
+}
+
+function shouldSendAdminSms(kind: ContactKind): boolean {
+  if (kind === "rappel") return true;
+  // Opt-in pour les devis via env var
+  const flag = (process.env.ADMIN_SMS_ON_DEVIS || "").trim().toLowerCase();
+  return flag === "1" || flag === "true" || flag === "yes";
+}
+
+async function sendAdminSmsAlert(payload: ContactPayload): Promise<void> {
+  if (!shouldSendAdminSms(payload.kind)) return;
+
+  const adminPhone = (process.env.ADMIN_PHONE || "").trim();
+  if (!adminPhone) {
+    logger.warn({ kind: payload.kind }, "[ContactRequest] ADMIN_PHONE non configure, SMS ignore.");
+    return;
+  }
+
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+  if (!accountSid || !authToken || !fromNumber) {
+    logger.warn({ kind: payload.kind }, "[ContactRequest] Configuration Twilio incomplete, SMS admin ignore.");
+    return;
+  }
+
+  const meta = KIND_META[payload.kind];
+  const fullName = `${payload.firstName} ${payload.lastName}`.trim();
+  const phonePart = payload.phone ? ` Tel: ${payload.phone}` : "";
+  const body = payload.kind === "rappel"
+    ? `[Agent de Bureau] Rappel URGENT - ${fullName} (${payload.company}).${phonePart} A rappeler sous 2h.`
+    : `[Agent de Bureau] ${meta.label} - ${fullName} (${payload.company}).${phonePart}`;
+
+  const result = await sendSms(
+    "twilio",
+    { accountSid, authToken, fromNumber },
+    { to: adminPhone, body: body.slice(0, 320) },
+  );
+
+  if (!result.success) {
+    logger.error({ kind: payload.kind, error: result.error, to: adminPhone }, "[ContactRequest] SMS admin echoue");
+    return;
+  }
+  logger.info({ kind: payload.kind, messageSid: result.messageSid, to: adminPhone }, "[ContactRequest] SMS admin envoye");
 }
 
 const router = Router();
@@ -254,6 +299,12 @@ router.post("/public/contact-request", contactLimiter, async (req: Request, res:
       await createProspectFromContactRequest(payload);
     } catch (prospectErr: any) {
       logger.error({ err: prospectErr, email: payload.email, company: payload.company, kind }, "[ContactRequest] Echec creation prospect (email envoye quand meme)");
+    }
+
+    try {
+      await sendAdminSmsAlert(payload);
+    } catch (smsErr: any) {
+      logger.error({ err: smsErr, email: payload.email, company: payload.company, kind }, "[ContactRequest] Echec envoi SMS admin (demande traitee quand meme)");
     }
 
     logger.info({ email: payload.email, company: payload.company, kind }, "[ContactRequest] Nouvelle demande");
