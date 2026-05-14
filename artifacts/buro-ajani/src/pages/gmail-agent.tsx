@@ -490,6 +490,54 @@ export default function GmailAgentPage() {
     } catch { toast({ title: "Erreur", variant: "destructive" }); }
   };
 
+  // Lookup CRM du sender du mail courant. Cherche par email exact via
+  // /contacts?search=. La query ne tourne que si selectedEmail a un from
+  // valide (email parsable). Resultat utilise par le badge "+ Ajouter au CRM".
+  const senderEmail = selectedEmail
+    ? parseEmailName(selectedEmail.from || "").email.toLowerCase().trim()
+    : "";
+  const senderEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderEmail);
+  const { data: senderContactData } = useQuery({
+    queryKey: ["contact-lookup", senderEmail],
+    queryFn: () => apiFetch(`/contacts?search=${encodeURIComponent(senderEmail)}&limit=5`),
+    enabled: senderEmailValid,
+    staleTime: 30_000,
+  });
+  // Match cote client : on filtre la liste retournee par une egalite stricte
+  // sur le champ email (le backend fait un ILIKE %x%, donc trop large).
+  const existingContact = (senderContactData?.contacts || []).find(
+    (c: any) => (c.email || "").toLowerCase().trim() === senderEmail
+  );
+
+  const [isAddingContact, setIsAddingContact] = useState(false);
+  const handleAddSenderToContacts = async () => {
+    if (!selectedEmail || !senderEmailValid || existingContact) return;
+    const parsed = parseEmailName(selectedEmail.from || "");
+    // Decoupe "Prenom Nom" ; si un seul mot, prenom = mot, nom = "-".
+    // Le backend exige firstName ET lastName non vides.
+    const nameParts = (parsed.name || senderEmail.split("@")[0]).trim().split(/\s+/);
+    const firstName = nameParts[0] || "Inconnu";
+    const lastName = nameParts.slice(1).join(" ") || "-";
+    setIsAddingContact(true);
+    try {
+      await apiPost("/contacts", {
+        firstName,
+        lastName,
+        email: senderEmail,
+        phone: "-", // requis par le schema, pas connu depuis le mail
+        category: "prospect",
+        notes: `Importe automatiquement depuis Gmail le ${new Date().toLocaleDateString("fr-FR")}.`,
+      });
+      toast({ title: "Contact ajoute au CRM" });
+      qc.invalidateQueries({ queryKey: ["contact-lookup", senderEmail] });
+      qc.invalidateQueries({ queryKey: ["contacts"] });
+    } catch (e: any) {
+      toast({ title: "Erreur", description: e?.message || "Impossible d'ajouter le contact.", variant: "destructive" });
+    } finally {
+      setIsAddingContact(false);
+    }
+  };
+
   // Archive en masse les emails que le triage IA a classes "spam".
   // Pas d'appel IA — on relit juste triageMap. Garde-fou : guard
   // `isCleaningSpam` pour eviter les double-clics, et confirm() pour
@@ -775,13 +823,43 @@ export default function GmailAgentPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <h2 className="font-semibold text-sm truncate">{selectedEmail.subject}</h2>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <span className="text-xs text-muted-foreground truncate">
                         De: {parseEmailName(selectedEmail.from || "").name}
                         {" "}
                         <span className="text-muted-foreground/60">&lt;{parseEmailName(selectedEmail.from || "").email}&gt;</span>
                       </span>
                       <SmartDate dateStr={selectedEmail.date} />
+                      {/* Badge CRM : vert si le sender est deja contact,
+                          sinon bouton "+ Ajouter au CRM" qui cree un
+                          prospect en un clic. Ne s'affiche que si l'email
+                          est syntaxiquement valide. */}
+                      {senderEmailValid && existingContact && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] py-0 px-1.5 bg-green-50 text-green-700 border-green-200 cursor-pointer hover:bg-green-100"
+                          onClick={() => navigate(`/contacts?focus=${existingContact.id}`)}
+                          title="Voir la fiche contact"
+                        >
+                          <Check className="h-2.5 w-2.5 mr-0.5" />
+                          Dans le CRM
+                        </Badge>
+                      )}
+                      {senderEmailValid && !existingContact && senderContactData && (
+                        <button
+                          onClick={handleAddSenderToContacts}
+                          disabled={isAddingContact}
+                          className="text-[10px] py-0 px-1.5 rounded border bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100 disabled:opacity-50 inline-flex items-center"
+                          title="Ajouter ce contact au CRM (categorie prospect)"
+                        >
+                          {isAddingContact ? (
+                            <Loader2 className="h-2.5 w-2.5 mr-0.5 animate-spin" />
+                          ) : (
+                            <Plus className="h-2.5 w-2.5 mr-0.5" />
+                          )}
+                          Ajouter au CRM
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
