@@ -3,6 +3,7 @@ import rateLimit from "express-rate-limit";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { db, organisationsTable, prospectsTable } from "@workspace/db";
 import { sendEmail } from "../services/email";
+import { broadcaster } from "../services/broadcaster";
 import { logger } from "../lib/logger";
 import { escapeHtml, escapeAttr } from "../lib/html-escape";
 
@@ -70,6 +71,16 @@ async function createProspectFromDemoRequest(payload: {
   }).returning({ id: prospectsTable.id });
 
   logger.info({ prospectId: created?.id, email: emailNorm, company: payload.company }, "[DemoRequest] Prospect cree depuis le site vitrine.");
+
+  if (created?.id) {
+    setImmediate(() => {
+      broadcaster.broadcast(orgId, {
+        type: "prospect",
+        action: "created",
+        resourceId: created.id,
+      });
+    });
+  }
 }
 
 const router = Router();

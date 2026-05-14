@@ -106,6 +106,15 @@ export default function ProspectsPage() {
   useEffect(() => { setPage(0); }, [search, stageFilter]);
 
   useEffect(() => {
+    const onSync = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { type?: string } | undefined;
+      if (detail?.type === "prospect") load();
+    };
+    window.addEventListener("realtime-sync", onSync);
+    return () => window.removeEventListener("realtime-sync", onSync);
+  }, [load]);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const pId = params.get("id");
     if (!pId || isNaN(parseInt(pId))) return;

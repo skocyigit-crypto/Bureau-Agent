@@ -51,6 +51,8 @@ export function useRealtimeSync() {
         for (const key of keys) {
           qc.invalidateQueries({ queryKey: key });
         }
+
+        window.dispatchEvent(new CustomEvent("realtime-sync", { detail: event }));
       } catch {
       }
     };
