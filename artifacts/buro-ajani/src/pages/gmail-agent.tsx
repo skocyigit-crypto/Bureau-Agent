@@ -6,7 +6,7 @@ import {
   Mail, Send, Reply, Archive, Trash2, Star, StarOff, RefreshCw, Search,
   Brain, Sparkles, Loader2, ChevronRight, X, AlertTriangle,
   CheckCircle2, Zap, Eye, Copy, Inbox,
-  Paperclip, Plus, RotateCcw,
+  Paperclip, Plus, RotateCcw, Download,
   AlertCircle, TrendingUp, ShoppingCart, FileText, Info, MessageSquare,
   CornerDownLeft, Check, Wifi, WifiOff, Printer, FolderKanban
 } from "lucide-react";
@@ -939,11 +939,25 @@ export default function GmailAgentPage() {
                       {emailDetail.attachments?.length > 0 && (
                         <div className="flex items-center gap-2 flex-wrap py-2 px-3 bg-muted/30 rounded-md">
                           <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
-                          {emailDetail.attachments.map((att: any, i: number) => (
-                            <Badge key={i} variant="outline" className="text-xs">
-                              {att.filename} {att.size ? `(${Math.round(att.size / 1024)} KB)` : ""}
-                            </Badge>
-                          ))}
+                          {emailDetail.attachments.map((att: any, i: number) => {
+                            // Construit l'URL absolue du backend a partir
+                            // du baseUrl deja calcule (gere le prefix
+                            // /buro-ajani/api en preview comme en prod).
+                            const href = `${baseUrl}/api/gmail/message/${selectedEmail.id}/attachment/${att.attachmentId}`;
+                            return (
+                              <a
+                                key={i}
+                                href={href}
+                                download={att.filename}
+                                className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border bg-background hover:bg-muted transition-colors"
+                                title={`Telecharger ${att.filename}`}
+                              >
+                                <Download className="h-3 w-3 text-muted-foreground" />
+                                {att.filename}
+                                {att.size ? <span className="text-muted-foreground/60">({Math.round(att.size / 1024)} KB)</span> : null}
+                              </a>
+                            );
+                          })}
                         </div>
                       )}
                       <Separator />

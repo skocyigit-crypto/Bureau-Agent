@@ -375,6 +375,48 @@ router.post("/gmail/message/:id/archive", async (req: Request, res: Response): P
   }
 });
 
+// Telecharge une piece jointe Gmail. Retourne le binaire avec
+// Content-Disposition: attachment, donc le navigateur declenche le
+// telechargement directement (pas besoin de manipulation cote client
+// au-dela d'un <a download>). On exige les 2 parametres dans l'URL et
+// on relit la liste d'attachments du message pour valider l'existence
+// + recuperer filename/mimeType. Cela evite qu'un attaquant tape n'importe
+// quel attachmentId pour exfiltrer une piece jointe d'un autre message.
+router.get("/gmail/message/:id/attachment/:attId", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.session?.userId;
+    if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+    const auth = await getAuthClient(userId);
+    if (!auth) { res.status(403).json({ error: "non_connecte" }); return; }
+
+    const msgId = String(req.params.id);
+    const attId = String(req.params.attId);
+    const gmail = google.gmail({ version: "v1", auth });
+
+    // 1) Relit le message pour retrouver l'attachment et son filename.
+    const detailRes = await (gmail.users.messages as any).get({ userId: "me", id: msgId, format: "full" });
+    const meta = getAttachments(detailRes.data?.payload).find((a: any) => a.attachmentId === attId);
+    if (!meta) { res.status(404).json({ error: "Piece jointe introuvable." }); return; }
+
+    // 2) Telecharge le binaire base64url depuis Gmail.
+    const attRes = await (gmail.users.messages.attachments as any).get({
+      userId: "me", messageId: msgId, id: attId,
+    });
+    const dataB64 = attRes.data?.data || "";
+    const buf = Buffer.from(dataB64.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+
+    // 3) Renvoie le fichier — quote le filename pour gerer les espaces/accents.
+    const safeName = meta.filename.replace(/"/g, "");
+    res.setHeader("Content-Type", meta.mimeType || "application/octet-stream");
+    res.setHeader("Content-Disposition", `attachment; filename="${safeName}"`);
+    res.setHeader("Content-Length", String(buf.length));
+    res.send(buf);
+  } catch (error: any) {
+    req.log.error({ err: error }, "Gmail attachment download error");
+    res.status(500).json({ error: "Erreur lors du telechargement de la piece jointe." });
+  }
+});
+
 router.delete("/gmail/message/:id/trash", async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.session?.userId;
