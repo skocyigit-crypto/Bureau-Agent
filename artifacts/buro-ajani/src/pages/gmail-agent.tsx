@@ -378,10 +378,25 @@ export default function GmailAgentPage() {
     }
   }
 
-  const handleDraftReply = async () => {
+  // Id du mail pour lequel le brouillon courant a ete genere. Sert a
+  // (a) effacer le brouillon quand on change de mail, et (b) deduper le
+  // pre-fetch automatique pour ne pas regenerer en boucle.
+  const [aiDraftForEmailId, setAiDraftForEmailId] = useState<string | null>(null);
+  const lastAutoDraftedId = useRef<string | null>(null);
+  // Ref vivante qui suit toujours l'id du mail courant. Necessaire car
+  // dans une closure `selectedEmail` reste fige au moment de l'appel ;
+  // pour decider apres `await` si le brouillon est encore pertinent il
+  // faut lire la valeur la plus recente, pas la valeur capturee.
+  const selectedEmailIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    selectedEmailIdRef.current = selectedEmail?.id ?? null;
+  }, [selectedEmail?.id]);
+
+  const runDraftReply = useCallback(async (silent = false) => {
     if (!emailDetail && !selectedEmail) return;
+    const targetId = selectedEmail?.id ?? null;
     setIsDrafting(true);
-    setAiPanelTab("reply");
+    if (!silent) setAiPanelTab("reply");
     try {
       const data = await apiPost("/commandant/gmail-draft-reply", {
         from: emailDetail?.from || selectedEmail?.from,
@@ -392,12 +407,47 @@ export default function GmailAgentPage() {
         tone,
         instructions: draftInstructions,
       });
-      setAiDraft(data.draft);
-      toast({ title: "Réponse IA générée", description: data.contactFound ? "Contact CRM identifié" : "" });
+      // Si l'utilisateur a change de mail pendant le round-trip, on jette
+      // la reponse — sinon on afficherait un brouillon obsolete sur le
+      // mauvais mail.
+      if (selectedEmailIdRef.current === targetId && targetId) {
+        setAiDraft(data.draft);
+        setAiDraftForEmailId(targetId);
+      }
+      if (!silent) toast({ title: "Réponse IA générée", description: data.contactFound ? "Contact CRM identifié" : "" });
     } catch {
-      toast({ title: "Erreur génération", variant: "destructive" });
+      if (!silent) toast({ title: "Erreur génération", variant: "destructive" });
     } finally { setIsDrafting(false); }
-  };
+  }, [emailDetail, selectedEmail, tone, draftInstructions]);
+
+  const handleDraftReply = () => { void runDraftReply(false); };
+
+  // Quand on change de mail, on efface le brouillon precedent (sinon on
+  // afficherait un brouillon obsolete qui appartient a un autre mail).
+  useEffect(() => {
+    if (selectedEmail?.id !== aiDraftForEmailId) {
+      setAiDraft(null);
+    }
+  }, [selectedEmail?.id, aiDraftForEmailId]);
+
+  // Pre-generation automatique du brouillon de reponse pour les mails
+  // critiques/hauts qui necessitent une reponse. Quand l'utilisateur ouvre
+  // un mail "chaud", la reponse est deja prete dans l'onglet "Réponse IA".
+  // Garde-fous : un seul auto-draft par mail (lastAutoDraftedId), seulement
+  // si le mail est charge, pas de re-trigger sur erreur (id pose avant
+  // l'appel reseau).
+  useEffect(() => {
+    if (!selectedEmail || !emailDetail) return;
+    if (isDrafting) return;
+    if (lastAutoDraftedId.current === selectedEmail.id) return;
+    const t = triageMap[selectedEmail.id];
+    if (!t?.needsReply) return;
+    if (t.priority !== "critique" && t.priority !== "haute") return;
+    lastAutoDraftedId.current = selectedEmail.id;
+    const handle = setTimeout(() => { void runDraftReply(true); }, 500);
+    return () => clearTimeout(handle);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedEmail?.id, emailDetail, triageMap, isDrafting]);
 
   const handleArchive = async (id: string) => {
     try {
@@ -886,7 +936,7 @@ export default function GmailAgentPage() {
                         </div>
                       )}
 
-                      {aiDraft && !isDrafting && (
+                      {aiDraft && !isDrafting && aiDraftForEmailId === selectedEmail?.id && (
                         <div className="space-y-3">
                           <Separator />
                           <div className="flex items-center justify-between">
