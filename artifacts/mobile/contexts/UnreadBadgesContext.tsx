@@ -173,8 +173,17 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
         key === "message"
           ? "Un message vient d'arriver dans votre boîte."
           : "Une nouvelle tâche vous a été assignée.";
+      // Hint de route : exploité par le listener de réponse dans
+      // `_layout.tsx` (Tâche #81) pour ouvrir le bon écran quand la
+      // secrétaire tape sur la notification système.
+      const route =
+        key === "message"
+          ? "/messages"
+          : key === "task"
+            ? "/(tabs)/tasks"
+            : "/(tabs)/calls";
       Notifications.scheduleNotificationAsync({
-        content: { title, body, sound: true },
+        content: { title, body, sound: true, data: { route, badgeKey: key } },
         trigger: null,
       }).catch(() => {});
     }
