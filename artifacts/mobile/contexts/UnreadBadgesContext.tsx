@@ -71,9 +71,15 @@ const UnreadBadgesContext = createContext<UnreadBadgesContextValue>({
 export function UnreadBadgesProvider({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, authHeaders } = useAuth();
   const userId = user?.id;
-  const { hapticsEnabled, notificationsEnabled, loaded: prefsLoaded } = useNotificationPrefs();
+  const {
+    hapticsEnabled,
+    notificationsEnabled,
+    channelMuted,
+    loaded: prefsLoaded,
+  } = useNotificationPrefs();
   const hapticsEnabledRef = useRef(hapticsEnabled);
   const notificationsEnabledRef = useRef(notificationsEnabled);
+  const channelMutedRef = useRef(channelMuted);
   const prefsLoadedRef = useRef(prefsLoaded);
   useEffect(() => {
     hapticsEnabledRef.current = hapticsEnabled;
@@ -81,6 +87,9 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     notificationsEnabledRef.current = notificationsEnabled;
   }, [notificationsEnabled]);
+  useEffect(() => {
+    channelMutedRef.current = channelMuted;
+  }, [channelMuted]);
   useEffect(() => {
     prefsLoadedRef.current = prefsLoaded;
   }, [prefsLoaded]);
@@ -148,6 +157,12 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
     // Pas d'alertes tant que les préférences ne sont pas hydratées :
     // évite un faux buzz pour un utilisateur qui avait coupé la vibration.
     if (!prefsLoadedRef.current) return;
+
+    // Tâche #85 : mute par canal. Si la secrétaire a coupé ce canal
+    // (ex. "appel manqué" parce qu'elle utilise un autre téléphone pour
+    // les appels), on n'émet ni vibration ni notification système — mais
+    // on continue à incrémenter le badge visuel (fait dans `bump`).
+    if (channelMutedRef.current[key]) return;
 
     // Pas d'alertes pendant la fenêtre de grâce de la première hydratation.
     // Cette fenêtre ne s'applique qu'au tout premier connect après login,

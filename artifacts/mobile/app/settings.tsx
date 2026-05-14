@@ -460,15 +460,43 @@ function PrivacyCard() {
 
 // ── Alertes (haptiques + notifications locales) ───────────────────────────────
 
+const ALERT_CHANNEL_ROWS: ReadonlyArray<{
+  key: "message" | "task" | "call";
+  icon: keyof typeof Feather.glyphMap;
+  label: string;
+  sublabel: string;
+}> = [
+  {
+    key: "message",
+    icon: "mail",
+    label: "Nouveaux messages",
+    sublabel: "Buzz et notification quand un message arrive.",
+  },
+  {
+    key: "task",
+    icon: "check-square",
+    label: "Nouvelles tâches",
+    sublabel: "Buzz et notification quand une tâche vous est assignée.",
+  },
+  {
+    key: "call",
+    icon: "phone-missed",
+    label: "Appels manqués",
+    sublabel: "Coupez ce canal si vous suivez les appels sur un autre téléphone.",
+  },
+];
+
 function AlertsCard() {
   const colors = useColors();
   const isWeb = Platform.OS === "web";
   const {
     hapticsEnabled,
     notificationsEnabled,
+    channelMuted,
     loaded,
     setHapticsEnabled,
     setNotificationsEnabled,
+    setChannelMuted,
   } = useNotificationPrefs();
 
   const onToggleNotifications = useCallback(
@@ -498,7 +526,7 @@ function AlertsCard() {
         <View style={styles.toggleText}>
           <Text style={[styles.toggleLabel, { color: colors.foreground }]}>Vibration</Text>
           <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
-            Buzz léger à chaque nouveau message ou nouvelle tâche.
+            Buzz léger pour les nouveaux messages, tâches et appels manqués (selon les canaux ci-dessous).
           </Text>
         </View>
         <Switch
@@ -526,6 +554,44 @@ function AlertsCard() {
           thumbColor={notificationsEnabled ? colors.primary : colors.mutedForeground}
         />
       </View>
+
+      {/* Tâche #85 : mute par canal — la secrétaire peut couper un type
+          d'alerte (ex. appels manqués) sans toucher aux autres. */}
+      <Text style={[styles.channelGroupLabel, { color: colors.mutedForeground }]}>
+        Par type d'alerte
+      </Text>
+      {ALERT_CHANNEL_ROWS.map((row, idx) => {
+        const active = !channelMuted[row.key];
+        const isLast = idx === ALERT_CHANNEL_ROWS.length - 1;
+        return (
+          <View
+            key={row.key}
+            style={[
+              styles.toggleRow,
+              {
+                borderBottomColor: colors.border,
+                borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
+                opacity: isWeb ? 0.45 : 1,
+              },
+            ]}
+          >
+            <Feather name={row.icon} size={16} color={colors.mutedForeground} style={styles.infoIcon} />
+            <View style={styles.toggleText}>
+              <Text style={[styles.toggleLabel, { color: colors.foreground }]}>{row.label}</Text>
+              <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
+                {row.sublabel}
+              </Text>
+            </View>
+            <Switch
+              value={active && !isWeb}
+              onValueChange={(v) => setChannelMuted(row.key, !v)}
+              disabled={!loaded || isWeb}
+              trackColor={{ false: colors.border, true: colors.primary + "88" }}
+              thumbColor={active ? colors.primary : colors.mutedForeground}
+            />
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -680,6 +746,7 @@ const styles = StyleSheet.create({
   toggleText: { flex: 1 },
   toggleLabel: { fontSize: 13, fontFamily: "Inter_500Medium" },
   toggleSublabel: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
+  channelGroupLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", textTransform: "uppercase", letterSpacing: 0.5, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4 },
 
   // Auto-lock options
   lockOptionsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "transparent" },
