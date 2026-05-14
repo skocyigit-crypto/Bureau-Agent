@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, useEffect } from "react";
+import { createContext, useContext, useMemo, useRef, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Phone, Users, CheckSquare, MessageSquare, BarChart, LayoutDashboard, Settings, FileText, Puzzle, UserCog, Clock, Brain, Calendar, Shield, Zap, BarChart3, KeyRound, Globe, Target, Sparkles, PhoneCall, Download, Plus, PhoneIncoming, Wifi, WifiOff, Smartphone, Monitor, Tablet, Rocket, Mail, StickyNote, Activity, ClipboardList, Plug, CreditCard, Trophy, ScanSearch } from "lucide-react";
@@ -111,13 +111,48 @@ export function Layout({ children }: { children: React.ReactNode }) {
     });
   };
 
+  // Tâche #82: dedupe les bumps "call" — un même appel manqué peut
+  // arriver sous forme de plusieurs events `updated` successifs
+  // (retries webhook Twilio, édition postérieure, etc.).
+  const countedCallIds = useRef<Set<number>>(new Set());
+
   useEffect(() => {
     const onSync = (e: Event) => {
-      const detail = (e as CustomEvent).detail as { type?: string; action?: string } | undefined;
-      if (!detail || detail.action !== "created") return;
+      const detail = (e as CustomEvent).detail as
+        | {
+            type?: string;
+            action?: string;
+            resourceId?: number;
+            meta?: { direction?: string; status?: string };
+          }
+        | undefined;
+      if (!detail) return;
       const key = detail.type as BadgeKey | undefined;
       if (!key || !(key in BADGE_CONFIG)) return;
       if (BADGE_CONFIG[key].gated && !isSuperAdmin) return;
+      if (key === "call") {
+        // Tâche #82: ne bumper le badge "Appels" que pour les appels
+        // entrants non décrochés (manqués / messagerie). Les appels
+        // sortants que la secrétaire vient de passer ou les appels
+        // qu'elle a décrochés ne doivent pas alimenter le compteur.
+        // On accepte aussi les "updated" parce qu'un appel peut basculer
+        // en "manque" via une mise à jour (ex: webhook Twilio).
+        if (detail.action !== "created" && detail.action !== "updated") return;
+        const meta = detail.meta;
+        if (!meta) return;
+        if (meta.direction && meta.direction !== "entrant") return;
+        if (meta.status !== "manque" && meta.status !== "messagerie") return;
+        if (typeof detail.resourceId === "number") {
+          if (countedCallIds.current.has(detail.resourceId)) return;
+          countedCallIds.current.add(detail.resourceId);
+          if (countedCallIds.current.size > 500) {
+            const first = countedCallIds.current.values().next().value;
+            if (typeof first === "number") countedCallIds.current.delete(first);
+          }
+        }
+      } else if (detail.action !== "created") {
+        return;
+      }
       setBadge(key, (c) => c + 1);
     };
     const clearListeners = (Object.keys(BADGE_CONFIG) as BadgeKey[]).map((key) => {

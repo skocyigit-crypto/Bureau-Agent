@@ -48,17 +48,29 @@ export function autoBroadcast(req: Request, res: Response, next: NextFunction): 
 
   if (!rule) { next(); return; }
 
+  // Capture le body JSON pour pouvoir extraire des metadonnees utiles
+  // (ex: direction/status d'un appel) sans imposer aux routes de
+  // declencher elles-memes le broadcast.
+  let capturedBody: unknown = undefined;
+  const originalJson = res.json.bind(res);
+  (res as any).json = function (body: unknown) {
+    capturedBody = body;
+    return originalJson(body);
+  };
+
   const originalEnd = res.end.bind(res);
   (res as any).end = function (chunk?: any, encoding?: any, cb?: any) {
     if (res.statusCode >= 200 && res.statusCode < 300) {
       const idMatch = path.match(/\/(\d+)$/);
       const resourceId = idMatch ? parseInt(idMatch[1]) : undefined;
+      const meta = extractMeta(rule.type, capturedBody);
       setImmediate(() => {
         broadcaster.broadcast(orgId, {
           type: rule.type,
           action: rule.action,
           resourceId,
           triggeredBy: userId,
+          ...(meta ? { meta } : {}),
         });
       });
     }
@@ -66,4 +78,19 @@ export function autoBroadcast(req: Request, res: Response, next: NextFunction): 
   };
 
   next();
+}
+
+function extractMeta(
+  type: SyncEventType,
+  body: unknown,
+): Record<string, unknown> | undefined {
+  if (!body || typeof body !== "object") return undefined;
+  const obj = body as Record<string, unknown>;
+  if (type === "call") {
+    const meta: Record<string, unknown> = {};
+    if (typeof obj.direction === "string") meta.direction = obj.direction;
+    if (typeof obj.status === "string") meta.status = obj.status;
+    return Object.keys(meta).length > 0 ? meta : undefined;
+  }
+  return undefined;
 }

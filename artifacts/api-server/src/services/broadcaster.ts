@@ -10,6 +10,7 @@ export interface SyncEvent {
   action: "created" | "updated" | "deleted" | "ping";
   resourceId?: number;
   triggeredBy?: number;
+  meta?: Record<string, unknown>;
   ts: number;
 }
 

@@ -41,6 +41,23 @@ function storageKey(userId: string | number | undefined, key: BadgeKey): string 
   return `unread-badge:${scope}:${key}`;
 }
 
+/**
+ * Tâche #82: un appel ne devient un "badge" pour la secrétaire que s'il
+ * s'agit d'un appel entrant non décroché (manqué ou tombé sur la
+ * messagerie). Les appels sortants qu'elle vient de passer ou les appels
+ * entrants qu'elle a déjà décrochés ne doivent pas faire grimper le
+ * compteur "Appels".
+ */
+function isMissedIncomingCall(meta: { direction?: string; status?: string } | undefined): boolean {
+  if (!meta) return false;
+  const direction = meta.direction;
+  const status = meta.status;
+  // Si la direction est connue, on exige "entrant".
+  if (direction && direction !== "entrant") return false;
+  // Statuts considérés comme "non décrochés" côté schéma (cf. routes/calls.ts).
+  return status === "manque" || status === "messagerie";
+}
+
 interface UnreadBadgesContextValue {
   counts: Record<BadgeKey, number>;
   clearKey: (key: BadgeKey) => void;
@@ -210,6 +227,10 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
   const abortRef = useRef<AbortController | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectDelay = useRef(1000);
+  // Tâche #82: dedupe les bumps "call". Un même appel manqué peut arriver
+  // sous forme de plusieurs events `updated` (retries webhook Twilio,
+  // édition postérieure, etc.). On ne compte qu'une fois par resourceId.
+  const countedCallIds = useRef<Set<number>>(new Set());
 
   const closeStream = useCallback(() => {
     if (reconnectTimer.current) {
@@ -274,15 +295,32 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
             const event = JSON.parse(dataStr) as {
               type?: string;
               action?: string;
+              resourceId?: number;
+              meta?: { direction?: string; status?: string };
             };
             if (event.type === "ping") continue;
-            if (event.action !== "created") continue;
-            if (
-              event.type === "message" ||
-              event.type === "task" ||
-              event.type === "call"
-            ) {
+            if (event.action !== "created" && event.action !== "updated") continue;
+            if (event.type === "message" || event.type === "task") {
+              if (event.action !== "created") continue;
               bump(event.type as BadgeKey);
+            } else if (event.type === "call") {
+              // Tâche #82: la secrétaire ne veut un badge "Appels" que pour
+              // les appels manqués (entrants sans réponse). Les appels
+              // sortants qu'elle vient de passer ou les appels répondus
+              // ne doivent pas faire vibrer le badge.
+              if (!isMissedIncomingCall(event.meta)) continue;
+              // Dedupe: un même appel peut être marqué "manque" par
+              // plusieurs events `updated` successifs.
+              if (typeof event.resourceId === "number") {
+                if (countedCallIds.current.has(event.resourceId)) continue;
+                countedCallIds.current.add(event.resourceId);
+                if (countedCallIds.current.size > 500) {
+                  // Borne mémoire: on garde une fenêtre raisonnable.
+                  const first = countedCallIds.current.values().next().value;
+                  if (typeof first === "number") countedCallIds.current.delete(first);
+                }
+              }
+              bump("call");
             }
           } catch {
             // ignore malformed payload
