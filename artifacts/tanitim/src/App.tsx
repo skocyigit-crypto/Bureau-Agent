@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Home from "@/pages/home";
 import { CookieBanner } from "@/components/CookieBanner";
+import { FloatingCallbackButton } from "@/components/FloatingCallbackButton";
 
 const MentionsLegales = lazy(() => import("@/pages/mentions-legales"));
 const Confidentialite = lazy(() => import("@/pages/confidentialite"));
@@ -34,6 +35,7 @@ function App() {
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
           <Router />
           <CookieBanner />
+          <FloatingCallbackButton />
         </WouterRouter>
         <Toaster />
       </TooltipProvider>
