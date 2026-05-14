@@ -85,15 +85,25 @@ export default function RootLayout() {
   // to navigate before mounting the Root Layout component". On met donc la
   // route en attente et on la rejoue dès que le navigateur est prêt
   // (fontsLoaded || fontError).
-  const pendingRouteRef = useRef<string | null>(null);
+  const pendingRouteRef = useRef<{ pathname: string; resourceId?: number } | null>(null);
   const navReadyRef = useRef(false);
   const navReady = Platform.OS === "web" ? true : fontsLoaded || !!fontError;
 
   const flushPendingRoute = React.useCallback(() => {
-    const route = pendingRouteRef.current;
-    if (!route || !navReadyRef.current) return;
+    const target = pendingRouteRef.current;
+    if (!target || !navReadyRef.current) return;
     try {
-      router.push(route as never);
+      // Tâche #83 — quand on a l'id de la ressource (ex: id du nouveau
+      // message/tâche), on l'injecte en param `open` pour que l'écran
+      // cible ouvre directement le détail au lieu de juste afficher la liste.
+      if (typeof target.resourceId === "number") {
+        router.push({
+          pathname: target.pathname,
+          params: { open: String(target.resourceId) },
+        } as never);
+      } else {
+        router.push(target.pathname as never);
+      }
       pendingRouteRef.current = null;
     } catch (err) {
       // Navigateur pas encore prêt : on garde la route en attente,
@@ -124,19 +134,26 @@ export default function RootLayout() {
       "/(tabs)/calls",
     ]);
 
-    const extractRoute = (response: Notifications.NotificationResponse) => {
+    const extractTarget = (response: Notifications.NotificationResponse) => {
       const data = response?.notification?.request?.content?.data as
-        | { route?: string }
+        | { route?: string; resourceId?: number | string }
         | undefined;
       const route = data?.route;
       if (typeof route !== "string" || !ALLOWED_ROUTES.has(route)) return null;
-      return route;
+      let resourceId: number | undefined;
+      if (typeof data?.resourceId === "number" && Number.isFinite(data.resourceId)) {
+        resourceId = data.resourceId;
+      } else if (typeof data?.resourceId === "string") {
+        const parsed = parseInt(data.resourceId, 10);
+        if (Number.isFinite(parsed)) resourceId = parsed;
+      }
+      return { pathname: route, resourceId };
     };
 
     const handleResponse = (response: Notifications.NotificationResponse) => {
-      const route = extractRoute(response);
-      if (!route) return;
-      pendingRouteRef.current = route;
+      const target = extractTarget(response);
+      if (!target) return;
+      pendingRouteRef.current = target;
       flushPendingRoute();
     };
 
@@ -147,9 +164,9 @@ export default function RootLayout() {
     Notifications.getLastNotificationResponseAsync()
       .then((response) => {
         if (!response) return;
-        const route = extractRoute(response);
-        if (!route) return;
-        pendingRouteRef.current = route;
+        const target = extractTarget(response);
+        if (!target) return;
+        pendingRouteRef.current = target;
         flushPendingRoute();
         // Évite de re-naviguer au prochain démarrage à froid.
         const maybeClear = (

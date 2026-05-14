@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -74,6 +74,11 @@ export default function MessagesScreen() {
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
   const { clearKey } = useUnreadBadges();
+  // Tâche #83 : `open=<id>` est posé par le tap sur la notification
+  // "Nouveau message" (cf. `_layout.tsx`). On ouvre directement le détail
+  // dès que le message correspondant est présent dans la liste.
+  const { open: openParam } = useLocalSearchParams<{ open?: string | string[] }>();
+  const consumedOpenRef = useRef<string | null>(null);
   const isWeb = Platform.OS === "web";
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -121,6 +126,42 @@ export default function MessagesScreen() {
       clearKey("message");
     }, [clearKey]),
   );
+
+  // Tâche #83 : ouvrir le bon message quand on arrive via une notification.
+  // On essaie d'abord la liste courante (instantané), sinon on fait un
+  // GET ciblé `/api/messages/:id` pour ne pas dépendre du filtre / de la
+  // recherche actifs ni d'un fetch encore en cours. `consumedOpenRef`
+  // empêche de ré-ouvrir le détail si l'utilisateur ferme le modal.
+  useEffect(() => {
+    const idStr = Array.isArray(openParam) ? openParam[0] : openParam;
+    if (!idStr || consumedOpenRef.current === idStr) return;
+    const id = parseInt(idStr, 10);
+    if (!Number.isFinite(id)) return;
+    const found = messages.find((m) => m.id === id);
+    if (found) {
+      consumedOpenRef.current = idStr;
+      setSelected(found);
+      markAsRead(found);
+      return;
+    }
+    // Fallback : la liste filtrée ne contient pas l'item — on le récupère
+    // directement par id pour garantir l'ouverture (Tâche #83).
+    let cancelled = false;
+    consumedOpenRef.current = idStr;
+    (async () => {
+      try {
+        const res = await fetchAuth(`${API_BASE}/api/messages/${id}`);
+        if (!res.ok || cancelled) return;
+        const msg = (await res.json()) as Message;
+        if (cancelled || !msg || typeof msg.id !== "number") return;
+        setSelected(msg);
+        markAsRead(msg);
+      } catch {
+        // Tant pis : l'utilisateur reste sur la liste, pas pire que l'ancien comportement.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [openParam, messages, fetchAuth]);
 
   function onRefresh() { setRefreshing(true); fetchMessages(); }
 

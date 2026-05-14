@@ -144,7 +144,7 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
     [userId],
   );
 
-  const triggerAlerts = useCallback((key: BadgeKey) => {
+  const triggerAlerts = useCallback((key: BadgeKey, resourceId?: number) => {
     // Pas d'alertes tant que les préférences ne sont pas hydratées :
     // évite un faux buzz pour un utilisateur qui avait coupé la vibration.
     if (!prefsLoadedRef.current) return;
@@ -189,21 +189,30 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
           : key === "task"
             ? "/(tabs)/tasks"
             : "/(tabs)/calls";
+      // Tâche #83 : on inclut l'id de la ressource pour que le tap sur la
+      // notification ouvre directement le bon message / la bonne tâche, pas
+      // juste la liste. Le listener côté `_layout.tsx` lit ce champ et
+      // pousse la route avec un param `open`.
       Notifications.scheduleNotificationAsync({
-        content: { title, body, sound: true, data: { route, badgeKey: key } },
+        content: {
+          title,
+          body,
+          sound: true,
+          data: { route, badgeKey: key, resourceId },
+        },
         trigger: null,
       }).catch(() => {});
     }
   }, []);
 
   const bump = useCallback(
-    (key: BadgeKey) => {
+    (key: BadgeKey, resourceId?: number) => {
       setCounts((prev) => {
         const next = { ...prev, [key]: prev[key] + 1 };
         persist(key, next[key]);
         return next;
       });
-      triggerAlerts(key);
+      triggerAlerts(key, resourceId);
     },
     [persist, triggerAlerts],
   );
@@ -318,7 +327,7 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
             if (event.action !== "created" && event.action !== "updated") continue;
             if (event.type === "message" || event.type === "task") {
               if (event.action !== "created") continue;
-              bump(event.type as BadgeKey);
+              bump(event.type as BadgeKey, event.resourceId);
             } else if (event.type === "call") {
               // Tâche #82: la secrétaire ne veut un badge "Appels" que pour
               // les appels manqués (entrants sans réponse). Les appels

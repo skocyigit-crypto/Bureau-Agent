@@ -62,7 +62,14 @@ export function autoBroadcast(req: Request, res: Response, next: NextFunction): 
   (res as any).end = function (chunk?: any, encoding?: any, cb?: any) {
     if (res.statusCode >= 200 && res.statusCode < 300) {
       const idMatch = path.match(/\/(\d+)$/);
-      const resourceId = idMatch ? parseInt(idMatch[1]) : undefined;
+      let resourceId = idMatch ? parseInt(idMatch[1]) : undefined;
+      // Pour les "created" (POST sans id dans l'URL), l'id de la ressource
+      // se trouve dans la reponse JSON. On le surface dans l'event SSE pour
+      // que le mobile puisse deep-linker la notification vers le bon item
+      // (Tache #83) au lieu de juste ouvrir la liste.
+      if (resourceId === undefined && rule.action === "created") {
+        resourceId = extractIdFromBody(capturedBody);
+      }
       const meta = extractMeta(rule.type, capturedBody);
       setImmediate(() => {
         broadcaster.broadcast(orgId, {
@@ -78,6 +85,17 @@ export function autoBroadcast(req: Request, res: Response, next: NextFunction): 
   };
 
   next();
+}
+
+function extractIdFromBody(body: unknown): number | undefined {
+  if (!body || typeof body !== "object") return undefined;
+  const id = (body as Record<string, unknown>).id;
+  if (typeof id === "number" && Number.isFinite(id)) return id;
+  if (typeof id === "string") {
+    const parsed = parseInt(id, 10);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
 }
 
 function extractMeta(

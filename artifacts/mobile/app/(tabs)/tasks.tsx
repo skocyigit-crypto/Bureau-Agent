@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -202,6 +202,11 @@ export default function TasksScreen() {
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
   const { clearKey } = useUnreadBadges();
+  // Tâche #83 : `open=<id>` est posé par le tap sur la notification
+  // "Nouvelle tâche" (cf. `_layout.tsx`). On ouvre directement le détail
+  // dès que la tâche correspondante apparaît dans la liste.
+  const { open: openParam } = useLocalSearchParams<{ open?: string | string[] }>();
+  const consumedOpenRef = useRef<string | null>(null);
   const isWeb = Platform.OS === "web";
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -249,6 +254,39 @@ export default function TasksScreen() {
       clearKey("task");
     }, [clearKey]),
   );
+
+  // Tâche #83 : ouvrir directement la tâche concernée quand on arrive via
+  // une notification "Nouvelle tâche". On essaie d'abord la liste courante
+  // (si l'item est déjà chargé, ouverture instantanée) puis on retombe sur
+  // un GET ciblé `/api/tasks/:id` pour ne pas dépendre du filtre / de la
+  // recherche actifs (sinon une tâche hors-filtre ne s'ouvrirait jamais).
+  // `consumedOpenRef` empêche de ré-ouvrir si l'utilisateur ferme le modal.
+  useEffect(() => {
+    const idStr = Array.isArray(openParam) ? openParam[0] : openParam;
+    if (!idStr || consumedOpenRef.current === idStr) return;
+    const id = parseInt(idStr, 10);
+    if (!Number.isFinite(id)) return;
+    const found = tasks.find((t) => t.id === id);
+    if (found) {
+      consumedOpenRef.current = idStr;
+      setSelected(found);
+      return;
+    }
+    let cancelled = false;
+    consumedOpenRef.current = idStr;
+    (async () => {
+      try {
+        const res = await fetchAuth(`${API_BASE}/api/tasks/${id}`);
+        if (!res.ok || cancelled) return;
+        const task = (await res.json()) as Task;
+        if (cancelled || !task || typeof task.id !== "number") return;
+        setSelected(task);
+      } catch {
+        // En cas d'échec, l'utilisateur reste sur la liste — pas pire que l'ancien comportement.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [openParam, tasks, fetchAuth]);
 
   function onRefresh() { setRefreshing(true); fetchTasks(); }
 
