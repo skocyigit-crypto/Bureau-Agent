@@ -1,10 +1,10 @@
-import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { Shield, Target, FileText, Receipt, Package, LayoutDashboard, ArrowRight } from "lucide-react";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { AccessDenied } from "@/components/access-denied";
 
 /**
  * Backoffice SaaS — racine du panneau /admin.
@@ -21,16 +21,10 @@ export default function AdminBackofficePage() {
   const { user } = useWorkspaceUser();
   const [, navigate] = useLocation();
 
-  // Garde cote client. Le vrai garde-fou est cote serveur (requireSuperAdmin
-  // sur les routes /api/admin/*). Ici on evite simplement d'afficher la
-  // coquille a un utilisateur non-super-admin qui aurait tape l'URL a la main.
-  useEffect(() => {
-    if (user.role !== "super_admin") {
-      navigate("/", { replace: true });
-    }
-  }, [user.role, navigate]);
-
-  if (user.role !== "super_admin") return null;
+  // Garde cote client. Verrou definitif cote serveur (requireSuperAdmin sur
+  // les routers prospects/devis/factures-client). Vue 403 si l'utilisateur
+  // tape l'URL sans le bon role.
+  if (user.role !== "super_admin") return <AccessDenied />;
 
   const modules = [
     {

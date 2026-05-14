@@ -135,9 +135,17 @@ router.use(documentsRouter);
 router.use(meetingsRouter);
 router.use(gmailRouter);
 router.use(orgProfileRouter);
-router.use(prospectsRouter);
-router.use(devisRouter);
-router.use(facturesClientRouter);
+// Backoffice SaaS — accessible super-admin uniquement (Tâche #52).
+// Ces modules ne sont plus exposes a l'application client. Le verrou est
+// pose au niveau du montage du router, donc TOUTES les sous-routes
+// (GET/POST/PATCH/DELETE) heritent automatiquement de la garde sans
+// avoir a etre modifiees une par une. Les filtres organisation_id internes
+// restent en place et n'affectent rien tant que le super-admin a un
+// organisation_id valide (cas standard).
+import { requireSuperAdmin } from "../middleware/auth";
+router.use(requireSuperAdmin, prospectsRouter);
+router.use(requireSuperAdmin, devisRouter);
+router.use(requireSuperAdmin, facturesClientRouter);
 router.use(notesInternesRouter);
 router.use(projetsRouter);
 router.use(dailyDigestRouter);

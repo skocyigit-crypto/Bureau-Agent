@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { confirmAction } from "@/hooks/use-confirm";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { useLocation } from "wouter";
+import { AccessDenied } from "@/components/access-denied";
 import { TrendingUp, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, Filter, Target, Trophy, XCircle, DollarSign, RefreshCw, Kanban, LayoutList, ArrowUpDown, Download, UserPlus, Printer, Layers, Copy, FolderKanban, Briefcase } from "lucide-react";
 import { EmptyOnboardingHint } from "@/components/empty-onboarding-hint";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -65,16 +66,10 @@ const EMPTY_FORM = { title: "", contactName: "", company: "", email: "", phone: 
 export default function ProspectsPage() {
   // Module deplacé dans le backoffice SaaS — accessible super-admin uniquement.
   // Refactor "Admin Backoffice + Müşteri Sadeleştirme" — Tâche #52.
-  // Le verrou definitif sera cote serveur (requireSuperAdmin); ce garde-fou
-  // client evite simplement qu'un utilisateur non-super-admin tape l'URL.
+  // Verrou serveur: requireSuperAdmin sur le router (artifacts/api-server/
+  // src/routes/index.ts). Vue 403 affichee si l'utilisateur tape l'URL.
   const { user: workspaceUser } = useWorkspaceUser();
-  const [, navigateAway] = useLocation();
-  useEffect(() => {
-    if (workspaceUser.role !== "super_admin") {
-      navigateAway("/", { replace: true });
-    }
-  }, [workspaceUser.role, navigateAway]);
-  if (workspaceUser.role !== "super_admin") return null;
+  if (workspaceUser.role !== "super_admin") return <AccessDenied />;
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [prospects, setProspects] = useState<Prospect[]>([]);

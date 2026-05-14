@@ -2,6 +2,7 @@ import { useRoute, useLocation, Link } from "wouter";
 import { confirmAction } from "@/hooks/use-confirm";
 import { useState, useEffect, useCallback } from "react";
 import { useWorkspaceUser } from "@/components/workspace-user";
+import { AccessDenied } from "@/components/access-denied";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
@@ -69,13 +70,7 @@ const EMPTY_FORM = { title: "", contactName: "", company: "", email: "", phone: 
 export default function ProspectDetail() {
   // Module backoffice (super-admin uniquement) — Tâche #52.
   const { user: workspaceUser } = useWorkspaceUser();
-  const [, navigateAway] = useLocation();
-  useEffect(() => {
-    if (workspaceUser.role !== "super_admin") {
-      navigateAway("/", { replace: true });
-    }
-  }, [workspaceUser.role, navigateAway]);
-  if (workspaceUser.role !== "super_admin") return null;
+  if (workspaceUser.role !== "super_admin") return <AccessDenied />;
   const [, params] = useRoute("/prospects/:id");
   const prospectId = params?.id ? parseInt(params.id) : 0;
   const { toast } = useToast();

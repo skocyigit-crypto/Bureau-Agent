@@ -210,17 +210,12 @@ function SwipeableProspect({ item, colors, onDelete, onOpen }: SwipeableProspect
 
 export default function ProspectsScreen() {
   // Module backoffice SaaS — accessible super-admin uniquement (Tâche #52).
-  // Garde-fou client; le verrou definitif sera cote serveur (tâche #53).
-  const { user: authUser } = useAuth();
-  React.useEffect(() => {
-    if (authUser && authUser.role !== "super_admin") {
-      router.replace("/(tabs)");
-    }
-  }, [authUser]);
-  if (!authUser || authUser.role !== "super_admin") return null;
+  // IMPORTANT: tous les hooks doivent etre appeles AVANT tout return
+  // conditionnel sinon React detecte une rupture d'ordre des hooks et
+  // crashe au prochain rendu. Le garde-fou agit donc apres l'init.
+  const { user: authUser, fetchAuth } = useAuth();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
 
   const [prospects, setProspects] = useState<Prospect[]>([]);
@@ -363,6 +358,30 @@ export default function ProspectsScreen() {
     { label: "Clôture prévue", value: selected.expectedCloseDate ? new Date(selected.expectedCloseDate).toLocaleDateString("fr-FR") : "—" },
     { label: "Notes", value: selected.notes ?? "—" },
   ] : [];
+
+  // Garde-fou super-admin (Tâche #52). Place APRES tous les hooks pour
+  // preserver l'ordre des hooks React. Si l'utilisateur n'a pas le bon
+  // role, on rend une vue "Acces refuse" plutot que de rediriger
+  // silencieusement (signal explicite de policy boundary).
+  if (!authUser || authUser.role !== "super_admin") {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: "center", alignItems: "center", padding: 24 }]}>
+        <Feather name="lock" size={48} color={colors.mutedForeground} />
+        <Text style={{ color: colors.foreground, fontSize: 18, fontWeight: "600", marginTop: 16, textAlign: "center" }}>
+          Acces reserve
+        </Text>
+        <Text style={{ color: colors.mutedForeground, fontSize: 14, marginTop: 8, textAlign: "center" }}>
+          Ce module est reserve au backoffice SaaS (super-admin uniquement).
+        </Text>
+        <Pressable
+          onPress={() => router.replace("/(tabs)")}
+          style={{ marginTop: 24, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: colors.primary, borderRadius: 8 }}
+        >
+          <Text style={{ color: "#fff", fontWeight: "600" }}>Retour</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
