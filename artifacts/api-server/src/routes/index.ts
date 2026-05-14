@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, requireSuperAdmin } from "../middleware/auth";
 import { requireTenant } from "../middleware/tenant";
 import { licenseCheck } from "../middleware/license-check";
 import healthRouter from "./health";
@@ -142,7 +142,6 @@ router.use(orgProfileRouter);
 // avoir a etre modifiees une par une. Les filtres organisation_id internes
 // restent en place et n'affectent rien tant que le super-admin a un
 // organisation_id valide (cas standard).
-import { requireSuperAdmin } from "../middleware/auth";
 router.use(requireSuperAdmin, prospectsRouter);
 router.use(requireSuperAdmin, devisRouter);
 router.use(requireSuperAdmin, facturesClientRouter);
