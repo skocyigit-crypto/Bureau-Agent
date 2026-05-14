@@ -168,11 +168,18 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
       notificationsEnabledRef.current &&
       appStateRef.current !== "active"
     ) {
-      const title = key === "message" ? "Nouveau message" : "Nouvelle tâche";
+      const title =
+        key === "message"
+          ? "Nouveau message"
+          : key === "task"
+            ? "Nouvelle tâche"
+            : "Appel manqué";
       const body =
         key === "message"
           ? "Un message vient d'arriver dans votre boîte."
-          : "Une nouvelle tâche vous a été assignée.";
+          : key === "task"
+            ? "Une nouvelle tâche vous a été assignée."
+            : "Un appel n'a pas été pris — pensez à rappeler.";
       // Hint de route : exploité par le listener de réponse dans
       // `_layout.tsx` (Tâche #81) pour ouvrir le bon écran quand la
       // secrétaire tape sur la notification système.

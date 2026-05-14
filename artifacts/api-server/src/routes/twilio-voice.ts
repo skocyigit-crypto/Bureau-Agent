@@ -7,6 +7,7 @@ import { assertAiQuota } from "../services/ai-quota";
 import { recordAiUsage, sanitizePromptInput } from "../services/ai-utils";
 import { sendSms, type TelephonyProviderConfig } from "../services/telephony-providers";
 import { sendEmail } from "../services/email";
+import { broadcaster } from "../services/broadcaster";
 
 export const twilioVoiceRouter: IRouter = Router();
 
@@ -877,6 +878,18 @@ twilioVoiceRouter.post("/telephony/twilio/status", async (req: Request, res: Res
         duration,
         updatedAt: new Date(),
       }).where(eq(callsTable.id, session.callDbId));
+    }
+
+    // Notify the org in real-time when a call ends without being answered.
+    // The mobile app (Tâche #80) listens for this event and triggers a
+    // haptic + local notification so the secrétaire is alerted as fast as
+    // for a new message or task. The web sidebar uses the same channel.
+    if (session?.orgId && callStatus !== "completed") {
+      broadcaster.broadcast(session.orgId, {
+        type: "call",
+        action: "created",
+        resourceId: session.callDbId ?? undefined,
+      });
     }
   } catch (err) {
     logger.error({ err, callSid }, "[TwilioVoice] Status update error");
