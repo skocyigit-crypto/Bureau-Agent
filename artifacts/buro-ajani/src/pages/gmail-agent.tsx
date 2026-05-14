@@ -897,6 +897,42 @@ export default function GmailAgentPage() {
                     </div>
                   ) : emailDetail ? (
                     <div className="space-y-3">
+                      {/* Banniere d'insight IA : reutilise les donnees du
+                          triage deja en memoire (triageMap[id]). Aucun
+                          appel reseau supplementaire, aucun cout quota.
+                          Affiche resume + action suggeree pour donner au
+                          patron le contexte sans avoir a lire le mail. */}
+                      {(() => {
+                        const t = triageMap[selectedEmail.id];
+                        if (!t || (!t.summary && !t.suggestedAction)) return null;
+                        const priCfg = t.priority ? PRIORITY_CONFIG[t.priority] : null;
+                        return (
+                          <div className="rounded-md border border-violet-200 bg-violet-50/60 p-2.5 space-y-1.5">
+                            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-violet-800">
+                              <Sparkles className="h-3 w-3" />
+                              Analyse IA
+                              {priCfg && (
+                                <Badge variant="outline" className={`text-[10px] py-0 px-1 ${priCfg.color}`}>
+                                  {priCfg.label}
+                                </Badge>
+                              )}
+                              {t.needsReply && (
+                                <Badge variant="outline" className="text-[10px] py-0 px-1 bg-violet-100 text-violet-700 border-violet-200">
+                                  À répondre
+                                </Badge>
+                              )}
+                            </div>
+                            {t.summary && (
+                              <p className="text-xs text-foreground leading-snug">{t.summary}</p>
+                            )}
+                            {t.suggestedAction && (
+                              <p className="text-xs text-violet-700 leading-snug">
+                                <span className="font-medium">→ </span>{t.suggestedAction}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
                       {emailDetail.cc && (
                         <p className="text-xs text-muted-foreground">Cc: {emailDetail.cc}</p>
                       )}
