@@ -321,6 +321,63 @@ export default function GmailAgentPage() {
     return () => clearTimeout(handle);
   }, [inboxSignature, emails.length, isTriaging, runTriage]);
 
+  // Cree une tache CRM a partir de l'email selectionne, en s'appuyant sur
+  // les donnees du triage IA (priorite, action suggeree, deadline) si elles
+  // sont disponibles. C'est le pont entre "agent mail" et "agent taches" :
+  // un email a haut signal devient instantanement un to-do trace dans le CRM,
+  // sans saisie manuelle.
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
+  async function createTaskFromEmail() {
+    const email = selectedEmail;
+    if (!email) { toast({ title: "Selectionnez un email", variant: "destructive" }); return; }
+    if (isCreatingTask) return;
+    const t = triageMap[email.id];
+
+    // Mapping triage IA -> schema tasks (cf. CreateTaskBody)
+    const priorityMap: Record<string, "haute" | "moyenne" | "basse"> = {
+      critique: "haute", haute: "haute", normale: "moyenne", basse: "basse",
+    };
+    const priority = (t && priorityMap[t.priority]) || "moyenne";
+
+    let dueDate: string | null = null;
+    if (t?.replyDeadline === "maintenant" || t?.replyDeadline === "aujourd_hui") {
+      const d = new Date(); d.setHours(18, 0, 0, 0);
+      dueDate = d.toISOString();
+    } else if (t?.replyDeadline === "cette_semaine") {
+      const d = new Date(); d.setDate(d.getDate() + 7); d.setHours(18, 0, 0, 0);
+      dueDate = d.toISOString();
+    }
+
+    const subject = (emailDetail?.subject || email.subject || "Email").slice(0, 80);
+    const from = emailDetail?.from || email.from || "";
+    const descLines = [
+      `Email recu de : ${from}`,
+      t?.summary ? `\nResume IA : ${t.summary}` : "",
+      t?.suggestedAction ? `\nAction suggeree : ${t.suggestedAction}` : "",
+      `\nMessage Gmail : ${email.id}`,
+    ].filter(Boolean);
+
+    setIsCreatingTask(true);
+    try {
+      await apiPost("/tasks", {
+        title: `Email : ${subject}`,
+        description: descLines.join("\n"),
+        status: "en_attente",
+        priority,
+        dueDate,
+      });
+      toast({
+        title: "Tache creee",
+        description: t ? `Priorite ${priority}${dueDate ? " — echeance fixee" : ""}` : "Saisie manuelle a completer",
+      });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+    } catch {
+      toast({ title: "Erreur creation tache", variant: "destructive" });
+    } finally {
+      setIsCreatingTask(false);
+    }
+  }
+
   const handleDraftReply = async () => {
     if (!emailDetail && !selectedEmail) return;
     setIsDrafting(true);
@@ -427,6 +484,16 @@ export default function GmailAgentPage() {
             <RefreshCw className="h-4 w-4 mr-1" />Actualiser
           </Button>
           <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="h-4 w-4" /></Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+            disabled={!selectedEmail || isCreatingTask}
+            onClick={createTaskFromEmail}
+            title="Crée une tâche CRM avec la priorité et l'échéance déduites du triage IA"
+          >
+            <CheckCircle2 className="h-4 w-4" />Créer la tâche
+          </Button>
           <Button variant="outline" size="sm" className="gap-1.5 text-indigo-600 border-indigo-300 hover:bg-indigo-50" onClick={() => navigateToProjets(selectedEmail?.subject)}>
             <FolderKanban className="h-4 w-4" />Créer un projet
           </Button>
