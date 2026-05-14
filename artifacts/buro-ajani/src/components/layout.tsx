@@ -74,42 +74,68 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isSuperAdmin = user.role === "super_admin";
   useRealtimeSync();
 
-  const [prospectBadge, setProspectBadge] = useState<number>(() => {
+  // Map des badges: type d'evenement realtime-sync -> { storageKey, route, gated? }
+  // Permet de generaliser le compteur "non lus" pour Prospects, Messages, Taches, etc.
+  // Les cles localStorage sont scopees par utilisateur (`badge:<userId>:<type>`)
+  // pour eviter qu'un compteur fuite d'un compte a l'autre dans un meme navigateur.
+  const userScope = user.id ?? "anon";
+  const BADGE_CONFIG = useMemo(() => ({
+    prospect: { storageKey: `badge:${userScope}:prospect`, route: "/prospects", clearEvent: "prospect-badge-clear", gated: true },
+    message: { storageKey: `badge:${userScope}:message`, route: "/messages", clearEvent: "message-badge-clear", gated: false },
+    task: { storageKey: `badge:${userScope}:task`, route: "/taches", clearEvent: "task-badge-clear", gated: false },
+  } as const), [userScope]);
+
+  type BadgeKey = keyof typeof BADGE_CONFIG;
+
+  const readStoredCount = (key: string): number => {
     if (typeof window === "undefined") return 0;
-    const v = parseInt(window.localStorage.getItem("prospect-badge-count") || "0", 10);
+    const v = parseInt(window.localStorage.getItem(key) || "0", 10);
     return Number.isFinite(v) && v > 0 ? v : 0;
-  });
+  };
+
+  const [badges, setBadges] = useState<Record<BadgeKey, number>>(() => ({
+    prospect: readStoredCount(BADGE_CONFIG.prospect.storageKey),
+    message: readStoredCount(BADGE_CONFIG.message.storageKey),
+    task: readStoredCount(BADGE_CONFIG.task.storageKey),
+  }));
+
+  const setBadge = (key: BadgeKey, value: number | ((c: number) => number)) => {
+    setBadges((prev) => {
+      const next = typeof value === "function" ? value(prev[key]) : value;
+      try { window.localStorage.setItem(BADGE_CONFIG[key].storageKey, String(next)); } catch {}
+      return { ...prev, [key]: next };
+    });
+  };
 
   useEffect(() => {
-    if (!isSuperAdmin) return;
     const onSync = (e: Event) => {
       const detail = (e as CustomEvent).detail as { type?: string; action?: string } | undefined;
-      if (detail?.type === "prospect" && detail?.action === "created") {
-        setProspectBadge((c) => {
-          const next = c + 1;
-          try { window.localStorage.setItem("prospect-badge-count", String(next)); } catch {}
-          return next;
-        });
-      }
+      if (!detail || detail.action !== "created") return;
+      const key = detail.type as BadgeKey | undefined;
+      if (!key || !(key in BADGE_CONFIG)) return;
+      if (BADGE_CONFIG[key].gated && !isSuperAdmin) return;
+      setBadge(key, (c) => c + 1);
     };
-    const onClear = () => {
-      setProspectBadge(0);
-      try { window.localStorage.setItem("prospect-badge-count", "0"); } catch {}
-    };
+    const clearListeners = (Object.keys(BADGE_CONFIG) as BadgeKey[]).map((key) => {
+      const handler = () => setBadge(key, 0);
+      window.addEventListener(BADGE_CONFIG[key].clearEvent, handler);
+      return [BADGE_CONFIG[key].clearEvent, handler] as const;
+    });
     window.addEventListener("realtime-sync", onSync);
-    window.addEventListener("prospect-badge-clear", onClear);
     return () => {
       window.removeEventListener("realtime-sync", onSync);
-      window.removeEventListener("prospect-badge-clear", onClear);
+      clearListeners.forEach(([evt, handler]) => window.removeEventListener(evt, handler));
     };
-  }, [isSuperAdmin]);
+  }, [isSuperAdmin, BADGE_CONFIG]);
 
   useEffect(() => {
-    if (location === "/prospects" || location.startsWith("/prospects/")) {
-      setProspectBadge(0);
-      try { window.localStorage.setItem("prospect-badge-count", "0"); } catch {}
-    }
-  }, [location]);
+    (Object.keys(BADGE_CONFIG) as BadgeKey[]).forEach((key) => {
+      const route = BADGE_CONFIG[key].route;
+      if (location === route || location.startsWith(route + "/")) {
+        setBadge(key, 0);
+      }
+    });
+  }, [location, BADGE_CONFIG]);
 
   useEffect(() => {
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
@@ -167,7 +193,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         label: "Communication",
         items: [
           { name: "Appels", href: "/appels", icon: Phone },
-          { name: "Messages", href: "/messages", icon: MessageSquare },
+          { name: "Messages", href: "/messages", icon: MessageSquare, badge: badges.message },
           ...(canUseAi ? [{ name: "Agent Mail IA", href: "/gmail-agent", icon: Mail }] : []),
         ],
       },
@@ -179,13 +205,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
           // Voir le panneau /admin pour la gestion commerciale (leads, devis,
           // factures B2B, stock de licences). Refactor "Admin Backoffice +
           // Müşteri Sadeleştirme" — Tâche #52.
-          ...(isSuperAdmin ? [{ name: "Prospects", href: "/prospects", icon: Target, badge: prospectBadge }] : []),
+          ...(isSuperAdmin ? [{ name: "Prospects", href: "/prospects", icon: Target, badge: badges.prospect }] : []),
         ],
       },
       {
         label: "Organisation du travail",
         items: [
-          { name: "Tâches", href: "/taches", icon: CheckSquare },
+          { name: "Tâches", href: "/taches", icon: CheckSquare, badge: badges.task },
           { name: "Projets", href: "/projets", icon: Puzzle },
           { name: "Notes internes", href: "/notes-internes", icon: StickyNote },
           { name: "Pointage", href: "/pointage", icon: Clock },
@@ -258,7 +284,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         ],
       },
     ].filter(g => g.items.length > 0);
-  }, [user.role, isSuperAdmin, prospectBadge]);
+  }, [user.role, isSuperAdmin, badges]);
 
 
   return (

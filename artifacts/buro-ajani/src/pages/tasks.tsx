@@ -68,6 +68,11 @@ export default function Tasks() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [deepLinkTaskId, setDeepLinkTaskId] = useState<number | null>(null);
 
+  // Tâche #68: efface le badge "Tâches" dans la sidebar dès que l'utilisateur ouvre la page.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("task-badge-clear"));
+  }, []);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const cId = params.get("contactId");

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { confirmAction } from "@/hooks/use-confirm";
 import { useListMessages, useUpdateMessage, useCreateMessage, useDeleteMessage, getListMessagesQueryKey, useListContacts } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -54,6 +54,11 @@ export default function Messages() {
   const [editingMessage, setEditingMessage] = useState<any | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
+
+  // Tâche #68: efface le badge "Messages" dans la sidebar dès que l'utilisateur ouvre la page.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("message-badge-clear"));
+  }, []);
 
   const queryParams = {
     read: readFilter === "all" ? undefined : readFilter === "read",
