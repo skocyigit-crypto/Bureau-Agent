@@ -48,6 +48,14 @@ Key commands:
 
 ## Architecture decisions
 
+- **Two-layer product (since Tâche #52)**: l'application est désormais découpée en deux couches.
+  - **Couche client** (organisations payantes — KOBİ patron) : Aujourd'hui, Communication, Contacts,
+    Tâches, Documents, Assistants IA, Analyse, Intégrations. Centrée sur l'usage quotidien d'un
+    secrétariat IA. Pas de modules commerciaux.
+  - **Couche backoffice SaaS** (`/admin`, super-admin uniquement — Serkan) : Prospects (leads),
+    Devis kurumsal, Factures B2B, Stock de licences, dashboard MRR/churn. Sépare la gestion
+    commerciale du SaaS du produit vendu aux clients. Garde côté frontend (sidebar + page guards) ;
+    bascule complète des routes API vers `requireSuperAdmin` traitée dans les tâches de suivi.
 - **Multi-Tenant Isolation**: Implemented `organisation_id` foreign keys and `requireTenant` middleware for strict data separation.
 - **Multi-Provider AI & Telephony**: Abstracted AI and telephony integrations to support multiple providers, allowing flexibility and fallback mechanisms.
 - **Background Processing for AI**: AI agent routes utilize background processing to prevent HTTP timeouts and provide immediate user feedback for long-running AI tasks.
@@ -66,7 +74,9 @@ Agent de Bureau offers comprehensive office management with AI-powered features:
 - Stripe-integrated SaaS subscription and usage-based billing system.
 - Document management with AI analysis, intelligent import, and secure backup.
 - Voice command system ("Hey Bureau") and AI anomaly detection.
-- CRM, commercial modules (Prospects, Stock, Devis, Factures), and project management.
+- Project management (côté client). Modules commerciaux (Prospects, Stock, Devis, Factures B2B)
+  déplacés dans le backoffice SaaS `/admin` (super-admin uniquement) — voir la décision
+  d'architecture "Two-layer product" ci-dessus.
 - Real-time sync, predictive analytics, and automated action engines.
 
 ## User preferences

@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { confirmAction } from "@/hooks/use-confirm";
+import { useWorkspaceUser } from "@/components/workspace-user";
+import { useLocation } from "wouter";
 import { TrendingUp, Search, Plus, MoreHorizontal, Loader2, Trash2, Edit, ChevronLeft, ChevronRight, Filter, Target, Trophy, XCircle, DollarSign, RefreshCw, Kanban, LayoutList, ArrowUpDown, Download, UserPlus, Printer, Layers, Copy, FolderKanban, Briefcase } from "lucide-react";
 import { EmptyOnboardingHint } from "@/components/empty-onboarding-hint";
-import { useLocation } from "wouter";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,18 @@ interface Prospect {
 const EMPTY_FORM = { title: "", contactName: "", company: "", email: "", phone: "", stage: "nouveau", priority: "moyenne", value: "", currency: "EUR", probability: "50", source: "", assignedTo: "", expectedCloseDate: "", notes: "" };
 
 export default function ProspectsPage() {
+  // Module deplacé dans le backoffice SaaS — accessible super-admin uniquement.
+  // Refactor "Admin Backoffice + Müşteri Sadeleştirme" — Tâche #52.
+  // Le verrou definitif sera cote serveur (requireSuperAdmin); ce garde-fou
+  // client evite simplement qu'un utilisateur non-super-admin tape l'URL.
+  const { user: workspaceUser } = useWorkspaceUser();
+  const [, navigateAway] = useLocation();
+  useEffect(() => {
+    if (workspaceUser.role !== "super_admin") {
+      navigateAway("/", { replace: true });
+    }
+  }, [workspaceUser.role, navigateAway]);
+  if (workspaceUser.role !== "super_admin") return null;
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [prospects, setProspects] = useState<Prospect[]>([]);

@@ -123,6 +123,23 @@ function userHasAccess(userRole: string | undefined, requiredRoles: string[]): b
  * highest entry. A non-fatal warning is logged in development if a
  * non-contiguous set is detected.
  */
+/**
+ * Garde dediee au backoffice super-admin (SaaS owner). Equivalent strict de
+ * `requireRole("super_admin")` mais expose un nom explicite pour documenter
+ * l'intention dans les routes du panneau /admin (Prospects, Devis, Stock,
+ * Factures B2B, gestion des licences).
+ *
+ * IMPORTANT: cette garde NE remplace PAS `requireTenant`. Les routes
+ * historiques restent tenant-scoped pour eviter une fuite de donnees
+ * pendant la migration progressive vers le backoffice global. Une tache
+ * de suivi traitera la bascule complete (donnees tenant -> donnees SaaS
+ * globales).
+ */
+export function requireSuperAdmin(req: Request, res: Response, next: NextFunction): void {
+  const guard = requireRole("super_admin");
+  void guard(req, res, next);
+}
+
 export function requireRole(...roles: string[]) {
   if (process.env.NODE_ENV !== "production" && roles.length > 1) {
     const levels = roles.map(r => ROLE_HIERARCHY[r] ?? -1).filter(l => l > 0);

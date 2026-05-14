@@ -158,7 +158,11 @@ export default function MoreScreen() {
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>CRM & AGENTS</Text>
-          <MenuItem icon="trending-up" label="Prospects" sublabel="Pipeline de vente et opportunités" color="#8b5cf6" onPress={() => nav("/prospects")} />
+          {/* Prospects deplacé dans le backoffice SaaS (super-admin uniquement).
+              Voir Tâche #52 — Admin Backoffice + Müşteri Sadeleştirme. */}
+          {user?.role === "super_admin" && (
+            <MenuItem icon="trending-up" label="Prospects" sublabel="Backoffice SaaS — leads commerciaux" color="#8b5cf6" onPress={() => nav("/prospects")} />
+          )}
           <MenuItem icon="edit-2" label="Notes internes" sublabel="Mémos colorés et mémorisation" color="#f59e0b" onPress={() => nav("/notes-internes")} />
         </View>
 

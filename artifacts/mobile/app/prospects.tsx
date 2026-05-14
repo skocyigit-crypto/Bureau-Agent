@@ -209,6 +209,15 @@ function SwipeableProspect({ item, colors, onDelete, onOpen }: SwipeableProspect
 }
 
 export default function ProspectsScreen() {
+  // Module backoffice SaaS — accessible super-admin uniquement (Tâche #52).
+  // Garde-fou client; le verrou definitif sera cote serveur (tâche #53).
+  const { user: authUser } = useAuth();
+  React.useEffect(() => {
+    if (authUser && authUser.role !== "super_admin") {
+      router.replace("/(tabs)");
+    }
+  }, [authUser]);
+  if (!authUser || authUser.role !== "super_admin") return null;
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
