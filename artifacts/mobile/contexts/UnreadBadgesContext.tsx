@@ -153,6 +153,50 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
     [userId],
   );
 
+  // Tâche #84: certaines alertes (rappels imminents) ne sont pas associées
+  // à un compteur de badge — elles déclenchent uniquement vibration +
+  // notification locale. On factorise donc le déclenchement d'alerte avec
+  // un titre/body explicites, indépendamment d'un éventuel bump de badge.
+  const triggerCustomAlert = useCallback(
+    (
+      params: {
+        title: string;
+        body: string;
+        route: string;
+        badgeKey?: BadgeKey;
+      },
+    ) => {
+      if (!prefsLoadedRef.current) return;
+      if (
+        firstConnectAtRef.current !== null &&
+        Date.now() - firstConnectAtRef.current < GRACE_MS
+      ) {
+        return;
+      }
+
+      if (Platform.OS !== "web" && hapticsEnabledRef.current) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      }
+
+      if (
+        Platform.OS !== "web" &&
+        notificationsEnabledRef.current &&
+        appStateRef.current !== "active"
+      ) {
+        Notifications.scheduleNotificationAsync({
+          content: {
+            title: params.title,
+            body: params.body,
+            sound: true,
+            data: { route: params.route, ...(params.badgeKey ? { badgeKey: params.badgeKey } : {}) },
+          },
+          trigger: null,
+        }).catch(() => {});
+      }
+    },
+    [],
+  );
+
   const triggerAlerts = useCallback((key: BadgeKey, resourceId?: number) => {
     // Pas d'alertes tant que les préférences ne sont pas hydratées :
     // évite un faux buzz pour un utilisateur qui avait coupé la vibration.
@@ -336,10 +380,38 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
               type?: string;
               action?: string;
               resourceId?: number;
-              meta?: { direction?: string; status?: string };
+              meta?: {
+                direction?: string;
+                status?: string;
+                priority?: string;
+                title?: string;
+                body?: string;
+                sourceType?: string;
+              };
             };
             if (event.type === "ping") continue;
             if (event.action !== "created" && event.action !== "updated") continue;
+            if (event.type === "reminder") {
+              // Tâche #84: rappels imminents (ex: rendez-vous qui va commencer).
+              // On ne filtre que les priorités urgentes côté serveur, donc tout
+              // event "reminder" reçu doit déclencher l'alerte. Pas de bump de
+              // badge: la liste des rappels vit dans /calendrier et n'a pas
+              // de compteur dédié sur la tab bar.
+              if (event.action !== "created") continue;
+              const priority = event.meta?.priority;
+              if (priority && priority !== "haute" && priority !== "urgente") continue;
+              triggerCustomAlert({
+                title: event.meta?.title || "Rappel imminent",
+                body:
+                  event.meta?.body ||
+                  "Un rappel programmé arrive à échéance.",
+                // Route mobile (cf. app/calendar.tsx + ALLOWED_ROUTES dans
+                // app/_layout.tsx). NB: côté web l'URL est /calendrier ;
+                // sur mobile c'est /calendar.
+                route: "/calendar",
+              });
+              continue;
+            }
             if (event.type === "message" || event.type === "task") {
               if (event.action !== "created") continue;
               bump(event.type as BadgeKey, event.resourceId);

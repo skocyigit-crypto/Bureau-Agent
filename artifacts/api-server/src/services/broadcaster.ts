@@ -3,6 +3,7 @@ import type { Response } from "express";
 export type SyncEventType =
   | "call" | "task" | "contact" | "message" | "checkin"
   | "calendar" | "prospect" | "note" | "projet" | "dashboard"
+  | "reminder"
   | "ping";
 
 export interface SyncEvent {

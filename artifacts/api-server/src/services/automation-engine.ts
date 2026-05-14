@@ -13,6 +13,7 @@ import {
 import { eq, lte, and, gte, lt, sql, desc, isNull, isNotNull, or } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendEmail } from "./email";
+import { broadcaster } from "./broadcaster";
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 
@@ -148,16 +149,38 @@ async function checkUpcomingCalendarEvents() {
 
     const minutes = Math.round((new Date(event.startDate).getTime() - now.getTime()) / 60000);
 
+    const message = `"${event.title}" commence dans ${minutes} minute(s)${event.location ? ` - ${event.location}` : ""}.`;
+
     await db.insert(notificationsTable).values({
       userId: event.createdBy,
+      ...(event.organisationId ? { organisationId: event.organisationId } : {}),
       type: "rappel",
       title: "Evenement imminent",
-      message: `"${event.title}" commence dans ${minutes} minute(s)${event.location ? ` - ${event.location}` : ""}.`,
+      message,
       priority: "haute",
       actionUrl: "/calendrier",
       sourceType: "calendar_reminder",
       sourceId: String(event.id),
     });
+
+    // Tâche #84: pousser un event SSE "reminder" pour que le mobile
+    // puisse vibrer + (selon préférences) déclencher une notification
+    // locale, comme pour les nouveaux messages / tâches / appels manqués.
+    // On ne broadcast que pour les rappels imminents urgents
+    // (priority="haute"), seul cas géré ici.
+    if (event.organisationId) {
+      broadcaster.broadcast(event.organisationId, {
+        type: "reminder",
+        action: "created",
+        resourceId: event.id,
+        meta: {
+          sourceType: "calendar_reminder",
+          priority: "haute",
+          title: "Rappel imminent",
+          body: message,
+        },
+      });
+    }
   }
 
   if (upcoming.length > 0) {

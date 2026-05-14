@@ -132,6 +132,9 @@ export default function RootLayout() {
       "/messages",
       "/(tabs)/tasks",
       "/(tabs)/calls",
+      // Tâche #84: rappels imminents (event SSE "reminder") deep-linkent
+      // vers l'écran calendrier (route mobile = "/calendar").
+      "/calendar",
     ]);
 
     const extractTarget = (response: Notifications.NotificationResponse) => {
