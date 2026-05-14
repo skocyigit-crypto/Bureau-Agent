@@ -69,6 +69,7 @@ import syncRouter from "./sync";
 import { autoBroadcast } from "../middleware/auto-broadcast";
 import discoveryRouter from "./discovery";
 import stripeRouter from "./stripe";
+import adminSaasDashboardRouter from "./admin-saas-dashboard";
 
 const router: IRouter = Router();
 
@@ -142,6 +143,7 @@ router.use(orgProfileRouter);
 // avoir a etre modifiees une par une. Les filtres organisation_id internes
 // restent en place et n'affectent rien tant que le super-admin a un
 // organisation_id valide (cas standard).
+router.use(requireSuperAdmin, adminSaasDashboardRouter);
 router.use(requireSuperAdmin, prospectsRouter);
 router.use(requireSuperAdmin, devisRouter);
 router.use(requireSuperAdmin, facturesClientRouter);

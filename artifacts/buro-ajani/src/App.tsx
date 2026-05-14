@@ -56,6 +56,7 @@ import OnboardingPage from "@/pages/onboarding";
 import ProspectsPage from "@/pages/prospects";
 import ProspectDetail from "@/pages/prospect-detail";
 import AdminBackofficePage from "@/pages/admin";
+import AdminDashboardPage from "@/pages/admin-dashboard";
 import NotesInternesPage from "@/pages/notes-internes";
 import DataProtectionPage from "@/pages/data-protection";
 import ContactsImportPage from "@/pages/contacts-import";
@@ -159,6 +160,7 @@ function AppRoutes() {
         <Route path="/prospects/:id" component={withLicenseGate(ProspectDetail)} />
         {/* Backoffice SaaS — gate cote composant (super-admin only). Tâche #52. */}
         <Route path="/admin" component={AdminBackofficePage} />
+        <Route path="/admin/dashboard" component={AdminDashboardPage} />
         <Route path="/notes-internes" component={withLicenseGate(NotesInternesPage)} />
         <Route path="/protection-donnees" component={withLicenseGate(DataProtectionPage)} />
         <Route path="/contacts/import" component={withLicenseGate(ContactsImportPage)} />

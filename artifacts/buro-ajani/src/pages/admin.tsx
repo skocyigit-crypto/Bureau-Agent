@@ -29,11 +29,11 @@ export default function AdminBackofficePage() {
   const modules = [
     {
       label: "Tableau de bord SaaS",
-      description: "MRR, churn, conversion d'essai (à venir)",
+      description: "MRR, churn, conversion d'essai sur 12 mois",
       icon: LayoutDashboard,
-      href: "/admin",
-      status: "À venir",
-      enabled: false,
+      href: "/admin/dashboard",
+      status: "Actif",
+      enabled: true,
     },
     {
       label: "Prospects",
