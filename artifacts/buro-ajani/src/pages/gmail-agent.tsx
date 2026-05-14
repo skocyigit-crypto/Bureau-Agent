@@ -490,6 +490,36 @@ export default function GmailAgentPage() {
     } catch { toast({ title: "Erreur", variant: "destructive" }); }
   };
 
+  // Archive en masse les emails que le triage IA a classes "spam".
+  // Pas d'appel IA — on relit juste triageMap. Garde-fou : guard
+  // `isCleaningSpam` pour eviter les double-clics, et confirm() pour
+  // que l'utilisateur valide la quantite avant l'action destructive.
+  const [isCleaningSpam, setIsCleaningSpam] = useState(false);
+  const handleArchiveSpam = async () => {
+    const spamIds = emails
+      .filter(e => triageMap[e.id]?.category === "spam")
+      .map(e => e.id);
+    if (spamIds.length === 0) return;
+    if (!window.confirm(`Archiver ${spamIds.length} email(s) classe(s) spam par l'IA ?`)) return;
+    setIsCleaningSpam(true);
+    let ok = 0, fail = 0;
+    // Sequentiel pour ne pas saturer Gmail (rate limit). Reste rapide en
+    // pratique : ~50ms par appel sur le proxy.
+    for (const id of spamIds) {
+      try {
+        await apiPost(`/gmail/message/${id}/archive`, {});
+        ok++;
+      } catch { fail++; }
+    }
+    setIsCleaningSpam(false);
+    qc.invalidateQueries({ queryKey: ["gmail-inbox"] });
+    if (selectedEmail && spamIds.includes(selectedEmail.id)) setSelectedEmail(null);
+    toast({
+      title: fail === 0 ? `${ok} email(s) archive(s)` : `${ok} archive(s), ${fail} echec(s)`,
+      variant: fail === 0 ? "default" : "destructive",
+    });
+  };
+
   const handleTrash = async (id: string) => {
     try {
       await apiDelete(`/gmail/message/${id}/trash`);
@@ -688,7 +718,7 @@ export default function GmailAgentPage() {
           </ScrollArea>
 
           {emails.length > 0 && (
-            <div className="p-2 border-t">
+            <div className="p-2 border-t space-y-1.5">
               <Button
                 variant="outline"
                 size="sm"
@@ -703,6 +733,23 @@ export default function GmailAgentPage() {
                 )}
                 Triage IA — {emails.length} emails
               </Button>
+              {triageCounts.spam > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-xs text-gray-700 border-gray-300 hover:bg-gray-50"
+                  onClick={handleArchiveSpam}
+                  disabled={isCleaningSpam}
+                  title="Archiver tous les emails classes spam par l'IA"
+                >
+                  {isCleaningSpam ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                  ) : (
+                    <X className="h-3.5 w-3.5 mr-1" />
+                  )}
+                  Nettoyer le spam ({triageCounts.spam})
+                </Button>
+              )}
             </div>
           )}
         </div>
