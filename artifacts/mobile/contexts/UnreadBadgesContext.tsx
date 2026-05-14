@@ -1,4 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Haptics from "expo-haptics";
+import * as Notifications from "expo-notifications";
 import { fetch as expoFetch } from "expo/fetch";
 import React, {
   createContext,
@@ -9,9 +11,10 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { AppState, type AppStateStatus } from "react-native";
+import { AppState, Platform, type AppStateStatus } from "react-native";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
+import { useNotificationPrefs } from "@/contexts/NotificationPrefsContext";
 
 /**
  * Mirroir mobile des compteurs "non lus" affichés dans la sidebar web
@@ -51,6 +54,31 @@ const UnreadBadgesContext = createContext<UnreadBadgesContextValue>({
 export function UnreadBadgesProvider({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated, authHeaders } = useAuth();
   const userId = user?.id;
+  const { hapticsEnabled, notificationsEnabled, loaded: prefsLoaded } = useNotificationPrefs();
+  const hapticsEnabledRef = useRef(hapticsEnabled);
+  const notificationsEnabledRef = useRef(notificationsEnabled);
+  const prefsLoadedRef = useRef(prefsLoaded);
+  useEffect(() => {
+    hapticsEnabledRef.current = hapticsEnabled;
+  }, [hapticsEnabled]);
+  useEffect(() => {
+    notificationsEnabledRef.current = notificationsEnabled;
+  }, [notificationsEnabled]);
+  useEffect(() => {
+    prefsLoadedRef.current = prefsLoaded;
+  }, [prefsLoaded]);
+
+  // Etat de l'app (foreground / background) — garde-fou pour ne déclencher
+  // les notifications locales que quand l'app n'est pas visible.
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+
+  // "Grace period" appliquée uniquement à la première connexion SSE après
+  // login : on ignore les éventuels évenements rejoués pour ne pas spammer
+  // la secrétaire à l'ouverture (Tâche #77 : pas de buzz à la première
+  // hydratation). Les reconnexions suivantes ne suppriment pas les alertes.
+  const firstConnectAtRef = useRef<number | null>(null);
+  const hasFirstConnectedRef = useRef(false);
+  const GRACE_MS = 1500;
 
   const [counts, setCounts] = useState<Record<BadgeKey, number>>({
     message: 0,
@@ -63,6 +91,10 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
     let cancelled = false;
     if (!userId) {
       setCounts({ message: 0, task: 0, call: 0 });
+      // Reset l'état de "première connexion" pour ré-armer la fenêtre
+      // de grâce au prochain login (potentiellement un autre utilisateur).
+      hasFirstConnectedRef.current = false;
+      firstConnectAtRef.current = null;
       return;
     }
     (async () => {
@@ -95,6 +127,42 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
     [userId],
   );
 
+  const triggerAlerts = useCallback((key: BadgeKey) => {
+    // Pas d'alertes tant que les préférences ne sont pas hydratées :
+    // évite un faux buzz pour un utilisateur qui avait coupé la vibration.
+    if (!prefsLoadedRef.current) return;
+
+    // Pas d'alertes pendant la fenêtre de grâce de la première hydratation.
+    // Cette fenêtre ne s'applique qu'au tout premier connect après login,
+    // pas aux reconnexions suivantes (qui doivent rester réactives).
+    if (
+      firstConnectAtRef.current !== null &&
+      Date.now() - firstConnectAtRef.current < GRACE_MS
+    ) {
+      return;
+    }
+
+    if (Platform.OS !== "web" && hapticsEnabledRef.current) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+
+    if (
+      Platform.OS !== "web" &&
+      notificationsEnabledRef.current &&
+      appStateRef.current !== "active"
+    ) {
+      const title = key === "message" ? "Nouveau message" : "Nouvelle tâche";
+      const body =
+        key === "message"
+          ? "Un message vient d'arriver dans votre boîte."
+          : "Une nouvelle tâche vous a été assignée.";
+      Notifications.scheduleNotificationAsync({
+        content: { title, body, sound: true },
+        trigger: null,
+      }).catch(() => {});
+    }
+  }, []);
+
   const bump = useCallback(
     (key: BadgeKey) => {
       setCounts((prev) => {
@@ -102,8 +170,9 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
         persist(key, next[key]);
         return next;
       });
+      triggerAlerts(key);
     },
-    [persist],
+    [persist, triggerAlerts],
   );
 
   const clearKey = useCallback(
@@ -117,6 +186,23 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
     },
     [persist],
   );
+
+  // ── Sync du badge sur l'icône d'application ────────────────────────────────
+  // Le badge système doit refléter en permanence le total des compteurs in-app
+  // (Tâche #77). Mis à jour à chaque changement de counts et remis à zéro au
+  // logout.
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    const total = counts.message + counts.task + counts.call;
+    Notifications.setBadgeCountAsync(total).catch(() => {});
+  }, [counts.message, counts.task, counts.call]);
+
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    if (!userId) {
+      Notifications.setBadgeCountAsync(0).catch(() => {});
+    }
+  }, [userId]);
 
   // ── SSE realtime sync ──────────────────────────────────────────────────────
   // React Native n'a pas d'EventSource natif. On utilise expo/fetch en
@@ -160,6 +246,10 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
       }
 
       reconnectDelay.current = 1000;
+      if (!hasFirstConnectedRef.current) {
+        firstConnectAtRef.current = Date.now();
+        hasFirstConnectedRef.current = true;
+      }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -230,6 +320,7 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
   // Reconnecter quand l'app revient au premier plan.
   useEffect(() => {
     const sub = AppState.addEventListener("change", (next: AppStateStatus) => {
+      appStateRef.current = next;
       if (next === "active" && isAuthenticated && userId && !abortRef.current) {
         reconnectDelay.current = 1000;
         connect();

@@ -19,6 +19,7 @@ import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { useTheme } from "@/contexts/ThemeContext";
 import { usePrivacy } from "@/contexts/PrivacyContext";
+import { useNotificationPrefs } from "@/contexts/NotificationPrefsContext";
 import {
   INLINE_SUGGEST_LANGUAGES,
   useInlineSuggestPreferences,
@@ -148,6 +149,8 @@ export default function SettingsScreen() {
         </View>
 
         <ThemeCard />
+
+        <AlertsCard />
 
         <PreferencesIaCard />
 
@@ -451,6 +454,78 @@ function PrivacyCard() {
         <Feather name="lock" size={15} color="#ef4444" />
         <Text style={[styles.lockNowText]}>Verrouiller maintenant</Text>
       </Pressable>
+    </View>
+  );
+}
+
+// ── Alertes (haptiques + notifications locales) ───────────────────────────────
+
+function AlertsCard() {
+  const colors = useColors();
+  const isWeb = Platform.OS === "web";
+  const {
+    hapticsEnabled,
+    notificationsEnabled,
+    loaded,
+    setHapticsEnabled,
+    setNotificationsEnabled,
+  } = useNotificationPrefs();
+
+  const onToggleNotifications = useCallback(
+    async (v: boolean) => {
+      const ok = await setNotificationsEnabled(v);
+      if (v && !ok) {
+        Alert.alert(
+          "Notifications refusées",
+          isWeb
+            ? "Les notifications locales ne sont pas disponibles dans la version web."
+            : "Autorisez les notifications dans les réglages système pour recevoir une alerte quand l'app est en arrière-plan.",
+        );
+      }
+    },
+    [setNotificationsEnabled, isWeb],
+  );
+
+  return (
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={styles.cardHeader}>
+        <Feather name="bell" size={18} color={colors.primary} />
+        <Text style={[styles.cardTitle, { color: colors.foreground }]}>Alertes en temps réel</Text>
+      </View>
+
+      <View style={[styles.toggleRow, { borderBottomColor: colors.border, opacity: isWeb ? 0.45 : 1 }]}>
+        <Feather name="smartphone" size={16} color={colors.mutedForeground} style={styles.infoIcon} />
+        <View style={styles.toggleText}>
+          <Text style={[styles.toggleLabel, { color: colors.foreground }]}>Vibration</Text>
+          <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
+            Buzz léger à chaque nouveau message ou nouvelle tâche.
+          </Text>
+        </View>
+        <Switch
+          value={hapticsEnabled && !isWeb}
+          onValueChange={setHapticsEnabled}
+          disabled={!loaded || isWeb}
+          trackColor={{ false: colors.border, true: colors.primary + "88" }}
+          thumbColor={hapticsEnabled ? colors.primary : colors.mutedForeground}
+        />
+      </View>
+
+      <View style={[styles.toggleRow, { borderBottomColor: colors.border, opacity: isWeb ? 0.45 : 1 }]}>
+        <Feather name="bell" size={16} color={colors.mutedForeground} style={styles.infoIcon} />
+        <View style={styles.toggleText}>
+          <Text style={[styles.toggleLabel, { color: colors.foreground }]}>Notifications système</Text>
+          <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
+            Affiche une notification sur l'écran de verrouillage quand l'app est en arrière-plan.
+          </Text>
+        </View>
+        <Switch
+          value={notificationsEnabled && !isWeb}
+          onValueChange={onToggleNotifications}
+          disabled={!loaded || isWeb}
+          trackColor={{ false: colors.border, true: colors.primary + "88" }}
+          thumbColor={notificationsEnabled ? colors.primary : colors.mutedForeground}
+        />
+      </View>
     </View>
   );
 }

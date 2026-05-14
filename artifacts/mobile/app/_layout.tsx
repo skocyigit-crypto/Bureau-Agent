@@ -18,6 +18,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { PrivacyProvider } from "@/contexts/PrivacyContext";
+import { NotificationPrefsProvider } from "@/contexts/NotificationPrefsContext";
 import { UnreadBadgesProvider } from "@/contexts/UnreadBadgesContext";
 import { PrivacyOverlay } from "@/components/PrivacyOverlay";
 
@@ -89,10 +90,12 @@ export default function RootLayout() {
               <ThemeProvider>
                 <PrivacyProvider>
                   <AuthProvider>
-                    <UnreadBadgesProvider>
-                      <RootLayoutNav />
-                      <PrivacyOverlay />
-                    </UnreadBadgesProvider>
+                    <NotificationPrefsProvider>
+                      <UnreadBadgesProvider>
+                        <RootLayoutNav />
+                        <PrivacyOverlay />
+                      </UnreadBadgesProvider>
+                    </NotificationPrefsProvider>
                   </AuthProvider>
                 </PrivacyProvider>
               </ThemeProvider>
