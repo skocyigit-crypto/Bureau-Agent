@@ -274,18 +274,52 @@ export default function GmailAgentPage() {
     ? Object.fromEntries((triageData.triage.triage as any[]).map((t: any) => [t.emailId, t]))
     : {};
 
-  const handleTriage = async () => {
+  // Cle stable pour deduper l'appel triage. On s'appuie sur les ids des
+  // emails affiches (et leur ordre) — si rien ne change, on ne re-trigger pas
+  // l'IA inutilement (consomme du quota). Le set est garde dans un ref pour
+  // survivre aux renders sans declencher d'effet.
+  const inboxSignature = emails.map((e) => e.id).join("|");
+  // On marque une signature comme "consommee" des qu'une tentative est lancee
+  // (succes OU echec). Sinon, en cas d'erreur reseau / quota, l'effet re-tire
+  // toutes les 800ms a l'infini et brule le quota IA. Pour reessayer apres
+  // un echec, l'utilisateur clique le bouton "Relancer le triage" qui appelle
+  // handleTriage et reset le ref.
+  const lastTriagedSignature = useRef<string>("");
+
+  const runTriage = useCallback(async (silent = false) => {
     if (!emails.length) return;
+    const sig = inboxSignature;
+    lastTriagedSignature.current = sig;
     setIsTriaging(true);
-    setAiPanelTab("triage");
+    if (!silent) setAiPanelTab("triage");
     try {
       const data = await apiPost("/commandant/gmail-triage", { emails: emails.slice(0, 25) });
       setTriageData(data);
-      toast({ title: "Triage IA terminé", description: `${emails.length} emails analysés` });
+      if (!silent) toast({ title: "Triage IA terminé", description: `${emails.length} emails analysés` });
     } catch {
-      toast({ title: "Erreur triage", variant: "destructive" });
+      if (!silent) toast({ title: "Erreur triage", variant: "destructive" });
     } finally { setIsTriaging(false); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inboxSignature]);
+
+  const handleTriage = () => {
+    // Manuel = on force la reexecution meme si la signature est identique
+    // (utile pour reessayer apres un echec).
+    lastTriagedSignature.current = "";
+    void runTriage(false);
   };
+
+  // Auto-triage: des que l'inbox change (nouveau filtre, nouveaux mails), on
+  // lance le triage en silence pour que les badges priorite/categorie
+  // apparaissent automatiquement sans clic utilisateur. C'est ce qui rend
+  // l'agent "autonome" plutot que "outil a la demande".
+  useEffect(() => {
+    if (!emails.length) return;
+    if (inboxSignature === lastTriagedSignature.current) return;
+    if (isTriaging) return;
+    const handle = setTimeout(() => { void runTriage(true); }, 800);
+    return () => clearTimeout(handle);
+  }, [inboxSignature, emails.length, isTriaging, runTriage]);
 
   const handleDraftReply = async () => {
     if (!emailDetail && !selectedEmail) return;
