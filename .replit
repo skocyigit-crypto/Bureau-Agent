@@ -24,7 +24,7 @@ integrations = ["google-drive:1.0.0", "resend:1.0.0", "google-mail:1.0.0", "goog
 
 [postMerge]
 path = "scripts/post-merge.sh"
-timeoutMs = 20000
+timeoutMs = 60000
 
 [nix]
 channel = "stable-25_05"
