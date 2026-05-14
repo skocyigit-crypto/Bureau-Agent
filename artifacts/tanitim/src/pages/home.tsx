@@ -12,6 +12,10 @@ import { AjanDemo } from "@/components/AjanDemo";
 const DemoModal = lazy(() =>
   import("@/components/DemoModal").then((m) => ({ default: m.DemoModal })),
 );
+const ContactModal = lazy(() =>
+  import("@/components/ContactModal").then((m) => ({ default: m.ContactModal })),
+);
+type ContactKind = "rappel" | "devis";
 import { HeroLiveScene, LiveActivityTicker, CursorGlow } from "@/components/HeroLiveScene";
 import { AnimatedDashboardMock } from "@/components/AnimatedDashboardMock";
 import { 
@@ -122,6 +126,7 @@ export default function Home() {
   const { scrollYProgress } = useScroll();
   const parallaxY = useTransform(scrollYProgress, [0, 1], [0, -100]);
   const [demoOpen, setDemoOpen] = useState(false);
+  const [contactKind, setContactKind] = useState<ContactKind | null>(null);
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [newsletterDone, setNewsletterDone] = useState(false);
 
@@ -130,6 +135,11 @@ export default function Home() {
       {demoOpen && (
         <Suspense fallback={null}>
           <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
+        </Suspense>
+      )}
+      {contactKind && (
+        <Suspense fallback={null}>
+          <ContactModal open={contactKind !== null} kind={contactKind} onClose={() => setContactKind(null)} />
         </Suspense>
       )}
       <Navbar onDemoClick={() => setDemoOpen(true)} />
@@ -715,9 +725,16 @@ export default function Home() {
                   <span className="text-5xl font-extrabold text-primary">199€</span>
                   <span className="text-muted-foreground font-medium">/mois</span>
                 </div>
-                <Button variant="outline" className="w-full h-14 rounded-xl text-lg font-bold border-2 mb-8 hover:bg-primary/5" onClick={() => setDemoOpen(true)}>
-                  Contacter les ventes
+                <Button variant="outline" className="w-full h-14 rounded-xl text-lg font-bold border-2 mb-3 hover:bg-primary/5" onClick={() => setContactKind("devis")}>
+                  Demander un devis sur mesure
                 </Button>
+                <button
+                  type="button"
+                  onClick={() => setContactKind("rappel")}
+                  className="w-full text-sm font-semibold text-muted-foreground hover:text-primary transition-colors mb-8"
+                >
+                  ou être rappelé sous 2h →
+                </button>
                 <ul className="space-y-4">
                   {[
                     "Jusqu'a 100 utilisateurs",
