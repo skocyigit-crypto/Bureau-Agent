@@ -15,14 +15,27 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "fr.agentdebureau.mobile"
+      "bundleIdentifier": "fr.agentdebureau.mobile",
+      "infoPlist": {
+        "UIBackgroundModes": ["location", "fetch"],
+        "NSLocationWhenInUseUsageDescription": "Agent de Bureau utilise votre position pour signaler votre presence a votre employeur (zones definies).",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Agent de Bureau a besoin d'acceder a votre position en permanence, y compris en arriere-plan, pour suivre votre presence sur les sites de travail (zones definies). Conserve 30 jours.",
+        "NSLocationAlwaysUsageDescription": "Agent de Bureau a besoin d'acceder a votre position en permanence, y compris en arriere-plan, pour suivre votre presence sur les sites de travail (zones definies). Conserve 30 jours."
+      }
     },
     "android": {
       "package": "fr.agentdebureau.mobile",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#0f1729"
-      }
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -38,6 +51,17 @@
         "expo-camera",
         {
           "cameraPermission": "Agent de Bureau a besoin d'acceder a votre camera pour la reconnaissance faciale."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Agent de Bureau utilise votre position en permanence (y compris en arriere-plan) pour signaler votre presence a votre employeur sur les zones definies. Donnees conservees 30 jours.",
+          "locationAlwaysPermission": "Agent de Bureau utilise votre position en permanence (y compris en arriere-plan) pour signaler votre presence a votre employeur sur les zones definies.",
+          "locationWhenInUsePermission": "Agent de Bureau utilise votre position pour signaler votre presence a votre employeur.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ],
       "expo-font",

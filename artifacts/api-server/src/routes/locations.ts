@@ -305,11 +305,18 @@ router.post("/location/ping", pingLimiter, async (req: Request, res: Response): 
       );
     });
 
-    // 5) SSE : prevenir le panneau admin uniquement si quelque chose change.
+    // 5) SSE : signal d'invalidation generique uniquement.
+    // IMPORTANT KVKK : le canal /sync/events est ouvert a tous les
+    // utilisateurs authentifies de l'org (collegues inclus). On NE
+    // diffuse donc NI lat/lng, NI userId concerne, NI ids de geofence
+    // entrees/sorties — ces informations seraient suffisantes a un
+    // collegue pour reconstituer qui bouge / quand / vers quelle zone.
+    // On envoie un simple "geofence-stale" et la page admin (gated
+    // requireRole administrateur) re-fetchera /admin/team-locations.
     if (entered.length > 0 || exited.length > 0) {
       broadcaster.broadcast(orgId, {
-        type: "checkin", action: "updated", resourceId: userId,
-        meta: { kind: "geofence", entered, exited, lat, lng, at: at.toISOString() },
+        type: "checkin", action: "updated",
+        meta: { kind: "geofence" },
       });
     }
 

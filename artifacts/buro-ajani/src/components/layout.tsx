@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useRef, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Phone, Users, CheckSquare, MessageSquare, BarChart, LayoutDashboard, Settings, FileText, Puzzle, UserCog, Clock, Brain, Calendar, Shield, Zap, BarChart3, KeyRound, Globe, Target, Sparkles, PhoneCall, Download, Plus, PhoneIncoming, Wifi, WifiOff, Smartphone, Monitor, Tablet, Rocket, Mail, StickyNote, Activity, ClipboardList, Plug, CreditCard, Trophy, ScanSearch } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, BarChart, LayoutDashboard, Settings, FileText, Puzzle, UserCog, Clock, Brain, Calendar, Shield, Zap, BarChart3, KeyRound, Globe, Target, Sparkles, PhoneCall, Download, Plus, PhoneIncoming, Wifi, WifiOff, Smartphone, Monitor, Tablet, Rocket, Mail, StickyNote, Activity, ClipboardList, Plug, CreditCard, Trophy, ScanSearch, MapPin } from "lucide-react";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { SidebarIcon3D, Icon3D } from "@/components/icon-3d";
 import { AiAssistantButton } from "@/components/ai-assistant";
@@ -254,6 +254,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           { name: "Projets", href: "/projets", icon: Puzzle },
           { name: "Notes internes", href: "/notes-internes", icon: StickyNote, badge: badges.note },
           { name: "Pointage", href: "/pointage", icon: Clock },
+          ...(isAdmin ? [{ name: "Localisation equipe", href: "/equipe/localisation", icon: MapPin }] : []),
         ],
       },
       {

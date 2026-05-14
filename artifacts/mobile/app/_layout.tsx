@@ -21,7 +21,9 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { PrivacyProvider } from "@/contexts/PrivacyContext";
 import { NotificationPrefsProvider } from "@/contexts/NotificationPrefsContext";
 import { UnreadBadgesProvider } from "@/contexts/UnreadBadgesContext";
+import { LocationProvider } from "@/contexts/LocationContext";
 import { PrivacyOverlay } from "@/components/PrivacyOverlay";
+import { LocationConsentGate } from "@/components/LocationConsentGate";
 
 if (Platform.OS !== "web") {
   SplashScreen.preventAutoHideAsync();
@@ -204,8 +206,12 @@ export default function RootLayout() {
                   <AuthProvider>
                     <NotificationPrefsProvider>
                       <UnreadBadgesProvider>
-                        <RootLayoutNav />
-                        <PrivacyOverlay />
+                        <LocationProvider>
+                          <LocationConsentGate>
+                            <RootLayoutNav />
+                          </LocationConsentGate>
+                          <PrivacyOverlay />
+                        </LocationProvider>
                       </UnreadBadgesProvider>
                     </NotificationPrefsProvider>
                   </AuthProvider>

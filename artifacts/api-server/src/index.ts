@@ -13,6 +13,7 @@ import { startBillingCron } from "./services/billing-cron";
 import { startQuotaWarningCron } from "./services/quota-warning-cron";
 import { startTrialWarningCron } from "./services/trial-warning-cron";
 import { startAiInsightsCron } from "./services/ai-insights";
+import { startLocationCleanupCron } from "./services/location-cleanup-cron";
 
 import { closePool, checkDbHealth } from "@workspace/db";
 import type { Server } from "http";
@@ -111,6 +112,7 @@ async function startServer(): Promise<void> {
     startQuotaWarningCron();
     startTrialWarningCron();
     startAiInsightsCron();
+    startLocationCleanupCron();
   });
 
   server.keepAliveTimeout = 65000;
