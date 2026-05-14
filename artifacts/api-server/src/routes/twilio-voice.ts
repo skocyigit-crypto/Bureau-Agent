@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import crypto from "crypto";
 import { db, telephonyProvidersTable, organisationsTable, callsTable, contactsTable, telephonyCallLogsTable } from "@workspace/db";
 import { logger } from "../lib/logger";
@@ -17,6 +17,8 @@ interface VoiceSession {
   companyName: string;
   callDbId: number | null;
   callerNumber: string;
+  callerFirstName: string | null;
+  callerLastName: string | null;
   history: Array<{ role: "caller" | "assistant"; text: string }>;
   expiresAt: number;
 }
@@ -129,12 +131,39 @@ async function findSessionForNumber(toNumber: string, fromNumber: string): Promi
       .where(eq(organisationsTable.id, orgId))
       .limit(1);
 
+    // Try to identify the caller by phone number so we can greet them by
+    // name. Scope to the tenant identified by the matched Twilio number to
+    // avoid PII disclosure across organisations (the same phone may exist
+    // in another tenant's contact book).
+    let callerFirstName: string | null = null;
+    let callerLastName: string | null = null;
+    if (fromNumber) {
+      try {
+        const [c] = await db
+          .select({ firstName: contactsTable.firstName, lastName: contactsTable.lastName })
+          .from(contactsTable)
+          .where(and(
+            eq(contactsTable.organisationId, orgId),
+            eq(contactsTable.phone, fromNumber),
+          ))
+          .limit(1);
+        if (c) {
+          callerFirstName = c.firstName ?? null;
+          callerLastName = c.lastName ?? null;
+        }
+      } catch {
+        // Non-critical — fall back to anonymous greeting.
+      }
+    }
+
     return {
       orgId,
       agentName: org?.aiAgentName || "Sophie",
       companyName: org?.name || "Agent de Bureau",
       callDbId: null,
       callerNumber: fromNumber || "",
+      callerFirstName,
+      callerLastName,
       history: [],
       expiresAt: Date.now() + 30 * 60 * 1000,
     };
@@ -154,12 +183,17 @@ async function createCallRecord(
   providerId: number | null,
 ): Promise<number | null> {
   try {
-    // Try to match caller to a contact by phone number
+    // Try to match caller to a contact by phone number, scoped to the
+    // tenant that owns this Twilio number — never link a call to a contact
+    // belonging to another organisation.
     const [contact] = callerNumber
       ? await db
           .select({ id: contactsTable.id })
           .from(contactsTable)
-          .where(eq(contactsTable.phone, callerNumber))
+          .where(and(
+            eq(contactsTable.organisationId, orgId),
+            eq(contactsTable.phone, callerNumber),
+          ))
           .limit(1)
       : [];
 
@@ -167,8 +201,8 @@ async function createCallRecord(
       organisationId: orgId,
       contactId: contact?.id ?? null,
       phoneNumber: callerNumber || "unknown",
-      direction: "inbound",
-      status: "ongoing",
+      direction: "entrant",
+      status: "en_cours",
       duration: 0,
       notes: JSON.stringify({ callSid, callerNumber, turns: [] }),
     }).returning({ id: callsTable.id });
@@ -343,7 +377,13 @@ twilioVoiceRouter.post("/telephony/twilio/voice", async (req: Request, res: Resp
   const host = (req.headers["x-forwarded-host"] as string) || (req.headers.host as string) || "";
   const gatherUrl = `${proto}://${host}/api/telephony/twilio/gather?callSid=${encodeURIComponent(callSid)}&quotaOk=${quotaOk ? "1" : "0"}`;
 
-  const greeting = `Bonjour, vous avez contacté ${session.companyName}. Je suis ${session.agentName}, votre assistante IA. Comment puis-je vous aider?`;
+  // Personalized greeting if the caller is a known contact.
+  const callerName = [session.callerFirstName, session.callerLastName]
+    .filter((s) => s && s.trim().length > 0)
+    .join(" ")
+    .trim();
+  const personalSalutation = callerName ? `Bonjour ${callerName}, ` : "Bonjour, ";
+  const greeting = `${personalSalutation}vous avez contacté ${session.companyName}. Je suis ${session.agentName}, votre assistante IA. Comment puis-je vous aider?`;
 
   sendTwiml(
     res,
@@ -459,13 +499,85 @@ twilioVoiceRouter.post("/telephony/twilio/status", async (req: Request, res: Res
     // Update calls table
     if (session?.callDbId) {
       await db.update(callsTable).set({
-        status: callStatus === "completed" ? "completed" : "missed",
+        status: callStatus === "completed" ? "repondu" : "manque",
         duration,
         updatedAt: new Date(),
       }).where(eq(callsTable.id, session.callDbId));
     }
   } catch (err) {
     logger.error({ err, callSid }, "[TwilioVoice] Status update error");
+  }
+
+  // Fire-and-forget AI post-call analysis: extracts summary, sentiment,
+  // urgency, action-item tasks and any requested appointment, then writes
+  // them back to the call + creates the related tasks/calendar event.
+  //
+  // We do NOT depend on the in-memory session being present (it can be
+  // gone after a process restart, TTL expiry, or because /gather already
+  // deleted it on goodbye). Instead we resolve the call record from the
+  // telephony log table by Twilio CallSid, then check the persisted
+  // notes JSON for at least one conversational turn.
+  if (callStatus === "completed") {
+    void (async () => {
+      try {
+        let callDbId: number | null = session?.callDbId ?? null;
+        let turnsCount = session?.history.length ?? 0;
+
+        if (callDbId == null || turnsCount === 0) {
+          // Resolve from DB. telephony_call_logs stores the Twilio CallSid.
+          const [logRow] = await db
+            .select({ orgId: telephonyCallLogsTable.organisationId })
+            .from(telephonyCallLogsTable)
+            .where(eq(telephonyCallLogsTable.providerCallSid, callSid))
+            .limit(1);
+          if (!logRow?.orgId) return;
+
+          // Find the corresponding calls row by scanning notes for the CallSid.
+          // The createCallRecord writer stores `{ callSid, ... }` as JSON in notes.
+          const [callRow] = await db
+            .select({ id: callsTable.id, notes: callsTable.notes })
+            .from(callsTable)
+            .where(and(
+              eq(callsTable.organisationId, logRow.orgId),
+              sql`${callsTable.notes} LIKE ${"%" + callSid + "%"}`,
+            ))
+            .limit(1);
+          if (!callRow?.id) return;
+
+          callDbId = callRow.id;
+          try {
+            const parsed = callRow.notes ? JSON.parse(callRow.notes) : null;
+            turnsCount = Array.isArray(parsed?.turns) ? parsed.turns.length : 0;
+          } catch {
+            turnsCount = 0;
+          }
+        }
+
+        if (callDbId == null || turnsCount === 0) return;
+
+        const { processCallWithAI } = await import("../services/call-processor");
+        const result = await processCallWithAI(callDbId);
+        logger.info(
+          {
+            callSid,
+            callDbId,
+            tasksCreated: result.createdTasks.length,
+            appointmentCreated: !!result.createdAppointment,
+            sentiment: result.analysis.sentiment,
+            urgency: result.analysis.urgency,
+          },
+          "[TwilioVoice] Post-call AI analysis completed",
+        );
+      } catch (err: any) {
+        // Non-fatal: the call already ended successfully. Common skip reasons
+        // are quota exceeded, "déjà traité" (re-delivery from Twilio), or
+        // advisory-lock contention with a concurrent /process invocation.
+        logger.warn(
+          { err: err?.message || err, callSid },
+          "[TwilioVoice] Post-call AI analysis skipped",
+        );
+      }
+    })();
   }
 
   // Clean up session
