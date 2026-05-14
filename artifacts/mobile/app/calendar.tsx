@@ -107,9 +107,18 @@ export default function CalendarScreen() {
   const params = useLocalSearchParams<{ eventId?: string | string[] }>();
   const eventIdParam = Array.isArray(params.eventId) ? params.eventId[0] : params.eventId;
   const [focusedEventId, setFocusedEventId] = useState<string | null>(eventIdParam ?? null);
+  const [highlightedEventId, setHighlightedEventId] = useState<string | null>(eventIdParam ?? null);
   useEffect(() => {
-    if (eventIdParam) setFocusedEventId(eventIdParam);
+    if (eventIdParam) {
+      setFocusedEventId(eventIdParam);
+      setHighlightedEventId(eventIdParam);
+    }
   }, [eventIdParam]);
+  useEffect(() => {
+    if (!highlightedEventId) return;
+    const t = setTimeout(() => setHighlightedEventId(null), 4000);
+    return () => clearTimeout(t);
+  }, [highlightedEventId]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -366,12 +375,14 @@ export default function CalendarScreen() {
           }
           renderItem={({ item: ev }) => {
             const evColor = ev.color || TYPE_COLORS[ev.type] || "#64748b";
+            const isHighlighted = highlightedEventId != null && String(ev.id) === String(highlightedEventId);
             return (
               <Pressable
-                onPress={() => setSelected(ev)}
+                onPress={() => { setHighlightedEventId(null); setSelected(ev); }}
                 style={({ pressed }) => [
                   styles.eventCard,
                   { backgroundColor: colors.card, borderColor: colors.border, borderLeftColor: evColor },
+                  isHighlighted && { backgroundColor: evColor + "1F", borderColor: evColor, borderWidth: 2 },
                   pressed && { opacity: 0.7 },
                 ]}
               >
