@@ -86,6 +86,27 @@ router.post("/invitations/accept/:token", (req, res, next) => invitationsRouter(
 router.use(syncRouter);
 
 router.use(requireAuth);
+
+// Backoffice SaaS — accessible super-admin uniquement (Tâche #52, #53).
+// Monte AVANT `requireTenant` pour que le super-admin puisse appeler ces
+// routes meme s'il n'a pas d'organisation rattachee, et pour basculer la
+// vue de "scope tenant" a "scope SaaS global". Les handlers internes ne
+// filtrent plus par `organisation_id` par defaut (cf. routes/{prospects,
+// devis,factures-client}.ts) et acceptent un parametre `?organisationId=`
+// optionnel pour scoper une organisation.
+//
+// Garde aussi tout futur module `/stock` derriere `requireSuperAdmin`:
+// aucun controleur dedie n'existe aujourd'hui, mais cela garantit que
+// si un router `/stock` est ajoute plus tard il sera locke par defaut
+// au lieu d'etre accessible aux comptes clients.
+router.use(requireSuperAdmin, adminSaasDashboardRouter);
+router.use(requireSuperAdmin, prospectsRouter);
+router.use(requireSuperAdmin, devisRouter);
+router.use(requireSuperAdmin, facturesClientRouter);
+router.use("/stock", requireSuperAdmin, (_req, res) => {
+  res.status(404).json({ error: "Module stock indisponible." });
+});
+
 router.use(requireTenant);
 
 router.use(mySubscriptionRouter);
@@ -136,17 +157,9 @@ router.use(documentsRouter);
 router.use(meetingsRouter);
 router.use(gmailRouter);
 router.use(orgProfileRouter);
-// Backoffice SaaS — accessible super-admin uniquement (Tâche #52).
-// Ces modules ne sont plus exposes a l'application client. Le verrou est
-// pose au niveau du montage du router, donc TOUTES les sous-routes
-// (GET/POST/PATCH/DELETE) heritent automatiquement de la garde sans
-// avoir a etre modifiees une par une. Les filtres organisation_id internes
-// restent en place et n'affectent rien tant que le super-admin a un
-// organisation_id valide (cas standard).
-router.use(requireSuperAdmin, adminSaasDashboardRouter);
-router.use(requireSuperAdmin, prospectsRouter);
-router.use(requireSuperAdmin, devisRouter);
-router.use(requireSuperAdmin, facturesClientRouter);
+// NOTE: adminSaasDashboardRouter, prospectsRouter, devisRouter et
+// facturesClientRouter sont montes plus haut, AVANT requireTenant, sous
+// `requireSuperAdmin` (Tâche #53).
 router.use(notesInternesRouter);
 router.use(projetsRouter);
 router.use(dailyDigestRouter);

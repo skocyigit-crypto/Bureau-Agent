@@ -2,13 +2,22 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, desc, asc, ilike, or, sql, and, gte, lte, type Column, type SQL } from "drizzle-orm";
 import { db, prospectsTable, contactsTable, devisTable, facturesClientTable, callsTable, tasksTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
-import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
 
 const router: IRouter = Router();
 
 const STAGES = ["nouveau", "contact", "qualification", "proposition", "negociation", "gagne", "perdu"] as const;
 const PRIORITIES = ["haute", "moyenne", "basse"] as const;
+
+// Backoffice SaaS (super-admin uniquement). Plus de filtre organisation_id
+// par defaut: la vue est globale. Un parametre ?organisationId= permet de
+// scoper une organisation pour le tri/QA. Voir Tâche #53.
+function parseOrgFilter(req: Request): number | null {
+  const raw = (req.query as Record<string, unknown>).organisationId;
+  if (raw == null || raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
 
 const sortCols: Record<string, any> = {
   createdAt: prospectsTable.createdAt,
@@ -20,10 +29,11 @@ const sortCols: Record<string, any> = {
 };
 
 router.get("/prospects", async (req: Request, res: Response): Promise<void> => {
-  const orgId = getOrgId(req);
   const { search, stage, priority, assignedTo, limit = "50", offset = "0", sortBy = "createdAt", sortOrder = "desc" } = req.query as any;
 
-  const conditions = [eq(prospectsTable.organisationId, orgId)];
+  const conditions: SQL[] = [];
+  const orgFilter = parseOrgFilter(req);
+  if (orgFilter != null) conditions.push(eq(prospectsTable.organisationId, orgFilter));
   if (stage && stage !== "all") conditions.push(eq(prospectsTable.stage, stage));
   if (priority && priority !== "all") conditions.push(eq(prospectsTable.priority, priority));
   const useUnaccent = await ensureUnaccentExtension();
@@ -39,14 +49,17 @@ router.get("/prospects", async (req: Request, res: Response): Promise<void> => {
     )!);
   }
 
-  const where = and(...conditions);
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
   const col = sortCols[sortBy] ?? prospectsTable.createdAt;
   const orderFn = sortOrder === "asc" ? asc : desc;
 
   try {
     const [rows, countRes] = await Promise.all([
-      db.select().from(prospectsTable).where(where).orderBy(orderFn(col)).limit(Number(limit)).offset(Number(offset)),
-      db.select({ count: sql<number>`count(*)::int` }).from(prospectsTable).where(where),
+      (where ? db.select().from(prospectsTable).where(where) : db.select().from(prospectsTable))
+        .orderBy(orderFn(col)).limit(Number(limit)).offset(Number(offset)),
+      where
+        ? db.select({ count: sql<number>`count(*)::int` }).from(prospectsTable).where(where)
+        : db.select({ count: sql<number>`count(*)::int` }).from(prospectsTable),
     ]);
     res.json({ prospects: rows, total: countRes[0]?.count ?? 0 });
   } catch (err: any) {
@@ -56,21 +69,24 @@ router.get("/prospects", async (req: Request, res: Response): Promise<void> => {
 });
 
 router.get("/prospects/stats", async (req: Request, res: Response): Promise<void> => {
-  const orgId = getOrgId(req);
+  const orgFilter = parseOrgFilter(req);
+  const where = orgFilter != null ? eq(prospectsTable.organisationId, orgFilter) : undefined;
   try {
+    const stageQ = db.select({
+      stage: prospectsTable.stage,
+      count: sql<number>`count(*)::int`,
+      totalValue: sql<number>`coalesce(sum(${prospectsTable.value}), 0)::numeric`,
+    }).from(prospectsTable);
+    const totalsQ = db.select({
+      total: sql<number>`count(*)::int`,
+      totalValue: sql<number>`coalesce(sum(${prospectsTable.value}), 0)::numeric`,
+      avgValue: sql<number>`coalesce(avg(${prospectsTable.value}), 0)::numeric`,
+      wonCount: sql<number>`count(*) filter (where ${prospectsTable.stage} = 'gagne')::int`,
+      lostCount: sql<number>`count(*) filter (where ${prospectsTable.stage} = 'perdu')::int`,
+    }).from(prospectsTable);
     const [byStage, totals] = await Promise.all([
-      db.select({
-        stage: prospectsTable.stage,
-        count: sql<number>`count(*)::int`,
-        totalValue: sql<number>`coalesce(sum(${prospectsTable.value}), 0)::numeric`,
-      }).from(prospectsTable).where(eq(prospectsTable.organisationId, orgId)).groupBy(prospectsTable.stage),
-      db.select({
-        total: sql<number>`count(*)::int`,
-        totalValue: sql<number>`coalesce(sum(${prospectsTable.value}), 0)::numeric`,
-        avgValue: sql<number>`coalesce(avg(${prospectsTable.value}), 0)::numeric`,
-        wonCount: sql<number>`count(*) filter (where ${prospectsTable.stage} = 'gagne')::int`,
-        lostCount: sql<number>`count(*) filter (where ${prospectsTable.stage} = 'perdu')::int`,
-      }).from(prospectsTable).where(eq(prospectsTable.organisationId, orgId)),
+      where ? stageQ.where(where).groupBy(prospectsTable.stage) : stageQ.groupBy(prospectsTable.stage),
+      where ? totalsQ.where(where) : totalsQ,
     ]);
     res.json({ byStage, ...totals[0] });
   } catch (err: any) {
@@ -80,11 +96,10 @@ router.get("/prospects/stats", async (req: Request, res: Response): Promise<void
 });
 
 router.get("/prospects/:id", async (req: Request, res: Response): Promise<void> => {
-  const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
-    const [row] = await db.select().from(prospectsTable).where(and(eq(prospectsTable.id, id), eq(prospectsTable.organisationId, orgId)));
+    const [row] = await db.select().from(prospectsTable).where(eq(prospectsTable.id, id));
     if (!row) { res.status(404).json({ error: "Prospect non trouve." }); return; }
     res.json(row);
   } catch (err: any) {
@@ -94,15 +109,26 @@ router.get("/prospects/:id", async (req: Request, res: Response): Promise<void> 
 });
 
 router.post("/prospects", async (req: Request, res: Response): Promise<void> => {
-  const orgId = getOrgId(req);
-  const { title, description, contactName, company, email, phone, stage = "nouveau", priority = "moyenne", value, currency = "EUR", probability = 50, source, assignedTo, expectedCloseDate, notes, tags, contactId } = req.body;
+  const { title, description, contactName, company, email, phone, stage = "nouveau", priority = "moyenne", value, currency = "EUR", probability = 50, source, assignedTo, expectedCloseDate, notes, tags, contactId, organisationId } = req.body;
 
   if (!title?.trim()) { res.status(400).json({ error: "Le titre est obligatoire." }); return; }
   if (!STAGES.includes(stage)) { res.status(400).json({ error: "Etape invalide." }); return; }
 
+  const orgFromBody = organisationId != null && organisationId !== "" ? Number(organisationId) : null;
+  if (orgFromBody != null && (!Number.isInteger(orgFromBody) || orgFromBody <= 0)) {
+    res.status(400).json({ error: "organisationId invalide." });
+    return;
+  }
+  const sessionOrg = req.session?.organisationId ?? null;
+  const targetOrg = orgFromBody ?? sessionOrg;
+  if (targetOrg == null) {
+    res.status(400).json({ error: "organisationId requis (le super-admin n'a pas d'organisation rattachee)." });
+    return;
+  }
+
   try {
     const [row] = await db.insert(prospectsTable).values({
-      organisationId: orgId,
+      organisationId: targetOrg,
       title: title.trim(),
       description,
       contactName,
@@ -129,12 +155,11 @@ router.post("/prospects", async (req: Request, res: Response): Promise<void> => 
 });
 
 router.patch("/prospects/:id", async (req: Request, res: Response): Promise<void> => {
-  const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
   try {
-    const [existing] = await db.select({ id: prospectsTable.id }).from(prospectsTable).where(and(eq(prospectsTable.id, id), eq(prospectsTable.organisationId, orgId)));
+    const [existing] = await db.select({ id: prospectsTable.id }).from(prospectsTable).where(eq(prospectsTable.id, id));
     if (!existing) { res.status(404).json({ error: "Prospect non trouve." }); return; }
 
     const { title, description, contactName, company, email, phone, stage, priority, value, currency, probability, source, assignedTo, expectedCloseDate, notes, tags, contactId, lostReason } = req.body;
@@ -168,9 +193,13 @@ router.patch("/prospects/:id", async (req: Request, res: Response): Promise<void
 });
 
 router.get("/prospects/export/csv", async (req: Request, res: Response): Promise<void> => {
-  const orgId = getOrgId(req);
+  const orgFilter = parseOrgFilter(req);
   try {
-    const rows = await db.select().from(prospectsTable).where(eq(prospectsTable.organisationId, orgId)).orderBy(desc(prospectsTable.createdAt));
+    const baseQ = db.select().from(prospectsTable);
+    const rows = await (orgFilter != null
+      ? baseQ.where(eq(prospectsTable.organisationId, orgFilter))
+      : baseQ
+    ).orderBy(desc(prospectsTable.createdAt));
     const headers = ["Titre", "Contact", "Entreprise", "Email", "Téléphone", "Étape", "Priorité", "Valeur", "Probabilité", "Source", "Clôture prévue", "Créé le"];
     const escape = (v: any) => {
       if (v == null) return "";
@@ -193,12 +222,10 @@ router.get("/prospects/export/csv", async (req: Request, res: Response): Promise
 });
 
 router.post("/prospects/:id/convert", requireRole("agent"), async (req: Request, res: Response): Promise<void> => {
-  const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
-    const [prospect] = await db.select().from(prospectsTable)
-      .where(and(eq(prospectsTable.id, id), eq(prospectsTable.organisationId, orgId)));
+    const [prospect] = await db.select().from(prospectsTable).where(eq(prospectsTable.id, id));
     if (!prospect) { res.status(404).json({ error: "Prospect non trouvé." }); return; }
 
     const nameParts = (prospect.contactName || "").trim().split(" ");
@@ -206,7 +233,7 @@ router.post("/prospects/:id/convert", requireRole("agent"), async (req: Request,
     const lastName = nameParts.slice(1).join(" ") || "";
 
     const [contact] = await db.insert(contactsTable).values({
-      organisationId: orgId,
+      organisationId: prospect.organisationId,
       firstName,
       lastName,
       email: prospect.email || null,
@@ -227,15 +254,13 @@ router.post("/prospects/:id/convert", requireRole("agent"), async (req: Request,
 });
 
 router.post("/prospects/:id/duplicate", async (req: Request, res: Response): Promise<void> => {
-  const orgId = getOrgId(req);
-  const userId = req.session?.userId;
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
-    const [original] = await db.select().from(prospectsTable).where(and(eq(prospectsTable.id, id), eq(prospectsTable.organisationId, orgId)));
+    const [original] = await db.select().from(prospectsTable).where(eq(prospectsTable.id, id));
     if (!original) { res.status(404).json({ error: "Prospect non trouve." }); return; }
     const [copy] = await db.insert(prospectsTable).values({
-      organisationId: orgId,
+      organisationId: original.organisationId,
       title: `${original.title} (copie)`,
       contactName: original.contactName,
       company: original.company,
@@ -257,17 +282,19 @@ router.post("/prospects/:id/duplicate", async (req: Request, res: Response): Pro
 });
 
 router.get("/prospects/:id/devis", async (req: Request, res: Response): Promise<void> => {
-  const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
     const [prospect] = await db.select({
+      organisationId: prospectsTable.organisationId,
       contactName: prospectsTable.contactName,
       company: prospectsTable.company,
       email: prospectsTable.email,
-    }).from(prospectsTable).where(and(eq(prospectsTable.id, id), eq(prospectsTable.organisationId, orgId))).limit(1);
+    }).from(prospectsTable).where(eq(prospectsTable.id, id)).limit(1);
     if (!prospect) { res.status(404).json({ error: "Prospect non trouve." }); return; }
+    if (prospect.organisationId == null) { res.json({ devis: [], factures: [] }); return; }
 
+    const orgId: number = prospect.organisationId;
     const name = (prospect.contactName || "").trim();
     const company = (prospect.company || "").trim();
     const email = (prospect.email || "").trim();
@@ -307,14 +334,15 @@ router.get("/prospects/:id/devis", async (req: Request, res: Response): Promise<
 });
 
 router.get("/prospects/:id/history", async (req: Request, res: Response): Promise<void> => {
-  const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
     const [prospect] = await db.select().from(prospectsTable)
-      .where(and(eq(prospectsTable.id, id), eq(prospectsTable.organisationId, orgId))).limit(1);
+      .where(eq(prospectsTable.id, id)).limit(1);
     if (!prospect) { res.status(404).json({ error: "Prospect non trouve." }); return; }
+    if (prospect.organisationId == null) { res.json({ calls: [], tasks: [] }); return; }
 
+    const orgId: number = prospect.organisationId;
     const name = (prospect.contactName || "").trim();
     const phone = (prospect.phone || "").trim();
     const email = (prospect.email || "").trim();
@@ -359,11 +387,10 @@ router.get("/prospects/:id/history", async (req: Request, res: Response): Promis
 });
 
 router.delete("/prospects/:id", requireRole("administrateur", "super_admin"), async (req: Request, res: Response): Promise<void> => {
-  const orgId = getOrgId(req);
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
   try {
-    const [row] = await db.delete(prospectsTable).where(and(eq(prospectsTable.id, id), eq(prospectsTable.organisationId, orgId))).returning({ id: prospectsTable.id });
+    const [row] = await db.delete(prospectsTable).where(eq(prospectsTable.id, id)).returning({ id: prospectsTable.id });
     if (!row) { res.status(404).json({ error: "Prospect non trouve." }); return; }
     res.json({ success: true });
   } catch (err: any) {
