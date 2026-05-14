@@ -100,33 +100,11 @@ export function useBatteryStatus() {
   return battery;
 }
 
-export function useSmartNotifications() {
-  const [permission, setPermission] = useState<NotificationPermission>(
-    typeof Notification !== "undefined" ? Notification.permission : "denied"
-  );
-
-  const requestPermission = useCallback(async () => {
-    if (typeof Notification === "undefined") return "denied";
-    const result = await Notification.requestPermission();
-    setPermission(result);
-    return result;
-  }, []);
-
-  const sendNotification = useCallback((title: string, options?: NotificationOptions) => {
-    if (permission !== "granted") return null;
-    try {
-      const notification = new Notification(title, {
-        icon: `${baseUrl}/icons/icon-192x192.png`,
-        badge: `${baseUrl}/icons/icon-72x72.png`,
-        ...options,
-      });
-      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-      return notification;
-    } catch { return null; }
-  }, [permission]);
-
-  return { permission, requestPermission, sendNotification };
-}
+// useSmartNotifications a ete retire : par decision produit (cf. equipe
+// localisation / Wave 3), l'autorisation Notification du navigateur n'est
+// PLUS demandee cote web. Le prompt de permission n'apparait QUE dans
+// l'app mobile (expo-notifications + LocationConsentGate). Le web utilise
+// le canal SSE realtime + les toasts in-app pour les alertes.
 
 export function useAutoSave(key: string, data: any, enabled = true) {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);

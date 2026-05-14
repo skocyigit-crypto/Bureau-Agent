@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import {
   Wifi, WifiOff, Battery, BatteryCharging, BatteryLow, Mic, MicOff, Maximize, Minimize,
-  Bell, BellOff, Clipboard, MapPin, Monitor, Share2, Printer, Moon, Sun, Zap,
+  Bell, Clipboard, MapPin, Monitor, Share2, Printer, Moon, Sun, Zap,
   Signal, SignalLow, Cpu, MemoryStick, Eye, EyeOff, Keyboard, Globe, Smartphone,
   Camera, Bluetooth, Fingerprint, Sparkles, ChevronUp, ChevronDown, Copy, Check,
   Volume2, AlertTriangle, Clock, RefreshCw, Radio, BrainCircuit, Activity
@@ -15,7 +15,6 @@ import {
   useNetworkStatus,
   usePageVisibility,
   useBatteryStatus,
-  useSmartNotifications,
   useSpeechRecognition,
   useFullscreen,
   useSmartClipboard,
@@ -208,23 +207,15 @@ function VoiceCommandButton() {
 
 function SmartQuickActions() {
   const { isFullscreen, toggleFullscreen } = useFullscreen();
-  const { permission, requestPermission, sendNotification } = useSmartNotifications();
   const { canShare, share } = useSmartShare();
   const { isLocked, requestWakeLock, releaseWakeLock } = useWakeLock();
   const { toast } = useToast();
   const [location] = useLocation();
 
-  const handleNotificationToggle = async () => {
-    if (permission !== "granted") {
-      const result = await requestPermission();
-      if (result === "granted") {
-        sendNotification("Agent de Bureau", { body: "Notifications activees ! Vous recevrez les alertes en temps reel." });
-        toast({ title: "Notifications activees" });
-      }
-    } else {
-      sendNotification("Test", { body: "Les notifications fonctionnent correctement." });
-    }
-  };
+  // NOTE: l'autorisation de notification (Notification.requestPermission) est
+  // volontairement DESACTIVEE cote web — par decision produit, ce prompt
+  // n'apparait QUE dans l'app mobile (LocationConsentGate + expo-notifications).
+  // Le web s'appuie sur le SSE realtime + toasts in-app.
 
   const handleShare = async () => {
     const success = await share({
@@ -245,20 +236,6 @@ function SmartQuickActions() {
             </Button>
           </TooltipTrigger>
           <TooltipContent>{isFullscreen ? "Quitter plein ecran" : "Mode plein ecran (Focus)"}</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={`h-8 w-8 ${permission === "granted" ? "text-green-600" : ""}`}
-              onClick={handleNotificationToggle}
-            >
-              {permission === "granted" ? <Bell className="h-3.5 w-3.5" /> : <BellOff className="h-3.5 w-3.5" />}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{permission === "granted" ? "Notifications actives" : "Activer les notifications"}</TooltipContent>
         </Tooltip>
 
         <Tooltip>
