@@ -10,9 +10,10 @@ interface StatCardProps {
   icon: keyof typeof Feather.glyphMap;
   color: string;
   subtitle?: string;
+  badge?: number;
 }
 
-export function StatCard({ title, value, icon, color, subtitle }: StatCardProps) {
+export function StatCard({ title, value, icon, color, subtitle, badge }: StatCardProps) {
   const colors = useColors();
 
   return (
@@ -20,6 +21,11 @@ export function StatCard({ title, value, icon, color, subtitle }: StatCardProps)
       <View style={[styles.iconContainer, { backgroundColor: color + "18" }]}>
         <Feather name={icon} size={20} color={color} />
       </View>
+      {badge && badge > 0 ? (
+        <View style={[styles.badge, { backgroundColor: colors.destructive }]}>
+          <Text style={styles.badgeText}>{badge > 99 ? "99+" : badge}</Text>
+        </View>
+      ) : null}
       <Text style={[styles.value, { color: colors.foreground }]}>{value}</Text>
       <Text style={[styles.title, { color: colors.mutedForeground }]}>{title}</Text>
       {subtitle ? (
@@ -67,5 +73,21 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: "Inter_500Medium",
     marginTop: 4,
+  },
+  badge: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 5,
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontFamily: "Inter_700Bold",
   },
 });

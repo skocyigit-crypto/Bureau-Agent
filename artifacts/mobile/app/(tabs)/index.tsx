@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState } from "@/components/EmptyState";
 import { StatCard } from "@/components/StatCard";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
+import { useUnreadBadges } from "@/contexts/UnreadBadgesContext";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useColors } from "@/hooks/useColors";
 
@@ -65,6 +66,7 @@ export default function DashboardScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, fetchAuth } = useAuth();
+  const { counts: unreadCounts } = useUnreadBadges();
   const isWeb = Platform.OS === "web";
   const [data, setData] = useState<DashboardData | null>(null);
   const [recentCalls, setRecentCalls] = useState<RecentCall[]>([]);
@@ -268,7 +270,7 @@ export default function DashboardScreen() {
             </View>
             <View style={styles.statsRow}>
               <StatCard title="Contacts" value={data.totalContacts} icon="users" color={colors.success ?? "#22c55e"} />
-              <StatCard title="Taches" value={data.pendingTasks} icon="check-square" color={colors.warning ?? "#f59e0b"} subtitle="En attente" />
+              <StatCard title="Taches" value={data.pendingTasks} icon="check-square" color={colors.warning ?? "#f59e0b"} subtitle="En attente" badge={unreadCounts.task} />
             </View>
             <Pressable style={[styles.statsRow, { flex: undefined }]} onPress={() => quickNav("/projets")}>
               <StatCard title="Projets" value={data.projetsActifs} icon="folder" color="#6366f1" subtitle="En cours" />
@@ -371,7 +373,7 @@ export default function DashboardScreen() {
             <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 8 }]}>Acces rapide</Text>
             <View style={styles.quickGrid}>
               {[
-                { icon: "message-square" as const, label: "Messages", route: "/messages", color: "#8b5cf6" },
+                { icon: "message-square" as const, label: "Messages", route: "/messages", color: "#8b5cf6", badge: unreadCounts.message },
                 { icon: "calendar" as const, label: "Calendrier", route: "/calendar", color: "#ec4899" },
                 { icon: "bar-chart-2" as const, label: "Analytique", route: "/analytics", color: "#f59e0b" },
                 { icon: "clock" as const, label: "Pointage", route: "/checkins", color: "#14b8a6" },
@@ -390,6 +392,11 @@ export default function DashboardScreen() {
                   <View style={[styles.quickIcon, { backgroundColor: qa.color + "18" }]}>
                     <Feather name={qa.icon} size={20} color={qa.color} />
                   </View>
+                  {qa.badge && qa.badge > 0 ? (
+                    <View style={[styles.quickBadge, { backgroundColor: colors.destructive }]}>
+                      <Text style={styles.quickBadgeText}>{qa.badge > 99 ? "99+" : qa.badge}</Text>
+                    </View>
+                  ) : null}
                   <Text style={[styles.quickLabel, { color: colors.foreground }]}>{qa.label}</Text>
                 </Pressable>
               ))}
@@ -466,9 +473,11 @@ const styles = StyleSheet.create({
   recentTime: { fontSize: 12, fontFamily: "Inter_400Regular", marginLeft: 8 },
   callbackBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   quickGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16 },
-  quickCard: { width: "30.5%", paddingVertical: 14, borderRadius: 12, borderWidth: 1, alignItems: "center" },
+  quickCard: { width: "30.5%", paddingVertical: 14, borderRadius: 12, borderWidth: 1, alignItems: "center", position: "relative" },
   quickIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", marginBottom: 8 },
   quickLabel: { fontSize: 11, fontFamily: "Inter_500Medium", textAlign: "center" },
+  quickBadge: { position: "absolute", top: 8, right: 8, minWidth: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center", paddingHorizontal: 5 },
+  quickBadgeText: { color: "#fff", fontSize: 10, fontFamily: "Inter_700Bold" },
   infoCard: { flexDirection: "row", alignItems: "center", padding: 16, borderRadius: 12, gap: 12, marginTop: 4 },
   infoContent: { flex: 1 },
   infoTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#ffffff" },
