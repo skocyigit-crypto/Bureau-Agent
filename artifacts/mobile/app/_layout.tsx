@@ -18,6 +18,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { PrivacyProvider } from "@/contexts/PrivacyContext";
+import { UnreadBadgesProvider } from "@/contexts/UnreadBadgesContext";
 import { PrivacyOverlay } from "@/components/PrivacyOverlay";
 
 if (Platform.OS !== "web") {
@@ -88,8 +89,10 @@ export default function RootLayout() {
               <ThemeProvider>
                 <PrivacyProvider>
                   <AuthProvider>
-                    <RootLayoutNav />
-                    <PrivacyOverlay />
+                    <UnreadBadgesProvider>
+                      <RootLayoutNav />
+                      <PrivacyOverlay />
+                    </UnreadBadgesProvider>
                   </AuthProvider>
                 </PrivacyProvider>
               </ThemeProvider>

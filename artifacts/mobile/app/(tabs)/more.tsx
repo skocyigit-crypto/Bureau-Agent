@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { useUnreadBadges } from "@/contexts/UnreadBadgesContext";
 import { useColors } from "@/hooks/useColors";
 
 interface MenuItemProps {
@@ -71,6 +72,7 @@ export default function MoreScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
+  const { counts } = useUnreadBadges();
   const isWeb = Platform.OS === "web";
 
   function handleLogout() {
@@ -144,7 +146,7 @@ export default function MoreScreen() {
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>COMMUNICATION</Text>
-          <MenuItem icon="message-square" label="Messages" sublabel="Messagerie vocale et notes" color="#3b82f6" onPress={() => nav("/messages")} />
+          <MenuItem icon="message-square" label="Messages" sublabel="Messagerie vocale et notes" color="#3b82f6" badge={counts.message} onPress={() => nav("/messages")} />
           <MenuItem icon="phone-call" label="Telephonie" sublabel="Appels et SMS multi-fournisseurs" color="#22c55e" onPress={() => nav("/telephony")} />
           <MenuItem icon="phone" label="Journal d'Appels" sublabel="Historique et enregistrement des appels" color="#166534" onPress={() => nav("/calls")} />
           <MenuItem icon="users" label="Contacts" sublabel="Annuaire clients et partenaires" color="#0369a1" onPress={() => nav("/contacts")} />

@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -23,6 +23,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { FAB } from "@/components/FAB";
 import { FormModal } from "@/components/FormModal";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
+import { useUnreadBadges } from "@/contexts/UnreadBadgesContext";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useColors } from "@/hooks/useColors";
 
@@ -199,6 +200,7 @@ export default function TasksScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
+  const { clearKey } = useUnreadBadges();
   const isWeb = Platform.OS === "web";
 
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -238,6 +240,16 @@ export default function TasksScreen() {
   }, [isFromCache, cached, tasks.length]);
 
   useEffect(() => { setLoading(true); load(); }, [load]);
+
+  // Vider le badge "tâches non lues" dès que l'écran prend le focus
+  // (mirroir du clear côté sidebar web — Tâche #75). Doublon avec
+  // (tabs)/tasks.tsx car le menu Plus pointe sur cette route modale.
+  useFocusEffect(
+    useCallback(() => {
+      clearKey("task");
+    }, [clearKey]),
+  );
+
   function onRefresh() { setRefreshing(true); load(); }
 
   async function handleDelete(id: number) {

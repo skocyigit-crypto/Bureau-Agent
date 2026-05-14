@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -22,6 +22,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { FAB } from "@/components/FAB";
 import { FormModal } from "@/components/FormModal";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
+import { useUnreadBadges } from "@/contexts/UnreadBadgesContext";
 import { useColors } from "@/hooks/useColors";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 
@@ -72,6 +73,7 @@ export default function MessagesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
+  const { clearKey } = useUnreadBadges();
   const isWeb = Platform.OS === "web";
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -112,6 +114,13 @@ export default function MessagesScreen() {
     setLoading(true);
     fetchMessages();
   }, [fetchMessages]);
+
+  // Vider le badge "messages non lus" dès que la secrétaire ouvre l'écran.
+  useFocusEffect(
+    useCallback(() => {
+      clearKey("message");
+    }, [clearKey]),
+  );
 
   function onRefresh() { setRefreshing(true); fetchMessages(); }
 

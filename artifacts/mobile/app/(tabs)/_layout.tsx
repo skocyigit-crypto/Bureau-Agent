@@ -1,16 +1,26 @@
 import { BlurView } from "expo-blur";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Redirect, Tabs } from "expo-router";
-import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
+import { Badge, Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
 import { Feather } from "@expo/vector-icons";
 import React from "react";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { useUnreadBadges } from "@/contexts/UnreadBadgesContext";
 import { useColors } from "@/hooks/useColors";
 
+function formatBadge(n: number): string | undefined {
+  if (!n || n <= 0) return undefined;
+  return n > 99 ? "99+" : String(n);
+}
+
 function NativeTabLayout() {
+  const { counts } = useUnreadBadges();
+  const tasksBadge = formatBadge(counts.task);
+  const moreBadge = formatBadge(counts.message);
+
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
@@ -28,10 +38,12 @@ function NativeTabLayout() {
       <NativeTabs.Trigger name="tasks">
         <Icon sf={{ default: "checkmark.square", selected: "checkmark.square.fill" }} />
         <Label>Taches</Label>
+        {tasksBadge ? <Badge>{tasksBadge}</Badge> : null}
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="more">
         <Icon sf={{ default: "ellipsis.circle", selected: "ellipsis.circle.fill" }} />
         <Label>Plus</Label>
+        {moreBadge ? <Badge>{moreBadge}</Badge> : null}
       </NativeTabs.Trigger>
     </NativeTabs>
   );
@@ -43,6 +55,9 @@ function ClassicTabLayout() {
   const isDark = colorScheme === "dark";
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
+  const { counts } = useUnreadBadges();
+  const tasksBadge = formatBadge(counts.task);
+  const moreBadge = formatBadge(counts.message);
 
   return (
     <Tabs
@@ -115,6 +130,7 @@ function ClassicTabLayout() {
         name="tasks"
         options={{
           title: "Taches",
+          tabBarBadge: tasksBadge,
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="checkmark.square" tintColor={color} size={24} />
@@ -127,6 +143,7 @@ function ClassicTabLayout() {
         name="more"
         options={{
           title: "Plus",
+          tabBarBadge: moreBadge,
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="ellipsis.circle" tintColor={color} size={24} />
