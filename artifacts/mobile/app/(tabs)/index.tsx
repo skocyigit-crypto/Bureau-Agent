@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -75,6 +75,7 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [rappelsUnread, setRappelsUnread] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { cached: cachedDashboard, isFromCache, updateCache } = useOfflineCache<DashboardData | null>("dashboard_summary", null);
@@ -141,7 +142,28 @@ export default function DashboardScreen() {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [fetchDashboard]);
 
-  function onRefresh() { setRefreshing(true); fetchDashboard(); }
+  function onRefresh() { setRefreshing(true); fetchDashboard(); fetchRappelsUnread(); }
+
+  const fetchRappelsUnread = useCallback(async () => {
+    try {
+      const res = await fetchAuth(
+        `${API_BASE}/api/notifications?sourceType=calendar_reminder&unread=true&sinceHours=24&limit=100`,
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const list = (data?.notifications ?? []) as Array<{ read?: boolean | null }>;
+        setRappelsUnread(list.filter((n) => !n.read).length);
+      }
+    } catch {
+      // silent
+    }
+  }, [fetchAuth]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchRappelsUnread();
+    }, [fetchRappelsUnread]),
+  );
 
   function quickNav(route: string) {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -374,6 +396,7 @@ export default function DashboardScreen() {
             <View style={styles.quickGrid}>
               {[
                 { icon: "message-square" as const, label: "Messages", route: "/messages", color: "#8b5cf6", badge: unreadCounts.message },
+                { icon: "bell" as const, label: "Rappels", route: "/rappels", color: "#ef4444", badge: rappelsUnread },
                 { icon: "calendar" as const, label: "Calendrier", route: "/calendar", color: "#ec4899" },
                 { icon: "bar-chart-2" as const, label: "Analytique", route: "/analytics", color: "#f59e0b" },
                 { icon: "clock" as const, label: "Pointage", route: "/checkins", color: "#14b8a6" },
