@@ -1,10 +1,12 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, and, sql } from "drizzle-orm";
 import crypto from "crypto";
-import { db, telephonyProvidersTable, organisationsTable, callsTable, contactsTable, telephonyCallLogsTable } from "@workspace/db";
+import { db, telephonyProvidersTable, organisationsTable, callsTable, contactsTable, telephonyCallLogsTable, telephonySmsLogsTable, usersTable } from "@workspace/db";
 import { logger } from "../lib/logger";
 import { assertAiQuota } from "../services/ai-quota";
 import { recordAiUsage, sanitizePromptInput } from "../services/ai-utils";
+import { sendSms, type TelephonyProviderConfig } from "../services/telephony-providers";
+import { sendEmail } from "../services/email";
 
 export const twilioVoiceRouter: IRouter = Router();
 
@@ -58,6 +60,30 @@ function twimlGather(actionUrl: string, prompt: string): string {
   );
 }
 
+// <Record> verb. We deliberately set transcribe="false" because Twilio's
+// built-in transcription is English-biased and being deprecated; we run our
+// own Gemini transcription on the recording URL in /recording-complete.
+function twimlRecord(actionUrl: string, prompt: string): string {
+  return (
+    twimlSay(prompt) +
+    `<Record action="${xmlEscape(actionUrl)}" method="POST" ` +
+    `maxLength="120" timeout="5" finishOnKey="#" playBeep="true" ` +
+    `transcribe="false" trim="trim-silence"/>`
+  );
+}
+
+// callerIdNumber MUST be a number we own/verified on Twilio (typically the
+// org's inbound Twilio number). targetNumber is the human conseiller. The
+// `actionUrl` receives DialCallStatus and lets us branch to voicemail only
+// on no-answer/busy/failed — never after a successful conversation.
+function twimlDial(targetNumber: string, callerIdNumber: string, actionUrl: string, intro?: string): string {
+  return (
+    (intro ? twimlSay(intro) : "") +
+    `<Dial timeout="20" callerId="${xmlEscape(callerIdNumber)}" ` +
+    `action="${xmlEscape(actionUrl)}" method="POST">${xmlEscape(targetNumber)}</Dial>`
+  );
+}
+
 function buildResponse(...parts: string[]): string {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<Response>${parts.join("")}</Response>`;
 }
@@ -70,6 +96,49 @@ function sendTwiml(res: Response, ...parts: string[]): void {
 // ---------------------------------------------------------------------------
 // Twilio webhook signature validation
 // ---------------------------------------------------------------------------
+// Centralised webhook auth guard. Returns true if the request was rejected
+// (caller should return immediately). All Twilio webhook routes use this so
+// behaviour stays consistent: fail closed in production whenever the signing
+// token is missing or the signature fails to verify.
+function rejectIfBadTwilioRequest(req: Request, res: Response, route: string): boolean {
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  if (!authToken) {
+    if (process.env.NODE_ENV === "production") {
+      logger.error({ route }, "[TwilioVoice] TWILIO_AUTH_TOKEN missing — refusing webhook in production");
+      res.status(403).send("Forbidden");
+      return true;
+    }
+    return false;
+  }
+  if (!validateTwilioSignature(req, authToken)) {
+    logger.warn({ route }, "[TwilioVoice] Invalid Twilio signature");
+    res.status(403).send("Forbidden");
+    return true;
+  }
+  return false;
+}
+
+// Only fetch recordings from Twilio's official media domains. Prevents an
+// attacker who reached an unauthenticated /recording-complete from steering
+// our server-side fetch at internal services (SSRF).
+function isAllowedTwilioRecordingUrl(rawUrl: string): boolean {
+  try {
+    const u = new URL(rawUrl);
+    if (u.protocol !== "https:") return false;
+    const host = u.hostname.toLowerCase();
+    // Twilio recording URLs come from api.twilio.com and the regional API
+    // hosts (api.<region>.twilio.com), with media occasionally served from
+    // media.twiliocdn.com after redirect handling.
+    return (
+      host === "api.twilio.com" ||
+      /^api\.[a-z0-9-]+\.twilio\.com$/.test(host) ||
+      host === "media.twiliocdn.com"
+    );
+  } catch {
+    return false;
+  }
+}
+
 function validateTwilioSignature(req: Request, authToken: string): boolean {
   const signature = req.headers["x-twilio-signature"] as string | undefined;
   if (!signature || !authToken) return false;
@@ -310,6 +379,263 @@ async function appendTurn(
 }
 
 // ---------------------------------------------------------------------------
+// Telephony provider helpers (Wave 2: voicemail, missed-call SMS, routing)
+// ---------------------------------------------------------------------------
+
+interface BusinessHours {
+  // tz: IANA tz like "Europe/Paris". If absent we default to it.
+  tz?: string;
+  // For each day key (mon..sun), an inclusive [openHour, closeHour] window
+  // in 24h local time. Missing key means closed all day.
+  days?: Partial<Record<"mon"|"tue"|"wed"|"thu"|"fri"|"sat"|"sun", [number, number]>>;
+}
+
+interface TwilioProviderConfigShape {
+  accountSid?: string;
+  authToken?: string;
+  fromNumber?: string;
+  phoneNumber?: string;
+  // Wave 2 toggles & customisations (all optional, safe defaults).
+  autoSmsOnMissed?: boolean;          // default true
+  autoSmsTemplate?: string;           // default FR template, supports {name} {time}
+  emailRecapEnabled?: boolean;        // default true
+  voicemailWhenBusy?: boolean;        // default true
+  forwardToNumber?: string;           // if set, prefer Dial-forward over voicemail when unavailable
+  businessHours?: BusinessHours;      // if absent => always available
+}
+
+async function getDefaultTwilioProviderForOrg(orgId: number): Promise<{ id: number; config: TwilioProviderConfigShape; phoneNumbers: string[] } | null> {
+  try {
+    const [p] = await db
+      .select({ id: telephonyProvidersTable.id, config: telephonyProvidersTable.config, phoneNumbers: telephonyProvidersTable.phoneNumbers })
+      .from(telephonyProvidersTable)
+      .where(and(
+        eq(telephonyProvidersTable.organisationId, orgId),
+        eq(telephonyProvidersTable.provider, "twilio"),
+        eq(telephonyProvidersTable.isActive, true),
+      ))
+      .orderBy(sql`${telephonyProvidersTable.isDefault} DESC, ${telephonyProvidersTable.id} ASC`)
+      .limit(1);
+    if (!p) return null;
+    return { id: p.id, config: (p.config as TwilioProviderConfigShape) || {}, phoneNumbers: p.phoneNumbers || [] };
+  } catch (err) {
+    logger.warn({ err, orgId }, "[TwilioVoice] getDefaultTwilioProviderForOrg error");
+    return null;
+  }
+}
+
+const DAY_KEYS: Array<keyof NonNullable<BusinessHours["days"]>> = ["sun","mon","tue","wed","thu","fri","sat"];
+
+// Pure: decide if we should accept this incoming call right now based on
+// the optional businessHours config. If no businessHours configured, we
+// always say "available" (preserves current behaviour for orgs that didn't
+// opt into routing).
+function isWithinBusinessHours(hours: BusinessHours | undefined, now: Date): boolean {
+  if (!hours || !hours.days || Object.keys(hours.days).length === 0) return true;
+  // We use the host TZ if not provided. The Replit container is UTC, so
+  // orgs that care about "Europe/Paris" should set tz explicitly. We
+  // approximate by computing the local time via Intl.
+  const tz = hours.tz || "Europe/Paris";
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: tz, hour12: false, weekday: "short", hour: "2-digit", minute: "2-digit",
+    }).formatToParts(now);
+  } catch {
+    return true; // bad tz config -> fail open, never block legit callers
+  }
+  const wd = (parts.find(p => p.type === "weekday")?.value || "").toLowerCase().slice(0,3);
+  const hr = parseInt(parts.find(p => p.type === "hour")?.value || "0", 10);
+  const dayKey = DAY_KEYS.find(k => k === wd);
+  if (!dayKey) return true;
+  const window = hours.days[dayKey as keyof typeof hours.days];
+  if (!window) return false;
+  const [open, close] = window;
+  return hr >= open && hr < close;
+}
+
+function formatCallerName(first: string | null, last: string | null): string {
+  const v = [first, last].filter((s) => s && s.trim().length > 0).join(" ").trim();
+  return v;
+}
+
+// Send the auto-SMS to a missed inbound caller. Best-effort, never throws.
+async function sendMissedCallSmsForOrg(args: {
+  orgId: number;
+  callerNumber: string;
+  callerName: string | null;
+  callSid: string;
+}): Promise<void> {
+  try {
+    if (!args.callerNumber || !args.callerNumber.startsWith("+")) return; // skip anonymous/withheld
+    const provider = await getDefaultTwilioProviderForOrg(args.orgId);
+    if (!provider) return;
+    const cfg = provider.config;
+    if (cfg.autoSmsOnMissed === false) return;
+    const fromNumber = cfg.fromNumber || cfg.phoneNumber || provider.phoneNumbers[0] || "";
+    if (!fromNumber) return;
+
+    const name = (args.callerName || "").trim();
+    const tz = cfg.businessHours?.tz || "Europe/Paris";
+    let timeStr = "";
+    try {
+      timeStr = new Intl.DateTimeFormat("fr-FR", { timeZone: tz, hour: "2-digit", minute: "2-digit" }).format(new Date());
+    } catch { timeStr = new Date().toISOString().slice(11, 16); }
+
+    const tpl = cfg.autoSmsTemplate || "Bonjour{name_comma}, nous avons manqué votre appel à {time}. Nous vous rappelons rapidement. — Agent de Bureau";
+    const body = tpl
+      .replace("{name}", name)
+      .replace("{name_comma}", name ? ` ${name}` : "")
+      .replace("{time}", timeStr);
+
+    const result = await sendSms("twilio", cfg as TelephonyProviderConfig, {
+      to: args.callerNumber,
+      from: fromNumber,
+      body,
+    });
+
+    await db.insert(telephonySmsLogsTable).values({
+      organisationId: args.orgId,
+      providerId: provider.id,
+      providerMessageSid: result.messageSid || null,
+      direction: "outbound",
+      fromNumber,
+      toNumber: args.callerNumber,
+      body,
+      status: result.success ? (result.status || "sent") : "failed",
+      metadata: { callSid: args.callSid, reason: "missed-call-auto-sms", error: result.error || null },
+    }).catch(() => {});
+
+    logger.info({ orgId: args.orgId, callSid: args.callSid, ok: result.success }, "[TwilioVoice] Missed-call SMS sent");
+  } catch (err) {
+    logger.warn({ err, orgId: args.orgId, callSid: args.callSid }, "[TwilioVoice] Missed-call SMS failed");
+  }
+}
+
+// Download a Twilio recording and transcribe it via Gemini multimodal.
+// Returns null on any failure (fail-open: caller falls back to "no transcript").
+async function transcribeTwilioRecording(recordingUrl: string, accountSid: string, authToken: string): Promise<string | null> {
+  try {
+    // SSRF guard: even though /recording-complete is signature-protected,
+    // defense-in-depth — never let a forged RecordingUrl steer this fetch
+    // at internal endpoints. Allowlist Twilio's own media domains only.
+    if (!isAllowedTwilioRecordingUrl(recordingUrl)) {
+      logger.warn({ recordingUrl }, "[TwilioVoice] Rejecting non-Twilio RecordingUrl");
+      return null;
+    }
+    // Twilio recording URLs require basic auth + we ask for mp3 (smaller, FR-supported).
+    const url = recordingUrl.endsWith(".mp3") ? recordingUrl : `${recordingUrl}.mp3`;
+    const audioResp = await fetch(url, {
+      redirect: "manual",
+      headers: { Authorization: "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64") },
+    });
+    if (!audioResp.ok) return null;
+    const arr = await audioResp.arrayBuffer();
+    const b64 = Buffer.from(arr).toString("base64");
+    if (b64.length === 0) return null;
+
+    const { ai } = await import("@workspace/integrations-gemini-ai");
+    const t0 = Date.now();
+    const r = await ai.models.generateContent({
+      model: "gemini-2.5-pro",
+      contents: [{
+        role: "user",
+        parts: [
+          { text: "Transcris ce message vocal en français. Retourne uniquement le texte parlé, sans préambule ni guillemets. Si le message est vide ou inaudible, réponds exactement: VIDE." },
+          { inlineData: { mimeType: "audio/mpeg", data: b64 } },
+        ],
+      }],
+      config: { temperature: 0.1, maxOutputTokens: 800 },
+    });
+    const transcript = (r.text || "").trim();
+    if (!transcript || transcript === "VIDE") return null;
+    logger.info({ ms: Date.now() - t0, len: transcript.length }, "[TwilioVoice] Voicemail transcribed");
+    return transcript;
+  } catch (err) {
+    logger.warn({ err: (err as any)?.message || err }, "[TwilioVoice] Voicemail transcription failed");
+    return null;
+  }
+}
+
+// Send a post-call recap email to all active users of the organisation.
+async function sendCallRecapEmail(args: {
+  orgId: number;
+  callDbId: number;
+  callerNumber: string;
+  callerName: string | null;
+  summary?: string | null;
+  sentiment?: string | null;
+  urgency?: string | null;
+  tasksCreated?: number;
+  appointmentCreated?: boolean;
+  voicemailTranscript?: string | null;
+  transcriptSnippet?: string | null;
+}): Promise<void> {
+  try {
+    const provider = await getDefaultTwilioProviderForOrg(args.orgId);
+    if (provider && provider.config.emailRecapEnabled === false) return;
+
+    const recipients = await db
+      .select({ email: usersTable.email })
+      .from(usersTable)
+      .where(eq(usersTable.organisationId, args.orgId))
+      .limit(20);
+    const emails = recipients.map(r => r.email).filter((e): e is string => !!e);
+    if (emails.length === 0) return;
+
+    const [org] = await db
+      .select({ name: organisationsTable.name })
+      .from(organisationsTable)
+      .where(eq(organisationsTable.id, args.orgId))
+      .limit(1);
+    const orgName = org?.name || "Agent de Bureau";
+
+    const who = args.callerName || args.callerNumber || "Inconnu";
+    const subject = `Résumé d'appel — ${who} — ${new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short" }).format(new Date())}`;
+
+    const lines: string[] = [];
+    lines.push(`<h2 style="margin:0 0 12px 0;font-family:system-ui,sans-serif;">Appel reçu</h2>`);
+    lines.push(`<p style="font-family:system-ui,sans-serif;color:#374151;">De: <strong>${escapeHtml(who)}</strong> (${escapeHtml(args.callerNumber || "—")})</p>`);
+    if (args.summary) lines.push(`<p><strong>Résumé:</strong><br>${escapeHtml(args.summary)}</p>`);
+    if (args.sentiment || args.urgency) {
+      lines.push(`<p style="color:#6b7280;">Sentiment: ${escapeHtml(args.sentiment || "—")} · Urgence: ${escapeHtml(args.urgency || "—")}</p>`);
+    }
+    if (args.tasksCreated && args.tasksCreated > 0) {
+      lines.push(`<p>✓ <strong>${args.tasksCreated}</strong> tâche${args.tasksCreated > 1 ? "s" : ""} créée${args.tasksCreated > 1 ? "s" : ""} automatiquement.</p>`);
+    }
+    if (args.appointmentCreated) lines.push(`<p>✓ Rendez-vous ajouté à votre agenda.</p>`);
+    if (args.voicemailTranscript) {
+      lines.push(`<p><strong>Message vocal:</strong><br><em>"${escapeHtml(args.voicemailTranscript)}"</em></p>`);
+    } else if (args.transcriptSnippet) {
+      lines.push(`<p><strong>Extrait:</strong><br><em>${escapeHtml(args.transcriptSnippet)}</em></p>`);
+    }
+    lines.push(`<p style="margin-top:16px;color:#9ca3af;font-size:12px;">— ${escapeHtml(orgName)} via Agent de Bureau</p>`);
+    const html = `<div style="max-width:560px;margin:0 auto;padding:16px;">${lines.join("")}</div>`;
+
+    const text = [
+      `Appel de ${who} (${args.callerNumber || "-"})`,
+      args.summary ? `Resume: ${args.summary}` : "",
+      args.sentiment || args.urgency ? `Sentiment: ${args.sentiment || "-"} | Urgence: ${args.urgency || "-"}` : "",
+      args.tasksCreated ? `${args.tasksCreated} tache(s) creee(s).` : "",
+      args.appointmentCreated ? `Rendez-vous ajoute a l'agenda.` : "",
+      args.voicemailTranscript ? `Message vocal: "${args.voicemailTranscript}"` : "",
+    ].filter(Boolean).join("\n");
+
+    // Send to each recipient (BCC pattern would require provider support; we keep it explicit per-user).
+    for (const to of emails) {
+      sendEmail(to, subject, html, text).catch(() => {});
+    }
+    logger.info({ orgId: args.orgId, callDbId: args.callDbId, recipients: emails.length }, "[TwilioVoice] Call recap emails dispatched");
+  } catch (err) {
+    logger.warn({ err, orgId: args.orgId, callDbId: args.callDbId }, "[TwilioVoice] sendCallRecapEmail failed");
+  }
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+// ---------------------------------------------------------------------------
 // Route: Initial incoming voice call
 // POST /telephony/twilio/voice
 // ---------------------------------------------------------------------------
@@ -328,12 +654,7 @@ twilioVoiceRouter.post("/telephony/twilio/voice", async (req: Request, res: Resp
     callStatus: _twBody.CallStatus,
   }, "[TwilioVoice] Incoming call");
 
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  if (authToken && !validateTwilioSignature(req, authToken)) {
-    logger.warn("[TwilioVoice] Invalid Twilio signature on /voice");
-    res.status(403).send("Forbidden");
-    return;
-  }
+  if (rejectIfBadTwilioRequest(req, res, "/voice")) return;
 
   const callSid: string = (req.body as Record<string, string>).CallSid || "";
   const toNumber: string = (req.body as Record<string, string>).To || "";
@@ -359,16 +680,22 @@ twilioVoiceRouter.post("/telephony/twilio/voice", async (req: Request, res: Resp
     logger.warn({ orgId: session.orgId }, "[TwilioVoice] AI quota exceeded, voice AI disabled for this call");
   }
 
-  // Find provider ID for logging
-  const [provider] = await db
+  // Find provider ID for logging — scoped to the tenant identified by the
+  // called Twilio number, so we never attach a call log to another org's
+  // provider row when multiple tenants share the "twilio" provider name.
+  const [callProvider] = await db
     .select({ id: telephonyProvidersTable.id })
     .from(telephonyProvidersTable)
-    .where(eq(telephonyProvidersTable.provider, "twilio"))
+    .where(and(
+      eq(telephonyProvidersTable.organisationId, session.orgId),
+      eq(telephonyProvidersTable.provider, "twilio"),
+    ))
+    .orderBy(sql`${telephonyProvidersTable.isDefault} DESC, ${telephonyProvidersTable.id} ASC`)
     .limit(1)
     .catch(() => []);
 
   // Create DB record
-  session.callDbId = await createCallRecord(session.orgId, callSid, fromNumber, provider?.id ?? null);
+  session.callDbId = await createCallRecord(session.orgId, callSid, fromNumber, callProvider?.id ?? null);
 
   // Store session
   sessions.set(callSid, { ...session, expiresAt: Date.now() + 30 * 60 * 1000 });
@@ -376,19 +703,66 @@ twilioVoiceRouter.post("/telephony/twilio/voice", async (req: Request, res: Resp
   const proto = (req.headers["x-forwarded-proto"] as string) || "https";
   const host = (req.headers["x-forwarded-host"] as string) || (req.headers.host as string) || "";
   const gatherUrl = `${proto}://${host}/api/telephony/twilio/gather?callSid=${encodeURIComponent(callSid)}&quotaOk=${quotaOk ? "1" : "0"}`;
+  const recordUrl = `${proto}://${host}/api/telephony/twilio/recording-complete?callSid=${encodeURIComponent(callSid)}`;
 
   // Personalized greeting if the caller is a known contact.
-  const callerName = [session.callerFirstName, session.callerLastName]
-    .filter((s) => s && s.trim().length > 0)
-    .join(" ")
-    .trim();
+  const callerName = formatCallerName(session.callerFirstName, session.callerLastName);
   const personalSalutation = callerName ? `Bonjour ${callerName}, ` : "Bonjour, ";
-  const greeting = `${personalSalutation}vous avez contacté ${session.companyName}. Je suis ${session.agentName}, votre assistante IA. Comment puis-je vous aider?`;
 
+  // Wave 2: conditional routing. If the org configured business hours and
+  // we're outside them (or quota is exhausted), prefer either:
+  //   1. Forwarding the call to a human number (provider.config.forwardToNumber), or
+  //   2. Recording a voicemail that we transcribe later.
+  // Default behaviour (no businessHours configured) is unchanged: we greet
+  // and start the AI conversation immediately.
+  const orgProvider = await getDefaultTwilioProviderForOrg(session.orgId);
+  const cfg = orgProvider?.config || {};
+  const available = isWithinBusinessHours(cfg.businessHours, new Date()) && quotaOk;
+
+  if (!available) {
+    if (cfg.forwardToNumber) {
+      // callerId must be a number we own. Use the same Twilio number that
+      // received the call (toNumber) so the conseiller's screen shows
+      // their own line, not the caller's number.
+      const ownedCallerId = cfg.fromNumber || cfg.phoneNumber || toNumber || (orgProvider?.phoneNumbers[0] || "");
+      const dialActionUrl = `${proto}://${host}/api/telephony/twilio/dial-complete?callSid=${encodeURIComponent(callSid)}`;
+      logger.info({ orgId: session.orgId, callSid }, "[TwilioVoice] Forwarding call (unavailable)");
+      // We do NOT append <Record> here — that would always run after the
+      // dial ends, even on a successful conversation. /dial-complete
+      // inspects DialCallStatus and returns voicemail TwiML only on
+      // no-answer/busy/failed.
+      sendTwiml(
+        res,
+        twimlDial(cfg.forwardToNumber, ownedCallerId, dialActionUrl, `${personalSalutation}je vous mets en relation avec un conseiller. Un instant je vous prie.`),
+      );
+      return;
+    }
+    if (cfg.voicemailWhenBusy !== false) {
+      const reason = quotaOk
+        ? "nous sommes actuellement fermés"
+        : "le service est temporairement indisponible";
+      logger.info({ orgId: session.orgId, callSid, quotaOk }, "[TwilioVoice] Routing to voicemail (unavailable)");
+      sendTwiml(
+        res,
+        twimlRecord(
+          recordUrl,
+          `${personalSalutation}vous avez contacté ${session.companyName}. ${reason}. Laissez votre message après le bip, nous vous rappellerons. Appuyez sur dièse pour terminer.`,
+        ),
+      );
+      return;
+    }
+    // Else: explicit opt-out of voicemail -> polite hangup
+    sendTwiml(res, twimlSay(`${personalSalutation}vous avez contacté ${session.companyName}. Nous sommes actuellement fermés. Merci de rappeler plus tard.`));
+    return;
+  }
+
+  // Available -> normal AI conversation flow.
+  const greeting = `${personalSalutation}vous avez contacté ${session.companyName}. Je suis ${session.agentName}, votre assistante IA. Comment puis-je vous aider?`;
   sendTwiml(
     res,
     twimlGather(gatherUrl, greeting),
-    twimlSay("Je n'ai pas entendu votre réponse. Merci d'avoir appelé. Au revoir."),
+    // No-speech fallback: offer a voicemail rather than just hanging up.
+    twimlRecord(recordUrl, "Je n'ai pas entendu votre réponse. Si vous le souhaitez, laissez votre message après le bip."),
   );
 });
 
@@ -397,12 +771,7 @@ twilioVoiceRouter.post("/telephony/twilio/voice", async (req: Request, res: Resp
 // POST /telephony/twilio/gather
 // ---------------------------------------------------------------------------
 twilioVoiceRouter.post("/telephony/twilio/gather", async (req: Request, res: Response): Promise<void> => {
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  if (authToken && !validateTwilioSignature(req, authToken)) {
-    logger.warn("[TwilioVoice] Invalid Twilio signature on /gather");
-    res.status(403).send("Forbidden");
-    return;
-  }
+  if (rejectIfBadTwilioRequest(req, res, "/gather")) return;
 
   const body = req.body as Record<string, string>;
   const querySid = (req.query as Record<string, string>).callSid || "";
@@ -481,6 +850,11 @@ twilioVoiceRouter.post("/telephony/twilio/gather", async (req: Request, res: Res
 // POST /telephony/twilio/status
 // ---------------------------------------------------------------------------
 twilioVoiceRouter.post("/telephony/twilio/status", async (req: Request, res: Response): Promise<void> => {
+  // /status triggers DB writes, missed-call SMS, AI processing and recap
+  // emails — it MUST be authenticated. Fail closed in production when the
+  // signing token is unavailable.
+  if (rejectIfBadTwilioRequest(req, res, "/status")) return;
+
   const body = req.body as Record<string, string>;
   const callSid: string = body.CallSid || "";
   const callStatus: string = body.CallStatus || "";
@@ -506,6 +880,61 @@ twilioVoiceRouter.post("/telephony/twilio/status", async (req: Request, res: Res
     }
   } catch (err) {
     logger.error({ err, callSid }, "[TwilioVoice] Status update error");
+  }
+
+  // Wave 2: missed-call auto-SMS. Twilio reports these statuses when the
+  // call did NOT reach a meaningful conversation: no-answer, busy, failed,
+  // canceled. We text the caller back from the same Twilio number so they
+  // know we noticed. Best-effort; logged for observability.
+  const missedStatuses = new Set(["no-answer", "busy", "failed", "canceled"]);
+  if (missedStatuses.has(callStatus)) {
+    void (async () => {
+      try {
+        // Resolve org from telephony log (session may be missing on restart).
+        let orgId = session?.orgId ?? null;
+        let callerNumber = session?.callerNumber ?? "";
+        let callerName = formatCallerName(session?.callerFirstName ?? null, session?.callerLastName ?? null);
+        if (orgId == null || !callerNumber) {
+          const [logRow] = await db
+            .select({
+              orgId: telephonyCallLogsTable.organisationId,
+              fromNumber: telephonyCallLogsTable.fromNumber,
+            })
+            .from(telephonyCallLogsTable)
+            .where(eq(telephonyCallLogsTable.providerCallSid, callSid))
+            .limit(1);
+          if (!logRow?.orgId) return;
+          orgId = logRow.orgId;
+          callerNumber = callerNumber || logRow.fromNumber;
+          if (!callerName && callerNumber) {
+            const [c] = await db.select({ firstName: contactsTable.firstName, lastName: contactsTable.lastName })
+              .from(contactsTable)
+              .where(and(eq(contactsTable.organisationId, orgId), eq(contactsTable.phone, callerNumber)))
+              .limit(1);
+            if (c) callerName = formatCallerName(c.firstName ?? null, c.lastName ?? null);
+          }
+        }
+        // Idempotency: if we already wrote a missed-call SMS row for this
+        // CallSid (Twilio re-delivers /status freely), skip. Postgres jsonb
+        // -> text comparison via @> is the cheapest equality check here.
+        const dupe = await db
+          .select({ id: telephonySmsLogsTable.id })
+          .from(telephonySmsLogsTable)
+          .where(and(
+            eq(telephonySmsLogsTable.organisationId, orgId),
+            sql`${telephonySmsLogsTable.metadata} @> ${JSON.stringify({ callSid, reason: "missed-call-auto-sms" })}::jsonb`,
+          ))
+          .limit(1)
+          .catch(() => [] as Array<{ id: number }>);
+        if (dupe.length > 0) {
+          logger.info({ callSid, orgId }, "[TwilioVoice] Missed-call SMS already sent — skipping duplicate");
+          return;
+        }
+        await sendMissedCallSmsForOrg({ orgId, callerNumber, callerName: callerName || null, callSid });
+      } catch (err) {
+        logger.warn({ err, callSid }, "[TwilioVoice] Missed-call SMS pipeline error");
+      }
+    })();
   }
 
   // Fire-and-forget AI post-call analysis: extracts summary, sentiment,
@@ -568,6 +997,59 @@ twilioVoiceRouter.post("/telephony/twilio/status", async (req: Request, res: Res
           },
           "[TwilioVoice] Post-call AI analysis completed",
         );
+
+        // Option B: post-call recap email. Best-effort.
+        try {
+          const [callRow] = await db
+            .select({
+              orgId: callsTable.organisationId,
+              phoneNumber: callsTable.phoneNumber,
+              contactId: callsTable.contactId,
+              notes: callsTable.notes,
+            })
+            .from(callsTable)
+            .where(eq(callsTable.id, callDbId))
+            .limit(1);
+          if (callRow?.orgId) {
+            let callerName: string | null = null;
+            if (callRow.contactId) {
+              const [c] = await db
+                .select({ firstName: contactsTable.firstName, lastName: contactsTable.lastName })
+                .from(contactsTable)
+                .where(eq(contactsTable.id, callRow.contactId))
+                .limit(1);
+              if (c) callerName = formatCallerName(c.firstName ?? null, c.lastName ?? null) || null;
+            }
+            let voicemailTranscript: string | null = null;
+            let transcriptSnippet: string | null = null;
+            try {
+              const parsed = callRow.notes ? JSON.parse(callRow.notes) : null;
+              voicemailTranscript = parsed?.voicemail?.transcript || null;
+              if (Array.isArray(parsed?.turns) && parsed.turns.length > 0) {
+                transcriptSnippet = parsed.turns
+                  .slice(0, 6)
+                  .map((t: any) => `${t.role === "caller" ? "Client" : "Sophie"}: ${t.text}`)
+                  .join(" — ")
+                  .slice(0, 600);
+              }
+            } catch { /* ignore parse errors */ }
+            await sendCallRecapEmail({
+              orgId: callRow.orgId,
+              callDbId,
+              callerNumber: callRow.phoneNumber || "",
+              callerName,
+              summary: result.analysis.summary || null,
+              sentiment: result.analysis.sentiment || null,
+              urgency: result.analysis.urgency || null,
+              tasksCreated: result.createdTasks.length,
+              appointmentCreated: !!result.createdAppointment,
+              voicemailTranscript,
+              transcriptSnippet,
+            });
+          }
+        } catch (mailErr) {
+          logger.warn({ err: (mailErr as any)?.message || mailErr, callSid, callDbId }, "[TwilioVoice] Recap email skipped");
+        }
       } catch (err: any) {
         // Non-fatal: the call already ended successfully. Common skip reasons
         // are quota exceeded, "déjà traité" (re-delivery from Twilio), or
@@ -583,4 +1065,202 @@ twilioVoiceRouter.post("/telephony/twilio/status", async (req: Request, res: Res
   // Clean up session
   sessions.delete(callSid);
   res.json({ received: true });
+});
+
+// ---------------------------------------------------------------------------
+// Route: Dial completion (Twilio posts here after <Dial> ends).
+// We only fall back to voicemail if the dial actually failed — otherwise
+// the conseiller had a successful conversation and we want to hang up.
+// POST /telephony/twilio/dial-complete
+// ---------------------------------------------------------------------------
+twilioVoiceRouter.post("/telephony/twilio/dial-complete", async (req: Request, res: Response): Promise<void> => {
+  if (rejectIfBadTwilioRequest(req, res, "/dial-complete")) return;
+  const body = req.body as Record<string, string>;
+  const querySid = (req.query as Record<string, string>).callSid || "";
+  const callSid = body.CallSid || querySid;
+  const dialStatus = body.DialCallStatus || "";
+  logger.info({ callSid, dialStatus }, "[TwilioVoice] Dial complete");
+
+  // Twilio statuses: completed | answered | busy | no-answer | failed | canceled
+  const failedStatuses = new Set(["busy", "no-answer", "failed", "canceled"]);
+  if (failedStatuses.has(dialStatus)) {
+    const proto = (req.headers["x-forwarded-proto"] as string) || "https";
+    const host = (req.headers["x-forwarded-host"] as string) || (req.headers.host as string) || "";
+    const recordUrl = `${proto}://${host}/api/telephony/twilio/recording-complete?callSid=${encodeURIComponent(callSid)}`;
+    sendTwiml(
+      res,
+      twimlRecord(recordUrl, "Le conseiller n'est pas joignable. Laissez votre message après le bip, puis raccrochez ou appuyez sur dièse."),
+    );
+    return;
+  }
+  // Successful conversation — hang up cleanly.
+  sendTwiml(res, `<Hangup/>`);
+});
+
+// ---------------------------------------------------------------------------
+// Route: Recording complete (Twilio posts here when <Record> finishes).
+// Downloads the recording, transcribes via Gemini, persists everything and
+// creates a follow-up task so the secrétaire never misses a voicemail.
+// POST /telephony/twilio/recording-complete
+// ---------------------------------------------------------------------------
+twilioVoiceRouter.post("/telephony/twilio/recording-complete", async (req: Request, res: Response): Promise<void> => {
+  if (rejectIfBadTwilioRequest(req, res, "/recording-complete")) return;
+
+  const body = req.body as Record<string, string>;
+  const querySid = (req.query as Record<string, string>).callSid || "";
+  const callSid = body.CallSid || querySid;
+  const recordingUrl = body.RecordingUrl || "";
+  const recordingDuration = parseInt(body.RecordingDuration || "0", 10);
+
+  logger.info({ callSid, recordingDuration, hasUrl: !!recordingUrl }, "[TwilioVoice] Recording complete");
+
+  // Always respond fast with empty TwiML so Twilio considers the call done.
+  // The heavy work (download + transcribe + DB) runs in the background.
+  sendTwiml(res, twimlSay("Merci, votre message a bien été enregistré. Au revoir."));
+
+  if (!recordingUrl || !callSid) return;
+
+  void (async () => {
+    try {
+      // Resolve org + call from the telephony log.
+      const [logRow] = await db
+        .select({
+          orgId: telephonyCallLogsTable.organisationId,
+          providerId: telephonyCallLogsTable.providerId,
+          fromNumber: telephonyCallLogsTable.fromNumber,
+        })
+        .from(telephonyCallLogsTable)
+        .where(eq(telephonyCallLogsTable.providerCallSid, callSid))
+        .limit(1);
+      if (!logRow?.orgId) {
+        logger.warn({ callSid }, "[TwilioVoice] No telephony log for recording");
+        return;
+      }
+      const orgId = logRow.orgId;
+
+      // Persist the recording URL on the log immediately (so the recording
+      // is reachable in the UI even if transcription fails).
+      await db.update(telephonyCallLogsTable)
+        .set({ recordingUrl })
+        .where(eq(telephonyCallLogsTable.providerCallSid, callSid))
+        .catch(() => {});
+
+      // Resolve the calls.id row by scanning notes for the callSid (same
+      // pattern as the AI fallback path).
+      const [callRow] = await db
+        .select({ id: callsTable.id, notes: callsTable.notes, contactId: callsTable.contactId, phoneNumber: callsTable.phoneNumber })
+        .from(callsTable)
+        .where(and(
+          eq(callsTable.organisationId, orgId),
+          sql`${callsTable.notes} LIKE ${"%" + callSid + "%"}`,
+        ))
+        .limit(1);
+      if (!callRow?.id) return;
+
+      // Idempotency: if we already processed a voicemail for this call
+      // (Twilio re-deliveries, retries), bail out before re-transcribing,
+      // re-creating tasks or re-sending recap email. We key on RecordingSid
+      // when available, otherwise on the recordingUrl itself.
+      const recordingSid = body.RecordingSid || "";
+      try {
+        const existing = callRow.notes ? JSON.parse(callRow.notes) : null;
+        const vm = existing?.voicemail;
+        if (vm && (
+          (recordingSid && vm.recordingSid === recordingSid) ||
+          (vm.url && vm.url === recordingUrl)
+        )) {
+          logger.info({ callSid, recordingSid }, "[TwilioVoice] Voicemail already processed — skipping duplicate");
+          return;
+        }
+      } catch { /* fall through and process */ }
+
+      // Pull credentials from the org's Twilio provider for the audio fetch
+      // (Twilio recording URLs require basic auth).
+      const provider = await getDefaultTwilioProviderForOrg(orgId);
+      const accountSid = provider?.config.accountSid || process.env.TWILIO_ACCOUNT_SID || "";
+      const auth = provider?.config.authToken || process.env.TWILIO_AUTH_TOKEN || "";
+
+      let transcript: string | null = null;
+      if (accountSid && auth) {
+        // Twilio finalises the recording asynchronously; brief wait avoids
+        // a 404 race on the very first poll.
+        await new Promise(r => setTimeout(r, 1500));
+        transcript = await transcribeTwilioRecording(recordingUrl, accountSid, auth);
+      }
+
+      // Update notes JSON with the voicemail block.
+      try {
+        const parsed = callRow.notes ? JSON.parse(callRow.notes) : {};
+        parsed.voicemail = {
+          url: recordingUrl,
+          recordingSid: body.RecordingSid || null,
+          transcript: transcript || null,
+          durationSec: recordingDuration,
+          at: new Date().toISOString(),
+        };
+        // Mark this call as a voicemail so the UI can render a distinctive
+        // pill ("Message vocal") even when status=manque.
+        if (Array.isArray(parsed.tags)) {
+          if (!parsed.tags.includes("voicemail")) parsed.tags.push("voicemail");
+        }
+        await db.update(callsTable)
+          .set({ notes: JSON.stringify(parsed), updatedAt: new Date() })
+          .where(eq(callsTable.id, callRow.id));
+      } catch (err) {
+        logger.warn({ err, callSid }, "[TwilioVoice] Failed to persist voicemail notes");
+      }
+
+      // Mirror transcript into the dedicated column for analytics/search.
+      if (transcript) {
+        await db.update(telephonyCallLogsTable)
+          .set({ transcription: transcript })
+          .where(eq(telephonyCallLogsTable.providerCallSid, callSid))
+          .catch(() => {});
+      }
+
+      // Create a follow-up task. We import lazily so the cold path stays cheap.
+      try {
+        const { tasksTable } = await import("@workspace/db");
+        let callerName: string | null = null;
+        if (callRow.contactId) {
+          const [c] = await db
+            .select({ firstName: contactsTable.firstName, lastName: contactsTable.lastName })
+            .from(contactsTable)
+            .where(eq(contactsTable.id, callRow.contactId))
+            .limit(1);
+          if (c) callerName = formatCallerName(c.firstName ?? null, c.lastName ?? null) || null;
+        }
+        const who = callerName || callRow.phoneNumber || "inconnu";
+        const snippet = transcript ? transcript.slice(0, 240) : "(transcription indisponible — écouter l'enregistrement)";
+        await db.insert(tasksTable).values({
+          organisationId: orgId,
+          title: `Rappeler ${who} — message vocal`,
+          description: snippet,
+          status: "a_faire" as any,
+          priority: "haute" as any,
+          dueDate: new Date(Date.now() + 24 * 3600 * 1000),
+          callId: callRow.id,
+        } as any).catch((err: any) => {
+          logger.warn({ err: err?.message, callSid }, "[TwilioVoice] Voicemail task insert failed (schema mismatch?)");
+        });
+      } catch (err) {
+        logger.warn({ err, callSid }, "[TwilioVoice] Voicemail task creation failed");
+      }
+
+      // Email recap with the voicemail transcript.
+      try {
+        await sendCallRecapEmail({
+          orgId,
+          callDbId: callRow.id,
+          callerNumber: callRow.phoneNumber || "",
+          callerName: null,
+          voicemailTranscript: transcript,
+        });
+      } catch { /* already swallowed inside */ }
+
+      logger.info({ callSid, callDbId: callRow.id, transcribed: !!transcript }, "[TwilioVoice] Voicemail processed");
+    } catch (err) {
+      logger.error({ err, callSid }, "[TwilioVoice] /recording-complete pipeline error");
+    }
+  })();
 });
