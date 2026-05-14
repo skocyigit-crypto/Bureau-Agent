@@ -8,7 +8,7 @@ import { AiAssistantButton } from "@/components/ai-assistant";
 import { AiHealthBadge, RecognitionProvider } from "@/components/ai-recognition-panel";
 import { IncomingCallOverlay, useIncomingCall } from "@/components/incoming-call-overlay";
 import { UserProfileButton, WorkspaceUserSidebarInfo } from "@/components/workspace-user";
-import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarTrigger, SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarFooter } from "@/components/ui/sidebar";
+import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarMenuBadge, SidebarProvider, SidebarTrigger, SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarFooter } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { GlobalSearch } from "@/components/global-search";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -73,6 +73,43 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [orgName, setOrgName] = useState<string | null>(null);
   const isSuperAdmin = user.role === "super_admin";
   useRealtimeSync();
+
+  const [prospectBadge, setProspectBadge] = useState<number>(() => {
+    if (typeof window === "undefined") return 0;
+    const v = parseInt(window.localStorage.getItem("prospect-badge-count") || "0", 10);
+    return Number.isFinite(v) && v > 0 ? v : 0;
+  });
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    const onSync = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { type?: string; action?: string } | undefined;
+      if (detail?.type === "prospect" && detail?.action === "created") {
+        setProspectBadge((c) => {
+          const next = c + 1;
+          try { window.localStorage.setItem("prospect-badge-count", String(next)); } catch {}
+          return next;
+        });
+      }
+    };
+    const onClear = () => {
+      setProspectBadge(0);
+      try { window.localStorage.setItem("prospect-badge-count", "0"); } catch {}
+    };
+    window.addEventListener("realtime-sync", onSync);
+    window.addEventListener("prospect-badge-clear", onClear);
+    return () => {
+      window.removeEventListener("realtime-sync", onSync);
+      window.removeEventListener("prospect-badge-clear", onClear);
+    };
+  }, [isSuperAdmin]);
+
+  useEffect(() => {
+    if (location === "/prospects" || location.startsWith("/prospects/")) {
+      setProspectBadge(0);
+      try { window.localStorage.setItem("prospect-badge-count", "0"); } catch {}
+    }
+  }, [location]);
 
   useEffect(() => {
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
@@ -142,7 +179,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           // Voir le panneau /admin pour la gestion commerciale (leads, devis,
           // factures B2B, stock de licences). Refactor "Admin Backoffice +
           // Müşteri Sadeleştirme" — Tâche #52.
-          ...(isSuperAdmin ? [{ name: "Prospects", href: "/prospects", icon: Target }] : []),
+          ...(isSuperAdmin ? [{ name: "Prospects", href: "/prospects", icon: Target, badge: prospectBadge }] : []),
         ],
       },
       {
@@ -221,7 +258,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         ],
       },
     ].filter(g => g.items.length > 0);
-  }, [user.role]);
+  }, [user.role, isSuperAdmin, prospectBadge]);
 
 
   return (
@@ -256,20 +293,32 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
                 <SidebarGroupContent>
                   <SidebarMenu>
-                    {group.items.map((item) => (
-                      <SidebarMenuItem key={item.name}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={location === item.href || (item.href !== "/" && location.startsWith(item.href + "/"))}
-                          tooltip={item.name}
-                        >
-                          <Link href={item.href} className="flex items-center gap-3" onClick={() => triggerHaptic("light")}>
-                            <SidebarIcon3D icon={item.icon} href={item.href} />
-                            <span>{item.name}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
+                    {group.items.map((item) => {
+                      const badgeCount = (item as { badge?: number }).badge ?? 0;
+                      return (
+                        <SidebarMenuItem key={item.name}>
+                          <SidebarMenuButton
+                            asChild
+                            isActive={location === item.href || (item.href !== "/" && location.startsWith(item.href + "/"))}
+                            tooltip={item.name}
+                          >
+                            <Link href={item.href} className="flex items-center gap-3" onClick={() => triggerHaptic("light")}>
+                              <SidebarIcon3D icon={item.icon} href={item.href} />
+                              <span>{item.name}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                          {badgeCount > 0 && (
+                            <SidebarMenuBadge
+                              className="bg-emerald-500 text-white"
+                              data-testid={`sidebar-badge-${item.name.toLowerCase().replace(/\s+/g, "-")}`}
+                              aria-label={`${badgeCount} nouveau${badgeCount > 1 ? "x" : ""} ${item.name.toLowerCase()}`}
+                            >
+                              {badgeCount > 99 ? "99+" : badgeCount}
+                            </SidebarMenuBadge>
+                          )}
+                        </SidebarMenuItem>
+                      );
+                    })}
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>

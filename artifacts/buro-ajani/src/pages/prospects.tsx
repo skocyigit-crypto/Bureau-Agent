@@ -122,6 +122,11 @@ export default function ProspectsPage() {
   }, []);
 
   useEffect(() => {
+    try { window.localStorage.setItem("prospect-badge-count", "0"); } catch {}
+    window.dispatchEvent(new CustomEvent("prospect-badge-clear"));
+  }, []);
+
+  useEffect(() => {
     const onSync = (e: Event) => {
       const detail = (e as CustomEvent).detail as { type?: string } | undefined;
       if (detail?.type === "prospect") load();
