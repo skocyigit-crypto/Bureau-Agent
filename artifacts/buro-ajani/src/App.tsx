@@ -10,6 +10,7 @@ import LoginPage from "@/pages/login";
 import RegisterPage from "@/pages/register";
 import { WorkspaceUserProvider } from "@/components/workspace-user";
 import { PwaInstallButton } from "@/components/pwa-install";
+import { PwaStandaloneRedirect } from "@/components/pwa-standalone-redirect";
 import { UpdateBanner } from "@/components/update-banner";
 import { VoiceAssistant } from "@/components/VoiceAssistant";
 import { motion, AnimatePresence } from "framer-motion";
@@ -359,6 +360,7 @@ function App() {
               handleLogout={handleLogout}
               setAuthState={setAuthState}
             />
+            <PwaStandaloneRedirect />
           </WouterRouter>
           <PwaInstallButton />
           <Toaster />
