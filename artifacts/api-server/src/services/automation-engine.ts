@@ -102,16 +102,37 @@ async function checkOverdueTasks() {
     if (existing.length > 0) continue;
 
     const daysOverdue = Math.ceil((now.getTime() - new Date(task.dueDate!).getTime()) / (1000 * 60 * 60 * 24));
+    const notifPriority = daysOverdue > 3 ? "urgente" : "haute";
+    const message = `"${task.title}" est en retard de ${daysOverdue} jour(s). Priorite: ${task.priority || "normale"}.`;
 
     await db.insert(notificationsTable).values({
+      ...(task.organisationId ? { organisationId: task.organisationId } : {}),
       type: "alerte",
       title: "Tache en retard",
-      message: `"${task.title}" est en retard de ${daysOverdue} jour(s). Priorite: ${task.priority || "normale"}.`,
-      priority: daysOverdue > 3 ? "urgente" : "haute",
+      message,
+      priority: notifPriority,
       actionUrl: "/taches",
       sourceType: "task_overdue",
       sourceId: String(task.id),
     });
+
+    // Tâche #89: pousser un event SSE "reminder" pour que le mobile
+    // vibre + (selon préférences) déclenche une notification locale,
+    // comme pour les rappels calendrier (Tâche #84). On ne broadcast
+    // que pour les tâches en retard à priorité haute/urgente.
+    if (task.organisationId) {
+      broadcaster.broadcast(task.organisationId, {
+        type: "reminder",
+        action: "created",
+        resourceId: task.id,
+        meta: {
+          sourceType: "task_overdue",
+          priority: notifPriority,
+          title: "Tâche en retard",
+          body: message,
+        },
+      });
+    }
   }
 
   await logAutomationRun("Taches en retard", "success", { count: overdueTasks.length }, overdueTasks.length, performance.now() - start);
@@ -299,17 +320,36 @@ async function checkOverdueProjects() {
     if (existing.length > 0) continue;
 
     const daysOverdue = Math.ceil((now.getTime() - new Date(projet.endDate!).getTime()) / (1000 * 60 * 60 * 24));
+    const notifPriority = daysOverdue > 7 ? "urgente" : "haute";
+    const message = `Le projet "${projet.title}" est en retard de ${daysOverdue} jour(s).`;
 
     await db.insert(notificationsTable).values({
       ...(projet.organisationId ? { organisationId: projet.organisationId } : {}),
       type: "alerte",
       title: "Projet en retard",
-      message: `Le projet "${projet.title}" est en retard de ${daysOverdue} jour(s).`,
-      priority: daysOverdue > 7 ? "urgente" : "haute",
+      message,
+      priority: notifPriority,
       actionUrl: "/projets",
       sourceType: "projet_en_retard",
       sourceId: String(projet.id),
     });
+
+    // Tâche #89: pousser un event SSE "reminder" pour que le mobile
+    // vibre + (selon préférences) déclenche une notification locale,
+    // alignée avec le comportement des rappels calendrier (Tâche #84).
+    if (projet.organisationId) {
+      broadcaster.broadcast(projet.organisationId, {
+        type: "reminder",
+        action: "created",
+        resourceId: projet.id,
+        meta: {
+          sourceType: "projet_en_retard",
+          priority: notifPriority,
+          title: "Projet en retard",
+          body: message,
+        },
+      });
+    }
   }
 
   await logAutomationRun("Projets en retard", "success", { count: overdueProjects.length }, overdueProjects.length, performance.now() - start);

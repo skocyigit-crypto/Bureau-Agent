@@ -393,22 +393,34 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
             if (event.action !== "created" && event.action !== "updated") continue;
             if (event.type === "reminder") {
               // Tâche #84: rappels imminents (ex: rendez-vous qui va commencer).
-              // On ne filtre que les priorités urgentes côté serveur, donc tout
-              // event "reminder" reçu doit déclencher l'alerte. Pas de bump de
-              // badge: la liste des rappels vit dans /calendrier et n'a pas
-              // de compteur dédié sur la tab bar.
+              // Tâche #89: également les tâches en retard et projets en retard
+              // (priority haute/urgente) — même mécanisme vibration + notif
+              // locale, copie et deep-link différenciés via meta.sourceType.
+              // Pas de bump de badge: ces alertes vivent dans leurs écrans
+              // dédiés et n'ont pas de compteur sur la tab bar.
               if (event.action !== "created") continue;
               const priority = event.meta?.priority;
               if (priority && priority !== "haute" && priority !== "urgente") continue;
+              const sourceType = event.meta?.sourceType;
+              let defaultTitle = "Rappel imminent";
+              let defaultBody = "Un rappel programmé arrive à échéance.";
+              // Route mobile (cf. ALLOWED_ROUTES dans app/_layout.tsx). NB:
+              // côté web les URLs sont /calendrier, /taches, /projets ;
+              // sur mobile ce sont /calendar, /tasks, /projets.
+              let route = "/calendar";
+              if (sourceType === "task_overdue") {
+                defaultTitle = "Tâche en retard";
+                defaultBody = "Une tâche urgente a dépassé sa date d'échéance.";
+                route = "/tasks";
+              } else if (sourceType === "projet_en_retard") {
+                defaultTitle = "Projet en retard";
+                defaultBody = "Un projet a dépassé sa date de fin.";
+                route = "/projets";
+              }
               triggerCustomAlert({
-                title: event.meta?.title || "Rappel imminent",
-                body:
-                  event.meta?.body ||
-                  "Un rappel programmé arrive à échéance.",
-                // Route mobile (cf. app/calendar.tsx + ALLOWED_ROUTES dans
-                // app/_layout.tsx). NB: côté web l'URL est /calendrier ;
-                // sur mobile c'est /calendar.
-                route: "/calendar",
+                title: event.meta?.title || defaultTitle,
+                body: event.meta?.body || defaultBody,
+                route,
               });
               continue;
             }

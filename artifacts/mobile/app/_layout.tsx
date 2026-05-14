@@ -137,6 +137,10 @@ export default function RootLayout() {
       // Tâche #84: rappels imminents (event SSE "reminder") deep-linkent
       // vers l'écran calendrier (route mobile = "/calendar").
       "/calendar",
+      // Tâche #89: rappels "tâche en retard" / "projet en retard" pointent
+      // vers les listes correspondantes côté mobile.
+      "/tasks",
+      "/projets",
     ]);
 
     const extractTarget = (response: Notifications.NotificationResponse) => {
