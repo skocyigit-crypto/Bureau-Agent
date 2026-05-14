@@ -1,12 +1,12 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, parseISO, isToday, isYesterday, formatDistanceToNow } from "date-fns";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { format, isToday, isYesterday } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
   Mail, Send, Reply, Archive, Trash2, Star, StarOff, RefreshCw, Search,
-  Brain, Sparkles, Loader2, ChevronRight, ChevronLeft, X, AlertTriangle,
-  CheckCircle2, Clock, Zap, Eye, Edit3, Copy, ExternalLink, Inbox,
-  Filter, MoreHorizontal, Paperclip, Tag, ArrowLeft, Plus, RotateCcw,
+  Brain, Sparkles, Loader2, ChevronRight, X, AlertTriangle,
+  CheckCircle2, Zap, Eye, Copy, Inbox,
+  Paperclip, Plus, RotateCcw,
   AlertCircle, TrendingUp, ShoppingCart, FileText, Info, MessageSquare,
   CornerDownLeft, Check, Wifi, WifiOff, Printer, FolderKanban
 } from "lucide-react";
@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
