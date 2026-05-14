@@ -238,6 +238,9 @@ export default function GmailAgentPage() {
   const [selectedEmail, setSelectedEmail] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("is:inbox");
+  // Filtre cote client base sur les resultats du triage IA. null = tout.
+  // Les autres valeurs filtrent la liste rendue sans rappeler Gmail.
+  const [triageFilter, setTriageFilter] = useState<null | "critique" | "haute" | "needsReply" | "commercial" | "spam">(null);
   const [triageData, setTriageData] = useState<any>(null);
   const [isTriaging, setIsTriaging] = useState(false);
   const [isDrafting, setIsDrafting] = useState(false);
@@ -270,9 +273,38 @@ export default function GmailAgentPage() {
 
   const emails: any[] = inboxData?.emails || [];
 
-  const triageMap = triageData?.triage?.triage
+  const triageMap: Record<string, any> = triageData?.triage?.triage
     ? Object.fromEntries((triageData.triage.triage as any[]).map((t: any) => [t.emailId, t]))
     : {};
+
+  // Application du filtre triage cote client. Si aucun triage n'a encore
+  // tourne (triageMap vide), on affiche tout — sinon le filtre serait
+  // toujours vide pendant les ~2s d'attente IA.
+  const displayedEmails = !triageFilter || Object.keys(triageMap).length === 0
+    ? emails
+    : emails.filter((e) => {
+        const t = triageMap[e.id];
+        if (!t) return false;
+        if (triageFilter === "needsReply") return !!t.needsReply;
+        if (triageFilter === "spam") return t.category === "spam";
+        if (triageFilter === "commercial") return t.category === "commercial";
+        return t.priority === triageFilter;
+      });
+
+  // Compteurs par filtre, affiches dans les chips. On les calcule meme si
+  // aucun chip n'est actif pour donner un apercu instantane.
+  const triageCounts = {
+    critique: 0, haute: 0, needsReply: 0, commercial: 0, spam: 0,
+  };
+  for (const e of emails) {
+    const t = triageMap[e.id];
+    if (!t) continue;
+    if (t.priority === "critique") triageCounts.critique++;
+    if (t.priority === "haute") triageCounts.haute++;
+    if (t.needsReply) triageCounts.needsReply++;
+    if (t.category === "commercial") triageCounts.commercial++;
+    if (t.category === "spam") triageCounts.spam++;
+  }
 
   // Cle stable pour deduper l'appel triage. On s'appuie sur les ids des
   // emails affiches (et leur ordre) — si rien ne change, on ne re-trigger pas
@@ -584,6 +616,36 @@ export default function GmailAgentPage() {
                 </button>
               ))}
             </div>
+            {/* Filtres derives du triage IA — affiches uniquement si on a
+                au moins un email triage, sinon les chips seraient vides
+                et trompeurs. */}
+            {Object.keys(triageMap).length > 0 && (
+              <div className="flex gap-1 flex-wrap pt-1 border-t border-border/50">
+                <button
+                  onClick={() => setTriageFilter(null)}
+                  className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${triageFilter === null ? "bg-violet-500 text-white border-violet-500" : "text-muted-foreground border-border hover:bg-muted"}`}
+                  title="Voir tous les emails"
+                >
+                  Tous
+                </button>
+                {[
+                  { key: "critique" as const, label: "Critique", count: triageCounts.critique, cls: "bg-red-500 text-white border-red-500" },
+                  { key: "haute" as const, label: "Haute", count: triageCounts.haute, cls: "bg-orange-500 text-white border-orange-500" },
+                  { key: "needsReply" as const, label: "À répondre", count: triageCounts.needsReply, cls: "bg-violet-500 text-white border-violet-500" },
+                  { key: "commercial" as const, label: "Commercial", count: triageCounts.commercial, cls: "bg-emerald-500 text-white border-emerald-500" },
+                  { key: "spam" as const, label: "Spam", count: triageCounts.spam, cls: "bg-gray-500 text-white border-gray-500" },
+                ].filter(c => c.count > 0).map(c => (
+                  <button
+                    key={c.key}
+                    onClick={() => setTriageFilter(triageFilter === c.key ? null : c.key)}
+                    className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${triageFilter === c.key ? c.cls : "text-muted-foreground border-border hover:bg-muted"}`}
+                    title={`Filtrer : ${c.label} (${c.count})`}
+                  >
+                    {c.label} {c.count}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <ScrollArea className="flex-1">
@@ -597,13 +659,23 @@ export default function GmailAgentPage() {
                   </div>
                 ))}
               </div>
-            ) : emails.length === 0 ? (
+            ) : displayedEmails.length === 0 ? (
               <div className="p-4 text-center text-muted-foreground text-sm">
                 <Inbox className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                Aucun email
+                {triageFilter ? (
+                  <>
+                    Aucun email dans ce filtre
+                    <button
+                      onClick={() => setTriageFilter(null)}
+                      className="block mx-auto mt-2 text-xs text-violet-600 hover:underline"
+                    >
+                      Réinitialiser
+                    </button>
+                  </>
+                ) : "Aucun email"}
               </div>
             ) : (
-              emails.map(email => (
+              displayedEmails.map(email => (
                 <EmailListItem
                   key={email.id}
                   email={email}
