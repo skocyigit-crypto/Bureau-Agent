@@ -39,25 +39,25 @@ export default function AdminBackofficePage() {
       label: "Prospects",
       description: "Pipeline commercial — leads issus du site vitrine et du démarchage",
       icon: Target,
-      href: "/prospects",
+      href: "/admin/prospects",
       status: "Actif",
       enabled: true,
     },
     {
       label: "Devis kurumsal",
-      description: "Propositions commerciales B2B avec lien Stripe Checkout (à venir)",
+      description: "Propositions commerciales B2B — vue globale toutes organisations",
       icon: FileText,
-      href: "/admin",
-      status: "À venir",
-      enabled: false,
+      href: "/admin/devis",
+      status: "Actif",
+      enabled: true,
     },
     {
       label: "Factures B2B",
-      description: "Factures Stripe d'abonnement + factures manuelles (à venir)",
+      description: "Factures émises — vue globale toutes organisations",
       icon: Receipt,
-      href: "/admin",
-      status: "À venir",
-      enabled: false,
+      href: "/admin/factures-b2b",
+      status: "Actif",
+      enabled: true,
     },
     {
       label: "Stock de licences",
@@ -100,8 +100,9 @@ export default function AdminBackofficePage() {
             accessibles uniquement via ce panneau, à toi (super-admin).
           </p>
           <p>
-            <strong>Statut actuel:</strong> seul Prospects est branché ici. Le reste arrivera dans les
-            tâches de suivi (dashboard MRR, devis B2B, factures, stock, 2FA forcée, IP whitelist).
+            <strong>Statut actuel:</strong> Prospects, Devis kurumsal et Factures B2B sont branchés
+            avec une vue globale (toutes organisations) et un sélecteur d'organisation. Le reste
+            arrivera dans les tâches de suivi (stock de licences, 2FA forcée, IP whitelist).
           </p>
         </CardContent>
       </Card>
