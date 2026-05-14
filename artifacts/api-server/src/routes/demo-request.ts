@@ -1,8 +1,76 @@
 import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
+import { and, eq, gte, sql } from "drizzle-orm";
+import { db, organisationsTable, prospectsTable } from "@workspace/db";
 import { sendEmail } from "../services/email";
 import { logger } from "../lib/logger";
 import { escapeHtml, escapeAttr } from "../lib/html-escape";
+
+const SUPER_ADMIN_ORG_SLUG = "agent-de-bureau-sas";
+
+async function getSuperAdminOrgId(): Promise<number | null> {
+  const [row] = await db
+    .select({ id: organisationsTable.id })
+    .from(organisationsTable)
+    .where(eq(organisationsTable.slug, SUPER_ADMIN_ORG_SLUG))
+    .limit(1);
+  return row?.id ?? null;
+}
+
+async function createProspectFromDemoRequest(payload: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  company: string;
+  employeeCount?: string;
+  message?: string;
+}): Promise<void> {
+  const orgId = await getSuperAdminOrgId();
+  if (!orgId) {
+    logger.warn("[DemoRequest] Organisation super-admin introuvable, prospect non cree.");
+    return;
+  }
+
+  const emailNorm = payload.email.trim().toLowerCase();
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  const [dup] = await db
+    .select({ id: prospectsTable.id })
+    .from(prospectsTable)
+    .where(and(
+      eq(prospectsTable.organisationId, orgId),
+      eq(prospectsTable.source, "site_web"),
+      sql`lower(${prospectsTable.email}) = ${emailNorm}`,
+      gte(prospectsTable.createdAt, since),
+    ))
+    .limit(1);
+
+  if (dup) {
+    logger.info({ email: emailNorm, prospectId: dup.id }, "[DemoRequest] Prospect deja cree dans les 24h, deduplication.");
+    return;
+  }
+
+  const fullName = `${payload.firstName} ${payload.lastName}`.trim();
+  const noteParts: string[] = [];
+  if (payload.employeeCount) noteParts.push(`Taille equipe: ${payload.employeeCount}`);
+  if (payload.message) noteParts.push(`Message: ${payload.message}`);
+
+  const [created] = await db.insert(prospectsTable).values({
+    organisationId: orgId,
+    title: `Demande de demo - ${payload.company}`,
+    contactName: fullName || null,
+    company: payload.company,
+    email: emailNorm,
+    phone: payload.phone?.trim() || null,
+    stage: "nouveau",
+    priority: "moyenne",
+    source: "site_web",
+    notes: noteParts.length > 0 ? noteParts.join("\n") : null,
+  }).returning({ id: prospectsTable.id });
+
+  logger.info({ prospectId: created?.id, email: emailNorm, company: payload.company }, "[DemoRequest] Prospect cree depuis le site vitrine.");
+}
 
 const router = Router();
 
@@ -93,6 +161,12 @@ router.post("/public/demo-request", demoLimiter, async (req: Request, res: Respo
 
     await sendEmail(adminEmail, `[Demo] Nouvelle demande — ${company} (${firstName} ${lastName})`, adminHtml, `Demande demo de ${firstName} ${lastName} <${email}> pour ${company}`);
     await sendEmail(email, "Votre demande de démonstration — Agent de Bureau", confirmHtml, `Bonjour ${firstName}, nous avons bien reçu votre demande de demo. Notre equipe vous contacte sous 24h.`);
+
+    try {
+      await createProspectFromDemoRequest({ firstName, lastName, email, phone, company, employeeCount, message });
+    } catch (prospectErr: any) {
+      logger.error({ err: prospectErr, email, company }, "[DemoRequest] Echec creation prospect (email envoye quand meme)");
+    }
 
     logger.info({ email, company }, "[DemoRequest] Nouvelle demande de demo");
     res.status(200).json({ message: "Votre demande a ete envoyee. Nous vous recontactons sous 24h." });
