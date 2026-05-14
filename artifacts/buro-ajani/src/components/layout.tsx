@@ -83,6 +83,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
     prospect: { storageKey: `badge:${userScope}:prospect`, route: "/prospects", clearEvent: "prospect-badge-clear", gated: true },
     message: { storageKey: `badge:${userScope}:message`, route: "/messages", clearEvent: "message-badge-clear", gated: false },
     task: { storageKey: `badge:${userScope}:task`, route: "/taches", clearEvent: "task-badge-clear", gated: false },
+    call: { storageKey: `badge:${userScope}:call`, route: "/appels", clearEvent: "call-badge-clear", gated: false },
+    note: { storageKey: `badge:${userScope}:note`, route: "/notes-internes", clearEvent: "note-badge-clear", gated: false },
   } as const), [userScope]);
 
   type BadgeKey = keyof typeof BADGE_CONFIG;
@@ -97,6 +99,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
     prospect: readStoredCount(BADGE_CONFIG.prospect.storageKey),
     message: readStoredCount(BADGE_CONFIG.message.storageKey),
     task: readStoredCount(BADGE_CONFIG.task.storageKey),
+    call: readStoredCount(BADGE_CONFIG.call.storageKey),
+    note: readStoredCount(BADGE_CONFIG.note.storageKey),
   }));
 
   const setBadge = (key: BadgeKey, value: number | ((c: number) => number)) => {
@@ -192,7 +196,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {
         label: "Communication",
         items: [
-          { name: "Appels", href: "/appels", icon: Phone },
+          { name: "Appels", href: "/appels", icon: Phone, badge: badges.call },
           { name: "Messages", href: "/messages", icon: MessageSquare, badge: badges.message },
           ...(canUseAi ? [{ name: "Agent Mail IA", href: "/gmail-agent", icon: Mail }] : []),
         ],
@@ -213,7 +217,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         items: [
           { name: "Tâches", href: "/taches", icon: CheckSquare, badge: badges.task },
           { name: "Projets", href: "/projets", icon: Puzzle },
-          { name: "Notes internes", href: "/notes-internes", icon: StickyNote },
+          { name: "Notes internes", href: "/notes-internes", icon: StickyNote, badge: badges.note },
           { name: "Pointage", href: "/pointage", icon: Clock },
         ],
       },

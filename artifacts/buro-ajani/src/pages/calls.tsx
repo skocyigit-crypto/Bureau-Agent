@@ -57,6 +57,11 @@ export default function Calls() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
+  // Tâche #74: efface le badge "Appels" dans la sidebar dès que l'utilisateur ouvre la page.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("call-badge-clear"));
+  }, []);
+
   const queryParams = {
     search: search || undefined,
     status: statusFilter !== "all" ? statusFilter as any : undefined,

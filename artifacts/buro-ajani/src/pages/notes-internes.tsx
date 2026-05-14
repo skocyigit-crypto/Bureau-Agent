@@ -68,6 +68,11 @@ export default function NotesInternesPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Tâche #74: efface le badge "Notes internes" dans la sidebar dès que l'utilisateur ouvre la page.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("note-badge-clear"));
+  }, []);
+
   useEffect(() => {
     if ((creating || editing) && textareaRef.current) {
       textareaRef.current.focus();
