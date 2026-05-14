@@ -265,8 +265,8 @@ export default function DashboardScreen() {
             )}
 
             <View style={styles.statsRow}>
-              <StatCard title="Appels" value={data.totalCalls} icon="phone" color={colors.info ?? "#3b82f6"} />
-              <StatCard title="Manques" value={data.missedCalls} icon="phone-missed" color={colors.destructive} />
+              <StatCard title="Appels" value={data.totalCalls} icon="phone" color={colors.info ?? "#3b82f6"} badge={unreadCounts.call} />
+              <StatCard title="Manques" value={data.missedCalls} icon="phone-missed" color={colors.destructive} badge={unreadCounts.call} />
             </View>
             <View style={styles.statsRow}>
               <StatCard title="Contacts" value={data.totalContacts} icon="users" color={colors.success ?? "#22c55e"} />

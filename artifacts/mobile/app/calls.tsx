@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as Linking from "expo-linking";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -24,6 +24,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { FAB } from "@/components/FAB";
 import { FormModal } from "@/components/FormModal";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
+import { useUnreadBadges } from "@/contexts/UnreadBadgesContext";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useColors } from "@/hooks/useColors";
 
@@ -204,6 +205,7 @@ export default function CallsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
+  const { clearKey } = useUnreadBadges();
   const isWeb = Platform.OS === "web";
 
   const [calls, setCalls] = useState<Call[]>([]);
@@ -243,6 +245,12 @@ export default function CallsScreen() {
   }, [isFromCache, cached, calls.length]);
 
   useEffect(() => { setLoading(true); load(); }, [load]);
+
+  useFocusEffect(
+    useCallback(() => {
+      clearKey("call");
+    }, [clearKey]),
+  );
   function onRefresh() { setRefreshing(true); load(); }
 
   async function handleDelete(id: number) {

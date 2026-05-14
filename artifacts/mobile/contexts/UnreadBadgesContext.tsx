@@ -29,9 +29,9 @@ import { useAuth, API_BASE } from "@/contexts/AuthContext";
  *    rester cohérent (pas de double source de vérité).
  */
 
-export type BadgeKey = "message" | "task";
+export type BadgeKey = "message" | "task" | "call";
 
-const KEYS: BadgeKey[] = ["message", "task"];
+const KEYS: BadgeKey[] = ["message", "task", "call"];
 
 function storageKey(userId: string | number | undefined, key: BadgeKey): string {
   const scope = userId ?? "anon";
@@ -44,7 +44,7 @@ interface UnreadBadgesContextValue {
 }
 
 const UnreadBadgesContext = createContext<UnreadBadgesContextValue>({
-  counts: { message: 0, task: 0 },
+  counts: { message: 0, task: 0, call: 0 },
   clearKey: () => {},
 });
 
@@ -55,13 +55,14 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
   const [counts, setCounts] = useState<Record<BadgeKey, number>>({
     message: 0,
     task: 0,
+    call: 0,
   });
 
   // Hydrate depuis AsyncStorage quand l'utilisateur est connu / change.
   useEffect(() => {
     let cancelled = false;
     if (!userId) {
-      setCounts({ message: 0, task: 0 });
+      setCounts({ message: 0, task: 0, call: 0 });
       return;
     }
     (async () => {
@@ -77,7 +78,7 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
         }),
       );
       if (cancelled) return;
-      const next = { message: 0, task: 0 } as Record<BadgeKey, number>;
+      const next = { message: 0, task: 0, call: 0 } as Record<BadgeKey, number>;
       for (const [k, v] of entries) next[k] = v;
       setCounts(next);
     })();
@@ -186,7 +187,11 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
             };
             if (event.type === "ping") continue;
             if (event.action !== "created") continue;
-            if (event.type === "message" || event.type === "task") {
+            if (
+              event.type === "message" ||
+              event.type === "task" ||
+              event.type === "call"
+            ) {
               bump(event.type as BadgeKey);
             }
           } catch {

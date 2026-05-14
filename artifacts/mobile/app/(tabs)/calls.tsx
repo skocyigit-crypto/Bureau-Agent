@@ -22,9 +22,10 @@ import { EmptyState } from "@/components/EmptyState";
 import { FAB } from "@/components/FAB";
 import { FormModal } from "@/components/FormModal";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
+import { useUnreadBadges } from "@/contexts/UnreadBadgesContext";
 import { useColors } from "@/hooks/useColors";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 
 interface Call {
   id: number;
@@ -68,6 +69,7 @@ export default function CallsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
+  const { clearKey } = useUnreadBadges();
   const isWeb = Platform.OS === "web";
   const [calls, setCalls] = useState<Call[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,6 +115,12 @@ export default function CallsScreen() {
     const interval = setInterval(() => { fetchCalls(); }, 120000);
     return () => clearInterval(interval);
   }, [fetchCalls]);
+
+  useFocusEffect(
+    useCallback(() => {
+      clearKey("call");
+    }, [clearKey]),
+  );
 
   function onRefresh() { setRefreshing(true); fetchCalls(); }
 
