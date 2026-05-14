@@ -190,6 +190,7 @@ export default function MoreScreen() {
           <MenuItem icon="activity" label="Activité Récente" sublabel="Flux en temps réel de toutes les actions" color="#0f172a" onPress={() => nav("/activite-recente")} />
           <MenuItem icon="bar-chart-2" label="Analytique" sublabel="Rapports et statistiques" color="#f59e0b" onPress={() => nav("/analytics")} />
           <MenuItem icon="calendar" label="Calendrier" sublabel="Evenements et rendez-vous" color="#ec4899" onPress={() => nav("/calendar")} />
+          <MenuItem icon="bell" label="Rappels" sublabel="Buzz calendrier des dernieres 24h" color="#3b82f6" onPress={() => nav("/rappels")} />
           <MenuItem icon="folder" label="Projets" sublabel="Gestion de portefeuille projets" color="#6366f1" onPress={() => nav("/projets")} />
           <MenuItem icon="clock" label="Pointage" sublabel="Gestion de presence" color="#14b8a6" onPress={() => nav("/checkins")} />
           <MenuItem icon="users" label="Réunion IA" sublabel="Compiler, taches & chantier GPS" color="#8b5cf6" onPress={() => nav("/meetings")} />

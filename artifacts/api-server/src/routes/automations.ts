@@ -16,13 +16,22 @@ router.get("/notifications", async (req: Request, res: Response): Promise<void> 
 
   const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 20, 1), 100);
   const unreadOnly = req.query.unread === "true";
+  const sourceTypeParam = typeof req.query.sourceType === "string" ? req.query.sourceType : undefined;
+  const typeParam = typeof req.query.type === "string" ? req.query.type : undefined;
+  const sinceHours = parseInt(req.query.sinceHours as string);
 
   try {
     const userFilter = eq(notificationsTable.userId, userId);
     const unreadFilter = eq(notificationsTable.read, false);
-    const whereClause = unreadOnly
-      ? and(userFilter, unreadFilter)
-      : userFilter;
+    const filters = [userFilter];
+    if (unreadOnly) filters.push(unreadFilter);
+    if (sourceTypeParam) filters.push(eq(notificationsTable.sourceType, sourceTypeParam));
+    if (typeParam) filters.push(eq(notificationsTable.type, typeParam));
+    if (!isNaN(sinceHours) && sinceHours > 0) {
+      const since = new Date(Date.now() - sinceHours * 3600 * 1000);
+      filters.push(gte(notificationsTable.createdAt, since));
+    }
+    const whereClause = filters.length === 1 ? userFilter : and(...filters);
 
     const notifications = await db
       .select()

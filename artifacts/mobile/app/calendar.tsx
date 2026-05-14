@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -104,6 +104,12 @@ export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
+  const params = useLocalSearchParams<{ eventId?: string | string[] }>();
+  const eventIdParam = Array.isArray(params.eventId) ? params.eventId[0] : params.eventId;
+  const [focusedEventId, setFocusedEventId] = useState<string | null>(eventIdParam ?? null);
+  useEffect(() => {
+    if (eventIdParam) setFocusedEventId(eventIdParam);
+  }, [eventIdParam]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -140,6 +146,36 @@ export default function CalendarScreen() {
   }, [year, month, fetchAuth]);
 
   useEffect(() => { setLoading(true); fetchEvents(); }, [fetchEvents]);
+
+  useEffect(() => {
+    if (!focusedEventId) return;
+    const match = events.find((ev) => String(ev.id) === String(focusedEventId));
+    if (match) {
+      const d = new Date(match.startDate);
+      setCurrentDate(d);
+      setSelectedDateStr(d.toISOString().slice(0, 10));
+      setSelected(match);
+      setFocusedEventId(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetchAuth(`${API_BASE}/api/calendar/events/${encodeURIComponent(focusedEventId)}`);
+        if (!res.ok || cancelled) return;
+        const ev = (await res.json()) as CalendarEvent;
+        if (cancelled || !ev?.startDate) return;
+        const d = new Date(ev.startDate);
+        setCurrentDate(d);
+        setSelectedDateStr(d.toISOString().slice(0, 10));
+        setSelected(ev);
+        setFocusedEventId(null);
+      } catch {
+        // ignore - user will see the calendar without focus
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [focusedEventId, events, fetchAuth]);
 
   function onRefresh() { setRefreshing(true); fetchEvents(); }
 
