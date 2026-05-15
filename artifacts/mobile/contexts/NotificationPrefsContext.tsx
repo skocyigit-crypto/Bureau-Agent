@@ -29,9 +29,9 @@ const STORAGE_KEY_HAPTICS = "notif-prefs:haptics";
 const STORAGE_KEY_NOTIFS = "notif-prefs:notifications";
 const STORAGE_KEY_MUTED_PREFIX = "notif-prefs:muted:";
 
-export type AlertChannel = "message" | "task" | "call";
+export type AlertChannel = "message" | "task" | "call" | "rappel";
 
-const ALERT_CHANNELS: AlertChannel[] = ["message", "task", "call"];
+const ALERT_CHANNELS: AlertChannel[] = ["message", "task", "call", "rappel"];
 
 export type ChannelMutedMap = Record<AlertChannel, boolean>;
 
@@ -39,6 +39,7 @@ const DEFAULT_MUTED: ChannelMutedMap = {
   message: false,
   task: false,
   call: false,
+  rappel: false,
 };
 
 interface NotificationPrefsContextValue {

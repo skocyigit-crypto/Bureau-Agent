@@ -461,7 +461,7 @@ function PrivacyCard() {
 // ── Alertes (haptiques + notifications locales) ───────────────────────────────
 
 const ALERT_CHANNEL_ROWS: ReadonlyArray<{
-  key: "message" | "task" | "call";
+  key: "message" | "task" | "call" | "rappel";
   icon: keyof typeof Feather.glyphMap;
   label: string;
   sublabel: string;
@@ -483,6 +483,15 @@ const ALERT_CHANNEL_ROWS: ReadonlyArray<{
     icon: "phone-missed",
     label: "Appels manqués",
     sublabel: "Coupez ce canal si vous suivez les appels sur un autre téléphone.",
+  },
+  {
+    // Tâche #98 : mute des rappels calendrier. Le compteur de la tuile
+    // Rappels continue d'incrémenter, seules vibration + notif système
+    // sont coupées.
+    key: "rappel",
+    icon: "bell",
+    label: "Rappels",
+    sublabel: "Coupez ce canal si vous gardez votre agenda ouvert ailleurs.",
   },
 ];
 

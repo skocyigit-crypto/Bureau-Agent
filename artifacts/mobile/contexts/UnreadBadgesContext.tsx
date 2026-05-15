@@ -433,16 +433,15 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
                 defaultBody = "Un projet a dépassé sa date de fin.";
                 route = "/projets";
               }
-              triggerCustomAlert({
-                title: event.meta?.title || defaultTitle,
-                body: event.meta?.body || defaultBody,
-                route,
-              });
               // Tâche #95: pour les rappels calendrier, on incrémente
               // aussi le compteur "rappel" affiché sur la tuile Rappels
               // de l'écran d'accueil. Les autres `sourceType`
               // (task_overdue, projet_en_retard) ont leurs propres
               // écrans/compteurs et ne doivent pas alimenter ce badge.
+              // Tâche #98 : le branchement calendar_reminder gère lui-même
+              // l'émission de l'alerte (et la coupe si le canal "rappel"
+              // est muté). Les autres sourceType déclenchent l'alerte
+              // après le bloc.
               if (sourceType === "calendar_reminder") {
                 if (typeof event.resourceId === "number") {
                   if (countedRappelIds.current.has(event.resourceId)) continue;
@@ -452,8 +451,27 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
                     if (typeof first === "number") countedRappelIds.current.delete(first);
                   }
                 }
+                // Tâche #98 : la secrétaire peut couper le canal "rappel"
+                // si elle suit déjà son agenda ailleurs. Le compteur visuel
+                // continue d'incrémenter (bump), mais on saute la vibration
+                // et la notification système en n'appelant pas
+                // `triggerCustomAlert`.
+                const rappelMuted = channelMutedRef.current.rappel;
+                if (!rappelMuted) {
+                  triggerCustomAlert({
+                    title: event.meta?.title || defaultTitle,
+                    body: event.meta?.body || defaultBody,
+                    route,
+                  });
+                }
                 bump("rappel", event.resourceId, { skipAlert: true });
+                continue;
               }
+              triggerCustomAlert({
+                title: event.meta?.title || defaultTitle,
+                body: event.meta?.body || defaultBody,
+                route,
+              });
               continue;
             }
             if (event.type === "message" || event.type === "task") {
