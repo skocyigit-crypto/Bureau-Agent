@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/EmptyState";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
+import { useUnreadBadges } from "@/contexts/UnreadBadgesContext";
 import { useColors } from "@/hooks/useColors";
 
 interface NotificationDTO {
@@ -49,6 +50,7 @@ export default function RappelsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
+  const { clearKey } = useUnreadBadges();
   const isWeb = Platform.OS === "web";
 
   const [items, setItems] = useState<RappelItem[]>([]);
@@ -89,6 +91,15 @@ export default function RappelsScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Tâche #95: dès que la secrétaire ouvre l'écran Rappels, on remet le
+  // compteur en temps réel à zéro. Le contexte écoute le SSE et le
+  // rebumpera dès qu'un nouveau rappel calendrier arrivera.
+  useFocusEffect(
+    useCallback(() => {
+      clearKey("rappel");
+    }, [clearKey]),
+  );
 
   function onRefresh() {
     setRefreshing(true);

@@ -32,9 +32,9 @@ import { useNotificationPrefs } from "@/contexts/NotificationPrefsContext";
  *    rester cohérent (pas de double source de vérité).
  */
 
-export type BadgeKey = "message" | "task" | "call";
+export type BadgeKey = "message" | "task" | "call" | "rappel";
 
-const KEYS: BadgeKey[] = ["message", "task", "call"];
+const KEYS: BadgeKey[] = ["message", "task", "call", "rappel"];
 
 function storageKey(userId: string | number | undefined, key: BadgeKey): string {
   const scope = userId ?? "anon";
@@ -64,7 +64,7 @@ interface UnreadBadgesContextValue {
 }
 
 const UnreadBadgesContext = createContext<UnreadBadgesContextValue>({
-  counts: { message: 0, task: 0, call: 0 },
+  counts: { message: 0, task: 0, call: 0, rappel: 0 },
   clearKey: () => {},
 });
 
@@ -110,13 +110,14 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
     message: 0,
     task: 0,
     call: 0,
+    rappel: 0,
   });
 
   // Hydrate depuis AsyncStorage quand l'utilisateur est connu / change.
   useEffect(() => {
     let cancelled = false;
     if (!userId) {
-      setCounts({ message: 0, task: 0, call: 0 });
+      setCounts({ message: 0, task: 0, call: 0, rappel: 0 });
       // Reset l'état de "première connexion" pour ré-armer la fenêtre
       // de grâce au prochain login (potentiellement un autre utilisateur).
       hasFirstConnectedRef.current = false;
@@ -136,7 +137,7 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
         }),
       );
       if (cancelled) return;
-      const next = { message: 0, task: 0, call: 0 } as Record<BadgeKey, number>;
+      const next = { message: 0, task: 0, call: 0, rappel: 0 } as Record<BadgeKey, number>;
       for (const [k, v] of entries) next[k] = v;
       setCounts(next);
     })();
@@ -206,7 +207,12 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
     // (ex. "appel manqué" parce qu'elle utilise un autre téléphone pour
     // les appels), on n'émet ni vibration ni notification système — mais
     // on continue à incrémenter le badge visuel (fait dans `bump`).
-    if (channelMutedRef.current[key]) return;
+    // `channelMuted` n'est défini que pour les canaux historiques
+    // (message / task / call). Pour "rappel", `triggerAlerts` n'est jamais
+    // appelé (cf. branchement `reminder` qui passe par `triggerCustomAlert`
+    // avec `skipAlert: true` côté bump), donc on peut sans risque ignorer
+    // l'absence d'entrée dans la map.
+    if ((channelMutedRef.current as Partial<Record<BadgeKey, boolean>>)[key]) return;
 
     // Pas d'alertes pendant la fenêtre de grâce de la première hydratation.
     // Cette fenêtre ne s'applique qu'au tout premier connect après login,
@@ -265,13 +271,19 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
   }, []);
 
   const bump = useCallback(
-    (key: BadgeKey, resourceId?: number) => {
+    (key: BadgeKey, resourceId?: number, options?: { skipAlert?: boolean }) => {
       setCounts((prev) => {
         const next = { ...prev, [key]: prev[key] + 1 };
         persist(key, next[key]);
         return next;
       });
-      triggerAlerts(key, resourceId);
+      // Tâche #95: pour les rappels, l'alerte (vibration + notif locale)
+      // est déjà déclenchée par `triggerCustomAlert` dans le branchement
+      // `reminder` ci-dessous (avec un titre/body spécifiques au rappel).
+      // On évite donc un double buzz en sautant ici l'alerte standard.
+      if (!options?.skipAlert) {
+        triggerAlerts(key, resourceId);
+      }
     },
     [persist, triggerAlerts],
   );
@@ -315,6 +327,10 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
   // sous forme de plusieurs events `updated` (retries webhook Twilio,
   // édition postérieure, etc.). On ne compte qu'une fois par resourceId.
   const countedCallIds = useRef<Set<number>>(new Set());
+  // Tâche #95: même logique pour les rappels calendrier — l'automation
+  // engine peut rebroadcaster pour le même évènement avant que la
+  // notification ne soit lue.
+  const countedRappelIds = useRef<Set<number>>(new Set());
 
   const closeStream = useCallback(() => {
     if (reconnectTimer.current) {
@@ -422,6 +438,22 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
                 body: event.meta?.body || defaultBody,
                 route,
               });
+              // Tâche #95: pour les rappels calendrier, on incrémente
+              // aussi le compteur "rappel" affiché sur la tuile Rappels
+              // de l'écran d'accueil. Les autres `sourceType`
+              // (task_overdue, projet_en_retard) ont leurs propres
+              // écrans/compteurs et ne doivent pas alimenter ce badge.
+              if (sourceType === "calendar_reminder") {
+                if (typeof event.resourceId === "number") {
+                  if (countedRappelIds.current.has(event.resourceId)) continue;
+                  countedRappelIds.current.add(event.resourceId);
+                  if (countedRappelIds.current.size > 500) {
+                    const first = countedRappelIds.current.values().next().value;
+                    if (typeof first === "number") countedRappelIds.current.delete(first);
+                  }
+                }
+                bump("rappel", event.resourceId, { skipAlert: true });
+              }
               continue;
             }
             if (event.type === "message" || event.type === "task") {

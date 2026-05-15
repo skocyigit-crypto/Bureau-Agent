@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router, useFocusEffect } from "expo-router";
+import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -67,6 +67,7 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const { user, fetchAuth } = useAuth();
   const { counts: unreadCounts } = useUnreadBadges();
+  const rappelsUnread = unreadCounts.rappel;
   const isWeb = Platform.OS === "web";
   const [data, setData] = useState<DashboardData | null>(null);
   const [recentCalls, setRecentCalls] = useState<RecentCall[]>([]);
@@ -75,7 +76,6 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
-  const [rappelsUnread, setRappelsUnread] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { cached: cachedDashboard, isFromCache, updateCache } = useOfflineCache<DashboardData | null>("dashboard_summary", null);
@@ -142,28 +142,7 @@ export default function DashboardScreen() {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [fetchDashboard]);
 
-  function onRefresh() { setRefreshing(true); fetchDashboard(); fetchRappelsUnread(); }
-
-  const fetchRappelsUnread = useCallback(async () => {
-    try {
-      const res = await fetchAuth(
-        `${API_BASE}/api/notifications?sourceType=calendar_reminder&unread=true&sinceHours=24&limit=100`,
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const list = (data?.notifications ?? []) as Array<{ read?: boolean | null }>;
-        setRappelsUnread(list.filter((n) => !n.read).length);
-      }
-    } catch {
-      // silent
-    }
-  }, [fetchAuth]);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchRappelsUnread();
-    }, [fetchRappelsUnread]),
-  );
+  function onRefresh() { setRefreshing(true); fetchDashboard(); }
 
   function quickNav(route: string) {
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
