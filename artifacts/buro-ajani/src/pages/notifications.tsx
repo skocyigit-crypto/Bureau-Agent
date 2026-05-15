@@ -47,13 +47,25 @@ export default function Notifications() {
 
   const markReadMutation = useMutation({
     mutationFn: (id: number) => apiFetch(`/notifications/${id}/read`, { method: "PATCH" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: ["notifications"] });
+      // Tâche #97: parité avec mobile — vider le badge "Rappels" de la
+      // sidebar si la notif acquittée est un rappel calendrier.
+      const target = (data?.notifications || data || []).find((n: any) => n.id === id);
+      if (target && (target.type === "rappel" || target.sourceType === "calendar_reminder")) {
+        window.dispatchEvent(new CustomEvent("rappel-badge-clear"));
+      }
+    },
     onError: () => toast({ title: "Erreur", description: "Impossible de marquer la notification comme lue", variant: "destructive" }),
   });
 
   const markAllReadMutation = useMutation({
     mutationFn: () => apiFetch("/notifications/read-all", { method: "POST" }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["notifications"] }); toast({ title: "Toutes les notifications lues" }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["notifications"] });
+      window.dispatchEvent(new CustomEvent("rappel-badge-clear"));
+      toast({ title: "Toutes les notifications lues" });
+    },
     onError: () => toast({ title: "Erreur", description: "Impossible de marquer les notifications comme lues", variant: "destructive" }),
   });
 

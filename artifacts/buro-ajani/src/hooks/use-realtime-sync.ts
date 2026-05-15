@@ -13,6 +13,7 @@ const QUERY_MAP: Record<string, string[][]> = {
   prospect:  [["prospects"]],
   note:      [["notes-internes"]],
   projet:    [["projets"]],
+  reminder:  [["notifications"]],
   dashboard: [["dashboard"], ["stats"]],
 };
 

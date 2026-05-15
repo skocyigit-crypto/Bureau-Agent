@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useRef, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Phone, Users, CheckSquare, MessageSquare, BarChart, LayoutDashboard, Settings, FileText, Puzzle, UserCog, Clock, Brain, Calendar, Shield, Zap, BarChart3, KeyRound, Globe, Target, Sparkles, PhoneCall, Download, Plus, PhoneIncoming, Wifi, WifiOff, Smartphone, Monitor, Tablet, Rocket, Mail, StickyNote, Activity, ClipboardList, Plug, CreditCard, Trophy, ScanSearch, MapPin } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, BarChart, LayoutDashboard, Settings, FileText, Puzzle, UserCog, Clock, Brain, Calendar, Shield, Zap, BarChart3, KeyRound, Globe, Target, Sparkles, PhoneCall, Download, Plus, PhoneIncoming, Wifi, WifiOff, Smartphone, Monitor, Tablet, Rocket, Mail, StickyNote, Activity, ClipboardList, Plug, CreditCard, Trophy, ScanSearch, MapPin, Bell } from "lucide-react";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { SidebarIcon3D, Icon3D } from "@/components/icon-3d";
 import { AiAssistantButton } from "@/components/ai-assistant";
@@ -85,6 +85,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     task: { storageKey: `badge:${userScope}:task`, route: "/taches", clearEvent: "task-badge-clear", gated: false },
     call: { storageKey: `badge:${userScope}:call`, route: "/appels", clearEvent: "call-badge-clear", gated: false },
     note: { storageKey: `badge:${userScope}:note`, route: "/notes-internes", clearEvent: "note-badge-clear", gated: false },
+    rappel: { storageKey: `badge:${userScope}:rappel`, route: "/notifications", clearEvent: "rappel-badge-clear", gated: false },
   } as const), [userScope]);
 
   type BadgeKey = keyof typeof BADGE_CONFIG;
@@ -101,6 +102,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     task: readStoredCount(BADGE_CONFIG.task.storageKey),
     call: readStoredCount(BADGE_CONFIG.call.storageKey),
     note: readStoredCount(BADGE_CONFIG.note.storageKey),
+    rappel: readStoredCount(BADGE_CONFIG.rappel.storageKey),
   }));
 
   const setBadge = (key: BadgeKey, value: number | ((c: number) => number)) => {
@@ -127,7 +129,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
           }
         | undefined;
       if (!detail) return;
-      const key = detail.type as BadgeKey | undefined;
+      // Tâche #97: les events SSE de type "reminder" alimentent le badge
+      // "Rappels" de la sidebar (équivalent web de la tuile mobile).
+      // On ne bumper que pour les rappels calendrier (cf. mobile,
+      // qui ignore les autres sourceType pour ce compteur).
+      let key = detail.type as BadgeKey | undefined;
+      if (detail.type === "reminder") {
+        const meta = detail.meta as { sourceType?: string } | undefined;
+        if (meta?.sourceType !== "calendar_reminder") return;
+        key = "rappel";
+      }
       if (!key || !(key in BADGE_CONFIG)) return;
       if (BADGE_CONFIG[key].gated && !isSuperAdmin) return;
       if (key === "call") {
@@ -225,6 +236,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         items: [
           { name: "Tableau de bord", href: "/", icon: LayoutDashboard },
           { name: "Calendrier", href: "/calendrier", icon: Calendar },
+          { name: "Rappels", href: "/notifications", icon: Bell, badge: badges.rappel },
           { name: "Activité récente", href: "/activite-recente", icon: Activity },
         ],
       },

@@ -68,8 +68,14 @@ export function NotificationBell() {
     try {
       const res = await fetch(`${baseUrl}/api/notifications/${id}/read`, { method: "PATCH", credentials: "include" });
       if (!res.ok) { console.error("[NotificationBell] markRead failed:", res.status); return; }
+      const target = notifications.find(n => n.id === id);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
+      // Tâche #97: si la notif acquittée est un rappel calendrier, vider
+      // aussi le badge "Rappels" de la sidebar (parité avec mobile).
+      if (target && (target.type === "rappel" || target.sourceType === "calendar_reminder")) {
+        window.dispatchEvent(new CustomEvent("rappel-badge-clear"));
+      }
     } catch (err) { console.error("[NotificationBell] markRead failed:", err); }
   }
 
@@ -79,6 +85,8 @@ export function NotificationBell() {
       if (!res.ok) { console.error("[NotificationBell] markAllRead failed:", res.status); return; }
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
       setUnreadCount(0);
+      // Tâche #97: "tout marquer comme lu" couvre aussi les rappels.
+      window.dispatchEvent(new CustomEvent("rappel-badge-clear"));
     } catch (err) { console.error("[NotificationBell] markAllRead failed:", err); }
   }
 
