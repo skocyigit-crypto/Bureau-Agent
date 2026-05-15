@@ -22,6 +22,143 @@ sudo usermod -aG docker $USER && newgrp docker
 
 ---
 
+## 0.5. Sunucuya SSH ile bağlanma — sıfırdan örnek
+
+> Daha önce hiç SSH kullanmadıysanız bu bölüm tam size. Bilenler doğrudan **Adım 1**'e geçebilir.
+
+### A. Sunucu kiralama (önerilen sağlayıcılar)
+
+| Sağlayıcı | Plan | Aylık | Not |
+|---|---|---|---|
+| **Hetzner Cloud** (en iyi €/perf) | CX22 — 2 vCPU, 4 GB RAM, 40 GB SSD | ~4.5 € | Frankfurt veya Helsinki — Avrupa için ideal |
+| **OVH VPS** (Fransa) | Value 2 — 2 vCPU, 4 GB RAM | ~7 € | KVKK/RGPD için Fransa lokasyonu |
+| **DigitalOcean** | Basic Droplet 2 GB | 12 $ | Daha pahalı ama arayüz çok kolay |
+| **Scaleway** | DEV1-S — 2 vCPU, 2 GB | ~6 € | Fransa, RGPD uyumlu |
+
+Sipariş ederken seçin:
+- **İşletim sistemi:** Ubuntu 24.04 LTS
+- **SSH key:** "Yok / şifreyle giriş" seçin (key'i birazdan kendimiz üreteceğiz). Bazı sağlayıcılar key'i zorunlu kılar, o zaman aşağıdaki adımı önce yapın.
+
+Kurulum bittiğinde sağlayıcının panelinde göreceğiniz şeyler:
+- **IP adresi** (örn. `49.13.214.207`)
+- **Root şifresi** (e-posta ile gelir, veya panelden gösterilir)
+
+### B. SSH key üretin (her iki platform için tek seferlik)
+
+Bu, sunucuya şifresiz ve güvenli giriş için. Bilgisayarınızda terminal açın:
+
+#### Windows (PowerShell — Win+X → "Terminal" veya "PowerShell")
+```powershell
+ssh-keygen -t ed25519 -C "agent-de-bureau" -f $env:USERPROFILE\.ssh\agent_de_bureau
+# Sorduğu passphrase'i bos birakabilirsiniz (Enter Enter)
+# Iki dosya olusur:
+#   C:\Users\<sizin>\.ssh\agent_de_bureau          (gizli — kimseyle paylasmayin)
+#   C:\Users\<sizin>\.ssh\agent_de_bureau.pub      (acik — sunucuya gidecek)
+
+# .pub dosyasinin icerigini kopyalayin:
+type $env:USERPROFILE\.ssh\agent_de_bureau.pub
+```
+
+#### Mac / Linux
+```bash
+ssh-keygen -t ed25519 -C "agent-de-bureau" -f ~/.ssh/agent_de_bureau
+# Passphrase Enter Enter
+cat ~/.ssh/agent_de_bureau.pub
+```
+
+Çıkan satır şuna benzer (tek satır, `ssh-ed25519 AAAA…` ile başlar):
+```
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH2x...P9w== agent-de-bureau
+```
+Bu satırı kopyalayın — sunucu siparişi sırasında veya sonra panele yapıştıracaksınız.
+
+### C. İlk SSH bağlantısı
+
+Sunucu hazır olduğunda terminale yazın (IP'yi kendi sunucunuzunkiyle değiştirin):
+
+```bash
+# Eger sifreyle giris seçtiyseniz:
+ssh root@49.13.214.207
+# (sifrenizi sorar — yapistirin)
+
+# Eger SSH key kullaniyorsaniz:
+ssh -i ~/.ssh/agent_de_bureau root@49.13.214.207
+# Windows'ta: ssh -i $env:USERPROFILE\.ssh\agent_de_bureau root@49.13.214.207
+```
+
+İlk bağlanmada `Are you sure you want to continue connecting (yes/no)?` der → **`yes`** yazın.
+
+Bağlandığınızda şuna benzer bir prompt görürsünüz:
+```
+root@adb-server:~#
+```
+
+### D. Sunucuyu hazırla (kopyala-yapıştır, ~5 dakika)
+
+```bash
+# 1) Sistemi guncelle
+apt update && apt upgrade -y
+
+# 2) Docker'i tek komutla kur
+curl -fsSL https://get.docker.com | sh
+
+# 3) Calistigini dogrula
+docker --version
+docker compose version
+
+# 4) Guvenlik duvari (opsiyonel ama onerilir)
+ufw allow OpenSSH
+ufw allow 80/tcp
+ufw allow 443/tcp
+ufw --force enable
+
+# 5) Root yerine normal bir kullanici olusturun (best practice)
+adduser bureau           # sifre sorar, doldurun, diger sorulari Enter Enter
+usermod -aG docker,sudo bureau
+mkdir -p /home/bureau/.ssh
+cp ~/.ssh/authorized_keys /home/bureau/.ssh/ 2>/dev/null || true
+chown -R bureau:bureau /home/bureau/.ssh
+chmod 700 /home/bureau/.ssh
+chmod 600 /home/bureau/.ssh/authorized_keys 2>/dev/null || true
+```
+
+Çıkış yapın ve artık **bureau** kullanıcısıyla bağlanın:
+```bash
+exit
+ssh -i ~/.ssh/agent_de_bureau bureau@49.13.214.207
+```
+
+Artık sunucu hazır. **Adım 1**'e geçin (Replit'ten yedek alma).
+
+### E. SSH ipuçları
+
+- **Bağlantıyı her seferinde uzun yazmamak için**, bilgisayarınızdaki `~/.ssh/config` (Windows: `%USERPROFILE%\.ssh\config`) dosyasına ekleyin:
+  ```
+  Host adb
+    HostName 49.13.214.207
+    User bureau
+    IdentityFile ~/.ssh/agent_de_bureau
+  ```
+  Artık sadece `ssh adb` yazmanız yeterli.
+
+- **Dosya kopyalamak için** (örneğin Replit'ten indirdiğiniz `.sql.gz` yedeğini sunucuya):
+  ```bash
+  scp -i ~/.ssh/agent_de_bureau ~/Downloads/agent-de-bureau-20260515.sql.gz bureau@49.13.214.207:~/
+  # Veya yukarıdaki config ile sadece:
+  scp ~/Downloads/agent-de-bureau-20260515.sql.gz adb:~/
+  ```
+
+- **Bağlantı koparsa** uzun bir komut çalışırken (`docker compose up -d --build` 10 dk sürer): önce `tmux` veya `screen` başlatın, sonra komutu çalıştırın. Detached çalışır, koparsanız geri dönüp `tmux attach` ile devam edebilirsiniz:
+  ```bash
+  apt install -y tmux
+  tmux new -s deploy
+  # ...komutunuzu calistirin...
+  # Cikmak icin: Ctrl+B sonra D (detach)
+  # Geri donmek icin: tmux attach -t deploy
+  ```
+
+---
+
 ## 1. Replit tarafında — veritabanını dışa aktarın
 
 Replit'in **Shell** sekmesinde şunu çalıştırın:
