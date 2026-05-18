@@ -233,15 +233,16 @@ async function openLiveSession(
       inputAudioTranscription: {},
       outputAudioTranscription: {},
       // VAD automatique cote serveur (Gemini detecte debut/fin de parole).
-      // - startOfSpeechSensitivity HIGH : on detecte la parole plus tot,
-      //   essentiel pour ne PAS rater le debut d'une phrase courte
-      //   ("oui", "non", "annule").
+      // - startOfSpeechSensitivity LOW : il faut une voix claire pour
+      //   declencher. Le HIGH precedent rendait l'assistant "trop
+      //   sensible au son" — il s'activait sur bruits de fond, clics
+      //   clavier, respiration, etc. (feedback proprietaire 18/05/26).
       // - endOfSpeechSensitivity LOW + silenceDurationMs=900 : on tolere
       //   des pauses naturelles (dictee d'adresse / numero) sans couper.
       // - prefixPaddingMs=200 : ne pas tronquer la premiere syllabe.
       realtimeInputConfig: {
         automaticActivityDetection: {
-          startOfSpeechSensitivity: "START_SENSITIVITY_HIGH",
+          startOfSpeechSensitivity: "START_SENSITIVITY_LOW",
           endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
           prefixPaddingMs: 200,
           silenceDurationMs: 900,
