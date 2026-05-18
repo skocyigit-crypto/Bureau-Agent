@@ -66,34 +66,28 @@ Si une action est risquee (envoi d'email, SMS, suppression) tu recevras automati
 
 Ne dis jamais "je ne peux pas faire ca dans le chat vocal" — utilise les outils a ta disposition.`;
 
-// Construit le client GoogleGenAI. La Live API necessite une cle directe
-// (le proxy AI Replit ne supporte pas le streaming WebSocket bi-directionnel).
-function buildLiveClient(): { client: GoogleGenAI; usingProxy: boolean } | { error: string } {
+// Construit le client GoogleGenAI. La Live API necessite une cle API
+// Gemini directe (obtenue sur https://aistudio.google.com/apikey).
+// Le proxy AI Replit (modelfarm) ne supporte PAS l'endpoint WebSocket
+// BidiGenerateContent — il renvoie 405 Method Not Allowed. On a teste
+// ce fallback en prod, il echoue systematiquement, donc on l'a retire
+// pour eviter de masquer la vraie cause derriere une erreur reseau.
+function buildLiveClient(): { client: GoogleGenAI } | { error: string } {
   const directKey =
     process.env.GEMINI_API_KEY ||
     process.env.GOOGLE_API_KEY ||
     process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
   if (directKey) {
-    return { client: new GoogleGenAI({ apiKey: directKey }), usingProxy: false };
+    return { client: new GoogleGenAI({ apiKey: directKey }) };
   }
 
-  // Tentative via le proxy Replit. Probable echec — le proxy n'expose
-  // generalement pas l'endpoint Live WebSocket. On essaie quand-meme
-  // pour ne pas bloquer l'experience si jamais c'est supporte.
-  const proxyKey = process.env.AI_INTEGRATIONS_GEMINI_API_KEY;
-  const proxyBase = process.env.AI_INTEGRATIONS_GEMINI_BASE_URL;
-  if (proxyKey && proxyBase) {
-    return {
-      client: new GoogleGenAI({
-        apiKey: proxyKey,
-        httpOptions: { apiVersion: "", baseUrl: proxyBase },
-      }),
-      usingProxy: true,
-    };
-  }
-
-  return { error: "GEMINI_API_KEY manquant. Ajoutez une cle API Gemini directe pour utiliser le mode Live." };
+  return {
+    error:
+      "GEMINI_API_KEY manquant. L'assistant vocal Live a besoin d'une cle Gemini directe " +
+      "(le proxy AI Replit ne supporte pas le streaming audio). " +
+      "Obtenez une cle gratuite sur https://aistudio.google.com/apikey puis ajoutez-la dans les Secrets.",
+  };
 }
 
 interface ClientFrame {
