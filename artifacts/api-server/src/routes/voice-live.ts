@@ -28,7 +28,7 @@
 import type { Server } from "http";
 import type { Request, Response } from "express";
 import { WebSocketServer, WebSocket } from "ws";
-import { GoogleGenAI, Modality, type Session, type LiveServerMessage } from "@google/genai";
+import { GoogleGenAI, Modality, MediaResolution, type Session, type LiveServerMessage } from "@google/genai";
 import { logger } from "../lib/logger";
 import { sessionMiddleware } from "../app";
 import {
@@ -97,13 +97,20 @@ function buildLiveClient(): { client: GoogleGenAI; usingProxy: boolean } | { err
 }
 
 interface ClientFrame {
-  type: "audio" | "text" | "end" | "voice" | "confirm_tool";
+  type: "audio" | "text" | "end" | "voice" | "confirm_tool" | "video" | "screen";
   data?: string;
+  // Pour video/screen: mimeType de l'image (defaut image/jpeg).
+  mimeType?: string;
   text?: string;
   voice?: VoiceName;
   // Pour confirm_tool: id du tool-call et decision
   toolCallId?: string;
   decision?: "approve" | "reject";
+}
+
+interface GroundingSource {
+  uri?: string;
+  title?: string;
 }
 
 interface ServerFrame {
@@ -118,7 +125,11 @@ interface ServerFrame {
     | "assistant_transcript"
     | "tool_step"
     | "tool_pending"
-    | "voices";
+    | "voices"
+    | "grounding"
+    | "go_away"
+    | "resumption_update"
+    | "usage";
   data?: string;
   text?: string;
   message?: string;
@@ -131,6 +142,15 @@ interface ServerFrame {
   summary?: string;
   // Pour voices: liste des voix disponibles a afficher dans le picker
   voices?: readonly string[];
+  // Pour grounding: sources web utilisees par Google Search.
+  sources?: GroundingSource[];
+  // Pour go_away: ms restantes avant deconnexion serveur.
+  timeLeftMs?: number;
+  // Pour resumption_update: handle a renvoyer en query param pour reprendre la session.
+  handle?: string;
+  resumable?: boolean;
+  // Pour usage: jetons consommes (affichable cote UI a titre indicatif).
+  totalTokens?: number;
 }
 
 function sendFrame(ws: WebSocket, frame: ServerFrame): void {
@@ -142,6 +162,7 @@ function sendFrame(ws: WebSocket, frame: ServerFrame): void {
 async function openLiveSession(
   client: GoogleGenAI,
   voice: VoiceName,
+  resumeHandle: string | undefined,
   onMessage: (msg: LiveServerMessage) => void,
   onError: (err: unknown) => void,
   onClose: () => void,
@@ -166,15 +187,42 @@ async function openLiveSession(
         prebuiltVoiceConfig: { voiceName: voice },
       },
     },
+    // Resolution des images video envoyees par le client (webcam /
+    // partage d'ecran). MEDIUM = bon compromis qualite / tokens.
+    mediaResolution: MediaResolution.MEDIA_RESOLUTION_MEDIUM,
     // Recoit la transcription temps-reel de la voix utilisateur — utile
     // pour afficher dans la UI ce que l'AI "comprend".
     inputAudioTranscription: {},
     // Recoit la transcription temps-reel de la reponse vocale — affichage
     // type sous-titre pendant que l'assistant parle.
     outputAudioTranscription: {},
-    // Function calling : on injecte tous les outils existants du systeme
-    // assistant (taches, contacts, calendrier, emails/SMS, etc.).
-    tools: [getGeminiToolDeclarations()],
+    // VAD automatique cote serveur (Gemini detecte debut/fin de parole).
+    realtimeInputConfig: {
+      automaticActivityDetection: {},
+    },
+    // Dialogue "affectif": le modele detecte l'emotion de l'utilisateur
+    // et adapte sa reponse (plus empathique si frustration, etc.).
+    enableAffectiveDialog: true,
+    // Audio proactif: le modele peut ignorer un input non pertinent ou
+    // reagir spontanement quand c'est utile (et non systematiquement).
+    proactivity: { proactiveAudio: true },
+    // Compression de la fenetre de contexte au-dela d'un certain seuil
+    // pour les conversations longues — evite la troncature brutale.
+    contextWindowCompression: {
+      triggerTokens: "25000",
+      slidingWindow: {},
+    },
+    // Reprise de session (handle persiste cote client en localStorage)
+    // pour survivre aux deconnexions reseau breves sans perdre l'etat.
+    sessionResumption: resumeHandle ? { handle: resumeHandle } : {},
+    // Outils disponibles. NOTE: Live API ne permet PAS de combiner
+    // googleSearch + functionDeclarations dans le meme tool entry, mais
+    // ils peuvent coexister comme entries separees.
+    tools: [
+      { functionDeclarations: getGeminiToolDeclarations().functionDeclarations },
+      { googleSearch: {} },
+      { codeExecution: {} },
+    ],
   } as unknown as Parameters<typeof client.live.connect>[0]["config"];
 
   let lastErr: unknown = null;
@@ -282,18 +330,22 @@ export function attachVoiceLiveWs(server: Server): void {
         socket.destroy();
         return;
       }
-      // Permet de choisir la voix via ?voice=Aoede dans l'URL d'upgrade.
+      // Permet de choisir la voix via ?voice=Aoede dans l'URL d'upgrade
+      // et de reprendre une session via ?resume=<handle>.
       let voice: VoiceName = DEFAULT_VOICE;
+      let resumeHandle: string | undefined;
       try {
         const u = new URL(url, "http://localhost");
         const v = u.searchParams.get("voice");
         if (v && (AVAILABLE_VOICES as readonly string[]).includes(v)) {
           voice = v as VoiceName;
         }
+        const h = u.searchParams.get("resume");
+        if (h && h.length > 0 && h.length < 512) resumeHandle = h;
       } catch { /* ignore */ }
 
       wss.handleUpgrade(req, socket, head, (ws) => {
-        bridgeConnection(ws, session.userId!, session.organisationId!, voice);
+        bridgeConnection(ws, session.userId!, session.organisationId!, voice, resumeHandle);
       });
     });
   });
@@ -306,6 +358,7 @@ function bridgeConnection(
   userId: number,
   orgId: number,
   voice: VoiceName,
+  resumeHandle?: string,
 ): void {
   const liveClient = buildLiveClient();
   if ("error" in liveClient) {
@@ -388,6 +441,7 @@ function bridgeConnection(
   openLiveSession(
     liveClient.client,
     voice,
+    resumeHandle,
     (msg: LiveServerMessage) => {
       // Audio chunks: serverContent.modelTurn.parts[].inlineData.data (base64 PCM 24kHz)
       const sc = msg.serverContent;
@@ -432,6 +486,50 @@ function bridgeConnection(
       }
       if (sc?.turnComplete) {
         sendFrame(ws, { type: "turn_complete" });
+      }
+      // Grounding (Google Search): sources web utilisees par le modele.
+      const gm = sc?.groundingMetadata as unknown as {
+        groundingChunks?: { web?: { uri?: string; title?: string } }[];
+      } | undefined;
+      if (gm?.groundingChunks?.length) {
+        const sources: GroundingSource[] = [];
+        for (const chunk of gm.groundingChunks) {
+          if (chunk.web?.uri) sources.push({ uri: chunk.web.uri, title: chunk.web.title });
+        }
+        if (sources.length > 0) sendFrame(ws, { type: "grounding", sources });
+      }
+      // Avertissement de fermeture imminente du serveur (limite de duree
+      // de session Gemini Live — environ 10 min audio natif / 15 min GA).
+      const goAway = msg.goAway as unknown as { timeLeft?: string } | undefined;
+      if (goAway) {
+        // timeLeft est une Duration genre "30s" ou "1.5s". On le passe
+        // brut au client qui peut prevenir l'utilisateur.
+        let ms: number | undefined;
+        const tl = goAway.timeLeft;
+        if (typeof tl === "string") {
+          const m = tl.match(/^([\d.]+)s$/);
+          if (m) ms = Math.round(parseFloat(m[1]) * 1000);
+        }
+        sendFrame(ws, { type: "go_away", timeLeftMs: ms });
+      }
+      // Mise a jour du handle de reprise de session: a renvoyer en query
+      // param ?resume=... au prochain ws.connect() pour ne pas perdre le
+      // contexte (apres deconnexion reseau ou goAway).
+      const sru = msg.sessionResumptionUpdate as unknown as {
+        newHandle?: string;
+        resumable?: boolean;
+      } | undefined;
+      if (sru?.newHandle) {
+        sendFrame(ws, {
+          type: "resumption_update",
+          handle: sru.newHandle,
+          resumable: sru.resumable !== false,
+        });
+      }
+      // Usage tokens (affichable cote UI a titre informatif).
+      const um = msg.usageMetadata as unknown as { totalTokenCount?: number } | undefined;
+      if (typeof um?.totalTokenCount === "number") {
+        sendFrame(ws, { type: "usage", totalTokens: um.totalTokenCount });
       }
     },
     (err) => {
@@ -497,6 +595,16 @@ function bridgeConnection(
           turns: [{ role: "user", parts: [{ text: frame.text }] }],
           turnComplete: true,
         });
+      } else if ((frame.type === "video" || frame.type === "screen") && frame.data) {
+        // Webcam ou partage d'ecran: une image JPEG par seconde environ.
+        // Le client decoupe deja le data: prefix avant d'envoyer.
+        if (!gSession) return;
+        const mimeType = frame.mimeType ?? "image/jpeg";
+        try {
+          gSession.sendRealtimeInput({ video: { data: frame.data, mimeType } });
+        } catch (err) {
+          logger.warn({ err, kind: frame.type }, "[VoiceLive] sendRealtimeInput video failed");
+        }
       } else if (frame.type === "end") {
         cleanup();
       } else if (frame.type === "confirm_tool" && frame.toolCallId && frame.decision) {
