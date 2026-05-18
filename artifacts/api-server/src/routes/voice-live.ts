@@ -41,8 +41,13 @@ import {
 // Modeles Gemini Live disponibles. On utilise le modele audio dialog
 // natif (preview) pour avoir une vraie voix conversationnelle. Si le
 // modele preview est indisponible, fallback sur le modele GA.
-const LIVE_MODEL = "gemini-2.5-flash-preview-native-audio-dialog";
-const LIVE_MODEL_FALLBACK = "gemini-2.0-flash-live-001";
+// Modele stable GA (gemini-2.0-flash-live-001) en PRIMAIRE car le
+// preview natif (native-audio-dialog) demande souvent un allowlist
+// separe sur la cle API — symptome observe: la session WS s'ouvre
+// puis Google la ferme en ~50ms sans message d'erreur. On essaie
+// quand-meme le preview en upgrade optionnel, en SECONDAIRE.
+const LIVE_MODEL = "gemini-2.0-flash-live-001";
+const LIVE_MODEL_FALLBACK = "gemini-2.5-flash-preview-native-audio-dialog";
 
 // Voix disponibles cote Gemini Live (modeles preview audio natif).
 // Aoede = voix feminine chaleureuse (par defaut). Charon = masculine
@@ -256,6 +261,22 @@ async function openLiveSession(
   let lastErr: unknown = null;
   for (const cfg of configs) {
     try {
+      // "Early close" detection: certaines cles n'ont pas l'allowlist
+      // pour le modele preview — la connexion s'ouvre puis Google la
+      // ferme en <300ms sans envoyer d'erreur. On capture cet
+      // evenement pour decider de basculer sur le fallback PLUTOT
+      // que de retourner une session morte.
+      let earlyClose: { code?: number; reason?: string } | null = null;
+      const earlyCloseSignal = new Promise<void>((resolve) => {
+        // resolve quand earlyClose est set par le callback onclose
+        const check = setInterval(() => {
+          if (earlyClose) { clearInterval(check); resolve(); }
+        }, 20);
+        // safety stop apres 500ms
+        setTimeout(() => { clearInterval(check); resolve(); }, 500);
+      });
+
+      let sessionRef: Session | null = null;
       const session = await client.live.connect({
         model: cfg.model,
         config: baseConfig,
@@ -266,12 +287,44 @@ async function openLiveSession(
             logger.error({ err: e, model: cfg.model }, "[VoiceLive] Gemini session error");
             onError(e);
           },
-          onclose: () => {
-            logger.info({ model: cfg.model }, "[VoiceLive] Gemini session closed");
-            onClose();
+          onclose: (ev: unknown) => {
+            // Le SDK passe un CloseEvent-like {code, reason} quand
+            // disponible. On extrait defensivement.
+            const e = ev as { code?: number; reason?: string } | undefined;
+            const code = e?.code;
+            const reason = e?.reason;
+            logger.info({ model: cfg.model, code, reason }, "[VoiceLive] Gemini session closed");
+            // Si la session se ferme TRES vite apres l'ouverture
+            // (avant la fin du settle delay), on marque earlyClose
+            // et la boucle externe tentera le fallback.
+            if (!sessionRef) {
+              earlyClose = { code, reason };
+            } else {
+              onClose();
+            }
           },
         },
       });
+      sessionRef = session;
+
+      // Attendre 300ms pour voir si Google ferme la session
+      // immediatement (signe d'un modele non autorise pour la cle).
+      await Promise.race([
+        earlyCloseSignal,
+        new Promise<void>((r) => setTimeout(r, 300)),
+      ]);
+      // Cast via unknown: TS ne voit pas que earlyClose est mute par
+      // le callback onclose et le narrow a `never`.
+      const ec = earlyClose as unknown as { code?: number; reason?: string } | null;
+      if (ec) {
+        logger.warn(
+          { model: cfg.model, code: ec.code, reason: ec.reason },
+          "[VoiceLive] session ouverte puis fermee immediatement par Google, essai du fallback",
+        );
+        try { session.close(); } catch { /* deja ferme */ }
+        sessionRef = null; // libere earlyClose path pour les futurs onclose
+        continue;
+      }
       return session;
     } catch (err) {
       lastErr = err;
