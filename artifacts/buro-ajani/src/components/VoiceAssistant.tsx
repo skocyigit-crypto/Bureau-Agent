@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Mic, MicOff, X, Volume2, MessageCircle, HelpCircle, Radio, Check, XCircle, Globe } from "lucide-react";
+import { Mic, MicOff, X, Volume2, MessageCircle, HelpCircle, Radio, Check, XCircle, Globe, Send, Sparkles } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -48,7 +48,117 @@ const UI_T = {
   wake_toggle_on: { fr: 'Activer "Hey Bureau"', tr: '"Hey Buro" ac', en: 'Enable "Hey Office"' },
   wake_label: { fr: "Hey Bureau", tr: "Hey Buro", en: "Hey Office" },
   lang_label: { fr: "Langue", tr: "Dil", en: "Language" },
+  input_placeholder: {
+    fr: "Tapez votre commande ou parlez...",
+    tr: "Komutu yazin veya konusun...",
+    en: "Type your command or speak...",
+  },
+  send_btn: { fr: "Envoyer", tr: "Gonder", en: "Send" },
+  suggestions_label: { fr: "Suggestions", tr: "Oneriler", en: "Suggestions" },
+  empty_hint: {
+    fr: "Demandez-moi quelque chose, ou choisissez une suggestion ci-dessous.",
+    tr: "Bana bir sey sorun veya asagidaki onerilerden birini secin.",
+    en: "Ask me something, or pick a suggestion below.",
+  },
 } as const;
+
+// Suggestions de suivi par intent + langue. Chaque chip envoie le texte
+// `text` au backend comme si l'utilisateur l'avait dicte. Quand un intent n'a
+// pas de suite naturelle, on retombe sur "default".
+type Suggestion = { label: string; text: string };
+const SUGG_DEFAULT: Record<Lang, Suggestion[]> = {
+  fr: [
+    { label: "Briefing du jour", text: "Briefing du jour" },
+    { label: "Taches urgentes", text: "Taches urgentes" },
+    { label: "Agenda du jour", text: "Agenda du jour" },
+    { label: "Aide", text: "Aide" },
+  ],
+  tr: [
+    { label: "Gunluk ozet", text: "Gunluk ozet" },
+    { label: "Acil gorevler", text: "Acil gorevler" },
+    { label: "Bugunku takvim", text: "Bugunku takvim" },
+    { label: "Yardim", text: "Yardim" },
+  ],
+  en: [
+    { label: "Daily briefing", text: "Daily briefing" },
+    { label: "Urgent tasks", text: "Urgent tasks" },
+    { label: "Today's calendar", text: "Today's calendar" },
+    { label: "Help", text: "Help" },
+  ],
+};
+const SUGGESTIONS: Record<string, Record<Lang, Suggestion[]>> = {
+  daily_briefing: {
+    fr: [
+      { label: "Taches urgentes", text: "Taches urgentes" },
+      { label: "Derniers appels", text: "Derniers appels" },
+      { label: "Agenda du jour", text: "Agenda du jour" },
+    ],
+    tr: [
+      { label: "Acil gorevler", text: "Acil gorevler" },
+      { label: "Son aramalar", text: "Son aramalar" },
+      { label: "Bugunku takvim", text: "Bugunku takvim" },
+    ],
+    en: [
+      { label: "Urgent tasks", text: "Urgent tasks" },
+      { label: "Recent calls", text: "Recent calls" },
+      { label: "Today's calendar", text: "Today's calendar" },
+    ],
+  },
+  count_calls: {
+    fr: [{ label: "Derniers appels", text: "Derniers appels" }, { label: "Performance", text: "Performance" }],
+    tr: [{ label: "Son aramalar", text: "Son aramalar" }, { label: "Performans", text: "Performans" }],
+    en: [{ label: "Recent calls", text: "Recent calls" }, { label: "Performance", text: "Performance" }],
+  },
+  count_tasks: {
+    fr: [{ label: "Taches urgentes", text: "Taches urgentes" }, { label: "Briefing", text: "Briefing du jour" }],
+    tr: [{ label: "Acil gorevler", text: "Acil gorevler" }, { label: "Ozet", text: "Gunluk ozet" }],
+    en: [{ label: "Urgent tasks", text: "Urgent tasks" }, { label: "Briefing", text: "Daily briefing" }],
+  },
+  count_contacts: {
+    fr: [{ label: "Briefing", text: "Briefing du jour" }, { label: "Agenda", text: "Agenda du jour" }],
+    tr: [{ label: "Ozet", text: "Gunluk ozet" }, { label: "Takvim", text: "Bugunku takvim" }],
+    en: [{ label: "Briefing", text: "Daily briefing" }, { label: "Calendar", text: "Today's calendar" }],
+  },
+  count_projets: {
+    fr: [{ label: "Projets en retard", text: "Projets en retard" }, { label: "Performance", text: "Performance" }],
+    tr: [{ label: "Gecikmis projeler", text: "Gecikmis projeler" }, { label: "Performans", text: "Performans" }],
+    en: [{ label: "Overdue projects", text: "Overdue projects" }, { label: "Performance", text: "Performance" }],
+  },
+  projets_overdue: {
+    fr: [{ label: "Projets actifs", text: "Combien de projets actifs" }, { label: "Briefing", text: "Briefing du jour" }],
+    tr: [{ label: "Aktif projeler", text: "Kac aktif proje var" }, { label: "Ozet", text: "Gunluk ozet" }],
+    en: [{ label: "Active projects", text: "How many active projects" }, { label: "Briefing", text: "Daily briefing" }],
+  },
+  recent_calls: {
+    fr: [{ label: "Performance", text: "Performance" }, { label: "Appels du jour", text: "Combien d'appels aujourd'hui" }],
+    tr: [{ label: "Performans", text: "Performans" }, { label: "Bugun arama", text: "Bugun kac arama var" }],
+    en: [{ label: "Performance", text: "Performance" }, { label: "Today's calls", text: "How many calls today" }],
+  },
+  urgent_tasks: {
+    fr: [{ label: "Taches en attente", text: "Combien de taches en attente" }, { label: "Briefing", text: "Briefing du jour" }],
+    tr: [{ label: "Bekleyen gorevler", text: "Bekleyen gorevler" }, { label: "Ozet", text: "Gunluk ozet" }],
+    en: [{ label: "Pending tasks", text: "Pending tasks" }, { label: "Briefing", text: "Daily briefing" }],
+  },
+  calendar: {
+    fr: [{ label: "Briefing", text: "Briefing du jour" }, { label: "Performance", text: "Performance" }],
+    tr: [{ label: "Ozet", text: "Gunluk ozet" }, { label: "Performans", text: "Performans" }],
+    en: [{ label: "Briefing", text: "Daily briefing" }, { label: "Performance", text: "Performance" }],
+  },
+  performance: {
+    fr: [{ label: "Briefing", text: "Briefing du jour" }, { label: "Taches urgentes", text: "Taches urgentes" }],
+    tr: [{ label: "Ozet", text: "Gunluk ozet" }, { label: "Acil gorevler", text: "Acil gorevler" }],
+    en: [{ label: "Briefing", text: "Daily briefing" }, { label: "Urgent tasks", text: "Urgent tasks" }],
+  },
+  greeting: SUGG_DEFAULT,
+  thanks: SUGG_DEFAULT,
+  help: SUGG_DEFAULT,
+  unknown: SUGG_DEFAULT,
+};
+
+function suggestionsFor(intent: string | undefined, lang: Lang): Suggestion[] {
+  if (!intent) return SUGG_DEFAULT[lang];
+  return SUGGESTIONS[intent]?.[lang] ?? SUGG_DEFAULT[lang];
+}
 
 function tr(key: keyof typeof UI_T, lang: Lang): string {
   return UI_T[key][lang] ?? UI_T[key].fr;
@@ -100,6 +210,8 @@ export function VoiceAssistant() {
   const [history, setHistory] = useState<{ type: "user" | "assistant"; text: string }[]>([]);
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [textInput, setTextInput] = useState("");
+  const [lastIntent, setLastIntent] = useState<string>("");
   const recognitionRef = useRef<any>(null);
   const wakeListenerRef = useRef<any>(null);
   const stateRef = useRef<VoiceState>("idle");
@@ -164,6 +276,7 @@ export function VoiceAssistant() {
       if (res.ok) {
         const data: VoiceResult = await res.json();
         setResponse(data.spoken);
+        setLastIntent(data.intent || "");
         setHistory(prev => [...prev, { type: "assistant", text: data.spoken }]);
         speak(data.spoken);
         if (data.requiresConfirmation && data.pendingAction) {
@@ -597,6 +710,64 @@ export function VoiceAssistant() {
               {error && (
                 <p className="text-xs text-red-400 text-center mb-3">{error}</p>
               )}
+
+              {/* Empty-state hint (premiere ouverture, pas d'historique). */}
+              {history.length === 0 && !pending && state === "idle" && (
+                <p className="text-xs text-slate-400 text-center italic mb-3 px-2">
+                  {tr("empty_hint", lang)}
+                </p>
+              )}
+
+              {/* Suggestions / chips de suivi — affichees sauf pendant les etats actifs. */}
+              {!pending && state !== "listening_command" && state !== "processing" && (
+                <div className="mb-3">
+                  <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-500 mb-1.5">
+                    <Sparkles className="w-3 h-3" />
+                    <span>{tr("suggestions_label", lang)}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {suggestionsFor(lastIntent, lang).map((s, i) => (
+                      <button
+                        key={i}
+                        onClick={() => processCommand(s.text)}
+                        disabled={state === "speaking"}
+                        className="px-2.5 py-1 text-[11px] rounded-full bg-slate-800/80 hover:bg-amber-500 hover:text-slate-900 text-slate-300 border border-white/5 transition-colors disabled:opacity-50"
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Champ de saisie texte — alternative au micro. */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const v = textInput.trim();
+                  if (!v || state === "processing") return;
+                  setTextInput("");
+                  processCommand(v);
+                }}
+                className="flex gap-1.5 mb-3"
+              >
+                <input
+                  type="text"
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  placeholder={tr("input_placeholder", lang)}
+                  className="flex-1 px-3 py-2 text-xs rounded-lg bg-slate-800/80 border border-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/50"
+                  disabled={state === "processing"}
+                />
+                <button
+                  type="submit"
+                  disabled={!textInput.trim() || state === "processing"}
+                  className="px-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-900 disabled:opacity-40 transition-colors"
+                  title={tr("send_btn", lang)}
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </form>
 
               <div className="flex justify-center items-center gap-3">
                 <button
