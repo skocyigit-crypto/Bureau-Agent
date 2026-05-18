@@ -311,6 +311,23 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
       try { allowedOrigins.push(new URL(v).origin); } catch { /* ignore */ }
     }
   }
+  // Expo (mobile preview) sert depuis un sous-domaine distinct
+  // (`...expo.spock.replit.dev`). Sans cette entree, le POST /api/auth/login
+  // depuis l'app mobile est bloque par la verif CSRF (403 "non autorise"),
+  // alors que CORS le laisse passer. Doit rester aligne avec la resolution
+  // dans app.ts.
+  const expoDom = process.env.REPLIT_EXPO_DEV_DOMAIN;
+  if (expoDom && expoDom.trim() !== "") {
+    allowedOrigins.push(expoDom.startsWith("http") ? expoDom : `https://${expoDom}`);
+  }
+  if (process.env.REPLIT_DOMAINS) {
+    process.env.REPLIT_DOMAINS.split(",").map(d => d.trim()).filter(Boolean).forEach(d => {
+      const expoVariant = d
+        .replace(/\.spock\.replit\.dev$/, ".expo.spock.replit.dev")
+        .replace(/^([^.]+)\.replit\.dev$/, "$1.expo.replit.dev");
+      if (expoVariant !== d) allowedOrigins.push(`https://${expoVariant}`);
+    });
+  }
 
   const requestOrigin = origin || (referer ? new URL(referer).origin : "");
 
