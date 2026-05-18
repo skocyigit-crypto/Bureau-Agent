@@ -518,7 +518,7 @@ async function parseCommandAI(text: string, lang: Lang = "fr"): Promise<VoiceCom
   const langLabel = lang === "tr" ? "turkish" : lang === "en" ? "english" : "french";
   try {
     const result = await aiCallWithRetry(() => ai!.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       contents: [{
         role: "user",
         parts: [{ text: `You are a voice assistant for an office management software. The user is speaking in ${langLabel}.
@@ -748,7 +748,7 @@ async function dispatchReadIntent(
         try {
           const langName = lang === "tr" ? "Turkish" : lang === "en" ? "English" : "French";
           const result = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-3-flash-preview",
             contents: [{ role: "user", parts: [{ text: `You are the "Bureau" voice assistant. The user said: "${text}". Reply in ${langName} (2-3 sentences). If off-topic, suggest available features (daily briefing, counts, search, scheduling, etc.).` }] }],
           });
           spokenResponse = (result.text || "").trim() || t(lang, "unknown", { text });
@@ -967,7 +967,10 @@ router.post("/voice/chat", async (req: Request, res: Response): Promise<void> =>
       { role: "user", parts: [{ text: safeText }] },
     ];
 
-    const modelId = useDeep ? "gemini-2.5-pro" : "gemini-2.5-flash";
+    // Modeles "courants" (versions Gemini 3 preview). flash-preview pour le mode
+    // standard (rapide, conversationnel) et 3.1-pro-preview pour le mode "Derin
+    // Dusunce" (raisonnement profond, brainstorming, analyse strategique).
+    const modelId = useDeep ? "gemini-3.1-pro-preview" : "gemini-3-flash-preview";
     const result = await aiCallWithRetry(
       () =>
         ai!.models.generateContent({
