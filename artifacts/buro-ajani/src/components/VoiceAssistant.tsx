@@ -24,6 +24,67 @@ const WAKE_WORDS: Record<Lang, string[]> = {
 const STT_LANG: Record<Lang, string> = { fr: "fr-FR", tr: "tr-TR", en: "en-US" };
 const TTS_LANG: Record<Lang, string> = { fr: "fr-FR", tr: "tr-TR", en: "en-US" };
 
+// ───────────────────────── Detection auto de langue ──────────────────────────
+// L'API Web SpeechRecognition n'a pas de mode "auto-detect"; on doit fixer
+// recognition.lang. Mais Chrome retourne quand-meme une transcription pour
+// d'autres langues (avec une qualite degradee). On detecte ici la langue
+// REELLE du texte transcrit pour:
+//   1. basculer setLang() vers la bonne langue avant d'envoyer la requete
+//   2. faire repondre la TTS dans la meme langue
+//   3. relancer le STT suivant dans la bonne langue
+//
+// Heuristique simple (sans dependance externe) basee sur:
+//   - caracteres propres au turc (ş ç ğ ı İ ö ü) — forts indicateurs TR
+//   - mots fonction frequents en chaque langue (stop-words)
+// Si rien ne match, on garde la langue courante.
+function detectLang(text: string): Lang | null {
+  const raw = text.trim();
+  if (!raw || raw.length < 2) return null;
+
+  // Caracteres tres discriminants pour le turc: ş/ğ/ı/İ n'existent pas
+  // en FR ni EN. (ç/ö/ü existent aussi en FR/DE donc moins forts mais
+  // on les compte comme indicateur secondaire plus bas.)
+  if (/[şğıİ]/i.test(raw)) return "tr";
+
+  // Normalise les diacritiques pour matcher quelle que soit la sortie
+  // STT (Chrome retourne parfois "için" parfois "icin").
+  const t = raw
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  // Stop-words par langue (en forme normalisee sans diacritiques).
+  const TR_WORDS = ["ve", "bir", "icin", "ile", "bu", "ne", "var", "yok", "mi", "musun", "lutfen", "nasil", "kim", "nerede", "ben", "sen", "biz", "siz", "hangi", "kac", "merhaba", "gun", "iyi", "tamam", "evet", "hayir", "tesekkurler", "selam", "bugun", "yarin"];
+  const FR_WORDS = ["le", "la", "les", "un", "une", "des", "de", "du", "et", "ou", "que", "qui", "quoi", "est", "sont", "pour", "avec", "dans", "sur", "je", "tu", "il", "elle", "nous", "vous", "ils", "bonjour", "merci", "oui", "non", "comment", "quel", "quelle", "combien", "salut", "aujourdhui", "demain"];
+  const EN_WORDS = ["the", "and", "is", "are", "was", "were", "for", "with", "this", "that", "what", "which", "who", "where", "when", "how", "why", "i", "you", "we", "they", "have", "has", "do", "does", "please", "thanks", "hello", "yes", "no", "today", "tomorrow"];
+
+  const words = t.split(/[\s,.!?;:'"]+/).filter(Boolean);
+  let trHits = 0, frHits = 0, enHits = 0;
+  for (const w of words) {
+    if (TR_WORDS.includes(w)) trHits++;
+    if (FR_WORDS.includes(w)) frHits++;
+    if (EN_WORDS.includes(w)) enHits++;
+  }
+
+  // Indicateurs secondaires sur le texte brut (avec diacritiques):
+  //   - ç/ö/ü presents en TR et FR -> on regarde le contexte
+  //   - à â ê î ô û (sans ç) sont quasi exclusivement FR
+  if (/[àâêîôû]/i.test(raw)) frHits += 2;
+  // Si on a deja des indices TR (hits) ET on voit ç/ö/ü, c'est probable TR.
+  if (trHits > 0 && /[çöü]/i.test(raw)) trHits += 1;
+  // Si on a deja des indices FR ET on voit ç, renforcer FR.
+  if (frHits > 0 && /ç/i.test(raw)) frHits += 1;
+
+  const max = Math.max(trHits, frHits, enHits);
+  if (max === 0) return null;
+  // En cas d'egalite, on prefere la langue qui apparait en premier dans
+  // l'ordre TR > FR > EN (le turc est sous-detecte sinon a cause des
+  // mots courts comme "ne" qui peuvent matcher rien d'autre).
+  if (trHits === max) return "tr";
+  if (frHits === max) return "fr";
+  return "en";
+}
+
 const UI_T = {
   title: { fr: "Assistant Vocal IA", tr: "Sesli Asistan IA", en: "AI Voice Assistant" },
   state_idle: { fr: "Inactif", tr: "Pasif", en: "Idle" },
@@ -450,34 +511,76 @@ export function VoiceAssistant() {
       .catch(() => {});
   }, [lang]);
 
-  const speak = useCallback((text: string) => {
+  // Pre-chargement des voix TTS. Chrome retourne souvent un tableau vide a
+  // la 1ere lecture car les voix sont chargees asynchrone — on doit
+  // attendre l'event voiceschanged. Sans ce hook, le 1er speak() utilise
+  // une voix par defaut (souvent muette ou mauvaise langue) ce qui donne
+  // l'impression que la TTS "ne marche pas".
+  useEffect(() => {
     if (!("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    const curLang = langRef.current;
-    utter.lang = TTS_LANG[curLang];
-    utter.rate = 1.05;
-    utter.pitch = 1;
-    const voices = window.speechSynthesis.getVoices();
-    // Cherche d'abord une voix qui matche la langue, sinon fallback FR puis 1ere voix.
-    const match = voices.find(v => v.lang.toLowerCase().startsWith(curLang))
-      || voices.find(v => v.lang.toLowerCase().startsWith("fr"))
-      || voices[0];
-    if (match) utter.voice = match;
-    utter.onend = () => {
-      setState("idle");
-      if (wakeActiveRef.current) startWakeWordListener();
+    const warm = () => window.speechSynthesis.getVoices();
+    warm();
+    window.speechSynthesis.onvoiceschanged = warm;
+    return () => { window.speechSynthesis.onvoiceschanged = null; };
+  }, []);
+
+  const speak = useCallback((text: string, overrideLang?: Lang) => {
+    if (!("speechSynthesis" in window)) return;
+    const curLang = overrideLang || langRef.current;
+    const doSpeak = (voices: SpeechSynthesisVoice[]) => {
+      // Cancel + small delay evite la race Chrome ou speak() apres cancel()
+      // est silencieusement ignore (paused state non encore liberé).
+      window.speechSynthesis.cancel();
+      setTimeout(() => {
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = TTS_LANG[curLang];
+        utter.rate = 1.05;
+        utter.pitch = 1;
+        utter.volume = 1;
+        const match = voices.find(v => v.lang.toLowerCase().startsWith(curLang))
+          || voices.find(v => v.lang.toLowerCase().startsWith(TTS_LANG[curLang].toLowerCase().slice(0, 2)))
+          || voices.find(v => v.lang.toLowerCase().startsWith("fr"))
+          || voices[0];
+        if (match) utter.voice = match;
+        utter.onend = () => {
+          setState("idle");
+          if (wakeActiveRef.current) startWakeWordListener();
+        };
+        utter.onerror = () => {
+          setState("idle");
+          if (wakeActiveRef.current) startWakeWordListener();
+        };
+        setState("speaking");
+        window.speechSynthesis.speak(utter);
+      }, 60);
     };
-    setState("speaking");
-    window.speechSynthesis.speak(utter);
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) {
+      doSpeak(voices);
+    } else {
+      // Voix pas encore chargees — on ecoute voiceschanged une fois.
+      const onReady = () => {
+        window.speechSynthesis.removeEventListener("voiceschanged", onReady);
+        doSpeak(window.speechSynthesis.getVoices());
+      };
+      window.speechSynthesis.addEventListener("voiceschanged", onReady);
+      // Filet de securite: si l'event ne se declenche jamais (rare), on
+      // tente quand-meme apres 300ms avec ce qu'on a.
+      setTimeout(() => {
+        window.speechSynthesis.removeEventListener("voiceschanged", onReady);
+        if (stateRef.current !== "speaking") doSpeak(window.speechSynthesis.getVoices());
+      }, 300);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const processCommand = useCallback(async (text: string) => {
+  const processCommand = useCallback(async (text: string, overrideLang?: Lang) => {
     setState("processing");
     setTranscript(text);
     setHistory(prev => [...prev, { type: "user", text }]);
-    const curLang = langRef.current;
+    // Si l'appelant force une langue (auto-detect STT), on l'utilise pour
+    // l'API et la TTS. Sinon on garde la langue UI courante.
+    const curLang = overrideLang || langRef.current;
     const curMode = modeRef.current;
     // En mode chat: on envoie l'historique recent (sans le tour courant qui
     // vient juste d'etre ajoute a l'etat React, mais qu'on n'a pas a renvoyer
@@ -503,7 +606,7 @@ export function VoiceAssistant() {
         setResponse(data.spoken);
         setLastIntent(data.intent || "");
         setHistory(prev => [...prev, { type: "assistant", text: data.spoken }]);
-        speak(data.spoken);
+        speak(data.spoken, curLang);
         if (data.requiresConfirmation && data.pendingAction) {
           setPending(data.pendingAction);
           return;
@@ -520,13 +623,13 @@ export function VoiceAssistant() {
         const errText = tr("err_server", curLang);
         setResponse(errText);
         setHistory(prev => [...prev, { type: "assistant", text: errText }]);
-        speak(errText);
+        speak(errText, curLang);
       }
     } catch {
       const errText = tr("err_network", curLang);
       setResponse(errText);
       setHistory(prev => [...prev, { type: "assistant", text: errText }]);
-      speak(errText);
+      speak(errText, curLang);
     }
   }, [speak]);
 
@@ -542,29 +645,68 @@ export function VoiceAssistant() {
 
     const curLang = langRef.current;
     const recognition = new SpeechRecognition();
+    // continuous=true permet de capter des phrases plus longues sans que
+    // Chrome ne coupe au 1er silence court (~500ms). On gere la fin de
+    // phrase nous-meme via un timer de silence.
     recognition.lang = STT_LANG[curLang];
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.maxAlternatives = 3;
+    recognition.maxAlternatives = 5;
+
+    // Accumulateur des morceaux finaux + timer de silence. Quand on ne
+    // recoit plus rien pendant SILENCE_MS, on considere la phrase finie
+    // et on envoie le tout.
+    let finalBuf = "";
+    let silenceTimer: ReturnType<typeof setTimeout> | null = null;
+    let isFlushing = false;
+    const SILENCE_MS = 1200;
+
+    const clearSilence = () => {
+      if (silenceTimer) {
+        clearTimeout(silenceTimer);
+        silenceTimer = null;
+      }
+    };
+
+    const flush = () => {
+      clearSilence();
+      const text = finalBuf.trim();
+      if (!text || isFlushing) return;
+      isFlushing = true;
+      finalBuf = "";
+      try { recognition.stop(); } catch {}
+      // Detection auto de langue: si l'utilisateur a parle dans une
+      // langue differente de celle selectionnee, on bascule la UI et
+      // on utilise la nouvelle langue pour la requete + TTS.
+      const detected = detectLang(text);
+      let useLang = langRef.current;
+      if (detected && detected !== langRef.current) {
+        setLang(detected);
+        langRef.current = detected;
+        useLang = detected;
+      }
+      processCommand(text, useLang);
+    };
 
     recognition.onresult = (event: any) => {
-      let final = "";
+      if (isFlushing) return;
       let interim = "";
-      for (let i = 0; i < event.results.length; i++) {
+      for (let i = event.resultIndex; i < event.results.length; i++) {
         if (event.results[i].isFinal) {
-          final += event.results[i][0].transcript;
+          finalBuf += event.results[i][0].transcript + " ";
         } else {
           interim += event.results[i][0].transcript;
         }
       }
-      setTranscript(final || interim);
-      if (final) {
-        recognition.stop();
-        processCommand(final);
-      }
+      setTranscript((finalBuf + interim).trim());
+      // Reset timer a chaque fragment recu.
+      clearSilence();
+      silenceTimer = setTimeout(flush, SILENCE_MS);
     };
 
     recognition.onerror = (e: any) => {
+      clearSilence();
+      isFlushing = true; // bloque tout flush tardif
       if (e.error !== "no-speech" && e.error !== "aborted") {
         setError(tr("err_mic", langRef.current) + e.error);
       }
@@ -573,6 +715,13 @@ export function VoiceAssistant() {
     };
 
     recognition.onend = () => {
+      clearSilence();
+      // Si on a encore du texte non-flush (Chrome a coupe avant le timer),
+      // on l'envoie maintenant avant de passer en idle.
+      if (!isFlushing && finalBuf.trim()) {
+        flush();
+        return;
+      }
       if (stateRef.current === "listening_command") {
         setState("idle");
         if (wakeActiveRef.current) startWakeWordListener();
