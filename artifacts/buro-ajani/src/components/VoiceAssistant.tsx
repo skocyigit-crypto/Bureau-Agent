@@ -525,51 +525,77 @@ export function VoiceAssistant() {
   }, []);
 
   const speak = useCallback((text: string, overrideLang?: Lang) => {
-    if (!("speechSynthesis" in window)) return;
+    if (!("speechSynthesis" in window) || !text) return;
     const curLang = overrideLang || langRef.current;
+    const synth = window.speechSynthesis;
+
     const doSpeak = (voices: SpeechSynthesisVoice[]) => {
-      // Cancel + small delay evite la race Chrome ou speak() apres cancel()
-      // est silencieusement ignore (paused state non encore liberé).
-      window.speechSynthesis.cancel();
-      setTimeout(() => {
-        const utter = new SpeechSynthesisUtterance(text);
-        utter.lang = TTS_LANG[curLang];
-        utter.rate = 1.05;
-        utter.pitch = 1;
-        utter.volume = 1;
-        const match = voices.find(v => v.lang.toLowerCase().startsWith(curLang))
-          || voices.find(v => v.lang.toLowerCase().startsWith(TTS_LANG[curLang].toLowerCase().slice(0, 2)))
-          || voices.find(v => v.lang.toLowerCase().startsWith("fr"))
-          || voices[0];
-        if (match) utter.voice = match;
-        utter.onend = () => {
-          setState("idle");
-          if (wakeActiveRef.current) startWakeWordListener();
-        };
-        utter.onerror = () => {
-          setState("idle");
-          if (wakeActiveRef.current) startWakeWordListener();
-        };
-        setState("speaking");
-        window.speechSynthesis.speak(utter);
-      }, 60);
+      // IMPORTANT: pas de setTimeout autour de speak() — Chrome refuse
+      // alors la lecture car la chaine de user-gesture est cassee.
+      // On appelle speak() INLINE, et on ne fait cancel() QUE si on est
+      // reellement en train de parler (sinon ca declenche un bug Chrome
+      // ou speechSynthesis reste en pause silencieuse).
+      if (synth.speaking || synth.pending) {
+        synth.cancel();
+      }
+
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = TTS_LANG[curLang];
+      utter.rate = 1.05;
+      utter.pitch = 1;
+      utter.volume = 1;
+
+      // Choix de voix: match exact > prefix de langue > fallback FR > 1ere.
+      const langPrefix = TTS_LANG[curLang].toLowerCase().slice(0, 2);
+      const match = voices.find(v => v.lang.toLowerCase().startsWith(langPrefix))
+        || voices.find(v => v.lang.toLowerCase().startsWith("fr"))
+        || voices[0];
+      if (match) utter.voice = match;
+
+      utter.onend = () => {
+        setState("idle");
+        if (wakeActiveRef.current) startWakeWordListener();
+      };
+      utter.onerror = (ev: any) => {
+        // "interrupted" et "canceled" sont normaux (notre cancel() ci-dessus
+        // ou stopAllListeners). Les autres erreurs on log dans la console.
+        if (ev?.error && ev.error !== "interrupted" && ev.error !== "canceled") {
+          // eslint-disable-next-line no-console
+          console.warn("[VoiceAssistant] TTS error:", ev.error);
+        }
+        setState("idle");
+        if (wakeActiveRef.current) startWakeWordListener();
+      };
+
+      setState("speaking");
+      synth.speak(utter);
+      // Workaround bug Chrome connu: speechSynthesis se met parfois en
+      // "paused" tout seul (notamment apres une longue inactivite ou
+      // un cancel recent). resume() force la lecture.
+      synth.resume();
     };
-    const voices = window.speechSynthesis.getVoices();
+
+    const voices = synth.getVoices();
     if (voices.length > 0) {
       doSpeak(voices);
     } else {
-      // Voix pas encore chargees — on ecoute voiceschanged une fois.
+      // Voix pas encore chargees: on attend voiceschanged (max 500ms).
+      let done = false;
       const onReady = () => {
-        window.speechSynthesis.removeEventListener("voiceschanged", onReady);
-        doSpeak(window.speechSynthesis.getVoices());
+        if (done) return;
+        done = true;
+        synth.removeEventListener("voiceschanged", onReady);
+        doSpeak(synth.getVoices());
       };
-      window.speechSynthesis.addEventListener("voiceschanged", onReady);
-      // Filet de securite: si l'event ne se declenche jamais (rare), on
-      // tente quand-meme apres 300ms avec ce qu'on a.
+      synth.addEventListener("voiceschanged", onReady);
       setTimeout(() => {
-        window.speechSynthesis.removeEventListener("voiceschanged", onReady);
-        if (stateRef.current !== "speaking") doSpeak(window.speechSynthesis.getVoices());
-      }, 300);
+        if (done) return;
+        done = true;
+        synth.removeEventListener("voiceschanged", onReady);
+        // On tente avec ce qu'on a, meme tableau vide — la voix par
+        // defaut du systeme sera utilisee.
+        doSpeak(synth.getVoices());
+      }, 500);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
