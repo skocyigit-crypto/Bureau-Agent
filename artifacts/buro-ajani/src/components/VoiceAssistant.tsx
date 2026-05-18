@@ -1,8 +1,71 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Mic, MicOff, X, Volume2, MessageCircle, HelpCircle, Radio, Check, XCircle } from "lucide-react";
+import { Mic, MicOff, X, Volume2, MessageCircle, HelpCircle, Radio, Check, XCircle, Globe } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const WAKE_WORD_VARIANTS = ["hey bureau", "hé bureau", "hey buro", "hé buro", "hey burreau", "eh bureau"];
+
+// ───────────────────────── i18n (FR / TR / EN) ──────────────────────────────
+type Lang = "fr" | "tr" | "en";
+const SUPPORTED_LANGS: Lang[] = ["fr", "tr", "en"];
+const LANG_STORAGE_KEY = "buro.voiceLang";
+
+// Wake words par langue. On accepte plusieurs variantes pour la robustesse STT.
+const WAKE_WORDS: Record<Lang, string[]> = {
+  fr: ["hey bureau", "he bureau", "hey buro", "he buro", "hey burreau", "eh bureau", "hey burrow"],
+  tr: ["hey buro", "ey buro", "hey buero", "merhaba buro", "hey biro"],
+  en: ["hey office", "hey bureau", "hey buro"],
+};
+
+// Codes BCP-47 pour SpeechRecognition / SpeechSynthesis.
+const STT_LANG: Record<Lang, string> = { fr: "fr-FR", tr: "tr-TR", en: "en-US" };
+const TTS_LANG: Record<Lang, string> = { fr: "fr-FR", tr: "tr-TR", en: "en-US" };
+
+const UI_T = {
+  title: { fr: "Assistant Vocal IA", tr: "Sesli Asistan IA", en: "AI Voice Assistant" },
+  state_idle: { fr: "Inactif", tr: "Pasif", en: "Idle" },
+  state_wake: { fr: '"Hey Bureau" actif', tr: '"Hey Buro" aktif', en: '"Hey Office" active' },
+  state_listening: { fr: "Je vous ecoute...", tr: "Sizi dinliyorum...", en: "I'm listening..." },
+  state_processing: { fr: "Traitement IA...", tr: "IA isleniyor...", en: "AI processing..." },
+  state_speaking: { fr: "Reponse...", tr: "Yanit...", en: "Replying..." },
+  greet_listening: { fr: "Je vous ecoute", tr: "Sizi dinliyorum", en: "I'm listening" },
+  commands_available: { fr: "Commandes disponibles:", tr: "Kullanilabilir komutlar:", en: "Available commands:" },
+  natural_hint: {
+    fr: "L'IA comprend aussi les phrases naturelles en francais.",
+    tr: "Yapay zeka dogal Turkce cumleleri de anlar.",
+    en: "The AI also understands natural English sentences.",
+  },
+  confirm_required: { fr: "Confirmation requise", tr: "Onay gerekli", en: "Confirmation required" },
+  confirm_btn: { fr: "Confirmer", tr: "Onayla", en: "Confirm" },
+  cancel_btn: { fr: "Annuler", tr: "Iptal", en: "Cancel" },
+  action_cancelled: { fr: "Action annulee.", tr: "Eylem iptal edildi.", en: "Action cancelled." },
+  action_done: { fr: "Action effectuee.", tr: "Eylem tamamlandi.", en: "Action completed." },
+  action_failed: { fr: "Impossible d'executer l'action.", tr: "Eylem gerceklestirilemedi.", en: "Couldn't execute the action." },
+  err_server: { fr: "Erreur de communication avec le serveur.", tr: "Sunucu ile iletisim hatasi.", en: "Server communication error." },
+  err_network: { fr: "Erreur de connexion. Verifiez votre reseau.", tr: "Baglanti hatasi. Aginizi kontrol edin.", en: "Connection error. Check your network." },
+  err_confirm_network: { fr: "Erreur reseau lors de la confirmation.", tr: "Onay sirasinda ag hatasi.", en: "Network error during confirmation." },
+  err_mic: { fr: "Erreur micro: ", tr: "Mikrofon hatasi: ", en: "Mic error: " },
+  err_mic_start: { fr: "Impossible d'activer le micro.", tr: "Mikrofon etkinlestirilemedi.", en: "Couldn't enable the microphone." },
+  wake_toggle_off: { fr: 'Desactiver "Hey Bureau"', tr: '"Hey Buro" kapat', en: 'Disable "Hey Office"' },
+  wake_toggle_on: { fr: 'Activer "Hey Bureau"', tr: '"Hey Buro" ac', en: 'Enable "Hey Office"' },
+  wake_label: { fr: "Hey Bureau", tr: "Hey Buro", en: "Hey Office" },
+  lang_label: { fr: "Langue", tr: "Dil", en: "Language" },
+} as const;
+
+function tr(key: keyof typeof UI_T, lang: Lang): string {
+  return UI_T[key][lang] ?? UI_T[key].fr;
+}
+
+function loadStoredLang(): Lang {
+  try {
+    const stored = localStorage.getItem(LANG_STORAGE_KEY);
+    if (stored && (SUPPORTED_LANGS as string[]).includes(stored)) return stored as Lang;
+  } catch {}
+  // Auto-detect from browser preference si pas de choix enregistre
+  try {
+    const nav = navigator.language.slice(0, 2).toLowerCase();
+    if ((SUPPORTED_LANGS as string[]).includes(nav)) return nav as Lang;
+  } catch {}
+  return "fr";
+}
 
 interface PendingAction {
   token: string;
@@ -26,6 +89,7 @@ interface VoiceResult {
 type VoiceState = "idle" | "listening_wake" | "listening_command" | "processing" | "speaking";
 
 export function VoiceAssistant() {
+  const [lang, setLang] = useState<Lang>(loadStoredLang);
   const [state, setState] = useState<VoiceState>("idle");
   const [transcript, setTranscript] = useState("");
   const [response, setResponse] = useState("");
@@ -40,51 +104,62 @@ export function VoiceAssistant() {
   const wakeListenerRef = useRef<any>(null);
   const stateRef = useRef<VoiceState>("idle");
   const wakeActiveRef = useRef(false);
+  // Refs miroirs pour les callbacks STT (closures): on doit toujours utiliser
+  // la langue courante meme si elle change pendant l'ecoute.
+  const langRef = useRef<Lang>(lang);
 
   const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
   const supported = !!SpeechRecognition;
 
+  // Sync refs
+  useEffect(() => { stateRef.current = state; }, [state]);
   useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
+    langRef.current = lang;
+    try { localStorage.setItem(LANG_STORAGE_KEY, lang); } catch {}
+  }, [lang]);
 
+  // Recharge la liste de commandes a chaque changement de langue.
   useEffect(() => {
-    fetch(`${BASE}/api/voice/commands`, { credentials: "include" })
+    fetch(`${BASE}/api/voice/commands?lang=${lang}`, { credentials: "include" })
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.commands) setCommands(d.commands); })
       .catch(() => {});
-  }, []);
+  }, [lang]);
 
   const speak = useCallback((text: string) => {
     if (!("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = "fr-FR";
+    const curLang = langRef.current;
+    utter.lang = TTS_LANG[curLang];
     utter.rate = 1.05;
     utter.pitch = 1;
     const voices = window.speechSynthesis.getVoices();
-    const frVoice = voices.find(v => v.lang.startsWith("fr")) || voices[0];
-    if (frVoice) utter.voice = frVoice;
+    // Cherche d'abord une voix qui matche la langue, sinon fallback FR puis 1ere voix.
+    const match = voices.find(v => v.lang.toLowerCase().startsWith(curLang))
+      || voices.find(v => v.lang.toLowerCase().startsWith("fr"))
+      || voices[0];
+    if (match) utter.voice = match;
     utter.onend = () => {
       setState("idle");
-      if (wakeActiveRef.current) {
-        startWakeWordListener();
-      }
+      if (wakeActiveRef.current) startWakeWordListener();
     };
     setState("speaking");
     window.speechSynthesis.speak(utter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const processCommand = useCallback(async (text: string) => {
     setState("processing");
     setTranscript(text);
     setHistory(prev => [...prev, { type: "user", text }]);
+    const curLang = langRef.current;
     try {
       const res = await fetch(`${BASE}/api/voice/command`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Voice-Lang": curLang },
         credentials: "include",
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, language: curLang }),
       });
       if (res.ok) {
         const data: VoiceResult = await res.json();
@@ -104,13 +179,13 @@ export function VoiceAssistant() {
           setTimeout(() => window.open(`tel:${data.data.contact.phone}`), 3000);
         }
       } else {
-        const errText = "Erreur de communication avec le serveur.";
+        const errText = tr("err_server", curLang);
         setResponse(errText);
         setHistory(prev => [...prev, { type: "assistant", text: errText }]);
         speak(errText);
       }
     } catch {
-      const errText = "Erreur de connexion. Verifiez votre reseau.";
+      const errText = tr("err_network", curLang);
       setResponse(errText);
       setHistory(prev => [...prev, { type: "assistant", text: errText }]);
       speak(errText);
@@ -127,8 +202,9 @@ export function VoiceAssistant() {
     if (!SpeechRecognition) return;
     stopAllListeners();
 
+    const curLang = langRef.current;
     const recognition = new SpeechRecognition();
-    recognition.lang = "fr-FR";
+    recognition.lang = STT_LANG[curLang];
     recognition.continuous = false;
     recognition.interimResults = true;
     recognition.maxAlternatives = 3;
@@ -152,7 +228,7 @@ export function VoiceAssistant() {
 
     recognition.onerror = (e: any) => {
       if (e.error !== "no-speech" && e.error !== "aborted") {
-        setError("Erreur micro: " + e.error);
+        setError(tr("err_mic", langRef.current) + e.error);
       }
       setState("idle");
       if (wakeActiveRef.current) startWakeWordListener();
@@ -173,23 +249,26 @@ export function VoiceAssistant() {
       setResponse("");
       setError("");
     } catch {
-      setError("Impossible d'activer le micro.");
+      setError(tr("err_mic_start", langRef.current));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [SpeechRecognition, processCommand, stopAllListeners]);
 
   const startWakeWordListener = useCallback(() => {
     if (!SpeechRecognition) return;
+    const curLang = langRef.current;
 
     const recognition = new SpeechRecognition();
-    recognition.lang = "fr-FR";
+    recognition.lang = STT_LANG[curLang];
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.maxAlternatives = 3;
 
     recognition.onresult = (event: any) => {
+      const wakeList = WAKE_WORDS[langRef.current];
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const text = event.results[i][0].transcript.toLowerCase().trim();
-        const detected = WAKE_WORD_VARIANTS.some(w => text.includes(w));
+        const detected = wakeList.some(w => text.includes(w));
         if (detected) {
           recognition.stop();
           setExpanded(true);
@@ -205,7 +284,7 @@ export function VoiceAssistant() {
             osc.stop(ctx.currentTime + 0.12);
             setTimeout(() => { osc.frequency.value = 1320; }, 60);
           } catch {}
-          speak("Je vous ecoute");
+          speak(tr("greet_listening", langRef.current));
           setTimeout(() => startCommandListener(), 1200);
           return;
         }
@@ -263,6 +342,25 @@ export function VoiceAssistant() {
     }
   }
 
+  // Quand l'utilisateur change la langue alors qu'une ecoute est en cours,
+  // on redemarre le listener avec la nouvelle langue STT.
+  function changeLang(next: Lang) {
+    if (next === lang) return;
+    // Mise a jour synchrone du ref AVANT tout redemarrage de listener pour
+    // eviter une course: les callbacks STT lisent langRef.current, pas l'etat
+    // React (qui ne sera commit qu'apres rendu).
+    langRef.current = next;
+    try { localStorage.setItem(LANG_STORAGE_KEY, next); } catch {}
+    setLang(next);
+    if (wakeActiveRef.current) {
+      stopAllListeners();
+      startWakeWordListener();
+    } else if (state === "listening_command") {
+      stopAllListeners();
+      setState("idle");
+    }
+  }
+
   function closeAssistant() {
     stopAllListeners();
     wakeActiveRef.current = false;
@@ -277,16 +375,17 @@ export function VoiceAssistant() {
   const confirmPending = useCallback(async () => {
     if (!pending) return;
     setConfirming(true);
+    const curLang = langRef.current;
     try {
       const res = await fetch(`${BASE}/api/voice/confirm`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Voice-Lang": curLang },
         credentials: "include",
-        body: JSON.stringify({ token: pending.token }),
+        body: JSON.stringify({ token: pending.token, language: curLang }),
       });
       const data = await res.json().catch(() => null);
       if (res.ok && data?.success) {
-        const msg = data.spoken || "Action effectuee.";
+        const msg = data.spoken || tr("action_done", curLang);
         setHistory(prev => [...prev, { type: "assistant", text: msg }]);
         setResponse(msg);
         speak(msg);
@@ -294,13 +393,13 @@ export function VoiceAssistant() {
           setTimeout(() => { window.location.pathname = BASE + data.navigate; }, 2500);
         }
       } else {
-        const msg = data?.error || "Impossible d'executer l'action.";
+        const msg = data?.error || tr("action_failed", curLang);
         setHistory(prev => [...prev, { type: "assistant", text: msg }]);
         setResponse(msg);
         speak(msg);
       }
     } catch {
-      const msg = "Erreur reseau lors de la confirmation.";
+      const msg = tr("err_confirm_network", curLang);
       setResponse(msg);
       speak(msg);
     } finally {
@@ -317,7 +416,7 @@ export function VoiceAssistant() {
       credentials: "include",
       body: JSON.stringify({ token: pending.token }),
     }).catch(() => {});
-    const msg = "Action annulee.";
+    const msg = tr("action_cancelled", langRef.current);
     setHistory(prev => [...prev, { type: "assistant", text: msg }]);
     setResponse(msg);
     setPending(null);
@@ -332,20 +431,12 @@ export function VoiceAssistant() {
 
   if (!supported) return null;
 
-  const stateColors: Record<VoiceState, string> = {
-    idle: "bg-slate-600",
-    listening_wake: "bg-amber-500/80",
-    listening_command: "bg-red-500",
-    processing: "bg-blue-500",
-    speaking: "bg-green-500",
-  };
-
   const stateLabels: Record<VoiceState, string> = {
-    idle: "Inactif",
-    listening_wake: '"Hey Bureau" actif',
-    listening_command: "Je vous ecoute...",
-    processing: "Traitement IA...",
-    speaking: "Reponse...",
+    idle: tr("state_idle", lang),
+    listening_wake: tr("state_wake", lang),
+    listening_command: tr("state_listening", lang),
+    processing: tr("state_processing", lang),
+    speaking: tr("state_speaking", lang),
   };
 
   return (
@@ -391,7 +482,7 @@ export function VoiceAssistant() {
           <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-slate-800/80 via-slate-900/60 to-slate-800/80 border-b border-white/10">
             <div className="flex items-center gap-2">
               <div className={`w-2.5 h-2.5 rounded-full ${state === "listening_command" ? "bg-red-500 animate-pulse" : state === "processing" ? "bg-blue-400 animate-pulse" : state === "speaking" ? "bg-green-400" : state === "listening_wake" ? "bg-amber-400 animate-pulse" : "bg-slate-500"}`} />
-              <span className="text-sm font-semibold text-white">Assistant Vocal IA</span>
+              <span className="text-sm font-semibold text-white">{tr("title", lang)}</span>
             </div>
             <div className="flex gap-1.5">
               <button onClick={() => setShowHelp(!showHelp)} className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-colors">
@@ -403,16 +494,40 @@ export function VoiceAssistant() {
             </div>
           </div>
 
+          {/* Selecteur de langue — visible en permanence */}
+          <div className="flex items-center justify-between px-4 py-2 bg-slate-900/40 border-b border-white/5">
+            <div className="flex items-center gap-1.5 text-slate-400 text-xs">
+              <Globe className="w-3.5 h-3.5" />
+              <span>{tr("lang_label", lang)}</span>
+            </div>
+            <div className="flex gap-1 rounded-full bg-slate-800/60 p-0.5 border border-white/5">
+              {SUPPORTED_LANGS.map(l => (
+                <button
+                  key={l}
+                  onClick={() => changeLang(l)}
+                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all ${
+                    lang === l
+                      ? "bg-amber-500 text-slate-900 shadow"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                  title={l.toUpperCase()}
+                >
+                  {l.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {showHelp ? (
             <div className="p-3 max-h-64 overflow-y-auto">
-              <p className="text-xs text-slate-400 mb-2">Commandes disponibles:</p>
+              <p className="text-xs text-slate-400 mb-2">{tr("commands_available", lang)}</p>
               {commands.map((c, i) => (
                 <div key={i} className="flex justify-between items-start py-1.5 border-b border-slate-800 last:border-0">
                   <span className="text-xs text-amber-400 font-medium">"{c.phrase}"</span>
                   <span className="text-xs text-slate-500 ml-2 text-right">{c.description}</span>
                 </div>
               ))}
-              <p className="text-xs text-blue-400 mt-3 italic">L'IA comprend aussi les phrases naturelles en francais.</p>
+              <p className="text-xs text-blue-400 mt-3 italic">{tr("natural_hint", lang)}</p>
             </div>
           ) : (
             <div className="p-4">
@@ -448,7 +563,7 @@ export function VoiceAssistant() {
 
               {pending && (
                 <div className="bg-amber-500/10 border border-amber-500/40 rounded-lg p-3 mb-3">
-                  <p className="text-xs font-semibold text-amber-300 mb-1.5">Confirmation requise</p>
+                  <p className="text-xs font-semibold text-amber-300 mb-1.5">{tr("confirm_required", lang)}</p>
                   <p className="text-sm text-white mb-2">{pending.summary}</p>
                   <div className="space-y-1 mb-3">
                     {pending.fields.map((f, i) => (
@@ -465,7 +580,7 @@ export function VoiceAssistant() {
                       className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-medium transition-colors"
                     >
                       <Check className="w-3.5 h-3.5" />
-                      {confirming ? "..." : "Confirmer"}
+                      {confirming ? "..." : tr("confirm_btn", lang)}
                     </button>
                     <button
                       onClick={cancelPending}
@@ -473,7 +588,7 @@ export function VoiceAssistant() {
                       className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-slate-200 text-xs font-medium transition-colors"
                     >
                       <XCircle className="w-3.5 h-3.5" />
-                      Annuler
+                      {tr("cancel_btn", lang)}
                     </button>
                   </div>
                 </div>
@@ -491,10 +606,10 @@ export function VoiceAssistant() {
                       ? "bg-amber-500/20 text-amber-400 border border-amber-500/50"
                       : "bg-slate-700 hover:bg-slate-600 text-slate-400"
                   }`}
-                  title={wakeActiveRef.current ? 'Desactiver "Hey Bureau"' : 'Activer "Hey Bureau"'}
+                  title={wakeActiveRef.current ? tr("wake_toggle_off", lang) : tr("wake_toggle_on", lang)}
                 >
                   <Radio className="w-3.5 h-3.5" />
-                  Hey Bureau
+                  {tr("wake_label", lang)}
                 </button>
 
                 <button
