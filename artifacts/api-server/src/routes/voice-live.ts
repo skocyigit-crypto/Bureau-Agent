@@ -31,6 +31,12 @@ import { WebSocketServer, WebSocket } from "ws";
 import { GoogleGenAI, Modality, type Session, type LiveServerMessage } from "@google/genai";
 import { logger } from "../lib/logger";
 import { sessionMiddleware } from "../app";
+import {
+  executeTool,
+  getGeminiToolDeclarations,
+  getTool,
+  type ToolContext,
+} from "../services/assistant-tools";
 
 // Modeles Gemini Live disponibles. On utilise le modele audio dialog
 // natif (preview) pour avoir une vraie voix conversationnelle. Si le
@@ -38,12 +44,27 @@ import { sessionMiddleware } from "../app";
 const LIVE_MODEL = "gemini-2.5-flash-preview-native-audio-dialog";
 const LIVE_MODEL_FALLBACK = "gemini-2.0-flash-live-001";
 
+// Voix disponibles cote Gemini Live (modeles preview audio natif).
+// Aoede = voix feminine chaleureuse (par defaut). Charon = masculine
+// posee. Fenrir = masculine energique. Kore = feminine neutre. Puck =
+// feminine jeune. Zephyr = feminine douce.
+const AVAILABLE_VOICES = ["Aoede", "Charon", "Fenrir", "Kore", "Puck", "Zephyr"] as const;
+type VoiceName = typeof AVAILABLE_VOICES[number];
+const DEFAULT_VOICE: VoiceName = "Aoede";
+
 // Prompt systeme: l'assistant repond TOUJOURS dans la langue de
-// l'utilisateur (auto-detect par le modele) et reste concis.
-const SYSTEM_PROMPT = `Tu es Bureau, l'assistant vocal de l'application Agent de Bureau (SaaS de gestion d'agence).
+// l'utilisateur (auto-detect par le modele) et reste concis. Decrit
+// aussi les outils disponibles pour que le modele sache QUAND les
+// utiliser sans paraitre robotique.
+const SYSTEM_PROMPT = `Tu es Bureau, l'assistant vocal de l'application Agent de Bureau (SaaS de gestion d'agence pour KOBI / PME).
 Reponds TOUJOURS dans la langue de l'utilisateur (francais, turc ou anglais — detecte automatiquement).
-Reste concis (1-3 phrases) car ta reponse est lue a voix haute. Sois chaleureux, professionnel, et direct.
-Si on te demande une action concrete (creer une tache, appeler quelqu'un, etc.), explique a l'utilisateur que tu peux le guider mais que l'execution se fait dans l'interface dediee.`;
+Reste concis (1-3 phrases) car ta reponse est lue a voix haute. Sois chaleureux, professionnel, direct, et naturel — comme un secretaire humain experimente.
+
+Tu disposes d'outils (function calling) pour agir reellement dans l'application : creer/lister taches, contacts, evenements, envoyer emails/SMS, rechercher dans l'historique, etc. Quand l'utilisateur formule une demande qui correspond a un outil, appelle-le sans demander de permission inutile — mais confirme oralement APRES execution ce que tu viens de faire ("J'ai cree la tache X pour demain").
+
+Si une action est risquee (envoi d'email, SMS, suppression) tu recevras automatiquement une demande de confirmation : explique-la en une phrase a l'utilisateur. Pour les autres actions, agis directement.
+
+Ne dis jamais "je ne peux pas faire ca dans le chat vocal" — utilise les outils a ta disposition.`;
 
 // Construit le client GoogleGenAI. La Live API necessite une cle directe
 // (le proxy AI Replit ne supporte pas le streaming WebSocket bi-directionnel).
@@ -76,17 +97,40 @@ function buildLiveClient(): { client: GoogleGenAI; usingProxy: boolean } | { err
 }
 
 interface ClientFrame {
-  type: "audio" | "text" | "end";
+  type: "audio" | "text" | "end" | "voice" | "confirm_tool";
   data?: string;
   text?: string;
+  voice?: VoiceName;
+  // Pour confirm_tool: id du tool-call et decision
+  toolCallId?: string;
+  decision?: "approve" | "reject";
 }
 
 interface ServerFrame {
-  type: "audio" | "text" | "turn_complete" | "interrupted" | "ready" | "error";
+  type:
+    | "audio"
+    | "text"
+    | "turn_complete"
+    | "interrupted"
+    | "ready"
+    | "error"
+    | "user_transcript"
+    | "assistant_transcript"
+    | "tool_step"
+    | "tool_pending"
+    | "voices";
   data?: string;
   text?: string;
   message?: string;
   lang?: string;
+  // Pour tool_step / tool_pending
+  toolName?: string;
+  toolArgs?: Record<string, unknown>;
+  toolResult?: Record<string, unknown>;
+  toolCallId?: string;
+  summary?: string;
+  // Pour voices: liste des voix disponibles a afficher dans le picker
+  voices?: readonly string[];
 }
 
 function sendFrame(ws: WebSocket, frame: ServerFrame): void {
@@ -97,27 +141,50 @@ function sendFrame(ws: WebSocket, frame: ServerFrame): void {
 
 async function openLiveSession(
   client: GoogleGenAI,
+  voice: VoiceName,
   onMessage: (msg: LiveServerMessage) => void,
   onError: (err: unknown) => void,
   onClose: () => void,
 ): Promise<Session> {
-  // Essai modele audio natif d'abord, fallback sur le modele GA.
+  // Essai modele audio natif d'abord, fallback sur le modele GA. Le
+  // modele natif supporte une voix plus chaude et les emotions, le
+  // fallback est plus stable mais "robotique".
   const configs: { model: string }[] = [
     { model: LIVE_MODEL },
     { model: LIVE_MODEL_FALLBACK },
   ];
+
+  // Construction de la config riche : voix selectionnee, transcriptions
+  // input/output (closed-captions), function calling, instruction systeme.
+  // On caste via `unknown` car certaines proprietes (transcriptions,
+  // realtimeInputConfig) ne sont pas encore dans les types publics du SDK.
+  const baseConfig = {
+    responseModalities: [Modality.AUDIO],
+    systemInstruction: SYSTEM_PROMPT,
+    speechConfig: {
+      voiceConfig: {
+        prebuiltVoiceConfig: { voiceName: voice },
+      },
+    },
+    // Recoit la transcription temps-reel de la voix utilisateur — utile
+    // pour afficher dans la UI ce que l'AI "comprend".
+    inputAudioTranscription: {},
+    // Recoit la transcription temps-reel de la reponse vocale — affichage
+    // type sous-titre pendant que l'assistant parle.
+    outputAudioTranscription: {},
+    // Function calling : on injecte tous les outils existants du systeme
+    // assistant (taches, contacts, calendrier, emails/SMS, etc.).
+    tools: [getGeminiToolDeclarations()],
+  } as unknown as Parameters<typeof client.live.connect>[0]["config"];
 
   let lastErr: unknown = null;
   for (const cfg of configs) {
     try {
       const session = await client.live.connect({
         model: cfg.model,
-        config: {
-          responseModalities: [Modality.AUDIO],
-          systemInstruction: SYSTEM_PROMPT,
-        },
+        config: baseConfig,
         callbacks: {
-          onopen: () => logger.info({ model: cfg.model }, "[VoiceLive] Gemini session opened"),
+          onopen: () => logger.info({ model: cfg.model, voice }, "[VoiceLive] Gemini session opened"),
           onmessage: onMessage,
           onerror: (e: unknown) => {
             logger.error({ err: e, model: cfg.model }, "[VoiceLive] Gemini session error");
@@ -215,8 +282,18 @@ export function attachVoiceLiveWs(server: Server): void {
         socket.destroy();
         return;
       }
+      // Permet de choisir la voix via ?voice=Aoede dans l'URL d'upgrade.
+      let voice: VoiceName = DEFAULT_VOICE;
+      try {
+        const u = new URL(url, "http://localhost");
+        const v = u.searchParams.get("voice");
+        if (v && (AVAILABLE_VOICES as readonly string[]).includes(v)) {
+          voice = v as VoiceName;
+        }
+      } catch { /* ignore */ }
+
       wss.handleUpgrade(req, socket, head, (ws) => {
-        bridgeConnection(ws, session.userId!, session.organisationId!);
+        bridgeConnection(ws, session.userId!, session.organisationId!, voice);
       });
     });
   });
@@ -224,7 +301,12 @@ export function attachVoiceLiveWs(server: Server): void {
   logger.info("[VoiceLive] WebSocket server attached at /api/voice/live");
 }
 
-function bridgeConnection(ws: WebSocket, userId: number, orgId: number): void {
+function bridgeConnection(
+  ws: WebSocket,
+  userId: number,
+  orgId: number,
+  voice: VoiceName,
+): void {
   const liveClient = buildLiveClient();
   if ("error" in liveClient) {
     sendFrame(ws, { type: "error", message: liveClient.error });
@@ -234,10 +316,32 @@ function bridgeConnection(ws: WebSocket, userId: number, orgId: number): void {
 
   let gSession: Session | null = null;
   let closed = false;
+  const toolCtx: ToolContext = { orgId, userId };
+  // Tool-calls en attente de confirmation utilisateur (pour les outils
+  // requiresConfirmation comme envoi d'email/SMS, suppression, etc.).
+  const pendingToolCalls = new Map<string, { name: string; args: Record<string, unknown> }>();
 
   const cleanup = (): void => {
     if (closed) return;
     closed = true;
+    // Avant de fermer la session Gemini, rejette tous les tool-calls
+    // en attente: sans reponse, Gemini reste bloque cote serveur et ne
+    // pourra pas etre reutilise proprement. Garantie cote serveur en
+    // complement du best-effort cote client.
+    if (gSession && pendingToolCalls.size > 0) {
+      for (const [callId, p] of pendingToolCalls) {
+        try {
+          gSession.sendToolResponse({
+            functionResponses: [{
+              id: callId,
+              name: p.name,
+              response: { error: "Session fermee avant confirmation" },
+            }],
+          });
+        } catch { /* ignore */ }
+      }
+      pendingToolCalls.clear();
+    }
     try { gSession?.close(); } catch { /* ignore */ }
     try { ws.close(); } catch { /* ignore */ }
   };
@@ -246,9 +350,44 @@ function bridgeConnection(ws: WebSocket, userId: number, orgId: number): void {
   // prete. Evite de perdre les premiers mots de l'utilisateur.
   const pendingAudio: string[] = [];
 
+  // Helper: execute un tool-call et renvoie le resultat a Gemini.
+  // Gemini Live appelle sendToolResponse() avec functionResponses[].
+  const handleToolCall = async (
+    callId: string,
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<void> => {
+    if (!gSession) return;
+    sendFrame(ws, { type: "tool_step", toolName: name, toolArgs: args, toolCallId: callId });
+    const tool = getTool(name);
+    // Confirmation utilisateur pour les outils risques (envoi externe,
+    // suppression). On stocke la call, on previent l'UI, et on attend
+    // un message `confirm_tool` du client avant d'executer.
+    if (tool?.requiresConfirmation) {
+      pendingToolCalls.set(callId, { name, args });
+      const summary = tool.summarize?.(args as never) ?? `Confirmer ${name}`;
+      sendFrame(ws, { type: "tool_pending", toolCallId: callId, toolName: name, toolArgs: args, summary });
+      return;
+    }
+    const result = await executeTool(name, args, toolCtx, { skipConfirmation: false });
+    const payload: Record<string, unknown> = result.ok
+      ? (result.result as Record<string, unknown>) ?? { ok: true }
+      : { error: result.error ?? "Erreur" };
+    sendFrame(ws, { type: "tool_step", toolName: name, toolArgs: args, toolResult: payload, toolCallId: callId });
+    try {
+      // Le SDK attend un tableau de functionResponses.
+      gSession.sendToolResponse({
+        functionResponses: [{ id: callId, name, response: payload }],
+      });
+    } catch (err) {
+      logger.error({ err, tool: name }, "[VoiceLive] sendToolResponse failed");
+    }
+  };
+
   // Ouvre la session Gemini Live et configure les callbacks.
   openLiveSession(
     liveClient.client,
+    voice,
     (msg: LiveServerMessage) => {
       // Audio chunks: serverContent.modelTurn.parts[].inlineData.data (base64 PCM 24kHz)
       const sc = msg.serverContent;
@@ -260,6 +399,32 @@ function bridgeConnection(ws: WebSocket, userId: number, orgId: number): void {
           if (part.text) {
             sendFrame(ws, { type: "text", text: part.text });
           }
+        }
+      }
+      // Transcriptions temps-reel (closed captions).
+      // Les types publics du SDK n'exposent pas toujours ces champs,
+      // donc on les lit via cast.
+      const scAny = sc as unknown as {
+        inputTranscription?: { text?: string };
+        outputTranscription?: { text?: string };
+      } | undefined;
+      if (scAny?.inputTranscription?.text) {
+        sendFrame(ws, { type: "user_transcript", text: scAny.inputTranscription.text });
+      }
+      if (scAny?.outputTranscription?.text) {
+        sendFrame(ws, { type: "assistant_transcript", text: scAny.outputTranscription.text });
+      }
+      // Tool calls
+      const tc = msg.toolCall;
+      if (tc?.functionCalls?.length) {
+        for (const call of tc.functionCalls) {
+          const callId = call.id ?? `${call.name}-${Date.now()}`;
+          const name = call.name ?? "";
+          const args = (call.args ?? {}) as Record<string, unknown>;
+          // fire-and-forget — Gemini Live attend la reponse async
+          handleToolCall(callId, name, args).catch((err) => {
+            logger.error({ err, tool: name }, "[VoiceLive] tool execution error");
+          });
         }
       }
       if (sc?.interrupted) {
@@ -294,7 +459,8 @@ function bridgeConnection(ws: WebSocket, userId: number, orgId: number): void {
       }
       pendingAudio.length = 0;
       sendFrame(ws, { type: "ready", lang: "auto" });
-      logger.info({ userId, orgId }, "[VoiceLive] Bridge active");
+      sendFrame(ws, { type: "voices", voices: AVAILABLE_VOICES });
+      logger.info({ userId, orgId, voice }, "[VoiceLive] Bridge active");
     })
     .catch((err) => {
       const message = err instanceof Error ? err.message : String(err);
@@ -333,6 +499,39 @@ function bridgeConnection(ws: WebSocket, userId: number, orgId: number): void {
         });
       } else if (frame.type === "end") {
         cleanup();
+      } else if (frame.type === "confirm_tool" && frame.toolCallId && frame.decision) {
+        // Resoud un tool-call en attente apres approbation/refus utilisateur.
+        const pending = pendingToolCalls.get(frame.toolCallId);
+        if (!pending) return;
+        pendingToolCalls.delete(frame.toolCallId);
+        if (frame.decision === "reject") {
+          const payload = { error: "Action annulee par l'utilisateur" };
+          sendFrame(ws, { type: "tool_step", toolName: pending.name, toolArgs: pending.args, toolResult: payload, toolCallId: frame.toolCallId });
+          try {
+            gSession?.sendToolResponse({
+              functionResponses: [{ id: frame.toolCallId, name: pending.name, response: payload }],
+            });
+          } catch (err) { logger.error({ err }, "[VoiceLive] sendToolResponse(reject) failed"); }
+          return;
+        }
+        // Approve: on execute reellement, en bypassant le gate confirmation.
+        executeTool(pending.name, pending.args, toolCtx, { skipConfirmation: true })
+          .then((result) => {
+            const payload: Record<string, unknown> = result.ok
+              ? (result.result as Record<string, unknown>) ?? { ok: true }
+              : { error: result.error ?? "Erreur" };
+            sendFrame(ws, { type: "tool_step", toolName: pending.name, toolArgs: pending.args, toolResult: payload, toolCallId: frame.toolCallId });
+            try {
+              gSession?.sendToolResponse({
+                functionResponses: [{ id: frame.toolCallId!, name: pending.name, response: payload }],
+              });
+            } catch (err) { logger.error({ err }, "[VoiceLive] sendToolResponse(approve) failed"); }
+          })
+          .catch((err) => logger.error({ err }, "[VoiceLive] approve execute failed"));
+      } else if (frame.type === "voice") {
+        // Changement de voix en cours de session: pas supporte par le
+        // protocole Live (la voix est fixee a l'ouverture). On l'ignore
+        // — le client doit reconnecter avec ?voice=NewName pour changer.
       }
     } catch (err) {
       logger.error({ err }, "[VoiceLive] Error forwarding to Gemini");
