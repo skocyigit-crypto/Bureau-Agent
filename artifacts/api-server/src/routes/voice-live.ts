@@ -46,8 +46,14 @@ import {
 // separe sur la cle API — symptome observe: la session WS s'ouvre
 // puis Google la ferme en ~50ms sans message d'erreur. On essaie
 // quand-meme le preview en upgrade optionnel, en SECONDAIRE.
-const LIVE_MODEL = "gemini-2.0-flash-live-001";
-const LIVE_MODEL_FALLBACK = "gemini-2.5-flash-preview-native-audio-dialog";
+// Modeles Live disponibles verifies via ListModels (bidiGenerateContent)
+// pour notre cle au 18 mai 2026. Les anciens noms (gemini-2.0-flash-live-001,
+// gemini-2.5-flash-preview-native-audio-dialog) ont ete retires de l'API
+// publique — ils renvoient 1008 "not found for API version v1beta".
+// Primaire: alias stable "latest" qui pointe sur le meilleur snapshot natif.
+// Fallback: snapshot 09-2025 fige (au cas ou "latest" change un jour).
+const LIVE_MODEL = "gemini-2.5-flash-native-audio-latest";
+const LIVE_MODEL_FALLBACK = "gemini-2.5-flash-native-audio-preview-09-2025";
 
 // Voix disponibles cote Gemini Live (modeles preview audio natif).
 // Aoede = voix feminine chaleureuse (par defaut). Charon = masculine
