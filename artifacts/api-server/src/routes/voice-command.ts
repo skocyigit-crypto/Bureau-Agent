@@ -890,6 +890,97 @@ router.post("/voice/command", async (req: Request, res: Response): Promise<void>
   }
 });
 
+// ───────────────────────── Free-form chat endpoint ───────────────────────────
+// Mode "sohbet": l'utilisateur converse librement avec l'assistant. Le backend
+// ne tente PAS de parser un intent — on envoie directement la conversation
+// (system prompt + N derniers tours + nouveau message) au modele Gemini Flash.
+// Permet a l'utilisateur de poser des questions ouvertes, brainstormer, etc.
+type ChatTurn = { role: "user" | "assistant"; text: string };
+const MAX_CHAT_HISTORY = 10;
+const MAX_CHAT_TEXT_LEN = 2000;
+
+function buildChatSystemPrompt(lang: Lang): string {
+  const langName = lang === "tr" ? "Turkish" : lang === "en" ? "English" : "French";
+  const today = new Date().toLocaleDateString(
+    lang === "tr" ? "tr-TR" : lang === "en" ? "en-US" : "fr-FR",
+    { weekday: "long", year: "numeric", month: "long", day: "numeric" },
+  );
+  return `You are "Bureau", a friendly office-management AI assistant inside a French B2B SaaS called "Agent de Bureau". The user is a small-business owner or office worker.
+
+Today is ${today}.
+
+Capabilities you can mention when asked:
+- Daily briefing, counts of calls/tasks/contacts/projects
+- Recent calls, urgent or pending tasks, overdue projects
+- Calendar/agenda, performance dashboard
+- Creating tasks/contacts, scheduling meetings, sending messages, logging calls
+- Search across contacts and data
+
+Rules:
+- ALWAYS reply in ${langName}.
+- Be concise: 1 to 4 short sentences (the reply will be spoken aloud).
+- Be warm and professional. Use plain language, no markdown, no bullet lists, no emoji.
+- If the user asks for an action you can do (create task, schedule, etc.), suggest they say it as a command, e.g. "Cree une tache pour rappeler Jean demain".
+- If you don't know something, say so briefly and offer an alternative.`;
+}
+
+router.post("/voice/chat", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const lang = getLang(req);
+  const { text, history } = req.body ?? {};
+
+  if (!text || typeof text !== "string") {
+    res.status(400).json({ error: "Texte requis" });
+    return;
+  }
+
+  try { await assertAiQuota(orgId); } catch (qe) {
+    if (qe instanceof AiQuotaExceededError) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; }
+    throw qe;
+  }
+
+  if (!ai) {
+    res.json({ success: true, intent: "chat", spoken: t(lang, "unknown", { text }) });
+    return;
+  }
+
+  const safeText = sanitizePromptInput(text, MAX_CHAT_TEXT_LEN);
+  const safeHistory: ChatTurn[] = Array.isArray(history)
+    ? history
+        .filter((h: any) => h && (h.role === "user" || h.role === "assistant") && typeof h.text === "string")
+        .slice(-MAX_CHAT_HISTORY)
+        .map((h: any) => ({ role: h.role, text: sanitizePromptInput(String(h.text), MAX_CHAT_TEXT_LEN) }))
+    : [];
+
+  try {
+    // Gemini accepte system instruction + multi-turn. Les roles Gemini sont
+    // "user" et "model" (pas "assistant"), on traduit.
+    const contents = [
+      ...safeHistory.map((h) => ({
+        role: h.role === "assistant" ? "model" : "user",
+        parts: [{ text: h.text }],
+      })),
+      { role: "user", parts: [{ text: safeText }] },
+    ];
+
+    const result = await aiCallWithRetry(
+      () =>
+        ai!.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents,
+          config: { systemInstruction: buildChatSystemPrompt(lang) },
+        }),
+      { label: "voice-chat", maxRetries: 1 },
+    );
+
+    const spoken = ((result as any).text || "").trim() || t(lang, "unknown", { text });
+    res.json({ success: true, intent: "chat", spoken });
+  } catch (err) {
+    logger.error({ err }, "[VoiceChat] Error:");
+    res.status(500).json({ success: false, spoken: t(lang, "server_error") });
+  }
+});
+
 router.post("/voice/confirm", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   const userId = req.session?.userId;

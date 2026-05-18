@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Mic, MicOff, X, Volume2, MessageCircle, HelpCircle, Radio, Check, XCircle, Globe, Send, Sparkles } from "lucide-react";
+import { Mic, MicOff, X, Volume2, MessageCircle, HelpCircle, Radio, Check, XCircle, Globe, Send, Sparkles, Zap, MessagesSquare } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -7,6 +7,9 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 type Lang = "fr" | "tr" | "en";
 const SUPPORTED_LANGS: Lang[] = ["fr", "tr", "en"];
 const LANG_STORAGE_KEY = "buro.voiceLang";
+const MODE_STORAGE_KEY = "buro.voiceMode";
+type AssistMode = "command" | "chat";
+const CHAT_HISTORY_SEND_LIMIT = 10;
 
 // Wake words par langue. On accepte plusieurs variantes pour la robustesse STT.
 const WAKE_WORDS: Record<Lang, string[]> = {
@@ -59,6 +62,18 @@ const UI_T = {
     fr: "Demandez-moi quelque chose, ou choisissez une suggestion ci-dessous.",
     tr: "Bana bir sey sorun veya asagidaki onerilerden birini secin.",
     en: "Ask me something, or pick a suggestion below.",
+  },
+  empty_chat: {
+    fr: "Discutons. Posez-moi n'importe quelle question liee a votre activite.",
+    tr: "Sohbet edelim. Isinizle ilgili her seyi sorabilirsiniz.",
+    en: "Let's chat. Ask me anything about your business.",
+  },
+  mode_command: { fr: "Commande", tr: "Komut", en: "Command" },
+  mode_chat: { fr: "Sohbet", tr: "Sohbet", en: "Chat" },
+  chat_placeholder: {
+    fr: "Posez votre question...",
+    tr: "Sorunuzu yazin...",
+    en: "Ask your question...",
   },
 } as const;
 
@@ -177,6 +192,14 @@ function loadStoredLang(): Lang {
   return "fr";
 }
 
+function loadStoredMode(): AssistMode {
+  try {
+    const stored = localStorage.getItem(MODE_STORAGE_KEY);
+    if (stored === "chat" || stored === "command") return stored;
+  } catch {}
+  return "command";
+}
+
 interface PendingAction {
   token: string;
   intent: string;
@@ -212,13 +235,18 @@ export function VoiceAssistant() {
   const [confirming, setConfirming] = useState(false);
   const [textInput, setTextInput] = useState("");
   const [lastIntent, setLastIntent] = useState<string>("");
+  const [mode, setMode] = useState<AssistMode>(loadStoredMode);
   const recognitionRef = useRef<any>(null);
   const wakeListenerRef = useRef<any>(null);
   const stateRef = useRef<VoiceState>("idle");
   const wakeActiveRef = useRef(false);
   // Refs miroirs pour les callbacks STT (closures): on doit toujours utiliser
-  // la langue courante meme si elle change pendant l'ecoute.
+  // la langue/mode courants meme si ils changent pendant l'ecoute.
   const langRef = useRef<Lang>(lang);
+  const modeRef = useRef<AssistMode>(mode);
+  // Snapshot de l'historique pour eviter de redeclarer processCommand quand
+  // l'historique change (sinon les listeners STT se reabonnent en boucle).
+  const historyRef = useRef<{ type: "user" | "assistant"; text: string }[]>([]);
 
   const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
   const supported = !!SpeechRecognition;
@@ -229,6 +257,11 @@ export function VoiceAssistant() {
     langRef.current = lang;
     try { localStorage.setItem(LANG_STORAGE_KEY, lang); } catch {}
   }, [lang]);
+  useEffect(() => {
+    modeRef.current = mode;
+    try { localStorage.setItem(MODE_STORAGE_KEY, mode); } catch {}
+  }, [mode]);
+  useEffect(() => { historyRef.current = history; }, [history]);
 
   // Recharge la liste de commandes a chaque changement de langue.
   useEffect(() => {
@@ -266,12 +299,24 @@ export function VoiceAssistant() {
     setTranscript(text);
     setHistory(prev => [...prev, { type: "user", text }]);
     const curLang = langRef.current;
+    const curMode = modeRef.current;
+    // En mode chat: on envoie l'historique recent (sans le tour courant qui
+    // vient juste d'etre ajoute a l'etat React, mais qu'on n'a pas a renvoyer
+    // puisqu'on envoie aussi `text` separement) pour donner du contexte multi-
+    // tour au modele. Le backend tronque a MAX_CHAT_HISTORY (10).
+    const endpoint = curMode === "chat" ? "/api/voice/chat" : "/api/voice/command";
+    const payload: Record<string, unknown> = { text, language: curLang };
+    if (curMode === "chat") {
+      payload.history = historyRef.current
+        .slice(-CHAT_HISTORY_SEND_LIMIT)
+        .map((h) => ({ role: h.type, text: h.text }));
+    }
     try {
-      const res = await fetch(`${BASE}/api/voice/command`, {
+      const res = await fetch(`${BASE}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Voice-Lang": curLang },
         credentials: "include",
-        body: JSON.stringify({ text, language: curLang }),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         const data: VoiceResult = await res.json();
@@ -607,6 +652,28 @@ export function VoiceAssistant() {
             </div>
           </div>
 
+          {/* Selecteur de mode (Commande / Sohbet) */}
+          <div className="flex items-center justify-between px-4 py-2 bg-slate-900/40 border-b border-white/5">
+            <div className="flex gap-1 rounded-full bg-slate-800/60 p-0.5 border border-white/5 w-full">
+              <button
+                onClick={() => setMode("command")}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1 text-[11px] font-semibold rounded-full transition-all ${
+                  mode === "command" ? "bg-amber-500 text-slate-900 shadow" : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <Zap className="w-3 h-3" /> {tr("mode_command", lang)}
+              </button>
+              <button
+                onClick={() => setMode("chat")}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1 text-[11px] font-semibold rounded-full transition-all ${
+                  mode === "chat" ? "bg-blue-500 text-white shadow" : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <MessagesSquare className="w-3 h-3" /> {tr("mode_chat", lang)}
+              </button>
+            </div>
+          </div>
+
           {/* Selecteur de langue — visible en permanence */}
           <div className="flex items-center justify-between px-4 py-2 bg-slate-900/40 border-b border-white/5">
             <div className="flex items-center gap-1.5 text-slate-400 text-xs">
@@ -649,8 +716,8 @@ export function VoiceAssistant() {
               </div>
 
               {history.length > 0 && (
-                <div className="max-h-40 overflow-y-auto mb-3 space-y-2">
-                  {history.slice(-4).map((h, i) => (
+                <div className={`${mode === "chat" ? "max-h-80" : "max-h-40"} overflow-y-auto mb-3 space-y-2`}>
+                  {history.slice(mode === "chat" ? -20 : -4).map((h, i) => (
                     <div key={i} className={`rounded-lg p-2.5 ${h.type === "user" ? "bg-slate-800 ml-6" : "bg-blue-900/30 border border-blue-800/50 mr-6"}`}>
                       <div className="flex items-start gap-2">
                         {h.type === "user" ? (
@@ -714,12 +781,13 @@ export function VoiceAssistant() {
               {/* Empty-state hint (premiere ouverture, pas d'historique). */}
               {history.length === 0 && !pending && state === "idle" && (
                 <p className="text-xs text-slate-400 text-center italic mb-3 px-2">
-                  {tr("empty_hint", lang)}
+                  {tr(mode === "chat" ? "empty_chat" : "empty_hint", lang)}
                 </p>
               )}
 
-              {/* Suggestions / chips de suivi — affichees sauf pendant les etats actifs. */}
-              {!pending && state !== "listening_command" && state !== "processing" && (
+              {/* Suggestions / chips de suivi — uniquement en mode "command".
+                  En mode "chat" l'utilisateur tape librement, pas de raccourcis. */}
+              {mode === "command" && !pending && state !== "listening_command" && state !== "processing" && (
                 <div className="mb-3">
                   <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-500 mb-1.5">
                     <Sparkles className="w-3 h-3" />
@@ -755,7 +823,7 @@ export function VoiceAssistant() {
                   type="text"
                   value={textInput}
                   onChange={(e) => setTextInput(e.target.value)}
-                  placeholder={tr("input_placeholder", lang)}
+                  placeholder={tr(mode === "chat" ? "chat_placeholder" : "input_placeholder", lang)}
                   className="flex-1 px-3 py-2 text-xs rounded-lg bg-slate-800/80 border border-white/5 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500/50"
                   disabled={state === "processing"}
                 />
