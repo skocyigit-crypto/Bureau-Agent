@@ -203,14 +203,26 @@ async function openLiveSession(
     // partage d'ecran). MEDIUM = bon compromis qualite / tokens.
     mediaResolution: MediaResolution.MEDIA_RESOLUTION_MEDIUM,
     // Recoit la transcription temps-reel de la voix utilisateur — utile
-    // pour afficher dans la UI ce que l'AI "comprend".
-    inputAudioTranscription: {},
+    // pour afficher dans la UI ce que l'AI "comprend". Hint FR-FR pour
+    // ameliorer la precision sur les mots-cles francais (noms propres,
+    // termes metier secretariat).
+    inputAudioTranscription: { languageCodes: ["fr-FR"] },
     // Recoit la transcription temps-reel de la reponse vocale — affichage
     // type sous-titre pendant que l'assistant parle.
-    outputAudioTranscription: {},
+    outputAudioTranscription: { languageCodes: ["fr-FR"] },
     // VAD automatique cote serveur (Gemini detecte debut/fin de parole).
+    // Reglages adaptes a un usage bureau (FR): on accepte des pauses
+    // plus longues (silenceDurationMs=900) parce qu'un utilisateur qui
+    // reflechit/dicte une adresse fait souvent des pauses de >500ms.
+    // Sensibilite "LOW" par defaut = moins de faux-positifs (eviter de
+    // demarrer sur un soupir/bruit clavier).
     realtimeInputConfig: {
-      automaticActivityDetection: {},
+      automaticActivityDetection: {
+        startOfSpeechSensitivity: "START_SENSITIVITY_LOW",
+        endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
+        prefixPaddingMs: 200,
+        silenceDurationMs: 900,
+      },
     },
     // Dialogue "affectif": le modele detecte l'emotion de l'utilisateur
     // et adapte sa reponse (plus empathique si frustration, etc.).
