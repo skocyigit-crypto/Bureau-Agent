@@ -196,17 +196,15 @@ async function openLiveSession(
     // Resolution des images video envoyees par le client (webcam /
     // partage d'ecran). MEDIUM = bon compromis qualite / tokens.
     mediaResolution: MediaResolution.MEDIA_RESOLUTION_MEDIUM,
-    // Recoit la transcription temps-reel de la voix utilisateur — utile
-    // pour afficher dans la UI ce que l'AI "comprend". Hint FR-FR pour
-    // ameliorer la precision sur les mots-cles francais (noms propres,
-    // termes metier secretariat).
-    // L'utilisateur peut parler FR ou TR (proprietaire bilingue) — on
-    // donne les deux hints pour que la transcription marche dans les
-    // deux langues sans avoir a choisir.
-    inputAudioTranscription: { languageCodes: ["fr-FR", "tr-TR"] },
-    // Recoit la transcription temps-reel de la reponse vocale — affichage
-    // type sous-titre pendant que l'assistant parle.
-    outputAudioTranscription: { languageCodes: ["fr-FR", "tr-TR"] },
+    // Transcription temps-reel des audios entrant/sortant pour
+    // l'affichage type sous-titre. NOTE: on n'envoie PAS `languageCodes`
+    // — la propriete existe dans les types SDK mais le backend Gemini
+    // (AI Studio / MLdev, par opposition a Vertex) la rejette
+    // explicitement ("languageCodes parameter is not supported"). La
+    // detection de langue est automatique cote modele et fonctionne
+    // tres bien pour FR + TR (les deux langues du proprietaire).
+    inputAudioTranscription: {},
+    outputAudioTranscription: {},
     // VAD automatique cote serveur (Gemini detecte debut/fin de parole).
     // - startOfSpeechSensitivity HIGH : on detecte la parole plus tot,
     //   essentiel pour ne PAS rater le debut d'une phrase courte
