@@ -205,6 +205,30 @@ function resolveAllowedOrigins(): string[] {
       } catch { /* ignore malformed */ }
     }
   }
+  // Expo dev sert le bundle mobile depuis un sous-domaine distinct
+  // (`...expo.spock.replit.dev`). Sans cette entree, le preview web mobile
+  // recoit un preflight 204 sans Access-Control-Allow-Origin et le navigateur
+  // bloque silencieusement le POST de login (seul l'OPTIONS apparait dans
+  // les logs — symptome typique).
+  const expoDom = process.env.REPLIT_EXPO_DEV_DOMAIN;
+  if (expoDom && expoDom.trim() !== "") {
+    const url = expoDom.startsWith("http") ? expoDom : `https://${expoDom}`;
+    out.add(url.replace(/\/+$/, ""));
+  }
+  // Auto-deriver le sous-domaine Expo a partir de REPLIT_DOMAINS si
+  // REPLIT_EXPO_DEV_DOMAIN n'est pas defini (insertion de `.expo` avant
+  // `.spock.replit.dev` ou `.replit.dev`).
+  const replitDomainsForExpo = process.env.REPLIT_DOMAINS;
+  if (replitDomainsForExpo) {
+    replitDomainsForExpo.split(",").map(d => d.trim()).filter(Boolean).forEach(d => {
+      const expoVariant = d
+        .replace(/\.spock\.replit\.dev$/, ".expo.spock.replit.dev")
+        .replace(/^([^.]+)\.replit\.dev$/, "$1.expo.replit.dev");
+      if (expoVariant !== d) {
+        out.add(`https://${expoVariant}`);
+      }
+    });
+  }
   return Array.from(out);
 }
 
