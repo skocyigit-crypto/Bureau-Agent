@@ -206,19 +206,26 @@ async function openLiveSession(
     // pour afficher dans la UI ce que l'AI "comprend". Hint FR-FR pour
     // ameliorer la precision sur les mots-cles francais (noms propres,
     // termes metier secretariat).
-    inputAudioTranscription: { languageCodes: ["fr-FR"] },
+    // L'utilisateur peut parler FR ou TR (proprietaire bilingue) — on
+    // donne les deux hints pour que la transcription marche dans les
+    // deux langues sans avoir a choisir.
+    inputAudioTranscription: { languageCodes: ["fr-FR", "tr-TR"] },
     // Recoit la transcription temps-reel de la reponse vocale — affichage
     // type sous-titre pendant que l'assistant parle.
-    outputAudioTranscription: { languageCodes: ["fr-FR"] },
+    outputAudioTranscription: { languageCodes: ["fr-FR", "tr-TR"] },
     // VAD automatique cote serveur (Gemini detecte debut/fin de parole).
-    // Reglages adaptes a un usage bureau (FR): on accepte des pauses
-    // plus longues (silenceDurationMs=900) parce qu'un utilisateur qui
-    // reflechit/dicte une adresse fait souvent des pauses de >500ms.
-    // Sensibilite "LOW" par defaut = moins de faux-positifs (eviter de
-    // demarrer sur un soupir/bruit clavier).
+    // - startOfSpeechSensitivity HIGH : on detecte la parole plus tot,
+    //   essentiel pour ne PAS rater le debut d'une phrase courte
+    //   ("oui", "non", "annule"). Reglage precedent (LOW) provoquait
+    //   un effet "il ne m'entend pas".
+    // - endOfSpeechSensitivity LOW + silenceDurationMs=900 : on tolere
+    //   des pauses naturelles (l'utilisateur reflechit / dicte une
+    //   adresse / un numero) sans couper la phrase en deux.
+    // - prefixPaddingMs=200 : capture quelques ms avant le start pour
+    //   ne pas tronquer la premiere syllabe.
     realtimeInputConfig: {
       automaticActivityDetection: {
-        startOfSpeechSensitivity: "START_SENSITIVITY_LOW",
+        startOfSpeechSensitivity: "START_SENSITIVITY_HIGH",
         endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
         prefixPaddingMs: 200,
         silenceDurationMs: 900,
@@ -227,9 +234,14 @@ async function openLiveSession(
     // Dialogue "affectif": le modele detecte l'emotion de l'utilisateur
     // et adapte sa reponse (plus empathique si frustration, etc.).
     enableAffectiveDialog: true,
-    // Audio proactif: le modele peut ignorer un input non pertinent ou
-    // reagir spontanement quand c'est utile (et non systematiquement).
-    proactivity: { proactiveAudio: true },
+    // Audio proactif: DESACTIVE. Le proprietaire a explicitement
+    // demande que l'assistant n'agisse JAMAIS sans qu'on lui parle
+    // ("Sesli komutu otomatik uygulama"). Avec proactiveAudio=true,
+    // le modele pouvait initier des tours spontanement sur du bruit
+    // ambiant ou des fragments mal interpretes — percu comme "il fait
+    // des choses tout seul". L'assistant ne parle desormais qu'en
+    // reponse a une activation explicite detectee par le VAD.
+    proactivity: { proactiveAudio: false },
     // Compression de la fenetre de contexte au-dela d'un certain seuil
     // pour les conversations longues — evite la troncature brutale.
     contextWindowCompression: {

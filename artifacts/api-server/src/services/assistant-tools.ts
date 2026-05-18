@@ -200,6 +200,8 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
       category: { kind: "string", max: 50 },
       notes: { kind: "string", max: 2000 },
     },
+    requiresConfirmation: true,
+    summarize: (a) => `Creer le contact ${a.firstName} ${a.lastName} (${a.phone})`,
     execute: async (a, { orgId, userId }) => {
       const [row] = await db.insert(contactsTable).values({
         organisationId: orgId,
@@ -257,6 +259,8 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
       dueDate: { kind: "iso-date" },
       priority: { kind: "string", enum: ["basse", "moyenne", "haute"] as const },
     },
+    requiresConfirmation: true,
+    summarize: (a) => `Creer la tache "${a.title}"${a.dueDate ? ` (echeance ${a.dueDate})` : ""}`,
     execute: async (a, { orgId, userId }) => {
       const due = a.dueDate ? new Date(a.dueDate) : null;
       if (due && Number.isNaN(due.getTime())) {
@@ -320,6 +324,8 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
       stage: { kind: "string", max: 50 },
       notes: { kind: "string", max: 4000 },
     },
+    requiresConfirmation: true,
+    summarize: (a) => `Creer le prospect "${a.title}"${a.company ? ` chez ${a.company}` : ""}${a.value ? ` (${a.value} EUR)` : ""}`,
     execute: async (a, { orgId }) => {
       const [row] = await db.insert(prospectsTable).values({
         organisationId: orgId,
@@ -385,6 +391,8 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
       location: { kind: "string", max: 300 },
       type: { kind: "string", max: 50 },
     },
+    requiresConfirmation: true,
+    summarize: (a) => `Creer l'evenement "${a.title}" du ${a.startDate} au ${a.endDate}${a.location ? ` a ${a.location}` : ""}`,
     execute: async (a, { orgId, userId }) => {
       const start = new Date(a.startDate);
       const end = new Date(a.endDate);
@@ -472,6 +480,8 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
     fields: {
       prompt: { kind: "string", required: true, min: 3, max: 1000 },
     },
+    requiresConfirmation: true,
+    summarize: (a) => `Generer une image: "${trim(a.prompt, 120)}"`,
     execute: async (a) => {
       try {
         const img = await generateImage(a.prompt);
