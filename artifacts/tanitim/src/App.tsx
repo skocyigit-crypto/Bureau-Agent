@@ -9,6 +9,7 @@ import { FloatingCallbackButton } from "@/components/FloatingCallbackButton";
 
 const MentionsLegales = lazy(() => import("@/pages/mentions-legales"));
 const Confidentialite = lazy(() => import("@/pages/confidentialite"));
+const Gizlilik = lazy(() => import("@/pages/gizlilik"));
 const CGU = lazy(() => import("@/pages/cgu"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
@@ -21,6 +22,7 @@ function Router() {
         <Route path="/" component={Home} />
         <Route path="/mentions-legales" component={MentionsLegales} />
         <Route path="/confidentialite" component={Confidentialite} />
+        <Route path="/gizlilik" component={Gizlilik} />
         <Route path="/cgu" component={CGU} />
         <Route component={NotFound} />
       </Switch>
