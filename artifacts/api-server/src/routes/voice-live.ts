@@ -78,10 +78,19 @@ Ne dis jamais "je ne peux pas faire ca dans le chat vocal" — utilise les outil
 // ce fallback en prod, il echoue systematiquement, donc on l'a retire
 // pour eviter de masquer la vraie cause derriere une erreur reseau.
 function buildLiveClient(): { client: GoogleGenAI } | { error: string } {
-  const directKey =
-    process.env.GEMINI_API_KEY ||
-    process.env.GOOGLE_API_KEY ||
-    process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  // Une vraie cle Google AI Studio fait 39 caracteres et commence par
+  // "AIza". On filtre les variables vides ou contenant un fragment
+  // incorrect (ex: l'utilisateur a colle autre chose) pour eviter
+  // d'envoyer une cle invalide a Google qui ferme alors la WS avec
+  // "API key not valid".
+  const candidates = [
+    process.env.GEMINI_API_KEY,
+    process.env.GOOGLE_API_KEY,
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+  ];
+  const directKey = candidates.find(
+    (k) => typeof k === "string" && k.startsWith("AIza") && k.length >= 35,
+  );
 
   if (directKey) {
     return { client: new GoogleGenAI({ apiKey: directKey }) };
