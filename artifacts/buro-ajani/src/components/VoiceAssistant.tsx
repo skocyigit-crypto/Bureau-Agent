@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Mic, MicOff, X, Volume2, MessageCircle, HelpCircle, Radio, Check, XCircle, Globe, Send, Sparkles, Zap, MessagesSquare } from "lucide-react";
+import { Mic, MicOff, X, Volume2, MessageCircle, HelpCircle, Radio, Check, XCircle, Globe, Send, Sparkles, Zap, MessagesSquare, Brain, LayoutGrid } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -8,6 +8,8 @@ type Lang = "fr" | "tr" | "en";
 const SUPPORTED_LANGS: Lang[] = ["fr", "tr", "en"];
 const LANG_STORAGE_KEY = "buro.voiceLang";
 const MODE_STORAGE_KEY = "buro.voiceMode";
+const WAKE_STORAGE_KEY = "buro.voiceWake";
+const DEEP_STORAGE_KEY = "buro.voiceDeep";
 type AssistMode = "command" | "chat";
 const CHAT_HISTORY_SEND_LIMIT = 10;
 
@@ -75,7 +77,159 @@ const UI_T = {
     tr: "Sorunuzu yazin...",
     en: "Ask your question...",
   },
+  deep_on: { fr: "Reflexion profonde activee", tr: "Derin dusunce aktif", en: "Deep thinking on" },
+  deep_off: { fr: "Activer reflexion profonde (Pro)", tr: "Derin dusunceyi ac (Pro)", en: "Enable deep thinking (Pro)" },
+  deep_badge: { fr: "Pro", tr: "Pro", en: "Pro" },
+  library_open: { fr: "Bibliotheque d'actions", tr: "Aksiyon kutuphanesi", en: "Action library" },
+  library_close: { fr: "Fermer", tr: "Kapat", en: "Close" },
+  clear_chat: { fr: "Effacer la conversation", tr: "Konusmayi temizle", en: "Clear conversation" },
+  retry_last: { fr: "Reessayer", tr: "Yeniden dene", en: "Retry" },
 } as const;
+
+// ───────────────────────── Bibliotheque d'actions rapides ────────────────────
+// 4 categories x ~7 prompts par langue. Cliquer envoie le prompt comme si
+// l'utilisateur l'avait dicte/tape.
+type LibCategory = { title: string; items: { label: string; text: string }[] };
+const LIBRARY: Record<Lang, LibCategory[]> = {
+  fr: [
+    {
+      title: "Travail quotidien",
+      items: [
+        { label: "Briefing du jour", text: "Briefing du jour" },
+        { label: "Taches urgentes", text: "Taches urgentes" },
+        { label: "Agenda du jour", text: "Agenda du jour" },
+        { label: "Derniers appels", text: "Derniers appels" },
+        { label: "Appels aujourd'hui", text: "Combien d'appels aujourd'hui" },
+        { label: "Performance", text: "Performance" },
+        { label: "Taches en attente", text: "Combien de taches en attente" },
+      ],
+    },
+    {
+      title: "Gestion",
+      items: [
+        { label: "Projets actifs", text: "Combien de projets actifs" },
+        { label: "Projets en retard", text: "Projets en retard" },
+        { label: "Nb contacts", text: "Combien de contacts" },
+        { label: "Creer une tache", text: "Cree une tache pour" },
+        { label: "Ajouter contact", text: "Ajoute un nouveau contact" },
+        { label: "Planifier RDV", text: "Planifie un rendez-vous" },
+      ],
+    },
+    {
+      title: "Idees & strategie",
+      items: [
+        { label: "Augmenter ventes", text: "Donne moi 3 idees concretes pour augmenter mes ventes ce mois-ci" },
+        { label: "Fideliser clients", text: "Comment mieux fideliser mes clients existants ?" },
+        { label: "Analyser performance", text: "Analyse ma performance recente et propose 2 axes d'amelioration" },
+        { label: "Tarifs", text: "Comment annoncer une hausse de prix sans perdre de clients ?" },
+        { label: "Reseaux sociaux", text: "Propose 3 idees de posts pour cette semaine" },
+        { label: "Concurrence", text: "Comment me differencier de la concurrence ?" },
+      ],
+    },
+    {
+      title: "Equipe & RH",
+      items: [
+        { label: "Recrutement", text: "Quelles questions poser en entretien pour ce poste ?" },
+        { label: "Motivation equipe", text: "Comment motiver mon equipe sans augmenter les salaires ?" },
+        { label: "Email pro", text: "Redige un email professionnel pour" },
+        { label: "Reunion efficace", text: "Comment rendre mes reunions plus efficaces ?" },
+        { label: "Delegation", text: "Sur quoi devrais-je deleguer en priorite ?" },
+      ],
+    },
+  ],
+  tr: [
+    {
+      title: "Gunluk is",
+      items: [
+        { label: "Gunluk ozet", text: "Gunluk ozet" },
+        { label: "Acil gorevler", text: "Acil gorevler" },
+        { label: "Bugunku takvim", text: "Bugunku takvim" },
+        { label: "Son aramalar", text: "Son aramalar" },
+        { label: "Bugun aramalar", text: "Bugun kac arama var" },
+        { label: "Performans", text: "Performans" },
+        { label: "Bekleyen gorevler", text: "Bekleyen gorevler" },
+      ],
+    },
+    {
+      title: "Yonetim",
+      items: [
+        { label: "Aktif projeler", text: "Kac aktif proje var" },
+        { label: "Gecikmis projeler", text: "Gecikmis projeler" },
+        { label: "Toplam kisi", text: "Kac kisi var" },
+        { label: "Gorev olustur", text: "Yeni bir gorev olustur" },
+        { label: "Kisi ekle", text: "Yeni bir kisi ekle" },
+        { label: "Randevu planla", text: "Bir randevu planla" },
+      ],
+    },
+    {
+      title: "Fikir & strateji",
+      items: [
+        { label: "Satislari artir", text: "Bu ay satislarimi artirmak icin 3 somut fikir ver" },
+        { label: "Musteri sadakati", text: "Mevcut musterilerimi nasil daha iyi tutarim?" },
+        { label: "Performans analizi", text: "Son performansimi analiz et ve 2 gelistirme onerisi ver" },
+        { label: "Fiyat artisi", text: "Musteri kaybetmeden fiyat artisini nasil duyururum?" },
+        { label: "Sosyal medya", text: "Bu hafta icin 3 sosyal medya gonderisi fikri ver" },
+        { label: "Rekabet", text: "Rakiplerimden nasil farklilasirim?" },
+      ],
+    },
+    {
+      title: "Ekip & IK",
+      items: [
+        { label: "Ise alim", text: "Bu pozisyon icin mulakatta hangi sorulari sormaliyim?" },
+        { label: "Ekip motivasyonu", text: "Maas artirmadan ekibimi nasil motive ederim?" },
+        { label: "Profesyonel email", text: "Su konuda profesyonel bir email yaz:" },
+        { label: "Verimli toplanti", text: "Toplantilarimi nasil daha verimli yaparim?" },
+        { label: "Delegasyon", text: "Onceliklendirerek neyi delege etmeliyim?" },
+      ],
+    },
+  ],
+  en: [
+    {
+      title: "Daily work",
+      items: [
+        { label: "Daily briefing", text: "Daily briefing" },
+        { label: "Urgent tasks", text: "Urgent tasks" },
+        { label: "Today's calendar", text: "Today's calendar" },
+        { label: "Recent calls", text: "Recent calls" },
+        { label: "Calls today", text: "How many calls today" },
+        { label: "Performance", text: "Performance" },
+        { label: "Pending tasks", text: "Pending tasks" },
+      ],
+    },
+    {
+      title: "Management",
+      items: [
+        { label: "Active projects", text: "How many active projects" },
+        { label: "Overdue projects", text: "Overdue projects" },
+        { label: "Contacts count", text: "How many contacts" },
+        { label: "Create task", text: "Create a new task" },
+        { label: "Add contact", text: "Add a new contact" },
+        { label: "Schedule meeting", text: "Schedule a meeting" },
+      ],
+    },
+    {
+      title: "Ideas & strategy",
+      items: [
+        { label: "Boost sales", text: "Give me 3 concrete ideas to boost my sales this month" },
+        { label: "Customer loyalty", text: "How can I better retain my existing customers?" },
+        { label: "Analyze perf", text: "Analyze my recent performance and suggest 2 improvements" },
+        { label: "Price increase", text: "How do I announce a price increase without losing clients?" },
+        { label: "Social media", text: "Give me 3 social media post ideas for this week" },
+        { label: "Competition", text: "How can I differentiate from competitors?" },
+      ],
+    },
+    {
+      title: "Team & HR",
+      items: [
+        { label: "Hiring", text: "What questions should I ask in an interview for this role?" },
+        { label: "Team motivation", text: "How can I motivate my team without raising salaries?" },
+        { label: "Pro email", text: "Write a professional email about:" },
+        { label: "Better meetings", text: "How do I run more effective meetings?" },
+        { label: "Delegation", text: "What should I prioritize delegating?" },
+      ],
+    },
+  ],
+};
 
 // Suggestions de suivi par intent + langue. Chaque chip envoie le texte
 // `text` au backend comme si l'utilisateur l'avait dicte. Quand un intent n'a
@@ -200,6 +354,21 @@ function loadStoredMode(): AssistMode {
   return "command";
 }
 
+// Wake-word: par defaut ACTIF (utilisateur a demande "surekli uyanik" =
+// toujours en eveil). L'utilisateur peut le desactiver explicitement; sa
+// preference est persistee.
+function loadStoredWake(): boolean {
+  try {
+    const stored = localStorage.getItem(WAKE_STORAGE_KEY);
+    if (stored === "1") return true;
+    if (stored === "0") return false;
+  } catch {}
+  return true;
+}
+function loadStoredDeep(): boolean {
+  try { return localStorage.getItem(DEEP_STORAGE_KEY) === "1"; } catch { return false; }
+}
+
 interface PendingAction {
   token: string;
   intent: string;
@@ -236,6 +405,11 @@ export function VoiceAssistant() {
   const [textInput, setTextInput] = useState("");
   const [lastIntent, setLastIntent] = useState<string>("");
   const [mode, setMode] = useState<AssistMode>(loadStoredMode);
+  const [deep, setDeep] = useState<boolean>(loadStoredDeep);
+  const [showLibrary, setShowLibrary] = useState(false);
+  // Mirror state pour afficher l'etat "wake actif" dans la UI sans re-render
+  // depuis le ref (qui est non-reactif).
+  const [wakeOn, setWakeOn] = useState<boolean>(loadStoredWake);
   const recognitionRef = useRef<any>(null);
   const wakeListenerRef = useRef<any>(null);
   const stateRef = useRef<VoiceState>("idle");
@@ -244,6 +418,7 @@ export function VoiceAssistant() {
   // la langue/mode courants meme si ils changent pendant l'ecoute.
   const langRef = useRef<Lang>(lang);
   const modeRef = useRef<AssistMode>(mode);
+  const deepRef = useRef<boolean>(deep);
   // Snapshot de l'historique pour eviter de redeclarer processCommand quand
   // l'historique change (sinon les listeners STT se reabonnent en boucle).
   const historyRef = useRef<{ type: "user" | "assistant"; text: string }[]>([]);
@@ -261,6 +436,10 @@ export function VoiceAssistant() {
     modeRef.current = mode;
     try { localStorage.setItem(MODE_STORAGE_KEY, mode); } catch {}
   }, [mode]);
+  useEffect(() => {
+    deepRef.current = deep;
+    try { localStorage.setItem(DEEP_STORAGE_KEY, deep ? "1" : "0"); } catch {}
+  }, [deep]);
   useEffect(() => { historyRef.current = history; }, [history]);
 
   // Recharge la liste de commandes a chaque changement de langue.
@@ -310,6 +489,7 @@ export function VoiceAssistant() {
       payload.history = historyRef.current
         .slice(-CHAT_HISTORY_SEND_LIMIT)
         .map((h) => ({ role: h.type, text: h.text }));
+      payload.deep = deepRef.current;
     }
     try {
       const res = await fetch(`${BASE}${endpoint}`, {
@@ -491,14 +671,34 @@ export function VoiceAssistant() {
   function toggleWakeMode() {
     if (wakeActiveRef.current) {
       wakeActiveRef.current = false;
+      setWakeOn(false);
+      try { localStorage.setItem(WAKE_STORAGE_KEY, "0"); } catch {}
       stopAllListeners();
       setState("idle");
     } else {
       wakeActiveRef.current = true;
+      setWakeOn(true);
+      try { localStorage.setItem(WAKE_STORAGE_KEY, "1"); } catch {}
       stopAllListeners();
       startWakeWordListener();
     }
   }
+
+  // Auto-demarrage du wake-word au montage si l'utilisateur l'avait laisse
+  // actif (ou par defaut s'il n'a jamais touche au reglage). Permet de tenir
+  // la promesse "agent toujours en eveil" sans clic manuel.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!supported) return;
+    if (wakeOn && !wakeActiveRef.current) {
+      wakeActiveRef.current = true;
+      startWakeWordListener();
+    }
+    return () => {
+      // pas de cleanup ici: closeAssistant() s'en charge si besoin.
+    };
+    // On ne veut declencher qu'au mount; les toggles passent par toggleWakeMode.
+  }, []);
 
   // Quand l'utilisateur change la langue alors qu'une ecoute est en cours,
   // on redemarre le listener avec la nouvelle langue STT.
@@ -643,7 +843,21 @@ export function VoiceAssistant() {
               <span className="text-sm font-semibold text-white">{tr("title", lang)}</span>
             </div>
             <div className="flex gap-1.5">
-              <button onClick={() => setShowHelp(!showHelp)} className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-colors">
+              <button
+                onClick={() => { setShowLibrary(v => !v); if (!showLibrary) setShowHelp(false); }}
+                className={`p-1.5 rounded-lg transition-colors ${showLibrary ? "bg-amber-500/20 text-amber-300" : "hover:bg-slate-700 text-slate-400 hover:text-white"}`}
+                title={tr("library_open", lang)}
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={toggleWakeMode}
+                className={`p-1.5 rounded-lg transition-colors ${wakeOn ? "bg-amber-500/20 text-amber-300" : "hover:bg-slate-700 text-slate-400 hover:text-white"}`}
+                title={wakeOn ? "Wake-word ON" : "Wake-word OFF"}
+              >
+                <Radio className="w-4 h-4" />
+              </button>
+              <button onClick={() => { setShowHelp(!showHelp); if (!showHelp) setShowLibrary(false); }} className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-colors">
                 <HelpCircle className="w-4 h-4" />
               </button>
               <button onClick={closeAssistant} className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-colors">
@@ -674,6 +888,40 @@ export function VoiceAssistant() {
             </div>
           </div>
 
+          {/* Toggle "Derin Dusunce" — visible uniquement en mode chat. Bascule
+              le backend de Gemini Flash vers Gemini Pro pour les questions
+              strategiques / analyse / brainstorming. */}
+          {mode === "chat" && (
+            <div className="flex items-center justify-between px-4 py-2 bg-slate-900/40 border-b border-white/5">
+              <button
+                onClick={() => setDeep(v => !v)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all ${
+                  deep
+                    ? "bg-purple-500/20 text-purple-200 border border-purple-400/40 shadow-[0_0_12px_-2px_rgba(168,85,247,0.5)]"
+                    : "bg-slate-800/60 text-slate-400 border border-white/5 hover:text-white"
+                }`}
+                title={deep ? tr("deep_on", lang) : tr("deep_off", lang)}
+              >
+                <Brain className={`w-3.5 h-3.5 ${deep ? "animate-pulse" : ""}`} />
+                <span>{deep ? tr("deep_on", lang) : tr("deep_off", lang)}</span>
+                {deep && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-purple-500 text-white text-[9px] font-bold">
+                    {tr("deep_badge", lang)}
+                  </span>
+                )}
+              </button>
+              {history.length > 0 && (
+                <button
+                  onClick={() => { setHistory([]); setResponse(""); setTranscript(""); }}
+                  className="p-1.5 rounded-lg hover:bg-slate-700 text-slate-500 hover:text-white transition-colors"
+                  title={tr("clear_chat", lang)}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Selecteur de langue — visible en permanence */}
           <div className="flex items-center justify-between px-4 py-2 bg-slate-900/40 border-b border-white/5">
             <div className="flex items-center gap-1.5 text-slate-400 text-xs">
@@ -698,7 +946,29 @@ export function VoiceAssistant() {
             </div>
           </div>
 
-          {showHelp ? (
+          {showLibrary ? (
+            <div className="p-3 max-h-96 overflow-y-auto space-y-3">
+              <p className="text-xs text-slate-400 mb-1">{tr("library_open", lang)}</p>
+              {LIBRARY[lang].map((cat, ci) => (
+                <div key={ci}>
+                  <p className="text-[10px] uppercase tracking-wider text-amber-400/80 font-bold mb-1.5 px-1">{cat.title}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {cat.items.map((it, ii) => (
+                      <button
+                        key={ii}
+                        onClick={() => { setShowLibrary(false); processCommand(it.text); }}
+                        disabled={state === "processing"}
+                        className="px-2.5 py-1 text-[11px] rounded-full bg-slate-800/80 border border-white/10 text-slate-200 hover:bg-amber-500 hover:text-slate-900 hover:border-amber-400 transition-all disabled:opacity-40"
+                        title={it.text}
+                      >
+                        {it.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : showHelp ? (
             <div className="p-3 max-h-64 overflow-y-auto">
               <p className="text-xs text-slate-400 mb-2">{tr("commands_available", lang)}</p>
               {commands.map((c, i) => (

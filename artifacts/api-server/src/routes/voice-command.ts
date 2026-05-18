@@ -927,7 +927,11 @@ Rules:
 router.post("/voice/chat", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   const lang = getLang(req);
-  const { text, history } = req.body ?? {};
+  const { text, history, deep } = req.body ?? {};
+  // Mode "derin dusunce": bascule sur Gemini Pro pour les questions strategiques
+  // / brainstorming / analyse. Plus lent et plus couteux mais raisonnement bien
+  // meilleur. Off par defaut pour preserver le quota.
+  const useDeep = deep === true || deep === "true";
 
   if (!text || typeof text !== "string") {
     res.status(400).json({ error: "Texte requis" });
@@ -963,18 +967,19 @@ router.post("/voice/chat", async (req: Request, res: Response): Promise<void> =>
       { role: "user", parts: [{ text: safeText }] },
     ];
 
+    const modelId = useDeep ? "gemini-2.5-pro" : "gemini-2.5-flash";
     const result = await aiCallWithRetry(
       () =>
         ai!.models.generateContent({
-          model: "gemini-2.5-flash",
+          model: modelId,
           contents,
           config: { systemInstruction: buildChatSystemPrompt(lang) },
         }),
-      { label: "voice-chat", maxRetries: 1 },
+      { label: useDeep ? "voice-chat-deep" : "voice-chat", maxRetries: 1 },
     );
 
     const spoken = ((result as any).text || "").trim() || t(lang, "unknown", { text });
-    res.json({ success: true, intent: "chat", spoken });
+    res.json({ success: true, intent: "chat", spoken, model: modelId, deep: useDeep });
   } catch (err) {
     logger.error({ err }, "[VoiceChat] Error:");
     res.status(500).json({ success: false, spoken: t(lang, "server_error") });
