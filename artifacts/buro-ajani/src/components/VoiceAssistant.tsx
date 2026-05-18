@@ -451,7 +451,11 @@ interface VoiceResult {
 
 type VoiceState = "idle" | "listening_wake" | "listening_command" | "processing" | "speaking";
 
-export function VoiceAssistant() {
+interface VoiceAssistantProps {
+  onOpenLive?: () => void;
+}
+
+export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
   const [lang, setLang] = useState<Lang>(loadStoredLang);
   const [state, setState] = useState<VoiceState>("idle");
   const [transcript, setTranscript] = useState("");
@@ -1009,6 +1013,15 @@ export function VoiceAssistant() {
               <span className="absolute -top-1 -right-1 w-3 h-3 bg-amber-300 rounded-full animate-ping shadow-lg shadow-amber-400/50" />
             )}
           </button>
+          {onOpenLive && (
+            <button
+              onClick={onOpenLive}
+              className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-gradient-to-br from-cyan-400 via-violet-500 to-fuchsia-500 shadow-lg shadow-violet-500/40 flex items-center justify-center text-white text-[10px] font-bold border-2 border-slate-900 hover:scale-110 transition"
+              title="Mode Live (conversation continue avec Gemini)"
+            >
+              ✦
+            </button>
+          )}
         </div>
       ) : (
         <div className="fixed bottom-6 left-6 z-50 w-80 rounded-2xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.6)] overflow-hidden border border-white/10 backdrop-blur-2xl bg-gradient-to-br from-slate-900/95 to-slate-950/95 ring-1 ring-amber-500/20">

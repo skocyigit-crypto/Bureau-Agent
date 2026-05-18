@@ -13,6 +13,7 @@ import { PwaInstallButton } from "@/components/pwa-install";
 import { PwaStandaloneRedirect } from "@/components/pwa-standalone-redirect";
 import { UpdateBanner } from "@/components/update-banner";
 import { VoiceAssistant } from "@/components/VoiceAssistant";
+import { VoiceLive } from "@/components/VoiceLive";
 import { motion, AnimatePresence } from "framer-motion";
 import { MotionProvider } from "@/components/premium-animations";
 import { useDeviceEnvironment, DeviceEnvironmentProvider } from "@/hooks/use-device-environment";
@@ -198,6 +199,7 @@ function InvitationOrApp({
 }) {
   const [isInvitation] = useRoute("/invitation/:token");
   const [location, navigate] = useLocation();
+  const [liveOpen, setLiveOpen] = useState(false);
 
   useEffect(() => {
     if (authState === "authenticated" && (location === "/login" || location === "/register")) {
@@ -223,7 +225,8 @@ function InvitationOrApp({
       <SmartBrowserOverlays />
       <SmartBrowserShortcuts />
       <AppRoutes />
-      <VoiceAssistant />
+      <VoiceAssistant onOpenLive={() => setLiveOpen(true)} />
+      <VoiceLive open={liveOpen} onClose={() => setLiveOpen(false)} />
     </WorkspaceUserProvider>
   );
 }

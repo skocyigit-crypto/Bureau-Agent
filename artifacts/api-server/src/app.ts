@@ -312,7 +312,7 @@ const PgStore = connectPgSimple(session);
 // Any place that reads/writes this cookie by name MUST use SESSION_COOKIE_NAME.
 export const SESSION_COOKIE_NAME = isProduction ? "__Host-adb.sid" : "adb.sid";
 
-app.use(session({
+export const sessionMiddleware = session({
   store: new PgStore({
     conString: process.env.DATABASE_URL,
     tableName: "user_sessions",
@@ -360,7 +360,9 @@ app.use(session({
     sameSite: isProduction ? "strict" : "lax",
     path: "/",
   },
-}));
+});
+
+app.use(sessionMiddleware);
 
 // Guardian WAF — tüm gelen istekleri denetler (en önce çalışır)
 app.use(guardian);
