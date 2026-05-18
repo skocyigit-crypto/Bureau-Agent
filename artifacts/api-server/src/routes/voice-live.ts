@@ -186,77 +186,80 @@ async function openLiveSession(
     { model: LIVE_MODEL_FALLBACK },
   ];
 
-  // Construction de la config riche : voix selectionnee, transcriptions
-  // input/output (closed-captions), function calling, instruction systeme.
+  // Helper detection: certaines fonctionnalites ne sont supportees QUE
+  // par les modeles "native audio dialog" (preview). Le modele GA
+  // stable (gemini-2.0-flash-live-001) renvoie une erreur 1007
+  // "Unknown name" si on lui envoie enableAffectiveDialog ou
+  // proactivity dans le setup.generation_config. Filtrer per-modele.
+  const isNativeAudio = (model: string): boolean => model.includes("native-audio");
+
+  // Construit la config en filtrant les options qui ne sont pas
+  // acceptees par le modele cible. Les options communes restent dans
+  // commonConfig; les options preview-only sont ajoutees seulement si
+  // le modele cible est native-audio.
   // On caste via `unknown` car certaines proprietes (transcriptions,
   // realtimeInputConfig) ne sont pas encore dans les types publics du SDK.
-  const baseConfig = {
-    responseModalities: [Modality.AUDIO],
-    systemInstruction: SYSTEM_PROMPT,
-    speechConfig: {
-      voiceConfig: {
-        prebuiltVoiceConfig: { voiceName: voice },
+  const buildConfig = (model: string): Parameters<typeof client.live.connect>[0]["config"] => {
+    const commonConfig: Record<string, unknown> = {
+      responseModalities: [Modality.AUDIO],
+      systemInstruction: SYSTEM_PROMPT,
+      speechConfig: {
+        voiceConfig: {
+          prebuiltVoiceConfig: { voiceName: voice },
+        },
       },
-    },
-    // Resolution des images video envoyees par le client (webcam /
-    // partage d'ecran). MEDIUM = bon compromis qualite / tokens.
-    mediaResolution: MediaResolution.MEDIA_RESOLUTION_MEDIUM,
-    // Transcription temps-reel des audios entrant/sortant pour
-    // l'affichage type sous-titre. NOTE: on n'envoie PAS `languageCodes`
-    // — la propriete existe dans les types SDK mais le backend Gemini
-    // (AI Studio / MLdev, par opposition a Vertex) la rejette
-    // explicitement ("languageCodes parameter is not supported"). La
-    // detection de langue est automatique cote modele et fonctionne
-    // tres bien pour FR + TR (les deux langues du proprietaire).
-    inputAudioTranscription: {},
-    outputAudioTranscription: {},
-    // VAD automatique cote serveur (Gemini detecte debut/fin de parole).
-    // - startOfSpeechSensitivity HIGH : on detecte la parole plus tot,
-    //   essentiel pour ne PAS rater le debut d'une phrase courte
-    //   ("oui", "non", "annule"). Reglage precedent (LOW) provoquait
-    //   un effet "il ne m'entend pas".
-    // - endOfSpeechSensitivity LOW + silenceDurationMs=900 : on tolere
-    //   des pauses naturelles (l'utilisateur reflechit / dicte une
-    //   adresse / un numero) sans couper la phrase en deux.
-    // - prefixPaddingMs=200 : capture quelques ms avant le start pour
-    //   ne pas tronquer la premiere syllabe.
-    realtimeInputConfig: {
-      automaticActivityDetection: {
-        startOfSpeechSensitivity: "START_SENSITIVITY_HIGH",
-        endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
-        prefixPaddingMs: 200,
-        silenceDurationMs: 900,
+      // Resolution des images video envoyees par le client (webcam /
+      // partage d'ecran). MEDIUM = bon compromis qualite / tokens.
+      mediaResolution: MediaResolution.MEDIA_RESOLUTION_MEDIUM,
+      // Transcription temps-reel des audios entrant/sortant pour
+      // l'affichage type sous-titre. NOTE: pas de `languageCodes` —
+      // accepte par le SDK mais rejete par le backend AI Studio.
+      // Detection de langue automatique cote modele (FR + TR).
+      inputAudioTranscription: {},
+      outputAudioTranscription: {},
+      // VAD automatique cote serveur (Gemini detecte debut/fin de parole).
+      // - startOfSpeechSensitivity HIGH : on detecte la parole plus tot,
+      //   essentiel pour ne PAS rater le debut d'une phrase courte
+      //   ("oui", "non", "annule").
+      // - endOfSpeechSensitivity LOW + silenceDurationMs=900 : on tolere
+      //   des pauses naturelles (dictee d'adresse / numero) sans couper.
+      // - prefixPaddingMs=200 : ne pas tronquer la premiere syllabe.
+      realtimeInputConfig: {
+        automaticActivityDetection: {
+          startOfSpeechSensitivity: "START_SENSITIVITY_HIGH",
+          endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
+          prefixPaddingMs: 200,
+          silenceDurationMs: 900,
+        },
       },
-    },
-    // Dialogue "affectif": le modele detecte l'emotion de l'utilisateur
-    // et adapte sa reponse (plus empathique si frustration, etc.).
-    enableAffectiveDialog: true,
-    // Audio proactif: DESACTIVE. Le proprietaire a explicitement
-    // demande que l'assistant n'agisse JAMAIS sans qu'on lui parle
-    // ("Sesli komutu otomatik uygulama"). Avec proactiveAudio=true,
-    // le modele pouvait initier des tours spontanement sur du bruit
-    // ambiant ou des fragments mal interpretes — percu comme "il fait
-    // des choses tout seul". L'assistant ne parle desormais qu'en
-    // reponse a une activation explicite detectee par le VAD.
-    proactivity: { proactiveAudio: false },
-    // Compression de la fenetre de contexte au-dela d'un certain seuil
-    // pour les conversations longues — evite la troncature brutale.
-    contextWindowCompression: {
-      triggerTokens: "25000",
-      slidingWindow: {},
-    },
-    // Reprise de session (handle persiste cote client en localStorage)
-    // pour survivre aux deconnexions reseau breves sans perdre l'etat.
-    sessionResumption: resumeHandle ? { handle: resumeHandle } : {},
-    // Outils disponibles. NOTE: Live API ne permet PAS de combiner
-    // googleSearch + functionDeclarations dans le meme tool entry, mais
-    // ils peuvent coexister comme entries separees.
-    tools: [
-      { functionDeclarations: getGeminiToolDeclarations().functionDeclarations },
-      { googleSearch: {} },
-      { codeExecution: {} },
-    ],
-  } as unknown as Parameters<typeof client.live.connect>[0]["config"];
+      // Compression de la fenetre de contexte au-dela d'un certain seuil.
+      contextWindowCompression: {
+        triggerTokens: "25000",
+        slidingWindow: {},
+      },
+      // Reprise de session (handle persiste cote client en localStorage).
+      sessionResumption: resumeHandle ? { handle: resumeHandle } : {},
+      // Outils. Live API n'autorise pas googleSearch + functionDeclarations
+      // dans la MEME entry mais accepte des entries separees.
+      tools: [
+        { functionDeclarations: getGeminiToolDeclarations().functionDeclarations },
+        { googleSearch: {} },
+        { codeExecution: {} },
+      ],
+    };
+
+    // Extras NATIVE-AUDIO uniquement. Le modele GA `flash-live-001`
+    // rejette ces champs avec WS close code 1007 "Unknown name".
+    if (isNativeAudio(model)) {
+      // Dialogue "affectif": detection d'emotion + reponse empathique.
+      commonConfig.enableAffectiveDialog = true;
+      // Audio proactif: DESACTIVE (le proprietaire ne veut pas que
+      // l'assistant prenne la parole sans qu'on lui parle).
+      commonConfig.proactivity = { proactiveAudio: false };
+    }
+
+    return commonConfig as unknown as Parameters<typeof client.live.connect>[0]["config"];
+  };
 
   let lastErr: unknown = null;
   for (const cfg of configs) {
@@ -279,7 +282,7 @@ async function openLiveSession(
       let sessionRef: Session | null = null;
       const session = await client.live.connect({
         model: cfg.model,
-        config: baseConfig,
+        config: buildConfig(cfg.model),
         callbacks: {
           onopen: () => logger.info({ model: cfg.model, voice }, "[VoiceLive] Gemini session opened"),
           onmessage: onMessage,
