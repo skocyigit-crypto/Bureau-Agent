@@ -263,15 +263,13 @@ async function openLiveSession(
       ],
     };
 
-    // Extras NATIVE-AUDIO uniquement. Le modele GA `flash-live-001`
-    // rejette ces champs avec WS close code 1007 "Unknown name".
-    if (isNativeAudio(model)) {
-      // Dialogue "affectif": detection d'emotion + reponse empathique.
-      commonConfig.enableAffectiveDialog = true;
-      // Audio proactif: DESACTIVE (le proprietaire ne veut pas que
-      // l'assistant prenne la parole sans qu'on lui parle).
-      commonConfig.proactivity = { proactiveAudio: false };
-    }
+    // NOTE: enableAffectiveDialog et proactivity etaient envoyes ici
+    // uniquement aux modeles native-audio. Mais le backend v1beta a
+    // 21:27 le 18/05/2026 rejette aussi ces champs sur
+    // `gemini-2.5-flash-native-audio-latest` avec code 1007
+    // "Unknown name". On les a donc retires completement. Le
+    // comportement par defaut (pas de proactivity) correspond deja a
+    // notre besoin: l'assistant ne parle que sur stimulation explicite.
 
     return commonConfig as unknown as Parameters<typeof client.live.connect>[0]["config"];
   };
