@@ -32,7 +32,7 @@
       "ios": {
         "appleId": "REMPLACER_PAR_VOTRE_APPLE_ID_EMAIL",
         "ascAppId": "REMPLACER_PAR_APP_STORE_CONNECT_APP_ID",
-        "appleTeamId": "REMPLACER_PAR_APPLE_TEAM_ID"
+        "appleTeamId": "FRM9MKCM4P"
       },
       "android": {
         "serviceAccountKeyPath": "./google-play-service-account.json",
