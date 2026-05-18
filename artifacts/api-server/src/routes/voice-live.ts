@@ -273,6 +273,24 @@ async function openLiveSession(
  * Doit etre appele APRES la creation du http.Server (donc dans index.ts
  * apres `app.listen`).
  */
+// SECU: handles de reprise de session lies a (userId, orgId). Sans ce
+// binding, un handle vole permettrait de reprendre une conversation
+// tierce (le handle seul prouve seulement qu'on l'a vu, pas qu'on est
+// son proprietaire). Map en memoire = OK pour single-process; en
+// multi-instance il faudra Redis. Expiration 1h pour eviter croissance
+// non-bornee.
+const RESUME_TTL_MS = 60 * 60 * 1000;
+const resumeBindings = new Map<string, { userId: number; orgId: number; expiresAt: number }>();
+function bindResumeHandle(handle: string, userId: number, orgId: number): void {
+  resumeBindings.set(handle, { userId, orgId, expiresAt: Date.now() + RESUME_TTL_MS });
+  // GC opportuniste a chaque insertion: parcours leger O(n) mais n
+  // borne par le nb de sessions actives recentes.
+  if (resumeBindings.size > 50) {
+    const now = Date.now();
+    for (const [k, v] of resumeBindings) if (v.expiresAt < now) resumeBindings.delete(k);
+  }
+}
+
 export function attachVoiceLiveWs(server: Server): void {
   const wss = new WebSocketServer({ noServer: true });
 
@@ -353,7 +371,20 @@ export function attachVoiceLiveWs(server: Server): void {
           voice = v as VoiceName;
         }
         const h = u.searchParams.get("resume");
-        if (h && h.length > 0 && h.length < 512) resumeHandle = h;
+        if (h && h.length > 0 && h.length < 512) {
+          // SECU: un handle de reprise ne peut etre utilise QUE par le
+          // (userId, orgId) qui l'a recu. Sans ce binding, n'importe
+          // quel utilisateur authentifie qui devine/intercepte un
+          // handle pourrait reprendre une conversation tierce.
+          const bound = resumeBindings.get(h);
+          if (bound && bound.userId === session.userId && bound.orgId === session.organisationId && bound.expiresAt > Date.now()) {
+            resumeHandle = h;
+          } else {
+            logger.warn({ userId: session.userId }, "[VoiceLive] resume handle rejected (no/expired/mismatched binding)");
+            // On ouvre quand meme une session neuve (pas d'echec dur
+            // pour ne pas casser l'UX si le handle a expire cote serveur).
+          }
+        }
       } catch { /* ignore */ }
 
       wss.handleUpgrade(req, socket, head, (ws) => {
@@ -422,7 +453,11 @@ function bridgeConnection(
     name: string,
     args: Record<string, unknown>,
   ): Promise<void> => {
-    if (!gSession) return;
+    // Garde-fou: si la session est en cours de fermeture, on ne doit
+    // executer AUCUN effet de bord (envoi email, suppression, etc.)
+    // l'utilisateur ne verra jamais le resultat et ne pourra pas
+    // confirmer/annuler.
+    if (!gSession || closed) return;
     sendFrame(ws, { type: "tool_step", toolName: name, toolArgs: args, toolCallId: callId });
     const tool = getTool(name);
     // Confirmation utilisateur pour les outils risques (envoi externe,
@@ -455,6 +490,9 @@ function bridgeConnection(
     voice,
     resumeHandle,
     (msg: LiveServerMessage) => {
+      // Garde global: si on est en train de fermer, on ignore tout
+      // message Gemini residual (audio en vol, tool_call tardif).
+      if (closed) return;
       // Audio chunks: serverContent.modelTurn.parts[].inlineData.data (base64 PCM 24kHz)
       const sc = msg.serverContent;
       if (sc?.modelTurn?.parts) {
@@ -560,6 +598,9 @@ function bridgeConnection(
         resumable?: boolean;
       } | undefined;
       if (sru?.newHandle) {
+        // SECU: enregistre le binding handle -> (userId, orgId) AVANT
+        // de l'envoyer au client. Au prochain ?resume=..., on validera.
+        if (sru.resumable !== false) bindResumeHandle(sru.newHandle, userId, orgId);
         sendFrame(ws, {
           type: "resumption_update",
           handle: sru.newHandle,

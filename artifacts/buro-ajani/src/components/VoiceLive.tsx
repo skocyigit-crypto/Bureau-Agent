@@ -239,6 +239,12 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
   // (mic / camera / ecran actifs hors-overlay = leak privacy critique).
   const startGenRef = useRef(0);
   const mediaGenRef = useRef(0);
+  // Circuit breaker: empeche un reconnect storm si le serveur ferme la
+  // socket immediatement (handle expire, quota, policy). Sans plafond,
+  // on rouvrirait micro+audio toutes les 500ms a l'infini = batterie/
+  // ressources/spam serveur. Reset a 0 au frame "ready" (succes).
+  const reconnectAttemptsRef = useRef(0);
+  const MAX_RECONNECT_ATTEMPTS = 5;
   useEffect(() => { openRef.current = open; }, [open]);
   // NOTE: pendingQueueRef est mis a jour de maniere SYNCHRONE dans
   // chaque setState ci-dessous (pas via useEffect) pour que teardown()
@@ -355,6 +361,7 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
         // Reconnect reussi: on peut maintenant relacher le drapeau
         // qui protegeait l'historique (turns/tools/codeBlocks/...).
         reconnectingRef.current = false;
+        reconnectAttemptsRef.current = 0;
         setGoAwaySoonMs(null);
         setState("listening");
         setError("");
@@ -475,8 +482,14 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
         break;
       case "resumption_update":
         if (frame.handle) {
-          resumeHandleRef.current = frame.handle;
-          if (frame.resumable !== false) {
+          if (frame.resumable === false) {
+            // Le serveur signale que ce handle n'est PAS reutilisable
+            // (ex: fin propre de session). On purge pour eviter de
+            // tenter un resume voue a l'echec au prochain start().
+            resumeHandleRef.current = null;
+            try { localStorage.removeItem(RESUME_STORAGE_KEY); } catch { /* noop */ }
+          } else {
+            resumeHandleRef.current = frame.handle;
             try { localStorage.setItem(RESUME_STORAGE_KEY, frame.handle); } catch { /* noop */ }
           }
         }
@@ -659,6 +672,25 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
         const overlayStillOpen = openRef.current;
         const canResume = resumeHandleRef.current !== null && overlayStillOpen;
         if (canResume || (reconnectingRef.current && overlayStillOpen)) {
+          // Circuit breaker: au-dela du plafond, on abandonne la reprise
+          // et on bascule en erreur. Sans ca, un handle expire cote
+          // serveur boucle a l'infini (ferme -> reconnect -> ferme).
+          if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
+            reconnectAttemptsRef.current = 0;
+            reconnectingRef.current = false;
+            resumeHandleRef.current = null;
+            try { localStorage.removeItem(RESUME_STORAGE_KEY); } catch { /* noop */ }
+            setError("Reconnexion impossible apres plusieurs tentatives. Reouvrez l'assistant.");
+            setState("error");
+            teardown();
+            return;
+          }
+          const attempt = reconnectAttemptsRef.current;
+          reconnectAttemptsRef.current = attempt + 1;
+          // Backoff exponentiel + jitter: 500, 1000, 2000, 4000, 8000ms
+          // (+ jusqu'a 250ms de variation pour eviter qu'un cluster de
+          // clients se reconnecte en meme temps apres un goAway global).
+          const delay = Math.min(500 * Math.pow(2, attempt), 8000) + Math.random() * 250;
           reconnectingRef.current = true;
           teardown();
           if (reconnectTimerRef.current !== null) clearTimeout(reconnectTimerRef.current);
@@ -669,7 +701,7 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
             // a true pour preserver turns/tools/codeBlocks. Le drapeau
             // sera relache cote case "ready" apres nouvelle session.
             void startRef.current();
-          }, 500);
+          }, delay);
           return;
         }
         if (ev.code !== 1000) {
@@ -933,6 +965,14 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
     if (open) {
       start();
     } else {
+      // Fermeture VOLONTAIRE (utilisateur ferme l'overlay): purge le
+      // handle de reprise pour eviter qu'un nouveau visiteur sur le
+      // meme navigateur reprenne la conversation precedente. Reset
+      // aussi le compteur de tentatives.
+      try { localStorage.removeItem(RESUME_STORAGE_KEY); } catch { /* noop */ }
+      resumeHandleRef.current = null;
+      reconnectAttemptsRef.current = 0;
+      reconnectingRef.current = false;
       teardown();
       setState("idle");
     }
