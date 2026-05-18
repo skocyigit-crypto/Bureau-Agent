@@ -125,11 +125,13 @@ interface ServerFrame {
     | "assistant_transcript"
     | "tool_step"
     | "tool_pending"
+    | "tool_cancelled"
     | "voices"
     | "grounding"
     | "go_away"
     | "resumption_update"
-    | "usage";
+    | "usage"
+    | "code";
   data?: string;
   text?: string;
   message?: string;
@@ -151,6 +153,16 @@ interface ServerFrame {
   resumable?: boolean;
   // Pour usage: jetons consommes (affichable cote UI a titre indicatif).
   totalTokens?: number;
+  // Pour code: code execute par le modele (outil codeExecution) +
+  // sortie/erreur. Affichable dans le panneau d'outils.
+  language?: string;
+  code?: string;
+  output?: string;
+  outcome?: string;
+  // Pour tool_cancelled: IDs des tool-calls que le modele a abandonne
+  // (apres interruption / changement d'avis). Cote UI on les retire de
+  // la file pendingQueue + on marque les tools "running" comme annules.
+  cancelledIds?: string[];
 }
 
 function sendFrame(ws: WebSocket, frame: ServerFrame): void {
@@ -453,7 +465,35 @@ function bridgeConnection(
           if (part.text) {
             sendFrame(ws, { type: "text", text: part.text });
           }
+          // Outil codeExecution: code genere ET resultat d'execution
+          // (deux parts separees, dans le meme ou un turn ulterieur).
+          const partAny = part as unknown as {
+            executableCode?: { language?: string; code?: string };
+            codeExecutionResult?: { outcome?: string; output?: string };
+          };
+          if (partAny.executableCode?.code) {
+            sendFrame(ws, {
+              type: "code",
+              language: partAny.executableCode.language,
+              code: partAny.executableCode.code,
+            });
+          }
+          if (partAny.codeExecutionResult) {
+            sendFrame(ws, {
+              type: "code",
+              outcome: partAny.codeExecutionResult.outcome,
+              output: partAny.codeExecutionResult.output,
+            });
+          }
         }
+      }
+      // Annulation de tool-call (modele change d'avis apres interruption).
+      const tcc = msg.toolCallCancellation as unknown as { ids?: string[] } | undefined;
+      if (tcc?.ids?.length) {
+        // Cote serveur: retire ces ids de pendingToolCalls pour eviter
+        // de bloquer le cleanup avec des reponses obsoletes.
+        for (const id of tcc.ids) pendingToolCalls.delete(id);
+        sendFrame(ws, { type: "tool_cancelled", cancelledIds: tcc.ids });
       }
       // Transcriptions temps-reel (closed captions).
       // Les types publics du SDK n'exposent pas toujours ces champs,

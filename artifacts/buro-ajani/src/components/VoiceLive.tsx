@@ -54,11 +54,13 @@ interface ServerFrame {
     | "assistant_transcript"
     | "tool_step"
     | "tool_pending"
+    | "tool_cancelled"
     | "voices"
     | "grounding"
     | "go_away"
     | "resumption_update"
-    | "usage";
+    | "usage"
+    | "code";
   data?: string;
   text?: string;
   message?: string;
@@ -74,6 +76,11 @@ interface ServerFrame {
   handle?: string;
   resumable?: boolean;
   totalTokens?: number;
+  language?: string;
+  code?: string;
+  output?: string;
+  outcome?: string;
+  cancelledIds?: string[];
 }
 
 interface ChatTurn {
@@ -86,8 +93,20 @@ interface ToolEvent {
   name: string;
   args?: Record<string, unknown>;
   result?: Record<string, unknown>;
-  status: "running" | "done" | "error" | "pending";
+  status: "running" | "done" | "error" | "pending" | "cancelled";
   summary?: string;
+}
+
+// Bloc de code execute par le modele via l'outil codeExecution. On
+// affiche le code source ET, quand il arrive (souvent dans un message
+// suivant), le resultat / sortie. On les associe par ordre FIFO simple
+// puisque l'API ne renvoie pas d'id de correlation.
+interface CodeBlock {
+  id: string;
+  language?: string;
+  code?: string;
+  outcome?: string;
+  output?: string;
 }
 
 // Etiquettes lisibles pour les outils (FR par defaut).
@@ -158,6 +177,7 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
   const [goAwaySoonMs, setGoAwaySoonMs] = useState<number | null>(null);
   // Jetons consommes (affichage debug discret).
   const [tokensUsed, setTokensUsed] = useState<number>(0);
+  const [codeBlocks, setCodeBlocks] = useState<CodeBlock[]>([]);
   // Etat camera / partage d'ecran.
   const [cameraOn, setCameraOn] = useState(false);
   const [screenOn, setScreenOn] = useState(false);
@@ -332,6 +352,10 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
   const handleServerFrame = useCallback((frame: ServerFrame) => {
     switch (frame.type) {
       case "ready":
+        // Reconnect reussi: on peut maintenant relacher le drapeau
+        // qui protegeait l'historique (turns/tools/codeBlocks/...).
+        reconnectingRef.current = false;
+        setGoAwaySoonMs(null);
         setState("listening");
         setError("");
         break;
@@ -460,6 +484,51 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
       case "usage":
         if (typeof frame.totalTokens === "number") setTokensUsed(frame.totalTokens);
         break;
+      case "code": {
+        // Deux variantes: (a) bloc avec `code` -> nouveau bloc,
+        // (b) bloc avec `output` -> on attache au DERNIER bloc sans
+        // resultat (FIFO simple, l'API ne fournit pas d'id).
+        if (frame.code) {
+          const id = `code-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+          setCodeBlocks((prev) =>
+            [...prev, { id, language: frame.language, code: frame.code }].slice(-6),
+          );
+        } else if (frame.output !== undefined || frame.outcome) {
+          setCodeBlocks((prev) => {
+            // FIFO vrai: attache au PLUS ANCIEN bloc sans resultat,
+            // pour respecter l'ordre d'emission cote Gemini.
+            const idx = prev.findIndex((b) => b.output === undefined);
+            if (idx === -1) return prev;
+            const next = prev.slice();
+            next[idx] = {
+              ...next[idx],
+              output: frame.output,
+              outcome: frame.outcome,
+            };
+            return next;
+          });
+        }
+        break;
+      }
+      case "tool_cancelled": {
+        const ids = frame.cancelledIds ?? [];
+        if (ids.length === 0) break;
+        const idSet = new Set(ids);
+        // Retire de la file pending (le modele a abandonne sa demande).
+        setPendingQueue((q) => {
+          const updated = q.filter((p) => !idSet.has(p.id));
+          pendingQueueRef.current = updated;
+          return updated;
+        });
+        // Marque comme "annule" tout tool deja "running" pour qu'on voit
+        // visuellement qu'il ne donnera pas de resultat.
+        setTools((prev) =>
+          prev.map((t) =>
+            idSet.has(t.id) && t.status === "running" ? { ...t, status: "cancelled" } : t,
+          ),
+        );
+        break;
+      }
     }
   }, [playAudioChunk, appendToTurn]);
 
@@ -492,6 +561,7 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
       pendingQueueRef.current = [];
       setGroundingSources([]);
       setTokensUsed(0);
+      setCodeBlocks([]);
     }
     // Hydrate le ref de handle depuis localStorage au cas ou cette
     // instance n'a pas encore recu d'update (premier start apres reload).
@@ -595,7 +665,9 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
           reconnectTimerRef.current = setTimeout(() => {
             reconnectTimerRef.current = null;
             if (!openRef.current) return;
-            reconnectingRef.current = false;
+            // NE PAS effacer reconnectingRef ici: start() doit le voir
+            // a true pour preserver turns/tools/codeBlocks. Le drapeau
+            // sera relache cote case "ready" apres nouvelle session.
             void startRef.current();
           }, 500);
           return;
@@ -605,6 +677,15 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
             setError(ev.reason || "Connexion fermee inopinement");
           }
           setState((s) => (s === "error" ? s : "error"));
+          teardown();
+        } else if (overlayStillOpen) {
+          // Code 1000 sans handle de reprise et overlay encore ouvert:
+          // le serveur a ferme proprement (ex: quota epuise, fin de
+          // session cote Gemini) mais on n'a pas teardown localement.
+          // Sans ce cleanup, mic/camera/ecran restent actifs alors que
+          // la socket est morte = fuite privacy + ressources. On force
+          // un etat neutre pour eviter une UI qui ment ("listening").
+          setState("idle");
           teardown();
         }
       };
@@ -954,7 +1035,9 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
                   ? "bg-emerald-500/10 border-emerald-400/20 text-emerald-100"
                   : t.status === "error"
                     ? "bg-red-500/10 border-red-400/20 text-red-100"
-                    : "bg-amber-500/10 border-amber-400/20 text-amber-100"
+                    : t.status === "cancelled"
+                      ? "bg-zinc-500/10 border-zinc-400/20 text-zinc-300 line-through"
+                      : "bg-amber-500/10 border-amber-400/20 text-amber-100"
               }`}
             >
               {t.status === "running" ? (
@@ -965,6 +1048,32 @@ export function VoiceLive({ open, onClose }: VoiceLiveProps) {
                 <Wrench className="w-3.5 h-3.5 mt-0.5 shrink-0" />
               )}
               <span className="leading-tight">{labelForTool(t.name)}</span>
+            </div>
+          ))}
+          {/* Blocs de code execute par Gemini (outil codeExecution). */}
+          {codeBlocks.map((b) => (
+            <div
+              key={b.id}
+              className="rounded-xl px-3 py-2 text-[11px] border bg-indigo-500/10 border-indigo-400/20 text-indigo-100 font-mono overflow-hidden"
+            >
+              <div className="flex items-center gap-1.5 mb-1 text-indigo-300 not-italic font-sans text-[10px] uppercase tracking-wide">
+                <Wrench className="w-3 h-3" />
+                Code {b.language ?? ""}
+              </div>
+              {b.code && (
+                <pre className="whitespace-pre-wrap break-words text-[10.5px] leading-snug max-h-32 overflow-y-auto">
+                  {b.code}
+                </pre>
+              )}
+              {b.output !== undefined && (
+                <pre
+                  className={`mt-1 pt-1 border-t border-indigo-400/20 whitespace-pre-wrap break-words text-[10.5px] leading-snug max-h-24 overflow-y-auto ${
+                    b.outcome && b.outcome !== "OUTCOME_OK" ? "text-red-200" : "text-emerald-200"
+                  }`}
+                >
+                  {b.output || "(vide)"}
+                </pre>
+              )}
             </div>
           ))}
         </div>
