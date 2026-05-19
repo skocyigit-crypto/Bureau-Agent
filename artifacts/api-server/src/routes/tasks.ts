@@ -13,6 +13,7 @@ import {
 import { getOrgId } from "../middleware/tenant";
 import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
 import { zodErrorResponse } from "../lib/zod-error";
+import { sendWhatsAppNotification } from "../services/whatsapp-notify";
 
 const router: IRouter = Router();
 
@@ -95,6 +96,20 @@ router.post("/tasks", async (req, res): Promise<void> => {
 
   try {
     const [task] = await db.insert(tasksTable).values({ ...parsed.data, organisationId: orgId, createdBy: userId, updatedBy: userId }).returning();
+
+    // Notification WhatsApp non bloquante a l'assignataire (opt-in via
+    // preferences.whatsappNotifications.task). Si l'assignataire est un ID
+    // numerique valide et different du createur, on tente l'envoi.
+    if (task.assignedTo) {
+      const assigneeId = Number(task.assignedTo);
+      if (Number.isFinite(assigneeId) && assigneeId !== userId) {
+        const title = task.title ?? "(sans titre)";
+        const echeance = task.dueDate ? ` (echeance ${task.dueDate.toISOString().slice(0, 10)})` : "";
+        const body = `[Agent de Bureau] Nouvelle tache assignee : ${title}${echeance}`;
+        sendWhatsAppNotification(orgId, assigneeId, body, "task").catch(() => {});
+      }
+    }
+
     res.status(201).json(task);
   } catch (err: any) {
     req.log.error({ err }, "Erreur creation tache");

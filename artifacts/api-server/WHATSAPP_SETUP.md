@@ -113,3 +113,60 @@ De meme, pour eviter tout risque de mauvais routage entre tenants si
 deux organisations partagent par erreur le meme AccountSid Twilio,
 ajouter une contrainte d'unicite sur `telephony_providers.config->>'accountSid'`
 ou matcher en plus le numero `To` recu contre `phoneNumbers` du provider.
+
+## Notifications sortantes (push WhatsApp)
+
+En plus de la conversation entrante, l'app envoie automatiquement des
+notifications WhatsApp lors d'evenements importants. **Opt-in** : chaque
+utilisateur active les categories qu'il veut recevoir dans son profil.
+
+### Categories supportees
+
+| Cle | Evenement |
+|---|---|
+| `task` | Nouvelle tache assignee a l'utilisateur |
+| `call` | Nouvel appel entrant (a brancher dans une prochaine iteration) |
+| `appointment` | Nouveau rendez-vous (a brancher) |
+| `message` | Nouveau message interne (a brancher) |
+
+### Activation pour un utilisateur
+
+Les preferences sont stockees dans `users.preferences` (jsonb) :
+```json
+{
+  "whatsappNotifications": {
+    "task": true,
+    "call": false,
+    "appointment": true,
+    "message": false
+  }
+}
+```
+
+L'utilisateur doit aussi avoir un `telephone` rempli dans son profil
+(meme champ que celui utilise pour identifier les messages entrants).
+
+### Numero expediteur
+
+Le helper `sendWhatsAppNotification` choisit le `From` dans cet ordre :
+1. `telephony_providers.config.whatsappFromNumber` (override par tenant
+   — utile si une org a son propre numero WhatsApp Business approuve).
+2. Variable d'env `TWILIO_WHATSAPP_FROM` (fallback global — typiquement
+   `whatsapp:+14155238886` pour la sandbox Twilio en dev).
+3. `telephony_providers.config.fromNumber` (dernier recours, ne marchera
+   que si ce numero est aussi enregistre cote WhatsApp).
+
+### Fail-soft
+
+L'envoi est non bloquant : si Twilio renvoie une erreur, si l'utilisateur
+n'a pas opte, ou si la config est absente, on logge un warning et on
+poursuit. L'evenement metier (creation de tache, etc.) reussit toujours.
+
+### TODO
+
+- Brancher `call`, `appointment`, `message` (memes patterns que pour
+  `task` dans `routes/tasks.ts`).
+- Ajouter une UI utilisateur pour cocher les categories (actuellement
+  les preferences se modifient via `PUT /api/user-preferences`).
+- Permettre a l'org admin de configurer `whatsappFromNumber` depuis
+  l'ecran "Telephonie" (champ optionnel a cote de `fromNumber`).

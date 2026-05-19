@@ -14,10 +14,18 @@ export interface InlineSuggestFieldFlags {
   invoice_comment?: boolean;
 }
 
+export interface WhatsAppNotificationFlags {
+  task?: boolean;        // nouvelle tache assignee
+  call?: boolean;        // nouvel appel entrant
+  appointment?: boolean; // nouveau rendez-vous
+  message?: boolean;     // nouveau message interne
+}
+
 export interface UserPreferences {
   inlineSuggestEnabled?: boolean;
   inlineSuggestLanguage?: string;
   inlineSuggestFields?: InlineSuggestFieldFlags;
+  whatsappNotifications?: WhatsAppNotificationFlags;
 }
 
 export const usersTable = pgTable("users", {
