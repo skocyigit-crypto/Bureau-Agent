@@ -1044,6 +1044,29 @@ export const GetMyPreferencesResponse = zod.object({
     .describe(
       "Per-field opt-in for inline AI suggestions. Each flag is independent and combined with `inlineSuggestEnabled` (master switch). When omitted, defaults to true.",
     ),
+  whatsappNotifications: zod
+    .object({
+      task: zod
+        .boolean()
+        .optional()
+        .describe("New task assigned to this user."),
+      call: zod
+        .boolean()
+        .optional()
+        .describe("New inbound phone call received by the organisation."),
+      appointment: zod
+        .boolean()
+        .optional()
+        .describe("New calendar appointment created in the organisation."),
+      message: zod
+        .boolean()
+        .optional()
+        .describe("New internal message created in the organisation."),
+    })
+    .optional()
+    .describe(
+      "Per-category opt-in for WhatsApp push notifications. Each flag is independent. When omitted or false, the user does not receive WhatsApp notifications of that category. Requires the user's `telephone` to be set and the org to have an active Twilio provider configured.",
+    ),
 });
 
 /**
@@ -1111,6 +1134,29 @@ export const UpdateMyPreferencesBody = zod.object({
     .describe(
       "Per-field opt-in for inline AI suggestions. Each flag is independent and combined with `inlineSuggestEnabled` (master switch). When omitted, defaults to true.",
     ),
+  whatsappNotifications: zod
+    .object({
+      task: zod
+        .boolean()
+        .optional()
+        .describe("New task assigned to this user."),
+      call: zod
+        .boolean()
+        .optional()
+        .describe("New inbound phone call received by the organisation."),
+      appointment: zod
+        .boolean()
+        .optional()
+        .describe("New calendar appointment created in the organisation."),
+      message: zod
+        .boolean()
+        .optional()
+        .describe("New internal message created in the organisation."),
+    })
+    .optional()
+    .describe(
+      "Per-category opt-in for WhatsApp push notifications. Each flag is independent. When omitted or false, the user does not receive WhatsApp notifications of that category. Requires the user's `telephone` to be set and the org to have an active Twilio provider configured.",
+    ),
 });
 
 export const UpdateMyPreferencesResponse = zod.object({
@@ -1174,6 +1220,29 @@ export const UpdateMyPreferencesResponse = zod.object({
     .optional()
     .describe(
       "Per-field opt-in for inline AI suggestions. Each flag is independent and combined with `inlineSuggestEnabled` (master switch). When omitted, defaults to true.",
+    ),
+  whatsappNotifications: zod
+    .object({
+      task: zod
+        .boolean()
+        .optional()
+        .describe("New task assigned to this user."),
+      call: zod
+        .boolean()
+        .optional()
+        .describe("New inbound phone call received by the organisation."),
+      appointment: zod
+        .boolean()
+        .optional()
+        .describe("New calendar appointment created in the organisation."),
+      message: zod
+        .boolean()
+        .optional()
+        .describe("New internal message created in the organisation."),
+    })
+    .optional()
+    .describe(
+      "Per-category opt-in for WhatsApp push notifications. Each flag is independent. When omitted or false, the user does not receive WhatsApp notifications of that category. Requires the user's `telephone` to be set and the org to have an active Twilio provider configured.",
     ),
 });
 

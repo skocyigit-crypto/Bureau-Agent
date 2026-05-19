@@ -8,6 +8,7 @@ import { recordAiUsage, sanitizePromptInput } from "../services/ai-utils";
 import { sendSms, type TelephonyProviderConfig } from "../services/telephony-providers";
 import { sendEmail } from "../services/email";
 import { broadcaster } from "../services/broadcaster";
+import { notifyOrgUsers, maskPhone } from "../services/whatsapp-notify";
 
 export const twilioVoiceRouter: IRouter = Router();
 
@@ -697,6 +698,22 @@ twilioVoiceRouter.post("/telephony/twilio/voice", async (req: Request, res: Resp
 
   // Create DB record
   session.callDbId = await createCallRecord(session.orgId, callSid, fromNumber, callProvider?.id ?? null);
+
+  // Notification WhatsApp aux membres opt-in (kind="call"). Fail-soft :
+  // toute erreur (pas de provider, pas d'utilisateur opt-in, etc.) est
+  // simplement loggee et ne bloque jamais la prise d'appel.
+  try {
+    const callerName = formatCallerName(session.callerFirstName, session.callerLastName);
+    const masked = maskPhone(fromNumber);
+    const who = callerName ? `${callerName} (n°${masked})` : `numero finissant par ${masked}`;
+    void notifyOrgUsers(
+      session.orgId,
+      `Bureau IA - Appel entrant de ${who}.`,
+      "call",
+    ).catch((err) => logger.warn({ err }, "[TwilioVoice] notifyOrgUsers rejection"));
+  } catch (notifyErr) {
+    logger.warn({ err: notifyErr, orgId: session.orgId }, "[TwilioVoice] notify call failed");
+  }
 
   // Store session
   sessions.set(callSid, { ...session, expiresAt: Date.now() + 30 * 60 * 1000 });

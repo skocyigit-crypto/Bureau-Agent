@@ -6,6 +6,7 @@ import { logAudit } from "./audit";
 import { getOrgId } from "../middleware/tenant";
 import { resolveUserNames, enrichWithUserNames } from "../helpers/user-tracking";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
+import { notifyOrgUsers } from "../services/whatsapp-notify";
 
 const router = Router();
 
@@ -140,6 +141,25 @@ router.post("/calendar/events", async (req: Request, res: Response): Promise<voi
     }).returning();
 
     logAudit(userId, req.session?.userEmail, "create", "calendar_event", String(event.id), { title: event.title }, req.ip, req.get("user-agent"), req.session?.organisationId);
+
+    // Notification WhatsApp aux membres opt-in (kind="appointment"). On
+    // exclut le createur (il vient de le creer, pas besoin de se notifier
+    // soi-meme). Fail-soft.
+    try {
+      const when = event.startDate instanceof Date ? event.startDate : new Date(event.startDate);
+      const whenStr = isNaN(when.getTime())
+        ? ""
+        : ` (${when.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })})`;
+      void notifyOrgUsers(
+        orgId,
+        `Bureau IA - Nouveau rendez-vous : ${event.title}${whenStr}.`,
+        "appointment",
+        userId,
+      ).catch((err) => req.log.warn({ err }, "[calendar] notifyOrgUsers rejection"));
+    } catch (notifyErr) {
+      req.log.warn({ err: notifyErr }, "[calendar] notify appointment failed");
+    }
+
     res.status(201).json(event);
   } catch (err: any) {
     req.log.error({ err }, "Erreur creation evenement agenda");

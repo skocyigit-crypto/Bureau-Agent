@@ -61,6 +61,54 @@ async function loadTwilioConfigForOrg(orgId: number): Promise<TwilioConfig | nul
 }
 
 /**
+ * Diffuse une notification WhatsApp a TOUS les utilisateurs actifs d'une
+ * organisation qui ont opte pour cette categorie (fail-soft). Utile pour
+ * les evenements org-wide qui n'ont pas de destinataire individuel
+ * (appel entrant, rendez-vous cree, nouveau message interne).
+ *
+ * Pour eviter de spammer en cas d'org importante, on plafonne a 20 envois
+ * par evenement. C'est largement suffisant pour les PME ciblees ; au-dela
+ * on attendra une UI de "responsable principal" pour cibler.
+ */
+export async function notifyOrgUsers(
+  orgId: number,
+  body: string,
+  kind: "task" | "call" | "appointment" | "message",
+  excludeUserId?: number,
+): Promise<number> {
+  try {
+    const users = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(and(eq(usersTable.organisationId, orgId), eq(usersTable.actif, true)))
+      .limit(20);
+    const targets = excludeUserId ? users.filter((u) => u.id !== excludeUserId) : users;
+    if (targets.length === 0) return 0;
+
+    // On parallelise les envois (Promise.allSettled : un echec ne bloque pas
+    // les autres). La config Twilio est partagee a l'echelle de l'org donc
+    // on aurait pu la passer ; sendWhatsAppNotification la recharge mais
+    // c'est negligeable pour 20 destinataires max et garde l'API simple.
+    const results = await Promise.allSettled(
+      targets.map((u) => sendWhatsAppNotification(orgId, u.id, body, kind)),
+    );
+    return results.reduce((acc, r) => acc + (r.status === "fulfilled" && r.value ? 1 : 0), 0);
+  } catch (err) {
+    logger.warn({ err, orgId, kind }, "[whatsapp-notify] broadcast exception");
+    return 0;
+  }
+}
+
+/** Masque un numero de telephone pour ne laisser visibles que les 2 derniers chiffres. */
+export function maskPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length <= 2) return raw;
+  const visible = digits.slice(-2);
+  const masked = "*".repeat(Math.min(digits.length - 2, 6));
+  return `${masked}${visible}`;
+}
+
+/**
  * Envoie un message WhatsApp a un utilisateur. Fail-soft.
  *
  * @returns true si le message a ete envoye, false sinon (raison loggee).

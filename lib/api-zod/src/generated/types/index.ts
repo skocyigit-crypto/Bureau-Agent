@@ -229,6 +229,7 @@ export * from "./updateTaskBodyStatus";
 export * from "./userPreferences";
 export * from "./weeklyReport";
 export * from "./weeklyReportComparisonPrevWeek";
+export * from "./whatsAppNotificationFlags";
 export * from "./workspaceService";
 export * from "./workspaceServiceStatus";
 export * from "./workspaceStatus";

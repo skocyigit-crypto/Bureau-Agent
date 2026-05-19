@@ -13,6 +13,7 @@ import {
 import { getOrgId } from "../middleware/tenant";
 import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
 import { zodErrorResponse } from "../lib/zod-error";
+import { notifyOrgUsers, maskPhone } from "../services/whatsapp-notify";
 
 const router: IRouter = Router();
 
@@ -95,6 +96,28 @@ router.post("/messages", async (req, res): Promise<void> => {
 
   try {
     const [message] = await db.insert(messagesTable).values({ ...parsed.data, organisationId: orgId, createdBy: userId, updatedBy: userId }).returning();
+
+    // Notification WhatsApp aux membres opt-in (kind="message"). On exclut
+    // le createur du message. On limite le contenu a 140 caracteres pour
+    // ne pas exploser la longueur du SMS WhatsApp. Fail-soft.
+    try {
+      // On masque le numero de telephone et on tronque le contenu pour
+      // limiter l'exposition PII via Twilio. L'utilisateur peut consulter
+      // le message complet dans l'app.
+      const who = message.contactName
+        || (message.phoneNumber ? `numero finissant par ${maskPhone(message.phoneNumber)}` : "un contact");
+      const preview = (message.content || "").slice(0, 80);
+      const ellipsis = (message.content || "").length > 80 ? "..." : "";
+      void notifyOrgUsers(
+        orgId,
+        `Bureau IA - Nouveau message de ${who} : ${preview}${ellipsis}`,
+        "message",
+        userId,
+      ).catch((err) => req.log.warn({ err }, "[messages] notifyOrgUsers rejection"));
+    } catch (notifyErr) {
+      req.log.warn({ err: notifyErr }, "[messages] notify message failed");
+    }
+
     res.status(201).json(message);
   } catch (err: any) {
     req.log.error({ err }, "Erreur creation message");

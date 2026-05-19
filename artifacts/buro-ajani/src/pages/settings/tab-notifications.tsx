@@ -1,11 +1,18 @@
-import { useState, useEffect } from "react";
-import { Bell, Save } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Bell, Save, MessageCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import {
+  useGetMyPreferences,
+  useUpdateMyPreferences,
+  getGetMyPreferencesQueryKey,
+  type WhatsAppNotificationFlags,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 const STORAGE_KEY = "agent-bureau-notif-prefs";
 
@@ -52,6 +59,8 @@ export function TabNotifications() {
   };
 
   return (
+    <div className="space-y-6">
+      <WhatsAppNotificationsCard />
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
@@ -116,6 +125,153 @@ export function TabNotifications() {
             <p className="text-xs text-muted-foreground">Resume quotidien des evenements de securite envoye au Super Administrateur</p>
           </div>
           <Switch checked={prefs.rapportSecurite} onCheckedChange={(v) => update("rapportSecurite", v)} />
+        </div>
+      </CardContent>
+    </Card>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Section WhatsApp : opt-in cote serveur (sauvegarde dans user_preferences,
+// utilise par les routes tasks / twilio-voice / calendar / messages pour
+// envoyer une notification WhatsApp aux membres de l'organisation).
+// ---------------------------------------------------------------------------
+
+const WA_DEFAULTS: Required<WhatsAppNotificationFlags> = {
+  task: false,
+  call: false,
+  appointment: false,
+  message: false,
+};
+
+function WhatsAppNotificationsCard() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const prefsQuery = useGetMyPreferences({
+    query: {
+      queryKey: getGetMyPreferencesQueryKey(),
+      retry: false,
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+    },
+  });
+  const updateMutation = useUpdateMyPreferences();
+
+  const serverFlags = useMemo<Required<WhatsAppNotificationFlags>>(() => {
+    const wa = (prefsQuery.data as any)?.whatsappNotifications as WhatsAppNotificationFlags | undefined;
+    return { ...WA_DEFAULTS, ...(wa ?? {}) };
+  }, [prefsQuery.data]);
+
+  const [draft, setDraft] = useState<Required<WhatsAppNotificationFlags>>(WA_DEFAULTS);
+  const [hydrated, setHydrated] = useState(false);
+
+  const dirty = useMemo(() => {
+    return (Object.keys(draft) as Array<keyof WhatsAppNotificationFlags>)
+      .some((k) => draft[k] !== serverFlags[k]);
+  }, [draft, serverFlags]);
+
+  // Hydratation initiale + reconciliations apres save. Un refetch en
+  // arriere-plan ne doit JAMAIS ecraser une modification non sauvegardee.
+  useEffect(() => {
+    if (!prefsQuery.isSuccess) return;
+    if (!hydrated) {
+      setDraft(serverFlags);
+      setHydrated(true);
+    } else if (!dirty) {
+      setDraft(serverFlags);
+    }
+  }, [prefsQuery.isSuccess, serverFlags, hydrated, dirty]);
+
+  const update = (key: keyof WhatsAppNotificationFlags, value: boolean) => {
+    setDraft((prev: Required<WhatsAppNotificationFlags>) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSave = async () => {
+    try {
+      await updateMutation.mutateAsync({ data: { whatsappNotifications: draft } as any });
+      await qc.invalidateQueries({ queryKey: getGetMyPreferencesQueryKey() });
+      toast({ title: "Notifications WhatsApp enregistrees" });
+    } catch (err: any) {
+      toast({
+        title: "Echec de l'enregistrement",
+        description: err?.message || "Erreur reseau",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const disabled = prefsQuery.isLoading || updateMutation.isPending;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <MessageCircle className="w-5 h-5 text-green-600" />
+              Notifications WhatsApp
+            </CardTitle>
+            <CardDescription>
+              Recevez les alertes du bureau directement sur WhatsApp. Necessite un numero
+              de telephone renseigne dans votre profil et un fournisseur Twilio actif
+              cote organisation.
+            </CardDescription>
+          </div>
+          {dirty && (
+            <Button size="sm" onClick={handleSave} disabled={disabled} className="gap-2">
+              <Save className="w-4 h-4" /> Enregistrer
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label>Nouvelle tache assignee</Label>
+            <p className="text-xs text-muted-foreground">Quand une tache vous est attribuee</p>
+          </div>
+          <Switch
+            disabled={disabled}
+            checked={draft.task}
+            onCheckedChange={(v) => update("task", v)}
+          />
+        </div>
+        <Separator />
+        <div className="flex items-center justify-between">
+          <div>
+            <Label>Appel entrant</Label>
+            <p className="text-xs text-muted-foreground">Lorsque l'agent telephonique recoit un appel</p>
+          </div>
+          <Switch
+            disabled={disabled}
+            checked={draft.call}
+            onCheckedChange={(v) => update("call", v)}
+          />
+        </div>
+        <Separator />
+        <div className="flex items-center justify-between">
+          <div>
+            <Label>Nouveau rendez-vous</Label>
+            <p className="text-xs text-muted-foreground">Quand un evenement est cree dans l'agenda</p>
+          </div>
+          <Switch
+            disabled={disabled}
+            checked={draft.appointment}
+            onCheckedChange={(v) => update("appointment", v)}
+          />
+        </div>
+        <Separator />
+        <div className="flex items-center justify-between">
+          <div>
+            <Label>Nouveau message</Label>
+            <p className="text-xs text-muted-foreground">Lorsqu'un message interne est ajoute</p>
+          </div>
+          <Switch
+            disabled={disabled}
+            checked={draft.message}
+            onCheckedChange={(v) => update("message", v)}
+          />
         </div>
       </CardContent>
     </Card>

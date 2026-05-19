@@ -35,12 +35,27 @@ export interface InlineSuggestFieldFlags {
   invoice_comment?: boolean;
 }
 
+/**
+ * Per-category opt-in for WhatsApp push notifications. Each flag is independent. When omitted or false, the user does not receive WhatsApp notifications of that category. Requires the user's `telephone` to be set and the org to have an active Twilio provider configured.
+ */
+export interface WhatsAppNotificationFlags {
+  /** New task assigned to this user. */
+  task?: boolean;
+  /** New inbound phone call received by the organisation. */
+  call?: boolean;
+  /** New calendar appointment created in the organisation. */
+  appointment?: boolean;
+  /** New internal message created in the organisation. */
+  message?: boolean;
+}
+
 export interface UserPreferences {
   /** Master switch for inline ghost-text AI suggestions. When true, suggestions are shown while typing in any field type covered by `inlineSuggestFields` (notes, prospect notes, email bodies, call notes, task descriptions, message bodies, project descriptions, project notes, quote and invoice comments). */
   inlineSuggestEnabled?: boolean;
   /** Language hint passed to the inline-suggest AI prompt (e.g. "francais", "english", "deutsch"). Defaults to "francais" when unset. */
   inlineSuggestLanguage?: string;
   inlineSuggestFields?: InlineSuggestFieldFlags;
+  whatsappNotifications?: WhatsAppNotificationFlags;
 }
 
 export type CallDirection = (typeof CallDirection)[keyof typeof CallDirection];

@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { InlineSuggestFieldFlags } from "./inlineSuggestFieldFlags";
+import type { WhatsAppNotificationFlags } from "./whatsAppNotificationFlags";
 
 export interface UserPreferences {
   /** Master switch for inline ghost-text AI suggestions. When true, suggestions are shown while typing in any field type covered by `inlineSuggestFields` (notes, prospect notes, email bodies, call notes, task descriptions, message bodies, project descriptions, project notes, quote and invoice comments). */
@@ -13,4 +14,5 @@ export interface UserPreferences {
   /** Language hint passed to the inline-suggest AI prompt (e.g. "francais", "english", "deutsch"). Defaults to "francais" when unset. */
   inlineSuggestLanguage?: string;
   inlineSuggestFields?: InlineSuggestFieldFlags;
+  whatsappNotifications?: WhatsAppNotificationFlags;
 }
