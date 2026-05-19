@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq } from "drizzle-orm";
-import { db, usersTable, type UserPreferences, type InlineSuggestFieldFlags } from "@workspace/db";
+import { db, usersTable, type UserPreferences, type InlineSuggestFieldFlags, type WhatsAppNotificationFlags } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -16,6 +16,40 @@ const SUPPORTED_LANGUAGES = new Set([
   "turkce",
   "arabic",
 ]);
+
+const WHATSAPP_NOTIFICATION_KEYS: ReadonlyArray<keyof WhatsAppNotificationFlags> = [
+  "task",
+  "call",
+  "appointment",
+  "message",
+];
+
+function parseWhatsAppNotifications(value: unknown): WhatsAppNotificationFlags | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== "object") return null;
+  const src = value as Record<string, unknown>;
+  const out: WhatsAppNotificationFlags = {};
+  for (const key of WHATSAPP_NOTIFICATION_KEYS) {
+    if (key in src) {
+      const v = src[key];
+      if (typeof v !== "boolean") return null;
+      out[key] = v;
+    }
+  }
+  return out;
+}
+
+function normalizeWhatsAppNotifications(
+  flags: WhatsAppNotificationFlags | null | undefined,
+): Required<WhatsAppNotificationFlags> {
+  return {
+    task: flags?.task ?? false,
+    call: flags?.call ?? false,
+    appointment: flags?.appointment ?? false,
+    message: flags?.message ?? false,
+  };
+}
 
 const INLINE_SUGGEST_FIELD_KEYS: ReadonlyArray<keyof InlineSuggestFieldFlags> = [
   "note",
@@ -65,6 +99,11 @@ function parsePreferencesPatch(body: unknown): UserPreferences | null {
     if (parsed === null) return null;
     if (parsed !== undefined) out.inlineSuggestFields = parsed;
   }
+  if ("whatsappNotifications" in src) {
+    const parsed = parseWhatsAppNotifications(src.whatsappNotifications);
+    if (parsed === null) return null;
+    if (parsed !== undefined) out.whatsappNotifications = parsed;
+  }
   return out;
 }
 
@@ -90,6 +129,7 @@ function normalizePreferences(prefs: UserPreferences | null | undefined): UserPr
     inlineSuggestEnabled: prefs?.inlineSuggestEnabled ?? true,
     inlineSuggestLanguage: prefs?.inlineSuggestLanguage ?? "francais",
     inlineSuggestFields: normalizeInlineSuggestFields(prefs?.inlineSuggestFields),
+    whatsappNotifications: normalizeWhatsAppNotifications(prefs?.whatsappNotifications),
   };
 }
 
@@ -144,6 +184,12 @@ router.patch("/me/preferences", async (req: Request, res: Response): Promise<voi
       merged.inlineSuggestFields = {
         ...(existingPrefs.inlineSuggestFields ?? {}),
         ...parsed.inlineSuggestFields,
+      };
+    }
+    if (parsed.whatsappNotifications !== undefined) {
+      merged.whatsappNotifications = {
+        ...(existingPrefs.whatsappNotifications ?? {}),
+        ...parsed.whatsappNotifications,
       };
     }
     await db

@@ -1,17 +1,21 @@
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
+import * as LocalAuthentication from "expo-local-authentication";
 import * as Speech from "expo-speech";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
+  AppState,
   Easing,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -29,6 +33,12 @@ const LANG_KEY = "buro.voiceLang";
 const MODE_KEY = "buro.voiceMode";
 const DEEP_KEY = "buro.voiceDeep";
 const WAKE_KEY = "buro.voiceWake";
+// Protection "sahibinin sesine cevap versin" (option pragmatique sans
+// biometrie vocale) : phrase de passe optionnelle + obligation de
+// deverrouiller l'appareil (Face ID / Touch ID / code) pour armer
+// le wake-word.
+const PASSPHRASE_KEY = "buro.voicePassphrase";
+const REQUIRE_AUTH_KEY = "buro.voiceRequireAuth";
 
 type AssistMode = "command" | "chat";
 const CHAT_HISTORY_SEND_LIMIT = 10;
@@ -77,6 +87,41 @@ const T: Record<string, Record<Lang, string>> = {
     fr: "Reconnaissance vocale disponible sur Chrome. Sur mobile natif, utilisez le clavier ou les commandes rapides.",
     tr: "Sesli komut Chrome'da kullanilabilir. Mobil cihazlarda klavye veya hizli komutlar kullanin.",
     en: "Voice recognition available on Chrome. On native mobile, use the keyboard or quick commands.",
+  },
+  prot_title:   { fr: "Protection 'Hey Bureau'",   tr: "'Hey Buro' Korumasi",        en: "'Hey Bureau' Protection" },
+  prot_hint:    {
+    fr: "Limite l'activation a vous seul. Combinez un mot de passe vocal et le deverrouillage de l'appareil.",
+    tr: "Sadece sizin tarafinizdan tetiklenmesini saglar. Sesli sifre + cihaz kilidi acmayi birlikte kullanin.",
+    en: "Restricts activation to you. Combine a spoken passphrase with device unlock.",
+  },
+  prot_phrase:  { fr: "Mot de passe vocal",        tr: "Sesli sifre",                en: "Spoken passphrase" },
+  prot_phrase_ph: {
+    fr: "Ex: Serkan (laisser vide pour desactiver)",
+    tr: "Ornek: Serkan (bos birakirsaniz kapali)",
+    en: "Ex: Serkan (leave empty to disable)",
+  },
+  prot_phrase_hint: {
+    fr: "L'app ne se reveille que si la phrase entendue contient ce mot.",
+    tr: "Uygulama sadece bu kelimeyi duyarsa uyanir.",
+    en: "App wakes only when this word is heard.",
+  },
+  prot_unlock:  { fr: "Exiger le deverrouillage",  tr: "Cihaz kilidi acik olsun",    en: "Require device unlock" },
+  prot_unlock_hint: {
+    fr: "Une verification Face ID / Touch ID / code est demandee pour armer 'Hey Bureau'.",
+    tr: "'Hey Buro' yu acmadan once Face ID / parmak izi / sifre dogrulanir.",
+    en: "Face ID / fingerprint / passcode is required to arm 'Hey Bureau'.",
+  },
+  prot_save:    { fr: "Enregistrer",               tr: "Kaydet",                     en: "Save" },
+  prot_cancel:  { fr: "Annuler",                   tr: "Iptal",                      en: "Cancel" },
+  prot_auth_reason: {
+    fr: "Activer 'Hey Bureau'",
+    tr: "'Hey Buro' yu acmak icin dogrulayin",
+    en: "Authenticate to arm 'Hey Bureau'",
+  },
+  prot_auth_fail: {
+    fr: "Echec de l'authentification. 'Hey Bureau' reste desactive.",
+    tr: "Dogrulama basarisiz. 'Hey Buro' kapali kaldi.",
+    en: "Authentication failed. 'Hey Bureau' stays off.",
   },
 };
 const tr = (k: keyof typeof T, l: Lang) => T[k]?.[l] ?? T[k]?.fr ?? String(k);
@@ -277,11 +322,21 @@ export default function VoiceAssistantScreen() {
   const [mode, setMode] = useState<AssistMode>("command");
   const [deep, setDeep] = useState(false);
   const [textInput, setTextInput] = useState("");
+  // Protection wake-word
+  const [passphrase, setPassphrase] = useState("");
+  const [requireUnlock, setRequireUnlock] = useState(false);
+  const [protOpen, setProtOpen] = useState(false);
+  const [draftPassphrase, setDraftPassphrase] = useState("");
+  const [draftRequireUnlock, setDraftRequireUnlock] = useState(false);
 
   const recognitionRef = useRef<any>(null);
   const scrollRef = useRef<ScrollView>(null);
   const wakeActiveRef = useRef(false);
   const stateRef = useRef<VoiceState>("idle");
+  // Refs miroirs pour la protection wake-word (lus dans la closure STT).
+  const passphraseRef = useRef("");
+  const requireUnlockRef = useRef(false);
+  const authPassedRef = useRef(false);
   // Refs miroirs pour les closures STT/Speech (langue/mode peuvent changer
   // pendant l'ecoute).
   const langRef = useRef<Lang>("fr");
@@ -304,21 +359,49 @@ export default function VoiceAssistantScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const [[, sLang], [, sMode], [, sDeep], [, sWake]] = await AsyncStorage.multiGet([
-          LANG_KEY, MODE_KEY, DEEP_KEY, WAKE_KEY,
-        ]);
+        const [[, sLang], [, sMode], [, sDeep], [, sWake], [, sPhrase], [, sReq]] =
+          await AsyncStorage.multiGet([
+            LANG_KEY, MODE_KEY, DEEP_KEY, WAKE_KEY, PASSPHRASE_KEY, REQUIRE_AUTH_KEY,
+          ]);
         if (sLang === "fr" || sLang === "tr" || sLang === "en") setLang(sLang);
         if (sMode === "command" || sMode === "chat") setMode(sMode);
         if (sDeep === "1") setDeep(true);
-        // Wake par defaut OFF sur mobile (consomme batterie + souvent inutile
-        // car native n'a pas STT). L'utilisateur peut l'activer.
-        if (sWake === "1") {
+        if (sPhrase) {
+          setPassphrase(sPhrase);
+          passphraseRef.current = sPhrase.toLowerCase().trim();
+        }
+        if (sReq === "1") {
+          setRequireUnlock(true);
+          requireUnlockRef.current = true;
+        }
+        // Wake par defaut OFF sur mobile. Si "exiger deverrouillage" est
+        // active, on n'arme PAS automatiquement le wake-word au boot —
+        // l'utilisateur doit re-tapper le toggle pour declencher Face ID.
+        if (sWake === "1" && sReq !== "1") {
           wakeActiveRef.current = true;
           setWakeWordActive(true);
         }
       } catch {}
       prefsLoadedRef.current = true;
     })();
+  }, []);
+
+  // Quand l'app passe en arriere-plan, on invalide la session d'auth et on
+  // desarme le wake-word si la protection "exiger deverrouillage" est active.
+  // L'utilisateur devra re-tapper le toggle (et donc re-passer Face ID) en
+  // revenant. Sans cette protection, le wake reste arme normalement.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next !== "active" && requireUnlockRef.current) {
+        authPassedRef.current = false;
+        if (wakeActiveRef.current) {
+          wakeActiveRef.current = false;
+          setWakeWordActive(false);
+          try { recognitionRef.current?.stop?.(); } catch {}
+        }
+      }
+    });
+    return () => sub.remove();
   }, []);
 
   // Persiste les changements de preferences (sauf au tout premier load).
@@ -480,9 +563,14 @@ export default function VoiceAssistantScreen() {
     recognition.maxAlternatives = 3;
     recognition.onresult = (event: any) => {
       const words = WAKE_WORDS[langRef.current];
+      const phrase = passphraseRef.current;
+      // Gate "exiger deverrouillage" : si l'auth n'a pas passe, on ignore.
+      if (requireUnlockRef.current && !authPassedRef.current) return;
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const text = event.results[i][0].transcript.toLowerCase().trim();
-        if (words.some((w) => text.includes(w))) {
+        const wakeHit = words.some((w) => text.includes(w));
+        const phraseHit = !phrase || text.includes(phrase);
+        if (wakeHit && phraseHit) {
           recognition.stop();
           addMessage("system", "Hey Bureau!");
           if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -502,20 +590,79 @@ export default function VoiceAssistantScreen() {
     try { recognition.start(); setVoiceState("listening_wake"); } catch {}
   }
 
-  function toggleWakeWord() {
+  async function toggleWakeWord() {
     if (wakeActiveRef.current) {
       wakeActiveRef.current = false;
+      authPassedRef.current = false;
       setWakeWordActive(false);
       AsyncStorage.setItem(WAKE_KEY, "0").catch(() => {});
       stopListeners();
       setVoiceState("idle");
-    } else {
-      wakeActiveRef.current = true;
-      setWakeWordActive(true);
-      AsyncStorage.setItem(WAKE_KEY, "1").catch(() => {});
-      startWakeWordListener();
+      if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      return;
     }
+    // Activation : si "exiger deverrouillage" est ON, on demande Face ID
+    // / Touch ID / code avant d'armer. Echec OU absence de biometrie/code
+    // configure sur l'appareil → on reste OFF. Pas de "fallback silencieux"
+    // qui ouvrirait le wake-word sans la protection promise par l'UI.
+    if (requireUnlockRef.current) {
+      try {
+        const hasHw = await LocalAuthentication.hasHardwareAsync();
+        const enrolled = await LocalAuthentication.isEnrolledAsync();
+        if (!hasHw || !enrolled) {
+          addMessage("system", tr("prot_auth_fail", langRef.current));
+          return;
+        }
+        const res = await LocalAuthentication.authenticateAsync({
+          promptMessage: tr("prot_auth_reason", langRef.current),
+          cancelLabel: tr("prot_cancel", langRef.current),
+          disableDeviceFallback: false,
+        });
+        if (!res.success) {
+          addMessage("system", tr("prot_auth_fail", langRef.current));
+          return;
+        }
+        authPassedRef.current = true;
+      } catch {
+        addMessage("system", tr("prot_auth_fail", langRef.current));
+        return;
+      }
+    }
+    wakeActiveRef.current = true;
+    setWakeWordActive(true);
+    AsyncStorage.setItem(WAKE_KEY, "1").catch(() => {});
+    startWakeWordListener();
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  }
+
+  function openProtectionSettings() {
+    setDraftPassphrase(passphrase);
+    setDraftRequireUnlock(requireUnlock);
+    setProtOpen(true);
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }
+
+  async function saveProtectionSettings() {
+    const cleanPhrase = draftPassphrase.trim();
+    setPassphrase(cleanPhrase);
+    passphraseRef.current = cleanPhrase.toLowerCase();
+    setRequireUnlock(draftRequireUnlock);
+    requireUnlockRef.current = draftRequireUnlock;
+    // Si on vient d'activer la protection et que le wake est deja arme,
+    // on le desarme pour forcer une re-auth explicite.
+    if (draftRequireUnlock && wakeActiveRef.current) {
+      wakeActiveRef.current = false;
+      authPassedRef.current = false;
+      setWakeWordActive(false);
+      stopListeners();
+      setVoiceState("idle");
+    }
+    try {
+      if (cleanPhrase) await AsyncStorage.setItem(PASSPHRASE_KEY, cleanPhrase);
+      else await AsyncStorage.removeItem(PASSPHRASE_KEY);
+      await AsyncStorage.setItem(REQUIRE_AUTH_KEY, draftRequireUnlock ? "1" : "0");
+    } catch {}
+    setProtOpen(false);
   }
 
   function handleMicPress() {
@@ -663,6 +810,8 @@ export default function VoiceAssistantScreen() {
           )}
           <Pressable
             onPress={toggleWakeWord}
+            onLongPress={openProtectionSettings}
+            delayLongPress={400}
             style={[styles.wakePill, {
               backgroundColor: wakeWordActive ? "#f59e0b18" : "rgba(255,255,255,0.08)",
               borderColor: wakeWordActive ? "#f59e0b50" : "transparent",
@@ -672,9 +821,109 @@ export default function VoiceAssistantScreen() {
             <Text style={[styles.wakeWordText, { color: wakeWordActive ? "#f59e0b" : "rgba(255,255,255,0.6)" }]}>
               {wakeWordActive ? tr("wake_on", lang) : tr("wake_off", lang)}
             </Text>
+            {(requireUnlock || passphrase) && (
+              <Feather name="lock" size={11} color={wakeWordActive ? "#f59e0b" : "rgba(255,255,255,0.5)"} style={{ marginLeft: 4 }} />
+            )}
+          </Pressable>
+          <Pressable
+            onPress={openProtectionSettings}
+            accessibilityLabel={tr("prot_title", lang)}
+            style={{
+              padding: 8,
+              borderRadius: 8,
+              backgroundColor: "rgba(255,255,255,0.08)",
+              marginLeft: 6,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Feather name="shield" size={14} color="rgba(255,255,255,0.7)" />
           </Pressable>
         </View>
       </View>
+
+      {/* ── Modal protection 'Hey Bureau' ───────────────────────────────── */}
+      <Modal
+        visible={protOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setProtOpen(false)}
+      >
+        <Pressable
+          onPress={() => setProtOpen(false)}
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "center", padding: 20 }}
+        >
+          <Pressable
+            onPress={() => {}}
+            style={{
+              backgroundColor: colors.card,
+              borderRadius: 16,
+              padding: 20,
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+              <Feather name="shield" size={18} color={colors.primary} />
+              <Text style={{ marginLeft: 8, fontSize: 17, fontWeight: "700", color: colors.foreground }}>
+                {tr("prot_title", lang)}
+              </Text>
+            </View>
+            <Text style={{ color: colors.mutedForeground, fontSize: 13, marginBottom: 16 }}>
+              {tr("prot_hint", lang)}
+            </Text>
+
+            <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "600", marginBottom: 6 }}>
+              {tr("prot_phrase", lang)}
+            </Text>
+            <TextInput
+              value={draftPassphrase}
+              onChangeText={setDraftPassphrase}
+              placeholder={tr("prot_phrase_ph", lang)}
+              placeholderTextColor={colors.mutedForeground}
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={{
+                borderWidth: 1,
+                borderColor: colors.border,
+                borderRadius: 10,
+                padding: 12,
+                color: colors.foreground,
+                backgroundColor: colors.background,
+                marginBottom: 6,
+              }}
+            />
+            <Text style={{ color: colors.mutedForeground, fontSize: 11, marginBottom: 18 }}>
+              {tr("prot_phrase_hint", lang)}
+            </Text>
+
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: "600", flex: 1, marginRight: 12 }}>
+                {tr("prot_unlock", lang)}
+              </Text>
+              <Switch value={draftRequireUnlock} onValueChange={setDraftRequireUnlock} />
+            </View>
+            <Text style={{ color: colors.mutedForeground, fontSize: 11, marginBottom: 20 }}>
+              {tr("prot_unlock_hint", lang)}
+            </Text>
+
+            <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 8 }}>
+              <Pressable
+                onPress={() => setProtOpen(false)}
+                style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10 }}
+              >
+                <Text style={{ color: colors.mutedForeground, fontWeight: "600" }}>{tr("prot_cancel", lang)}</Text>
+              </Pressable>
+              <Pressable
+                onPress={saveProtectionSettings}
+                style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10, backgroundColor: colors.primary }}
+              >
+                <Text style={{ color: "#fff", fontWeight: "700" }}>{tr("prot_save", lang)}</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* ── Panneaux ───────────────────────────────────────────────────── */}
       {panel === "library" ? (

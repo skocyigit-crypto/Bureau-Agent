@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, asc, ilike, or, sql, and, type Column, type SQL } from "drizzle-orm";
-import { db, tasksTable } from "@workspace/db";
+import { db, tasksTable, usersTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import {
   ListTasksQueryParams,
@@ -98,11 +98,41 @@ router.post("/tasks", async (req, res): Promise<void> => {
     const [task] = await db.insert(tasksTable).values({ ...parsed.data, organisationId: orgId, createdBy: userId, updatedBy: userId }).returning();
 
     // Notification WhatsApp non bloquante a l'assignataire (opt-in via
-    // preferences.whatsappNotifications.task). Si l'assignataire est un ID
-    // numerique valide et different du createur, on tente l'envoi.
+    // preferences.whatsappNotifications.task). `assignedTo` est un champ
+    // texte libre dans le schema actuel : peut etre un ID numerique (futur)
+    // OU un nom de collaborateur (UI actuelle). On essaie d'abord l'ID
+    // numerique, puis a defaut on cherche un user de l'org dont
+    // nom/prenom/email matche (best-effort). Si rien ne matche, on ne
+    // notifie pas — le createur reste libre de saisir n'importe quel texte.
     if (task.assignedTo) {
-      const assigneeId = Number(task.assignedTo);
-      if (Number.isFinite(assigneeId) && assigneeId !== userId) {
+      const raw = task.assignedTo.trim();
+      let assigneeId: number | null = null;
+      const asNum = Number(raw);
+      if (Number.isFinite(asNum) && asNum > 0) {
+        assigneeId = asNum;
+      } else if (raw.length >= 2) {
+        try {
+          const lower = raw.toLowerCase();
+          const candidates = await db
+            .select({ id: usersTable.id, nom: usersTable.nom, prenom: usersTable.prenom, email: usersTable.email })
+            .from(usersTable)
+            .where(and(eq(usersTable.organisationId, orgId), eq(usersTable.actif, true)));
+          const hit = candidates.find((u) => {
+            const full1 = `${u.prenom ?? ""} ${u.nom ?? ""}`.trim().toLowerCase();
+            const full2 = `${u.nom ?? ""} ${u.prenom ?? ""}`.trim().toLowerCase();
+            return (
+              (u.email ?? "").toLowerCase() === lower ||
+              full1 === lower ||
+              full2 === lower ||
+              (u.prenom ?? "").toLowerCase() === lower
+            );
+          });
+          if (hit) assigneeId = hit.id;
+        } catch (e) {
+          req.log.warn({ err: e }, "[tasks] lookup assignataire echoue");
+        }
+      }
+      if (assigneeId && assigneeId !== userId) {
         const title = task.title ?? "(sans titre)";
         const echeance = task.dueDate ? ` (echeance ${task.dueDate.toISOString().slice(0, 10)})` : "";
         const body = `[Agent de Bureau] Nouvelle tache assignee : ${title}${echeance}`;
