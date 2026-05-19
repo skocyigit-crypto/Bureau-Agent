@@ -264,6 +264,17 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
     return next();
   }
 
+  // Bypass pour le webhook WhatsApp (Twilio) : signature Twilio verifiee
+  // dans le handler, pas d'Origin envoye par Twilio. On limite au chemin
+  // exact + methode POST pour ne pas elargir la surface a de futurs sous-
+  // chemins par accident.
+  if (
+    req.method === "POST" &&
+    (req.path === "/whatsapp/twilio/inbound" || req.originalUrl === "/api/whatsapp/twilio/inbound")
+  ) {
+    return next();
+  }
+
   // CSRF bypass for local development. Previously this was a bare
   // `NODE_ENV !== "production"` check, which silently disabled CSRF on any
   // preview/staging environment that forgot to set NODE_ENV=production.
