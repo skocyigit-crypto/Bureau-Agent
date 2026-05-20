@@ -152,6 +152,8 @@ export default function SettingsScreen() {
 
         <AlertsCard />
 
+        <WhatsAppNotificationsCard />
+
         <PreferencesIaCard />
 
         <PrivacyCard />
@@ -601,6 +603,189 @@ function AlertsCard() {
           </View>
         );
       })}
+    </View>
+  );
+}
+
+// ── Notifications WhatsApp (opt-in serveur) ──────────────────────────────────
+//
+// Lit/ecrit les flags whatsappNotifications dans user_preferences via
+// /api/me/preferences. Cote serveur, ces flags determinent si l'utilisateur
+// recoit un message WhatsApp pour chaque categorie (task / call / appointment
+// / message). Necessite un numero de telephone renseigne et un fournisseur
+// Twilio actif sur l'org. La persistance est faite cote serveur, le draft
+// local n'est jamais ecrase tant qu'il y a des modifications non sauvegardees.
+
+type WhatsAppFlag = "task" | "call" | "appointment" | "message";
+
+const WHATSAPP_ROWS: ReadonlyArray<{
+  key: WhatsAppFlag;
+  icon: keyof typeof Feather.glyphMap;
+  label: string;
+  sublabel: string;
+}> = [
+  { key: "task", icon: "check-square", label: "Nouvelle tache assignee", sublabel: "Quand une tache vous est attribuee." },
+  { key: "call", icon: "phone-incoming", label: "Appel entrant", sublabel: "Lorsque l'agent telephonique recoit un appel." },
+  { key: "appointment", icon: "calendar", label: "Nouveau rendez-vous", sublabel: "Quand un evenement est cree dans l'agenda." },
+  { key: "message", icon: "message-circle", label: "Nouveau message", sublabel: "Lorsqu'un message interne est ajoute." },
+];
+
+const WA_DEFAULTS: Record<WhatsAppFlag, boolean> = {
+  task: false,
+  call: false,
+  appointment: false,
+  message: false,
+};
+
+function WhatsAppNotificationsCard() {
+  const colors = useColors();
+  const { fetchAuth, isAuthenticated } = useAuth();
+  const [serverFlags, setServerFlags] = useState<Record<WhatsAppFlag, boolean>>(WA_DEFAULTS);
+  const [draft, setDraft] = useState<Record<WhatsAppFlag, boolean>>(WA_DEFAULTS);
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const dirty = (Object.keys(draft) as WhatsAppFlag[]).some((k) => draft[k] !== serverFlags[k]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setLoaded(true);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetchAuth(`${API_BASE}/api/me/preferences`);
+        if (!res || !res.ok) {
+          if (!cancelled) setLoaded(true);
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        const wa = (data?.whatsappNotifications ?? {}) as Partial<Record<WhatsAppFlag, boolean>>;
+        const merged: Record<WhatsAppFlag, boolean> = {
+          task: wa.task === true,
+          call: wa.call === true,
+          appointment: wa.appointment === true,
+          message: wa.message === true,
+        };
+        if (!cancelled) {
+          setServerFlags(merged);
+          // Hydratation : on n'ecrase un draft modifie qu'au premier chargement.
+          setDraft((prev) => {
+            const hasLocalChange = (Object.keys(prev) as WhatsAppFlag[]).some(
+              (k) => prev[k] !== WA_DEFAULTS[k],
+            );
+            return hasLocalChange ? prev : merged;
+          });
+          setLoaded(true);
+        }
+      } catch {
+        if (!cancelled) setLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchAuth, isAuthenticated]);
+
+  const onToggle = useCallback((key: WhatsAppFlag, value: boolean) => {
+    setDraft((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  const onSave = useCallback(async () => {
+    if (!isAuthenticated || saving) return;
+    setSaving(true);
+    try {
+      const res = await fetchAuth(`${API_BASE}/api/me/preferences`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ whatsappNotifications: draft }),
+      });
+      if (!res || !res.ok) {
+        Alert.alert("Echec", "Impossible d'enregistrer les notifications WhatsApp.");
+        return;
+      }
+      setServerFlags(draft);
+    } catch {
+      Alert.alert("Echec", "Erreur reseau pendant l'enregistrement.");
+    } finally {
+      setSaving(false);
+    }
+  }, [fetchAuth, isAuthenticated, saving, draft]);
+
+  const rowDisabled = !loaded || !isAuthenticated || saving;
+
+  return (
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={styles.cardHeader}>
+        <Feather name="message-circle" size={18} color="#22c55e" />
+        <Text style={[styles.cardTitle, { color: colors.foreground, flex: 1 }]}>Notifications WhatsApp</Text>
+        {dirty && (
+          <Pressable
+            onPress={onSave}
+            disabled={saving}
+            style={({ pressed }) => ({
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 6,
+              backgroundColor: colors.primary,
+              opacity: pressed || saving ? 0.6 : 1,
+            })}
+          >
+            <Text style={{ color: "#fff", fontSize: 12, fontFamily: "Inter_600SemiBold" }}>
+              {saving ? "..." : "Enregistrer"}
+            </Text>
+          </Pressable>
+        )}
+      </View>
+
+      <View style={{ paddingHorizontal: 16, paddingBottom: 10 }}>
+        <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
+          Recevez les alertes du bureau sur WhatsApp. Necessite un numero de telephone
+          dans votre profil et un fournisseur Twilio actif cote organisation.
+        </Text>
+      </View>
+
+      {WHATSAPP_ROWS.map((row, idx) => {
+        const isLast = idx === WHATSAPP_ROWS.length - 1;
+        const value = draft[row.key];
+        return (
+          <View
+            key={row.key}
+            style={[
+              styles.toggleRow,
+              {
+                borderBottomColor: colors.border,
+                borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
+                opacity: rowDisabled ? 0.5 : 1,
+              },
+            ]}
+          >
+            <Feather name={row.icon} size={16} color={colors.mutedForeground} style={styles.infoIcon} />
+            <View style={styles.toggleText}>
+              <Text style={[styles.toggleLabel, { color: colors.foreground }]}>{row.label}</Text>
+              <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
+                {row.sublabel}
+              </Text>
+            </View>
+            <Switch
+              value={value}
+              disabled={rowDisabled}
+              onValueChange={(v) => onToggle(row.key, v)}
+              trackColor={{ false: colors.border, true: "#22c55e88" }}
+              thumbColor={value ? "#22c55e" : colors.mutedForeground}
+            />
+          </View>
+        );
+      })}
+
+      {!isAuthenticated && (
+        <View style={{ paddingHorizontal: 16, paddingVertical: 10 }}>
+          <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
+            Connectez-vous pour synchroniser cette preference.
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
