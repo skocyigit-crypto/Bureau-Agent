@@ -1,14 +1,48 @@
 import { Router, type Request, type Response } from "express";
+import crypto from "crypto";
 import { db, documentsTable } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
 import { getOrgId } from "../middleware/tenant";
-import { scanBase64ContentFull, scanBase64ContentFullCached, logSecurityEvent, type StoredScanRecord } from "../middleware/security";
+import { scanBase64ContentFullCached, logSecurityEvent, type StoredScanRecord } from "../middleware/security";
 import { logger } from "../lib/logger";
 import { analyzeDocument, processDocumentForImport, importRowsToModule, analyzeDocumentMultiModel, askDocumentQuestion } from "../services/document-ai";
 
 const router = Router();
 const requireMinAgent = requireRole("super_admin", "administrateur", "agent");
+
+/**
+ * Recherche un verdict d'analyse "sain" deja persiste pour un fichier
+ * identique (meme empreinte SHA-256) ailleurs dans la meme organisation.
+ * Permet de reutiliser ce verdict a l'upload au lieu de re-interroger le
+ * moteur externe (VirusTotal) pour des octets deja juges propres. On ne
+ * remonte QUE des verdicts surs : les empreintes dangereuses ou inconnues
+ * declenchent toujours un scan complet via `scanBase64ContentFullCached`.
+ */
+async function findReusableCleanScan(orgId: number, sha256: string): Promise<StoredScanRecord | null> {
+  if (!sha256) return null;
+  const [existing] = await db.select({
+    scanSha256: documentsTable.scanSha256,
+    scanVerdict: documentsTable.scanVerdict,
+    scanEngine: documentsTable.scanEngine,
+    scanDetail: documentsTable.scanDetail,
+    scannedAt: documentsTable.scannedAt,
+  }).from(documentsTable)
+    .where(and(
+      eq(documentsTable.organisationId, orgId),
+      eq(documentsTable.scanSha256, sha256),
+      eq(documentsTable.scanVerdict, "safe"),
+    ))
+    .limit(1);
+  if (!existing) return null;
+  return {
+    sha256: existing.scanSha256,
+    verdict: existing.scanVerdict,
+    engine: existing.scanEngine,
+    detail: existing.scanDetail,
+    scannedAt: existing.scannedAt,
+  };
+}
 
 const ALLOWED_MIME_TYPES = [
   "application/pdf",
@@ -83,7 +117,9 @@ router.post("/documents/upload", requireMinAgent, async (req: Request, res: Resp
       return;
     }
 
-    const scanResult = await scanBase64ContentFull(fileContent, fileName);
+    const sha256 = crypto.createHash("sha256").update(buffer).digest("hex");
+    const storedScan = await findReusableCleanScan(orgId, sha256);
+    const { result: scanResult } = await scanBase64ContentFullCached(fileContent, fileName, storedScan);
     if (!scanResult.safe) {
       const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.socket?.remoteAddress || "unknown";
       logSecurityEvent("malicious_upload_blocked", ip, userId ?? null, `Upload bloque (${scanResult.engine}): ${scanResult.threats.join(", ")}`, "critical");
@@ -196,7 +232,9 @@ router.post("/documents/upload-multiple", requireMinAgent, async (req: Request, 
           continue;
         }
 
-        const scanResult = await scanBase64ContentFull(file.fileContent, file.fileName);
+        const sha256 = crypto.createHash("sha256").update(buffer).digest("hex");
+        const storedScan = await findReusableCleanScan(orgId, sha256);
+        const { result: scanResult } = await scanBase64ContentFullCached(file.fileContent, file.fileName, storedScan);
         if (!scanResult.safe) {
           results.push({ fileName: file.fileName, success: false, error: "Fichier bloque (securite)" });
           continue;
