@@ -36,6 +36,9 @@ interface Doc {
   hasText?: boolean;
   status: string;
   uploadedBy?: number | null;
+  scanVerdict?: string | null;
+  scanEngine?: string | null;
+  scannedAt?: string | null;
   createdAt: string;
 }
 
@@ -126,6 +129,18 @@ function DocCard({ doc, colors, onDelete, onDownload, onRead }: {
               <View style={[st.aiBadge, { backgroundColor: "#22c55e18" }]}>
                 <Feather name="eye" size={8} color="#22c55e" />
                 <Text style={[st.aiText, { color: "#22c55e" }]}>Lisible</Text>
+              </View>
+            )}
+            {doc.scanVerdict === "safe" && (
+              <View style={[st.aiBadge, { backgroundColor: "#10b98118" }]}>
+                <Feather name="shield" size={8} color="#10b981" />
+                <Text style={[st.aiText, { color: "#10b981" }]}>{doc.scanEngine ? `Vérifié (${doc.scanEngine})` : "Vérifié"}</Text>
+              </View>
+            )}
+            {doc.scanVerdict === "dangerous" && (
+              <View style={[st.aiBadge, { backgroundColor: "#ef444418" }]}>
+                <Feather name="alert-triangle" size={8} color="#ef4444" />
+                <Text style={[st.aiText, { color: "#ef4444" }]}>Menace</Text>
               </View>
             )}
           </View>

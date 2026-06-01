@@ -865,6 +865,10 @@ router.get("/documents/:id/preview", requireMinAgent, async (req: Request, res: 
       // For plain text files: also return decoded text content
       rawText: isText && doc.fileContent ? Buffer.from(doc.fileContent, "base64").toString("utf-8").slice(0, 500000) : null,
       status: doc.status,
+      scanVerdict: doc.scanVerdict,
+      scanEngine: doc.scanEngine,
+      scanDetail: doc.scanDetail,
+      scannedAt: doc.scannedAt,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     });
@@ -898,6 +902,9 @@ router.get("/documents/by-source", requireMinAgent, async (req: Request, res: Re
       tags: documentsTable.tags,
       aiProcessed: documentsTable.aiProcessed,
       status: documentsTable.status,
+      scanVerdict: documentsTable.scanVerdict,
+      scanEngine: documentsTable.scanEngine,
+      scannedAt: documentsTable.scannedAt,
       uploadedBy: documentsTable.uploadedBy,
       createdAt: documentsTable.createdAt,
       hasText: sql<boolean>`(${documentsTable.extractedText} IS NOT NULL AND length(${documentsTable.extractedText}) > 0)`,

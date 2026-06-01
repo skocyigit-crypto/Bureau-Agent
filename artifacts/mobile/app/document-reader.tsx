@@ -66,6 +66,10 @@ interface DocPreview {
   imageBase64?: string | null;
   rawText?: string | null;
   status?: string;
+  scanVerdict?: string | null;
+  scanEngine?: string | null;
+  scanDetail?: string | null;
+  scannedAt?: string | null;
   createdAt: string;
 }
 
@@ -285,6 +289,38 @@ function InfosTab({ doc }: { doc: DocPreview }) {
           </View>
         </View>
       )}
+
+      {doc.scanVerdict && (() => {
+        const safe = doc.scanVerdict === "safe";
+        const accent = safe ? "#10b981" : "#ef4444";
+        return (
+          <View style={[rd.infoCard, { backgroundColor: accent + "08", borderColor: accent + "30" }]}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <Feather name={safe ? "shield" : "alert-triangle"} size={14} color={accent} />
+              <Text style={[rd.sectionTitle, { color: accent }]}>Analyse antivirus</Text>
+            </View>
+            <View style={[rd.infoRow, { borderTopColor: accent + "15" }]}>
+              <Text style={[rd.infoLabel, { color: colors.mutedForeground, flex: 1 }]}>Verdict</Text>
+              <Text style={[rd.infoValue, { color: accent }]}>{safe ? "Sain" : "Menace détectée"}</Text>
+            </View>
+            {doc.scanEngine && (
+              <View style={[rd.infoRow, { borderTopColor: accent + "15" }]}>
+                <Text style={[rd.infoLabel, { color: colors.mutedForeground, flex: 1 }]}>Moteur</Text>
+                <Text style={[rd.infoValue, { color: colors.foreground }]}>{doc.scanEngine}</Text>
+              </View>
+            )}
+            {doc.scannedAt && (
+              <View style={[rd.infoRow, { borderTopColor: accent + "15" }]}>
+                <Text style={[rd.infoLabel, { color: colors.mutedForeground, flex: 1 }]}>Analysé le</Text>
+                <Text style={[rd.infoValue, { color: colors.foreground }]}>{new Date(doc.scannedAt).toLocaleString("fr-FR")}</Text>
+              </View>
+            )}
+            {doc.scanDetail && (
+              <Text style={[rd.infoLabel, { color: colors.mutedForeground, marginTop: 8 }]}>{doc.scanDetail}</Text>
+            )}
+          </View>
+        );
+      })()}
 
       {doc.description && (
         <View style={[rd.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
