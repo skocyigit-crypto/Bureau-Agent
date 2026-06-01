@@ -70,6 +70,7 @@ import SecuritePage from "@/pages/securite";
 import AssistantProactifPage from "@/pages/assistant-proactif";
 import IaApprentissagePage from "@/pages/ia-apprentissage";
 import EquipeLocalisationPage from "@/pages/equipe-localisation";
+import FileApprobationPage from "@/pages/file-approbation";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -182,6 +183,7 @@ function AppRoutes() {
         <Route path="/assistant-proactif" component={withLicenseGate(AssistantProactifPage)} />
         <Route path="/ia-apprentissage" component={withLicenseGate(IaApprentissagePage)} />
         <Route path="/equipe/localisation" component={withLicenseGate(EquipeLocalisationPage)} />
+        <Route path="/file-approbation" component={withLicenseGate(FileApprobationPage)} />
         <Route component={NotFound} />
       </Switch>
         </AnimatedRouteContent>

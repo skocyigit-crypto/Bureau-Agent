@@ -87,6 +87,7 @@ interface AttachmentScanResult {
   sha256: string;
   fileType: string | null;
   scannedAt: string;
+  engine?: string;
 }
 
 interface AiPhishingAnalysis {
@@ -307,6 +308,12 @@ function SecurityPanel({ scan, scanning }: { scan: EmailScanReport | null; scann
           <View style={{ flex: 1 }}>
             <Text style={[sp.itemName, { color: "#1e293b" }]} numberOfLines={1}>{att.filename}</Text>
             <Text style={[sp.itemSub, { color: "#64748b" }]}>{fmtSize(att.size)} · {att.fileType ?? att.mimeType}</Text>
+            {att.engine ? (
+              <View style={sp.engineRow}>
+                <Feather name="cpu" size={9} color="#64748b" />
+                <Text style={[sp.engineText, { color: "#64748b" }]} numberOfLines={1}>{att.engine}</Text>
+              </View>
+            ) : null}
             {att.threats.map((t, ti) => (
               <Text key={ti} style={[sp.threat, { color: "#ef4444" }]}>⚠ {t}</Text>
             ))}
@@ -369,6 +376,8 @@ const sp = StyleSheet.create({
   itemRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 8, borderRadius: 8, borderWidth: 1 },
   itemName: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   itemSub: { fontSize: 10, fontFamily: "Inter_400Regular" },
+  engineRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 2 },
+  engineText: { fontSize: 9, fontFamily: "Inter_500Medium" },
   threat: { fontSize: 11, fontFamily: "Inter_500Medium", marginTop: 2 },
   riskBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, alignSelf: "flex-start" },
   footer: { fontSize: 10, fontFamily: "Inter_400Regular", textAlign: "center" },

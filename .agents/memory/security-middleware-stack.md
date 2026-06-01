@@ -34,7 +34,20 @@ Remember base64 inflates ~33%, so cap the client-side file size accordingly
 **Why:** without this, payloads over ~1MB fail with a 413/parse error before
 the route logic, even though the scanner itself supports large files.
 
-## 3. `formatCallerName` returns "" (never null)
+## 3. `nProtection` returns 403 on POST without an `Origin` header
+Global `/api` chain includes `nProtection`, which rejects state-changing
+requests (POST/etc.) that arrive with no `Origin` header → 403 "Requete non
+autorisee - origine manquante." A bare `curl -X POST localhost:80/api/...`
+therefore returns **403, not 401**, even though the route is fine — browsers
+send `Origin` automatically so real fetch() calls pass.
+
+**How to apply:** when smoke-testing a new POST route from curl, treat 403
+(missing origin) and 401 (no session) both as "route mounted, gated" — only a
+404 means it's not wired. To exercise it from curl, add `-H "Origin:
+http://localhost"`. No CSRF token is required; same-origin fetch with
+`credentials:"include"` is the established client pattern.
+
+## 4. `formatCallerName` returns "" (never null)
 In `routes/twilio-voice.ts`, `formatCallerName(first,last)` returns an empty
 string for unknown callers, never `null`. Gating optional logic on
 `callerName === null` is dead code — use `!callerName` to detect "unknown".

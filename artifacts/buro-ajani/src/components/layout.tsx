@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useRef, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Phone, Users, CheckSquare, MessageSquare, BarChart, LayoutDashboard, Settings, FileText, Puzzle, UserCog, Clock, Brain, Calendar, Shield, ShieldCheck, Zap, BarChart3, KeyRound, Globe, Target, Sparkles, PhoneCall, Download, Plus, PhoneIncoming, Wifi, WifiOff, Smartphone, Monitor, Tablet, Rocket, Mail, StickyNote, Activity, ClipboardList, Plug, CreditCard, Trophy, ScanSearch, MapPin, Bell } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, BarChart, LayoutDashboard, Settings, FileText, Puzzle, UserCog, Clock, Brain, Calendar, Shield, ShieldCheck, Zap, BarChart3, KeyRound, Globe, Target, Sparkles, PhoneCall, Download, Plus, PhoneIncoming, Wifi, WifiOff, Smartphone, Monitor, Tablet, Rocket, Mail, StickyNote, Activity, ClipboardList, Plug, CreditCard, Trophy, ScanSearch, MapPin, Bell, Inbox } from "lucide-react";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { SidebarIcon3D, Icon3D } from "@/components/icon-3d";
 import { AiAssistantButton } from "@/components/ai-assistant";
@@ -105,6 +105,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
     rappel: readStoredCount(BADGE_CONFIG.rappel.storageKey),
   }));
 
+  // File d'approbation (agent autonome) : compteur des propositions en attente.
+  // Sondé périodiquement côté serveur (pas via localStorage/SSE comme les autres
+  // badges) car il reflète l'état réel de la file, pas un cumul de notifications.
+  const [agentQueueCount, setAgentQueueCount] = useState(0);
+
   const setBadge = (key: BadgeKey, value: number | ((c: number) => number)) => {
     setBadges((prev) => {
       const next = typeof value === "function" ? value(prev[key]) : value;
@@ -186,6 +191,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
       }
     });
   }, [location, BADGE_CONFIG]);
+
+  useEffect(() => {
+    const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
+    let cancelled = false;
+    const fetchQueueCount = () => {
+      fetch(`${BASE}/api/agent-queue/count`, { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (!cancelled && data && typeof data.pending === "number") setAgentQueueCount(data.pending);
+        })
+        .catch(() => {});
+    };
+    fetchQueueCount();
+    const interval = setInterval(fetchQueueCount, 60_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [location]);
 
   useEffect(() => {
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
@@ -286,6 +307,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             label: "Assistants IA",
             items: [
               { name: "Commandant IA", href: "/commandant-ia", icon: Sparkles },
+              { name: "File d'approbation", href: "/file-approbation", icon: Inbox, badge: agentQueueCount },
               { name: "Assistant Universel", href: "/asistan", icon: Sparkles },
               { name: "Agents IA", href: "/agents-ia", icon: Brain },
               ...(isAdmin ? [{ name: "Automatisations", href: "/automatisations", icon: Zap }] : []),
@@ -339,7 +361,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         ],
       },
     ].filter(g => g.items.length > 0);
-  }, [user.role, isSuperAdmin, badges]);
+  }, [user.role, isSuperAdmin, badges, agentQueueCount]);
 
 
   return (

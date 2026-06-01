@@ -8,6 +8,7 @@ export * from "./messages";
 export * from "./daily-reports";
 export * from "./checkins";
 export * from "./ai-agent-reports";
+export * from "./agent-proposals";
 export * from "./stock";
 export * from "./stock-mouvements";
 export * from "./platform-connections";
