@@ -14,6 +14,7 @@ import { logger } from "../lib/logger";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "./ai-quota";
 import { extractGeminiTokens, recordAiUsage, safeJsonParse } from "./ai-utils";
 import { buildAiCacheKey, getOrCompute, AI_CACHE_TTL, withProviderTimeout } from "./ai-cache";
+import { buildLearnedContextBlock } from "./ai-learning";
 
 interface RawSignals {
   overdueTasks: number;
@@ -264,7 +265,7 @@ ${JSON.stringify(drafts, null, 2)}
 
 Ta mission: ameliorer le titre et le message de chaque insight pour qu'ils soient courts (max 80 caracteres titre, max 140 caracteres message), bienveillants, professionnels, en francais correct. Ne change PAS les champs category, severity, actionUrl, actionLabel. Garde l'ordre.
 
-Reponds UNIQUEMENT avec un tableau JSON de la meme structure que les drafts. Pas de texte avant/apres.`;
+Reponds UNIQUEMENT avec un tableau JSON de la meme structure que les drafts. Pas de texte avant/apres.${await buildLearnedContextBlock(orgId)}`;
 
       const response = await withProviderTimeout(() => ai.models.generateContent({
         model,

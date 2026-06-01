@@ -4,6 +4,7 @@ import { sendEmail } from "../services/email";
 import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNull, or, not, inArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
+import { buildLearnedContextBlock } from "../services/ai-learning";
 import { extractGeminiTokens, recordAiUsage } from "../services/ai-utils";
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 
@@ -186,7 +187,7 @@ Reponds en JSON avec cette structure exacte:
         {
           role: "user",
           parts: [{
-            text: `${systemPrompt}\n\nVoici les donnees du bureau a analyser:\n${JSON.stringify(analyticsData, null, 2)}`
+            text: `${systemPrompt}${await buildLearnedContextBlock(orgId)}\n\nVoici les donnees du bureau a analyser:\n${JSON.stringify(analyticsData, null, 2)}`
           }],
         },
       ],

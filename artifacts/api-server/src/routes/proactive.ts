@@ -4,6 +4,7 @@ import { and, eq, inArray, desc } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
 import { runProactiveForOrg } from "../services/proactive-engine";
+import { bumpPreferenceFromFeedback } from "../services/ai-learning";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -112,10 +113,15 @@ router.post("/proactive/suggestions/:id/feedback", async (req: Request, res: Res
           eq(proactiveSuggestionsTable.organisationId, orgId),
         ),
       )
-      .returning({ id: proactiveSuggestionsTable.id });
+      .returning({ id: proactiveSuggestionsTable.id, type: proactiveSuggestionsTable.type });
     if (updated.length === 0) {
       res.status(404).json({ error: "Suggestion introuvable." });
       return;
+    }
+    // Recompute-on-vote: met à jour la préférence apprise pour ce type (fire-and-forget).
+    const suggestionType = updated[0]?.type;
+    if (suggestionType) {
+      void bumpPreferenceFromFeedback(orgId, "suggestion_type", suggestionType).catch(() => {});
     }
     res.json({ success: true });
   } catch (err) {

@@ -6,6 +6,7 @@ import { eq, asc, and } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "./ai-quota";
 import { extractGeminiTokens, recordAiUsage } from "./ai-utils";
+import { buildLearnedContextBlock } from "./ai-learning";
 
 const MODEL = process.env.ASSISTANT_MODEL || "gemini-2.5-pro";
 const MAX_TOOL_HOPS = 6;
@@ -106,6 +107,9 @@ export async function runAssistantTurn(
   }
 
   const contents = await loadHistoryForGemini(conversationId, ctx.orgId);
+  // Pilier B: mémoire de l'organisation injectée dans l'instruction système (fail-soft).
+  const learnedBlock = await buildLearnedContextBlock(ctx.orgId);
+  const systemInstruction = SYSTEM_INSTRUCTION + learnedBlock;
   let hops = 0;
 
   while (hops < MAX_TOOL_HOPS) {
@@ -117,7 +121,7 @@ export async function runAssistantTurn(
         model: MODEL,
         contents: contents as unknown as Parameters<typeof ai.models.generateContent>[0]["contents"],
         config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
+          systemInstruction,
           // Gemini SDK's Tool type uses Schema for properties; our declarations
           // use plain JSON-Schema-style records, so we cast through unknown.
           tools: [getGeminiToolDeclarations()] as unknown as Parameters<typeof ai.models.generateContent>[0]["config"] extends infer C ? C extends { tools?: infer T } ? T : never : never,

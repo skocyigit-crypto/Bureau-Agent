@@ -236,6 +236,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         items: [
           { name: "Tableau de bord", href: "/", icon: LayoutDashboard },
           ...(canUseAi ? [{ name: "Assistant proactif", href: "/assistant-proactif", icon: Sparkles }] : []),
+          ...(canUseAi ? [{ name: "Ce que l'IA a appris", href: "/ia-apprentissage", icon: Brain }] : []),
           { name: "Calendrier", href: "/calendrier", icon: Calendar },
           { name: "Rappels", href: "/notifications", icon: Bell, badge: badges.rappel },
           { name: "Activité récente", href: "/activite-recente", icon: Activity },

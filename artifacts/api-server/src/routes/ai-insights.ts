@@ -3,6 +3,7 @@ import { db, aiInsightsTable } from "@workspace/db";
 import { and, eq, desc, sql, gt, isNull, or } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { generateInsightsForOrg } from "../services/ai-insights";
+import { bumpPreferenceFromFeedback } from "../services/ai-learning";
 import { AiQuotaExceededError } from "../services/ai-quota";
 import { logger } from "../lib/logger";
 
@@ -61,8 +62,13 @@ router.post("/ai-insights/:id/vote", async (req: Request, res: Response): Promis
     const updated = await db.update(aiInsightsTable)
       .set({ vote: v })
       .where(and(eq(aiInsightsTable.id, id), eq(aiInsightsTable.organisationId, orgId)))
-      .returning({ id: aiInsightsTable.id });
+      .returning({ id: aiInsightsTable.id, category: aiInsightsTable.category });
     if (updated.length === 0) { res.status(404).json({ error: "Insight introuvable." }); return; }
+    // Recompute-on-vote: met à jour la préférence apprise pour cette catégorie.
+    const cat = updated[0]?.category;
+    if (cat) {
+      void bumpPreferenceFromFeedback(orgId, "insight_category", cat).catch(() => {});
+    }
     res.json({ success: true });
   } catch (err) {
     logger.error({ err }, "[ai-insights] vote failed");

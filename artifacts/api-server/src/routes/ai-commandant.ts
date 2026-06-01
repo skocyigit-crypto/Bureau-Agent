@@ -7,6 +7,7 @@ import { sendEmail } from "../services/email";
 import { getContextForContact, getLatestAgentInsights, buildCommandantContextPrompt } from "./agent-collaboration";
 import { safeJsonParse, extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, sanitizePromptInput } from "../services/ai-utils";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
+import { buildLearnedContextBlock } from "../services/ai-learning";
 import { getOrCompute, buildAiCacheKey, getCached, setCached, withProviderTimeout, AI_CACHE_TTL } from "../services/ai-cache";
 import { openSseStream, multiAiGenerateStream, StreamAbortedError } from "../services/ai-stream";
 import { logger } from "../lib/logger";
@@ -391,7 +392,7 @@ Tu es extremement professionnel, empathique et intelligent. Tu connais l'histori
 Tu as acces aux rapports des agents IA specialises (telephonie, CRM, productivite, finance) pour enrichir ta reponse.
 Reponds TOUJOURS en francais. Sois chaleureux mais professionnel.
 
-${collaborationContext}`;
+${collaborationContext}${await buildLearnedContextBlock(orgId)}`;
 
     const prompt = `APPEL ${callDirection === "entrant" ? "ENTRANT" : "SORTANT"}:
 - Appelant: ${callerName || "Inconnu"} (${callerPhone || "Pas de numero"})
@@ -460,7 +461,7 @@ router.post("/commandant/call-compile", async (req: Request, res: Response): Pro
     const orgId = getOrgId(req);
     const { callId, notes, duration, callerName, callerPhone } = req.body;
 
-    const systemPrompt = `Tu es un expert en analyse d'appels telephoniques professionnels. Tu dois analyser et compiler les resultats d'un appel. Sois precis, actionnable et en francais.`;
+    const systemPrompt = `Tu es un expert en analyse d'appels telephoniques professionnels. Tu dois analyser et compiler les resultats d'un appel. Sois precis, actionnable et en francais.${await buildLearnedContextBlock(orgId)}`;
     const prompt = `Analyse cet appel et genere un JSON:
 - Appelant: ${callerName || "Inconnu"} (${callerPhone || ""})
 - Duree: ${duration || "N/A"} secondes

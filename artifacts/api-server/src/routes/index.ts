@@ -72,6 +72,7 @@ import syncRouter from "./sync";
 import { autoBroadcast } from "../middleware/auto-broadcast";
 import discoveryRouter from "./discovery";
 import proactiveRouter from "./proactive";
+import aiLearningRouter from "./ai-learning";
 import stripeRouter from "./stripe";
 import adminSaasDashboardRouter from "./admin-saas-dashboard";
 
@@ -189,5 +190,6 @@ router.use(workforceIntelligenceRouter);
 router.use(workforceAgentRouter);
 router.use(discoveryRouter);
 router.use(proactiveRouter);
+router.use(aiLearningRouter);
 
 export default router;

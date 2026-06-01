@@ -44,3 +44,4 @@ export * from "./assistant";
 export * from "./commandant-chat";
 export * from "./security-lists";
 export * from "./proactive-suggestions";
+export * from "./ai-learning";
