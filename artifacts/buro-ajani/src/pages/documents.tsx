@@ -96,6 +96,7 @@ export default function DocumentsPage() {
   const [search, setSearch] = useState("");
   const [filterEntity, setFilterEntity] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterScan, setFilterScan] = useState<string>("all");
   const [selectedDoc, setSelectedDoc] = useState<any>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [analyzingId, setAnalyzingId] = useState<number | null>(null);
@@ -110,6 +111,7 @@ export default function DocumentsPage() {
       const params = new URLSearchParams({ limit: "100" });
       if (filterEntity !== "all") params.set("entityType", filterEntity);
       if (filterCategory !== "all") params.set("category", filterCategory);
+      if (filterScan !== "all") params.set("scanVerdict", filterScan);
 
       const [docsRes, statsRes] = await Promise.all([
         fetch(`${API}/api/documents/list?${params}`, { credentials: "include" }),
@@ -133,7 +135,7 @@ export default function DocumentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterEntity, filterCategory]);
+  }, [filterEntity, filterCategory, filterScan]);
 
   useEffect(() => { loadDocuments(); }, [loadDocuments]);
 
@@ -356,6 +358,18 @@ export default function DocumentsPage() {
                 {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
                   <SelectItem key={key} value={key}>{label}</SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterScan} onValueChange={setFilterScan}>
+              <SelectTrigger className="w-[170px]">
+                <ShieldCheck className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="Sécurité" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toute sécurité</SelectItem>
+                <SelectItem value="safe">Vérifié (sain)</SelectItem>
+                <SelectItem value="dangerous">Menace détectée</SelectItem>
+                <SelectItem value="none">Non analysé</SelectItem>
               </SelectContent>
             </Select>
           </div>

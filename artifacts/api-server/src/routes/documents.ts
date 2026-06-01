@@ -288,6 +288,7 @@ router.get("/documents/list", requireMinAgent, async (req: Request, res: Respons
     const entityType = req.query.entityType ? String(req.query.entityType) : undefined;
     const entityId = req.query.entityId ? parseInt(String(req.query.entityId)) : undefined;
     const category = req.query.category ? String(req.query.category) : undefined;
+    const scanVerdict = req.query.scanVerdict ? String(req.query.scanVerdict) : undefined;
     const limit = Math.min(parseInt(String(req.query.limit || "50")), 200);
     const offset = parseInt(String(req.query.offset || "0"));
 
@@ -295,6 +296,10 @@ router.get("/documents/list", requireMinAgent, async (req: Request, res: Respons
     if (entityType) conditions.push(eq(documentsTable.entityType, entityType));
     if (entityId && !isNaN(entityId)) conditions.push(eq(documentsTable.entityId, entityId));
     if (category) conditions.push(eq(documentsTable.category, category));
+    if (scanVerdict) {
+      if (scanVerdict === "none") conditions.push(sql`${documentsTable.scanVerdict} IS NULL`);
+      else conditions.push(eq(documentsTable.scanVerdict, scanVerdict));
+    }
 
     const [docs, countResult] = await Promise.all([
       db.select({
@@ -939,11 +944,16 @@ router.get("/documents/by-source", requireMinAgent, async (req: Request, res: Re
     const orgId = getOrgId(req);
     const entityType = req.query.entityType ? String(req.query.entityType) : undefined;
     const search = req.query.q ? String(req.query.q) : undefined;
+    const scanVerdict = req.query.scanVerdict ? String(req.query.scanVerdict) : undefined;
     const limit = Math.min(parseInt(String(req.query.limit || "60")), 200);
 
     const conditions: any[] = [eq(documentsTable.organisationId, orgId)];
     if (entityType && entityType !== "all") conditions.push(eq(documentsTable.entityType, entityType));
     if (search) conditions.push(sql`(${documentsTable.originalName} ILIKE ${"%" + search + "%"} OR ${documentsTable.description} ILIKE ${"%" + search + "%"})`);
+    if (scanVerdict && scanVerdict !== "all") {
+      if (scanVerdict === "none") conditions.push(sql`${documentsTable.scanVerdict} IS NULL`);
+      else conditions.push(eq(documentsTable.scanVerdict, scanVerdict));
+    }
 
     const docs = await db.select({
       id: documentsTable.id,

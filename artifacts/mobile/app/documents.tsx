@@ -230,17 +230,19 @@ export default function DocumentsScreen() {
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [scanningIds, setScanningIds] = useState<number[]>([]);
+  const [scanFilter, setScanFilter] = useState("all");
 
   const load = useCallback(async () => {
     try {
       const params = new URLSearchParams({ limit: "120" });
       if (sourceFilter !== "all") params.set("entityType", sourceFilter);
       if (search.trim()) params.set("q", search.trim());
+      if (scanFilter !== "all") params.set("scanVerdict", scanFilter);
       const res = await fetchAuth(`${API_BASE}/api/documents/by-source?${params}`);
       if (res.ok) setData(await res.json());
     } catch {}
     finally { setLoading(false); setRefreshing(false); }
-  }, [fetchAuth, sourceFilter, search]);
+  }, [fetchAuth, sourceFilter, search, scanFilter]);
 
   useEffect(() => { setLoading(true); load(); }, [load]);
   function onRefresh() { setRefreshing(true); load(); }
@@ -291,6 +293,14 @@ export default function DocumentsScreen() {
       setScanningIds(prev => prev.filter(x => x !== id));
     }
   }
+
+  // Security-status filter items
+  const scanTabs: { key: string; label: string; icon: keyof typeof Feather.glyphMap; color: string }[] = [
+    { key: "all",       label: "Toute sécurité", icon: "shield",         color: "#0f766e" },
+    { key: "safe",      label: "Vérifié",        icon: "shield",         color: "#10b981" },
+    { key: "dangerous", label: "Menace",         icon: "alert-triangle", color: "#ef4444" },
+    { key: "none",      label: "Non analysé",    icon: "help-circle",    color: "#64748b" },
+  ];
 
   // Source filter bar items
   const sourceTabs = [
@@ -370,6 +380,22 @@ export default function DocumentsScreen() {
                   <Text style={st.sourceBadgeText}>{s.count}</Text>
                 </View>
               )}
+            </Pressable>
+          )}
+        />
+
+        {/* Security-status filter — scrollable */}
+        <FlatList
+          data={scanTabs}
+          horizontal
+          keyExtractor={s => s.key}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 6 }}
+          renderItem={({ item: s }) => (
+            <Pressable onPress={() => setScanFilter(s.key)}
+              style={[st.sourceChip, { backgroundColor: scanFilter === s.key ? s.color : "rgba(255,255,255,0.13)" }]}>
+              <Feather name={s.icon} size={11} color={scanFilter === s.key ? "#fff" : "rgba(255,255,255,0.75)"} />
+              <Text style={[st.sourceChipText, { color: scanFilter === s.key ? "#fff" : "rgba(255,255,255,0.75)" }]}>{s.label}</Text>
             </Pressable>
           )}
         />
