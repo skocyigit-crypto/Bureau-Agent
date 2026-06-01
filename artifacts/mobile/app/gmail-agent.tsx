@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState } from "@/components/EmptyState";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { AvatarDock } from "@/components/AvatarDock";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface GmailProfile {
@@ -725,6 +726,9 @@ export default function GmailAgentScreen() {
                   <View style={[styles.scanBadgeHeader, { backgroundColor: RISK_CFG[scanReport.overallRisk].color + "30" }]}>
                     <Feather name={RISK_CFG[scanReport.overallRisk].icon} size={13} color="#fff" />
                   </View>
+                ) : null}
+                {selected.aiSummary ? (
+                  <AvatarDock text={selected.aiSummary} autoSpeak={false} size={32} storageKey="buro.gmailm.voice" />
                 ) : null}
                 <Pressable onPress={() => handleStar(selected)} style={styles.backBtn}>
                   {actionLoading === "star-" + selected.id

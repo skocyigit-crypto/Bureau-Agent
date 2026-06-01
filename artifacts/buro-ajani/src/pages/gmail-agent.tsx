@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { AvatarDock } from "@workspace/ai-avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -640,6 +641,12 @@ export default function GmailAgentPage() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <AvatarDock
+            text={aiDraft?.replyBodyPlain || aiDraft?.replyBodyHtml?.replace(/<[^>]+>/g, "") || undefined}
+            autoSpeak={false}
+            accent="#2563eb"
+            storageKey="buro.gmail.voice"
+          />
           <Button variant="outline" size="sm" onClick={() => { refetchInbox(); qc.invalidateQueries({ queryKey: ["gmail-message"] }); }}>
             <RefreshCw className="h-4 w-4 mr-1" />Actualiser
           </Button>

@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { AvatarDock } from "@/components/AvatarDock";
 
 type Tab = "apercu" | "email" | "chantier" | "journal";
 
@@ -334,6 +335,11 @@ function ChantierTab() {
               )}
             </View>
             {result.summary && <Text style={[sa.bodyText, { color: colors.foreground, marginTop: 6 }]}>{result.summary}</Text>}
+            {result.summary ? (
+              <View style={{ marginTop: 8 }}>
+                <AvatarDock text={result.summary} autoSpeak={false} storageKey="buro.superagent.voice" />
+              </View>
+            ) : null}
           </View>
 
           {/* Issues found */}

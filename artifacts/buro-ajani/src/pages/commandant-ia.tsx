@@ -24,6 +24,7 @@ import {
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { streamSse } from "@/lib/ai-stream-client";
+import { AvatarDock } from "@workspace/ai-avatar";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -1209,6 +1210,7 @@ function ChatTab() {
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
+  const [spokenText, setSpokenText] = useState("");
   const [input, setInput] = useState("");
   const [loadingList, setLoadingList] = useState(false);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
@@ -1368,6 +1370,7 @@ function ChatTab() {
           const without = prev.filter(m => m.id !== optimistic.id);
           return [...without, d.userMessage, d.assistantMessage];
         });
+        if (d.assistantMessage?.content) setSpokenText(d.assistantMessage.content);
         if (d.conversation) {
           setConversations(prev => {
             const others = prev.filter(c => c.id !== d.conversation.id);
@@ -1523,11 +1526,16 @@ function ChatTab() {
 
       <Card className="col-span-9 flex flex-col">
         <CardHeader className="pb-2 border-b">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Brain className="h-4 w-4 text-amber-500" />
-            {selectedId ? (conversations.find(c => c.id === selectedId)?.title || "Conversation") : "Commandant IA"}
-          </CardTitle>
-          <CardDescription className="text-xs">Posez vos questions, je me souviens de notre echange.</CardDescription>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Brain className="h-4 w-4 text-amber-500" />
+                {selectedId ? (conversations.find(c => c.id === selectedId)?.title || "Conversation") : "Commandant IA"}
+              </CardTitle>
+              <CardDescription className="text-xs">Posez vos questions, je me souviens de notre echange.</CardDescription>
+            </div>
+            <AvatarDock text={spokenText} accent="#f59e0b" storageKey="buro.commandant.voice" />
+          </div>
         </CardHeader>
         <CardContent className="flex-1 overflow-hidden p-0 flex flex-col">
           <ScrollArea className="flex-1 p-4">

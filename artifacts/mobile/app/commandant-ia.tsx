@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { AvatarDock } from "@/components/AvatarDock";
 
 type Tab = "briefing" | "search" | "email" | "taches" | "reunions" | "equipe" | "finance";
 
@@ -130,6 +131,11 @@ function BriefingSection({ data, loading, onRefresh }: { data: BriefingData | nu
             </Pressable>
           </View>
           {data.summary && <Text style={[styles.summaryText, { color: colors.foreground }]}>{data.summary}</Text>}
+          {(data.summary || data.greeting) ? (
+            <View style={{ marginTop: 8 }}>
+              <AvatarDock text={data.summary || data.greeting} autoSpeak={false} storageKey="buro.cmd.briefing.voice" />
+            </View>
+          ) : null}
         </View>
       )}
 

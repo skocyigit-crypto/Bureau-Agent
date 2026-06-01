@@ -57,14 +57,25 @@ export interface TalkingAvatarProps {
   /** When true, no audio plays (mouth stays at rest). Default false. */
   muted?: boolean;
   palette?: Partial<AvatarPalette>;
+  /** Notified when on-device voice availability for `lang` is known. */
+  onAvailability?: (info: { hasVoice: boolean }) => void;
+  /** Notified when the avatar starts / stops speaking. */
+  onSpeakingChange?: (speaking: boolean) => void;
 }
 
 const CX = 100;
 const CY_MOUTH = 138;
 const MAX_HALF_W = 30;
 const MAX_OPEN = 26;
-const FRAME_MS = 33; // ~30fps render throttle
+const FRAME_SPEAK_MS = 33; // ~30fps while talking (smooth lip-sync)
+const FRAME_IDLE_MS = 160; // ~6fps when idle (only the gentle breathe moves) — saves battery
 const VISEME_STEP_MS = 85; // cadence at which the spoken viseme advances
+// Safety net: if the speech engine never fires onDone/onStopped (some Android
+// TTS engines don't), stop after a duration scaled to the text length so the
+// mouth/ring don't animate forever.
+const SAFETY_MIN_MS = 4000;
+const SAFETY_MAX_MS = 30000;
+const SAFETY_PER_CHAR_MS = 75;
 
 function mouthPath(w: number, h: number): string {
   const halfW = MAX_HALF_W * w;
@@ -96,7 +107,7 @@ const REST_PATH = mouthPath(0.52, 0.05);
  */
 export const TalkingAvatar = forwardRef<TalkingAvatarHandle, TalkingAvatarProps>(
   function TalkingAvatar(
-    { text, lang = "fr", size = 220, autoPlay = true, muted = false, palette },
+    { text, lang = "fr", size = 220, autoPlay = true, muted = false, palette, onAvailability, onSpeakingChange },
     ref,
   ) {
     const p = { ...DEFAULT_PALETTE, ...palette };
@@ -120,6 +131,7 @@ export const TalkingAvatar = forwardRef<TalkingAvatarHandle, TalkingAvatarProps>
     const visemesRef = useRef<VisemeKey[]>([]);
     const visemeIdxRef = useRef(0);
     const stepTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+    const safetyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const stop = useCallback(() => {
       try {
@@ -130,6 +142,10 @@ export const TalkingAvatar = forwardRef<TalkingAvatarHandle, TalkingAvatarProps>
       if (stepTimer.current) {
         clearInterval(stepTimer.current);
         stepTimer.current = null;
+      }
+      if (safetyTimer.current) {
+        clearTimeout(safetyTimer.current);
+        safetyTimer.current = null;
       }
       speakingRef.current = false;
       target.current = VISEME_SHAPES.rest;
@@ -169,6 +185,14 @@ export const TalkingAvatar = forwardRef<TalkingAvatarHandle, TalkingAvatarProps>
         }, VISEME_STEP_MS);
 
         const finish = () => stop();
+
+        // Safety net in case the engine never reports completion.
+        if (safetyTimer.current) clearTimeout(safetyTimer.current);
+        safetyTimer.current = setTimeout(
+          finish,
+          Math.min(SAFETY_MAX_MS, Math.max(SAFETY_MIN_MS, toSay.length * SAFETY_PER_CHAR_MS)),
+        );
+
         try {
           Speech.speak(toSay, {
             language: lang === "tr" ? "tr-TR" : "fr-FR",
@@ -201,6 +225,31 @@ export const TalkingAvatar = forwardRef<TalkingAvatarHandle, TalkingAvatarProps>
     }, [muted, stop]);
     useEffect(() => () => stop(), [stop]);
 
+    useEffect(() => {
+      onSpeakingChange?.(speaking);
+    }, [speaking, onSpeakingChange]);
+
+    // report whether the device actually has a voice for this language so the
+    // host can warn the user instead of the avatar silently not speaking
+    useEffect(() => {
+      if (!onAvailability) return;
+      let cancelled = false;
+      const wanted = lang === "tr" ? "tr" : "fr";
+      (async () => {
+        try {
+          const voices = await Speech.getAvailableVoicesAsync();
+          const has = voices.some((v) => (v.language || "").toLowerCase().startsWith(wanted));
+          if (!cancelled) onAvailability({ hasVoice: has });
+        } catch {
+          // If we cannot enumerate voices, assume the system default works.
+          if (!cancelled) onAvailability({ hasVoice: true });
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [lang, onAvailability]);
+
     // single throttled animation loop: eases mouth + drives breathe/ring pulse
     useEffect(() => {
       let raf = 0;
@@ -208,7 +257,8 @@ export const TalkingAvatar = forwardRef<TalkingAvatarHandle, TalkingAvatarProps>
       let t0 = Date.now();
       const tick = () => {
         const now = Date.now();
-        if (now - last >= FRAME_MS) {
+        const frame = speakingRef.current ? FRAME_SPEAK_MS : FRAME_IDLE_MS;
+        if (now - last >= frame) {
           last = now;
           const c = cur.current;
           const tg = target.current;

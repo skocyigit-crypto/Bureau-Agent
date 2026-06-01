@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { confirmAction } from "@/hooks/use-confirm";
-import { TalkingAvatar, type SpeechLang } from "@workspace/ai-avatar";
-import { Sparkles, Send, Plus, Trash2, Wrench, CheckCircle2, AlertCircle, Loader2, MessageSquare, ShieldAlert, Check, X, Volume2, VolumeX } from "lucide-react";
+import { TalkingAvatar, type SpeechLang, type TalkingAvatarHandle } from "@workspace/ai-avatar";
+import { Sparkles, Send, Plus, Trash2, Wrench, CheckCircle2, AlertCircle, Loader2, MessageSquare, ShieldAlert, Check, X, Volume2, VolumeX, RotateCcw, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -79,6 +79,19 @@ function MessageBubble({ msg }: { msg: Message }) {
   );
 }
 
+const VOICE_PREF_KEY = "buro.asistan.voice";
+function readVoicePref(): { on: boolean; lang: SpeechLang } {
+  if (typeof window === "undefined") return { on: true, lang: "fr" };
+  try {
+    const raw = window.localStorage.getItem(VOICE_PREF_KEY);
+    if (raw) {
+      const p = JSON.parse(raw) as { on?: boolean; lang?: string };
+      return { on: typeof p.on === "boolean" ? p.on : true, lang: p.lang === "tr" ? "tr" : "fr" };
+    }
+  } catch { /* ignore */ }
+  return { on: true, lang: "fr" };
+}
+
 export default function AsistanPage() {
   const { toast } = useToast();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -89,9 +102,12 @@ export default function AsistanPage() {
   const [liveSteps, setLiveSteps] = useState<StepEvent[]>([]);
   const [liveText, setLiveText] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingAction | null>(null);
-  const [voiceOn, setVoiceOn] = useState(true);
-  const [voiceLang, setVoiceLang] = useState<SpeechLang>("fr");
+  const [voiceOn, setVoiceOn] = useState<boolean>(() => readVoicePref().on);
+  const [voiceLang, setVoiceLang] = useState<SpeechLang>(() => readVoicePref().lang);
   const [spokenText, setSpokenText] = useState<string>("");
+  const [avatarSpeaking, setAvatarSpeaking] = useState(false);
+  const [voiceUnavailable, setVoiceUnavailable] = useState(false);
+  const avatarRef = useRef<TalkingAvatarHandle>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const loadConversations = useCallback(async () => {
@@ -117,6 +133,10 @@ export default function AsistanPage() {
   }, []);
 
   useEffect(() => { loadConversations(); }, [loadConversations]);
+
+  useEffect(() => {
+    try { window.localStorage.setItem(VOICE_PREF_KEY, JSON.stringify({ on: voiceOn, lang: voiceLang })); } catch { /* ignore */ }
+  }, [voiceOn, voiceLang]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -284,11 +304,15 @@ export default function AsistanPage() {
         <div className="px-4 py-3 border-b flex items-center gap-3">
           <div className="h-14 w-14 rounded-full overflow-hidden shrink-0 ring-2 ring-violet-500/30">
             <TalkingAvatar
+              ref={avatarRef}
               text={voiceOn ? spokenText : ""}
               lang={voiceLang}
               autoPlay={voiceOn}
               size={56}
               palette={{ ring: "#a855f7" }}
+              onStart={() => setAvatarSpeaking(true)}
+              onEnd={() => setAvatarSpeaking(false)}
+              onAvailability={({ supported, hasVoiceForLang }) => setVoiceUnavailable(supported && !hasVoiceForLang)}
             />
           </div>
           <div className="flex-1 min-w-0">
@@ -318,8 +342,27 @@ export default function AsistanPage() {
             >
               {voiceOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              disabled={!voiceOn || (!avatarSpeaking && !spokenText.trim())}
+              onClick={() => {
+                if (avatarSpeaking) avatarRef.current?.stop();
+                else if (spokenText.trim()) avatarRef.current?.speak(spokenText, voiceLang);
+              }}
+              title={avatarSpeaking ? "Arrêter" : "Réécouter la dernière réponse"}
+              data-testid="replay-voice"
+            >
+              {avatarSpeaking ? <Square className="h-3.5 w-3.5" /> : <RotateCcw className="h-4 w-4" />}
+            </Button>
           </div>
         </div>
+        {voiceOn && voiceUnavailable && (
+          <div className="px-4 py-1.5 text-[11px] text-amber-600 bg-amber-50 border-b border-amber-100">
+            Aucune voix {voiceLang === "fr" ? "française" : "turque"} installée sur cet appareil — l'avatar reste muet (rien n'est envoyé en ligne).
+          </div>
+        )}
 
         <ScrollArea className="flex-1" ref={scrollRef as any}>
           <div className="p-4 space-y-3 max-w-3xl mx-auto">

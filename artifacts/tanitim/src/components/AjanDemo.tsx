@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Send, Mic, MicOff, ArrowRight, Search, Zap, Bot, User, Loader2, X, Volume2, VolumeX } from "lucide-react";
+import { Sparkles, Send, Mic, MicOff, ArrowRight, Search, Zap, Bot, User, Loader2, X, Volume2, VolumeX, RotateCcw, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { TalkingAvatar, type SpeechLang } from "@workspace/ai-avatar";
+import { TalkingAvatar, type SpeechLang, type TalkingAvatarHandle } from "@workspace/ai-avatar";
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 // In dev the API server runs on the same proxy host; in prod the marketing site
@@ -48,6 +48,19 @@ function encodeHandoff(history: Msg[]): string {
   } catch { return ""; }
 }
 
+const VOICE_PREF_KEY = "tanitim.demo.voice";
+function readVoicePref(): { on: boolean; lang: SpeechLang } {
+  if (typeof window === "undefined") return { on: true, lang: "fr" };
+  try {
+    const raw = window.localStorage.getItem(VOICE_PREF_KEY);
+    if (raw) {
+      const p = JSON.parse(raw) as { on?: boolean; lang?: string };
+      return { on: typeof p.on === "boolean" ? p.on : true, lang: p.lang === "tr" ? "tr" : "fr" };
+    }
+  } catch { /* ignore */ }
+  return { on: true, lang: "fr" };
+}
+
 export function AjanDemo() {
   const [open, setOpen] = useState(false); // mobile: open as sheet
   const [history, setHistory] = useState<Msg[]>([]);
@@ -57,9 +70,12 @@ export function AjanDemo() {
   const [comparing, setComparing] = useState(true);
   const [activeSample, setActiveSample] = useState(0);
   const [recording, setRecording] = useState(false);
-  const [voiceOn, setVoiceOn] = useState(true);
-  const [voiceLang, setVoiceLang] = useState<SpeechLang>("fr");
+  const [voiceOn, setVoiceOn] = useState<boolean>(() => readVoicePref().on);
+  const [voiceLang, setVoiceLang] = useState<SpeechLang>(() => readVoicePref().lang);
   const [spokenText, setSpokenText] = useState("");
+  const [avatarSpeaking, setAvatarSpeaking] = useState(false);
+  const [voiceUnavailable, setVoiceUnavailable] = useState(false);
+  const avatarRef = useRef<TalkingAvatarHandle>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const recognitionRef = useRef<any>(null);
 
@@ -76,6 +92,10 @@ export function AjanDemo() {
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [history, sending]);
+
+  useEffect(() => {
+    try { window.localStorage.setItem(VOICE_PREF_KEY, JSON.stringify({ on: voiceOn, lang: voiceLang })); } catch { /* ignore */ }
+  }, [voiceOn, voiceLang]);
 
   // Auto-rotate the side-by-side comparison every 6 s when no conversation
   useEffect(() => {
@@ -224,11 +244,15 @@ export function AjanDemo() {
                 <div className="flex items-center gap-3">
                   <div className="relative w-11 h-11 rounded-xl overflow-hidden shadow-lg shadow-amber-500/30 ring-1 ring-amber-400/40">
                     <TalkingAvatar
+                      ref={avatarRef}
                       text={voiceOn ? spokenText : ""}
                       lang={voiceLang}
                       autoPlay={voiceOn}
                       size={44}
                       palette={{ ring: "#f59e0b" }}
+                      onStart={() => setAvatarSpeaking(true)}
+                      onEnd={() => setAvatarSpeaking(false)}
+                      onAvailability={({ supported, hasVoiceForLang }) => setVoiceUnavailable(supported && !hasVoiceForLang)}
                     />
                     <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 border-2 border-slate-900 rounded-full animate-pulse" />
                   </div>
@@ -258,6 +282,17 @@ export function AjanDemo() {
                   >
                     {voiceOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 text-white/40" />}
                   </button>
+                  <button
+                    onClick={() => {
+                      if (avatarSpeaking) avatarRef.current?.stop();
+                      else if (spokenText.trim()) avatarRef.current?.speak(spokenText, voiceLang);
+                    }}
+                    disabled={!voiceOn || (!avatarSpeaking && !spokenText.trim())}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-white/70 hover:bg-white/5 transition disabled:opacity-40 disabled:hover:bg-transparent"
+                    title={avatarSpeaking ? "Arrêter" : "Réécouter la dernière réponse"}
+                  >
+                    {avatarSpeaking ? <Square className="w-3.5 h-3.5" /> : <RotateCcw className="w-4 h-4" />}
+                  </button>
                   {history.length > 0 && (
                     <button
                       onClick={() => { setHistory([]); setComparing(true); setSpokenText(""); }}
@@ -268,6 +303,11 @@ export function AjanDemo() {
                   )}
                 </div>
               </div>
+              {voiceOn && voiceUnavailable && (
+                <div className="px-5 py-1.5 text-[11px] text-amber-300/90 bg-amber-500/10 border-b border-amber-400/20">
+                  Aucune voix {voiceLang === "fr" ? "française" : "turque"} sur cet appareil — l'avatar reste muet (rien n'est envoyé en ligne).
+                </div>
+              )}
 
               {/* Messages */}
               <div ref={scrollRef} className="h-[400px] md:h-[440px] overflow-y-auto px-5 py-6 space-y-4 scroll-smooth">

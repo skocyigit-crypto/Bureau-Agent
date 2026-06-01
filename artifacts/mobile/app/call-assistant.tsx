@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { AvatarDock } from "@/components/AvatarDock";
 
 type Tab = "preparer" | "script" | "compiler" | "sante";
 
@@ -503,6 +504,11 @@ function CompilerTab({ phone, name, callId, contactId }: { phone: string; name: 
               )}
             </View>
             {comp.summary && <Text style={[st.bodyText, { color: colors.foreground }]}>{comp.summary}</Text>}
+            {comp.summary ? (
+              <View style={{ marginTop: 8 }}>
+                <AvatarDock text={comp.summary} autoSpeak={false} storageKey="buro.callassist.voice" />
+              </View>
+            ) : null}
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
               {comp.sentiment && <SentimentBadge s={comp.sentiment} />}
               {comp.followUpNeeded && (

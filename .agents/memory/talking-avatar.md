@@ -37,3 +37,25 @@ app, the marketing site, and the mobile app, speaking French and Turkish.
   browsers without boundary support.
 - Mobile (expo-speech gives no boundary events) drives visemes purely on a steady
   timer (~85ms) while speaking and stops on `onDone`/`onStopped`/`onError`.
+
+## Reusable AvatarDock (controls wrapper around TalkingAvatar)
+- `AvatarDock` wraps `TalkingAvatar` with FR/TR toggle, mute, replay/stop, a
+  "no local voice on this device" hint, and persisted voice prefs. Web copy:
+  `lib/ai-avatar/src/AvatarDock.tsx` (localStorage). Mobile copy:
+  `artifacts/mobile/components/AvatarDock.tsx` (AsyncStorage). Same web/mobile
+  duplication rule as the avatar core applies.
+- `autoSpeak` prop (default true): true = chat screens (each new assistant
+  reply is spoken as it arrives). false = summary/briefing screens — nothing
+  speaks on load; the user replays on demand. Use false anywhere a screen would
+  otherwise auto-speak a long block on entry (annoying UX).
+- **How to apply:** give each host a unique `storageKey` so voice prefs don't
+  collide; feed the dock the latest assistant/summary text, not the whole thread.
+
+## voice-assistant screen is intentionally EXCLUDED from AvatarDock
+- The mobile `voice-assistant` screen already drives `expo-speech` directly with
+  its own full-screen wave UI. Adding an AvatarDock there would double-speak the
+  same text (two TTS engines firing at once).
+- **Why:** AvatarDock auto-speaks `text`; the screen already speaks it.
+- **How to apply:** do NOT add AvatarDock to voice-assistant. If a single
+  speaking head is ever wanted there, first remove the screen's own
+  `Speech.speak` calls so only one TTS source remains.

@@ -20,7 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
-import { TalkingAvatar } from "@/components/TalkingAvatar";
+import { TalkingAvatar, type TalkingAvatarHandle } from "@/components/TalkingAvatar";
 
 // Entity types come from the Commandant IA conversations endpoint
 // (POST /api/commandant/conversations/:id/messages -> assistantMessage.metadata.retrievedEntities).
@@ -83,6 +83,7 @@ function normalizeEntities(raw: any): RetrievedEntity[] {
 }
 
 const CONVERSATION_ID_KEY = "commandant_conversation_id";
+const VOICE_PREF_KEY = "buro.aichat.voice";
 
 const QUICK_ACTIONS = [
   { icon: "bar-chart-2" as const, label: "Briefing du jour", prompt: "Donne-moi le briefing complet de la journee: appels, taches, rendez-vous, factures en retard." },
@@ -175,6 +176,10 @@ export default function AIChatScreen() {
   const [voiceOn, setVoiceOn] = useState(true);
   const [voiceLang, setVoiceLang] = useState<"fr" | "tr">("fr");
   const [spokenText, setSpokenText] = useState("");
+  const [avatarSpeaking, setAvatarSpeaking] = useState(false);
+  const [voiceUnavailable, setVoiceUnavailable] = useState(false);
+  const [voicePrefsLoaded, setVoicePrefsLoaded] = useState(false);
+  const avatarRef = useRef<TalkingAvatarHandle>(null);
   const flatListRef = useRef<FlatList>(null);
   const recognitionRef = useRef<any>(null);
 
@@ -190,6 +195,32 @@ export default function AIChatScreen() {
     content: `Bonjour ${user?.prenom || ""}! Je suis votre Commandant IA. Je peux vous aider avec:\n\n- Briefing quotidien et analyses\n- Recherche dans vos donnees\n- Conseils strategiques CRM\n- Suivi des performances\n\nComment puis-je vous aider?`,
     timestamp: new Date().toISOString(),
   }), [user?.prenom]);
+
+  // Load persisted voice preference (on/off + language) once on mount.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(VOICE_PREF_KEY);
+        if (raw && !cancelled) {
+          const p = JSON.parse(raw) as { on?: boolean; lang?: string };
+          if (typeof p.on === "boolean") setVoiceOn(p.on);
+          if (p.lang === "fr" || p.lang === "tr") setVoiceLang(p.lang);
+        }
+      } catch {
+        /* ignore */
+      } finally {
+        if (!cancelled) setVoicePrefsLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Persist voice preference whenever it changes (after the initial load).
+  useEffect(() => {
+    if (!voicePrefsLoaded) return;
+    AsyncStorage.setItem(VOICE_PREF_KEY, JSON.stringify({ on: voiceOn, lang: voiceLang })).catch(() => {});
+  }, [voicePrefsLoaded, voiceOn, voiceLang]);
 
   // Load (or create) the persistent Commandant IA conversation, then hydrate
   // history from the server. Server-side messages already include the
@@ -502,11 +533,14 @@ export default function AIChatScreen() {
           <View style={styles.headerCenter}>
             <View style={styles.headerAvatarWrap}>
               <TalkingAvatar
+                ref={avatarRef}
                 text={voiceOn ? spokenText : ""}
                 lang={voiceLang}
                 size={40}
                 muted={!voiceOn}
                 autoPlay
+                onAvailability={({ hasVoice }) => setVoiceUnavailable(!hasVoice)}
+                onSpeakingChange={setAvatarSpeaking}
               />
             </View>
             <View>
@@ -538,11 +572,28 @@ export default function AIChatScreen() {
             >
               <Feather name={voiceOn ? "volume-2" : "volume-x"} size={16} color="rgba(255,255,255,0.85)" />
             </Pressable>
+            <Pressable
+              onPress={() => {
+                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                if (avatarSpeaking) avatarRef.current?.stop();
+                else if (spokenText.trim()) avatarRef.current?.speak(spokenText);
+              }}
+              disabled={!voiceOn || (!avatarSpeaking && !spokenText.trim())}
+              style={[styles.clearBtn, (!voiceOn || (!avatarSpeaking && !spokenText.trim())) && { opacity: 0.4 }]}
+              hitSlop={12}
+            >
+              <Feather name={avatarSpeaking ? "square" : "rotate-ccw"} size={15} color="rgba(255,255,255,0.85)" />
+            </Pressable>
             <Pressable onPress={clearHistory} style={styles.clearBtn} hitSlop={12}>
               <Feather name="trash-2" size={16} color="rgba(255,255,255,0.6)" />
             </Pressable>
           </View>
         </View>
+        {voiceOn && voiceUnavailable && (
+          <Text style={styles.voiceHint}>
+            Aucune voix {voiceLang === "fr" ? "française" : "turque"} sur cet appareil — l'avatar reste muet.
+          </Text>
+        )}
       </View>
 
       <KeyboardAvoidingView
@@ -693,6 +744,7 @@ const styles = StyleSheet.create({
   headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   msgCount: { fontSize: 12, fontFamily: "Inter_400Regular" },
   clearBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center" },
+  voiceHint: { color: "rgba(255,255,255,0.6)", fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 8, paddingHorizontal: 4 },
   chatArea: { flex: 1 },
   messageList: { padding: 16 },
   dateSep: { flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 12 },

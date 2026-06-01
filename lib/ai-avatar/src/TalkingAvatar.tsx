@@ -19,6 +19,8 @@ export interface TalkingAvatarProps extends Pick<AvatarFaceProps, "size" | "pale
   autoPlay?: boolean;
   onStart?: () => void;
   onEnd?: () => void;
+  /** Notified when speech support / on-device voice availability changes. */
+  onAvailability?: (info: { supported: boolean; hasVoiceForLang: boolean }) => void;
 }
 
 /**
@@ -26,7 +28,7 @@ export interface TalkingAvatarProps extends Pick<AvatarFaceProps, "size" | "pale
  * No audio or text ever leaves the browser.
  */
 export const TalkingAvatar = forwardRef<TalkingAvatarHandle, TalkingAvatarProps>(function TalkingAvatar(
-  { text, lang = "fr", gender = "female", rate, pitch, autoPlay = true, onStart, onEnd, size, palette, className },
+  { text, lang = "fr", gender = "female", rate, pitch, autoPlay = true, onStart, onEnd, onAvailability, size, palette, className },
   ref,
 ) {
   const tts = useTextToSpeech({ lang, gender, rate, pitch });
@@ -53,6 +55,10 @@ export const TalkingAvatar = forwardRef<TalkingAvatarHandle, TalkingAvatarProps>
     if (!tts.speaking && wasSpeaking.current) onEnd?.();
     wasSpeaking.current = tts.speaking;
   }, [tts.speaking, onStart, onEnd]);
+
+  useEffect(() => {
+    onAvailability?.({ supported: tts.supported, hasVoiceForLang: tts.hasVoiceForLang });
+  }, [tts.supported, tts.hasVoiceForLang, onAvailability]);
 
   return <AvatarFace viseme={tts.viseme} speaking={tts.speaking} size={size} palette={palette} className={className} />;
 });
