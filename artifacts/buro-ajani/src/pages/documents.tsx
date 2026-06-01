@@ -14,6 +14,7 @@ import {
   FileText, FileSpreadsheet, Image as ImageIcon, File, Download,
   Trash2, Brain, Sparkles, Search, Filter, BarChart3, HardDrive,
   Upload, Loader2, Eye, Printer, Edit, FolderKanban, ShieldCheck, ShieldAlert,
+  Shield, ShieldQuestion,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -100,6 +101,7 @@ export default function DocumentsPage() {
   const [selectedDoc, setSelectedDoc] = useState<any>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [analyzingId, setAnalyzingId] = useState<number | null>(null);
+  const [scanningId, setScanningId] = useState<number | null>(null);
   const [editingDoc, setEditingDoc] = useState<Doc | null>(null);
   const [editDocForm, setEditDocForm] = useState({ category: "", description: "", entityType: "" });
   const [editDocSaving, setEditDocSaving] = useState(false);
@@ -193,6 +195,28 @@ export default function DocumentsPage() {
       toast({ title: "Erreur d'analyse", variant: "destructive" });
     } finally {
       setAnalyzingId(null);
+    }
+  };
+
+  const rescanDoc = async (id: number) => {
+    setScanningId(id);
+    try {
+      const res = await fetch(`${API}/api/documents/${id}/scan`, { method: "POST", credentials: "include" });
+      if (res.ok) {
+        const result = await res.json();
+        if (result.scanVerdict === "safe") {
+          toast({ title: "Document vérifié : sain" });
+        } else {
+          toast({ title: "Menace détectée", description: "Ce fichier a été marqué comme dangereux.", variant: "destructive" });
+        }
+        await loadDocuments();
+      } else {
+        toast({ title: "Erreur d'analyse antivirus", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur d'analyse antivirus", variant: "destructive" });
+    } finally {
+      setScanningId(null);
     }
   };
 
@@ -443,6 +467,11 @@ export default function DocumentsPage() {
                               <ShieldAlert className="w-2.5 h-2.5" /> Menace
                             </Badge>
                           )}
+                          {!doc.scanVerdict && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 bg-slate-500/10 text-slate-500">
+                              <ShieldQuestion className="w-2.5 h-2.5" /> Non analysé
+                            </Badge>
+                          )}
                           <span className="text-xs text-muted-foreground">
                             {new Date(doc.createdAt).toLocaleDateString("fr-FR")}
                           </span>
@@ -461,6 +490,16 @@ export default function DocumentsPage() {
                         {!doc.aiProcessed && (
                           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => analyzeDoc(doc.id)} disabled={analyzingId === doc.id}>
                             {analyzingId === doc.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
+                          </Button>
+                        )}
+                        {!doc.scanVerdict && (
+                          <Button
+                            size="icon" variant="ghost" className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                            title="Analyser la sécurité"
+                            onClick={() => rescanDoc(doc.id)}
+                            disabled={scanningId === doc.id}
+                          >
+                            {scanningId === doc.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
                           </Button>
                         )}
                         <Button
@@ -542,6 +581,26 @@ export default function DocumentsPage() {
                     {selectedDoc.scanDetail && (
                       <p className="text-xs text-muted-foreground mt-2">{selectedDoc.scanDetail}</p>
                     )}
+                  </div>
+                </>
+              )}
+
+              {!selectedDoc.scanVerdict && (
+                <>
+                  <Separator />
+                  <div>
+                    <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+                      <ShieldQuestion className="w-4 h-4 text-slate-400" /> Analyse antivirus
+                    </h4>
+                    <p className="text-sm text-muted-foreground mb-3">Ce document n'a pas encore été analysé.</p>
+                    <Button
+                      size="sm" variant="outline" className="gap-2"
+                      disabled={scanningId === selectedDoc.id}
+                      onClick={async () => { await rescanDoc(selectedDoc.id); await viewDetail(selectedDoc.id); }}
+                    >
+                      {scanningId === selectedDoc.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
+                      Analyser la sécurité
+                    </Button>
                   </div>
                 </>
               )}

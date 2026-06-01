@@ -198,7 +198,7 @@ function DocCard({ doc, colors, onDelete, onDownload, onRead, onRescan, scanning
             {scanning
               ? <ActivityIndicator size="small" color="#10b981" />
               : <Feather name="shield" size={12} color="#10b981" />}
-            <Text style={[st.actionBtnText, { color: "#10b981" }]}>{scanning ? "..." : "Rescanner"}</Text>
+            <Text style={[st.actionBtnText, { color: "#10b981" }]}>{scanning ? "..." : (doc.scanVerdict ? "Rescanner" : "Analyser")}</Text>
           </Pressable>
           <Pressable
             onPress={() => {
