@@ -54,13 +54,40 @@ router.post("/security/scan-url", async (req, res) => {
 });
 
 /** Scanne un document encode en base64 (antivirus heuristique). */
+// Plafond de taille decodee (10 Mo) — borne l'abus et la consommation memoire.
+const MAX_SCAN_DECODED_BYTES = 10 * 1024 * 1024;
+// Garde grossiere sur la longueur encodee, evaluee AVANT la regex pour ne pas
+// faire tourner le validateur sur une chaine demesuree.
+const MAX_SCAN_BASE64_CHARS = Math.ceil(MAX_SCAN_DECODED_BYTES / 3) * 4 + 4;
+// Strict: uniquement un prefixe data-URI base64 valide est retire.
+const DATA_URI_BASE64_RE = /^data:[^,]*;base64,/i;
+const BASE64_RE = /^[A-Za-z0-9+/]+={0,2}$/;
+
 router.post("/security/scan-document", (req, res) => {
   const { content, filename } = req.body ?? {};
   if (!content || typeof content !== "string") {
     res.status(400).json({ error: "Contenu a scanner requis (base64)." });
     return;
   }
-  const result = scanBase64Content(content, typeof filename === "string" ? filename : undefined);
+  // On ne retire QUE un prefixe data-URI base64 strict; tout autre contenu est
+  // traite tel quel comme du base64 (pas de slice generique sur la 1ere virgule).
+  const b64 = content.replace(DATA_URI_BASE64_RE, "");
+  if (b64.length > MAX_SCAN_BASE64_CHARS) {
+    res.status(413).json({ error: "Fichier trop volumineux (max 10 Mo)." });
+    return;
+  }
+  if (!BASE64_RE.test(b64) || b64.length % 4 !== 0) {
+    res.status(400).json({ error: "Contenu base64 invalide." });
+    return;
+  }
+  // Taille decodee exacte = (len / 4) * 3 - padding.
+  const padding = b64.endsWith("==") ? 2 : b64.endsWith("=") ? 1 : 0;
+  const decodedBytes = (b64.length / 4) * 3 - padding;
+  if (decodedBytes > MAX_SCAN_DECODED_BYTES) {
+    res.status(413).json({ error: "Fichier trop volumineux (max 10 Mo)." });
+    return;
+  }
+  const result = scanBase64Content(b64, typeof filename === "string" ? filename : undefined);
   const orgId = req.session?.organisationId;
   const userId = req.session?.userId;
   if (orgId) {

@@ -201,13 +201,16 @@ export function threatDetection(req: Request, res: Response, next: NextFunction)
   // inspecter, ce que les patterns d'injection signaleraient a tort. Ces
   // handlers ne font qu'analyser ces chaines (jamais d'execution shell). On
   // limite au POST + chemin exact pour ne pas elargir la surface.
-  if (
-    req.method === "POST" &&
-    (req.path === "/security/scan-url" ||
-      req.originalUrl.startsWith("/api/security/scan-url") ||
-      req.path === "/security/scan-document" ||
-      req.originalUrl.startsWith("/api/security/scan-document"))
-  ) {
+  // Comparaison sur le chemin EXACT (sans query string) pour ne pas elargir
+  // le bypass a de futures routes partageant le meme prefixe.
+  const exactPath = (req.originalUrl.split("?")[0] || "").replace(/\/+$/, "") || "/";
+  const SCAN_BYPASS_PATHS = new Set([
+    "/security/scan-url",
+    "/api/security/scan-url",
+    "/security/scan-document",
+    "/api/security/scan-document",
+  ]);
+  if (req.method === "POST" && (SCAN_BYPASS_PATHS.has(req.path) || SCAN_BYPASS_PATHS.has(exactPath))) {
     return next();
   }
 

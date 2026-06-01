@@ -76,8 +76,24 @@ export function analyzeUrlHeuristic(rawUrl: string): UrlScanResult {
     return { url: rawUrl, displayUrl, domain, risk: "suspicious", reasons: ["URL non parseable"], isShortener: false, isHttps: false, source: "heuristic" };
   }
 
+  // Allowlist de schemas: seuls http(s) sont navigables et legitimes. Tout
+  // autre schema (data:, javascript:, file:, blob:, vbscript:...) sert
+  // typiquement a contourner un scanner ou a executer du code -> dangereux.
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return {
+      url: rawUrl,
+      displayUrl,
+      domain,
+      risk: "dangerous",
+      reasons: [`Schema d'URL non autorise (${parsed.protocol.replace(/:$/, "")})`],
+      isShortener: false,
+      isHttps: false,
+      source: "heuristic",
+    };
+  }
+
   const isHttps = parsed.protocol === "https:";
-  if (!isHttps && parsed.protocol !== "data:") reasons.push("Connexion non securisee (HTTP)");
+  if (!isHttps) reasons.push("Connexion non securisee (HTTP)");
 
   const isShortener = URL_SHORTENERS.has(parsed.hostname.replace(/^www\./, ""));
   if (isShortener) reasons.push("Service de raccourcissement d'URL (destination inconnue)");
