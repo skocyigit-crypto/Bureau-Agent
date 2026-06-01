@@ -17,7 +17,7 @@ import {
   unbanGuardianIp,
 } from "../middleware/guardian";
 import { analyzeUrlFull, isSafeBrowsingConfigured } from "../services/url-safety";
-import { isMalwareEngineConfigured, getMalwareEngineName } from "../services/file-malware";
+import { isMalwareEngineConfigured, getMalwareEngineName, isMalwareSubmissionEnabled } from "../services/file-malware";
 import { recordSecurityScan, getRecentSecurityScans, getOrgScanSummary } from "../services/security-scans";
 import {
   listSecurityEntries,
@@ -206,6 +206,10 @@ router.get("/security/protection-status", (req, res) => {
       waf: { active: true, label: "Pare-feu applicatif (Guardian WAF)" },
       encryption: { active: true, label: "Chiffrement AES-256-GCM" },
     },
+    // Analyse approfondie (envoi du contenu a VirusTotal pour les fichiers
+    // inconnus): opt-in, lente (~60s). Le front s'en sert pour afficher un
+    // statut "analyse approfondie en cours" pendant l'attente d'un scan.
+    deepScanEnabled: isMalwareSubmissionEnabled(),
     summary,
     recentScans: recent,
   });

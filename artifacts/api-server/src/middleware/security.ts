@@ -8,6 +8,7 @@ import {
   submitFile,
   isMalwareSubmissionEnabled,
   type MalwareVerdictSource,
+  type SubmitFileDiagnostics,
 } from "../services/file-malware";
 
 const MALICIOUS_PATTERNS = [
@@ -471,6 +472,13 @@ export interface ScanResult {
    * inconnu). Absent si aucun verdict externe.
    */
   engineSource?: MalwareVerdictSource;
+  /**
+   * Vrai si une analyse approfondie (soumission a chaud a VirusTotal) a bien
+   * demarre mais n'a pas abouti dans le budget de temps: le verdict final
+   * reste donc heuristique (pas de confirmation cloud fraiche). Permet a l'UI
+   * de le signaler clairement.
+   */
+  deepScanTimedOut?: boolean;
 }
 
 export function scanFileBuffer(buffer: Buffer, filename?: string): ScanResult {
@@ -589,6 +597,7 @@ export async function scanBase64ContentFull(base64: string, filename?: string): 
 
   // 1. Lookup d'empreinte (vie privee: seul le hash est envoye).
   let verdict = await lookupFileHash(base.sha256);
+  let deepScanTimedOut = false;
 
   // 2. Si l'empreinte est inconnue de VirusTotal (lookup null) ET que la
   //    soumission a chaud est activee (opt-in), on envoie le contenu pour
@@ -598,13 +607,18 @@ export async function scanBase64ContentFull(base64: string, filename?: string): 
   if (!verdict && isMalwareSubmissionEnabled()) {
     try {
       const buffer = Buffer.from(base64, "base64");
-      verdict = await submitFile(buffer, base.sha256, filename);
+      const diag: SubmitFileDiagnostics = { timedOut: false };
+      verdict = await submitFile(buffer, base.sha256, filename, diag);
+      deepScanTimedOut = diag.timedOut;
     } catch {
       /* fail-soft: le verdict heuristique prime */
     }
   }
 
-  if (!verdict) return base;
+  // Pas de verdict externe: on garde l'heuristique. Si l'analyse approfondie a
+  // demarre sans aboutir dans le budget, on le signale (verdict heuristique
+  // seul, sans confirmation cloud fraiche).
+  if (!verdict) return deepScanTimedOut ? { ...base, deepScanTimedOut: true } : base;
 
   if (verdict.verdict === "malicious" || verdict.verdict === "suspicious") {
     return {

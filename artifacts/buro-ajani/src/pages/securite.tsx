@@ -50,10 +50,12 @@ interface FileScanResult {
   engine?: string;
   engineDetail?: string;
   engineSource?: "lookup" | "upload";
+  deepScanTimedOut?: boolean;
 }
 
 interface ProtectionStatus {
   layers: Record<string, { active: boolean; label: string }>;
+  deepScanEnabled?: boolean;
   summary: { total: number; dangerous: number; suspicious: number; last24h: number };
   recentScans: Array<{
     id: string; kind: string; target: string; verdict: Risk; details: string; at: string; engine?: string;
@@ -400,11 +402,22 @@ function PiiFindings({ pii }: { pii: PiiResult }) {
 }
 
 // ── Scanner de fichier ────────────────────────────────────────────────────────
-function FileScannerCard({ onScanned }: { onScanned: () => void }) {
+// Seuil avant de basculer l'indicateur sur "analyse approfondie en cours":
+// passé ce délai, un simple lookup d'empreinte (timeout 5s côté serveur)
+// aurait déjà répondu, donc une soumission cloud longue (~60s) est en cours.
+const DEEP_SCAN_HINT_DELAY_MS = 3500;
+
+function FileScannerCard({ onScanned, deepScanEnabled }: { onScanned: () => void; deepScanEnabled: boolean }) {
   const [result, setResult] = useState<{ name: string; res: FileScanResult } | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [deepPhase, setDeepPhase] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const deepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => () => {
+    if (deepTimerRef.current) clearTimeout(deepTimerRef.current);
+  }, []);
 
   const onFile = async (file: File) => {
     if (file.size > 15 * 1024 * 1024) {
@@ -413,6 +426,13 @@ function FileScannerCard({ onScanned }: { onScanned: () => void }) {
     }
     setScanning(true);
     setResult(null);
+    setDeepPhase(false);
+    // Si l'analyse approfondie est possible (envoi à VirusTotal opt-in), on
+    // prévient l'utilisateur après quelques secondes que l'attente correspond à
+    // une analyse cloud longue — et non à un blocage.
+    if (deepScanEnabled) {
+      deepTimerRef.current = setTimeout(() => setDeepPhase(true), DEEP_SCAN_HINT_DELAY_MS);
+    }
     try {
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -438,7 +458,9 @@ function FileScannerCard({ onScanned }: { onScanned: () => void }) {
     } catch {
       toast({ title: "Erreur", description: "Lecture du fichier impossible.", variant: "destructive" });
     } finally {
+      if (deepTimerRef.current) { clearTimeout(deepTimerRef.current); deepTimerRef.current = null; }
       setScanning(false);
+      setDeepPhase(false);
       if (inputRef.current) inputRef.current.value = "";
     }
   };
@@ -463,6 +485,26 @@ function FileScannerCard({ onScanned }: { onScanned: () => void }) {
           {scanning ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <FileSearch className="w-4 h-4 mr-1" />}
           Choisir un fichier
         </Button>
+
+        {scanning && (
+          <div
+            className={`flex items-start gap-2 rounded-lg border p-2.5 text-xs ${
+              deepPhase
+                ? "border-purple-300 bg-purple-50/50 text-purple-700 dark:border-purple-800 dark:bg-purple-950/20 dark:text-purple-300"
+                : "border-slate-200 text-muted-foreground dark:border-slate-700"
+            }`}
+          >
+            <Loader2 className="w-3.5 h-3.5 mt-0.5 shrink-0 animate-spin" />
+            {deepPhase ? (
+              <span>
+                <span className="font-medium">Analyse approfondie en cours…</span> Fichier inconnu
+                envoyé à VirusTotal pour une analyse complète — cela peut prendre jusqu'à une minute.
+              </span>
+            ) : (
+              <span>Vérification rapide (signatures, empreinte)…</span>
+            )}
+          </div>
+        )}
 
         {result && (
           <div className={`border rounded-lg p-3 ${result.res.safe ? "border-emerald-300 dark:border-emerald-900/50" : "border-red-300 dark:border-red-900/50"}`}>
@@ -500,6 +542,13 @@ function FileScannerCard({ onScanned }: { onScanned: () => void }) {
               <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
                 <Info className="w-2.5 h-2.5 shrink-0" />
                 Fichier inconnu de la base : envoyé à VirusTotal pour une analyse complète.
+              </p>
+            )}
+            {result.res.deepScanTimedOut && (
+              <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-1 flex items-start gap-1">
+                <AlertTriangle className="w-2.5 h-2.5 mt-0.5 shrink-0" />
+                Analyse approfondie non aboutie dans le délai imparti : verdict fondé sur
+                l'analyse heuristique locale uniquement, sans confirmation cloud fraîche.
               </p>
             )}
             {result.res.engineDetail && (
@@ -1106,7 +1155,7 @@ export default function SecuritePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <LinkScannerCard onScanned={fetchStatus} />
-        <FileScannerCard onScanned={fetchStatus} />
+        <FileScannerCard onScanned={fetchStatus} deepScanEnabled={status?.deepScanEnabled ?? false} />
       </div>
 
       <TextScannerCard />
