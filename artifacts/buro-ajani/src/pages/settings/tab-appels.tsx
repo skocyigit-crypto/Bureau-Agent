@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { PhoneIncoming, Link2, Copy, Check } from "lucide-react";
+import { useState, useEffect } from "react";
+import { PhoneIncoming, Link2, Copy, Check, ShieldAlert } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -10,6 +10,10 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useSimulateCall } from "@/components/layout";
 import { useWorkspaceUser } from "@/components/workspace-user";
+import { useToast } from "@/hooks/use-toast";
+
+const TELEPHONY_API = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/api/telephony`;
+type FraudAction = "off" | "voicemail" | "reject";
 
 function WebhookUrlRow({ label, url }: { label: string; url: string }) {
   const [copied, setCopied] = useState(false);
@@ -37,7 +41,53 @@ export function TabAppels() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const { simulateIncomingCall } = useSimulateCall();
   const { user } = useWorkspaceUser();
+  const { toast } = useToast();
   const isSuperAdmin = user.role === "super_admin";
+
+  // F4: Protection automatique contre les appels frauduleux.
+  const [fraudAction, setFraudAction] = useState<FraudAction>("off");
+  const [fraudConfigured, setFraudConfigured] = useState(true);
+  const [fraudSaving, setFraudSaving] = useState(false);
+
+  useEffect(() => {
+    fetch(`${TELEPHONY_API}/fraud-protection`, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d) {
+          setFraudAction(d.action as FraudAction);
+          setFraudConfigured(d.configured !== false);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const saveFraudAction = async (action: FraudAction) => {
+    const prev = fraudAction;
+    setFraudAction(action);
+    setFraudSaving(true);
+    try {
+      const res = await fetch(`${TELEPHONY_API}/fraud-protection`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) {
+        setFraudAction(prev);
+        const msg = res.status === 404
+          ? "Configurez d'abord un fournisseur Twilio."
+          : "Enregistrement impossible.";
+        toast({ title: "Erreur", description: msg, variant: "destructive" });
+        return;
+      }
+      toast({ title: "Protection mise à jour", description: "Votre réglage a été enregistré." });
+    } catch {
+      setFraudAction(prev);
+      toast({ title: "Erreur réseau", description: "Vérifiez votre connexion.", variant: "destructive" });
+    } finally {
+      setFraudSaving(false);
+    }
+  };
 
   const baseUrl = `${window.location.protocol}//${window.location.host}/api`;
 
@@ -92,6 +142,32 @@ export function TabAppels() {
               <p className="text-xs text-muted-foreground">Enregistrer automatiquement chaque appel dans l'historique</p>
             </div>
             <Switch defaultChecked />
+          </div>
+          <Separator />
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <Label className="flex items-center gap-1.5">
+                <ShieldAlert className="w-4 h-4 text-amber-600" />
+                Protection contre les appels frauduleux
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Filtre les appels à risque (liste de blocage + réputation Twilio). Vos numéros de
+                confiance (liste d'autorisation) ne sont jamais filtrés.
+              </p>
+              {!fraudConfigured && (
+                <p className="text-xs text-amber-600 mt-1">Configurez un fournisseur Twilio pour activer ce réglage.</p>
+              )}
+            </div>
+            <Select value={fraudAction} onValueChange={(v) => saveFraudAction(v as FraudAction)} disabled={fraudSaving || !fraudConfigured}>
+              <SelectTrigger className="w-44 shrink-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="off">Désactivée</SelectItem>
+                <SelectItem value="voicemail">Vers messagerie</SelectItem>
+                <SelectItem value="reject">Rejeter l'appel</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           {isSuperAdmin && (
             <>

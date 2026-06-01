@@ -3,11 +3,15 @@ import {
   ShieldCheck, Shield, Link2, FileSearch, Loader2,
   RefreshCw, ExternalLink, AlertTriangle, CheckCircle2, XCircle, Lock,
   Wifi, Mail, Phone, MessageCircle, Bug, ServerCog, Sparkles,
+  Ban, ListChecks, Trash2, Plus, Globe, Bell, ShieldAlert,
+  Gauge, Lightbulb, ArrowRight, Info,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
 const SECURITY_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/security";
@@ -26,9 +30,23 @@ interface UrlScanResult {
   threatTypes?: string[];
 }
 
+interface PiiFinding {
+  kind: string;
+  label: string;
+  count: number;
+  samples: string[];
+}
+
+interface PiiResult {
+  hasPii: boolean;
+  findings: PiiFinding[];
+  summary: string;
+}
+
 interface FileScanResult {
   safe: boolean;
   threats: string[];
+  pii?: PiiResult;
 }
 
 interface ProtectionStatus {
@@ -39,6 +57,39 @@ interface ProtectionStatus {
   }>;
 }
 
+interface SecurityAlert {
+  id: string;
+  kind: string;
+  verdict: Risk;
+  target: string;
+  message: string;
+  at: string;
+}
+
+interface SecurityScore {
+  score: number;
+  rating: "excellent" | "bon" | "moyen" | "faible";
+  strengths: string[];
+  recommendations: Array<{ id: string; severity: "high" | "medium" | "low"; title: string; detail: string }>;
+  breakdown: Array<{ label: string; impact: number }>;
+  notes: string[];
+  threats7d: { dangerous: number; suspicious: number };
+  computedAt: string;
+}
+
+const RATING_STYLE: Record<SecurityScore["rating"], { ring: string; text: string; label: string }> = {
+  excellent: { ring: "text-emerald-600", text: "text-emerald-700 dark:text-emerald-400", label: "Excellent" },
+  bon:       { ring: "text-blue-600",    text: "text-blue-700 dark:text-blue-400",       label: "Bon" },
+  moyen:     { ring: "text-amber-600",   text: "text-amber-700 dark:text-amber-400",     label: "Moyen" },
+  faible:    { ring: "text-red-600",     text: "text-red-700 dark:text-red-400",         label: "Faible" },
+};
+
+const SEVERITY_STYLE: Record<"high" | "medium" | "low", string> = {
+  high: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  medium: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  low: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
+};
+
 const RISK_STYLE: Record<Risk, { badge: string; icon: typeof ShieldCheck; label: string }> = {
   safe: { badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400", icon: CheckCircle2, label: "Sûr" },
   suspicious: { badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400", icon: AlertTriangle, label: "Suspect" },
@@ -48,6 +99,112 @@ const RISK_STYLE: Record<Risk, { badge: string; icon: typeof ShieldCheck; label:
 const KIND_ICON: Record<string, typeof Link2> = {
   url: Link2, file: FileSearch, whatsapp: MessageCircle, call: Phone, email: Mail,
 };
+
+// ── Score de sécurité + recommandations ───────────────────────────────────────
+function ScorePanelCard({ score, loading }: { score: SecurityScore | null; loading: boolean }) {
+  const style = score ? RATING_STYLE[score.rating] : RATING_STYLE.moyen;
+  const pct = score?.score ?? 0;
+  const circumference = 2 * Math.PI * 42;
+  const dash = (pct / 100) * circumference;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Gauge className="w-5 h-5 text-blue-600" />
+          Score de sécurité
+        </CardTitle>
+        <CardDescription>Évaluation globale de votre posture de sécurité et pistes d'amélioration.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {loading && !score ? (
+          <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+        ) : !score ? (
+          <p className="text-sm text-muted-foreground">Score indisponible.</p>
+        ) : (
+          <div className="flex flex-col md:flex-row gap-6">
+            {/* Jauge circulaire */}
+            <div className="flex flex-col items-center justify-center shrink-0">
+              <div className="relative w-28 h-28">
+                <svg className="w-28 h-28 -rotate-90" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="42" fill="none" strokeWidth="8" className="stroke-slate-200 dark:stroke-slate-700" />
+                  <circle
+                    cx="50" cy="50" r="42" fill="none" strokeWidth="8" strokeLinecap="round"
+                    className={style.ring}
+                    stroke="currentColor"
+                    strokeDasharray={`${dash} ${circumference}`}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className={`text-3xl font-bold ${style.text}`}>{score.score}</span>
+                  <span className="text-[10px] text-muted-foreground">/ 100</span>
+                </div>
+              </div>
+              <Badge className={`mt-2 border-0 ${SEVERITY_STYLE[score.rating === "faible" ? "high" : score.rating === "moyen" ? "medium" : "low"]}`}>
+                {style.label}
+              </Badge>
+            </div>
+
+            {/* Forces + recommandations */}
+            <div className="flex-1 space-y-4">
+              {score.strengths.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Points forts
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {score.strengths.map((s, i) => (
+                      <Badge key={i} className="border-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px] font-normal">
+                        {s}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
+                  <Lightbulb className="w-3.5 h-3.5 text-amber-500" /> Recommandations
+                </p>
+                {score.recommendations.length === 0 ? (
+                  <p className="text-sm text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4" /> Tout est en ordre, aucune action requise.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {score.recommendations.map((r) => (
+                      <div key={r.id} className="border rounded-lg p-2.5 flex items-start gap-2">
+                        <Badge className={`border-0 text-[9px] mt-0.5 ${SEVERITY_STYLE[r.severity]}`}>
+                          {r.severity === "high" ? "Priorité" : r.severity === "medium" ? "Conseillé" : "Optionnel"}
+                        </Badge>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium flex items-center gap-1">
+                            <ArrowRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                            {r.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{r.detail}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {score.notes.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {score.notes.map((n, i) => (
+                      <p key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                        <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" /> {n}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 // ── Statut de protection ──────────────────────────────────────────────────────
 function ProtectionStatusCard({ status, loading, onRefresh }: {
@@ -215,6 +372,30 @@ function LinkScannerCard({ onScanned }: { onScanned: () => void }) {
   );
 }
 
+// ── Affichage RGPD (données personnelles détectées) ───────────────────────────
+function PiiFindings({ pii }: { pii: PiiResult }) {
+  if (!pii.hasPii) return null;
+  return (
+    <div className="mt-2 border border-amber-300 dark:border-amber-900/50 rounded-lg p-2.5 bg-amber-50/50 dark:bg-amber-950/20">
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <ShieldAlert className="w-4 h-4 text-amber-600" />
+        <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">Données personnelles détectées (RGPD)</span>
+      </div>
+      <ul className="space-y-1">
+        {pii.findings.map((f) => (
+          <li key={f.kind} className="text-xs flex items-center gap-2">
+            <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0 text-[9px] shrink-0">
+              {f.count}
+            </Badge>
+            <span className="font-medium">{f.label}</span>
+            <span className="text-muted-foreground truncate">{f.samples.join(", ")}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 // ── Scanner de fichier ────────────────────────────────────────────────────────
 function FileScannerCard({ onScanned }: { onScanned: () => void }) {
   const [result, setResult] = useState<{ name: string; res: FileScanResult } | null>(null);
@@ -296,6 +477,7 @@ function FileScannerCard({ onScanned }: { onScanned: () => void }) {
                 {result.res.threats.map((t, i) => <li key={i}>{t}</li>)}
               </ul>
             )}
+            {result.res.pii && <PiiFindings pii={result.res.pii} />}
           </div>
         )}
       </CardContent>
@@ -303,7 +485,117 @@ function FileScannerCard({ onScanned }: { onScanned: () => void }) {
   );
 }
 
-// ── Menaces récentes ──────────────────────────────────────────────────────────
+// ── Scanner de texte (RGPD) ───────────────────────────────────────────────────
+function TextScannerCard() {
+  const [text, setText] = useState("");
+  const [result, setResult] = useState<PiiResult | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const { toast } = useToast();
+
+  const scan = async () => {
+    if (!text.trim()) return;
+    setScanning(true);
+    setResult(null);
+    try {
+      const res = await fetch(`${SECURITY_API}/scan-text`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      if (res.ok) setResult(await res.json());
+      else toast({ title: "Erreur", description: "Analyse impossible.", variant: "destructive" });
+    } catch {
+      toast({ title: "Erreur réseau", description: "Vérifiez votre connexion.", variant: "destructive" });
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ShieldAlert className="w-5 h-5 text-amber-600" />
+          Vérifier un texte (RGPD)
+        </CardTitle>
+        <CardDescription>
+          Collez un texte (email, message, extrait de document) pour repérer IBAN, n° de sécurité sociale,
+          carte bancaire, SIRET et coordonnées avant de le partager.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Collez ici le texte à vérifier…"
+          rows={4}
+          className="w-full rounded-md border bg-background p-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+        />
+        <Button variant="outline" onClick={scan} disabled={scanning || !text.trim()}>
+          {scanning ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <ShieldAlert className="w-4 h-4 mr-1" />}
+          Analyser le texte
+        </Button>
+        {result && (
+          result.hasPii
+            ? <PiiFindings pii={result} />
+            : (
+              <div className="border border-emerald-300 dark:border-emerald-900/50 rounded-lg p-3 flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                <span className="text-sm">Aucune donnée personnelle sensible détectée.</span>
+              </div>
+            )
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Alertes temps réel ────────────────────────────────────────────────────────
+function AlertsCard({ alerts }: { alerts: SecurityAlert[] }) {
+  return (
+    <Card className={alerts.length > 0 ? "border-red-200 dark:border-red-900/50" : undefined}>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Bell className="w-5 h-5 text-red-500" />
+          Alertes de sécurité
+          {alerts.length > 0 && (
+            <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0">
+              {alerts.length}
+            </Badge>
+          )}
+        </CardTitle>
+        <CardDescription>
+          Menaces dangereuses détectées en temps réel. Vous êtes aussi notifié sur WhatsApp.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {alerts.length === 0 ? (
+          <div className="border rounded-lg p-6 text-center">
+            <ShieldCheck className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">Aucune alerte. Aucune menace dangereuse détectée.</p>
+          </div>
+        ) : (
+          <div className="space-y-1.5 max-h-72 overflow-y-auto">
+            {alerts.map((a) => {
+              const Icon = KIND_ICON[a.kind] ?? Shield;
+              return (
+                <div key={a.id} className="flex items-start gap-2 border border-red-200 dark:border-red-900/40 bg-red-50/50 dark:bg-red-950/20 rounded p-2 text-xs">
+                  <Icon className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
+                  <span className="flex-1">{a.message}</span>
+                  <span className="text-muted-foreground shrink-0">
+                    {new Date(a.at).toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function RecentScansCard({ scans }: { scans: ProtectionStatus["recentScans"] }) {
   return (
     <Card>
@@ -338,6 +630,277 @@ function RecentScansCard({ scans }: { scans: ProtectionStatus["recentScans"] }) 
             })}
           </div>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Listes personnalisées (blocage / autorisation) ────────────────────────────
+type ListEntryType = "domain" | "phone";
+type ListKind = "block" | "allow";
+
+interface ListEntry {
+  id: number;
+  entryType: ListEntryType;
+  listKind: ListKind;
+  value: string;
+  note: string | null;
+  createdAt: string;
+}
+
+function ListManagerCard() {
+  const [entries, setEntries] = useState<ListEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [entryType, setEntryType] = useState<ListEntryType>("domain");
+  const [listKind, setListKind] = useState<ListKind>("block");
+  const [value, setValue] = useState("");
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  const fetchEntries = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${SECURITY_API}/lists`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setEntries(data.entries ?? []);
+      }
+    } catch { /* ignore */ } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchEntries(); }, [fetchEntries]);
+
+  const add = useCallback(async () => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`${SECURITY_API}/lists`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entryType, listKind, value: trimmed, note: note.trim() || undefined }),
+      });
+      if (res.ok) {
+        setValue("");
+        setNote("");
+        await fetchEntries();
+        toast({ title: "Ajouté", description: listKind === "block" ? "Élément bloqué." : "Élément autorisé." });
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast({ title: "Erreur", description: err.error ?? "Ajout impossible.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur réseau", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }, [entryType, listKind, value, note, fetchEntries, toast]);
+
+  const remove = useCallback(async (id: number) => {
+    try {
+      const res = await fetch(`${SECURITY_API}/lists/${id}`, { method: "DELETE", credentials: "include" });
+      if (res.ok) setEntries((prev) => prev.filter((e) => e.id !== id));
+      else toast({ title: "Erreur", description: "Suppression impossible.", variant: "destructive" });
+    } catch {
+      toast({ title: "Erreur réseau", variant: "destructive" });
+    }
+  }, [toast]);
+
+  const blocked = entries.filter((e) => e.listKind === "block");
+  const allowed = entries.filter((e) => e.listKind === "allow");
+
+  const renderEntry = (e: ListEntry) => (
+    <div key={e.id} className="flex items-center gap-2 border rounded p-2 text-xs">
+      {e.entryType === "domain"
+        ? <Globe className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+        : <Phone className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
+      <span className="truncate flex-1 font-mono">{e.value}</span>
+      {e.note && <span className="text-muted-foreground truncate max-w-[40%] italic">{e.note}</span>}
+      <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-red-600" onClick={() => remove(e.id)}>
+        <Trash2 className="w-3.5 h-3.5" />
+      </Button>
+    </div>
+  );
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ListChecks className="w-5 h-5 text-teal-600" />
+          Mes listes personnalisées
+        </CardTitle>
+        <CardDescription>
+          Bloquez ou autorisez vous-même des sites web et des numéros de téléphone.
+          Vos règles ont toujours le dernier mot sur l'analyse automatique.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Formulaire d'ajout */}
+        <div className="border rounded-lg p-3 space-y-2 bg-muted/20">
+          <div className="flex flex-wrap gap-2">
+            <div className="flex rounded-md border overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setEntryType("domain")}
+                className={`px-3 py-1.5 text-xs font-medium ${entryType === "domain" ? "bg-teal-600 text-white" : "bg-background text-muted-foreground"}`}
+              >
+                <Globe className="w-3 h-3 inline mr-1" /> Site web
+              </button>
+              <button
+                type="button"
+                onClick={() => setEntryType("phone")}
+                className={`px-3 py-1.5 text-xs font-medium ${entryType === "phone" ? "bg-teal-600 text-white" : "bg-background text-muted-foreground"}`}
+              >
+                <Phone className="w-3 h-3 inline mr-1" /> Téléphone
+              </button>
+            </div>
+            <div className="flex rounded-md border overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setListKind("block")}
+                className={`px-3 py-1.5 text-xs font-medium ${listKind === "block" ? "bg-red-600 text-white" : "bg-background text-muted-foreground"}`}
+              >
+                <Ban className="w-3 h-3 inline mr-1" /> Bloquer
+              </button>
+              <button
+                type="button"
+                onClick={() => setListKind("allow")}
+                className={`px-3 py-1.5 text-xs font-medium ${listKind === "allow" ? "bg-emerald-600 text-white" : "bg-background text-muted-foreground"}`}
+              >
+                <CheckCircle2 className="w-3 h-3 inline mr-1" /> Autoriser
+              </button>
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input
+              placeholder={entryType === "domain" ? "exemple.com" : "+33 6 12 34 56 78"}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") add(); }}
+              className="text-sm"
+            />
+            <Input
+              placeholder="Note (facultatif)"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") add(); }}
+              className="text-sm sm:max-w-[40%]"
+            />
+            <Button onClick={add} disabled={saving || !value.trim()}>
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4 mr-1" /> Ajouter</>}
+            </Button>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <h4 className="text-xs font-semibold flex items-center gap-1 text-red-600">
+                <Ban className="w-3.5 h-3.5" /> Bloqués ({blocked.length})
+              </h4>
+              {blocked.length === 0
+                ? <p className="text-xs text-muted-foreground">Aucun élément bloqué.</p>
+                : <div className="space-y-1.5 max-h-56 overflow-y-auto">{blocked.map(renderEntry)}</div>}
+            </div>
+            <div className="space-y-1.5">
+              <h4 className="text-xs font-semibold flex items-center gap-1 text-emerald-600">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Autorisés ({allowed.length})
+              </h4>
+              {allowed.length === 0
+                ? <p className="text-xs text-muted-foreground">Aucun élément autorisé.</p>
+                : <div className="space-y-1.5 max-h-56 overflow-y-auto">{allowed.map(renderEntry)}</div>}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ── Réglages : synthèse hebdomadaire de sécurité (opt-in) ─────────────────────
+function SecuritySettingsCard() {
+  const [enabled, setEnabled] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${SECURITY_API}/settings`, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          setEnabled(Boolean(data.weeklySecurityEmail));
+        }
+      } catch { /* ignore */ } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const toggle = useCallback(async (next: boolean) => {
+    setSaving(true);
+    setEnabled(next);
+    try {
+      const res = await fetch(`${SECURITY_API}/settings`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ weeklySecurityEmail: next }),
+      });
+      if (!res.ok) {
+        setEnabled(!next);
+        toast({ title: "Erreur", description: "Modification impossible.", variant: "destructive" });
+      } else {
+        toast({
+          title: next ? "Synthèse activée" : "Synthèse désactivée",
+          description: next
+            ? "Vous recevrez un récapitulatif de sécurité chaque semaine par email."
+            : "Vous ne recevrez plus la synthèse hebdomadaire.",
+        });
+      }
+    } catch {
+      setEnabled(!next);
+      toast({ title: "Erreur réseau", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }, [toast]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Mail className="w-5 h-5 text-emerald-600" />
+          Synthèse hebdomadaire par email
+        </CardTitle>
+        <CardDescription>
+          Recevez chaque semaine un récapitulatif : score de sécurité, menaces bloquées et recommandations.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center justify-between gap-4 border rounded-lg p-3">
+          <div className="flex-1">
+            <Label htmlFor="weekly-security-email" className="text-sm font-medium">
+              Activer la synthèse hebdomadaire
+            </Label>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Envoyée à l'adresse email de votre organisation.
+            </p>
+          </div>
+          <Switch
+            id="weekly-security-email"
+            checked={enabled}
+            disabled={loading || saving}
+            onCheckedChange={toggle}
+          />
+        </div>
       </CardContent>
     </Card>
   );
@@ -427,7 +990,11 @@ function PartnersCard() {
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function SecuritePage() {
   const [status, setStatus] = useState<ProtectionStatus | null>(null);
+  const [alerts, setAlerts] = useState<SecurityAlert[]>([]);
+  const [score, setScore] = useState<SecurityScore | null>(null);
+  const [scoreLoading, setScoreLoading] = useState(true);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   const fetchStatus = useCallback(async () => {
     setLoading(true);
@@ -439,7 +1006,47 @@ export default function SecuritePage() {
     }
   }, []);
 
-  useEffect(() => { fetchStatus(); }, [fetchStatus]);
+  const fetchScore = useCallback(async () => {
+    setScoreLoading(true);
+    try {
+      const res = await fetch(`${SECURITY_API}/score`, { credentials: "include" });
+      if (res.ok) setScore(await res.json());
+    } catch { /* ignore */ } finally {
+      setScoreLoading(false);
+    }
+  }, []);
+
+  const fetchAlerts = useCallback(async () => {
+    try {
+      const res = await fetch(`${SECURITY_API}/alerts`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setAlerts(Array.isArray(data.alerts) ? data.alerts : []);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => { fetchStatus(); fetchAlerts(); fetchScore(); }, [fetchStatus, fetchAlerts, fetchScore]);
+
+  // Rafraîchissement temps réel : la couche SSE (use-realtime-sync) diffuse un
+  // évènement "realtime-sync" pour chaque évènement serveur. On réagit au type
+  // "security" pour recharger alertes + statut et notifier l'utilisateur.
+  useEffect(() => {
+    const onSync = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { type?: string; meta?: { message?: string } } | undefined;
+      if (detail?.type !== "security") return;
+      fetchAlerts();
+      fetchStatus();
+      fetchScore();
+      toast({
+        title: "Alerte de sécurité",
+        description: detail.meta?.message ?? "Une menace dangereuse a été détectée.",
+        variant: "destructive",
+      });
+    };
+    window.addEventListener("realtime-sync", onSync);
+    return () => window.removeEventListener("realtime-sync", onSync);
+  }, [fetchAlerts, fetchStatus, fetchScore, toast]);
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-6xl mx-auto">
@@ -455,14 +1062,24 @@ export default function SecuritePage() {
         </div>
       </div>
 
+      <ScorePanelCard score={score} loading={scoreLoading} />
+
       <ProtectionStatusCard status={status} loading={loading} onRefresh={fetchStatus} />
+
+      <AlertsCard alerts={alerts} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <LinkScannerCard onScanned={fetchStatus} />
         <FileScannerCard onScanned={fetchStatus} />
       </div>
 
+      <TextScannerCard />
+
+      <ListManagerCard />
+
       <RecentScansCard scans={status?.recentScans ?? []} />
+
+      <SecuritySettingsCard />
 
       <PartnersCard />
     </div>

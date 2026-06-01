@@ -177,6 +177,69 @@ router.get("/telephony/providers", async (req, res): Promise<void> => {
   }
 });
 
+// F4: Protection automatique contre les appels frauduleux. Endpoints dedies
+// (lecture/ecriture du seul champ config.fraudAction) pour ne JAMAIS toucher
+// aux identifiants du fournisseur — le PATCH generique remplace tout le config
+// et masque les secrets, ce qui corromprait les credentials.
+const FRAUD_ACTIONS = ["off", "voicemail", "reject"] as const;
+type FraudAction = (typeof FRAUD_ACTIONS)[number];
+
+async function getDefaultTwilioProviderRow(orgId: number) {
+  const [p] = await db.select().from(telephonyProvidersTable)
+    .where(and(
+      eq(telephonyProvidersTable.organisationId, orgId),
+      eq(telephonyProvidersTable.provider, "twilio"),
+    ))
+    // Tie-break deterministe (id DESC) aligne sur GET /security/score pour que
+    // les deux endpoints resolvent toujours le meme fournisseur par defaut.
+    .orderBy(
+      desc(telephonyProvidersTable.isDefault),
+      desc(telephonyProvidersTable.isActive),
+      desc(telephonyProvidersTable.id),
+    )
+    .limit(1);
+  return p ?? null;
+}
+
+router.get("/telephony/fraud-protection", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  try {
+    const p = await getDefaultTwilioProviderRow(orgId);
+    const action = ((p?.config as Record<string, any>)?.fraudAction as FraudAction) || "off";
+    res.json({ action: FRAUD_ACTIONS.includes(action) ? action : "off", configured: !!p });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur lecture protection appels");
+    res.status(500).json({ error: "Erreur lors de la lecture du reglage." });
+  }
+});
+
+router.patch("/telephony/fraud-protection", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  const action = (req.body?.action ?? "") as FraudAction;
+  if (!FRAUD_ACTIONS.includes(action)) {
+    res.status(400).json({ error: "Action invalide (off, voicemail ou reject attendu)." });
+    return;
+  }
+  try {
+    const p = await getDefaultTwilioProviderRow(orgId);
+    if (!p) {
+      res.status(404).json({ error: "Aucun fournisseur Twilio configure." });
+      return;
+    }
+    const nextConfig = { ...(p.config as Record<string, any>), fraudAction: action };
+    await db.update(telephonyProvidersTable)
+      .set({ config: nextConfig })
+      .where(and(
+        eq(telephonyProvidersTable.id, p.id),
+        eq(telephonyProvidersTable.organisationId, orgId),
+      ));
+    res.json({ action });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur mise a jour protection appels");
+    res.status(500).json({ error: "Erreur lors de l'enregistrement du reglage." });
+  }
+});
+
 router.post("/telephony/providers", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
   const { provider, label, config, phoneNumbers } = req.body;

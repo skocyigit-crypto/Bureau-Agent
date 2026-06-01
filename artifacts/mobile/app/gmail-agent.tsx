@@ -98,12 +98,25 @@ interface AiPhishingAnalysis {
   recommendation: string;
 }
 
+type AuthVerdict =
+  | "pass" | "fail" | "softfail" | "neutral" | "none"
+  | "temperror" | "permerror" | "unknown";
+
+interface SenderAuth {
+  spf: AuthVerdict;
+  dkim: AuthVerdict;
+  dmarc: AuthVerdict;
+  suspicious: boolean;
+  reasons: string[];
+}
+
 interface EmailScanReport {
   messageId: string;
   overallRisk: "safe" | "suspicious" | "dangerous";
   riskScore: number;
   attachments: AttachmentScanResult[];
   links: UrlScanResult[];
+  senderAuth?: SenderAuth;
   aiAnalysis: AiPhishingAnalysis | null;
   stats: {
     attachmentsScanned: number;
@@ -249,6 +262,34 @@ function SecurityPanel({ scan, scanning }: { scan: EmailScanReport | null; scann
             </View>
           )}
           <Text style={[sp.recommendation, { color: "#374151" }]}>→ {aiAnalysis.recommendation}</Text>
+        </View>
+      )}
+
+      {/* Sender authentication (SPF/DKIM/DMARC) */}
+      {scan.senderAuth && (
+        <View style={[sp.aiBlock, { backgroundColor: scan.senderAuth.suspicious ? "#fef2f2" : "#f0fdf4" }]}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 }}>
+            <Feather name={scan.senderAuth.suspicious ? "user-x" : "user-check"} size={12} color={scan.senderAuth.suspicious ? "#ef4444" : "#22c55e"} />
+            <Text style={[sp.aiTitle, { color: scan.senderAuth.suspicious ? "#ef4444" : "#16a34a" }]}>
+              Authentification de l'expéditeur
+            </Text>
+          </View>
+          <View style={[sp.tagRow]}>
+            {(["spf", "dkim", "dmarc"] as const).map((mech) => {
+              const v = scan.senderAuth![mech];
+              const ok = v === "pass";
+              const bad = v === "fail" || v === "softfail";
+              const col = ok ? "#16a34a" : bad ? "#ef4444" : "#94a3b8";
+              return (
+                <View key={mech} style={[sp.tag, { backgroundColor: col + "1a" }]}>
+                  <Text style={[sp.tagText, { color: col }]}>{mech.toUpperCase()} : {v}</Text>
+                </View>
+              );
+            })}
+          </View>
+          {scan.senderAuth.reasons.map((r, ri) => (
+            <Text key={ri} style={[sp.threat, { color: "#ef4444", marginTop: 4 }]}>⚠ {r}</Text>
+          ))}
         </View>
       )}
 

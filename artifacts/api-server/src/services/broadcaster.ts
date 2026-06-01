@@ -4,6 +4,7 @@ export type SyncEventType =
   | "call" | "task" | "contact" | "message" | "checkin"
   | "calendar" | "prospect" | "note" | "projet" | "dashboard"
   | "reminder"
+  | "security"
   | "ping";
 
 export interface SyncEvent {

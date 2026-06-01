@@ -38,6 +38,14 @@ interface Stats {
   providers: { total: number; active: number };
 }
 
+type FraudAction = "off" | "voicemail" | "reject";
+
+const FRAUD_OPTIONS: { value: FraudAction; label: string }[] = [
+  { value: "off", label: "Desactivee" },
+  { value: "voicemail", label: "Messagerie" },
+  { value: "reject", label: "Rejeter" },
+];
+
 export default function TelephonyScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -52,18 +60,47 @@ export default function TelephonyScreen() {
   const [smsBody, setSmsBody] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [fraudAction, setFraudAction] = useState<FraudAction>("off");
+  const [fraudConfigured, setFraudConfigured] = useState(true);
+  const [fraudSaving, setFraudSaving] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
-      const [pRes, sRes] = await Promise.all([
+      const [pRes, sRes, fRes] = await Promise.all([
         fetchAuth(`${API_BASE}/api/telephony/providers`),
         fetchAuth(`${API_BASE}/api/telephony/stats`),
+        fetchAuth(`${API_BASE}/api/telephony/fraud-protection`),
       ]);
       if (pRes.ok) { const d = await pRes.json(); setProviders(d.providers || []); }
       if (sRes.ok) { const d = await sRes.json(); setStats(d); }
+      if (fRes.ok) { const d = await fRes.json(); setFraudAction(d.action as FraudAction); setFraudConfigured(d.configured !== false); }
     } catch (e) { console.warn("[Telephony] fetch error:", e); }
     setLoading(false);
   }, [fetchAuth]);
+
+  async function saveFraudAction(action: FraudAction) {
+    const prev = fraudAction;
+    haptic();
+    setFraudAction(action);
+    setFraudSaving(true);
+    try {
+      const res = await fetchAuth(`${API_BASE}/api/telephony/fraud-protection`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) {
+        setFraudAction(prev);
+        setResult({ success: false, message: res.status === 404 ? "Configurez d'abord Twilio." : "Enregistrement impossible." });
+      } else {
+        setResult({ success: true, message: "Protection mise a jour." });
+      }
+    } catch (e: any) {
+      setFraudAction(prev);
+      setResult({ success: false, message: e.message });
+    }
+    setFraudSaving(false);
+  }
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -324,6 +361,45 @@ export default function TelephonyScreen() {
                     </View>
                   </View>
                 )}
+
+                <View style={[styles.providerCard, { backgroundColor: colors.card, borderColor: colors.border, flexDirection: "column", alignItems: "stretch" }]}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                    <Feather name="shield" size={16} color="#f59e0b" />
+                    <Text style={[styles.providerName, { color: colors.foreground }]}>Protection appels frauduleux</Text>
+                  </View>
+                  <Text style={[styles.providerSub, { color: colors.mutedForeground, marginBottom: 10 }]}>
+                    Filtre les appels a risque (liste de blocage + reputation). Vos numeros de confiance ne sont jamais filtres.
+                  </Text>
+                  {!fraudConfigured && (
+                    <Text style={{ color: "#f59e0b", fontSize: 12, marginBottom: 8 }}>Configurez un fournisseur Twilio pour activer ce reglage.</Text>
+                  )}
+                  <View style={{ flexDirection: "row", gap: 8 }}>
+                    {FRAUD_OPTIONS.map(opt => {
+                      const active = fraudAction === opt.value;
+                      return (
+                        <Pressable
+                          key={opt.value}
+                          disabled={fraudSaving || !fraudConfigured}
+                          onPress={() => saveFraudAction(opt.value)}
+                          style={{
+                            flex: 1,
+                            paddingVertical: 9,
+                            borderRadius: 8,
+                            alignItems: "center",
+                            borderWidth: 1,
+                            borderColor: active ? colors.primary : colors.border,
+                            backgroundColor: active ? colors.primary + "15" : "transparent",
+                            opacity: !fraudConfigured ? 0.5 : 1,
+                          }}
+                        >
+                          <Text style={{ fontSize: 12, fontWeight: active ? "700" : "500", color: active ? colors.primary : colors.mutedForeground }}>
+                            {opt.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
 
                 {providers.length === 0 ? (
                   <View style={[styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>

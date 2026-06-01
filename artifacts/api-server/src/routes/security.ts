@@ -17,6 +17,20 @@ import {
 } from "../middleware/guardian";
 import { analyzeUrlFull, isSafeBrowsingConfigured } from "../services/url-safety";
 import { recordSecurityScan, getRecentSecurityScans, getOrgScanSummary } from "../services/security-scans";
+import {
+  listSecurityEntries,
+  addSecurityEntry,
+  removeSecurityEntry,
+  applyDomainListToUrl,
+  type ListEntryType,
+  type ListKind,
+} from "../services/security-lists";
+import { emitSecurityAlert, getRecentAlerts } from "../services/security-alerts";
+import { detectPii, looksLikeText, type PiiResult } from "../services/pii-detection";
+import { computeSecurityScore } from "../services/security-score";
+import { loadSecurityScoreInput } from "../services/security-score-input";
+import { db, organisationsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 const router = Router();
 
@@ -34,10 +48,12 @@ router.post("/security/scan-url", async (req, res) => {
     return;
   }
   try {
-    const result = await analyzeUrlFull(url.trim());
+    let result = await analyzeUrlFull(url.trim());
     const orgId = req.session?.organisationId;
     const userId = req.session?.userId;
     if (orgId) {
+      // Les listes personnalisees de l'org ont le dernier mot sur le verdict.
+      result = await applyDomainListToUrl(orgId, result);
       recordSecurityScan({
         orgId,
         userId: userId ?? null,
@@ -45,6 +61,16 @@ router.post("/security/scan-url", async (req, res) => {
         target: result.displayUrl,
         verdict: result.risk === "safe" ? "safe" : result.risk === "suspicious" ? "suspicious" : "dangerous",
         details: result.reasons.join("; "),
+      });
+      // Scan manuel: l'utilisateur est devant son ecran -> pas de WhatsApp,
+      // mais on alimente le flux temps reel (buffer + SSE) des autres postes.
+      emitSecurityAlert({
+        orgId,
+        kind: "url",
+        verdict: result.risk === "dangerous" ? "dangerous" : "safe",
+        target: result.displayUrl,
+        detail: result.reasons[0],
+        notifyWhatsApp: false,
       });
     }
     res.json(result);
@@ -88,6 +114,17 @@ router.post("/security/scan-document", (req, res) => {
     return;
   }
   const result = scanBase64Content(b64, typeof filename === "string" ? filename : undefined);
+
+  // Detection RGPD: sur les fichiers texte uniquement (le binaire produirait
+  // des faux positifs). Fail-soft: une erreur PII ne casse pas le scan antivirus.
+  let pii: PiiResult | undefined;
+  try {
+    const buffer = Buffer.from(b64, "base64");
+    if (looksLikeText(buffer)) {
+      pii = detectPii(buffer.toString("utf8"));
+    }
+  } catch { /* ignore: le verdict antivirus prime */ }
+
   const orgId = req.session?.organisationId;
   const userId = req.session?.userId;
   if (orgId) {
@@ -99,8 +136,46 @@ router.post("/security/scan-document", (req, res) => {
       verdict: result.safe ? "safe" : "dangerous",
       details: result.threats.join("; "),
     });
+    emitSecurityAlert({
+      orgId,
+      kind: "file",
+      verdict: result.safe ? "safe" : "dangerous",
+      target: typeof filename === "string" ? filename : "fichier",
+      detail: result.threats[0],
+      notifyWhatsApp: false,
+    });
   }
-  res.json(result);
+  res.json({ ...result, pii });
+});
+
+/** Analyse un texte libre a la recherche de donnees personnelles (RGPD). */
+const MAX_SCAN_TEXT_CHARS = 2_000_000;
+router.post("/security/scan-text", (req, res) => {
+  const { text } = req.body ?? {};
+  if (typeof text !== "string" || text.trim().length === 0) {
+    res.status(400).json({ error: "Texte à analyser requis." });
+    return;
+  }
+  if (text.length > MAX_SCAN_TEXT_CHARS) {
+    res.status(413).json({ error: "Texte trop volumineux (max 2 Mo)." });
+    return;
+  }
+  const pii = detectPii(text);
+  const orgId = req.session?.organisationId;
+  const userId = req.session?.userId;
+  if (orgId && pii.hasPii) {
+    // Les donnees detectees ne sont JAMAIS journalisees en clair: on ne garde
+    // que le resume (categories + comptes), deja masque cote service.
+    recordSecurityScan({
+      orgId,
+      userId: userId ?? null,
+      kind: "file",
+      target: "Texte analysé (RGPD)",
+      verdict: "suspicious",
+      details: pii.summary,
+    });
+  }
+  res.json(pii);
 });
 
 /** Etat de la protection (couches actives + compteurs) pour l'organisation. */
@@ -116,6 +191,8 @@ router.get("/security/protection-status", (req, res) => {
       emailScan: { active: true, label: "Analyse anti-phishing des emails" },
       phoneReputation: { active: true, label: "Reputation des appels entrants" },
       whatsappScan: { active: true, label: "Scanner WhatsApp (liens & fichiers)" },
+      customLists: { active: true, label: "Listes personnalisees (blocage/autorisation)" },
+      piiDetection: { active: true, label: "Detection RGPD (donnees personnelles)" },
       xssSqlProtection: { active: true, label: "Protection XSS / injection SQL" },
       waf: { active: true, label: "Pare-feu applicatif (Guardian WAF)" },
       encryption: { active: true, label: "Chiffrement AES-256-GCM" },
@@ -123,6 +200,116 @@ router.get("/security/protection-status", (req, res) => {
     summary,
     recentScans: recent,
   });
+});
+
+/** Alertes de securite recentes (menaces dangereuses) pour l'organisation. */
+router.get("/security/alerts", (req, res) => {
+  const orgId = req.session?.organisationId;
+  const alerts = orgId ? getRecentAlerts(orgId, 20) : [];
+  res.json({ alerts });
+});
+
+/** Score de securite agrege (0-100) + recommandations actionnables. */
+router.get("/security/score", async (req, res) => {
+  const orgId = req.session?.organisationId;
+  if (!orgId) {
+    res.status(403).json({ error: "Organisation requise." });
+    return;
+  }
+
+  const input = await loadSecurityScoreInput(orgId, req.log);
+  const result = computeSecurityScore(input);
+  res.json(result);
+});
+
+// ── Reglages securite (opt-in synthese hebdomadaire par email) ────────────────
+router.get("/security/settings", async (req, res) => {
+  const orgId = req.session?.organisationId;
+  if (!orgId) {
+    res.status(403).json({ error: "Organisation requise." });
+    return;
+  }
+  const [org] = await db
+    .select({ weeklySecurityEmail: organisationsTable.weeklySecurityEmail })
+    .from(organisationsTable)
+    .where(eq(organisationsTable.id, orgId))
+    .limit(1);
+  res.json({ weeklySecurityEmail: org?.weeklySecurityEmail ?? false });
+});
+
+router.patch("/security/settings", requireAdmin, async (req, res) => {
+  const orgId = req.session?.organisationId;
+  if (!orgId) {
+    res.status(403).json({ error: "Organisation requise." });
+    return;
+  }
+  const { weeklySecurityEmail } = req.body ?? {};
+  if (typeof weeklySecurityEmail !== "boolean") {
+    res.status(400).json({ error: "weeklySecurityEmail doit etre un booleen." });
+    return;
+  }
+  await db
+    .update(organisationsTable)
+    .set({ weeklySecurityEmail })
+    .where(eq(organisationsTable.id, orgId));
+  res.json({ weeklySecurityEmail });
+});
+
+// ── Listes personnalisees (domaines + telephones bloques/autorises) ───────────
+router.get("/security/lists", async (req, res) => {
+  const orgId = req.session?.organisationId;
+  if (!orgId) {
+    res.status(403).json({ error: "Organisation requise." });
+    return;
+  }
+  res.json({ entries: await listSecurityEntries(orgId) });
+});
+
+router.post("/security/lists", async (req, res) => {
+  const orgId = req.session?.organisationId;
+  const userId = req.session?.userId;
+  if (!orgId) {
+    res.status(403).json({ error: "Organisation requise." });
+    return;
+  }
+  const { entryType, listKind, value, note } = req.body ?? {};
+  if (entryType !== "domain" && entryType !== "phone") {
+    res.status(400).json({ error: "Type invalide (domain ou phone)." });
+    return;
+  }
+  if (listKind !== "block" && listKind !== "allow") {
+    res.status(400).json({ error: "Liste invalide (block ou allow)." });
+    return;
+  }
+  if (!value || typeof value !== "string" || value.length > 300) {
+    res.status(400).json({ error: "Valeur a ajouter requise." });
+    return;
+  }
+  try {
+    const entry = await addSecurityEntry({
+      orgId,
+      userId: userId ?? null,
+      entryType: entryType as ListEntryType,
+      listKind: listKind as ListKind,
+      value,
+      note: typeof note === "string" ? note.slice(0, 200) : null,
+    });
+    res.json(entry);
+  } catch {
+    res.status(400).json({ error: "Valeur invalide." });
+  }
+});
+
+router.delete("/security/lists/:id", async (req, res) => {
+  const orgId = req.session?.organisationId;
+  const id = parseInt(String(req.params.id), 10);
+  if (!orgId || !Number.isFinite(id)) {
+    res.status(400).json({ error: "Requete invalide." });
+    return;
+  }
+  const ok = await removeSecurityEntry(orgId, id);
+  if (ok) res.json({ success: true });
+  else res.status(404).json({ error: "Entree introuvable." });
 });
 
 // ── Mevcut güvenlik API'leri ──────────────────────────────────────────────────

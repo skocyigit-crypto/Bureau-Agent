@@ -11,6 +11,8 @@ import { broadcaster } from "../services/broadcaster";
 import { notifyOrgUsers, maskPhone } from "../services/whatsapp-notify";
 import { evaluatePhoneReputation, phoneRiskLabel } from "../services/phone-reputation";
 import { recordSecurityScan } from "../services/security-scans";
+import { emitSecurityAlert } from "../services/security-alerts";
+import { checkPhoneList } from "../services/security-lists";
 
 export const twilioVoiceRouter: IRouter = Router();
 
@@ -406,6 +408,11 @@ interface TwilioProviderConfigShape {
   voicemailWhenBusy?: boolean;        // default true
   forwardToNumber?: string;           // if set, prefer Dial-forward over voicemail when unavailable
   businessHours?: BusinessHours;      // if absent => always available
+  // F4: protection automatique contre les appels frauduleux.
+  //   "off"       => comportement historique, aucun filtrage (defaut)
+  //   "voicemail" => appel suspect/bloque redirige vers messagerie
+  //   "reject"    => appel suspect/bloque rejete immediatement
+  fraudAction?: "off" | "voicemail" | "reject";
 }
 
 async function getDefaultTwilioProviderForOrg(orgId: number): Promise<{ id: number; config: TwilioProviderConfigShape; phoneNumbers: string[] } | null> {
@@ -426,6 +433,38 @@ async function getDefaultTwilioProviderForOrg(orgId: number): Promise<{ id: numb
     logger.warn({ err, orgId }, "[TwilioVoice] getDefaultTwilioProviderForOrg error");
     return null;
   }
+}
+
+// F4: TwiML de rejet immediat d'un appel frauduleux.
+function twimlReject(): string {
+  return `<Reject reason="rejected"/>`;
+}
+
+interface InboundFraudDecision {
+  fraud: boolean;       // l'appel doit-il etre traite comme frauduleux ?
+  reason: string;       // motif (liste de blocage / reputation)
+}
+
+// F4: evalue un appel entrant. L'allow-list court-circuite toute analyse
+// (numero de confiance). Sinon: block-list => fraude immediate; puis
+// reputation Twilio (high) => fraude. Fail-soft: en cas d'erreur on ne
+// bloque jamais un appelant legitime.
+async function evaluateInboundFraud(orgId: number, phone: string): Promise<InboundFraudDecision> {
+  if (!phone) return { fraud: false, reason: "" };
+  try {
+    const listed = await checkPhoneList(orgId, phone);
+    if (listed === "allow") return { fraud: false, reason: "" };
+    if (listed === "block") {
+      return { fraud: true, reason: "Numero present dans votre liste de blocage" };
+    }
+    const rep = await evaluatePhoneReputation(orgId, phone);
+    if (rep.risk === "high") {
+      return { fraud: true, reason: rep.reasons[0] ?? "Reputation a risque eleve" };
+    }
+  } catch (err) {
+    logger.warn({ err, orgId }, "[TwilioVoice] evaluateInboundFraud error (fail-open)");
+  }
+  return { fraud: false, reason: "" };
 }
 
 const DAY_KEYS: Array<keyof NonNullable<BusinessHours["days"]>> = ["sun","mon","tue","wed","thu","fri","sat"];
@@ -675,6 +714,48 @@ twilioVoiceRouter.post("/telephony/twilio/voice", async (req: Request, res: Resp
     return;
   }
 
+  // F4: protection automatique contre les appels frauduleux. On lit le
+  // reglage de l'org; "off" (defaut) preserve le comportement historique et
+  // evite tout appel synchrone (latence) au service de reputation.
+  const fraudProvider = await getDefaultTwilioProviderForOrg(session.orgId);
+  const fraudAction = fraudProvider?.config.fraudAction ?? "off";
+  if (fraudAction !== "off") {
+    const decision = await evaluateInboundFraud(session.orgId, fromNumber);
+    if (decision.fraud) {
+      const masked = maskPhone(fromNumber);
+      logger.warn({ orgId: session.orgId, callSid, fraudAction }, "[TwilioVoice] Appel frauduleux detecte");
+      recordSecurityScan({
+        orgId: session.orgId, userId: null, kind: "call", target: masked,
+        verdict: "dangerous", details: decision.reason,
+      });
+      // Une seule voie de notification: emitSecurityAlert gere SSE +
+      // WhatsApp/push (avec throttle anti-rafale). On enrichit le detail avec
+      // l'action appliquee pour ne pas perdre l'info "rejete/messagerie".
+      const fraudOutcome = fraudAction === "reject" ? "appel rejete" : "redirige vers messagerie";
+      emitSecurityAlert({
+        orgId: session.orgId, kind: "call", verdict: "dangerous",
+        target: masked, detail: `${decision.reason} (${fraudOutcome})`, notifyWhatsApp: true,
+      });
+
+      if (fraudAction === "reject") {
+        sendTwiml(res, twimlReject());
+        return;
+      }
+      // fraudAction === "voicemail"
+      const fProto = (req.headers["x-forwarded-proto"] as string) || "https";
+      const fHost = (req.headers["x-forwarded-host"] as string) || (req.headers.host as string) || "";
+      const fRecordUrl = `${fProto}://${fHost}/api/telephony/twilio/recording-complete?callSid=${encodeURIComponent(callSid)}`;
+      sendTwiml(
+        res,
+        twimlRecord(
+          fRecordUrl,
+          "Bonjour. Pour des raisons de securite, votre appel ne peut aboutir directement. Laissez un message apres le bip, nous vous rappellerons si necessaire. Appuyez sur diese pour terminer.",
+        ),
+      );
+      return;
+    }
+  }
+
   // Quota check (don't block the call if quota is exceeded, just skip AI)
   let quotaOk = true;
   try {
@@ -722,6 +803,12 @@ twilioVoiceRouter.post("/telephony/twilio/voice", async (req: Request, res: Resp
             recordSecurityScan({
               orgId: session.orgId, userId: null, kind: "call", target: masked,
               verdict: "dangerous", details: rep.reasons.join("; "),
+            });
+            // notifyWhatsApp:false -> la notif d'appel ci-dessous porte deja
+            // l'avertissement de reputation; on evite un double message.
+            emitSecurityAlert({
+              orgId: session.orgId, kind: "call", verdict: "dangerous",
+              target: masked, detail: rep.reasons[0], notifyWhatsApp: false,
             });
           } else if (rep.risk === "medium") {
             suffix = ` Reputation: ${phoneRiskLabel(rep.risk)} (${rep.reasons[0] ?? ""}).`;

@@ -23,6 +23,7 @@ import { logger } from "../lib/logger";
 import { analyzeUrlsBatch, extractUrls, type UrlScanResult } from "../services/url-safety";
 import { scanBase64Content } from "../middleware/security";
 import { recordSecurityScan } from "../services/security-scans";
+import { emitSecurityAlert } from "../services/security-alerts";
 
 export const whatsappRouter: IRouter = Router();
 
@@ -285,6 +286,13 @@ async function tryHandleSecurityScan(
         orgId, userId, kind: "whatsapp", target: `${contentType} (#${i + 1})`,
         verdict: result.safe ? "safe" : "dangerous", details: result.threats.join("; "),
       });
+      // Detection automatique (message entrant) -> alerte temps reel + push
+      // WhatsApp aux membres (l'expediteur recoit deja la reponse du bot).
+      emitSecurityAlert({
+        orgId, kind: "whatsapp", verdict: result.safe ? "safe" : "dangerous",
+        target: `${contentType} (#${i + 1})`, detail: result.threats[0],
+        notifyWhatsApp: true, excludeUserId: userId,
+      });
     }
     verdicts.push("");
     verdicts.push(anyThreat ? "Ne pas ouvrir les fichiers signales." : "Fichiers verifies.");
@@ -305,6 +313,11 @@ async function tryHandleSecurityScan(
         orgId, userId, kind: "whatsapp", target: r.displayUrl,
         verdict: r.risk === "safe" ? "safe" : r.risk === "suspicious" ? "suspicious" : "dangerous",
         details: r.reasons.join("; "),
+      });
+      emitSecurityAlert({
+        orgId, kind: "whatsapp", verdict: r.risk === "dangerous" ? "dangerous" : "safe",
+        target: r.displayUrl, detail: r.reasons[0],
+        notifyWhatsApp: true, excludeUserId: userId,
       });
     }
     return formatUrlVerdict(results);

@@ -3,6 +3,10 @@ import { google } from "googleapis";
 import { db, googleOAuthTokensTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { analyzeUrlsBatch } from "../services/url-safety";
+import { applyDomainListToUrl } from "../services/security-lists";
+import { recordSecurityScan } from "../services/security-scans";
+import { emitSecurityAlert } from "../services/security-alerts";
 
 const router = Router();
 
@@ -472,6 +476,61 @@ interface UrlScanResult {
   reasons: string[];
   isShortener: boolean;
   isHttps: boolean;
+  /** Source ayant determine le verdict le plus eleve (heuristique / Safe Browsing). */
+  source?: "heuristic" | "safe_browsing";
+  /** Types de menace renvoyes par Safe Browsing, si applicable. */
+  threatTypes?: string[];
+}
+
+// F5: authentification de l'expediteur (anti-usurpation). On lit l'en-tete
+// "Authentication-Results" pose par Gmail (SPF/DKIM/DMARC deja verifies cote
+// Google) plutot que de refaire la cryptographie nous-memes.
+type AuthVerdict =
+  | "pass" | "fail" | "softfail" | "neutral" | "none"
+  | "temperror" | "permerror" | "unknown";
+
+interface SenderAuth {
+  spf: AuthVerdict;
+  dkim: AuthVerdict;
+  dmarc: AuthVerdict;
+  /** true si au moins un mecanisme echoue ou est en erreur (hors pass/neutral/none). */
+  suspicious: boolean;
+  reasons: string[];
+}
+
+const AUTH_VERDICTS: ReadonlySet<AuthVerdict> = new Set<AuthVerdict>([
+  "pass", "fail", "softfail", "neutral", "none", "temperror", "permerror",
+]);
+
+function parseAuthVerdict(raw: string | undefined, mechanism: string): AuthVerdict {
+  if (!raw) return "unknown";
+  // RFC 8601: "spf=pass", tolere espaces autour du "=" et la casse. Les
+  // en-tetes peuvent etre replies (folded) sur plusieurs lignes -> on
+  // normalise les espaces/retours a la ligne en espace simple.
+  const normalized = raw.replace(/\s+/g, " ");
+  const re = new RegExp(`(?:^|[;\\s])${mechanism}\\s*=\\s*([a-zA-Z]+)`, "i");
+  const m = normalized.match(re);
+  if (!m) return "unknown";
+  const v = m[1].toLowerCase() as AuthVerdict;
+  return AUTH_VERDICTS.has(v) ? v : "unknown";
+}
+
+/** Un mecanisme est en echec/erreur s'il n'est ni pass, ni neutral/none, ni inconnu. */
+function isAuthFailure(v: AuthVerdict): boolean {
+  return v === "fail" || v === "softfail" || v === "temperror" || v === "permerror";
+}
+
+function analyzeSenderAuth(authResults: string | undefined): SenderAuth {
+  const spf = parseAuthVerdict(authResults, "spf");
+  const dkim = parseAuthVerdict(authResults, "dkim");
+  const dmarc = parseAuthVerdict(authResults, "dmarc");
+  const reasons: string[] = [];
+  if (isAuthFailure(spf)) reasons.push("SPF en echec (serveur d'envoi non autorise)");
+  if (isAuthFailure(dkim)) reasons.push("Signature DKIM invalide ou non verifiable");
+  if (isAuthFailure(dmarc)) reasons.push("DMARC en echec (usurpation probable du domaine)");
+  if (!authResults) reasons.push("Aucune information d'authentification disponible");
+  const suspicious = isAuthFailure(spf) || isAuthFailure(dkim) || isAuthFailure(dmarc);
+  return { spf, dkim, dmarc, suspicious, reasons };
 }
 
 function analyzeUrl(rawUrl: string): UrlScanResult {
@@ -537,6 +596,7 @@ export interface EmailScanReport {
     scannedAt: string;
   }>;
   links: UrlScanResult[];
+  senderAuth: SenderAuth;
   aiAnalysis: {
     phishingScore: number; // 0–10
     socialEngineering: string[];
@@ -576,6 +636,9 @@ router.post("/gmail/message/:id/scan", async (req: Request, res: Response): Prom
     const subject = headers["subject"] || "";
     const fromHeader = headers["from"] || "";
 
+    // F5: authentification de l'expediteur (SPF/DKIM/DMARC) — anti-usurpation.
+    const senderAuth = analyzeSenderAuth(headers["authentication-results"]);
+
     // 2. Scan attachments
     const { scanBase64Content } = await import("../middleware/security.js");
     const scannedAttachments: EmailScanReport["attachments"] = [];
@@ -614,15 +677,26 @@ router.post("/gmail/message/:id/scan", async (req: Request, res: Response): Prom
     // 3. Extract & analyze URLs
     const allText = `${subject} ${html} ${plain}`;
     const rawUrls = extractUrls(allText);
-    const scannedLinks = rawUrls.map(analyzeUrl);
+    const orgId = req.session?.organisationId ?? null;
+    // F5: analyse complete des liens (heuristique + Google Safe Browsing) puis
+    // application des listes personnalisees de l'org (override blocage/autorisation).
+    let scannedLinks: UrlScanResult[];
+    try {
+      const batch = await analyzeUrlsBatch(rawUrls);
+      scannedLinks = orgId
+        ? await Promise.all(batch.map((l) => applyDomainListToUrl(orgId, l)))
+        : batch;
+    } catch (linkErr: any) {
+      logger.warn({ err: linkErr }, "Gmail scan link analysis failed, fallback heuristique");
+      scannedLinks = rawUrls.map(analyzeUrl);
+    }
 
     // 4. AI phishing analysis via Gemini (cached per message)
     let aiAnalysis: EmailScanReport["aiAnalysis"] = null;
     const { buildAiCacheKey: _buildKey, getCached: _getC, setCached: _setC, AI_CACHE_TTL: _ttl, withProviderTimeout: _to } = await import("../services/ai-cache");
-    const orgIdForCache = req.session?.organisationId ?? null;
     const phishingKey = _buildKey({
       route: "/gmail/scan",
-      organisationId: orgIdForCache,
+      organisationId: orgId,
       userId,
       input: { msgId, subjectHash: subject.slice(0, 200), urlCount: rawUrls.length },
     });
@@ -686,11 +760,15 @@ Réponds en JSON strict avec ce format:
     if (hasDangerousLink)    riskScore += 30;
     else if (hasSuspiciousLink) riskScore += 10;
     riskScore += aiScore * 4; // 0–40
+    // F5: l'echec d'authentification de l'expediteur est un signal fort
+    // d'usurpation (DMARC fail > SPF/DKIM fail).
+    if (senderAuth.dmarc === "fail") riskScore += 25;
+    else if (senderAuth.suspicious) riskScore += 12;
     riskScore = Math.min(100, riskScore);
 
     let overallRisk: EmailScanReport["overallRisk"] = "safe";
     if (riskScore >= 60 || aiAnalysis?.verdict === "phishing") overallRisk = "dangerous";
-    else if (riskScore >= 25 || aiAnalysis?.verdict === "suspect") overallRisk = "suspicious";
+    else if (riskScore >= 25 || aiAnalysis?.verdict === "suspect" || senderAuth.suspicious) overallRisk = "suspicious";
 
     const report: EmailScanReport = {
       messageId: msgId,
@@ -698,6 +776,7 @@ Réponds en JSON strict avec ce format:
       riskScore,
       attachments: scannedAttachments,
       links: scannedLinks,
+      senderAuth,
       aiAnalysis,
       stats: {
         attachmentsScanned: scannedAttachments.length,
@@ -708,6 +787,35 @@ Réponds en JSON strict avec ce format:
       },
       scannedAt: new Date().toISOString(),
     };
+
+    // F5: surface au Centre de securite (journal + alerte temps reel) lorsque
+    // l'email est dangereux. Org-scope; fail-soft pour ne jamais casser le scan.
+    if (orgId && overallRisk !== "safe") {
+      const verdict = overallRisk === "dangerous" ? "dangerous" : "suspicious";
+      const reasonBits = [
+        aiAnalysis?.impersonation ? `usurpation ${aiAnalysis.impersonation}` : null,
+        hasDangerousLink ? "lien dangereux" : null,
+        hasUnsafeAttachment ? "piece jointe dangereuse" : null,
+        senderAuth.suspicious ? "authentification expediteur en echec" : null,
+      ].filter(Boolean);
+      const detail = `Email a risque (${riskScore}/100)${reasonBits.length ? " — " + reasonBits.join(", ") : ""}`;
+      try {
+        recordSecurityScan({
+          orgId, userId, kind: "email",
+          target: (subject || fromHeader || msgId).slice(0, 120),
+          verdict, details: detail,
+        });
+        if (verdict === "dangerous") {
+          emitSecurityAlert({
+            orgId, kind: "email", verdict: "dangerous",
+            target: (subject || fromHeader || msgId).slice(0, 120),
+            detail, notifyWhatsApp: true, excludeUserId: userId,
+          });
+        }
+      } catch (centerErr: any) {
+        logger.warn({ err: centerErr }, "Gmail scan: surface securite echouee (non-bloquant)");
+      }
+    }
 
     logger.info({ security: true, event: "email_scan", msgId, overallRisk, riskScore }, `Email scan: ${overallRisk}`);
     res.json(report);

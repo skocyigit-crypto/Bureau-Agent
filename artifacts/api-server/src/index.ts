@@ -14,6 +14,7 @@ import { startQuotaWarningCron } from "./services/quota-warning-cron";
 import { startTrialWarningCron } from "./services/trial-warning-cron";
 import { startAiInsightsCron } from "./services/ai-insights";
 import { startLocationCleanupCron } from "./services/location-cleanup-cron";
+import { startSecurityDigestCron } from "./services/security-digest-cron";
 import { attachVoiceLiveWs } from "./routes/voice-live";
 
 import { closePool, checkDbHealth } from "@workspace/db";
@@ -114,6 +115,7 @@ async function startServer(): Promise<void> {
     startTrialWarningCron();
     startAiInsightsCron();
     startLocationCleanupCron();
+    startSecurityDigestCron();
     attachVoiceLiveWs(server);
   });
 
