@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import crypto from "crypto";
 import { db, documentsTable } from "@workspace/db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
 import { getOrgId } from "../middleware/tenant";
 import { scanBase64ContentFull, scanBase64ContentFullCached, logSecurityEvent, type StoredScanRecord } from "../middleware/security";
@@ -685,6 +685,94 @@ router.post("/documents/:id/analyze", requireMinAgent, async (req: Request, res:
   } catch (err: any) {
     logger.error({ err }, "Document analysis error");
     res.status(500).json({ error: "Erreur lors de l'analyse" });
+  }
+});
+
+/**
+ * Scan antivirus groupe : analyse plusieurs documents stockes en une seule
+ * action. Reutilise le scan complet frais (`scanBase64ContentFull`) par
+ * document, persiste le verdict de chacun, et renvoie un recapitulatif
+ * (sain / dangereux / echec) plus le detail par document pour rafraichir la
+ * liste cote client. Un document sans contenu ou dont le scan echoue n'arrete
+ * pas le lot : il est compte comme echec et le traitement continue.
+ *
+ * Doit etre declare AVANT `/documents/:id/scan` pour que le segment "bulk" ne
+ * soit pas capture par le parametre `:id`.
+ */
+router.post("/documents/bulk/scan", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const userId = req.session?.userId || null;
+    const { ids } = req.body as { ids?: unknown };
+    if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    const validIds = Array.from(new Set(ids.map((n) => parseInt(String(n))).filter((n) => !isNaN(n))));
+    if (validIds.length === 0) { res.status(400).json({ error: "ids invalides" }); return; }
+
+    const docs = await db.select().from(documentsTable)
+      .where(and(eq(documentsTable.organisationId, orgId), inArray(documentsTable.id, validIds)));
+
+    const ip = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || "unknown";
+    const results: Array<{
+      documentId: number;
+      scanVerdict?: string;
+      scanEngine?: string | null;
+      scannedAt?: string;
+      error?: string;
+    }> = [];
+    let safe = 0;
+    let dangerous = 0;
+    let failed = 0;
+
+    for (const doc of docs) {
+      if (!doc.fileContent) {
+        failed++;
+        results.push({ documentId: doc.id, error: "Contenu indisponible" });
+        continue;
+      }
+      try {
+        const scanResult = await scanBase64ContentFull(doc.fileContent, doc.originalName);
+        const verdict = scanResult.safe ? "safe" : "dangerous";
+        await db.update(documentsTable).set({
+          scanVerdict: verdict,
+          scanEngine: scanResult.engine || null,
+          scanDetail: scanResult.engineDetail || null,
+          scanSha256: scanResult.sha256 || null,
+          scannedAt: new Date(scanResult.scannedAt),
+          updatedAt: new Date(),
+        }).where(eq(documentsTable.id, doc.id));
+
+        if (scanResult.safe) {
+          safe++;
+        } else {
+          dangerous++;
+          logSecurityEvent("malicious_file_detected", ip, userId, `Scan groupe du document #${doc.id} (${scanResult.engine}): ${scanResult.threats.join(", ")}`, "critical");
+        }
+        results.push({
+          documentId: doc.id,
+          scanVerdict: verdict,
+          scanEngine: scanResult.engine || null,
+          scannedAt: new Date(scanResult.scannedAt).toISOString(),
+        });
+      } catch (scanErr: any) {
+        logger.error({ err: scanErr, docId: doc.id }, "Bulk document scan: per-doc failure");
+        failed++;
+        results.push({ documentId: doc.id, error: "Erreur d'analyse" });
+      }
+    }
+
+    const missing = validIds.length - docs.length;
+    res.json({
+      success: true,
+      requested: validIds.length,
+      scanned: safe + dangerous,
+      safe,
+      dangerous,
+      failed: failed + (missing > 0 ? missing : 0),
+      results,
+    });
+  } catch (err: any) {
+    logger.error({ err }, "Bulk document scan error");
+    res.status(500).json({ error: "Erreur lors de l'analyse antivirus groupee" });
   }
 });
 

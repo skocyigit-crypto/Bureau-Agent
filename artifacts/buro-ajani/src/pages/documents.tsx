@@ -107,6 +107,7 @@ export default function DocumentsPage() {
   const [editDocForm, setEditDocForm] = useState({ category: "", description: "", entityType: "" });
   const [editDocSaving, setEditDocSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [bulkScanning, setBulkScanning] = useState(false);
 
   const loadDocuments = useCallback(async () => {
     setLoading(true);
@@ -180,6 +181,34 @@ export default function DocumentsPage() {
     const res = await fetch(`${API}/api/bulk/documents/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds }) });
     if (res.ok) { toast({ title: `${selectedIds.length} document(s) supprime(s)` }); setSelectedIds([]); loadDocuments(); }
     else toast({ title: "Erreur", variant: "destructive" });
+  };
+
+  const handleBulkScan = async () => {
+    if (selectedIds.length === 0 || bulkScanning) return;
+    setBulkScanning(true);
+    try {
+      const res = await fetch(`${API}/api/documents/bulk/scan`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds }) });
+      if (res.ok) {
+        const r = await res.json();
+        const parts: string[] = [];
+        if (r.safe) parts.push(`${r.safe} sain(s)`);
+        if (r.dangerous) parts.push(`${r.dangerous} menace(s)`);
+        if (r.failed) parts.push(`${r.failed} échec(s)`);
+        toast({
+          title: `${r.scanned} document(s) analysé(s)`,
+          description: parts.join(" · ") || undefined,
+          variant: r.dangerous ? "destructive" : "default",
+        });
+        setSelectedIds([]);
+        await loadDocuments();
+      } else {
+        toast({ title: "Erreur d'analyse antivirus", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur d'analyse antivirus", variant: "destructive" });
+    } finally {
+      setBulkScanning(false);
+    }
   };
 
   const analyzeDoc = async (id: number) => {
@@ -454,8 +483,12 @@ export default function DocumentsPage() {
               {selectedIds.length > 0 && (
                 <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
                   <span className="text-sm font-medium text-blue-700 dark:text-blue-300">{selectedIds.length} document(s) sélectionné(s)</span>
-                  <Button size="sm" variant="destructive" className="gap-1 h-7 text-xs" onClick={handleBulkDelete}><Trash2 className="w-3 h-3" />Supprimer la sélection</Button>
-                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setSelectedIds([])}>Annuler</Button>
+                  <Button size="sm" variant="outline" className="gap-1 h-7 text-xs" onClick={handleBulkScan} disabled={bulkScanning}>
+                    {bulkScanning ? <Loader2 className="w-3 h-3 animate-spin" /> : <Shield className="w-3 h-3" />}
+                    {bulkScanning ? "Analyse en cours…" : "Analyser la sécurité"}
+                  </Button>
+                  <Button size="sm" variant="destructive" className="gap-1 h-7 text-xs" onClick={handleBulkDelete} disabled={bulkScanning}><Trash2 className="w-3 h-3" />Supprimer la sélection</Button>
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setSelectedIds([])} disabled={bulkScanning}>Annuler</Button>
                 </div>
               )}
               {filtered.length > 0 && (

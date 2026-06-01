@@ -232,6 +232,7 @@ export default function DocumentsScreen() {
   const [sourceFilter, setSourceFilter] = useState("all");
   const [scanningIds, setScanningIds] = useState<number[]>([]);
   const [scanFilter, setScanFilter] = useState("all");
+  const [bulkScanning, setBulkScanning] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -295,6 +296,44 @@ export default function DocumentsScreen() {
     }
   }
 
+  async function handleBulkScan(ids: number[]) {
+    if (bulkScanning || ids.length === 0) return;
+    setBulkScanning(true);
+    try {
+      const res = await fetchAuth(`${API_BASE}/api/documents/bulk/scan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      if (res.ok) {
+        const r = await res.json();
+        const byId = new Map<number, { scanVerdict?: string; scanEngine?: string | null; scannedAt?: string }>();
+        for (const item of r.results ?? []) {
+          if (item.scanVerdict) byId.set(item.documentId, item);
+        }
+        setData(prev => prev ? {
+          ...prev,
+          documents: prev.documents.map(d => {
+            const u = byId.get(d.id);
+            return u ? { ...d, scanVerdict: u.scanVerdict ?? d.scanVerdict, scanEngine: u.scanEngine ?? null, scannedAt: u.scannedAt ?? d.scannedAt } : d;
+          }),
+        } : null);
+        const parts: string[] = [];
+        if (r.safe) parts.push(`${r.safe} sain(s)`);
+        if (r.dangerous) parts.push(`${r.dangerous} menace(s)`);
+        if (r.failed) parts.push(`${r.failed} échec(s)`);
+        Alert.alert(`${r.scanned} document(s) analysé(s)`, parts.join(" · ") || "Analyse terminée.");
+        load();
+      } else {
+        Alert.alert("Analyse antivirus", "L'analyse groupée a échoué. Réessayez.");
+      }
+    } catch {
+      Alert.alert("Analyse antivirus", "Erreur de connexion.");
+    } finally {
+      setBulkScanning(false);
+    }
+  }
+
   // Security-status filter items
   const scanTotal = data?.byScan ? data.byScan.safe + data.byScan.dangerous + data.byScan.unscanned : undefined;
   const scanTabs: { key: string; label: string; icon: keyof typeof Feather.glyphMap; color: string; count?: number }[] = [
@@ -312,6 +351,9 @@ export default function DocumentsScreen() {
       count: data?.bySource.find(s => s.entity_type === key)?.count ?? 0,
     })).filter(s => s.count > 0),
   ];
+
+  // Documents not yet security-scanned (currently loaded list)
+  const unscannedIds = (data?.documents ?? []).filter(d => !d.scanVerdict).map(d => d.id);
 
   // Stats
   const totalDocs = data?.bySource.reduce((s, b) => s + b.count, 0) ?? 0;
@@ -408,6 +450,21 @@ export default function DocumentsScreen() {
         />
       </View>
 
+      {/* ── Bulk scan banner (unanalysed documents) ── */}
+      {!loading && unscannedIds.length > 0 && (
+        <Pressable
+          onPress={() => handleBulkScan(unscannedIds)}
+          disabled={bulkScanning}
+          style={[st.bulkBanner, { backgroundColor: colors.card, borderColor: "#10b98140" }]}>
+          {bulkScanning
+            ? <ActivityIndicator size="small" color="#10b981" />
+            : <Feather name="shield" size={15} color="#10b981" />}
+          <Text style={[st.bulkBannerText, { color: colors.text }]}>
+            {bulkScanning ? "Analyse en cours…" : `Analyser la sécurité de ${unscannedIds.length} document(s) non analysé(s)`}
+          </Text>
+        </Pressable>
+      )}
+
       {/* ── Content ── */}
       {loading ? (
         <View style={st.center}>
@@ -458,6 +515,8 @@ const st = StyleSheet.create({
   sourceChipText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   sourceBadge: { paddingHorizontal: 5, paddingVertical: 1, borderRadius: 8 },
   sourceBadgeText: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" },
+  bulkBanner: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 14, marginTop: 12, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
+  bulkBannerText: { flex: 1, fontSize: 12, fontFamily: "Inter_600SemiBold" },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   listContent: { padding: 14, gap: 2 },
   card: { borderRadius: 14, borderWidth: 1, padding: 12, marginBottom: 8 },
