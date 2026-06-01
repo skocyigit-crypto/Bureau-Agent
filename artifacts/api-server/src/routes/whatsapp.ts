@@ -24,6 +24,10 @@ import { analyzeUrlsBatch, extractUrls, type UrlScanResult } from "../services/u
 import { scanBase64ContentFull } from "../middleware/security";
 import { recordSecurityScan } from "../services/security-scans";
 import { emitSecurityAlert } from "../services/security-alerts";
+import {
+  isMalwareSubmissionEnabled,
+  getInboundMaxSubmitBytes,
+} from "../services/file-malware";
 
 export const whatsappRouter: IRouter = Router();
 
@@ -247,6 +251,49 @@ async function fetchTwilioMediaBase64(
 }
 
 /**
+ * Scan PROFOND en arriere-plan d'une piece jointe entrante. Relance
+ * scanBase64ContentFull avec soumission a chaud (upload VirusTotal) borne par
+ * la taille entrante. N'est appele que lorsque le chemin rapide n'a rien trouve
+ * et que la soumission est activee. Fail-soft total: ne leve jamais, n'impacte
+ * pas la reponse du webhook. Si l'upload revele une menace que le lookup avait
+ * ratee (zero-day), on journalise le scan et on alerte les membres.
+ */
+async function deepScanInBackground(
+  b64: string,
+  filename: string,
+  target: string,
+  orgId: number,
+  userId: number,
+): Promise<void> {
+  try {
+    const result = await scanBase64ContentFull(b64, filename, {
+      maxSubmitBytes: getInboundMaxSubmitBytes(),
+    });
+    // On agit uniquement si la SOUMISSION a chaud a revele une menace que le
+    // chemin rapide (lookup + heuristique) avait ratee. Evite de dupliquer un
+    // verdict deja journalise et reste muet en l'absence de zero-day.
+    if (!result.safe && result.engineSource === "upload") {
+      recordSecurityScan({
+        orgId, userId, kind: "whatsapp", target,
+        verdict: "dangerous", details: result.threats.join("; "),
+        engine: result.engine, source: result.engineSource,
+      });
+      emitSecurityAlert({
+        orgId, kind: "whatsapp", verdict: "dangerous",
+        target, detail: result.threats[0],
+        notifyWhatsApp: true, excludeUserId: userId,
+      });
+      logger.warn(
+        { security: true, event: "whatsapp_deep_scan_threat", orgId, target },
+        "[whatsapp] scan profond en arriere-plan: menace zero-day detectee",
+      );
+    }
+  } catch (err) {
+    logger.warn({ err, orgId }, "[whatsapp] echec scan profond en arriere-plan");
+  }
+}
+
+/**
  * Tente de traiter le message comme une demande de scan. Renvoie une reponse
  * texte si un scan a ete effectue, sinon null (le message sera route vers
  * l'assistant IA general).
@@ -275,7 +322,13 @@ async function tryHandleSecurityScan(
         continue;
       }
       const ext = contentType.split("/")[1] ?? "bin";
-      const result = await scanBase64ContentFull(b64, `whatsapp-media-${i}.${ext}`);
+      const target = `${contentType} (#${i + 1})`;
+      const filename = `whatsapp-media-${i}.${ext}`;
+      // Chemin RAPIDE pour repondre vite a Twilio (webhook synchrone): lookup
+      // d'empreinte + heuristique uniquement. La soumission a chaud (upload +
+      // sondage, jusqu'a 60s) bloquerait la reponse et ferait expirer le
+      // webhook Twilio (~15s) -> on la relance en ARRIERE-PLAN.
+      const result = await scanBase64ContentFull(b64, filename, { skipSubmission: true });
       if (result.safe) {
         verdicts.push(`✅ Fichier ${i + 1} (${contentType}) : aucune menace detectee.`);
       } else {
@@ -283,17 +336,24 @@ async function tryHandleSecurityScan(
         verdicts.push(`🛑 Fichier ${i + 1} (${contentType}) : DANGEREUX — ${result.threats.join(", ")}`);
       }
       recordSecurityScan({
-        orgId, userId, kind: "whatsapp", target: `${contentType} (#${i + 1})`,
+        orgId, userId, kind: "whatsapp", target,
         verdict: result.safe ? "safe" : "dangerous", details: result.threats.join("; "),
-        engine: result.engine,
+        engine: result.engine, source: result.engineSource,
       });
       // Detection automatique (message entrant) -> alerte temps reel + push
       // WhatsApp aux membres (l'expediteur recoit deja la reponse du bot).
       emitSecurityAlert({
         orgId, kind: "whatsapp", verdict: result.safe ? "safe" : "dangerous",
-        target: `${contentType} (#${i + 1})`, detail: result.threats[0],
+        target, detail: result.threats[0],
         notifyWhatsApp: true, excludeUserId: userId,
       });
+      // Si le chemin rapide n'a rien trouve et que la soumission a chaud est
+      // activee, on relance un scan PROFOND en arriere-plan (zero-day): il
+      // n'impacte pas la latence du webhook et alerte les membres si l'upload
+      // VirusTotal revele une menace que le lookup avait ratee.
+      if (result.safe && isMalwareSubmissionEnabled()) {
+        void deepScanInBackground(b64, filename, target, orgId, userId);
+      }
     }
     verdicts.push("");
     verdicts.push(anyThreat ? "Ne pas ouvrir les fichiers signales." : "Fichiers verifies.");

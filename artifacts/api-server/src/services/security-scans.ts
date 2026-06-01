@@ -10,6 +10,13 @@
 export type ScanKind = "url" | "file" | "whatsapp" | "call" | "email";
 export type ScanVerdict = "safe" | "suspicious" | "dangerous";
 
+/**
+ * Origine d'un verdict antivirus externe:
+ *  - "lookup": empreinte SHA-256 deja connue (aucun contenu envoye).
+ *  - "upload": fichier soumis a chaud (le contenu a quitte le serveur).
+ */
+export type ScanSource = "lookup" | "upload";
+
 export interface SecurityScan {
   id: string;
   orgId: number;
@@ -21,6 +28,8 @@ export interface SecurityScan {
   at: string;
   /** Moteur ayant produit le verdict (ex: "Heuristique", "VirusTotal"). */
   engine?: string;
+  /** Origine d'un verdict externe (lookup d'empreinte vs soumission a chaud). */
+  source?: ScanSource;
 }
 
 const MAX_PER_ORG = 500;
@@ -34,6 +43,7 @@ export function recordSecurityScan(input: {
   verdict: ScanVerdict;
   details: string;
   engine?: string;
+  source?: ScanSource;
 }): SecurityScan {
   const scan: SecurityScan = {
     id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
@@ -45,6 +55,7 @@ export function recordSecurityScan(input: {
     details: input.details.slice(0, 600),
     at: new Date().toISOString(),
     engine: input.engine,
+    source: input.source,
   };
   const list = scansByOrg.get(input.orgId) ?? [];
   list.push(scan);

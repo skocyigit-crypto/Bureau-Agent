@@ -590,7 +590,27 @@ export function scanBase64Content(base64: string, filename?: string): ScanResult
  * Le verdict externe prime: une detection VirusTotal force `safe: false`.
  * `engine` indique la source ayant determine le verdict final.
  */
-export async function scanBase64ContentFull(base64: string, filename?: string): Promise<ScanResult> {
+export interface FullScanOptions {
+  /**
+   * Saute la soumission a chaud (upload) meme si elle est activee. Les flux
+   * ENTRANTS synchrones (webhook WhatsApp) l'utilisent pour repondre vite
+   * (lookup d'empreinte + heuristique uniquement, ~5s) puis relancent la
+   * soumission en arriere-plan. Le lookup d'empreinte reste actif.
+   */
+  skipSubmission?: boolean;
+  /**
+   * Octets max au-dela desquels on n'envoie PAS le contenu a chaud. Le lookup
+   * d'empreinte et l'heuristique restent actifs. Permet aux flux entrants de
+   * borner la taille des fichiers soumis (perf + vie privee).
+   */
+  maxSubmitBytes?: number;
+}
+
+export async function scanBase64ContentFull(
+  base64: string,
+  filename?: string,
+  opts?: FullScanOptions,
+): Promise<ScanResult> {
   const base = scanBase64Content(base64, filename);
   // Encodage invalide ou empreinte absente: rien a interroger.
   if (!base.sha256) return base;
@@ -604,12 +624,22 @@ export async function scanBase64ContentFull(base64: string, filename?: string): 
   //    attraper les menaces zero-day que le hash-lookup rate. Le contenu quitte
   //    le serveur — d'ou le flag. Reste fail-soft: si la soumission echoue, on
   //    garde le verdict heuristique.
-  if (!verdict && isMalwareSubmissionEnabled()) {
+  if (!verdict && isMalwareSubmissionEnabled() && !opts?.skipSubmission) {
     try {
       const buffer = Buffer.from(base64, "base64");
-      const diag: SubmitFileDiagnostics = { timedOut: false };
-      verdict = await submitFile(buffer, base.sha256, filename, diag);
-      deepScanTimedOut = diag.timedOut;
+      // Garde de taille pour les flux entrants: au-dela du plafond, on ne
+      // bloque pas le traitement avec un gros upload — on garde lookup +
+      // heuristique.
+      if (opts?.maxSubmitBytes !== undefined && buffer.length > opts.maxSubmitBytes) {
+        logger.info(
+          { size: buffer.length, max: opts.maxSubmitBytes },
+          "[security] fichier entrant trop volumineux pour soumission a chaud, lookup + heuristique uniquement",
+        );
+      } else {
+        const diag: SubmitFileDiagnostics = { timedOut: false };
+        verdict = await submitFile(buffer, base.sha256, filename, diag);
+        deepScanTimedOut = diag.timedOut;
+      }
     } catch {
       /* fail-soft: le verdict heuristique prime */
     }

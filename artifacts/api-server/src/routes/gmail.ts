@@ -7,6 +7,7 @@ import { analyzeUrlsBatch } from "../services/url-safety";
 import { applyDomainListToUrl } from "../services/security-lists";
 import { recordSecurityScan } from "../services/security-scans";
 import { emitSecurityAlert } from "../services/security-alerts";
+import { getInboundMaxSubmitBytes } from "../services/file-malware";
 
 const router = Router();
 
@@ -595,6 +596,8 @@ export interface EmailScanReport {
     fileType: string | null;
     scannedAt: string;
     engine?: string;
+    /** Origine d'un verdict externe (lookup d'empreinte vs soumission a chaud). */
+    engineSource?: "lookup" | "upload";
   }>;
   links: UrlScanResult[];
   senderAuth: SenderAuth;
@@ -650,7 +653,13 @@ router.post("/gmail/message/:id/scan", async (req: Request, res: Response): Prom
           userId: "me", messageId: msgId, id: att.attachmentId,
         });
         const base64Data: string = attRes.data?.data || "";
-        const scanResult = await scanBase64ContentFull(base64Data, att.filename);
+        // Scan profond (heuristique + VirusTotal). La soumission a chaud
+        // (upload) est bornee par la taille entrante pour ne pas envoyer de
+        // tres gros fichiers (perf + vie privee). Le lookup d'empreinte +
+        // heuristique restent actifs quelle que soit la taille.
+        const scanResult = await scanBase64ContentFull(base64Data, att.filename, {
+          maxSubmitBytes: getInboundMaxSubmitBytes(),
+        });
         scannedAttachments.push({
           filename: att.filename,
           mimeType: att.mimeType,
@@ -661,6 +670,7 @@ router.post("/gmail/message/:id/scan", async (req: Request, res: Response): Prom
           fileType: scanResult.fileType,
           scannedAt: scanResult.scannedAt,
           engine: scanResult.engine,
+          engineSource: scanResult.engineSource,
         });
       } catch (e: any) {
         scannedAttachments.push({
