@@ -3,7 +3,7 @@ import { db, documentsTable } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
 import { getOrgId } from "../middleware/tenant";
-import { scanBase64ContentFull, logSecurityEvent } from "../middleware/security";
+import { scanBase64ContentFull, scanBase64ContentFullCached, logSecurityEvent, type StoredScanRecord } from "../middleware/security";
 import { logger } from "../lib/logger";
 import { analyzeDocument, processDocumentForImport, importRowsToModule, analyzeDocumentMultiModel, askDocumentQuestion } from "../services/document-ai";
 
@@ -113,6 +113,11 @@ router.post("/documents/upload", requireMinAgent, async (req: Request, res: Resp
       description: description || null,
       tags: tags || [],
       status: "uploaded",
+      scanVerdict: scanResult.safe ? "safe" : "dangerous",
+      scanEngine: scanResult.engine || null,
+      scanDetail: scanResult.engineDetail || null,
+      scanSha256: scanResult.sha256 || null,
+      scannedAt: new Date(scanResult.scannedAt),
     }).returning();
 
     let aiResult = null;
@@ -213,6 +218,11 @@ router.post("/documents/upload-multiple", requireMinAgent, async (req: Request, 
           description: file.description || null,
           tags: file.tags || [],
           status: "uploaded",
+          scanVerdict: scanResult.safe ? "safe" : "dangerous",
+          scanEngine: scanResult.engine || null,
+          scanDetail: scanResult.engineDetail || null,
+          scanSha256: scanResult.sha256 || null,
+          scannedAt: new Date(scanResult.scannedAt),
         }).returning();
 
         results.push({ fileName: file.fileName, success: true, documentId: doc.id, fileSize: buffer.length });
@@ -261,6 +271,10 @@ router.get("/documents/list", requireMinAgent, async (req: Request, res: Respons
         tags: documentsTable.tags,
         aiProcessed: documentsTable.aiProcessed,
         status: documentsTable.status,
+        scanVerdict: documentsTable.scanVerdict,
+        scanEngine: documentsTable.scanEngine,
+        scanDetail: documentsTable.scanDetail,
+        scannedAt: documentsTable.scannedAt,
         uploadedBy: documentsTable.uploadedBy,
         createdAt: documentsTable.createdAt,
       }).from(documentsTable)
@@ -320,6 +334,7 @@ router.post("/documents/process", requireMinAgent, async (req: Request, res: Res
     let content = fileContent;
     let name = fileName;
     let mime = rawMime;
+    let storedScan: StoredScanRecord | null = null;
 
     if (documentId) {
       const docId = parseInt(String(documentId));
@@ -330,6 +345,13 @@ router.post("/documents/process", requireMinAgent, async (req: Request, res: Res
       content = doc.fileContent;
       name = doc.originalName;
       mime = doc.mimeType;
+      storedScan = {
+        sha256: doc.scanSha256,
+        verdict: doc.scanVerdict,
+        engine: doc.scanEngine,
+        detail: doc.scanDetail,
+        scannedAt: doc.scannedAt,
+      };
     }
 
     if (!content || !name) {
@@ -350,7 +372,7 @@ router.post("/documents/process", requireMinAgent, async (req: Request, res: Res
       return;
     }
 
-    const scanResult = await scanBase64ContentFull(content, name);
+    const { result: scanResult, reused } = await scanBase64ContentFullCached(content, name, storedScan);
     if (!scanResult.safe) {
       res.status(400).json({ error: "Fichier bloque pour raisons de securite.", threats: scanResult.threats });
       return;
@@ -359,11 +381,23 @@ router.post("/documents/process", requireMinAgent, async (req: Request, res: Res
     const result = await processDocumentForImport(content, mime, name, orgId);
 
     if (documentId) {
-      await db.update(documentsTable).set({
+      const docUpdates: Record<string, unknown> = {
         extractedData: result as any,
         status: "processed",
         updatedAt: new Date(),
-      }).where(eq(documentsTable.id, parseInt(String(documentId))));
+      };
+      // Si l'empreinte n'avait jamais ete persistee (document anterieur a cette
+      // fonctionnalite), on enregistre le verdict du rescan pour les fois
+      // suivantes.
+      if (!reused && scanResult.sha256) {
+        docUpdates.scanVerdict = scanResult.safe ? "safe" : "dangerous";
+        docUpdates.scanEngine = scanResult.engine || null;
+        docUpdates.scanDetail = scanResult.engineDetail || null;
+        docUpdates.scanSha256 = scanResult.sha256;
+        docUpdates.scannedAt = new Date(scanResult.scannedAt);
+      }
+      await db.update(documentsTable).set(docUpdates)
+        .where(eq(documentsTable.id, parseInt(String(documentId))));
     }
 
     logger.info({ orgId, fileName: name, totalRows: result.totalRows, suggestedModule: result.suggestedModule }, "Document processed for import");
@@ -468,6 +502,9 @@ router.get("/documents/entity/:entityType/:entityId", requireMinAgent, async (re
       tags: documentsTable.tags,
       aiProcessed: documentsTable.aiProcessed,
       status: documentsTable.status,
+      scanVerdict: documentsTable.scanVerdict,
+      scanEngine: documentsTable.scanEngine,
+      scannedAt: documentsTable.scannedAt,
       createdAt: documentsTable.createdAt,
     }).from(documentsTable)
       .where(and(eq(documentsTable.organisationId, orgId), eq(documentsTable.entityType, entityType), eq(documentsTable.entityId, entityId)))
@@ -506,6 +543,11 @@ router.get("/documents/:id", requireMinAgent, async (req: Request, res: Response
       extractedText: doc.extractedText,
       extractedData: doc.extractedData,
       status: doc.status,
+      scanVerdict: doc.scanVerdict,
+      scanEngine: doc.scanEngine,
+      scanDetail: doc.scanDetail,
+      scanSha256: doc.scanSha256,
+      scannedAt: doc.scannedAt,
       uploadedBy: doc.uploadedBy,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,

@@ -601,6 +601,53 @@ export async function scanBase64ContentFull(base64: string, filename?: string): 
   };
 }
 
+/** Verdict d'analyse antivirus persiste sur un enregistrement de document. */
+export interface StoredScanRecord {
+  sha256: string | null;
+  verdict: string | null;
+  engine: string | null;
+  detail: string | null;
+  scannedAt: Date | string | null;
+}
+
+/**
+ * Variante de `scanBase64ContentFull` qui reutilise un verdict deja persiste
+ * pour un fichier inchange (meme empreinte SHA-256, deja juge sain). Evite de
+ * re-interroger le moteur externe (VirusTotal) a chaque relecture du meme
+ * fichier — survit aux redemarrages la ou le cache memoire 30 min ne suffit
+ * pas. On ne reutilise QUE les verdicts surs : tout fichier deja dangereux ou
+ * dont l'empreinte differe est rescanne integralement.
+ */
+export async function scanBase64ContentFullCached(
+  base64: string,
+  filename: string | undefined,
+  stored: StoredScanRecord | null,
+): Promise<{ result: ScanResult; reused: boolean }> {
+  const base = scanBase64Content(base64, filename);
+  if (
+    base.sha256 &&
+    base.safe &&
+    stored &&
+    stored.verdict === "safe" &&
+    stored.sha256 === base.sha256
+  ) {
+    return {
+      result: {
+        ...base,
+        safe: true,
+        engine: stored.engine ?? base.engine,
+        engineDetail: stored.detail ?? undefined,
+        scannedAt: stored.scannedAt
+          ? new Date(stored.scannedAt).toISOString()
+          : base.scannedAt,
+      },
+      reused: true,
+    };
+  }
+  const result = await scanBase64ContentFull(base64, filename);
+  return { result, reused: false };
+}
+
 const ENCRYPTION_ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 16;
 const AUTH_TAG_LENGTH = 16;

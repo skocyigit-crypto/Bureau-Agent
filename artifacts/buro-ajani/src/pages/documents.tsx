@@ -13,7 +13,7 @@ import { FileUpload } from "@/components/file-upload";
 import {
   FileText, FileSpreadsheet, Image as ImageIcon, File, Download,
   Trash2, Brain, Sparkles, Search, Filter, BarChart3, HardDrive,
-  Upload, Loader2, Eye, Printer, Edit, FolderKanban,
+  Upload, Loader2, Eye, Printer, Edit, FolderKanban, ShieldCheck, ShieldAlert,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -71,6 +71,10 @@ interface Doc {
   tags: string[];
   aiProcessed: boolean;
   status: string;
+  scanVerdict?: string | null;
+  scanEngine?: string | null;
+  scanDetail?: string | null;
+  scannedAt?: string | null;
   uploadedBy: number | null;
   createdAt: string;
 }
@@ -410,6 +414,21 @@ export default function DocumentsPage() {
                               <Sparkles className="w-2.5 h-2.5" /> IA
                             </Badge>
                           )}
+                          {doc.scanVerdict === "safe" && (
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] px-1.5 py-0 gap-1 bg-emerald-500/10 text-emerald-600"
+                              title={`Analyse antivirus : ${doc.scanEngine || "moteur"}${doc.scannedAt ? ` — ${new Date(doc.scannedAt).toLocaleDateString("fr-FR")}` : ""}`}
+                            >
+                              <ShieldCheck className="w-2.5 h-2.5" />
+                              {doc.scanEngine ? `Vérifié (${doc.scanEngine})` : "Vérifié"}
+                            </Badge>
+                          )}
+                          {doc.scanVerdict === "dangerous" && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-1 bg-red-500/10 text-red-600">
+                              <ShieldAlert className="w-2.5 h-2.5" /> Menace
+                            </Badge>
+                          )}
                           <span className="text-xs text-muted-foreground">
                             {new Date(doc.createdAt).toLocaleDateString("fr-FR")}
                           </span>
@@ -478,6 +497,37 @@ export default function DocumentsPage() {
                   <div>
                     <h4 className="font-medium text-sm mb-1">Description</h4>
                     <p className="text-sm text-muted-foreground">{selectedDoc.description}</p>
+                  </div>
+                </>
+              )}
+
+              {selectedDoc.scanVerdict && (
+                <>
+                  <Separator />
+                  <div>
+                    <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+                      {selectedDoc.scanVerdict === "safe" ? (
+                        <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                      ) : (
+                        <ShieldAlert className="w-4 h-4 text-red-500" />
+                      )}
+                      Analyse antivirus
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Verdict:</span>
+                        <span className="ml-2">{selectedDoc.scanVerdict === "safe" ? "Sain" : "Menace détectée"}</span>
+                      </div>
+                      {selectedDoc.scanEngine && (
+                        <div><span className="text-muted-foreground">Moteur:</span> <span className="ml-2">{selectedDoc.scanEngine}</span></div>
+                      )}
+                      {selectedDoc.scannedAt && (
+                        <div><span className="text-muted-foreground">Analysé le:</span> <span className="ml-2">{new Date(selectedDoc.scannedAt).toLocaleString("fr-FR")}</span></div>
+                      )}
+                    </div>
+                    {selectedDoc.scanDetail && (
+                      <p className="text-xs text-muted-foreground mt-2">{selectedDoc.scanDetail}</p>
+                    )}
                   </div>
                 </>
               )}

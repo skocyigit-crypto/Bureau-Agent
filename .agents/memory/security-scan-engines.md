@@ -22,10 +22,14 @@ privacy-safe default.
 **How to apply:**
 - The async orchestrator is `scanBase64ContentFull` in
   `middleware/security.ts`; the sync `scanBase64Content` stays heuristic-only.
-  Only the Security Center `/api/security/scan-document` route uses the full
-  async version. Automatic ingestion paths (documents.ts, whatsapp.ts,
-  gmail.ts, document-ai.ts) still call the sync heuristic scan to avoid adding
-  network latency to uploads.
+  Ingestion paths (documents.ts uploads, whatsapp.ts, gmail.ts) now use the
+  full async version so they get real VirusTotal verdicts.
+- Document rows persist the verdict: `documents.scanVerdict/scanEngine/`
+  `scanDetail/scanSha256/scannedAt`. `scanBase64ContentFullCached(content,`
+  `name, stored)` reuses a persisted verdict when the stored sha256 matches and
+  was `safe` (skips the external lookup, survives restarts unlike the 30-min
+  in-memory cache). Only reuses safe verdicts — anything dangerous or changed
+  is rescanned. `/documents/process` backfills the verdict for pre-existing rows.
 - Every external engine must stay fail-soft: timeout (AbortController), a
   circuit breaker that disables the layer for ~30 min on 401/403/429, an
   in-memory TTL cache, and NEVER throw to the caller.

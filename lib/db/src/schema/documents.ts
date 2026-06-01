@@ -19,6 +19,11 @@ export const documentsTable = pgTable("documents", {
   extractedText: text("extracted_text"),
   extractedData: jsonb("extracted_data").$type<Record<string, any>>(),
   status: varchar("status", { length: 30 }).default("uploaded"),
+  scanVerdict: varchar("scan_verdict", { length: 20 }),
+  scanEngine: varchar("scan_engine", { length: 50 }),
+  scanDetail: text("scan_detail"),
+  scanSha256: varchar("scan_sha256", { length: 64 }),
+  scannedAt: timestamp("scanned_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
