@@ -4,7 +4,7 @@ import { db, documentsTable } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
 import { getOrgId } from "../middleware/tenant";
-import { scanBase64ContentFullCached, logSecurityEvent, type StoredScanRecord } from "../middleware/security";
+import { scanBase64ContentFull, scanBase64ContentFullCached, logSecurityEvent, type StoredScanRecord } from "../middleware/security";
 import { logger } from "../lib/logger";
 import { analyzeDocument, processDocumentForImport, importRowsToModule, analyzeDocumentMultiModel, askDocumentQuestion } from "../services/document-ai";
 
@@ -670,6 +670,61 @@ router.post("/documents/:id/analyze", requireMinAgent, async (req: Request, res:
   } catch (err: any) {
     logger.error({ err }, "Document analysis error");
     res.status(500).json({ error: "Erreur lors de l'analyse" });
+  }
+});
+
+/**
+ * Re-scan antivirus a la demande d'un document deja stocke. Contrairement au
+ * verdict reutilise a l'upload, on force un scan complet frais
+ * (`scanBase64ContentFull`) pour donner un signal de confiance a jour, puis on
+ * persiste le nouveau verdict. Renvoie l'etat de scan que le mobile/web affiche
+ * (verdict / moteur / detail / date) sans bloquer si une menace est detectee :
+ * le but est d'informer, pas de supprimer le fichier.
+ */
+router.post("/documents/:id/scan", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const userId = req.session?.userId || null;
+    const docId = parseInt(String(req.params.id));
+    if (isNaN(docId)) { res.status(400).json({ error: "ID invalide" }); return; }
+
+    const [doc] = await db.select().from(documentsTable)
+      .where(and(eq(documentsTable.id, docId), eq(documentsTable.organisationId, orgId)));
+
+    if (!doc || !doc.fileContent) {
+      res.status(404).json({ error: "Document introuvable" });
+      return;
+    }
+
+    const scanResult = await scanBase64ContentFull(doc.fileContent, doc.originalName);
+    const verdict = scanResult.safe ? "safe" : "dangerous";
+
+    await db.update(documentsTable).set({
+      scanVerdict: verdict,
+      scanEngine: scanResult.engine || null,
+      scanDetail: scanResult.engineDetail || null,
+      scanSha256: scanResult.sha256 || null,
+      scannedAt: new Date(scanResult.scannedAt),
+      updatedAt: new Date(),
+    }).where(eq(documentsTable.id, docId));
+
+    if (!scanResult.safe) {
+      const ip = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || "unknown";
+      logSecurityEvent("malicious_file_detected", ip, userId, `Re-scan du document #${docId} (${scanResult.engine}): ${scanResult.threats.join(", ")}`, "critical");
+    }
+
+    res.json({
+      success: true,
+      documentId: docId,
+      scanVerdict: verdict,
+      scanEngine: scanResult.engine || null,
+      scanDetail: scanResult.engineDetail || null,
+      scannedAt: new Date(scanResult.scannedAt).toISOString(),
+      threats: scanResult.threats,
+    });
+  } catch (err: any) {
+    logger.error({ err }, "Document re-scan error");
+    res.status(500).json({ error: "Erreur lors de l'analyse antivirus" });
   }
 });
 

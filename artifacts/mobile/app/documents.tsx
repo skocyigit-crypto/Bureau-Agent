@@ -92,12 +92,14 @@ function getMimeIcon(mimeType: string): { icon: keyof typeof Feather.glyphMap; c
 }
 
 // ── Doc Card ──────────────────────────────────────────────────────────────────
-function DocCard({ doc, colors, onDelete, onDownload, onRead }: {
+function DocCard({ doc, colors, onDelete, onDownload, onRead, onRescan, scanning }: {
   doc: Doc;
   colors: ReturnType<typeof import("@/hooks/useColors").useColors>;
   onDelete: (id: number) => void;
   onDownload: (id: number, name: string) => void;
   onRead: (id: number) => void;
+  onRescan: (id: number) => void;
+  scanning: boolean;
 }) {
   const { icon, color } = getMimeIcon(doc.mimeType);
   const catCfg = CATEGORY_LABELS[doc.category] ?? { label: doc.category, color: "#6366f1" };
@@ -143,6 +145,12 @@ function DocCard({ doc, colors, onDelete, onDownload, onRead }: {
                 <Text style={[st.aiText, { color: "#ef4444" }]}>Menace</Text>
               </View>
             )}
+            {!doc.scanVerdict && (
+              <View style={[st.aiBadge, { backgroundColor: "#64748b18" }]}>
+                <Feather name="shield-off" size={8} color="#64748b" />
+                <Text style={[st.aiText, { color: "#64748b" }]}>Non analysé</Text>
+              </View>
+            )}
           </View>
         </View>
       </View>
@@ -185,6 +193,13 @@ function DocCard({ doc, colors, onDelete, onDownload, onRead }: {
             <Feather name="download" size={12} color="#3b82f6" />
             <Text style={[st.actionBtnText, { color: "#3b82f6" }]}>Télécharger</Text>
           </Pressable>
+          <Pressable onPress={() => onRescan(doc.id)} disabled={scanning}
+            style={[st.actionBtn, { backgroundColor: "#10b98118", borderColor: "#10b98130" }]}>
+            {scanning
+              ? <ActivityIndicator size="small" color="#10b981" />
+              : <Feather name="shield" size={12} color="#10b981" />}
+            <Text style={[st.actionBtnText, { color: "#10b981" }]}>{scanning ? "..." : "Rescanner"}</Text>
+          </Pressable>
           <Pressable
             onPress={() => {
               if (Platform.OS === "web") { onDelete(doc.id); return; }
@@ -214,6 +229,7 @@ export default function DocumentsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
+  const [scanningIds, setScanningIds] = useState<number[]>([]);
 
   const load = useCallback(async () => {
     try {
@@ -245,6 +261,35 @@ export default function DocumentsScreen() {
 
   function handleRead(id: number) {
     router.push(`/document-reader?id=${id}` as any);
+  }
+
+  async function handleRescan(id: number) {
+    if (scanningIds.includes(id)) return;
+    setScanningIds(prev => [...prev, id]);
+    try {
+      const res = await fetchAuth(`${API_BASE}/api/documents/${id}/scan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (res.ok) {
+        const result = await res.json();
+        setData(prev => prev ? {
+          ...prev,
+          documents: prev.documents.map(d => d.id === id ? {
+            ...d,
+            scanVerdict: result.scanVerdict ?? d.scanVerdict,
+            scanEngine: result.scanEngine ?? null,
+            scannedAt: result.scannedAt ?? d.scannedAt,
+          } : d),
+        } : null);
+      } else {
+        Alert.alert("Analyse antivirus", "L'analyse a échoué. Réessayez.");
+      }
+    } catch {
+      Alert.alert("Analyse antivirus", "Erreur de connexion.");
+    } finally {
+      setScanningIds(prev => prev.filter(x => x !== id));
+    }
   }
 
   // Source filter bar items
@@ -349,7 +394,7 @@ export default function DocumentsScreen() {
             />
           }
           renderItem={({ item }) => (
-            <DocCard doc={item} colors={colors} onDelete={handleDelete} onDownload={handleDownload} onRead={handleRead} />
+            <DocCard doc={item} colors={colors} onDelete={handleDelete} onDownload={handleDownload} onRead={handleRead} onRescan={handleRescan} scanning={scanningIds.includes(item.id)} />
           )}
         />
       )}

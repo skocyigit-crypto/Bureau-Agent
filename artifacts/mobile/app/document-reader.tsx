@@ -247,11 +247,33 @@ function ContentTab({ doc }: { doc: DocPreview }) {
 }
 
 // ── Infos Tab ─────────────────────────────────────────────────────────────────
-function InfosTab({ doc }: { doc: DocPreview }) {
+function InfosTab({ doc, docId, onReloadDoc }: { doc: DocPreview; docId: number; onReloadDoc: () => void }) {
   const colors = useColors();
+  const { fetchAuth } = useAuth();
   const mimeInfo = getMimeInfo(doc.mimeType);
   const entityInfo = doc.entityType ? (ENTITY_LABELS[doc.entityType] ?? ENTITY_LABELS.general) : null;
   const catColor = CATEGORY_COLORS[doc.category ?? "general"] ?? "#6366f1";
+
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+
+  async function handleRescan() {
+    if (scanning) return;
+    setScanning(true);
+    setScanError(null);
+    try {
+      const res = await fetchAuth(`${API_BASE}/api/documents/${docId}/scan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (res.ok) onReloadDoc();
+      else setScanError("L'analyse a échoué. Réessayez.");
+    } catch {
+      setScanError("Erreur de connexion.");
+    } finally {
+      setScanning(false);
+    }
+  }
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
@@ -290,33 +312,49 @@ function InfosTab({ doc }: { doc: DocPreview }) {
         </View>
       )}
 
-      {doc.scanVerdict && (() => {
+      {(() => {
+        const hasVerdict = !!doc.scanVerdict;
         const safe = doc.scanVerdict === "safe";
-        const accent = safe ? "#10b981" : "#ef4444";
+        const accent = !hasVerdict ? "#64748b" : safe ? "#10b981" : "#ef4444";
         return (
           <View style={[rd.infoCard, { backgroundColor: accent + "08", borderColor: accent + "30" }]}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              <Feather name={safe ? "shield" : "alert-triangle"} size={14} color={accent} />
+              <Feather name={!hasVerdict ? "shield-off" : safe ? "shield" : "alert-triangle"} size={14} color={accent} />
               <Text style={[rd.sectionTitle, { color: accent }]}>Analyse antivirus</Text>
             </View>
             <View style={[rd.infoRow, { borderTopColor: accent + "15" }]}>
               <Text style={[rd.infoLabel, { color: colors.mutedForeground, flex: 1 }]}>Verdict</Text>
-              <Text style={[rd.infoValue, { color: accent }]}>{safe ? "Sain" : "Menace détectée"}</Text>
+              <Text style={[rd.infoValue, { color: accent }]}>{!hasVerdict ? "Non analysé" : safe ? "Sain" : "Menace détectée"}</Text>
             </View>
-            {doc.scanEngine && (
+            {hasVerdict && doc.scanEngine && (
               <View style={[rd.infoRow, { borderTopColor: accent + "15" }]}>
                 <Text style={[rd.infoLabel, { color: colors.mutedForeground, flex: 1 }]}>Moteur</Text>
                 <Text style={[rd.infoValue, { color: colors.foreground }]}>{doc.scanEngine}</Text>
               </View>
             )}
-            {doc.scannedAt && (
+            {hasVerdict && doc.scannedAt && (
               <View style={[rd.infoRow, { borderTopColor: accent + "15" }]}>
                 <Text style={[rd.infoLabel, { color: colors.mutedForeground, flex: 1 }]}>Analysé le</Text>
                 <Text style={[rd.infoValue, { color: colors.foreground }]}>{new Date(doc.scannedAt).toLocaleString("fr-FR")}</Text>
               </View>
             )}
-            {doc.scanDetail && (
+            {hasVerdict && doc.scanDetail && (
               <Text style={[rd.infoLabel, { color: colors.mutedForeground, marginTop: 8 }]}>{doc.scanDetail}</Text>
+            )}
+            {!hasVerdict && (
+              <Text style={[rd.infoLabel, { color: colors.mutedForeground, marginTop: 8, lineHeight: 16 }]}>
+                Ce document n'a pas encore été analysé. Lancez une analyse antivirus pour obtenir un signal de confiance à jour.
+              </Text>
+            )}
+            <Pressable onPress={handleRescan} disabled={scanning}
+              style={[rd.outlineBtn, { borderColor: accent + "40", marginTop: 12 }]}>
+              {scanning ? <ActivityIndicator size="small" color={accent} /> : <Feather name="refresh-cw" size={13} color={accent} />}
+              <Text style={[rd.outlineBtnText, { color: accent }]}>
+                {scanning ? "Analyse en cours..." : hasVerdict ? "Rescanner" : "Analyser maintenant"}
+              </Text>
+            </Pressable>
+            {scanError && (
+              <Text style={[rd.infoLabel, { color: "#ef4444", marginTop: 8, textAlign: "center" }]}>{scanError}</Text>
             )}
           </View>
         );
@@ -909,7 +947,7 @@ export default function DocumentReaderScreen() {
       ) : (
         <View style={[rd.body, { paddingBottom: isWeb ? 120 : 48 }]}>
           {tab === "contenu"  && <ContentTab doc={doc} />}
-          {tab === "infos"    && <InfosTab doc={doc} />}
+          {tab === "infos"    && <InfosTab doc={doc} docId={doc.id} onReloadDoc={loadDoc} />}
           {tab === "analyse"  && <AnalyseTab doc={doc} docId={doc.id} onReloadDoc={loadDoc} />}
           {tab === "actions"  && <ActionsTab doc={doc} onDownload={handleDownload} onDelete={handleDelete} />}
         </View>
