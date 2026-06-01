@@ -47,13 +47,15 @@ interface FileScanResult {
   safe: boolean;
   threats: string[];
   pii?: PiiResult;
+  engine?: string;
+  engineDetail?: string;
 }
 
 interface ProtectionStatus {
   layers: Record<string, { active: boolean; label: string }>;
   summary: { total: number; dangerous: number; suspicious: number; last24h: number };
   recentScans: Array<{
-    id: string; kind: string; target: string; verdict: Risk; details: string; at: string;
+    id: string; kind: string; target: string; verdict: Risk; details: string; at: string; engine?: string;
   }>;
 }
 
@@ -447,7 +449,7 @@ function FileScannerCard({ onScanned }: { onScanned: () => void }) {
           <FileSearch className="w-5 h-5 text-purple-600" />
           Scanner un fichier
         </CardTitle>
-        <CardDescription>Antivirus avant ouverture : extensions dangereuses, signatures binaires, EICAR.</CardDescription>
+        <CardDescription>Antivirus avant ouverture : heuristique (extensions, signatures, EICAR) + moteur VirusTotal si configuré.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <input
@@ -470,8 +472,16 @@ function FileScannerCard({ onScanned }: { onScanned: () => void }) {
               <Badge className={`border-0 ${result.res.safe ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
                 {result.res.safe ? "Aucune menace" : "DANGEREUX"}
               </Badge>
+              {result.res.engine && (
+                <Badge variant="outline" className="text-[9px] gap-1">
+                  <ServerCog className="w-2.5 h-2.5" /> {result.res.engine}
+                </Badge>
+              )}
               <span className="text-sm font-mono text-muted-foreground truncate">{result.name}</span>
             </div>
+            {result.res.engineDetail && (
+              <p className="text-[11px] text-muted-foreground mt-1.5">{result.res.engineDetail}</p>
+            )}
             {!result.res.safe && result.res.threats.length > 0 && (
               <ul className="text-xs text-red-600 mt-2 space-y-0.5 list-disc list-inside">
                 {result.res.threats.map((t, i) => <li key={i}>{t}</li>)}
@@ -622,6 +632,9 @@ function RecentScansCard({ scans }: { scans: ProtectionStatus["recentScans"] }) 
                   <Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                   <Badge className={`${rs.badge} border-0 text-[9px] shrink-0`}>{rs.label}</Badge>
                   <span className="truncate flex-1">{s.target}</span>
+                  {s.engine && (
+                    <Badge variant="outline" className="text-[9px] shrink-0 hidden sm:inline-flex">{s.engine}</Badge>
+                  )}
                   <span className="text-muted-foreground shrink-0">
                     {new Date(s.at).toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })}
                   </span>

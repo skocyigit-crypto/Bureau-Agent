@@ -35,7 +35,7 @@ interface ProtectionStatus {
   layers: Record<string, { active: boolean; label: string }>;
   summary: { total: number; dangerous: number; suspicious: number; last24h: number };
   recentScans: Array<{
-    id: string; kind: string; target: string; verdict: Risk; details: string; at: string;
+    id: string; kind: string; target: string; verdict: Risk; details: string; at: string; engine?: string;
   }>;
 }
 
@@ -577,6 +577,9 @@ export default function SecuriteScreen() {
                   <Feather name={KIND_ICON[s.kind] ?? "shield"} size={14} color={colors.mutedForeground} />
                   <Feather name={rmeta.icon} size={14} color={rmeta.color} />
                   <Text style={{ flex: 1, fontSize: 12, color: colors.foreground }} numberOfLines={1}>{s.target}</Text>
+                  {s.engine ? (
+                    <Text style={{ fontSize: 9, color: colors.mutedForeground }} numberOfLines={1}>{s.engine}</Text>
+                  ) : null}
                   <Text style={{ fontSize: 10, color: colors.mutedForeground }}>
                     {new Date(s.at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
                   </Text>

@@ -1,6 +1,11 @@
 import type { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
 import { logger } from "../lib/logger";
+import {
+  HEURISTIC_ENGINE,
+  VIRUSTOTAL_ENGINE,
+  lookupFileHash,
+} from "../services/file-malware";
 
 const MALICIOUS_PATTERNS = [
   /<script[\s>]/i,
@@ -453,6 +458,10 @@ export interface ScanResult {
   sha256: string;
   size: number;
   scannedAt: string;
+  /** Moteur ayant produit le verdict (ex: "Heuristique", "VirusTotal"). */
+  engine?: string;
+  /** Note lisible du moteur antivirus externe, le cas echeant. */
+  engineDetail?: string;
 }
 
 export function scanFileBuffer(buffer: Buffer, filename?: string): ScanResult {
@@ -524,6 +533,7 @@ export function scanFileBuffer(buffer: Buffer, filename?: string): ScanResult {
     result.fileType = detectSafeFileType(buffer);
   }
 
+  result.engine = HEURISTIC_ENGINE;
   return result;
 }
 
@@ -549,8 +559,46 @@ export function scanBase64Content(base64: string, filename?: string): ScanResult
       sha256: "",
       size: 0,
       scannedAt: new Date().toISOString(),
+      engine: HEURISTIC_ENGINE,
     };
   }
+}
+
+/**
+ * Scan complet d'un fichier: heuristique locale + moteur antivirus reel
+ * (VirusTotal, par empreinte SHA-256) lorsqu'il est configure. Calque le
+ * pattern fail-soft de url-safety.ts: si le moteur externe est absent, en
+ * erreur ou en quota, on degrade gracieusement vers le verdict heuristique.
+ *
+ * Le verdict externe prime: une detection VirusTotal force `safe: false`.
+ * `engine` indique la source ayant determine le verdict final.
+ */
+export async function scanBase64ContentFull(base64: string, filename?: string): Promise<ScanResult> {
+  const base = scanBase64Content(base64, filename);
+  // Encodage invalide ou empreinte absente: rien a interroger.
+  if (!base.sha256) return base;
+
+  const lookup = await lookupFileHash(base.sha256);
+  if (!lookup) return base;
+
+  if (lookup.verdict === "malicious" || lookup.verdict === "suspicious") {
+    return {
+      ...base,
+      safe: false,
+      threats: base.threats.includes(lookup.detail) ? base.threats : [...base.threats, lookup.detail],
+      engine: VIRUSTOTAL_ENGINE,
+      engineDetail: lookup.detail,
+    };
+  }
+
+  // VirusTotal connait l'empreinte et la juge propre. On conserve le verdict
+  // heuristique (qui peut rester dangereux), mais on attribue la confirmation
+  // au moteur externe seulement si l'heuristique ne signalait rien.
+  return {
+    ...base,
+    engine: base.safe ? VIRUSTOTAL_ENGINE : base.engine,
+    engineDetail: lookup.detail,
+  };
 }
 
 const ENCRYPTION_ALGORITHM = "aes-256-gcm";

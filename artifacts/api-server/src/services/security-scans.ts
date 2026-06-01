@@ -19,6 +19,8 @@ export interface SecurityScan {
   verdict: ScanVerdict;
   details: string;
   at: string;
+  /** Moteur ayant produit le verdict (ex: "Heuristique", "VirusTotal"). */
+  engine?: string;
 }
 
 const MAX_PER_ORG = 500;
@@ -31,6 +33,7 @@ export function recordSecurityScan(input: {
   target: string;
   verdict: ScanVerdict;
   details: string;
+  engine?: string;
 }): SecurityScan {
   const scan: SecurityScan = {
     id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
@@ -41,6 +44,7 @@ export function recordSecurityScan(input: {
     verdict: input.verdict,
     details: input.details.slice(0, 600),
     at: new Date().toISOString(),
+    engine: input.engine,
   };
   const list = scansByOrg.get(input.orgId) ?? [];
   list.push(scan);

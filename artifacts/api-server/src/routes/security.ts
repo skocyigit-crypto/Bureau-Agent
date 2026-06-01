@@ -6,6 +6,7 @@ import {
   getBlacklistedIps,
   unblockIp,
   scanBase64Content,
+  scanBase64ContentFull,
   logSecurityEvent,
 } from "../middleware/security";
 import {
@@ -16,6 +17,7 @@ import {
   unbanGuardianIp,
 } from "../middleware/guardian";
 import { analyzeUrlFull, isSafeBrowsingConfigured } from "../services/url-safety";
+import { isMalwareEngineConfigured, getMalwareEngineName } from "../services/file-malware";
 import { recordSecurityScan, getRecentSecurityScans, getOrgScanSummary } from "../services/security-scans";
 import {
   listSecurityEntries,
@@ -89,7 +91,7 @@ const MAX_SCAN_BASE64_CHARS = Math.ceil(MAX_SCAN_DECODED_BYTES / 3) * 4 + 4;
 const DATA_URI_BASE64_RE = /^data:[^,]*;base64,/i;
 const BASE64_RE = /^[A-Za-z0-9+/]+={0,2}$/;
 
-router.post("/security/scan-document", (req, res) => {
+router.post("/security/scan-document", async (req, res) => {
   const { content, filename } = req.body ?? {};
   if (!content || typeof content !== "string") {
     res.status(400).json({ error: "Contenu a scanner requis (base64)." });
@@ -113,7 +115,7 @@ router.post("/security/scan-document", (req, res) => {
     res.status(413).json({ error: "Fichier trop volumineux (max 10 Mo)." });
     return;
   }
-  const result = scanBase64Content(b64, typeof filename === "string" ? filename : undefined);
+  const result = await scanBase64ContentFull(b64, typeof filename === "string" ? filename : undefined);
 
   // Detection RGPD: sur les fichiers texte uniquement (le binaire produirait
   // des faux positifs). Fail-soft: une erreur PII ne casse pas le scan antivirus.
@@ -135,6 +137,7 @@ router.post("/security/scan-document", (req, res) => {
       target: typeof filename === "string" ? filename : "fichier",
       verdict: result.safe ? "safe" : "dangerous",
       details: result.threats.join("; "),
+      engine: result.engine,
     });
     emitSecurityAlert({
       orgId,
@@ -186,6 +189,12 @@ router.get("/security/protection-status", (req, res) => {
   res.json({
     layers: {
       fileAntivirus: { active: true, label: "Antivirus fichiers (signatures + heuristique)" },
+      malwareEngine: {
+        active: isMalwareEngineConfigured(),
+        label: getMalwareEngineName()
+          ? `Moteur antivirus ${getMalwareEngineName()}`
+          : "Moteur antivirus externe (VirusTotal)",
+      },
       urlHeuristic: { active: true, label: "Analyse heuristique des liens" },
       safeBrowsing: { active: isSafeBrowsingConfigured(), label: "Google Safe Browsing" },
       emailScan: { active: true, label: "Analyse anti-phishing des emails" },
