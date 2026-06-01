@@ -48,6 +48,7 @@ interface BySourceData {
   documents: Doc[];
   total: number;
   bySource: SourceCount[];
+  byScan?: { safe: number; dangerous: number; unscanned: number };
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -295,11 +296,12 @@ export default function DocumentsScreen() {
   }
 
   // Security-status filter items
-  const scanTabs: { key: string; label: string; icon: keyof typeof Feather.glyphMap; color: string }[] = [
-    { key: "all",       label: "Toute sécurité", icon: "shield",         color: "#0f766e" },
-    { key: "safe",      label: "Vérifié",        icon: "shield",         color: "#10b981" },
-    { key: "dangerous", label: "Menace",         icon: "alert-triangle", color: "#ef4444" },
-    { key: "none",      label: "Non analysé",    icon: "help-circle",    color: "#64748b" },
+  const scanTotal = data?.byScan ? data.byScan.safe + data.byScan.dangerous + data.byScan.unscanned : undefined;
+  const scanTabs: { key: string; label: string; icon: keyof typeof Feather.glyphMap; color: string; count?: number }[] = [
+    { key: "all",       label: "Toute sécurité", icon: "shield",         color: "#0f766e", count: scanTotal },
+    { key: "safe",      label: "Vérifié",        icon: "shield",         color: "#10b981", count: data?.byScan?.safe },
+    { key: "dangerous", label: "Menace",         icon: "alert-triangle", color: "#ef4444", count: data?.byScan?.dangerous },
+    { key: "none",      label: "Non analysé",    icon: "help-circle",    color: "#64748b", count: data?.byScan?.unscanned },
   ];
 
   // Source filter bar items
@@ -396,6 +398,11 @@ export default function DocumentsScreen() {
               style={[st.sourceChip, { backgroundColor: scanFilter === s.key ? s.color : "rgba(255,255,255,0.13)" }]}>
               <Feather name={s.icon} size={11} color={scanFilter === s.key ? "#fff" : "rgba(255,255,255,0.75)"} />
               <Text style={[st.sourceChipText, { color: scanFilter === s.key ? "#fff" : "rgba(255,255,255,0.75)" }]}>{s.label}</Text>
+              {typeof s.count === "number" && (
+                <View style={[st.sourceBadge, { backgroundColor: scanFilter === s.key ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.15)" }]}>
+                  <Text style={st.sourceBadgeText}>{s.count}</Text>
+                </View>
+              )}
             </Pressable>
           )}
         />

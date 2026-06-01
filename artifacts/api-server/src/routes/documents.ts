@@ -347,11 +347,16 @@ router.get("/documents/stats/overview", requireMinAgent, async (req: Request, re
   try {
     const orgId = getOrgId(req);
 
-    const [total, byType, byCategory, totalSize] = await Promise.all([
+    const [total, byType, byCategory, totalSize, scanCounts] = await Promise.all([
       db.select({ count: sql<number>`count(*)::int` }).from(documentsTable).where(eq(documentsTable.organisationId, orgId)),
       db.execute(sql`SELECT entity_type, count(*)::int as count FROM documents WHERE organisation_id = ${orgId} AND entity_type IS NOT NULL GROUP BY entity_type ORDER BY count DESC`),
       db.execute(sql`SELECT category, count(*)::int as count FROM documents WHERE organisation_id = ${orgId} GROUP BY category ORDER BY count DESC`),
       db.select({ total: sql<number>`coalesce(sum(file_size), 0)::bigint` }).from(documentsTable).where(eq(documentsTable.organisationId, orgId)),
+      db.select({
+        safe: sql<number>`count(*) FILTER (WHERE ${documentsTable.scanVerdict} = 'safe')::int`,
+        dangerous: sql<number>`count(*) FILTER (WHERE ${documentsTable.scanVerdict} = 'dangerous')::int`,
+        unscanned: sql<number>`count(*) FILTER (WHERE ${documentsTable.scanVerdict} IS NULL)::int`,
+      }).from(documentsTable).where(eq(documentsTable.organisationId, orgId)),
     ]);
 
     const totalBytes = Number(totalSize[0]?.total ?? 0);
@@ -362,6 +367,11 @@ router.get("/documents/stats/overview", requireMinAgent, async (req: Request, re
       totalSizeBytes: totalBytes,
       byEntityType: byType.rows,
       byCategory: byCategory.rows,
+      byScanVerdict: {
+        safe: scanCounts[0]?.safe ?? 0,
+        dangerous: scanCounts[0]?.dangerous ?? 0,
+        unscanned: scanCounts[0]?.unscanned ?? 0,
+      },
     });
   } catch (err: any) {
     logger.error({ err }, "Document stats error");
@@ -985,6 +995,13 @@ router.get("/documents/by-source", requireMinAgent, async (req: Request, res: Re
       GROUP BY coalesce(entity_type, 'general') ORDER BY count DESC
     `);
 
+    // Count by scan verdict (safe / dangerous / unscanned) across the whole org
+    const [scanCounts] = await db.select({
+      safe: sql<number>`count(*) FILTER (WHERE ${documentsTable.scanVerdict} = 'safe')::int`,
+      dangerous: sql<number>`count(*) FILTER (WHERE ${documentsTable.scanVerdict} = 'dangerous')::int`,
+      unscanned: sql<number>`count(*) FILTER (WHERE ${documentsTable.scanVerdict} IS NULL)::int`,
+    }).from(documentsTable).where(eq(documentsTable.organisationId, orgId));
+
     res.json({
       documents: docs.map(d => ({
         ...d,
@@ -992,6 +1009,11 @@ router.get("/documents/by-source", requireMinAgent, async (req: Request, res: Re
       })),
       total: docs.length,
       bySource: (bySource as any).rows ?? [],
+      byScan: {
+        safe: scanCounts?.safe ?? 0,
+        dangerous: scanCounts?.dangerous ?? 0,
+        unscanned: scanCounts?.unscanned ?? 0,
+      },
     });
   } catch (err: any) {
     logger.error({ err }, "Documents by-source error");

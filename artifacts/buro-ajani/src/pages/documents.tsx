@@ -85,6 +85,7 @@ interface Stats {
   totalSize: string;
   byEntityType: { entity_type: string; count: number }[];
   byCategory: { category: string; count: number }[];
+  byScanVerdict?: { safe: number; dangerous: number; unscanned: number };
 }
 
 export default function DocumentsPage() {
@@ -390,13 +391,50 @@ export default function DocumentsPage() {
                 <SelectValue placeholder="Sécurité" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Toute sécurité</SelectItem>
-                <SelectItem value="safe">Vérifié (sain)</SelectItem>
-                <SelectItem value="dangerous">Menace détectée</SelectItem>
-                <SelectItem value="none">Non analysé</SelectItem>
+                <SelectItem value="all">
+                  Toute sécurité{stats?.byScanVerdict ? ` (${stats.byScanVerdict.safe + stats.byScanVerdict.dangerous + stats.byScanVerdict.unscanned})` : ""}
+                </SelectItem>
+                <SelectItem value="safe">
+                  Vérifié (sain){stats?.byScanVerdict ? ` (${stats.byScanVerdict.safe})` : ""}
+                </SelectItem>
+                <SelectItem value="dangerous">
+                  Menace détectée{stats?.byScanVerdict ? ` (${stats.byScanVerdict.dangerous})` : ""}
+                </SelectItem>
+                <SelectItem value="none">
+                  Non analysé{stats?.byScanVerdict ? ` (${stats.byScanVerdict.unscanned})` : ""}
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {stats?.byScanVerdict && (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setFilterScan(filterScan === "safe" ? "all" : "safe")}
+                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${filterScan === "safe" ? "border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"}`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                {stats.byScanVerdict.safe} vérifié{stats.byScanVerdict.safe > 1 ? "s" : ""}
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterScan(filterScan === "dangerous" ? "all" : "dangerous")}
+                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${filterScan === "dangerous" ? "border-red-500 bg-red-500/15 text-red-700 dark:text-red-400" : "border-red-500/30 bg-red-500/10 text-red-600 hover:bg-red-500/20"}`}
+              >
+                <ShieldAlert className="w-3.5 h-3.5" />
+                {stats.byScanVerdict.dangerous} menace{stats.byScanVerdict.dangerous > 1 ? "s" : ""}
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterScan(filterScan === "none" ? "all" : "none")}
+                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${filterScan === "none" ? "border-slate-400 bg-slate-400/20 text-slate-700 dark:text-slate-300" : "border-slate-400/30 bg-slate-400/10 text-slate-500 hover:bg-slate-400/20"}`}
+              >
+                <ShieldQuestion className="w-3.5 h-3.5" />
+                {stats.byScanVerdict.unscanned} non analysé{stats.byScanVerdict.unscanned > 1 ? "s" : ""}
+              </button>
+            </div>
+          )}
 
           {loading ? (
             <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
