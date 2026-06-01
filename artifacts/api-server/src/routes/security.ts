@@ -15,10 +15,88 @@ import {
   getGuardianThreatProfiles,
   unbanGuardianIp,
 } from "../middleware/guardian";
+import { analyzeUrlFull, isSafeBrowsingConfigured } from "../services/url-safety";
+import { recordSecurityScan, getRecentSecurityScans, getOrgScanSummary } from "../services/security-scans";
 
 const router = Router();
 
 const requireAdmin = requireRole("super_admin", "administrateur");
+
+// ── API securite cote CLIENT (tenant, tout utilisateur authentifie) ───────────
+// requireTenant est deja applique en amont (routes/index.ts), donc
+// req.session.organisationId est garanti present ici.
+
+/** Scanne une URL (heuristique + Google Safe Browsing si configure). */
+router.post("/security/scan-url", async (req, res) => {
+  const { url } = req.body ?? {};
+  if (!url || typeof url !== "string" || url.length > 2048) {
+    res.status(400).json({ error: "URL a scanner requise." });
+    return;
+  }
+  try {
+    const result = await analyzeUrlFull(url.trim());
+    const orgId = req.session?.organisationId;
+    const userId = req.session?.userId;
+    if (orgId) {
+      recordSecurityScan({
+        orgId,
+        userId: userId ?? null,
+        kind: "url",
+        target: result.displayUrl,
+        verdict: result.risk === "safe" ? "safe" : result.risk === "suspicious" ? "suspicious" : "dangerous",
+        details: result.reasons.join("; "),
+      });
+    }
+    res.json(result);
+  } catch {
+    res.status(500).json({ error: "Erreur lors de l'analyse de l'URL." });
+  }
+});
+
+/** Scanne un document encode en base64 (antivirus heuristique). */
+router.post("/security/scan-document", (req, res) => {
+  const { content, filename } = req.body ?? {};
+  if (!content || typeof content !== "string") {
+    res.status(400).json({ error: "Contenu a scanner requis (base64)." });
+    return;
+  }
+  const result = scanBase64Content(content, typeof filename === "string" ? filename : undefined);
+  const orgId = req.session?.organisationId;
+  const userId = req.session?.userId;
+  if (orgId) {
+    recordSecurityScan({
+      orgId,
+      userId: userId ?? null,
+      kind: "file",
+      target: typeof filename === "string" ? filename : "fichier",
+      verdict: result.safe ? "safe" : "dangerous",
+      details: result.threats.join("; "),
+    });
+  }
+  res.json(result);
+});
+
+/** Etat de la protection (couches actives + compteurs) pour l'organisation. */
+router.get("/security/protection-status", (req, res) => {
+  const orgId = req.session?.organisationId;
+  const summary = orgId ? getOrgScanSummary(orgId) : { total: 0, dangerous: 0, suspicious: 0, last24h: 0 };
+  const recent = orgId ? getRecentSecurityScans(orgId, 20) : [];
+  res.json({
+    layers: {
+      fileAntivirus: { active: true, label: "Antivirus fichiers (signatures + heuristique)" },
+      urlHeuristic: { active: true, label: "Analyse heuristique des liens" },
+      safeBrowsing: { active: isSafeBrowsingConfigured(), label: "Google Safe Browsing" },
+      emailScan: { active: true, label: "Analyse anti-phishing des emails" },
+      phoneReputation: { active: true, label: "Reputation des appels entrants" },
+      whatsappScan: { active: true, label: "Scanner WhatsApp (liens & fichiers)" },
+      xssSqlProtection: { active: true, label: "Protection XSS / injection SQL" },
+      waf: { active: true, label: "Pare-feu applicatif (Guardian WAF)" },
+      encryption: { active: true, label: "Chiffrement AES-256-GCM" },
+    },
+    summary,
+    recentScans: recent,
+  });
+});
 
 // ── Mevcut güvenlik API'leri ──────────────────────────────────────────────────
 router.get("/security/dashboard", requireAdmin, (_req, res) => {

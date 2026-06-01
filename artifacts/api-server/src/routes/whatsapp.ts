@@ -20,6 +20,9 @@ import {
 } from "@workspace/db";
 import { runAssistantTurn, type StreamEvent } from "../services/assistant-engine";
 import { logger } from "../lib/logger";
+import { analyzeUrlsBatch, extractUrls, type UrlScanResult } from "../services/url-safety";
+import { scanBase64Content } from "../middleware/security";
+import { recordSecurityScan } from "../services/security-scans";
 
 export const whatsappRouter: IRouter = Router();
 
@@ -175,6 +178,141 @@ function twimlEmpty(): string {
   return `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`;
 }
 
+// --- Scanner de securite WhatsApp ----------------------------------------
+//
+// L'utilisateur peut transferer un lien ou un fichier suspect a son agent et
+// recevoir un verdict immediat, AVANT que le message ne soit route vers
+// l'assistant IA general. Trois declencheurs:
+//   - media joint (image, PDF, doc...) -> antivirus heuristique
+//   - message = une seule URL -> analyse de lien
+//   - message prefixe par un mot-cle de scan (FR/TR) -> analyse des liens
+
+const SCAN_KEYWORDS = /^(scan|tara|analyse|analyze|verifie|verifié|vérifie|check|guvenli mi|güvenli mi|tehlikeli mi|safe\??)\b/i;
+
+const RISK_EMOJI: Record<UrlScanResult["risk"], string> = {
+  safe: "✅",
+  suspicious: "⚠️",
+  dangerous: "🛑",
+};
+
+const RISK_LABEL: Record<UrlScanResult["risk"], string> = {
+  safe: "SUR",
+  suspicious: "SUSPECT",
+  dangerous: "DANGEREUX",
+};
+
+function formatUrlVerdict(results: UrlScanResult[]): string {
+  const lines: string[] = ["*Analyse de securite des liens*", ""];
+  for (const r of results) {
+    lines.push(`${RISK_EMOJI[r.risk]} ${RISK_LABEL[r.risk]} — ${r.domain}`);
+    if (r.reasons.length > 0) {
+      for (const reason of r.reasons.slice(0, 3)) lines.push(`  • ${reason}`);
+    } else {
+      lines.push("  • Aucun signal de risque detecte");
+    }
+    lines.push("");
+  }
+  const worst = results.some(r => r.risk === "dangerous")
+    ? "Ne cliquez PAS sur ce lien."
+    : results.some(r => r.risk === "suspicious")
+      ? "Prudence : verifiez l'expediteur avant de cliquer."
+      : "Aucun danger evident detecte, mais restez vigilant.";
+  lines.push(worst);
+  return lines.join("\n");
+}
+
+/** Telecharge un media Twilio (URL protegee, Basic Auth) en base64. */
+async function fetchTwilioMediaBase64(
+  url: string,
+  accountSid: string,
+  authToken: string,
+): Promise<string | null> {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    const resp = await fetch(url, {
+      headers: {
+        Authorization: "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64"),
+      },
+      signal: ctrl.signal,
+    }).finally(() => clearTimeout(timer));
+    if (!resp.ok) return null;
+    const buf = Buffer.from(await resp.arrayBuffer());
+    if (buf.length > 50 * 1024 * 1024) return null;
+    return buf.toString("base64");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Tente de traiter le message comme une demande de scan. Renvoie une reponse
+ * texte si un scan a ete effectue, sinon null (le message sera route vers
+ * l'assistant IA general).
+ */
+async function tryHandleSecurityScan(
+  body: Record<string, string>,
+  accountSid: string,
+  authToken: string,
+  orgId: number,
+  userId: number,
+): Promise<string | null> {
+  const messageBody = (body.Body ?? "").trim();
+  const numMedia = parseInt(body.NumMedia ?? "0", 10);
+
+  // 1. Media joint -> antivirus
+  if (numMedia > 0) {
+    const verdicts: string[] = ["*Analyse antivirus des fichiers*", ""];
+    let anyThreat = false;
+    for (let i = 0; i < Math.min(numMedia, 5); i++) {
+      const mediaUrl = body[`MediaUrl${i}`];
+      const contentType = body[`MediaContentType${i}`] ?? "fichier";
+      if (!mediaUrl) continue;
+      const b64 = await fetchTwilioMediaBase64(mediaUrl, accountSid, authToken);
+      if (!b64) {
+        verdicts.push(`⚠️ Fichier ${i + 1} (${contentType}) : impossible a telecharger.`);
+        continue;
+      }
+      const ext = contentType.split("/")[1] ?? "bin";
+      const result = scanBase64Content(b64, `whatsapp-media-${i}.${ext}`);
+      if (result.safe) {
+        verdicts.push(`✅ Fichier ${i + 1} (${contentType}) : aucune menace detectee.`);
+      } else {
+        anyThreat = true;
+        verdicts.push(`🛑 Fichier ${i + 1} (${contentType}) : DANGEREUX — ${result.threats.join(", ")}`);
+      }
+      recordSecurityScan({
+        orgId, userId, kind: "whatsapp", target: `${contentType} (#${i + 1})`,
+        verdict: result.safe ? "safe" : "dangerous", details: result.threats.join("; "),
+      });
+    }
+    verdicts.push("");
+    verdicts.push(anyThreat ? "Ne pas ouvrir les fichiers signales." : "Fichiers verifies.");
+    return verdicts.join("\n");
+  }
+
+  // 2. URL(s) dans le message (avec ou sans mot-cle de scan)
+  const urls = extractUrls(messageBody);
+  const hasScanKeyword = SCAN_KEYWORDS.test(messageBody);
+  // Message qui n'est QU'une URL (eventuellement precedee d'un mot-cle).
+  const stripped = messageBody.replace(SCAN_KEYWORDS, "").trim();
+  const isOnlyUrl = urls.length > 0 && (stripped === urls[0] || stripped === "");
+
+  if (urls.length > 0 && (hasScanKeyword || isOnlyUrl)) {
+    const results = await analyzeUrlsBatch(urls.slice(0, 5));
+    for (const r of results) {
+      recordSecurityScan({
+        orgId, userId, kind: "whatsapp", target: r.displayUrl,
+        verdict: r.risk === "safe" ? "safe" : r.risk === "suspicious" ? "suspicious" : "dangerous",
+        details: r.reasons.join("; "),
+      });
+    }
+    return formatUrlVerdict(results);
+  }
+
+  return null;
+}
+
 // --- Webhook --------------------------------------------------------------
 
 whatsappRouter.post("/whatsapp/twilio/inbound", async (req: Request, res: Response): Promise<void> => {
@@ -227,11 +365,24 @@ whatsappRouter.post("/whatsapp/twilio/inbound", async (req: Request, res: Respon
     return;
   }
 
-  // 3. Refus media (v1 texte uniquement)
+  // 3. Scanner de securite (liens & fichiers) — court-circuite l'assistant IA
+  //    si le message est une demande de scan ou contient un media/URL.
+  try {
+    const scanReply = await tryHandleSecurityScan(body, accountSid, tenant.authToken, tenant.orgId, userId);
+    if (scanReply !== null) {
+      markProcessed(messageSid);
+      const MAX_LEN = 1500;
+      const out = scanReply.length > MAX_LEN ? scanReply.slice(0, MAX_LEN) + "..." : scanReply;
+      res.status(200).send(twimlMessage(out));
+      return;
+    }
+  } catch (scanErr) {
+    logger.warn({ err: scanErr, orgId: tenant.orgId }, "[whatsapp] echec scan securite");
+  }
+
+  // Si media sans texte exploitable et pas de scan effectue, on s'arrete la.
   if (numMedia > 0 && !messageBody) {
-    res.status(200).send(
-      twimlMessage("Pour l'instant je ne traite que les messages texte. Reformulez votre demande, merci."),
-    );
+    res.status(200).send(twimlEmpty());
     return;
   }
   if (!messageBody) {

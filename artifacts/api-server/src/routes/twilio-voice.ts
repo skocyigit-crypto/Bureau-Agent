@@ -9,6 +9,8 @@ import { sendSms, type TelephonyProviderConfig } from "../services/telephony-pro
 import { sendEmail } from "../services/email";
 import { broadcaster } from "../services/broadcaster";
 import { notifyOrgUsers, maskPhone } from "../services/whatsapp-notify";
+import { evaluatePhoneReputation, phoneRiskLabel } from "../services/phone-reputation";
+import { recordSecurityScan } from "../services/security-scans";
 
 export const twilioVoiceRouter: IRouter = Router();
 
@@ -706,11 +708,38 @@ twilioVoiceRouter.post("/telephony/twilio/voice", async (req: Request, res: Resp
     const callerName = formatCallerName(session.callerFirstName, session.callerLastName);
     const masked = maskPhone(fromNumber);
     const who = callerName ? `${callerName} (n°${masked})` : `numero finissant par ${masked}`;
-    void notifyOrgUsers(
-      session.orgId,
-      `Bureau IA - Appel entrant de ${who}.`,
-      "call",
-    ).catch((err) => logger.warn({ err }, "[TwilioVoice] notifyOrgUsers rejection"));
+    // On enrichit la notif avec la reputation du numero (Twilio Lookup). Le
+    // tout reste dans un IIFE async detache pour ne JAMAIS retarder la reponse
+    // TwiML (la prise d'appel doit rester instantanee). La reputation a son
+    // propre timeout interne (4s) et est fail-soft.
+    void (async () => {
+      let suffix = "";
+      try {
+        if (fromNumber && !callerName) {
+          const rep = await evaluatePhoneReputation(session.orgId, fromNumber);
+          if (rep.risk === "high") {
+            suffix = ` ⚠️ Reputation: ${phoneRiskLabel(rep.risk)} (${rep.reasons[0] ?? "signal suspect"}). Soyez prudent.`;
+            recordSecurityScan({
+              orgId: session.orgId, userId: null, kind: "call", target: masked,
+              verdict: "dangerous", details: rep.reasons.join("; "),
+            });
+          } else if (rep.risk === "medium") {
+            suffix = ` Reputation: ${phoneRiskLabel(rep.risk)} (${rep.reasons[0] ?? ""}).`;
+            recordSecurityScan({
+              orgId: session.orgId, userId: null, kind: "call", target: masked,
+              verdict: "suspicious", details: rep.reasons.join("; "),
+            });
+          }
+        }
+      } catch (repErr) {
+        logger.warn({ err: repErr, orgId: session.orgId }, "[TwilioVoice] reputation lookup failed");
+      }
+      await notifyOrgUsers(
+        session.orgId,
+        `Bureau IA - Appel entrant de ${who}.${suffix}`,
+        "call",
+      );
+    })().catch((err) => logger.warn({ err }, "[TwilioVoice] notifyOrgUsers rejection"));
   } catch (notifyErr) {
     logger.warn({ err: notifyErr, orgId: session.orgId }, "[TwilioVoice] notify call failed");
   }

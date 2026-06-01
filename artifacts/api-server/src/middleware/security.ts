@@ -196,6 +196,21 @@ export function ipProtection(req: Request, res: Response, next: NextFunction): v
 export function threatDetection(req: Request, res: Response, next: NextFunction): void {
   const ip = getClientIp(req);
 
+  // Bypass cible pour les endpoints d'analyse de securite : ils RECOIVENT par
+  // nature des URLs (avec & ; | dans les query strings) et du contenu base64 a
+  // inspecter, ce que les patterns d'injection signaleraient a tort. Ces
+  // handlers ne font qu'analyser ces chaines (jamais d'execution shell). On
+  // limite au POST + chemin exact pour ne pas elargir la surface.
+  if (
+    req.method === "POST" &&
+    (req.path === "/security/scan-url" ||
+      req.originalUrl.startsWith("/api/security/scan-url") ||
+      req.path === "/security/scan-document" ||
+      req.originalUrl.startsWith("/api/security/scan-document"))
+  ) {
+    return next();
+  }
+
   if (req.body && typeof req.body === "object") {
     const threat = detectThreatInValue(req.body, "body");
     if (threat) {

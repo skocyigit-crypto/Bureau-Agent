@@ -66,6 +66,7 @@ import DataProtectionPage from "@/pages/data-protection";
 import ContactsImportPage from "@/pages/contacts-import";
 import ActiviteRecentePage from "@/pages/activite-recente";
 import ProjetsPage from "@/pages/projets";
+import SecuritePage from "@/pages/securite";
 import EquipeLocalisationPage from "@/pages/equipe-localisation";
 
 const queryClient = new QueryClient({
@@ -175,6 +176,7 @@ function AppRoutes() {
         <Route path="/contacts/import" component={withLicenseGate(ContactsImportPage)} />
         <Route path="/activite-recente" component={withLicenseGate(ActiviteRecentePage)} />
         <Route path="/projets" component={withLicenseGate(ProjetsPage)} />
+        <Route path="/securite" component={withLicenseGate(SecuritePage)} />
         <Route path="/equipe/localisation" component={withLicenseGate(EquipeLocalisationPage)} />
         <Route component={NotFound} />
       </Switch>

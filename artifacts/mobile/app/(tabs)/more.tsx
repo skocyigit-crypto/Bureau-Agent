@@ -147,6 +147,7 @@ export default function MoreScreen() {
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>COMMUNICATION</Text>
           <MenuItem icon="message-square" label="Messages" sublabel="Messagerie vocale et notes" color="#3b82f6" badge={counts.message} onPress={() => nav("/messages")} />
+          <MenuItem icon="shield" label="Centre de sécurité" sublabel="Scanner liens, fichiers, appels" color="#10b981" onPress={() => nav("/securite")} />
           <MenuItem icon="phone-call" label="Telephonie" sublabel="Appels et SMS multi-fournisseurs" color="#22c55e" onPress={() => nav("/telephony")} />
           <MenuItem icon="phone" label="Journal d'Appels" sublabel="Historique et enregistrement des appels" color="#166534" onPress={() => nav("/calls")} />
           <MenuItem icon="users" label="Contacts" sublabel="Annuaire clients et partenaires" color="#0369a1" onPress={() => nav("/contacts")} />

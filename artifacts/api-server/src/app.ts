@@ -291,6 +291,9 @@ app.use(stripeWebhookRouter);
 
 app.use("/api/document-ai", express.json({ limit: "15mb" }));
 app.use("/api/documents", express.json({ limit: "40mb" }));
+// Scan antivirus cote client : le contenu est transmis en base64 (inflation
+// ~33%). On accorde une limite dediee superieure au plafond global de 1mb.
+app.use("/api/security/scan-document", express.json({ limit: "25mb" }));
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
