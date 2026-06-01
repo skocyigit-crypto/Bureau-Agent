@@ -235,6 +235,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         label: "Aujourd'hui",
         items: [
           { name: "Tableau de bord", href: "/", icon: LayoutDashboard },
+          ...(canUseAi ? [{ name: "Assistant proactif", href: "/assistant-proactif", icon: Sparkles }] : []),
           { name: "Calendrier", href: "/calendrier", icon: Calendar },
           { name: "Rappels", href: "/notifications", icon: Bell, badge: badges.rappel },
           { name: "Activité récente", href: "/activite-recente", icon: Activity },

@@ -71,6 +71,7 @@ import workforceAgentRouter from "./workforce-agent";
 import syncRouter from "./sync";
 import { autoBroadcast } from "../middleware/auto-broadcast";
 import discoveryRouter from "./discovery";
+import proactiveRouter from "./proactive";
 import stripeRouter from "./stripe";
 import adminSaasDashboardRouter from "./admin-saas-dashboard";
 
@@ -104,10 +105,20 @@ router.use(requireAuth);
 // aucun controleur dedie n'existe aujourd'hui, mais cela garantit que
 // si un router `/stock` est ajoute plus tard il sera locke par defaut
 // au lieu d'etre accessible aux comptes clients.
-router.use(requireSuperAdmin, adminSaasDashboardRouter);
-router.use(requireSuperAdmin, prospectsRouter);
-router.use(requireSuperAdmin, devisRouter);
-router.use(requireSuperAdmin, facturesClientRouter);
+// IMPORTANT: `requireSuperAdmin` doit etre PATH-SCOPED. Monte sous la forme
+// `router.use(requireSuperAdmin, xRouter)` (sans prefixe de chemin), il
+// s'enregistre comme middleware global a `/` et bloque alors TOUTES les routes
+// tenant suivantes (calls, contacts, tasks, ...) pour les comptes non
+// super-admin. On scope donc la garde au prefixe exact de chaque router
+// (les routers declarent leur chemin complet en interne, ex. `/prospects`).
+router.use("/admin/saas-dashboard", requireSuperAdmin);
+router.use("/prospects", requireSuperAdmin);
+router.use("/devis", requireSuperAdmin);
+router.use("/factures-client", requireSuperAdmin);
+router.use(adminSaasDashboardRouter);
+router.use(prospectsRouter);
+router.use(devisRouter);
+router.use(facturesClientRouter);
 router.use("/stock", requireSuperAdmin, (_req, res) => {
   res.status(404).json({ error: "Module stock indisponible." });
 });
@@ -177,5 +188,6 @@ router.use(assistantRouter);
 router.use(workforceIntelligenceRouter);
 router.use(workforceAgentRouter);
 router.use(discoveryRouter);
+router.use(proactiveRouter);
 
 export default router;

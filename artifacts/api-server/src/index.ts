@@ -15,6 +15,7 @@ import { startTrialWarningCron } from "./services/trial-warning-cron";
 import { startAiInsightsCron } from "./services/ai-insights";
 import { startLocationCleanupCron } from "./services/location-cleanup-cron";
 import { startSecurityDigestCron } from "./services/security-digest-cron";
+import { startProactiveEngine } from "./services/proactive-engine";
 import { attachVoiceLiveWs } from "./routes/voice-live";
 
 import { closePool, checkDbHealth } from "@workspace/db";
@@ -116,6 +117,7 @@ async function startServer(): Promise<void> {
     startAiInsightsCron();
     startLocationCleanupCron();
     startSecurityDigestCron();
+    startProactiveEngine();
     attachVoiceLiveWs(server);
   });
 

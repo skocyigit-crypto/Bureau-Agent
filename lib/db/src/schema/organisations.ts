@@ -22,6 +22,7 @@ export const organisationsTable = pgTable("organisations", {
   autoEmailInvoice: boolean("auto_email_invoice").notNull().default(true),
   weeklySecurityEmail: boolean("weekly_security_email").notNull().default(false),
   lastSecurityDigestAt: timestamp("last_security_digest_at", { withTimezone: true }),
+  proactiveEngineEnabled: boolean("proactive_engine_enabled").notNull().default(true),
   aiQuotaCostUsd: numeric("ai_quota_cost_usd", { precision: 10, scale: 2 }),
   aiQuotaCalls: integer("ai_quota_calls"),
   aiAgentName: varchar("ai_agent_name", { length: 100 }),

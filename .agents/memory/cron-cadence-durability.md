@@ -12,8 +12,8 @@ the next run on that persisted timestamp.
 
 **Why:** An in-memory `Map<id, lastSentAt>` resets on every server restart/deploy.
 With a short startup tick, every opted-in row becomes eligible again after restart,
-producing duplicate emails within the intended window. The architect failed F7 twice
-on exactly this until cadence moved to a persisted timestamp with a true `>= 7 day`
+producing duplicate emails within the intended window. Architect review repeatedly
+flagged this until cadence moved to a persisted timestamp with a true `>= 7 day`
 gate (null timestamp = eligible).
 
 **How to apply:**
