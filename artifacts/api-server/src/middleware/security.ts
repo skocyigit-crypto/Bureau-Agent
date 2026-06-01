@@ -5,6 +5,9 @@ import {
   HEURISTIC_ENGINE,
   VIRUSTOTAL_ENGINE,
   lookupFileHash,
+  submitFile,
+  isMalwareSubmissionEnabled,
+  type MalwareVerdictSource,
 } from "../services/file-malware";
 
 const MALICIOUS_PATTERNS = [
@@ -462,6 +465,12 @@ export interface ScanResult {
   engine?: string;
   /** Note lisible du moteur antivirus externe, le cas echeant. */
   engineDetail?: string;
+  /**
+   * Origine d'un verdict VirusTotal: "lookup" (empreinte deja connue, cache de
+   * hash, aucun contenu envoye) vs "upload" (fichier soumis a chaud car
+   * inconnu). Absent si aucun verdict externe.
+   */
+  engineSource?: MalwareVerdictSource;
 }
 
 export function scanFileBuffer(buffer: Buffer, filename?: string): ScanResult {
@@ -578,26 +587,45 @@ export async function scanBase64ContentFull(base64: string, filename?: string): 
   // Encodage invalide ou empreinte absente: rien a interroger.
   if (!base.sha256) return base;
 
-  const lookup = await lookupFileHash(base.sha256);
-  if (!lookup) return base;
+  // 1. Lookup d'empreinte (vie privee: seul le hash est envoye).
+  let verdict = await lookupFileHash(base.sha256);
 
-  if (lookup.verdict === "malicious" || lookup.verdict === "suspicious") {
+  // 2. Si l'empreinte est inconnue de VirusTotal (lookup null) ET que la
+  //    soumission a chaud est activee (opt-in), on envoie le contenu pour
+  //    attraper les menaces zero-day que le hash-lookup rate. Le contenu quitte
+  //    le serveur — d'ou le flag. Reste fail-soft: si la soumission echoue, on
+  //    garde le verdict heuristique.
+  if (!verdict && isMalwareSubmissionEnabled()) {
+    try {
+      const buffer = Buffer.from(base64, "base64");
+      verdict = await submitFile(buffer, base.sha256, filename);
+    } catch {
+      /* fail-soft: le verdict heuristique prime */
+    }
+  }
+
+  if (!verdict) return base;
+
+  if (verdict.verdict === "malicious" || verdict.verdict === "suspicious") {
     return {
       ...base,
       safe: false,
-      threats: base.threats.includes(lookup.detail) ? base.threats : [...base.threats, lookup.detail],
+      threats: base.threats.includes(verdict.detail) ? base.threats : [...base.threats, verdict.detail],
       engine: VIRUSTOTAL_ENGINE,
-      engineDetail: lookup.detail,
+      engineDetail: verdict.detail,
+      engineSource: verdict.source,
     };
   }
 
-  // VirusTotal connait l'empreinte et la juge propre. On conserve le verdict
-  // heuristique (qui peut rester dangereux), mais on attribue la confirmation
-  // au moteur externe seulement si l'heuristique ne signalait rien.
+  // VirusTotal connait l'empreinte (ou vient de l'analyser) et la juge propre.
+  // On conserve le verdict heuristique (qui peut rester dangereux), mais on
+  // attribue la confirmation au moteur externe seulement si l'heuristique ne
+  // signalait rien.
   return {
     ...base,
     engine: base.safe ? VIRUSTOTAL_ENGINE : base.engine,
-    engineDetail: lookup.detail,
+    engineDetail: verdict.detail,
+    engineSource: verdict.source,
   };
 }
 

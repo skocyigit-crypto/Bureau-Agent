@@ -49,6 +49,7 @@ interface FileScanResult {
   pii?: PiiResult;
   engine?: string;
   engineDetail?: string;
+  engineSource?: "lookup" | "upload";
 }
 
 interface ProtectionStatus {
@@ -477,8 +478,30 @@ function FileScannerCard({ onScanned }: { onScanned: () => void }) {
                   <ServerCog className="w-2.5 h-2.5" /> {result.res.engine}
                 </Badge>
               )}
+              {result.res.engineSource && (
+                <Badge
+                  variant="outline"
+                  className={`text-[9px] gap-1 ${
+                    result.res.engineSource === "upload"
+                      ? "border-purple-300 text-purple-700 dark:border-purple-800 dark:text-purple-400"
+                      : "border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-400"
+                  }`}
+                >
+                  {result.res.engineSource === "upload" ? (
+                    <><Sparkles className="w-2.5 h-2.5" /> Analyse à chaud</>
+                  ) : (
+                    <><Bug className="w-2.5 h-2.5" /> Empreinte connue</>
+                  )}
+                </Badge>
+              )}
               <span className="text-sm font-mono text-muted-foreground truncate">{result.name}</span>
             </div>
+            {result.res.engineSource === "upload" && (
+              <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+                <Info className="w-2.5 h-2.5 shrink-0" />
+                Fichier inconnu de la base : envoyé à VirusTotal pour une analyse complète.
+              </p>
+            )}
             {result.res.engineDetail && (
               <p className="text-[11px] text-muted-foreground mt-1.5">{result.res.engineDetail}</p>
             )}

@@ -13,6 +13,7 @@ To run the application, ensure the following environment variables are set (see 
 - `RESEND_API_KEY`
 - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`
 - `VIRUSTOTAL_API_KEY` (optional — real malware engine for file scanning; falls back to heuristics if absent), `GOOGLE_SAFE_BROWSING_API_KEY` (optional — URL threat lookup)
+- `VIRUSTOTAL_SUBMIT_FILES` (optional, opt-in `=1` — when a hash lookup is "unknown", upload the file contents to VirusTotal to catch zero-day malware; off by default since the file leaves the server. `VIRUSTOTAL_MAX_UPLOAD_BYTES`, `VIRUSTOTAL_SUBMIT_TIMEOUT_MS` tune size cap / poll budget)
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_{STARTER,PROFESSIONNEL,ENTREPRISE}`
 
