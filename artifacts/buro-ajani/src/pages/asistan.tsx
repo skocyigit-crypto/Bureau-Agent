@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { confirmAction } from "@/hooks/use-confirm";
-import { Sparkles, Send, Plus, Trash2, Wrench, CheckCircle2, AlertCircle, Loader2, MessageSquare, ShieldAlert, Check, X } from "lucide-react";
+import { TalkingAvatar, type SpeechLang } from "@workspace/ai-avatar";
+import { Sparkles, Send, Plus, Trash2, Wrench, CheckCircle2, AlertCircle, Loader2, MessageSquare, ShieldAlert, Check, X, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -88,6 +89,9 @@ export default function AsistanPage() {
   const [liveSteps, setLiveSteps] = useState<StepEvent[]>([]);
   const [liveText, setLiveText] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingAction | null>(null);
+  const [voiceOn, setVoiceOn] = useState(true);
+  const [voiceLang, setVoiceLang] = useState<SpeechLang>("fr");
+  const [spokenText, setSpokenText] = useState<string>("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const loadConversations = useCallback(async () => {
@@ -183,7 +187,10 @@ export default function AsistanPage() {
             const cr = await fetch(`${API}/api/assistant/conversations/${convIdRef.current}`, { credentials: "include" });
             if (cr.ok) {
               const d = await cr.json();
-              setMessages(d.messages ?? []);
+              const msgs: Message[] = d.messages ?? [];
+              setMessages(msgs);
+              const lastAssistant = [...msgs].reverse().find((m) => m.role === "assistant" && m.content?.trim());
+              if (lastAssistant) setSpokenText(lastAssistant.content.trim());
             }
           }
           setLiveSteps([]);
@@ -274,13 +281,43 @@ export default function AsistanPage() {
 
       {/* Main panel */}
       <Card className="flex-1 flex flex-col overflow-hidden">
-        <div className="px-4 py-3 border-b flex items-center gap-2">
-          <div className="h-9 w-9 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
-            <Sparkles className="h-5 w-5 text-white" />
+        <div className="px-4 py-3 border-b flex items-center gap-3">
+          <div className="h-14 w-14 rounded-full overflow-hidden shrink-0 ring-2 ring-violet-500/30">
+            <TalkingAvatar
+              text={voiceOn ? spokenText : ""}
+              lang={voiceLang}
+              autoPlay={voiceOn}
+              size={56}
+              palette={{ ring: "#a855f7" }}
+            />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <h2 className="font-semibold text-sm">Assistant Universel</h2>
-            <p className="text-xs text-muted-foreground">Donne-lui une mission. Il peut creer, lister, envoyer des e-mails/SMS, planifier, generer des images.</p>
+            <p className="text-xs text-muted-foreground truncate">Donne-lui une mission. Il peut creer, lister, envoyer des e-mails/SMS, planifier, generer des images.</p>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <div className="flex rounded-md border overflow-hidden text-[11px] font-medium">
+              <button
+                onClick={() => setVoiceLang("fr")}
+                className={`px-2 py-1 transition ${voiceLang === "fr" ? "bg-violet-500 text-white" : "bg-muted/40 text-muted-foreground hover:bg-muted"}`}
+                data-testid="voice-lang-fr"
+              >FR</button>
+              <button
+                onClick={() => setVoiceLang("tr")}
+                className={`px-2 py-1 transition ${voiceLang === "tr" ? "bg-violet-500 text-white" : "bg-muted/40 text-muted-foreground hover:bg-muted"}`}
+                data-testid="voice-lang-tr"
+              >TR</button>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setVoiceOn((v) => !v)}
+              title={voiceOn ? "Couper la voix" : "Activer la voix"}
+              data-testid="toggle-voice"
+            >
+              {voiceOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
+            </Button>
           </div>
         </div>
 

@@ -10,6 +10,9 @@
       "path": "./lib/api-client-react"
     },
     {
+      "path": "./lib/ai-avatar"
+    },
+    {
       "path": "./lib/api-zod"
     },
     {

@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { TalkingAvatar } from "@/components/TalkingAvatar";
 
 // Entity types come from the Commandant IA conversations endpoint
 // (POST /api/commandant/conversations/:id/messages -> assistantMessage.metadata.retrievedEntities).
@@ -171,6 +172,9 @@ export default function AIChatScreen() {
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [voiceListening, setVoiceListening] = useState(false);
+  const [voiceOn, setVoiceOn] = useState(true);
+  const [voiceLang, setVoiceLang] = useState<"fr" | "tr">("fr");
+  const [spokenText, setSpokenText] = useState("");
   const flatListRef = useRef<FlatList>(null);
   const recognitionRef = useRef<any>(null);
 
@@ -303,6 +307,7 @@ export default function AIChatScreen() {
         entities: entities.length > 0 ? entities : undefined,
       };
       setMessages([...updated, aiMsg]);
+      if (voiceOn) setSpokenText(reply);
     } catch {
       const errorMsg: Message = { id: `e-${Date.now()}`, role: "assistant", content: "Une erreur est survenue. Verifiez votre connexion et reessayez.", timestamp: new Date().toISOString() };
       setMessages([...updated, errorMsg]);
@@ -310,7 +315,7 @@ export default function AIChatScreen() {
       setIsTyping(false);
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 200);
     }
-  }, [fetchAuth, isTyping, messages, ensureConversationId]);
+  }, [fetchAuth, isTyping, messages, ensureConversationId, voiceOn]);
 
   async function clearHistory() {
     // Start a brand-new server-side conversation so the assistant forgets prior context.
@@ -495,8 +500,14 @@ export default function AIChatScreen() {
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
           <View style={styles.headerCenter}>
-            <View style={[styles.headerAvatar, { backgroundColor: colors.primary }]}>
-              <Feather name="cpu" size={16} color="#fff" />
+            <View style={styles.headerAvatarWrap}>
+              <TalkingAvatar
+                text={voiceOn ? spokenText : ""}
+                lang={voiceLang}
+                size={40}
+                muted={!voiceOn}
+                autoPlay
+              />
             </View>
             <View>
               <Text style={styles.headerTitle}>Assistant IA</Text>
@@ -507,7 +518,26 @@ export default function AIChatScreen() {
             </View>
           </View>
           <View style={styles.headerActions}>
-            <Text style={[styles.msgCount, { color: "rgba(255,255,255,0.4)" }]}>{messages.length}</Text>
+            <Pressable
+              onPress={() => {
+                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setVoiceLang((l) => (l === "fr" ? "tr" : "fr"));
+              }}
+              style={styles.langBtn}
+              hitSlop={8}
+            >
+              <Text style={styles.langBtnText}>{voiceLang.toUpperCase()}</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setVoiceOn((v) => !v);
+              }}
+              style={styles.clearBtn}
+              hitSlop={12}
+            >
+              <Feather name={voiceOn ? "volume-2" : "volume-x"} size={16} color="rgba(255,255,255,0.85)" />
+            </Pressable>
             <Pressable onPress={clearHistory} style={styles.clearBtn} hitSlop={12}>
               <Feather name="trash-2" size={16} color="rgba(255,255,255,0.6)" />
             </Pressable>
@@ -653,6 +683,9 @@ const styles = StyleSheet.create({
   backBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
   headerCenter: { flex: 1, flexDirection: "row", alignItems: "center", marginLeft: 12, gap: 10 },
   headerAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  headerAvatarWrap: { width: 40, height: 40, borderRadius: 20, overflow: "hidden" },
+  langBtn: { paddingHorizontal: 8, height: 26, borderRadius: 13, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", justifyContent: "center" },
+  langBtnText: { color: "#fff", fontSize: 12, fontFamily: "Inter_700Bold" },
   headerTitle: { fontSize: 16, fontFamily: "Inter_700Bold", color: "#fff" },
   statusRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },

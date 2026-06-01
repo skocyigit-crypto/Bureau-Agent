@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Send, Mic, MicOff, ArrowRight, Search, Zap, Bot, User, Loader2, X } from "lucide-react";
+import { Sparkles, Send, Mic, MicOff, ArrowRight, Search, Zap, Bot, User, Loader2, X, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TalkingAvatar, type SpeechLang } from "@workspace/ai-avatar";
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 // In dev the API server runs on the same proxy host; in prod the marketing site
@@ -56,6 +57,9 @@ export function AjanDemo() {
   const [comparing, setComparing] = useState(true);
   const [activeSample, setActiveSample] = useState(0);
   const [recording, setRecording] = useState(false);
+  const [voiceOn, setVoiceOn] = useState(true);
+  const [voiceLang, setVoiceLang] = useState<SpeechLang>("fr");
+  const [spokenText, setSpokenText] = useState("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const recognitionRef = useRef<any>(null);
 
@@ -100,6 +104,7 @@ export function AjanDemo() {
       const data = await res.json().catch(() => ({ reply: "" }));
       const reply = String(data?.reply || "Demo indisponible. Reessayez dans quelques instants.");
       setHistory((prev) => [...prev, { role: "assistant", text: reply, timestamp: Date.now() }]);
+      if (voiceOn) setSpokenText(reply);
     } catch {
       setHistory((prev) => [...prev, {
         role: "assistant",
@@ -217,10 +222,14 @@ export function AjanDemo() {
               {/* Chat header */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 bg-gradient-to-r from-slate-900/80 to-slate-800/80">
                 <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
-                      <Bot className="w-5 h-5 text-slate-900" />
-                    </div>
+                  <div className="relative w-11 h-11 rounded-xl overflow-hidden shadow-lg shadow-amber-500/30 ring-1 ring-amber-400/40">
+                    <TalkingAvatar
+                      text={voiceOn ? spokenText : ""}
+                      lang={voiceLang}
+                      autoPlay={voiceOn}
+                      size={44}
+                      palette={{ ring: "#f59e0b" }}
+                    />
                     <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 border-2 border-slate-900 rounded-full animate-pulse" />
                   </div>
                   <div>
@@ -231,14 +240,33 @@ export function AjanDemo() {
                     </p>
                   </div>
                 </div>
-                {history.length > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <div className="flex rounded-lg border border-white/10 overflow-hidden text-[11px] font-semibold">
+                    <button
+                      onClick={() => setVoiceLang("fr")}
+                      className={`px-2 py-1 transition ${voiceLang === "fr" ? "bg-amber-400 text-slate-900" : "text-white/60 hover:bg-white/5"}`}
+                    >FR</button>
+                    <button
+                      onClick={() => setVoiceLang("tr")}
+                      className={`px-2 py-1 transition ${voiceLang === "tr" ? "bg-amber-400 text-slate-900" : "text-white/60 hover:bg-white/5"}`}
+                    >TR</button>
+                  </div>
                   <button
-                    onClick={() => { setHistory([]); setComparing(true); }}
-                    className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/5 transition"
+                    onClick={() => setVoiceOn((v) => !v)}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-white/70 hover:bg-white/5 transition"
+                    title={voiceOn ? "Couper la voix" : "Activer la voix"}
                   >
-                    Reinitialiser
+                    {voiceOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 text-white/40" />}
                   </button>
-                )}
+                  {history.length > 0 && (
+                    <button
+                      onClick={() => { setHistory([]); setComparing(true); setSpokenText(""); }}
+                      className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/5 transition"
+                    >
+                      Reinitialiser
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Messages */}
