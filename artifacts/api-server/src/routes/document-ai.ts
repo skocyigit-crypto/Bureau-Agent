@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { analyzeDocument, executeDocumentAction, type SuggestedAction } from "../services/document-ai";
-import { scanBase64Content, logSecurityEvent } from "../middleware/security";
+import { scanBase64ContentFull, logSecurityEvent } from "../middleware/security";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
 import { logger } from "../lib/logger";
@@ -79,10 +79,10 @@ router.post("/document-ai/analyze", requireMinAgent, async (req, res): Promise<v
     return;
   }
 
-  const scanResult = scanBase64Content(fileContent, fileName);
+  const scanResult = await scanBase64ContentFull(fileContent, fileName);
   if (!scanResult.safe) {
     const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.socket?.remoteAddress || "unknown";
-    logSecurityEvent("malicious_document_upload", ip, req.session?.userId ?? null, `Document IA bloque: ${scanResult.threats.join(", ")}`, "critical");
+    logSecurityEvent("malicious_document_upload", ip, req.session?.userId ?? null, `Document IA bloque (${scanResult.engine}): ${scanResult.threats.join(", ")}`, "critical");
     res.status(400).json({
       error: "Le fichier contient du contenu potentiellement dangereux et a ete bloque.",
       threats: scanResult.threats,

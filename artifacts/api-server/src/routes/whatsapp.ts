@@ -21,7 +21,7 @@ import {
 import { runAssistantTurn, type StreamEvent } from "../services/assistant-engine";
 import { logger } from "../lib/logger";
 import { analyzeUrlsBatch, extractUrls, type UrlScanResult } from "../services/url-safety";
-import { scanBase64Content } from "../middleware/security";
+import { scanBase64ContentFull } from "../middleware/security";
 import { recordSecurityScan } from "../services/security-scans";
 import { emitSecurityAlert } from "../services/security-alerts";
 
@@ -275,7 +275,7 @@ async function tryHandleSecurityScan(
         continue;
       }
       const ext = contentType.split("/")[1] ?? "bin";
-      const result = scanBase64Content(b64, `whatsapp-media-${i}.${ext}`);
+      const result = await scanBase64ContentFull(b64, `whatsapp-media-${i}.${ext}`);
       if (result.safe) {
         verdicts.push(`✅ Fichier ${i + 1} (${contentType}) : aucune menace detectee.`);
       } else {
@@ -285,6 +285,7 @@ async function tryHandleSecurityScan(
       recordSecurityScan({
         orgId, userId, kind: "whatsapp", target: `${contentType} (#${i + 1})`,
         verdict: result.safe ? "safe" : "dangerous", details: result.threats.join("; "),
+        engine: result.engine,
       });
       // Detection automatique (message entrant) -> alerte temps reel + push
       // WhatsApp aux membres (l'expediteur recoit deja la reponse du bot).

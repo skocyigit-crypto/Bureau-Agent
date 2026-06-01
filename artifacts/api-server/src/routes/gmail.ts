@@ -594,6 +594,7 @@ export interface EmailScanReport {
     sha256: string;
     fileType: string | null;
     scannedAt: string;
+    engine?: string;
   }>;
   links: UrlScanResult[];
   senderAuth: SenderAuth;
@@ -640,7 +641,7 @@ router.post("/gmail/message/:id/scan", async (req: Request, res: Response): Prom
     const senderAuth = analyzeSenderAuth(headers["authentication-results"]);
 
     // 2. Scan attachments
-    const { scanBase64Content } = await import("../middleware/security.js");
+    const { scanBase64ContentFull } = await import("../middleware/security.js");
     const scannedAttachments: EmailScanReport["attachments"] = [];
 
     await Promise.all(attachmentMeta.map(async (att: any) => {
@@ -649,7 +650,7 @@ router.post("/gmail/message/:id/scan", async (req: Request, res: Response): Prom
           userId: "me", messageId: msgId, id: att.attachmentId,
         });
         const base64Data: string = attRes.data?.data || "";
-        const scanResult = scanBase64Content(base64Data, att.filename);
+        const scanResult = await scanBase64ContentFull(base64Data, att.filename);
         scannedAttachments.push({
           filename: att.filename,
           mimeType: att.mimeType,
@@ -659,6 +660,7 @@ router.post("/gmail/message/:id/scan", async (req: Request, res: Response): Prom
           sha256: scanResult.sha256,
           fileType: scanResult.fileType,
           scannedAt: scanResult.scannedAt,
+          engine: scanResult.engine,
         });
       } catch (e: any) {
         scannedAttachments.push({

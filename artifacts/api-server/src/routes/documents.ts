@@ -3,7 +3,7 @@ import { db, documentsTable } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
 import { getOrgId } from "../middleware/tenant";
-import { scanBase64Content, logSecurityEvent } from "../middleware/security";
+import { scanBase64ContentFull, logSecurityEvent } from "../middleware/security";
 import { logger } from "../lib/logger";
 import { analyzeDocument, processDocumentForImport, importRowsToModule, analyzeDocumentMultiModel, askDocumentQuestion } from "../services/document-ai";
 
@@ -83,10 +83,10 @@ router.post("/documents/upload", requireMinAgent, async (req: Request, res: Resp
       return;
     }
 
-    const scanResult = scanBase64Content(fileContent, fileName);
+    const scanResult = await scanBase64ContentFull(fileContent, fileName);
     if (!scanResult.safe) {
       const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.socket?.remoteAddress || "unknown";
-      logSecurityEvent("malicious_upload_blocked", ip, userId ?? null, `Upload bloque: ${scanResult.threats.join(", ")}`, "critical");
+      logSecurityEvent("malicious_upload_blocked", ip, userId ?? null, `Upload bloque (${scanResult.engine}): ${scanResult.threats.join(", ")}`, "critical");
       res.status(400).json({ error: "Fichier bloque pour raisons de securite.", threats: scanResult.threats });
       return;
     }
@@ -191,7 +191,7 @@ router.post("/documents/upload-multiple", requireMinAgent, async (req: Request, 
           continue;
         }
 
-        const scanResult = scanBase64Content(file.fileContent, file.fileName);
+        const scanResult = await scanBase64ContentFull(file.fileContent, file.fileName);
         if (!scanResult.safe) {
           results.push({ fileName: file.fileName, success: false, error: "Fichier bloque (securite)" });
           continue;
@@ -350,7 +350,7 @@ router.post("/documents/process", requireMinAgent, async (req: Request, res: Res
       return;
     }
 
-    const scanResult = scanBase64Content(content, name);
+    const scanResult = await scanBase64ContentFull(content, name);
     if (!scanResult.safe) {
       res.status(400).json({ error: "Fichier bloque pour raisons de securite.", threats: scanResult.threats });
       return;
