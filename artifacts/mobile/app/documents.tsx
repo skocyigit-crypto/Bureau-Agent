@@ -45,6 +45,22 @@ interface Doc {
 
 interface SourceCount { entity_type: string; count: number; }
 
+interface ReuseSavings { reusedScanCount: number; reusedScanSavedMs: number; }
+
+// Traduit un total de millisecondes economisees en libelle lisible (minutes au
+// dela de 60 s, sinon secondes), pour le compteur cumulatif persiste. Aligne
+// sur le helper homonyme du web (artifacts/buro-ajani documents.tsx).
+function formatCumulativeSaved(savedMs: number): string {
+  const totalSeconds = savedMs / 1000;
+  if (totalSeconds >= 60) {
+    const minutes = totalSeconds / 60;
+    const rounded = minutes < 10 ? Math.round(minutes * 10) / 10 : Math.round(minutes);
+    return `${rounded.toLocaleString("fr-FR")} min`;
+  }
+  const rounded = totalSeconds < 10 ? Math.round(totalSeconds * 10) / 10 : Math.round(totalSeconds);
+  return `${rounded.toLocaleString("fr-FR")} s`;
+}
+
 interface BySourceData {
   documents: Doc[];
   total: number;
@@ -228,6 +244,7 @@ export default function DocumentsScreen() {
   const params = useLocalSearchParams<{ scan?: string }>();
 
   const [data, setData] = useState<BySourceData | null>(null);
+  const [reuseSavings, setReuseSavings] = useState<ReuseSavings | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
@@ -252,8 +269,15 @@ export default function DocumentsScreen() {
       if (sourceFilter !== "all") params.set("entityType", sourceFilter);
       if (search.trim()) params.set("q", search.trim());
       if (scanFilter !== "all") params.set("scanVerdict", scanFilter);
-      const res = await fetchAuth(`${API_BASE}/api/documents/by-source?${params}`);
+      const [res, statsRes] = await Promise.all([
+        fetchAuth(`${API_BASE}/api/documents/by-source?${params}`),
+        fetchAuth(`${API_BASE}/api/documents/stats/overview`),
+      ]);
       if (res.ok) setData(await res.json());
+      if (statsRes.ok) {
+        const stats = await statsRes.json();
+        setReuseSavings(stats?.reuseSavings ?? null);
+      }
     } catch {}
     finally { setLoading(false); setRefreshing(false); }
   }, [fetchAuth, sourceFilter, search, scanFilter]);
@@ -683,6 +707,17 @@ export default function DocumentsScreen() {
         </Pressable>
       )}
 
+      {/* ── Reuse-savings banner (analyses réutilisées) ── */}
+      {!loading && reuseSavings && reuseSavings.reusedScanCount > 0 && (
+        <View style={[st.reuseBanner, { backgroundColor: colors.card, borderColor: "#0ea5e940" }]}>
+          <Feather name="zap" size={15} color="#0ea5e9" />
+          <Text style={[st.reuseBannerText, { color: colors.text }]}>
+            Vous avez gagné ~<Text style={st.reuseBannerStrong}>{formatCumulativeSaved(reuseSavings.reusedScanSavedMs)}</Text>{" "}
+            grâce à {reuseSavings.reusedScanCount} analyse{reuseSavings.reusedScanCount > 1 ? "s" : ""} réutilisée{reuseSavings.reusedScanCount > 1 ? "s" : ""}.
+          </Text>
+        </View>
+      )}
+
       {/* ── Content ── */}
       {loading ? (
         <View style={st.center}>
@@ -741,6 +776,9 @@ const st = StyleSheet.create({
   bulkBannerText: { flex: 1, fontSize: 12, fontFamily: "Inter_600SemiBold" },
   bulkCancelBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: "#ef444440" },
   bulkCancelText: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: "#ef4444" },
+  reuseBanner: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 14, marginTop: 12, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
+  reuseBannerText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
+  reuseBannerStrong: { fontFamily: "Inter_700Bold" },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   listContent: { padding: 14, gap: 2 },
   card: { borderRadius: 14, borderWidth: 1, padding: 12, marginBottom: 8 },
