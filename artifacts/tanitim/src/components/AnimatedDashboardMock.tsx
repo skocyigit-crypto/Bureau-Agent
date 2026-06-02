@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Phone, Mail, CheckSquare, DollarSign, TrendingUp, Bot, Sparkles, Bell, Calendar, Users } from "lucide-react";
+import { Phone, Mail, CheckSquare, DollarSign, TrendingUp, Bot, Sparkles, Bell, Calendar, Users, Shield, ShieldCheck, ShieldAlert, ShieldQuestion } from "lucide-react";
 
 // 3D-feel animated dashboard mockup. Replaces the static hero dashboard image
 // with a continuously animated live preview: counters tick, cards slide in,
@@ -208,6 +208,41 @@ export function AnimatedDashboardMock() {
                 <div className="text-xs md:text-sm text-white/85">Rappeler Jean Dupont avant 17h — le devis Beta SAS attend depuis 3 jours.</div>
               </div>
             </motion.div>
+
+            {/* Document security breakdown — mirrors in-app SecuritySummary */}
+            <div className="bg-white/5 border border-white/10 rounded-xl p-3 md:p-4">
+              <div className="flex items-center justify-between mb-2.5">
+                <div className="flex items-center gap-1.5 text-xs text-white/70 font-medium">
+                  <Shield className="w-3.5 h-3.5 text-emerald-300" />
+                  Securite des documents
+                </div>
+                <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 rounded-full px-2 py-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Antivirus actif
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: "Verifies", value: 128, icon: ShieldCheck, text: "text-emerald-300", bg: "from-emerald-500/15 to-emerald-700/5 border-emerald-500/25" },
+                  { label: "Menaces", value: 1, icon: ShieldAlert, text: "text-red-300", bg: "from-red-500/15 to-red-700/5 border-red-500/25" },
+                  { label: "Non analyses", value: 6, icon: ShieldQuestion, text: "text-slate-300", bg: "from-slate-500/15 to-slate-700/5 border-slate-500/25" },
+                ].map((s, i) => {
+                  const Ic = s.icon;
+                  return (
+                    <div key={i} className={`flex flex-col items-center gap-1 rounded-lg border bg-gradient-to-br ${s.bg} px-2 py-2.5`}>
+                      <Ic className={`w-4 h-4 ${s.text}`} />
+                      <span className={`text-lg md:text-xl font-extrabold tabular-nums ${s.text}`}>
+                        <Counter end={s.value} duration={1400} />
+                      </span>
+                      <span className="text-[10px] text-white/55 text-center leading-tight">{s.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="text-[10px] text-white/45 mt-2 leading-snug">
+                Chaque fichier importe est scanne automatiquement (antivirus + liens malveillants) avant d'arriver dans votre coffre.
+              </div>
+            </div>
           </div>
 
           {/* Activity feed */}
