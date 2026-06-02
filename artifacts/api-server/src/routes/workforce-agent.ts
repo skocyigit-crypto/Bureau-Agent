@@ -66,7 +66,7 @@ async function callGemini(orgId: number, prompt: string, phase: string): Promise
   await assertAiQuota(orgId);
   const t0 = Date.now();
   const { ai } = await import("@workspace/integrations-gemini-ai");
-  const model = "gemini-2.0-flash";
+  const model = "gemini-2.5-pro";
 
   const response = await aiCallWithRetry(
     () =>
