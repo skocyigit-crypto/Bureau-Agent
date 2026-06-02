@@ -66,6 +66,22 @@ interface SecurityVerdict {
   unscanned: number;
 }
 
+interface ReuseSavings { reusedScanCount: number; reusedScanSavedMs: number; }
+
+// Traduit un total de millisecondes economisees en libelle lisible (minutes au
+// dela de 60 s, sinon secondes). Aligne sur le helper homonyme de l'ecran
+// documents (artifacts/mobile/app/documents.tsx).
+function formatCumulativeSaved(savedMs: number): string {
+  const totalSeconds = savedMs / 1000;
+  if (totalSeconds >= 60) {
+    const minutes = totalSeconds / 60;
+    const rounded = minutes < 10 ? Math.round(minutes * 10) / 10 : Math.round(minutes);
+    return `${rounded.toLocaleString("fr-FR")} min`;
+  }
+  const rounded = totalSeconds < 10 ? Math.round(totalSeconds * 10) / 10 : Math.round(totalSeconds);
+  return `${rounded.toLocaleString("fr-FR")} s`;
+}
+
 const REFRESH_INTERVAL = 60_000;
 
 export default function DashboardScreen() {
@@ -80,6 +96,7 @@ export default function DashboardScreen() {
   const [events, setEvents] = useState<UpcomingEvent[]>([]);
   const [overdueTasks, setOverdueTasks] = useState<OverdueTask[]>([]);
   const [security, setSecurity] = useState<SecurityVerdict | null>(null);
+  const [reuseSavings, setReuseSavings] = useState<ReuseSavings | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
@@ -134,6 +151,7 @@ export default function DashboardScreen() {
       if (securityRes?.ok) {
         const secData = await securityRes.json();
         setSecurity(secData.byScanVerdict ?? null);
+        setReuseSavings(secData.reuseSavings ?? null);
       }
       setLastRefresh(new Date());
     } catch {
@@ -289,6 +307,16 @@ export default function DashboardScreen() {
               <StatCard title="Projets" value={data.projetsActifs} icon="folder" color="#6366f1" subtitle="En cours" />
               <StatCard title="En retard" value={data.projetsEnRetard} icon="alert-circle" color={data.projetsEnRetard > 0 ? colors.destructive : colors.mutedForeground} subtitle="Projets" />
             </Pressable>
+
+            {reuseSavings && reuseSavings.reusedScanCount > 0 && (
+              <View style={[styles.reuseBanner, { backgroundColor: colors.card, borderColor: "#0ea5e940" }]}>
+                <Feather name="zap" size={15} color="#0ea5e9" />
+                <Text style={[styles.reuseBannerText, { color: colors.foreground }]}>
+                  Vous avez gagné ~<Text style={styles.reuseBannerStrong}>{formatCumulativeSaved(reuseSavings.reusedScanSavedMs)}</Text>{" "}
+                  grâce à {reuseSavings.reusedScanCount} analyse{reuseSavings.reusedScanCount > 1 ? "s" : ""} réutilisée{reuseSavings.reusedScanCount > 1 ? "s" : ""}.
+                </Text>
+              </View>
+            )}
 
             {security && (security.safe + security.dangerous + security.unscanned) > 0 && (
               <View
@@ -506,6 +534,9 @@ const styles = StyleSheet.create({
   urgentSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   statsRow: { flexDirection: "row", gap: 12, marginBottom: 12 },
   performanceCard: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 16 },
+  reuseBanner: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1, marginBottom: 16 },
+  reuseBannerText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
+  reuseBannerStrong: { fontFamily: "Inter_700Bold" },
   securityCard: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 16 },
   securityHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
   securityTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
