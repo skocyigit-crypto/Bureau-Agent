@@ -268,6 +268,22 @@ router.get("/documents/stats/overview", requireMinAgent, async (req: Request, re
   }
 });
 
+const requireOwner = requireRole("super_admin", "administrateur");
+
+router.post("/documents/reuse-savings/reset", requireOwner, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    await db.update(organisationsTable)
+      .set({ reusedScanCount: 0, reusedScanSavedMs: 0 })
+      .where(eq(organisationsTable.id, orgId));
+    logger.info({ orgId }, "Reuse savings counters reset");
+    res.json({ success: true, reuseSavings: { reusedScanCount: 0, reusedScanSavedMs: 0 } });
+  } catch (err: any) {
+    logger.error({ err }, "Reuse savings reset error");
+    res.status(500).json({ error: "Erreur lors de la reinitialisation du compteur" });
+  }
+});
+
 router.post("/documents/process", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);

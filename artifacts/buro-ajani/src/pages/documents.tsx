@@ -14,10 +14,11 @@ import {
   FileText, FileSpreadsheet, Image as ImageIcon, File, Download,
   Trash2, Brain, Sparkles, Search, Filter, BarChart3, HardDrive,
   Upload, Loader2, Eye, Printer, Edit, FolderKanban, ShieldCheck, ShieldAlert,
-  Shield, ShieldQuestion, X,
+  Shield, ShieldQuestion, X, RotateCcw,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useWorkspaceUser } from "@/components/workspace-user";
 
 import { useLocation } from "wouter";
 import { streamSse } from "@/lib/ai-stream-client";
@@ -143,6 +144,9 @@ interface BulkScanJobState {
 export default function DocumentsPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { user } = useWorkspaceUser();
+  const isOwner = user?.role === "super_admin" || user?.role === "administrateur";
+  const [resettingSavings, setResettingSavings] = useState(false);
   const [documents, setDocuments] = useState<Doc[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -204,6 +208,29 @@ export default function DocumentsPage() {
   }, [filterEntity, filterCategory, filterScan]);
 
   useEffect(() => { loadDocuments(); }, [loadDocuments]);
+
+  const handleResetSavings = useCallback(async () => {
+    const ok = await confirmAction({
+      title: "Réinitialiser le compteur ?",
+      description: "Le cumul du temps gagné grâce aux analyses réutilisées repartira de zéro. Cette action est irréversible.",
+      confirmLabel: "Réinitialiser",
+      destructive: true,
+    });
+    if (!ok) return;
+    setResettingSavings(true);
+    try {
+      const res = await fetch(`${API}/api/documents/reuse-savings/reset`, { method: "POST", credentials: "include" });
+      if (!res.ok) throw new Error(String(res.status));
+      const data = await res.json();
+      setStats((prev) => (prev ? { ...prev, reuseSavings: data.reuseSavings } : prev));
+      toast({ title: "Compteur réinitialisé" });
+    } catch (err) {
+      console.error("[Documents] reset savings failed:", err);
+      toast({ title: "Erreur lors de la réinitialisation", variant: "destructive" });
+    } finally {
+      setResettingSavings(false);
+    }
+  }, [toast]);
 
   // Reattache a un scan en arriere-plan deja en cours (refresh / retour sur la page).
   useEffect(() => {
@@ -725,6 +752,19 @@ export default function DocumentsPage() {
                 Vous avez gagné ~<span className="font-semibold">{formatCumulativeSaved(stats.reuseSavings.reusedScanSavedMs)}</span>{" "}
                 grâce à {stats.reuseSavings.reusedScanCount} analyse{stats.reuseSavings.reusedScanCount > 1 ? "s" : ""} réutilisée{stats.reuseSavings.reusedScanCount > 1 ? "s" : ""}.
               </span>
+              {isOwner && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleResetSavings}
+                  disabled={resettingSavings}
+                  className="ml-auto h-6 gap-1 px-2 text-xs text-sky-700 hover:text-sky-900 dark:text-sky-300 dark:hover:text-sky-100"
+                >
+                  {resettingSavings ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+                  Réinitialiser
+                </Button>
+              )}
             </div>
           )}
 
