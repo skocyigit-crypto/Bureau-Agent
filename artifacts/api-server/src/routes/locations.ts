@@ -15,7 +15,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { and, eq, desc, gte, lte, inArray } from "drizzle-orm";
 import { z } from "zod";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import {
   db,
   geofencesTable,
@@ -42,7 +42,7 @@ const pingLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => {
     const uid = req.session?.userId;
-    return uid ? `u:${uid}` : `ip:${req.ip || "unknown"}`;
+    return uid ? `u:${uid}` : `ip:${ipKeyGenerator(req.ip || "unknown")}`;
   },
   message: { error: "Trop de pings de position. Reessayez dans une minute." },
 });
