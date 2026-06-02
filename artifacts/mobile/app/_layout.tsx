@@ -105,9 +105,16 @@ export default function RootLayout() {
       if (typeof target.scan === "string") {
         // Tâche #134 : la notification de menace documentaire ouvre la liste
         // déjà filtrée sur les fichiers dangereux (/documents?scan=dangerous).
+        // Tâche #177 : si la notif porte l'id du document signalé, on le relaie
+        // en param `open` pour que l'écran défile/surligne CE fichier précis
+        // au lieu de laisser l'utilisateur le chercher dans la liste filtrée.
+        const params: Record<string, string> = { scan: target.scan };
+        if (typeof target.resourceId === "number") {
+          params.open = String(target.resourceId);
+        }
         router.push({
           pathname: target.pathname,
-          params: { scan: target.scan },
+          params,
         } as never);
       } else if (typeof target.resourceId === "number") {
         router.push({

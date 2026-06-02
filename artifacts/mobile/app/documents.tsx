@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -110,7 +110,7 @@ function getMimeIcon(mimeType: string): { icon: keyof typeof Feather.glyphMap; c
 }
 
 // ── Doc Card ──────────────────────────────────────────────────────────────────
-function DocCard({ doc, colors, onDelete, onDownload, onRead, onRescan, scanning }: {
+function DocCard({ doc, colors, onDelete, onDownload, onRead, onRescan, scanning, highlighted }: {
   doc: Doc;
   colors: ReturnType<typeof import("@/hooks/useColors").useColors>;
   onDelete: (id: number) => void;
@@ -118,6 +118,7 @@ function DocCard({ doc, colors, onDelete, onDownload, onRead, onRescan, scanning
   onRead: (id: number) => void;
   onRescan: (id: number) => void;
   scanning: boolean;
+  highlighted?: boolean;
 }) {
   const { icon, color } = getMimeIcon(doc.mimeType);
   const catCfg = CATEGORY_LABELS[doc.category] ?? { label: doc.category, color: "#6366f1" };
@@ -127,7 +128,11 @@ function DocCard({ doc, colors, onDelete, onDownload, onRead, onRescan, scanning
 
   return (
     <Pressable onPress={() => onRead(doc.id)}
-      style={[st.card, { backgroundColor: colors.card, borderColor: colors.border, borderLeftColor: catCfg.color, borderLeftWidth: 3 }]}>
+      style={[
+        st.card,
+        { backgroundColor: colors.card, borderColor: colors.border, borderLeftColor: catCfg.color, borderLeftWidth: 3 },
+        highlighted && st.cardHighlighted,
+      ]}>
       <View style={st.cardHeader}>
         <View style={[st.fileIcon, { backgroundColor: color + "15" }]}>
           <Feather name={icon} size={20} color={color} />
@@ -241,7 +246,21 @@ export default function DocumentsScreen() {
   const insets = useSafeAreaInsets();
   const { fetchAuth, authHeaders } = useAuth();
   const isWeb = Platform.OS === "web";
-  const params = useLocalSearchParams<{ scan?: string }>();
+  const params = useLocalSearchParams<{ scan?: string; open?: string }>();
+
+  // Tâche #177 : id du document signalé porté par la notification de menace.
+  // Le tap doit défiler/surligner CE fichier, pas juste afficher la liste.
+  const highlightId = useMemo(() => {
+    const raw = Array.isArray(params.open) ? params.open[0] : params.open;
+    if (typeof raw !== "string") return null;
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) ? n : null;
+  }, [params.open]);
+
+  const listRef = useRef<FlatList<Doc>>(null);
+  const [highlightedId, setHighlightedId] = useState<number | null>(null);
+  // Évite de re-défiler/re-surligner à chaque refresh tant que l'id ne change pas.
+  const highlightHandledRef = useRef<number | null>(null);
 
   const [data, setData] = useState<BySourceData | null>(null);
   const [reuseSavings, setReuseSavings] = useState<ReuseSavings | null>(null);
@@ -284,6 +303,30 @@ export default function DocumentsScreen() {
 
   useEffect(() => { setLoading(true); load(); }, [load]);
   function onRefresh() { setRefreshing(true); load(); }
+
+  // Tâche #177 : une fois la liste chargée, défile jusqu'au document signalé et
+  // le met en surbrillance quelques secondes. On ne le fait qu'une fois par id
+  // (highlightHandledRef) pour ne pas re-défiler à chaque refresh. Si l'id est
+  // absent de la liste filtrée (déjà supprimé, hors filtre), on retombe
+  // proprement sur la liste filtrée sans rien forcer.
+  useEffect(() => {
+    if (highlightId == null || loading) return;
+    if (highlightHandledRef.current === highlightId) return;
+    const docs = data?.documents ?? [];
+    const index = docs.findIndex(d => d.id === highlightId);
+    if (index < 0) return;
+    highlightHandledRef.current = highlightId;
+    setHighlightedId(highlightId);
+    requestAnimationFrame(() => {
+      try {
+        listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.3 });
+      } catch {
+        /* La liste n'est pas encore prête : onScrollToIndexFailed gère le retry. */
+      }
+    });
+    const timer = setTimeout(() => setHighlightedId(null), 4000);
+    return () => clearTimeout(timer);
+  }, [highlightId, loading, data]);
 
   // Au montage : se rebrancher a un scan en arriere-plan deja en cours.
   useEffect(() => {
@@ -725,10 +768,22 @@ export default function DocumentsScreen() {
         </View>
       ) : (
         <FlatList
+          ref={listRef}
           data={data?.documents ?? []}
           keyExtractor={d => d.id.toString()}
           contentContainerStyle={[st.listContent, { paddingBottom: isWeb ? 80 : 60 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0f766e" />}
+          onScrollToIndexFailed={(info) => {
+            // La cible n'est pas encore rendue (liste longue) : on laisse le
+            // temps au rendu puis on retente une fois.
+            setTimeout(() => {
+              try {
+                listRef.current?.scrollToIndex({ index: info.index, animated: true, viewPosition: 0.3 });
+              } catch {
+                /* abandon silencieux : la liste filtrée reste affichée. */
+              }
+            }, 350);
+          }}
           ListEmptyComponent={
             <EmptyState
               icon="folder"
@@ -737,7 +792,7 @@ export default function DocumentsScreen() {
             />
           }
           renderItem={({ item }) => (
-            <DocCard doc={item} colors={colors} onDelete={handleDelete} onDownload={handleDownload} onRead={handleRead} onRescan={handleRescan} scanning={scanningIds.includes(item.id)} />
+            <DocCard doc={item} colors={colors} onDelete={handleDelete} onDownload={handleDownload} onRead={handleRead} onRescan={handleRescan} scanning={scanningIds.includes(item.id)} highlighted={highlightedId === item.id} />
           )}
         />
       )}
@@ -782,6 +837,7 @@ const st = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   listContent: { padding: 14, gap: 2 },
   card: { borderRadius: 14, borderWidth: 1, padding: 12, marginBottom: 8 },
+  cardHighlighted: { borderColor: "#0f766e", borderWidth: 2, backgroundColor: "#0f766e12" },
   cardHeader: { flexDirection: "row", gap: 10, marginBottom: 6, alignItems: "flex-start" },
   fileIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   fileName: { fontSize: 13, fontFamily: "Inter_600SemiBold", lineHeight: 19 },

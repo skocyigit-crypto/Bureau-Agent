@@ -75,7 +75,7 @@ export async function trackScanResult(
         // Notification locale systeme : filet de securite si l'utilisateur a
         // quitte l'ecran source pendant l'analyse. Best-effort, ne bloque pas
         // l'alerte in-app ci-dessous.
-        void notifyDangerousDocument(fileName);
+        void notifyDangerousDocument(documentId, fileName);
         Alert.alert(
           "Menace detectee",
           `ATTENTION : ${fileName} a ete signale comme DANGEREUX par l'analyse antivirus. ` +
@@ -96,10 +96,15 @@ export async function trackScanResult(
  * (Tache #174). Respecte le consentement notifications + le mute du canal
  * "security" via `shouldNotifySecurityChannel`. Le payload `data` reprend la
  * convention de la Tache #134 (`route` + `scan`) pour que le tap ouvre
- * l'ecran Documents filtre sur les fichiers dangereux. Best-effort : toute
- * erreur est avalee (l'alerte in-app reste le filet de securite).
+ * l'ecran Documents filtre sur les fichiers dangereux. Tache #177 : on ajoute
+ * `resourceId` (l'id du document signale) pour que le tap mette en avant et
+ * defile jusqu'a CE fichier precis, pas juste la liste filtree. Best-effort :
+ * toute erreur est avalee (l'alerte in-app reste le filet de securite).
  */
-async function notifyDangerousDocument(fileName: string): Promise<void> {
+async function notifyDangerousDocument(
+  documentId: number | string,
+  fileName: string,
+): Promise<void> {
   try {
     if (!(await shouldNotifySecurityChannel())) return;
     await Notifications.scheduleNotificationAsync({
@@ -107,7 +112,7 @@ async function notifyDangerousDocument(fileName: string): Promise<void> {
         title: "Menace detectee",
         body: `${fileName} a ete signale comme dangereux. N'ouvrez pas ce fichier.`,
         sound: true,
-        data: { route: "/documents", scan: "dangerous" },
+        data: { route: "/documents", scan: "dangerous", resourceId: documentId },
       },
       trigger: null,
     });
