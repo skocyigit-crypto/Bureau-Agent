@@ -59,7 +59,7 @@ async function aiGenerate(orgId: number, prompt: string): Promise<string> {
   await assertAiQuota(orgId);
   const t0 = Date.now();
   const { ai } = await import("@workspace/integrations-gemini-ai");
-  const model = "gemini-2.0-flash";
+  const model = "gemini-2.5-flash";
   const response = await ai.models.generateContent({
     model,
     contents: [{ role: "user", parts: [{ text: prompt }] }],
