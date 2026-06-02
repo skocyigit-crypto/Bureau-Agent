@@ -308,6 +308,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             items: [
               { name: "Commandant IA", href: "/commandant-ia", icon: Sparkles },
               { name: "File d'approbation", href: "/file-approbation", icon: Inbox, badge: agentQueueCount },
+              ...(isAdmin ? [{ name: "Auto-audit", href: "/auto-audit", icon: ScanSearch }] : []),
               { name: "Assistant Universel", href: "/asistan", icon: Sparkles },
               { name: "Agents IA", href: "/agents-ia", icon: Brain },
               ...(isAdmin ? [{ name: "Automatisations", href: "/automatisations", icon: Zap }] : []),

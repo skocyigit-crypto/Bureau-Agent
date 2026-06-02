@@ -71,6 +71,7 @@ import AssistantProactifPage from "@/pages/assistant-proactif";
 import IaApprentissagePage from "@/pages/ia-apprentissage";
 import EquipeLocalisationPage from "@/pages/equipe-localisation";
 import FileApprobationPage from "@/pages/file-approbation";
+import AuditDenetimPage from "@/pages/audit-denetim";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -184,6 +185,7 @@ function AppRoutes() {
         <Route path="/ia-apprentissage" component={withLicenseGate(IaApprentissagePage)} />
         <Route path="/equipe/localisation" component={withLicenseGate(EquipeLocalisationPage)} />
         <Route path="/file-approbation" component={withLicenseGate(FileApprobationPage)} />
+        <Route path="/auto-audit" component={withLicenseGate(AuditDenetimPage)} />
         <Route component={NotFound} />
       </Switch>
         </AnimatedRouteContent>

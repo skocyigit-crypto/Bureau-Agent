@@ -28,6 +28,7 @@ export * from "./factures-client";
 export * from "./projets";
 export * from "./compte-client";
 export * from "./app-releases";
+export * from "./app-audit";
 export * from "./payment-reminders";
 export * from "./face-profiles";
 export * from "./telephony";

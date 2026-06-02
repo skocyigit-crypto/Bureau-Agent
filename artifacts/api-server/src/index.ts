@@ -18,6 +18,7 @@ import { startSecurityDigestCron } from "./services/security-digest-cron";
 import { startProactiveEngine } from "./services/proactive-engine";
 import { startAiLearning } from "./services/ai-learning";
 import { startAutonomousSecretaryCron } from "./services/autonomous-secretary-cron";
+import { startAppAuditCron } from "./services/app-audit-cron";
 import { attachVoiceLiveWs } from "./routes/voice-live";
 
 import { closePool, checkDbHealth } from "@workspace/db";
@@ -122,6 +123,7 @@ async function startServer(): Promise<void> {
     startProactiveEngine();
     startAiLearning();
     startAutonomousSecretaryCron();
+    startAppAuditCron();
     attachVoiceLiveWs(server);
   });
 

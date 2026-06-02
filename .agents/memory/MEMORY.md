@@ -1,6 +1,7 @@
 # Memory Index
 
 - [Security middleware stack](security-middleware-stack.md) — /api threatDetection blocks URLs/base64 (bypass per-route); global express.json is 1mb (mount higher limit before it).
+- [Cron daily guards](cron-daily-guard.md) — row-derived "ran today" guards silently re-run on zero-output ticks; pair with in-memory attempted marker; self-generate dedup keys (don't trust LLM).
 - [Talking AI avatar](talking-avatar.md) — DOM-only `@workspace/ai-avatar` lib for web; Expo duplicates viseme core + RN SVG; TTS must use on-device (local) voices only, fail closed.
 - [Postgres composite-key purge](postgres-composite-key-purge.md) — recompute jobs must purge stale rows via sql-concat notInArray; separator must NOT be U+0000 (Postgres rejects NUL, fails only at runtime).
 - [Global super-admin guard](global-super-admin-guard.md) — never `router.use(requireSuperAdmin, xRouter)` (leaks to ALL routes, 403s clients); path-scope it. Recheck after backoffice merges.
