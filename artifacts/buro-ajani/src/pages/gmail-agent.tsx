@@ -251,6 +251,20 @@ export default function GmailAgentPage() {
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeReplyTo, setComposeReplyTo] = useState<any>(undefined);
   const [aiPanelTab, setAiPanelTab] = useState("triage");
+  const [savingAtt, setSavingAtt] = useState<string | null>(null);
+
+  const handleSaveAttachment = useCallback(async (att: any) => {
+    if (!selectedEmail?.id || !att?.attachmentId) return;
+    setSavingAtt(att.attachmentId);
+    try {
+      await apiPost(`/gmail/message/${selectedEmail.id}/attachment/${att.attachmentId}/save`, {});
+      toast({ title: "Enregistré dans Documents", description: `${att.filename} — analyse antivirus en cours.` });
+    } catch (e: any) {
+      toast({ title: "Échec de l'enregistrement", description: e?.message || "Réessayez.", variant: "destructive" });
+    } finally {
+      setSavingAtt(null);
+    }
+  }, [selectedEmail?.id, toast]);
 
   const { data: profile } = useQuery({
     queryKey: ["gmail-profile"],
@@ -952,17 +966,30 @@ export default function GmailAgentPage() {
                             // /buro-ajani/api en preview comme en prod).
                             const href = `${baseUrl}/api/gmail/message/${selectedEmail.id}/attachment/${att.attachmentId}`;
                             return (
-                              <a
-                                key={i}
-                                href={href}
-                                download={att.filename}
-                                className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border bg-background hover:bg-muted transition-colors"
-                                title={`Telecharger ${att.filename}`}
-                              >
-                                <Download className="h-3 w-3 text-muted-foreground" />
-                                {att.filename}
-                                {att.size ? <span className="text-muted-foreground/60">({Math.round(att.size / 1024)} KB)</span> : null}
-                              </a>
+                              <span key={i} className="inline-flex items-center rounded border bg-background overflow-hidden">
+                                <a
+                                  href={href}
+                                  download={att.filename}
+                                  className="inline-flex items-center gap-1 text-xs px-2 py-0.5 hover:bg-muted transition-colors"
+                                  title={`Telecharger ${att.filename}`}
+                                >
+                                  <Download className="h-3 w-3 text-muted-foreground" />
+                                  {att.filename}
+                                  {att.size ? <span className="text-muted-foreground/60">({Math.round(att.size / 1024)} KB)</span> : null}
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveAttachment(att)}
+                                  disabled={savingAtt === att.attachmentId}
+                                  className="inline-flex items-center gap-1 text-xs px-2 py-0.5 border-l hover:bg-muted transition-colors disabled:opacity-50"
+                                  title="Enregistrer dans Documents (analyse antivirus)"
+                                >
+                                  {savingAtt === att.attachmentId
+                                    ? <Loader2 className="h-3 w-3 animate-spin" />
+                                    : <FolderKanban className="h-3 w-3 text-muted-foreground" />}
+                                  <span className="hidden sm:inline">Documents</span>
+                                </button>
+                              </span>
                             );
                           })}
                         </div>

@@ -24,6 +24,7 @@ import { analyzeUrlsBatch, extractUrls, type UrlScanResult } from "../services/u
 import { scanBase64ContentFull } from "../middleware/security";
 import { recordSecurityScan } from "../services/security-scans";
 import { emitSecurityAlert } from "../services/security-alerts";
+import { ingestDocument } from "../services/document-ingest";
 import {
   isMalwareSubmissionEnabled,
   getInboundMaxSubmitBytes,
@@ -354,6 +355,22 @@ async function tryHandleSecurityScan(
       if (result.safe && isMalwareSubmissionEnabled()) {
         void deepScanInBackground(b64, filename, target, orgId, userId);
       }
+      // Auto-enregistrement dans la bibliotheque de documents (fire-and-forget
+      // pour ne PAS bloquer la reponse Twilio). Passe par le pipeline partage
+      // qui re-valide type/taille, applique la garde heuristique et persiste le
+      // verdict via le scan complet en arriere-plan. Les types non supportes
+      // (ex: note vocale) sont simplement ignores (status "rejected").
+      void ingestDocument({
+        orgId, userId,
+        fileContent: b64,
+        fileName: filename,
+        mimeType: contentType,
+        entityType: "message",
+        category: "whatsapp",
+        description: `Recu via WhatsApp${body.From ? ` de ${body.From}` : ""}`,
+        source: "whatsapp",
+        ip: "whatsapp-webhook",
+      }).catch((err) => logger.error({ err, orgId }, "[whatsapp] echec auto-enregistrement document"));
     }
     verdicts.push("");
     verdicts.push(anyThreat ? "Ne pas ouvrir les fichiers signales." : "Fichiers verifies.");

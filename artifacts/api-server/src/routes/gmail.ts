@@ -8,6 +8,8 @@ import { applyDomainListToUrl } from "../services/security-lists";
 import { recordSecurityScan } from "../services/security-scans";
 import { emitSecurityAlert } from "../services/security-alerts";
 import { getInboundMaxSubmitBytes } from "../services/file-malware";
+import { getOrgId } from "../middleware/tenant";
+import { ingestDocument } from "../services/document-ingest";
 
 const router = Router();
 
@@ -419,6 +421,79 @@ router.get("/gmail/message/:id/attachment/:attId", async (req: Request, res: Res
   } catch (error: any) {
     req.log.error({ err: error }, "Gmail attachment download error");
     res.status(500).json({ error: "Erreur lors du telechargement de la piece jointe." });
+  }
+});
+
+// Enregistre une piece jointe Gmail dans la bibliotheque de documents et la
+// passe par le MEME pipeline d'ingestion/scan que l'upload UI (validation +
+// garde heuristique + analyse antivirus en arriere-plan). On relit la liste des
+// attachments du message pour valider l'attachmentId (anti-exfiltration) et
+// recuperer filename/mimeType avant de telecharger les octets.
+router.post("/gmail/message/:id/attachment/:attId/save", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.session?.userId;
+    if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+    const orgId = getOrgId(req);
+    const auth = await getAuthClient(userId);
+    if (!auth) { res.status(403).json({ error: "non_connecte" }); return; }
+
+    const msgId = String(req.params.id);
+    const attId = String(req.params.attId);
+    const gmail = google.gmail({ version: "v1", auth });
+
+    const detailRes = await (gmail.users.messages as any).get({ userId: "me", id: msgId, format: "full" });
+    const payload = detailRes.data?.payload;
+    const meta = getAttachments(payload).find((a: any) => a.attachmentId === attId);
+    if (!meta) { res.status(404).json({ error: "Piece jointe introuvable." }); return; }
+
+    const headers = parseHeaders(payload?.headers || []);
+    const subject = headers["subject"] || "(sans objet)";
+    const from = headers["from"] || "";
+
+    const attRes = await (gmail.users.messages.attachments as any).get({
+      userId: "me", messageId: msgId, id: attId,
+    });
+    const dataB64 = attRes.data?.data || "";
+    // Gmail renvoie du base64url -> on normalise en base64 standard.
+    const buf = Buffer.from(dataB64.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+    const fileContent = buf.toString("base64");
+
+    const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.socket?.remoteAddress || "unknown";
+
+    const ingest = await ingestDocument({
+      orgId,
+      userId,
+      fileContent,
+      fileName: meta.filename,
+      mimeType: meta.mimeType,
+      entityType: "message",
+      category: "email",
+      description: `Piece jointe Gmail — ${subject}${from ? ` (de ${from})` : ""}`,
+      source: "gmail",
+      ip,
+    });
+
+    if (ingest.status === "blocked") {
+      res.status(400).json({ error: "Fichier bloque pour raisons de securite.", threats: ingest.threats });
+      return;
+    }
+    if (ingest.status === "rejected") {
+      res.status(400).json({ error: ingest.error });
+      return;
+    }
+
+    res.json({
+      success: true,
+      document: {
+        id: ingest.doc.id,
+        fileName: ingest.doc.originalName,
+        mimeType: ingest.doc.mimeType,
+        fileSize: ingest.doc.fileSize,
+      },
+    });
+  } catch (error: any) {
+    req.log.error({ err: error }, "Gmail attachment save error");
+    res.status(500).json({ error: "Erreur lors de l'enregistrement de la piece jointe." });
   }
 });
 

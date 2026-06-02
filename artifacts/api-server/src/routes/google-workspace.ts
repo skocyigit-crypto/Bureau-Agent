@@ -1,8 +1,28 @@
 import { Router } from "express";
 import { ReplitConnectors } from "@replit/connectors-sdk";
 import { logger } from "../lib/logger";
+import { getOrgId } from "../middleware/tenant";
+import { ingestDocument } from "../services/document-ingest";
 
 const router = Router();
+
+// Types Google natifs (Docs/Sheets/Slides) qui doivent etre EXPORTES vers un
+// format binaire telechargeable. Les autres fichiers se telechargent tels quels
+// via `?alt=media`.
+const GOOGLE_NATIVE_EXPORT: Record<string, { mimeType: string; ext: string }> = {
+  "application/vnd.google-apps.document": {
+    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ext: "docx",
+  },
+  "application/vnd.google-apps.spreadsheet": {
+    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ext: "xlsx",
+  },
+  "application/vnd.google-apps.presentation": {
+    mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ext: "pptx",
+  },
+};
 
 function getConnectors() {
   return new ReplitConnectors();
@@ -278,6 +298,94 @@ router.get("/google-workspace/drive-search", async (req, res): Promise<void> => 
   } catch (error: any) {
     logger.error({ err: error }, "Erreur recherche Drive:");
     res.json({ files: [], error: "non_connecte" });
+  }
+});
+
+// Importe un fichier Google Drive dans la bibliotheque de documents en le
+// passant par le MEME pipeline d'ingestion/scan que l'upload UI. Les formats
+// Google natifs (Docs/Sheets/Slides) sont exportes en docx/xlsx/pptx ; les
+// autres sont telecharges tels quels via `?alt=media`. Le scan antivirus
+// complet tourne ensuite en arriere-plan.
+router.post("/google-workspace/drive-import", async (req, res): Promise<void> => {
+  try {
+    const userId = req.session?.userId;
+    if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
+    const orgId = getOrgId(req);
+
+    const { fileId } = req.body;
+    if (!fileId || typeof fileId !== "string") { res.status(400).json({ error: "fileId requis" }); return; }
+
+    const connectors = getConnectors();
+
+    // 1) Metadonnees pour valider l'acces + recuperer nom/type/taille.
+    const metaRes = await connectors.proxy(
+      "google-drive",
+      `/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,name,mimeType,size`
+    );
+    const meta = await metaRes.json() as any;
+    if (!meta?.id) { res.status(404).json({ error: "Fichier introuvable." }); return; }
+
+    if (meta.mimeType === "application/vnd.google-apps.folder") {
+      res.status(400).json({ error: "Impossible d'importer un dossier." });
+      return;
+    }
+
+    // 2) Telechargement des octets — export pour les formats Google natifs,
+    // sinon download direct.
+    let fileName = meta.name as string;
+    let contentRes: Response;
+    const nativeExport = GOOGLE_NATIVE_EXPORT[meta.mimeType];
+    if (nativeExport) {
+      contentRes = await connectors.proxy(
+        "google-drive",
+        `/drive/v3/files/${encodeURIComponent(fileId)}/export?mimeType=${encodeURIComponent(nativeExport.mimeType)}`
+      ) as unknown as Response;
+      if (!/\.[a-z0-9]+$/i.test(fileName)) fileName = `${fileName}.${nativeExport.ext}`;
+    } else {
+      contentRes = await connectors.proxy(
+        "google-drive",
+        `/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`
+      ) as unknown as Response;
+    }
+
+    const arrayBuf = await contentRes.arrayBuffer();
+    const fileContent = Buffer.from(arrayBuf).toString("base64");
+
+    const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.socket?.remoteAddress || "unknown";
+
+    const ingest = await ingestDocument({
+      orgId,
+      userId,
+      fileContent,
+      fileName,
+      mimeType: nativeExport ? nativeExport.mimeType : meta.mimeType,
+      category: "drive",
+      description: `Importe depuis Google Drive — ${meta.name}`,
+      source: "drive",
+      ip,
+    });
+
+    if (ingest.status === "blocked") {
+      res.status(400).json({ error: "Fichier bloque pour raisons de securite.", threats: ingest.threats });
+      return;
+    }
+    if (ingest.status === "rejected") {
+      res.status(400).json({ error: ingest.error });
+      return;
+    }
+
+    res.json({
+      success: true,
+      document: {
+        id: ingest.doc.id,
+        fileName: ingest.doc.originalName,
+        mimeType: ingest.doc.mimeType,
+        fileSize: ingest.doc.fileSize,
+      },
+    });
+  } catch (error: any) {
+    logger.error({ err: error }, "Erreur import Drive:");
+    res.status(500).json({ error: "Erreur lors de l'import du fichier Drive." });
   }
 });
 

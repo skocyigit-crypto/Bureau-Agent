@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, formatDistanceToNow, isToday, isTomorrow } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -6,8 +6,10 @@ import {
   Mail, Calendar, HardDrive, FileText, Table, Presentation, Users, CheckSquare,
   StickyNote, Video, Image, PlayCircle, MessageCircle, ClipboardList,
   Search, ExternalLink, RefreshCw, Shield, Zap, Grid3X3, ChevronRight,
-  Clock, Star, Eye, Folder, Link2, AlertCircle, Check, Loader2, Globe, Printer
+  Clock, Star, Eye, Folder, Link2, AlertCircle, Check, Loader2, Globe, Printer,
+  FolderKanban
 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,9 +56,31 @@ function SmartDate({ dateStr }: { dateStr: string }) {
 }
 
 export default function GoogleWorkspace() {
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
   const [activeTab, setActiveTab] = useState("apps");
+  const [importingFile, setImportingFile] = useState<string | null>(null);
+
+  const handleImportFile = useCallback(async (file: any) => {
+    if (!file?.id) return;
+    setImportingFile(file.id);
+    try {
+      const res = await fetch(`${baseUrl}/api/google-workspace/drive-import`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileId: file.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+      toast({ title: "Importé dans Documents", description: `${file.name} — analyse antivirus en cours.` });
+    } catch (e: any) {
+      toast({ title: "Échec de l'import", description: e?.message || "Réessayez.", variant: "destructive" });
+    } finally {
+      setImportingFile(null);
+    }
+  }, [toast]);
 
   const { data: hub, isLoading: hubLoading } = useQuery({ queryKey: ["gw-hub"], queryFn: () => apiFetch("/google-workspace/hub") });
   const { data: emailsData, isLoading: emailsLoading } = useQuery({ queryKey: ["gw-emails"], queryFn: () => apiFetch("/google-workspace/recent-emails") });
@@ -290,6 +314,21 @@ export default function GoogleWorkspace() {
                               {file.shared && <Badge variant="secondary" className="text-[10px]">Partage</Badge>}
                             </div>
                           </div>
+                          {file.type !== "Dossier" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 gap-1"
+                              onClick={() => handleImportFile(file)}
+                              disabled={importingFile === file.id}
+                              title="Importer dans Documents (analyse antivirus)"
+                            >
+                              {importingFile === file.id
+                                ? <Loader2 className="h-3 w-3 animate-spin" />
+                                : <FolderKanban className="h-3 w-3" />}
+                              <span className="hidden sm:inline text-xs">Documents</span>
+                            </Button>
+                          )}
                           {file.webViewLink && (
                             <a href={file.webViewLink} target="_blank" rel="noopener noreferrer">
                               <Button variant="ghost" size="sm" className="h-7 w-7 p-0"><ExternalLink className="h-3 w-3" /></Button>

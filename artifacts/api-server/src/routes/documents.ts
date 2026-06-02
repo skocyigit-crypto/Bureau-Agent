@@ -4,7 +4,7 @@ import { db, documentsTable, bulkScanJobsTable } from "@workspace/db";
 import { eq, and, or, ne, lt, desc, sql, inArray } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
 import { getOrgId } from "../middleware/tenant";
-import { scanBase64Content, scanBase64ContentFull, scanBase64ContentFullCached, logSecurityEvent, type StoredScanRecord } from "../middleware/security";
+import { scanBase64ContentFull, scanBase64ContentFullCached, logSecurityEvent, type StoredScanRecord } from "../middleware/security";
 import { logger } from "../lib/logger";
 import { analyzeDocument, processDocumentForImport, importRowsToModule, analyzeDocumentMultiModel, askDocumentQuestion } from "../services/document-ai";
 import { emitSecurityAlert } from "../services/security-alerts";
@@ -14,137 +14,12 @@ import {
   broadcastDocumentThreatNotification,
 } from "../services/proactive-engine";
 import { openSseStream } from "../services/ai-stream";
+import { ingestDocument, resolveMime, ALLOWED_MIME_TYPES, MAX_FILE_SIZE_MB, findReusableCleanScan } from "../services/document-ingest";
 import { EventEmitter } from "events";
 import { startBulkScan, getBulkScanStatus } from "../services/document-scan-job";
 
 const router = Router();
 const requireMinAgent = requireRole("super_admin", "administrateur", "agent");
-
-/**
- * Recherche un verdict d'analyse "sain" deja persiste pour un fichier
- * identique (meme empreinte SHA-256) ailleurs dans la meme organisation.
- * Permet de reutiliser ce verdict a l'upload au lieu de re-interroger le
- * moteur externe (VirusTotal) pour des octets deja juges propres. On ne
- * remonte QUE des verdicts surs : les empreintes dangereuses ou inconnues
- * declenchent toujours un scan complet via `scanBase64ContentFullCached`.
- */
-async function findReusableCleanScan(orgId: number, sha256: string): Promise<StoredScanRecord | null> {
-  if (!sha256) return null;
-  const [existing] = await db.select({
-    scanSha256: documentsTable.scanSha256,
-    scanVerdict: documentsTable.scanVerdict,
-    scanEngine: documentsTable.scanEngine,
-    scanDetail: documentsTable.scanDetail,
-    scannedAt: documentsTable.scannedAt,
-  }).from(documentsTable)
-    .where(and(
-      eq(documentsTable.organisationId, orgId),
-      eq(documentsTable.scanSha256, sha256),
-      eq(documentsTable.scanVerdict, "safe"),
-    ))
-    .limit(1);
-  if (!existing) return null;
-  return {
-    sha256: existing.scanSha256,
-    verdict: existing.scanVerdict,
-    engine: existing.scanEngine,
-    detail: existing.scanDetail,
-    scannedAt: existing.scannedAt,
-  };
-}
-
-/**
- * Analyse antivirus complete d'un document deja insere, executee en
- * arriere-plan pour ne pas bloquer la reponse d'upload. Reutilise un verdict
- * sain deja persiste (meme empreinte SHA-256) puis met a jour
- * scanVerdict/scanEngine/scanDetail/scanSha256/scannedAt. Tout verdict
- * dangereux est journalise comme evenement de securite critique. Fail-soft : en
- * cas d'erreur le document reste "Non analyse" et le scan groupe peut le
- * rattraper.
- */
-async function scanDocumentInBackground(params: {
-  docId: number;
-  orgId: number;
-  userId: number | null;
-  fileContent: string;
-  fileName: string;
-  ip: string;
-}): Promise<void> {
-  const { docId, orgId, userId, fileContent, fileName, ip } = params;
-  try {
-    const sha256 = crypto.createHash("sha256").update(Buffer.from(fileContent, "base64")).digest("hex");
-    const storedScan = await findReusableCleanScan(orgId, sha256);
-    const { result: scanResult } = await scanBase64ContentFullCached(fileContent, fileName, storedScan);
-    await db.update(documentsTable).set({
-      scanVerdict: scanResult.safe ? "safe" : "dangerous",
-      scanEngine: scanResult.engine || null,
-      scanDetail: scanResult.engineDetail || null,
-      scanSha256: scanResult.sha256 || null,
-      scannedAt: new Date(scanResult.scannedAt),
-      updatedAt: new Date(),
-    }).where(and(eq(documentsTable.id, docId), eq(documentsTable.organisationId, orgId)));
-    if (!scanResult.safe) {
-      logSecurityEvent(
-        "malicious_upload_detected",
-        ip,
-        userId,
-        `Menace detectee dans un document televerse (#${docId}, ${scanResult.engine}): ${scanResult.threats.join(", ")}`,
-        "critical",
-      );
-    }
-  } catch (err: any) {
-    logger.error({ err, docId }, "Background document scan failed");
-  }
-}
-
-const ALLOWED_MIME_TYPES = [
-  "application/pdf",
-  "image/png", "image/jpeg", "image/webp", "image/gif", "image/bmp", "image/tiff",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.ms-excel",
-  "text/csv",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/msword",
-  "text/plain",
-  "application/rtf",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "application/vnd.ms-powerpoint",
-  "application/zip",
-  "application/x-rar-compressed",
-  "application/json",
-  "application/xml", "text/xml",
-];
-
-const EXTENSION_MIME_MAP: Record<string, string> = {
-  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  ".xls": "application/vnd.ms-excel",
-  ".csv": "text/csv",
-  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  ".doc": "application/msword",
-  ".pdf": "application/pdf",
-  ".txt": "text/plain",
-  ".rtf": "application/rtf",
-  ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  ".ppt": "application/vnd.ms-powerpoint",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".webp": "image/webp",
-  ".gif": "image/gif",
-  ".json": "application/json",
-  ".xml": "application/xml",
-  ".zip": "application/zip",
-};
-
-const MAX_FILE_SIZE_MB = 25;
-
-const VALID_ENTITY_TYPES = ["contact", "task", "message", "invoice", "devis", "prospect", "project", "stock", "event", "general"];
-
-function resolveMime(fileName: string, provided: string): string {
-  if (ALLOWED_MIME_TYPES.includes(provided)) return provided;
-  const ext = fileName.toLowerCase().match(/\.[^.]+$/)?.[0] || "";
-  return EXTENSION_MIME_MAP[ext] || provided;
-}
 
 router.post("/documents/upload", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
   try {
@@ -152,64 +27,37 @@ router.post("/documents/upload", requireMinAgent, async (req: Request, res: Resp
     const userId = req.session?.userId;
     const { fileContent, fileName, mimeType: rawMime, entityType, entityId, category, description, tags, analyzeWithAi } = req.body;
 
-    if (!fileContent || !fileName) {
-      res.status(400).json({ error: "fileContent et fileName sont requis" });
-      return;
-    }
-
-    const mimeType = resolveMime(fileName, rawMime || "application/octet-stream");
-
-    if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
-      res.status(400).json({ error: `Type de fichier non autorise: ${mimeType}` });
-      return;
-    }
-
-    const buffer = Buffer.from(fileContent, "base64");
-    if (buffer.length > MAX_FILE_SIZE_MB * 1024 * 1024) {
-      res.status(400).json({ error: `Fichier trop volumineux. Maximum: ${MAX_FILE_SIZE_MB} Mo.` });
-      return;
-    }
-
     const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.socket?.remoteAddress || "unknown";
 
-    // Garde synchrone instantanee (heuristique locale, sans reseau): bloque les
-    // menaces evidentes des l'upload. L'analyse antivirus complete (lookup
-    // d'empreinte + soumission opt-in) tourne ensuite en arriere-plan via
-    // scanDocumentInBackground pour ne PAS bloquer la reponse d'upload.
-    const heuristic = scanBase64Content(fileContent, fileName);
-    if (!heuristic.safe) {
-      logSecurityEvent("malicious_upload_blocked", ip, userId ?? null, `Upload bloque (${heuristic.engine}): ${heuristic.threats.join(", ")}`, "critical");
-      res.status(400).json({ error: "Fichier bloque pour raisons de securite.", threats: heuristic.threats });
-      return;
-    }
-
-    if (entityType && !VALID_ENTITY_TYPES.includes(entityType)) {
-      res.status(400).json({ error: `Type d'entite invalide. Types valides: ${VALID_ENTITY_TYPES.join(", ")}` });
-      return;
-    }
-
-    const safeName = fileName.replace(/[^a-zA-Z0-9._\-\s()àâéèêëïîôùûüÿçÀÂÉÈÊËÏÎÔÙÛÜŸÇ]/g, "_");
-    const storedName = `${Date.now()}_${safeName}`;
-
-    const [doc] = await db.insert(documentsTable).values({
-      organisationId: orgId,
-      uploadedBy: userId || null,
-      fileName: storedName,
-      originalName: fileName,
-      mimeType,
-      fileSize: buffer.length,
-      fileContent: fileContent,
-      entityType: entityType || null,
+    // Ingestion partagee: validation (type/taille/entite), garde synchrone
+    // heuristique (bloque les menaces evidentes), insertion, puis analyse
+    // antivirus complete en arriere-plan. Identique a tous les autres canaux.
+    const ingest = await ingestDocument({
+      orgId,
+      userId: userId ?? null,
+      fileContent,
+      fileName,
+      mimeType: rawMime,
+      entityType,
       entityId: entityId ? parseInt(String(entityId)) : null,
-      category: category || "general",
-      description: description || null,
-      tags: tags || [],
-      status: "uploaded",
-    }).returning();
+      category,
+      description,
+      tags,
+      source: "upload",
+      ip,
+    });
 
-    // Analyse antivirus complete en arriere-plan: la reponse d'upload n'attend
-    // pas. Le document apparait "Non analyse" puis bascule safe/dangerous.
-    void scanDocumentInBackground({ docId: doc.id, orgId, userId: userId ?? null, fileContent, fileName, ip });
+    if (ingest.status === "blocked") {
+      res.status(400).json({ error: "Fichier bloque pour raisons de securite.", threats: ingest.threats });
+      return;
+    }
+    if (ingest.status === "rejected") {
+      res.status(400).json({ error: ingest.error });
+      return;
+    }
+
+    const doc = ingest.doc;
+    const mimeType = doc.mimeType;
 
     let aiResult = null;
     if (analyzeWithAi) {
@@ -265,60 +113,38 @@ router.post("/documents/upload-multiple", requireMinAgent, async (req: Request, 
       return;
     }
 
+    const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.socket?.remoteAddress || "unknown";
+
     const results: any[] = [];
     for (const file of files) {
       try {
-        if (!file.fileContent || !file.fileName) {
-          results.push({ fileName: file.fileName || "inconnu", success: false, error: "Contenu ou nom manquant" });
-          continue;
-        }
+        // Ingestion partagee (validation + garde heuristique + insert + scan
+        // en arriere-plan), identique a l'upload unitaire et aux autres canaux.
+        const ingest = await ingestDocument({
+          orgId,
+          userId: userId ?? null,
+          fileContent: file.fileContent,
+          fileName: file.fileName,
+          mimeType: file.mimeType,
+          entityType: entityType || file.entityType || null,
+          entityId: entityId ? parseInt(String(entityId)) : (file.entityId ? parseInt(String(file.entityId)) : null),
+          category: category || file.category || null,
+          description: file.description || null,
+          tags: file.tags,
+          source: "upload",
+          ip,
+        });
 
-        const mimeType = resolveMime(file.fileName, file.mimeType || "application/octet-stream");
-
-        if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
-          results.push({ fileName: file.fileName, success: false, error: `Type non autorise: ${mimeType}` });
-          continue;
-        }
-
-        const buffer = Buffer.from(file.fileContent, "base64");
-
-        if (buffer.length > MAX_FILE_SIZE_MB * 1024 * 1024) {
-          results.push({ fileName: file.fileName, success: false, error: "Fichier trop volumineux" });
-          continue;
-        }
-
-        // Garde synchrone instantanee (heuristique locale): bloque les menaces
-        // evidentes. L'analyse complete tourne en arriere-plan apres l'insert.
-        const heuristic = scanBase64Content(file.fileContent, file.fileName);
-        if (!heuristic.safe) {
-          const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.socket?.remoteAddress || "unknown";
-          logSecurityEvent("malicious_upload_blocked", ip, userId ?? null, `Upload bloque (${heuristic.engine}): ${heuristic.threats.join(", ")}`, "critical");
+        if (ingest.status === "blocked") {
           results.push({ fileName: file.fileName, success: false, error: "Fichier bloque (securite)" });
           continue;
         }
+        if (ingest.status === "rejected") {
+          results.push({ fileName: file.fileName || "inconnu", success: false, error: ingest.error });
+          continue;
+        }
 
-        const storedName = `${Date.now()}_${file.fileName.replace(/[^a-zA-Z0-9._\-\s()àâéèêëïîôùûüÿçÀÂÉÈÊËÏÎÔÙÛÜŸÇ]/g, "_")}`;
-
-        const [doc] = await db.insert(documentsTable).values({
-          organisationId: orgId,
-          uploadedBy: userId || null,
-          fileName: storedName,
-          originalName: file.fileName,
-          mimeType,
-          fileSize: buffer.length,
-          fileContent: file.fileContent,
-          entityType: entityType || file.entityType || null,
-          entityId: entityId ? parseInt(String(entityId)) : (file.entityId ? parseInt(String(file.entityId)) : null),
-          category: category || file.category || "general",
-          description: file.description || null,
-          tags: file.tags || [],
-          status: "uploaded",
-        }).returning();
-
-        const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.socket?.remoteAddress || "unknown";
-        void scanDocumentInBackground({ docId: doc.id, orgId, userId: userId ?? null, fileContent: file.fileContent, fileName: file.fileName, ip });
-
-        results.push({ fileName: file.fileName, success: true, documentId: doc.id, fileSize: buffer.length });
+        results.push({ fileName: file.fileName, success: true, documentId: ingest.doc.id, fileSize: ingest.doc.fileSize });
       } catch (err: any) {
         results.push({ fileName: file.fileName || "inconnu", success: false, error: err.message });
       }
