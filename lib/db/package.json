@@ -9,8 +9,9 @@
   },
   "scripts": {
     "ensure-search": "node ./scripts/ensure-search-extensions.mjs",
-    "push": "node ./scripts/ensure-search-extensions.mjs && node ./scripts/ensure-automation-logs-rule-id.mjs && drizzle-kit push --config ./drizzle.config.ts && node ./scripts/ensure-audit-append-only.mjs",
-    "push-force": "node ./scripts/ensure-search-extensions.mjs && node ./scripts/ensure-automation-logs-rule-id.mjs && drizzle-kit push --force --config ./drizzle.config.ts && node ./scripts/ensure-audit-append-only.mjs"
+    "push": "node ./scripts/ensure-search-extensions.mjs && node ./scripts/ensure-unique-constraint-names.mjs && node ./scripts/ensure-automation-logs-rule-id.mjs && node ./scripts/ensure-fk-orphans.mjs && drizzle-kit push --config ./drizzle.config.ts && node ./scripts/ensure-audit-append-only.mjs && node ./scripts/verify-schema-sync.mjs",
+    "push-force": "node ./scripts/ensure-search-extensions.mjs && node ./scripts/ensure-unique-constraint-names.mjs && node ./scripts/ensure-automation-logs-rule-id.mjs && node ./scripts/ensure-fk-orphans.mjs && drizzle-kit push --force --config ./drizzle.config.ts && node ./scripts/ensure-audit-append-only.mjs && node ./scripts/verify-schema-sync.mjs",
+    "verify": "node ./scripts/verify-schema-sync.mjs"
   },
   "dependencies": {
     "drizzle-kit": "^0.31.9",

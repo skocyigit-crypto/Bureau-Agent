@@ -122,6 +122,46 @@ tout fonctionnait. Avant de toucher au code, verifier dans cet ordre:
    et ouvrir Expo via `https://$REPLIT_EXPO_DEV_DOMAIN/`. Si tout est
    200 + body > 1KB, le serveur va bien et le probleme est cosmetique.
 
+### Synchroniser le schema (dev) et le propager en prod
+
+Source de verite: `lib/db/src/schema/*`. Pour resynchroniser une base **dev**
+en retard (tables/colonnes manquantes, ex. `agent_proposals` absent ->
+`/api/agent-queue/count` en 500):
+
+`pnpm --filter @workspace/db run push-force` est la commande canonique et
+**non-interactive**. Le pipeline `push`/`push-force` (voir `lib/db/package.json`)
+enchaine des scripts `ensure-*` idempotents qui suppriment les ecueils d'une base
+qui a derive, puis verifie le resultat:
+
+1. `ensure-unique-constraint-names` — renomme les vieilles contraintes UNIQUE
+   `<table>_<col>_key` (defaut Postgres) vers le nom attendu par drizzle
+   `<table>_<col>_unique`. Le diff drizzle-kit se base sur le **nom**: sans ce
+   renommage, push veut DROP `_key` + ADD `_unique`, et l'ADD d'un UNIQUE sur une
+   table non vide declenche un prompt "truncate?" qu'un stdin non-TTY avorte
+   (le `--force` ne le saute PAS).
+2. `ensure-fk-orphans` — nettoie les lignes orphelines qui bloquent l'ajout des
+   FK (Postgres 23503), selon le `onDelete` du schema: `set null` -> colonne a
+   NULL, `cascade` -> suppression. Pour `audit_logs` (append-only) il retire
+   d'abord le trigger `audit_logs_no_update`, que `ensure-audit-append-only`
+   reinstalle apres le push.
+3. `verify-schema-sync` (aussi `pnpm --filter @workspace/db run verify`) — assure
+   apres push que les tables/colonnes requises existent et que `user_sessions`
+   est intacte; sort en erreur sinon (garde-fou post-merge/CI).
+
+`drizzle.config.ts` exclut deja `user_sessions` (`tablesFilter`) -> aucun rename
+destructif `user_sessions -> agent_proposals`. **Ne jamais retirer ce filtre.**
+Pour un nouvel orphelin de drift, ajouter la table/`onDelete` dans
+`ensure-fk-orphans.sql`; pour un nouvel objet requis, l'ajouter a
+`verify-schema-sync.mjs`.
+
+**Production (Replit)**: NE PAS ecrire de script de migration prod ni de DDL au
+boot, et NE PAS lancer `push`/`push-force` contre la base prod. Le schema prod
+est applique uniquement par le flux **Publish** de Replit (diff dev->prod);
+re-publier propage les memes objets. Resoudre tout prompt de rename en "create
+table" (jamais "rename"). (Self-hosting hors Replit: voir MIGRATION.md;
+`push-force` contre le DATABASE_URL cible enchaine automatiquement les memes
+scripts `ensure-*` + verification.)
+
 ## Pointers
 
 - **Drizzle ORM Documentation**: _Populate as you build_

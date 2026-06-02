@@ -4,16 +4,39 @@ description: Footguns when syncing the dev DB schema and when driving the docume
 ---
 
 # Drizzle push rename footgun
-Running `pnpm --filter @workspace/db run push` (drizzle-kit push) prompts an
-ambiguous resolver: "Is agent_proposals created or renamed from user_sessions?".
-Answering "rename" is DESTRUCTIVE — it would drop the live `user_sessions`
-table (sessions/auth). The prompt is non-TTY-friendly and can silently abort the
-push without applying changes.
+Running `pnpm --filter @workspace/db run push` (drizzle-kit push) once prompted
+an ambiguous resolver: "Is agent_proposals created or renamed from
+user_sessions?". Answering "rename" is DESTRUCTIVE — it would drop the live
+`user_sessions` table (sessions/auth). NOTE: `drizzle.config.ts` now sets
+`tablesFilter: ["!user_sessions"]`, which removes this rename prompt entirely —
+never remove that filter.
 **Why:** the dev DB has drifted from `lib/db/src/schema` (new tables/cols never
-pushed), so push sees a new table and offers a rename of an unrelated one.
-**How to apply:** for targeted needs, prefer additive `ALTER TABLE ... ADD
-COLUMN IF NOT EXISTS` matching the schema. For a full sync, choose "create
-table" (never rename) and keep `user_sessions` intact.
+pushed), so push sees a new table and (without the filter) offers a rename of an
+unrelated one.
+**How to apply:** for targeted needs, additive `ALTER TABLE ... ADD COLUMN IF
+NOT EXISTS`. For a full sync, run `push-force`; with the filter, new tables
+(agent_proposals, bulk_scan_jobs) are created and `user_sessions` stays intact.
+
+# A drifted DB makes `push-force` STALL — handle it with pre-push ensure scripts
+`drizzle-kit push --force` against a DB that drifted from `lib/db/src/schema`
+STILL stalls/fails (the `--force` flag does NOT skip these; a non-TTY stdin
+silently aborts the whole apply, creating nothing). Two recurring causes, now
+fixed reproducibly by idempotent pre-push scripts wired into `push`/`push-force`
+(not at app boot — that would be unsafe self-heal DDL):
+- **UNIQUE-constraint "truncate?" prompt** on populated tables — the diff is keyed
+  on constraint NAME, and legacy DBs use Postgres' `<t>_<c>_key` while drizzle
+  expects `<t>_<c>_unique`. `ensure-unique-constraint-names` renames `_key`→
+  `_unique` so the diff is a no-op.
+- **FK rejected on orphan rows** (Postgres 23503) — child rows referencing a
+  missing parent block the FK ADD. `ensure-fk-orphans` cleans them per the
+  schema's `onDelete` (set-null → NULL, cascade → DELETE); for append-only
+  `audit_logs` it drops the no_update trigger first, which the post-push
+  `ensure-audit-append-only` reinstalls. `verify-schema-sync` then asserts the
+  required tables/columns exist and `user_sessions` survived.
+**Why:** these are legacy-drift artifacts; the SAME blockers hit prod, but fix
+prod ONLY via the Replit Publish flow (never prod DDL scripts).
+**How to apply:** new legacy-drift FK orphans → add the table/onDelete to
+`ensure-fk-orphans.sql`. New required objects → add to `verify-schema-sync.mjs`.
 
 # Org rows can't be deleted (append-only audit)
 `DELETE FROM organisations WHERE id=...` fails: it cascades into
