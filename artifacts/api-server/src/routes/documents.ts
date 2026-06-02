@@ -1127,7 +1127,9 @@ router.post("/documents/scan-unscanned", requireMinAgent, async (req: Request, r
     for (const doc of docs) {
       if (!doc.fileContent) continue;
       try {
-        const scanResult = await scanBase64ContentFull(doc.fileContent, doc.originalName);
+        const sha256 = crypto.createHash("sha256").update(Buffer.from(doc.fileContent, "base64")).digest("hex");
+        const storedScan = await findReusableCleanScan(orgId, sha256);
+        const { result: scanResult } = await scanBase64ContentFullCached(doc.fileContent, doc.originalName, storedScan);
         const verdict = scanResult.safe ? "safe" : "dangerous";
         await db.update(documentsTable).set({
           scanVerdict: verdict,
