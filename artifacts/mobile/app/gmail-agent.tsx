@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/EmptyState";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
+import { trackScanResult } from "@/lib/scan-result";
 import { useColors } from "@/hooks/useColors";
 import { AvatarDock } from "@/components/AvatarDock";
 
@@ -546,7 +547,10 @@ export default function GmailAgentScreen() {
         try { const d = await res.json(); msg = d?.error || msg; } catch {}
         throw new Error(msg);
       }
+      let docId: number | string | undefined;
+      try { const d = await res.json(); docId = d?.document?.id; } catch {}
       Alert.alert("Enregistré dans Documents", `${att.filename} — analyse antivirus en cours.`);
+      if (docId != null) void trackScanResult(fetchAuth, docId, att.filename);
     } catch (e: any) {
       Alert.alert("Échec de l'enregistrement", e?.message || "Réessayez.");
     } finally {

@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/EmptyState";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
+import { trackScanResult } from "@/lib/scan-result";
 import { useColors } from "@/hooks/useColors";
 
 interface GWApp {
@@ -121,7 +122,10 @@ export default function GoogleWorkspaceScreen() {
         try { const d = await res.json(); msg = d?.error || msg; } catch {}
         throw new Error(msg);
       }
+      let docId: number | string | undefined;
+      try { const d = await res.json(); docId = d?.document?.id; } catch {}
       Alert.alert("Importé dans Documents", `${file.name} — analyse antivirus en cours.`);
+      if (docId != null) void trackScanResult(fetchAuth, docId, file.name);
     } catch (e: any) {
       Alert.alert("Échec de l'import", e?.message || "Réessayez.");
     } finally {
