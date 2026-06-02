@@ -233,6 +233,7 @@ export default function DocumentsScreen() {
   const [scanningIds, setScanningIds] = useState<number[]>([]);
   const [scanFilter, setScanFilter] = useState("all");
   const [bulkScanning, setBulkScanning] = useState(false);
+  const [bulkScanProgress, setBulkScanProgress] = useState<{ done: number; total: number } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -331,6 +332,45 @@ export default function DocumentsScreen() {
       Alert.alert("Analyse antivirus", "Erreur de connexion.");
     } finally {
       setBulkScanning(false);
+    }
+  }
+
+  async function handleScanAll() {
+    const total = data?.byScan?.unscanned ?? 0;
+    if (total === 0 || bulkScanning) return;
+    setBulkScanning(true);
+    setBulkScanProgress({ done: 0, total });
+    let done = 0;
+    let totalDangerous = 0;
+    try {
+      for (let i = 0; i < 1000; i++) {
+        const res = await fetchAuth(`${API_BASE}/api/documents/scan-unscanned`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ batchSize: 15 }),
+        });
+        if (!res.ok) {
+          Alert.alert("Analyse antivirus", "L'analyse en lot a échoué. Réessayez.");
+          break;
+        }
+        const result = await res.json();
+        done += result.scanned ?? 0;
+        totalDangerous += result.dangerous ?? 0;
+        setBulkScanProgress({ done: Math.min(done, total), total: Math.max(total, done) });
+        if ((result.scanned ?? 0) === 0 || (result.remaining ?? 0) === 0) break;
+      }
+      Alert.alert(
+        "Analyse terminée",
+        totalDangerous > 0
+          ? `${done} document(s) analysé(s). ${totalDangerous} menace(s) détectée(s).`
+          : `${done} document(s) analysé(s). Aucune menace détectée.`,
+      );
+      await load();
+    } catch {
+      Alert.alert("Analyse antivirus", "Erreur de connexion.");
+    } finally {
+      setBulkScanning(false);
+      setBulkScanProgress(null);
     }
   }
 
@@ -448,6 +488,26 @@ export default function DocumentsScreen() {
             </Pressable>
           )}
         />
+
+        {/* Bulk-scan all unscanned */}
+        {!loading && (data?.byScan?.unscanned ?? 0) > 0 && (
+          <Pressable
+            onPress={handleScanAll}
+            disabled={bulkScanning}
+            style={[st.scanAllBtn, { opacity: bulkScanning ? 0.7 : 1 }]}
+          >
+            {bulkScanning ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Feather name="shield" size={13} color="#fff" />
+            )}
+            <Text style={st.scanAllText}>
+              {bulkScanning
+                ? (bulkScanProgress ? `Analyse ${bulkScanProgress.done}/${bulkScanProgress.total}…` : "Analyse…")
+                : `Tout analyser (${data?.byScan?.unscanned})`}
+            </Text>
+          </Pressable>
+        )}
       </View>
 
       {/* ── Bulk scan banner (unanalysed documents) ── */}
@@ -513,6 +573,8 @@ const st = StyleSheet.create({
   searchInput: { flex: 1, color: "#fff", fontSize: 13, fontFamily: "Inter_400Regular" },
   sourceChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 11, paddingVertical: 6, borderRadius: 20 },
   sourceChipText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  scanAllBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 10, paddingVertical: 9, borderRadius: 10, backgroundColor: "#10b981" },
+  scanAllText: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#fff" },
   sourceBadge: { paddingHorizontal: 5, paddingVertical: 1, borderRadius: 8 },
   sourceBadgeText: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" },
   bulkBanner: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 14, marginTop: 12, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },

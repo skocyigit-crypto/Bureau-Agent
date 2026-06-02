@@ -111,6 +111,7 @@ export default function DocumentsPage() {
   const [editDocSaving, setEditDocSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [bulkScanning, setBulkScanning] = useState(false);
+  const [bulkScanProgress, setBulkScanProgress] = useState<{ done: number; total: number } | null>(null);
 
   const loadDocuments = useCallback(async () => {
     setLoading(true);
@@ -250,6 +251,51 @@ export default function DocumentsPage() {
       toast({ title: "Erreur d'analyse antivirus", variant: "destructive" });
     } finally {
       setScanningId(null);
+    }
+  };
+
+  const scanAllUnscanned = async () => {
+    const total = stats?.byScanVerdict?.unscanned ?? 0;
+    if (total === 0 || bulkScanning) return;
+    setBulkScanning(true);
+    setBulkScanProgress({ done: 0, total });
+    let done = 0;
+    let totalSafe = 0;
+    let totalDangerous = 0;
+    try {
+      for (let i = 0; i < 1000; i++) {
+        const res = await fetch(`${API}/api/documents/scan-unscanned`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ batchSize: 15 }),
+        });
+        if (!res.ok) {
+          toast({ title: "Erreur d'analyse antivirus en lot", variant: "destructive" });
+          break;
+        }
+        const result = await res.json();
+        done += result.scanned ?? 0;
+        totalSafe += result.safe ?? 0;
+        totalDangerous += result.dangerous ?? 0;
+        setBulkScanProgress({ done: Math.min(done, total), total: Math.max(total, done) });
+        if ((result.scanned ?? 0) === 0 || (result.remaining ?? 0) === 0) break;
+      }
+      if (totalDangerous > 0) {
+        toast({
+          title: `${done} document(s) analysé(s)`,
+          description: `${totalDangerous} menace(s) détectée(s), ${totalSafe} sain(s).`,
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: `${done} document(s) analysé(s)`, description: "Aucune menace détectée." });
+      }
+      await loadDocuments();
+    } catch {
+      toast({ title: "Erreur d'analyse antivirus en lot", variant: "destructive" });
+    } finally {
+      setBulkScanning(false);
+      setBulkScanProgress(null);
     }
   };
 
@@ -465,6 +511,28 @@ export default function DocumentsPage() {
                 <ShieldQuestion className="w-3.5 h-3.5" />
                 {stats.byScanVerdict.unscanned} non analysé{stats.byScanVerdict.unscanned > 1 ? "s" : ""}
               </button>
+              {stats.byScanVerdict.unscanned > 0 && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={scanAllUnscanned}
+                  disabled={bulkScanning}
+                  className="h-7 gap-1.5 text-xs"
+                >
+                  {bulkScanning ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      {bulkScanProgress ? `Analyse ${bulkScanProgress.done}/${bulkScanProgress.total}…` : "Analyse…"}
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      Tout analyser
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           )}
 

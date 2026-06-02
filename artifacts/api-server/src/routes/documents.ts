@@ -831,6 +831,73 @@ router.post("/documents/:id/scan", requireMinAgent, async (req: Request, res: Re
   }
 });
 
+/**
+ * Analyse antivirus en lot des documents jamais scannes (scanVerdict IS NULL).
+ * Traite un lot borne par requete et renvoie le nombre restant pour permettre au
+ * client de boucler en affichant la progression — evite les timeouts HTTP sur
+ * les organisations avec beaucoup de fichiers, et reprend proprement apres une
+ * coupure (chaque lot persiste son verdict immediatement).
+ */
+router.post("/documents/scan-unscanned", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const userId = req.session?.userId || null;
+    const rawBatch = parseInt(String(req.body?.batchSize ?? "15"));
+    const batchSize = Math.min(Math.max(isNaN(rawBatch) ? 15 : rawBatch, 1), 50);
+
+    const docs = await db.select({
+      id: documentsTable.id,
+      fileContent: documentsTable.fileContent,
+      originalName: documentsTable.originalName,
+    }).from(documentsTable)
+      .where(and(
+        eq(documentsTable.organisationId, orgId),
+        sql`${documentsTable.scanVerdict} IS NULL`,
+        sql`${documentsTable.fileContent} IS NOT NULL`,
+      ))
+      .orderBy(documentsTable.id)
+      .limit(batchSize);
+
+    let scanned = 0, safe = 0, dangerous = 0;
+    for (const doc of docs) {
+      if (!doc.fileContent) continue;
+      try {
+        const scanResult = await scanBase64ContentFull(doc.fileContent, doc.originalName);
+        const verdict = scanResult.safe ? "safe" : "dangerous";
+        await db.update(documentsTable).set({
+          scanVerdict: verdict,
+          scanEngine: scanResult.engine || null,
+          scanDetail: scanResult.engineDetail || null,
+          scanSha256: scanResult.sha256 || null,
+          scannedAt: new Date(scanResult.scannedAt),
+          updatedAt: new Date(),
+        }).where(eq(documentsTable.id, doc.id));
+        scanned++;
+        if (scanResult.safe) safe++;
+        else {
+          dangerous++;
+          const ip = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || "unknown";
+          logSecurityEvent("malicious_file_detected", ip, userId, `Analyse en lot du document #${doc.id} (${scanResult.engine}): ${scanResult.threats.join(", ")}`, "critical");
+        }
+      } catch (scanErr: any) {
+        logger.error({ scanErr, docId: doc.id }, "Bulk scan: document scan failed");
+      }
+    }
+
+    const [remainingRow] = await db.select({
+      remaining: sql<number>`count(*) FILTER (WHERE ${documentsTable.scanVerdict} IS NULL AND ${documentsTable.fileContent} IS NOT NULL)::int`,
+    }).from(documentsTable).where(eq(documentsTable.organisationId, orgId));
+    const remaining = remainingRow?.remaining ?? 0;
+
+    logger.info({ orgId, scanned, safe, dangerous, remaining }, "Bulk document scan batch complete");
+
+    res.json({ success: true, scanned, safe, dangerous, remaining });
+  } catch (err: any) {
+    logger.error({ err }, "Bulk document scan error");
+    res.status(500).json({ error: "Erreur lors de l'analyse antivirus en lot" });
+  }
+});
+
 router.delete("/documents/:id", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
