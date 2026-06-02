@@ -19,16 +19,42 @@ process.env.GEMINI_FLASH_MODEL = "gemini-2.5-flash";
 process.env.GEMINI_PRO_FALLBACK_MODEL = "gemini-pro-latest";
 process.env.GEMINI_FLASH_FALLBACK_MODEL = "gemini-flash-latest";
 
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import {
   isModelRetiredError,
   fallbackGeminiModel,
   geminiGenerateWithFallback,
+  installGeminiModelFallback,
   GEMINI_PRO_MODEL,
   GEMINI_FLASH_MODEL,
   GEMINI_PRO_FALLBACK_MODEL,
   GEMINI_FLASH_FALLBACK_MODEL,
 } from "../services/ai-utils";
+
+/**
+ * Etat partage controlable par test pour le client Gemini mocke.
+ *
+ * `installGeminiModelFallback` fait `await import("@workspace/integrations-gemini-ai")`
+ * puis patche EN PLACE `ai.models.generateContent(Stream)`. Le vrai module leve a
+ * l'import s'il n'y a pas de cle API ; on le remplace donc par un mock. Le patch
+ * etant pose une seule fois (singleton), `origStream` capture au boot pointe sur
+ * la fonction mock d'origine, qui delegue a `mockState.streamImpl`. Reaffecter
+ * `mockState.streamImpl` a chaque test suffit donc a piloter le comportement du
+ * flux meme apres l'installation unique du patch.
+ */
+const mockState = vi.hoisted(() => ({
+  genImpl: async (_params: any): Promise<any> => ({}),
+  streamImpl: async (_params: any): Promise<any> => (async function* () {})(),
+}));
+
+vi.mock("@workspace/integrations-gemini-ai", () => ({
+  ai: {
+    models: {
+      generateContent: (params: any) => mockState.genImpl(params),
+      generateContentStream: (params: any) => mockState.streamImpl(params),
+    },
+  },
+}));
 
 describe("isModelRetiredError", () => {
   it("detecte les signatures de retrait/inexistence de modele", () => {
@@ -176,5 +202,149 @@ describe("geminiGenerateWithFallback", () => {
     const res = await geminiGenerateWithFallback(null, fn);
     expect(res).toBe(`ok:${GEMINI_PRO_MODEL}`);
     expect(fn).toHaveBeenCalledWith(GEMINI_PRO_MODEL);
+  });
+});
+
+/** Consomme un flux async-iterable jusqu'au bout en collectant les chunks. */
+async function collect(stream: AsyncIterable<any>): Promise<any[]> {
+  const out: any[] = [];
+  for await (const chunk of stream) out.push(chunk);
+  return out;
+}
+
+/** Async-iterable qui leve `err` des le 1er `.next()` (avant tout chunk emis). */
+function throwOnFirstChunk(err: Error): AsyncIterable<any> {
+  return {
+    [Symbol.asyncIterator]() {
+      return {
+        next() {
+          return Promise.reject(err);
+        },
+      };
+    },
+  };
+}
+
+/**
+ * Verrouille le filet de securite du repli de modele cote *streaming*
+ * (`installGeminiModelFallback`, branche `generateContentStream`). C'est ce qui
+ * garde les reponses IA en flux quand Google retire un modele en cours de
+ * reponse : tant qu'aucun chunk n'a ete emis, on rebascule de maniere
+ * transparente ; une fois le flux entame, on ne tente PLUS de bascule (un
+ * switch en plein milieu reenverrait des chunks incoherents au client).
+ */
+describe("installGeminiModelFallback (streaming)", () => {
+  let models: { generateContentStream: (params: any) => Promise<AsyncIterable<any>> };
+
+  beforeAll(async () => {
+    // Pose le patch une seule fois sur le client mocke (idempotent).
+    await installGeminiModelFallback();
+    const mod: any = await import("@workspace/integrations-gemini-ai");
+    models = mod.ai.models;
+  });
+
+  it("rebascule sur le modele de repli quand l'erreur de retrait survient AVANT tout chunk (1er chunk)", async () => {
+    const streamImpl = vi.fn(async (params: any) => {
+      if (params.model === GEMINI_PRO_MODEL) {
+        return throwOnFirstChunk(new Error("[400] UNSUPPORTED_MODEL: model retired"));
+      }
+      return (async function* () {
+        yield { text: "bon" };
+        yield { text: "jour" };
+      })();
+    });
+    mockState.streamImpl = streamImpl;
+
+    const stream = await models.generateContentStream({ model: GEMINI_PRO_MODEL });
+    const chunks = await collect(stream);
+
+    expect(chunks).toEqual([{ text: "bon" }, { text: "jour" }]);
+    // Appel 1 = modele primaire (echoue au 1er chunk), appel 2 = repli.
+    expect(streamImpl).toHaveBeenCalledTimes(2);
+    expect(streamImpl).toHaveBeenNthCalledWith(1, expect.objectContaining({ model: GEMINI_PRO_MODEL }));
+    expect(streamImpl).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ model: GEMINI_PRO_FALLBACK_MODEL }),
+    );
+  });
+
+  it("rebascule aussi quand la CREATION du flux echoue sur une erreur de retrait", async () => {
+    const streamImpl = vi.fn(async (params: any) => {
+      if (params.model === GEMINI_FLASH_MODEL) {
+        throw new Error("models/gemini-2.5-flash is not found for API version v1beta");
+      }
+      return (async function* () {
+        yield { text: "ok-fallback" };
+      })();
+    });
+    mockState.streamImpl = streamImpl;
+
+    const stream = await models.generateContentStream({ model: GEMINI_FLASH_MODEL });
+    const chunks = await collect(stream);
+
+    expect(chunks).toEqual([{ text: "ok-fallback" }]);
+    expect(streamImpl).toHaveBeenCalledTimes(2);
+    expect(streamImpl).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ model: GEMINI_FLASH_FALLBACK_MODEL }),
+    );
+  });
+
+  it("n'avale PAS une erreur de retrait survenue APRES le 1er chunk (pas de switch en plein flux)", async () => {
+    const streamImpl = vi.fn(async (_params: any) =>
+      (async function* () {
+        yield { text: "debut" };
+        throw new Error("UNSUPPORTED_MODEL: retired mid-stream");
+      })(),
+    );
+    mockState.streamImpl = streamImpl;
+
+    const stream = await models.generateContentStream({ model: GEMINI_PRO_MODEL });
+    const received: any[] = [];
+    await expect(
+      (async () => {
+        for await (const chunk of stream) received.push(chunk);
+      })(),
+    ).rejects.toThrow("retired mid-stream");
+
+    // Le 1er chunk est bien parvenu au consommateur, puis l'erreur a propage.
+    expect(received).toEqual([{ text: "debut" }]);
+    // Aucune tentative de repli : un seul appel (le modele primaire).
+    expect(streamImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("propage telle quelle une erreur NON-retrait a la creation (pas de repli)", async () => {
+    const streamImpl = vi.fn(async (_params: any) => {
+      throw new Error("[503] Service Unavailable");
+    });
+    mockState.streamImpl = streamImpl;
+
+    await expect(models.generateContentStream({ model: GEMINI_PRO_MODEL })).rejects.toThrow(
+      "[503] Service Unavailable",
+    );
+    expect(streamImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("propage telle quelle une erreur NON-retrait au 1er chunk (pas de repli)", async () => {
+    const streamImpl = vi.fn(async (_params: any) =>
+      throwOnFirstChunk(new Error("ECONNRESET: socket hang up")),
+    );
+    mockState.streamImpl = streamImpl;
+
+    const stream = await models.generateContentStream({ model: GEMINI_PRO_MODEL });
+    await expect(collect(stream)).rejects.toThrow("ECONNRESET");
+    expect(streamImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("n'installe le patch qu'une seule fois (idempotent)", async () => {
+    const mod: any = await import("@workspace/integrations-gemini-ai");
+    const beforeStream = mod.ai.models.generateContentStream;
+    const beforeGen = mod.ai.models.generateContent;
+
+    await installGeminiModelFallback();
+
+    // Un 2e appel ne doit pas re-wrapper : les references restent identiques.
+    expect(mod.ai.models.generateContentStream).toBe(beforeStream);
+    expect(mod.ai.models.generateContent).toBe(beforeGen);
   });
 });
