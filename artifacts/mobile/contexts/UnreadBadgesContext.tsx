@@ -496,6 +496,12 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
               // locale ouvrant la liste filtrée /documents?scan=dangerous.
               if (event.action !== "created") continue;
               if (!event.meta?.notify) continue;
+              // Tâche #146 : la secrétaire peut couper le canal "security"
+              // si elle gère la sécurité des documents ailleurs. Dans ce cas
+              // on saute vibration + notification locale, mais la suggestion
+              // de menace reste affichée dans l'app (créée côté serveur, hors
+              // de ce flux). Défaut = canal actif (les menaces sont urgentes).
+              if (channelMutedRef.current.security) continue;
               triggerCustomAlert({
                 title: event.meta?.title || "Document à risque détecté",
                 body:

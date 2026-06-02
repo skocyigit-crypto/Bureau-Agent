@@ -17,9 +17,11 @@ import { Platform } from "react-native";
  *
  *  - `hapticsEnabled`        : vibration légère lors de l'événement, app ouverte ou non.
  *  - `notificationsEnabled`  : notification locale système quand l'app est en arrière-plan.
- *  - `channelMuted`          : (Tâche #85) mute par canal (message / task / call). Permet
- *    par exemple de couper les buzz "appel manqué" sans toucher aux messages
- *    quand la secrétaire utilise un autre téléphone pour les appels.
+ *  - `channelMuted`          : (Tâche #85) mute par canal (message / task / call /
+ *    rappel / security). Permet par exemple de couper les buzz "appel manqué"
+ *    sans toucher aux messages quand la secrétaire utilise un autre téléphone
+ *    pour les appels, ou de couper le canal "security" (Tâche #146) si la
+ *    sécurité des documents est gérée ailleurs.
  *
  * Tous les toggles sont indépendants et persistés dans AsyncStorage avec
  * une clé globale (l'appareil appartient à une seule secrétaire en pratique).
@@ -29,9 +31,9 @@ const STORAGE_KEY_HAPTICS = "notif-prefs:haptics";
 const STORAGE_KEY_NOTIFS = "notif-prefs:notifications";
 const STORAGE_KEY_MUTED_PREFIX = "notif-prefs:muted:";
 
-export type AlertChannel = "message" | "task" | "call" | "rappel";
+export type AlertChannel = "message" | "task" | "call" | "rappel" | "security";
 
-const ALERT_CHANNELS: AlertChannel[] = ["message", "task", "call", "rappel"];
+const ALERT_CHANNELS: AlertChannel[] = ["message", "task", "call", "rappel", "security"];
 
 export type ChannelMutedMap = Record<AlertChannel, boolean>;
 
@@ -40,6 +42,7 @@ const DEFAULT_MUTED: ChannelMutedMap = {
   task: false,
   call: false,
   rappel: false,
+  security: false,
 };
 
 interface NotificationPrefsContextValue {

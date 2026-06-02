@@ -463,7 +463,7 @@ function PrivacyCard() {
 // ── Alertes (haptiques + notifications locales) ───────────────────────────────
 
 const ALERT_CHANNEL_ROWS: ReadonlyArray<{
-  key: "message" | "task" | "call" | "rappel";
+  key: "message" | "task" | "call" | "rappel" | "security";
   icon: keyof typeof Feather.glyphMap;
   label: string;
   sublabel: string;
@@ -494,6 +494,15 @@ const ALERT_CHANNEL_ROWS: ReadonlyArray<{
     icon: "bell",
     label: "Rappels",
     sublabel: "Coupez ce canal si vous gardez votre agenda ouvert ailleurs.",
+  },
+  {
+    // Tâche #146 : mute des alertes de menace documentaire. La suggestion
+    // de menace reste visible dans l'app ; seules vibration + notif système
+    // sont coupées. Actif par défaut (les menaces sont urgentes).
+    key: "security",
+    icon: "shield",
+    label: "Sécurité / Documents",
+    sublabel: "Alerte quand un document analysé est jugé dangereux. La suggestion reste visible dans l'app.",
   },
 ];
 
