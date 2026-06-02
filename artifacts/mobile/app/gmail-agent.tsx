@@ -402,6 +402,7 @@ export default function GmailAgentScreen() {
   const [compose, setCompose] = useState<ComposeData>({ to: "", subject: "", body: "" });
   const [sendLoading, setSendLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [savingAtt, setSavingAtt] = useState<string | null>(null);
   const [notConnected, setNotConnected] = useState(false);
 
   // Security scan state
@@ -530,6 +531,27 @@ export default function GmailAgentScreen() {
       });
       if (res.ok) { setShowCompose(false); setCompose({ to: "", subject: "", body: "" }); load(); }
     } finally { setSendLoading(false); }
+  }
+
+  async function handleSaveAttachment(att: AttachmentMeta) {
+    if (!selected?.id || !att?.attachmentId) return;
+    setSavingAtt(att.attachmentId);
+    try {
+      const res = await fetchAuth(
+        `${API_BASE}/api/gmail/message/${selected.id}/attachment/${att.attachmentId}/save`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" },
+      );
+      if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try { const d = await res.json(); msg = d?.error || msg; } catch {}
+        throw new Error(msg);
+      }
+      Alert.alert("Enregistré dans Documents", `${att.filename} — analyse antivirus en cours.`);
+    } catch (e: any) {
+      Alert.alert("Échec de l'enregistrement", e?.message || "Réessayez.");
+    } finally {
+      setSavingAtt(null);
+    }
   }
 
   function openReply(msg: GmailMessage) {
@@ -811,6 +833,16 @@ export default function GmailAgentScreen() {
                             <Feather name={scanned.safe ? "check" : "x"} size={10} color={scanned.safe ? "#22c55e" : "#ef4444"} />
                           </View>
                         )}
+                        <Pressable
+                          onPress={() => handleSaveAttachment(att)}
+                          disabled={savingAtt === att.attachmentId}
+                          style={[styles.saveAttBtn, { backgroundColor: "#6366f115", opacity: savingAtt === att.attachmentId ? 0.6 : 1 }]}
+                        >
+                          {savingAtt === att.attachmentId
+                            ? <ActivityIndicator size="small" color="#6366f1" />
+                            : <Feather name="folder-plus" size={14} color="#6366f1" />}
+                          <Text style={styles.saveAttBtnText}>Documents</Text>
+                        </Pressable>
                       </View>
                     );
                   })}
@@ -939,6 +971,8 @@ const styles = StyleSheet.create({
   attachName: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   attachSize: { fontSize: 10, fontFamily: "Inter_400Regular" },
   scanBadgeSm: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  saveAttBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8 },
+  saveAttBtnText: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: "#6366f1" },
   bodyCard: { borderRadius: 12, borderWidth: 1, padding: 14, marginBottom: 16 },
   bodyText: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 20 },
   detailActions: { flexDirection: "row", gap: 8, flexWrap: "wrap" },

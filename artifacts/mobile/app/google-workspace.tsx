@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Platform,
   Pressable,
@@ -104,6 +105,29 @@ export default function GoogleWorkspaceScreen() {
   const [tab, setTab] = useState<Tab>("apps");
   const [activeCategory, setActiveCategory] = useState("all");
   const [tabLoading, setTabLoading] = useState(false);
+  const [importingFile, setImportingFile] = useState<string | null>(null);
+
+  const handleImportFile = useCallback(async (file: GWFile) => {
+    if (!file?.id) return;
+    setImportingFile(file.id);
+    try {
+      const res = await fetchAuth(`${API_BASE}/api/google-workspace/drive-import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileId: file.id }),
+      });
+      if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try { const d = await res.json(); msg = d?.error || msg; } catch {}
+        throw new Error(msg);
+      }
+      Alert.alert("Importé dans Documents", `${file.name} — analyse antivirus en cours.`);
+    } catch (e: any) {
+      Alert.alert("Échec de l'import", e?.message || "Réessayez.");
+    } finally {
+      setImportingFile(null);
+    }
+  }, [fetchAuth]);
 
   const loadHub = useCallback(async () => {
     try {
@@ -338,22 +362,37 @@ export default function GoogleWorkspaceScreen() {
           {tab === "files" && (
             tabLoading ? <ActivityIndicator color="#4285f4" style={{ marginTop: 24 }} /> :
             files.length === 0 ? <EmptyState icon="hard-drive" title="Aucun fichier" subtitle="Vos fichiers Google Drive récents apparaîtront ici." /> :
-            files.map(f => (
-              <Pressable
-                key={f.id}
-                onPress={() => f.webViewLink && openUrl(f.webViewLink)}
-                style={[styles.fileRow, { backgroundColor: colors.card, borderColor: colors.border }]}
-              >
-                <View style={[styles.fileIcon, { backgroundColor: "#eff6ff" }]}>
-                  <Feather name="file-text" size={16} color="#4285f4" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.fileName, { color: colors.foreground }]} numberOfLines={1}>{f.name}</Text>
-                  <Text style={[styles.fileDate, { color: colors.mutedForeground }]}>Modifié {fmtDate(f.modifiedTime)}</Text>
-                </View>
-                {f.webViewLink && <Feather name="external-link" size={14} color={colors.mutedForeground} />}
-              </Pressable>
-            ))
+            files.map(f => {
+              const isFolder = f.mimeType === "application/vnd.google-apps.folder";
+              return (
+                <Pressable
+                  key={f.id}
+                  onPress={() => f.webViewLink && openUrl(f.webViewLink)}
+                  style={[styles.fileRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+                >
+                  <View style={[styles.fileIcon, { backgroundColor: "#eff6ff" }]}>
+                    <Feather name={isFolder ? "folder" : "file-text"} size={16} color="#4285f4" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.fileName, { color: colors.foreground }]} numberOfLines={1}>{f.name}</Text>
+                    <Text style={[styles.fileDate, { color: colors.mutedForeground }]}>Modifié {fmtDate(f.modifiedTime)}</Text>
+                  </View>
+                  {!isFolder && (
+                    <Pressable
+                      onPress={() => handleImportFile(f)}
+                      disabled={importingFile === f.id}
+                      style={[styles.importBtn, { backgroundColor: "#6366f115", opacity: importingFile === f.id ? 0.6 : 1 }]}
+                    >
+                      {importingFile === f.id
+                        ? <ActivityIndicator size="small" color="#6366f1" />
+                        : <Feather name="folder-plus" size={14} color="#6366f1" />}
+                      <Text style={styles.importBtnText}>Documents</Text>
+                    </Pressable>
+                  )}
+                  {f.webViewLink && <Feather name="external-link" size={14} color={colors.mutedForeground} />}
+                </Pressable>
+              );
+            })
           )}
         </ScrollView>
       )}
@@ -414,4 +453,6 @@ const styles = StyleSheet.create({
   fileIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   fileName: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   fileDate: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
+  importBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8 },
+  importBtnText: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: "#6366f1" },
 });
