@@ -29,7 +29,7 @@ export const automationRulesTable = pgTable("automation_rules", {
 
 export const automationLogsTable = pgTable("automation_logs", {
   id: serial("id").primaryKey(),
-  ruleId: integer("rule_id").notNull().references(() => automationRulesTable.id, { onDelete: "cascade" }),
+  ruleId: integer("rule_id").references(() => automationRulesTable.id, { onDelete: "cascade" }),
   ruleName: text("rule_name").notNull(),
   status: text("status").notNull().default("success"),
   details: jsonb("details"),

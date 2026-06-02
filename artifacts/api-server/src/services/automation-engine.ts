@@ -663,7 +663,7 @@ async function logAutomationRun(
   error?: string
 ) {
   await db.insert(automationLogsTable).values({
-    ruleId: 0,
+    ruleId: null,
     ruleName,
     status,
     details,

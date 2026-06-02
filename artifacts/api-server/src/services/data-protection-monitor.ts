@@ -410,7 +410,7 @@ async function checkGlobalBackupHealth(
 async function logMonitorRun(status: string, details: any, duration: number, error?: string) {
   try {
     await db.insert(automationLogsTable).values({
-      ruleId: 0,
+      ruleId: null,
       ruleName: "Protection des donnees",
       status,
       details,
