@@ -7,7 +7,7 @@ import { ensureAuditAppendOnly } from "./services/ensure-audit-append-only";
 import { startGoogleAutoPointage } from "./services/google-auto-pointage";
 import { startGoogleDriveBackupScheduler } from "./services/google-drive-backup";
 import { startDataProtectionMonitor } from "./services/data-protection-monitor";
-import { startAiUsagePurgeJob } from "./services/ai-utils";
+import { startAiUsagePurgeJob, installGeminiModelFallback } from "./services/ai-utils";
 import { startAiCachePurgeJob } from "./services/ai-cache";
 import { startBillingCron } from "./services/billing-cron";
 import { startQuotaWarningCron } from "./services/quota-warning-cron";
@@ -105,6 +105,7 @@ async function startServer(): Promise<void> {
 
     logger.info({ port }, "Server listening");
 
+    void installGeminiModelFallback();
     ensureSuperAdmin().catch(err => logger.error({ err }, "Erreur seed admin"));
     void ensureAuditAppendOnly();
     startAutoBackup();

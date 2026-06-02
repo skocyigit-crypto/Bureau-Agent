@@ -16,6 +16,171 @@ import { logger } from "../lib/logger";
 export const GEMINI_FLASH_MODEL = process.env.GEMINI_FLASH_MODEL || "gemini-2.5-flash";
 export const GEMINI_PRO_MODEL = process.env.GEMINI_PRO_MODEL || "gemini-2.5-pro";
 
+/**
+ * Modeles de repli (fallback) utilises automatiquement quand un modele Gemini
+ * a ete retire par Google (UNSUPPORTED_MODEL / "not found for API version").
+ *
+ * On vise par defaut les alias roulants "*-latest" de Google : ils pointent
+ * toujours vers la derniere version stable et ne sont donc jamais retires.
+ * Surchargeable par variable d'environnement, comme les constantes ci-dessus,
+ * pour pouvoir migrer sans redeploiement de code.
+ */
+export const GEMINI_FLASH_FALLBACK_MODEL =
+  process.env.GEMINI_FLASH_FALLBACK_MODEL || "gemini-flash-latest";
+export const GEMINI_PRO_FALLBACK_MODEL =
+  process.env.GEMINI_PRO_FALLBACK_MODEL || "gemini-pro-latest";
+
+/**
+ * Signatures d'erreurs renvoyees par l'API Gemini lorsqu'un nom de modele
+ * n'est plus servi (version retiree, modele inconnu pour la version d'API).
+ * Volontairement restreint pour ne pas confondre avec d'autres 404/erreurs.
+ */
+const MODEL_RETIRED_PATTERNS = [
+  /UNSUPPORTED_MODEL/i,
+  /not found for API version/i,
+  /models\/[^\s]+ is not found/i,
+  /model[^\n]{0,80}(?:not found|does not exist|is not available|is not supported|deprecated|retired)/i,
+];
+
+/** Detecte une erreur de retrait/inexistence de modele Gemini. */
+export function isModelRetiredError(err: unknown): boolean {
+  const msg =
+    (err as any)?.message ||
+    (() => {
+      try {
+        return JSON.stringify(err);
+      } catch {
+        return String(err);
+      }
+    })();
+  return MODEL_RETIRED_PATTERNS.some((p) => p.test(msg));
+}
+
+/**
+ * Renvoie le modele de repli pour un nom de modele Gemini donne, ou `null`
+ * s'il n'y a pas de repli pertinent (modele non-Gemini, ou deja un fallback).
+ */
+export function fallbackGeminiModel(model: string | undefined | null): string | null {
+  if (!model) return null;
+  // Deja un modele de repli -> ne pas reboucler.
+  if (model === GEMINI_PRO_FALLBACK_MODEL || model === GEMINI_FLASH_FALLBACK_MODEL) return null;
+  if (model === GEMINI_PRO_MODEL) return GEMINI_PRO_FALLBACK_MODEL;
+  if (model === GEMINI_FLASH_MODEL) return GEMINI_FLASH_FALLBACK_MODEL;
+  // Heuristique pour les autres noms Gemini codes en dur ailleurs.
+  if (/gemini/i.test(model)) {
+    if (/flash/i.test(model)) return GEMINI_FLASH_FALLBACK_MODEL;
+    if (/pro/i.test(model)) return GEMINI_PRO_FALLBACK_MODEL;
+    return GEMINI_PRO_FALLBACK_MODEL;
+  }
+  return null;
+}
+
+/**
+ * Execute un appel Gemini en reessayant une fois avec un modele de repli si le
+ * modele demande a ete retire. `fn` recoit le nom de modele a utiliser.
+ */
+export async function geminiGenerateWithFallback<T>(
+  model: string | undefined | null,
+  fn: (model: string) => Promise<T>,
+): Promise<T> {
+  const primary = model || GEMINI_PRO_MODEL;
+  try {
+    return await fn(primary);
+  } catch (err) {
+    const fb = fallbackGeminiModel(primary);
+    if (fb && fb !== primary && isModelRetiredError(err)) {
+      logger.warn(
+        { from: primary, to: fb, err: (err as any)?.message || String(err) },
+        "[ai-utils] Modele Gemini retire — nouvelle tentative avec le modele de repli",
+      );
+      return await fn(fb);
+    }
+    throw err;
+  }
+}
+
+let geminiFallbackInstalled = false;
+
+/**
+ * Installe (une seule fois) le repli automatique de modele sur le client Gemini
+ * partage. En patchant `ai.models.generateContent` / `generateContentStream` au
+ * boot, tous les sites d'appel (routes, services, ai-stream, call-processor...)
+ * heritent du repli sans modification — un seul correctif couvre tout.
+ *
+ * Le client `voice-live.ts` cree sa propre instance `GoogleGenAI` (modeles
+ * "native-audio" temps reel avec leur propre logique) et n'est donc pas touche.
+ */
+export async function installGeminiModelFallback(): Promise<void> {
+  if (geminiFallbackInstalled) return;
+  try {
+    const mod: any = await import("@workspace/integrations-gemini-ai");
+    const ai: any = mod?.ai;
+    const models: any = ai?.models;
+    if (!models || typeof models.generateContent !== "function") return;
+    geminiFallbackInstalled = true;
+
+    const origGen = models.generateContent.bind(models);
+    models.generateContent = (params: any) =>
+      geminiGenerateWithFallback(params?.model, (m) => origGen({ ...params, model: m }));
+
+    if (typeof models.generateContentStream === "function") {
+      const origStream = models.generateContentStream.bind(models);
+      models.generateContentStream = async (params: any) => {
+        const model = params?.model;
+        const fb = fallbackGeminiModel(model);
+        const make = (m: string) => origStream({ ...params, model: m });
+
+        let stream: any;
+        try {
+          stream = await make(model);
+        } catch (err) {
+          if (fb && isModelRetiredError(err)) {
+            logger.warn(
+              { from: model, to: fb },
+              "[ai-utils] Modele Gemini retire (stream) — repli sur le modele de fallback",
+            );
+            return await make(fb);
+          }
+          throw err;
+        }
+
+        if (!fb) return stream;
+
+        // Certaines erreurs de retrait ne se manifestent qu'a la 1re iteration :
+        // si rien n'a encore ete emis, on peut encore basculer sans risque.
+        return (async function* () {
+          const it = stream[Symbol.asyncIterator]();
+          let first: IteratorResult<any>;
+          try {
+            first = await it.next();
+          } catch (err) {
+            if (isModelRetiredError(err)) {
+              logger.warn(
+                { from: model, to: fb },
+                "[ai-utils] Modele Gemini retire (1er chunk) — repli sur le modele de fallback",
+              );
+              yield* await make(fb);
+              return;
+            }
+            throw err;
+          }
+          if (first.done) return;
+          yield first.value;
+          while (true) {
+            const next = await it.next();
+            if (next.done) return;
+            yield next.value;
+          }
+        })();
+      };
+    }
+
+    logger.info("[ai-utils] Repli automatique de modele Gemini installe");
+  } catch (err) {
+    logger.warn({ err }, "[ai-utils] Installation du repli Gemini impossible");
+  }
+}
+
 export function safeJsonParse<T>(rawText: string | undefined | null, fallback: T): T {
   if (!rawText) return fallback;
   const text = String(rawText).trim();

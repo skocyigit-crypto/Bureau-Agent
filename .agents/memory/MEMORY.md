@@ -1,5 +1,6 @@
 # Memory Index
 
+- [Gemini model-retirement fallback](gemini-model-fallback.md) — boot-time singleton patch of ai.models retries on model-retired errors with env-overridable *-latest fallback; covers all call sites.
 - [Security middleware stack](security-middleware-stack.md) — /api threatDetection blocks URLs/base64 (bypass per-route); global express.json is 1mb (mount higher limit before it).
 - [Cron daily guards](cron-daily-guard.md) — row-derived "ran today" guards silently re-run on zero-output ticks; pair with in-memory attempted marker; self-generate dedup keys (don't trust LLM).
 - [Talking AI avatar](talking-avatar.md) — DOM-only `@workspace/ai-avatar` lib for web; Expo duplicates viseme core + RN SVG; TTS must use on-device (local) voices only, fail closed.
