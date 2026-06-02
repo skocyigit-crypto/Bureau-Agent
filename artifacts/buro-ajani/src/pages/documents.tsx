@@ -97,6 +97,7 @@ interface BulkScanJobState {
   scanned: number;
   safe: number;
   dangerous: number;
+  reused: number;
   failed: number;
   remaining: number;
   error: string | null;
@@ -125,7 +126,7 @@ export default function DocumentsPage() {
   const [editDocSaving, setEditDocSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [bulkScanning, setBulkScanning] = useState(false);
-  const [bulkScanProgress, setBulkScanProgress] = useState<{ completed: number; total: number } | null>(null);
+  const [bulkScanProgress, setBulkScanProgress] = useState<{ completed: number; total: number; reused: number } | null>(null);
 
   const loadDocuments = useCallback(async () => {
     setLoading(true);
@@ -171,7 +172,7 @@ export default function DocumentsPage() {
         const { job } = (await res.json()) as { job: BulkScanJobState };
         if (job.status === "running") {
           setBulkScanning(true);
-          setBulkScanProgress({ completed: job.scanned, total: Math.max(job.total, job.scanned) });
+          setBulkScanProgress({ completed: job.scanned, total: Math.max(job.total, job.scanned), reused: job.reused ?? 0 });
         }
       } catch {
         /* ignore */
@@ -188,19 +189,20 @@ export default function DocumentsPage() {
       const m = detail.meta as unknown as BulkScanJobState;
       if (m.status === "running") {
         setBulkScanning(true);
-        setBulkScanProgress({ completed: m.scanned, total: Math.max(m.total, m.scanned) });
+        setBulkScanProgress({ completed: m.scanned, total: Math.max(m.total, m.scanned), reused: m.reused ?? 0 });
       } else {
         setBulkScanning(false);
         setBulkScanProgress(null);
         if (m.status === "completed") {
+          const reusedNote = m.reused > 0 ? ` ${m.reused} déjà vérifié(s) (réutilisé).` : "";
           if (m.dangerous > 0) {
             toast({
               title: `${m.scanned} document(s) analysé(s)`,
-              description: `${m.dangerous} menace(s) détectée(s), ${m.safe} sain(s).`,
+              description: `${m.dangerous} menace(s) détectée(s), ${m.safe} sain(s).${reusedNote}`,
               variant: "destructive",
             });
           } else {
-            toast({ title: `${m.scanned} document(s) analysé(s)`, description: "Aucune menace détectée." });
+            toast({ title: `${m.scanned} document(s) analysé(s)`, description: `Aucune menace détectée.${reusedNote}` });
           }
         } else if (m.status === "failed") {
           toast({ title: "Erreur d'analyse antivirus en lot", variant: "destructive" });
@@ -255,7 +257,7 @@ export default function DocumentsPage() {
   const handleBulkScan = async () => {
     if (selectedIds.length === 0 || bulkScanning) return;
     setBulkScanning(true);
-    setBulkScanProgress({ completed: 0, total: selectedIds.length });
+    setBulkScanProgress({ completed: 0, total: selectedIds.length, reused: 0 });
     const ctrl = new AbortController();
     let finished = false;
     try {
@@ -263,9 +265,9 @@ export default function DocumentsPage() {
         signal: ctrl.signal,
         onEvent: (event, data) => {
           if (event === "start") {
-            setBulkScanProgress({ completed: 0, total: data.total ?? selectedIds.length });
+            setBulkScanProgress({ completed: 0, total: data.total ?? selectedIds.length, reused: 0 });
           } else if (event === "progress") {
-            setBulkScanProgress({ completed: data.completed ?? 0, total: data.total ?? selectedIds.length });
+            setBulkScanProgress({ completed: data.completed ?? 0, total: data.total ?? selectedIds.length, reused: 0 });
           } else if (event === "done") {
             finished = true;
             const parts: string[] = [];
@@ -368,7 +370,7 @@ export default function DocumentsPage() {
       const data = await res.json();
       const job = data.job as BulkScanJobState;
       setBulkScanning(true);
-      setBulkScanProgress({ completed: job.scanned ?? 0, total: job.total || total });
+      setBulkScanProgress({ completed: job.scanned ?? 0, total: job.total || total, reused: job.reused ?? 0 });
       toast({ title: "Analyse en lot lancée", description: "Elle continue en arrière-plan, vous pouvez quitter la page." });
     } catch {
       toast({ title: "Erreur d'analyse antivirus en lot", variant: "destructive" });
@@ -599,7 +601,9 @@ export default function DocumentsPage() {
                   {bulkScanning ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      {bulkScanProgress ? `Analyse ${bulkScanProgress.completed}/${bulkScanProgress.total}…` : "Analyse…"}
+                      {bulkScanProgress
+                        ? `Analyse ${bulkScanProgress.completed}/${bulkScanProgress.total}${bulkScanProgress.reused > 0 ? ` · ${bulkScanProgress.reused} réutilisé(s)` : ""}…`
+                        : "Analyse…"}
                     </>
                   ) : (
                     <>

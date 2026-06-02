@@ -1,8 +1,40 @@
 import { db, documentsTable } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
-import { scanBase64ContentFull, logSecurityEvent } from "../middleware/security";
+import crypto from "crypto";
+import { scanBase64ContentFullCached, logSecurityEvent, type StoredScanRecord } from "../middleware/security";
 import { broadcaster } from "./broadcaster";
 import { logger } from "../lib/logger";
+
+/**
+ * Recherche un verdict "sain" deja persiste pour un fichier identique (meme
+ * empreinte SHA-256) dans la meme organisation, afin de reutiliser ce verdict
+ * au lieu de re-interroger le moteur externe. On ne remonte QUE des verdicts
+ * surs ; toute empreinte dangereuse ou inconnue est rescannee integralement.
+ */
+async function findReusableCleanScan(orgId: number, sha256: string): Promise<StoredScanRecord | null> {
+  if (!sha256) return null;
+  const [existing] = await db.select({
+    scanSha256: documentsTable.scanSha256,
+    scanVerdict: documentsTable.scanVerdict,
+    scanEngine: documentsTable.scanEngine,
+    scanDetail: documentsTable.scanDetail,
+    scannedAt: documentsTable.scannedAt,
+  }).from(documentsTable)
+    .where(and(
+      eq(documentsTable.organisationId, orgId),
+      eq(documentsTable.scanSha256, sha256),
+      eq(documentsTable.scanVerdict, "safe"),
+    ))
+    .limit(1);
+  if (!existing) return null;
+  return {
+    sha256: existing.scanSha256,
+    verdict: existing.scanVerdict,
+    engine: existing.scanEngine,
+    detail: existing.scanDetail,
+    scannedAt: existing.scannedAt,
+  };
+}
 
 /**
  * Etat d'un scan antivirus "Tout analyser" lance en arriere-plan pour une
@@ -19,6 +51,7 @@ export interface BulkScanStatus {
   scanned: number;
   safe: number;
   dangerous: number;
+  reused: number;
   failed: number;
   remaining: number;
   error: string | null;
@@ -40,6 +73,7 @@ const IDLE_STATUS: BulkScanStatus = {
   scanned: 0,
   safe: 0,
   dangerous: 0,
+  reused: 0,
   failed: 0,
   remaining: 0,
   error: null,
@@ -54,6 +88,7 @@ function toStatus(job: BulkScanJob): BulkScanStatus {
     scanned: job.scanned,
     safe: job.safe,
     dangerous: job.dangerous,
+    reused: job.reused,
     failed: job.failed,
     remaining: job.remaining,
     error: job.error,
@@ -111,7 +146,10 @@ async function runJob(orgId: number, userId: number | null, job: BulkScanJob): P
       for (const doc of docs) {
         if (!doc.fileContent) continue;
         try {
-          const scanResult = await scanBase64ContentFull(doc.fileContent, doc.originalName);
+          const sha256 = crypto.createHash("sha256").update(Buffer.from(doc.fileContent, "base64")).digest("hex");
+          const storedScan = await findReusableCleanScan(orgId, sha256);
+          const { result: scanResult, reused } = await scanBase64ContentFullCached(doc.fileContent, doc.originalName, storedScan);
+          if (reused) job.reused++;
           const verdict = scanResult.safe ? "safe" : "dangerous";
           await db.update(documentsTable).set({
             scanVerdict: verdict,
@@ -147,7 +185,7 @@ async function runJob(orgId: number, userId: number | null, job: BulkScanJob): P
     job.status = "completed";
     job.finishedAt = Date.now();
     broadcastProgress(orgId, job);
-    logger.info({ orgId, scanned: job.scanned, safe: job.safe, dangerous: job.dangerous, failed: job.failed }, "Bulk document scan job complete");
+    logger.info({ orgId, scanned: job.scanned, safe: job.safe, dangerous: job.dangerous, reused: job.reused, failed: job.failed }, "Bulk document scan job complete");
   } catch (err: any) {
     job.status = "failed";
     job.error = "Erreur lors de l'analyse antivirus en lot";
@@ -178,6 +216,7 @@ export function startBulkScan(orgId: number, userId: number | null): BulkScanSta
     scanned: 0,
     safe: 0,
     dangerous: 0,
+    reused: 0,
     failed: 0,
     remaining: 0,
     error: null,

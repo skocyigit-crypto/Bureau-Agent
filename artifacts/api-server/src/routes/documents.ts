@@ -1149,13 +1149,14 @@ router.post("/documents/scan-unscanned", requireMinAgent, async (req: Request, r
       .orderBy(documentsTable.id)
       .limit(batchSize);
 
-    let scanned = 0, safe = 0, dangerous = 0;
+    let scanned = 0, safe = 0, dangerous = 0, reusedCount = 0;
     for (const doc of docs) {
       if (!doc.fileContent) continue;
       try {
         const sha256 = crypto.createHash("sha256").update(Buffer.from(doc.fileContent, "base64")).digest("hex");
         const storedScan = await findReusableCleanScan(orgId, sha256);
-        const { result: scanResult } = await scanBase64ContentFullCached(doc.fileContent, doc.originalName, storedScan);
+        const { result: scanResult, reused } = await scanBase64ContentFullCached(doc.fileContent, doc.originalName, storedScan);
+        if (reused) reusedCount++;
         const verdict = scanResult.safe ? "safe" : "dangerous";
         await db.update(documentsTable).set({
           scanVerdict: verdict,
@@ -1182,9 +1183,9 @@ router.post("/documents/scan-unscanned", requireMinAgent, async (req: Request, r
     }).from(documentsTable).where(eq(documentsTable.organisationId, orgId));
     const remaining = remainingRow?.remaining ?? 0;
 
-    logger.info({ orgId, scanned, safe, dangerous, remaining }, "Bulk document scan batch complete");
+    logger.info({ orgId, scanned, safe, dangerous, reused: reusedCount, remaining }, "Bulk document scan batch complete");
 
-    res.json({ success: true, scanned, safe, dangerous, remaining });
+    res.json({ success: true, scanned, safe, dangerous, reused: reusedCount, remaining });
   } catch (err: any) {
     logger.error({ err }, "Bulk document scan error");
     res.status(500).json({ error: "Erreur lors de l'analyse antivirus en lot" });
