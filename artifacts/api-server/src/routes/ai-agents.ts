@@ -6,6 +6,7 @@ import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "../se
 import { extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL, GEMINI_FLASH_MODEL } from "../services/ai-utils";
 import { withProviderTimeout, buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 import { openSseStream, multiAiGenerateStream, StreamAbortedError } from "../services/ai-stream";
+import { buildLearnedContextBlock } from "../services/ai-learning";
 import { logger } from "../lib/logger";
 import { EventEmitter } from "events";
 
@@ -733,6 +734,138 @@ Reponds en JSON avec cette structure exacte:
 }
 IMPORTANT: Genere 3-6 elements pertinents pour chaque categorie. Sois ULTRA concret avec les chiffres. Chaque erreur doit avoir une cause racine. Chaque suggestion doit avoir un ROI estime. Chaque prediction doit etre basee sur les tendances observees.`;
 
+// --- Conseil IA (multi-modèles) -------------------------------------------
+// Chaque agent peut consulter plusieurs modèles de pointe (Gemini, GPT, Claude)
+// EN PARALLÈLE, puis un modèle synthétise les analyses en un consensus. C'est le
+// "Conseil IA / Yapay Zeka Ekibi". Repli séquentiel si AI_COUNCIL_DISABLED=1.
+
+type CouncilMember = { text: string; model: string };
+
+async function callGeminiAgent(agentId: string, orgId: number, prompt: string, signal: AbortSignal | undefined, t0: number): Promise<CouncilMember> {
+  const { ai } = await import("@workspace/integrations-gemini-ai");
+  const response = await withProviderTimeout(() => ai.models.generateContent({
+    model: GEMINI_PRO_MODEL,
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    config: { maxOutputTokens: 8192, responseMimeType: "application/json", thinkingConfig: { thinkingBudget: 2048 }, ...(signal ? { abortSignal: signal } : {}) } as any,
+  }), { timeoutMs: 45_000, label: `agent-${agentId}-gemini` });
+  const tokens = extractGeminiTokens(response);
+  recordAiUsage({ organisationId: orgId, provider: "gemini", model: geminiActualModel(response, GEMINI_PRO_MODEL), route: `/ai/agents/${agentId}`, inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+  invalidateQuotaCache(orgId);
+  return { text: response.text ?? "{}", model: "Gemini" };
+}
+
+async function callOpenAIAgent(agentId: string, orgId: number, prompt: string, signal: AbortSignal | undefined, t0: number): Promise<CouncilMember> {
+  const { openai } = await import("@workspace/integrations-openai-ai-server");
+  const resp = await withProviderTimeout(() => openai.chat.completions.create({
+    model: "gpt-5.2",
+    messages: [{ role: "user", content: prompt + "\n\nReponds UNIQUEMENT en JSON valide." }],
+  }, signal ? { signal } as any : undefined), { timeoutMs: 45_000, label: `agent-${agentId}-openai` });
+  const ftokens = extractOpenAITokens(resp);
+  recordAiUsage({ organisationId: orgId, provider: "openai", model: "gpt-5.2", route: `/ai/agents/${agentId}`, inputTokens: ftokens.input, outputTokens: ftokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+  invalidateQuotaCache(orgId);
+  return { text: resp.choices?.[0]?.message?.content ?? "{}", model: "GPT (OpenAI)" };
+}
+
+async function callAnthropicAgent(agentId: string, orgId: number, prompt: string, signal: AbortSignal | undefined, t0: number): Promise<CouncilMember> {
+  const { anthropic } = await import("@workspace/integrations-anthropic-ai");
+  const resp: any = await withProviderTimeout(() => (anthropic.messages.create as any)({
+    model: "claude-sonnet-4-6",
+    max_tokens: 8192,
+    messages: [{ role: "user", content: prompt + "\n\nReponds UNIQUEMENT en JSON valide." }],
+  }, signal ? { signal } : undefined), { timeoutMs: 45_000, label: `agent-${agentId}-anthropic` });
+  const atokens = extractAnthropicTokens(resp);
+  recordAiUsage({ organisationId: orgId, provider: "anthropic", model: "claude-sonnet-4-6", route: `/ai/agents/${agentId}`, inputTokens: atokens.input, outputTokens: atokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+  invalidateQuotaCache(orgId);
+  const txt = resp.content?.[0]?.type === "text" ? resp.content[0].text : "{}";
+  return { text: txt, model: "Claude (Anthropic)" };
+}
+
+function isAbortLike(err: any): boolean {
+  return err?.message === "aborted" || err?.name === "APIUserAbortError";
+}
+
+function buildSynthesisPrompt(members: CouncilMember[]): string {
+  const analyses = members.map((m, i) => `### Analyse ${i + 1} — ${m.model}\n${m.text}`).join("\n\n");
+  return `Tu es le COORDINATEUR d'un conseil d'experts IA. ${members.length} experts independants (${members.map((m) => m.model).join(", ")}) ont analyse la MEME situation et rendu chacun leur rapport JSON ci-dessous.
+
+Ta mission: produire UNE SEULE analyse consensuelle, la MEILLEURE possible:
+- Garde les constats sur lesquels plusieurs experts s'accordent (fiabilite elevee).
+- Integre les meilleures idees uniques d'un seul expert si elles sont pertinentes.
+- Elimine les doublons, les contradictions et les hallucinations evidentes.
+- Reste STRICTEMENT dans le meme format JSON que les rapports recus.
+
+Rapports des experts:
+${analyses}
+
+Reponds UNIQUEMENT avec le JSON consensuel final, sans aucun texte avant ou apres.`;
+}
+
+async function runAgentReasoning(
+  agentId: string,
+  orgId: number,
+  prompt: string,
+  signal: AbortSignal | undefined,
+  councilEnabled: boolean,
+  t0: number,
+): Promise<{ text: string; models: string[]; synthesized: boolean }> {
+  const checkAbort = () => { if (signal?.aborted) throw new Error("aborted"); };
+  const providers: Array<() => Promise<CouncilMember>> = [
+    () => callGeminiAgent(agentId, orgId, prompt, signal, t0),
+    () => callOpenAIAgent(agentId, orgId, prompt, signal, t0),
+    () => callAnthropicAgent(agentId, orgId, prompt, signal, t0),
+  ];
+
+  // Repli séquentiel: premier modèle qui répond gagne (ancien comportement).
+  if (!councilEnabled) {
+    let lastErr: any;
+    for (const call of providers) {
+      checkAbort();
+      try {
+        const m = await call();
+        if (m.text && m.text.length > 10) return { text: m.text, models: [m.model], synthesized: false };
+      } catch (err: any) {
+        if (err instanceof AiQuotaExceededError) throw err;
+        if (signal?.aborted || isAbortLike(err)) throw err;
+        lastErr = err;
+        logger.warn({ err, agentId }, "[council] fournisseur en echec (mode repli)");
+      }
+    }
+    throw new Error(`Tous les fournisseurs IA ont echoue pour ${agentId}: ${lastErr?.message ?? "inconnu"}`);
+  }
+
+  // Mode conseil: tous les modèles en parallèle.
+  const settled = await Promise.allSettled(providers.map((p) => p()));
+  for (const s of settled) {
+    if (s.status === "rejected") {
+      const err = s.reason;
+      if (err instanceof AiQuotaExceededError) throw err;
+      if (signal?.aborted || isAbortLike(err)) throw err;
+    }
+  }
+  const members = settled
+    .filter((s): s is PromiseFulfilledResult<CouncilMember> => s.status === "fulfilled" && !!s.value.text && s.value.text.length > 10)
+    .map((s) => s.value);
+
+  if (members.length === 0) throw new Error(`Tous les fournisseurs IA ont echoue pour ${agentId}`);
+  if (members.length === 1) return { text: members[0].text, models: [members[0].model], synthesized: false };
+
+  // Synthèse: Gemini fusionne les analyses indépendantes en un consensus.
+  checkAbort();
+  try {
+    const synth = await callGeminiAgent(agentId, orgId, buildSynthesisPrompt(members), signal, t0);
+    if (synth.text && synth.text.length > 10) {
+      return { text: synth.text, models: members.map((m) => m.model), synthesized: true };
+    }
+  } catch (err: any) {
+    if (err instanceof AiQuotaExceededError) throw err;
+    if (signal?.aborted || isAbortLike(err)) throw err;
+    logger.warn({ err, agentId }, "[council] synthese en echec, on garde le meilleur membre");
+  }
+  // Repli: le membre le plus détaillé.
+  const best = members.slice().sort((a, b) => b.text.length - a.text.length)[0];
+  return { text: best.text, models: members.map((m) => m.model), synthesized: false };
+}
+
 async function runSingleAgent(agent: typeof AGENTS[0], orgId: number, signal?: AbortSignal, goal?: string): Promise<any> {
   const startTime = Date.now();
   const today = new Date().toISOString().split("T")[0];
@@ -771,69 +904,34 @@ ${trendHistory.map(h => `  ${h.reportDate}: score ${h.score}, ${h.errorsFound} e
       ? `\n\n=== OBJECTIF PRIORITAIRE DU DIRIGEANT ===\nLe patron te confie une mission specifique pour cette execution: "${cleanGoal}"\nConcentre ton analyse, tes alertes et tes suggestions en priorite sur cet objectif, tout en restant dans ton domaine de competence. Si l'objectif sort de ton domaine, dis-le clairement et traite ce que tu peux.\n=== FIN OBJECTIF ===`
       : "";
 
-    const { ai } = await import("@workspace/integrations-gemini-ai");
-    const fullPrompt = `${getAgentPrompt(agent)}${collaborationContext}${trendContext}${goalContext}\n\n${AGENT_RESPONSE_FORMAT}\n\nDate du rapport: ${today}\nDonnees actuelles (cette semaine + semaine precedente + patterns):\n${JSON.stringify(data, null, 2)}`;
+    const learnedContext = await buildLearnedContextBlock(orgId);
+    const fullPrompt = `${getAgentPrompt(agent)}${collaborationContext}${trendContext}${learnedContext}${goalContext}\n\n${AGENT_RESPONSE_FORMAT}\n\nDate du rapport: ${today}\nDonnees actuelles (cette semaine + semaine precedente + patterns):\n${JSON.stringify(data, null, 2)}`;
 
     let text = "{}";
+    let councilModels: string[] = [];
+    let councilSynthesized = false;
     const t0 = Date.now();
+    const councilEnabled = process.env.AI_COUNCIL_DISABLED !== "1";
+    // La clé de cache inclut une empreinte du contexte appris: quand le patron
+    // approuve/rejette des propositions, les préférences changent -> le cache est
+    // naturellement invalidé pour que l'apprentissage soit pris en compte.
     const agentCacheKey = buildAiCacheKey({
       route: `/ai/agents/${agent.id}`,
       organisationId: orgId,
-      input: { day: today, dataHash: JSON.stringify(data).slice(0, 400), goal: cleanGoal },
+      input: { day: today, dataHash: JSON.stringify(data).slice(0, 400), goal: cleanGoal, council: councilEnabled, learned: learnedContext },
     });
-    const agentCached = getCached<string>(agentCacheKey);
+    const agentCached = getCached<{ text: string; models: string[]; synthesized: boolean }>(agentCacheKey);
     if (agentCached) {
-      text = agentCached;
-    } else try {
+      text = agentCached.text;
+      councilModels = agentCached.models;
+      councilSynthesized = agentCached.synthesized;
+    } else {
       checkAbort();
-      const response = await withProviderTimeout(() => ai.models.generateContent({
-        model: GEMINI_PRO_MODEL,
-        contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
-        config: { maxOutputTokens: 8192, responseMimeType: "application/json", thinkingConfig: { thinkingBudget: 2048 }, ...(signal ? { abortSignal: signal } : {}) } as any,
-      }), { timeoutMs: 45_000, label: `agent-${agent.id}-gemini` });
-      text = response.text ?? "{}";
-      const tokens = extractGeminiTokens(response);
-      recordAiUsage({ organisationId: orgId, provider: "gemini", model: geminiActualModel(response, GEMINI_PRO_MODEL), route: `/ai/agents/${agent.id}`, inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
-      invalidateQuotaCache(orgId);
-      if (text && text.length > 10) setCached(agentCacheKey, text, AI_CACHE_TTL.MEDIUM);
-    } catch (geminiErr: any) {
-      if (geminiErr instanceof AiQuotaExceededError) throw geminiErr;
-      if (signal?.aborted || geminiErr?.message === "aborted") throw geminiErr;
-      logger.warn({ err: geminiErr, agentId: agent.id }, "Gemini failed, trying OpenAI fallback");
-      try {
-        checkAbort();
-        const { openai } = await import("@workspace/integrations-openai-ai-server");
-        const fallback = await withProviderTimeout(() => openai.chat.completions.create({
-          model: "gpt-5.2",
-          messages: [{ role: "user", content: fullPrompt + "\n\nReponds UNIQUEMENT en JSON valide." }],
-        }, signal ? { signal } as any : undefined), { timeoutMs: 45_000, label: `agent-${agent.id}-openai` });
-        text = fallback.choices?.[0]?.message?.content ?? "{}";
-        const ftokens = extractOpenAITokens(fallback);
-        recordAiUsage({ organisationId: orgId, provider: "openai", model: "gpt-5.2", route: `/ai/agents/${agent.id}`, inputTokens: ftokens.input, outputTokens: ftokens.output, durationMs: Date.now() - t0 }).catch(() => {});
-        invalidateQuotaCache(orgId);
-        if (text && text.length > 10) setCached(agentCacheKey, text, AI_CACHE_TTL.MEDIUM);
-      } catch (openaiErr: any) {
-        if (signal?.aborted || openaiErr?.message === "aborted" || openaiErr?.name === "APIUserAbortError") throw openaiErr;
-        logger.warn({ err: openaiErr, agentId: agent.id }, "OpenAI fallback failed, trying Anthropic");
-        try {
-          checkAbort();
-          const { anthropic } = await import("@workspace/integrations-anthropic-ai");
-          const fallback2: any = await withProviderTimeout(() => (anthropic.messages.create as any)({
-            model: "claude-sonnet-4-6",
-            max_tokens: 8192,
-            messages: [{ role: "user", content: fullPrompt + "\n\nReponds UNIQUEMENT en JSON valide." }],
-          }, signal ? { signal } : undefined), { timeoutMs: 45_000, label: `agent-${agent.id}-anthropic` });
-          text = fallback2.content?.[0]?.type === "text" ? fallback2.content[0].text : "{}";
-          const atokens = extractAnthropicTokens(fallback2);
-          recordAiUsage({ organisationId: orgId, provider: "anthropic", model: "claude-sonnet-4-6", route: `/ai/agents/${agent.id}`, inputTokens: atokens.input, outputTokens: atokens.output, durationMs: Date.now() - t0 }).catch(() => {});
-          invalidateQuotaCache(orgId);
-          if (text && text.length > 10) setCached(agentCacheKey, text, AI_CACHE_TTL.MEDIUM);
-        } catch (anthropicErr: any) {
-          if (signal?.aborted || anthropicErr?.message === "aborted" || anthropicErr?.name === "APIUserAbortError") throw anthropicErr;
-          logger.error({ err: anthropicErr, agentId: agent.id }, "All AI providers failed");
-          throw new Error(`Tous les fournisseurs IA ont echoue pour ${agent.id}`);
-        }
-      }
+      const reasoning = await runAgentReasoning(agent.id, orgId, fullPrompt, signal, councilEnabled, t0);
+      text = reasoning.text;
+      councilModels = reasoning.models;
+      councilSynthesized = reasoning.synthesized;
+      if (text && text.length > 10) setCached(agentCacheKey, reasoning, AI_CACHE_TTL.MEDIUM);
     }
     checkAbort();
     let parsed;
@@ -864,6 +962,7 @@ ${trendHistory.map(h => `  ${h.reportDate}: score ${h.score}, ${h.errorsFound} e
         detectedPatterns: parsed.detectedPatterns || [],
         predictions: parsed.predictions || [],
         automations: parsed.automations || [],
+        council: { models: councilModels, synthesized: councilSynthesized },
       },
       errors: parsed.errors || [],
       warnings: parsed.warnings || [],

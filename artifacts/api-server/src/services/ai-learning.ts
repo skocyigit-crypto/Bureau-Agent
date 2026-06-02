@@ -4,6 +4,7 @@ import {
   aiRecurringPatternsTable,
   proactiveSuggestionsTable,
   aiInsightsTable,
+  agentProposalsTable,
   callsTable,
   tasksTable,
   organisationsTable,
@@ -128,6 +129,27 @@ export async function recomputeLearnedPreferences(orgId: number): Promise<number
     written++;
   }
 
+  // Propositions de la file d'approbation: décisions du patron, groupées par
+  // catégorie. Approuvée/exécutée = signal positif (up), rejetée = négatif (down).
+  // C'est ainsi que les agents apprennent CE QUE le dirigeant valide ou refuse.
+  const props = await db
+    .select({
+      key: agentProposalsTable.category,
+      up: sql<number>`count(*) filter (where ${agentProposalsTable.status} in ('approuvee','executee'))`,
+      down: sql<number>`count(*) filter (where ${agentProposalsTable.status} = 'rejetee')`,
+    })
+    .from(agentProposalsTable)
+    .where(eq(agentProposalsTable.organisationId, orgId))
+    .groupBy(agentProposalsTable.category);
+  for (const row of props) {
+    const up = Number(row.up ?? 0);
+    const down = Number(row.down ?? 0);
+    if (up + down === 0) continue;
+    await upsertPreference(orgId, "proposition_categorie", row.key, up, down);
+    kept.push(`proposition_categorie${KEY_SEP}${row.key}`);
+    written++;
+  }
+
   // Purge des préférences obsolètes (feedback retiré / source disparue) afin que
   // l'UI et le bloc de contexte ne reflètent que l'état courant.
   const keyExpr = sql`${aiLearnedPreferencesTable.kind} || ${KEY_SEP} || ${aiLearnedPreferencesTable.key}`;
@@ -187,6 +209,26 @@ export async function bumpPreferenceFromFeedback(
     invalidateContextCache(orgId);
   } catch (err) {
     logger.warn({ err, orgId, kind, key }, "[ai-learning] bumpPreferenceFromFeedback failed");
+  }
+}
+
+// Mise à jour incrémentale après une décision sur une proposition de la file
+// d'approbation (approbation/rejet). Recalcule la seule catégorie touchée depuis
+// agent_proposals. Fire-and-forget, fail-soft (ne lève jamais).
+export async function bumpProposalPreference(orgId: number, category: string | null | undefined): Promise<void> {
+  try {
+    const cat = (category ?? "").trim() || "autre";
+    const [row] = await db
+      .select({
+        up: sql<number>`count(*) filter (where ${agentProposalsTable.status} in ('approuvee','executee'))`,
+        down: sql<number>`count(*) filter (where ${agentProposalsTable.status} = 'rejetee')`,
+      })
+      .from(agentProposalsTable)
+      .where(and(eq(agentProposalsTable.organisationId, orgId), eq(agentProposalsTable.category, cat)));
+    await upsertPreference(orgId, "proposition_categorie", cat, Number(row?.up ?? 0), Number(row?.down ?? 0));
+    invalidateContextCache(orgId);
+  } catch (err) {
+    logger.warn({ err, orgId, category }, "[ai-learning] bumpProposalPreference failed");
   }
 }
 
@@ -355,8 +397,19 @@ const SUGGESTION_LABELS: Record<string, string> = {
   calendar_conflict: "conflits d'agenda",
 };
 
+const PROPOSAL_LABELS: Record<string, string> = {
+  tache: "les tâches",
+  email: "les e-mails",
+  sms: "les SMS",
+  rappel: "les rappels",
+  relance: "les relances",
+  contact: "les contacts",
+  autre: "les actions diverses",
+};
+
 function humanizeKey(kind: string, key: string): string {
   if (kind === "suggestion_type") return SUGGESTION_LABELS[key] ?? key;
+  if (kind === "proposition_categorie") return PROPOSAL_LABELS[key] ?? key;
   return key;
 }
 

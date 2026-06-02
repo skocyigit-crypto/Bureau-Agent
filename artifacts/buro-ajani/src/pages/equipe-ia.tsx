@@ -223,6 +223,15 @@ export default function EquipeIaPage() {
               Votre équipe d'agents intelligents. Donnez un objectif à chacun, lancez-le quand vous
               voulez, et validez toutes leurs propositions au même endroit — rien ne s'exécute sans vous.
             </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="gap-1.5 border-indigo-200 text-indigo-700 dark:border-indigo-900 dark:text-indigo-300">
+                <Brain className="h-3.5 w-3.5" />
+                Conseil IA · Gemini + GPT + Claude
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                Chaque agent consulte plusieurs IA de pointe puis apprend de vos décisions.
+              </span>
+            </div>
           </div>
         </div>
         {canRun && (

@@ -15,11 +15,31 @@ import {
   executeProposal,
   rejectProposal,
 } from "../services/autonomous-secretary";
+import { bumpProposalPreference } from "../services/ai-learning";
 
 const router: IRouter = Router();
 
 /** Mutations de la file (générer / approuver / rejeter) réservées aux administrateurs. */
 const requireAdmin = requireRole("super_admin", "administrateur");
+
+/**
+ * Apprentissage: après une décision (approbation/rejet) sur une proposition,
+ * recalcule la préférence apprise de sa catégorie. Fire-and-forget, fail-soft —
+ * c'est ainsi que les agents apprennent ce que le patron valide ou refuse.
+ */
+function learnFromDecision(orgId: number, proposalId: number): void {
+  void (async () => {
+    try {
+      const [p] = await db
+        .select({ category: agentProposalsTable.category })
+        .from(agentProposalsTable)
+        .where(and(eq(agentProposalsTable.id, proposalId), eq(agentProposalsTable.organisationId, orgId)));
+      if (p) await bumpProposalPreference(orgId, p.category);
+    } catch {
+      /* fail-soft: l'apprentissage ne doit jamais casser la décision */
+    }
+  })();
+}
 
 const VALID_STATUSES = ["en_attente", "approuvee", "rejetee", "executee", "echouee", "expiree"] as const;
 
@@ -90,6 +110,7 @@ router.post("/agent-queue/:id/approve", requireAdmin, async (req: Request, res: 
       return;
     }
     res.json(result);
+    learnFromDecision(orgId, id);
   } catch (err) {
     req.log.error({ err }, "Erreur approbation proposition");
     res.status(500).json({ error: "Erreur lors de l'approbation" });
@@ -107,6 +128,7 @@ router.post("/agent-queue/:id/reject", requireAdmin, async (req: Request, res: R
     const ok = await rejectProposal(id, { orgId, userId });
     if (!ok) { res.status(404).json({ error: "Proposition introuvable ou déjà traitée" }); return; }
     res.json({ ok: true, status: "rejetee" });
+    learnFromDecision(orgId, id);
   } catch (err) {
     req.log.error({ err }, "Erreur rejet proposition");
     res.status(500).json({ error: "Erreur lors du rejet" });
