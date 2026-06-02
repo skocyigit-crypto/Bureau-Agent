@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import crypto from "crypto";
-import { db, documentsTable } from "@workspace/db";
-import { eq, and, desc, sql, inArray } from "drizzle-orm";
+import { db, documentsTable, bulkScanJobsTable } from "@workspace/db";
+import { eq, and, or, ne, lt, desc, sql, inArray } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
 import { getOrgId } from "../middleware/tenant";
 import { scanBase64Content, scanBase64ContentFull, scanBase64ContentFullCached, logSecurityEvent, type StoredScanRecord } from "../middleware/security";
@@ -766,9 +766,13 @@ type BulkScanResult = {
 
 type BulkScanEvent = { event: string; data: any };
 
+type BulkScanJobStatus = "running" | "completed" | "failed" | "cancelled" | "interrupted";
+
 type BulkScanJobState = {
-  status: "running" | "completed" | "failed" | "cancelled";
+  status: BulkScanJobStatus;
+  runnerId: string;
   startedAt: number;
+  startedByUserId: number | null;
   requested: number;
   total: number;
   completed: number;
@@ -781,10 +785,181 @@ type BulkScanJobState = {
   abortController: AbortController;
   finishedAt?: number;
   cleanupTimer?: NodeJS.Timeout;
+  heartbeatTimer?: NodeJS.Timeout;
 };
 
+// État vivant (emitter + abortController) du job en cours sur CETTE instance.
+// La source de vérité partagée/durable est la table `bulk_scan_jobs` ; ce Map
+// ne sert qu'à diffuser le flux SSE en direct et à piloter l'annulation locale.
 const bulkScanJobs = new Map<number, BulkScanJobState>();
 const BULK_SCAN_RETENTION_MS = 5 * 60 * 1000;
+// Heartbeat : on rafraîchit `updated_at` régulièrement pendant le scan pour
+// qu'une autre instance puisse distinguer un job vivant d'un job orphelin.
+const BULK_SCAN_HEARTBEAT_MS = 10 * 1000;
+// Un job "running" dont le heartbeat dépasse ce seuil est considéré comme
+// orphelin (processus mort en plein scan) et réconcilié en "interrupted".
+const BULK_SCAN_STALE_MS = 60 * 1000;
+
+type BulkScanRow = typeof bulkScanJobsTable.$inferSelect;
+
+// Acquisition ATOMIQUE du slot de scan d'une organisation, sûre entre instances.
+// Une seule instruction SQL : INSERT ... ON CONFLICT (organisation_id) DO UPDATE
+// dont le SET n'est appliqué QUE si le job courant n'est plus actif (statut
+// terminal) OU si son heartbeat est périmé (worker mort). RETURNING ne renvoie
+// une ligne que si l'on a gagné le slot ; sinon un autre worker frais le détient.
+// Empêche deux instances de lancer simultanément un scan pour la même org.
+async function acquireBulkScanSlot(orgId: number, job: BulkScanJobState): Promise<boolean> {
+  const values = {
+    runnerId: job.runnerId,
+    status: "running" as const,
+    startedByUserId: job.startedByUserId,
+    requested: job.requested,
+    total: job.total,
+    completed: 0,
+    safe: 0,
+    dangerous: 0,
+    failed: 0,
+    results: [] as unknown[],
+    events: [] as unknown[],
+    startedAt: new Date(job.startedAt),
+    finishedAt: null,
+    updatedAt: new Date(),
+  };
+  const staleBefore = new Date(Date.now() - BULK_SCAN_STALE_MS);
+  try {
+    const rows = await db.insert(bulkScanJobsTable)
+      .values({ organisationId: orgId, ...values })
+      .onConflictDoUpdate({
+        target: bulkScanJobsTable.organisationId,
+        set: values,
+        setWhere: or(
+          ne(bulkScanJobsTable.status, "running"),
+          lt(bulkScanJobsTable.updatedAt, staleBefore),
+        ),
+      })
+      .returning({ id: bulkScanJobsTable.id });
+    return rows.length > 0;
+  } catch (err) {
+    logger.error({ err, orgId }, "acquireBulkScanSlot failed");
+    return false;
+  }
+}
+
+// Écrit l'état du job dans la table partagée. Toutes les écritures sont
+// conditionnées au jeton d'appartenance (`runnerId`) : si une autre instance a
+// repris un job orphelin, nos écritures n'affectent aucune ligne (0 row) au lieu
+// d'écraser son état. En mode progression on exige aussi `status = 'running'`
+// pour ne pas réanimer un job annulé entre-temps.
+async function persistBulkScanJob(
+  orgId: number,
+  job: BulkScanJobState,
+  opts?: { terminal?: boolean },
+) {
+  const values = {
+    status: job.status,
+    requested: job.requested,
+    total: job.total,
+    completed: job.completed,
+    safe: job.safe,
+    dangerous: job.dangerous,
+    failed: job.failed,
+    results: job.results as unknown[],
+    events: job.events as unknown[],
+    finishedAt: job.finishedAt ? new Date(job.finishedAt) : null,
+    updatedAt: new Date(),
+  };
+  const ownership = and(
+    eq(bulkScanJobsTable.organisationId, orgId),
+    eq(bulkScanJobsTable.runnerId, job.runnerId),
+  );
+  try {
+    await db.update(bulkScanJobsTable).set(values)
+      .where(opts?.terminal
+        ? ownership
+        : and(ownership, eq(bulkScanJobsTable.status, "running")));
+  } catch (err) {
+    logger.error({ err, orgId }, "persistBulkScanJob failed");
+  }
+}
+
+function bulkScanRowToSnapshot(row: BulkScanRow, overrideStatus?: BulkScanJobStatus) {
+  return {
+    status: overrideStatus ?? (row.status as BulkScanJobStatus),
+    startedAt: new Date(row.startedAt).getTime(),
+    requested: row.requested,
+    total: row.total,
+    completed: row.completed,
+    safe: row.safe,
+    dangerous: row.dangerous,
+    failed: row.failed,
+    results: (row.results as BulkScanResult[] | null) ?? [],
+    finishedAt: row.finishedAt ? new Date(row.finishedAt).getTime() : undefined,
+  };
+}
+
+// Passe une ligne "running" périmée à "interrupted" (best effort) afin que l'état
+// reste réconciliable après un crash/redémarrage du processus qui la portait.
+async function reconcileStaleBulkScan(orgId: number): Promise<void> {
+  await db.update(bulkScanJobsTable)
+    .set({ status: "interrupted", finishedAt: new Date(), updatedAt: new Date() })
+    .where(and(
+      eq(bulkScanJobsTable.organisationId, orgId),
+      eq(bulkScanJobsTable.status, "running"),
+    ));
+}
+
+// Renvoie le job actif (running, heartbeat frais) pour l'org, sinon null. Réconcilie
+// au passage les jobs orphelins. Sert à empêcher de relancer un scan déjà en cours
+// sur une autre instance et à décider de l'attache du flux SSE.
+async function getActiveBulkScan(orgId: number): Promise<{ total: number; completed: number } | null> {
+  const local = bulkScanJobs.get(orgId);
+  if (local && local.status === "running") return { total: local.total, completed: local.completed };
+  const [row] = await db.select().from(bulkScanJobsTable)
+    .where(eq(bulkScanJobsTable.organisationId, orgId)).limit(1);
+  if (row && row.status === "running") {
+    const age = Date.now() - new Date(row.updatedAt).getTime();
+    if (age <= BULK_SCAN_STALE_MS) return { total: row.total, completed: row.completed };
+    await reconcileStaleBulkScan(orgId);
+  }
+  return null;
+}
+
+// Snapshot de statut résilient : privilégie le job vivant local (le plus frais),
+// sinon lit la ligne partagée et réconcilie un éventuel job orphelin.
+async function loadBulkScanSnapshot(orgId: number) {
+  const local = bulkScanJobs.get(orgId);
+  if (local && local.status === "running") return bulkScanStatusSnapshot(local);
+  const [row] = await db.select().from(bulkScanJobsTable)
+    .where(eq(bulkScanJobsTable.organisationId, orgId)).limit(1);
+  if (!row) return local ? bulkScanStatusSnapshot(local) : null;
+  if (row.status === "running" && !local) {
+    const age = Date.now() - new Date(row.updatedAt).getTime();
+    if (age > BULK_SCAN_STALE_MS) {
+      await reconcileStaleBulkScan(orgId);
+      return bulkScanRowToSnapshot(row, "interrupted");
+    }
+  }
+  return local ? bulkScanStatusSnapshot(local) : bulkScanRowToSnapshot(row);
+}
+
+// Indique si le worker doit s'arrêter, en lisant l'état partagé : annulation /
+// interruption décidée ailleurs, ligne disparue, OU perte d'appartenance (une
+// autre instance a repris le slot — runnerId différent). En cas d'erreur de
+// lecture, on ne stoppe pas (on évite d'interrompre un scan sain sur un blip DB).
+async function shouldStopBulkScan(orgId: number, job: BulkScanJobState): Promise<boolean> {
+  try {
+    const [row] = await db.select({
+      status: bulkScanJobsTable.status,
+      runnerId: bulkScanJobsTable.runnerId,
+    }).from(bulkScanJobsTable).where(eq(bulkScanJobsTable.organisationId, orgId)).limit(1);
+    if (!row) return true;
+    if (row.status === "cancelled" || row.status === "interrupted") return true;
+    if (row.runnerId !== job.runnerId) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
 
 function emitBulkScanEvent(job: BulkScanJobState, event: string, data: any) {
   job.events.push({ event, data });
@@ -797,6 +972,30 @@ function scheduleBulkScanCleanup(orgId: number, job: BulkScanJobState) {
     if (bulkScanJobs.get(orgId) === job) bulkScanJobs.delete(orgId);
   }, BULK_SCAN_RETENTION_MS);
   job.cleanupTimer.unref?.();
+}
+
+// Rafraîchit périodiquement `updated_at` tant que le scan tourne, même si un
+// document est long à analyser, afin que les autres instances ne le prennent pas
+// pour un job orphelin.
+function startBulkScanHeartbeat(orgId: number, job: BulkScanJobState) {
+  job.heartbeatTimer = setInterval(() => {
+    db.update(bulkScanJobsTable)
+      .set({ updatedAt: new Date() })
+      .where(and(
+        eq(bulkScanJobsTable.organisationId, orgId),
+        eq(bulkScanJobsTable.status, "running"),
+        eq(bulkScanJobsTable.runnerId, job.runnerId),
+      ))
+      .catch((err) => logger.error({ err, orgId }, "bulk scan heartbeat failed"));
+  }, BULK_SCAN_HEARTBEAT_MS);
+  job.heartbeatTimer.unref?.();
+}
+
+function stopBulkScanHeartbeat(job: BulkScanJobState) {
+  if (job.heartbeatTimer) {
+    clearInterval(job.heartbeatTimer);
+    job.heartbeatTimer = undefined;
+  }
 }
 
 function bulkScanStatusSnapshot(job: BulkScanJobState) {
@@ -822,6 +1021,7 @@ async function runBulkScanJob(
   job: BulkScanJobState,
 ) {
   const signal = job.abortController.signal;
+  startBulkScanHeartbeat(orgId, job);
   try {
     const docs = await db.select().from(documentsTable)
       .where(and(eq(documentsTable.organisationId, orgId), inArray(documentsTable.id, validIds)));
@@ -831,9 +1031,16 @@ async function runBulkScanJob(
     job.total = docs.length;
 
     emitBulkScanEvent(job, "start", { requested: job.requested, total: job.total });
+    await persistBulkScanJob(orgId, job);
 
     for (const doc of docs) {
       if (signal.aborted) break;
+      // Arrêt décidé ailleurs : annulation/interruption partagée, ligne disparue,
+      // ou reprise du slot par une autre instance (perte d'appartenance).
+      if (await shouldStopBulkScan(orgId, job)) {
+        try { job.abortController.abort(); } catch {}
+        break;
+      }
       if (!doc.fileContent) {
         job.failed++;
         job.completed++;
@@ -844,6 +1051,7 @@ async function runBulkScanJob(
           safe: job.safe, dangerous: job.dangerous, failed: job.failed,
           last: result,
         });
+        await persistBulkScanJob(orgId, job);
         continue;
       }
       try {
@@ -902,6 +1110,7 @@ async function runBulkScanJob(
           safe: job.safe, dangerous: job.dangerous, failed: job.failed,
           last: result,
         });
+        await persistBulkScanJob(orgId, job);
       } catch (scanErr: any) {
         logger.error({ err: scanErr, docId: doc.id }, "Bulk document scan: per-doc failure");
         job.failed++;
@@ -913,6 +1122,7 @@ async function runBulkScanJob(
           safe: job.safe, dangerous: job.dangerous, failed: job.failed,
           last: result,
         });
+        await persistBulkScanJob(orgId, job);
       }
     }
 
@@ -937,6 +1147,12 @@ async function runBulkScanJob(
     emitBulkScanEvent(job, "error", { error: "Erreur lors de l'analyse antivirus groupee" });
   } finally {
     job.finishedAt = Date.now();
+    stopBulkScanHeartbeat(job);
+    // Écriture terminale : on fige l'état final partagé pour qu'il reste
+    // réconciliable après coup (redémarrage, autre instance). Conditionnée à
+    // l'appartenance (`terminal`) : si une autre instance a repris le slot, on
+    // n'écrase pas son état (0 row).
+    await persistBulkScanJob(orgId, job, { terminal: true });
     job.emitter.emit("end");
     scheduleBulkScanCleanup(orgId, job);
   }
@@ -950,13 +1166,19 @@ function parseBulkScanIds(body: unknown): { ids: number[]; error?: string } {
   return { ids: validIds };
 }
 
-function startBulkScanJob(req: Request, validIds: number[]): BulkScanJobState {
+// Démarre un job. Renvoie le job si l'on a gagné le slot ATOMIQUEMENT, ou `null`
+// si une autre instance détient déjà un scan frais pour cette org (course
+// perdue). C'est l'acquisition atomique — et non le contrôle préalable
+// getActiveBulkScan — qui garantit qu'un seul worker tourne entre instances.
+async function startBulkScanJob(req: Request, validIds: number[]): Promise<BulkScanJobState | null> {
   const orgId = getOrgId(req);
   const userId = req.session?.userId || null;
   const ip = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || "unknown";
   const job: BulkScanJobState = {
     status: "running",
+    runnerId: crypto.randomUUID(),
     startedAt: Date.now(),
+    startedByUserId: userId,
     requested: validIds.length,
     total: validIds.length,
     completed: 0,
@@ -969,6 +1191,10 @@ function startBulkScanJob(req: Request, validIds: number[]): BulkScanJobState {
     abortController: new AbortController(),
   };
   job.emitter.setMaxListeners(50);
+  // Acquisition atomique du slot AVANT toute exécution : si on perd la course,
+  // on n'enregistre pas de job local et on ne lance pas de worker.
+  const acquired = await acquireBulkScanSlot(orgId, job);
+  if (!acquired) return null;
   bulkScanJobs.set(orgId, job);
   runBulkScanJob(orgId, validIds, userId, ip, job).catch((err) => logger.error({ err }, "runBulkScanJob failed"));
   return job;
@@ -979,29 +1205,58 @@ router.post("/documents/bulk/scan", requireMinAgent, async (req: Request, res: R
   const { ids: validIds, error } = parseBulkScanIds(req.body);
   if (error) { res.status(400).json({ error }); return; }
 
-  const existing = bulkScanJobs.get(orgId);
-  if (existing && existing.status === "running") {
-    res.json({ status: "already_running", total: existing.total, completed: existing.completed });
+  const active = await getActiveBulkScan(orgId);
+  if (active) {
+    res.json({ status: "already_running", total: active.total, completed: active.completed });
     return;
   }
 
-  const job = startBulkScanJob(req, validIds);
+  const job = await startBulkScanJob(req, validIds);
+  if (!job) {
+    // Course perdue : une autre instance a démarré le scan entre-temps.
+    const current = await getActiveBulkScan(orgId);
+    res.json({
+      status: "already_running",
+      total: current?.total ?? validIds.length,
+      completed: current?.completed ?? 0,
+    });
+    return;
+  }
   res.json({ status: "started", total: job.total });
 });
 
 router.get("/documents/bulk/scan/status", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
-  const job = bulkScanJobs.get(orgId);
-  if (!job) { res.json({ status: "idle" }); return; }
-  res.json(bulkScanStatusSnapshot(job));
+  const snapshot = await loadBulkScanSnapshot(orgId);
+  if (!snapshot) { res.json({ status: "idle" }); return; }
+  res.json(snapshot);
 });
 
 router.post("/documents/bulk/scan/cancel", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
-  const job = bulkScanJobs.get(orgId);
-  if (!job || job.status !== "running") { res.json({ status: "idle" }); return; }
-  try { job.abortController.abort(); } catch {}
-  res.json({ status: "cancelling" });
+  const local = bulkScanJobs.get(orgId);
+  if (local && local.status === "running") {
+    try { local.abortController.abort(); } catch {}
+    res.json({ status: "cancelling" });
+    return;
+  }
+  // Pas de job local : tenter d'annuler un job qui tourne sur une autre instance.
+  // On passe la ligne partagée à "cancelled" ; l'instance porteuse le détecte via
+  // shouldStopBulkScan et s'arrête. Un job orphelin devient simplement terminal
+  // (réconciliable).
+  const [row] = await db.select().from(bulkScanJobsTable)
+    .where(eq(bulkScanJobsTable.organisationId, orgId)).limit(1);
+  if (row && row.status === "running") {
+    await db.update(bulkScanJobsTable)
+      .set({ status: "cancelled", finishedAt: new Date(), updatedAt: new Date() })
+      .where(and(
+        eq(bulkScanJobsTable.organisationId, orgId),
+        eq(bulkScanJobsTable.status, "running"),
+      ));
+    res.json({ status: "cancelling" });
+    return;
+  }
+  res.json({ status: "idle" });
 });
 
 router.post("/documents/bulk/scan/stream", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
@@ -1009,9 +1264,45 @@ router.post("/documents/bulk/scan/stream", requireMinAgent, async (req: Request,
 
   let job = bulkScanJobs.get(orgId);
   if (!job || job.status !== "running") {
+    const active = await getActiveBulkScan(orgId);
+    if (active) {
+      // Un scan tourne ailleurs (autre instance) : on rejoue l'état persisté puis
+      // on ferme. Le client suit la suite via le sondage /status.
+      const [row] = await db.select().from(bulkScanJobsTable)
+        .where(eq(bulkScanJobsTable.organisationId, orgId)).limit(1);
+      const replay = openSseStream(res);
+      for (const ev of ((row?.events as BulkScanEvent[] | null | undefined) ?? [])) {
+        replay.send(ev.event, ev.data);
+      }
+      replay.end();
+      return;
+    }
     const { ids: validIds, error } = parseBulkScanIds(req.body);
-    if (error) { res.status(400).json({ error }); return; }
-    job = startBulkScanJob(req, validIds);
+    if (error) {
+      // Aucun job actif et pas d'ids : rejouer le dernier état terminal persisté
+      // (utile pour un client qui se reconnecte après un redémarrage).
+      const [row] = await db.select().from(bulkScanJobsTable)
+        .where(eq(bulkScanJobsTable.organisationId, orgId)).limit(1);
+      const replay = openSseStream(res);
+      for (const ev of ((row?.events as BulkScanEvent[] | null | undefined) ?? [])) {
+        replay.send(ev.event, ev.data);
+      }
+      replay.end();
+      return;
+    }
+    job = (await startBulkScanJob(req, validIds)) ?? undefined;
+    if (!job) {
+      // Course perdue : une autre instance vient de démarrer le scan. On rejoue
+      // l'état persisté puis on ferme (le client suit via le sondage /status).
+      const [row] = await db.select().from(bulkScanJobsTable)
+        .where(eq(bulkScanJobsTable.organisationId, orgId)).limit(1);
+      const replay = openSseStream(res);
+      for (const ev of ((row?.events as BulkScanEvent[] | null | undefined) ?? [])) {
+        replay.send(ev.event, ev.data);
+      }
+      replay.end();
+      return;
+    }
   }
 
   const stream = openSseStream(res);
