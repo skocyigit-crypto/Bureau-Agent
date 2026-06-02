@@ -612,6 +612,7 @@ type BulkScanJobState = {
   completed: number;
   safe: number;
   dangerous: number;
+  reused: number;
   failed: number;
   results: BulkScanResult[];
   events: BulkScanEvent[];
@@ -652,6 +653,7 @@ async function acquireBulkScanSlot(orgId: number, job: BulkScanJobState): Promis
     completed: 0,
     safe: 0,
     dangerous: 0,
+    reused: 0,
     failed: 0,
     results: [] as unknown[],
     events: [] as unknown[],
@@ -696,6 +698,7 @@ async function persistBulkScanJob(
     completed: job.completed,
     safe: job.safe,
     dangerous: job.dangerous,
+    reused: job.reused,
     failed: job.failed,
     results: job.results as unknown[],
     events: job.events as unknown[],
@@ -725,6 +728,7 @@ function bulkScanRowToSnapshot(row: BulkScanRow, overrideStatus?: BulkScanJobSta
     completed: row.completed,
     safe: row.safe,
     dangerous: row.dangerous,
+    reused: row.reused,
     failed: row.failed,
     results: (row.results as BulkScanResult[] | null) ?? [],
     finishedAt: row.finishedAt ? new Date(row.finishedAt).getTime() : undefined,
@@ -841,6 +845,7 @@ function bulkScanStatusSnapshot(job: BulkScanJobState) {
     completed: job.completed,
     safe: job.safe,
     dangerous: job.dangerous,
+    reused: job.reused,
     failed: job.failed,
     results: job.results,
     finishedAt: job.finishedAt,
@@ -882,7 +887,7 @@ async function runBulkScanJob(
         job.results.push(result);
         emitBulkScanEvent(job, "progress", {
           completed: job.completed, total: job.total,
-          safe: job.safe, dangerous: job.dangerous, failed: job.failed,
+          safe: job.safe, dangerous: job.dangerous, reused: job.reused, failed: job.failed,
           last: result,
         });
         await persistBulkScanJob(orgId, job);
@@ -890,7 +895,17 @@ async function runBulkScanJob(
       }
       try {
         const previousVerdict = doc.scanVerdict;
-        const scanResult = await scanBase64ContentFull(doc.fileContent, doc.originalName);
+        const storedScan: StoredScanRecord = {
+          sha256: doc.scanSha256,
+          verdict: doc.scanVerdict,
+          engine: doc.scanEngine,
+          detail: doc.scanDetail,
+          scannedAt: doc.scannedAt,
+        };
+        const { result: scanResult, reused } = await scanBase64ContentFullCached(
+          doc.fileContent, doc.originalName, storedScan,
+        );
+        if (reused) job.reused++;
         const verdict = scanResult.safe ? "safe" : "dangerous";
         await db.update(documentsTable).set({
           scanVerdict: verdict,
@@ -941,7 +956,7 @@ async function runBulkScanJob(
         job.results.push(result);
         emitBulkScanEvent(job, "progress", {
           completed: job.completed, total: job.total,
-          safe: job.safe, dangerous: job.dangerous, failed: job.failed,
+          safe: job.safe, dangerous: job.dangerous, reused: job.reused, failed: job.failed,
           last: result,
         });
         await persistBulkScanJob(orgId, job);
@@ -953,7 +968,7 @@ async function runBulkScanJob(
         job.results.push(result);
         emitBulkScanEvent(job, "progress", {
           completed: job.completed, total: job.total,
-          safe: job.safe, dangerous: job.dangerous, failed: job.failed,
+          safe: job.safe, dangerous: job.dangerous, reused: job.reused, failed: job.failed,
           last: result,
         });
         await persistBulkScanJob(orgId, job);
@@ -971,6 +986,7 @@ async function runBulkScanJob(
         scanned: job.safe + job.dangerous,
         safe: job.safe,
         dangerous: job.dangerous,
+        reused: job.reused,
         failed: job.failed,
         results: job.results,
       });
@@ -1018,6 +1034,7 @@ async function startBulkScanJob(req: Request, validIds: number[]): Promise<BulkS
     completed: 0,
     safe: 0,
     dangerous: 0,
+    reused: 0,
     failed: 0,
     results: [],
     events: [],

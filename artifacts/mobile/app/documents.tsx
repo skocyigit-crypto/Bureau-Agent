@@ -355,9 +355,9 @@ export default function DocumentsScreen() {
         headers: authHeaders(),
         onEvent: (event, data) => {
           if (event === "start") {
-            setBulkScanProgress({ completed: 0, total: data.total ?? ids.length, reused: 0 });
+            setBulkScanProgress({ completed: 0, total: data.total ?? ids.length, reused: data.reused ?? 0 });
           } else if (event === "progress") {
-            setBulkScanProgress({ completed: data.completed ?? 0, total: data.total ?? ids.length, reused: 0 });
+            setBulkScanProgress({ completed: data.completed ?? 0, total: data.total ?? ids.length, reused: data.reused ?? 0 });
             if (data.last) applyResult(data.last);
           } else if (event === "done") {
             finished = true;
@@ -365,6 +365,7 @@ export default function DocumentsScreen() {
             const parts: string[] = [];
             if (data.safe) parts.push(`${data.safe} sain(s)`);
             if (data.dangerous) parts.push(`${data.dangerous} menace(s)`);
+            if (data.reused) parts.push(`${data.reused} réutilisé(s)`);
             if (data.failed) parts.push(`${data.failed} échec(s)`);
             Alert.alert(`${data.scanned} document(s) analysé(s)`, parts.join(" · ") || "Analyse terminée.");
           } else if (event === "error") {
@@ -384,6 +385,7 @@ export default function DocumentsScreen() {
             const parts: string[] = [];
             if (r.safe) parts.push(`${r.safe} sain(s)`);
             if (r.dangerous) parts.push(`${r.dangerous} menace(s)`);
+            if (r.reused) parts.push(`${r.reused} réutilisé(s)`);
             if (r.failed) parts.push(`${r.failed} échec(s)`);
             Alert.alert(`${(r.safe ?? 0) + (r.dangerous ?? 0)} document(s) analysé(s)`, parts.join(" · ") || "Analyse terminée.");
           }

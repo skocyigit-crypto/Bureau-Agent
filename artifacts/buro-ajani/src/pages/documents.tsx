@@ -317,14 +317,15 @@ export default function DocumentsPage() {
         signal: ctrl.signal,
         onEvent: (event, data) => {
           if (event === "start") {
-            setBulkScanProgress({ completed: 0, total: data.total ?? selectedIds.length, reused: 0 });
+            setBulkScanProgress({ completed: 0, total: data.total ?? selectedIds.length, reused: data.reused ?? 0 });
           } else if (event === "progress") {
-            setBulkScanProgress({ completed: data.completed ?? 0, total: data.total ?? selectedIds.length, reused: 0 });
+            setBulkScanProgress({ completed: data.completed ?? 0, total: data.total ?? selectedIds.length, reused: data.reused ?? 0 });
           } else if (event === "done") {
             finished = true;
             const parts: string[] = [];
             if (data.safe) parts.push(`${data.safe} sain(s)`);
             if (data.dangerous) parts.push(`${data.dangerous} menace(s)`);
+            if (data.reused) parts.push(`${data.reused} réutilisé(s)`);
             if (data.failed) parts.push(`${data.failed} échec(s)`);
             toast({
               title: `${data.scanned} document(s) analysé(s)`,
@@ -347,6 +348,7 @@ export default function DocumentsPage() {
             const parts: string[] = [];
             if (data.safe) parts.push(`${data.safe} sain(s)`);
             if (data.dangerous) parts.push(`${data.dangerous} menace(s)`);
+            if (data.reused) parts.push(`${data.reused} réutilisé(s)`);
             if (data.failed) parts.push(`${data.failed} échec(s)`);
             toast({
               title: `${(data.safe ?? 0) + (data.dangerous ?? 0)} document(s) analysé(s)`,

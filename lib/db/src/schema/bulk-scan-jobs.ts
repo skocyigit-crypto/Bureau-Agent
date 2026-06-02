@@ -37,6 +37,10 @@ export const bulkScanJobsTable = pgTable("bulk_scan_jobs", {
   completed: integer("completed").notNull().default(0),
   safe: integer("safe").notNull().default(0),
   dangerous: integer("dangerous").notNull().default(0),
+  // Nombre de fichiers dont le verdict a été réutilisé (déjà scanné, empreinte
+  // inchangée) au lieu d'un nouveau scan complet. Affiché côté client comme pour
+  // le scan « Tout analyser ».
+  reused: integer("reused").notNull().default(0),
   failed: integer("failed").notNull().default(0),
   results: jsonb("results").$type<unknown[]>().notNull().default([]),
   events: jsonb("events").$type<unknown[]>().notNull().default([]),
