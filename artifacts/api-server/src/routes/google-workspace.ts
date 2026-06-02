@@ -1,5 +1,7 @@
 import { Router } from "express";
-import { ReplitConnectors } from "@replit/connectors-sdk";
+import { google } from "googleapis";
+import { db, googleOAuthTokensTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { getOrgId } from "../middleware/tenant";
 import { ingestDocument } from "../services/document-ingest";
@@ -24,8 +26,28 @@ const GOOGLE_NATIVE_EXPORT: Record<string, { mimeType: string; ext: string }> = 
   },
 };
 
-function getConnectors() {
-  return new ReplitConnectors();
+// Client OAuth PAR UTILISATEUR : chaque patron (titulaire de licence) connecte
+// SON propre compte Google. Les jetons sont stockes dans google_oauth_tokens
+// (meme mecanisme que routes/gmail.ts, services/google-calendar-sync.ts, etc.).
+// googleapis rafraichit automatiquement l'access_token via le refresh_token.
+async function getAuthClient(userId: number) {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
+
+  const tokens = await db.select().from(googleOAuthTokensTable)
+    .where(eq(googleOAuthTokensTable.userId, userId));
+  if (tokens.length === 0) return null;
+
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI ||
+    `${process.env.PUBLIC_URL || process.env.APP_URL || "http://localhost"}/api/google-oauth/callback`;
+
+  const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+  oauth2Client.setCredentials({
+    access_token: tokens[0].accessToken,
+    refresh_token: tokens[0].refreshToken,
+  });
+  return oauth2Client;
 }
 
 const GOOGLE_APPS = [
@@ -46,30 +68,58 @@ const CATEGORIES = [
   { id: "stockage",      label: "Stockage",      icon: "hard-drive" },
 ];
 
-const CONNECTED_SERVICES = new Set(["gmail", "calendar", "drive", "docs", "sheets"]);
+// Scope OAuth requis pour considerer chaque application comme reellement
+// connectee. Doit rester aligne avec GOOGLE_SCOPES_MAP de routes/google-oauth.ts.
+const APP_REQUIRED_SCOPE: Record<string, string> = {
+  gmail: "https://www.googleapis.com/auth/gmail.modify",
+  calendar: "https://www.googleapis.com/auth/calendar",
+  drive: "https://www.googleapis.com/auth/drive",
+  docs: "https://www.googleapis.com/auth/documents",
+  sheets: "https://www.googleapis.com/auth/spreadsheets",
+  slides: "https://www.googleapis.com/auth/presentations",
+  meet: "https://www.googleapis.com/auth/calendar.events",
+};
 
+// Etat REEL de connexion, derive des jetons OAuth de l'utilisateur courant.
+// Plus aucun statut code en dur : une application n'est "connectee" que si le
+// scope correspondant a effectivement ete accorde par l'utilisateur.
 router.get("/google-workspace/hub", async (req, res): Promise<void> => {
   try {
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
-    const apps = GOOGLE_APPS.map(app => ({
-      ...app,
-      connected: CONNECTED_SERVICES.has(app.id),
-      connectionStatus: CONNECTED_SERVICES.has(app.id) ? "connecte" : "deconnecte",
-      lastSync: null,
-      connectionMethod: CONNECTED_SERVICES.has(app.id) ? "replit_connectors" : "none",
-    }));
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const configured = !!(clientId && clientSecret);
+
+    const tokens = await db.select().from(googleOAuthTokensTable)
+      .where(eq(googleOAuthTokensTable.userId, userId));
+    const hasToken = tokens.length > 0;
+    const tokenValid = hasToken && !!tokens[0].expiresAt && tokens[0].expiresAt > new Date();
+    const grantedScopes = hasToken ? (tokens[0].scope || "").split(" ").filter(Boolean) : [];
+    const lastSync = hasToken ? tokens[0].updatedAt : null;
+
+    const apps = GOOGLE_APPS.map(app => {
+      const required = APP_REQUIRED_SCOPE[app.id];
+      const connected = hasToken && !!required && grantedScopes.includes(required);
+      return {
+        ...app,
+        connected,
+        connectionStatus: connected ? "connecte" : "deconnecte",
+        lastSync: connected ? lastSync : null,
+        connectionMethod: connected ? "oauth_utilisateur" : "none",
+      };
+    });
 
     const connectedCount = apps.filter(a => a.connected).length;
 
     res.json({
-      configured: true,
-      authenticated: true,
-      tokenValid: true,
+      configured,
+      authenticated: hasToken,
+      tokenValid,
       apps,
       categories: CATEGORIES,
-      connectionMethod: "replit_connectors",
+      connectionMethod: "oauth_utilisateur",
       stats: {
         totalApps: GOOGLE_APPS.length,
         connectedApps: connectedCount,
@@ -87,10 +137,11 @@ router.get("/google-workspace/recent-emails", async (req, res): Promise<void> =>
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
-    const connectors = getConnectors();
+    const auth = await getAuthClient(userId);
+    if (!auth) { res.json({ emails: [], error: "non_connecte" }); return; }
 
-    const listRes = await connectors.proxy("google-mail", "/gmail/v1/users/me/messages?maxResults=10&q=is:inbox");
-    const listData = await listRes.json() as any;
+    const gmail = google.gmail({ version: "v1", auth });
+    const listData = (await gmail.users.messages.list({ userId: "me", maxResults: 10, q: "is:inbox" })).data;
 
     if (!listData.messages) {
       res.json({ emails: [] });
@@ -100,8 +151,12 @@ router.get("/google-workspace/recent-emails", async (req, res): Promise<void> =>
     const emails: any[] = [];
     for (const msg of (listData.messages || []).slice(0, 8)) {
       try {
-        const detailRes = await connectors.proxy("google-mail", `/gmail/v1/users/me/messages/${msg.id}?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date`);
-        const detail = await detailRes.json() as any;
+        const detail = (await gmail.users.messages.get({
+          userId: "me",
+          id: msg.id!,
+          format: "metadata",
+          metadataHeaders: ["Subject", "From", "Date"],
+        })).data;
         const headers = detail.payload?.headers || [];
         emails.push({
           id: msg.id,
@@ -128,15 +183,21 @@ router.get("/google-workspace/upcoming-events", async (req, res): Promise<void> 
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
-    const connectors = getConnectors();
+    const auth = await getAuthClient(userId);
+    if (!auth) { res.json({ events: [], error: "non_connecte" }); return; }
+
+    const calendar = google.calendar({ version: "v3", auth });
     const now = new Date().toISOString();
     const endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-    const eventsRes = await connectors.proxy(
-      "google-calendar",
-      `/calendars/primary/events?timeMin=${encodeURIComponent(now)}&timeMax=${encodeURIComponent(endDate)}&maxResults=10&singleEvents=true&orderBy=startTime`
-    );
-    const eventsData = await eventsRes.json() as any;
+    const eventsData = (await calendar.events.list({
+      calendarId: "primary",
+      timeMin: now,
+      timeMax: endDate,
+      maxResults: 10,
+      singleEvents: true,
+      orderBy: "startTime",
+    })).data;
 
     const events = (eventsData.items || []).map((e: any) => ({
       id: e.id,
@@ -162,12 +223,16 @@ router.get("/google-workspace/recent-files", async (req, res): Promise<void> => 
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
-    const connectors = getConnectors();
-    const filesRes = await connectors.proxy(
-      "google-drive",
-      "/drive/v3/files?pageSize=15&orderBy=modifiedTime+desc&fields=files(id,name,mimeType,modifiedTime,size,webViewLink,owners,shared)&q=trashed+%3D+false"
-    );
-    const filesData = await filesRes.json() as any;
+    const auth = await getAuthClient(userId);
+    if (!auth) { res.json({ files: [], error: "non_connecte" }); return; }
+
+    const drive = google.drive({ version: "v3", auth });
+    const filesData = (await drive.files.list({
+      pageSize: 15,
+      orderBy: "modifiedTime desc",
+      fields: "files(id,name,mimeType,modifiedTime,size,webViewLink,owners,shared)",
+      q: "trashed = false",
+    })).data;
 
     const files = (filesData.files || []).map((f: any) => ({
       id: f.id,
@@ -193,10 +258,39 @@ router.get("/google-workspace/tasks", async (req, res): Promise<void> => {
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
-    res.json({ tasks: [], note: "Google Tasks non disponible via ce connecteur" });
+    const auth = await getAuthClient(userId);
+    if (!auth) { res.json({ tasks: [], error: "non_connecte" }); return; }
+
+    const tasksApi = google.tasks({ version: "v1", auth });
+    const lists = (await tasksApi.tasklists.list({ maxResults: 20 })).data;
+
+    const tasks: any[] = [];
+    for (const list of (lists.items || []).slice(0, 5)) {
+      try {
+        const listTasks = (await tasksApi.tasks.list({ tasklist: list.id!, maxResults: 50, showCompleted: true })).data;
+        for (const t of (listTasks.items || [])) {
+          tasks.push({
+            id: t.id,
+            title: t.title || "(Sans titre)",
+            notes: t.notes || null,
+            status: t.status === "completed" ? "completed" : "needsAction",
+            due: t.due || null,
+            listName: list.title || null,
+          });
+        }
+      } catch (err) {
+        logger.warn({ err }, "[GoogleWorkspace] task list fetch failed");
+      }
+    }
+
+    res.json({ tasks });
   } catch (error: any) {
-    logger.error({ err: error }, "Erreur taches:");
-    res.json({ tasks: [], error: "non_connecte" });
+    // Le compte EST connecte (getAuthClient a renvoye un client) : un echec ici
+    // vient le plus souvent du scope Tasks non accorde sur d'anciens jetons. On
+    // renvoie une liste vide plutot que "non_connecte" pour ne pas afficher a
+    // tort "Connectez votre compte" alors que Gmail/Agenda/Drive fonctionnent.
+    logger.warn({ err: error }, "Taches Google indisponibles (scope manquant ?):");
+    res.json({ tasks: [] });
   }
 });
 
@@ -205,9 +299,11 @@ router.get("/google-workspace/calendar-list", async (req, res): Promise<void> =>
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
-    const connectors = getConnectors();
-    const calRes = await connectors.proxy("google-calendar", "/users/me/calendarList");
-    const calData = await calRes.json() as any;
+    const auth = await getAuthClient(userId);
+    if (!auth) { res.json({ calendars: [], error: "non_connecte" }); return; }
+
+    const calendar = google.calendar({ version: "v3", auth });
+    const calData = (await calendar.calendarList.list()).data;
 
     res.json({ calendars: calData.items || [] });
   } catch (error: any) {
@@ -224,19 +320,20 @@ router.post("/google-workspace/create-event", async (req, res): Promise<void> =>
     const { title, start, end, description, location } = req.body;
     if (!title || !start || !end) { res.status(400).json({ error: "title, start, end requis" }); return; }
 
-    const connectors = getConnectors();
-    const eventRes = await connectors.proxy("google-calendar", "/calendars/primary/events", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    const auth = await getAuthClient(userId);
+    if (!auth) { res.status(400).json({ error: "Compte Google non connecte." }); return; }
+
+    const calendar = google.calendar({ version: "v3", auth });
+    const event = (await calendar.events.insert({
+      calendarId: "primary",
+      requestBody: {
         summary: title,
         description: description || "",
         location: location || "",
         start: { dateTime: start, timeZone: "Europe/Paris" },
         end: { dateTime: end, timeZone: "Europe/Paris" },
-      }),
-    });
-    const event = await eventRes.json() as any;
+      },
+    })).data;
 
     res.json({ success: true, event: { id: event.id, title: event.summary, start: event.start?.dateTime, link: event.htmlLink } });
   } catch (error: any) {
@@ -253,6 +350,9 @@ router.post("/google-workspace/send-email", async (req, res): Promise<void> => {
     const { to, subject, body } = req.body;
     if (!to || !subject || !body) { res.status(400).json({ error: "to, subject, body requis" }); return; }
 
+    const auth = await getAuthClient(userId);
+    if (!auth) { res.status(400).json({ error: "Compte Google non connecte." }); return; }
+
     const rawMessage = [
       `To: ${to}`,
       `Subject: ${subject}`,
@@ -263,13 +363,8 @@ router.post("/google-workspace/send-email", async (req, res): Promise<void> => {
 
     const encoded = Buffer.from(rawMessage).toString("base64url");
 
-    const connectors = getConnectors();
-    const sendRes = await connectors.proxy("google-mail", "/gmail/v1/users/me/messages/send", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ raw: encoded }),
-    });
-    const result = await sendRes.json() as any;
+    const gmail = google.gmail({ version: "v1", auth });
+    const result = (await gmail.users.messages.send({ userId: "me", requestBody: { raw: encoded } })).data;
 
     res.json({ success: true, messageId: result.id });
   } catch (error: any) {
@@ -286,13 +381,15 @@ router.get("/google-workspace/drive-search", async (req, res): Promise<void> => 
     const { q } = req.query;
     if (!q || typeof q !== "string") { res.status(400).json({ error: "Parametre q requis" }); return; }
 
-    const connectors = getConnectors();
-    const query = encodeURIComponent(`name contains '${q}' and trashed = false`);
-    const filesRes = await connectors.proxy(
-      "google-drive",
-      `/drive/v3/files?q=${query}&pageSize=10&fields=files(id,name,mimeType,modifiedTime,webViewLink)`
-    );
-    const filesData = await filesRes.json() as any;
+    const auth = await getAuthClient(userId);
+    if (!auth) { res.json({ files: [], error: "non_connecte" }); return; }
+
+    const drive = google.drive({ version: "v3", auth });
+    const filesData = (await drive.files.list({
+      q: `name contains '${q.replace(/'/g, "\\'")}' and trashed = false`,
+      pageSize: 10,
+      fields: "files(id,name,mimeType,modifiedTime,webViewLink)",
+    })).data;
 
     res.json({ files: (filesData.files || []).map((f: any) => ({ ...f, type: getMimeTypeLabel(f.mimeType || "") })) });
   } catch (error: any) {
@@ -315,14 +412,13 @@ router.post("/google-workspace/drive-import", async (req, res): Promise<void> =>
     const { fileId } = req.body;
     if (!fileId || typeof fileId !== "string") { res.status(400).json({ error: "fileId requis" }); return; }
 
-    const connectors = getConnectors();
+    const auth = await getAuthClient(userId);
+    if (!auth) { res.status(400).json({ error: "Compte Google non connecte." }); return; }
+
+    const drive = google.drive({ version: "v3", auth });
 
     // 1) Metadonnees pour valider l'acces + recuperer nom/type/taille.
-    const metaRes = await connectors.proxy(
-      "google-drive",
-      `/drive/v3/files/${encodeURIComponent(fileId)}?fields=id,name,mimeType,size`
-    );
-    const meta = await metaRes.json() as any;
+    const meta = (await drive.files.get({ fileId, fields: "id,name,mimeType,size" })).data as any;
     if (!meta?.id) { res.status(404).json({ error: "Fichier introuvable." }); return; }
 
     if (meta.mimeType === "application/vnd.google-apps.folder") {
@@ -333,22 +429,23 @@ router.post("/google-workspace/drive-import", async (req, res): Promise<void> =>
     // 2) Telechargement des octets — export pour les formats Google natifs,
     // sinon download direct.
     let fileName = meta.name as string;
-    let contentRes: Response;
+    let arrayBuf: ArrayBuffer;
     const nativeExport = GOOGLE_NATIVE_EXPORT[meta.mimeType];
     if (nativeExport) {
-      contentRes = await connectors.proxy(
-        "google-drive",
-        `/drive/v3/files/${encodeURIComponent(fileId)}/export?mimeType=${encodeURIComponent(nativeExport.mimeType)}`
-      ) as unknown as Response;
+      const exp = await drive.files.export(
+        { fileId, mimeType: nativeExport.mimeType },
+        { responseType: "arraybuffer" }
+      );
+      arrayBuf = exp.data as ArrayBuffer;
       if (!/\.[a-z0-9]+$/i.test(fileName)) fileName = `${fileName}.${nativeExport.ext}`;
     } else {
-      contentRes = await connectors.proxy(
-        "google-drive",
-        `/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`
-      ) as unknown as Response;
+      const dl = await drive.files.get(
+        { fileId, alt: "media" },
+        { responseType: "arraybuffer" }
+      );
+      arrayBuf = dl.data as ArrayBuffer;
     }
 
-    const arrayBuf = await contentRes.arrayBuffer();
     const fileContent = Buffer.from(arrayBuf).toString("base64");
 
     const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.socket?.remoteAddress || "unknown";

@@ -62,6 +62,47 @@ export default function GoogleWorkspace() {
   const [activeCategory, setActiveCategory] = useState("all");
   const [activeTab, setActiveTab] = useState("apps");
   const [importingFile, setImportingFile] = useState<string | null>(null);
+  const [connecting, setConnecting] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  // Lance le vrai flux OAuth 2.0 Google : demande l'URL de consentement au
+  // backend (tous les scopes par defaut) puis redirige l'utilisateur vers
+  // l'ecran de connexion Google officiel.
+  const handleConnect = useCallback(async () => {
+    setConnecting(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/google-oauth/auth-url`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.authUrl) {
+        throw new Error(data?.error || `HTTP ${res.status}`);
+      }
+      window.location.href = data.authUrl;
+    } catch (e: any) {
+      toast({ title: "Connexion impossible", description: e?.message || "Réessayez.", variant: "destructive" });
+      setConnecting(false);
+    }
+  }, [toast]);
+
+  const handleDisconnect = useCallback(async () => {
+    setDisconnecting(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/google-oauth/disconnect`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      toast({ title: "Compte Google déconnecté", description: "Toutes les applications ont été dissociées." });
+      window.location.reload();
+    } catch (e: any) {
+      toast({ title: "Échec de la déconnexion", description: e?.message || "Réessayez.", variant: "destructive" });
+      setDisconnecting(false);
+    }
+  }, [toast]);
 
   const handleImportFile = useCallback(async (file: any) => {
     if (!file?.id) return;
@@ -114,13 +155,41 @@ export default function GoogleWorkspace() {
         </div>
         <div className="flex items-center gap-2">
           {hub?.authenticated ? (
-            <Badge variant="default" className="bg-emerald-500 text-white gap-1"><Check className="h-3 w-3" /> Connecte</Badge>
+            <>
+              <Badge variant="default" className="bg-emerald-500 text-white gap-1"><Check className="h-3 w-3" /> Connecte</Badge>
+              <Button variant="outline" size="sm" className="gap-1" onClick={handleDisconnect} disabled={disconnecting}>
+                {disconnecting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Link2 className="h-3 w-3" />}
+                Deconnecter
+              </Button>
+            </>
           ) : (
-            <Badge variant="outline" className="gap-1"><AlertCircle className="h-3 w-3" /> Non connecte</Badge>
+            <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700 text-white" onClick={handleConnect} disabled={connecting}>
+              {connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
+              Connecter Google
+            </Button>
           )}
           <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
         </div>
       </div>
+
+      {hub && !hub.authenticated && (
+        <Card className="border-amber-300 bg-amber-50/60 dark:border-amber-800/50 dark:bg-amber-950/20">
+          <CardContent className="p-4 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm">En attente de configuration — aucun compte Google connecte</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Connectez votre propre compte Google pour synchroniser Gmail, Agenda, Drive, Docs, Sheets, Slides et Meet.
+                Chaque utilisateur lie son propre compte ; vos donnees restent privees.
+              </p>
+            </div>
+            <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700 text-white shrink-0" onClick={handleConnect} disabled={connecting}>
+              {connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
+              Connecter Google
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {hub?.stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
