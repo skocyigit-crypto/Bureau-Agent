@@ -7,6 +7,8 @@ import { getOrgId } from "../middleware/tenant";
 import { scanBase64ContentFull, scanBase64ContentFullCached, logSecurityEvent, type StoredScanRecord } from "../middleware/security";
 import { logger } from "../lib/logger";
 import { analyzeDocument, processDocumentForImport, importRowsToModule, analyzeDocumentMultiModel, askDocumentQuestion } from "../services/document-ai";
+import { emitSecurityAlert } from "../services/security-alerts";
+import { recordDocumentThreatSuggestion } from "../services/proactive-engine";
 
 const router = Router();
 const requireMinAgent = requireRole("super_admin", "administrateur", "agent");
@@ -746,6 +748,20 @@ router.post("/documents/bulk/scan", requireMinAgent, async (req: Request, res: R
         } else {
           dangerous++;
           logSecurityEvent("malicious_file_detected", ip, userId, `Scan groupe du document #${doc.id} (${scanResult.engine}): ${scanResult.threats.join(", ")}`, "critical");
+          emitSecurityAlert({
+            orgId,
+            kind: "file",
+            verdict: "dangerous",
+            target: doc.originalName,
+            detail: scanResult.engine || undefined,
+            excludeUserId: userId,
+          });
+          void recordDocumentThreatSuggestion({
+            orgId,
+            fileName: doc.originalName,
+            engine: scanResult.engine,
+            documentId: doc.id,
+          });
         }
         results.push({
           documentId: doc.id,
@@ -814,6 +830,20 @@ router.post("/documents/:id/scan", requireMinAgent, async (req: Request, res: Re
     if (!scanResult.safe) {
       const ip = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || "unknown";
       logSecurityEvent("malicious_file_detected", ip, userId, `Re-scan du document #${docId} (${scanResult.engine}): ${scanResult.threats.join(", ")}`, "critical");
+      emitSecurityAlert({
+        orgId,
+        kind: "file",
+        verdict: "dangerous",
+        target: doc.originalName,
+        detail: scanResult.engine || undefined,
+        excludeUserId: userId,
+      });
+      void recordDocumentThreatSuggestion({
+        orgId,
+        fileName: doc.originalName,
+        engine: scanResult.engine,
+        documentId: docId,
+      });
     }
 
     res.json({

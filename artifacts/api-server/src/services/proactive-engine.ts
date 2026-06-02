@@ -284,6 +284,62 @@ export async function runProactiveForOrg(orgId: number): Promise<number> {
   return toInsert.length;
 }
 
+/**
+ * Crée (de façon idempotente) une suggestion proactive d'alerte sécurité quand
+ * un scan antivirus flague un document stocké comme « dangereux ». Contrairement
+ * aux détecteurs du cron, c'est événementiel (appelé par les routes de scan) et
+ * indépendant de `proactiveEngineEnabled` : une menace doit toujours alerter le
+ * propriétaire, même si l'automatisation proactive est désactivée pour l'org.
+ *
+ * Agrégé au niveau org (dedupeKey stable `document_threat`) pour éviter le spam
+ * lors d'un scan groupé : une seule suggestion « pending » à la fois, qui pointe
+ * vers la liste filtrée /documents?scan=dangerous. L'auto-résolution du cron ne
+ * touche jamais ce type (hors `DETECTOR_TYPES`) : elle reste jusqu'à action de
+ * l'utilisateur. Fail-soft : ne casse jamais le flux de scan appelant.
+ */
+export async function recordDocumentThreatSuggestion(input: {
+  orgId: number;
+  fileName: string;
+  engine?: string | null;
+  documentId?: number;
+}): Promise<void> {
+  try {
+    const name = (input.fileName || "Document").slice(0, 120);
+    const engineSuffix = input.engine ? ` (${input.engine})` : "";
+    const inserted = await db
+      .insert(proactiveSuggestionsTable)
+      .values({
+        organisationId: input.orgId,
+        type: "document_threat",
+        severity: "urgent",
+        title: "Document à risque détecté",
+        detail: `Le fichier « ${name} » a été identifié comme dangereux${engineSuffix}. Vérifiez les documents signalés et supprimez la menace.`,
+        status: "pending",
+        relatedEntityType: "document",
+        relatedEntityId: input.documentId ?? null,
+        actionType: "open_documents_threats",
+        actionPayload: { scan: "dangerous" },
+        dedupeKey: "document_threat",
+      })
+      .onConflictDoNothing()
+      .returning({ id: proactiveSuggestionsTable.id });
+
+    if (inserted.length > 0) {
+      try {
+        broadcaster.broadcast(input.orgId, {
+          type: "dashboard",
+          action: "updated",
+          meta: { source: "proactive", created: 1, resolved: 0, reason: "document_threat" },
+        });
+      } catch (err) {
+        logger.warn({ err, orgId: input.orgId }, "[proactive] broadcast menace document échoué");
+      }
+    }
+  } catch (err) {
+    logger.warn({ err, orgId: input.orgId }, "[proactive] enregistrement menace document échoué");
+  }
+}
+
 async function tick(): Promise<void> {
   try {
     const orgs = await db

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import {
   Sparkles, RefreshCw, Loader2, CheckCircle2, X, ThumbsUp, ThumbsDown,
-  Clock, PhoneMissed, CalendarClock, ArrowRight, AlertTriangle, Inbox,
+  Clock, PhoneMissed, CalendarClock, ArrowRight, AlertTriangle, Inbox, ShieldAlert,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,12 +41,14 @@ const TYPE_META: Record<string, { label: string; icon: typeof Clock }> = {
   overdue_task: { label: "Tâche en retard", icon: Clock },
   missed_call_followup: { label: "Appel à rappeler", icon: PhoneMissed },
   calendar_conflict: { label: "Conflit d'agenda", icon: CalendarClock },
+  document_threat: { label: "Document à risque", icon: ShieldAlert },
 };
 
 const ACTION_NAV: Record<string, { label: string; path: string }> = {
   open_task: { label: "Ouvrir la tâche", path: "/taches" },
   callback: { label: "Voir l'appel", path: "/appels" },
   open_calendar: { label: "Ouvrir l'agenda", path: "/calendrier" },
+  open_documents_threats: { label: "Voir les documents à risque", path: "/documents?scan=dangerous" },
 };
 
 const FILTERS: Array<{ key: Status; label: string }> = [
