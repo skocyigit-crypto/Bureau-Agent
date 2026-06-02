@@ -239,7 +239,7 @@ export default function DocumentsScreen() {
   });
   const [bulkScanning, setBulkScanning] = useState(false);
   const [bulkScanCancelling, setBulkScanCancelling] = useState(false);
-  const [bulkScanProgress, setBulkScanProgress] = useState<{ completed: number; total: number } | null>(null);
+  const [bulkScanProgress, setBulkScanProgress] = useState<{ completed: number; total: number; reused: number } | null>(null);
   // "selected" = scan SSE de la selection (handleBulkScan), "all" = scan "Tout
   // analyser" en arriere-plan (handleScanAll). L'annulation choisit le bon
   // endpoint selon ce mode, car les deux chemins partagent l'etat bulkScan*.
@@ -272,7 +272,7 @@ export default function DocumentsScreen() {
         if (job.status === "running") {
           setBulkScanning(true);
           setBulkScanKind("all");
-          setBulkScanProgress({ completed: job.scanned, total: Math.max(job.total, job.scanned) });
+          setBulkScanProgress({ completed: job.scanned, total: Math.max(job.total, job.scanned), reused: job.reused ?? 0 });
           cleanup = pollBulkScan(false);
         }
       } catch {
@@ -335,7 +335,7 @@ export default function DocumentsScreen() {
     setBulkScanning(true);
     setBulkScanCancelling(false);
     setBulkScanKind("selected");
-    setBulkScanProgress({ completed: 0, total: ids.length });
+    setBulkScanProgress({ completed: 0, total: ids.length, reused: 0 });
     // Patche une ligne de document avec son verdict frais des qu'il arrive.
     const applyResult = (item: { documentId: number; scanVerdict?: string; scanEngine?: string | null; scannedAt?: string }) => {
       if (!item.scanVerdict) return;
@@ -355,9 +355,9 @@ export default function DocumentsScreen() {
         headers: authHeaders(),
         onEvent: (event, data) => {
           if (event === "start") {
-            setBulkScanProgress({ completed: 0, total: data.total ?? ids.length });
+            setBulkScanProgress({ completed: 0, total: data.total ?? ids.length, reused: 0 });
           } else if (event === "progress") {
-            setBulkScanProgress({ completed: data.completed ?? 0, total: data.total ?? ids.length });
+            setBulkScanProgress({ completed: data.completed ?? 0, total: data.total ?? ids.length, reused: 0 });
             if (data.last) applyResult(data.last);
           } else if (event === "done") {
             finished = true;
@@ -420,7 +420,7 @@ export default function DocumentsScreen() {
         const { job } = await res.json();
         if (job.status === "running") {
           setBulkScanning(true);
-          setBulkScanProgress({ completed: job.scanned, total: Math.max(job.total, job.scanned) });
+          setBulkScanProgress({ completed: job.scanned, total: Math.max(job.total, job.scanned), reused: job.reused ?? 0 });
           if (!stopped) setTimeout(tick, 1500);
         } else {
           setBulkScanning(false);
@@ -428,11 +428,12 @@ export default function DocumentsScreen() {
           setBulkScanKind(null);
           setBulkScanProgress(null);
           if (announceOnFinish && job.status === "completed") {
+            const reusedNote = (job.reused ?? 0) > 0 ? ` ${job.reused} déjà vérifié(s) (réutilisé).` : "";
             Alert.alert(
               "Analyse terminée",
               job.dangerous > 0
-                ? `${job.scanned} document(s) analysé(s). ${job.dangerous} menace(s) détectée(s).`
-                : `${job.scanned} document(s) analysé(s). Aucune menace détectée.`,
+                ? `${job.scanned} document(s) analysé(s). ${job.dangerous} menace(s) détectée(s).${reusedNote}`
+                : `${job.scanned} document(s) analysé(s). Aucune menace détectée.${reusedNote}`,
             );
           } else if (announceOnFinish && job.status === "cancelled") {
             Alert.alert(
@@ -496,7 +497,7 @@ export default function DocumentsScreen() {
       setBulkScanning(true);
       setBulkScanCancelling(false);
       setBulkScanKind("all");
-      setBulkScanProgress({ completed: job.scanned ?? 0, total: job.total || total });
+      setBulkScanProgress({ completed: job.scanned ?? 0, total: job.total || total, reused: job.reused ?? 0 });
       pollBulkScan(true);
     } catch {
       Alert.alert("Analyse antivirus", "Erreur de connexion.");
@@ -633,7 +634,7 @@ export default function DocumentsScreen() {
               )}
               <Text style={st.scanAllText}>
                 {bulkScanning
-                  ? (bulkScanProgress ? `Analyse ${bulkScanProgress.completed}/${bulkScanProgress.total}…` : "Analyse…")
+                  ? (bulkScanProgress ? `Analyse ${bulkScanProgress.completed}/${bulkScanProgress.total}${bulkScanProgress.reused > 0 ? ` · ${bulkScanProgress.reused} réutilisé(s)` : ""}…` : "Analyse…")
                   : `Tout analyser (${data?.byScan?.unscanned})`}
               </Text>
             </Pressable>
@@ -663,7 +664,7 @@ export default function DocumentsScreen() {
           <Text style={[st.bulkBannerText, { color: colors.text }]}>
             {bulkScanning
               ? (bulkScanProgress
-                  ? `Analyse en cours… ${bulkScanProgress.completed}/${bulkScanProgress.total}`
+                  ? `Analyse en cours… ${bulkScanProgress.completed}/${bulkScanProgress.total}${bulkScanProgress.reused > 0 ? ` · ${bulkScanProgress.reused} réutilisé(s)` : ""}`
                   : "Analyse en cours…")
               : `Analyser la sécurité de ${unscannedIds.length} document(s) non analysé(s)`}
           </Text>
