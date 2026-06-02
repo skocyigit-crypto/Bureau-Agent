@@ -616,9 +616,9 @@ type BulkScanResult = {
 
 type BulkScanEvent = { event: string; data: any };
 
-type BulkScanJobStatus = "running" | "completed" | "failed" | "cancelled" | "interrupted";
+export type BulkScanJobStatus = "running" | "completed" | "failed" | "cancelled" | "interrupted";
 
-type BulkScanJobState = {
+export type BulkScanJobState = {
   status: BulkScanJobStatus;
   runnerId: string;
   startedAt: number;
@@ -649,7 +649,7 @@ const BULK_SCAN_RETENTION_MS = 5 * 60 * 1000;
 const BULK_SCAN_HEARTBEAT_MS = 10 * 1000;
 // Un job "running" dont le heartbeat dépasse ce seuil est considéré comme
 // orphelin (processus mort en plein scan) et réconcilié en "interrupted".
-const BULK_SCAN_STALE_MS = 60 * 1000;
+export const BULK_SCAN_STALE_MS = 60 * 1000;
 
 type BulkScanRow = typeof bulkScanJobsTable.$inferSelect;
 
@@ -659,7 +659,7 @@ type BulkScanRow = typeof bulkScanJobsTable.$inferSelect;
 // terminal) OU si son heartbeat est périmé (worker mort). RETURNING ne renvoie
 // une ligne que si l'on a gagné le slot ; sinon un autre worker frais le détient.
 // Empêche deux instances de lancer simultanément un scan pour la même org.
-async function acquireBulkScanSlot(orgId: number, job: BulkScanJobState): Promise<boolean> {
+export async function acquireBulkScanSlot(orgId: number, job: BulkScanJobState): Promise<boolean> {
   const values = {
     runnerId: job.runnerId,
     status: "running" as const,
@@ -702,7 +702,7 @@ async function acquireBulkScanSlot(orgId: number, job: BulkScanJobState): Promis
 // repris un job orphelin, nos écritures n'affectent aucune ligne (0 row) au lieu
 // d'écraser son état. En mode progression on exige aussi `status = 'running'`
 // pour ne pas réanimer un job annulé entre-temps.
-async function persistBulkScanJob(
+export async function persistBulkScanJob(
   orgId: number,
   job: BulkScanJobState,
   opts?: { terminal?: boolean },
@@ -753,7 +753,7 @@ function bulkScanRowToSnapshot(row: BulkScanRow, overrideStatus?: BulkScanJobSta
 
 // Passe une ligne "running" périmée à "interrupted" (best effort) afin que l'état
 // reste réconciliable après un crash/redémarrage du processus qui la portait.
-async function reconcileStaleBulkScan(orgId: number): Promise<void> {
+export async function reconcileStaleBulkScan(orgId: number): Promise<void> {
   await db.update(bulkScanJobsTable)
     .set({ status: "interrupted", finishedAt: new Date(), updatedAt: new Date() })
     .where(and(
@@ -765,7 +765,7 @@ async function reconcileStaleBulkScan(orgId: number): Promise<void> {
 // Renvoie le job actif (running, heartbeat frais) pour l'org, sinon null. Réconcilie
 // au passage les jobs orphelins. Sert à empêcher de relancer un scan déjà en cours
 // sur une autre instance et à décider de l'attache du flux SSE.
-async function getActiveBulkScan(orgId: number): Promise<{ total: number; completed: number } | null> {
+export async function getActiveBulkScan(orgId: number): Promise<{ total: number; completed: number } | null> {
   const local = bulkScanJobs.get(orgId);
   if (local && local.status === "running") return { total: local.total, completed: local.completed };
   const [row] = await db.select().from(bulkScanJobsTable)
@@ -780,7 +780,7 @@ async function getActiveBulkScan(orgId: number): Promise<{ total: number; comple
 
 // Snapshot de statut résilient : privilégie le job vivant local (le plus frais),
 // sinon lit la ligne partagée et réconcilie un éventuel job orphelin.
-async function loadBulkScanSnapshot(orgId: number) {
+export async function loadBulkScanSnapshot(orgId: number) {
   const local = bulkScanJobs.get(orgId);
   if (local && local.status === "running") return bulkScanStatusSnapshot(local);
   const [row] = await db.select().from(bulkScanJobsTable)
@@ -800,7 +800,7 @@ async function loadBulkScanSnapshot(orgId: number) {
 // interruption décidée ailleurs, ligne disparue, OU perte d'appartenance (une
 // autre instance a repris le slot — runnerId différent). En cas d'erreur de
 // lecture, on ne stoppe pas (on évite d'interrompre un scan sain sur un blip DB).
-async function shouldStopBulkScan(orgId: number, job: BulkScanJobState): Promise<boolean> {
+export async function shouldStopBulkScan(orgId: number, job: BulkScanJobState): Promise<boolean> {
   try {
     const [row] = await db.select({
       status: bulkScanJobsTable.status,
