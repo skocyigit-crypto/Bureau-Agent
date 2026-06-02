@@ -61,6 +61,30 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1024).toFixed(0)} Ko`;
 }
 
+// Cout estime d'une analyse antivirus fraiche (appels moteur, lookup VirusTotal,
+// heuristiques) quand on ne dispose pas d'une mesure reelle. ~1,5 s/fichier.
+const DEFAULT_SCAN_COST_MS = 1500;
+
+function formatSeconds(seconds: number): string {
+  const rounded = seconds < 10 ? Math.round(seconds * 10) / 10 : Math.round(seconds);
+  return rounded.toLocaleString("fr-FR");
+}
+
+// Traduit le nombre de fichiers reutilises en benefice concret: analyses
+// evitees + temps gagne estime. On mesure le cout moyen d'une analyse fraiche
+// a partir du job en cours quand c'est possible, sinon on retombe sur une
+// estimation par defaut. Retourne un suffixe a coller a la description du toast.
+function formatReuseSavings(job: { reused: number; scanned: number; startedAt: number | null; finishedAt: number | null }): string {
+  if (job.reused <= 0) return "";
+  const fresh = job.scanned - job.reused;
+  let avgCostMs = DEFAULT_SCAN_COST_MS;
+  if (fresh > 0 && job.startedAt && job.finishedAt && job.finishedAt > job.startedAt) {
+    avgCostMs = (job.finishedAt - job.startedAt) / fresh;
+  }
+  const savedSeconds = (job.reused * avgCostMs) / 1000;
+  return ` ${job.reused} analyse(s) évitée(s) (~${formatSeconds(savedSeconds)} s gagnées).`;
+}
+
 interface Doc {
   id: number;
   fileName: string;
@@ -196,7 +220,7 @@ export default function DocumentsPage() {
         setBulkScanning(false);
         setBulkScanProgress(null);
         if (m.status === "completed") {
-          const reusedNote = m.reused > 0 ? ` ${m.reused} déjà vérifié(s) (réutilisé).` : "";
+          const reusedNote = formatReuseSavings(m);
           if (m.dangerous > 0) {
             toast({
               title: `${m.scanned} document(s) analysé(s)`,
