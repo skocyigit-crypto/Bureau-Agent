@@ -98,7 +98,10 @@ export default function DocumentsPage() {
   const [search, setSearch] = useState("");
   const [filterEntity, setFilterEntity] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
-  const [filterScan, setFilterScan] = useState<string>("all");
+  const [filterScan, setFilterScan] = useState<string>(() => {
+    const scan = new URLSearchParams(window.location.search).get("scan");
+    return scan === "safe" || scan === "dangerous" || scan === "none" ? scan : "all";
+  });
   const [selectedDoc, setSelectedDoc] = useState<any>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [analyzingId, setAnalyzingId] = useState<number | null>(null);

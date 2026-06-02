@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Phone, Users, CheckSquare, MessageSquare, ArrowUpRight, ArrowDownRight, Clock, Plus, Activity, BarChart3, Send, LayoutDashboard, Shield, HardDriveDownload, Zap, UserCheck, Brain, TrendingUp, Lightbulb, Rocket, CircleCheck, Circle, X, Package, FileText, Receipt, AlertTriangle, ShoppingCart, StickyNote, Target, Upload, Printer, FolderKanban } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, ArrowUpRight, ArrowDownRight, Clock, Plus, Activity, BarChart3, Send, LayoutDashboard, Shield, ShieldCheck, ShieldAlert, ShieldQuestion, HardDriveDownload, Zap, UserCheck, Brain, TrendingUp, Lightbulb, Rocket, CircleCheck, Circle, X, Package, FileText, Receipt, AlertTriangle, ShoppingCart, StickyNote, Target, Upload, Printer, FolderKanban } from "lucide-react";
 import { StaggerContainer, StaggerItem, PressableCard, SlideUp } from "@/components/premium-animations";
 import { SmartPulsePanel } from "@/components/smart-pulse-panel";
 import { Icon3D, type Icon3DVariant } from "@/components/icon-3d";
@@ -34,6 +34,34 @@ function useLiveClock() {
     return () => clearInterval(t);
   }, []);
   return now;
+}
+
+function useDocumentSecurity() {
+  const [verdict, setVerdict] = useState<{ safe: number; dangerous: number; unscanned: number } | null>(null);
+  const [error, setError] = useState(false);
+  useEffect(() => {
+    let mounted = true;
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const res = await fetch(`${API}/api/documents/stats/overview`, { credentials: "include", signal: controller.signal });
+        if (!mounted) return;
+        if (res.ok) {
+          const d = await res.json();
+          setVerdict(d.byScanVerdict ?? null);
+          setError(false);
+        } else {
+          console.error("[Dashboard] documents stats HTTP error:", res.status);
+          setError(true);
+        }
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+        if (mounted) { console.error("[Dashboard] documents stats fetch failed:", err); setError(true); }
+      }
+    })();
+    return () => { mounted = false; controller.abort(); };
+  }, []);
+  return { verdict, error };
 }
 
 function useTeamStatus() {
@@ -248,6 +276,42 @@ function CommercialSection() {
         </div>
       </div>
     </SlideUp>
+  );
+}
+
+function SecuritySummary() {
+  const { verdict, error } = useDocumentSecurity();
+  if (error || !verdict) return null;
+  const total = verdict.safe + verdict.dangerous + verdict.unscanned;
+  if (total === 0) return null;
+  const items = [
+    { key: "safe", label: "Vérifiés", count: verdict.safe, icon: ShieldCheck, color: "text-emerald-600 dark:text-emerald-400" },
+    { key: "dangerous", label: "Menaces", count: verdict.dangerous, icon: ShieldAlert, color: "text-red-600 dark:text-red-400" },
+    { key: "none", label: "Non analysés", count: verdict.unscanned, icon: ShieldQuestion, color: "text-slate-500 dark:text-slate-400" },
+  ];
+  return (
+    <Card className={verdict.dangerous > 0 ? "border-red-300 dark:border-red-800/60 bg-gradient-to-br from-red-50/60 to-rose-50/30 dark:from-red-950/20 dark:to-rose-950/10" : "bg-gradient-to-br from-slate-50 to-slate-100/50 dark:from-slate-950/30 dark:to-slate-900/10 border-slate-200/50 dark:border-slate-800/30"}>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Shield className={`w-4 h-4 ${verdict.dangerous > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}`} />
+            <span>Sécurité des documents</span>
+          </div>
+          <Link href="/documents" className="text-xs font-medium text-primary hover:underline">Voir</Link>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {items.map(item => (
+            <Link key={item.key} href={`/documents?scan=${item.key}`}>
+              <button type="button" className="w-full flex flex-col items-center gap-1 rounded-lg border bg-card/60 px-2 py-3 transition-colors hover:bg-accent">
+                <item.icon className={`w-4 h-4 ${item.color}`} />
+                <span className={`text-xl font-bold tabular-nums ${item.color}`}>{item.count}</span>
+                <span className="text-[11px] text-muted-foreground text-center leading-tight">{item.label}</span>
+              </button>
+            </Link>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -500,6 +564,12 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <SafeComponent fallbackTitle="Sécurité des documents">
+        <div className="grid gap-4 md:grid-cols-3">
+          <SecuritySummary />
+        </div>
+      </SafeComponent>
 
       <SafeComponent fallbackTitle="AI Spot">
         <SlideUp>
