@@ -15,3 +15,4 @@
 - [Document threat alerts](document-threat-alerts.md) — stored docs go "dangerous" only via re-scan endpoints; event-driven proactive suggestion alerts owners regardless of cron opt-in.
 - [Prod schema & rename trap](prod-schema-publish-flow.md) — prod schema changes only via Publish (dev→prod diff), never direct DDL; legacy user_sessions makes push-force rename-destroy new tables — pre-create with additive SQL.
 - [Dev DB drift + scan cancel e2e](dev-db-drift-and-scan-e2e.md) — drizzle push offers a DESTRUCTIVE user_sessions→agent_proposals rename (never accept); org delete blocked by append-only audit; seed ~6000 docs to e2e the bulk-scan cancel flow.
+- [Webhook session<->tenant binding](webhook-session-tenant-binding.md) — signature check alone doesn't prevent cross-tenant leaks; re-assert session.orgId === resolvedTenant.orgId each turn; set fulfilled flag only after DB write.

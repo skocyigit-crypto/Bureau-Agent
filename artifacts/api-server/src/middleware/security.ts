@@ -225,6 +225,17 @@ export function threatDetection(req: Request, res: Response, next: NextFunction)
     return next();
   }
 
+  // Bypass pour les webhooks vocaux Twilio (secretaire telephonique IA): la
+  // signature Twilio est verifiee dans le handler, et la transcription vocale
+  // (SpeechResult) peut contenir des chaines anodines que les patterns
+  // d'injection signaleraient a tort. Scope au POST + prefixe exact.
+  if (
+    req.method === "POST" &&
+    (req.path.startsWith("/voice/twilio/") || req.originalUrl.startsWith("/api/voice/twilio/"))
+  ) {
+    return next();
+  }
+
   if (req.body && typeof req.body === "object") {
     const threat = detectThreatInValue(req.body, "body");
     if (threat) {
@@ -300,6 +311,15 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
   if (
     req.method === "POST" &&
     (req.path === "/whatsapp/twilio/inbound" || req.originalUrl === "/api/whatsapp/twilio/inbound")
+  ) {
+    return next();
+  }
+
+  // Bypass pour les webhooks vocaux Twilio (secretaire telephonique IA):
+  // signature Twilio verifiee dans le handler, pas d'Origin envoye par Twilio.
+  if (
+    req.method === "POST" &&
+    (req.path.startsWith("/voice/twilio/") || req.originalUrl.startsWith("/api/voice/twilio/"))
   ) {
     return next();
   }

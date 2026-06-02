@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { confirmAction } from "@/hooks/use-confirm";
-import { Phone, Plus, Settings, Trash2, Star, Check, MessageSquare, PhoneCall, PhoneOff, Send, RefreshCw, ExternalLink, Shield, Zap, Users, Clock, FileText, CalendarClock, Printer, FolderKanban } from "lucide-react";
+import { Phone, Plus, Settings, Trash2, Star, Check, MessageSquare, PhoneCall, PhoneOff, Send, RefreshCw, ExternalLink, Shield, Zap, Users, Clock, FileText, CalendarClock, Printer, FolderKanban, Bot, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 
@@ -65,7 +65,7 @@ export default function TelephonyPage() {
     else toast({ title: "Erreur lors de la création", variant: "destructive" });
   }
 
-  const [tab, setTab] = useState<"providers" | "call" | "sms" | "bulk" | "schedule" | "logs" | "stats">("providers");
+  const [tab, setTab] = useState<"providers" | "secretaire" | "call" | "sms" | "bulk" | "schedule" | "logs" | "stats">("providers");
   const [bulkNumbers, setBulkNumbers] = useState("");
   const [bulkBody, setBulkBody] = useState("");
   const [bulkResult, setBulkResult] = useState<{ sent: number; failed: number } | null>(null);
@@ -91,6 +91,64 @@ export default function TelephonyPage() {
   const [actionResult, setActionResult] = useState<{ type: string; success: boolean; message: string } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Secretaire telephonique IA (config stockee dans le fournisseur Twilio par defaut).
+  interface AiReceptionistState {
+    configured: boolean;
+    enabled: boolean;
+    language: "fr" | "tr" | "en";
+    greeting: string;
+    orgName: string;
+    webhookUrl: string;
+    statusCallbackUrl: string;
+  }
+  const [aiRec, setAiRec] = useState<AiReceptionistState | null>(null);
+  const [aiRecSaving, setAiRecSaving] = useState(false);
+
+  const fetchAiReceptionist = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/api/telephony/ai-receptionist`, { credentials: "include" });
+      if (res.ok) setAiRec(await res.json());
+    } catch {
+      /* silencieux: l'onglet affichera l'etat de chargement */
+    }
+  }, []);
+
+  const saveAiReceptionist = async () => {
+    if (!aiRec) return;
+    setAiRecSaving(true);
+    try {
+      const res = await fetch(`${API}/api/telephony/ai-receptionist`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          enabled: aiRec.enabled,
+          language: aiRec.language,
+          greeting: aiRec.greeting,
+          orgName: aiRec.orgName,
+        }),
+      });
+      if (res.ok) {
+        toast({ title: "Secrétaire IA enregistrée" });
+        await fetchAiReceptionist();
+      } else {
+        const body = await res.json().catch(() => ({}));
+        toast({ title: "Erreur", description: body.error || "Enregistrement impossible.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Erreur de connexion.", variant: "destructive" });
+    } finally {
+      setAiRecSaving(false);
+    }
+  };
+
+  const copyToClipboard = (value: string) => {
+    navigator.clipboard?.writeText(value).then(
+      () => toast({ title: "Copié" }),
+      () => toast({ title: "Copie impossible", variant: "destructive" }),
+    );
+  };
+
   const fetchData = useCallback(async () => {
     try {
       const [avRes, confRes, statsRes] = await Promise.all([
@@ -109,6 +167,7 @@ export default function TelephonyPage() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchAiReceptionist(); }, [fetchAiReceptionist]);
 
   async function fetchLogs() {
     try {
@@ -325,6 +384,7 @@ export default function TelephonyPage() {
       <div className="flex gap-2 border-b pb-2 overflow-x-auto">
         {[
           { key: "providers" as const, label: "Fournisseurs", icon: Settings },
+          { key: "secretaire" as const, label: "Secrétaire IA", icon: Bot },
           { key: "call" as const, label: "Appeler", icon: PhoneCall },
           { key: "sms" as const, label: "SMS", icon: MessageSquare },
           { key: "bulk" as const, label: "SMS Campagne", icon: Users },
@@ -397,6 +457,120 @@ export default function TelephonyPage() {
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {tab === "secretaire" && (
+        <div className="max-w-2xl mx-auto space-y-4">
+          <div className="bg-card rounded-xl border p-6 space-y-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                  <Bot className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">Secrétaire téléphonique IA</h3>
+                  <p className="text-sm text-muted-foreground">Répond aux appels 7j/24, prend les rendez-vous et les messages.</p>
+                </div>
+              </div>
+            </div>
+
+            {!aiRec ? (
+              <p className="text-sm text-muted-foreground">Chargement…</p>
+            ) : !aiRec.configured ? (
+              <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-300 text-sm">
+                Configurez d'abord un fournisseur <strong>Twilio</strong> dans l'onglet « Fournisseurs » pour activer la secrétaire IA.
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between p-4 rounded-lg border bg-background">
+                  <div>
+                    <p className="font-medium text-sm">Activer la secrétaire IA</p>
+                    <p className="text-xs text-muted-foreground">Quand activée, l'IA répond aux appels entrants sur votre numéro Twilio.</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={aiRec.enabled}
+                    onClick={() => setAiRec({ ...aiRec, enabled: !aiRec.enabled })}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${aiRec.enabled ? "bg-primary" : "bg-muted-foreground/30"}`}
+                  >
+                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${aiRec.enabled ? "translate-x-5" : "translate-x-1"}`} />
+                  </button>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium">Langue de la secrétaire</label>
+                    <select
+                      value={aiRec.language}
+                      onChange={e => setAiRec({ ...aiRec, language: e.target.value as "fr" | "tr" | "en" })}
+                      className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-foreground"
+                    >
+                      <option value="fr">Français</option>
+                      <option value="tr">Türkçe</option>
+                      <option value="en">English</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Nom de l'entreprise (annoncé)</label>
+                    <input
+                      type="text"
+                      value={aiRec.orgName}
+                      onChange={e => setAiRec({ ...aiRec, orgName: e.target.value })}
+                      placeholder="Ex: Cabinet Martin"
+                      maxLength={120}
+                      className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-foreground"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Message d'accueil (optionnel)</label>
+                  <textarea
+                    value={aiRec.greeting}
+                    onChange={e => setAiRec({ ...aiRec, greeting: e.target.value })}
+                    placeholder="Laissez vide pour utiliser le message par défaut dans la langue choisie."
+                    maxLength={500}
+                    rows={3}
+                    className="w-full mt-1 px-3 py-2 rounded-lg border bg-background text-foreground resize-y"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">{aiRec.greeting.length}/500 caractères</p>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={saveAiReceptionist}
+                    disabled={aiRecSaving}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50"
+                  >
+                    {aiRecSaving ? "Enregistrement…" : "Enregistrer"}
+                  </button>
+                </div>
+
+                <div className="border-t pt-4 space-y-3">
+                  <p className="text-sm font-medium flex items-center gap-2"><ExternalLink className="h-4 w-4" /> Configuration Twilio</p>
+                  <p className="text-xs text-muted-foreground">
+                    Dans la console Twilio, ouvrez votre numéro &gt; « Voice &amp; Fax » &gt; « A CALL COMES IN », choisissez <strong>Webhook</strong> (HTTP POST) et collez l'URL ci-dessous. Pour « CALL STATUS CHANGES », utilisez l'URL de statut.
+                  </p>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">URL du webhook (appel entrant)</label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <input readOnly value={aiRec.webhookUrl} className="flex-1 px-3 py-2 rounded-lg border bg-muted text-foreground text-xs font-mono" />
+                      <button onClick={() => copyToClipboard(aiRec.webhookUrl)} className="p-2 border rounded-lg hover:bg-muted" title="Copier"><Copy className="h-4 w-4" /></button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground">URL de statut d'appel (optionnel)</label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <input readOnly value={aiRec.statusCallbackUrl} className="flex-1 px-3 py-2 rounded-lg border bg-muted text-foreground text-xs font-mono" />
+                      <button onClick={() => copyToClipboard(aiRec.statusCallbackUrl)} className="p-2 border rounded-lg hover:bg-muted" title="Copier"><Copy className="h-4 w-4" /></button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
 

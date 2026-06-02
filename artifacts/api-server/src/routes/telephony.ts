@@ -240,6 +240,86 @@ router.patch("/telephony/fraud-protection", async (req, res): Promise<void> => {
   }
 });
 
+// Secretaire telephonique IA (entrante). Endpoints dedies (lecture/ecriture du
+// seul champ config.aiReceptionist) — meme precaution que fraud-protection:
+// ne JAMAIS toucher aux identifiants du fournisseur (le PATCH generique
+// remplace tout le config et masque les secrets, ce qui les corromprait).
+const REC_LANGS = ["fr", "tr", "en"] as const;
+type RecLangCfg = (typeof REC_LANGS)[number];
+
+function receptionistBaseUrl(req: Request): string {
+  const proto = (req.headers["x-forwarded-proto"] as string) || req.protocol || "https";
+  const host = (req.headers["x-forwarded-host"] as string) || (req.headers.host as string) || "";
+  return `${proto}://${host}`;
+}
+
+router.get("/telephony/ai-receptionist", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  try {
+    const p = await getDefaultTwilioProviderRow(orgId);
+    const cfg = ((p?.config as Record<string, any>)?.aiReceptionist ?? {}) as Record<string, any>;
+    const language: RecLangCfg = REC_LANGS.includes(cfg.language) ? cfg.language : "fr";
+    const base = receptionistBaseUrl(req);
+    res.json({
+      configured: !!p,
+      enabled: cfg.enabled === true,
+      language,
+      greeting: typeof cfg.greeting === "string" ? cfg.greeting : "",
+      orgName: typeof cfg.orgName === "string" ? cfg.orgName : "",
+      webhookUrl: `${base}/api/voice/twilio/incoming`,
+      statusCallbackUrl: `${base}/api/voice/twilio/status`,
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur lecture secretaire IA");
+    res.status(500).json({ error: "Erreur lors de la lecture du reglage." });
+  }
+});
+
+router.put("/telephony/ai-receptionist", async (req, res): Promise<void> => {
+  const orgId = getOrgId(req);
+  const { enabled, language, greeting, orgName } = req.body ?? {};
+  if (typeof enabled !== "boolean") {
+    res.status(400).json({ error: "Champ 'enabled' (booleen) requis." });
+    return;
+  }
+  if (greeting != null && typeof greeting !== "string") {
+    res.status(400).json({ error: "'greeting' doit etre une chaine de caracteres." });
+    return;
+  }
+  if (orgName != null && typeof orgName !== "string") {
+    res.status(400).json({ error: "'orgName' doit etre une chaine de caracteres." });
+    return;
+  }
+  const lang: RecLangCfg = REC_LANGS.includes(language) ? language : "fr";
+  try {
+    const p = await getDefaultTwilioProviderRow(orgId);
+    if (!p) {
+      res.status(404).json({ error: "Aucun fournisseur Twilio configure." });
+      return;
+    }
+    const prevCfg = (p.config as Record<string, any>) ?? {};
+    const prevRec = (prevCfg.aiReceptionist as Record<string, any>) ?? {};
+    const nextRec = {
+      ...prevRec,
+      enabled,
+      language: lang,
+      greeting: typeof greeting === "string" ? greeting.slice(0, 500) : (prevRec.greeting ?? ""),
+      orgName: typeof orgName === "string" ? orgName.slice(0, 120) : (prevRec.orgName ?? ""),
+    };
+    const nextConfig = { ...prevCfg, aiReceptionist: nextRec };
+    await db.update(telephonyProvidersTable)
+      .set({ config: nextConfig })
+      .where(and(
+        eq(telephonyProvidersTable.id, p.id),
+        eq(telephonyProvidersTable.organisationId, orgId),
+      ));
+    res.json({ enabled: nextRec.enabled, language: nextRec.language, greeting: nextRec.greeting, orgName: nextRec.orgName });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur mise a jour secretaire IA");
+    res.status(500).json({ error: "Erreur lors de l'enregistrement du reglage." });
+  }
+});
+
 router.post("/telephony/providers", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
   const { provider, label, config, phoneNumbers } = req.body;

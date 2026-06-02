@@ -46,6 +46,7 @@ import telephonyRouter, { telephonyWebhookRouter } from "./telephony";
 import voiceCommandRouter from "./voice-command";
 import { twilioVoiceRouter } from "./twilio-voice";
 import { whatsappRouter } from "./whatsapp";
+import { voiceReceptionistRouter } from "./voice-receptionist";
 import invitationsRouter from "./invitations";
 import documentsRouter from "./documents";
 import aiUsageRouter from "./ai-usage";
@@ -89,6 +90,7 @@ router.use(publicDemoChatRouter);
 router.use(telephonyWebhookRouter);
 router.use(twilioVoiceRouter);
 router.use(whatsappRouter);
+router.use(voiceReceptionistRouter);
 router.get("/invitations/verify/:token", (req, res, next) => invitationsRouter(req, res, next));
 router.post("/invitations/accept/:token", (req, res, next) => invitationsRouter(req, res, next));
 
