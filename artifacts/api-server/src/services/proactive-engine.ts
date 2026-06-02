@@ -340,6 +340,58 @@ export async function recordDocumentThreatSuggestion(input: {
   }
 }
 
+/**
+ * Tâche #134 — décide si une notification push de menace documentaire doit
+ * être émise pour ce scan. La règle est *par document* (et non agrégée au
+ * niveau org comme la suggestion proactive) : on notifie uniquement lors d'une
+ * transition « pas déjà dangereux » → « dangereux ». Conséquences voulues :
+ *  - un nouveau document dangereux notifie une fois ;
+ *  - un autre document distinct devenu dangereux notifie aussi ;
+ *  - re-scanner un document déjà marqué « dangerous » ne re-notifie pas.
+ * La dédup s'appuie sur le verdict persisté en base (pas d'état en mémoire),
+ * donc elle survit aux redémarrages serveur.
+ */
+export function shouldNotifyDocumentThreat(
+  previousVerdict: string | null | undefined,
+  newVerdict: string,
+): boolean {
+  return newVerdict === "dangerous" && previousVerdict !== "dangerous";
+}
+
+/**
+ * Émet l'évènement SSE `security` porteur de la charge de notification que le
+ * mobile (UnreadBadgesContext) convertit en notification locale ouvrant la
+ * liste filtrée /documents?scan=dangerous. À n'appeler que lorsque
+ * `shouldNotifyDocumentThreat` est vrai (dédup par transition de verdict). Les
+ * évènements `security` émis par emitSecurityAlert (par fichier, sans `notify`)
+ * restent ignorés côté notification pour ne pas spammer. Fail-soft : ne casse
+ * jamais le flux de scan appelant.
+ */
+export function broadcastDocumentThreatNotification(input: {
+  orgId: number;
+  fileName: string;
+  engine?: string | null;
+}): void {
+  try {
+    const name = (input.fileName || "Document").slice(0, 120);
+    const engineSuffix = input.engine ? ` (${input.engine})` : "";
+    broadcaster.broadcast(input.orgId, {
+      type: "security",
+      action: "created",
+      meta: {
+        source: "document_threat",
+        notify: true,
+        title: "Document à risque détecté",
+        body: `Le fichier « ${name} » a été identifié comme dangereux${engineSuffix}.`,
+        route: "/documents",
+        scan: "dangerous",
+      },
+    });
+  } catch (err) {
+    logger.warn({ err, orgId: input.orgId }, "[proactive] broadcast notif menace document échoué");
+  }
+}
+
 async function tick(): Promise<void> {
   try {
     const orgs = await db

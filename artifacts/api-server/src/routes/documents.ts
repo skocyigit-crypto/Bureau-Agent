@@ -8,7 +8,11 @@ import { scanBase64Content, scanBase64ContentFull, scanBase64ContentFullCached, 
 import { logger } from "../lib/logger";
 import { analyzeDocument, processDocumentForImport, importRowsToModule, analyzeDocumentMultiModel, askDocumentQuestion } from "../services/document-ai";
 import { emitSecurityAlert } from "../services/security-alerts";
-import { recordDocumentThreatSuggestion } from "../services/proactive-engine";
+import {
+  recordDocumentThreatSuggestion,
+  shouldNotifyDocumentThreat,
+  broadcastDocumentThreatNotification,
+} from "../services/proactive-engine";
 import { openSseStream } from "../services/ai-stream";
 import { EventEmitter } from "events";
 import { startBulkScan, getBulkScanStatus } from "../services/document-scan-job";
@@ -843,6 +847,7 @@ async function runBulkScanJob(
         continue;
       }
       try {
+        const previousVerdict = doc.scanVerdict;
         const scanResult = await scanBase64ContentFull(doc.fileContent, doc.originalName);
         const verdict = scanResult.safe ? "safe" : "dangerous";
         await db.update(documentsTable).set({
@@ -873,6 +878,16 @@ async function runBulkScanJob(
             engine: scanResult.engine,
             documentId: doc.id,
           });
+          // Tâche #134 : notification push mobile, dédupliquée par document via
+          // la transition de verdict (un même fichier déjà « dangerous » ne
+          // re-notifie pas, mais chaque nouveau fichier dangereux notifie).
+          if (shouldNotifyDocumentThreat(previousVerdict, verdict)) {
+            broadcastDocumentThreatNotification({
+              orgId,
+              fileName: doc.originalName,
+              engine: scanResult.engine,
+            });
+          }
         }
         const result: BulkScanResult = {
           documentId: doc.id,
@@ -1050,6 +1065,7 @@ router.post("/documents/:id/scan", requireMinAgent, async (req: Request, res: Re
       return;
     }
 
+    const previousVerdict = doc.scanVerdict;
     const scanResult = await scanBase64ContentFull(doc.fileContent, doc.originalName);
     const verdict = scanResult.safe ? "safe" : "dangerous";
 
@@ -1079,6 +1095,16 @@ router.post("/documents/:id/scan", requireMinAgent, async (req: Request, res: Re
         engine: scanResult.engine,
         documentId: docId,
       });
+      // Tâche #134 : notification push mobile, dédupliquée par document via la
+      // transition de verdict (re-scanner un fichier déjà « dangerous » ne
+      // re-notifie pas ; chaque nouveau fichier devenu dangereux notifie).
+      if (shouldNotifyDocumentThreat(previousVerdict, verdict)) {
+        broadcastDocumentThreatNotification({
+          orgId,
+          fileName: doc.originalName,
+          engine: scanResult.engine,
+        });
+      }
     }
 
     res.json({

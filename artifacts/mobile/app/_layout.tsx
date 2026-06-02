@@ -87,7 +87,11 @@ export default function RootLayout() {
   // to navigate before mounting the Root Layout component". On met donc la
   // route en attente et on la rejoue dès que le navigateur est prêt
   // (fontsLoaded || fontError).
-  const pendingRouteRef = useRef<{ pathname: string; resourceId?: number } | null>(null);
+  const pendingRouteRef = useRef<{
+    pathname: string;
+    resourceId?: number;
+    scan?: string;
+  } | null>(null);
   const navReadyRef = useRef(false);
   const navReady = Platform.OS === "web" ? true : fontsLoaded || !!fontError;
 
@@ -98,7 +102,14 @@ export default function RootLayout() {
       // Tâche #83 — quand on a l'id de la ressource (ex: id du nouveau
       // message/tâche), on l'injecte en param `open` pour que l'écran
       // cible ouvre directement le détail au lieu de juste afficher la liste.
-      if (typeof target.resourceId === "number") {
+      if (typeof target.scan === "string") {
+        // Tâche #134 : la notification de menace documentaire ouvre la liste
+        // déjà filtrée sur les fichiers dangereux (/documents?scan=dangerous).
+        router.push({
+          pathname: target.pathname,
+          params: { scan: target.scan },
+        } as never);
+      } else if (typeof target.resourceId === "number") {
         router.push({
           pathname: target.pathname,
           params: { open: String(target.resourceId) },
@@ -141,11 +152,14 @@ export default function RootLayout() {
       // vers les listes correspondantes côté mobile.
       "/tasks",
       "/projets",
+      // Tâche #134: alerte de menace documentaire → liste des documents,
+      // filtrée sur les fichiers dangereux via le param `scan`.
+      "/documents",
     ]);
 
     const extractTarget = (response: Notifications.NotificationResponse) => {
       const data = response?.notification?.request?.content?.data as
-        | { route?: string; resourceId?: number | string }
+        | { route?: string; resourceId?: number | string; scan?: string }
         | undefined;
       const route = data?.route;
       if (typeof route !== "string" || !ALLOWED_ROUTES.has(route)) return null;
@@ -156,7 +170,13 @@ export default function RootLayout() {
         const parsed = parseInt(data.resourceId, 10);
         if (Number.isFinite(parsed)) resourceId = parsed;
       }
-      return { pathname: route, resourceId };
+      // Tâche #134: filtre de liste (ex. scan=dangerous) relayé tel quel à la
+      // route cible. On le borne à une valeur courte connue pour rester sûr.
+      let scan: string | undefined;
+      if (typeof data?.scan === "string" && data.scan.length > 0 && data.scan.length <= 32) {
+        scan = data.scan;
+      }
+      return { pathname: route, resourceId, scan };
     };
 
     const handleResponse = (response: Notifications.NotificationResponse) => {

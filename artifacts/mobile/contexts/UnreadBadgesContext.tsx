@@ -165,6 +165,10 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
         body: string;
         route: string;
         badgeKey?: BadgeKey;
+        // Tâche #134 : filtre de liste à appliquer à l'ouverture (ex.
+        // "dangerous" pour /documents?scan=dangerous). Relayé au listener de
+        // réponse dans `_layout.tsx` via le champ `scan` du payload.
+        scan?: string;
       },
     ) => {
       if (!prefsLoadedRef.current) return;
@@ -189,7 +193,11 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
             title: params.title,
             body: params.body,
             sound: true,
-            data: { route: params.route, ...(params.badgeKey ? { badgeKey: params.badgeKey } : {}) },
+            data: {
+              route: params.route,
+              ...(params.badgeKey ? { badgeKey: params.badgeKey } : {}),
+              ...(params.scan ? { scan: params.scan } : {}),
+            },
           },
           trigger: null,
         }).catch(() => {});
@@ -403,6 +411,10 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
                 title?: string;
                 body?: string;
                 sourceType?: string;
+                source?: string;
+                notify?: boolean;
+                route?: string;
+                scan?: string;
               };
             };
             if (event.type === "ping") continue;
@@ -471,6 +483,26 @@ export function UnreadBadgesProvider({ children }: { children: React.ReactNode }
                 title: event.meta?.title || defaultTitle,
                 body: event.meta?.body || defaultBody,
                 route,
+              });
+              continue;
+            }
+            if (event.type === "security") {
+              // Tâche #134 : menace documentaire. Le serveur n'émet un event
+              // `security` porteur de `notify` que lorsqu'une NOUVELLE
+              // suggestion « pending » a été créée (dédup côté DB), donc une
+              // même menace ne re-notifie pas en boucle. Les autres events
+              // `security` (alertes par fichier, sans `notify`) sont ignorés.
+              // Pas de badge dédié : on déclenche uniquement vibration + notif
+              // locale ouvrant la liste filtrée /documents?scan=dangerous.
+              if (event.action !== "created") continue;
+              if (!event.meta?.notify) continue;
+              triggerCustomAlert({
+                title: event.meta?.title || "Document à risque détecté",
+                body:
+                  event.meta?.body ||
+                  "Un document analysé a été identifié comme dangereux.",
+                route: "/documents",
+                scan: typeof event.meta?.scan === "string" ? event.meta.scan : "dangerous",
               });
               continue;
             }
