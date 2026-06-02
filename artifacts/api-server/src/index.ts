@@ -7,7 +7,7 @@ import { ensureAuditAppendOnly } from "./services/ensure-audit-append-only";
 import { startGoogleAutoPointage } from "./services/google-auto-pointage";
 import { startGoogleDriveBackupScheduler } from "./services/google-drive-backup";
 import { startDataProtectionMonitor } from "./services/data-protection-monitor";
-import { startAiUsagePurgeJob, installGeminiModelFallback } from "./services/ai-utils";
+import { startAiUsagePurgeJob, installGeminiModelFallback, onGeminiModelFallback } from "./services/ai-utils";
 import { startAiCachePurgeJob } from "./services/ai-cache";
 import { startBillingCron } from "./services/billing-cron";
 import { startQuotaWarningCron } from "./services/quota-warning-cron";
@@ -15,7 +15,7 @@ import { startTrialWarningCron } from "./services/trial-warning-cron";
 import { startAiInsightsCron } from "./services/ai-insights";
 import { startLocationCleanupCron } from "./services/location-cleanup-cron";
 import { startSecurityDigestCron } from "./services/security-digest-cron";
-import { startProactiveEngine } from "./services/proactive-engine";
+import { startProactiveEngine, recordModelFallbackSuggestion } from "./services/proactive-engine";
 import { startAiLearning } from "./services/ai-learning";
 import { startAutonomousSecretaryCron } from "./services/autonomous-secretary-cron";
 import { startAppAuditCron } from "./services/app-audit-cron";
@@ -106,6 +106,11 @@ async function startServer(): Promise<void> {
     logger.info({ port }, "Server listening");
 
     void installGeminiModelFallback();
+    // Tâche #189 — un repli de modele IA alerte l'admin (suggestion proactive
+    // cote org super-admin), au lieu de rester une simple ligne de log.
+    onGeminiModelFallback((ev) => {
+      void recordModelFallbackSuggestion({ from: ev.from, to: ev.to });
+    });
     ensureSuperAdmin().catch(err => logger.error({ err }, "Erreur seed admin"));
     void ensureAuditAppendOnly();
     startAutoBackup();

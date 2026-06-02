@@ -42,6 +42,7 @@ const TYPE_META: Record<string, { label: string; icon: typeof Clock }> = {
   missed_call_followup: { label: "Appel à rappeler", icon: PhoneMissed },
   calendar_conflict: { label: "Conflit d'agenda", icon: CalendarClock },
   document_threat: { label: "Document à risque", icon: ShieldAlert },
+  model_fallback: { label: "Modèle IA retiré", icon: AlertTriangle },
 };
 
 const ACTION_NAV: Record<string, { label: string; path: string }> = {

@@ -392,6 +392,108 @@ export function broadcastDocumentThreatNotification(input: {
   }
 }
 
+// --- Alerte admin : repli automatique de modele IA (Tâche #189) -----------
+//
+// L'organisation super-admin (KOBİ exploitant le SaaS) est la seule a pouvoir
+// mettre a jour les variables d'environnement de modele (GEMINI_PRO_MODEL /
+// GEMINI_FLASH_MODEL). C'est donc elle qu'on alerte quand un repli se declenche.
+const SUPER_ADMIN_ORG_SLUG = "agent-de-bureau-sas";
+
+// Garde mémoire des modeles deja signales (par modele retire) : evite d'ecrire
+// en base a chaque requete (le repli peut se declencher des dizaines de fois).
+// La garde DB (index unique partiel sur dedupe_key) couvre le multi-instance et
+// le redemarrage ; cette garde-ci supprime juste le churn par requete.
+const alertedFallbackModels = new Set<string>();
+
+let superAdminOrgIdCache: number | null = null;
+async function getSuperAdminOrgId(): Promise<number | null> {
+  if (superAdminOrgIdCache != null) return superAdminOrgIdCache;
+  try {
+    const [org] = await db
+      .select({ id: organisationsTable.id })
+      .from(organisationsTable)
+      .where(eq(organisationsTable.slug, SUPER_ADMIN_ORG_SLUG))
+      .limit(1);
+    if (org) superAdminOrgIdCache = org.id;
+    return org?.id ?? null;
+  } catch (err) {
+    logger.warn({ err }, "[proactive] lookup organisation super-admin échoué");
+    return null;
+  }
+}
+
+/**
+ * Tâche #189 — alerte l'administrateur quand un modele IA a ete retire et que
+ * le repli automatique (Tâche #186) prend le relais. Sans cela, le repli est
+ * totalement silencieux (une seule ligne de log) et personne ne pense a
+ * basculer la variable d'environnement vers un modele actuel.
+ *
+ * Dédup a deux niveaux, comme `recordDocumentThreatSuggestion` :
+ *  - en mémoire (`alertedFallbackModels`) pour ne pas marteler la base a chaque
+ *    requete sur la duree de vie du process ;
+ *  - en base via dedupeKey `model_fallback:<modele_retire>` + index unique
+ *    partiel (une seule suggestion « pending » par modele retire et par org).
+ * Le type `model_fallback` n'est pas un `DETECTOR_TYPES` : le cron ne l'auto-
+ * résout jamais, la suggestion reste jusqu'a action de l'admin. Fail-soft : ne
+ * casse jamais l'appel IA appelant.
+ */
+export async function recordModelFallbackSuggestion(input: {
+  from: string;
+  to: string;
+}): Promise<void> {
+  const retired = (input.from || "inconnu").slice(0, 80);
+  const fallback = (input.to || "inconnu").slice(0, 80);
+  if (alertedFallbackModels.has(retired)) return;
+  alertedFallbackModels.add(retired);
+  try {
+    const orgId = await getSuperAdminOrgId();
+    if (!orgId) {
+      // Pas d'org cible : re-autoriser une tentative ulterieure.
+      alertedFallbackModels.delete(retired);
+      return;
+    }
+    const inserted = await db
+      .insert(proactiveSuggestionsTable)
+      .values({
+        organisationId: orgId,
+        type: "model_fallback",
+        severity: "warning",
+        title: "Modèle IA retiré — repli automatique actif",
+        detail:
+          `Le modèle « ${retired} » n'est plus disponible (retiré par le fournisseur). ` +
+          `Les requêtes basculent automatiquement vers « ${fallback} ». ` +
+          `Mettez à jour la variable d'environnement (GEMINI_PRO_MODEL / GEMINI_FLASH_MODEL) ` +
+          `vers un modèle actuel pour ne pas dépendre indéfiniment de l'alias générique.`,
+        status: "pending",
+        actionType: null,
+        actionPayload: { retiredModel: retired, fallbackModel: fallback },
+        dedupeKey: `model_fallback:${retired}`,
+      })
+      .onConflictDoNothing()
+      .returning({ id: proactiveSuggestionsTable.id });
+
+    if (inserted.length > 0) {
+      logger.warn(
+        { retired, fallback, orgId },
+        "[proactive] alerte admin créée : modèle IA retiré, repli automatique actif",
+      );
+      try {
+        broadcaster.broadcast(orgId, {
+          type: "dashboard",
+          action: "updated",
+          meta: { source: "proactive", created: 1, resolved: 0, reason: "model_fallback" },
+        });
+      } catch (err) {
+        logger.warn({ err, orgId }, "[proactive] broadcast repli modèle échoué");
+      }
+    }
+  } catch (err) {
+    // Echec base : re-autoriser une nouvelle tentative au prochain repli.
+    alertedFallbackModels.delete(retired);
+    logger.warn({ err, from: retired }, "[proactive] enregistrement repli modèle échoué");
+  }
+}
+
 async function tick(): Promise<void> {
   try {
     const orgs = await db

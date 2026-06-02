@@ -76,6 +76,41 @@ export function fallbackGeminiModel(model: string | undefined | null): string | 
 }
 
 /**
+ * Evenement emis a chaque fois qu'un repli de modele Gemini se declenche
+ * (modele primaire retire -> bascule sur le modele de repli). Sert a alerter
+ * un administrateur (cf. `onGeminiModelFallback`).
+ */
+export interface GeminiFallbackEvent {
+  from: string;
+  to: string;
+  kind: "generate" | "stream";
+}
+
+type GeminiFallbackListener = (event: GeminiFallbackEvent) => void;
+let geminiFallbackListener: GeminiFallbackListener | null = null;
+
+/**
+ * Enregistre un observateur appele a chaque repli de modele Gemini. Permet de
+ * decoupler la couche bas-niveau (`ai-utils`, qui ne connait que le logger) du
+ * systeme d'alerte admin (suggestion proactive, cote `proactive-engine`), cable
+ * au boot dans `index.ts`. Passer `null` pour retirer l'observateur.
+ */
+export function onGeminiModelFallback(listener: GeminiFallbackListener | null): void {
+  geminiFallbackListener = listener;
+}
+
+/** Notifie l'observateur sans jamais casser l'appel IA en cas d'erreur. */
+function notifyGeminiFallback(from: string, to: string, kind: "generate" | "stream"): void {
+  const l = geminiFallbackListener;
+  if (!l) return;
+  try {
+    l({ from, to, kind });
+  } catch {
+    // observateur defaillant : ne doit jamais impacter la generation.
+  }
+}
+
+/**
  * Execute un appel Gemini en reessayant une fois avec un modele de repli si le
  * modele demande a ete retire. `fn` recoit le nom de modele a utiliser.
  */
@@ -93,6 +128,7 @@ export async function geminiGenerateWithFallback<T>(
         { from: primary, to: fb, err: (err as any)?.message || String(err) },
         "[ai-utils] Modele Gemini retire — nouvelle tentative avec le modele de repli",
       );
+      notifyGeminiFallback(primary, fb, "generate");
       return await fn(fb);
     }
     throw err;
@@ -139,6 +175,7 @@ export async function installGeminiModelFallback(): Promise<void> {
               { from: model, to: fb },
               "[ai-utils] Modele Gemini retire (stream) — repli sur le modele de fallback",
             );
+            notifyGeminiFallback(model, fb, "stream");
             return await make(fb);
           }
           throw err;
@@ -159,6 +196,7 @@ export async function installGeminiModelFallback(): Promise<void> {
                 { from: model, to: fb },
                 "[ai-utils] Modele Gemini retire (1er chunk) — repli sur le modele de fallback",
               );
+              notifyGeminiFallback(model, fb, "stream");
               yield* await make(fb);
               return;
             }

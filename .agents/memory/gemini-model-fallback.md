@@ -31,3 +31,13 @@ is the only way "one fix covers all call sites" without churning every route.
   chunk (before anything is emitted) can still switch models; mid-stream errors can't.
 - `recordAiUsage` still logs the *requested* model name, not the fallback actually used
   (minor accounting inaccuracy, left as-is).
+
+**Admin alerting on fallback:** `ai-utils` exposes an `onGeminiModelFallback(listener)`
+hook (kept decoupled — ai-utils only knows the logger). At boot `index.ts` wires it to
+`recordModelFallbackSuggestion` in `proactive-engine.ts`, which writes a `model_fallback`
+proactive suggestion to the **super-admin org** (`agent-de-bureau-sas`) — the only org
+that can change the env vars. Dedup is two-layer like document threats: in-memory
+`alertedFallbackModels` Set (per retired model, kills per-request DB churn) + DB partial
+unique index via `dedupeKey: model_fallback:<retiredModel>`. On DB failure the in-memory
+guard is *removed* so a later request retries. `model_fallback` is NOT a `DETECTOR_TYPES`
+member, so the cron never auto-resolves it — it stays until the admin acts.
