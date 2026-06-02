@@ -44,7 +44,7 @@ async function findReusableCleanScan(orgId: number, sha256: string): Promise<Sto
  * apres une navigation ou un rechargement.
  */
 export interface BulkScanStatus {
-  status: "running" | "completed" | "failed" | "idle";
+  status: "running" | "completed" | "failed" | "cancelled" | "idle";
   startedAt: number | null;
   finishedAt: number | null;
   total: number;
@@ -59,6 +59,7 @@ export interface BulkScanStatus {
 
 interface BulkScanJob extends BulkScanStatus {
   cleanupTimer?: NodeJS.Timeout;
+  cancelRequested?: boolean;
 }
 
 const jobs = new Map<number, BulkScanJob>();
@@ -128,6 +129,7 @@ async function runJob(orgId: number, userId: number | null, job: BulkScanJob): P
     // On relit a chaque tour les documents encore "scanVerdict IS NULL", ce qui
     // gere aussi les uploads survenus pendant le scan.
     for (;;) {
+      if (job.cancelRequested) break;
       const docs = await db.select({
         id: documentsTable.id,
         fileContent: documentsTable.fileContent,
@@ -144,6 +146,7 @@ async function runJob(orgId: number, userId: number | null, job: BulkScanJob): P
       if (docs.length === 0) break;
 
       for (const doc of docs) {
+        if (job.cancelRequested) break;
         if (!doc.fileContent) continue;
         try {
           const sha256 = crypto.createHash("sha256").update(Buffer.from(doc.fileContent, "base64")).digest("hex");
@@ -182,10 +185,10 @@ async function runJob(orgId: number, userId: number | null, job: BulkScanJob): P
     }
 
     job.remaining = await countRemaining(orgId);
-    job.status = "completed";
+    job.status = job.cancelRequested ? "cancelled" : "completed";
     job.finishedAt = Date.now();
     broadcastProgress(orgId, job);
-    logger.info({ orgId, scanned: job.scanned, safe: job.safe, dangerous: job.dangerous, reused: job.reused, failed: job.failed }, "Bulk document scan job complete");
+    logger.info({ orgId, scanned: job.scanned, safe: job.safe, dangerous: job.dangerous, reused: job.reused, failed: job.failed, cancelled: job.cancelRequested ?? false }, "Bulk document scan job finished");
   } catch (err: any) {
     job.status = "failed";
     job.error = "Erreur lors de l'analyse antivirus en lot";
@@ -233,5 +236,17 @@ export function startBulkScan(orgId: number, userId: number | null): BulkScanSta
 export function getBulkScanStatus(orgId: number): BulkScanStatus {
   const job = jobs.get(orgId);
   if (!job) return { ...IDLE_STATUS };
+  return toStatus(job);
+}
+
+/**
+ * Demande l'arret du scan en arriere-plan pour l'organisation. Le drapeau est
+ * verifie entre chaque document/lot : la boucle s'arrete promptement et le job
+ * passe en "cancelled", en conservant les verdicts deja calcules.
+ */
+export function cancelBulkScan(orgId: number): BulkScanStatus {
+  const job = jobs.get(orgId);
+  if (!job || job.status !== "running") return getBulkScanStatus(orgId);
+  job.cancelRequested = true;
   return toStatus(job);
 }

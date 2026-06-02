@@ -16,7 +16,7 @@ import {
 import { openSseStream } from "../services/ai-stream";
 import { ingestDocument, resolveMime, ALLOWED_MIME_TYPES, MAX_FILE_SIZE_MB, findReusableCleanScan } from "../services/document-ingest";
 import { EventEmitter } from "events";
-import { startBulkScan, getBulkScanStatus } from "../services/document-scan-job";
+import { startBulkScan, getBulkScanStatus, cancelBulkScan } from "../services/document-scan-job";
 
 const router = Router();
 const requireMinAgent = requireRole("super_admin", "administrateur", "agent");
@@ -1335,6 +1335,22 @@ router.get("/documents/scan-unscanned/status", requireMinAgent, async (req: Requ
   } catch (err: any) {
     logger.error({ err }, "Bulk document scan status error");
     res.status(500).json({ error: "Erreur lors de la recuperation du statut" });
+  }
+});
+
+/**
+ * Demande l'arret du scan "Tout analyser" en arriere-plan. Le job s'arrete
+ * promptement entre deux documents et passe en "cancelled" ; les verdicts deja
+ * calcules sont conserves. La fin est diffusee via SSE comme pour une fin
+ * normale (meta.source = "bulk-scan").
+ */
+router.post("/documents/scan-unscanned/cancel", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    res.json({ job: cancelBulkScan(orgId) });
+  } catch (err: any) {
+    logger.error({ err }, "Bulk document scan cancel error");
+    res.status(500).json({ error: "Erreur lors de l'annulation de l'analyse" });
   }
 });
 

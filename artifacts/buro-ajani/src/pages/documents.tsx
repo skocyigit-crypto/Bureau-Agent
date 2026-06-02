@@ -114,7 +114,7 @@ interface Stats {
 }
 
 interface BulkScanJobState {
-  status: "running" | "completed" | "failed" | "idle";
+  status: "running" | "completed" | "failed" | "cancelled" | "idle";
   startedAt: number | null;
   finishedAt: number | null;
   total: number;
@@ -152,6 +152,10 @@ export default function DocumentsPage() {
   const [bulkScanning, setBulkScanning] = useState(false);
   const [bulkScanCancelling, setBulkScanCancelling] = useState(false);
   const [bulkScanProgress, setBulkScanProgress] = useState<{ completed: number; total: number; reused: number } | null>(null);
+  // Distingue les deux chemins partageant l'etat bulkScan* : "selected" = scan SSE
+  // de la selection (handleBulkScan), "all" = scan "Tout analyser" en arriere-plan.
+  // L'annulation choisit le bon endpoint selon ce mode.
+  const [bulkScanKind, setBulkScanKind] = useState<"selected" | "all" | null>(null);
   const bulkScanCtrlRef = useRef<AbortController | null>(null);
 
   const loadDocuments = useCallback(async () => {
@@ -198,6 +202,7 @@ export default function DocumentsPage() {
         const { job } = (await res.json()) as { job: BulkScanJobState };
         if (job.status === "running") {
           setBulkScanning(true);
+          setBulkScanKind("all");
           setBulkScanProgress({ completed: job.scanned, total: Math.max(job.total, job.scanned), reused: job.reused ?? 0 });
         }
       } catch {
@@ -215,9 +220,12 @@ export default function DocumentsPage() {
       const m = detail.meta as unknown as BulkScanJobState;
       if (m.status === "running") {
         setBulkScanning(true);
+        setBulkScanKind("all");
         setBulkScanProgress({ completed: m.scanned, total: Math.max(m.total, m.scanned), reused: m.reused ?? 0 });
       } else {
         setBulkScanning(false);
+        setBulkScanCancelling(false);
+        setBulkScanKind(null);
         setBulkScanProgress(null);
         if (m.status === "completed") {
           const reusedNote = formatReuseSavings(m);
@@ -230,6 +238,8 @@ export default function DocumentsPage() {
           } else {
             toast({ title: `${m.scanned} document(s) analysé(s)`, description: `Aucune menace détectée.${reusedNote}` });
           }
+        } else if (m.status === "cancelled") {
+          toast({ title: "Analyse interrompue", description: m.scanned > 0 ? `${m.scanned} document(s) déjà analysé(s) conservé(s).` : undefined });
         } else if (m.status === "failed") {
           toast({ title: "Erreur d'analyse antivirus en lot", variant: "destructive" });
         }
@@ -284,6 +294,7 @@ export default function DocumentsPage() {
     if (selectedIds.length === 0 || bulkScanning) return;
     setBulkScanning(true);
     setBulkScanCancelling(false);
+    setBulkScanKind("selected");
     setBulkScanProgress({ completed: 0, total: selectedIds.length, reused: 0 });
     const ctrl = new AbortController();
     bulkScanCtrlRef.current = ctrl;
@@ -347,6 +358,7 @@ export default function DocumentsPage() {
       bulkScanCtrlRef.current = null;
       setBulkScanning(false);
       setBulkScanCancelling(false);
+      setBulkScanKind(null);
       setBulkScanProgress(null);
     }
   };
@@ -354,6 +366,17 @@ export default function DocumentsPage() {
   const handleCancelBulkScan = async () => {
     if (!bulkScanning || bulkScanCancelling) return;
     setBulkScanCancelling(true);
+    if (bulkScanKind === "all") {
+      // Scan "Tout analyser" en arrière-plan : pas de flux SSE côté client, on
+      // demande l'arrêt au serveur. La fin "cancelled" arrive via realtime-sync,
+      // qui remettra l'UI à l'état inactif et gardera les verdicts déjà calculés.
+      try {
+        await fetch(`${API}/api/documents/scan-unscanned/cancel`, { method: "POST", credentials: "include" });
+      } catch {
+        // Le job s'arrêtera de toute façon ; on garde le bouton en état "Arrêt…".
+      }
+      return;
+    }
     try {
       await fetch(`${API}/api/documents/bulk/scan/cancel`, { method: "POST", credentials: "include" });
     } catch {
@@ -419,6 +442,8 @@ export default function DocumentsPage() {
       const data = await res.json();
       const job = data.job as BulkScanJobState;
       setBulkScanning(true);
+      setBulkScanCancelling(false);
+      setBulkScanKind("all");
       setBulkScanProgress({ completed: job.scanned ?? 0, total: job.total || total, reused: job.reused ?? 0 });
       toast({ title: "Analyse en lot lancée", description: "Elle continue en arrière-plan, vous pouvez quitter la page." });
     } catch {
@@ -638,7 +663,7 @@ export default function DocumentsPage() {
                 <ShieldQuestion className="w-3.5 h-3.5" />
                 {stats.byScanVerdict.unscanned} non analysé{stats.byScanVerdict.unscanned > 1 ? "s" : ""}
               </button>
-              {stats.byScanVerdict.unscanned > 0 && (
+              {(stats.byScanVerdict.unscanned > 0 || (bulkScanning && bulkScanKind === "all")) && (
                 <Button
                   type="button"
                   size="sm"
@@ -660,6 +685,19 @@ export default function DocumentsPage() {
                       Tout analyser
                     </>
                   )}
+                </Button>
+              )}
+              {bulkScanning && bulkScanKind === "all" && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={handleCancelBulkScan}
+                  disabled={bulkScanCancelling}
+                  className="h-7 gap-1 text-xs"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  {bulkScanCancelling ? "Arrêt…" : "Annuler l'analyse"}
                 </Button>
               )}
             </div>

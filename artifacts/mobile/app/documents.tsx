@@ -240,6 +240,10 @@ export default function DocumentsScreen() {
   const [bulkScanning, setBulkScanning] = useState(false);
   const [bulkScanCancelling, setBulkScanCancelling] = useState(false);
   const [bulkScanProgress, setBulkScanProgress] = useState<{ completed: number; total: number } | null>(null);
+  // "selected" = scan SSE de la selection (handleBulkScan), "all" = scan "Tout
+  // analyser" en arriere-plan (handleScanAll). L'annulation choisit le bon
+  // endpoint selon ce mode, car les deux chemins partagent l'etat bulkScan*.
+  const [bulkScanKind, setBulkScanKind] = useState<"selected" | "all" | null>(null);
   const bulkScanCtrlRef = useRef<AbortController | null>(null);
 
   const load = useCallback(async () => {
@@ -267,6 +271,7 @@ export default function DocumentsScreen() {
         const { job } = await res.json();
         if (job.status === "running") {
           setBulkScanning(true);
+          setBulkScanKind("all");
           setBulkScanProgress({ completed: job.scanned, total: Math.max(job.total, job.scanned) });
           cleanup = pollBulkScan(false);
         }
@@ -329,6 +334,7 @@ export default function DocumentsScreen() {
     if (bulkScanning || ids.length === 0) return;
     setBulkScanning(true);
     setBulkScanCancelling(false);
+    setBulkScanKind("selected");
     setBulkScanProgress({ completed: 0, total: ids.length });
     // Patche une ligne de document avec son verdict frais des qu'il arrive.
     const applyResult = (item: { documentId: number; scanVerdict?: string; scanEngine?: string | null; scannedAt?: string }) => {
@@ -396,6 +402,7 @@ export default function DocumentsScreen() {
       bulkScanCtrlRef.current = null;
       setBulkScanning(false);
       setBulkScanCancelling(false);
+      setBulkScanKind(null);
       setBulkScanProgress(null);
     }
   }
@@ -417,6 +424,8 @@ export default function DocumentsScreen() {
           if (!stopped) setTimeout(tick, 1500);
         } else {
           setBulkScanning(false);
+          setBulkScanCancelling(false);
+          setBulkScanKind(null);
           setBulkScanProgress(null);
           if (announceOnFinish && job.status === "completed") {
             Alert.alert(
@@ -425,6 +434,11 @@ export default function DocumentsScreen() {
                 ? `${job.scanned} document(s) analysé(s). ${job.dangerous} menace(s) détectée(s).`
                 : `${job.scanned} document(s) analysé(s). Aucune menace détectée.`,
             );
+          } else if (announceOnFinish && job.status === "cancelled") {
+            Alert.alert(
+              "Analyse interrompue",
+              job.scanned > 0 ? `${job.scanned} document(s) déjà analysé(s) conservé(s).` : "Aucun document analysé.",
+            );
           } else if (announceOnFinish && job.status === "failed") {
             Alert.alert("Analyse antivirus", "L'analyse en lot a échoué. Réessayez.");
           }
@@ -432,6 +446,8 @@ export default function DocumentsScreen() {
         }
       } catch {
         setBulkScanning(false);
+        setBulkScanCancelling(false);
+        setBulkScanKind(null);
         setBulkScanProgress(null);
       }
     };
@@ -442,6 +458,18 @@ export default function DocumentsScreen() {
   async function handleCancelBulkScan() {
     if (!bulkScanning || bulkScanCancelling) return;
     setBulkScanCancelling(true);
+    if (bulkScanKind === "all") {
+      // Scan "Tout analyser" en arrière-plan : pas de flux SSE côté client. On
+      // demande l'arrêt au serveur ; la boucle de sondage verra le statut
+      // "cancelled" et remettra l'UI à l'état inactif (verdicts déjà calculés
+      // conservés).
+      try {
+        await fetchAuth(`${API_BASE}/api/documents/scan-unscanned/cancel`, { method: "POST" });
+      } catch {
+        // Le job s'arrêtera de toute façon ; on garde le bouton en "Arrêt…".
+      }
+      return;
+    }
     try {
       await fetchAuth(`${API_BASE}/api/documents/bulk/scan/cancel`, { method: "POST" });
     } catch {
@@ -466,6 +494,8 @@ export default function DocumentsScreen() {
       }
       const { job } = await res.json();
       setBulkScanning(true);
+      setBulkScanCancelling(false);
+      setBulkScanKind("all");
       setBulkScanProgress({ completed: job.scanned ?? 0, total: job.total || total });
       pollBulkScan(true);
     } catch {
@@ -589,23 +619,35 @@ export default function DocumentsScreen() {
         />
 
         {/* Bulk-scan all unscanned */}
-        {!loading && (data?.byScan?.unscanned ?? 0) > 0 && (
-          <Pressable
-            onPress={handleScanAll}
-            disabled={bulkScanning}
-            style={[st.scanAllBtn, { opacity: bulkScanning ? 0.7 : 1 }]}
-          >
-            {bulkScanning ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Feather name="shield" size={13} color="#fff" />
+        {!loading && ((data?.byScan?.unscanned ?? 0) > 0 || (bulkScanning && bulkScanKind === "all")) && (
+          <View style={st.scanAllRow}>
+            <Pressable
+              onPress={handleScanAll}
+              disabled={bulkScanning}
+              style={[st.scanAllBtn, { flex: 1, opacity: bulkScanning ? 0.7 : 1 }]}
+            >
+              {bulkScanning ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Feather name="shield" size={13} color="#fff" />
+              )}
+              <Text style={st.scanAllText}>
+                {bulkScanning
+                  ? (bulkScanProgress ? `Analyse ${bulkScanProgress.completed}/${bulkScanProgress.total}…` : "Analyse…")
+                  : `Tout analyser (${data?.byScan?.unscanned})`}
+              </Text>
+            </Pressable>
+            {bulkScanning && bulkScanKind === "all" && (
+              <Pressable
+                onPress={handleCancelBulkScan}
+                disabled={bulkScanCancelling}
+                hitSlop={8}
+                style={st.scanAllCancelBtn}>
+                <Feather name="x" size={13} color="#ef4444" />
+                <Text style={st.bulkCancelText}>{bulkScanCancelling ? "Arrêt…" : "Annuler"}</Text>
+              </Pressable>
             )}
-            <Text style={st.scanAllText}>
-              {bulkScanning
-                ? (bulkScanProgress ? `Analyse ${bulkScanProgress.completed}/${bulkScanProgress.total}…` : "Analyse…")
-                : `Tout analyser (${data?.byScan?.unscanned})`}
-            </Text>
-          </Pressable>
+          </View>
         )}
       </View>
 
@@ -686,8 +728,10 @@ const st = StyleSheet.create({
   searchInput: { flex: 1, color: "#fff", fontSize: 13, fontFamily: "Inter_400Regular" },
   sourceChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 11, paddingVertical: 6, borderRadius: 20 },
   sourceChipText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
-  scanAllBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 10, paddingVertical: 9, borderRadius: 10, backgroundColor: "#10b981" },
+  scanAllRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 },
+  scanAllBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 9, borderRadius: 10, backgroundColor: "#10b981" },
   scanAllText: { fontSize: 13, fontFamily: "Inter_600SemiBold", color: "#fff" },
+  scanAllCancelBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 10, borderWidth: 1, borderColor: "#ef444460", backgroundColor: "rgba(239,68,68,0.08)" },
   sourceBadge: { paddingHorizontal: 5, paddingVertical: 1, borderRadius: 8 },
   sourceBadgeText: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" },
   bulkBanner: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 14, marginTop: 12, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
