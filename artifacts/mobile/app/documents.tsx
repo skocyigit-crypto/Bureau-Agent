@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -238,7 +238,9 @@ export default function DocumentsScreen() {
     return s === "safe" || s === "dangerous" || s === "none" ? s : "all";
   });
   const [bulkScanning, setBulkScanning] = useState(false);
+  const [bulkScanCancelling, setBulkScanCancelling] = useState(false);
   const [bulkScanProgress, setBulkScanProgress] = useState<{ completed: number; total: number } | null>(null);
+  const bulkScanCtrlRef = useRef<AbortController | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -326,6 +328,7 @@ export default function DocumentsScreen() {
   async function handleBulkScan(ids: number[]) {
     if (bulkScanning || ids.length === 0) return;
     setBulkScanning(true);
+    setBulkScanCancelling(false);
     setBulkScanProgress({ completed: 0, total: ids.length });
     // Patche une ligne de document avec son verdict frais des qu'il arrive.
     const applyResult = (item: { documentId: number; scanVerdict?: string; scanEngine?: string | null; scannedAt?: string }) => {
@@ -338,6 +341,7 @@ export default function DocumentsScreen() {
       } : null);
     };
     const controller = new AbortController();
+    bulkScanCtrlRef.current = controller;
     let finished = false;
     try {
       await streamSse(`${API_BASE}/api/documents/bulk/scan/stream`, { ids }, {
@@ -381,9 +385,17 @@ export default function DocumentsScreen() {
       }
       load();
     } catch {
-      Alert.alert("Analyse antivirus", "Erreur de connexion.");
+      if (controller.signal.aborted) {
+        // Annulation demandée par l'utilisateur : on garde les verdicts déjà
+        // calculés et on revient à l'état inactif.
+        load();
+      } else {
+        Alert.alert("Analyse antivirus", "Erreur de connexion.");
+      }
     } finally {
+      bulkScanCtrlRef.current = null;
       setBulkScanning(false);
+      setBulkScanCancelling(false);
       setBulkScanProgress(null);
     }
   }
@@ -426,6 +438,18 @@ export default function DocumentsScreen() {
     tick();
     return () => { stopped = true; };
   }, [fetchAuth, load]);
+
+  async function handleCancelBulkScan() {
+    if (!bulkScanning || bulkScanCancelling) return;
+    setBulkScanCancelling(true);
+    try {
+      await fetchAuth(`${API_BASE}/api/documents/bulk/scan/cancel`, { method: "POST" });
+    } catch {
+      // Le serveur s'arrêtera de toute façon dès que le client se déconnecte.
+    }
+    // Coupe le flux SSE côté client pour cesser d'écouter immédiatement.
+    bulkScanCtrlRef.current?.abort();
+  }
 
   async function handleScanAll() {
     const total = data?.byScan?.unscanned ?? 0;
@@ -601,6 +625,16 @@ export default function DocumentsScreen() {
                   : "Analyse en cours…")
               : `Analyser la sécurité de ${unscannedIds.length} document(s) non analysé(s)`}
           </Text>
+          {bulkScanning && (
+            <Pressable
+              onPress={handleCancelBulkScan}
+              disabled={bulkScanCancelling}
+              hitSlop={8}
+              style={st.bulkCancelBtn}>
+              <Feather name="x" size={13} color="#ef4444" />
+              <Text style={st.bulkCancelText}>{bulkScanCancelling ? "Arrêt…" : "Annuler"}</Text>
+            </Pressable>
+          )}
         </Pressable>
       )}
 
@@ -658,6 +692,8 @@ const st = StyleSheet.create({
   sourceBadgeText: { fontSize: 9, fontFamily: "Inter_700Bold", color: "#fff" },
   bulkBanner: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: 14, marginTop: 12, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
   bulkBannerText: { flex: 1, fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  bulkCancelBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: "#ef444440" },
+  bulkCancelText: { fontSize: 11, fontFamily: "Inter_600SemiBold", color: "#ef4444" },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   listContent: { padding: 14, gap: 2 },
   card: { borderRadius: 14, borderWidth: 1, padding: 12, marginBottom: 8 },

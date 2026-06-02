@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { confirmAction } from "@/hooks/use-confirm";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -14,7 +14,7 @@ import {
   FileText, FileSpreadsheet, Image as ImageIcon, File, Download,
   Trash2, Brain, Sparkles, Search, Filter, BarChart3, HardDrive,
   Upload, Loader2, Eye, Printer, Edit, FolderKanban, ShieldCheck, ShieldAlert,
-  Shield, ShieldQuestion,
+  Shield, ShieldQuestion, X,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -126,7 +126,9 @@ export default function DocumentsPage() {
   const [editDocSaving, setEditDocSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [bulkScanning, setBulkScanning] = useState(false);
+  const [bulkScanCancelling, setBulkScanCancelling] = useState(false);
   const [bulkScanProgress, setBulkScanProgress] = useState<{ completed: number; total: number; reused: number } | null>(null);
+  const bulkScanCtrlRef = useRef<AbortController | null>(null);
 
   const loadDocuments = useCallback(async () => {
     setLoading(true);
@@ -257,8 +259,10 @@ export default function DocumentsPage() {
   const handleBulkScan = async () => {
     if (selectedIds.length === 0 || bulkScanning) return;
     setBulkScanning(true);
+    setBulkScanCancelling(false);
     setBulkScanProgress({ completed: 0, total: selectedIds.length, reused: 0 });
     const ctrl = new AbortController();
+    bulkScanCtrlRef.current = ctrl;
     let finished = false;
     try {
       await streamSse("/documents/bulk/scan/stream", { ids: selectedIds }, {
@@ -307,11 +311,32 @@ export default function DocumentsPage() {
       setSelectedIds([]);
       await loadDocuments();
     } catch {
-      toast({ title: "Erreur d'analyse antivirus", variant: "destructive" });
+      if (ctrl.signal.aborted) {
+        // Annulation demandée par l'utilisateur : on garde les verdicts déjà
+        // calculés et on revient à l'état inactif sans alarmer.
+        toast({ title: "Analyse interrompue" });
+        await loadDocuments();
+      } else {
+        toast({ title: "Erreur d'analyse antivirus", variant: "destructive" });
+      }
     } finally {
+      bulkScanCtrlRef.current = null;
       setBulkScanning(false);
+      setBulkScanCancelling(false);
       setBulkScanProgress(null);
     }
+  };
+
+  const handleCancelBulkScan = async () => {
+    if (!bulkScanning || bulkScanCancelling) return;
+    setBulkScanCancelling(true);
+    try {
+      await fetch(`${API}/api/documents/bulk/scan/cancel`, { method: "POST", credentials: "include" });
+    } catch {
+      // Le serveur s'arrêtera de toute façon dès que le client se déconnecte.
+    }
+    // Coupe le flux SSE côté client pour cesser d'écouter immédiatement.
+    bulkScanCtrlRef.current?.abort();
   };
 
   const analyzeDoc = async (id: number) => {
@@ -642,6 +667,12 @@ export default function DocumentsPage() {
                         : "Analyse en cours…"
                       : "Analyser la sécurité"}
                   </Button>
+                  {bulkScanning && (
+                    <Button size="sm" variant="outline" className="gap-1 h-7 text-xs" onClick={handleCancelBulkScan} disabled={bulkScanCancelling}>
+                      <X className="w-3 h-3" />
+                      {bulkScanCancelling ? "Arrêt…" : "Annuler l'analyse"}
+                    </Button>
+                  )}
                   <Button size="sm" variant="destructive" className="gap-1 h-7 text-xs" onClick={handleBulkDelete} disabled={bulkScanning}><Trash2 className="w-3 h-3" />Supprimer la sélection</Button>
                   <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setSelectedIds([])} disabled={bulkScanning}>Annuler</Button>
                 </div>
