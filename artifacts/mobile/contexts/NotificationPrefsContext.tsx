@@ -186,3 +186,30 @@ export function NotificationPrefsProvider({ children }: { children: React.ReactN
 export function useNotificationPrefs(): NotificationPrefsContextValue {
   return useContext(NotificationPrefsContext);
 }
+
+/**
+ * Lecture ponctuelle (hors React) des préférences pour décider si une
+ * notification locale du canal "security" doit être émise (Tâche #174).
+ *
+ * Utilisé par le suivi fire-and-forget du verdict antivirus
+ * (`lib/scan-result.ts`), qui n'est pas un composant et ne peut donc pas
+ * consommer le contexte. On relit AsyncStorage au moment où le verdict tombe
+ * (jusqu'à ~30 s après l'enregistrement) pour refléter le choix le plus récent.
+ *
+ * Renvoie `true` seulement si l'utilisateur a consenti aux notifications
+ * système (`notificationsEnabled`) ET n'a pas coupé le canal "security".
+ * Les valeurs par défaut (notifications OFF, canal "security" actif) sont
+ * respectées : sans consentement explicite, aucune notification n'est émise.
+ */
+export async function shouldNotifySecurityChannel(): Promise<boolean> {
+  if (Platform.OS === "web") return false;
+  try {
+    const [notifs, securityMuted] = await Promise.all([
+      AsyncStorage.getItem(STORAGE_KEY_NOTIFS),
+      AsyncStorage.getItem(STORAGE_KEY_MUTED_PREFIX + "security"),
+    ]);
+    return notifs === "1" && securityMuted !== "1";
+  } catch {
+    return false;
+  }
+}

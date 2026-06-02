@@ -14,8 +14,18 @@
  * pendant l'attente. En cas de timeout (analyse trop longue), on reste
  * silencieux — l'alerte initiale « analyse en cours » a deja informe
  * l'utilisateur, et l'ecran Documents affiche le badge definitif.
+ *
+ * Tache #174 : l'alerte in-app (`Alert.alert`) ne suffit pas si l'utilisateur
+ * a quitte l'ecran Gmail/Drive (app en arriere-plan) pendant l'analyse. On
+ * emet donc EN PLUS une notification locale systeme quand le verdict est
+ * « dangereux », pour garantir que la menace est vue meme apres avoir quitte
+ * l'ecran. Le tap ouvre l'ecran Documents filtre sur les fichiers dangereux
+ * (route deja gere par le listener de `_layout.tsx`). Les verdicts « safe »
+ * restent silencieux cote notification (pas de spam).
  */
+import * as Notifications from "expo-notifications";
 import { Alert } from "react-native";
+import { shouldNotifySecurityChannel } from "@/contexts/NotificationPrefsContext";
 import { API_BASE } from "./api-config";
 
 type FetchAuth = (url: string, options?: RequestInit) => Promise<Response>;
@@ -62,6 +72,10 @@ export async function trackScanResult(
           doc?.scanDetail && doc.scanDetail.trim() !== ""
             ? `\n\nDetail : ${doc.scanDetail}`
             : "";
+        // Notification locale systeme : filet de securite si l'utilisateur a
+        // quitte l'ecran source pendant l'analyse. Best-effort, ne bloque pas
+        // l'alerte in-app ci-dessous.
+        void notifyDangerousDocument(fileName);
         Alert.alert(
           "Menace detectee",
           `ATTENTION : ${fileName} a ete signale comme DANGEREUX par l'analyse antivirus. ` +
@@ -75,4 +89,29 @@ export async function trackScanResult(
     }
   }
   // Timeout : on reste silencieux (l'alerte initiale et le badge Documents suffisent).
+}
+
+/**
+ * Emet une notification locale systeme pour un document juge dangereux
+ * (Tache #174). Respecte le consentement notifications + le mute du canal
+ * "security" via `shouldNotifySecurityChannel`. Le payload `data` reprend la
+ * convention de la Tache #134 (`route` + `scan`) pour que le tap ouvre
+ * l'ecran Documents filtre sur les fichiers dangereux. Best-effort : toute
+ * erreur est avalee (l'alerte in-app reste le filet de securite).
+ */
+async function notifyDangerousDocument(fileName: string): Promise<void> {
+  try {
+    if (!(await shouldNotifySecurityChannel())) return;
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "Menace detectee",
+        body: `${fileName} a ete signale comme dangereux. N'ouvrez pas ce fichier.`,
+        sound: true,
+        data: { route: "/documents", scan: "dangerous" },
+      },
+      trigger: null,
+    });
+  } catch {
+    // Notification indisponible : on s'appuie sur l'alerte in-app.
+  }
 }
