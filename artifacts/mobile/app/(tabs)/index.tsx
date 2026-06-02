@@ -60,6 +60,12 @@ interface OverdueTask {
   dueDate: string;
 }
 
+interface SecurityVerdict {
+  safe: number;
+  dangerous: number;
+  unscanned: number;
+}
+
 const REFRESH_INTERVAL = 60_000;
 
 export default function DashboardScreen() {
@@ -73,6 +79,7 @@ export default function DashboardScreen() {
   const [recentCalls, setRecentCalls] = useState<RecentCall[]>([]);
   const [events, setEvents] = useState<UpcomingEvent[]>([]);
   const [overdueTasks, setOverdueTasks] = useState<OverdueTask[]>([]);
+  const [security, setSecurity] = useState<SecurityVerdict | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
@@ -82,11 +89,12 @@ export default function DashboardScreen() {
 
   const fetchDashboard = useCallback(async (silent = false) => {
     try {
-      const [summaryRes, callsRes, eventsRes, tasksRes] = await Promise.all([
+      const [summaryRes, callsRes, eventsRes, tasksRes, securityRes] = await Promise.all([
         fetchAuth(`${API_BASE}/api/dashboard/summary`),
         fetchAuth(`${API_BASE}/api/calls?limit=5&sortOrder=desc`),
         fetchAuth(`${API_BASE}/api/calendar/events?limit=3`).catch(() => null),
         fetchAuth(`${API_BASE}/api/tasks?status=en_attente&sortOrder=asc&limit=5`).catch(() => null),
+        fetchAuth(`${API_BASE}/api/documents/stats/overview`).catch(() => null),
       ]);
       if (summaryRes.ok) {
         const json = await summaryRes.json();
@@ -122,6 +130,10 @@ export default function DashboardScreen() {
             .filter((t: any) => t.dueDate && new Date(t.dueDate) < now && t.status !== "termine")
             .slice(0, 3)
         );
+      }
+      if (securityRes?.ok) {
+        const secData = await securityRes.json();
+        setSecurity(secData.byScanVerdict ?? null);
       }
       setLastRefresh(new Date());
     } catch {
@@ -277,6 +289,46 @@ export default function DashboardScreen() {
               <StatCard title="Projets" value={data.projetsActifs} icon="folder" color="#6366f1" subtitle="En cours" />
               <StatCard title="En retard" value={data.projetsEnRetard} icon="alert-circle" color={data.projetsEnRetard > 0 ? colors.destructive : colors.mutedForeground} subtitle="Projets" />
             </Pressable>
+
+            {security && (security.safe + security.dangerous + security.unscanned) > 0 && (
+              <View
+                style={[
+                  styles.securityCard,
+                  { backgroundColor: colors.card, borderColor: security.dangerous > 0 ? "#ef4444" : colors.border },
+                ]}
+              >
+                <View style={styles.securityHeader}>
+                  <View style={styles.securityTitleRow}>
+                    <Feather name="shield" size={16} color={security.dangerous > 0 ? "#ef4444" : colors.mutedForeground} />
+                    <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>Securite des documents</Text>
+                  </View>
+                  <Pressable onPress={() => quickNav("/documents")}>
+                    <Text style={[styles.seeAll, { color: colors.primary }]}>Voir</Text>
+                  </Pressable>
+                </View>
+                <View style={styles.securityRow}>
+                  {([
+                    { key: "safe", label: "Verifies", count: security.safe, icon: "shield" as const, color: "#10b981" },
+                    { key: "dangerous", label: "Menaces", count: security.dangerous, icon: "alert-triangle" as const, color: "#ef4444" },
+                    { key: "none", label: "Non analyses", count: security.unscanned, icon: "help-circle" as const, color: "#64748b" },
+                  ]).map((item) => (
+                    <Pressable
+                      key={item.key}
+                      onPress={() => quickNav(`/documents?scan=${item.key}`)}
+                      style={({ pressed }) => [
+                        styles.securityItem,
+                        { backgroundColor: colors.background, borderColor: colors.border },
+                        pressed && { opacity: 0.7, transform: [{ scale: 0.96 }] },
+                      ]}
+                    >
+                      <Feather name={item.icon} size={16} color={item.color} />
+                      <Text style={[styles.securityCount, { color: item.color }]}>{item.count}</Text>
+                      <Text style={[styles.securityLabel, { color: colors.mutedForeground }]}>{item.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            )}
 
             <View style={[styles.performanceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Performance</Text>
@@ -454,6 +506,13 @@ const styles = StyleSheet.create({
   urgentSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   statsRow: { flexDirection: "row", gap: 12, marginBottom: 12 },
   performanceCard: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 16 },
+  securityCard: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 16 },
+  securityHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  securityTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  securityRow: { flexDirection: "row", gap: 10 },
+  securityItem: { flex: 1, alignItems: "center", gap: 4, paddingVertical: 12, borderRadius: 10, borderWidth: 1 },
+  securityCount: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  securityLabel: { fontSize: 10, fontFamily: "Inter_400Regular", textAlign: "center" },
   sectionTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold", marginBottom: 10 },
   perfRow: { flexDirection: "row", alignItems: "center" },
   perfItem: { flex: 1, alignItems: "center" },

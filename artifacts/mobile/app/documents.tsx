@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -224,6 +224,7 @@ export default function DocumentsScreen() {
   const insets = useSafeAreaInsets();
   const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
+  const params = useLocalSearchParams<{ scan?: string }>();
 
   const [data, setData] = useState<BySourceData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -231,7 +232,10 @@ export default function DocumentsScreen() {
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [scanningIds, setScanningIds] = useState<number[]>([]);
-  const [scanFilter, setScanFilter] = useState("all");
+  const [scanFilter, setScanFilter] = useState(() => {
+    const s = params.scan;
+    return s === "safe" || s === "dangerous" || s === "none" ? s : "all";
+  });
   const [bulkScanning, setBulkScanning] = useState(false);
   const [bulkScanProgress, setBulkScanProgress] = useState<{ done: number; total: number } | null>(null);
 
