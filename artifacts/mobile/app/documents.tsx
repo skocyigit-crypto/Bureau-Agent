@@ -20,6 +20,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { streamSse } from "@/lib/sse-stream";
+import { bulkScanCancelEndpoint, canRequestCancel, showAllScanCancel } from "@/lib/bulk-scan";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Doc {
@@ -526,27 +527,21 @@ export default function DocumentsScreen() {
   }, [fetchAuth, load]);
 
   async function handleCancelBulkScan() {
-    if (!bulkScanning || bulkScanCancelling) return;
+    if (!canRequestCancel({ bulkScanning, bulkScanCancelling })) return;
     setBulkScanCancelling(true);
-    if (bulkScanKind === "all") {
-      // Scan "Tout analyser" en arrière-plan : pas de flux SSE côté client. On
-      // demande l'arrêt au serveur ; la boucle de sondage verra le statut
-      // "cancelled" et remettra l'UI à l'état inactif (verdicts déjà calculés
-      // conservés).
-      try {
-        await fetchAuth(`${API_BASE}/api/documents/scan-unscanned/cancel`, { method: "POST" });
-      } catch {
-        // Le job s'arrêtera de toute façon ; on garde le bouton en "Arrêt…".
-      }
-      return;
-    }
+    // Choix de l'endpoint selon le mode : scan "Tout analyser" en arrière-plan
+    // (la boucle de sondage verra le statut "cancelled" et remettra l'UI à
+    // l'état inactif) ou scan SSE d'une sélection. Verdicts déjà calculés
+    // conservés dans les deux cas.
+    const endpoint = bulkScanCancelEndpoint(bulkScanKind) ?? "/api/documents/bulk/scan/cancel";
     try {
-      await fetchAuth(`${API_BASE}/api/documents/bulk/scan/cancel`, { method: "POST" });
+      await fetchAuth(`${API_BASE}${endpoint}`, { method: "POST" });
     } catch {
-      // Le serveur s'arrêtera de toute façon dès que le client se déconnecte.
+      // Le serveur s'arrêtera de toute façon ; on garde le bouton en "Arrêt…".
     }
-    // Coupe le flux SSE côté client pour cesser d'écouter immédiatement.
-    bulkScanCtrlRef.current?.abort();
+    // Pour un scan SSE (sélection), couper aussi le flux côté client pour cesser
+    // d'écouter immédiatement. Le scan "all" n'a pas de flux SSE côté client.
+    if (bulkScanKind !== "all") bulkScanCtrlRef.current?.abort();
   }
 
   async function handleScanAll() {
@@ -689,7 +684,7 @@ export default function DocumentsScreen() {
         />
 
         {/* Bulk-scan all unscanned */}
-        {!loading && ((data?.byScan?.unscanned ?? 0) > 0 || (bulkScanning && bulkScanKind === "all")) && (
+        {!loading && ((data?.byScan?.unscanned ?? 0) > 0 || showAllScanCancel({ bulkScanning, bulkScanKind })) && (
           <View style={st.scanAllRow}>
             <Pressable
               onPress={handleScanAll}
@@ -707,7 +702,7 @@ export default function DocumentsScreen() {
                   : `Tout analyser (${data?.byScan?.unscanned})`}
               </Text>
             </Pressable>
-            {bulkScanning && bulkScanKind === "all" && (
+            {showAllScanCancel({ bulkScanning, bulkScanKind }) && (
               <Pressable
                 onPress={handleCancelBulkScan}
                 disabled={bulkScanCancelling}
