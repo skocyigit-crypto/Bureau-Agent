@@ -1,7 +1,5 @@
 import { Router, type Request, type Response } from "express";
 import { google } from "googleapis";
-import { db, googleOAuthTokensTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { GEMINI_FLASH_MODEL } from "../services/ai-utils";
 import { analyzeUrlsBatch } from "../services/url-safety";
@@ -11,28 +9,9 @@ import { emitSecurityAlert } from "../services/security-alerts";
 import { getInboundMaxSubmitBytes } from "../services/file-malware";
 import { getOrgId } from "../middleware/tenant";
 import { ingestDocument } from "../services/document-ingest";
+import { getAuthClientForUser as getAuthClient } from "../lib/google-auth";
 
 const router = Router();
-
-async function getAuthClient(userId: number) {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return null;
-
-  const tokens = await db.select().from(googleOAuthTokensTable)
-    .where(eq(googleOAuthTokensTable.userId, userId));
-  if (tokens.length === 0) return null;
-
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI ||
-    `${process.env.PUBLIC_URL || process.env.APP_URL || "http://localhost"}/api/google-oauth/callback`;
-
-  const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
-  oauth2Client.setCredentials({
-    access_token: tokens[0].accessToken,
-    refresh_token: tokens[0].refreshToken,
-  });
-  return oauth2Client;
-}
 
 function decodeEmailBody(payload: any): { html: string; plain: string } {
   let html = "";

@@ -1,9 +1,22 @@
 import { Router } from "express";
 import { google } from "googleapis";
-import { db, googleOAuthTokensTable, platformConnectionsTable, platformSyncLogsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import {
+  db,
+  googleOAuthTokensTable,
+  googleAppCredentialsTable,
+  platformConnectionsTable,
+  platformSyncLogsTable,
+  usersTable,
+} from "@workspace/db";
+import { eq, and, inArray } from "drizzle-orm";
 import crypto from "crypto";
 import { logger } from "../lib/logger";
+import { getOrgId } from "../middleware/tenant";
+import {
+  encryptSecret,
+  getGoogleRedirectUri,
+  getOrgGoogleCredentials,
+} from "../lib/google-auth";
 
 const router = Router();
 
@@ -29,19 +42,17 @@ const CORE_SCOPES = [
   "https://www.googleapis.com/auth/userinfo.profile",
 ];
 
-function getOAuth2Client() {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return null;
-
-  // Prefer explicit redirect URI; fallback to PUBLIC_URL/APP_URL; finally Replit domain.
-  const publicBase = process.env.PUBLIC_URL || process.env.APP_URL;
-  const replitDomain = process.env.REPLIT_DEV_DOMAIN || (process.env.REPL_SLUG ? `${process.env.REPL_SLUG}.repl.co` : null);
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI
-    || (publicBase ? `${publicBase.replace(/\/$/, "")}/api/google-oauth/callback` : null)
-    || (replitDomain ? `https://${replitDomain}/api/google-oauth/callback` : "http://localhost/api/google-oauth/callback");
-
-  return new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+// Construit un client OAuth2 a partir des identifiants de l'organisation.
+// `envFallback=false` (defaut connexion) impose des identifiants PROPRES a l'org
+// pour eviter une erreur "invalid_client" cryptique cote Google : on renvoie un
+// message clair "configurez vos identifiants" a la place.
+async function getOAuth2ClientForOrg(
+  organisationId: number | null | undefined,
+  opts: { envFallback?: boolean } = {},
+) {
+  const creds = await getOrgGoogleCredentials(organisationId, { envFallback: opts.envFallback ?? false });
+  if (!creds) return null;
+  return new google.auth.OAuth2(creds.clientId, creds.clientSecret, getGoogleRedirectUri());
 }
 
 router.get("/status", async (req, res): Promise<void> => {
@@ -49,9 +60,9 @@ router.get("/status", async (req, res): Promise<void> => {
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
 
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const configured = !!(clientId && clientSecret);
+    const orgId = req.session?.organisationId ?? null;
+    const creds = await getOrgGoogleCredentials(orgId, { envFallback: true });
+    const configured = !!creds;
 
     const tokens = await db.select().from(googleOAuthTokensTable)
       .where(eq(googleOAuthTokensTable.userId, userId));
@@ -61,6 +72,7 @@ router.get("/status", async (req, res): Promise<void> => {
 
     res.json({
       configured,
+      credentialsSource: creds?.source ?? null,
       authenticated: hasToken,
       tokenValid,
       scopes: hasToken ? tokens[0].scope.split(" ") : [],
@@ -76,11 +88,14 @@ router.post("/auth-url", async (req, res): Promise<void> => {
   try {
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+    const orgId = getOrgId(req);
 
-    const oauth2Client = getOAuth2Client();
+    // Connexion : identifiants PROPRES a l'org requis (pas de repli env) afin de
+    // donner un message clair plutot que "invalid_client".
+    const oauth2Client = await getOAuth2ClientForOrg(orgId, { envFallback: false });
     if (!oauth2Client) {
       res.status(400).json({
-        error: "Google Workspace n'est pas configure. Ajoutez GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET dans les variables d'environnement.",
+        error: "Identifiants Google non configures. Ajoutez votre Client ID et Client Secret dans Parametres > Google Workspace.",
         needsConfig: true,
       }); return;
     }
@@ -144,13 +159,15 @@ router.get("/callback", async (req, res): Promise<void> => {
       return;
     }
 
-    const oauth2Client = getOAuth2Client();
+    const orgId = req.session?.organisationId ?? null;
+    // Doit utiliser les MEMES identifiants que /auth-url (org, pas de repli env).
+    const oauth2Client = await getOAuth2ClientForOrg(orgId, { envFallback: false });
     if (!oauth2Client) {
       res.redirect(`${baseUrl}parametres?google_error=not_configured`);
       return;
     }
 
-    const { tokens } = await oauth2Client!.getToken(code as string);
+    const { tokens } = await oauth2Client.getToken(code as string);
     const now = new Date();
     const expiresAt = tokens.expiry_date ? new Date(tokens.expiry_date) : new Date(now.getTime() + 3600 * 1000);
 
@@ -163,6 +180,7 @@ router.get("/callback", async (req, res): Promise<void> => {
           accessToken: tokens.access_token!,
           refreshToken: tokens.refresh_token || existing[0].refreshToken,
           scope: tokens.scope || "",
+          organisationId: orgId ?? existing[0].organisationId,
           expiresAt,
           updatedAt: now,
         })
@@ -170,6 +188,7 @@ router.get("/callback", async (req, res): Promise<void> => {
     } else {
       await db.insert(googleOAuthTokensTable).values({
         userId,
+        organisationId: orgId,
         accessToken: tokens.access_token!,
         refreshToken: tokens.refresh_token || null,
         scope: tokens.scope || "",
@@ -235,13 +254,16 @@ router.post("/disconnect", async (req, res): Promise<void> => {
   try {
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+    const orgId = req.session?.organisationId ?? null;
 
     const tokens = await db.select().from(googleOAuthTokensTable)
       .where(eq(googleOAuthTokensTable.userId, userId));
 
     if (tokens.length > 0 && tokens[0].accessToken) {
       try {
-        const oauth2Client = getOAuth2Client();
+        // Revoquer avec les identifiants de l'org QUI a emis le token (le
+        // refresh_token est lie au client_id emetteur), sinon fallback session.
+        const oauth2Client = await getOAuth2ClientForOrg(tokens[0].organisationId ?? orgId, { envFallback: true });
         if (oauth2Client) {
           oauth2Client.setCredentials({ access_token: tokens[0].accessToken });
           await oauth2Client.revokeToken(tokens[0].accessToken);
@@ -275,6 +297,7 @@ router.post("/refresh", async (req, res): Promise<void> => {
   try {
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+    const orgId = req.session?.organisationId ?? null;
 
     const tokens = await db.select().from(googleOAuthTokensTable)
       .where(eq(googleOAuthTokensTable.userId, userId));
@@ -283,9 +306,11 @@ router.post("/refresh", async (req, res): Promise<void> => {
       res.status(400).json({ error: "Aucun token de rafraichissement disponible. Reconnectez votre compte Google." }); return;
     }
 
-    const oauth2Client = getOAuth2Client();
+    // Le refresh_token DOIT etre echange avec le client_id/secret qui l'a emis :
+    // on resout les identifiants depuis l'org du token, fallback session.
+    const oauth2Client = await getOAuth2ClientForOrg(tokens[0].organisationId ?? orgId, { envFallback: true });
     if (!oauth2Client) {
-      res.status(400).json({ error: "Google Workspace n'est pas configure." }); return;
+      res.status(400).json({ error: "Identifiants Google non configures." }); return;
     }
 
     oauth2Client.setCredentials({ refresh_token: tokens[0].refreshToken });
@@ -308,45 +333,150 @@ router.post("/refresh", async (req, res): Promise<void> => {
   }
 });
 
-router.get("/config", async (req, res): Promise<void> => {
+// ---------------------------------------------------------------------------
+// Gestion des identifiants OAuth PROPRES a l'organisation (bring your own
+// credentials). Reserve aux administrateurs / super-admins de l'org.
+// ---------------------------------------------------------------------------
+
+function canManageCredentials(req: any): boolean {
+  const role = req.session?.userRole;
+  return role === "administrateur" || role === "super_admin";
+}
+
+// Changer (ou retirer) les identifiants OAuth de l'org invalide les tokens
+// existants : ils ont ete emis par un AUTRE client_id et leur refresh echouerait
+// silencieusement. On force donc une reconnexion en supprimant les tokens de
+// tous les utilisateurs de l'org.
+async function resetOrgGoogleTokens(orgId: number): Promise<void> {
+  const orgUsers = await db.select({ id: usersTable.id }).from(usersTable)
+    .where(eq(usersTable.organisationId, orgId));
+  const ids = orgUsers.map((u) => u.id);
+  if (ids.length === 0) return;
+  await db.delete(googleOAuthTokensTable).where(inArray(googleOAuthTokensTable.userId, ids));
+}
+
+router.get("/app-credentials", async (req, res): Promise<void> => {
   try {
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+    if (!canManageCredentials(req)) {
+      res.status(403).json({ error: "Acces reserve aux administrateurs de l'organisation." }); return;
+    }
+    const orgId = getOrgId(req);
 
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const rows = await db.select().from(googleAppCredentialsTable)
+      .where(eq(googleAppCredentialsTable.organisationId, orgId)).limit(1);
+
+    const hasOrgCreds = rows.length > 0 && !!rows[0].clientId;
+    const envConfigured = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 
     res.json({
-      configured: !!(clientId && clientSecret),
-      hasClientId: !!clientId,
-      hasClientSecret: !!clientSecret,
-      clientIdPreview: clientId ? clientId.slice(0, 12) + "..." : null,
+      configured: hasOrgCreds,
+      clientIdPreview: hasOrgCreds ? rows[0].clientId.slice(0, 16) + "..." : null,
+      updatedAt: hasOrgCreds ? rows[0].updatedAt : null,
+      envFallbackAvailable: envConfigured,
+      redirectUri: getGoogleRedirectUri(),
+      canManage: canManageCredentials(req),
     });
   } catch (error: any) {
-    logger.error({ err: error }, "Google OAuth config read error");
+    logger.error({ err: error }, "Google app-credentials read error:");
     res.status(500).json({ error: "Erreur." });
   }
 });
 
-router.post("/config", async (req, res): Promise<void> => {
+router.post("/app-credentials", async (req, res): Promise<void> => {
   try {
     const userId = req.session?.userId;
-    const userRole = req.session?.userRole;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
-    if (userRole !== "super_admin") { res.status(403).json({ error: "Acces reserve au Super Administrateur." }); return; }
+    if (!canManageCredentials(req)) {
+      res.status(403).json({ error: "Acces reserve aux administrateurs de l'organisation." }); return;
+    }
+    const orgId = getOrgId(req);
 
-    res.status(410).json({
-      error: "Configuration runtime desactivee pour des raisons de securite.",
-      code: "runtime_oauth_config_disabled",
-      message:
-        "Les identifiants Google OAuth doivent etre configures via les variables d'environnement (Replit Secrets) "
-        + "GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET. La configuration runtime est desactivee car elle etait volatile "
-        + "(perdue au redemarrage) et exposait les identifiants en memoire. Ajoutez-les dans l'onglet 'Secrets' de Replit "
-        + "puis redemarrez le serveur.",
-      docsUrl: "https://docs.replit.com/replit-workspace/workspace-features/secrets",
+    const clientId = typeof req.body?.clientId === "string" ? req.body.clientId.trim() : "";
+    const clientSecret = typeof req.body?.clientSecret === "string" ? req.body.clientSecret.trim() : "";
+
+    if (!clientId || !clientSecret) {
+      res.status(400).json({ error: "Client ID et Client Secret requis." }); return;
+    }
+    if (!/\.apps\.googleusercontent\.com$/.test(clientId)) {
+      res.status(400).json({
+        error: "Le Client ID doit se terminer par '.apps.googleusercontent.com'. Copiez-le depuis Google Cloud Console.",
+      }); return;
+    }
+
+    const clientSecretEnc = encryptSecret(clientSecret);
+    const now = new Date();
+
+    const existing = await db.select().from(googleAppCredentialsTable)
+      .where(eq(googleAppCredentialsTable.organisationId, orgId)).limit(1);
+
+    // Si le client_id change (ou premiere config), les tokens existants ont ete
+    // emis par un autre client et doivent etre re-crees -> on les purge.
+    const clientIdChanged = existing.length === 0 || existing[0].clientId !== clientId;
+
+    if (existing.length > 0) {
+      await db.update(googleAppCredentialsTable)
+        .set({ clientId, clientSecretEnc, updatedAt: now })
+        .where(eq(googleAppCredentialsTable.organisationId, orgId));
+    } else {
+      await db.insert(googleAppCredentialsTable).values({ organisationId: orgId, clientId, clientSecretEnc });
+    }
+
+    if (clientIdChanged) {
+      await resetOrgGoogleTokens(orgId);
+    }
+
+    res.json({
+      status: "enregistre",
+      clientIdPreview: clientId.slice(0, 16) + "...",
+      redirectUri: getGoogleRedirectUri(),
+      reconnectRequired: clientIdChanged,
     });
   } catch (error: any) {
-    logger.error({ err: error }, "Google OAuth config error:");
+    logger.error({ err: error }, "Google app-credentials write error:");
+    res.status(500).json({ error: "Erreur lors de l'enregistrement des identifiants." });
+  }
+});
+
+router.delete("/app-credentials", async (req, res): Promise<void> => {
+  try {
+    const userId = req.session?.userId;
+    if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+    if (!canManageCredentials(req)) {
+      res.status(403).json({ error: "Acces reserve aux administrateurs de l'organisation." }); return;
+    }
+    const orgId = getOrgId(req);
+
+    await db.delete(googleAppCredentialsTable)
+      .where(eq(googleAppCredentialsTable.organisationId, orgId));
+
+    // Les tokens emis avec ces identifiants ne sont plus valides -> reconnexion.
+    await resetOrgGoogleTokens(orgId);
+
+    res.json({ status: "supprime" });
+  } catch (error: any) {
+    logger.error({ err: error }, "Google app-credentials delete error:");
+    res.status(500).json({ error: "Erreur lors de la suppression des identifiants." });
+  }
+});
+
+// Conserve pour compatibilite : l'ancienne config runtime via env est remplacee
+// par la gestion par organisation ci-dessus.
+router.get("/config", async (req, res): Promise<void> => {
+  try {
+    const userId = req.session?.userId;
+    if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+    const orgId = req.session?.organisationId ?? null;
+    const creds = await getOrgGoogleCredentials(orgId, { envFallback: true });
+
+    res.json({
+      configured: !!creds,
+      source: creds?.source ?? null,
+      clientIdPreview: creds ? creds.clientId.slice(0, 12) + "..." : null,
+    });
+  } catch (error: any) {
+    logger.error({ err: error }, "Google OAuth config read error");
     res.status(500).json({ error: "Erreur." });
   }
 });

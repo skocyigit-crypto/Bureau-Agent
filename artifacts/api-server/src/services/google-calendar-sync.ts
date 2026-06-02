@@ -2,6 +2,7 @@ import { google } from "googleapis";
 import { db, googleOAuthTokensTable, checkinsTable, platformSyncLogsTable } from "@workspace/db";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { getOrgGoogleCredentials, getGoogleRedirectUri } from "../lib/google-auth";
 
 interface SyncResult {
   imported: number;
@@ -10,18 +11,10 @@ interface SyncResult {
   details: string[];
 }
 
-function getOAuth2Client() {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return null;
-
-  const publicBase = process.env.PUBLIC_URL || process.env.APP_URL;
-  const replitDomain = process.env.REPLIT_DEV_DOMAIN || (process.env.REPL_SLUG ? `${process.env.REPL_SLUG}.repl.co` : null);
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI
-    || (publicBase ? `${publicBase.replace(/\/$/, "")}/api/google-oauth/callback` : null)
-    || (replitDomain ? `https://${replitDomain}/api/google-oauth/callback` : "http://localhost/api/google-oauth/callback");
-
-  return new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+async function getOAuth2Client(organisationId: number | null | undefined) {
+  const creds = await getOrgGoogleCredentials(organisationId, { envFallback: true });
+  if (!creds) return null;
+  return new google.auth.OAuth2(creds.clientId, creds.clientSecret, getGoogleRedirectUri());
 }
 
 function getLocalDateKey(dateTime: string, timeZone: string | undefined): string {
@@ -87,7 +80,7 @@ export async function syncGoogleCalendarToCheckins(params: {
   }
 
   const token = tokens[0];
-  const oauth2Client = getOAuth2Client();
+  const oauth2Client = await getOAuth2Client(token.organisationId ?? organisationId);
   if (!oauth2Client) {
     throw new Error("Google Workspace n'est pas configure. Contactez votre administrateur.");
   }

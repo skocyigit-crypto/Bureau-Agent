@@ -3,6 +3,7 @@ import { db, autoBackupsTable, backupConfigTable, googleOAuthTokensTable } from 
 import { eq, sql, desc } from "drizzle-orm";
 import crypto from "crypto";
 import { logger } from "../lib/logger";
+import { getOrgGoogleCredentials, getGoogleRedirectUri } from "../lib/google-auth";
 
 const DRIVE_FOLDER_NAME = "Agent de Bureau - Sauvegardes";
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
@@ -47,10 +48,6 @@ async function getGoogleDriveAccessToken(): Promise<string | null> {
   }
 
   // 3. Fall back to any stored user OAuth token with drive scope
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return null;
-
   try {
     const tokens = await db
       .select()
@@ -61,10 +58,10 @@ async function getGoogleDriveAccessToken(): Promise<string | null> {
     const driveToken = tokens.find(t => (t.scope || "").includes("drive"));
     if (!driveToken) return null;
 
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI ||
-      `${process.env.PUBLIC_URL || process.env.APP_URL || "http://localhost"}/api/google-oauth/callback`;
+    const creds = await getOrgGoogleCredentials(driveToken.organisationId, { envFallback: true });
+    if (!creds) return null;
 
-    const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+    const oauth2Client = new google.auth.OAuth2(creds.clientId, creds.clientSecret, getGoogleRedirectUri());
     oauth2Client.setCredentials({
       access_token: driveToken.accessToken,
       refresh_token: driveToken.refreshToken,

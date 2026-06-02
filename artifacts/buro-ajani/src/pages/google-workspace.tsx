@@ -78,6 +78,15 @@ export default function GoogleWorkspace() {
         body: JSON.stringify({}),
       });
       const data = await res.json();
+      if (data?.needsConfig) {
+        toast({
+          title: "Configuration Google requise",
+          description: "Aucun identifiant OAuth n'est configure. Allez dans Parametres > Google pour saisir votre Client ID et Client Secret.",
+          variant: "destructive",
+        });
+        setConnecting(false);
+        return;
+      }
       if (!res.ok || !data?.authUrl) {
         throw new Error(data?.error || `HTTP ${res.status}`);
       }

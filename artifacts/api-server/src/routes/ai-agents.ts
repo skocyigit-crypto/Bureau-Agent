@@ -2485,15 +2485,10 @@ async function runSuperAgentCycle(orgId: number, userId: number) {
     saLog(orgId, "info", "email", "Analyse de la boîte mail...");
     let emailTasksCreated = 0;
     try {
-      const { googleOAuthTokensTable: googleTokens } = await import("@workspace/db");
-      const tokenRows = await db.select().from(googleTokens).where(eq(googleTokens.userId, userId)).limit(1);
-      if (tokenRows.length > 0) {
+      const { getAuthClientForUser } = await import("../lib/google-auth");
+      const oauth2Client = await getAuthClientForUser(userId);
+      if (oauth2Client) {
         const { google } = await import("googleapis");
-        const oauth2Client = new google.auth.OAuth2(
-          process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET,
-          process.env.GOOGLE_REDIRECT_URI || `${process.env.PUBLIC_URL || process.env.APP_URL || "http://localhost"}/api/google-oauth/callback`
-        );
-        oauth2Client.setCredentials({ access_token: tokenRows[0].accessToken, refresh_token: tokenRows[0].refreshToken });
         const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
         const listRes = await gmail.users.messages.list({ userId: "me", q: "is:unread is:inbox -category:promotions -category:social", maxResults: 15 }).catch(() => null);

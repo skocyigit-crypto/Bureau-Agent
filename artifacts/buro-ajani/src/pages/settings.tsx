@@ -20,6 +20,7 @@ import { TabSecurite } from "./settings/tab-securite";
 import { TabMisesAJour } from "./settings/tab-mises-a-jour";
 import { TabIntelligenceArtificielle } from "./settings/tab-intelligence-artificielle";
 import { TabProfilOrg } from "./settings/tab-profil-org";
+import { TabGoogleCredentials } from "./settings/tab-google-credentials";
 import { TabPreferencesIa } from "./settings/tab-preferences-ia";
 
 export default function SettingsPage() {
@@ -153,6 +154,7 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="google" className="space-y-6 mt-6">
+          <TabGoogleCredentials />
           <TabPlateformes />
         </TabsContent>
 

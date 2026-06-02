@@ -2,6 +2,7 @@ import { google } from "googleapis";
 import { db, googleOAuthTokensTable, checkinsTable, usersTable } from "@workspace/db";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { getOrgGoogleCredentials, getGoogleRedirectUri } from "../lib/google-auth";
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 let isRunning = false;
@@ -9,31 +10,19 @@ let isRunning = false;
 const SYNC_INTERVAL_MS = 30 * 60 * 1000;
 const SYNC_TAG = "[google-auto]";
 
-function getOAuth2Client() {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return null;
-
-  const publicBase = process.env.PUBLIC_URL || process.env.APP_URL;
-  const replitDomain = process.env.REPLIT_DEV_DOMAIN || (process.env.REPL_SLUG ? `${process.env.REPL_SLUG}.repl.co` : null);
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI
-    || (publicBase ? `${publicBase.replace(/\/$/, "")}/api/google-oauth/callback` : null)
-    || (replitDomain ? `https://${replitDomain}/api/google-oauth/callback` : "http://localhost/api/google-oauth/callback");
-
-  return new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+async function getOAuth2Client(organisationId: number | null | undefined) {
+  const creds = await getOrgGoogleCredentials(organisationId, { envFallback: true });
+  if (!creds) return null;
+  return new google.auth.OAuth2(creds.clientId, creds.clientSecret, getGoogleRedirectUri());
 }
 
 export function startGoogleAutoPointage() {
   if (intervalHandle) return;
 
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) {
-    logger.info("[GoogleAutoPointage] Google OAuth non configure, auto-sync desactive.");
-    return;
-  }
-
-  logger.info("[GoogleAutoPointage] Demarrage - Intervalle: 30min");
+  // BYOC : les identifiants OAuth sont resolus PAR ORGANISATION au runtime
+  // (avec fallback env). On demarre donc toujours le scheduler ; chaque token
+  // sans identifiants resolvables est simplement ignore dans doSync.
+  logger.info("[GoogleAutoPointage] Demarrage - Intervalle: 30min (identifiants par organisation)");
 
   setTimeout(() => runAutoSync().catch(err => logger.error({ err: err.message }, "[GoogleAutoPointage] Erreur initiale:")), 10000);
 
@@ -78,6 +67,7 @@ async function doSync() {
     refreshToken: googleOAuthTokensTable.refreshToken,
     scope: googleOAuthTokensTable.scope,
     expiresAt: googleOAuthTokensTable.expiresAt,
+    organisationId: googleOAuthTokensTable.organisationId,
   }).from(googleOAuthTokensTable);
 
   if (allTokens.length === 0) return;
@@ -116,6 +106,7 @@ async function syncUserToday(token: {
   refreshToken: string | null;
   scope: string;
   expiresAt: Date | null;
+  organisationId: number | null;
 }): Promise<{ imported: number; skipped: number; errors: number }> {
   const result = { imported: 0, skipped: 0, errors: 0 };
 
@@ -130,7 +121,7 @@ async function syncUserToday(token: {
 
   if (!user || !user.organisationId || !user.actif) return result;
 
-  const oauth2Client = getOAuth2Client();
+  const oauth2Client = await getOAuth2Client(token.organisationId ?? user.organisationId);
   if (!oauth2Client) return result;
 
   oauth2Client.setCredentials({

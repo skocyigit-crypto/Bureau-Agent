@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { getOrgId } from "../middleware/tenant";
 import { ingestDocument } from "../services/document-ingest";
+import { getAuthClientForUser as getAuthClient } from "../lib/google-auth";
 
 const router = Router();
 
@@ -27,28 +28,9 @@ const GOOGLE_NATIVE_EXPORT: Record<string, { mimeType: string; ext: string }> = 
 };
 
 // Client OAuth PAR UTILISATEUR : chaque patron (titulaire de licence) connecte
-// SON propre compte Google. Les jetons sont stockes dans google_oauth_tokens
-// (meme mecanisme que routes/gmail.ts, services/google-calendar-sync.ts, etc.).
-// googleapis rafraichit automatiquement l'access_token via le refresh_token.
-async function getAuthClient(userId: number) {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return null;
-
-  const tokens = await db.select().from(googleOAuthTokensTable)
-    .where(eq(googleOAuthTokensTable.userId, userId));
-  if (tokens.length === 0) return null;
-
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI ||
-    `${process.env.PUBLIC_URL || process.env.APP_URL || "http://localhost"}/api/google-oauth/callback`;
-
-  const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
-  oauth2Client.setCredentials({
-    access_token: tokens[0].accessToken,
-    refresh_token: tokens[0].refreshToken,
-  });
-  return oauth2Client;
-}
+// SON propre compte Google. Le client est construit a partir des identifiants
+// OAuth PROPRES a l'organisation (modele "bring your own credentials"), via
+// getAuthClientForUser (lib/google-auth.ts) — meme mecanisme que routes/gmail.ts.
 
 const GOOGLE_APPS = [
   { id: "gmail",    name: "Gmail",            description: "Messagerie professionnelle",       icon: "mail",           color: "#EA4335", category: "communication" },
