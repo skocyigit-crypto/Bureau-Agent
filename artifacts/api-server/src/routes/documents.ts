@@ -11,6 +11,7 @@ import { emitSecurityAlert } from "../services/security-alerts";
 import { recordDocumentThreatSuggestion } from "../services/proactive-engine";
 import { openSseStream } from "../services/ai-stream";
 import { EventEmitter } from "events";
+import { startBulkScan, getBulkScanStatus } from "../services/document-scan-job";
 
 const router = Router();
 const requireMinAgent = requireRole("super_admin", "administrateur", "agent");
@@ -1159,6 +1160,35 @@ router.post("/documents/scan-unscanned", requireMinAgent, async (req: Request, r
   } catch (err: any) {
     logger.error({ err }, "Bulk document scan error");
     res.status(500).json({ error: "Erreur lors de l'analyse antivirus en lot" });
+  }
+});
+
+/**
+ * Demarre un scan antivirus "Tout analyser" en arriere-plan cote serveur.
+ * Rend la main immediatement : le travail continue meme si le client quitte la
+ * page. La progression est diffusee via SSE (type "security", meta.source =
+ * "bulk-scan") et interrogeable via /documents/scan-unscanned/status.
+ */
+router.post("/documents/scan-unscanned/start", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const userId = req.session?.userId || null;
+    const job = startBulkScan(orgId, userId);
+    res.json({ success: true, job });
+  } catch (err: any) {
+    logger.error({ err }, "Bulk document scan start error");
+    res.status(500).json({ error: "Erreur lors du demarrage de l'analyse antivirus en lot" });
+  }
+});
+
+/** Renvoie l'etat courant du scan en arriere-plan (pour reattache au refresh). */
+router.get("/documents/scan-unscanned/status", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    res.json({ job: getBulkScanStatus(orgId) });
+  } catch (err: any) {
+    logger.error({ err }, "Bulk document scan status error");
+    res.status(500).json({ error: "Erreur lors de la recuperation du statut" });
   }
 });
 

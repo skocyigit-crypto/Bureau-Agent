@@ -89,6 +89,19 @@ interface Stats {
   byScanVerdict?: { safe: number; dangerous: number; unscanned: number };
 }
 
+interface BulkScanJobState {
+  status: "running" | "completed" | "failed" | "idle";
+  startedAt: number | null;
+  finishedAt: number | null;
+  total: number;
+  scanned: number;
+  safe: number;
+  dangerous: number;
+  failed: number;
+  remaining: number;
+  error: string | null;
+}
+
 export default function DocumentsPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -147,6 +160,57 @@ export default function DocumentsPage() {
   }, [filterEntity, filterCategory, filterScan]);
 
   useEffect(() => { loadDocuments(); }, [loadDocuments]);
+
+  // Reattache a un scan en arriere-plan deja en cours (refresh / retour sur la page).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API}/api/documents/scan-unscanned/status`, { credentials: "include" });
+        if (!res.ok || cancelled) return;
+        const { job } = (await res.json()) as { job: BulkScanJobState };
+        if (job.status === "running") {
+          setBulkScanning(true);
+          setBulkScanProgress({ completed: job.scanned, total: Math.max(job.total, job.scanned) });
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Progression du scan en lot diffusee via le canal temps reel (SSE).
+  useEffect(() => {
+    const onSync = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { type?: string; meta?: Record<string, unknown> } | undefined;
+      if (!detail || detail.type !== "security" || detail.meta?.source !== "bulk-scan") return;
+      const m = detail.meta as unknown as BulkScanJobState;
+      if (m.status === "running") {
+        setBulkScanning(true);
+        setBulkScanProgress({ completed: m.scanned, total: Math.max(m.total, m.scanned) });
+      } else {
+        setBulkScanning(false);
+        setBulkScanProgress(null);
+        if (m.status === "completed") {
+          if (m.dangerous > 0) {
+            toast({
+              title: `${m.scanned} document(s) analysé(s)`,
+              description: `${m.dangerous} menace(s) détectée(s), ${m.safe} sain(s).`,
+              variant: "destructive",
+            });
+          } else {
+            toast({ title: `${m.scanned} document(s) analysé(s)`, description: "Aucune menace détectée." });
+          }
+        } else if (m.status === "failed") {
+          toast({ title: "Erreur d'analyse antivirus en lot", variant: "destructive" });
+        }
+        loadDocuments();
+      }
+    };
+    window.addEventListener("realtime-sync", onSync);
+    return () => window.removeEventListener("realtime-sync", onSync);
+  }, [loadDocuments, toast]);
 
   const downloadDoc = async (id: number, name: string) => {
     try {
@@ -290,45 +354,24 @@ export default function DocumentsPage() {
   const scanAllUnscanned = async () => {
     const total = stats?.byScanVerdict?.unscanned ?? 0;
     if (total === 0 || bulkScanning) return;
-    setBulkScanning(true);
-    setBulkScanProgress({ completed: 0, total });
-    let done = 0;
-    let totalSafe = 0;
-    let totalDangerous = 0;
     try {
-      for (let i = 0; i < 1000; i++) {
-        const res = await fetch(`${API}/api/documents/scan-unscanned`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ batchSize: 15 }),
-        });
-        if (!res.ok) {
-          toast({ title: "Erreur d'analyse antivirus en lot", variant: "destructive" });
-          break;
-        }
-        const result = await res.json();
-        done += result.scanned ?? 0;
-        totalSafe += result.safe ?? 0;
-        totalDangerous += result.dangerous ?? 0;
-        setBulkScanProgress({ completed: Math.min(done, total), total: Math.max(total, done) });
-        if ((result.scanned ?? 0) === 0 || (result.remaining ?? 0) === 0) break;
+      const res = await fetch(`${API}/api/documents/scan-unscanned/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) {
+        toast({ title: "Erreur d'analyse antivirus en lot", variant: "destructive" });
+        return;
       }
-      if (totalDangerous > 0) {
-        toast({
-          title: `${done} document(s) analysé(s)`,
-          description: `${totalDangerous} menace(s) détectée(s), ${totalSafe} sain(s).`,
-          variant: "destructive",
-        });
-      } else {
-        toast({ title: `${done} document(s) analysé(s)`, description: "Aucune menace détectée." });
-      }
-      await loadDocuments();
+      const data = await res.json();
+      const job = data.job as BulkScanJobState;
+      setBulkScanning(true);
+      setBulkScanProgress({ completed: job.scanned ?? 0, total: job.total || total });
+      toast({ title: "Analyse en lot lancée", description: "Elle continue en arrière-plan, vous pouvez quitter la page." });
     } catch {
       toast({ title: "Erreur d'analyse antivirus en lot", variant: "destructive" });
-    } finally {
-      setBulkScanning(false);
-      setBulkScanProgress(null);
     }
   };
 

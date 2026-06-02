@@ -255,6 +255,27 @@ export default function DocumentsScreen() {
   useEffect(() => { setLoading(true); load(); }, [load]);
   function onRefresh() { setRefreshing(true); load(); }
 
+  // Au montage : se rebrancher a un scan en arriere-plan deja en cours.
+  useEffect(() => {
+    let cleanup: (() => void) | undefined;
+    (async () => {
+      try {
+        const res = await fetchAuth(`${API_BASE}/api/documents/scan-unscanned/status`);
+        if (!res.ok) return;
+        const { job } = await res.json();
+        if (job.status === "running") {
+          setBulkScanning(true);
+          setBulkScanProgress({ completed: job.scanned, total: Math.max(job.total, job.scanned) });
+          cleanup = pollBulkScan(false);
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => { cleanup?.(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function handleDelete(id: number) {
     setData(prev => prev ? { ...prev, documents: prev.documents.filter(d => d.id !== id) } : null);
     try { await fetchAuth(`${API_BASE}/api/documents/${id}`, { method: "DELETE" }); load(); }
@@ -367,42 +388,64 @@ export default function DocumentsScreen() {
     }
   }
 
+  // Interroge le statut du scan en arriere-plan jusqu'a sa fin. Le travail lourd
+  // tourne cote serveur : ici on ne fait qu'un sondage leger de la progression,
+  // ce qui survit a une navigation/refresh (on se rebranche au montage).
+  const pollBulkScan = useCallback((announceOnFinish: boolean) => {
+    let stopped = false;
+    const tick = async () => {
+      if (stopped) return;
+      try {
+        const res = await fetchAuth(`${API_BASE}/api/documents/scan-unscanned/status`);
+        if (!res.ok) { setBulkScanning(false); setBulkScanProgress(null); return; }
+        const { job } = await res.json();
+        if (job.status === "running") {
+          setBulkScanning(true);
+          setBulkScanProgress({ completed: job.scanned, total: Math.max(job.total, job.scanned) });
+          if (!stopped) setTimeout(tick, 1500);
+        } else {
+          setBulkScanning(false);
+          setBulkScanProgress(null);
+          if (announceOnFinish && job.status === "completed") {
+            Alert.alert(
+              "Analyse terminée",
+              job.dangerous > 0
+                ? `${job.scanned} document(s) analysé(s). ${job.dangerous} menace(s) détectée(s).`
+                : `${job.scanned} document(s) analysé(s). Aucune menace détectée.`,
+            );
+          } else if (announceOnFinish && job.status === "failed") {
+            Alert.alert("Analyse antivirus", "L'analyse en lot a échoué. Réessayez.");
+          }
+          load();
+        }
+      } catch {
+        setBulkScanning(false);
+        setBulkScanProgress(null);
+      }
+    };
+    tick();
+    return () => { stopped = true; };
+  }, [fetchAuth, load]);
+
   async function handleScanAll() {
     const total = data?.byScan?.unscanned ?? 0;
     if (total === 0 || bulkScanning) return;
-    setBulkScanning(true);
-    setBulkScanProgress({ completed: 0, total });
-    let done = 0;
-    let totalDangerous = 0;
     try {
-      for (let i = 0; i < 1000; i++) {
-        const res = await fetchAuth(`${API_BASE}/api/documents/scan-unscanned`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ batchSize: 15 }),
-        });
-        if (!res.ok) {
-          Alert.alert("Analyse antivirus", "L'analyse en lot a échoué. Réessayez.");
-          break;
-        }
-        const result = await res.json();
-        done += result.scanned ?? 0;
-        totalDangerous += result.dangerous ?? 0;
-        setBulkScanProgress({ completed: Math.min(done, total), total: Math.max(total, done) });
-        if ((result.scanned ?? 0) === 0 || (result.remaining ?? 0) === 0) break;
+      const res = await fetchAuth(`${API_BASE}/api/documents/scan-unscanned/start`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) {
+        Alert.alert("Analyse antivirus", "L'analyse en lot a échoué. Réessayez.");
+        return;
       }
-      Alert.alert(
-        "Analyse terminée",
-        totalDangerous > 0
-          ? `${done} document(s) analysé(s). ${totalDangerous} menace(s) détectée(s).`
-          : `${done} document(s) analysé(s). Aucune menace détectée.`,
-      );
-      await load();
+      const { job } = await res.json();
+      setBulkScanning(true);
+      setBulkScanProgress({ completed: job.scanned ?? 0, total: job.total || total });
+      pollBulkScan(true);
     } catch {
       Alert.alert("Analyse antivirus", "Erreur de connexion.");
-    } finally {
-      setBulkScanning(false);
-      setBulkScanProgress(null);
     }
   }
 
