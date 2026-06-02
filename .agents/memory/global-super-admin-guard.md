@@ -38,3 +38,14 @@ block. Quick smoke: an authenticated non-admin hitting a client route must get
 401/200, never 403 from a global guard. The `admin-isolation` test does NOT
 catch this — it only checks commercial routes, never an unrelated client route
 with a non-admin user.
+
+**Inverse footgun — under-gating mutations:** routers mounted *after*
+`requireTenant` are authenticated and org-scoped but NOT role-gated. State-changing
+endpoints there (e.g. agent-queue approve/reject/run-now, ai agent runs) need an
+explicit per-route `requireRole(...)` guard — a client-side "canRun" check is
+cosmetic and any authenticated org member can curl the endpoint otherwise.
+**Why:** the agent-queue approve/reject/run-now routes shipped with no role guard
+while the UI hid the buttons; broken access control until guarded with the same
+`requireRole("super_admin","administrateur")` policy the ai-agent run routes use.
+**How to apply:** when adding a mutation under a tenant-mounted router, gate it
+per-route; smoke that an unauth POST returns 401/403, never 200/500.

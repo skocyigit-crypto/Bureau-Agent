@@ -733,7 +733,7 @@ Reponds en JSON avec cette structure exacte:
 }
 IMPORTANT: Genere 3-6 elements pertinents pour chaque categorie. Sois ULTRA concret avec les chiffres. Chaque erreur doit avoir une cause racine. Chaque suggestion doit avoir un ROI estime. Chaque prediction doit etre basee sur les tendances observees.`;
 
-async function runSingleAgent(agent: typeof AGENTS[0], orgId: number, signal?: AbortSignal): Promise<any> {
+async function runSingleAgent(agent: typeof AGENTS[0], orgId: number, signal?: AbortSignal, goal?: string): Promise<any> {
   const startTime = Date.now();
   const today = new Date().toISOString().split("T")[0];
   const checkAbort = () => { if (signal?.aborted) throw new Error("aborted"); };
@@ -766,15 +766,20 @@ ${trendHistory.map(h => `  ${h.reportDate}: score ${h.score}, ${h.errorsFound} e
       }
     } catch (colErr) { logger.warn({ err: colErr }, `[AI-Agent] ${agent} collaboration context failed`); }
 
+    const cleanGoal = typeof goal === "string" ? goal.trim().slice(0, 500) : "";
+    const goalContext = cleanGoal
+      ? `\n\n=== OBJECTIF PRIORITAIRE DU DIRIGEANT ===\nLe patron te confie une mission specifique pour cette execution: "${cleanGoal}"\nConcentre ton analyse, tes alertes et tes suggestions en priorite sur cet objectif, tout en restant dans ton domaine de competence. Si l'objectif sort de ton domaine, dis-le clairement et traite ce que tu peux.\n=== FIN OBJECTIF ===`
+      : "";
+
     const { ai } = await import("@workspace/integrations-gemini-ai");
-    const fullPrompt = `${getAgentPrompt(agent)}${collaborationContext}${trendContext}\n\n${AGENT_RESPONSE_FORMAT}\n\nDate du rapport: ${today}\nDonnees actuelles (cette semaine + semaine precedente + patterns):\n${JSON.stringify(data, null, 2)}`;
+    const fullPrompt = `${getAgentPrompt(agent)}${collaborationContext}${trendContext}${goalContext}\n\n${AGENT_RESPONSE_FORMAT}\n\nDate du rapport: ${today}\nDonnees actuelles (cette semaine + semaine precedente + patterns):\n${JSON.stringify(data, null, 2)}`;
 
     let text = "{}";
     const t0 = Date.now();
     const agentCacheKey = buildAiCacheKey({
       route: `/ai/agents/${agent.id}`,
       organisationId: orgId,
-      input: { day: today, dataHash: JSON.stringify(data).slice(0, 400) },
+      input: { day: today, dataHash: JSON.stringify(data).slice(0, 400), goal: cleanGoal },
     });
     const agentCached = getCached<string>(agentCacheKey);
     if (agentCached) {
@@ -1358,7 +1363,8 @@ router.post("/ai/agents/run/:agentId", requireAdmin, async (req, res) => {
       res.status(404).json({ error: "Agent introuvable" });
       return;
     }
-    const report = await runSingleAgent(agent, orgId);
+    const goal = typeof req.body?.goal === "string" ? req.body.goal : undefined;
+    const report = await runSingleAgent(agent, orgId, undefined, goal);
     res.json(report);
   } catch (error: any) {
     if (error instanceof AiQuotaExceededError) { res.status(429).json({ error: error.message, quotaExceeded: true }); return; }

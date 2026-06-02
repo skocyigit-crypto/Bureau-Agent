@@ -9,6 +9,7 @@ import { db } from "@workspace/db";
 import { agentProposalsTable } from "@workspace/db/schema";
 import { and, eq, desc, sql } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
+import { requireRole } from "../middleware/auth";
 import {
   proposeActionsForOrg,
   executeProposal,
@@ -16,6 +17,9 @@ import {
 } from "../services/autonomous-secretary";
 
 const router: IRouter = Router();
+
+/** Mutations de la file (générer / approuver / rejeter) réservées aux administrateurs. */
+const requireAdmin = requireRole("super_admin", "administrateur");
 
 const VALID_STATUSES = ["en_attente", "approuvee", "rejetee", "executee", "echouee", "expiree"] as const;
 
@@ -61,7 +65,7 @@ router.get("/agent-queue/count", async (req: Request, res: Response): Promise<vo
 });
 
 /** Lance une génération de propositions à la demande. */
-router.post("/agent-queue/run-now", async (req: Request, res: Response): Promise<void> => {
+router.post("/agent-queue/run-now", requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
     const result = await proposeActionsForOrg(orgId);
@@ -73,7 +77,7 @@ router.post("/agent-queue/run-now", async (req: Request, res: Response): Promise
 });
 
 /** Approuve et exécute une proposition. */
-router.post("/agent-queue/:id/approve", async (req: Request, res: Response): Promise<void> => {
+router.post("/agent-queue/:id/approve", requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
     const userId = req.session?.userId as number;
@@ -93,7 +97,7 @@ router.post("/agent-queue/:id/approve", async (req: Request, res: Response): Pro
 });
 
 /** Rejette une proposition. */
-router.post("/agent-queue/:id/reject", async (req: Request, res: Response): Promise<void> => {
+router.post("/agent-queue/:id/reject", requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
     const userId = req.session?.userId as number;

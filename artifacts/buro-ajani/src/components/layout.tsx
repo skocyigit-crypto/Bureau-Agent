@@ -306,6 +306,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         ? [{
             label: "Assistants IA",
             items: [
+              { name: "Équipe IA", href: "/equipe-ia", icon: Brain },
               { name: "Commandant IA", href: "/commandant-ia", icon: Sparkles },
               { name: "File d'approbation", href: "/file-approbation", icon: Inbox, badge: agentQueueCount },
               ...(isAdmin ? [{ name: "Auto-audit", href: "/auto-audit", icon: ScanSearch }] : []),
