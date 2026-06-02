@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EmptyState } from "@/components/EmptyState";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
+import { streamSse } from "@/lib/sse-stream";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Doc {
@@ -222,7 +223,7 @@ function DocCard({ doc, colors, onDelete, onDownload, onRead, onRescan, scanning
 export default function DocumentsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { fetchAuth } = useAuth();
+  const { fetchAuth, authHeaders } = useAuth();
   const isWeb = Platform.OS === "web";
   const params = useLocalSearchParams<{ scan?: string }>();
 
@@ -237,7 +238,7 @@ export default function DocumentsScreen() {
     return s === "safe" || s === "dangerous" || s === "none" ? s : "all";
   });
   const [bulkScanning, setBulkScanning] = useState(false);
-  const [bulkScanProgress, setBulkScanProgress] = useState<{ done: number; total: number } | null>(null);
+  const [bulkScanProgress, setBulkScanProgress] = useState<{ completed: number; total: number } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -304,38 +305,65 @@ export default function DocumentsScreen() {
   async function handleBulkScan(ids: number[]) {
     if (bulkScanning || ids.length === 0) return;
     setBulkScanning(true);
+    setBulkScanProgress({ completed: 0, total: ids.length });
+    // Patche une ligne de document avec son verdict frais des qu'il arrive.
+    const applyResult = (item: { documentId: number; scanVerdict?: string; scanEngine?: string | null; scannedAt?: string }) => {
+      if (!item.scanVerdict) return;
+      setData(prev => prev ? {
+        ...prev,
+        documents: prev.documents.map(d => d.id === item.documentId
+          ? { ...d, scanVerdict: item.scanVerdict ?? d.scanVerdict, scanEngine: item.scanEngine ?? null, scannedAt: item.scannedAt ?? d.scannedAt }
+          : d),
+      } : null);
+    };
+    const controller = new AbortController();
+    let finished = false;
     try {
-      const res = await fetchAuth(`${API_BASE}/api/documents/bulk/scan`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids }),
+      await streamSse(`${API_BASE}/api/documents/bulk/scan/stream`, { ids }, {
+        signal: controller.signal,
+        headers: authHeaders(),
+        onEvent: (event, data) => {
+          if (event === "start") {
+            setBulkScanProgress({ completed: 0, total: data.total ?? ids.length });
+          } else if (event === "progress") {
+            setBulkScanProgress({ completed: data.completed ?? 0, total: data.total ?? ids.length });
+            if (data.last) applyResult(data.last);
+          } else if (event === "done") {
+            finished = true;
+            for (const item of data.results ?? []) applyResult(item);
+            const parts: string[] = [];
+            if (data.safe) parts.push(`${data.safe} sain(s)`);
+            if (data.dangerous) parts.push(`${data.dangerous} menace(s)`);
+            if (data.failed) parts.push(`${data.failed} échec(s)`);
+            Alert.alert(`${data.scanned} document(s) analysé(s)`, parts.join(" · ") || "Analyse terminée.");
+          } else if (event === "error") {
+            finished = true;
+            Alert.alert("Analyse antivirus", data?.error || "L'analyse groupée a échoué. Réessayez.");
+          }
+        },
       });
-      if (res.ok) {
-        const r = await res.json();
-        const byId = new Map<number, { scanVerdict?: string; scanEngine?: string | null; scannedAt?: string }>();
-        for (const item of r.results ?? []) {
-          if (item.scanVerdict) byId.set(item.documentId, item);
+      if (!finished) {
+        // Le flux s'est termine sans evenement terminal (reattachement a un job
+        // deja fini): on reconcilie via l'instantane de statut.
+        const res = await fetchAuth(`${API_BASE}/api/documents/bulk/scan/status`);
+        if (res.ok) {
+          const r = await res.json();
+          for (const item of r.results ?? []) applyResult(item);
+          if (r.status === "completed" || r.status === "cancelled") {
+            const parts: string[] = [];
+            if (r.safe) parts.push(`${r.safe} sain(s)`);
+            if (r.dangerous) parts.push(`${r.dangerous} menace(s)`);
+            if (r.failed) parts.push(`${r.failed} échec(s)`);
+            Alert.alert(`${(r.safe ?? 0) + (r.dangerous ?? 0)} document(s) analysé(s)`, parts.join(" · ") || "Analyse terminée.");
+          }
         }
-        setData(prev => prev ? {
-          ...prev,
-          documents: prev.documents.map(d => {
-            const u = byId.get(d.id);
-            return u ? { ...d, scanVerdict: u.scanVerdict ?? d.scanVerdict, scanEngine: u.scanEngine ?? null, scannedAt: u.scannedAt ?? d.scannedAt } : d;
-          }),
-        } : null);
-        const parts: string[] = [];
-        if (r.safe) parts.push(`${r.safe} sain(s)`);
-        if (r.dangerous) parts.push(`${r.dangerous} menace(s)`);
-        if (r.failed) parts.push(`${r.failed} échec(s)`);
-        Alert.alert(`${r.scanned} document(s) analysé(s)`, parts.join(" · ") || "Analyse terminée.");
-        load();
-      } else {
-        Alert.alert("Analyse antivirus", "L'analyse groupée a échoué. Réessayez.");
       }
+      load();
     } catch {
       Alert.alert("Analyse antivirus", "Erreur de connexion.");
     } finally {
       setBulkScanning(false);
+      setBulkScanProgress(null);
     }
   }
 
@@ -343,7 +371,7 @@ export default function DocumentsScreen() {
     const total = data?.byScan?.unscanned ?? 0;
     if (total === 0 || bulkScanning) return;
     setBulkScanning(true);
-    setBulkScanProgress({ done: 0, total });
+    setBulkScanProgress({ completed: 0, total });
     let done = 0;
     let totalDangerous = 0;
     try {
@@ -360,7 +388,7 @@ export default function DocumentsScreen() {
         const result = await res.json();
         done += result.scanned ?? 0;
         totalDangerous += result.dangerous ?? 0;
-        setBulkScanProgress({ done: Math.min(done, total), total: Math.max(total, done) });
+        setBulkScanProgress({ completed: Math.min(done, total), total: Math.max(total, done) });
         if ((result.scanned ?? 0) === 0 || (result.remaining ?? 0) === 0) break;
       }
       Alert.alert(
@@ -507,7 +535,7 @@ export default function DocumentsScreen() {
             )}
             <Text style={st.scanAllText}>
               {bulkScanning
-                ? (bulkScanProgress ? `Analyse ${bulkScanProgress.done}/${bulkScanProgress.total}…` : "Analyse…")
+                ? (bulkScanProgress ? `Analyse ${bulkScanProgress.completed}/${bulkScanProgress.total}…` : "Analyse…")
                 : `Tout analyser (${data?.byScan?.unscanned})`}
             </Text>
           </Pressable>
@@ -524,7 +552,11 @@ export default function DocumentsScreen() {
             ? <ActivityIndicator size="small" color="#10b981" />
             : <Feather name="shield" size={15} color="#10b981" />}
           <Text style={[st.bulkBannerText, { color: colors.text }]}>
-            {bulkScanning ? "Analyse en cours…" : `Analyser la sécurité de ${unscannedIds.length} document(s) non analysé(s)`}
+            {bulkScanning
+              ? (bulkScanProgress
+                  ? `Analyse en cours… ${bulkScanProgress.completed}/${bulkScanProgress.total}`
+                  : "Analyse en cours…")
+              : `Analyser la sécurité de ${unscannedIds.length} document(s) non analysé(s)`}
           </Text>
         </Pressable>
       )}

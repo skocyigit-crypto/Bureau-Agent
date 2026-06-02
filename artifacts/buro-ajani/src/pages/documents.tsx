@@ -20,6 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 import { useLocation } from "wouter";
+import { streamSse } from "@/lib/ai-stream-client";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -111,7 +112,7 @@ export default function DocumentsPage() {
   const [editDocSaving, setEditDocSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [bulkScanning, setBulkScanning] = useState(false);
-  const [bulkScanProgress, setBulkScanProgress] = useState<{ done: number; total: number } | null>(null);
+  const [bulkScanProgress, setBulkScanProgress] = useState<{ completed: number; total: number } | null>(null);
 
   const loadDocuments = useCallback(async () => {
     setLoading(true);
@@ -190,28 +191,60 @@ export default function DocumentsPage() {
   const handleBulkScan = async () => {
     if (selectedIds.length === 0 || bulkScanning) return;
     setBulkScanning(true);
+    setBulkScanProgress({ completed: 0, total: selectedIds.length });
+    const ctrl = new AbortController();
+    let finished = false;
     try {
-      const res = await fetch(`${API}/api/documents/bulk/scan`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selectedIds }) });
-      if (res.ok) {
-        const r = await res.json();
-        const parts: string[] = [];
-        if (r.safe) parts.push(`${r.safe} sain(s)`);
-        if (r.dangerous) parts.push(`${r.dangerous} menace(s)`);
-        if (r.failed) parts.push(`${r.failed} échec(s)`);
-        toast({
-          title: `${r.scanned} document(s) analysé(s)`,
-          description: parts.join(" · ") || undefined,
-          variant: r.dangerous ? "destructive" : "default",
-        });
-        setSelectedIds([]);
-        await loadDocuments();
-      } else {
-        toast({ title: "Erreur d'analyse antivirus", variant: "destructive" });
+      await streamSse("/documents/bulk/scan/stream", { ids: selectedIds }, {
+        signal: ctrl.signal,
+        onEvent: (event, data) => {
+          if (event === "start") {
+            setBulkScanProgress({ completed: 0, total: data.total ?? selectedIds.length });
+          } else if (event === "progress") {
+            setBulkScanProgress({ completed: data.completed ?? 0, total: data.total ?? selectedIds.length });
+          } else if (event === "done") {
+            finished = true;
+            const parts: string[] = [];
+            if (data.safe) parts.push(`${data.safe} sain(s)`);
+            if (data.dangerous) parts.push(`${data.dangerous} menace(s)`);
+            if (data.failed) parts.push(`${data.failed} échec(s)`);
+            toast({
+              title: `${data.scanned} document(s) analysé(s)`,
+              description: parts.join(" · ") || undefined,
+              variant: data.dangerous ? "destructive" : "default",
+            });
+          } else if (event === "error") {
+            finished = true;
+            toast({ title: data?.error || "Erreur d'analyse antivirus", variant: "destructive" });
+          }
+        },
+      });
+      if (!finished) {
+        // Stream ended without a terminal event (e.g. reattached to a completed
+        // job that had no replayable "done"); reconcile via status snapshot.
+        const res = await fetch(`${API}/api/documents/bulk/scan/status`, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === "completed" || data.status === "cancelled") {
+            const parts: string[] = [];
+            if (data.safe) parts.push(`${data.safe} sain(s)`);
+            if (data.dangerous) parts.push(`${data.dangerous} menace(s)`);
+            if (data.failed) parts.push(`${data.failed} échec(s)`);
+            toast({
+              title: `${(data.safe ?? 0) + (data.dangerous ?? 0)} document(s) analysé(s)`,
+              description: parts.join(" · ") || undefined,
+              variant: data.dangerous ? "destructive" : "default",
+            });
+          }
+        }
       }
+      setSelectedIds([]);
+      await loadDocuments();
     } catch {
       toast({ title: "Erreur d'analyse antivirus", variant: "destructive" });
     } finally {
       setBulkScanning(false);
+      setBulkScanProgress(null);
     }
   };
 
@@ -258,7 +291,7 @@ export default function DocumentsPage() {
     const total = stats?.byScanVerdict?.unscanned ?? 0;
     if (total === 0 || bulkScanning) return;
     setBulkScanning(true);
-    setBulkScanProgress({ done: 0, total });
+    setBulkScanProgress({ completed: 0, total });
     let done = 0;
     let totalSafe = 0;
     let totalDangerous = 0;
@@ -278,7 +311,7 @@ export default function DocumentsPage() {
         done += result.scanned ?? 0;
         totalSafe += result.safe ?? 0;
         totalDangerous += result.dangerous ?? 0;
-        setBulkScanProgress({ done: Math.min(done, total), total: Math.max(total, done) });
+        setBulkScanProgress({ completed: Math.min(done, total), total: Math.max(total, done) });
         if ((result.scanned ?? 0) === 0 || (result.remaining ?? 0) === 0) break;
       }
       if (totalDangerous > 0) {
@@ -523,7 +556,7 @@ export default function DocumentsPage() {
                   {bulkScanning ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      {bulkScanProgress ? `Analyse ${bulkScanProgress.done}/${bulkScanProgress.total}…` : "Analyse…"}
+                      {bulkScanProgress ? `Analyse ${bulkScanProgress.completed}/${bulkScanProgress.total}…` : "Analyse…"}
                     </>
                   ) : (
                     <>
@@ -556,7 +589,11 @@ export default function DocumentsPage() {
                   <span className="text-sm font-medium text-blue-700 dark:text-blue-300">{selectedIds.length} document(s) sélectionné(s)</span>
                   <Button size="sm" variant="outline" className="gap-1 h-7 text-xs" onClick={handleBulkScan} disabled={bulkScanning}>
                     {bulkScanning ? <Loader2 className="w-3 h-3 animate-spin" /> : <Shield className="w-3 h-3" />}
-                    {bulkScanning ? "Analyse en cours…" : "Analyser la sécurité"}
+                    {bulkScanning
+                      ? bulkScanProgress
+                        ? `Analyse… ${bulkScanProgress.completed}/${bulkScanProgress.total}`
+                        : "Analyse en cours…"
+                      : "Analyser la sécurité"}
                   </Button>
                   <Button size="sm" variant="destructive" className="gap-1 h-7 text-xs" onClick={handleBulkDelete} disabled={bulkScanning}><Trash2 className="w-3 h-3" />Supprimer la sélection</Button>
                   <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setSelectedIds([])} disabled={bulkScanning}>Annuler</Button>

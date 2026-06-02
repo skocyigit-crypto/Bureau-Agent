@@ -9,6 +9,8 @@ import { logger } from "../lib/logger";
 import { analyzeDocument, processDocumentForImport, importRowsToModule, analyzeDocumentMultiModel, askDocumentQuestion } from "../services/document-ai";
 import { emitSecurityAlert } from "../services/security-alerts";
 import { recordDocumentThreatSuggestion } from "../services/proactive-engine";
+import { openSseStream } from "../services/ai-stream";
+import { EventEmitter } from "events";
 
 const router = Router();
 const requireMinAgent = requireRole("super_admin", "administrateur", "agent");
@@ -737,44 +739,106 @@ router.post("/documents/:id/analyze", requireMinAgent, async (req: Request, res:
 });
 
 /**
- * Scan antivirus groupe : analyse plusieurs documents stockes en une seule
- * action. Reutilise le scan complet frais (`scanBase64ContentFull`) par
- * document, persiste le verdict de chacun, et renvoie un recapitulatif
- * (sain / dangereux / echec) plus le detail par document pour rafraichir la
- * liste cote client. Un document sans contenu ou dont le scan echoue n'arrete
- * pas le lot : il est compte comme echec et le traitement continue.
+ * Scan antivirus groupe en ARRIERE-PLAN. Comme un lot peut contenir beaucoup de
+ * fichiers et que chaque analyse interroge un moteur externe (VirusTotal...),
+ * un traitement synchrone risquerait un timeout HTTP. On reprend donc le meme
+ * patron que les routes IA : le travail tourne en tache de fond, le client suit
+ * la progression en direct via SSE (`/documents/bulk/scan/stream`) ou par
+ * sondage (`GET /documents/bulk/scan/status`). Un document sans contenu ou dont
+ * le scan echoue n'arrete pas le lot : il est compte comme echec et le
+ * traitement continue.
  *
- * Doit etre declare AVANT `/documents/:id/scan` pour que le segment "bulk" ne
- * soit pas capture par le parametre `:id`.
+ * Doivent etre declarees AVANT `/documents/:id/scan` pour que le segment "bulk"
+ * ne soit pas capture par le parametre `:id`.
  */
-router.post("/documents/bulk/scan", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const orgId = getOrgId(req);
-    const userId = req.session?.userId || null;
-    const { ids } = req.body as { ids?: unknown };
-    if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
-    const validIds = Array.from(new Set(ids.map((n) => parseInt(String(n))).filter((n) => !isNaN(n))));
-    if (validIds.length === 0) { res.status(400).json({ error: "ids invalides" }); return; }
+type BulkScanResult = {
+  documentId: number;
+  scanVerdict?: string;
+  scanEngine?: string | null;
+  scannedAt?: string;
+  error?: string;
+};
 
+type BulkScanEvent = { event: string; data: any };
+
+type BulkScanJobState = {
+  status: "running" | "completed" | "failed" | "cancelled";
+  startedAt: number;
+  requested: number;
+  total: number;
+  completed: number;
+  safe: number;
+  dangerous: number;
+  failed: number;
+  results: BulkScanResult[];
+  events: BulkScanEvent[];
+  emitter: EventEmitter;
+  abortController: AbortController;
+  finishedAt?: number;
+  cleanupTimer?: NodeJS.Timeout;
+};
+
+const bulkScanJobs = new Map<number, BulkScanJobState>();
+const BULK_SCAN_RETENTION_MS = 5 * 60 * 1000;
+
+function emitBulkScanEvent(job: BulkScanJobState, event: string, data: any) {
+  job.events.push({ event, data });
+  job.emitter.emit("event", event, data);
+}
+
+function scheduleBulkScanCleanup(orgId: number, job: BulkScanJobState) {
+  if (job.cleanupTimer) clearTimeout(job.cleanupTimer);
+  job.cleanupTimer = setTimeout(() => {
+    if (bulkScanJobs.get(orgId) === job) bulkScanJobs.delete(orgId);
+  }, BULK_SCAN_RETENTION_MS);
+  job.cleanupTimer.unref?.();
+}
+
+function bulkScanStatusSnapshot(job: BulkScanJobState) {
+  return {
+    status: job.status,
+    startedAt: job.startedAt,
+    requested: job.requested,
+    total: job.total,
+    completed: job.completed,
+    safe: job.safe,
+    dangerous: job.dangerous,
+    failed: job.failed,
+    results: job.results,
+    finishedAt: job.finishedAt,
+  };
+}
+
+async function runBulkScanJob(
+  orgId: number,
+  validIds: number[],
+  userId: number | null,
+  ip: string,
+  job: BulkScanJobState,
+) {
+  const signal = job.abortController.signal;
+  try {
     const docs = await db.select().from(documentsTable)
       .where(and(eq(documentsTable.organisationId, orgId), inArray(documentsTable.id, validIds)));
 
-    const ip = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || "unknown";
-    const results: Array<{
-      documentId: number;
-      scanVerdict?: string;
-      scanEngine?: string | null;
-      scannedAt?: string;
-      error?: string;
-    }> = [];
-    let safe = 0;
-    let dangerous = 0;
-    let failed = 0;
+    const missing = validIds.length - docs.length;
+    if (missing > 0) job.failed += missing;
+    job.total = docs.length;
+
+    emitBulkScanEvent(job, "start", { requested: job.requested, total: job.total });
 
     for (const doc of docs) {
+      if (signal.aborted) break;
       if (!doc.fileContent) {
-        failed++;
-        results.push({ documentId: doc.id, error: "Contenu indisponible" });
+        job.failed++;
+        job.completed++;
+        const result: BulkScanResult = { documentId: doc.id, error: "Contenu indisponible" };
+        job.results.push(result);
+        emitBulkScanEvent(job, "progress", {
+          completed: job.completed, total: job.total,
+          safe: job.safe, dangerous: job.dangerous, failed: job.failed,
+          last: result,
+        });
         continue;
       }
       try {
@@ -790,9 +854,9 @@ router.post("/documents/bulk/scan", requireMinAgent, async (req: Request, res: R
         }).where(eq(documentsTable.id, doc.id));
 
         if (scanResult.safe) {
-          safe++;
+          job.safe++;
         } else {
-          dangerous++;
+          job.dangerous++;
           logSecurityEvent("malicious_file_detected", ip, userId, `Scan groupe du document #${doc.id} (${scanResult.engine}): ${scanResult.threats.join(", ")}`, "critical");
           emitSecurityAlert({
             orgId,
@@ -809,33 +873,157 @@ router.post("/documents/bulk/scan", requireMinAgent, async (req: Request, res: R
             documentId: doc.id,
           });
         }
-        results.push({
+        const result: BulkScanResult = {
           documentId: doc.id,
           scanVerdict: verdict,
           scanEngine: scanResult.engine || null,
           scannedAt: new Date(scanResult.scannedAt).toISOString(),
+        };
+        job.completed++;
+        job.results.push(result);
+        emitBulkScanEvent(job, "progress", {
+          completed: job.completed, total: job.total,
+          safe: job.safe, dangerous: job.dangerous, failed: job.failed,
+          last: result,
         });
       } catch (scanErr: any) {
         logger.error({ err: scanErr, docId: doc.id }, "Bulk document scan: per-doc failure");
-        failed++;
-        results.push({ documentId: doc.id, error: "Erreur d'analyse" });
+        job.failed++;
+        job.completed++;
+        const result: BulkScanResult = { documentId: doc.id, error: "Erreur d'analyse" };
+        job.results.push(result);
+        emitBulkScanEvent(job, "progress", {
+          completed: job.completed, total: job.total,
+          safe: job.safe, dangerous: job.dangerous, failed: job.failed,
+          last: result,
+        });
       }
     }
 
-    const missing = validIds.length - docs.length;
-    res.json({
-      success: true,
-      requested: validIds.length,
-      scanned: safe + dangerous,
-      safe,
-      dangerous,
-      failed: failed + (missing > 0 ? missing : 0),
-      results,
-    });
+    if (signal.aborted) {
+      job.status = "cancelled";
+      emitBulkScanEvent(job, "aborted", bulkScanStatusSnapshot(job));
+    } else {
+      job.status = "completed";
+      emitBulkScanEvent(job, "done", {
+        success: true,
+        requested: job.requested,
+        scanned: job.safe + job.dangerous,
+        safe: job.safe,
+        dangerous: job.dangerous,
+        failed: job.failed,
+        results: job.results,
+      });
+    }
   } catch (err: any) {
     logger.error({ err }, "Bulk document scan error");
-    res.status(500).json({ error: "Erreur lors de l'analyse antivirus groupee" });
+    job.status = "failed";
+    emitBulkScanEvent(job, "error", { error: "Erreur lors de l'analyse antivirus groupee" });
+  } finally {
+    job.finishedAt = Date.now();
+    job.emitter.emit("end");
+    scheduleBulkScanCleanup(orgId, job);
   }
+}
+
+function parseBulkScanIds(body: unknown): { ids: number[]; error?: string } {
+  const { ids } = (body || {}) as { ids?: unknown };
+  if (!Array.isArray(ids) || ids.length === 0) return { ids: [], error: "ids requis" };
+  const validIds = Array.from(new Set(ids.map((n) => parseInt(String(n))).filter((n) => !isNaN(n))));
+  if (validIds.length === 0) return { ids: [], error: "ids invalides" };
+  return { ids: validIds };
+}
+
+function startBulkScanJob(req: Request, validIds: number[]): BulkScanJobState {
+  const orgId = getOrgId(req);
+  const userId = req.session?.userId || null;
+  const ip = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || "unknown";
+  const job: BulkScanJobState = {
+    status: "running",
+    startedAt: Date.now(),
+    requested: validIds.length,
+    total: validIds.length,
+    completed: 0,
+    safe: 0,
+    dangerous: 0,
+    failed: 0,
+    results: [],
+    events: [],
+    emitter: new EventEmitter(),
+    abortController: new AbortController(),
+  };
+  job.emitter.setMaxListeners(50);
+  bulkScanJobs.set(orgId, job);
+  runBulkScanJob(orgId, validIds, userId, ip, job).catch((err) => logger.error({ err }, "runBulkScanJob failed"));
+  return job;
+}
+
+router.post("/documents/bulk/scan", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const { ids: validIds, error } = parseBulkScanIds(req.body);
+  if (error) { res.status(400).json({ error }); return; }
+
+  const existing = bulkScanJobs.get(orgId);
+  if (existing && existing.status === "running") {
+    res.json({ status: "already_running", total: existing.total, completed: existing.completed });
+    return;
+  }
+
+  const job = startBulkScanJob(req, validIds);
+  res.json({ status: "started", total: job.total });
+});
+
+router.get("/documents/bulk/scan/status", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const job = bulkScanJobs.get(orgId);
+  if (!job) { res.json({ status: "idle" }); return; }
+  res.json(bulkScanStatusSnapshot(job));
+});
+
+router.post("/documents/bulk/scan/cancel", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const job = bulkScanJobs.get(orgId);
+  if (!job || job.status !== "running") { res.json({ status: "idle" }); return; }
+  try { job.abortController.abort(); } catch {}
+  res.json({ status: "cancelling" });
+});
+
+router.post("/documents/bulk/scan/stream", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+
+  let job = bulkScanJobs.get(orgId);
+  if (!job || job.status !== "running") {
+    const { ids: validIds, error } = parseBulkScanIds(req.body);
+    if (error) { res.status(400).json({ error }); return; }
+    job = startBulkScanJob(req, validIds);
+  }
+
+  const stream = openSseStream(res);
+  const activeJob = job;
+
+  // Replay buffered events so reattaching clients see current state.
+  for (const ev of activeJob.events) stream.send(ev.event, ev.data);
+
+  if (activeJob.status !== "running") {
+    stream.end();
+    return;
+  }
+
+  const onEvent = (event: string, data: any) => stream.send(event, data);
+  const onEnd = () => stream.end();
+
+  activeJob.emitter.on("event", onEvent);
+  activeJob.emitter.once("end", onEnd);
+
+  const detach = () => {
+    activeJob.emitter.off("event", onEvent);
+    activeJob.emitter.off("end", onEnd);
+  };
+
+  // When the request closes (tab switched / navigated away), just detach this
+  // subscriber. The background scan continues so the user can reattach later.
+  stream.signal.addEventListener("abort", detach);
+  res.on("close", detach);
 });
 
 /**
