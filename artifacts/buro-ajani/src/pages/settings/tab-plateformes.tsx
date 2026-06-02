@@ -18,7 +18,6 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface GoogleService {
@@ -207,10 +206,6 @@ export function TabPlateformes() {
 
   const [googleOAuthConfigured, setGoogleOAuthConfigured] = useState(false);
   const [googleOAuthAuthenticated, setGoogleOAuthAuthenticated] = useState(false);
-  const [showGoogleConfig, setShowGoogleConfig] = useState(false);
-  const [googleClientId, setGoogleClientId] = useState("");
-  const [googleClientSecret, setGoogleClientSecret] = useState("");
-  const [savingGoogleConfig, setSavingGoogleConfig] = useState(false);
   const [googleConnecting, setGoogleConnecting] = useState(false);
 
   const [blockExternalDownloads, setBlockExternalDownloads] = useState(true);
@@ -284,14 +279,13 @@ export function TabPlateformes() {
       const res = await fetch(`${GOOGLE_OAUTH_BASE}/auth-url`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ services }) });
       const data = await res.json();
       if (!res.ok) {
-        if (data.needsConfig) { setShowGoogleConfig(true); toast({ title: "Configuration requise", description: "Veuillez d'abord configurer les identifiants Google OAuth.", variant: "destructive" }); }
-        else { toast({ title: "Erreur", description: data.error || "Impossible de generer l'URL.", variant: "destructive" }); }
+        toast({ title: "Connexion impossible", description: "Veuillez reessayer dans un instant.", variant: "destructive" });
         return;
       }
       if (data.authUrl && (data.authUrl.startsWith("https://accounts.google.com/") || data.authUrl.startsWith("https://www.googleapis.com/"))) {
         window.location.href = data.authUrl;
       } else {
-        toast({ title: "Erreur", description: "URL d'autorisation invalide.", variant: "destructive" });
+        toast({ title: "Erreur", description: "La connexion n'a pas abouti. Veuillez réessayer.", variant: "destructive" });
       }
     } catch { toast({ title: "Erreur", description: "Erreur reseau.", variant: "destructive" }); }
     finally { setGoogleConnecting(false); }
@@ -303,17 +297,6 @@ export function TabPlateformes() {
       if (res.ok) { toast({ title: "Google déconnecté", description: "Votre compte Google a ete déconnecté." }); setGoogleOAuthAuthenticated(false); await fetchPlatforms(); }
       else { toast({ title: "Erreur", description: "Impossible de déconnectér Google.", variant: "destructive" }); }
     } catch { toast({ title: "Erreur", description: "Erreur reseau.", variant: "destructive" }); }
-  };
-
-  const handleSaveGoogleConfig = async () => {
-    setSavingGoogleConfig(true);
-    try {
-      const res = await fetch(`${GOOGLE_OAUTH_BASE}/config`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ clientId: googleClientId, clientSecret: googleClientSecret }) });
-      const data = await res.json();
-      if (res.ok) { toast({ title: "Configuration enregistree", description: data.message }); setGoogleOAuthConfigured(true); setShowGoogleConfig(false); setGoogleClientId(""); setGoogleClientSecret(""); }
-      else { toast({ title: "Erreur", description: data.error, variant: "destructive" }); }
-    } catch { toast({ title: "Erreur", description: "Erreur reseau.", variant: "destructive" }); }
-    finally { setSavingGoogleConfig(false); }
   };
 
   const handleConnect = async (serviceId: string, serviceName: string) => {
@@ -450,15 +433,12 @@ export function TabPlateformes() {
                   {syncingPlatform === activePlatform ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1.5" />}Synchroniser
                 </Button>
               )}
-              {activePlatform === "google" && !googleOAuthConfigured && (
-                <Button variant="outline" size="sm" className="text-xs" onClick={() => setShowGoogleConfig(true)}><KeyRound className="w-3.5 h-3.5 mr-1.5" />Configurer OAuth</Button>
-              )}
               {activePlatform === "google" ? (
                 googleOAuthAuthenticated ? (
-                  <Button variant="outline" size="sm" className="text-xs" onClick={handleGoogleOAuthDisconnect}><Unplug className="w-3.5 h-3.5 mr-1.5" />Déconnectér Google</Button>
+                  <Button variant="outline" size="sm" className="text-xs" onClick={handleGoogleOAuthDisconnect}><Unplug className="w-3.5 h-3.5 mr-1.5" />Déconnecter Google</Button>
                 ) : (
                   <Button variant="default" size="sm" className="text-xs" onClick={() => handleGoogleOAuthConnect()} disabled={googleConnecting}>
-                    {googleConnecting ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Plug className="w-3.5 h-3.5 mr-1.5" />}Connecter Google OAuth
+                    {googleConnecting ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Plug className="w-3.5 h-3.5 mr-1.5" />}Se connecter avec Google
                   </Button>
                 )
               ) : (
@@ -478,37 +458,17 @@ export function TabPlateformes() {
           )}
         </CardHeader>
         <CardContent className="space-y-4">
-          {activePlatform === "google" && showGoogleConfig && (
-            <div className="p-4 rounded-lg border border-amber-200 bg-amber-50/50 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2"><KeyRound className="w-4 h-4 text-amber-600" /><h4 className="text-sm font-semibold">Configuration Google OAuth</h4></div>
-                <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setShowGoogleConfig(false)}>Fermer</Button>
-              </div>
-              <p className="text-xs text-muted-foreground">Saisissez vos identifiants Google Cloud (console.cloud.google.com &gt; Identifiants &gt; OAuth 2.0).</p>
-              <div className="space-y-2">
-                <div><Label className="text-xs">Client ID</Label><Input type="text" placeholder="xxxxxxxx.apps.googleusercontent.com" value={googleClientId} onChange={(e) => setGoogleClientId(e.target.value)} className="h-8 text-xs" /></div>
-                <div><Label className="text-xs">Client Secret</Label><Input type="password" placeholder="GOCSPX-xxxxxxxxxxxxxxxx" value={googleClientSecret} onChange={(e) => setGoogleClientSecret(e.target.value)} className="h-8 text-xs" /></div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => setShowGoogleConfig(false)}>Annuler</Button>
-                <Button size="sm" className="text-xs h-7" onClick={handleSaveGoogleConfig} disabled={savingGoogleConfig || !googleClientId || !googleClientSecret}>
-                  {savingGoogleConfig ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Save className="w-3 h-3 mr-1" />}Enregistrer
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {activePlatform === "google" && googleOAuthConfigured && !googleOAuthAuthenticated && !showGoogleConfig && (
+          {activePlatform === "google" && googleOAuthConfigured && !googleOAuthAuthenticated && (
             <div className="p-3 rounded-lg border border-blue-200 bg-blue-50/50 flex items-center justify-between">
-              <div className="flex items-center gap-2"><Globe className="w-4 h-4 text-blue-600" /><div><p className="text-xs font-medium">Google OAuth configure</p><p className="text-[10px] text-muted-foreground">Cliquez sur "Connecter Google OAuth" pour autoriser l'acces a vos services Google.</p></div></div>
-              <Button size="sm" className="text-xs h-7" onClick={() => handleGoogleOAuthConnect()} disabled={googleConnecting}>{googleConnecting ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Plug className="w-3 h-3 mr-1" />}Connecter</Button>
+              <div className="flex items-center gap-2"><Globe className="w-4 h-4 text-blue-600" /><div><p className="text-xs font-medium">Connectez votre compte Google</p><p className="text-[10px] text-muted-foreground">Autorisez l'accès à vos services Google en un clic.</p></div></div>
+              <Button size="sm" className="text-xs h-7" onClick={() => handleGoogleOAuthConnect()} disabled={googleConnecting}>{googleConnecting ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Plug className="w-3 h-3 mr-1" />}Se connecter avec Google</Button>
             </div>
           )}
 
           {activePlatform === "google" && googleOAuthAuthenticated && (
             <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50/50 flex items-center justify-between">
               <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600" /><div><p className="text-xs font-medium text-emerald-800">Compte Google connecté</p><p className="text-[10px] text-muted-foreground">Les services Google Workspace sont actifs et synchronisés.</p></div></div>
-              <Badge className="bg-emerald-100 text-emerald-700 border-0 text-[10px]">OAuth actif</Badge>
+              <Badge className="bg-emerald-100 text-emerald-700 border-0 text-[10px]">Connecté</Badge>
             </div>
           )}
 

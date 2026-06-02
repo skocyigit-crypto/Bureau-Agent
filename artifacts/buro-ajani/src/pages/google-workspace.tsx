@@ -78,21 +78,12 @@ export default function GoogleWorkspace() {
         body: JSON.stringify({}),
       });
       const data = await res.json();
-      if (data?.needsConfig) {
-        toast({
-          title: "Configuration Google requise",
-          description: "Aucun identifiant OAuth n'est configure. Allez dans Parametres > Google pour saisir votre Client ID et Client Secret.",
-          variant: "destructive",
-        });
-        setConnecting(false);
-        return;
-      }
       if (!res.ok || !data?.authUrl) {
         throw new Error(data?.error || `HTTP ${res.status}`);
       }
       window.location.href = data.authUrl;
     } catch (e: any) {
-      toast({ title: "Connexion impossible", description: e?.message || "Réessayez.", variant: "destructive" });
+      toast({ title: "Connexion impossible", description: "Veuillez réessayer dans un instant.", variant: "destructive" });
       setConnecting(false);
     }
   }, [toast]);
@@ -174,7 +165,7 @@ export default function GoogleWorkspace() {
           ) : (
             <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700 text-white" onClick={handleConnect} disabled={connecting}>
               {connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
-              Connecter Google
+              Se connecter avec Google
             </Button>
           )}
           <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
@@ -194,7 +185,7 @@ export default function GoogleWorkspace() {
             </div>
             <Button size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700 text-white shrink-0" onClick={handleConnect} disabled={connecting}>
               {connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
-              Connecter Google
+              Se connecter avec Google
             </Button>
           </CardContent>
         </Card>

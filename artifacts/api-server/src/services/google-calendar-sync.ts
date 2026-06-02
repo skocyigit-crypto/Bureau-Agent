@@ -12,7 +12,7 @@ interface SyncResult {
 }
 
 async function getOAuth2Client(organisationId: number | null | undefined) {
-  const creds = await getOrgGoogleCredentials(organisationId, { envFallback: true });
+  const creds = await getOrgGoogleCredentials(organisationId, { envOnly: true });
   if (!creds) return null;
   return new google.auth.OAuth2(creds.clientId, creds.clientSecret, getGoogleRedirectUri());
 }

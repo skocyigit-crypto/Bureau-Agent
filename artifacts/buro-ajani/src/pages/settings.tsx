@@ -20,7 +20,6 @@ import { TabSecurite } from "./settings/tab-securite";
 import { TabMisesAJour } from "./settings/tab-mises-a-jour";
 import { TabIntelligenceArtificielle } from "./settings/tab-intelligence-artificielle";
 import { TabProfilOrg } from "./settings/tab-profil-org";
-import { TabGoogleCredentials } from "./settings/tab-google-credentials";
 import { TabPreferencesIa } from "./settings/tab-preferences-ia";
 
 export default function SettingsPage() {
@@ -41,14 +40,9 @@ export default function SettingsPage() {
     if (googleError) {
       setActiveTab("google");
       const msgs: Record<string, string> = {
-        access_denied: "Vous avez refuse l'acces a Google.",
-        no_code: "Code d'autorisation manquant.",
-        invalid_state: "Session invalide. Veuillez reessayer.",
-        not_authenticated: "Vous devez etre connecte a l'application.",
-        not_configured: "Google Workspace n'est pas configure.",
-        exchange_failed: "Erreur lors de l'echange du token.",
+        access_denied: "Vous avez refusé l'accès à Google.",
       };
-      toast({ title: "Erreur Google", description: msgs[googleError] || "Erreur inconnue.", variant: "destructive" });
+      toast({ title: "Connexion Google", description: msgs[googleError] || "La connexion n'a pas abouti. Veuillez réessayer.", variant: "destructive" });
       window.history.replaceState({}, "", window.location.pathname);
     }
     const tabParam = params.get("tab");
@@ -154,7 +148,6 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="google" className="space-y-6 mt-6">
-          <TabGoogleCredentials />
           <TabPlateformes />
         </TabsContent>
 

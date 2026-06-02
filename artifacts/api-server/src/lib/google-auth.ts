@@ -72,9 +72,21 @@ export interface GoogleCredentials {
 
 export async function getOrgGoogleCredentials(
   organisationId: number | null | undefined,
-  opts: { envFallback?: boolean } = {},
+  opts: { envFallback?: boolean; envOnly?: boolean } = {},
 ): Promise<GoogleCredentials | null> {
-  const { envFallback = true } = opts;
+  const { envFallback = true, envOnly = false } = opts;
+
+  // Modele SaaS centralise : `envOnly` impose les identifiants GLOBAUX du serveur
+  // et ignore toute ligne org legacy (google_app_credentials), garantissant qu'un
+  // seul client OAuth est utilise pour toute la plateforme.
+  if (envOnly) {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    if (clientId && clientSecret) {
+      return { clientId, clientSecret, source: "env" };
+    }
+    return null;
+  }
 
   if (organisationId) {
     try {
@@ -137,7 +149,9 @@ export async function getAuthClientForUser(userId: number) {
   if (tokens.length === 0) return null;
 
   const orgId = tokens[0].organisationId ?? (await getOrgIdForUser(userId));
-  const creds = await getOrgGoogleCredentials(orgId, { envFallback: true });
+  // Modele centralise : on rafraichit les jetons avec le MEME client global qui
+  // les a emis (env), jamais un client org legacy.
+  const creds = await getOrgGoogleCredentials(orgId, { envOnly: true });
   if (!creds) return null;
 
   const oauth2Client = new google.auth.OAuth2(creds.clientId, creds.clientSecret, getGoogleRedirectUri());

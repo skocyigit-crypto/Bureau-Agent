@@ -58,7 +58,7 @@ async function getGoogleDriveAccessToken(): Promise<string | null> {
     const driveToken = tokens.find(t => (t.scope || "").includes("drive"));
     if (!driveToken) return null;
 
-    const creds = await getOrgGoogleCredentials(driveToken.organisationId, { envFallback: true });
+    const creds = await getOrgGoogleCredentials(driveToken.organisationId, { envOnly: true });
     if (!creds) return null;
 
     const oauth2Client = new google.auth.OAuth2(creds.clientId, creds.clientSecret, getGoogleRedirectUri());

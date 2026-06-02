@@ -3,7 +3,7 @@
 - [Gemini model-retirement fallback](gemini-model-fallback.md) — boot-time singleton patch of ai.models retries on model-retired errors with env-overridable *-latest fallback; covers all call sites.
 - [Security middleware stack](security-middleware-stack.md) — /api threatDetection blocks URLs/base64 (bypass per-route); global express.json is 1mb (mount higher limit before it).
 - [Google connection model](google-connection-model.md) — all Google surfaces use per-user OAuth (google_oauth_tokens); never the shared Replit connector, never hardcoded status.
-- [Google BYOC](google-byoc.md) — per-org OAuth creds; refresh_token bound to issuing client_id → resolve creds from token-row org & purge tokens on credential change.
+- [Google OAuth centralized](google-oauth-centralized.md) — ONE global env OAuth client for all tenants (envOnly), per-user token isolation, no credential UI; BYOC reverted.
 - [Cron daily guards](cron-daily-guard.md) — row-derived "ran today" guards silently re-run on zero-output ticks; pair with in-memory attempted marker; self-generate dedup keys (don't trust LLM).
 - [Talking AI avatar](talking-avatar.md) — DOM-only `@workspace/ai-avatar` lib for web; Expo duplicates viseme core + RN SVG; TTS must use on-device (local) voices only, fail closed.
 - [Postgres composite-key purge](postgres-composite-key-purge.md) — recompute jobs must purge stale rows via sql-concat notInArray; separator must NOT be U+0000 (Postgres rejects NUL, fails only at runtime).

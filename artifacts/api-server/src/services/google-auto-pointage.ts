@@ -11,7 +11,7 @@ const SYNC_INTERVAL_MS = 30 * 60 * 1000;
 const SYNC_TAG = "[google-auto]";
 
 async function getOAuth2Client(organisationId: number | null | undefined) {
-  const creds = await getOrgGoogleCredentials(organisationId, { envFallback: true });
+  const creds = await getOrgGoogleCredentials(organisationId, { envOnly: true });
   if (!creds) return null;
   return new google.auth.OAuth2(creds.clientId, creds.clientSecret, getGoogleRedirectUri());
 }
