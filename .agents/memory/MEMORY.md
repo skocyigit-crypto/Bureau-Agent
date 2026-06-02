@@ -9,3 +9,4 @@
 - [executeSql error surfacing](executesql-error-surfacing.md) — sandbox executeSql returns SQL errors in `.output`, does NOT throw; assert via row counts, not try/catch.
 - [Proactive autonomy engine](proactive-autonomy-engine.md) — deterministic no-AI detectors → proactive_suggestions; DB partial-unique dedupe on pending; opt-in cron per org.
 - [Document threat alerts](document-threat-alerts.md) — stored docs go "dangerous" only via re-scan endpoints; event-driven proactive suggestion alerts owners regardless of cron opt-in.
+- [Prod schema & rename trap](prod-schema-publish-flow.md) — prod schema changes only via Publish (dev→prod diff), never direct DDL; legacy user_sessions makes push-force rename-destroy new tables — pre-create with additive SQL.
