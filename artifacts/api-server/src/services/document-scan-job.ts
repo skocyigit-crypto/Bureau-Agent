@@ -1,4 +1,4 @@
-import { db, documentsTable } from "@workspace/db";
+import { db, documentsTable, organisationsTable } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
 import crypto from "crypto";
 import { scanBase64ContentFullCached, logSecurityEvent, type StoredScanRecord } from "../middleware/security";
@@ -65,6 +65,46 @@ interface BulkScanJob extends BulkScanStatus {
 const jobs = new Map<number, BulkScanJob>();
 const JOB_RETENTION_MS = 5 * 60 * 1000;
 const SCAN_BATCH_SIZE = 10;
+
+// Cout estime d'une analyse antivirus fraiche (appels moteur, lookup VirusTotal,
+// heuristiques) quand on ne peut pas mesurer le temps reel. ~1,5 s/fichier.
+// Doit rester aligne avec DEFAULT_SCAN_COST_MS cote frontend (documents.tsx).
+const DEFAULT_SCAN_COST_MS = 1500;
+
+/**
+ * Estime le temps (ms) economise grace aux verdicts reutilises pendant un job.
+ * On mesure le cout moyen d'une analyse fraiche a partir du job lui-meme quand
+ * c'est possible (temps total / analyses fraiches), sinon on retombe sur une
+ * estimation par defaut. Memes regles que formatReuseSavings cote UI.
+ */
+function estimateSavedMs(job: BulkScanJob): number {
+  if (job.reused <= 0) return 0;
+  const fresh = job.scanned - job.reused;
+  let avgCostMs = DEFAULT_SCAN_COST_MS;
+  if (fresh > 0 && job.startedAt && job.finishedAt && job.finishedAt > job.startedAt) {
+    avgCostMs = (job.finishedAt - job.startedAt) / fresh;
+  }
+  return Math.round(job.reused * avgCostMs);
+}
+
+/**
+ * Incremente de maniere atomique les compteurs cumulatifs de reutilisation de
+ * l'organisation (nombre d'analyses evitees + temps gagne estime), afin que le
+ * benefice s'accumule visiblement dans le temps au lieu de disparaitre avec
+ * chaque notification de fin de scan.
+ */
+async function persistReuseSavings(orgId: number, job: BulkScanJob): Promise<void> {
+  if (job.reused <= 0) return;
+  const savedMs = estimateSavedMs(job);
+  try {
+    await db.update(organisationsTable).set({
+      reusedScanCount: sql`${organisationsTable.reusedScanCount} + ${job.reused}`,
+      reusedScanSavedMs: sql`${organisationsTable.reusedScanSavedMs} + ${savedMs}`,
+    }).where(eq(organisationsTable.id, orgId));
+  } catch (err: any) {
+    logger.error({ err, orgId }, "Bulk scan job: failed to persist reuse savings");
+  }
+}
 
 const IDLE_STATUS: BulkScanStatus = {
   status: "idle",
@@ -187,6 +227,7 @@ async function runJob(orgId: number, userId: number | null, job: BulkScanJob): P
     job.remaining = await countRemaining(orgId);
     job.status = job.cancelRequested ? "cancelled" : "completed";
     job.finishedAt = Date.now();
+    await persistReuseSavings(orgId, job);
     broadcastProgress(orgId, job);
     logger.info({ orgId, scanned: job.scanned, safe: job.safe, dangerous: job.dangerous, reused: job.reused, failed: job.failed, cancelled: job.cancelRequested ?? false }, "Bulk document scan job finished");
   } catch (err: any) {

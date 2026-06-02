@@ -85,6 +85,18 @@ function formatReuseSavings(job: { reused: number; scanned: number; startedAt: n
   return ` ${job.reused} analyse(s) évitée(s) (~${formatSeconds(savedSeconds)} s gagnées).`;
 }
 
+// Traduit un total de millisecondes economisees en libelle lisible (minutes au
+// dela de 60 s, sinon secondes), pour le compteur cumulatif persiste.
+function formatCumulativeSaved(savedMs: number): string {
+  const totalSeconds = savedMs / 1000;
+  if (totalSeconds >= 60) {
+    const minutes = totalSeconds / 60;
+    const rounded = minutes < 10 ? Math.round(minutes * 10) / 10 : Math.round(minutes);
+    return `${rounded.toLocaleString("fr-FR")} min`;
+  }
+  return `${formatSeconds(totalSeconds)} s`;
+}
+
 interface Doc {
   id: number;
   fileName: string;
@@ -111,6 +123,7 @@ interface Stats {
   byEntityType: { entity_type: string; count: number }[];
   byCategory: { category: string; count: number }[];
   byScanVerdict?: { safe: number; dangerous: number; unscanned: number };
+  reuseSavings?: { reusedScanCount: number; reusedScanSavedMs: number };
 }
 
 interface BulkScanJobState {
@@ -700,6 +713,16 @@ export default function DocumentsPage() {
                   {bulkScanCancelling ? "Arrêt…" : "Annuler l'analyse"}
                 </Button>
               )}
+            </div>
+          )}
+
+          {stats?.reuseSavings && stats.reuseSavings.reusedScanCount > 0 && (
+            <div className="flex items-center gap-1.5 rounded-md border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs text-sky-700 dark:text-sky-300">
+              <Sparkles className="w-3.5 h-3.5 shrink-0" />
+              <span>
+                Vous avez gagné ~<span className="font-semibold">{formatCumulativeSaved(stats.reuseSavings.reusedScanSavedMs)}</span>{" "}
+                grâce à {stats.reuseSavings.reusedScanCount} analyse{stats.reuseSavings.reusedScanCount > 1 ? "s" : ""} réutilisée{stats.reuseSavings.reusedScanCount > 1 ? "s" : ""}.
+              </span>
             </div>
           )}
 

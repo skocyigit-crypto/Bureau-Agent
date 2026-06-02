@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import crypto from "crypto";
-import { db, documentsTable, bulkScanJobsTable } from "@workspace/db";
+import { db, documentsTable, bulkScanJobsTable, organisationsTable } from "@workspace/db";
 import { eq, and, or, ne, lt, desc, sql, inArray } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
 import { getOrgId } from "../middleware/tenant";
@@ -228,7 +228,7 @@ router.get("/documents/stats/overview", requireMinAgent, async (req: Request, re
   try {
     const orgId = getOrgId(req);
 
-    const [total, byType, byCategory, totalSize, scanCounts] = await Promise.all([
+    const [total, byType, byCategory, totalSize, scanCounts, org] = await Promise.all([
       db.select({ count: sql<number>`count(*)::int` }).from(documentsTable).where(eq(documentsTable.organisationId, orgId)),
       db.execute(sql`SELECT entity_type, count(*)::int as count FROM documents WHERE organisation_id = ${orgId} AND entity_type IS NOT NULL GROUP BY entity_type ORDER BY count DESC`),
       db.execute(sql`SELECT category, count(*)::int as count FROM documents WHERE organisation_id = ${orgId} GROUP BY category ORDER BY count DESC`),
@@ -238,6 +238,10 @@ router.get("/documents/stats/overview", requireMinAgent, async (req: Request, re
         dangerous: sql<number>`count(*) FILTER (WHERE ${documentsTable.scanVerdict} = 'dangerous')::int`,
         unscanned: sql<number>`count(*) FILTER (WHERE ${documentsTable.scanVerdict} IS NULL)::int`,
       }).from(documentsTable).where(eq(documentsTable.organisationId, orgId)),
+      db.select({
+        reusedScanCount: organisationsTable.reusedScanCount,
+        reusedScanSavedMs: organisationsTable.reusedScanSavedMs,
+      }).from(organisationsTable).where(eq(organisationsTable.id, orgId)),
     ]);
 
     const totalBytes = Number(totalSize[0]?.total ?? 0);
@@ -252,6 +256,10 @@ router.get("/documents/stats/overview", requireMinAgent, async (req: Request, re
         safe: scanCounts[0]?.safe ?? 0,
         dangerous: scanCounts[0]?.dangerous ?? 0,
         unscanned: scanCounts[0]?.unscanned ?? 0,
+      },
+      reuseSavings: {
+        reusedScanCount: org[0]?.reusedScanCount ?? 0,
+        reusedScanSavedMs: Number(org[0]?.reusedScanSavedMs ?? 0),
       },
     });
   } catch (err: any) {

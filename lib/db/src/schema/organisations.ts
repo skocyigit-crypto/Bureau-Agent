@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, text, timestamp, boolean, integer, numeric } from "drizzle-orm/pg-core";
+import { pgTable, serial, varchar, text, timestamp, boolean, integer, numeric, bigint } from "drizzle-orm/pg-core";
 
 export const organisationsTable = pgTable("organisations", {
   id: serial("id").primaryKey(),
@@ -23,6 +23,8 @@ export const organisationsTable = pgTable("organisations", {
   weeklySecurityEmail: boolean("weekly_security_email").notNull().default(false),
   lastSecurityDigestAt: timestamp("last_security_digest_at", { withTimezone: true }),
   proactiveEngineEnabled: boolean("proactive_engine_enabled").notNull().default(true),
+  reusedScanCount: integer("reused_scan_count").notNull().default(0),
+  reusedScanSavedMs: bigint("reused_scan_saved_ms", { mode: "number" }).notNull().default(0),
   aiQuotaCostUsd: numeric("ai_quota_cost_usd", { precision: 10, scale: 2 }),
   aiQuotaCalls: integer("ai_quota_calls"),
   aiAgentName: varchar("ai_agent_name", { length: 100 }),
