@@ -1,6 +1,7 @@
 import { db, usersTable, auditLogsTable, checkinsTable, tasksTable, callsTable, messagesTable, calendarEventsTable, performanceReportsTable } from "@workspace/db";
 import { eq, sql, gte, lte, and, count, desc } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { GEMINI_PRO_MODEL } from "./ai-utils";
 
 interface UserMetrics {
   userId: number;
@@ -312,7 +313,7 @@ async function analyzeWithGemini(metricsJSON: string, periodeStr: string): Promi
   try {
     const { ai } = await import("@workspace/integrations-gemini-ai");
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
+      model: GEMINI_PRO_MODEL,
       contents: [{ role: "user", parts: [{ text: GEMINI_PROMPT(metricsJSON, periodeStr) }] }],
       config: { maxOutputTokens: 8192, responseMimeType: "application/json" },
     });

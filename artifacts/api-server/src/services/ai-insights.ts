@@ -12,7 +12,7 @@ import {
 import { and, eq, gte, lte, sql, count, lt, isNull, or } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "./ai-quota";
-import { extractGeminiTokens, recordAiUsage, safeJsonParse } from "./ai-utils";
+import { extractGeminiTokens, recordAiUsage, safeJsonParse, GEMINI_FLASH_MODEL } from "./ai-utils";
 import { buildAiCacheKey, getOrCompute, AI_CACHE_TTL, withProviderTimeout } from "./ai-cache";
 import { buildLearnedContextBlock } from "./ai-learning";
 
@@ -254,7 +254,7 @@ async function maybeEnrichWithAi(orgId: number, signals: RawSignals, drafts: Ins
   return getOrCompute<InsightDraft[]>(cacheKey, AI_CACHE_TTL.LONG, async () => {
     try {
       const { ai } = await import("@workspace/integrations-gemini-ai");
-      const model = "gemini-2.5-flash";
+      const model = GEMINI_FLASH_MODEL;
       const t0 = Date.now();
 
       const prompt = `Tu es un assistant de bureau IA en francais. Voici les indicateurs du jour pour une organisation:

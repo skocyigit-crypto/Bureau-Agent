@@ -19,7 +19,7 @@ import {
 import { eq, and, gte, lte, count, sql, desc, or } from "drizzle-orm";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "../services/ai-quota";
 import { buildLearnedContextBlock } from "../services/ai-learning";
-import { extractGeminiTokens, recordAiUsage } from "../services/ai-utils";
+import { extractGeminiTokens, recordAiUsage, GEMINI_FLASH_MODEL } from "../services/ai-utils";
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 import { logger } from "../lib/logger";
 
@@ -59,7 +59,7 @@ async function aiGenerate(orgId: number, prompt: string): Promise<string> {
   await assertAiQuota(orgId);
   const t0 = Date.now();
   const { ai } = await import("@workspace/integrations-gemini-ai");
-  const model = "gemini-2.5-flash";
+  const model = GEMINI_FLASH_MODEL;
   const response = await ai.models.generateContent({
     model,
     contents: [{ role: "user", parts: [{ text: prompt }] }],

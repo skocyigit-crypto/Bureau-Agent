@@ -5,7 +5,7 @@ import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNul
 import { logger } from "../lib/logger";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
 import { buildLearnedContextBlock } from "../services/ai-learning";
-import { extractGeminiTokens, recordAiUsage } from "../services/ai-utils";
+import { extractGeminiTokens, recordAiUsage, GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 
 const router = Router();
@@ -14,7 +14,7 @@ async function aiGenerate(orgId: number, options: { model?: string; contents: an
   await assertAiQuota(orgId);
   const t0 = Date.now();
   const { ai } = await import("@workspace/integrations-gemini-ai");
-  const model = options.model ?? "gemini-2.5-pro";
+  const model = options.model ?? GEMINI_PRO_MODEL;
   const response = await ai.models.generateContent({
     model,
     contents: options.contents,
@@ -182,7 +182,7 @@ Reponds en JSON avec cette structure exacte:
 }`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
+      model: GEMINI_PRO_MODEL,
       contents: [
         {
           role: "user",
@@ -236,7 +236,7 @@ router.get("/ai/status", (_req, res) => {
   res.json({
     available: hasGemini || hasOpenAI || hasAnthropic,
     providers: {
-      gemini: { available: hasGemini, model: "gemini-2.5-pro", role: "Analyse principale", source: geminiProxy ? "proxy" : geminiDirect ? "direct" : null },
+      gemini: { available: hasGemini, model: GEMINI_PRO_MODEL, role: "Analyse principale", source: geminiProxy ? "proxy" : geminiDirect ? "direct" : null },
       openai: { available: hasOpenAI, model: "gpt-5.2", role: "Verification et synthese", source: openaiProxy ? "proxy" : openaiDirect ? "direct" : null },
       anthropic: { available: hasAnthropic, model: "claude-sonnet-4-6", role: "Raisonnement avance", source: anthropicProxy ? "proxy" : anthropicDirect ? "direct" : null },
     },
@@ -384,7 +384,7 @@ router.post("/ai/suggest", async (req, res): Promise<void> => {
     };
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
+      model: GEMINI_PRO_MODEL,
       contents: [{
         role: "user",
         parts: [{
@@ -485,7 +485,7 @@ router.post("/ai/validate", async (req, res): Promise<void> => {
     const { ai } = await import("@workspace/integrations-gemini-ai");
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
+      model: GEMINI_PRO_MODEL,
       contents: [{
         role: "user",
         parts: [{
@@ -618,7 +618,7 @@ router.post("/ai/assistant", async (req, res): Promise<void> => {
     const { ai } = await import("@workspace/integrations-gemini-ai");
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
+      model: GEMINI_PRO_MODEL,
       contents: [{
         role: "user",
         parts: [{
@@ -983,7 +983,7 @@ router.post("/ai/draft-email", async (req, res): Promise<void> => {
     };
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
+      model: GEMINI_PRO_MODEL,
       contents: [{
         role: "user",
         parts: [{
@@ -1164,7 +1164,7 @@ router.post("/ai/discovery", async (req, res): Promise<void> => {
     const { ai } = await import("@workspace/integrations-gemini-ai");
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
+      model: GEMINI_PRO_MODEL,
       contents: [{
         role: "user",
         parts: [{
@@ -1544,7 +1544,7 @@ router.post("/ai/central-intelligence", async (req, res): Promise<void> => {
     const { ai } = await import("@workspace/integrations-gemini-ai");
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
+      model: GEMINI_PRO_MODEL,
       contents: [{
         role: "user",
         parts: [{
@@ -2128,7 +2128,7 @@ FORMAT DE REPONSE JSON:
 }`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
+      model: GEMINI_PRO_MODEL,
       contents: [
         { role: "user", parts: [{ text: systemContext }] },
         { role: "model", parts: [{ text: '{"response": "Pret a vous aider.", "actions": [], "insights": [], "mood": "positif"}' }] },
@@ -2483,7 +2483,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         try {
           const { ai } = await import("@workspace/integrations-gemini-ai");
           const searchResponse = await ai.models.generateContent({
-            model: "gemini-2.5-pro",
+            model: GEMINI_PRO_MODEL,
             contents: [{ role: "user", parts: [{ text: `Tu es un assistant de recherche. Reponds de maniere concise et informative a cette question en francais. Donne des informations factuelles, des chiffres et des sources si possible. Question: ${String(target)}` }] }],
             config: { maxOutputTokens: 2048 },
           });
@@ -2508,7 +2508,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
           db.select({ total: count(), pipeline: sql<number>`coalesce(sum(${prospectsTable.value}::numeric), 0)::numeric`, won: sql<number>`count(*) filter (where ${prospectsTable.stage} = 'gagne')` }).from(prospectsTable).where(eq(prospectsTable.organisationId, orgId)),
         ]);
         const reportResponse = await ai.models.generateContent({
-          model: "gemini-2.5-pro",
+          model: GEMINI_PRO_MODEL,
           contents: [{ role: "user", parts: [{ text: `Genere un rapport ${reportType} detaille en francais pour un bureau professionnel. Donnees: Appels (30j): ${JSON.stringify(calls[0])}. Contacts: ${JSON.stringify(contacts[0])}. Taches: ${JSON.stringify(tasks[0])}. Projets: ${JSON.stringify(projects[0])}. Prospects: ${JSON.stringify(prospects[0])}. Inclus des recommandations concretes.` }] }],
           config: { maxOutputTokens: 4096 },
         });
@@ -2722,7 +2722,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         ]);
         const briefingContext = `Date: ${todayStr}\nTaches en retard: ${overdueCount[0]?.count ?? 0}\nTaches urgentes: ${urgentCount[0]?.count ?? 0}\nMessages non lus: ${unreadCount[0]?.count ?? 0}\nEvenements aujourd'hui: ${todayEvents.length} — ${todayEvents.map(e => `${e.title}${e.contactName ? ` (${e.contactName})` : ""} a ${new Date(e.startDate).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`).join(", ")}\nFactures en retard: ${invoiceOverdue[0]?.count ?? 0} pour ${Number(invoiceOverdue[0]?.total ?? 0).toFixed(2)}€\nComptes critiques: ${criticalAccounts[0]?.count ?? 0}`;
         const briefResponse = await briefAi.models.generateContent({
-          model: "gemini-2.5-pro",
+          model: GEMINI_PRO_MODEL,
           contents: [{ role: "user", parts: [{ text: `Tu es le directeur general virtuel d'un bureau francais. Genere un briefing matinal COMPLET et ACTIONNABLE.\n\n${briefingContext}\n\nFormate en JSON: {"briefing":"texte complet du briefing avec sections", "priorites":["action 1","action 2",...], "alertes":["alerte 1",...], "score_journee": number (0-100, estimation de la difficulte de la journee)}` }] }],
           config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
         });
@@ -2748,7 +2748,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         }
         const { ai: meetAi } = await import("@workspace/integrations-gemini-ai");
         const meetResponse = await meetAi.models.generateContent({
-          model: "gemini-2.5-pro",
+          model: GEMINI_PRO_MODEL,
           contents: [{ role: "user", parts: [{ text: `Tu es un directeur commercial expert. Prepare un dossier COMPLET pour un rendez-vous ${data.meetingType || "commercial"} avec ${data.contactName}.\n\nDonnees client: ${JSON.stringify(meetingData, null, 1)}\n\nGenere en JSON: {"dossier":"texte complet du dossier de preparation", "points_cles":["point 1",...], "questions_a_poser":["question 1",...], "risques":["risque 1",...], "opportunites":["opp 1",...], "strategie":"strategie recommandee"}` }] }],
           config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
         });
@@ -2768,7 +2768,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         ]);
         const riskData = `Factures en retard: ${rOverdue[0]?.count ?? 0} (${Number(rOverdue[0]?.total ?? 0).toFixed(2)}€)\nComptes a risque: ${rCritical[0]?.count ?? 0}\nStock critique: ${rStock[0]?.count ?? 0}\nAppels manques (7j): ${rMissed[0]?.count ?? 0}\nProjets hors budget: ${rOverBudget[0]?.count ?? 0}`;
         const riskResponse = await riskAi.models.generateContent({
-          model: "gemini-2.5-pro",
+          model: GEMINI_PRO_MODEL,
           contents: [{ role: "user", parts: [{ text: `Tu es un expert en gestion des risques. Analyse les risques operationnels et financiers de ce bureau:\n\n${riskData}\n\nGenere en JSON: {"analyse":"texte complet de l'analyse des risques", "risques":[{"nom":"...", "niveau":"critique|eleve|moyen|faible", "impact":"...", "action":"..."}], "score_risque_global": number (0-100, 100=tres risque), "recommandations":["rec 1",...]}` }] }],
           config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
         });
@@ -2786,7 +2786,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         ]);
         const revData = `CA derniers 90 jours par mois: ${JSON.stringify(paidLast90)}\nPipeline factures: ${Number(pipeline[0]?.total ?? 0).toFixed(2)}€ (${pipeline[0]?.count ?? 0} factures)\nPipeline prospects pondere: ${Number(prospects90[0]?.total ?? 0).toFixed(2)}€ (${prospects90[0]?.count ?? 0} prospects)`;
         const revResponse = await revAi.models.generateContent({
-          model: "gemini-2.5-pro",
+          model: GEMINI_PRO_MODEL,
           contents: [{ role: "user", parts: [{ text: `Tu es un directeur financier expert. Prevois le chiffre d'affaires des 3 prochains mois:\n\n${revData}\n\nGenere en JSON: {"prevision":"texte de prevision detaillee", "mois":[{"mois":"...", "prevu":number, "confiance":number}], "ca_annuel_estime":number, "tendance":"croissance|stable|declin", "recommandations":["rec 1",...]}` }] }],
           config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
         });
@@ -2809,7 +2809,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         }
         const { ai: campAi } = await import("@workspace/integrations-gemini-ai");
         const campResponse = await campAi.models.generateContent({
-          model: "gemini-2.5-pro",
+          model: GEMINI_PRO_MODEL,
           contents: [{ role: "user", parts: [{ text: `Tu es un expert en marketing et communication. Concois une campagne email "${objective}" pour ${targetContacts.length} contacts (${criteria}).\n\nContacts cibles: ${JSON.stringify(targetContacts.slice(0, 10))}\n\nGenere en JSON: {"campagne":"description de la campagne", "sujet_email":"...", "template_email":"contenu HTML de l'email avec {{prenom}} {{nom}} {{entreprise}} comme variables", "nombre_cibles":${targetContacts.length}, "planning":"calendrier d'envoi recommande", "kpis":["kpi 1",...]}` }] }],
           config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
         });
@@ -2832,7 +2832,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         ]);
         const auditData = `Type: ${auditType}\nAppels (30j): ${JSON.stringify(aCalls[0])}\nTaches: ${JSON.stringify(aTasks[0])}\nFactures (30j): ${JSON.stringify(aInvoices[0])}\nProspects: ${JSON.stringify(aProspects[0])}\nSante clients: ${JSON.stringify(aAccounts[0])}`;
         const auditResponse = await auditAi.models.generateContent({
-          model: "gemini-2.5-pro",
+          model: GEMINI_PRO_MODEL,
           contents: [{ role: "user", parts: [{ text: `Tu es un consultant en management de haut niveau. Realise un audit de performance ${auditType} COMPLET:\n\n${auditData}\n\nGenere en JSON: {"audit":"texte complet de l'audit", "score_global": number (0-100), "points_forts":["..."], "points_faibles":["..."], "recommandations":[{"action":"...", "priorite":"haute|moyenne|basse", "impact":"..."}], "objectifs_30j":["..."]}` }] }],
           config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
         });
@@ -2847,7 +2847,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         try {
           const { ai: compAi } = await import("@workspace/integrations-gemini-ai");
           const compResponse = await compAi.models.generateContent({
-            model: "gemini-2.5-pro",
+            model: GEMINI_PRO_MODEL,
             contents: [{ role: "user", parts: [{ text: `Tu es un analyste strategique expert du marche francais. Realise une analyse concurrentielle COMPLETE et DETAILLEE pour "${searchTarget}".\n\nInclus: les principaux acteurs du marche, leurs forces/faiblesses, les tendances du secteur, les opportunites et menaces. Base-toi sur tes connaissances du marche francais.\n\nGenere en JSON: {"analyse":"analyse complete et detaillee", "concurrents":[{"nom":"...", "forces":"...", "faiblesses":"...", "part_marche_estimee":"..."}], "tendances":["..."], "opportunites":["..."], "menaces":["..."], "recommandations":["..."], "positionnement_recommande":"strategie de positionnement"}` }] }],
             config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
           });
@@ -2982,7 +2982,7 @@ router.get("/ai/predictions", async (req, res): Promise<void> => {
     };
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
+      model: GEMINI_PRO_MODEL,
       contents: [{
         role: "user",
         parts: [{

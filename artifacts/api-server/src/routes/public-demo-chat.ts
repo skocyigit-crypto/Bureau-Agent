@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import { logger } from "../lib/logger";
-import { sanitizePromptInput } from "../services/ai-utils";
+import { sanitizePromptInput, GEMINI_FLASH_MODEL } from "../services/ai-utils";
 import { withProviderTimeout } from "../services/ai-cache";
 
 const router = Router();
@@ -86,7 +86,7 @@ router.post("/public/demo-chat", demoChatLimiter, async (req: Request, res: Resp
 
     const response = await withProviderTimeout(
       () => ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: GEMINI_FLASH_MODEL,
         contents,
         config: { maxOutputTokens: 300, temperature: 0.6 },
       }),

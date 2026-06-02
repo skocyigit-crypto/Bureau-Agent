@@ -1,7 +1,7 @@
 import { db, callsTable, tasksTable, calendarEventsTable, notificationsTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { logAudit } from "../routes/audit";
-import { safeJsonParse, aiCallWithRetry, sanitizePromptInput, recordAiUsage, extractGeminiTokens } from "./ai-utils";
+import { safeJsonParse, aiCallWithRetry, sanitizePromptInput, recordAiUsage, extractGeminiTokens, GEMINI_PRO_MODEL } from "./ai-utils";
 import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
 import { logger } from "../lib/logger";
 
@@ -161,7 +161,7 @@ Reponds UNIQUEMENT en JSON avec cette structure:
   try {
     response = await aiCallWithRetry(
       () => ai.models.generateContent({
-        model: "gemini-2.5-pro",
+        model: GEMINI_PRO_MODEL,
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           maxOutputTokens: 4096,
@@ -175,7 +175,7 @@ Reponds UNIQUEMENT en JSON avec cette structure:
     await recordAiUsage({
       organisationId: call.organisationId,
       provider: "gemini",
-      model: "gemini-2.5-pro",
+      model: GEMINI_PRO_MODEL,
       route: "call-processor",
       inputTokens: 0,
       outputTokens: 0,
@@ -189,7 +189,7 @@ Reponds UNIQUEMENT en JSON avec cette structure:
   await recordAiUsage({
     organisationId: call.organisationId,
     provider: "gemini",
-    model: "gemini-2.5-pro",
+    model: GEMINI_PRO_MODEL,
     route: "call-processor",
     inputTokens: tokens.input,
     outputTokens: tokens.output,

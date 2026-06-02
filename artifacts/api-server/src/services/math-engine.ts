@@ -1,4 +1,5 @@
 import { logger } from "../lib/logger";
+import { GEMINI_PRO_MODEL } from "./ai-utils";
 
 export interface MathSubComponent {
   id: string;
@@ -748,7 +749,7 @@ export async function analyzeWithAI(text: string, basicAnalysis: MathAnalysis): 
     const { ai } = await import("@workspace/integrations-gemini-ai");
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
+      model: GEMINI_PRO_MODEL,
       contents: [{
         role: "user",
         parts: [{

@@ -12,7 +12,7 @@ import {
 } from "@workspace/api-zod";
 import { processCallWithAI } from "../services/call-processor";
 import { assertAiQuota, invalidateQuotaCache } from "../services/ai-quota";
-import { recordAiUsage, extractGeminiTokens } from "../services/ai-utils";
+import { recordAiUsage, extractGeminiTokens, GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { logAudit } from "./audit";
 import { getOrgId } from "../middleware/tenant";
 import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
@@ -366,7 +366,7 @@ Reponds UNIQUEMENT en JSON:
 }`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
+      model: GEMINI_PRO_MODEL,
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: { maxOutputTokens: 2048, responseMimeType: "application/json" },
     });
@@ -448,13 +448,13 @@ Reponds UNIQUEMENT en JSON:
 }`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
+      model: GEMINI_PRO_MODEL,
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: { maxOutputTokens: 1024, responseMimeType: "application/json" },
     });
 
     const tokens = extractGeminiTokens(response);
-    recordAiUsage({ organisationId: orgId, provider: "gemini", model: "gemini-2.5-pro", route: "/calls/ai-coaching", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+    recordAiUsage({ organisationId: orgId, provider: "gemini", model: GEMINI_PRO_MODEL, route: "/calls/ai-coaching", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
     invalidateQuotaCache(orgId);
 
     const coaching = JSON.parse(response.text ?? "{}");
@@ -694,7 +694,7 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
   }`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-pro",
+        model: GEMINI_PRO_MODEL,
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
           maxOutputTokens: 4096,
@@ -704,7 +704,7 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
       });
 
       const respondTokens = extractGeminiTokens(response);
-      recordAiUsage({ organisationId: orgId, provider: "gemini", model: "gemini-2.5-pro", route: "/calls/ai-agent-respond", inputTokens: respondTokens.input, outputTokens: respondTokens.output, durationMs: Date.now() - t0Respond }).catch(() => {});
+      recordAiUsage({ organisationId: orgId, provider: "gemini", model: GEMINI_PRO_MODEL, route: "/calls/ai-agent-respond", inputTokens: respondTokens.input, outputTokens: respondTokens.output, durationMs: Date.now() - t0Respond }).catch(() => {});
       invalidateQuotaCache(orgId);
 
       const aiResponse = JSON.parse(response.text ?? "{}");

@@ -3,7 +3,7 @@ import { db, projetsTable, tasksTable } from "@workspace/db";
 import { eq, and, isNotNull } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { assertAiQuota, invalidateQuotaCache } from "../services/ai-quota";
-import { recordAiUsage } from "../services/ai-utils";
+import { recordAiUsage, GEMINI_PRO_MODEL } from "../services/ai-utils";
 
 const router = Router();
 
@@ -97,7 +97,7 @@ Regles:
 
     const t0 = Date.now();
     const aiRes = await fetch(
-      `${geminiBase}/v1beta/models/gemini-2.5-pro:generateContent?key=${geminiKey}`,
+      `${geminiBase}/v1beta/models/${GEMINI_PRO_MODEL}:generateContent?key=${geminiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -116,7 +116,7 @@ Regles:
       organisationId: orgId,
       userId,
       provider: "gemini",
-      model: "gemini-2.5-pro",
+      model: GEMINI_PRO_MODEL,
       route: "/api/meetings/compile",
       inputTokens: aiData?.usageMetadata?.promptTokenCount || 0,
       outputTokens: aiData?.usageMetadata?.candidatesTokenCount || 0,

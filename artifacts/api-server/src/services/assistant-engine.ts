@@ -5,10 +5,10 @@ import { assistantMessagesTable, assistantConversationsTable } from "@workspace/
 import { eq, asc, and } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "./ai-quota";
-import { extractGeminiTokens, recordAiUsage } from "./ai-utils";
+import { extractGeminiTokens, recordAiUsage, GEMINI_PRO_MODEL } from "./ai-utils";
 import { buildLearnedContextBlock } from "./ai-learning";
 
-const MODEL = process.env.ASSISTANT_MODEL || "gemini-2.5-pro";
+const MODEL = process.env.ASSISTANT_MODEL || GEMINI_PRO_MODEL;
 const MAX_TOOL_HOPS = 6;
 
 export type StreamEvent =

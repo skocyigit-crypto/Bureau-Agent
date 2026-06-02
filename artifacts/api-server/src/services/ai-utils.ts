@@ -1,5 +1,21 @@
 import { logger } from "../lib/logger";
 
+/**
+ * Source de verite unique pour les noms de modeles Gemini par defaut.
+ *
+ * Google retire regulierement les anciennes versions de modeles ; un nom
+ * code en dur a ~30 endroits casse silencieusement (UNSUPPORTED_MODEL) des
+ * qu'une version est retiree. Centraliser ici permet de migrer en une ligne
+ * (ou via variable d'environnement, sans redeploiement de code).
+ *
+ * Exceptions intentionnelles laissees telles quelles (modeles specialises
+ * qui ne suivent pas ce cycle) :
+ *   - `routes/voice-live.ts` : modeles Gemini Live "native-audio" (voix
+ *     conversationnelle temps reel), avec leur propre logique de fallback.
+ */
+export const GEMINI_FLASH_MODEL = process.env.GEMINI_FLASH_MODEL || "gemini-2.5-flash";
+export const GEMINI_PRO_MODEL = process.env.GEMINI_PRO_MODEL || "gemini-2.5-pro";
+
 export function safeJsonParse<T>(rawText: string | undefined | null, fallback: T): T {
   if (!rawText) return fallback;
   const text = String(rawText).trim();
@@ -83,7 +99,7 @@ export interface AiPricing {
 }
 
 const PRICING: Record<string, AiPricing> = {
-  "gemini-2.5-pro": { inputPerMillion: 1.25, outputPerMillion: 5.0 },
+  [GEMINI_PRO_MODEL]: { inputPerMillion: 1.25, outputPerMillion: 5.0 },
   "gpt-4o-mini": { inputPerMillion: 0.15, outputPerMillion: 0.60 },
   "gpt-5.2": { inputPerMillion: 2.5, outputPerMillion: 10.0 },
   "claude-sonnet-4-6": { inputPerMillion: 3.0, outputPerMillion: 15.0 },

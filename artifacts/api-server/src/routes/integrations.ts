@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, contactsTable, callsTable, tasksTable, usersTable, organisationsTable } from "@workspace/db";
 import { eq, count, sql, and } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { GEMINI_PRO_MODEL } from "../services/ai-utils";
 
 const router = Router();
 
@@ -675,7 +676,7 @@ Reponds en JSON:
 }`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-pro",
+        model: GEMINI_PRO_MODEL,
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: { maxOutputTokens: 1024, responseMimeType: "application/json" },
       });

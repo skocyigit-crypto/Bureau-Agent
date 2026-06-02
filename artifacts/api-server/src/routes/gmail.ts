@@ -3,6 +3,7 @@ import { google } from "googleapis";
 import { db, googleOAuthTokensTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { GEMINI_FLASH_MODEL } from "../services/ai-utils";
 import { analyzeUrlsBatch } from "../services/url-safety";
 import { applyDomainListToUrl } from "../services/security-lists";
 import { recordSecurityScan } from "../services/security-scans";
@@ -812,7 +813,7 @@ Réponds en JSON strict avec ce format:
 }`;
 
         const result = await _to(() => ai.models.generateContent({
-          model: "gemini-2.5-flash",
+          model: GEMINI_FLASH_MODEL,
           contents: [{ role: "user", parts: [{ text: prompt }] }],
           config: { temperature: 0.1, maxOutputTokens: 512 },
         }), { timeoutMs: 15_000, label: "gmail-scan" });

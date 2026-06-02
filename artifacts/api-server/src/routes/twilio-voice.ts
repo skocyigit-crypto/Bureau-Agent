@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { db, telephonyProvidersTable, organisationsTable, callsTable, contactsTable, telephonyCallLogsTable, telephonySmsLogsTable, usersTable } from "@workspace/db";
 import { logger } from "../lib/logger";
 import { assertAiQuota } from "../services/ai-quota";
-import { recordAiUsage, sanitizePromptInput } from "../services/ai-utils";
+import { recordAiUsage, sanitizePromptInput, GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { sendSms, type TelephonyProviderConfig } from "../services/telephony-providers";
 import { sendEmail } from "../services/email";
 import { broadcaster } from "../services/broadcaster";
@@ -333,7 +333,7 @@ async function generateVoiceReply(session: VoiceSession, callerSpeech: string): 
 
   try {
     const r = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
+      model: GEMINI_PRO_MODEL,
       contents: [{ role: "user", parts: [{ text: userPrompt }] }],
       config: {
         systemInstruction: systemPrompt,
@@ -350,7 +350,7 @@ async function generateVoiceReply(session: VoiceSession, callerSpeech: string): 
       recordAiUsage({
         organisationId: session.orgId,
         provider: "gemini",
-        model: "gemini-2.5-pro",
+        model: GEMINI_PRO_MODEL,
         route: "/api/telephony/twilio/gather",
         inputTokens,
         outputTokens,
@@ -580,7 +580,7 @@ async function transcribeTwilioRecording(recordingUrl: string, accountSid: strin
     const { ai } = await import("@workspace/integrations-gemini-ai");
     const t0 = Date.now();
     const r = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
+      model: GEMINI_PRO_MODEL,
       contents: [{
         role: "user",
         parts: [

@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { getOrgId } from "../middleware/tenant";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
-import { extractGeminiTokens, recordAiUsage, sanitizePromptInput } from "../services/ai-utils";
+import { extractGeminiTokens, recordAiUsage, sanitizePromptInput, GEMINI_FLASH_MODEL } from "../services/ai-utils";
 import { buildAiCacheKey, getCached, setCached, withProviderTimeout, AI_CACHE_TTL } from "../services/ai-cache";
 import { detectLanguage } from "../services/language-detect";
 import { logger } from "../lib/logger";
@@ -228,7 +228,7 @@ router.post("/ai/inline-suggest", async (req: Request, res: Response): Promise<v
       const { ai } = await import("@workspace/integrations-gemini-ai");
       const response = await withProviderTimeout(
         () => ai.models.generateContent({
-          model: "gemini-2.5-flash",
+          model: GEMINI_FLASH_MODEL,
           contents: prompt,
           config: { maxOutputTokens: 80, temperature: 0.4 },
         }),
@@ -245,7 +245,7 @@ router.post("/ai/inline-suggest", async (req: Request, res: Response): Promise<v
       recordAiUsage({
         organisationId: orgId,
         provider: "gemini",
-        model: "gemini-2.5-flash",
+        model: GEMINI_FLASH_MODEL,
         route: "/ai/inline-suggest",
         inputTokens: tokens.input,
         outputTokens: tokens.output,

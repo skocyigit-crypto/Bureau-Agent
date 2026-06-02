@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, dailyReportsTable, platformConnectionsTable, platformSyncLogsTable, projetsTable } from "@workspace/db";
 import { sql, eq, gte, lte, and, count, avg, desc, between, or } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { requireAuth } from "../middleware/auth";
 
 const router = Router();
@@ -498,7 +499,7 @@ router.post("/daily-report", async (req, res): Promise<void> => {
     const { ai } = await import("@workspace/integrations-gemini-ai");
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
+      model: GEMINI_PRO_MODEL,
       contents: [{
         role: "user",
         parts: [{

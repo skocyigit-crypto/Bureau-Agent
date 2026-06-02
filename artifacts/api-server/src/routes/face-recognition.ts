@@ -4,6 +4,7 @@ import { eq, sql, and, desc, ilike, or } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { logger } from "../lib/logger";
+import { GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { assertAiQuota, AiQuotaExceededError } from "../services/ai-quota";
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL, withProviderTimeout } from "../services/ai-cache";
 import crypto from "node:crypto";
@@ -49,7 +50,7 @@ async function multiAiAnalyze(prompt: string, systemPrompt?: string): Promise<st
   try {
     const ai = await getGemini();
     const r = await withProviderTimeout(() => ai.models.generateContent({
-      model: "gemini-2.5-pro",
+      model: GEMINI_PRO_MODEL,
       contents: systemPrompt ? [{ role: "user", parts: [{ text: systemPrompt + "\n\n" + prompt }] }] : prompt,
     }), { timeoutMs: 20_000, label: "face-gemini" });
     const text = typeof r === "object" && r !== null && "text" in r ? String(r.text) : String(r);

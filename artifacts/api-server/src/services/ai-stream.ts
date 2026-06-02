@@ -7,6 +7,7 @@ import {
   extractOpenAITokens,
   extractAnthropicTokens,
   sanitizePromptInput,
+  GEMINI_PRO_MODEL,
 } from "./ai-utils";
 
 export interface SseStream {
@@ -128,7 +129,7 @@ export async function multiAiGenerateStream(opts: StreamOptions): Promise<Stream
     route,
     signal,
     onToken,
-    geminiModel = "gemini-2.5-pro",
+    geminiModel = GEMINI_PRO_MODEL,
     openaiModel = "gpt-5.2",
     anthropicModel = "claude-sonnet-4-6",
     maxOutputTokens,

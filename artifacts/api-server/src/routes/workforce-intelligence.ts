@@ -31,7 +31,7 @@ import {
 } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "../services/ai-quota";
-import { extractGeminiTokens, recordAiUsage } from "../services/ai-utils";
+import { extractGeminiTokens, recordAiUsage, GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -57,7 +57,7 @@ async function runGemini(orgId: number, prompt: string): Promise<string> {
   await assertAiQuota(orgId);
   const t0 = Date.now();
   const { ai } = await import("@workspace/integrations-gemini-ai");
-  const model = "gemini-2.5-pro";
+  const model = GEMINI_PRO_MODEL;
   const response = await ai.models.generateContent({
     model,
     contents: [{ role: "user", parts: [{ text: prompt }] }],

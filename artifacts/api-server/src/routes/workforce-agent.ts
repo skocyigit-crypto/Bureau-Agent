@@ -46,6 +46,7 @@ import {
   recordAiUsage,
   aiCallWithRetry,
   safeJsonParse,
+  GEMINI_PRO_MODEL,
 } from "../services/ai-utils";
 import { logger } from "../lib/logger";
 
@@ -66,7 +67,7 @@ async function callGemini(orgId: number, prompt: string, phase: string): Promise
   await assertAiQuota(orgId);
   const t0 = Date.now();
   const { ai } = await import("@workspace/integrations-gemini-ai");
-  const model = "gemini-2.5-pro";
+  const model = GEMINI_PRO_MODEL;
 
   const response = await aiCallWithRetry(
     () =>

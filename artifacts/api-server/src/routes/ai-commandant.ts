@@ -5,7 +5,7 @@ import { getOrgId } from "../middleware/tenant";
 import { stripAccents, ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { sendEmail } from "../services/email";
 import { getContextForContact, getLatestAgentInsights, buildCommandantContextPrompt } from "./agent-collaboration";
-import { safeJsonParse, extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, sanitizePromptInput } from "../services/ai-utils";
+import { safeJsonParse, extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, sanitizePromptInput, GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
 import { buildLearnedContextBlock } from "../services/ai-learning";
 import { getOrCompute, buildAiCacheKey, getCached, setCached, withProviderTimeout, AI_CACHE_TTL } from "../services/ai-cache";
@@ -53,14 +53,14 @@ async function multiAiGenerate(prompt: string, systemPrompt?: string, orgId?: nu
   try {
     const ai = await getGemini();
     const r = await withProviderTimeout(() => ai.models.generateContent({
-      model: "gemini-2.5-pro",
+      model: GEMINI_PRO_MODEL,
       contents: safeSystem ? [{ role: "user", parts: [{ text: safeSystem + "\n\n" + safePrompt }] }] : safePrompt,
     }), { timeoutMs: 25_000, label: "gemini" });
     const text = typeof r === "object" && r !== null && "text" in r ? String(r.text) : String(r);
     if (text && text.length > 10) {
       if (orgId) {
         const tokens = extractGeminiTokens(r);
-        recordAiUsage({ organisationId: orgId, provider: "gemini", model: "gemini-2.5-pro", route: route || "/commandant", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+        recordAiUsage({ organisationId: orgId, provider: "gemini", model: GEMINI_PRO_MODEL, route: route || "/commandant", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
         invalidateQuotaCache(orgId);
       }
       return text;

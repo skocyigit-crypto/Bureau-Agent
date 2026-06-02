@@ -2,7 +2,7 @@ import { db, contactsTable, tasksTable, stockArticlesTable, devisTable, factures
 import { eq, ilike, or, and } from "drizzle-orm";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { logger } from "../lib/logger";
-import { safeJsonParse, aiCallWithRetry } from "./ai-utils";
+import { safeJsonParse, aiCallWithRetry, GEMINI_PRO_MODEL, GEMINI_FLASH_MODEL } from "./ai-utils";
 
 export type DocumentType =
   | "facture"
@@ -246,7 +246,7 @@ export async function analyzeDocument(
 
   const response = await aiCallWithRetry(
     () => ai.models.generateContent({
-      model: "gemini-2.5-pro",
+      model: GEMINI_PRO_MODEL,
       contents: [{ role: "user", parts: contentParts }],
       config: { maxOutputTokens: 16384, responseMimeType: "application/json" },
     }),
@@ -756,7 +756,7 @@ async function runGeminiAnalysis(contentParts: any[], fileName: string, mimeType
   const { withProviderTimeout } = await import("./ai-cache");
   const response = await aiCallWithRetry(
     () => withProviderTimeout(() => ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: GEMINI_FLASH_MODEL,
       contents: [{ role: "user", parts: [...contentParts, { text: MULTI_ANALYSIS_PROMPT(fileName, mimeType) }] }],
       config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
     }), { timeoutMs: 30_000, label: "doc-gemini" }),
@@ -764,7 +764,7 @@ async function runGeminiAnalysis(contentParts: any[], fileName: string, mimeType
   );
   const parsed = safeJsonParse<any>(response.text ?? "{}", {});
   return {
-    model: "gemini-2.5-flash", provider: "gemini",
+    model: GEMINI_FLASH_MODEL, provider: "gemini",
     summary: parsed.summary || "", keyPoints: parsed.keyPoints || [],
     insights: parsed.insights || "", recommendations: parsed.recommendations || [],
     risks: parsed.risks || [], sentiment: parsed.sentiment || "neutre",
@@ -890,7 +890,7 @@ export async function analyzeDocumentMultiModel(
     runClaudeAnalysis(textContent, fileName, mimeType, isImage ? base64Content : undefined),
   ]);
 
-  const gemini  = geminiRes.status  === "fulfilled" ? geminiRes.value  : { model: "gemini-2.5-flash", provider: "gemini"  as const, error: (geminiRes.reason as any)?.message, summary: "", keyPoints: [], insights: "", recommendations: [], risks: [], sentiment: "neutre" as const, urgency: "basse" as const };
+  const gemini  = geminiRes.status  === "fulfilled" ? geminiRes.value  : { model: GEMINI_FLASH_MODEL, provider: "gemini"  as const, error: (geminiRes.reason as any)?.message, summary: "", keyPoints: [], insights: "", recommendations: [], risks: [], sentiment: "neutre" as const, urgency: "basse" as const };
   const openai  = openaiRes.status  === "fulfilled" ? openaiRes.value  : { model: "gpt-4o",           provider: "openai"  as const, error: (openaiRes.reason as any)?.message, summary: "", keyPoints: [], insights: "", recommendations: [], risks: [], sentiment: "neutre" as const, urgency: "basse" as const };
   const claude  = claudeRes.status  === "fulfilled" ? claudeRes.value  : { model: "claude-sonnet-4-5",provider: "claude"  as const, error: (claudeRes.reason as any)?.message, summary: "", keyPoints: [], insights: "", recommendations: [], risks: [], sentiment: "neutre" as const, urgency: "basse" as const };
 
@@ -945,11 +945,11 @@ export async function askDocumentQuestion(
           ? [{ inlineData: { mimeType, data: imageBase64 } }, { text: `${QA_SYSTEM_PROMPT}\n\n${userPrompt}` }]
           : [{ text: `${QA_SYSTEM_PROMPT}\n\n${userPrompt}` }];
         const res = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
+          model: GEMINI_FLASH_MODEL,
           contents: [{ role: "user", parts }],
           config: { maxOutputTokens: 2048 },
         });
-        answers.push({ model: "gemini-2.5-flash", provider: "gemini", answer: res.text ?? "", tokensUsed: res.usageMetadata?.totalTokenCount ?? 0, durationMs: Date.now() - t0 });
+        answers.push({ model: GEMINI_FLASH_MODEL, provider: "gemini", answer: res.text ?? "", tokensUsed: res.usageMetadata?.totalTokenCount ?? 0, durationMs: Date.now() - t0 });
       } else if (m === "openai") {
         const { openai } = await import("@workspace/integrations-openai-ai-server");
         const msgContent: any = imageBase64 && mimeType.startsWith("image/")
@@ -975,7 +975,7 @@ export async function askDocumentQuestion(
         answers.push({ model: "claude-sonnet-4-5", provider: "claude", answer: (res.content[0] as any)?.text ?? "", tokensUsed: (res.usage?.input_tokens ?? 0) + (res.usage?.output_tokens ?? 0), durationMs: Date.now() - t0 });
       }
     } catch (err: any) {
-      const modelNames = { gemini: "gemini-2.5-flash", openai: "gpt-4o", claude: "claude-sonnet-4-5" };
+      const modelNames = { gemini: GEMINI_FLASH_MODEL, openai: "gpt-4o", claude: "claude-sonnet-4-5" };
       answers.push({ model: modelNames[m], provider: m, answer: "", error: err.message });
     }
   });
@@ -1018,7 +1018,7 @@ export async function processDocumentForImport(
   }
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-pro",
+    model: GEMINI_PRO_MODEL,
     contents: [{ role: "user", parts: contentParts }],
     config: { maxOutputTokens: 32768, responseMimeType: "application/json" },
   });
