@@ -31,7 +31,7 @@ import {
 } from "drizzle-orm";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "../services/ai-quota";
-import { extractGeminiTokens, recordAiUsage, GEMINI_PRO_MODEL } from "../services/ai-utils";
+import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -67,7 +67,7 @@ async function runGemini(orgId: number, prompt: string): Promise<string> {
   recordAiUsage({
     organisationId: orgId,
     provider: "gemini",
-    model,
+    model: geminiActualModel(response, model),
     route: "/workforce-intelligence",
     inputTokens: tokens.input,
     outputTokens: tokens.output,

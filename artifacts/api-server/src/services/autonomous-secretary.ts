@@ -27,7 +27,7 @@ import { and, eq, gte, lte, desc, sql, inArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { getTool, validateArgs, executeTool, type ToolContext } from "./assistant-tools";
 import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
-import { extractGeminiTokens, recordAiUsage, GEMINI_FLASH_MODEL } from "./ai-utils";
+import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_FLASH_MODEL } from "./ai-utils";
 
 /** Outils que l'agent autonome a le droit de proposer. */
 const ALLOWED_TOOLS = ["create_task", "send_email", "send_sms", "create_calendar_event", "create_contact"] as const;
@@ -62,7 +62,7 @@ async function aiGenerate(orgId: number, prompt: string): Promise<string> {
   const text = response.text ?? "{}";
   const tokens = extractGeminiTokens(response);
   recordAiUsage({
-    organisationId: orgId, provider: "gemini", model, route: "/agent-queue/run",
+    organisationId: orgId, provider: "gemini", model: geminiActualModel(response, model), route: "/agent-queue/run",
     inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0,
   }).catch(() => {});
   invalidateQuotaCache(orgId);

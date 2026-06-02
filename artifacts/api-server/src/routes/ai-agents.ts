@@ -3,7 +3,7 @@ import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable
 import { sql, eq, gte, lte, and, count, desc, lt, ne, isNull, isNotNull, or, sum, avg } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "../services/ai-quota";
-import { extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, GEMINI_PRO_MODEL, GEMINI_FLASH_MODEL } from "../services/ai-utils";
+import { extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL, GEMINI_FLASH_MODEL } from "../services/ai-utils";
 import { withProviderTimeout, buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 import { openSseStream, multiAiGenerateStream, StreamAbortedError } from "../services/ai-stream";
 import { logger } from "../lib/logger";
@@ -788,7 +788,7 @@ ${trendHistory.map(h => `  ${h.reportDate}: score ${h.score}, ${h.errorsFound} e
       }), { timeoutMs: 45_000, label: `agent-${agent.id}-gemini` });
       text = response.text ?? "{}";
       const tokens = extractGeminiTokens(response);
-      recordAiUsage({ organisationId: orgId, provider: "gemini", model: GEMINI_PRO_MODEL, route: `/ai/agents/${agent.id}`, inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+      recordAiUsage({ organisationId: orgId, provider: "gemini", model: geminiActualModel(response, GEMINI_PRO_MODEL), route: `/ai/agents/${agent.id}`, inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
       invalidateQuotaCache(orgId);
       if (text && text.length > 10) setCached(agentCacheKey, text, AI_CACHE_TTL.MEDIUM);
     } catch (geminiErr: any) {
@@ -2449,7 +2449,7 @@ async function superAgentAI(orgId: number, prompt: string, systemPrompt: string)
     });
     const text = response.text ?? "{}";
     const tokens = extractGeminiTokens(response);
-    recordAiUsage({ organisationId: orgId, provider: "gemini", model: GEMINI_FLASH_MODEL, route: "/ai/super-agent", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+    recordAiUsage({ organisationId: orgId, provider: "gemini", model: geminiActualModel(response, GEMINI_FLASH_MODEL), route: "/ai/super-agent", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
     invalidateQuotaCache(orgId);
     return text;
   } catch (err: any) {

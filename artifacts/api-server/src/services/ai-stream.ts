@@ -7,6 +7,7 @@ import {
   extractOpenAITokens,
   extractAnthropicTokens,
   sanitizePromptInput,
+  geminiActualModel,
   GEMINI_PRO_MODEL,
 } from "./ai-utils";
 
@@ -187,12 +188,13 @@ export async function multiAiGenerateStream(opts: StreamOptions): Promise<Stream
 
     if (abortedDuring) {
       const tokens = extractGeminiTokens(lastChunk);
+      const actualModel = geminiActualModel(lastChunk, geminiModel);
       const inTok = tokens.input || estimateTokens(promptForEstimate);
       const outTok = tokens.output || estimateTokens(fullText);
       const durationMs = Date.now() - t0;
-      persistUsage(organisationId, "gemini", geminiModel, route, inTok, outTok, durationMs);
+      persistUsage(organisationId, "gemini", actualModel, route, inTok, outTok, durationMs);
       throw new StreamAbortedError({
-        fullText, provider: "gemini", model: geminiModel,
+        fullText, provider: "gemini", model: actualModel,
         inputTokens: inTok, outputTokens: outTok, durationMs, aborted: true,
       });
     }
@@ -202,10 +204,11 @@ export async function multiAiGenerateStream(opts: StreamOptions): Promise<Stream
     }
 
     const tokens = extractGeminiTokens(lastChunk);
+    const actualModel = geminiActualModel(lastChunk, geminiModel);
     const durationMs = Date.now() - t0;
-    persistUsage(organisationId, "gemini", geminiModel, route, tokens.input, tokens.output, durationMs);
+    persistUsage(organisationId, "gemini", actualModel, route, tokens.input, tokens.output, durationMs);
     return {
-      fullText, provider: "gemini", model: geminiModel,
+      fullText, provider: "gemini", model: actualModel,
       inputTokens: tokens.input, outputTokens: tokens.output, durationMs,
     };
   } catch (err: any) {

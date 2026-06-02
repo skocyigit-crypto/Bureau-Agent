@@ -19,7 +19,7 @@ import {
 import { eq, and, gte, lte, count, sql, desc, or } from "drizzle-orm";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "../services/ai-quota";
 import { buildLearnedContextBlock } from "../services/ai-learning";
-import { extractGeminiTokens, recordAiUsage, GEMINI_FLASH_MODEL } from "../services/ai-utils";
+import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_FLASH_MODEL } from "../services/ai-utils";
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 import { logger } from "../lib/logger";
 
@@ -67,7 +67,7 @@ async function aiGenerate(orgId: number, prompt: string): Promise<string> {
   const text = response.text ?? "{}";
   const tokens = extractGeminiTokens(response);
   recordAiUsage({
-    organisationId: orgId, provider: "gemini", model, route: "/daily-digest",
+    organisationId: orgId, provider: "gemini", model: geminiActualModel(response, model), route: "/daily-digest",
     inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0,
   }).catch(() => {});
   invalidateQuotaCache(orgId);

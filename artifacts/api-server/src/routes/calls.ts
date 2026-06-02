@@ -12,7 +12,7 @@ import {
 } from "@workspace/api-zod";
 import { processCallWithAI } from "../services/call-processor";
 import { assertAiQuota, invalidateQuotaCache } from "../services/ai-quota";
-import { recordAiUsage, extractGeminiTokens, GEMINI_PRO_MODEL } from "../services/ai-utils";
+import { recordAiUsage, extractGeminiTokens, geminiActualModel, GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { logAudit } from "./audit";
 import { getOrgId } from "../middleware/tenant";
 import { resolveUserNames, enrichWithUserNames, enrichSingle } from "../helpers/user-tracking";
@@ -454,7 +454,7 @@ Reponds UNIQUEMENT en JSON:
     });
 
     const tokens = extractGeminiTokens(response);
-    recordAiUsage({ organisationId: orgId, provider: "gemini", model: GEMINI_PRO_MODEL, route: "/calls/ai-coaching", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+    recordAiUsage({ organisationId: orgId, provider: "gemini", model: geminiActualModel(response, GEMINI_PRO_MODEL), route: "/calls/ai-coaching", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
     invalidateQuotaCache(orgId);
 
     const coaching = JSON.parse(response.text ?? "{}");
@@ -704,7 +704,7 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
       });
 
       const respondTokens = extractGeminiTokens(response);
-      recordAiUsage({ organisationId: orgId, provider: "gemini", model: GEMINI_PRO_MODEL, route: "/calls/ai-agent-respond", inputTokens: respondTokens.input, outputTokens: respondTokens.output, durationMs: Date.now() - t0Respond }).catch(() => {});
+      recordAiUsage({ organisationId: orgId, provider: "gemini", model: geminiActualModel(response, GEMINI_PRO_MODEL), route: "/calls/ai-agent-respond", inputTokens: respondTokens.input, outputTokens: respondTokens.output, durationMs: Date.now() - t0Respond }).catch(() => {});
       invalidateQuotaCache(orgId);
 
       const aiResponse = JSON.parse(response.text ?? "{}");

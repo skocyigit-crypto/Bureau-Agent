@@ -5,7 +5,7 @@ import { getOrgId } from "../middleware/tenant";
 import { stripAccents, ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { sendEmail } from "../services/email";
 import { getContextForContact, getLatestAgentInsights, buildCommandantContextPrompt } from "./agent-collaboration";
-import { safeJsonParse, extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, sanitizePromptInput, GEMINI_PRO_MODEL } from "../services/ai-utils";
+import { safeJsonParse, extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, geminiActualModel, sanitizePromptInput, GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
 import { buildLearnedContextBlock } from "../services/ai-learning";
 import { getOrCompute, buildAiCacheKey, getCached, setCached, withProviderTimeout, AI_CACHE_TTL } from "../services/ai-cache";
@@ -60,7 +60,7 @@ async function multiAiGenerate(prompt: string, systemPrompt?: string, orgId?: nu
     if (text && text.length > 10) {
       if (orgId) {
         const tokens = extractGeminiTokens(r);
-        recordAiUsage({ organisationId: orgId, provider: "gemini", model: GEMINI_PRO_MODEL, route: route || "/commandant", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+        recordAiUsage({ organisationId: orgId, provider: "gemini", model: geminiActualModel(r, GEMINI_PRO_MODEL), route: route || "/commandant", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
         invalidateQuotaCache(orgId);
       }
       return text;

@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { db, telephonyProvidersTable, organisationsTable, callsTable, contactsTable, telephonyCallLogsTable, telephonySmsLogsTable, usersTable } from "@workspace/db";
 import { logger } from "../lib/logger";
 import { assertAiQuota } from "../services/ai-quota";
-import { recordAiUsage, sanitizePromptInput, GEMINI_PRO_MODEL } from "../services/ai-utils";
+import { recordAiUsage, geminiActualModel, sanitizePromptInput, GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { sendSms, type TelephonyProviderConfig } from "../services/telephony-providers";
 import { sendEmail } from "../services/email";
 import { broadcaster } from "../services/broadcaster";
@@ -350,7 +350,7 @@ async function generateVoiceReply(session: VoiceSession, callerSpeech: string): 
       recordAiUsage({
         organisationId: session.orgId,
         provider: "gemini",
-        model: GEMINI_PRO_MODEL,
+        model: geminiActualModel(r, GEMINI_PRO_MODEL),
         route: "/api/telephony/twilio/gather",
         inputTokens,
         outputTokens,

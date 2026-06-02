@@ -5,7 +5,7 @@ import { assistantMessagesTable, assistantConversationsTable } from "@workspace/
 import { eq, asc, and } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "./ai-quota";
-import { extractGeminiTokens, recordAiUsage, GEMINI_PRO_MODEL } from "./ai-utils";
+import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL } from "./ai-utils";
 import { buildLearnedContextBlock } from "./ai-learning";
 
 const MODEL = process.env.ASSISTANT_MODEL || GEMINI_PRO_MODEL;
@@ -65,7 +65,7 @@ function recordUsage(orgId: number, response: GeminiResponse, t0: number): void 
   try {
     const tokens = extractGeminiTokens(response);
     recordAiUsage({
-      organisationId: orgId, provider: "gemini", model: MODEL,
+      organisationId: orgId, provider: "gemini", model: geminiActualModel(response, MODEL),
       route: "/assistant/chat",
       inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0,
     }).catch(() => {});

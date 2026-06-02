@@ -12,7 +12,7 @@ import {
 import { and, eq, gte, lte, sql, count, lt, isNull, or } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "./ai-quota";
-import { extractGeminiTokens, recordAiUsage, safeJsonParse, GEMINI_FLASH_MODEL } from "./ai-utils";
+import { extractGeminiTokens, recordAiUsage, geminiActualModel, safeJsonParse, GEMINI_FLASH_MODEL } from "./ai-utils";
 import { buildAiCacheKey, getOrCompute, AI_CACHE_TTL, withProviderTimeout } from "./ai-cache";
 import { buildLearnedContextBlock } from "./ai-learning";
 
@@ -275,7 +275,7 @@ Reponds UNIQUEMENT avec un tableau JSON de la meme structure que les drafts. Pas
       const text = response.text ?? "";
       const tokens = extractGeminiTokens(response);
       recordAiUsage({
-        organisationId: orgId, provider: "gemini", model,
+        organisationId: orgId, provider: "gemini", model: geminiActualModel(response, model),
         route: "/internal/ai-insights",
         inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0,
       }).catch(() => {});

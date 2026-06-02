@@ -29,8 +29,14 @@ is the only way "one fix covers all call sites" without churning every route.
   model-not-found — that's the gap this fallback fills; the two compose cleanly.
 - Streaming: the patch wraps the async iterator so a retirement error on the *first*
   chunk (before anything is emitted) can still switch models; mid-stream errors can't.
-- `recordAiUsage` still logs the *requested* model name, not the fallback actually used
-  (minor accounting inaccuracy, left as-is).
+- `recordAiUsage` now logs the model that *actually* served the request: the patch
+  tags the response (non-streaming) / each chunk (streaming) with the real model via a
+  `Symbol.for("workspace.geminiActualModel")` key; read it at usage sites with
+  `geminiActualModel(responseOrChunk, requestedModel)` (falls back to requested when
+  untagged, i.e. no fallback occurred). Any NEW Gemini `recordAiUsage` site must wrap
+  its model arg the same way. Fallback aliases are in the `PRICING` table so cost
+  estimates stay correct after a retirement. `meetings.ts` uses a raw REST fetch (not
+  the patched singleton) so it has no fallback and is left as-is.
 
 **Admin alerting on fallback:** `ai-utils` exposes an `onGeminiModelFallback(listener)`
 hook (kept decoupled — ai-utils only knows the logger). At boot `index.ts` wires it to

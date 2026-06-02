@@ -111,8 +111,49 @@ function notifyGeminiFallback(from: string, to: string, kind: "generate" | "stre
 }
 
 /**
+ * Cle (Symbol) utilisee pour marquer une reponse / un chunk Gemini avec le nom
+ * du modele qui a *reellement* servi la requete. Quand le repli automatique
+ * bascule sur un modele de secours, le site d'appel ne connait que le modele
+ * *demande* ; on attache donc le vrai modele a l'objet de reponse pour que la
+ * journalisation d'usage (`recordAiUsage`) et l'estimation de cout refletent la
+ * realite. Un Symbol est invisible pour `JSON.stringify`/`for..in`, donc il ne
+ * pollue pas la serialisation de la reponse.
+ */
+const GEMINI_ACTUAL_MODEL_KEY = Symbol.for("workspace.geminiActualModel");
+
+/** Marque un objet (reponse ou chunk Gemini) avec le modele reellement utilise. */
+function tagActualModel<T>(obj: T, model: string): T {
+  if (obj && typeof obj === "object") {
+    try {
+      (obj as any)[GEMINI_ACTUAL_MODEL_KEY] = model;
+    } catch {
+      /* objet gele / non extensible : on ignore */
+    }
+  }
+  return obj;
+}
+
+/**
+ * Renvoie le modele Gemini qui a reellement servi une reponse / un chunk.
+ * Si l'objet n'a pas ete marque (aucun repli, ou objet non-objet), on retombe
+ * sur `requested` (le modele demande == le modele utilise dans ce cas).
+ */
+export function geminiActualModel(obj: unknown, requested: string): string {
+  const tagged = (obj as any)?.[GEMINI_ACTUAL_MODEL_KEY];
+  return typeof tagged === "string" && tagged ? tagged : requested;
+}
+
+/** Wrappe un flux Gemini pour marquer chaque chunk avec le modele utilise. */
+async function* tagStream(stream: AsyncIterable<any>, model: string): AsyncGenerator<any> {
+  for await (const chunk of stream) {
+    yield tagActualModel(chunk, model);
+  }
+}
+
+/**
  * Execute un appel Gemini en reessayant une fois avec un modele de repli si le
- * modele demande a ete retire. `fn` recoit le nom de modele a utiliser.
+ * modele demande a ete retire. `fn` recoit le nom de modele a utiliser. La
+ * reponse est marquee avec le modele reellement utilise (voir `geminiActualModel`).
  */
 export async function geminiGenerateWithFallback<T>(
   model: string | undefined | null,
@@ -120,7 +161,7 @@ export async function geminiGenerateWithFallback<T>(
 ): Promise<T> {
   const primary = model || GEMINI_PRO_MODEL;
   try {
-    return await fn(primary);
+    return tagActualModel(await fn(primary), primary);
   } catch (err) {
     const fb = fallbackGeminiModel(primary);
     if (fb && fb !== primary && isModelRetiredError(err)) {
@@ -129,7 +170,7 @@ export async function geminiGenerateWithFallback<T>(
         "[ai-utils] Modele Gemini retire — nouvelle tentative avec le modele de repli",
       );
       notifyGeminiFallback(primary, fb, "generate");
-      return await fn(fb);
+      return tagActualModel(await fn(fb), fb);
     }
     throw err;
   }
@@ -176,7 +217,8 @@ export async function installGeminiModelFallback(): Promise<void> {
               "[ai-utils] Modele Gemini retire (stream) — repli sur le modele de fallback",
             );
             notifyGeminiFallback(model, fb, "stream");
-            return await make(fb);
+            // Le repli a servi la requete : on marque chaque chunk avec `fb`.
+            return tagStream(await make(fb), fb);
           }
           throw err;
         }
@@ -197,7 +239,7 @@ export async function installGeminiModelFallback(): Promise<void> {
                 "[ai-utils] Modele Gemini retire (1er chunk) — repli sur le modele de fallback",
               );
               notifyGeminiFallback(model, fb, "stream");
-              yield* await make(fb);
+              yield* tagStream(await make(fb), fb);
               return;
             }
             throw err;
@@ -303,6 +345,11 @@ export interface AiPricing {
 
 const PRICING: Record<string, AiPricing> = {
   [GEMINI_PRO_MODEL]: { inputPerMillion: 1.25, outputPerMillion: 5.0 },
+  [GEMINI_FLASH_MODEL]: { inputPerMillion: 0.30, outputPerMillion: 2.50 },
+  // Modeles de repli automatiques : meme tarif que leur modele d'origine pour
+  // que l'estimation de cout reste juste apres un retrait de modele.
+  [GEMINI_PRO_FALLBACK_MODEL]: { inputPerMillion: 1.25, outputPerMillion: 5.0 },
+  [GEMINI_FLASH_FALLBACK_MODEL]: { inputPerMillion: 0.30, outputPerMillion: 2.50 },
   "gpt-4o-mini": { inputPerMillion: 0.15, outputPerMillion: 0.60 },
   "gpt-5.2": { inputPerMillion: 2.5, outputPerMillion: 10.0 },
   "claude-sonnet-4-6": { inputPerMillion: 3.0, outputPerMillion: 15.0 },

@@ -5,7 +5,7 @@ import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNul
 import { logger } from "../lib/logger";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
 import { buildLearnedContextBlock } from "../services/ai-learning";
-import { extractGeminiTokens, recordAiUsage, GEMINI_PRO_MODEL } from "../services/ai-utils";
+import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 
 const router = Router();
@@ -22,7 +22,7 @@ async function aiGenerate(orgId: number, options: { model?: string; contents: an
   });
   const text = response.text ?? "{}";
   const tokens = extractGeminiTokens(response);
-  recordAiUsage({ organisationId: orgId, provider: "gemini", model, route: options.route ?? "/ai", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+  recordAiUsage({ organisationId: orgId, provider: "gemini", model: geminiActualModel(response, model), route: options.route ?? "/ai", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
   invalidateQuotaCache(orgId);
   return text;
 }

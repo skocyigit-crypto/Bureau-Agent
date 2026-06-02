@@ -44,6 +44,7 @@ import {
 import {
   extractGeminiTokens,
   recordAiUsage,
+  geminiActualModel,
   aiCallWithRetry,
   safeJsonParse,
   GEMINI_PRO_MODEL,
@@ -83,7 +84,7 @@ async function callGemini(orgId: number, prompt: string, phase: string): Promise
   recordAiUsage({
     organisationId: orgId,
     provider: "gemini",
-    model,
+    model: geminiActualModel(response, model),
     route: `/workforce-agent/${phase}`,
     inputTokens: tokens.input,
     outputTokens: tokens.output,
