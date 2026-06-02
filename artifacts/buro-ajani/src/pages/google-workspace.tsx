@@ -10,6 +10,7 @@ import {
   FolderKanban
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { trackScanResult } from "@/lib/scan-result";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,6 +76,10 @@ export default function GoogleWorkspace() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
       toast({ title: "Importé dans Documents", description: `${file.name} — analyse antivirus en cours.` });
+      // Suivi du verdict antivirus en arriere-plan (Tache #175) : on affichera
+      // un toast de suivi des que l'analyse est terminee (sain / dangereux).
+      const docId = data?.document?.id ?? data?.id;
+      if (docId) void trackScanResult(toast, docId, file.name || "Le fichier");
     } catch (e: any) {
       toast({ title: "Échec de l'import", description: e?.message || "Réessayez.", variant: "destructive" });
     } finally {

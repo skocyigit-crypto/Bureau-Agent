@@ -26,6 +26,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Icon3D } from "@/components/icon-3d";
+import { trackScanResult } from "@/lib/scan-result";
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -257,8 +258,12 @@ export default function GmailAgentPage() {
     if (!selectedEmail?.id || !att?.attachmentId) return;
     setSavingAtt(att.attachmentId);
     try {
-      await apiPost(`/gmail/message/${selectedEmail.id}/attachment/${att.attachmentId}/save`, {});
+      const saved = await apiPost(`/gmail/message/${selectedEmail.id}/attachment/${att.attachmentId}/save`, {});
       toast({ title: "Enregistré dans Documents", description: `${att.filename} — analyse antivirus en cours.` });
+      // Suivi du verdict antivirus en arriere-plan (Tache #175) : on affichera
+      // un toast de suivi des que l'analyse est terminee (sain / dangereux).
+      const docId = saved?.document?.id ?? saved?.id;
+      if (docId) void trackScanResult(toast, docId, att.filename || "Le fichier");
     } catch (e: any) {
       toast({ title: "Échec de l'enregistrement", description: e?.message || "Réessayez.", variant: "destructive" });
     } finally {
