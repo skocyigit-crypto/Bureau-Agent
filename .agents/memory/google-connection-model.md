@@ -23,6 +23,16 @@ false "Connecté". That was migrated to per-user OAuth.
   authenticated, `expiresAt > now` = valid, per-app connected = required scope
   present in `token.scope`).
 - Any new per-app scope check must stay aligned with `GOOGLE_SCOPES_MAP`.
+- **Never request the full `GOOGLE_SCOPES_MAP` on a default "connect" — it 403s the
+  whole consent.** Google fails the ENTIRE consent with a generic *"403. That's an
+  error… you do not have access to this page"* (not the OAuth "Accès bloqué" page)
+  if even ONE requested scope's API is disabled in the Cloud project or isn't
+  available to the account type. `keep` is Workspace-Enterprise-ONLY; `photos`,
+  `youtube`, `chat`, `forms`, `slides`, `meet` are commonly unenabled. The default
+  connect must request only the broadly-available core (`DEFAULT_SERVICES` in
+  `routes/google-oauth.ts`: gmail/calendar/drive/docs/sheets/contacts/tasks); the
+  rest stay opt-in per service. Each requested scope still needs its API enabled in
+  the project's API Library.
 - A Google API call that fails *after* a token exists is usually a missing scope,
   not a disconnect — degrade gracefully (e.g. empty list) instead of signalling
   "non_connecte".

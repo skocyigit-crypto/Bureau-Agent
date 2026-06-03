@@ -39,6 +39,16 @@ const CORE_SCOPES = [
   "https://www.googleapis.com/auth/userinfo.profile",
 ];
 
+// Services demandes par defaut lors d'une connexion "tout Google".
+// On EXCLUT volontairement les scopes fragiles dont l'API n'est presque jamais
+// activee dans le projet Cloud (keep = Google Workspace Enterprise UNIQUEMENT,
+// photos, youtube, meet, chat, forms). Cote Google, un SEUL scope dont l'API
+// est desactivee — ou non disponible pour le type de compte — fait echouer TOUT
+// le consentement avec un 403 generique ("you do not have access to this page").
+// Ces services restent connectables a la demande via la decouverte
+// d'integrations (l'appelant peut toujours passer `services: [...]` explicite).
+const DEFAULT_SERVICES = ["gmail", "calendar", "drive", "docs", "sheets", "contacts", "tasks"];
+
 // Modele SaaS centralise : on construit TOUJOURS le client OAuth2 a partir des
 // identifiants GLOBAUX du serveur (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET).
 // Les identifiants ne sont jamais propres a une organisation ni exposes a l'UI.
@@ -97,18 +107,16 @@ router.post("/auth-url", async (req, res): Promise<void> => {
     const { services } = req.body;
     const requestedScopes = [...CORE_SCOPES];
 
-    if (Array.isArray(services) && services.length > 0) {
-      for (const svcId of services) {
-        const scope = GOOGLE_SCOPES_MAP[svcId];
-        if (scope) requestedScopes.push(scope);
-      }
-    } else {
-      requestedScopes.push(...Object.values(GOOGLE_SCOPES_MAP));
+    const effectiveServices =
+      Array.isArray(services) && services.length > 0 ? services : DEFAULT_SERVICES;
+    for (const svcId of effectiveServices) {
+      const scope = GOOGLE_SCOPES_MAP[svcId];
+      if (scope) requestedScopes.push(scope);
     }
 
     const state = crypto.randomBytes(16).toString("hex");
     req.session.googleOAuthState = state;
-    req.session.googleOAuthServices = services || Object.keys(GOOGLE_SCOPES_MAP);
+    req.session.googleOAuthServices = effectiveServices;
 
     const authUrl = oauth2Client.generateAuthUrl({
       access_type: "offline",
