@@ -125,7 +125,12 @@ router.post("/agent-queue/:id/reject", requireAdmin, async (req: Request, res: R
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) { res.status(400).json({ error: "id invalide" }); return; }
 
-    const ok = await rejectProposal(id, { orgId, userId });
+    const note = typeof req.body?.note === "string"
+      ? req.body.note
+      : typeof req.body?.reason === "string"
+        ? req.body.reason
+        : undefined;
+    const ok = await rejectProposal(id, { orgId, userId }, note);
     if (!ok) { res.status(404).json({ error: "Proposition introuvable ou déjà traitée" }); return; }
     res.json({ ok: true, status: "rejetee" });
     learnFromDecision(orgId, id);

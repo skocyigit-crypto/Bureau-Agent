@@ -34,7 +34,11 @@ analytical report). Don't reintroduce Pro for agents or a long all-providers
 `Promise.allSettled` — that brings back ~45s waits and total failures when Gemini
 also hiccups.
 
-**Autonomy gap (still open):** the per-org auto-run (every 2h) lives in an in-memory
-`autoRunState` Map in `ai-agents.ts` — it does **not** survive a server restart.
-"Always autonomous" is not truly durable until that marker is persisted in DB and
-restored on boot (same lesson as cron-cadence-durability).
+**Autonomy is now durable (resolved):** per-org auto-run state lives in DB
+(`organisations.agentAutoRunEnabled` + `agentAutoRunLastRunAt`), driven by ONE
+global `startAgentAutoRunScheduler()` ticker (boot from index.ts). The scheduler
+**claims** due orgs with an atomic `UPDATE ... RETURNING` that advances
+`agentAutoRunLastRunAt` at selection time, so two processes can't pick the same
+org (cross-process double-fire safe). In-memory `autoRunInFlight` Set is only an
+in-process overlap guard. **Why:** advancing the marker after the cycle (or a
+plain SELECT-then-run) lets a clustered deploy double-spend AI quota.

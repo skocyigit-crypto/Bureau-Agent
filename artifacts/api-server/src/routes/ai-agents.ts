@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, aiAgentReportsTable, stockArticlesTable, invoicesTable, paymentsTable, subscriptionsTable, usersTable, automationRulesTable, notificationsTable, auditLogsTable, calendarEventsTable, projetsTable } from "@workspace/db";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, aiAgentReportsTable, stockArticlesTable, invoicesTable, paymentsTable, subscriptionsTable, usersTable, automationRulesTable, notificationsTable, auditLogsTable, calendarEventsTable, projetsTable, organisationsTable } from "@workspace/db";
 import { sql, eq, gte, lte, and, count, desc, lt, ne, isNull, isNotNull, or, sum, avg } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "../services/ai-quota";
@@ -947,6 +947,84 @@ async function runAgentReasoning(
   return { text: best.text, models: members.map((m) => m.model), synthesized: false };
 }
 
+// ---------------------------------------------------------------------------
+// Veille / recherche autonome continue.
+//
+// Chaque agent enrichit son analyse avec une veille web fraiche et sourcee
+// (recherche Google via le grounding Gemini, deja filtree antivirus dans
+// services/web-search.ts). Pour borner le cout, le resultat est mis en cache
+// une fois par jour et par (organisation, agent). Tout echec est silencieux
+// (fail-soft) : la veille ne doit JAMAIS casser la generation d'un rapport.
+// Desactivable via AI_AGENT_RESEARCH_DISABLED=1.
+// ---------------------------------------------------------------------------
+const AGENT_RESEARCH_QUERIES: Record<string, string> = {
+  agent_appels: "tendances accueil telephonique et relation client PME France bonnes pratiques",
+  agent_contacts: "bonnes pratiques CRM, fidelisation et reactivation client PME France",
+  agent_taches: "methodes de productivite et gestion de projet en equipe PME France",
+  agent_messages: "bonnes pratiques communication client et email professionnel PME France",
+  agent_pointage: "reglementation temps de travail et pointage des salaries en France",
+  agent_facturation: "facturation electronique obligatoire, recouvrement des impayes et tresorerie PME France",
+  agent_stock: "optimisation de la gestion des stocks et de l'approvisionnement PME",
+  agent_rh: "actualite du droit du travail et RH pour les PME en France",
+  agent_securite: "dernieres menaces cybersecurite et obligations RGPD pour les PME France",
+  agent_performance: "indicateurs KPI et benchmarks de performance des PME France",
+};
+
+interface AgentResearchPayload {
+  query: string;
+  answer: string;
+  sources: { title: string; url: string; domain: string }[];
+  fetchedAt: string;
+}
+
+async function buildAgentResearch(
+  agent: typeof AGENTS[0],
+  orgId: number,
+  today: string,
+): Promise<{ context: string; payload: AgentResearchPayload | null }> {
+  if (process.env.AI_AGENT_RESEARCH_DISABLED === "1") return { context: "", payload: null };
+
+  const year = new Date().getFullYear();
+  const baseQuery = AGENT_RESEARCH_QUERIES[agent.id] ?? `${agent.domain} — bonnes pratiques et actualite PME France`;
+  const query = `${baseQuery} ${year}`;
+
+  const cacheKey = buildAiCacheKey({
+    route: "/ai/agents/research",
+    organisationId: orgId,
+    input: { day: today, agent: agent.id },
+  });
+  const cached = getCached<AgentResearchPayload>(cacheKey);
+  if (cached) return { context: formatResearchContext(cached), payload: cached };
+
+  try {
+    const { searchWebWithSafety } = await import("../services/web-search");
+    const res = await searchWebWithSafety(query, orgId, null);
+    const safeSources = res.results
+      .filter((r) => r.risk !== "dangerous")
+      .slice(0, 3)
+      .map((r) => ({ title: r.title, url: r.url, domain: r.domain }));
+    const answer = (res.answer || "").trim().slice(0, 900);
+    if (!answer && safeSources.length === 0) return { context: "", payload: null };
+    const payload: AgentResearchPayload = { query, answer, sources: safeSources, fetchedAt: new Date().toISOString() };
+    setCached(cacheKey, payload, AI_CACHE_TTL.VERY_LONG);
+    return { context: formatResearchContext(payload), payload };
+  } catch (err) {
+    logger.warn({ err, agentId: agent.id, orgId }, "[AI-Agent] veille web echec (ignore)");
+    return { context: "", payload: null };
+  }
+}
+
+function formatResearchContext(p: AgentResearchPayload): string {
+  if (!p.answer && p.sources.length === 0) return "";
+  const srcLines = p.sources.map((s) => `  - ${s.title} (${s.domain})`).join("\n");
+  return `\n\n=== VEILLE WEB DU JOUR (recherche autonome, sources verifiees) ===
+Requete: ${p.query}
+Synthese actuelle: ${p.answer}
+${srcLines ? `Sources:\n${srcLines}` : ""}
+Utilise cette veille pour contextualiser tes alertes et suggestions avec l'actualite et les bonnes pratiques externes, SANS inventer de chiffres. Cite la source quand c'est pertinent.
+=== FIN VEILLE ===`;
+}
+
 async function runSingleAgent(agent: typeof AGENTS[0], orgId: number, signal?: AbortSignal, goal?: string): Promise<any> {
   const startTime = Date.now();
   const today = new Date().toISOString().split("T")[0];
@@ -960,6 +1038,14 @@ async function runSingleAgent(agent: typeof AGENTS[0], orgId: number, signal?: A
 
     let collaborationContext = "";
     let trendContext = "";
+    // S004 — auto-correction de performance: l'agent lit sa propre tendance et,
+    // s'il se degrade, ajuste sa strategie et emet une note "ce que j'ai change".
+    let selfCorrection: {
+      trend: "degradation" | "amelioration" | "stable";
+      scores: number[];
+      delta: number;
+      note: string;
+    } | null = null;
     try {
       const { getLatestAgentInsights, buildCollaborationPrompt, getAgentTrendHistory } = await import("./agent-collaboration");
       const [insights, trendHistory] = await Promise.all([
@@ -974,9 +1060,21 @@ async function runSingleAgent(agent: typeof AGENTS[0], orgId: number, signal?: A
         trendContext = `\n\n=== HISTORIQUE DE TES SCORES ===
 Tes ${trendHistory.length} derniers scores: ${scores.join(" → ")}
 Tendance: ${isDecaying ? "⚠ EN DEGRADATION CONTINUE" : isImproving ? "✅ EN AMELIORATION" : "Stable"}
-${isDecaying ? "ATTENTION: Tes scores baissent consecutivement. Analyse POURQUOI et propose des corrections urgentes." : ""}
+${isDecaying ? "ATTENTION: Tes scores baissent consecutivement. CHANGE de strategie ce cycle: identifie la cause profonde, traite EN PRIORITE tes points faibles recurrents (erreurs/alertes repetees ci-dessous), et resume en une phrase dans trendAnalysis CE QUE TU CHANGES concretement." : ""}
 ${trendHistory.map(h => `  ${h.reportDate}: score ${h.score}, ${h.errorsFound} erreurs, ${h.warningsFound} alertes`).join("\n")}
 === FIN HISTORIQUE ===`;
+        // Note deterministe (sans cout IA) — du plus ancien au plus recent.
+        const chrono = [...scores].reverse();
+        const delta = (scores[0] ?? 0) - (scores[scores.length - 1] ?? 0);
+        const trend: "degradation" | "amelioration" | "stable" =
+          isDecaying ? "degradation" : isImproving ? "amelioration" : "stable";
+        const note =
+          trend === "degradation"
+            ? `Mes scores reculent (${chrono.join("→")}). Ce cycle je change d'approche: analyse des causes profondes et priorite absolue sur mes points faibles recurrents.`
+            : trend === "amelioration"
+              ? `Mes scores progressent (${chrono.join("→")}). Je maintiens la strategie qui fonctionne et je consolide les acquis.`
+              : `Mes scores sont stables (${chrono.join("→")}). Je vise des gains marginaux cibles sans casser ce qui marche.`;
+        selfCorrection = { trend, scores, delta, note };
       }
     } catch (colErr) { logger.warn({ err: colErr }, `[AI-Agent] ${agent} collaboration context failed`); }
 
@@ -986,7 +1084,8 @@ ${trendHistory.map(h => `  ${h.reportDate}: score ${h.score}, ${h.errorsFound} e
       : "";
 
     const learnedContext = await buildLearnedContextBlock(orgId);
-    const fullPrompt = `${getAgentPrompt(agent)}${collaborationContext}${trendContext}${learnedContext}${goalContext}\n\n${AGENT_RESPONSE_FORMAT}\n\nDate du rapport: ${today}\nDonnees actuelles (cette semaine + semaine precedente + patterns):\n${JSON.stringify(data, null, 2)}`;
+    const { context: researchContext, payload: researchPayload } = await buildAgentResearch(agent, orgId, today);
+    const fullPrompt = `${getAgentPrompt(agent)}${collaborationContext}${trendContext}${learnedContext}${researchContext}${goalContext}\n\n${AGENT_RESPONSE_FORMAT}\n\nDate du rapport: ${today}\nDonnees actuelles (cette semaine + semaine precedente + patterns):\n${JSON.stringify(data, null, 2)}`;
 
     let text = "{}";
     let councilModels: string[] = [];
@@ -999,7 +1098,7 @@ ${trendHistory.map(h => `  ${h.reportDate}: score ${h.score}, ${h.errorsFound} e
     const agentCacheKey = buildAiCacheKey({
       route: `/ai/agents/${agent.id}`,
       organisationId: orgId,
-      input: { day: today, dataHash: JSON.stringify(data).slice(0, 400), goal: cleanGoal, council: councilEnabled, learned: learnedContext },
+      input: { day: today, dataHash: JSON.stringify(data).slice(0, 400), goal: cleanGoal, council: councilEnabled, learned: learnedContext, research: researchPayload?.fetchedAt ?? "" },
     });
     const agentCached = getCached<{ text: string; models: string[]; synthesized: boolean }>(agentCacheKey);
     if (agentCached) {
@@ -1044,6 +1143,8 @@ ${trendHistory.map(h => `  ${h.reportDate}: score ${h.score}, ${h.errorsFound} e
         predictions: parsed.predictions || [],
         automations: parsed.automations || [],
         council: { models: councilModels, synthesized: councilSynthesized },
+        research: researchPayload ?? null,
+        selfCorrection: selfCorrection ?? null,
       },
       errors: parsed.errors || [],
       warnings: parsed.warnings || [],
@@ -1790,54 +1891,120 @@ router.get("/ai/agents/latest", requireMinAgent, async (req, res) => {
 
 router.get("/ai/agents/config", requireMinAgent, async (req, res) => {
   const orgId = req.session?.organisationId;
-  res.json({ agents: AGENTS, autoRunEnabled: orgId ? autoRunState.has(orgId) : false, autoRunIntervalMinutes: 120 });
+  let autoRunEnabled = false;
+  let autoRunLastRunAt: string | null = null;
+  if (orgId) {
+    const [org] = await db
+      .select({
+        enabled: organisationsTable.agentAutoRunEnabled,
+        lastRunAt: organisationsTable.agentAutoRunLastRunAt,
+      })
+      .from(organisationsTable)
+      .where(eq(organisationsTable.id, orgId))
+      .limit(1);
+    autoRunEnabled = org?.enabled ?? false;
+    autoRunLastRunAt = org?.lastRunAt ? org.lastRunAt.toISOString() : null;
+  }
+  res.json({ agents: AGENTS, autoRunEnabled, autoRunLastRunAt, autoRunIntervalMinutes: AUTO_RUN_INTERVAL_MINUTES });
 });
 
-const autoRunState = new Map<number, { interval: ReturnType<typeof setInterval>; running: boolean }>();
+// ---------------------------------------------------------------------------
+// Execution automatique des agents (autonomie durable).
+//
+// L'etat "actif/inactif" et la date du dernier cycle sont persistes en base
+// (organisations.agent_auto_run_enabled / _last_run_at) afin que l'autonomie
+// survive a un redemarrage du serveur. On n'utilise PLUS un setInterval par
+// organisation (perdu au reboot) : un planificateur global unique verifie
+// periodiquement quelles organisations sont "dues" et lance leur cycle. Le Set
+// en memoire ne sert que de garde anti-chevauchement dans le process courant.
+// (cf. memoire "cron-cadence-durability".)
+// ---------------------------------------------------------------------------
+const AUTO_RUN_INTERVAL_MINUTES = 120;
+const AUTO_RUN_INTERVAL_MS = AUTO_RUN_INTERVAL_MINUTES * 60 * 1000;
+const AUTO_RUN_TICK_MS = 10 * 60 * 1000; // verification toutes les 10 min
+const autoRunInFlight = new Set<number>();
+let autoRunTicker: ReturnType<typeof setInterval> | null = null;
+
+async function runAutoCycle(orgId: number): Promise<{ superReport: any; agentReports: any[] } | null> {
+  if (autoRunInFlight.has(orgId)) return null;
+  autoRunInFlight.add(orgId);
+  logger.info({ orgId }, "[AI Agents] Execution automatique demarree");
+  try {
+    const childReports = await Promise.all(AGENTS.map((a) => runSingleAgent(a, orgId)));
+    const superReport = await runSuperAgent(childReports, orgId);
+    await db
+      .update(organisationsTable)
+      .set({ agentAutoRunLastRunAt: new Date() })
+      .where(eq(organisationsTable.id, orgId));
+    logger.info({ orgId }, "[AI Agents] Execution automatique terminee");
+    return { superReport, agentReports: childReports };
+  } finally {
+    autoRunInFlight.delete(orgId);
+  }
+}
+
+/**
+ * Planificateur global d'autonomie. Demarre au boot (index.ts). Toutes les
+ * AUTO_RUN_TICK_MS, lance un cycle pour chaque organisation active dont
+ * l'autonomie est activee et dont le dernier cycle remonte a plus de la cadence
+ * configuree. Etat 100% derive de la base -> durable au redemarrage.
+ */
+export function startAgentAutoRunScheduler(): void {
+  if (autoRunTicker) return;
+  const tick = async () => {
+    try {
+      const cutoff = new Date(Date.now() - AUTO_RUN_INTERVAL_MS);
+      // Reclamation atomique: on AVANCE `agentAutoRunLastRunAt` au moment de la
+      // selection (et non a la fin du cycle). L'UPDATE ... RETURNING est atomique
+      // cote Postgres, donc deux instances (deploiement multi-process) ne peuvent
+      // pas reclamer la meme organisation: la seconde ne matchera plus le filtre
+      // de cadence. Empeche le double-firing au-dela du simple verrou memoire.
+      const claimed = await db
+        .update(organisationsTable)
+        .set({ agentAutoRunLastRunAt: new Date() })
+        .where(
+          and(
+            eq(organisationsTable.agentAutoRunEnabled, true),
+            eq(organisationsTable.actif, true),
+            or(
+              isNull(organisationsTable.agentAutoRunLastRunAt),
+              lt(organisationsTable.agentAutoRunLastRunAt, cutoff),
+            ),
+          ),
+        )
+        .returning({ id: organisationsTable.id });
+      for (const o of claimed) {
+        runAutoCycle(o.id).catch((err) =>
+          logger.error({ err, orgId: o.id }, "[AI Agents] Erreur cycle auto-run"),
+        );
+      }
+    } catch (err) {
+      logger.error({ err }, "[AI Agents] Erreur planificateur auto-run");
+    }
+  };
+  autoRunTicker = setInterval(tick, AUTO_RUN_TICK_MS);
+  autoRunTicker.unref?.();
+  setTimeout(tick, 60 * 1000); // premier passage ~60s apres le boot
+  logger.info("[AI Agents] planificateur auto-run demarre — verification 10min, cadence 2h, etat durable (DB)");
+}
 
 router.post("/ai/agents/auto-start", requireAdmin, async (_req, res) => {
   const orgId = _req.session?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
 
-  const existing = autoRunState.get(orgId);
-  if (existing) {
-    res.json({ message: "L'execution automatique est deja active", status: "active" });
-    return;
-  }
-
-  const interval = setInterval(async () => {
-    const state = autoRunState.get(orgId);
-    if (state?.running) return;
-    if (state) state.running = true;
-    logger.info({ orgId }, "[AI Agents] Execution automatique demarree");
-    try {
-      const childReports = await Promise.all(AGENTS.map(a => runSingleAgent(a, orgId)));
-      await runSuperAgent(childReports, orgId);
-      logger.info({ orgId }, "[AI Agents] Execution automatique terminee");
-    } catch (error) {
-      logger.error({ err: error, orgId }, "[AI Agents] Erreur execution automatique");
-    } finally {
-      const s = autoRunState.get(orgId);
-      if (s) s.running = false;
-    }
-  }, 2 * 60 * 60 * 1000);
-
-  autoRunState.set(orgId, { interval, running: true });
+  await db
+    .update(organisationsTable)
+    .set({ agentAutoRunEnabled: true })
+    .where(eq(organisationsTable.id, orgId));
 
   try {
-    const childReports = await Promise.all(AGENTS.map(a => runSingleAgent(a, orgId)));
-    const superReport = await runSuperAgent(childReports, orgId);
-    const state = autoRunState.get(orgId);
-    if (state) state.running = false;
-
+    const firstRun = await runAutoCycle(orgId);
     res.json({
       message: "Execution automatique activee (toutes les 2 heures)",
       status: "active",
-      firstRun: { superReport, agentReports: childReports },
+      firstRun: firstRun ?? undefined,
     });
   } catch (error: any) {
-    const state = autoRunState.get(orgId);
-    if (state) state.running = false;
     logger.error({ err: error, orgId }, "[AI Agents] Erreur premier cycle auto-run");
     res.status(500).json({ error: "Erreur lors du premier cycle" });
   }
@@ -1847,11 +2014,10 @@ router.post("/ai/agents/auto-stop", requireAdmin, async (_req, res) => {
   const orgId = _req.session?.organisationId;
   if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
 
-  const state = autoRunState.get(orgId);
-  if (state) {
-    clearInterval(state.interval);
-    autoRunState.delete(orgId);
-  }
+  await db
+    .update(organisationsTable)
+    .set({ agentAutoRunEnabled: false })
+    .where(eq(organisationsTable.id, orgId));
   res.json({ message: "Execution automatique arretee", status: "inactive" });
 });
 

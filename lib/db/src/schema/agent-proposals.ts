@@ -42,6 +42,8 @@ export const agentProposalsTable = pgTable("agent_proposals", {
   /** Résultat de l'exécution (succès/erreur). */
   result: jsonb("result").notNull().default({}),
   decidedBy: integer("decided_by"),
+  /** Note libre du dirigeant au moment de la décision (motif de rejet surtout). */
+  decisionNote: text("decision_note"),
   decidedAt: timestamp("decided_at", { withTimezone: true }),
   executedAt: timestamp("executed_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

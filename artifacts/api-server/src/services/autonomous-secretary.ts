@@ -316,11 +316,17 @@ export async function executeProposal(proposalId: number, ctx: ToolContext): Pro
   return { ok: exec.ok, status: newStatus, result: exec.result, error: exec.error };
 }
 
-export async function rejectProposal(proposalId: number, ctx: ToolContext): Promise<boolean> {
+export async function rejectProposal(
+  proposalId: number,
+  ctx: ToolContext,
+  note?: string | null,
+): Promise<boolean> {
+  const trimmed = typeof note === "string" ? note.trim().slice(0, 500) : "";
   const res = await db.update(agentProposalsTable).set({
     status: "rejetee",
     decidedBy: ctx.userId,
     decidedAt: new Date(),
+    decisionNote: trimmed || null,
   }).where(and(
     eq(agentProposalsTable.id, proposalId),
     eq(agentProposalsTable.organisationId, ctx.orgId),

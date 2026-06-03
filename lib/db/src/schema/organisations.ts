@@ -23,6 +23,8 @@ export const organisationsTable = pgTable("organisations", {
   weeklySecurityEmail: boolean("weekly_security_email").notNull().default(false),
   lastSecurityDigestAt: timestamp("last_security_digest_at", { withTimezone: true }),
   proactiveEngineEnabled: boolean("proactive_engine_enabled").notNull().default(true),
+  agentAutoRunEnabled: boolean("agent_auto_run_enabled").notNull().default(false),
+  agentAutoRunLastRunAt: timestamp("agent_auto_run_last_run_at", { withTimezone: true }),
   reusedScanCount: integer("reused_scan_count").notNull().default(0),
   reusedScanSavedMs: bigint("reused_scan_saved_ms", { mode: "number" }).notNull().default(0),
   aiQuotaCostUsd: numeric("ai_quota_cost_usd", { precision: 10, scale: 2 }),

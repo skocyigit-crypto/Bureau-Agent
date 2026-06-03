@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Brain, RefreshCw, Loader2, ThumbsUp, ThumbsDown, Phone, Clock,
-  ListChecks, Lightbulb, Inbox, TrendingUp, TrendingDown,
+  ListChecks, Lightbulb, Inbox, TrendingUp, TrendingDown, XCircle,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,9 +25,16 @@ interface Pattern {
   occurrences: number;
   lastSeenAt: string | null;
 }
+interface Correction {
+  title: string;
+  category: string;
+  note: string | null;
+  decidedAt: string | null;
+}
 interface Profile {
   preferences: Preference[];
   patterns: Pattern[];
+  corrections: Correction[];
 }
 
 const SUGGESTION_LABELS: Record<string, string> = {
@@ -39,6 +46,10 @@ const CATEGORY_LABELS: Record<string, string> = {
   calls: "Appels", tasks: "Tâches", finance: "Finance", contacts: "Contacts",
   projets: "Projets", prospects: "Prospects", general: "Général",
 };
+const PROPOSAL_CATEGORY_LABELS: Record<string, string> = {
+  tache: "Tâche", email: "E-mail", sms: "SMS", rappel: "Rappel",
+  relance: "Relance", contact: "Contact", autre: "Divers",
+};
 
 function prefLabel(p: Preference): string {
   if (p.kind === "suggestion_type") return SUGGESTION_LABELS[p.key] ?? p.key;
@@ -47,7 +58,7 @@ function prefLabel(p: Preference): string {
 
 export default function IaApprentissagePage() {
   const { toast } = useToast();
-  const [profile, setProfile] = useState<Profile>({ preferences: [], patterns: [] });
+  const [profile, setProfile] = useState<Profile>({ preferences: [], patterns: [], corrections: [] });
   const [loading, setLoading] = useState(true);
   const [recomputing, setRecomputing] = useState(false);
 
@@ -57,7 +68,7 @@ export default function IaApprentissagePage() {
       const res = await fetch(`${LEARNING_API}/profile`, { credentials: "include" });
       if (!res.ok) throw new Error("load");
       const data = await res.json();
-      setProfile({ preferences: data.preferences ?? [], patterns: data.patterns ?? [] });
+      setProfile({ preferences: data.preferences ?? [], patterns: data.patterns ?? [], corrections: data.corrections ?? [] });
     } catch {
       toast({ title: "Erreur", description: "Impossible de charger ce que l'IA a appris.", variant: "destructive" });
     } finally {
@@ -79,7 +90,7 @@ export default function IaApprentissagePage() {
       } else if (!res.ok) {
         throw new Error("recompute");
       } else {
-        setProfile({ preferences: data.profile?.preferences ?? [], patterns: data.profile?.patterns ?? [] });
+        setProfile({ preferences: data.profile?.preferences ?? [], patterns: data.profile?.patterns ?? [], corrections: data.profile?.corrections ?? [] });
         toast({ title: "Mémoire mise à jour", description: "L'IA a réanalysé vos préférences et habitudes." });
       }
     } catch {
@@ -95,7 +106,9 @@ export default function IaApprentissagePage() {
   const hours = profile.patterns.filter((p) => p.patternType === "busy_hour");
   const themes = profile.patterns.filter((p) => p.patternType === "task_theme");
 
-  const isEmpty = !loading && profile.preferences.length === 0 && profile.patterns.length === 0;
+  const corrections = profile.corrections ?? [];
+  const isEmpty =
+    !loading && profile.preferences.length === 0 && profile.patterns.length === 0 && corrections.length === 0;
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
@@ -213,6 +226,41 @@ export default function IaApprentissagePage() {
               )}
             </CardContent>
           </Card>
+
+          {corrections.length > 0 && (
+            <Card className="md:col-span-2">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <XCircle className="h-4 w-4 text-red-600" /> Corrections récentes
+                </CardTitle>
+                <CardDescription>
+                  Propositions que vous avez refusées. L'IA en tient compte pour ne plus les reproduire.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {corrections.map((c, i) => (
+                  <div key={`corr-${i}`} className="flex items-start justify-between gap-3 border-b last:border-0 pb-3 last:pb-0">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate flex items-center gap-2">
+                        <ThumbsDown className="h-3.5 w-3.5 text-red-600 shrink-0" /> {c.title}
+                      </p>
+                      {c.note && (
+                        <p className="text-xs text-muted-foreground mt-1">« {c.note} »</p>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <Badge variant="outline">{PROPOSAL_CATEGORY_LABELS[c.category] ?? c.category}</Badge>
+                      {c.decidedAt && (
+                        <span className="text-[11px] text-muted-foreground">
+                          {new Date(c.decidedAt).toLocaleDateString("fr-FR")}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
     </div>

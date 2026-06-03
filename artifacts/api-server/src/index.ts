@@ -19,6 +19,7 @@ import { startProactiveEngine, recordModelFallbackSuggestion } from "./services/
 import { startAiLearning } from "./services/ai-learning";
 import { startAutonomousSecretaryCron } from "./services/autonomous-secretary-cron";
 import { startAppAuditCron } from "./services/app-audit-cron";
+import { startAgentAutoRunScheduler } from "./routes/ai-agents";
 import { attachVoiceLiveWs } from "./routes/voice-live";
 
 import { closePool, checkDbHealth } from "@workspace/db";
@@ -130,6 +131,7 @@ async function startServer(): Promise<void> {
     startAiLearning();
     startAutonomousSecretaryCron();
     startAppAuditCron();
+    startAgentAutoRunScheduler();
     attachVoiceLiveWs(server);
   });
 

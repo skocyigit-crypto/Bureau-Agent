@@ -35,3 +35,18 @@ routes call it fire-and-forget. `buildLearnedContextBlock` is injected into the 
 2. **Cache the full reasoning artifact `{text, models, synthesized}`, not just text.** Otherwise a
    cache hit records misleading `details.council` provenance (empty models / synthesized=false)
    even though the cached text came from a real council synthesis.
+
+# Instance-level corrections + self-performance trend
+
+Beyond category weights, two finer signals feed the agents:
+- **Rejection corrections:** a rejected proposal stores a free-text `decisionNote`; `getLearningProfile`
+  returns the last 8 rejected items (title/category/note) and `computeContextBlock` injects a
+  "[Corrections — propositions REFUSÉES…]" block so agents avoid re-proposing the exact item.
+- **Self-correction:** `runSingleAgent` derives a deterministic `selfCorrection {trend,scores,delta,note}`
+  from `getAgentTrendHistory` and persists it under `details.selfCorrection`.
+
+**Why:** the patron wants agents to learn from concrete refusals and from their own score trend.
+**How to apply (security):** `decisionNote` is patron-authored free text that flows INTO agent prompts.
+It MUST pass through `sanitizeFeedback()` (strip newlines/quotes, bound length) and be labelled as
+"feedback, not instructions" in the block — otherwise it's a prompt-injection vector. Never inject raw
+user notes into a prompt structure.
