@@ -834,10 +834,18 @@ async function runAgentReasoning(
   }
 
   // Mode conseil: tous les modèles en parallèle.
+  const providerNames = ["Gemini", "OpenAI", "Anthropic"];
   const settled = await Promise.allSettled(providers.map((p) => p()));
-  for (const s of settled) {
+  for (let i = 0; i < settled.length; i++) {
+    const s = settled[i];
     if (s.status === "rejected") {
       const err = s.reason;
+      // Observabilite: tracer POURQUOI un fournisseur du conseil echoue
+      // (auparavant ces echecs etaient silencieusement avales en mode conseil).
+      logger.warn(
+        { agentId, provider: providerNames[i], errMsg: err?.message, errName: err?.name, status: err?.status },
+        "[council] fournisseur en echec",
+      );
       if (err instanceof AiQuotaExceededError) throw err;
       if (signal?.aborted || isAbortLike(err)) throw err;
     }
