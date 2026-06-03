@@ -8,6 +8,9 @@ const router: IRouter = Router();
 
 const STATUSES = ["brouillon", "envoyee", "payee", "partiellement_payee", "en_retard", "annulee"] as const;
 
+// Intervalle minimal entre deux relances d'une meme facture (anti-spam serveur).
+const REMINDER_COOLDOWN_HOURS = Number(process.env.INVOICE_REMINDER_COOLDOWN_HOURS) || 24;
+
 // Backoffice SaaS (super-admin uniquement). Plus de filtre organisation_id
 // par defaut: la vue est globale. Un parametre ?organisationId= permet de
 // scoper une organisation specifique. Voir Tâche #53.
@@ -157,14 +160,31 @@ router.post("/factures-client/:id/relance", async (req: Request, res: Response):
       return;
     }
 
+    // Garde anti-spam : une relance par facture toutes les 24h maximum. Le bouton
+    // UI demande deja confirmation, mais cette protection est cote serveur (un
+    // double-clic ou un script ne peut pas inonder le client de rappels).
+    if (facture.lastReminderAt) {
+      const elapsedMs = Date.now() - new Date(facture.lastReminderAt).getTime();
+      const cooldownMs = REMINDER_COOLDOWN_HOURS * 60 * 60 * 1000;
+      if (elapsedMs < cooldownMs) {
+        const hoursLeft = Math.ceil((cooldownMs - elapsedMs) / (60 * 60 * 1000));
+        res.status(429).json({ error: `Une relance a deja ete envoyee recemment. Reessayez dans ${hoursLeft}h.` });
+        return;
+      }
+    }
+
     const total = parseFloat(facture.totalAmount || "0");
     const paid = parseFloat(facture.paidAmount || "0");
-    const remaining = Number.isFinite(total - paid) ? total - paid : total;
+    const remaining = Math.max((Number.isFinite(total) ? total : 0) - (Number.isFinite(paid) ? paid : 0), 0);
+    if (remaining <= 0) {
+      res.status(400).json({ error: "Aucun montant restant du sur cette facture — aucune relance necessaire." });
+      return;
+    }
     const amountLabel = new Intl.NumberFormat("fr-FR", {
       style: "currency",
       currency: facture.currency || "EUR",
       maximumFractionDigits: 2,
-    }).format(remaining > 0 ? remaining : total);
+    }).format(remaining);
 
     const dueDateLabel = facture.dueDate ? new Date(facture.dueDate).toLocaleDateString("fr-FR") : null;
     const isOverdue = facture.status === "en_retard"
