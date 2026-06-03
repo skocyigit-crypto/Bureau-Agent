@@ -34,6 +34,8 @@ export const facturesClientTable = pgTable("factures_client", {
   paymentMethod: text("payment_method"),
   notes: text("notes"),
   conditions: text("conditions"),
+  reminderCount: integer("reminder_count").notNull().default(0),
+  lastReminderAt: timestamp("last_reminder_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [

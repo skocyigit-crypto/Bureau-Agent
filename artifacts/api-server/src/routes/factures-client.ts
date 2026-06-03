@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, desc, ilike, or, sql, and, type Column, type SQL } from "drizzle-orm";
 import { db, facturesClientTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
+import { sendInvoiceReminderEmail } from "../services/email";
 
 const router: IRouter = Router();
 
@@ -134,6 +135,70 @@ router.patch("/factures-client/:id", async (req: Request, res: Response): Promis
   } catch (err: any) {
     req.log.error({ err }, "Erreur mise a jour facture");
     res.status(500).json({ error: "Erreur lors de la mise a jour." });
+  }
+});
+
+// Relance d'une facture impayee : envoie un email courtois au client et
+// enregistre la relance (compteur + date). Backoffice super-admin uniquement
+// (le routeur est monte derriere requireSuperAdmin dans routes/index.ts).
+router.post("/factures-client/:id/relance", async (req: Request, res: Response): Promise<void> => {
+  const id = parseInt(req.params.id as string);
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  try {
+    const [facture] = await db.select().from(facturesClientTable).where(eq(facturesClientTable.id, id));
+    if (!facture) { res.status(404).json({ error: "Facture non trouvee." }); return; }
+
+    if (!facture.clientEmail || !facture.clientEmail.trim()) {
+      res.status(400).json({ error: "Aucun email client renseigne pour cette facture." });
+      return;
+    }
+    if (facture.status === "payee" || facture.status === "annulee") {
+      res.status(400).json({ error: "Cette facture est deja reglee ou annulee — aucune relance necessaire." });
+      return;
+    }
+
+    const total = parseFloat(facture.totalAmount || "0");
+    const paid = parseFloat(facture.paidAmount || "0");
+    const remaining = Number.isFinite(total - paid) ? total - paid : total;
+    const amountLabel = new Intl.NumberFormat("fr-FR", {
+      style: "currency",
+      currency: facture.currency || "EUR",
+      maximumFractionDigits: 2,
+    }).format(remaining > 0 ? remaining : total);
+
+    const dueDateLabel = facture.dueDate ? new Date(facture.dueDate).toLocaleDateString("fr-FR") : null;
+    const isOverdue = facture.status === "en_retard"
+      || (facture.dueDate != null && new Date(facture.dueDate).getTime() < Date.now());
+    const reminderNumber = (facture.reminderCount ?? 0) + 1;
+
+    const result = await sendInvoiceReminderEmail({
+      to: facture.clientEmail.trim(),
+      clientName: facture.clientName,
+      reference: facture.reference,
+      title: facture.title,
+      amountLabel,
+      dueDateLabel,
+      isOverdue,
+      reminderNumber,
+    });
+
+    if (!result.success) {
+      req.log.error({ err: result.error, factureId: id }, "Echec envoi relance facture");
+      res.status(502).json({ error: result.error || "L'envoi de l'email de relance a echoue." });
+      return;
+    }
+
+    const now = new Date();
+    const [updated] = await db.update(facturesClientTable)
+      .set({ reminderCount: reminderNumber, lastReminderAt: now, updatedAt: now })
+      .where(eq(facturesClientTable.id, id))
+      .returning();
+
+    req.log.info({ factureId: id, reminderNumber, provider: result.provider }, "Relance facture envoyee");
+    res.json({ ok: true, reminderCount: updated.reminderCount, lastReminderAt: updated.lastReminderAt, provider: result.provider });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur relance facture");
+    res.status(500).json({ error: "Erreur lors de l'envoi de la relance." });
   }
 });
 

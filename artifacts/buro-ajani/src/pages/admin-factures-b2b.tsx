@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { confirmAction } from "@/hooks/use-confirm";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { AccessDenied } from "@/components/access-denied";
-import { Receipt, Search, Plus, Loader2, Trash2, Edit, RefreshCw, Shield } from "lucide-react";
+import { Receipt, Search, Plus, Loader2, Trash2, Edit, RefreshCw, Shield, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,7 @@ interface Facture {
   id: number; reference: string; title: string; clientName: string; clientEmail?: string;
   clientCompany?: string; status: string; totalAmount?: string; paidAmount?: string;
   currency: string; dueDate?: string; createdAt: string; organisationId?: number | null;
+  reminderCount?: number; lastReminderAt?: string | null;
 }
 
 interface OrgOption { id: number; name: string }
@@ -137,6 +138,25 @@ export default function AdminFacturesB2BPage() {
     finally { setSaving(false); }
   };
 
+  const [reminding, setReminding] = useState<number | null>(null);
+  const handleRelance = async (f: Facture) => {
+    if (!f.clientEmail) {
+      toast({ title: "Email manquant", description: "Renseignez l'email du client avant d'envoyer une relance.", variant: "destructive" });
+      return;
+    }
+    const confirmText = f.reminderCount && f.reminderCount > 0
+      ? `Une relance a déjà été envoyée ${f.reminderCount} fois. Envoyer une nouvelle relance à ${f.clientEmail} ?`
+      : `Envoyer un rappel poli à ${f.clientEmail} ?`;
+    if (!(await confirmAction({ title: "Relancer cette facture ?", description: confirmText, confirmLabel: "Envoyer la relance" }))) return;
+    setReminding(f.id);
+    try {
+      const res = await fetch(`${BASE}/api/factures-client/${f.id}/relance`, { method: "POST", credentials: "include" });
+      if (res.ok) { toast({ title: "Relance envoyée", description: `Rappel envoyé à ${f.clientEmail}.` }); load(); }
+      else { const d = await res.json().catch(() => ({})); toast({ title: "Erreur", description: d.error || "Envoi échoué.", variant: "destructive" }); }
+    } catch { toast({ title: "Erreur", description: "Envoi échoué.", variant: "destructive" }); }
+    finally { setReminding(null); }
+  };
+
   const handleDelete = async (id: number) => {
     if (!(await confirmAction({ title: "Supprimer cette facture ?", confirmLabel: "Supprimer", destructive: true }))) return;
     const res = await fetch(`${BASE}/api/factures-client/${id}`, { method: "DELETE", credentials: "include" });
@@ -198,6 +218,9 @@ export default function AdminFacturesB2BPage() {
                     {[f.reference, f.clientCompany || f.clientName].filter(Boolean).join(" · ")}
                     {" · "}
                     {format(new Date(f.createdAt), "dd MMM yyyy", { locale: fr })}
+                    {f.reminderCount != null && f.reminderCount > 0 && (
+                      <span className="text-amber-600"> · {f.reminderCount} relance{f.reminderCount > 1 ? "s" : ""}{f.lastReminderAt ? ` (${format(new Date(f.lastReminderAt), "dd MMM", { locale: fr })})` : ""}</span>
+                    )}
                   </p>
                 </div>
                 <Badge variant="outline" className="text-[10px] hidden md:inline-flex" data-testid={`facture-org-${f.id}`}>
@@ -205,6 +228,19 @@ export default function AdminFacturesB2BPage() {
                 </Badge>
                 <StatusBadge status={f.status} />
                 <span className="text-sm font-bold text-emerald-600 hidden md:block w-24 text-right">{fmtMoney(f.totalAmount, f.currency)}</span>
+                {f.status !== "payee" && f.status !== "annulee" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`h-7 w-7 ${f.status === "en_retard" ? "text-amber-600" : "text-muted-foreground"}`}
+                    title={f.clientEmail ? "Envoyer une relance" : "Email client manquant"}
+                    disabled={!f.clientEmail || reminding === f.id}
+                    onClick={() => handleRelance(f)}
+                    data-testid={`facture-relance-${f.id}`}
+                  >
+                    {reminding === f.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Bell className="w-3 h-3" />}
+                  </Button>
+                )}
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(f)}><Edit className="w-3 h-3" /></Button>
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => handleDelete(f.id)}><Trash2 className="w-3 h-3" /></Button>
               </div>

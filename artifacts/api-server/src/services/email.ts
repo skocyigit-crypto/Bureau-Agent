@@ -807,3 +807,54 @@ export async function sendTrialEndingEmail(params: {
   const text = `${title} - Agent de Bureau\n\n${expired ? `La periode d'essai gratuit de ${orgName} est terminee.` : `Il vous reste ${daysLeft} jour(s) avant la fin de votre essai gratuit (${endStr}).`}\n\nVoir les plans: ${portalUrl}\n\nSupport: support@agentdebureau.fr`;
   return sendEmail(to, `[Agent de Bureau] ${title} - ${orgName}`, html, text);
 }
+
+// ---------------------------------------------------------------------------
+// Relance de facture impayee (backoffice B2B). Email courtois envoye au client
+// dont la facture est en retard / non reglee. Ton poli, jamais agressif.
+// ---------------------------------------------------------------------------
+
+export async function sendInvoiceReminderEmail(params: {
+  to: string;
+  clientName: string;
+  reference: string;
+  title: string;
+  amountLabel: string;
+  dueDateLabel?: string | null;
+  isOverdue: boolean;
+  reminderNumber: number;
+}): Promise<{ success: boolean; error?: string; preview?: string; provider?: string }> {
+  const { to, clientName, reference, title, amountLabel, dueDateLabel, isOverdue, reminderNumber } = params;
+  const heading = isOverdue ? "Rappel : facture echue" : "Rappel de facture";
+  const headerColor = isOverdue ? "#9a3412" : "#1d4ed8";
+  const dueLine = dueDateLabel
+    ? (isOverdue
+        ? `Cette facture etait due le <strong>${escapeHtml(dueDateLabel)}</strong> et apparait comme non reglee dans nos registres.`
+        : `L'echeance de cette facture est fixee au <strong>${escapeHtml(dueDateLabel)}</strong>.`)
+    : `Cette facture apparait comme non reglee dans nos registres.`;
+
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-serif;">
+<div style="max-width:600px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+<div style="background:linear-gradient(135deg,${headerColor} 0%,#0f1729 100%);padding:32px;text-align:center;">
+<h1 style="color:#fff;font-size:22px;margin:0;">${heading}</h1>
+</div>
+<div style="padding:32px;">
+<p style="color:#0f1729;font-size:15px;line-height:1.6;">Bonjour ${escapeHtml(clientName)},</p>
+<p style="color:#0f1729;font-size:15px;line-height:1.6;">Sauf erreur de notre part, nous n'avons pas encore recu le reglement de la facture suivante. ${dueLine}</p>
+<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin:20px 0;">
+<table style="width:100%;border-collapse:collapse;">
+<tr><td style="padding:6px 0;color:#64748b;font-size:13px;">Reference</td><td style="padding:6px 0;color:#0f1729;font-size:14px;font-weight:600;text-align:right;">${escapeHtml(reference)}</td></tr>
+<tr><td style="padding:6px 0;color:#64748b;font-size:13px;">Objet</td><td style="padding:6px 0;color:#0f1729;font-size:14px;font-weight:600;text-align:right;">${escapeHtml(title)}</td></tr>
+<tr><td style="padding:6px 0;color:#64748b;font-size:13px;">Montant</td><td style="padding:6px 0;color:#0f1729;font-size:15px;font-weight:700;text-align:right;">${escapeHtml(amountLabel)}</td></tr>
+</table>
+</div>
+<p style="color:#0f1729;font-size:15px;line-height:1.6;">Si le reglement a deja ete effectue, merci de ne pas tenir compte de ce message. Pour toute question, n'hesitez pas a nous repondre directement.</p>
+<p style="color:#0f1729;font-size:15px;line-height:1.6;">Avec nos remerciements,<br/>L'equipe Agent de Bureau</p>
+</div>
+<div style="background:#f8fafc;padding:20px 32px;text-align:center;border-top:1px solid #e2e8f0;">
+<p style="color:#94a3b8;font-size:11px;margin:0;">Support: <a href="mailto:support@agentdebureau.fr" style="color:#f59e0b;">support@agentdebureau.fr</a></p>
+</div></div></body></html>`;
+  const text = `${heading} - Agent de Bureau\n\nBonjour ${clientName},\n\nSauf erreur de notre part, nous n'avons pas encore recu le reglement de la facture ${reference} (${title}).\nMontant: ${amountLabel}${dueDateLabel ? `\nEcheance: ${dueDateLabel}` : ""}\n\nSi le reglement a deja ete effectue, merci de ne pas tenir compte de ce message.\n\nL'equipe Agent de Bureau\nSupport: support@agentdebureau.fr`;
+  const subjectPrefix = reminderNumber > 1 ? `Relance ${reminderNumber}` : "Rappel";
+  return sendEmail(to, `[Agent de Bureau] ${subjectPrefix} - Facture ${reference}`, html, text);
+}
