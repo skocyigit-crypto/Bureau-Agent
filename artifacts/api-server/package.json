@@ -23,6 +23,7 @@
     "connect-pg-simple": "^10.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2",
+    "docx": "^9.7.1",
     "drizzle-orm": "catalog:",
     "express": "^5",
     "express-rate-limit": "^8.3.2",

@@ -8,6 +8,8 @@ import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/acce
 import { sendEmail } from "./email";
 import { sendSms as providerSendSms } from "./telephony-providers";
 import { generateImage } from "@workspace/integrations-gemini-ai/image";
+import { buildExcelBase64, buildWordBase64 } from "./document-export";
+import { ingestDocument } from "./document-ingest";
 import { logger } from "../lib/logger";
 
 export interface ToolContext {
@@ -490,6 +492,104 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
         const msg = e instanceof Error ? e.message : String(e);
         return { success: false, error: trim(msg) };
       }
+    },
+  },
+  // ---------- BUREAUTIQUE (Excel / Word) ----------
+  {
+    name: "create_excel_document",
+    description:
+      "Cree un fichier Excel (.xlsx) et l'enregistre dans la bibliotheque de documents (telechargeable). " +
+      "Utilise pour produire tableaux, rapports, listes, suivis. Le parametre dataJson est une chaine JSON. " +
+      "Format simple (une feuille): {\"columns\":[\"Nom\",\"Montant\"],\"rows\":[[\"Ali\",100],[\"Veli\",200]]}. " +
+      "Format multi-feuilles: {\"sheets\":[{\"name\":\"Janvier\",\"columns\":[...],\"rows\":[[...]]}]}.",
+    parameters: {
+      type: "object",
+      properties: {
+        fileName: { type: "string", description: "Nom du fichier (ex: 'rapport-ventes'). L'extension .xlsx est ajoutee si absente." },
+        dataJson: { type: "string", description: "Chaine JSON decrivant colonnes/lignes (voir description)." },
+      },
+      required: ["fileName", "dataJson"],
+    },
+    fields: {
+      fileName: { kind: "string", required: true, min: 1, max: 200 },
+      dataJson: { kind: "string", required: true, min: 2, max: 200000 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Creer un fichier Excel: « ${trim(a.fileName, 80)} »`,
+    execute: async (a, { orgId, userId }) => {
+      let spec: any;
+      try {
+        spec = JSON.parse(a.dataJson);
+      } catch {
+        return { success: false, error: "dataJson n'est pas un JSON valide." };
+      }
+      let built;
+      try {
+        built = await buildExcelBase64(spec, a.fileName);
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : "Specification Excel invalide." };
+      }
+      const ingest = await ingestDocument({
+        orgId, userId: userId ?? null,
+        fileContent: built.base64, fileName: built.fileName, mimeType: built.mimeType,
+        category: "general", source: "assistant",
+      });
+      if (ingest.status !== "created") {
+        return { success: false, error: ingest.status === "blocked" ? "Fichier bloque (securite)." : ingest.error };
+      }
+      return {
+        success: true, documentId: ingest.doc.id, fileName: built.fileName,
+        downloadPath: `/api/documents/${ingest.doc.id}/download`,
+      };
+    },
+  },
+  {
+    name: "create_word_document",
+    description:
+      "Cree un document Word (.docx) et l'enregistre dans la bibliotheque de documents (telechargeable). " +
+      "Utilise pour lettres, comptes-rendus, devis, rapports. Le parametre dataJson est une chaine JSON " +
+      "avec un titre optionnel et une liste de blocs: " +
+      "{\"title\":\"Rapport\",\"blocks\":[{\"type\":\"heading\",\"text\":\"Introduction\",\"level\":1}," +
+      "{\"type\":\"paragraph\",\"text\":\"Texte...\"},{\"type\":\"table\",\"columns\":[\"A\",\"B\"],\"rows\":[[\"1\",\"2\"]]}]}.",
+    parameters: {
+      type: "object",
+      properties: {
+        fileName: { type: "string", description: "Nom du fichier (ex: 'lettre-client'). L'extension .docx est ajoutee si absente." },
+        dataJson: { type: "string", description: "Chaine JSON avec 'title' optionnel et 'blocks' (voir description)." },
+      },
+      required: ["fileName", "dataJson"],
+    },
+    fields: {
+      fileName: { kind: "string", required: true, min: 1, max: 200 },
+      dataJson: { kind: "string", required: true, min: 2, max: 200000 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Creer un document Word: « ${trim(a.fileName, 80)} »`,
+    execute: async (a, { orgId, userId }) => {
+      let spec: any;
+      try {
+        spec = JSON.parse(a.dataJson);
+      } catch {
+        return { success: false, error: "dataJson n'est pas un JSON valide." };
+      }
+      let built;
+      try {
+        built = await buildWordBase64(spec, a.fileName);
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : "Specification Word invalide." };
+      }
+      const ingest = await ingestDocument({
+        orgId, userId: userId ?? null,
+        fileContent: built.base64, fileName: built.fileName, mimeType: built.mimeType,
+        category: "general", source: "assistant",
+      });
+      if (ingest.status !== "created") {
+        return { success: false, error: ingest.status === "blocked" ? "Fichier bloque (securite)." : ingest.error };
+      }
+      return {
+        success: true, documentId: ingest.doc.id, fileName: built.fileName,
+        downloadPath: `/api/documents/${ingest.doc.id}/download`,
+      };
     },
   },
   // ---------- INFO LOOKUP ----------
