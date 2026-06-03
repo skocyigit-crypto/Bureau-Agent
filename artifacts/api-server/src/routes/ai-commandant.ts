@@ -7,7 +7,7 @@ import { sendEmail } from "../services/email";
 import { getContextForContact, getLatestAgentInsights, buildCommandantContextPrompt } from "./agent-collaboration";
 import { safeJsonParse, extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, geminiActualModel, sanitizePromptInput, GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
-import { buildLearnedContextBlock } from "../services/ai-learning";
+import { buildLearnedContextBlock, fingerprintLearned } from "../services/ai-learning";
 import { getOrCompute, buildAiCacheKey, getCached, setCached, withProviderTimeout, AI_CACHE_TTL } from "../services/ai-cache";
 import { openSseStream, multiAiGenerateStream, StreamAbortedError } from "../services/ai-stream";
 import { logger } from "../lib/logger";
@@ -385,6 +385,7 @@ router.post("/commandant/call-smart-response", async (req: Request, res: Respons
     const upcomingEvents = contactContext.contactActivity?.upcomingEvents || [];
     const overdueInvoices = contactContext.contactActivity?.overdueInvoices || [];
     const contactProjets = contactContext.contactActivity?.projets || [];
+    const learnedBlock = await buildLearnedContextBlock(orgId);
 
     const systemPrompt = `Tu es un assistant telephonique IA d'elite pour "Agent de Bureau", un logiciel de gestion de bureau francais.
 Tu dois generer la MEILLEURE reponse possible pour un appel ${callDirection === "entrant" ? "entrant" : "sortant"}.
@@ -392,7 +393,7 @@ Tu es extremement professionnel, empathique et intelligent. Tu connais l'histori
 Tu as acces aux rapports des agents IA specialises (telephonie, CRM, productivite, finance) pour enrichir ta reponse.
 Reponds TOUJOURS en francais. Sois chaleureux mais professionnel.
 
-${collaborationContext}${await buildLearnedContextBlock(orgId)}`;
+${collaborationContext}${learnedBlock}`;
 
     const prompt = `APPEL ${callDirection === "entrant" ? "ENTRANT" : "SORTANT"}:
 - Appelant: ${callerName || "Inconnu"} (${callerPhone || "Pas de numero"})
@@ -425,7 +426,7 @@ Genere un JSON avec:
     const cacheKey = buildAiCacheKey({
       route: "/commandant/call-smart-response",
       organisationId: orgId,
-      input: { callId, callerPhone, callerName, callDirection, contactId: contact?.id, openTasks: openTasks.length, overdueInvoices: overdueInvoices.length, recentCalls: recentCalls.length },
+      input: { callId, callerPhone, callerName, callDirection, contactId: contact?.id, openTasks: openTasks.length, overdueInvoices: overdueInvoices.length, recentCalls: recentCalls.length, learned: fingerprintLearned(learnedBlock) },
     });
     const aiResponse = await multiAiGenerateCached(cacheKey, AI_CACHE_TTL.MEDIUM, prompt, systemPrompt, orgId, req.path);
     const parsed: any = safeJsonParse<any>(aiResponse, { greeting: aiResponse, suggestedResponses: [], recommendedActions: [] });

@@ -4,6 +4,7 @@ import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../se
 import { extractGeminiTokens, recordAiUsage, geminiActualModel, sanitizePromptInput, GEMINI_FLASH_MODEL } from "../services/ai-utils";
 import { buildAiCacheKey, getCached, setCached, withProviderTimeout, AI_CACHE_TTL } from "../services/ai-cache";
 import { detectLanguage } from "../services/language-detect";
+import { buildLearnedContextBlock, fingerprintLearned } from "../services/ai-learning";
 import { logger } from "../lib/logger";
 
 // Per-user sliding-window rate limiter: max 10 inline-suggest calls / minute.
@@ -206,10 +207,11 @@ router.post("/ai/inline-suggest", async (req: Request, res: Response): Promise<v
     const lastWindow = safeText.slice(-80);
     const safeTitle = sanitizePromptInput(typeof title === "string" ? title : "", 200);
     const safeContact = sanitizePromptInput(typeof contactName === "string" ? contactName : "", 120);
+    const learnedBlock = await buildLearnedContextBlock(orgId);
     const cacheKey = buildAiCacheKey({
       route: "/ai/inline-suggest",
       organisationId: orgId,
-      input: { fieldType, lastWindow, title: safeTitle, contactName: safeContact, language },
+      input: { fieldType, lastWindow, title: safeTitle, contactName: safeContact, language, learned: fingerprintLearned(learnedBlock) },
     });
     const cached = getCached<{ suggestion: string }>(cacheKey);
     if (cached) { res.json(cached); return; }
@@ -220,7 +222,7 @@ router.post("/ai/inline-suggest", async (req: Request, res: Response): Promise<v
       title: safeTitle || null,
       contactName: safeContact || null,
       language: typeof language === "string" ? language : null,
-    });
+    }) + learnedBlock;
 
     const t0 = Date.now();
     let raw = "";

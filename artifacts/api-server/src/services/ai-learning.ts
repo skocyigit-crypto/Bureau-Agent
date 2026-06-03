@@ -10,6 +10,7 @@ import {
   organisationsTable,
 } from "@workspace/db";
 import { and, eq, sql, gte, isNotNull, desc, notInArray } from "drizzle-orm";
+import crypto from "node:crypto";
 import { logger } from "../lib/logger";
 
 // ---------------------------------------------------------------------------
@@ -460,6 +461,14 @@ export async function buildLearnedContextBlock(orgId: number | undefined | null)
     logger.warn({ err, orgId }, "[ai-learning] buildLearnedContextBlock failed (fail-soft)");
     return "";
   }
+}
+
+// Empreinte courte du bloc de contexte appris. À inclure dans les clés de cache
+// de génération IA pour qu'un feedback 👍/👎 ou un recompute invalide les sorties
+// mises en cache au lieu de servir l'ancienne réponse jusqu'à expiration du TTL.
+export function fingerprintLearned(text: string): string {
+  if (!text) return "none";
+  return crypto.createHash("sha256").update(text).digest("hex").slice(0, 12);
 }
 
 // --- Cron quotidien --------------------------------------------------------

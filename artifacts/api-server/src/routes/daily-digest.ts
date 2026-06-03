@@ -18,7 +18,7 @@ import {
 } from "@workspace/db";
 import { eq, and, gte, lte, count, sql, desc, or } from "drizzle-orm";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "../services/ai-quota";
-import { buildLearnedContextBlock } from "../services/ai-learning";
+import { buildLearnedContextBlock, fingerprintLearned } from "../services/ai-learning";
 import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_FLASH_MODEL } from "../services/ai-utils";
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 import { logger } from "../lib/logger";
@@ -310,6 +310,7 @@ Regles: 3-5 suggestions max, toutes en francais. Alertes si appels manques ou ta
     demain: { message: string; priorites: string[] };
   } | null = null;
 
+  const learnedBlock = await buildLearnedContextBlock(orgId);
   const digestKey = buildAiCacheKey({
     route: "/daily-digest",
     organisationId: orgId,
@@ -322,6 +323,7 @@ Regles: 3-5 suggestions max, toutes en francais. Alertes si appels manques ou ta
       tasksOverdue: data.tasks.overdue,
       events: data.events.today,
       messages: data.messages,
+      learned: fingerprintLearned(learnedBlock),
     },
   });
   const digestCached = getCached<typeof aiResult>(digestKey);
@@ -329,7 +331,7 @@ Regles: 3-5 suggestions max, toutes en francais. Alertes si appels manques ou ta
     aiResult = digestCached;
   } else {
     try {
-      const raw = await aiGenerate(orgId, (await buildLearnedContextBlock(orgId)) + prompt);
+      const raw = await aiGenerate(orgId, learnedBlock + prompt);
       aiResult = safeJson(raw, null);
       if (aiResult) setCached(digestKey, aiResult, AI_CACHE_TTL.LONG);
     } catch (err) {

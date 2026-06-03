@@ -4,7 +4,7 @@ import { sendEmail } from "../services/email";
 import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNull, or, not, inArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
-import { buildLearnedContextBlock } from "../services/ai-learning";
+import { buildLearnedContextBlock, fingerprintLearned } from "../services/ai-learning";
 import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL } from "../services/ai-utils";
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 
@@ -151,11 +151,12 @@ router.post("/ai/analyze", async (req, res): Promise<void> => {
     if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     try { await assertAiQuota(orgId); } catch (qe) { if (isQuotaError(qe)) { res.status(429).json({ error: qe.message, quotaExceeded: true }); return; } throw qe; }
     const analyticsData = await gatherAnalyticsData(orgId);
+    const learnedBlock = await buildLearnedContextBlock(orgId);
 
     const cacheKey = buildAiCacheKey({
       route: "/ai/analyze",
       organisationId: orgId,
-      input: { period: new Date().toISOString().slice(0, 13), summary: JSON.stringify(analyticsData).slice(0, 200) },
+      input: { period: new Date().toISOString().slice(0, 13), summary: JSON.stringify(analyticsData).slice(0, 200), learned: fingerprintLearned(learnedBlock) },
     });
     const cached = getCached<any>(cacheKey);
     if (cached) { res.json(cached); return; }
@@ -187,7 +188,7 @@ Reponds en JSON avec cette structure exacte:
         {
           role: "user",
           parts: [{
-            text: `${systemPrompt}${await buildLearnedContextBlock(orgId)}\n\nVoici les donnees du bureau a analyser:\n${JSON.stringify(analyticsData, null, 2)}`
+            text: `${systemPrompt}${learnedBlock}\n\nVoici les donnees du bureau a analyser:\n${JSON.stringify(analyticsData, null, 2)}`
           }],
         },
       ],
