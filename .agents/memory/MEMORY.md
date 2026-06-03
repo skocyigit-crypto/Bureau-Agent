@@ -1,5 +1,7 @@
 # Memory Index
 
+- [User terminology](user-terminology.md) — owner's word "Canvas" = the live talking AI avatar (@workspace/ai-avatar), NOT the design board or the assistant chat button.
+
 - [Gemini model-retirement fallback](gemini-model-fallback.md) — boot-time singleton patch of ai.models retries on model-retired errors with env-overridable *-latest fallback; covers all call sites.
 - [Security middleware stack](security-middleware-stack.md) — /api threatDetection blocks URLs/base64 (bypass per-route); global express.json is 1mb (mount higher limit before it).
 - [Google connection model](google-connection-model.md) — all Google surfaces use per-user OAuth (google_oauth_tokens); never the shared Replit connector, never hardcoded status.

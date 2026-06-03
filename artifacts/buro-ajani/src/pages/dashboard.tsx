@@ -25,6 +25,7 @@ import { Link, useLocation } from "wouter";
 import { Input } from "@/components/ui/input";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { QuickActionHub } from "@/components/quick-action-hub";
+import { FloatingAvatar } from "@/components/floating-avatar";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -432,6 +433,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      <FloatingAvatar />
       {dashboardError && <QueryErrorAlert error={dashboardError as Error} title="Impossible de charger le tableau de bord" />}
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
