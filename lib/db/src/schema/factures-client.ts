@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, timestamp, numeric, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, numeric, jsonb, boolean, index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { organisationsTable } from "./organisations";
 import { contactsTable } from "./contacts";
@@ -28,6 +28,9 @@ export const facturesClientTable = pgTable("factures_client", {
   totalAmount: numeric("total_amount", { precision: 12, scale: 2 }).notNull().default("0"),
   paidAmount: numeric("paid_amount", { precision: 12, scale: 2 }).notNull().default("0"),
   currency: text("currency").notNull().default("EUR"),
+  // Autoliquidation de TVA (sous-traitance BTP) : si vrai, la trésorerie
+  // encaisse le HT (subtotal) et non le TTC (totalAmount). Pilier risque.
+  isAutoliquidation: boolean("is_autoliquidation").notNull().default(false),
   status: text("status").notNull().default("brouillon"),
   dueDate: timestamp("due_date", { withTimezone: true }),
   paidAt: timestamp("paid_at", { withTimezone: true }),

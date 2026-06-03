@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useRef, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Phone, Users, CheckSquare, MessageSquare, BarChart, LayoutDashboard, Settings, FileText, Puzzle, UserCog, Clock, Brain, Calendar, Shield, ShieldCheck, Zap, BarChart3, KeyRound, Globe, Target, Sparkles, PhoneCall, Download, Plus, PhoneIncoming, Wifi, WifiOff, Smartphone, Monitor, Tablet, Rocket, Mail, StickyNote, Activity, ClipboardList, Plug, CreditCard, Trophy, ScanSearch, MapPin, Bell, Inbox, Search, HardHat } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, BarChart, LayoutDashboard, Settings, FileText, Puzzle, UserCog, Clock, Brain, Calendar, Shield, ShieldCheck, Zap, BarChart3, KeyRound, Globe, Target, Sparkles, PhoneCall, Download, Plus, PhoneIncoming, Wifi, WifiOff, Smartphone, Monitor, Tablet, Rocket, Mail, StickyNote, Activity, ClipboardList, Plug, CreditCard, Trophy, ScanSearch, MapPin, Bell, Inbox, Search, HardHat, Wallet } from "lucide-react";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { SidebarIcon3D, Icon3D } from "@/components/icon-3d";
 import { AiAssistantButton } from "@/components/ai-assistant";
@@ -289,6 +289,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         items: [
           { name: "Tâches", href: "/taches", icon: CheckSquare, badge: badges.task },
           { name: "Projets", href: "/projets", icon: Puzzle },
+          { name: "Trésorerie & Risque", href: "/tresorerie", icon: Wallet },
           ...(canUseAi ? [{ name: "Saisie vocale chantier", href: "/saisie-chantier", icon: HardHat }] : []),
           { name: "Notes internes", href: "/notes-internes", icon: StickyNote, badge: badges.note },
           { name: "Pointage", href: "/pointage", icon: Clock },

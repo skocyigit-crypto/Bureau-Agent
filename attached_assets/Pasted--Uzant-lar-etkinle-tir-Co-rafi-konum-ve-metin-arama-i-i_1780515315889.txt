@@ -1,0 +1,55 @@
+-- Uzantıları etkinleştir (Coğrafi konum ve metin arama için)
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- 1. Şantiyeler ve Canlı Finansal Durum (Chantiers)
+CREATE TABLE chantiers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    address TEXT NOT NULL,
+    total_budget_ht NUMERIC(15, 2) NOT NULL,
+    consumed_budget_ht NUMERIC(15, 2) DEFAULT 0.00,
+    progress_percentage INT DEFAULT 0 CHECK (progress_percentage BETWEEN 0 AND 100),
+    tva_status VARCHAR(50) DEFAULT 'Autoliquidation', -- Autoliquidation, 20%, 10%, 5.5%
+    status VARCHAR(50) DEFAULT 'En cours', -- En cours, Bloqué, Terminé
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2. Filo, Ağır Vasıta ve Telemetri (Parc Matériel - Atego / Sprinter)
+CREATE TABLE vehicules (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    plate_number VARCHAR(50) UNIQUE NOT NULL,
+    brand_model VARCHAR(100) NOT NULL, -- Örn: Mercedes Atego 1224, Sprinter 315
+    current_mileage INT NOT NULL,
+    next_service_mileage INT NOT NULL,
+    last_known_fault_code VARCHAR(50) DEFAULT 'NONE',
+    assigned_chantier_id UUID REFERENCES chantiers(id) ON DELETE SET NULL,
+    status VARCHAR(50) DEFAULT 'Disponible' -- Disponible, En mission, En maintenance, En panne
+);
+
+-- 3. Akıllı Görevler ve Sahadaki İnsan Gücü (Tasks & Puantaj)
+CREATE TABLE tasks (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    chantier_id UUID REFERENCES chantiers(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    assigned_worker VARCHAR(100) NOT NULL, -- Örn: Mustafa, Ekip Şefi
+    estimated_hours NUMERIC(6, 2) NOT NULL,
+    actual_hours NUMERIC(6, 2) DEFAULT 0.00,
+    status VARCHAR(50) DEFAULT 'À faire', -- À faire, En cours, Validé, Bloqué
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 4. Fransa Mevzuatına Uygun Akıllı Fatura ve Escrow (Facturation & Trésorerie)
+CREATE TABLE factures (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    chantier_id UUID REFERENCES chantiers(id) ON DELETE CASCADE,
+    invoice_number VARCHAR(100) UNIQUE NOT NULL,
+    type VARCHAR(50) NOT NULL, -- Client (Hakediş), Fournisseur (Tedarikçi), Sous-traitant
+    amount_ht NUMERIC(15, 2) NOT NULL,
+    amount_ttc NUMERIC(15, 2) NOT NULL,
+    is_autoliquidation BOOLEAN DEFAULT FALSE,
+    retenue_garantie_ht NUMERIC(15, 2) DEFAULT 0.00, -- %5 Garanti Kesintisi
+    due_date DATE NOT NULL,
+    status VARCHAR(50) DEFAULT 'Brouillon', -- Brouillon, Envoyé (Chorus Pro), Payé, Litige
+    ocr_raw_metadata JSONB, -- Faturadan taranan tüm ham veri
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

@@ -45,6 +45,7 @@ import faceRecognitionRouter from "./face-recognition";
 import telephonyRouter, { telephonyWebhookRouter } from "./telephony";
 import voiceCommandRouter from "./voice-command";
 import voiceSiteOpsRouter from "./voice-site-ops";
+import treasuryRouter from "./treasury";
 import { twilioVoiceRouter } from "./twilio-voice";
 import { whatsappRouter } from "./whatsapp";
 import { voiceReceptionistRouter } from "./voice-receptionist";
@@ -137,6 +138,7 @@ router.use(stripeRouter);
 router.use(licenseCheck);
 
 router.use(autoBroadcast);
+router.use(treasuryRouter);
 router.use(callsRouter);
 router.use(contactsRouter);
 router.use(tasksRouter);

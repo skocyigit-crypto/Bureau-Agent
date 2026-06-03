@@ -25,6 +25,7 @@ import {
 import { and, eq, lt, gte, inArray, notInArray, isNotNull, desc } from "drizzle-orm";
 import { broadcaster } from "./broadcaster";
 import { logger } from "../lib/logger";
+import { analyzeTreasuryRisk, CASH_CRUNCH_THRESHOLD, CASH_CRUNCH_RESOLVE_THRESHOLD } from "./treasury-risk";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 // "Toujours en éveil": le veilleur déterministe (sans coût IA) ré-évalue
@@ -62,6 +63,7 @@ const DETECTOR_TYPES = [
   "urgent_message",
   "meeting_prep",
   "inactive_contact",
+  "cash_crunch",
 ] as const;
 
 // Seuil d'inactivité (jours) au-delà duquel un contact client/prospect est
@@ -392,6 +394,69 @@ async function detectInactiveContacts(orgId: number, now: Date): Promise<Candida
   });
 }
 
+// --- Détecteur 8 : risque de trésorerie (Radar BTP) -----------------------
+// Pilier BTP. Exécute la simulation Monte Carlo de trésorerie (90 jours) sur les
+// DONNÉES RÉELLES de l'org (factures + paramètres de trésorerie). N'émet une
+// suggestion QUE si l'org a configuré sa trésorerie (sinon pas de probabilité
+// inventée) ET que la probabilité de tension dépasse le seuil. Agrégé au niveau
+// org (dedupeKey stable "cash_crunch") : une seule alerte pending à la fois,
+// auto-résolue par le cron dès que le risque repasse sous le seuil bas
+// (hystérésis). Calcul pur, aucun coût IA. 2000 simulations pour limiter le
+// bruit d'échantillonnage autour du seuil.
+async function detectCashCrunch(orgId: number, _now: Date): Promise<Candidate[]> {
+  try {
+    const risk = await analyzeTreasuryRisk(orgId, { simulations: 2000 });
+    if (!risk.configured) return [];
+    const p = risk.simulation.insolvencyProbability;
+
+    // Hystérésis anti-clignotement : on déclenche au-dessus du seuil HAUT, mais
+    // une alerte déjà ouverte ne se résout qu'en repassant sous le seuil BAS.
+    // Sans cela, le bruit d'échantillonnage Monte Carlo autour du seuil ferait
+    // créer/auto-résoudre l'alerte à chaque tick alors que les données réelles
+    // n'ont pas bougé.
+    const [pending] = await db
+      .select({ id: proactiveSuggestionsTable.id })
+      .from(proactiveSuggestionsTable)
+      .where(
+        and(
+          eq(proactiveSuggestionsTable.organisationId, orgId),
+          eq(proactiveSuggestionsTable.type, "cash_crunch"),
+          eq(proactiveSuggestionsTable.status, "pending"),
+        ),
+      )
+      .limit(1);
+    const alreadyOpen = !!pending;
+    const shouldAlert = alreadyOpen ? p >= CASH_CRUNCH_RESOLVE_THRESHOLD : p > CASH_CRUNCH_THRESHOLD;
+    if (!shouldAlert) return [];
+
+    const pct = (p * 100).toFixed(1);
+    const median = Math.round(risk.simulation.projectedMedian);
+    return [
+      {
+        type: "cash_crunch",
+        severity: "urgent",
+        title: `Risque de trésorerie : ${pct}% de tension sous 90 jours`,
+        detail:
+          `Probabilité estimée ${pct}% que la trésorerie passe sous zéro d'ici 90 jours ` +
+          `(solde médian projeté ${median.toLocaleString("fr-FR")} €). ` +
+          `${risk.overdueCount} facture(s) en retard (${Math.round(risk.overdueTotal).toLocaleString("fr-FR")} € à recouvrer). ` +
+          `Échelonnez des paiements sous-traitants, relancez les impayés ou activez une ligne d'affacturage.`,
+        actionType: "open_treasury",
+        actionPayload: {
+          probability: risk.simulation.insolvencyProbability,
+          projectedMedian: risk.simulation.projectedMedian,
+          overdueCount: risk.overdueCount,
+          overdueTotal: risk.overdueTotal,
+        },
+        dedupeKey: "cash_crunch",
+      },
+    ];
+  } catch (err) {
+    logger.warn({ err, orgId }, "[proactive] détecteur trésorerie échoué");
+    return [];
+  }
+}
+
 /**
  * Exécute tous les détecteurs pour une organisation, déduplique contre les
  * suggestions pending existantes, auto-résout celles qui ne s'appliquent plus,
@@ -407,6 +472,7 @@ export async function runProactiveForOrg(orgId: number): Promise<number> {
     ...(await detectUrgentMessages(orgId, now)),
     ...(await detectMeetingPrep(orgId, now)),
     ...(await detectInactiveContacts(orgId, now)),
+    ...(await detectCashCrunch(orgId, now)),
   ];
   const candidateKeys = new Set(candidates.map((c) => c.dedupeKey));
 
@@ -727,7 +793,7 @@ export function startProactiveEngine(): void {
   }, TICK_MS);
   logger.info(
     { tickMs: TICK_MS },
-    "[proactive] moteur d'autonomie démarré — 7 détecteurs déterministes",
+    "[proactive] moteur d'autonomie démarré — 8 détecteurs déterministes (dont radar de trésorerie BTP)",
   );
 }
 

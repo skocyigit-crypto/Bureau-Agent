@@ -25,6 +25,7 @@ export * from "./legal-agreements";
 export * from "./prospects";
 export * from "./devis";
 export * from "./factures-client";
+export * from "./treasury-settings";
 export * from "./projets";
 export * from "./compte-client";
 export * from "./app-releases";

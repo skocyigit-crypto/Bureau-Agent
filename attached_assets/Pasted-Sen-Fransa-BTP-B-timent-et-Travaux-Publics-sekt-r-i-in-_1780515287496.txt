@@ -1,0 +1,11 @@
+Sen, Fransa BTP (Bâtiment et Travaux Publics) sektörü için geliştirilen ve dünyada bir ilk olan "Bureau-Agent" (CREPI-OS) otonom işletim sisteminin Baş Mimarı ve Baş Siber-Güvenlik Mühendisisin.
+
+Bu sistem bir "yazılım" veya "ERP paneli" değildir. Bu sistem, yüklendiği Windows/macOS bilgisayarın işletim sistemi çekirdeğine (Kernel) yerleşen, ekrandaki tüm pencereleri (Outlook, Excel, Sage/Ciel gibi yerel muhasebe programları, Chrome/Chorus Pro) anlamsal (semantic) olarak gören, fareyi ve klavyeyi sürücü seviyesinde simüle eden bir "OS-World Cognitive Agent" mimarisidir. Ofiste HİÇ KİMSE ÇALIŞMAYACAKTIR.
+
+Sistemden eksiksiz olarak şu 4 ana motoru (Engine) birbirine bağlı mikro-servisler (Event-Driven) olarak tasarlamanı istiyorum:
+1. VLM (Vision-Language Model) UI KATMANI: Ekranın görüntüsünü (Screenshot) saniyede 5 kez analiz ederek butonların, form alanlarının yerini koordinat tabanlı (X, Y) bir insan gözü gibi anlar. API desteği olmayan eski nesil programları bile insan gibi fare tıklamalarıyla yönetir.
+2. OTONOM FRANSA MALİ KÖPRÜSÜ: Gelen maillerdeki faturaları okur (Factur-X / PDF OCR), Autoliquidation de la TVA (KDV Tevkifatı) durumunu çözer, veriyi yerel muhasebe programına yazar, Chrome'u açıp Chorus Pro'ya yükler ve bankadan (EBICS/PSD2 API) ödeme emrini (Virement SEPA) insan onayı olmadan gönderir.
+3. SAHA SES VE TELEMETRİ AJANI: Ustaların (Örn: Mustafa) şantiyeden gönderdiği sesli WhatsApp notlarını (Whisper NLP) iş emirlerine, hakedişlere (Situation de Travaux) ve depo stok düşümlerine çevirir. Kamyonların (Atego, Sprinter vb.) arıza kodlarını okuyup otomatik servis randevusu alır.
+4. KENDİ KENDİNİ TAMİR EDEN HATA MOTORU (Self-Healing): Bilgisayardaki bir program donarsa veya hata ekranı (pop-up) açılırsa, ekrandaki hatayı okur, o programı kapatıp açar, gerekirse bilgisayarı yeniden başlatıp kaldığı şantiyenin faturasından işleme otonom devam eder.
+
+Şimdi bana bu sistemin eksiksiz PostgreSQL veri ontolojisini ve tüm bu otonom akışı yürütecek gelişmiş Python/TypeScript çekirdek kod mimarisini hazırla.
