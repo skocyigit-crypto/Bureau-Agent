@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import { db, autoBackupsTable, backupConfigTable, googleOAuthTokensTable } from "@workspace/db";
+import { db, autoBackupsTable, backupConfigTable, googleOAuthTokensTable, usersTable } from "@workspace/db";
 import { eq, sql, desc } from "drizzle-orm";
 import crypto from "crypto";
 import { logger } from "../lib/logger";
@@ -47,11 +47,22 @@ async function getGoogleDriveAccessToken(): Promise<string | null> {
     }
   }
 
-  // 3. Fall back to any stored user OAuth token with drive scope
+  // 3. Fall back to the SUPER-ADMIN's own OAuth token with drive scope.
+  //    Isolation multi-tenant : la sauvegarde plateforme ne doit JAMAIS atterrir
+  //    dans le Drive d'un client. On joint sur users.role = 'super_admin' pour
+  //    n'utiliser que le compte du proprietaire de la plateforme (sinon -> null,
+  //    et la sauvegarde echoue proprement plutot que de fuiter chez un client).
   try {
     const tokens = await db
-      .select()
+      .select({
+        accessToken: googleOAuthTokensTable.accessToken,
+        refreshToken: googleOAuthTokensTable.refreshToken,
+        scope: googleOAuthTokensTable.scope,
+        organisationId: googleOAuthTokensTable.organisationId,
+      })
       .from(googleOAuthTokensTable)
+      .innerJoin(usersTable, eq(usersTable.id, googleOAuthTokensTable.userId))
+      .where(eq(usersTable.role, "super_admin"))
       .orderBy(desc(googleOAuthTokensTable.updatedAt))
       .limit(10);
 

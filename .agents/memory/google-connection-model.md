@@ -26,3 +26,10 @@ false "Connecté". That was migrated to per-user OAuth.
 - A Google API call that fails *after* a token exists is usually a missing scope,
   not a disconnect — degrade gracefully (e.g. empty list) instead of signalling
   "non_connecte".
+- **Server-side selection of a Google token must always be scoped to a principal**
+  (a `userId`, or `users.role` for platform-owned actions). Never `select().from(
+  google_oauth_tokens)` with no `where` and use "whichever is newest" — that picks
+  an arbitrary customer's account and leaks cross-tenant. The platform DB-backup
+  fallback (super-admin-only) must join `users` and filter `role='super_admin'`
+  so the encrypted backup never lands in a customer's Drive; fail closed (return
+  null) if the owner has no Drive token rather than borrowing a tenant's.
