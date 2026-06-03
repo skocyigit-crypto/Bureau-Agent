@@ -43,12 +43,18 @@ const TYPE_META: Record<string, { label: string; icon: keyof typeof Feather.glyp
   overdue_task: { label: "Tâche en retard", icon: "clock" },
   missed_call_followup: { label: "Appel à rappeler", icon: "phone-missed" },
   calendar_conflict: { label: "Conflit d'agenda", icon: "calendar" },
+  negative_call_followup: { label: "Appel tendu à rappeler", icon: "phone-off" },
+  urgent_message: { label: "Message prioritaire", icon: "message-square" },
+  meeting_prep: { label: "Préparer une réunion", icon: "calendar" },
+  inactive_contact: { label: "Contact à relancer", icon: "user-plus" },
 };
 
 const ACTION_NAV: Record<string, { label: string; route: string }> = {
   open_task: { label: "Ouvrir la tâche", route: "/tasks" },
   callback: { label: "Voir l'appel", route: "/calls" },
   open_calendar: { label: "Ouvrir l'agenda", route: "/calendar" },
+  open_messages: { label: "Ouvrir les messages", route: "/messages" },
+  open_contact: { label: "Ouvrir le contact", route: "/contacts" },
 };
 
 const FILTERS: Array<{ key: Status; label: string }> = [

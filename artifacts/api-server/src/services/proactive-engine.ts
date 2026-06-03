@@ -18,6 +18,8 @@ import {
   tasksTable,
   callsTable,
   calendarEventsTable,
+  contactsTable,
+  messagesTable,
   proactiveSuggestionsTable,
 } from "@workspace/db";
 import { and, eq, lt, gte, inArray, notInArray, isNotNull, desc } from "drizzle-orm";
@@ -52,7 +54,19 @@ interface Candidate {
 
 // Types gérés par les détecteurs ci-dessous. L'auto-résolution ne s'applique
 // qu'à ces types (on ne touche pas aux suggestions d'autres origines futures).
-const DETECTOR_TYPES = ["overdue_task", "missed_call_followup", "calendar_conflict"] as const;
+const DETECTOR_TYPES = [
+  "overdue_task",
+  "missed_call_followup",
+  "calendar_conflict",
+  "negative_call_followup",
+  "urgent_message",
+  "meeting_prep",
+  "inactive_contact",
+] as const;
+
+// Seuil d'inactivité (jours) au-delà duquel un contact client/prospect est
+// proposé pour une reprise de contact (détecteur F).
+const INACTIVE_CONTACT_DAYS = 60;
 
 function frDate(d: Date): string {
   return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -200,6 +214,184 @@ async function detectCalendarConflicts(orgId: number, now: Date): Promise<Candid
   return out;
 }
 
+// --- Détecteur 4 : appels au ressenti négatif sans suivi (marifet B) -------
+// Tom analyse le ressenti de chaque appel (sentiment). Un appel « negatif » ou
+// « tres_negatif » non suivi d'une tâche est un client mécontent qui risque de
+// partir : on propose un rappel rapide pour désamorcer.
+async function detectNegativeCallFollowups(orgId: number, now: Date): Promise<Candidate[]> {
+  const since = new Date(now.getTime() - 7 * DAY_MS);
+  const calls = await db
+    .select()
+    .from(callsTable)
+    .where(
+      and(
+        eq(callsTable.organisationId, orgId),
+        inArray(callsTable.sentiment, ["negatif", "tres_negatif"]),
+        gte(callsTable.createdAt, since),
+      ),
+    )
+    .orderBy(desc(callsTable.createdAt))
+    .limit(50);
+
+  if (calls.length === 0) return [];
+
+  // Appels déjà suivis d'une tâche liée -> on ne re-suggère pas.
+  const callIds = calls.map((c) => c.id);
+  const linked = await db
+    .select({ relatedCallId: tasksTable.relatedCallId })
+    .from(tasksTable)
+    .where(and(eq(tasksTable.organisationId, orgId), inArray(tasksTable.relatedCallId, callIds)));
+  const linkedSet = new Set(linked.map((l) => l.relatedCallId));
+
+  return calls
+    .filter((c) => !linkedSet.has(c.id))
+    .map((c) => {
+      const who = c.contactName?.trim() || c.phoneNumber;
+      const when = c.createdAt as Date;
+      const tres = c.sentiment === "tres_negatif";
+      return {
+        type: "negative_call_followup",
+        severity: "urgent" as Severity,
+        title: `Rappeler ${who} — appel ${tres ? "très " : ""}tendu`,
+        detail: `Appel au ressenti ${tres ? "très négatif" : "négatif"} le ${frDate(when)} à ${frTime(
+          when,
+        )}. Un rappel rapide peut désamorcer la situation.`,
+        relatedEntityType: "call",
+        relatedEntityId: c.id,
+        actionType: "callback",
+        actionPayload: {
+          callId: c.id,
+          contactId: c.contactId ?? null,
+          phone: c.phoneNumber,
+          name: who,
+          sentiment: c.sentiment,
+        },
+        dedupeKey: `negative_call:${c.id}`,
+      };
+    });
+}
+
+// --- Détecteur 5 : messages prioritaires non lus (marifet D) ---------------
+// Triage déterministe : un message marqué « haute » priorité, non lu depuis
+// plus de 2 h, remonte comme à traiter (la rédaction d'un brouillon de réponse
+// reste à la demande, pilier IA).
+async function detectUrgentMessages(orgId: number, now: Date): Promise<Candidate[]> {
+  const cutoff = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+  const rows = await db
+    .select()
+    .from(messagesTable)
+    .where(
+      and(
+        eq(messagesTable.organisationId, orgId),
+        eq(messagesTable.isRead, false),
+        eq(messagesTable.priority, "haute"),
+        lt(messagesTable.createdAt, cutoff),
+      ),
+    )
+    .orderBy(desc(messagesTable.createdAt))
+    .limit(30);
+
+  return rows.map((m) => {
+    const who = m.contactName?.trim() || m.phoneNumber;
+    const when = m.createdAt as Date;
+    const content = (m.content || "").trim();
+    const snippet = content.slice(0, 120);
+    return {
+      type: "urgent_message",
+      severity: "warning" as Severity,
+      title: `Message prioritaire non lu — ${who}`,
+      detail: `Reçu le ${frDate(when)} à ${frTime(when)} et toujours non lu. « ${snippet}${
+        content.length > 120 ? "…" : ""
+      } »`,
+      relatedEntityType: "message",
+      relatedEntityId: m.id,
+      actionType: "open_messages",
+      actionPayload: { messageId: m.id, contactId: m.contactId ?? null },
+      dedupeKey: `urgent_message:${m.id}`,
+    };
+  });
+}
+
+// --- Détecteur 6 : préparation de réunion (marifet E) ----------------------
+// Pour chaque rendez-vous des prochaines 24 h, on rappelle de préparer
+// documents / historique / ordre du jour. Auto-résolu dès que l'événement est
+// passé (il sort de la fenêtre des candidats).
+async function detectMeetingPrep(orgId: number, now: Date): Promise<Candidate[]> {
+  const horizon = new Date(now.getTime() + DAY_MS);
+  const events = await db
+    .select()
+    .from(calendarEventsTable)
+    .where(
+      and(
+        eq(calendarEventsTable.organisationId, orgId),
+        gte(calendarEventsTable.startDate, now),
+        lt(calendarEventsTable.startDate, horizon),
+      ),
+    )
+    .orderBy(calendarEventsTable.startDate)
+    .limit(30);
+
+  return events
+    .filter((e) => !e.allDay && e.status !== "annule")
+    .map((e) => {
+      const start = e.startDate as Date;
+      return {
+        type: "meeting_prep",
+        severity: "info" as Severity,
+        title: `Préparer : ${e.title}`,
+        detail: `Rendez-vous le ${frDate(start)} à ${frTime(
+          start,
+        )}. Préparez les documents, l'historique du contact et l'ordre du jour avant la rencontre.`,
+        relatedEntityType: "calendar",
+        relatedEntityId: e.id,
+        actionType: "open_calendar",
+        actionPayload: {
+          eventIds: [e.id],
+          date: start.toISOString(),
+          contactId: e.relatedContactId ?? null,
+        },
+        dedupeKey: `meeting_prep:${e.id}`,
+      };
+    });
+}
+
+// --- Détecteur 7 : contacts inactifs à relancer (marifet F) ----------------
+// Clients / prospects sans aucune activité depuis INACTIVE_CONTACT_DAYS jours.
+// On remonte les plus proches du seuil (les plus « récemment perdus »), bornés,
+// pour proposer une reprise de contact sans noyer l'utilisateur.
+async function detectInactiveContacts(orgId: number, now: Date): Promise<Candidate[]> {
+  const cutoff = new Date(now.getTime() - INACTIVE_CONTACT_DAYS * DAY_MS);
+  const rows = await db
+    .select()
+    .from(contactsTable)
+    .where(
+      and(
+        eq(contactsTable.organisationId, orgId),
+        inArray(contactsTable.category, ["client", "prospect"]),
+        lt(contactsTable.updatedAt, cutoff),
+      ),
+    )
+    .orderBy(desc(contactsTable.updatedAt))
+    .limit(10);
+
+  return rows.map((c) => {
+    const name = `${c.firstName} ${c.lastName}`.trim();
+    const last = c.updatedAt as Date;
+    const days = Math.max(0, Math.floor((now.getTime() - last.getTime()) / DAY_MS));
+    return {
+      type: "inactive_contact",
+      severity: "info" as Severity,
+      title: `Renouer avec ${name}`,
+      detail: `Aucune activité depuis ${days} jours (${c.category}). Un message de reprise de contact peut raviver la relation.`,
+      relatedEntityType: "contact",
+      relatedEntityId: c.id,
+      actionType: "open_contact",
+      actionPayload: { contactId: c.id, email: c.email ?? null, phone: c.phone, name },
+      dedupeKey: `inactive_contact:${c.id}`,
+    };
+  });
+}
+
 /**
  * Exécute tous les détecteurs pour une organisation, déduplique contre les
  * suggestions pending existantes, auto-résout celles qui ne s'appliquent plus,
@@ -211,6 +403,10 @@ export async function runProactiveForOrg(orgId: number): Promise<number> {
     ...(await detectOverdueTasks(orgId, now)),
     ...(await detectMissedCallFollowups(orgId, now)),
     ...(await detectCalendarConflicts(orgId, now)),
+    ...(await detectNegativeCallFollowups(orgId, now)),
+    ...(await detectUrgentMessages(orgId, now)),
+    ...(await detectMeetingPrep(orgId, now)),
+    ...(await detectInactiveContacts(orgId, now)),
   ];
   const candidateKeys = new Set(candidates.map((c) => c.dedupeKey));
 
@@ -529,7 +725,10 @@ export function startProactiveEngine(): void {
   timer = setInterval(() => {
     void tick();
   }, TICK_MS);
-  logger.info("[proactive] moteur d'autonomie démarré — détecteurs déterministes, tick 30 min");
+  logger.info(
+    { tickMs: TICK_MS },
+    "[proactive] moteur d'autonomie démarré — 7 détecteurs déterministes",
+  );
 }
 
 export function stopProactiveEngine(): void {

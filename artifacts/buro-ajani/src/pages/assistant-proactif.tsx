@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import {
   Sparkles, RefreshCw, Loader2, CheckCircle2, X, ThumbsUp, ThumbsDown,
   Clock, PhoneMissed, CalendarClock, ArrowRight, AlertTriangle, Inbox, ShieldAlert,
+  PhoneOff, MessageSquare, UserPlus,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,10 @@ const TYPE_META: Record<string, { label: string; icon: typeof Clock }> = {
   calendar_conflict: { label: "Conflit d'agenda", icon: CalendarClock },
   document_threat: { label: "Document à risque", icon: ShieldAlert },
   model_fallback: { label: "Modèle IA retiré", icon: AlertTriangle },
+  negative_call_followup: { label: "Appel tendu à rappeler", icon: PhoneOff },
+  urgent_message: { label: "Message prioritaire", icon: MessageSquare },
+  meeting_prep: { label: "Préparer une réunion", icon: CalendarClock },
+  inactive_contact: { label: "Contact à relancer", icon: UserPlus },
 };
 
 const ACTION_NAV: Record<string, { label: string; path: string }> = {
@@ -50,6 +55,8 @@ const ACTION_NAV: Record<string, { label: string; path: string }> = {
   callback: { label: "Voir l'appel", path: "/appels" },
   open_calendar: { label: "Ouvrir l'agenda", path: "/calendrier" },
   open_documents_threats: { label: "Voir les documents à risque", path: "/documents?scan=dangerous" },
+  open_messages: { label: "Ouvrir les messages", path: "/messages" },
+  open_contact: { label: "Ouvrir le contact", path: "/contacts" },
 };
 
 const FILTERS: Array<{ key: Status; label: string }> = [

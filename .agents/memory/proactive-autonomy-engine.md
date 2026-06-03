@@ -34,3 +34,20 @@ watchman (this engine, no AI cost) ticks frequently — `PROACTIVE_TICK_MS`, def
 (`autonomous-secretary-cron`, ~3-4× cost since it fans out to 3 models) stays at
 **once per day per org**. When the patron asks for agents to be "always awake",
 speed up the watchman, NOT the AI salvo, unless they explicitly accept the cost.
+
+**Watchman vs autonomous-secretary overlap is intentional, not duplication.** The
+secretary (AI, once/day) drafts ready-to-approve actions into the agent-queue; the
+watchman (deterministic, frequent) writes navigational nudges into
+`proactive_suggestions`. The same concern can legitimately live in both (e.g. a
+missed call → secretary drafts a follow-up email AND watchman nudges "rappeler").
+**Why:** before adding a "new" agent capability, check whether the secretary's AI
+prompt already covers it — many "marifetler" (call triage, meeting prep, inactive
+re-engagement) already exist there; the genuine value-add is usually a *deterministic*
+watchman version for reliability/timeliness, not a brand-new feature.
+
+**Surface check before building a capability.** A capability needs a place to land.
+Notably `factures_client` (client invoices) has **no client-facing UI route** — only
+the super-admin backoffice (`/admin/factures-b2b`); the commercial layer (devis,
+factures B2B, stock) lives there per the "Two-layer product" decision. So an
+"invoice reminder" capability for the *client* product has nowhere to navigate —
+confirm placement (client vs backoffice) before implementing finance features.
