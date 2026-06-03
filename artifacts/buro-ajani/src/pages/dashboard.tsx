@@ -406,6 +406,10 @@ export default function Dashboard() {
               Tache
             </Button>
           </Link>
+          <Button size="sm" onClick={() => window.dispatchEvent(new Event("open-ai-assistant"))} className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700">
+            <Brain className="w-4 h-4 mr-2" />
+            Assistant IA
+          </Button>
           <Button size="sm" onClick={() => setIsEmailComposerOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
             <Send className="w-4 h-4 mr-2" />
             E-mail IA

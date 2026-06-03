@@ -47,6 +47,12 @@ const MOOD_CONFIG: Record<string, { icon: any; color: string; bg: string }> = {
 export function AiAssistantButton() {
   const [isOpen, setIsOpen] = useState(false);
 
+  useEffect(() => {
+    const open = () => setIsOpen(true);
+    window.addEventListener("open-ai-assistant", open);
+    return () => window.removeEventListener("open-ai-assistant", open);
+  }, []);
+
   return (
     <>
       <button
