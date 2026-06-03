@@ -12,6 +12,7 @@
 export const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 export const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 export const PDF_MIME = "application/pdf";
+export const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
 // Garde-fous contre les specifications abusives (memoire / taille fichier).
 const MAX_SHEETS = 20;
@@ -19,6 +20,8 @@ const MAX_ROWS = 5000;
 const MAX_COLS = 100;
 const MAX_BLOCKS = 2000;
 const MAX_CELL_LEN = 32000;
+const MAX_SLIDES = 200;
+const MAX_BULLETS = 100;
 
 export interface ExcelSheetSpec {
   name?: string;
@@ -50,18 +53,35 @@ export interface PdfSpec {
   blocks: PdfBlock[];
 }
 
+export interface PptxSlideSpec {
+  title?: string;
+  /** Liste a puces. */
+  bullets?: string[];
+  /** Paragraphes simples (sans puce). */
+  paragraphs?: string[];
+  /** Tableau optionnel sur la diapositive. */
+  table?: { columns?: Array<string | number>; rows: Array<Array<string | number>> };
+}
+
+export interface PptxSpec {
+  /** Diapositive de titre optionnelle (grand texte centre). */
+  title?: string;
+  subtitle?: string;
+  slides: PptxSlideSpec[];
+}
+
 export interface BuiltDocument {
   base64: string;
   fileName: string;
   mimeType: string;
 }
 
-function ensureExtension(name: string, ext: ".xlsx" | ".docx" | ".pdf"): string {
+function ensureExtension(name: string, ext: ".xlsx" | ".docx" | ".pdf" | ".pptx"): string {
   const trimmed = (name || "").trim() || "document";
   const lower = trimmed.toLowerCase();
   if (lower.endsWith(ext)) return trimmed;
   // Retire une eventuelle mauvaise extension office avant d'ajouter la bonne.
-  const stripped = trimmed.replace(/\.(xlsx|xls|docx|doc|pdf)$/i, "");
+  const stripped = trimmed.replace(/\.(xlsx|xls|docx|doc|pdf|pptx|ppt)$/i, "");
   return `${stripped}${ext}`;
 }
 
@@ -312,5 +332,97 @@ export async function buildPdfBase64(spec: PdfSpec, fileName: string): Promise<B
     base64: buf.toString("base64"),
     fileName: ensureExtension(fileName, ".pdf"),
     mimeType: PDF_MIME,
+  };
+}
+
+/** Construit une presentation PowerPoint (.pptx) en base64 via pptxgenjs (16:9). */
+export async function buildPptxBase64(spec: PptxSpec, fileName: string): Promise<BuiltDocument> {
+  if (!spec || typeof spec !== "object" || !Array.isArray(spec.slides)) {
+    throw new Error("Specification PowerPoint invalide (champ 'slides' attendu).");
+  }
+  if (spec.slides.length > MAX_SLIDES) {
+    throw new Error(`Trop de diapositives (max ${MAX_SLIDES}).`);
+  }
+
+  const PptxGenJS = (await import("pptxgenjs")).default;
+  const pptx = new PptxGenJS();
+  pptx.layout = "LAYOUT_WIDE"; // 13.33 x 7.5 in (16:9)
+  const W = 13.33;
+  const margin = 0.6;
+  const contentW = W - margin * 2;
+
+  // Diapositive de titre optionnelle.
+  if (spec.title && typeof spec.title === "string") {
+    const s = pptx.addSlide();
+    s.addText(cellToString(spec.title), {
+      x: margin, y: 2.6, w: contentW, h: 1.5, fontSize: 40, bold: true, align: "center",
+    });
+    if (spec.subtitle && typeof spec.subtitle === "string") {
+      s.addText(cellToString(spec.subtitle), {
+        x: margin, y: 4.1, w: contentW, h: 0.8, fontSize: 20, align: "center", color: "666666",
+      });
+    }
+  }
+
+  for (const slideSpec of spec.slides) {
+    if (!slideSpec || typeof slideSpec !== "object") continue;
+    const s = pptx.addSlide();
+    let y = margin;
+
+    if (slideSpec.title && typeof slideSpec.title === "string") {
+      s.addText(cellToString(slideSpec.title), {
+        x: margin, y, w: contentW, h: 0.9, fontSize: 28, bold: true,
+      });
+      y += 1.1;
+    }
+
+    const bullets = Array.isArray(slideSpec.bullets) ? slideSpec.bullets.slice(0, MAX_BULLETS) : [];
+    if (bullets.length > 0) {
+      s.addText(
+        bullets.map((b) => ({ text: cellToString(b), options: { bullet: true } })),
+        { x: margin, y, w: contentW, h: 4.5, fontSize: 18, valign: "top" },
+      );
+      y += 4.6;
+    }
+
+    const paragraphs = Array.isArray(slideSpec.paragraphs) ? slideSpec.paragraphs.slice(0, MAX_BULLETS) : [];
+    if (paragraphs.length > 0) {
+      s.addText(
+        paragraphs.map((p, i) => ({ text: cellToString(p), options: { breakLine: i < paragraphs.length - 1 } })),
+        { x: margin, y, w: contentW, h: 4.5, fontSize: 16, valign: "top" },
+      );
+      y += 4.6;
+    }
+
+    const table = slideSpec.table;
+    if (table && Array.isArray(table.rows)) {
+      if (table.rows.length > MAX_ROWS) throw new Error(`Trop de lignes de tableau (max ${MAX_ROWS}).`);
+      const header = Array.isArray(table.columns) ? table.columns : [];
+      if (header.length > MAX_COLS) throw new Error(`Trop de colonnes (max ${MAX_COLS}).`);
+      const tableRows: Array<Array<{ text: string; options?: Record<string, unknown> }>> = [];
+      if (header.length > 0) {
+        tableRows.push(header.map((c) => ({ text: cellToString(c), options: { bold: true, fill: "EEEEEE" } })));
+      }
+      for (const row of table.rows) {
+        const cells = Array.isArray(row) ? row : [row];
+        if (cells.length > MAX_COLS) throw new Error(`Trop de colonnes (max ${MAX_COLS}).`);
+        tableRows.push(cells.map((c) => ({ text: cellToString(c) })));
+      }
+      if (tableRows.length > 0) {
+        s.addTable(tableRows, {
+          x: margin, y: Math.min(y, 6), w: contentW,
+          border: { type: "solid", pt: 0.5, color: "CCCCCC" },
+          fontSize: 12, valign: "middle",
+        });
+      }
+    }
+  }
+
+  // pptxgenjs renvoie une chaine base64 avec outputType "base64".
+  const base64 = (await pptx.write({ outputType: "base64" })) as string;
+  return {
+    base64,
+    fileName: ensureExtension(fileName, ".pptx"),
+    mimeType: PPTX_MIME,
   };
 }

@@ -8,7 +8,7 @@ import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/acce
 import { sendEmail } from "./email";
 import { sendSms as providerSendSms } from "./telephony-providers";
 import { generateImage } from "@workspace/integrations-gemini-ai/image";
-import { buildExcelBase64, buildWordBase64, buildPdfBase64 } from "./document-export";
+import { buildExcelBase64, buildWordBase64, buildPdfBase64, buildPptxBase64 } from "./document-export";
 import { ingestDocument } from "./document-ingest";
 import { logger } from "../lib/logger";
 
@@ -626,6 +626,57 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
         built = await buildPdfBase64(spec, a.fileName);
       } catch (e) {
         return { success: false, error: e instanceof Error ? e.message : "Specification PDF invalide." };
+      }
+      const ingest = await ingestDocument({
+        orgId, userId: userId ?? null,
+        fileContent: built.base64, fileName: built.fileName, mimeType: built.mimeType,
+        category: "general", source: "assistant",
+      });
+      if (ingest.status !== "created") {
+        return { success: false, error: ingest.status === "blocked" ? "Fichier bloque (securite)." : ingest.error };
+      }
+      return {
+        success: true, documentId: ingest.doc.id, fileName: built.fileName,
+        downloadPath: `/api/documents/${ingest.doc.id}/download`,
+      };
+    },
+  },
+  {
+    name: "create_powerpoint_document",
+    description:
+      "Cree une presentation PowerPoint (.pptx) et l'enregistre dans la bibliotheque de documents (telechargeable). " +
+      "Ideal pour presentations commerciales, comptes-rendus de reunion, supports de formation. Le parametre dataJson " +
+      "est une chaine JSON avec un titre optionnel et une liste de diapositives. Chaque diapositive a un 'title' " +
+      "et au choix 'bullets' (liste a puces), 'paragraphs' (texte) ou 'table' {columns, rows}. Exemple: " +
+      "{\"title\":\"Offre 2026\",\"subtitle\":\"Agent de Bureau\",\"slides\":[" +
+      "{\"title\":\"Avantages\",\"bullets\":[\"Gain de temps\",\"Moins d'erreurs\"]}," +
+      "{\"title\":\"Tarifs\",\"table\":{\"columns\":[\"Offre\",\"Prix\"],\"rows\":[[\"Starter\",\"29€\"]]}}]}.",
+    parameters: {
+      type: "object",
+      properties: {
+        fileName: { type: "string", description: "Nom du fichier (ex: 'presentation-offre'). L'extension .pptx est ajoutee si absente." },
+        dataJson: { type: "string", description: "Chaine JSON avec 'title'/'subtitle' optionnels et 'slides' (voir description)." },
+      },
+      required: ["fileName", "dataJson"],
+    },
+    fields: {
+      fileName: { kind: "string", required: true, min: 1, max: 200 },
+      dataJson: { kind: "string", required: true, min: 2, max: 200000 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Creer une presentation PowerPoint: « ${trim(a.fileName, 80)} »`,
+    execute: async (a, { orgId, userId }) => {
+      let spec: any;
+      try {
+        spec = JSON.parse(a.dataJson);
+      } catch {
+        return { success: false, error: "dataJson n'est pas un JSON valide." };
+      }
+      let built;
+      try {
+        built = await buildPptxBase64(spec, a.fileName);
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : "Specification PowerPoint invalide." };
       }
       const ingest = await ingestDocument({
         orgId, userId: userId ?? null,
