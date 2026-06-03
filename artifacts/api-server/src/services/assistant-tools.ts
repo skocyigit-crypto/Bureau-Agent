@@ -8,7 +8,7 @@ import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/acce
 import { sendEmail } from "./email";
 import { sendSms as providerSendSms } from "./telephony-providers";
 import { generateImage } from "@workspace/integrations-gemini-ai/image";
-import { buildExcelBase64, buildWordBase64 } from "./document-export";
+import { buildExcelBase64, buildWordBase64, buildPdfBase64 } from "./document-export";
 import { ingestDocument } from "./document-ingest";
 import { logger } from "../lib/logger";
 
@@ -577,6 +577,55 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
         built = await buildWordBase64(spec, a.fileName);
       } catch (e) {
         return { success: false, error: e instanceof Error ? e.message : "Specification Word invalide." };
+      }
+      const ingest = await ingestDocument({
+        orgId, userId: userId ?? null,
+        fileContent: built.base64, fileName: built.fileName, mimeType: built.mimeType,
+        category: "general", source: "assistant",
+      });
+      if (ingest.status !== "created") {
+        return { success: false, error: ingest.status === "blocked" ? "Fichier bloque (securite)." : ingest.error };
+      }
+      return {
+        success: true, documentId: ingest.doc.id, fileName: built.fileName,
+        downloadPath: `/api/documents/${ingest.doc.id}/download`,
+      };
+    },
+  },
+  {
+    name: "create_pdf_document",
+    description:
+      "Cree un document PDF (.pdf) et l'enregistre dans la bibliotheque de documents (telechargeable). " +
+      "Ideal pour rapports, lettres, devis et factures prets a envoyer. Le parametre dataJson est une chaine JSON " +
+      "avec un titre optionnel et une liste de blocs (meme format que Word): " +
+      "{\"title\":\"Facture\",\"blocks\":[{\"type\":\"heading\",\"text\":\"Detail\",\"level\":1}," +
+      "{\"type\":\"paragraph\",\"text\":\"Texte...\"},{\"type\":\"table\",\"columns\":[\"Article\",\"Prix\"],\"rows\":[[\"Stylo\",\"5\"]]}]}.",
+    parameters: {
+      type: "object",
+      properties: {
+        fileName: { type: "string", description: "Nom du fichier (ex: 'facture-001'). L'extension .pdf est ajoutee si absente." },
+        dataJson: { type: "string", description: "Chaine JSON avec 'title' optionnel et 'blocks' (voir description)." },
+      },
+      required: ["fileName", "dataJson"],
+    },
+    fields: {
+      fileName: { kind: "string", required: true, min: 1, max: 200 },
+      dataJson: { kind: "string", required: true, min: 2, max: 200000 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Creer un document PDF: « ${trim(a.fileName, 80)} »`,
+    execute: async (a, { orgId, userId }) => {
+      let spec: any;
+      try {
+        spec = JSON.parse(a.dataJson);
+      } catch {
+        return { success: false, error: "dataJson n'est pas un JSON valide." };
+      }
+      let built;
+      try {
+        built = await buildPdfBase64(spec, a.fileName);
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : "Specification PDF invalide." };
       }
       const ingest = await ingestDocument({
         orgId, userId: userId ?? null,

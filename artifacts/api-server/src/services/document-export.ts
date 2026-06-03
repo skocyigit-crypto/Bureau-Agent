@@ -11,6 +11,7 @@
 
 export const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 export const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+export const PDF_MIME = "application/pdf";
 
 // Garde-fous contre les specifications abusives (memoire / taille fichier).
 const MAX_SHEETS = 20;
@@ -42,18 +43,25 @@ export interface WordSpec {
   blocks: WordBlock[];
 }
 
+/** Le PDF reutilise le meme modele de blocs que Word (titre + heading/paragraph/table). */
+export type PdfBlock = WordBlock;
+export interface PdfSpec {
+  title?: string;
+  blocks: PdfBlock[];
+}
+
 export interface BuiltDocument {
   base64: string;
   fileName: string;
   mimeType: string;
 }
 
-function ensureExtension(name: string, ext: ".xlsx" | ".docx"): string {
+function ensureExtension(name: string, ext: ".xlsx" | ".docx" | ".pdf"): string {
   const trimmed = (name || "").trim() || "document";
   const lower = trimmed.toLowerCase();
   if (lower.endsWith(ext)) return trimmed;
   // Retire une eventuelle mauvaise extension office avant d'ajouter la bonne.
-  const stripped = trimmed.replace(/\.(xlsx|xls|docx|doc)$/i, "");
+  const stripped = trimmed.replace(/\.(xlsx|xls|docx|doc|pdf)$/i, "");
   return `${stripped}${ext}`;
 }
 
@@ -202,5 +210,107 @@ export async function buildWordBase64(spec: WordSpec, fileName: string): Promise
     base64: Buffer.from(buf).toString("base64"),
     fileName: ensureExtension(fileName, ".docx"),
     mimeType: DOCX_MIME,
+  };
+}
+
+/** Construit un document PDF (.pdf) en base64 via pdfkit (polices standard, accents FR ok). */
+export async function buildPdfBase64(spec: PdfSpec, fileName: string): Promise<BuiltDocument> {
+  if (!spec || typeof spec !== "object" || !Array.isArray(spec.blocks)) {
+    throw new Error("Specification PDF invalide (champ 'blocks' attendu).");
+  }
+  if (spec.blocks.length > MAX_BLOCKS) {
+    throw new Error(`Trop de blocs (max ${MAX_BLOCKS}).`);
+  }
+
+  const PDFDocument = (await import("pdfkit")).default;
+  const doc = new PDFDocument({ margin: 50, size: "A4" });
+
+  const chunks: Buffer[] = [];
+  doc.on("data", (c: Buffer) => chunks.push(c));
+  const finished = new Promise<Buffer>((resolve, reject) => {
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+  });
+
+  const left = doc.page.margins.left;
+  const usableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const bottom = doc.page.height - doc.page.margins.bottom;
+  const usablePageHeight = doc.page.height - doc.page.margins.top - doc.page.margins.bottom;
+
+  const ensureSpace = (needed: number) => {
+    if (doc.y + needed > bottom) doc.addPage();
+  };
+
+  if (spec.title && typeof spec.title === "string") {
+    doc.font("Helvetica-Bold").fontSize(20).text(cellToString(spec.title), { align: "center" });
+    doc.moveDown(0.8);
+  }
+
+  const headingSize = (level?: 1 | 2 | 3) => (level === 3 ? 12 : level === 2 ? 14 : 16);
+
+  for (const block of spec.blocks) {
+    if (!block || typeof block !== "object") continue;
+
+    if (block.type === "heading") {
+      doc.moveDown(0.4);
+      ensureSpace(28);
+      doc.font("Helvetica-Bold").fontSize(headingSize(block.level)).text(cellToString(block.text), left, doc.y, { width: usableWidth });
+      doc.moveDown(0.3);
+    } else if (block.type === "paragraph") {
+      doc.font("Helvetica").fontSize(11);
+      const text = cellToString(block.text);
+      ensureSpace(doc.heightOfString(text || " ", { width: usableWidth }));
+      doc.text(text, left, doc.y, { width: usableWidth });
+      doc.moveDown(0.5);
+    } else if (block.type === "table") {
+      const rows = Array.isArray(block.rows) ? block.rows : [];
+      if (rows.length > MAX_ROWS) throw new Error(`Trop de lignes de tableau (max ${MAX_ROWS}).`);
+      const header = Array.isArray(block.columns) ? block.columns : [];
+      const nCols = Math.max(header.length, ...rows.map((r) => (Array.isArray(r) ? r.length : 1)), 1);
+      if (nCols > MAX_COLS) throw new Error(`Trop de colonnes (max ${MAX_COLS}).`);
+      const colWidth = usableWidth / nCols;
+      const padding = 4;
+
+      const drawRow = (cells: Array<string | number>, isHeader: boolean) => {
+        doc.font(isHeader ? "Helvetica-Bold" : "Helvetica").fontSize(10);
+        const cellWidth = colWidth - padding * 2;
+        const texts = Array.from({ length: nCols }, (_, i) => cellToString(cells[i]));
+        const rowHeight =
+          Math.max(...texts.map((t) => doc.heightOfString(t || " ", { width: cellWidth }))) + padding * 2;
+        // Une ligne ne peut pas depasser la hauteur utile d'une page: rejet clair
+        // plutot qu'un rendu casse a cheval sur deux pages.
+        if (rowHeight > usablePageHeight) {
+          throw new Error("Contenu d'une cellule de tableau trop volumineux pour une page PDF.");
+        }
+        // Garantit que toute la ligne tient sur la page courante avant de dessiner.
+        if (doc.y + rowHeight > bottom) doc.addPage();
+        const y = doc.y;
+        texts.forEach((t, i) => {
+          const x = left + i * colWidth;
+          doc.rect(x, y, colWidth, rowHeight).strokeColor("#cccccc").lineWidth(0.5).stroke();
+          // height + ellipsis empechent pdfkit de paginer automatiquement au milieu
+          // d'une cellule (ce qui desynchroniserait le curseur et les bordures).
+          doc.fillColor("#000000").text(t, x + padding, y + padding, {
+            width: cellWidth,
+            height: rowHeight - padding * 2,
+            ellipsis: true,
+          });
+        });
+        doc.y = y + rowHeight;
+      };
+
+      doc.moveDown(0.2);
+      if (header.length > 0) drawRow(header, true);
+      for (const row of rows) drawRow(Array.isArray(row) ? row : [row], false);
+      doc.moveDown(0.5);
+    }
+  }
+
+  doc.end();
+  const buf = await finished;
+  return {
+    base64: buf.toString("base64"),
+    fileName: ensureExtension(fileName, ".pdf"),
+    mimeType: PDF_MIME,
   };
 }
