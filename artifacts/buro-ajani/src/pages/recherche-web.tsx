@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSearch } from "wouter";
 import { Search, ShieldCheck, ShieldAlert, ShieldX, ExternalLink, Loader2, Globe, Sparkles, AlertTriangle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,15 +60,19 @@ const RISK_META: Record<UrlRisk, { label: string; badge: string; icon: typeof Sh
 
 export default function RechercheWebPage() {
   const { toast } = useToast();
-  const [query, setQuery] = useState("");
+  const search = useSearch();
+  const initialQuery = new URLSearchParams(search).get("q") ?? "";
+  const [query, setQuery] = useState(initialQuery);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<WebSearchResponse | null>(null);
   const [searched, setSearched] = useState(false);
   const [pendingDanger, setPendingDanger] = useState<WebSearchResultItem | null>(null);
+  const autoRanRef = useRef(false);
 
-  async function runSearch(e?: React.FormEvent) {
+  async function runSearch(e?: React.FormEvent, override?: string) {
     e?.preventDefault();
-    const q = query.trim();
+    if (loading) return;
+    const q = (override ?? query).trim();
     if (q.length < 2) return;
     setLoading(true);
     setSearched(true);
@@ -97,6 +102,15 @@ export default function RechercheWebPage() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (autoRanRef.current) return;
+    if (initialQuery.trim().length >= 2) {
+      autoRanRef.current = true;
+      void runSearch(undefined, initialQuery);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQuery]);
 
   function openResult(item: WebSearchResultItem) {
     if (item.risk === "dangerous") {

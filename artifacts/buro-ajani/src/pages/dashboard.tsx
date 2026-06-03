@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Phone, Users, CheckSquare, MessageSquare, ArrowUpRight, ArrowDownRight, Clock, Plus, Activity, BarChart3, Send, LayoutDashboard, Shield, ShieldCheck, ShieldAlert, ShieldQuestion, HardDriveDownload, Zap, UserCheck, Brain, TrendingUp, Lightbulb, Rocket, CircleCheck, Circle, X, Package, FileText, Receipt, AlertTriangle, ShoppingCart, StickyNote, Target, Upload, Printer, FolderKanban } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, ArrowUpRight, ArrowDownRight, Clock, Plus, Activity, BarChart3, Send, LayoutDashboard, Shield, ShieldCheck, ShieldAlert, ShieldQuestion, HardDriveDownload, Zap, UserCheck, Brain, TrendingUp, Lightbulb, Rocket, CircleCheck, Circle, X, Package, FileText, Receipt, AlertTriangle, ShoppingCart, StickyNote, Target, Upload, Printer, FolderKanban, Search, Globe } from "lucide-react";
 import { StaggerContainer, StaggerItem, PressableCard, SlideUp } from "@/components/premium-animations";
 import { SmartPulsePanel } from "@/components/smart-pulse-panel";
 import { Icon3D, type Icon3DVariant } from "@/components/icon-3d";
@@ -21,7 +21,8 @@ import { Badge } from "@/components/ui/badge";
 import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, Bar, Cell, LineChart, Line, Legend } from "recharts";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { Input } from "@/components/ui/input";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { QuickActionHub } from "@/components/quick-action-hub";
 
@@ -315,6 +316,51 @@ function SecuritySummary() {
   );
 }
 
+function DashboardWebSearch() {
+  const [, navigate] = useLocation();
+  const [q, setQ] = useState("");
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const term = q.trim();
+    if (term.length < 2) {
+      navigate("/recherche-web");
+      return;
+    }
+    navigate(`/recherche-web?q=${encodeURIComponent(term)}`);
+  };
+  return (
+    <Card className="overflow-hidden border-0 shadow-md bg-gradient-to-br from-indigo-50/70 to-purple-50/40 dark:from-indigo-950/30 dark:to-purple-950/20">
+      <CardContent className="p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="p-2 rounded-xl bg-primary/10">
+            <Globe className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold leading-tight">Recherche web sécurisée</p>
+            <p className="text-xs text-muted-foreground">Chaque lien est analysé par l'antivirus intégré avant que vous ne cliquiez.</p>
+          </div>
+        </div>
+        <form onSubmit={submit} className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Rechercher sur le web…"
+              className="h-11 rounded-full pl-10 pr-4 text-base shadow-sm bg-background"
+              maxLength={300}
+            />
+          </div>
+          <Button type="submit" className="h-11 rounded-full px-5">
+            <Search className="w-4 h-4 mr-2" />
+            Rechercher
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Dashboard() {
   const { user } = useWorkspaceUser();
   const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
@@ -444,6 +490,10 @@ export default function Dashboard() {
           </div>
         </div>
       </Card>
+      </SlideUp>
+
+      <SlideUp>
+        <DashboardWebSearch />
       </SlideUp>
 
       {isTrial && !dismissed && (() => {
