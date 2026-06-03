@@ -220,6 +220,8 @@ export function threatDetection(req: Request, res: Response, next: NextFunction)
     "/api/security/scan-document",
     "/security/scan-text",
     "/api/security/scan-text",
+    "/web-search",
+    "/api/web-search",
   ]);
   if (req.method === "POST" && (SCAN_BYPASS_PATHS.has(req.path) || SCAN_BYPASS_PATHS.has(exactPath))) {
     return next();

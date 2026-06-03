@@ -76,6 +76,7 @@ import { autoBroadcast } from "../middleware/auto-broadcast";
 import discoveryRouter from "./discovery";
 import proactiveRouter from "./proactive";
 import aiLearningRouter from "./ai-learning";
+import webSearchRouter from "./web-search";
 import stripeRouter from "./stripe";
 import adminSaasDashboardRouter from "./admin-saas-dashboard";
 
@@ -197,5 +198,6 @@ router.use(workforceAgentRouter);
 router.use(discoveryRouter);
 router.use(proactiveRouter);
 router.use(aiLearningRouter);
+router.use(webSearchRouter);
 
 export default router;
