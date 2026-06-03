@@ -76,6 +76,7 @@ import EquipeIaPage from "@/pages/equipe-ia";
 import AuditDenetimPage from "@/pages/audit-denetim";
 import VoiceSiteOpsPage from "@/pages/voice-site-ops";
 import TresoreriePage from "@/pages/tresorerie";
+import FlottePage from "@/pages/flotte";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -144,6 +145,7 @@ function AppRoutes() {
         <Route path="/contacts/:id" component={withLicenseGate(ContactDetail)} />
         <Route path="/taches" component={withLicenseGate(Tasks)} />
         <Route path="/tresorerie" component={withLicenseGate(TresoreriePage)} />
+        <Route path="/flotte" component={withLicenseGate(FlottePage)} />
         <Route path="/messages" component={withLicenseGate(Messages)} />
         <Route path="/rapports" component={withLicenseGate(Reports)} />
         <Route path="/logiciels" component={withLicenseGate(Software)} />

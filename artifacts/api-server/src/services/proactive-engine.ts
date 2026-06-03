@@ -21,6 +21,7 @@ import {
   contactsTable,
   messagesTable,
   proactiveSuggestionsTable,
+  vehiculesTable,
 } from "@workspace/db";
 import { and, eq, lt, gte, inArray, notInArray, isNotNull, desc } from "drizzle-orm";
 import { broadcaster } from "./broadcaster";
@@ -64,6 +65,7 @@ const DETECTOR_TYPES = [
   "meeting_prep",
   "inactive_contact",
   "cash_crunch",
+  "vehicle_service",
 ] as const;
 
 // Seuil d'inactivité (jours) au-delà duquel un contact client/prospect est
@@ -457,6 +459,73 @@ async function detectCashCrunch(orgId: number, _now: Date): Promise<Candidate[]>
   }
 }
 
+// --- Détecteur 9 : entretien de la flotte (Parc matériel BTP) -------------
+// Pilier BTP. Sur les DONNÉES RÉELLES des véhicules de l'org : émet une
+// SUGGESTION de rendez-vous d'entretien dès qu'un véhicule remonte un code
+// défaut (!= "NONE") OU que son kilométrage atteint le seuil d'entretien
+// (nextServiceMileage). Une suggestion par véhicule (dedupeKey
+// `vehicle_service:<id>`), auto-résolue par le cron quand le code défaut
+// repasse à "NONE" et que le seuil est repoussé. Calcul pur, 0 coût IA.
+// SUGGESTION uniquement — aucune réservation ni action autonome.
+async function detectVehicleService(orgId: number, _now: Date): Promise<Candidate[]> {
+  try {
+    const vehicles = await db
+      .select({
+        id: vehiculesTable.id,
+        plateNumber: vehiculesTable.plateNumber,
+        brandModel: vehiculesTable.brandModel,
+        currentMileage: vehiculesTable.currentMileage,
+        nextServiceMileage: vehiculesTable.nextServiceMileage,
+        faultCode: vehiculesTable.lastKnownFaultCode,
+      })
+      .from(vehiculesTable)
+      .where(eq(vehiculesTable.organisationId, orgId));
+
+    const out: Candidate[] = [];
+    for (const v of vehicles) {
+      const hasFault = !!v.faultCode && v.faultCode !== "NONE";
+      const serviceDue = v.nextServiceMileage != null && v.currentMileage >= v.nextServiceMileage;
+      if (!hasFault && !serviceDue) continue;
+
+      const label = `${v.brandModel} (${v.plateNumber})`;
+      const reasons: string[] = [];
+      if (hasFault) reasons.push(`code défaut « ${v.faultCode} » remonté`);
+      if (serviceDue) {
+        reasons.push(
+          `entretien dû (${v.currentMileage.toLocaleString("fr-FR")} km ≥ seuil ${Number(
+            v.nextServiceMileage,
+          ).toLocaleString("fr-FR")} km)`,
+        );
+      }
+
+      out.push({
+        type: "vehicle_service",
+        severity: hasFault ? "urgent" : "warning",
+        title: hasFault ? `Véhicule à contrôler : ${label}` : `Entretien à planifier : ${label}`,
+        detail:
+          `${label} — ${reasons.join(" ; ")}. ` +
+          `Planifiez un rendez-vous d'entretien au garage. ` +
+          `(Suggestion uniquement — aucune réservation automatique.)`,
+        relatedEntityType: "vehicule",
+        relatedEntityId: v.id,
+        actionType: "open_fleet",
+        actionPayload: {
+          vehiculeId: v.id,
+          plateNumber: v.plateNumber,
+          faultCode: v.faultCode,
+          currentMileage: v.currentMileage,
+          nextServiceMileage: v.nextServiceMileage,
+        },
+        dedupeKey: `vehicle_service:${v.id}`,
+      });
+    }
+    return out;
+  } catch (err) {
+    logger.warn({ err, orgId }, "[proactive] détecteur flotte échoué");
+    return [];
+  }
+}
+
 /**
  * Exécute tous les détecteurs pour une organisation, déduplique contre les
  * suggestions pending existantes, auto-résout celles qui ne s'appliquent plus,
@@ -473,6 +542,7 @@ export async function runProactiveForOrg(orgId: number): Promise<number> {
     ...(await detectMeetingPrep(orgId, now)),
     ...(await detectInactiveContacts(orgId, now)),
     ...(await detectCashCrunch(orgId, now)),
+    ...(await detectVehicleService(orgId, now)),
   ];
   const candidateKeys = new Set(candidates.map((c) => c.dedupeKey));
 
@@ -793,7 +863,7 @@ export function startProactiveEngine(): void {
   }, TICK_MS);
   logger.info(
     { tickMs: TICK_MS },
-    "[proactive] moteur d'autonomie démarré — 8 détecteurs déterministes (dont radar de trésorerie BTP)",
+    "[proactive] moteur d'autonomie démarré — 9 détecteurs déterministes (dont radar de trésorerie BTP + entretien flotte)",
   );
 }
 
