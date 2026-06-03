@@ -333,7 +333,21 @@ function BriefingTab() {
             )}
           </div>
         </>
-      ) : null}
+      ) : (
+        <Card className="border-dashed">
+          <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
+            <Coffee className="h-8 w-8 text-muted-foreground/50" />
+            <div>
+              <p className="text-sm font-medium">Briefing indisponible</p>
+              <p className="text-xs text-muted-foreground">Le briefing du jour n'a pas pu être chargé.</p>
+            </div>
+            <Button onClick={loadBriefing} variant="outline" size="sm" disabled={loading} className="gap-1.5">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Réessayer
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Separator className="my-4" />
 
