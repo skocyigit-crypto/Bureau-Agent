@@ -48,15 +48,38 @@ export function decryptSecret(payload: string): string {
 // ---------------------------------------------------------------------------
 
 export function getGoogleRedirectUri(): string {
+  const path = "/api/google-oauth/callback";
+
+  // 1. Override explicite par l'admin.
+  if (process.env.GOOGLE_REDIRECT_URI) return process.env.GOOGLE_REDIRECT_URI;
+
+  // 2. URL publique configuree manuellement (self-hosting / domaine custom).
   const publicBase = process.env.PUBLIC_URL || process.env.APP_URL;
-  const replitDomain =
-    process.env.REPLIT_DEV_DOMAIN ||
-    (process.env.REPL_SLUG ? `${process.env.REPL_SLUG}.repl.co` : null);
-  return (
-    process.env.GOOGLE_REDIRECT_URI ||
-    (publicBase ? `${publicBase.replace(/\/$/, "")}/api/google-oauth/callback` : null) ||
-    (replitDomain ? `https://${replitDomain}/api/google-oauth/callback` : "http://localhost/api/google-oauth/callback")
-  );
+  if (publicBase) return `${publicBase.replace(/\/$/, "")}${path}`;
+
+  // 3. REPLIT_DOMAINS — fournie automatiquement par Replit EN DEPLOIEMENT
+  //    (custom domain ou .replit.app). C'est la SEULE source correcte en
+  //    production : REPLIT_DEV_DOMAIN n'y est pas defini, donc sans ce cas
+  //    la resolution retombait sur <slug>.repl.co / localhost et Google
+  //    rejetait le consentement avec redirect_uri_mismatch. On prend le
+  //    premier domaine et on prefixe https (REPLIT_DOMAINS vient sans schema).
+  const replitDomains = process.env.REPLIT_DOMAINS;
+  if (replitDomains) {
+    const first = replitDomains.split(",").map(d => d.trim()).filter(Boolean)[0];
+    if (first) {
+      const base = first.startsWith("http://") || first.startsWith("https://") ? first : `https://${first}`;
+      return `${base.replace(/\/$/, "")}${path}`;
+    }
+  }
+
+  // 4. Domaine de developpement Replit.
+  if (process.env.REPLIT_DEV_DOMAIN) return `https://${process.env.REPLIT_DEV_DOMAIN}${path}`;
+
+  // 5. Anciens repls.
+  if (process.env.REPL_SLUG) return `https://${process.env.REPL_SLUG}.repl.co${path}`;
+
+  // 6. Dernier recours (dev local hors Replit).
+  return `http://localhost${path}`;
 }
 
 // ---------------------------------------------------------------------------
