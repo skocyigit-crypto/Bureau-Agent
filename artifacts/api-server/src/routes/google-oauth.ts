@@ -40,14 +40,15 @@ const CORE_SCOPES = [
 ];
 
 // Services demandes par defaut lors d'une connexion "tout Google".
-// On EXCLUT volontairement les scopes fragiles dont l'API n'est presque jamais
-// activee dans le projet Cloud (keep = Google Workspace Enterprise UNIQUEMENT,
-// photos, youtube, meet, chat, forms). Cote Google, un SEUL scope dont l'API
-// est desactivee — ou non disponible pour le type de compte — fait echouer TOUT
-// le consentement avec un 403 generique ("you do not have access to this page").
-// Ces services restent connectables a la demande via la decouverte
+// Cote Google, un SEUL scope dont l'API est desactivee — ou non disponible pour
+// le type de compte — fait echouer TOUT le consentement avec un 403 generique
+// ("you do not have access to this page"). Pour maximiser le taux de reussite de
+// la connexion et minimiser le nombre d'API que le proprietaire doit activer, on
+// se limite par defaut aux 3 scopes essentiels (Gmail, Agenda, Drive). Les autres
+// (docs, sheets, contacts, tasks, et les scopes fragiles keep/photos/youtube/
+// meet/chat/forms) restent connectables a la demande via la decouverte
 // d'integrations (l'appelant peut toujours passer `services: [...]` explicite).
-const DEFAULT_SERVICES = ["gmail", "calendar", "drive", "docs", "sheets", "contacts", "tasks"];
+const DEFAULT_SERVICES = ["gmail", "calendar", "drive"];
 
 // Modele SaaS centralise : on construit TOUJOURS le client OAuth2 a partir des
 // identifiants GLOBAUX du serveur (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET).
