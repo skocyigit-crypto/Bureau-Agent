@@ -13,6 +13,7 @@ export interface WebSearchResultItem {
   url: string;
   displayUrl: string;
   domain: string;
+  snippet: string;
   risk: UrlRisk;
   reasons: string[];
   threatTypes?: string[];
@@ -22,11 +23,12 @@ export interface WebSearchResponse {
   query: string;
   answer: string;
   results: WebSearchResultItem[];
+  relatedSearches: string[];
 }
 
 // Nombre maximum de sources web analysees par recherche (borne le cout du
 // scan antivirus + la resolution des redirections).
-const MAX_RESULTS = 8;
+const MAX_RESULTS = 10;
 // Budget pour resoudre une URL de redirection Gemini -> destination reelle.
 const REDIRECT_TIMEOUT_MS = 4000;
 
@@ -179,17 +181,53 @@ export async function searchWebWithSafety(
 
   // Sources web utilisees par le modele (grounding metadata).
   const gm = response?.candidates?.[0]?.groundingMetadata as
-    | { groundingChunks?: { web?: { uri?: string; title?: string } }[] }
+    | {
+        groundingChunks?: { web?: { uri?: string; title?: string } }[];
+        groundingSupports?: {
+          segment?: { text?: string };
+          groundingChunkIndices?: number[];
+        }[];
+        webSearchQueries?: string[];
+      }
     | undefined;
 
-  const rawSources: { uri: string; title: string }[] = [];
-  if (gm?.groundingChunks?.length) {
-    for (const chunk of gm.groundingChunks) {
-      if (chunk.web?.uri) {
-        rawSources.push({ uri: chunk.web.uri, title: chunk.web.title || "" });
+  // Construit un extrait (snippet) descriptif par source : on relie les segments
+  // de texte de la reponse aux sources qui les appuient (groundingSupports).
+  const snippetByChunk = new Map<number, string>();
+  if (gm?.groundingSupports?.length) {
+    for (const sup of gm.groundingSupports) {
+      const text = sup.segment?.text?.trim();
+      if (!text) continue;
+      for (const idx of sup.groundingChunkIndices ?? []) {
+        const existing = snippetByChunk.get(idx);
+        if (!existing) {
+          snippetByChunk.set(idx, text);
+        } else if (existing.length < 240 && !existing.includes(text)) {
+          snippetByChunk.set(idx, `${existing} ${text}`.slice(0, 320));
+        }
       }
     }
   }
+
+  const rawSources: { uri: string; title: string; snippet: string }[] = [];
+  if (gm?.groundingChunks?.length) {
+    gm.groundingChunks.forEach((chunk, idx) => {
+      if (chunk.web?.uri) {
+        rawSources.push({
+          uri: chunk.web.uri,
+          title: chunk.web.title || "",
+          snippet: snippetByChunk.get(idx) ?? "",
+        });
+      }
+    });
+  }
+
+  // Recherches associees suggerees par Google (webSearchQueries).
+  const relatedSearches = Array.from(
+    new Set((gm?.webSearchQueries ?? []).map((q) => q.trim()).filter(Boolean)),
+  )
+    .filter((q) => q.toLowerCase() !== cleanQuery.toLowerCase())
+    .slice(0, 8);
 
   // Dedup par URI de redirection + plafond.
   const seenUri = new Set<string>();
@@ -226,11 +264,12 @@ export async function searchWebWithSafety(
       url: r.finalUrl,
       displayUrl: scan?.displayUrl ?? r.finalUrl,
       domain: scan?.domain ?? "",
+      snippet: r.snippet,
       risk: scan?.risk ?? "suspicious",
       reasons: scan?.reasons ?? [],
       threatTypes: scan?.threatTypes,
     };
   });
 
-  return { query: cleanQuery, answer, results };
+  return { query: cleanQuery, answer, results, relatedSearches };
 }

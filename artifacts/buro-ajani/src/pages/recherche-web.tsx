@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearch } from "wouter";
-import { Search, ShieldCheck, ShieldAlert, ShieldX, ExternalLink, Loader2, Globe, Sparkles, AlertTriangle } from "lucide-react";
+import { Search, ShieldCheck, ShieldAlert, ShieldX, ExternalLink, Loader2, Globe, Sparkles, AlertTriangle, Clock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,7 @@ interface WebSearchResultItem {
   url: string;
   displayUrl: string;
   domain: string;
+  snippet: string;
   risk: UrlRisk;
   reasons: string[];
   threatTypes?: string[];
@@ -35,6 +36,60 @@ interface WebSearchResponse {
   query: string;
   answer: string;
   results: WebSearchResultItem[];
+  relatedSearches: string[];
+}
+
+const RECENTS_KEY = "recherche-web:recents";
+
+function loadRecents(): string[] {
+  try {
+    const raw = localStorage.getItem(RECENTS_KEY);
+    const arr = raw ? (JSON.parse(raw) as unknown) : [];
+    return Array.isArray(arr) ? arr.filter((x): x is string => typeof x === "string").slice(0, 8) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecent(term: string): string[] {
+  const t = term.trim();
+  if (!t) return loadRecents();
+  const next = [t, ...loadRecents().filter((x) => x.toLowerCase() !== t.toLowerCase())].slice(0, 8);
+  try {
+    localStorage.setItem(RECENTS_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore */
+  }
+  return next;
+}
+
+const EXAMPLE_QUERIES = [
+  "Actualités économiques en France aujourd'hui",
+  "Taux de TVA pour une PME en 2026",
+  "Modèle de facture conforme",
+  "Météo Paris cette semaine",
+];
+
+function faviconUrl(domain: string): string | null {
+  if (!domain) return null;
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
+}
+
+function ResultFavicon({ domain }: { domain: string }) {
+  const [failed, setFailed] = useState(false);
+  const src = faviconUrl(domain);
+  if (!src || failed) {
+    return <Globe className="h-3 w-3 shrink-0" />;
+  }
+  return (
+    <img
+      src={src}
+      alt=""
+      className="h-3.5 w-3.5 shrink-0 rounded-sm"
+      loading="lazy"
+      onError={() => setFailed(true)}
+    />
+  );
 }
 
 const RISK_META: Record<UrlRisk, { label: string; badge: string; icon: typeof ShieldCheck; dot: string }> = {
@@ -67,13 +122,30 @@ export default function RechercheWebPage() {
   const [data, setData] = useState<WebSearchResponse | null>(null);
   const [searched, setSearched] = useState(false);
   const [pendingDanger, setPendingDanger] = useState<WebSearchResultItem | null>(null);
+  const [safeOnly, setSafeOnly] = useState(false);
+  const [recents, setRecents] = useState<string[]>(() => loadRecents());
   const autoRanRef = useRef(false);
+
+  function doSearch(term: string) {
+    setQuery(term);
+    void runSearch(undefined, term);
+  }
+
+  function clearRecents() {
+    try {
+      localStorage.removeItem(RECENTS_KEY);
+    } catch {
+      /* ignore */
+    }
+    setRecents([]);
+  }
 
   async function runSearch(e?: React.FormEvent, override?: string) {
     e?.preventDefault();
     if (loading) return;
     const q = (override ?? query).trim();
     if (q.length < 2) return;
+    setRecents(saveRecent(q));
     setLoading(true);
     setSearched(true);
     try {
@@ -130,6 +202,13 @@ export default function RechercheWebPage() {
       )
     : null;
 
+  const filteredResults = data
+    ? safeOnly
+      ? data.results.filter((r) => r.risk !== "dangerous")
+      : data.results
+    : [];
+  const hiddenCount = data ? data.results.length - filteredResults.length : 0;
+
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6">
       {/* En-tête */}
@@ -165,14 +244,64 @@ export default function RechercheWebPage() {
         </form>
       </div>
 
+      {/* État initial : exemples + recherches récentes */}
+      {!searched && !loading && (
+        <div className="mx-auto max-w-xl space-y-5">
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Exemples de recherche</p>
+            <div className="flex flex-wrap gap-2">
+              {EXAMPLE_QUERIES.map((ex) => (
+                <button
+                  key={ex}
+                  onClick={() => doSearch(ex)}
+                  className="rounded-full border bg-background px-3 py-1.5 text-sm text-foreground/80 shadow-sm transition hover:bg-muted hover:text-foreground"
+                >
+                  {ex}
+                </button>
+              ))}
+            </div>
+          </div>
+          {recents.length > 0 && (
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Recherches récentes</p>
+                <button onClick={clearRecents} className="text-xs text-muted-foreground hover:text-foreground hover:underline">Effacer</button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {recents.map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => doSearch(r)}
+                    className="flex items-center gap-1.5 rounded-full border bg-background px-3 py-1.5 text-sm text-foreground/80 shadow-sm transition hover:bg-muted hover:text-foreground"
+                  >
+                    <Clock className="h-3 w-3 text-muted-foreground" />
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Résumé sécurité */}
-      {counts && !loading && (
+      {counts && !loading && data && (
         <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
           <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-          <span className="text-muted-foreground">Liens analysés :</span>
+          <span className="text-muted-foreground">
+            {data.results.length} résultat{data.results.length > 1 ? "s" : ""} · liens analysés :
+          </span>
           {counts.safe > 0 && <Badge variant="outline" className={RISK_META.safe.badge}>{counts.safe} sûr{counts.safe > 1 ? "s" : ""}</Badge>}
           {counts.suspicious > 0 && <Badge variant="outline" className={RISK_META.suspicious.badge}>{counts.suspicious} suspect{counts.suspicious > 1 ? "s" : ""}</Badge>}
           {counts.dangerous > 0 && <Badge variant="outline" className={RISK_META.dangerous.badge}>{counts.dangerous} dangereux</Badge>}
+          {data.results.length > 0 && (
+            <button
+              onClick={() => setSafeOnly((v) => !v)}
+              className={`ml-auto rounded-full border px-2.5 py-1 transition ${safeOnly ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300" : "text-muted-foreground hover:bg-muted"}`}
+            >
+              {safeOnly ? "✓ Liens dangereux masqués" : "Masquer les liens dangereux"}
+            </button>
+          )}
         </div>
       )}
 
@@ -205,7 +334,7 @@ export default function RechercheWebPage() {
               Aucune source web n'a pu être récupérée pour cette recherche.
             </p>
           )}
-          {data.results.map((item, i) => {
+          {filteredResults.map((item, i) => {
             const meta = RISK_META[item.risk];
             const RiskIcon = meta.icon;
             return (
@@ -214,7 +343,7 @@ export default function RechercheWebPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="mb-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Globe className="h-3 w-3 shrink-0" />
+                        <ResultFavicon domain={item.domain} />
                         <span className="truncate">{item.displayUrl || item.domain || item.url}</span>
                       </div>
                       <button
@@ -230,6 +359,10 @@ export default function RechercheWebPage() {
                       {meta.label}
                     </Badge>
                   </div>
+
+                  {item.snippet && (
+                    <p className="mt-1.5 line-clamp-3 text-sm leading-relaxed text-muted-foreground">{item.snippet}</p>
+                  )}
 
                   {item.reasons.length > 0 && (
                     <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
@@ -257,6 +390,35 @@ export default function RechercheWebPage() {
               </Card>
             );
           })}
+
+          {hiddenCount > 0 && (
+            <button
+              onClick={() => setSafeOnly(false)}
+              className="w-full rounded-lg border border-dashed py-2.5 text-center text-xs text-muted-foreground transition hover:bg-muted"
+            >
+              {hiddenCount} lien{hiddenCount > 1 ? "s" : ""} dangereux masqué{hiddenCount > 1 ? "s" : ""} — tout afficher
+            </button>
+          )}
+
+          {data.relatedSearches?.length > 0 && (
+            <div className="pt-2">
+              <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Search className="h-3.5 w-3.5" />
+                Recherches associées
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {data.relatedSearches.map((rs) => (
+                  <button
+                    key={rs}
+                    onClick={() => doSearch(rs)}
+                    className="rounded-full border bg-background px-3 py-1.5 text-sm text-foreground/80 shadow-sm transition hover:bg-muted hover:text-foreground"
+                  >
+                    {rs}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
