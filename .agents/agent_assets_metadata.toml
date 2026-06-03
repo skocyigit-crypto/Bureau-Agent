@@ -113,3 +113,9 @@ id = "pQ6nnaV8vj0SCW2xFcMBm"
 uri = "file://Agent_de_Bureau_Kullanma_Kilavuzu.md"
 type = "text"
 title = "Agent de Bureau - Kullanma Kılavuzu"
+
+[[outputs]]
+id = "jODqFRUNeHvHuzGGqIxqP"
+uri = "file://guides/Connexion-Google-Workspace.pdf"
+type = "pdf"
+title = "Guide PDF — Connexion Google Workspace (Gmail, Agenda, Drive)"
