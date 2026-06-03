@@ -741,15 +741,32 @@ IMPORTANT: Genere 3-6 elements pertinents pour chaque categorie. Sois ULTRA conc
 
 type CouncilMember = { text: string; model: string };
 
+// Modele de l'ancre Gemini. Par defaut Flash (rapide ~5-10s) plutot que Pro
+// (~35-45s avec budget de reflexion): l'ancre doit produire le rapport "quasi
+// instantanement" pour que l'execution autonome reste rapide et fiable. Le
+// budget de reflexion reste configurable via env. (Pro restait trop lent meme
+// seul -> l'anti-blocage du conseil ne pouvait rien y faire.)
+// Lit un entier >= 0 depuis l'env en preservant la valeur 0 explicite
+// (contrairement a `Number(x) || def` qui ecrase 0). Sinon -> defaut.
+function envInt(name: string, def: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === "") return def;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : def;
+}
+
+const AGENT_GEMINI_MODEL = process.env.AI_AGENT_GEMINI_MODEL || GEMINI_FLASH_MODEL;
+const AGENT_THINKING_BUDGET = envInt("AI_AGENT_THINKING_BUDGET", 512);
+
 async function callGeminiAgent(agentId: string, orgId: number, prompt: string, signal: AbortSignal | undefined, t0: number): Promise<CouncilMember> {
   const { ai } = await import("@workspace/integrations-gemini-ai");
   const response = await withProviderTimeout(() => ai.models.generateContent({
-    model: GEMINI_PRO_MODEL,
+    model: AGENT_GEMINI_MODEL,
     contents: [{ role: "user", parts: [{ text: prompt }] }],
-    config: { maxOutputTokens: 8192, responseMimeType: "application/json", thinkingConfig: { thinkingBudget: 2048 }, ...(signal ? { abortSignal: signal } : {}) } as any,
+    config: { maxOutputTokens: 8192, responseMimeType: "application/json", thinkingConfig: { thinkingBudget: AGENT_THINKING_BUDGET }, ...(signal ? { abortSignal: signal } : {}) } as any,
   }), { timeoutMs: 45_000, label: `agent-${agentId}-gemini` });
   const tokens = extractGeminiTokens(response);
-  recordAiUsage({ organisationId: orgId, provider: "gemini", model: geminiActualModel(response, GEMINI_PRO_MODEL), route: `/ai/agents/${agentId}`, inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+  recordAiUsage({ organisationId: orgId, provider: "gemini", model: geminiActualModel(response, AGENT_GEMINI_MODEL), route: `/ai/agents/${agentId}`, inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
   invalidateQuotaCache(orgId);
   return { text: response.text ?? "{}", model: "Gemini" };
 }
@@ -833,31 +850,87 @@ async function runAgentReasoning(
     throw new Error(`Tous les fournisseurs IA ont echoue pour ${agentId}: ${lastErr?.message ?? "inconnu"}`);
   }
 
-  // Mode conseil: tous les modèles en parallèle.
+  // Mode conseil "ancre + enrichissement": Gemini est l'ancre rapide et fiable
+  // (seul fournisseur qui termine le rapport complet dans le budget). On lance
+  // les 3 modeles en parallele, mais on ne bloque JAMAIS sur les fournisseurs
+  // lents: des que l'ancre repond, on accorde une courte fenetre de grace aux
+  // autres pour enrichir la synthese, puis on annule les retardataires (latence
+  // bornee + economie de quota). Si l'ancre echoue, on attend les autres comme
+  // filet de securite. Resultat: rapports en ~temps Gemini (~5-10s), quasi
+  // jamais d'echec total, plus d'attente de 45s a vide.
   const providerNames = ["Gemini", "OpenAI", "Anthropic"];
-  const settled = await Promise.allSettled(providers.map((p) => p()));
-  for (let i = 0; i < settled.length; i++) {
-    const s = settled[i];
-    if (s.status === "rejected") {
-      const err = s.reason;
-      // Observabilite: tracer POURQUOI un fournisseur du conseil echoue
-      // (auparavant ces echecs etaient silencieusement avales en mode conseil).
-      logger.warn(
-        { agentId, provider: providerNames[i], errMsg: err?.message, errName: err?.name, status: err?.status },
-        "[council] fournisseur en echec",
-      );
-      if (err instanceof AiQuotaExceededError) throw err;
-      if (signal?.aborted || isAbortLike(err)) throw err;
-    }
-  }
-  const members = settled
-    .filter((s): s is PromiseFulfilledResult<CouncilMember> => s.status === "fulfilled" && !!s.value.text && s.value.text.length > 10)
-    .map((s) => s.value);
+  // Fenetre de grace courte: l'ancre (Gemini) suffit a produire le rapport;
+  // OpenAI/Anthropic n'enrichissent QUE s'ils repondent dans ce delai, sinon on
+  // n'attend pas (et on les annule). Court par defaut car les secondaires sont
+  // lents via le proxy -> sinon c'est de la latence pure. Ajustable via env.
+  const graceMs = envInt("AI_COUNCIL_GRACE_MS", 2000);
 
-  if (members.length === 0) throw new Error(`Tous les fournisseurs IA ont echoue pour ${agentId}`);
+  // Signal combine: annulation externe (abort utilisateur) OU interne (retardataires).
+  const localAbort = new AbortController();
+  const onExternalAbort = () => localAbort.abort();
+  if (signal) {
+    if (signal.aborted) localAbort.abort();
+    else signal.addEventListener("abort", onExternalAbort, { once: true });
+  }
+  const provSignal = localAbort.signal;
+
+  const councilProviders: Array<() => Promise<CouncilMember>> = [
+    () => callGeminiAgent(agentId, orgId, prompt, provSignal, t0),
+    () => callOpenAIAgent(agentId, orgId, prompt, provSignal, t0),
+    () => callAnthropicAgent(agentId, orgId, prompt, provSignal, t0),
+  ];
+
+  const results: Array<CouncilMember | null> = [null, null, null];
+  const errs: any[] = [null, null, null];
+  const tasks = councilProviders.map((fn, i) =>
+    fn().then(
+      (m) => { results[i] = m; },
+      (err) => {
+        errs[i] = err;
+        // Ne pas spammer les logs pour les annulations volontaires (retardataires).
+        if (!isAbortLike(err) && !signal?.aborted) {
+          logger.warn(
+            { agentId, provider: providerNames[i], errMsg: err?.message, errName: err?.name, status: err?.status },
+            "[council] fournisseur en echec",
+          );
+        }
+      },
+    ),
+  );
+
+  const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+  try {
+    // 1) Attendre l'ancre (Gemini) en priorite.
+    await tasks[0];
+    if (results[0]) {
+      // Ancre OK -> courte fenetre de grace pour enrichir avec OpenAI/Anthropic.
+      await Promise.race([Promise.allSettled([tasks[1], tasks[2]]), delay(graceMs)]);
+    } else {
+      // Ancre KO -> filet de securite: on attend les autres jusqu'a leur timeout.
+      await Promise.allSettled([tasks[1], tasks[2]]);
+    }
+  } finally {
+    // Annule les retardataires (cout + latence) et nettoie le listener externe.
+    localAbort.abort();
+    if (signal) signal.removeEventListener("abort", onExternalAbort);
+  }
+
+  // Propager une eventuelle erreur de quota / annulation utilisateur.
+  for (const e of errs) { if (e instanceof AiQuotaExceededError) throw e; }
+  checkAbort();
+
+  const members = results.filter(
+    (m): m is CouncilMember => !!m && !!m.text && m.text.length > 10,
+  );
+
+  if (members.length === 0) {
+    const lastErr = errs.find((e) => e);
+    throw new Error(`Tous les fournisseurs IA ont echoue pour ${agentId}: ${lastErr?.message ?? "inconnu"}`);
+  }
   if (members.length === 1) return { text: members[0].text, models: [members[0].model], synthesized: false };
 
   // Synthèse: Gemini fusionne les analyses indépendantes en un consensus.
+  // (signal externe uniquement: provSignal est deja annule a ce stade.)
   checkAbort();
   try {
     const synth = await callGeminiAgent(agentId, orgId, buildSynthesisPrompt(members), signal, t0);
