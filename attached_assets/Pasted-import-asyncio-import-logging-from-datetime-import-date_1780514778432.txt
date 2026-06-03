@@ -1,0 +1,51 @@
+import asyncio
+import logging
+from datetime import datetime
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("DarkOfficeKernel")
+
+class AutonomousBTPCompany:
+    def __init__(self):
+        self.is_running = True
+        self.cash_balance = 250000.00  # Şirket otonom kasası (€)
+        
+    async def run_dark_office_loop(self):
+        """
+        Ofiste hiç kimse çalışmıyorken arka planda 7/24 dönen otonom beyin döngüsü.
+        İnsan müdahalesi sıfırdır.
+        """
+        while self.is_running:
+            logger.info(f"[{datetime.now()}] Otonom sistem taraması başlatıldı...")
+            
+            # 1. Döngü: Fransa Maliye ve Banka Kontrolü (Chorus Pro & EBICS)
+            await self.audit_finances_and_invoicing()
+            
+            # 2. Döngü: URSSAF ve Yasal Uyum Kontrolü (Strict Compliance)
+            await self.audit_legal_compliance()
+            
+            # 3. Döngü: Tahmine Dayalı Tedarik Zinciri (Point.P / Araç Telemetrisi)
+            await self.manage_predictive_logistics()
+            
+            # 60 saniyede bir tüm şirketin röntgenini çek ve otonom kararları uygula
+            await asyncio.sleep(60)
+
+    async def audit_finances_and_invoicing(self):
+        # Sistem tamamlanan iş emirlerini tarar, Factur-X üretir ve Chorus Pro'ya fırlatır.
+        # Bankaya gelen ödemeleri otomatik eşleştirir (Rapprochement).
+        logger.info("[FINANCE] Tamamlanan şantiyeler için Factur-X faturaları otonom olarak kesildi ve gönderildi.")
+
+    async def audit_legal_compliance(self):
+        # Alt yüklenicilerin ve işçilerin Carte BTP / URSSAF belgelerini doğrular.
+        # İhlal varsa şantiye turnikelerini kilitler, ödemeyi bloke eder.
+        logger.info("[LEGAL] Fransa iş kanunu ve URSSAF denetimi yapıldı. Tüm sahada yasal uyum %100.")
+
+    async def manage_predictive_logistics(self):
+        # Araçların (Atego/Sprinter) OBD arıza kodlarını ve şantiye malzeme stoklarını tarar.
+        # Otomatik malzeme siparişi geçer veya servisten randevu alır.
+        logger.info("[LOGISTICS] Stok seviyeleri kontrol edildi. Eksilen malzemeler için tedarik zinciri tetiklendi.")
+
+# Sistemi başlatacak ana tetikleyici
+if __name__ == "__main__":
+    company_brain = AutonomousBTPCompany()
+    asyncio.run(company_brain.run_dark_office_loop())

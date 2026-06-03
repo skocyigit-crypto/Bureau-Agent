@@ -4,6 +4,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { organisationsTable } from "./organisations";
 import { usersTable } from "./users";
+import { projetsTable } from "./projets";
 
 export const tasksTable = pgTable("tasks", {
   id: serial("id").primaryKey(),
@@ -16,6 +17,10 @@ export const tasksTable = pgTable("tasks", {
   assignedTo: text("assigned_to"),
   relatedContactId: integer("related_contact_id"),
   relatedCallId: integer("related_call_id"),
+  // Lien optionnel vers un chantier (= projet). Utilise par les "ordres de
+  // travaux" issus de la saisie vocale chantier (voice-site-ops). Nullable :
+  // les taches existantes et le code actuel ne sont pas impactes.
+  projetId: integer("projet_id").references(() => projetsTable.id, { onDelete: "set null" }),
   isRecurring: boolean("is_recurring").notNull().default(false),
   recurrenceRule: text("recurrence_rule"),
   recurrenceEndDate: timestamp("recurrence_end_date", { withTimezone: true }),
@@ -29,6 +34,7 @@ export const tasksTable = pgTable("tasks", {
   index("tasks_related_call_idx").on(table.relatedCallId),
   index("tasks_due_date_idx").on(table.dueDate),
   index("tasks_org_id_idx").on(table.organisationId),
+  index("tasks_projet_id_idx").on(table.projetId),
   // Accent-insensitive trigram search index used by the Commandant chat
   // retriever and smart search. Requires `pg_trgm` + `unaccent` and the
   // IMMUTABLE `f_unaccent()` wrapper (see lib/db/scripts/ensure-search-extensions.sql).

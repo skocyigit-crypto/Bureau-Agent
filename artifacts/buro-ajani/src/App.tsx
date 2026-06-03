@@ -74,6 +74,7 @@ import EquipeLocalisationPage from "@/pages/equipe-localisation";
 import FileApprobationPage from "@/pages/file-approbation";
 import EquipeIaPage from "@/pages/equipe-ia";
 import AuditDenetimPage from "@/pages/audit-denetim";
+import VoiceSiteOpsPage from "@/pages/voice-site-ops";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -182,6 +183,7 @@ function AppRoutes() {
         <Route path="/contacts/import" component={withLicenseGate(ContactsImportPage)} />
         <Route path="/activite-recente" component={withLicenseGate(ActiviteRecentePage)} />
         <Route path="/projets" component={withLicenseGate(ProjetsPage)} />
+        <Route path="/saisie-chantier" component={withLicenseGate(VoiceSiteOpsPage)} />
         <Route path="/securite" component={withLicenseGate(SecuritePage)} />
         <Route path="/assistant-proactif" component={withLicenseGate(AssistantProactifPage)} />
         <Route path="/ia-apprentissage" component={withLicenseGate(IaApprentissagePage)} />
