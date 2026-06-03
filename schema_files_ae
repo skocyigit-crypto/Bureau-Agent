@@ -1,0 +1,3 @@
+lib/db/src/schema/automations.ts
+lib/db/src/schema/bulk-scan-jobs.ts
+lib/db/src/schema/calendar-events.ts

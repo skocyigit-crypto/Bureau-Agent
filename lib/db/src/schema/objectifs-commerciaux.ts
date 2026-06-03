@@ -3,7 +3,7 @@ import { organisationsTable } from "./organisations";
 
 export const objectifsCommerciauxTable = pgTable("objectifs_commerciaux", {
   id: serial("id").primaryKey(),
-  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
+  organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   metric: text("metric").notNull().default("revenue"),
   targetValue: numeric("target_value", { precision: 15, scale: 2 }).notNull().default("0"),

@@ -1,0 +1,3 @@
+lib/db/src/schema/documents.ts
+lib/db/src/schema/face-profiles.ts
+lib/db/src/schema/factures-client.ts

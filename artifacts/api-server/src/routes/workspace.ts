@@ -599,6 +599,7 @@ Reponds en JSON avec cette structure exacte:
     }
 
     const [savedReport] = await db.insert(dailyReportsTable).values({
+      organisationId: orgId,
       reportDate,
       summary: parsed.resume || "",
       highlights: parsed.pointsForts || [],

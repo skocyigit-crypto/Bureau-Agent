@@ -15,7 +15,7 @@ import { organisationsTable } from "./organisations";
  */
 export const agentProposalsTable = pgTable("agent_proposals", {
   id: serial("id").primaryKey(),
-  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
+  organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
   /** Identifiant du cycle de génération (auto-AAAA-MM-JJ ou manuel-<ts>). */
   runId: text("run_id").notNull(),
   /** Nom de l'outil assistant à exécuter (create_task, send_email, ...). */

@@ -300,6 +300,7 @@ Reponds UNIQUEMENT en JSON avec cette structure:
     };
 
     const [event] = await db.insert(calendarEventsTable).values({
+      organisationId: call.organisationId!,
       title: apt.title,
       description: `${apt.description}\n\n[Cree automatiquement - Appel #${callId} avec ${call.contactName || call.phoneNumber}]`,
       type: apt.type === "visite" ? "rendez_vous" : apt.type === "reunion" ? "reunion" : apt.type === "appel" ? "appel" : "rendez_vous",

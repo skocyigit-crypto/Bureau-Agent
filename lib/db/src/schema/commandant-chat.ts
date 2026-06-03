@@ -23,6 +23,7 @@ export const commandantMessagesTable = pgTable("commandant_messages", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("commandant_msg_conv_idx").on(t.conversationId, t.createdAt),
+  index("commandant_msg_org_idx").on(t.organisationId),
 ]);
 
 export type CommandantConversation = typeof commandantConversationsTable.$inferSelect;

@@ -1,5 +1,6 @@
 import { pgTable, serial, integer, text, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
+import { organisationsTable } from "./organisations";
 
 // Listes personnalisees de securite par organisation: domaines et numeros de
 // telephone explicitement bloques ("block") ou autorises ("allow"). Alimentent
@@ -7,7 +8,7 @@ import { usersTable } from "./users";
 // controle final sur ce qui est sur ou dangereux pour son activite.
 export const securityListsTable = pgTable("security_lists", {
   id: serial("id").primaryKey(),
-  organisationId: integer("organisation_id").notNull(),
+  organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
   entryType: text("entry_type").notNull(), // "domain" | "phone"
   listKind: text("list_kind").notNull(), // "block" | "allow"
   value: text("value").notNull(), // domaine normalise ou numero E.164

@@ -5,7 +5,7 @@ import { prospectsTable } from "./prospects";
 
 export const devisTable = pgTable("devis", {
   id: serial("id").primaryKey(),
-  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
+  organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
   contactId: integer("contact_id").references(() => contactsTable.id, { onDelete: "set null" }),
   prospectId: integer("prospect_id").references(() => prospectsTable.id, { onDelete: "set null" }),
   reference: text("reference").notNull(),

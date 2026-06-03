@@ -24,6 +24,7 @@ export const assistantMessagesTable = pgTable("assistant_messages", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("assistant_msg_conv_idx").on(t.conversationId, t.createdAt),
+  index("assistant_msg_org_idx").on(t.organisationId),
 ]);
 
 export type AssistantConversation = typeof assistantConversationsTable.$inferSelect;

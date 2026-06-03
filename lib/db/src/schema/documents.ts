@@ -1,8 +1,9 @@
-import { pgTable, serial, integer, varchar, text, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, varchar, text, timestamp, boolean, jsonb, index } from "drizzle-orm/pg-core";
+import { organisationsTable } from "./organisations";
 
 export const documentsTable = pgTable("documents", {
   id: serial("id").primaryKey(),
-  organisationId: integer("organisation_id").notNull(),
+  organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
   uploadedBy: integer("uploaded_by"),
   fileName: varchar("file_name", { length: 500 }).notNull(),
   originalName: varchar("original_name", { length: 500 }).notNull(),
@@ -26,4 +27,8 @@ export const documentsTable = pgTable("documents", {
   scannedAt: timestamp("scanned_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("documents_org_id_idx").on(table.organisationId),
+  index("documents_uploaded_by_idx").on(table.uploadedBy),
+  index("documents_entity_idx").on(table.entityType, table.entityId),
+]);

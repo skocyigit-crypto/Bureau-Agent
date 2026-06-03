@@ -24,6 +24,7 @@ import { UnreadBadgesProvider } from "@/contexts/UnreadBadgesContext";
 import { LocationProvider } from "@/contexts/LocationContext";
 import { PrivacyOverlay } from "@/components/PrivacyOverlay";
 import { LocationConsentGate } from "@/components/LocationConsentGate";
+import { OfflineBanner } from "@/components/OfflineBanner";
 
 if (Platform.OS !== "web") {
   SplashScreen.preventAutoHideAsync();
@@ -242,6 +243,7 @@ export default function RootLayout() {
                             <RootLayoutNav />
                           </LocationConsentGate>
                           <PrivacyOverlay />
+                          <OfflineBanner />
                         </LocationProvider>
                       </UnreadBadgesProvider>
                     </NotificationPrefsProvider>

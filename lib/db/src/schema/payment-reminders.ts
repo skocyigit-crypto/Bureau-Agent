@@ -5,7 +5,7 @@ import { facturesClientTable } from "./factures-client";
 
 export const paymentRemindersTable = pgTable("payment_reminders", {
   id: serial("id").primaryKey(),
-  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
+  organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
   invoiceId: integer("invoice_id").references(() => invoicesTable.id, { onDelete: "set null" }),
   factureClientId: integer("facture_client_id").references(() => facturesClientTable.id, { onDelete: "set null" }),
   type: varchar("type", { length: 30 }).notNull().default("payment_due"),
@@ -27,6 +27,8 @@ export const paymentRemindersTable = pgTable("payment_reminders", {
 
 export const licenseAuditLogTable = pgTable("license_audit_log", {
   id: serial("id").primaryKey(),
+  // Volontairement NULLABLE: logLicenseEvent(orgId: number | null) journalise
+  // aussi des evenements GLOBAUX (non rattaches a une organisation precise).
   organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
   action: varchar("action", { length: 100 }).notNull(),
   details: text("details"),

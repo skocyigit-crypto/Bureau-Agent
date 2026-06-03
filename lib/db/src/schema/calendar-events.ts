@@ -9,7 +9,7 @@ import { usersTable } from "./users";
 
 export const calendarEventsTable = pgTable("calendar_events", {
   id: serial("id").primaryKey(),
-  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
+  organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   description: text("description"),
   type: text("type").notNull().default("rendez_vous"),

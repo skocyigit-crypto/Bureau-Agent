@@ -6,7 +6,7 @@ import { usersTable } from "./users";
 
 export const checkinsTable = pgTable("checkins", {
   id: serial("id").primaryKey(),
-  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
+  organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
   employeeName: text("employee_name").notNull(),
   employeeRole: text("employee_role"),
   type: text("type").notNull(),

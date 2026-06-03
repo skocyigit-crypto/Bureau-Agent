@@ -3,7 +3,7 @@ import { organisationsTable } from "./organisations";
 
 export const notesInternesTable = pgTable("notes_internes", {
   id: serial("id").primaryKey(),
-  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
+  organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
   userId: integer("user_id"),
   title: text("title"),
   content: text("content").notNull(),

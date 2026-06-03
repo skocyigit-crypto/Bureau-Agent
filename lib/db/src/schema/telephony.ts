@@ -3,7 +3,7 @@ import { organisationsTable } from "./organisations";
 
 export const telephonyProvidersTable = pgTable("telephony_providers", {
   id: serial("id").primaryKey(),
-  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
+  organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
   provider: text("provider").notNull(),
   label: text("label").notNull(),
   isActive: boolean("is_active").notNull().default(true),
@@ -21,7 +21,7 @@ export const telephonyProvidersTable = pgTable("telephony_providers", {
 
 export const telephonyCallLogsTable = pgTable("telephony_call_logs", {
   id: serial("id").primaryKey(),
-  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
+  organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
   providerId: integer("provider_id").references(() => telephonyProvidersTable.id, { onDelete: "set null" }),
   providerCallSid: text("provider_call_sid"),
   direction: text("direction").notNull(),
@@ -46,7 +46,7 @@ export const telephonyCallLogsTable = pgTable("telephony_call_logs", {
 
 export const telephonySmsLogsTable = pgTable("telephony_sms_logs", {
   id: serial("id").primaryKey(),
-  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
+  organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
   providerId: integer("provider_id").references(() => telephonyProvidersTable.id, { onDelete: "set null" }),
   providerMessageSid: text("provider_message_sid"),
   direction: text("direction").notNull(),

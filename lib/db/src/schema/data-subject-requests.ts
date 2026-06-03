@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, varchar, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, varchar, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
 import { organisationsTable } from "./organisations";
 import { usersTable } from "./users";
 
@@ -17,7 +17,9 @@ export const dataSubjectRequestsTable = pgTable("data_subject_requests", {
   exportFilePath: varchar("export_file_path", { length: 500 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (table) => [
+  index("data_subject_requests_org_id_idx").on(table.organisationId),
+]);
 
 export const DATA_REQUEST_TYPES = {
   access: {

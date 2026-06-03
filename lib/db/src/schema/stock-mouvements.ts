@@ -5,7 +5,7 @@ import { usersTable } from "./users";
 
 export const stockMouvementsTable = pgTable("stock_mouvements", {
   id: serial("id").primaryKey(),
-  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
+  organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
   articleId: integer("article_id").references(() => stockArticlesTable.id, { onDelete: "cascade" }),
   articleName: text("article_name").notNull(),
   articleReference: text("article_reference"),

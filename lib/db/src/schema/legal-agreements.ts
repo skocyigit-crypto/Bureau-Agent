@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, varchar, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, varchar, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
 import { organisationsTable } from "./organisations";
 
 export const legalAgreementsTable = pgTable("legal_agreements", {
@@ -16,7 +16,9 @@ export const legalAgreementsTable = pgTable("legal_agreements", {
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
-});
+}, (table) => [
+  index("legal_agreements_org_id_idx").on(table.organisationId),
+]);
 
 export const LEGAL_DOCUMENTS = {
   cgu: {

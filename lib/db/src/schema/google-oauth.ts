@@ -5,6 +5,9 @@ import { organisationsTable } from "./organisations";
 export const googleOAuthTokensTable = pgTable("google_oauth_tokens", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  // Volontairement NULLABLE: l'isolation des tokens Google se fait par userId.
+  // Un utilisateur sans organisation en session (ex. super-admin) peut connecter
+  // Google; org = session ?? null cote route. La colonne reste indexee.
   organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
   accessToken: text("access_token").notNull(),
   refreshToken: text("refresh_token"),

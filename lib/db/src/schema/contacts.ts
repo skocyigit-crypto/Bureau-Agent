@@ -8,7 +8,7 @@ import { usersTable } from "./users";
 
 export const contactsTable = pgTable("contacts", {
   id: serial("id").primaryKey(),
-  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
+  organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   company: text("company"),

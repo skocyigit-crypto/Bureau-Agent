@@ -6,6 +6,19 @@ const quotaCache = new Map<number, { costUsd: number; calls: number; expiresAt: 
 const limitsCache = new Map<number, { limits: QuotaLimits; expiresAt: number }>();
 const warningCache = new Map<number, { warnedAt: number; warnedPercent: number }>();
 
+// Reservations IA en vol (in-process) — ferme la course TOCTOU quand plusieurs
+// agents tournent en parallele (auto-run, concurrence 3). `assertAiQuota` lit
+// l'usage enregistre (mis en cache 60s) PUIS l'appel IA enregistre son cout
+// APRES coup: sans reservation, N agents proches de la limite passent tous le
+// controle puis depassent collectivement le quota avant que le premier
+// n'enregistre sa consommation. Chaque appel reserve ici 1 appel (+ un cout
+// estime conservateur) que `assertAiQuota` additionne a l'usage lu, puis libere
+// la reservation une fois l'usage reel enregistre. Borne au process courant
+// (les agents s'executent dans un seul process), ce qui suffit pour l'auto-run.
+const reservationCache = new Map<number, { calls: number; costUsd: number }>();
+
+const DEFAULT_RESERVE_COST_USD = Number(process.env.AI_RESERVE_COST_USD ?? 0.02);
+
 const CACHE_TTL_MS = 60_000;
 const LIMITS_CACHE_TTL_MS = 300_000;
 const WARNING_COOLDOWN_MS = 6 * 60 * 60 * 1000;
@@ -136,17 +149,63 @@ export async function assertAiQuota(organisationId: number | null | undefined): 
   }
 
   const limits = await getOrgLimits(organisationId);
-  const percentCost = Math.min(100, (snapshot.costUsd / limits.maxCostUsdPerMonth) * 100);
-  const percentCalls = Math.min(100, (snapshot.calls / limits.maxCallsPerMonth) * 100);
 
-  void maybeNotifyQuotaWarning(organisationId, percentCost, percentCalls, snapshot, limits);
+  // On additionne les reservations en vol a l'usage enregistre: deux agents
+  // paralleles voient ainsi la consommation projetee l'un de l'autre et ne
+  // peuvent pas franchir la limite ensemble (anti-burst TOCTOU).
+  const reserved = reservationCache.get(organisationId) ?? { calls: 0, costUsd: 0 };
+  const effectiveCostUsd = snapshot.costUsd + reserved.costUsd;
+  const effectiveCalls = snapshot.calls + reserved.calls;
 
-  if (snapshot.costUsd >= limits.maxCostUsdPerMonth) {
-    throw new AiQuotaExceededError("cost", snapshot.costUsd, limits.maxCostUsdPerMonth);
+  const percentCost = Math.min(100, (effectiveCostUsd / limits.maxCostUsdPerMonth) * 100);
+  const percentCalls = Math.min(100, (effectiveCalls / limits.maxCallsPerMonth) * 100);
+
+  void maybeNotifyQuotaWarning(
+    organisationId,
+    percentCost,
+    percentCalls,
+    { costUsd: effectiveCostUsd, calls: effectiveCalls },
+    limits,
+  );
+
+  if (effectiveCostUsd >= limits.maxCostUsdPerMonth) {
+    throw new AiQuotaExceededError("cost", effectiveCostUsd, limits.maxCostUsdPerMonth);
   }
-  if (snapshot.calls >= limits.maxCallsPerMonth) {
-    throw new AiQuotaExceededError("calls", snapshot.calls, limits.maxCallsPerMonth);
+  if (effectiveCalls >= limits.maxCallsPerMonth) {
+    throw new AiQuotaExceededError("calls", effectiveCalls, limits.maxCallsPerMonth);
   }
+}
+
+/**
+ * Reserve un appel IA en vol pour `organisationId` et renvoie une fonction de
+ * liberation idempotente. A appeler juste APRES un `assertAiQuota` reussi et a
+ * liberer (idealement dans un `finally`) une fois l'appel IA termine / son cout
+ * enregistre. Empeche plusieurs appels concurrents proches de la limite de la
+ * franchir ensemble. `estCostUsd` est une estimation conservatrice du cout de
+ * l'appel (defaut `AI_RESERVE_COST_USD`).
+ */
+export function reserveAiCall(
+  organisationId: number | null | undefined,
+  estCostUsd: number = DEFAULT_RESERVE_COST_USD,
+): () => void {
+  if (!organisationId) return () => {};
+  const cost = Number.isFinite(estCostUsd) && estCostUsd > 0 ? estCostUsd : 0;
+  const cur = reservationCache.get(organisationId) ?? { calls: 0, costUsd: 0 };
+  cur.calls += 1;
+  cur.costUsd += cost;
+  reservationCache.set(organisationId, cur);
+
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    const entry = reservationCache.get(organisationId);
+    if (!entry) return;
+    entry.calls = Math.max(0, entry.calls - 1);
+    entry.costUsd = Math.max(0, entry.costUsd - cost);
+    if (entry.calls === 0 && entry.costUsd <= 0) reservationCache.delete(organisationId);
+    else reservationCache.set(organisationId, entry);
+  };
 }
 
 export function invalidateQuotaCache(organisationId: number): void {

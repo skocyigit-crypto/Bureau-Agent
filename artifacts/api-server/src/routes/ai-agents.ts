@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, aiAgentReportsTable, stockArticlesTable, invoicesTable, paymentsTable, subscriptionsTable, usersTable, automationRulesTable, notificationsTable, auditLogsTable, calendarEventsTable, projetsTable, organisationsTable } from "@workspace/db";
 import { sql, eq, gte, lte, and, count, desc, lt, ne, isNull, isNotNull, or, sum, avg } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
-import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "../services/ai-quota";
+import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache, reserveAiCall } from "../services/ai-quota";
 import { extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL, GEMINI_FLASH_MODEL } from "../services/ai-utils";
 import { withProviderTimeout, buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 import { openSseStream, multiAiGenerateStream, StreamAbortedError } from "../services/ai-stream";
@@ -1030,9 +1030,14 @@ async function runSingleAgent(agent: typeof AGENTS[0], orgId: number, signal?: A
   const today = new Date().toISOString().split("T")[0];
   const checkAbort = () => { if (signal?.aborted) throw new Error("aborted"); };
 
+  // Reservation IA en vol: ferme la course TOCTOU quand plusieurs agents
+  // tournent en parallele (auto-run, concurrence 3). Reserve juste apres le
+  // controle de quota, libere dans le finally une fois l'agent termine.
+  let releaseQuota: (() => void) | null = null;
   try {
     checkAbort();
     await assertAiQuota(orgId);
+    releaseQuota = reserveAiCall(orgId);
 
     const data = await gatherAgentData(agent.id, orgId);
 
@@ -1179,6 +1184,8 @@ ${trendHistory.map(h => `  ${h.reportDate}: score ${h.score}, ${h.errorsFound} e
       executionTimeMs,
     }).returning();
     return report;
+  } finally {
+    releaseQuota?.();
   }
 }
 

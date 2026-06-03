@@ -5,7 +5,7 @@ import { organisationsTable } from "./organisations";
 
 export const dailyReportsTable = pgTable("daily_reports", {
   id: serial("id").primaryKey(),
-  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
+  organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
   reportDate: text("report_date").notNull(),
   summary: text("summary").notNull(),
   highlights: jsonb("highlights").notNull().default([]),

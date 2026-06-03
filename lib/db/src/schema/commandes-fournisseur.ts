@@ -3,7 +3,7 @@ import { organisationsTable } from "./organisations";
 
 export const commandesFournisseurTable = pgTable("commandes_fournisseur", {
   id: serial("id").primaryKey(),
-  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
+  organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
   reference: text("reference").notNull(),
   fournisseurName: text("fournisseur_name").notNull(),
   fournisseurEmail: text("fournisseur_email"),

@@ -44,6 +44,10 @@ export const invoicesTable = pgTable("invoices", {
 export const paymentsTable = pgTable("payments", {
   id: serial("id").primaryKey(),
   invoiceId: integer("invoice_id").references(() => invoicesTable.id, { onDelete: "set null" }),
+  // Volontairement NULLABLE: les releves bancaires (source "bank_upload") sont
+  // importes AVANT d'etre rapproches d'une facture; tant qu'un paiement n'est pas
+  // reconcilie, il n'est rattache a aucune organisation. L'org est renseignee au
+  // moment du matching (voir /billing/upload-bank + reconciliation).
   organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "cascade" }),
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
   currency: varchar("currency", { length: 3 }).notNull().default("EUR"),
@@ -57,7 +61,10 @@ export const paymentsTable = pgTable("payments", {
   status: varchar("status", { length: 20 }).notNull().default("pending"),
   rawLine: text("raw_line"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  index("payments_org_id_idx").on(table.organisationId),
+  index("payments_invoice_idx").on(table.invoiceId),
+]);
 
 export type Invoice = typeof invoicesTable.$inferSelect;
 export type InsertInvoice = typeof invoicesTable.$inferInsert;
