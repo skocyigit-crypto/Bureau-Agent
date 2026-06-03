@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, timestamp, index, boolean } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, index, boolean, numeric } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -15,6 +15,9 @@ export const tasksTable = pgTable("tasks", {
   priority: text("priority").notNull().default("moyenne"),
   dueDate: timestamp("due_date", { withTimezone: true }),
   assignedTo: text("assigned_to"),
+  // Puantaj chantier (BTP) : heures estimees vs reelles. Additif, nullable.
+  estimatedHours: numeric("estimated_hours", { precision: 6, scale: 2 }),
+  actualHours: numeric("actual_hours", { precision: 6, scale: 2 }).default("0"),
   relatedContactId: integer("related_contact_id"),
   relatedCallId: integer("related_call_id"),
   // Lien optionnel vers un chantier (= projet). Utilise par les "ordres de
