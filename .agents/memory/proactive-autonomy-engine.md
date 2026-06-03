@@ -27,3 +27,10 @@ self-cleans without user action.
 
 **Why:** this is the foundation the learning layer (feedback up/down on suggestions)
 builds on, so suggestion identity (dedupeKey) and feedback columns must stay stable.
+
+**Two-tier "always awake" cadence (by design, cost-driven):** the deterministic
+watchman (this engine, no AI cost) ticks frequently — `PROACTIVE_TICK_MS`, default
+10 min — to catch urgent items near-real-time. The expensive AI Council salvo
+(`autonomous-secretary-cron`, ~3-4× cost since it fans out to 3 models) stays at
+**once per day per org**. When the patron asks for agents to be "always awake",
+speed up the watchman, NOT the AI salvo, unless they explicitly accept the cost.

@@ -25,7 +25,11 @@ import { broadcaster } from "./broadcaster";
 import { logger } from "../lib/logger";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const TICK_MS = 30 * 60 * 1000; // ré-évalue toutes les 30 min
+// "Toujours en éveil": le veilleur déterministe (sans coût IA) ré-évalue
+// fréquemment pour détecter les urgences quasi en temps réel. La salve IA
+// coûteuse (autonomous-secretary-cron) reste, elle, à une fois par jour.
+// Réglable via PROACTIVE_TICK_MS (défaut 10 min).
+const TICK_MS = Number(process.env.PROACTIVE_TICK_MS ?? 10 * 60 * 1000);
 const FIRST_RUN_MS = 90 * 1000; // premier passage 90 s après le démarrage
 // Borne dure du nombre de suggestions pending par org (anti-explosion).
 const MAX_PENDING_PER_ORG = 200;
