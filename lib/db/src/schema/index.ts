@@ -50,3 +50,7 @@ export * from "./proactive-suggestions";
 export * from "./ai-learning";
 export * from "./bulk-scan-jobs";
 export * from "./whatsapp";
+export * from "./webhook-endpoints";
+export * from "./webhook-deliveries";
+export * from "./api-keys";
+export * from "./integration-connections";
