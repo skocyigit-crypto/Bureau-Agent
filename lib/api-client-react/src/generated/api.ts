@@ -26,6 +26,10 @@ import type {
   AiStatus,
   AiSuggestionsResult,
   AiValidationResult,
+  ApiKeyCreated,
+  ApiKeyInput,
+  ApiKeyRevealed,
+  ApiKeySummary,
   AskAiAssistantBody,
   Call,
   CallAnalytics,
@@ -51,6 +55,7 @@ import type {
   DisconnectIntegration200,
   DisconnectWorkspaceService200,
   DraftAiEmailBody,
+  ErrorResponse,
   GetAiAgentReportsParams,
   GetAiAgentsConfig200,
   GetAiInlineSuggestMetrics200,
@@ -114,6 +119,11 @@ import type {
   UpdateStockArticleBody,
   UpdateTaskBody,
   UserPreferences,
+  WebhookCreated,
+  WebhookDelivery,
+  WebhookEndpoint,
+  WebhookInput,
+  WebhookUpdate,
   WeeklyReport,
   WhatsappConversation,
   WhatsappConversationDetail,
@@ -7762,4 +7772,837 @@ export const useGenerateWhatsappDraft = <
   TContext
 > => {
   return useMutation(getGenerateWhatsappDraftMutationOptions(options));
+};
+
+/**
+ * @summary Lister les endpoints webhook sortants de l'organisation
+ */
+export const getListWebhooksUrl = () => {
+  return `/api/webhooks`;
+};
+
+export const listWebhooks = async (
+  options?: RequestInit,
+): Promise<WebhookEndpoint[]> => {
+  return customFetch<WebhookEndpoint[]>(getListWebhooksUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListWebhooksQueryKey = () => {
+  return [`/api/webhooks`] as const;
+};
+
+export const getListWebhooksQueryOptions = <
+  TData = Awaited<ReturnType<typeof listWebhooks>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listWebhooks>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListWebhooksQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listWebhooks>>> = ({
+    signal,
+  }) => listWebhooks({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listWebhooks>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListWebhooksQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listWebhooks>>
+>;
+export type ListWebhooksQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Lister les endpoints webhook sortants de l'organisation
+ */
+
+export function useListWebhooks<
+  TData = Awaited<ReturnType<typeof listWebhooks>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listWebhooks>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListWebhooksQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Créer un endpoint webhook (le secret de signature n'est révélé qu'une fois)
+ */
+export const getCreateWebhookUrl = () => {
+  return `/api/webhooks`;
+};
+
+export const createWebhook = async (
+  webhookInput: WebhookInput,
+  options?: RequestInit,
+): Promise<WebhookCreated> => {
+  return customFetch<WebhookCreated>(getCreateWebhookUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(webhookInput),
+  });
+};
+
+export const getCreateWebhookMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createWebhook>>,
+    TError,
+    { data: BodyType<WebhookInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createWebhook>>,
+  TError,
+  { data: BodyType<WebhookInput> },
+  TContext
+> => {
+  const mutationKey = ["createWebhook"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createWebhook>>,
+    { data: BodyType<WebhookInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createWebhook(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateWebhookMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createWebhook>>
+>;
+export type CreateWebhookMutationBody = BodyType<WebhookInput>;
+export type CreateWebhookMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Créer un endpoint webhook (le secret de signature n'est révélé qu'une fois)
+ */
+export const useCreateWebhook = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createWebhook>>,
+    TError,
+    { data: BodyType<WebhookInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createWebhook>>,
+  TError,
+  { data: BodyType<WebhookInput> },
+  TContext
+> => {
+  return useMutation(getCreateWebhookMutationOptions(options));
+};
+
+/**
+ * @summary Mettre à jour un endpoint webhook
+ */
+export const getUpdateWebhookUrl = (id: number) => {
+  return `/api/webhooks/${id}`;
+};
+
+export const updateWebhook = async (
+  id: number,
+  webhookUpdate: WebhookUpdate,
+  options?: RequestInit,
+): Promise<WebhookEndpoint> => {
+  return customFetch<WebhookEndpoint>(getUpdateWebhookUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(webhookUpdate),
+  });
+};
+
+export const getUpdateWebhookMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateWebhook>>,
+    TError,
+    { id: number; data: BodyType<WebhookUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateWebhook>>,
+  TError,
+  { id: number; data: BodyType<WebhookUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateWebhook"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateWebhook>>,
+    { id: number; data: BodyType<WebhookUpdate> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateWebhook(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateWebhookMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateWebhook>>
+>;
+export type UpdateWebhookMutationBody = BodyType<WebhookUpdate>;
+export type UpdateWebhookMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Mettre à jour un endpoint webhook
+ */
+export const useUpdateWebhook = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateWebhook>>,
+    TError,
+    { id: number; data: BodyType<WebhookUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateWebhook>>,
+  TError,
+  { id: number; data: BodyType<WebhookUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateWebhookMutationOptions(options));
+};
+
+/**
+ * @summary Supprimer un endpoint webhook
+ */
+export const getDeleteWebhookUrl = (id: number) => {
+  return `/api/webhooks/${id}`;
+};
+
+export const deleteWebhook = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteWebhookUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteWebhookMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteWebhook>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteWebhook>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteWebhook"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteWebhook>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteWebhook(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteWebhookMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteWebhook>>
+>;
+
+export type DeleteWebhookMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Supprimer un endpoint webhook
+ */
+export const useDeleteWebhook = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteWebhook>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteWebhook>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteWebhookMutationOptions(options));
+};
+
+/**
+ * @summary Régénérer le secret de signature (révélé une seule fois)
+ */
+export const getRotateWebhookSecretUrl = (id: number) => {
+  return `/api/webhooks/${id}/rotate-secret`;
+};
+
+export const rotateWebhookSecret = async (
+  id: number,
+  options?: RequestInit,
+): Promise<WebhookCreated> => {
+  return customFetch<WebhookCreated>(getRotateWebhookSecretUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRotateWebhookSecretMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof rotateWebhookSecret>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof rotateWebhookSecret>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["rotateWebhookSecret"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof rotateWebhookSecret>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return rotateWebhookSecret(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RotateWebhookSecretMutationResult = NonNullable<
+  Awaited<ReturnType<typeof rotateWebhookSecret>>
+>;
+
+export type RotateWebhookSecretMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Régénérer le secret de signature (révélé une seule fois)
+ */
+export const useRotateWebhookSecret = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof rotateWebhookSecret>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof rotateWebhookSecret>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getRotateWebhookSecretMutationOptions(options));
+};
+
+/**
+ * @summary Historique des livraisons d'un endpoint webhook
+ */
+export const getListWebhookDeliveriesUrl = (id: number) => {
+  return `/api/webhooks/${id}/deliveries`;
+};
+
+export const listWebhookDeliveries = async (
+  id: number,
+  options?: RequestInit,
+): Promise<WebhookDelivery[]> => {
+  return customFetch<WebhookDelivery[]>(getListWebhookDeliveriesUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListWebhookDeliveriesQueryKey = (id: number) => {
+  return [`/api/webhooks/${id}/deliveries`] as const;
+};
+
+export const getListWebhookDeliveriesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listWebhookDeliveries>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listWebhookDeliveries>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListWebhookDeliveriesQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listWebhookDeliveries>>
+  > = ({ signal }) => listWebhookDeliveries(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listWebhookDeliveries>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListWebhookDeliveriesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listWebhookDeliveries>>
+>;
+export type ListWebhookDeliveriesQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Historique des livraisons d'un endpoint webhook
+ */
+
+export function useListWebhookDeliveries<
+  TData = Awaited<ReturnType<typeof listWebhookDeliveries>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listWebhookDeliveries>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListWebhookDeliveriesQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Lister les clés API de l'organisation (jamais la clé complète)
+ */
+export const getListApiKeysUrl = () => {
+  return `/api/api-keys`;
+};
+
+export const listApiKeys = async (
+  options?: RequestInit,
+): Promise<ApiKeySummary[]> => {
+  return customFetch<ApiKeySummary[]>(getListApiKeysUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListApiKeysQueryKey = () => {
+  return [`/api/api-keys`] as const;
+};
+
+export const getListApiKeysQueryOptions = <
+  TData = Awaited<ReturnType<typeof listApiKeys>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listApiKeys>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListApiKeysQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listApiKeys>>> = ({
+    signal,
+  }) => listApiKeys({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listApiKeys>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListApiKeysQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listApiKeys>>
+>;
+export type ListApiKeysQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Lister les clés API de l'organisation (jamais la clé complète)
+ */
+
+export function useListApiKeys<
+  TData = Awaited<ReturnType<typeof listApiKeys>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listApiKeys>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListApiKeysQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Créer une clé API (la clé complète n'est renvoyée qu'à la création)
+ */
+export const getCreateApiKeyUrl = () => {
+  return `/api/api-keys`;
+};
+
+export const createApiKey = async (
+  apiKeyInput: ApiKeyInput,
+  options?: RequestInit,
+): Promise<ApiKeyCreated> => {
+  return customFetch<ApiKeyCreated>(getCreateApiKeyUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(apiKeyInput),
+  });
+};
+
+export const getCreateApiKeyMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createApiKey>>,
+    TError,
+    { data: BodyType<ApiKeyInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createApiKey>>,
+  TError,
+  { data: BodyType<ApiKeyInput> },
+  TContext
+> => {
+  const mutationKey = ["createApiKey"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createApiKey>>,
+    { data: BodyType<ApiKeyInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createApiKey(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateApiKeyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createApiKey>>
+>;
+export type CreateApiKeyMutationBody = BodyType<ApiKeyInput>;
+export type CreateApiKeyMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Créer une clé API (la clé complète n'est renvoyée qu'à la création)
+ */
+export const useCreateApiKey = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createApiKey>>,
+    TError,
+    { data: BodyType<ApiKeyInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createApiKey>>,
+  TError,
+  { data: BodyType<ApiKeyInput> },
+  TContext
+> => {
+  return useMutation(getCreateApiKeyMutationOptions(options));
+};
+
+/**
+ * @summary Révéler la clé complète (déchiffrée au repos)
+ */
+export const getRevealApiKeyUrl = (id: number) => {
+  return `/api/api-keys/${id}/reveal`;
+};
+
+export const revealApiKey = async (
+  id: number,
+  options?: RequestInit,
+): Promise<ApiKeyRevealed> => {
+  return customFetch<ApiKeyRevealed>(getRevealApiKeyUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRevealApiKeyMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof revealApiKey>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof revealApiKey>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["revealApiKey"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof revealApiKey>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return revealApiKey(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RevealApiKeyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof revealApiKey>>
+>;
+
+export type RevealApiKeyMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Révéler la clé complète (déchiffrée au repos)
+ */
+export const useRevealApiKey = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof revealApiKey>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof revealApiKey>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getRevealApiKeyMutationOptions(options));
+};
+
+/**
+ * @summary Révoquer (désactiver) une clé API
+ */
+export const getRevokeApiKeyUrl = (id: number) => {
+  return `/api/api-keys/${id}`;
+};
+
+export const revokeApiKey = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getRevokeApiKeyUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getRevokeApiKeyMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof revokeApiKey>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof revokeApiKey>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["revokeApiKey"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof revokeApiKey>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return revokeApiKey(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RevokeApiKeyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof revokeApiKey>>
+>;
+
+export type RevokeApiKeyMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Révoquer (désactiver) une clé API
+ */
+export const useRevokeApiKey = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof revokeApiKey>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof revokeApiKey>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getRevokeApiKeyMutationOptions(options));
 };

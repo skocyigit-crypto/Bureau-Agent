@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { extractBearerToken, verifyApiToken } from "../lib/api-token";
+import { authenticateApiKey, looksLikeApiKey } from "../lib/api-key-auth";
 
 /**
  * Cache court (60s) du plancher d'invalidation par utilisateur. Sans
@@ -66,6 +67,23 @@ async function hydrateFromBearer(req: Request): Promise<void> {
   if (req.session?.userId) return;
   const token = extractBearerToken(req.get("authorization"));
   if (!token) return;
+
+  // Voie 1 : clé API entrante (programmatique). Authentifie AU NOM du
+  // créateur de la clé ; on n'essaie pas le HMAC stateless dans ce cas.
+  if (looksLikeApiKey(token)) {
+    const apiCtx = await authenticateApiKey(token);
+    if (!apiCtx) return;
+    const s = req.session as unknown as Record<string, unknown>;
+    s.userId = apiCtx.userId;
+    s.userRole = apiCtx.userRole;
+    s.organisationId = apiCtx.organisationId;
+    s.userEmail = apiCtx.userEmail;
+    s.prenom = apiCtx.prenom;
+    s.nom = apiCtx.nom;
+    return;
+  }
+
+  // Voie 2 : token HMAC stateless (mobile / web).
   const payload = verifyApiToken(token);
   if (!payload) return;
 

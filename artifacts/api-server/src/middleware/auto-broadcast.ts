@@ -38,7 +38,14 @@ export function autoBroadcast(req: Request, res: Response, next: NextFunction): 
 
   if (!orgId || !userId) { next(); return; }
 
-  const path = req.path;
+  // Le routeur principal est monte sous `/api` (app.use("/api", router)), donc
+  // `req.path` est relatif au point de montage ("/contacts") et NE contient PAS
+  // le prefixe "/api". Les regles ci-dessus matchent le chemin complet
+  // ("/api/contacts"), il faut donc recomposer `baseUrl + path`. Utiliser
+  // `req.path` seul fait silencieusement echouer tous les broadcasts (SSE temps
+  // reel + notifications mobiles + webhooks sortants) pour les ressources qui ne
+  // diffusent que via ce middleware (contacts, calls, tasks, messages, etc.).
+  const path = `${req.baseUrl}${req.path}`;
   const method = req.method.toUpperCase();
 
   const rule = BROADCAST_RULES.find(r => {

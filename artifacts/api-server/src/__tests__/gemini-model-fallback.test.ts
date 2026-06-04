@@ -24,6 +24,7 @@ import {
   isModelRetiredError,
   fallbackGeminiModel,
   geminiGenerateWithFallback,
+  geminiActualModel,
   installGeminiModelFallback,
   GEMINI_PRO_MODEL,
   GEMINI_FLASH_MODEL,
@@ -258,7 +259,13 @@ describe("installGeminiModelFallback (streaming)", () => {
     const stream = await models.generateContentStream({ model: GEMINI_PRO_MODEL });
     const chunks = await collect(stream);
 
-    expect(chunks).toEqual([{ text: "bon" }, { text: "jour" }]);
+    // Le contenu textuel est préservé...
+    expect(chunks.map((c) => ({ text: c.text }))).toEqual([{ text: "bon" }, { text: "jour" }]);
+    // ...et chaque chunk de repli est étiqueté avec le modèle RÉELLEMENT utilisé
+    // (attribution de coût) — c'est l'invariant que ce repli doit garantir.
+    for (const c of chunks) {
+      expect(geminiActualModel(c, GEMINI_PRO_MODEL)).toBe(GEMINI_PRO_FALLBACK_MODEL);
+    }
     // Appel 1 = modele primaire (echoue au 1er chunk), appel 2 = repli.
     expect(streamImpl).toHaveBeenCalledTimes(2);
     expect(streamImpl).toHaveBeenNthCalledWith(1, expect.objectContaining({ model: GEMINI_PRO_MODEL }));
@@ -282,7 +289,10 @@ describe("installGeminiModelFallback (streaming)", () => {
     const stream = await models.generateContentStream({ model: GEMINI_FLASH_MODEL });
     const chunks = await collect(stream);
 
-    expect(chunks).toEqual([{ text: "ok-fallback" }]);
+    expect(chunks.map((c) => ({ text: c.text }))).toEqual([{ text: "ok-fallback" }]);
+    for (const c of chunks) {
+      expect(geminiActualModel(c, GEMINI_FLASH_MODEL)).toBe(GEMINI_FLASH_FALLBACK_MODEL);
+    }
     expect(streamImpl).toHaveBeenCalledTimes(2);
     expect(streamImpl).toHaveBeenNthCalledWith(
       2,

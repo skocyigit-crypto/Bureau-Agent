@@ -5,6 +5,125 @@
  * Bureau Agent API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface ErrorResponse {
+  error: string;
+}
+
+export interface WebhookEndpoint {
+  id: number;
+  url: string;
+  /** @nullable */
+  description?: string | null;
+  events: string[];
+  active: boolean;
+  failureCount: number;
+  /** @nullable */
+  lastDeliveryAt?: string | null;
+  /** @nullable */
+  lastStatus?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WebhookInput {
+  /** @minLength 1 */
+  url: string;
+  description?: string;
+  events: string[];
+  active?: boolean;
+}
+
+export interface WebhookUpdate {
+  /** @minLength 1 */
+  url?: string;
+  /** @nullable */
+  description?: string | null;
+  events?: string[];
+  active?: boolean;
+}
+
+export interface WebhookCreated {
+  id: number;
+  url: string;
+  /** @nullable */
+  description?: string | null;
+  events: string[];
+  active: boolean;
+  failureCount: number;
+  /** @nullable */
+  lastDeliveryAt?: string | null;
+  /** @nullable */
+  lastStatus?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** Secret de signature HMAC en clair — affiché une seule fois. */
+  secret: string;
+}
+
+export interface WebhookDelivery {
+  id: number;
+  endpointId: number;
+  eventType: string;
+  /** @nullable */
+  eventId?: string | null;
+  status: string;
+  attempts: number;
+  maxAttempts: number;
+  /** @nullable */
+  responseStatus?: number | null;
+  /** @nullable */
+  error?: string | null;
+  /** @nullable */
+  durationMs?: number | null;
+  /** @nullable */
+  nextRetryAt?: string | null;
+  /** @nullable */
+  deliveredAt?: string | null;
+  createdAt: string;
+}
+
+export interface ApiKeySummary {
+  id: number;
+  name: string;
+  keyPrefix: string;
+  scopes: string[];
+  /** @nullable */
+  lastUsedAt?: string | null;
+  /** @nullable */
+  expiresAt?: string | null;
+  /** @nullable */
+  revokedAt?: string | null;
+  createdAt: string;
+}
+
+export interface ApiKeyInput {
+  /** @minLength 1 */
+  name: string;
+  scopes?: string[];
+  expiresAt?: string;
+}
+
+export interface ApiKeyCreated {
+  id: number;
+  name: string;
+  keyPrefix: string;
+  scopes: string[];
+  /** @nullable */
+  lastUsedAt?: string | null;
+  /** @nullable */
+  expiresAt?: string | null;
+  /** @nullable */
+  revokedAt?: string | null;
+  createdAt: string;
+  /** Clé API complète en clair — affichée une seule fois à la création. */
+  key: string;
+}
+
+export interface ApiKeyRevealed {
+  id: number;
+  key: string;
+}
+
 export interface HealthStatus {
   status: string;
 }

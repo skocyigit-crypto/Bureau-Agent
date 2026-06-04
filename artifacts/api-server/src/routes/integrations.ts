@@ -1,8 +1,9 @@
 import { Router } from "express";
-import { db, contactsTable, callsTable, tasksTable, usersTable, organisationsTable } from "@workspace/db";
+import { db, contactsTable, callsTable, tasksTable, usersTable, organisationsTable, integrationConnectionsTable } from "@workspace/db";
 import { eq, count, sql, and } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { GEMINI_PRO_MODEL } from "../services/ai-utils";
+import { encryptSensitiveData } from "../lib/crypto";
 
 const router = Router();
 
@@ -739,16 +740,21 @@ router.get("/:integrationId", (req, res) => {
   res.json(integration);
 });
 
-router.post("/:integrationId/connect", (req, res) => {
+router.post("/:integrationId/connect", async (req, res) => {
   const { integrationId } = req.params;
   const integration = SOFTWARE_CATALOG.find(s => s.id === integrationId);
   if (!integration) {
     res.status(404).json({ error: "Integration inconnue." }); return;
   }
 
-  const config = req.body || {};
+  const orgId = getOrgId(req);
+  if (!orgId) {
+    res.status(400).json({ error: "Organisation introuvable." }); return;
+  }
+
+  const input = (req.body || {}) as Record<string, unknown>;
   const missingFields = integration.configFields
-    .filter(f => f.required && !config[f.key])
+    .filter(f => f.required && !input[f.key])
     .map(f => f.label);
 
   if (missingFields.length > 0) {
@@ -758,6 +764,47 @@ router.post("/:integrationId/connect", (req, res) => {
     }); return;
   }
 
+  // Partage les valeurs entre config (non sensible, en clair) et secrets
+  // (sensible, CHIFFRÉ au repos), dérivé du type de chaque configField. Seuls
+  // les champs declares dans le catalogue sont persistes.
+  const config: Record<string, unknown> = {};
+  const secrets: Record<string, string> = {};
+  for (const field of integration.configFields) {
+    const value = input[field.key];
+    if (value === undefined || value === null || value === "") continue;
+    if (field.type === "password") {
+      secrets[field.key] = encryptSensitiveData(String(value));
+    } else {
+      config[field.key] = value;
+    }
+  }
+
+  // Une seule connexion par (organisation, intégration) : upsert.
+  await db
+    .insert(integrationConnectionsTable)
+    .values({
+      organisationId: orgId,
+      integrationId,
+      integrationName: integration.name,
+      status: "en_attente",
+      config,
+      secrets,
+      createdByUserId: req.session?.userId ?? null,
+    })
+    .onConflictDoUpdate({
+      target: [
+        integrationConnectionsTable.organisationId,
+        integrationConnectionsTable.integrationId,
+      ],
+      set: {
+        integrationName: integration.name,
+        status: "en_attente",
+        config,
+        secrets,
+        lastError: null,
+      },
+    });
+
   res.json({
     status: "en_attente",
     message: `Configuration de ${integration.name} enregistree. La connexion sera etablie sous peu.`,
@@ -766,11 +813,26 @@ router.post("/:integrationId/connect", (req, res) => {
   });
 });
 
-router.post("/:integrationId/disconnect", (req, res) => {
+router.post("/:integrationId/disconnect", async (req, res) => {
   const { integrationId } = req.params;
   const integration = SOFTWARE_CATALOG.find(s => s.id === integrationId);
   if (!integration) {
     res.status(404).json({ error: "Integration inconnue." }); return;
+  }
+
+  const orgId = getOrgId(req);
+  if (orgId) {
+    // Marque la connexion comme déconnectée (audit) sans purger les secrets
+    // chiffrés : une reconnexion repart de la config existante.
+    await db
+      .update(integrationConnectionsTable)
+      .set({ status: "deconnecte" })
+      .where(
+        and(
+          eq(integrationConnectionsTable.organisationId, orgId),
+          eq(integrationConnectionsTable.integrationId, integrationId),
+        ),
+      );
   }
 
   res.json({

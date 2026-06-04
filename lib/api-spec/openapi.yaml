@@ -2205,8 +2205,421 @@ paths:
         "404":
           description: Not found
 
+  /webhooks:
+    get:
+      operationId: listWebhooks
+      summary: Lister les endpoints webhook sortants de l'organisation
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WebhookEndpoint"
+    post:
+      operationId: createWebhook
+      summary: Créer un endpoint webhook (le secret de signature n'est révélé qu'une fois)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookInput"
+      responses:
+        "201":
+          description: Créé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookCreated"
+        "400":
+          description: Requête invalide
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /webhooks/{id}:
+    patch:
+      operationId: updateWebhook
+      summary: Mettre à jour un endpoint webhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookUpdate"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookEndpoint"
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteWebhook
+      summary: Supprimer un endpoint webhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Supprimé
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /webhooks/{id}/rotate-secret:
+    post:
+      operationId: rotateWebhookSecret
+      summary: Régénérer le secret de signature (révélé une seule fois)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookCreated"
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /webhooks/{id}/deliveries:
+    get:
+      operationId: listWebhookDeliveries
+      summary: Historique des livraisons d'un endpoint webhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WebhookDelivery"
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api-keys:
+    get:
+      operationId: listApiKeys
+      summary: Lister les clés API de l'organisation (jamais la clé complète)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ApiKeySummary"
+    post:
+      operationId: createApiKey
+      summary: Créer une clé API (la clé complète n'est renvoyée qu'à la création)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApiKeyInput"
+      responses:
+        "201":
+          description: Créé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiKeyCreated"
+        "400":
+          description: Requête invalide
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api-keys/{id}/reveal:
+    post:
+      operationId: revealApiKey
+      summary: Révéler la clé complète (déchiffrée au repos)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiKeyRevealed"
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api-keys/{id}:
+    delete:
+      operationId: revokeApiKey
+      summary: Révoquer (désactiver) une clé API
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Révoquée
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    WebhookEndpoint:
+      type: object
+      required: [id, url, events, active, failureCount, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        url:
+          type: string
+        description:
+          type: ["string", "null"]
+        events:
+          type: array
+          items:
+            type: string
+        active:
+          type: boolean
+        failureCount:
+          type: integer
+        lastDeliveryAt:
+          type: ["string", "null"]
+          format: date-time
+        lastStatus:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    WebhookInput:
+      type: object
+      required: [url, events]
+      properties:
+        url:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        events:
+          type: array
+          items:
+            type: string
+        active:
+          type: boolean
+    WebhookUpdate:
+      type: object
+      properties:
+        url:
+          type: string
+          minLength: 1
+        description:
+          type: ["string", "null"]
+        events:
+          type: array
+          items:
+            type: string
+        active:
+          type: boolean
+    WebhookCreated:
+      type: object
+      required: [id, url, events, active, failureCount, createdAt, updatedAt, secret]
+      properties:
+        id:
+          type: integer
+        url:
+          type: string
+        description:
+          type: ["string", "null"]
+        events:
+          type: array
+          items:
+            type: string
+        active:
+          type: boolean
+        failureCount:
+          type: integer
+        lastDeliveryAt:
+          type: ["string", "null"]
+          format: date-time
+        lastStatus:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        secret:
+          type: string
+          description: Secret de signature HMAC en clair — affiché une seule fois.
+    WebhookDelivery:
+      type: object
+      required: [id, endpointId, eventType, status, attempts, maxAttempts, createdAt]
+      properties:
+        id:
+          type: integer
+        endpointId:
+          type: integer
+        eventType:
+          type: string
+        eventId:
+          type: ["string", "null"]
+        status:
+          type: string
+        attempts:
+          type: integer
+        maxAttempts:
+          type: integer
+        responseStatus:
+          type: ["integer", "null"]
+        error:
+          type: ["string", "null"]
+        durationMs:
+          type: ["integer", "null"]
+        nextRetryAt:
+          type: ["string", "null"]
+          format: date-time
+        deliveredAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    ApiKeySummary:
+      type: object
+      required: [id, name, keyPrefix, scopes, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        keyPrefix:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        lastUsedAt:
+          type: ["string", "null"]
+          format: date-time
+        expiresAt:
+          type: ["string", "null"]
+          format: date-time
+        revokedAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    ApiKeyInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        scopes:
+          type: array
+          items:
+            type: string
+        expiresAt:
+          type: string
+          format: date-time
+    ApiKeyCreated:
+      type: object
+      required: [id, name, keyPrefix, scopes, createdAt, key]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        keyPrefix:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        lastUsedAt:
+          type: ["string", "null"]
+          format: date-time
+        expiresAt:
+          type: ["string", "null"]
+          format: date-time
+        revokedAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        key:
+          type: string
+          description: Clé API complète en clair — affichée une seule fois à la création.
+    ApiKeyRevealed:
+      type: object
+      required: [id, key]
+      properties:
+        id:
+          type: integer
+        key:
+          type: string
     HealthStatus:
       type: object
       properties:

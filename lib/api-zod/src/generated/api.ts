@@ -2576,3 +2576,158 @@ export const SendWhatsappMessageBody = zod.object({
 export const GenerateWhatsappDraftParams = zod.object({
   id: zod.coerce.number(),
 });
+
+/**
+ * @summary Lister les endpoints webhook sortants de l'organisation
+ */
+export const ListWebhooksResponseItem = zod.object({
+  id: zod.number(),
+  url: zod.string(),
+  description: zod.string().nullish(),
+  events: zod.array(zod.string()),
+  active: zod.boolean(),
+  failureCount: zod.number(),
+  lastDeliveryAt: zod.coerce.date().nullish(),
+  lastStatus: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListWebhooksResponse = zod.array(ListWebhooksResponseItem);
+
+/**
+ * @summary Créer un endpoint webhook (le secret de signature n'est révélé qu'une fois)
+ */
+
+export const CreateWebhookBody = zod.object({
+  url: zod.string().min(1),
+  description: zod.string().optional(),
+  events: zod.array(zod.string()),
+  active: zod.boolean().optional(),
+});
+
+/**
+ * @summary Mettre à jour un endpoint webhook
+ */
+export const UpdateWebhookParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateWebhookBody = zod.object({
+  url: zod.string().min(1).optional(),
+  description: zod.string().nullish(),
+  events: zod.array(zod.string()).optional(),
+  active: zod.boolean().optional(),
+});
+
+export const UpdateWebhookResponse = zod.object({
+  id: zod.number(),
+  url: zod.string(),
+  description: zod.string().nullish(),
+  events: zod.array(zod.string()),
+  active: zod.boolean(),
+  failureCount: zod.number(),
+  lastDeliveryAt: zod.coerce.date().nullish(),
+  lastStatus: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Supprimer un endpoint webhook
+ */
+export const DeleteWebhookParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary Régénérer le secret de signature (révélé une seule fois)
+ */
+export const RotateWebhookSecretParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const RotateWebhookSecretResponse = zod.object({
+  id: zod.number(),
+  url: zod.string(),
+  description: zod.string().nullish(),
+  events: zod.array(zod.string()),
+  active: zod.boolean(),
+  failureCount: zod.number(),
+  lastDeliveryAt: zod.coerce.date().nullish(),
+  lastStatus: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+  secret: zod
+    .string()
+    .describe("Secret de signature HMAC en clair — affiché une seule fois."),
+});
+
+/**
+ * @summary Historique des livraisons d'un endpoint webhook
+ */
+export const ListWebhookDeliveriesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ListWebhookDeliveriesResponseItem = zod.object({
+  id: zod.number(),
+  endpointId: zod.number(),
+  eventType: zod.string(),
+  eventId: zod.string().nullish(),
+  status: zod.string(),
+  attempts: zod.number(),
+  maxAttempts: zod.number(),
+  responseStatus: zod.number().nullish(),
+  error: zod.string().nullish(),
+  durationMs: zod.number().nullish(),
+  nextRetryAt: zod.coerce.date().nullish(),
+  deliveredAt: zod.coerce.date().nullish(),
+  createdAt: zod.coerce.date(),
+});
+export const ListWebhookDeliveriesResponse = zod.array(
+  ListWebhookDeliveriesResponseItem,
+);
+
+/**
+ * @summary Lister les clés API de l'organisation (jamais la clé complète)
+ */
+export const ListApiKeysResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  keyPrefix: zod.string(),
+  scopes: zod.array(zod.string()),
+  lastUsedAt: zod.coerce.date().nullish(),
+  expiresAt: zod.coerce.date().nullish(),
+  revokedAt: zod.coerce.date().nullish(),
+  createdAt: zod.coerce.date(),
+});
+export const ListApiKeysResponse = zod.array(ListApiKeysResponseItem);
+
+/**
+ * @summary Créer une clé API (la clé complète n'est renvoyée qu'à la création)
+ */
+
+export const CreateApiKeyBody = zod.object({
+  name: zod.string().min(1),
+  scopes: zod.array(zod.string()).optional(),
+  expiresAt: zod.coerce.date().optional(),
+});
+
+/**
+ * @summary Révéler la clé complète (déchiffrée au repos)
+ */
+export const RevealApiKeyParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const RevealApiKeyResponse = zod.object({
+  id: zod.number(),
+  key: zod.string(),
+});
+
+/**
+ * @summary Révoquer (désactiver) une clé API
+ */
+export const RevokeApiKeyParams = zod.object({
+  id: zod.coerce.number(),
+});
