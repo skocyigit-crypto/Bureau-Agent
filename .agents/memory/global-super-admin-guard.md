@@ -49,3 +49,16 @@ while the UI hid the buttons; broken access control until guarded with the same
 `requireRole("super_admin","administrateur")` policy the ai-agent run routes use.
 **How to apply:** when adding a mutation under a tenant-mounted router, gate it
 per-route; smoke that an unauth POST returns 401/403, never 200/500.
+
+**In-router variant of the same footgun:** a bare `router.use(requireRole(...))`
+placed at the TOP of a sub-router ALSO leaks — if that sub-router is mounted
+without a path prefix (`router.use(webhooksRouter)`), the bare guard runs for
+every request flowing through it, including sibling routers mounted *after* it
+(e.g. apiKeysRouter). Symptom: hardening webhooks to admin-only with a bare
+`router.use(requireRole("super_admin","administrateur"))` inside webhooks.ts made
+non-admin POST /api/api-keys return 403. **Fix:** path-scope it to the router's
+own prefix — `router.use("/webhooks", requireRole(...))` — which covers
+/webhooks, /webhooks/:id, /webhooks/:id/deliveries, /webhooks/:id/rotate-secret
+but not siblings. **Why webhooks must be admin-only:** a webhook streams ALL org
+events to an arbitrary external URL, so any low-priv member creating one is a
+data-exfiltration vector. Locked by `webhooks-access-control.test.ts`.

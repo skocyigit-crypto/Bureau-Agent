@@ -21,9 +21,12 @@ const BROADCAST_RULES: Array<{
   { method: "DELETE", pattern: /^\/api\/messages\/\d+$/,     type: "message",   action: "deleted" },
   { method: "POST",   pattern: /^\/api\/checkins/,           type: "checkin",   action: "created" },
   { method: ["POST","PATCH"], pattern: /^\/api\/calendar/,   type: "calendar",  action: "updated" },
-  { method: "POST",   pattern: /^\/api\/prospects$/,         type: "prospect",  action: "created" },
-  { method: "PATCH",  pattern: /^\/api\/prospects\/\d+$/,    type: "prospect",  action: "updated" },
-  { method: "DELETE", pattern: /^\/api\/prospects\/\d+$/,    type: "prospect",  action: "deleted" },
+  // NB: pas de regle "prospect" ici. Les prospects sont passes dans le backoffice
+  // SaaS super-admin (cf. decision "Two-layer product") et leur routeur est monte
+  // AVANT `requireTenant`/`autoBroadcast` dans routes/index.ts -> ce middleware ne
+  // s'execute jamais pour /api/prospects. Une regle prospect serait donc du code
+  // mort (aucun event SSE/webhook ne partirait). Si les prospects redeviennent un
+  // event client, il faudra emettre le broadcast manuellement dans leur routeur.
   { method: "POST",   pattern: /^\/api\/notes-internes$/,    type: "note",      action: "created" },
   { method: "PATCH",  pattern: /^\/api\/notes-internes\/\d+$/, type: "note",   action: "updated" },
   { method: "DELETE", pattern: /^\/api\/notes-internes\/\d+$/, type: "note",   action: "deleted" },
