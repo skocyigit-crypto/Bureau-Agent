@@ -44,6 +44,7 @@ import GmailAgentPage from "@/pages/gmail-agent";
 import DocumentAiPage from "@/pages/document-ai";
 import DocumentsPage from "@/pages/documents";
 import DocumentImportPage from "@/pages/document-import";
+import KnowledgeBasePage from "@/pages/knowledge-base";
 import { useLicenseCheck } from "@/hooks/use-license-check";
 import { CommandPalette } from "@/components/command-palette";
 import { SmartBrowserOverlays, SmartBrowserShortcuts } from "@/components/smart-browser-panel";
@@ -161,6 +162,7 @@ function AppRoutes() {
         <Route path="/gmail-agent" component={withLicenseGate(GmailAgentPage)} />
         <Route path="/document-ia" component={withLicenseGate(DocumentAiPage)} />
         <Route path="/documents" component={withLicenseGate(DocumentsPage)} />
+        <Route path="/base-connaissances" component={withLicenseGate(KnowledgeBasePage)} />
         <Route path="/import" component={withLicenseGate(DocumentImportPage)} />
         <Route path="/abonnement" component={() => { const [, nav] = useLocation(); useEffect(() => nav(`/gestion-licence${window.location.search}`), []); return null; }} />
         <Route path="/organisations" component={OrganisationsPage} />

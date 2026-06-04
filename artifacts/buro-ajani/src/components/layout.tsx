@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useRef, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Phone, Users, CheckSquare, MessageSquare, MessageCircle, BarChart, LayoutDashboard, Settings, FileText, Puzzle, UserCog, Clock, Brain, Calendar, Shield, ShieldCheck, Zap, BarChart3, KeyRound, Globe, Target, Sparkles, PhoneCall, Download, Plus, PhoneIncoming, Wifi, WifiOff, Smartphone, Monitor, Tablet, Rocket, Mail, StickyNote, Activity, ClipboardList, Plug, CreditCard, Trophy, ScanSearch, MapPin, Bell, Inbox, Search, HardHat, Wallet } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, MessageCircle, BarChart, LayoutDashboard, Settings, FileText, Puzzle, UserCog, Clock, Brain, Calendar, Shield, ShieldCheck, Zap, BarChart3, KeyRound, Globe, Target, Sparkles, PhoneCall, Download, Plus, PhoneIncoming, Wifi, WifiOff, Smartphone, Monitor, Tablet, Rocket, Mail, StickyNote, Activity, ClipboardList, Plug, CreditCard, Trophy, ScanSearch, MapPin, Bell, Inbox, Search, HardHat, Wallet, BookOpen } from "lucide-react";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { SidebarIcon3D, Icon3D } from "@/components/icon-3d";
 import { AiAssistantButton } from "@/components/ai-assistant";
@@ -301,6 +301,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         label: "Documents & Rapports",
         items: [
           { name: "Documents", href: "/documents", icon: FileText },
+          ...(canUseAi ? [{ name: "Base de connaissances", href: "/base-connaissances", icon: BookOpen }] : []),
           ...(canUseAi ? [{ name: "Document IA", href: "/document-ia", icon: ScanSearch }] : []),
           { name: "Rapports", href: "/rapports", icon: ClipboardList },
           ...(isAdmin ? [{ name: "Rapport exécutif", href: "/rapport-executif", icon: BarChart3 }] : []),

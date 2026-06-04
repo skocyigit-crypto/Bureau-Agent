@@ -52,6 +52,7 @@ function RootLayoutNav() {
       <Stack.Screen name="organisations" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="face-recognition" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="ai-chat" options={{ headerShown: false, presentation: "modal" }} />
+      <Stack.Screen name="knowledge-base" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="telephony" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="notifications" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="admin-reports" options={{ headerShown: false, presentation: "modal" }} />

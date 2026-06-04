@@ -27,8 +27,14 @@ const KB_EMBED_CONCURRENCY = Number(process.env.KB_EMBED_CONCURRENCY ?? 4);
 const KB_SEARCH_MAX_CHUNKS = Number(process.env.KB_SEARCH_MAX_CHUNKS ?? 8000);
 const KB_MAX_DOCS_PER_REINDEX = Number(process.env.KB_MAX_DOCS_PER_REINDEX ?? 200);
 const KB_DEFAULT_TOP_K = Number(process.env.KB_TOP_K ?? 6);
-// Plancher de pertinence: en-dessous, on considère qu'aucune source ne répond.
+// Plancher de pertinence (recherche SÉMANTIQUE/cosinus): en-dessous, on
+// considère qu'aucune source ne répond.
 const KB_MIN_SCORE = Number(process.env.KB_MIN_SCORE ?? 0.45);
+// Plancher de pertinence (recherche LEXICALE/BM25, score normalisé 0..1). Bas:
+// sert surtout à écarter les chunks sans aucun terme commun. Le vrai garde-fou
+// "hors périmètre" est le prompt ancré (renvoie NOT_FOUND si le contexte ne
+// répond pas).
+const KB_MIN_SCORE_LEXICAL = Number(process.env.KB_MIN_SCORE_LEXICAL ?? 0.05);
 const KB_CONTEXT_MAX_CHARS = Number(process.env.KB_CONTEXT_MAX_CHARS ?? 8000);
 
 // ---------------------------------------------------------------------------
@@ -183,7 +189,21 @@ export async function indexDocument(
   const pieces = chunkText(content);
   if (pieces.length === 0) return 0;
 
-  const vectors = await embedTexts(pieces, { orgId, userId, route: "knowledge-base/index" });
+  // Embeddings best-effort: si aucun fournisseur d'embedding n'est disponible
+  // (proxy IA sans endpoint embeddings, clé absente/invalide), on indexe quand
+  // même les chunks SANS vecteur. La recherche basculera alors sur le classement
+  // lexical (BM25). Dès qu'un embedding redevient calculable, une réindexation
+  // restaure la recherche sémantique.
+  let vectors: (number[] | null)[];
+  try {
+    vectors = await embedTexts(pieces, { orgId, userId, route: "knowledge-base/index" });
+  } catch (err) {
+    logger.warn(
+      { err, orgId, documentId },
+      "[knowledge-base] embeddings indisponibles — indexation lexicale uniquement",
+    );
+    vectors = pieces.map(() => null);
+  }
 
   await db.transaction(async (tx) => {
     await tx.delete(documentChunksTable).where(
@@ -192,15 +212,18 @@ export async function indexDocument(
         eq(documentChunksTable.documentId, documentId),
       ),
     );
-    const rows = pieces.map((content, idx) => ({
-      organisationId: orgId,
-      documentId,
-      chunkIndex: idx,
-      content,
-      tokens: approxTokens(content),
-      embedding: vectors[idx]!,
-      embedModel: KB_EMBED_MODEL,
-    }));
+    const rows = pieces.map((content, idx) => {
+      const vec = vectors[idx] ?? null;
+      return {
+        organisationId: orgId,
+        documentId,
+        chunkIndex: idx,
+        content,
+        tokens: approxTokens(content),
+        embedding: vec,
+        embedModel: vec ? KB_EMBED_MODEL : null,
+      };
+    });
     // Insert par lots pour limiter la taille des requêtes.
     for (let i = 0; i < rows.length; i += 100) {
       await tx.insert(documentChunksTable).values(rows.slice(i, i + 100));
@@ -297,6 +320,72 @@ export function cosineSim(a: number[], b: number[]): number {
   return dot / (Math.sqrt(na) * Math.sqrt(nb));
 }
 
+// ---------------------------------------------------------------------------
+// Classement lexical (BM25) — repli quand aucun embedding n'est disponible
+// ---------------------------------------------------------------------------
+
+// Mots vides FR + EN (les plus fréquents) écartés de la tokenisation pour ne pas
+// polluer le score BM25.
+const KB_STOPWORDS = new Set(
+  (
+    "au aux avec ce ces dans de des du elle en et eux il je la le les leur lui ma " +
+    "mais me meme mes moi mon ne nos notre nous on ou par pas pour qu que qui sa se " +
+    "ses son sur ta te tes toi ton tu un une vos votre vous c d j l m n s t y est " +
+    "sont etre ete a ai as avez avons ont plus moins tres cette cet aux " +
+    "the a an and or of to in on for is are was were be been by with as at this that " +
+    "these those it its from not but you your we our they their he she his her"
+  ).split(/\s+/),
+);
+
+/** Tokenise un texte: minuscule, sans accents, alphanumérique, sans mots vides. */
+function tokenize(s: string): string[] {
+  return String(s ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(/\s+/)
+    .filter((t) => t.length > 1 && !KB_STOPWORDS.has(t));
+}
+
+/** Classe `docs` par pertinence BM25 vis-à-vis de `query`. Renvoie un score par
+ *  doc, normalisé dans [0, 1] (1 = meilleur du lot). 0 partout si aucun terme. */
+function lexicalRank(query: string, docs: { content: string }[]): number[] {
+  const k1 = 1.5;
+  const b = 0.75;
+  const qTokens = Array.from(new Set(tokenize(query)));
+  if (qTokens.length === 0 || docs.length === 0) return docs.map(() => 0);
+
+  const parsed = docs.map((d) => {
+    const toks = tokenize(d.content);
+    const tf = new Map<string, number>();
+    for (const t of toks) tf.set(t, (tf.get(t) ?? 0) + 1);
+    return { tf, len: toks.length };
+  });
+  const N = parsed.length;
+  const avgdl = parsed.reduce((acc, p) => acc + p.len, 0) / Math.max(1, N);
+  const df = new Map<string, number>();
+  for (const t of qTokens) {
+    let c = 0;
+    for (const p of parsed) if (p.tf.has(t)) c += 1;
+    df.set(t, c);
+  }
+
+  const scores = parsed.map((p) => {
+    let s = 0;
+    for (const t of qTokens) {
+      const f = p.tf.get(t) ?? 0;
+      if (f === 0) continue;
+      const n = df.get(t) ?? 0;
+      const idf = Math.log(1 + (N - n + 0.5) / (n + 0.5));
+      s += (idf * (f * (k1 + 1))) / (f + k1 * (1 - b + b * (p.len / Math.max(1, avgdl))));
+    }
+    return s;
+  });
+  const max = Math.max(0, ...scores);
+  return max > 0 ? scores.map((s) => s / max) : scores;
+}
+
 export interface KbSearchHit {
   documentId: number;
   fileName: string;
@@ -315,14 +404,6 @@ export async function searchKnowledge(
   const q = String(query ?? "").trim();
   if (!q) return [];
   const topK = Math.min(Math.max(opts.topK ?? KB_DEFAULT_TOP_K, 1), 20);
-  const minScore = opts.minScore ?? KB_MIN_SCORE;
-
-  const [qVec] = await embedTexts([q], {
-    orgId,
-    userId: opts.userId,
-    route: "knowledge-base/search",
-  });
-  if (!qVec) return [];
 
   const rows = await db
     .select({
@@ -337,17 +418,58 @@ export async function searchKnowledge(
     .where(eq(documentChunksTable.organisationId, orgId))
     .limit(KB_SEARCH_MAX_CHUNKS);
 
-  const scored = rows
-    .map((r) => ({
-      documentId: r.documentId,
-      fileName: r.fileName ?? "Document",
-      chunkIndex: r.chunkIndex,
-      content: r.content,
-      score: cosineSim(qVec, r.embedding as number[]),
-    }))
-    .filter((r) => r.score >= minScore)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, topK);
+  if (rows.length === 0) return [];
+
+  // Embedding de la requête: best-effort. S'il est calculable ET qu'au moins un
+  // chunk possède un vecteur, on fait une recherche SÉMANTIQUE (cosinus). Sinon
+  // on bascule sur le classement LEXICAL (BM25). Les deux respectent le scope
+  // tenant (rows déjà filtrées par organisation).
+  let qVec: number[] | null = null;
+  try {
+    const [v] = await embedTexts([q], {
+      orgId,
+      userId: opts.userId,
+      route: "knowledge-base/search",
+    });
+    qVec = v ?? null;
+  } catch (err) {
+    logger.warn({ err, orgId }, "[knowledge-base] embedding requête indisponible — repli lexical");
+  }
+
+  const hasEmbeddings = rows.some(
+    (r) => Array.isArray(r.embedding) && (r.embedding as number[]).length > 0,
+  );
+
+  let scored: KbSearchHit[];
+  if (qVec && hasEmbeddings) {
+    const minScore = opts.minScore ?? KB_MIN_SCORE;
+    scored = rows
+      .filter((r) => Array.isArray(r.embedding) && (r.embedding as number[]).length > 0)
+      .map((r) => ({
+        documentId: r.documentId,
+        fileName: r.fileName ?? "Document",
+        chunkIndex: r.chunkIndex,
+        content: r.content,
+        score: cosineSim(qVec!, r.embedding as number[]),
+      }))
+      .filter((r) => r.score >= minScore)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, topK);
+  } else {
+    const minScore = opts.minScore ?? KB_MIN_SCORE_LEXICAL;
+    const lex = lexicalRank(q, rows);
+    scored = rows
+      .map((r, i) => ({
+        documentId: r.documentId,
+        fileName: r.fileName ?? "Document",
+        chunkIndex: r.chunkIndex,
+        content: r.content,
+        score: lex[i] ?? 0,
+      }))
+      .filter((r) => r.score >= minScore)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, topK);
+  }
 
   return scored;
 }
@@ -483,6 +605,10 @@ export interface KbStatus {
   indexedDocuments: number;
   staleDocuments: number;
   totalChunks: number;
+  embeddedChunks: number;
+  /** Mode de recherche effectif: "semantic" si des embeddings existent, sinon
+   *  "lexical" (mots-clés/BM25). */
+  searchMode: "semantic" | "lexical";
   lastIndexedAt: string | null;
 }
 
@@ -506,6 +632,7 @@ export async function getKnowledgeStatus(orgId: number): Promise<KbStatus> {
     db
       .select({
         chunks: sql<number>`count(*)::int`,
+        embedded: sql<number>`count(*) filter (where ${documentChunksTable.embedding} is not null)::int`,
         last: sql<string | null>`max(${documentChunksTable.createdAt})`,
       })
       .from(documentChunksTable)
@@ -540,12 +667,15 @@ export async function getKnowledgeStatus(orgId: number): Promise<KbStatus> {
     }
   }
 
+  const embeddedChunks = chunkAgg[0]?.embedded ?? 0;
   return {
     totalDocuments: totals?.n ?? 0,
     indexableDocuments: indexable?.n ?? 0,
     indexedDocuments,
     staleDocuments,
     totalChunks: chunkAgg[0]?.chunks ?? 0,
+    embeddedChunks,
+    searchMode: embeddedChunks > 0 ? "semantic" : "lexical",
     lastIndexedAt: chunkAgg[0]?.last ?? null,
   };
 }

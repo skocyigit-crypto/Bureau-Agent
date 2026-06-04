@@ -27,8 +27,13 @@ export const documentChunksTable = pgTable("document_chunks", {
   tokens: integer("tokens").notNull().default(0),
   // Vecteur d'embedding (dimension variable selon le modèle, ex. 768 pour
   // text-embedding-004). Stocké brut; la similarité est calculée côté Node.
-  embedding: real("embedding").array().notNull(),
-  embedModel: varchar("embed_model", { length: 100 }).notNull(),
+  // NULLABLE: si aucun fournisseur d'embedding n'est disponible (le proxy IA
+  // Replit n'expose pas l'endpoint d'embeddings), les chunks sont quand même
+  // indexés et la recherche bascule sur un classement lexical (BM25). Dès qu'un
+  // embedding valide est calculable, la recherche sémantique reprend
+  // automatiquement.
+  embedding: real("embedding").array(),
+  embedModel: varchar("embed_model", { length: 100 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index("document_chunks_org_idx").on(table.organisationId),
