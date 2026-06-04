@@ -1,5 +1,7 @@
 # Memory Index
 
+- [At-rest secret encryption](at-rest-encryption.md) — all persisted secrets go through ONE canonical lib/crypto AES-256-GCM helper; require DATA_ENCRYPTION_KEY in prod (no SESSION_SECRET fallback); google-auth weak helper is dead BYOC code.
+
 - [User terminology](user-terminology.md) — owner's word "Canvas" = the live talking AI avatar (@workspace/ai-avatar), NOT the design board or the assistant chat button.
 - [Retiring a proactive detector](detector-retirement.md) — drop the type from DETECTOR_TYPES AND add to RETIRED_DETECTOR_TYPES so old pending rows self-resolve in all envs (esp. prod, no manual SQL).
 

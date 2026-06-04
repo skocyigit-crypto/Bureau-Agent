@@ -742,55 +742,16 @@ export async function scanBase64ContentFullCached(
   return { result, reused: false };
 }
 
-const ENCRYPTION_ALGORITHM = "aes-256-gcm";
-const IV_LENGTH = 16;
-const AUTH_TAG_LENGTH = 16;
-const SALT_LENGTH = 32;
-const KEY_ITERATIONS = 100000;
-
-function deriveKey(secret: string, salt: Buffer): Buffer {
-  return crypto.pbkdf2Sync(secret, salt, KEY_ITERATIONS, 32, "sha512");
-}
-
-function getEncryptionSecret(): string {
-  const secret = process.env.DATA_ENCRYPTION_KEY || process.env.SESSION_SECRET;
-  if (!secret) {
-    throw new Error("Cle de chiffrement non configuree (DATA_ENCRYPTION_KEY)");
-  }
-  return secret;
-}
-
-export function encryptSensitiveData(plaintext: string): string {
-  const secret = getEncryptionSecret();
-  const salt = crypto.randomBytes(SALT_LENGTH);
-  const key = deriveKey(secret, salt);
-  const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, key, iv);
-  const encrypted = Buffer.concat([cipher.update(plaintext, "utf-8"), cipher.final()]);
-  const authTag = cipher.getAuthTag();
-  const combined = Buffer.concat([salt, iv, authTag, encrypted]);
-  return `enc:v1:${combined.toString("base64")}`;
-}
-
-export function decryptSensitiveData(ciphertext: string): string {
-  if (!ciphertext.startsWith("enc:v1:")) {
-    return ciphertext;
-  }
-  const secret = getEncryptionSecret();
-  const combined = Buffer.from(ciphertext.slice(7), "base64");
-  const salt = combined.subarray(0, SALT_LENGTH);
-  const iv = combined.subarray(SALT_LENGTH, SALT_LENGTH + IV_LENGTH);
-  const authTag = combined.subarray(SALT_LENGTH + IV_LENGTH, SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH);
-  const encrypted = combined.subarray(SALT_LENGTH + IV_LENGTH + AUTH_TAG_LENGTH);
-  const key = deriveKey(secret, salt);
-  const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH });
-  decipher.setAuthTag(authTag);
-  return decipher.update(encrypted) + decipher.final("utf-8");
-}
-
-export function hashSensitiveData(data: string): string {
-  return crypto.createHash("sha256").update(data).digest("hex");
-}
+// Chiffrement au repos des donnees sensibles (secrets d'integration, cles API
+// sortantes, secrets de signature des webhooks). L'implementation canonique et
+// durcie vit dans ./lib/crypto ; reexportee ici pour la compatibilite des
+// imports existants.
+export {
+  encryptSensitiveData,
+  decryptSensitiveData,
+  hashSensitiveData,
+  isEncrypted,
+} from "../lib/crypto";
 
 const securityEvents: Array<{
   timestamp: string;
