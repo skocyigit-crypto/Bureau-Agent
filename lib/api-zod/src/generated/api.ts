@@ -2450,3 +2450,129 @@ export const TestIntegrationResponse = zod.object({
   message: zod.string().optional(),
   latency: zod.number().optional(),
 });
+
+/**
+ * @summary List WhatsApp customer conversations
+ */
+export const ListWhatsappConversationsQueryParams = zod.object({
+  status: zod.enum(["open", "closed", "all"]).optional(),
+  search: zod.coerce.string().optional(),
+  limit: zod.coerce.number().optional(),
+  offset: zod.coerce.number().optional(),
+});
+
+export const ListWhatsappConversationsResponse = zod.object({
+  conversations: zod.array(
+    zod.object({
+      id: zod.number(),
+      organisationId: zod.number(),
+      providerId: zod.number().nullish(),
+      contactId: zod.number().nullish(),
+      customerPhone: zod.string(),
+      customerName: zod.string().nullish(),
+      status: zod.enum(["open", "closed"]),
+      unreadCount: zod.number(),
+      lastMessageAt: zod.coerce.date(),
+      lastMessagePreview: zod.string().nullish(),
+      lastDirection: zod.string().nullish(),
+      draftReply: zod.string().nullish(),
+      draftStatus: zod.enum(["none", "generating", "ready", "failed"]),
+      draftError: zod.string().nullish(),
+      createdAt: zod.coerce.date().optional(),
+      updatedAt: zod.coerce.date().optional(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Get one conversation with its full message thread (marks it read)
+ */
+export const GetWhatsappConversationParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetWhatsappConversationResponse = zod.object({
+  conversation: zod.object({
+    id: zod.number(),
+    organisationId: zod.number(),
+    providerId: zod.number().nullish(),
+    contactId: zod.number().nullish(),
+    customerPhone: zod.string(),
+    customerName: zod.string().nullish(),
+    status: zod.enum(["open", "closed"]),
+    unreadCount: zod.number(),
+    lastMessageAt: zod.coerce.date(),
+    lastMessagePreview: zod.string().nullish(),
+    lastDirection: zod.string().nullish(),
+    draftReply: zod.string().nullish(),
+    draftStatus: zod.enum(["none", "generating", "ready", "failed"]),
+    draftError: zod.string().nullish(),
+    createdAt: zod.coerce.date().optional(),
+    updatedAt: zod.coerce.date().optional(),
+  }),
+  messages: zod.array(
+    zod.object({
+      id: zod.number(),
+      organisationId: zod.number(),
+      conversationId: zod.number(),
+      direction: zod.enum(["inbound", "outbound"]),
+      body: zod.string().nullish(),
+      mediaUrls: zod.array(zod.string()),
+      providerMessageSid: zod.string().nullish(),
+      status: zod.string(),
+      sentBy: zod.number().nullish(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+});
+
+/**
+ * @summary Update a conversation (open/closed status)
+ */
+export const UpdateWhatsappConversationParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateWhatsappConversationBody = zod.object({
+  status: zod.enum(["open", "closed"]).optional(),
+});
+
+export const UpdateWhatsappConversationResponse = zod.object({
+  id: zod.number(),
+  organisationId: zod.number(),
+  providerId: zod.number().nullish(),
+  contactId: zod.number().nullish(),
+  customerPhone: zod.string(),
+  customerName: zod.string().nullish(),
+  status: zod.enum(["open", "closed"]),
+  unreadCount: zod.number(),
+  lastMessageAt: zod.coerce.date(),
+  lastMessagePreview: zod.string().nullish(),
+  lastDirection: zod.string().nullish(),
+  draftReply: zod.string().nullish(),
+  draftStatus: zod.enum(["none", "generating", "ready", "failed"]),
+  draftError: zod.string().nullish(),
+  createdAt: zod.coerce.date().optional(),
+  updatedAt: zod.coerce.date().optional(),
+});
+
+/**
+ * @summary Approve and send an outbound WhatsApp reply to the customer
+ */
+export const SendWhatsappMessageParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const sendWhatsappMessageBodyTextMax = 4000;
+
+export const SendWhatsappMessageBody = zod.object({
+  text: zod.string().min(1).max(sendWhatsappMessageBodyTextMax),
+});
+
+/**
+ * @summary Ask the AI to prepare a suggested reply for this conversation
+ */
+export const GenerateWhatsappDraftParams = zod.object({
+  id: zod.coerce.number(),
+});

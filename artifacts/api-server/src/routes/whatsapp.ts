@@ -29,6 +29,10 @@ import {
   isMalwareSubmissionEnabled,
   getInboundMaxSubmitBytes,
 } from "../services/file-malware";
+import {
+  recordInboundCustomerMessage,
+  generateDraftInBackground,
+} from "../services/whatsapp-inbox";
 
 export const whatsappRouter: IRouter = Router();
 
@@ -100,13 +104,14 @@ function stripWhatsAppPrefix(raw: string | null | undefined): string {
   return raw.replace(/^whatsapp:/i, "").trim();
 }
 
-/** Resout (orgId, authToken) depuis l'AccountSid Twilio. */
+/** Resout (orgId, providerId, authToken) depuis l'AccountSid Twilio. */
 async function resolveTenantFromAccountSid(accountSid: string): Promise<
-  Array<{ orgId: number; authToken: string }>
+  Array<{ orgId: number; providerId: number; authToken: string }>
 > {
   const matches = await db
     .select({
       orgId: telephonyProvidersTable.organisationId,
+      providerId: telephonyProvidersTable.id,
       config: telephonyProvidersTable.config,
     })
     .from(telephonyProvidersTable)
@@ -120,6 +125,7 @@ async function resolveTenantFromAccountSid(accountSid: string): Promise<
   return matches
     .map((m) => ({
       orgId: m.orgId as number,
+      providerId: m.providerId as number,
       authToken: ((m.config as { authToken?: string } | null)?.authToken) ?? "",
     }))
     .filter((m) => m.authToken.length > 0);
@@ -446,13 +452,36 @@ whatsappRouter.post("/whatsapp/twilio/inbound", async (req: Request, res: Respon
   const fromPhone = stripWhatsAppPrefix(fromRaw);
   const userId = await findUserByPhone(tenant.orgId, fromPhone);
   if (!userId) {
-    logger.info({ orgId: tenant.orgId, fromPhone }, "[whatsapp] expediteur non lie a un utilisateur");
-    res.status(200).send(
-      twimlMessage(
-        "Bonjour. Ce numero WhatsApp n'est pas encore lie a un compte Agent de Bureau. " +
-          "Demandez a votre administrateur de renseigner votre numero dans votre profil utilisateur.",
-      ),
-    );
+    // Expediteur NON lie a un utilisateur = un CLIENT de l'organisation.
+    // On ne repond PAS automatiquement (charte de securite: l'agent prepare,
+    // l'humain valide). On capture le message dans la boite de reception, on
+    // prepare un brouillon IA en arriere-plan, et on repond a Twilio par un
+    // TwiML vide (aucun message renvoye au client).
+    const mediaUrls: string[] = [];
+    for (let i = 0; i < Math.min(numMedia, 10); i++) {
+      const u = body[`MediaUrl${i}`];
+      if (u) mediaUrls.push(u);
+    }
+    const conversationId = await recordInboundCustomerMessage({
+      orgId: tenant.orgId,
+      providerId: tenant.providerId,
+      fromPhone,
+      customerName: (body.ProfileName ?? "").trim() || null,
+      body: messageBody || null,
+      mediaUrls,
+      providerMessageSid: messageSid || null,
+    });
+    if (conversationId === null) {
+      // La persistance a echoue: NE PAS marquer le message comme traite et
+      // renvoyer un 5xx pour que Twilio rejoue le webhook (sinon le message du
+      // client serait definitivement perdu).
+      logger.error({ orgId: tenant.orgId, fromPhone }, "[whatsapp] echec capture message client — rejeu attendu");
+      res.status(500).send(twimlEmpty());
+      return;
+    }
+    markProcessed(messageSid);
+    void generateDraftInBackground(conversationId, tenant.orgId);
+    res.status(200).send(twimlEmpty());
     return;
   }
 

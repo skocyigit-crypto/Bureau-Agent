@@ -17,6 +17,7 @@ const QUERY_MAP: Record<string, string[][]> = {
   note:      [["notes-internes"]],
   projet:    [["projets"]],
   reminder:  [["notifications"]],
+  whatsapp:  [["whatsapp-conversations"]],
   dashboard: [["dashboard"], ["stats"]],
 };
 

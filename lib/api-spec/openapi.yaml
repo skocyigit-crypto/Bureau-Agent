@@ -28,6 +28,8 @@ tags:
     description: Check-in / attendance tracking (pointage)
   - name: stock
     description: Stock and inventory management
+  - name: whatsapp
+    description: WhatsApp customer inbox (draft and approve)
 
 paths:
   /healthz:
@@ -2072,6 +2074,137 @@ paths:
                   latency:
                     type: integer
 
+  /whatsapp/conversations:
+    get:
+      operationId: listWhatsappConversations
+      tags: [whatsapp]
+      summary: List WhatsApp customer conversations
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [open, closed, all]
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappConversationList"
+
+  /whatsapp/conversations/{id}:
+    get:
+      operationId: getWhatsappConversation
+      tags: [whatsapp]
+      summary: Get one conversation with its full message thread (marks it read)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Conversation detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappConversationDetail"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateWhatsappConversation
+      tags: [whatsapp]
+      summary: Update a conversation (open/closed status)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WhatsappConversationUpdate"
+      responses:
+        "200":
+          description: Updated conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappConversation"
+        "404":
+          description: Not found
+
+  /whatsapp/conversations/{id}/send:
+    post:
+      operationId: sendWhatsappMessage
+      tags: [whatsapp]
+      summary: Approve and send an outbound WhatsApp reply to the customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WhatsappSendInput"
+      responses:
+        "201":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappMessage"
+        "400":
+          description: Bad request or provider error
+        "404":
+          description: Not found
+
+  /whatsapp/conversations/{id}/draft:
+    post:
+      operationId: generateWhatsappDraft
+      tags: [whatsapp]
+      summary: Ask the AI to prepare a suggested reply for this conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "202":
+          description: Draft generation started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappConversation"
+        "404":
+          description: Not found
+
 components:
   schemas:
     HealthStatus:
@@ -2147,6 +2280,125 @@ components:
         invoice_comment:
           type: boolean
           description: Suggestions in invoice comments (commentaires de facture).
+
+    WhatsappConversation:
+      type: object
+      required: [id, organisationId, customerPhone, status, unreadCount, lastMessageAt, draftStatus]
+      properties:
+        id:
+          type: integer
+        organisationId:
+          type: integer
+        providerId:
+          type: integer
+          nullable: true
+        contactId:
+          type: integer
+          nullable: true
+        customerPhone:
+          type: string
+        customerName:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [open, closed]
+        unreadCount:
+          type: integer
+        lastMessageAt:
+          type: string
+          format: date-time
+        lastMessagePreview:
+          type: string
+          nullable: true
+        lastDirection:
+          type: string
+          nullable: true
+        draftReply:
+          type: string
+          nullable: true
+        draftStatus:
+          type: string
+          enum: [none, generating, ready, failed]
+        draftError:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    WhatsappMessage:
+      type: object
+      required: [id, organisationId, conversationId, direction, mediaUrls, status, createdAt]
+      properties:
+        id:
+          type: integer
+        organisationId:
+          type: integer
+        conversationId:
+          type: integer
+        direction:
+          type: string
+          enum: [inbound, outbound]
+        body:
+          type: string
+          nullable: true
+        mediaUrls:
+          type: array
+          items:
+            type: string
+        providerMessageSid:
+          type: string
+          nullable: true
+        status:
+          type: string
+        sentBy:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    WhatsappConversationList:
+      type: object
+      required: [conversations, total]
+      properties:
+        conversations:
+          type: array
+          items:
+            $ref: "#/components/schemas/WhatsappConversation"
+        total:
+          type: integer
+
+    WhatsappConversationDetail:
+      type: object
+      required: [conversation, messages]
+      properties:
+        conversation:
+          $ref: "#/components/schemas/WhatsappConversation"
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/WhatsappMessage"
+
+    WhatsappSendInput:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 4000
+
+    WhatsappConversationUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [open, closed]
 
     Call:
       type: object

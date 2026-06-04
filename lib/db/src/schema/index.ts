@@ -49,3 +49,4 @@ export * from "./security-lists";
 export * from "./proactive-suggestions";
 export * from "./ai-learning";
 export * from "./bulk-scan-jobs";
+export * from "./whatsapp";

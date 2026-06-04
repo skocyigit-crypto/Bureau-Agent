@@ -58,6 +58,94 @@ export interface UserPreferences {
   whatsappNotifications?: WhatsAppNotificationFlags;
 }
 
+export type WhatsappConversationStatus =
+  (typeof WhatsappConversationStatus)[keyof typeof WhatsappConversationStatus];
+
+export const WhatsappConversationStatus = {
+  open: "open",
+  closed: "closed",
+} as const;
+
+export type WhatsappConversationDraftStatus =
+  (typeof WhatsappConversationDraftStatus)[keyof typeof WhatsappConversationDraftStatus];
+
+export const WhatsappConversationDraftStatus = {
+  none: "none",
+  generating: "generating",
+  ready: "ready",
+  failed: "failed",
+} as const;
+
+export interface WhatsappConversation {
+  id: number;
+  organisationId: number;
+  providerId?: number | null;
+  contactId?: number | null;
+  customerPhone: string;
+  customerName?: string | null;
+  status: WhatsappConversationStatus;
+  unreadCount: number;
+  lastMessageAt: string;
+  lastMessagePreview?: string | null;
+  lastDirection?: string | null;
+  draftReply?: string | null;
+  draftStatus: WhatsappConversationDraftStatus;
+  draftError?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type WhatsappMessageDirection =
+  (typeof WhatsappMessageDirection)[keyof typeof WhatsappMessageDirection];
+
+export const WhatsappMessageDirection = {
+  inbound: "inbound",
+  outbound: "outbound",
+} as const;
+
+export interface WhatsappMessage {
+  id: number;
+  organisationId: number;
+  conversationId: number;
+  direction: WhatsappMessageDirection;
+  body?: string | null;
+  mediaUrls: string[];
+  providerMessageSid?: string | null;
+  status: string;
+  sentBy?: number | null;
+  createdAt: string;
+}
+
+export interface WhatsappConversationList {
+  conversations: WhatsappConversation[];
+  total: number;
+}
+
+export interface WhatsappConversationDetail {
+  conversation: WhatsappConversation;
+  messages: WhatsappMessage[];
+}
+
+export interface WhatsappSendInput {
+  /**
+   * @minLength 1
+   * @maxLength 4000
+   */
+  text: string;
+}
+
+export type WhatsappConversationUpdateStatus =
+  (typeof WhatsappConversationUpdateStatus)[keyof typeof WhatsappConversationUpdateStatus];
+
+export const WhatsappConversationUpdateStatus = {
+  open: "open",
+  closed: "closed",
+} as const;
+
+export interface WhatsappConversationUpdate {
+  status?: WhatsappConversationUpdateStatus;
+}
+
 export type CallDirection = (typeof CallDirection)[keyof typeof CallDirection];
 
 export const CallDirection = {
@@ -1892,3 +1980,19 @@ export type TestIntegration200 = {
   message?: string;
   latency?: number;
 };
+
+export type ListWhatsappConversationsParams = {
+  status?: ListWhatsappConversationsStatus;
+  search?: string;
+  limit?: number;
+  offset?: number;
+};
+
+export type ListWhatsappConversationsStatus =
+  (typeof ListWhatsappConversationsStatus)[keyof typeof ListWhatsappConversationsStatus];
+
+export const ListWhatsappConversationsStatus = {
+  open: "open",
+  closed: "closed",
+  all: "all",
+} as const;

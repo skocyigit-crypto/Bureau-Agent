@@ -23,6 +23,7 @@ import Dashboard from "@/pages/dashboard";
 import Calls from "@/pages/calls";
 import CallDetail from "@/pages/call-detail";
 import Contacts from "@/pages/contacts";
+import WhatsappInbox from "@/pages/whatsapp";
 import ContactDetail from "@/pages/contact-detail";
 import Tasks from "@/pages/tasks";
 import Messages from "@/pages/messages";
@@ -145,6 +146,7 @@ function AppRoutes() {
         <Route path="/taches" component={withLicenseGate(Tasks)} />
         <Route path="/tresorerie" component={withLicenseGate(TresoreriePage)} />
         <Route path="/messages" component={withLicenseGate(Messages)} />
+        <Route path="/whatsapp" component={withLicenseGate(WhatsappInbox)} />
         <Route path="/rapports" component={withLicenseGate(Reports)} />
         <Route path="/logiciels" component={withLicenseGate(Software)} />
         <Route path="/analyse" component={withLicenseGate(Analytics)} />

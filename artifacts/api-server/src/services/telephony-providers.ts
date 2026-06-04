@@ -484,3 +484,64 @@ export async function sendSms(provider: string, config: TelephonyProviderConfig,
   if (!handler) return { success: false, error: `Fournisseur SMS non supporte: ${provider}` };
   return handler(config, params);
 }
+
+// --- WhatsApp -------------------------------------------------------------
+//
+// Twilio reutilise l'endpoint Messages.json pour WhatsApp; seuls les numeros
+// From/To sont prefixes par "whatsapp:". Le numero expediteur doit etre un
+// sender WhatsApp valide (numero approuve par Meta ou le Sandbox Twilio,
+// ex. "whatsapp:+14155238886"). On lit `config.whatsappNumber` en priorite,
+// sinon on retombe sur `fromNumber`.
+
+export interface SendWhatsAppParams {
+  to: string;
+  from?: string;
+  body: string;
+  statusCallback?: string;
+}
+
+function withWhatsAppPrefix(num: string): string {
+  const trimmed = (num || "").trim();
+  if (!trimmed) return "";
+  return /^whatsapp:/i.test(trimmed) ? trimmed : `whatsapp:${trimmed}`;
+}
+
+async function whatsAppTwilio(config: TelephonyProviderConfig, params: SendWhatsAppParams): Promise<SmsResult> {
+  try {
+    const accountSid = config.accountSid;
+    const authToken = config.authToken;
+    const rawFrom = params.from || config.whatsappNumber || config.fromNumber || "";
+    const from = withWhatsAppPrefix(rawFrom);
+    const to = withWhatsAppPrefix(params.to);
+    if (!from) return { success: false, error: "Numero expediteur WhatsApp non configure." };
+    const urlEncodedBody = new URLSearchParams({
+      To: to,
+      From: from,
+      Body: params.body,
+      ...(params.statusCallback ? { StatusCallback: params.statusCallback } : {}),
+    });
+    const resp = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+      method: "POST",
+      headers: {
+        "Authorization": "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64"),
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: urlEncodedBody.toString(),
+    });
+    const data = await resp.json() as any;
+    if (!resp.ok) return { success: false, error: data.message || `Twilio WhatsApp error ${resp.status}` };
+    return { success: true, messageSid: data.sid, status: data.status };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+const WHATSAPP_HANDLERS: Record<string, (config: TelephonyProviderConfig, params: SendWhatsAppParams) => Promise<SmsResult>> = {
+  twilio: whatsAppTwilio,
+};
+
+export async function sendWhatsApp(provider: string, config: TelephonyProviderConfig, params: SendWhatsAppParams): Promise<SmsResult> {
+  const handler = WHATSAPP_HANDLERS[provider];
+  if (!handler) return { success: false, error: `Fournisseur WhatsApp non supporte: ${provider}` };
+  return handler(config, params);
+}
