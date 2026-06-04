@@ -41,6 +41,10 @@ export default function SettingsPage() {
       setActiveTab("google");
       const msgs: Record<string, string> = {
         access_denied: "Vous avez refusé l'accès à Google.",
+        no_code: "Google n'a renvoyé aucun code d'autorisation. Veuillez réessayer.",
+        invalid_state: "La session de connexion a expiré. Relancez la connexion depuis cette page.",
+        not_authenticated: "Votre session a expiré. Reconnectez-vous puis réessayez.",
+        exchange_failed: "Échec de l'échange avec Google. Vérifiez que l'application est autorisée (utilisateur de test ou application publiée) côté Google Cloud.",
       };
       toast({ title: "Connexion Google", description: msgs[googleError] || "La connexion n'a pas abouti. Veuillez réessayer.", variant: "destructive" });
       window.history.replaceState({}, "", window.location.pathname);

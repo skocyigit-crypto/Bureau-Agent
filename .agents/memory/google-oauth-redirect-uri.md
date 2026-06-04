@@ -25,3 +25,16 @@ or `localhost`, and Google rejected the consent with `redirect_uri_mismatch`
   and prod `*.replit.app` callbacks should be added.
 - For deterministic prod behavior with multiple `REPLIT_DOMAINS` entries, pin
   `GOOGLE_REDIRECT_URI` explicitly (optional; single-domain resolves fine).
+
+## Consent-screen "app not verified / access blocked" is a SEPARATE blocker
+
+Symptom (owner's words): "Erişim engellendi / bu uygulama doğrulanmadı". This is the
+Google **OAuth consent screen** state, NOT `redirect_uri_mismatch` and NOT fixable in
+code. The app requests sensitive/restricted scopes (gmail.modify, calendar, drive).
+**Why:** in Testing mode only emails added under "Utilisateurs de test" can connect,
+and they must click "Paramètres avancés → Continuer" past the unverified warning;
+for production with restricted scopes Google requires full app verification (privacy
+policy, demo video, CASA). **How to apply:** never try to "fix" this from code — guide
+the owner to the console (add test users or publish + verify). The status endpoint
+surfaces `redirectUri`; the buro-ajani Plateformes tab shows a French note + a
+super-admin-only panel with the exact redirect URI (copy) so the owner can self-serve.

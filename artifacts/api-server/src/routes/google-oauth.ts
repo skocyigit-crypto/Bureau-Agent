@@ -83,6 +83,10 @@ router.get("/status", async (req, res): Promise<void> => {
       tokenValid,
       scopes: hasToken ? tokens[0].scope.split(" ") : [],
       expiresAt: hasToken ? tokens[0].expiresAt : null,
+      // URI de redirection effective (callback public, non secret) : l'admin doit
+      // l'enregistrer a l'identique dans la console Google Cloud. Surface dans l'UI
+      // pour faciliter le diagnostic des erreurs "redirect_uri_mismatch".
+      redirectUri: getGoogleRedirectUri(),
     });
   } catch (error: any) {
     logger.error({ err: error }, "Google OAuth status error:");

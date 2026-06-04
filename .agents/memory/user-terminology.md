@@ -3,7 +3,7 @@ name: User terminology quirks
 description: Non-obvious words the owner uses that map to specific app features.
 ---
 
-# User terminology (owner skocyigit-crypto)
+# User terminology (the owner)
 
 - **"Canvas"** = the live **talking AI avatar** (`@workspace/ai-avatar`: `TalkingAvatar` /
   `AvatarDock` — animated SVG face + on-device TTS). It is NOT the Replit design-canvas

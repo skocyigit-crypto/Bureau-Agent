@@ -8,7 +8,7 @@ import {
   BookOpen, Bookmark, Languages, ShieldQuestion, Radio, Store, ClipboardList,
   Building2, Headphones, Database, Layout, Kanban, Newspaper, Workflow,
   AppWindow, HardDriveDownload, Layers, Loader2, Unplug, Plug, Zap, History,
-  Link2, Bell, Smartphone
+  Link2, Bell, Smartphone, Copy, Check, ChevronDown
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { useWorkspaceUser } from "@/components/workspace-user";
 
 interface GoogleService {
   id: string;
@@ -186,6 +187,8 @@ const GOOGLE_OAUTH_BASE = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/go
 
 export function TabPlateformes() {
   const { toast } = useToast();
+  const { user } = useWorkspaceUser();
+  const isSuperAdmin = user?.role === "super_admin";
 
   const [googleFilter, setGoogleFilter] = useState<string>("tous");
   const [googleSearch, setGoogleSearch] = useState("");
@@ -207,6 +210,9 @@ export function TabPlateformes() {
   const [googleOAuthConfigured, setGoogleOAuthConfigured] = useState(false);
   const [googleOAuthAuthenticated, setGoogleOAuthAuthenticated] = useState(false);
   const [googleConnecting, setGoogleConnecting] = useState(false);
+  const [googleRedirectUri, setGoogleRedirectUri] = useState("");
+  const [copiedUri, setCopiedUri] = useState(false);
+  const [showGoogleHelp, setShowGoogleHelp] = useState(false);
 
   const [blockExternalDownloads, setBlockExternalDownloads] = useState(true);
   const [superAdminOnlyDownload, setSuperAdminOnlyDownload] = useState(true);
@@ -237,6 +243,7 @@ export function TabPlateformes() {
         const data = await res.json();
         setGoogleOAuthConfigured(data.configured);
         setGoogleOAuthAuthenticated(data.authenticated && data.tokenValid);
+        setGoogleRedirectUri(data.redirectUri || "");
       }
     } catch (err) { console.error("[Plateformes] Google OAuth status check failed:", err); }
   }, []);
@@ -272,6 +279,17 @@ export function TabPlateformes() {
     fetchPlatforms();
     fetchGoogleOAuthStatus();
   }, [fetchPlatforms, fetchGoogleOAuthStatus]);
+
+  const copyRedirectUri = async () => {
+    if (!googleRedirectUri) return;
+    try {
+      await navigator.clipboard.writeText(googleRedirectUri);
+      setCopiedUri(true);
+      setTimeout(() => setCopiedUri(false), 2000);
+    } catch {
+      toast({ title: "Copie impossible", description: googleRedirectUri });
+    }
+  };
 
   const handleGoogleOAuthConnect = async (services?: string[]) => {
     setGoogleConnecting(true);
@@ -459,9 +477,42 @@ export function TabPlateformes() {
         </CardHeader>
         <CardContent className="space-y-4">
           {activePlatform === "google" && googleOAuthConfigured && !googleOAuthAuthenticated && (
-            <div className="p-3 rounded-lg border border-blue-200 bg-blue-50/50 flex items-center justify-between">
-              <div className="flex items-center gap-2"><Globe className="w-4 h-4 text-blue-600" /><div><p className="text-xs font-medium">Connectez votre compte Google</p><p className="text-[10px] text-muted-foreground">Autorisez l'accès à vos services Google en un clic.</p></div></div>
-              <Button size="sm" className="text-xs h-7" onClick={() => handleGoogleOAuthConnect()} disabled={googleConnecting}>{googleConnecting ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Plug className="w-3 h-3 mr-1" />}Se connecter avec Google</Button>
+            <div className="rounded-lg border border-blue-200 bg-blue-50/50 dark:border-blue-900/40 dark:bg-blue-950/20">
+              <div className="p-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2"><Globe className="w-4 h-4 text-blue-600 shrink-0" /><div><p className="text-xs font-medium">Connectez votre compte Google</p><p className="text-[10px] text-muted-foreground">Autorisez l'accès à vos services Google en un clic.</p></div></div>
+                <Button size="sm" className="text-xs h-7 shrink-0" onClick={() => handleGoogleOAuthConnect()} disabled={googleConnecting}>{googleConnecting ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Plug className="w-3 h-3 mr-1" />}Se connecter avec Google</Button>
+              </div>
+              <div className="px-3 pb-3 space-y-2">
+                <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20 p-2">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-[10px] leading-relaxed text-amber-800 dark:text-amber-300">
+                    Si Google affiche « Cette application n'est pas validée » ou « Accès bloqué », c'est normal pendant la phase de test : cliquez sur <strong>Paramètres avancés</strong> puis <strong>Accéder à Agent de Bureau (non sécurisé)</strong> pour continuer. Votre adresse Google doit être ajoutée comme <strong>utilisateur de test</strong> par l'administrateur (ou l'application doit être publiée).
+                  </p>
+                </div>
+                {isSuperAdmin && (
+                  <div>
+                    <button type="button" onClick={() => setShowGoogleHelp(v => !v)} className="flex items-center gap-1 text-[10px] font-medium text-blue-700 dark:text-blue-400 hover:underline">
+                      <Settings className="w-3 h-3" />Configuration Google (administrateur)<ChevronDown className={`w-3 h-3 transition-transform ${showGoogleHelp ? "rotate-180" : ""}`} />
+                    </button>
+                    {showGoogleHelp && (
+                      <div className="mt-2 space-y-2 rounded-md border bg-background p-2.5">
+                        <p className="text-[10px] text-muted-foreground leading-relaxed">
+                          Dans <strong>Google Cloud Console → API et services → Écran de consentement OAuth</strong>, ajoutez votre adresse Google dans <strong>Utilisateurs de test</strong> (ou publiez l'application). Vérifiez aussi que cette <strong>URI de redirection</strong> est enregistrée à l'identique dans vos identifiants OAuth :
+                        </p>
+                        <div className="flex items-center gap-1.5 rounded bg-muted px-2 py-1.5">
+                          <code className="text-[10px] break-all flex-1">{googleRedirectUri || "—"}</code>
+                          <Button variant="ghost" size="sm" className="h-6 px-1.5 shrink-0" onClick={copyRedirectUri} disabled={!googleRedirectUri}>
+                            {copiedUri ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                          </Button>
+                        </div>
+                        <a href="https://console.cloud.google.com/apis/credentials/consent" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] text-blue-700 dark:text-blue-400 hover:underline">
+                          <ExternalLink className="w-3 h-3" />Ouvrir Google Cloud Console
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
