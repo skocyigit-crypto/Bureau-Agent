@@ -19,11 +19,31 @@ export interface WebSearchResultItem {
   threatTypes?: string[];
 }
 
+// Mode de recherche : web generaliste ou actualites recentes.
+export type WebSearchMode = "web" | "news";
+// Fraicheur des resultats (operateur after: + instruction au modele).
+export type WebSearchFreshness = "any" | "day" | "week" | "month" | "year";
+// Langue de redaction de la reponse IA.
+export type WebSearchLang = "fr" | "en" | "tr";
+
+export interface WebSearchOptions {
+  mode?: WebSearchMode;
+  freshness?: WebSearchFreshness;
+  /** Domaine de restriction (operateur site:). Ex. "lemonde.fr". */
+  site?: string;
+  lang?: WebSearchLang;
+}
+
 export interface WebSearchResponse {
   query: string;
   answer: string;
   results: WebSearchResultItem[];
   relatedSearches: string[];
+  // Filtres effectivement appliques (echo pour l'UI).
+  mode: WebSearchMode;
+  freshness: WebSearchFreshness;
+  lang: WebSearchLang;
+  site: string;
 }
 
 // Nombre maximum de sources web analysees par recherche (borne le cout du
@@ -31,6 +51,86 @@ export interface WebSearchResponse {
 const MAX_RESULTS = 10;
 // Budget pour resoudre une URL de redirection Gemini -> destination reelle.
 const REDIRECT_TIMEOUT_MS = 4000;
+
+const FRESHNESS_DAYS: Record<Exclude<WebSearchFreshness, "any">, number> = {
+  day: 1,
+  week: 7,
+  month: 30,
+  year: 365,
+};
+
+const LANG_NAME_FR: Record<WebSearchLang, string> = {
+  fr: "francais",
+  en: "anglais",
+  tr: "turc",
+};
+
+/**
+ * Normalise un domaine fourni par l'utilisateur pour l'operateur `site:`.
+ * Retire le schema/`www.`/chemin, valide la forme d'un domaine. Retourne ""
+ * si invalide (le filtre est alors simplement ignore).
+ */
+export function sanitizeSearchSite(raw?: string | null): string {
+  if (!raw) return "";
+  let s = raw.trim().toLowerCase();
+  s = s
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .replace(/[/?#].*$/, "")
+    .replace(/\s+/g, "");
+  if (!s.includes(".") || s.length < 3 || s.length > 253) return "";
+  if (!/^[a-z0-9.-]+$/.test(s)) return "";
+  return s;
+}
+
+/** Borne les options brutes a des valeurs sures. */
+export function normalizeWebSearchOptions(opts?: WebSearchOptions): Required<WebSearchOptions> {
+  const mode: WebSearchMode = opts?.mode === "news" ? "news" : "web";
+  const freshness: WebSearchFreshness =
+    opts?.freshness === "day" ||
+    opts?.freshness === "week" ||
+    opts?.freshness === "month" ||
+    opts?.freshness === "year"
+      ? opts.freshness
+      : "any";
+  const lang: WebSearchLang = opts?.lang === "en" || opts?.lang === "tr" ? opts.lang : "fr";
+  const site = sanitizeSearchSite(opts?.site);
+  return { mode, freshness, site, lang };
+}
+
+/**
+ * Construit l'invite de grounding en injectant les filtres (mode actualites,
+ * fraicheur via after:YYYY-MM-DD, restriction site:, langue de la reponse).
+ */
+function buildGroundedPrompt(
+  query: string,
+  opts: Required<WebSearchOptions>,
+): string {
+  const parts: string[] = [];
+  parts.push(
+    `Tu es un moteur de recherche web. En t'appuyant sur la recherche Google, fournis une reponse synthetique, factuelle et a jour (3 a 5 phrases) a la requete ci-dessous. Redige ta reponse en ${LANG_NAME_FR[opts.lang]}. Cite des sources web fiables via la recherche.`,
+  );
+  if (opts.mode === "news") {
+    parts.push(
+      "Concentre-toi sur des ARTICLES D'ACTUALITE recents provenant de medias et sources d'information reputes. Donne la priorite aux informations les plus recentes.",
+    );
+  }
+  if (opts.freshness !== "any") {
+    const days = FRESHNESS_DAYS[opts.freshness];
+    const cutoff = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+    parts.push(
+      `Ne prends en compte que des pages publiees ou mises a jour depuis le ${cutoff} (utilise l'operateur de recherche after:${cutoff}). Ignore les contenus plus anciens.`,
+    );
+  }
+  if (opts.site) {
+    parts.push(
+      `Restreins la recherche au site \u00ab ${opts.site} \u00bb uniquement (utilise l'operateur site:${opts.site}).`,
+    );
+  }
+  parts.push("Si la requete est ambigue, reponds au sens le plus courant.");
+  parts.push(`\nRequete: ${query}`);
+  return parts.join("\n");
+}
 
 // Seuls les hotes de redirection du grounding Google sont contactes cote
 // serveur. On ne fait JAMAIS de requete sortante vers une URL arbitraire issue
@@ -143,12 +243,14 @@ export async function searchWebWithSafety(
   rawQuery: string,
   orgId: number,
   userId: number | null,
+  options?: WebSearchOptions,
 ): Promise<WebSearchResponse> {
   const cleanQuery = sanitizePromptInput(rawQuery, 300);
+  const opts = normalizeWebSearchOptions(options);
   const { ai } = await import("@workspace/integrations-gemini-ai");
   const model = GEMINI_FLASH_MODEL;
 
-  const prompt = `Tu es un moteur de recherche web francophone. En t'appuyant sur la recherche Google, fournis une reponse synthetique, factuelle et a jour (3 a 5 phrases, en francais) a la requete ci-dessous. Cite des sources web fiables via la recherche. Si la requete est ambigue, reponds au sens le plus courant.\n\nRequete: ${cleanQuery}`;
+  const prompt = buildGroundedPrompt(cleanQuery, opts);
 
   const start = Date.now();
   let response: any;
@@ -271,7 +373,16 @@ export async function searchWebWithSafety(
     };
   });
 
-  return { query: cleanQuery, answer, results, relatedSearches };
+  return {
+    query: cleanQuery,
+    answer,
+    results,
+    relatedSearches,
+    mode: opts.mode,
+    freshness: opts.freshness,
+    lang: opts.lang,
+    site: opts.site,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -287,11 +398,15 @@ const SUGGEST_TTL_MS = 5 * 60_000;
 const SUGGEST_CACHE_MAX = 500;
 const suggestCache = new Map<string, { value: string[]; exp: number }>();
 
-export async function fetchSearchSuggestions(rawQuery: string): Promise<string[]> {
+export async function fetchSearchSuggestions(
+  rawQuery: string,
+  lang?: WebSearchLang,
+): Promise<string[]> {
   const q = rawQuery.trim();
   if (q.length < 2 || q.length > 200) return [];
 
-  const key = q.toLowerCase();
+  const hl: WebSearchLang = lang === "en" || lang === "tr" ? lang : "fr";
+  const key = `${hl}:${q.toLowerCase()}`;
   const now = Date.now();
   const hit = suggestCache.get(key);
   if (hit && hit.exp > now) return hit.value;
@@ -300,7 +415,7 @@ export async function fetchSearchSuggestions(rawQuery: string): Promise<string[]
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), SUGGEST_TIMEOUT_MS);
-    const url = `https://suggestqueries.google.com/complete/search?client=firefox&hl=fr&q=${encodeURIComponent(q)}`;
+    const url = `https://suggestqueries.google.com/complete/search?client=firefox&hl=${hl}&q=${encodeURIComponent(q)}`;
     const resp = await fetch(url, {
       method: "GET",
       signal: ctrl.signal,

@@ -2,7 +2,13 @@ import { Router, type IRouter } from "express";
 import { getOrgId } from "../middleware/tenant";
 import { assertAiQuota, AiQuotaExceededError } from "../services/ai-quota";
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
-import { searchWebWithSafety, fetchSearchSuggestions, type WebSearchResponse } from "../services/web-search";
+import {
+  searchWebWithSafety,
+  fetchSearchSuggestions,
+  normalizeWebSearchOptions,
+  type WebSearchResponse,
+  type WebSearchLang,
+} from "../services/web-search";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -26,11 +32,26 @@ router.post("/web-search", async (req, res) => {
     return;
   }
 
+  // Normalise les filtres (mode/fraicheur/langue/site) a des valeurs sures.
+  const opts = normalizeWebSearchOptions({
+    mode: req.body?.mode,
+    freshness: req.body?.freshness,
+    lang: req.body?.lang,
+    site: typeof req.body?.site === "string" ? req.body.site : undefined,
+  });
+
   // Cache court par organisation (memes recherches frequentes -> 0 cout IA).
+  // La cle inclut les filtres : changer un filtre = nouvelle recherche.
   const cacheKey = buildAiCacheKey({
     route: "/web-search",
     organisationId: orgId,
-    input: { q: rawQuery.toLowerCase() },
+    input: {
+      q: rawQuery.toLowerCase(),
+      mode: opts.mode,
+      freshness: opts.freshness,
+      lang: opts.lang,
+      site: opts.site,
+    },
   });
   const cached = getCached<WebSearchResponse>(cacheKey);
   if (cached) {
@@ -51,7 +72,7 @@ router.post("/web-search", async (req, res) => {
   }
 
   try {
-    const result = await searchWebWithSafety(rawQuery, orgId, userId);
+    const result = await searchWebWithSafety(rawQuery, orgId, userId, opts);
     setCached(cacheKey, result, AI_CACHE_TTL.MEDIUM);
     res.json(result);
   } catch (err) {
@@ -72,8 +93,10 @@ router.get("/web-search/suggest", async (req, res) => {
     return;
   }
   const q = typeof req.query.q === "string" ? req.query.q : "";
+  const rawLang = typeof req.query.lang === "string" ? req.query.lang : "";
+  const lang: WebSearchLang = rawLang === "en" || rawLang === "tr" ? rawLang : "fr";
   try {
-    const suggestions = await fetchSearchSuggestions(q);
+    const suggestions = await fetchSearchSuggestions(q, lang);
     res.json({ suggestions });
   } catch (err) {
     logger.warn({ err }, "[web-search] suggest failed");

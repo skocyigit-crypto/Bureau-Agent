@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearch } from "wouter";
-import { Search, ShieldCheck, ShieldAlert, ShieldX, ExternalLink, Loader2, Globe, Sparkles, AlertTriangle, Clock } from "lucide-react";
+import { Search, ShieldCheck, ShieldAlert, ShieldX, ExternalLink, Loader2, Globe, Sparkles, AlertTriangle, Clock, Newspaper, Languages, CalendarClock, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,12 +32,43 @@ interface WebSearchResultItem {
   threatTypes?: string[];
 }
 
+type SearchMode = "web" | "news";
+type Freshness = "any" | "day" | "week" | "month" | "year";
+type SearchLang = "fr" | "en" | "tr";
+
 interface WebSearchResponse {
   query: string;
   answer: string;
   results: WebSearchResultItem[];
   relatedSearches: string[];
+  mode?: SearchMode;
+  freshness?: Freshness;
+  lang?: SearchLang;
+  site?: string;
 }
+
+interface SearchFilters {
+  mode: SearchMode;
+  freshness: Freshness;
+  lang: SearchLang;
+  site: string;
+}
+
+const DEFAULT_FILTERS: SearchFilters = { mode: "web", freshness: "any", lang: "fr", site: "" };
+
+const FRESHNESS_OPTIONS: { value: Freshness; label: string }[] = [
+  { value: "any", label: "Toutes dates" },
+  { value: "day", label: "24 heures" },
+  { value: "week", label: "Cette semaine" },
+  { value: "month", label: "Ce mois-ci" },
+  { value: "year", label: "Cette année" },
+];
+
+const LANG_OPTIONS: { value: SearchLang; label: string }[] = [
+  { value: "fr", label: "Français" },
+  { value: "en", label: "English" },
+  { value: "tr", label: "Türkçe" },
+];
 
 const RECENTS_KEY = "recherche-web:recents";
 
@@ -123,6 +154,8 @@ export default function RechercheWebPage() {
   const [searched, setSearched] = useState(false);
   const [pendingDanger, setPendingDanger] = useState<WebSearchResultItem | null>(null);
   const [safeOnly, setSafeOnly] = useState(false);
+  const [filters, setFilters] = useState<SearchFilters>(DEFAULT_FILTERS);
+  const [siteInput, setSiteInput] = useState("");
   const [recents, setRecents] = useState<string[]>(() => loadRecents());
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggest, setShowSuggest] = useState(false);
@@ -133,7 +166,17 @@ export default function RechercheWebPage() {
 
   function doSearch(term: string) {
     setQuery(term);
-    void runSearch(undefined, term);
+    void runSearch(undefined, { term });
+  }
+
+  // Change un filtre. Si une recherche est déjà affichée, relance aussitôt
+  // avec le nouveau filtre (sinon il s'appliquera à la prochaine recherche).
+  function applyFilter(patch: Partial<SearchFilters>) {
+    const next = { ...filters, ...patch };
+    setFilters(next);
+    if (searched && query.trim().length >= 2 && !loading) {
+      void runSearch(undefined, { filters: next });
+    }
   }
 
   function clearRecents() {
@@ -145,13 +188,17 @@ export default function RechercheWebPage() {
     setRecents([]);
   }
 
-  async function runSearch(e?: React.FormEvent, override?: string) {
+  async function runSearch(
+    e?: React.FormEvent,
+    override?: { term?: string; filters?: SearchFilters },
+  ) {
     e?.preventDefault();
     setShowSuggest(false);
     setActiveIndex(-1);
     if (loading) return;
-    const q = (override ?? query).trim();
+    const q = (override?.term ?? query).trim();
     if (q.length < 2) return;
+    const f = override?.filters ?? filters;
     setRecents(saveRecent(q));
     setLoading(true);
     setSearched(true);
@@ -160,7 +207,13 @@ export default function RechercheWebPage() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: q }),
+        body: JSON.stringify({
+          query: q,
+          mode: f.mode,
+          freshness: f.freshness,
+          lang: f.lang,
+          site: f.site || undefined,
+        }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -186,7 +239,7 @@ export default function RechercheWebPage() {
     if (autoRanRef.current) return;
     if (initialQuery.trim().length >= 2) {
       autoRanRef.current = true;
-      void runSearch(undefined, initialQuery);
+      void runSearch(undefined, { term: initialQuery });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuery]);
@@ -207,7 +260,7 @@ export default function RechercheWebPage() {
       suggestAbortRef.current?.abort();
       const ctrl = new AbortController();
       suggestAbortRef.current = ctrl;
-      fetch(`${baseUrl}/api/web-search/suggest?q=${encodeURIComponent(q)}`, {
+      fetch(`${baseUrl}/api/web-search/suggest?q=${encodeURIComponent(q)}&lang=${filters.lang}`, {
         credentials: "include",
         signal: ctrl.signal,
       })
@@ -365,6 +418,89 @@ export default function RechercheWebPage() {
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Rechercher"}
           </Button>
         </form>
+
+        {/* Barre de filtres (visible une fois la recherche lancée) */}
+        {searched && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+            {/* Mode : Web / Actualités */}
+            <div className="inline-flex overflow-hidden rounded-full border bg-background p-0.5 shadow-sm">
+              <button
+                type="button"
+                onClick={() => applyFilter({ mode: "web" })}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 transition ${filters.mode === "web" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+              >
+                <Globe className="h-3.5 w-3.5" /> Web
+              </button>
+              <button
+                type="button"
+                onClick={() => applyFilter({ mode: "news" })}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 transition ${filters.mode === "news" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+              >
+                <Newspaper className="h-3.5 w-3.5" /> Actualités
+              </button>
+            </div>
+
+            {/* Période */}
+            <div className="relative inline-flex items-center">
+              <CalendarClock className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-muted-foreground" />
+              <select
+                value={filters.freshness}
+                onChange={(e) => applyFilter({ freshness: e.target.value as Freshness })}
+                className="h-8 appearance-none rounded-full border bg-background pl-7 pr-7 text-xs text-foreground shadow-sm transition hover:bg-muted focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                {FRESHNESS_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Langue de la réponse */}
+            <div className="relative inline-flex items-center">
+              <Languages className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-muted-foreground" />
+              <select
+                value={filters.lang}
+                onChange={(e) => applyFilter({ lang: e.target.value as SearchLang })}
+                className="h-8 appearance-none rounded-full border bg-background pl-7 pr-7 text-xs text-foreground shadow-sm transition hover:bg-muted focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                {LANG_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Filtre site: */}
+            <div className="relative inline-flex items-center">
+              <Input
+                value={siteInput}
+                onChange={(e) => setSiteInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    applyFilter({ site: siteInput.trim() });
+                  }
+                }}
+                onBlur={() => {
+                  if (siteInput.trim() !== filters.site) applyFilter({ site: siteInput.trim() });
+                }}
+                placeholder="site : ex. lemonde.fr"
+                className="h-8 w-44 rounded-full pl-3 pr-7 text-xs shadow-sm"
+              />
+              {(siteInput || filters.site) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSiteInput("");
+                    applyFilter({ site: "" });
+                  }}
+                  className="absolute right-2 text-muted-foreground hover:text-foreground"
+                  aria-label="Effacer le filtre site"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* État initial : exemples + recherches récentes */}
@@ -428,11 +564,34 @@ export default function RechercheWebPage() {
         </div>
       )}
 
-      {/* Chargement */}
+      {/* Chargement : squelettes (réponse IA + résultats) */}
       {loading && (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-          <Loader2 className="mb-3 h-6 w-6 animate-spin" />
-          <p className="text-sm">Recherche et analyse de sécurité en cours…</p>
+        <div className="space-y-4">
+          <div className="flex items-center justify-center gap-2 py-1 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            {filters.mode === "news" ? "Recherche d'actualités" : "Recherche"} et analyse de sécurité…
+          </div>
+          <Card className="border-primary/20 bg-primary/[0.03]">
+            <CardContent className="space-y-2 p-4">
+              <div className="h-3 w-24 animate-pulse rounded bg-muted" />
+              <div className="h-3 w-full animate-pulse rounded bg-muted" />
+              <div className="h-3 w-11/12 animate-pulse rounded bg-muted" />
+              <div className="h-3 w-3/4 animate-pulse rounded bg-muted" />
+            </CardContent>
+          </Card>
+          {[0, 1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardContent className="space-y-2 p-4">
+                <div className="flex items-center gap-2">
+                  <div className="h-4 w-4 animate-pulse rounded-sm bg-muted" />
+                  <div className="h-3 w-40 animate-pulse rounded bg-muted" />
+                </div>
+                <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+                <div className="h-3 w-full animate-pulse rounded bg-muted" />
+                <div className="h-3 w-5/6 animate-pulse rounded bg-muted" />
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
 
@@ -440,9 +599,22 @@ export default function RechercheWebPage() {
       {!loading && data?.answer && (
         <Card className="mb-5 border-primary/20 bg-primary/[0.03]">
           <CardContent className="p-4">
-            <div className="mb-1.5 flex items-center gap-2 text-xs font-medium text-primary">
+            <div className="mb-1.5 flex flex-wrap items-center gap-2 text-xs font-medium text-primary">
               <Sparkles className="h-3.5 w-3.5" />
               Résumé IA
+              {data.mode === "news" && (
+                <Badge variant="outline" className="gap-1 border-primary/30 text-primary">
+                  <Newspaper className="h-3 w-3" /> Actualités
+                </Badge>
+              )}
+              {data.freshness && data.freshness !== "any" && (
+                <Badge variant="outline" className="border-primary/30 text-primary">
+                  {FRESHNESS_OPTIONS.find((o) => o.value === data.freshness)?.label}
+                </Badge>
+              )}
+              {data.site && (
+                <Badge variant="outline" className="border-primary/30 text-primary">site:{data.site}</Badge>
+              )}
             </div>
             <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{data.answer}</p>
           </CardContent>

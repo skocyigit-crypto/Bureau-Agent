@@ -192,6 +192,7 @@ export default function MoreScreen() {
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>OUTILS</Text>
           <MenuItem icon="search" label="Recherche Globale" sublabel="Cherchez dans contacts, devis, tâches…" color="#1e293b" onPress={() => nav("/recherche")} />
+          <MenuItem icon="globe" label="Recherche Web" sublabel="Web sécurisé : liens analysés par l'antivirus" color="#0ea5e9" onPress={() => nav("/recherche-web")} />
           <MenuItem icon="activity" label="Activité Récente" sublabel="Flux en temps réel de toutes les actions" color="#0f172a" onPress={() => nav("/activite-recente")} />
           <MenuItem icon="bar-chart-2" label="Analytique" sublabel="Rapports et statistiques" color="#f59e0b" onPress={() => nav("/analytics")} />
           <MenuItem icon="calendar" label="Calendrier" sublabel="Evenements et rendez-vous" color="#ec4899" onPress={() => nav("/calendar")} />
