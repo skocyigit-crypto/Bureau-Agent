@@ -3,7 +3,7 @@ import { db, autoBackupsTable, backupConfigTable, googleOAuthTokensTable, usersT
 import { eq, sql, desc } from "drizzle-orm";
 import crypto from "crypto";
 import { logger } from "../lib/logger";
-import { getOrgGoogleCredentials, getGoogleRedirectUri } from "../lib/google-auth";
+import { getOrgGoogleCredentials, getGoogleRedirectUri, decryptToken, ensureTokenRowEncrypted } from "../lib/google-auth";
 
 const DRIVE_FOLDER_NAME = "Agent de Bureau - Sauvegardes";
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
@@ -55,6 +55,7 @@ async function getGoogleDriveAccessToken(): Promise<string | null> {
   try {
     const tokens = await db
       .select({
+        id: googleOAuthTokensTable.id,
         accessToken: googleOAuthTokensTable.accessToken,
         refreshToken: googleOAuthTokensTable.refreshToken,
         scope: googleOAuthTokensTable.scope,
@@ -69,13 +70,19 @@ async function getGoogleDriveAccessToken(): Promise<string | null> {
     const driveToken = tokens.find(t => (t.scope || "").includes("drive"));
     if (!driveToken) return null;
 
+    await ensureTokenRowEncrypted({
+      id: driveToken.id,
+      accessToken: driveToken.accessToken,
+      refreshToken: driveToken.refreshToken,
+    });
+
     const creds = await getOrgGoogleCredentials(driveToken.organisationId, { envOnly: true });
     if (!creds) return null;
 
     const oauth2Client = new google.auth.OAuth2(creds.clientId, creds.clientSecret, getGoogleRedirectUri());
     oauth2Client.setCredentials({
-      access_token: driveToken.accessToken,
-      refresh_token: driveToken.refreshToken,
+      access_token: decryptToken(driveToken.accessToken),
+      refresh_token: decryptToken(driveToken.refreshToken),
     });
 
     const { token } = await oauth2Client.getAccessToken();

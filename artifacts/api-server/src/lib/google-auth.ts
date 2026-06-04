@@ -8,6 +8,60 @@ import {
   usersTable,
 } from "@workspace/db";
 import { logger } from "./logger";
+import { encryptSensitiveData, decryptSensitiveData, isEncrypted } from "./crypto";
+
+// ---------------------------------------------------------------------------
+// Jetons OAuth Google (access_token / refresh_token) chiffres AU REPOS via la
+// couche canonique lib/crypto (AES-256-GCM, cle DATA_ENCRYPTION_KEY). Le
+// refresh_token est un secret long terme : en clair, une fuite de la base
+// donnerait acces aux comptes Gmail/Agenda/Drive de TOUS les clients connectes.
+// decryptToken tolere les anciennes valeurs en clair (migration progressive :
+// decryptSensitiveData renvoie tel quel ce qui n'est pas chiffre).
+// ---------------------------------------------------------------------------
+export function encryptToken(plain: string): string {
+  return encryptSensitiveData(plain);
+}
+export function decryptToken(value: string | null | undefined): string | null {
+  return value == null ? null : decryptSensitiveData(value);
+}
+
+// Chiffre une valeur SI elle n'est pas deja chiffree (idempotent, null-safe).
+// Utile quand on reecrit une ligne en conservant une valeur existante (ex.
+// callback OAuth sans nouveau refresh_token) : on ne doit jamais re-persister
+// du clair legacy ni double-chiffrer un blob existant.
+export function ensureEncryptedToken(value: string | null | undefined): string | null {
+  if (value == null) return null;
+  return isEncrypted(value) ? value : encryptToken(value);
+}
+
+// Re-chiffrement opportuniste : une ligne anterieure au chiffrement au repos
+// peut encore contenir des jetons EN CLAIR. Le refresh_token (secret long terme)
+// n'est presque jamais reecrit par le flux de refresh — sans ce backfill paresseux
+// il resterait en clair indefiniment. On chiffre donc en place tout jeton non
+// chiffre au PREMIER acces. Best-effort : un echec est logge sans interrompre
+// l'appelant ; une fois chiffre, l'appel est un no-op sans ecriture.
+export async function ensureTokenRowEncrypted(row: {
+  id: number;
+  accessToken: string | null;
+  refreshToken: string | null;
+}): Promise<void> {
+  const updates: { accessToken?: string; refreshToken?: string } = {};
+  if (row.accessToken && !isEncrypted(row.accessToken)) {
+    updates.accessToken = encryptToken(row.accessToken);
+  }
+  if (row.refreshToken && !isEncrypted(row.refreshToken)) {
+    updates.refreshToken = encryptToken(row.refreshToken);
+  }
+  if (!updates.accessToken && !updates.refreshToken) return;
+  try {
+    await db
+      .update(googleOAuthTokensTable)
+      .set(updates)
+      .where(eq(googleOAuthTokensTable.id, row.id));
+  } catch (err) {
+    logger.warn({ err, tokenId: row.id }, "[google-auth] re-chiffrement opportuniste du jeton echoue");
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Chiffrement au repos du client_secret Google (modele "bring your own
@@ -171,6 +225,8 @@ export async function getAuthClientForUser(userId: number) {
     .limit(1);
   if (tokens.length === 0) return null;
 
+  await ensureTokenRowEncrypted(tokens[0]);
+
   const orgId = tokens[0].organisationId ?? (await getOrgIdForUser(userId));
   // Modele centralise : on rafraichit les jetons avec le MEME client global qui
   // les a emis (env), jamais un client org legacy.
@@ -179,8 +235,8 @@ export async function getAuthClientForUser(userId: number) {
 
   const oauth2Client = new google.auth.OAuth2(creds.clientId, creds.clientSecret, getGoogleRedirectUri());
   oauth2Client.setCredentials({
-    access_token: tokens[0].accessToken,
-    refresh_token: tokens[0].refreshToken,
+    access_token: decryptToken(tokens[0].accessToken),
+    refresh_token: decryptToken(tokens[0].refreshToken),
   });
   return oauth2Client;
 }

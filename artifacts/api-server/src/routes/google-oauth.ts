@@ -13,6 +13,10 @@ import { getOrgId } from "../middleware/tenant";
 import {
   getGoogleRedirectUri,
   getOrgGoogleCredentials,
+  encryptToken,
+  decryptToken,
+  ensureTokenRowEncrypted,
+  ensureEncryptedToken,
 } from "../lib/google-auth";
 
 const router = Router();
@@ -184,8 +188,8 @@ router.get("/callback", async (req, res): Promise<void> => {
     if (existing.length > 0) {
       await db.update(googleOAuthTokensTable)
         .set({
-          accessToken: tokens.access_token!,
-          refreshToken: tokens.refresh_token || existing[0].refreshToken,
+          accessToken: encryptToken(tokens.access_token!),
+          refreshToken: tokens.refresh_token ? encryptToken(tokens.refresh_token) : ensureEncryptedToken(existing[0].refreshToken),
           scope: tokens.scope || "",
           organisationId: orgId ?? existing[0].organisationId,
           expiresAt,
@@ -196,8 +200,8 @@ router.get("/callback", async (req, res): Promise<void> => {
       await db.insert(googleOAuthTokensTable).values({
         userId,
         organisationId: orgId,
-        accessToken: tokens.access_token!,
-        refreshToken: tokens.refresh_token || null,
+        accessToken: encryptToken(tokens.access_token!),
+        refreshToken: tokens.refresh_token ? encryptToken(tokens.refresh_token) : null,
         scope: tokens.scope || "",
         expiresAt,
       });
@@ -272,8 +276,11 @@ router.post("/disconnect", async (req, res): Promise<void> => {
         // refresh_token est lie au client_id emetteur), sinon fallback session.
         const oauth2Client = await getOAuth2ClientForOrg(tokens[0].organisationId ?? orgId);
         if (oauth2Client) {
-          oauth2Client.setCredentials({ access_token: tokens[0].accessToken });
-          await oauth2Client.revokeToken(tokens[0].accessToken);
+          const accessToken = decryptToken(tokens[0].accessToken);
+          if (accessToken) {
+            oauth2Client.setCredentials({ access_token: accessToken });
+            await oauth2Client.revokeToken(accessToken);
+          }
         }
       } catch (err) { logger.warn({ err: err }, "[GoogleOAuth] operation failed:"); }
     }
@@ -313,6 +320,9 @@ router.post("/refresh", async (req, res): Promise<void> => {
       res.status(400).json({ error: "Aucun token de rafraichissement disponible. Reconnectez votre compte Google." }); return;
     }
 
+    // Re-chiffre une eventuelle ligne legacy en clair avant la maj du flux refresh.
+    await ensureTokenRowEncrypted(tokens[0]);
+
     // Le refresh_token DOIT etre echange avec le client_id/secret qui l'a emis :
     // on resout les identifiants depuis l'org du token, fallback session.
     const oauth2Client = await getOAuth2ClientForOrg(tokens[0].organisationId ?? orgId);
@@ -320,14 +330,14 @@ router.post("/refresh", async (req, res): Promise<void> => {
       res.status(400).json({ error: "Identifiants Google non configures." }); return;
     }
 
-    oauth2Client.setCredentials({ refresh_token: tokens[0].refreshToken });
+    oauth2Client.setCredentials({ refresh_token: decryptToken(tokens[0].refreshToken) });
     const { credentials } = await oauth2Client.refreshAccessToken();
     const now = new Date();
     const expiresAt = credentials.expiry_date ? new Date(credentials.expiry_date) : new Date(now.getTime() + 3600 * 1000);
 
     await db.update(googleOAuthTokensTable)
       .set({
-        accessToken: credentials.access_token!,
+        accessToken: encryptToken(credentials.access_token!),
         expiresAt,
         updatedAt: now,
       })

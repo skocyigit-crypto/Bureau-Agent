@@ -2,7 +2,7 @@ import { google } from "googleapis";
 import { db, googleOAuthTokensTable, checkinsTable, usersTable } from "@workspace/db";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
-import { getOrgGoogleCredentials, getGoogleRedirectUri } from "../lib/google-auth";
+import { getOrgGoogleCredentials, getGoogleRedirectUri, encryptToken, decryptToken, ensureTokenRowEncrypted } from "../lib/google-auth";
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 let isRunning = false;
@@ -124,9 +124,15 @@ async function syncUserToday(token: {
   const oauth2Client = await getOAuth2Client(token.organisationId ?? user.organisationId);
   if (!oauth2Client) return result;
 
+  await ensureTokenRowEncrypted({
+    id: token.tokenId,
+    accessToken: token.accessToken,
+    refreshToken: token.refreshToken,
+  });
+
   oauth2Client.setCredentials({
-    access_token: token.accessToken,
-    refresh_token: token.refreshToken,
+    access_token: decryptToken(token.accessToken),
+    refresh_token: decryptToken(token.refreshToken),
   });
 
   if (token.expiresAt && token.expiresAt < new Date()) {
@@ -139,7 +145,7 @@ async function syncUserToday(token: {
       const { credentials } = await oauth2Client.refreshAccessToken();
       await db.update(googleOAuthTokensTable)
         .set({
-          accessToken: credentials.access_token!,
+          accessToken: encryptToken(credentials.access_token!),
           expiresAt: credentials.expiry_date ? new Date(credentials.expiry_date) : new Date(Date.now() + 3600000),
           updatedAt: new Date(),
         })

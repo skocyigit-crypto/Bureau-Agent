@@ -2,7 +2,7 @@ import { google } from "googleapis";
 import { db, googleOAuthTokensTable, checkinsTable, platformSyncLogsTable } from "@workspace/db";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
-import { getOrgGoogleCredentials, getGoogleRedirectUri } from "../lib/google-auth";
+import { getOrgGoogleCredentials, getGoogleRedirectUri, encryptToken, decryptToken, ensureTokenRowEncrypted } from "../lib/google-auth";
 
 interface SyncResult {
   imported: number;
@@ -80,14 +80,15 @@ export async function syncGoogleCalendarToCheckins(params: {
   }
 
   const token = tokens[0];
+  await ensureTokenRowEncrypted(token);
   const oauth2Client = await getOAuth2Client(token.organisationId ?? organisationId);
   if (!oauth2Client) {
     throw new Error("Google Workspace n'est pas configure. Contactez votre administrateur.");
   }
 
   oauth2Client.setCredentials({
-    access_token: token.accessToken,
-    refresh_token: token.refreshToken,
+    access_token: decryptToken(token.accessToken),
+    refresh_token: decryptToken(token.refreshToken),
   });
 
   if (token.expiresAt && token.expiresAt < new Date()) {
@@ -98,7 +99,7 @@ export async function syncGoogleCalendarToCheckins(params: {
       const { credentials } = await oauth2Client.refreshAccessToken();
       await db.update(googleOAuthTokensTable)
         .set({
-          accessToken: credentials.access_token!,
+          accessToken: encryptToken(credentials.access_token!),
           expiresAt: credentials.expiry_date ? new Date(credentials.expiry_date) : new Date(Date.now() + 3600000),
           updatedAt: new Date(),
         })
