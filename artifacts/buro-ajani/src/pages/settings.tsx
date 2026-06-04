@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Settings, Shield, Bell, Save, Monitor, Package,
-  PhoneIncoming, Layers, Rocket, BrainCircuit, Building2, Users, Printer, Sparkles
+  PhoneIncoming, Layers, Rocket, BrainCircuit, Building2, Users, Printer, Sparkles, Webhook
 } from "lucide-react";
 import { Icon3D } from "@/components/icon-3d";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import { TabMisesAJour } from "./settings/tab-mises-a-jour";
 import { TabIntelligenceArtificielle } from "./settings/tab-intelligence-artificielle";
 import { TabProfilOrg } from "./settings/tab-profil-org";
 import { TabPreferencesIa } from "./settings/tab-preferences-ia";
+import { TabApiWebhooks } from "./settings/tab-api-webhooks";
 
 export default function SettingsPage() {
   const { user } = useWorkspaceUser();
@@ -50,12 +51,12 @@ export default function SettingsPage() {
       window.history.replaceState({}, "", window.location.pathname);
     }
     const tabParam = params.get("tab");
-    const VALID_TABS = ["profil", "abonnement", "equipe", "google", "appels", "sauvegardes", "installation", "notifications", "securite", "mises-a-jour", "intelligence-artificielle", "preferences-ia"];
+    const VALID_TABS = ["profil", "abonnement", "equipe", "google", "appels", "sauvegardes", "installation", "notifications", "securite", "mises-a-jour", "intelligence-artificielle", "preferences-ia", ...(isAdmin ? ["api-webhooks"] : [])];
     if (tabParam && VALID_TABS.includes(tabParam)) {
       setActiveTab(tabParam);
       window.history.replaceState({}, "", window.location.pathname);
     }
-  }, [toast]);
+  }, [toast, isAdmin]);
 
   const adminTabCount = isSuperAdmin ? 11 : isAdmin ? 10 : 3;
 
@@ -131,6 +132,12 @@ export default function SettingsPage() {
               IA
             </TabsTrigger>
           )}
+          {isAdmin && (
+            <TabsTrigger value="api-webhooks" className="gap-2">
+              <Webhook className="w-4 h-4" />
+              API & Webhooks
+            </TabsTrigger>
+          )}
           {isSuperAdmin && (
             <TabsTrigger value="mises-a-jour" className="gap-2">
               <Rocket className="w-4 h-4" />
@@ -182,6 +189,12 @@ export default function SettingsPage() {
         <TabsContent value="intelligence-artificielle" className="space-y-6 mt-6">
           <TabIntelligenceArtificielle />
         </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="api-webhooks" className="space-y-6 mt-6">
+            <TabApiWebhooks />
+          </TabsContent>
+        )}
 
         <TabsContent value="mises-a-jour" className="space-y-6 mt-6">
           <TabMisesAJour />
