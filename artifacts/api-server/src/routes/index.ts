@@ -46,7 +46,6 @@ import telephonyRouter, { telephonyWebhookRouter } from "./telephony";
 import voiceCommandRouter from "./voice-command";
 import voiceSiteOpsRouter from "./voice-site-ops";
 import treasuryRouter from "./treasury";
-import vehiculesRouter from "./vehicules";
 import { twilioVoiceRouter } from "./twilio-voice";
 import { whatsappRouter } from "./whatsapp";
 import { voiceReceptionistRouter } from "./voice-receptionist";
@@ -140,7 +139,6 @@ router.use(licenseCheck);
 
 router.use(autoBroadcast);
 router.use(treasuryRouter);
-router.use(vehiculesRouter);
 router.use(callsRouter);
 router.use(contactsRouter);
 router.use(tasksRouter);

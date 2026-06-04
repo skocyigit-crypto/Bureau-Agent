@@ -31,11 +31,6 @@ export const facturesClientTable = pgTable("factures_client", {
   // Autoliquidation de TVA (sous-traitance BTP) : si vrai, la trésorerie
   // encaisse le HT (subtotal) et non le TTC (totalAmount). Pilier risque.
   isAutoliquidation: boolean("is_autoliquidation").notNull().default(false),
-  // Retenue de garantie BTP (5% par defaut) : montant HT retenu par le client
-  // jusqu'a la levee des reserves. Additif, defaut 0 -> factures existantes intactes.
-  retenueGarantieHt: numeric("retenue_garantie_ht", { precision: 14, scale: 2 }).notNull().default("0"),
-  // Donnees brutes extraites par OCR/AI lors d'un import de facture (Factur-X / PDF).
-  ocrRawMetadata: jsonb("ocr_raw_metadata"),
   status: text("status").notNull().default("brouillon"),
   dueDate: timestamp("due_date", { withTimezone: true }),
   paidAt: timestamp("paid_at", { withTimezone: true }),

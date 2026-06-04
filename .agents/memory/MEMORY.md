@@ -1,6 +1,7 @@
 # Memory Index
 
 - [User terminology](user-terminology.md) — owner's word "Canvas" = the live talking AI avatar (@workspace/ai-avatar), NOT the design board or the assistant chat button.
+- [Retiring a proactive detector](detector-retirement.md) — drop the type from DETECTOR_TYPES AND add to RETIRED_DETECTOR_TYPES so old pending rows self-resolve in all envs (esp. prod, no manual SQL).
 
 - [Gemini model-retirement fallback](gemini-model-fallback.md) — boot-time singleton patch of ai.models retries on model-retired errors with env-overridable *-latest fallback; covers all call sites.
 - [Security middleware stack](security-middleware-stack.md) — /api threatDetection blocks URLs/base64 (bypass per-route); global express.json is 1mb (mount higher limit before it).

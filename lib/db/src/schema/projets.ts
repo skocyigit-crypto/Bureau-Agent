@@ -18,9 +18,6 @@ export const projetsTable = pgTable("projets", {
   budget: numeric("budget", { precision: 12, scale: 2 }),
   spent: numeric("spent", { precision: 12, scale: 2 }).default("0"),
   currency: text("currency").notNull().default("EUR"),
-  // Regime TVA du chantier (BTP) : "autoliquidation" (sous-traitance),
-  // "20", "10", "5.5". Sert au calcul tresorerie + aux factures liees.
-  tvaStatus: text("tva_status").notNull().default("autoliquidation"),
   progress: integer("progress").notNull().default(0),
   startDate: timestamp("start_date", { withTimezone: true }),
   endDate: timestamp("end_date", { withTimezone: true }),
