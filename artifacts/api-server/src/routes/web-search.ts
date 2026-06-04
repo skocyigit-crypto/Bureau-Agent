@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { getOrgId } from "../middleware/tenant";
 import { assertAiQuota, AiQuotaExceededError } from "../services/ai-quota";
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
-import { searchWebWithSafety, type WebSearchResponse } from "../services/web-search";
+import { searchWebWithSafety, fetchSearchSuggestions, type WebSearchResponse } from "../services/web-search";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -57,6 +57,27 @@ router.post("/web-search", async (req, res) => {
   } catch (err) {
     logger.error({ err }, "[web-search] search failed");
     res.status(500).json({ error: "La recherche web a echoue. Reessayez." });
+  }
+});
+
+/**
+ * Suggestions de saisie ("autocompletion") affichees PENDANT la frappe. Rapide
+ * et gratuit (pas d'IA, pas de quota). Tenant-scoped. Retourne toujours 200 avec
+ * un tableau (vide en cas de souci reseau) pour ne jamais casser la barre.
+ */
+router.get("/web-search/suggest", async (req, res) => {
+  const orgId = getOrgId(req);
+  if (!orgId) {
+    res.status(403).json({ error: "Organisation requise." });
+    return;
+  }
+  const q = typeof req.query.q === "string" ? req.query.q : "";
+  try {
+    const suggestions = await fetchSearchSuggestions(q);
+    res.json({ suggestions });
+  } catch (err) {
+    logger.warn({ err }, "[web-search] suggest failed");
+    res.json({ suggestions: [] });
   }
 });
 

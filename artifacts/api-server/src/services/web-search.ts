@@ -273,3 +273,69 @@ export async function searchWebWithSafety(
 
   return { query: cleanQuery, answer, results, relatedSearches };
 }
+
+// ---------------------------------------------------------------------------
+// Suggestions de saisie ("comme Google") : completions rapides affichees PENDANT
+// la frappe, sans appel IA ni quota. On interroge l'endpoint public de
+// completion de Google (hote FIXE, seule la requete est un parametre encode ->
+// pas de risque SSRF). Tout echec/timeout retombe sur une liste vide : la barre
+// de recherche reste utilisable, aucune erreur visible.
+// ---------------------------------------------------------------------------
+
+const SUGGEST_TIMEOUT_MS = 2500;
+const SUGGEST_TTL_MS = 5 * 60_000;
+const SUGGEST_CACHE_MAX = 500;
+const suggestCache = new Map<string, { value: string[]; exp: number }>();
+
+export async function fetchSearchSuggestions(rawQuery: string): Promise<string[]> {
+  const q = rawQuery.trim();
+  if (q.length < 2 || q.length > 200) return [];
+
+  const key = q.toLowerCase();
+  const now = Date.now();
+  const hit = suggestCache.get(key);
+  if (hit && hit.exp > now) return hit.value;
+
+  let suggestions: string[] = [];
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), SUGGEST_TIMEOUT_MS);
+    const url = `https://suggestqueries.google.com/complete/search?client=firefox&hl=fr&q=${encodeURIComponent(q)}`;
+    const resp = await fetch(url, {
+      method: "GET",
+      signal: ctrl.signal,
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (compatible; AgentDeBureau-Suggest/1.0; +https://replit.com)",
+      },
+    });
+    clearTimeout(timer);
+    if (resp.ok) {
+      // Reponse: ["requete", ["sugg1", "sugg2", ...], ...]
+      const text = await resp.text();
+      const data = JSON.parse(text) as unknown;
+      if (Array.isArray(data) && Array.isArray(data[1])) {
+        const seen = new Set<string>();
+        suggestions = (data[1] as unknown[])
+          .filter((x): x is string => typeof x === "string")
+          .map((s) => s.trim())
+          .filter((s) => {
+            const k = s.toLowerCase();
+            if (!s || k === key || seen.has(k)) return false;
+            seen.add(k);
+            return true;
+          })
+          .slice(0, 8);
+      }
+    }
+  } catch {
+    suggestions = [];
+  }
+
+  if (suggestCache.size >= SUGGEST_CACHE_MAX) {
+    const firstKey = suggestCache.keys().next().value;
+    if (firstKey !== undefined) suggestCache.delete(firstKey);
+  }
+  suggestCache.set(key, { value: suggestions, exp: now + SUGGEST_TTL_MS });
+  return suggestions;
+}

@@ -63,6 +63,7 @@ overrides:
   '@tailwindcss/oxide>@tailwindcss/oxide-linux-x64-musl': '-'
   '@tailwindcss/oxide>@tailwindcss/oxide-win32-arm64-msvc': '-'
   '@tailwindcss/oxide>@tailwindcss/oxide-win32-x64-msvc': '-'
+  '@xmldom/xmldom': '>=0.8.13'
   esbuild: 0.27.3
   esbuild>@esbuild/aix-ppc64: '-'
   esbuild>@esbuild/android-arm: '-'
@@ -89,6 +90,9 @@ overrides:
   esbuild>@esbuild/win32-arm64: '-'
   esbuild>@esbuild/win32-ia32: '-'
   esbuild>@esbuild/win32-x64: '-'
+  fast-uri: '>=3.1.2'
+  jest-util>picomatch: '>=4.0.4'
+  js-cookie: '>=3.0.7'
   lightningcss>lightningcss-android-arm64: '-'
   lightningcss>lightningcss-darwin-arm64: '-'
   lightningcss>lightningcss-darwin-x64: '-'
@@ -100,9 +104,19 @@ overrides:
   lightningcss>lightningcss-win32-arm64-msvc: '-'
   lightningcss>lightningcss-win32-x64-msvc: '-'
   lodash: '>=4.18.0'
+  micromatch>picomatch: '>=4.0.4'
   path-to-regexp: '>=8.4.0'
+  # picomatch ReDoS (GHSA, fixed >=4.0.4). The version-keyed `picomatch@4`
+  # override below does NOT reach the deep transitive instances on its own,
+  # so the precise nested-path overrides above (jest-util>picomatch,
+  # micromatch>picomatch) are what actually lift them to 4.0.4. Keep
+  # `picomatch@4` as a fallback guard for any future 4.x transitive edge.
   picomatch@2: '>=2.3.2'
   picomatch@4: '>=4.0.4'
+  # js-cookie (>=3.0.7) / protobufjs (^7.5.6): same major as currently
+  # resolved — purely security floors. Revisit if a future dep pins an
+  # older major (js-cookie@2 / protobufjs@6) and conflicts.
+  protobufjs: '^7.5.6'
   rollup>@rollup/rollup-android-arm-eabi: '-'
   rollup>@rollup/rollup-android-arm64: '-'
   rollup>@rollup/rollup-darwin-arm64: '-'

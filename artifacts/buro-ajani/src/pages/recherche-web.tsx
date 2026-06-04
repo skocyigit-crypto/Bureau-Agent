@@ -124,7 +124,12 @@ export default function RechercheWebPage() {
   const [pendingDanger, setPendingDanger] = useState<WebSearchResultItem | null>(null);
   const [safeOnly, setSafeOnly] = useState(false);
   const [recents, setRecents] = useState<string[]>(() => loadRecents());
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggest, setShowSuggest] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const autoRanRef = useRef(false);
+  const suggestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suggestAbortRef = useRef<AbortController | null>(null);
 
   function doSearch(term: string) {
     setQuery(term);
@@ -142,6 +147,8 @@ export default function RechercheWebPage() {
 
   async function runSearch(e?: React.FormEvent, override?: string) {
     e?.preventDefault();
+    setShowSuggest(false);
+    setActiveIndex(-1);
     if (loading) return;
     const q = (override ?? query).trim();
     if (q.length < 2) return;
@@ -183,6 +190,86 @@ export default function RechercheWebPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuery]);
+
+  // Suggestions "comme Google" pendant la frappe : appel debounce et leger
+  // (pas d'IA / quota) vers /api/web-search/suggest. La recherche complete ne
+  // part qu'a la validation (Entree, bouton, ou clic sur une suggestion).
+  useEffect(() => {
+    const q = query.trim();
+    setActiveIndex(-1);
+    if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+    if (q.length < 2) {
+      suggestAbortRef.current?.abort();
+      setSuggestions([]);
+      return;
+    }
+    suggestTimerRef.current = setTimeout(() => {
+      suggestAbortRef.current?.abort();
+      const ctrl = new AbortController();
+      suggestAbortRef.current = ctrl;
+      fetch(`${baseUrl}/api/web-search/suggest?q=${encodeURIComponent(q)}`, {
+        credentials: "include",
+        signal: ctrl.signal,
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((json: { suggestions?: string[] } | null) => {
+          // Garde anti-course : on ignore toute reponse d'une requete obsolete
+          // (annulee par une frappe plus recente ou le demontage de l'effet).
+          if (ctrl.signal.aborted) return;
+          if (json && Array.isArray(json.suggestions)) {
+            setSuggestions(json.suggestions);
+          }
+        })
+        .catch(() => {
+          /* abort / reseau : on ignore, aucune erreur visible */
+        });
+    }, 140);
+    return () => {
+      if (suggestTimerRef.current) clearTimeout(suggestTimerRef.current);
+      // Annule immediatement toute requete en vol quand la requete change.
+      suggestAbortRef.current?.abort();
+    };
+  }, [query]);
+
+  const trimmedQuery = query.trim();
+  const recentMatches =
+    trimmedQuery.length >= 1
+      ? recents
+          .filter(
+            (r) =>
+              r.toLowerCase().startsWith(trimmedQuery.toLowerCase()) &&
+              r.toLowerCase() !== trimmedQuery.toLowerCase(),
+          )
+          .slice(0, 3)
+      : [];
+  const suggestList = Array.from(
+    new Set([...recentMatches, ...suggestions]),
+  ).slice(0, 8);
+
+  function selectSuggestion(term: string) {
+    setShowSuggest(false);
+    setActiveIndex(-1);
+    doSearch(term);
+  }
+
+  function onSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (!showSuggest || suggestList.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((i) => (i + 1) % suggestList.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((i) => (i <= 0 ? suggestList.length - 1 : i - 1));
+    } else if (e.key === "Enter") {
+      if (activeIndex >= 0 && activeIndex < suggestList.length) {
+        e.preventDefault();
+        selectSuggestion(suggestList[activeIndex]);
+      }
+    } else if (e.key === "Escape") {
+      setShowSuggest(false);
+      setActiveIndex(-1);
+    }
+  }
 
   function openResult(item: WebSearchResultItem) {
     if (item.risk === "dangerous") {
@@ -231,12 +318,48 @@ export default function RechercheWebPage() {
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setShowSuggest(true);
+              }}
+              onFocus={() => setShowSuggest(true)}
+              onBlur={() => window.setTimeout(() => setShowSuggest(false), 120)}
+              onKeyDown={onSearchKeyDown}
               placeholder="Rechercher sur le web…"
               className="h-11 rounded-full pl-10 pr-4 text-base shadow-sm"
               autoFocus
               maxLength={300}
+              autoComplete="off"
+              role="combobox"
+              aria-expanded={showSuggest && suggestList.length > 0}
+              aria-autocomplete="list"
             />
+            {showSuggest && !loading && suggestList.length > 0 && (
+              <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border bg-popover py-1 text-popover-foreground shadow-lg">
+                {suggestList.map((s, i) => {
+                  const isRecent = recentMatches.includes(s);
+                  return (
+                    <button
+                      type="button"
+                      key={s}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onMouseEnter={() => setActiveIndex(i)}
+                      onClick={() => selectSuggestion(s)}
+                      className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition ${
+                        i === activeIndex ? "bg-muted" : "hover:bg-muted/60"
+                      }`}
+                    >
+                      {isRecent ? (
+                        <Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      ) : (
+                        <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      )}
+                      <span className="truncate">{s}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
           <Button type="submit" disabled={loading || query.trim().length < 2} className="h-11 rounded-full px-5">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Rechercher"}
