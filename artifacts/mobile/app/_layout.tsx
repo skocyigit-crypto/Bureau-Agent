@@ -38,6 +38,8 @@ function RootLayoutNav() {
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="messages" options={{ headerShown: false, presentation: "modal" }} />
+      <Stack.Screen name="whatsapp" options={{ headerShown: false, presentation: "modal" }} />
+      <Stack.Screen name="whatsapp-thread" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="calendar" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="settings" options={{ headerShown: false, presentation: "modal" }} />
       <Stack.Screen name="analytics" options={{ headerShown: false, presentation: "modal" }} />

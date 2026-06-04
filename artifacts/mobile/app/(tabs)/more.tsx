@@ -149,6 +149,7 @@ export default function MoreScreen() {
           <MenuItem icon="zap" label="Assistant proactif" sublabel="Suggestions automatiques : tâches, appels, agenda" color="#f59e0b" onPress={() => nav("/assistant-proactif")} />
           <MenuItem icon="cpu" label="Ce que l'IA a appris" sublabel="Préférences et habitudes mémorisées par l'IA" color="#8b5cf6" onPress={() => nav("/ia-apprentissage")} />
           <MenuItem icon="message-square" label="Messages" sublabel="Messagerie vocale et notes" color="#3b82f6" badge={counts.message} onPress={() => nav("/messages")} />
+          <MenuItem icon="message-circle" label="WhatsApp clients" sublabel="Boîte de réception client · brouillon IA à valider" color="#25D366" onPress={() => nav("/whatsapp")} />
           <MenuItem icon="shield" label="Centre de sécurité" sublabel="Scanner liens, fichiers, appels" color="#10b981" onPress={() => nav("/securite")} />
           <MenuItem icon="phone-call" label="Telephonie" sublabel="Appels et SMS multi-fournisseurs" color="#22c55e" onPress={() => nav("/telephony")} />
           <MenuItem icon="phone" label="Journal d'Appels" sublabel="Historique et enregistrement des appels" color="#166534" onPress={() => nav("/calls")} />
