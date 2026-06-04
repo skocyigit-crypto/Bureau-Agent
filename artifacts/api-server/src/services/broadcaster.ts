@@ -17,8 +17,24 @@ export interface SyncEvent {
   ts: number;
 }
 
+// Écouteur d'événements serveur-à-serveur (différent des clients SSE navigateur).
+// Sert au fan-out vers les webhooks sortants : appelé pour CHAQUE événement émis,
+// même quand aucun client SSE n'est connecté.
+type EventListener = (orgId: number, event: SyncEvent) => void;
+
 class Broadcaster {
   private clients = new Map<number, Set<Response>>();
+  private listeners = new Set<EventListener>();
+
+  // Enregistre un écouteur process-local (ex: service webhook). Retourne une
+  // fonction de désinscription. Les écouteurs doivent être non-bloquants et
+  // gérer leurs propres erreurs (toute exception est isolée ci-dessous).
+  onEvent(listener: EventListener): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
 
   subscribe(orgId: number, res: Response): () => void {
     if (!this.clients.has(orgId)) {
@@ -36,17 +52,29 @@ class Broadcaster {
   }
 
   broadcast(orgId: number, event: Omit<SyncEvent, "ts">, excludeUserId?: number): void {
-    const orgClients = this.clients.get(orgId);
-    if (!orgClients || orgClients.size === 0) return;
-
     const payload: SyncEvent = { ...event, ts: Date.now() };
-    const data = `data: ${JSON.stringify(payload)}\n\n`;
 
-    for (const res of orgClients) {
+    // 1) Diffusion temps réel aux clients SSE navigateur de l'organisation.
+    const orgClients = this.clients.get(orgId);
+    if (orgClients && orgClients.size > 0) {
+      const data = `data: ${JSON.stringify(payload)}\n\n`;
+      for (const res of orgClients) {
+        try {
+          res.write(data);
+        } catch {
+          orgClients.delete(res);
+        }
+      }
+    }
+
+    // 2) Fan-out aux écouteurs process-local (webhooks sortants). DOIT s'exécuter
+    // même sans client SSE connecté, et ne doit JAMAIS jeter dans le chemin
+    // d'émission de l'événement (chaque écouteur est isolé).
+    for (const listener of this.listeners) {
       try {
-        res.write(data);
+        listener(orgId, payload);
       } catch {
-        orgClients.delete(res);
+        // Un écouteur défaillant ne doit pas casser la diffusion.
       }
     }
   }

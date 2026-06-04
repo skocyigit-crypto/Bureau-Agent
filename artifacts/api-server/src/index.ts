@@ -20,6 +20,7 @@ import { startAiLearning } from "./services/ai-learning";
 import { startAutonomousSecretaryCron } from "./services/autonomous-secretary-cron";
 import { startAppAuditCron } from "./services/app-audit-cron";
 import { startAgentAutoRunScheduler } from "./routes/ai-agents";
+import { startWebhookEngine } from "./services/webhook-service";
 import { attachVoiceLiveWs } from "./routes/voice-live";
 
 import { closePool, checkDbHealth } from "@workspace/db";
@@ -132,6 +133,7 @@ async function startServer(): Promise<void> {
     startAutonomousSecretaryCron();
     startAppAuditCron();
     startAgentAutoRunScheduler();
+    startWebhookEngine();
     attachVoiceLiveWs(server);
   });
 
