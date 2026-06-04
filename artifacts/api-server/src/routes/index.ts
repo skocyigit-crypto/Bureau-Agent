@@ -84,6 +84,7 @@ import stripeRouter from "./stripe";
 import adminSaasDashboardRouter from "./admin-saas-dashboard";
 import webhooksRouter from "./webhooks";
 import apiKeysRouter from "./api-keys";
+import knowledgeBaseRouter from "./knowledge-base";
 
 const router: IRouter = Router();
 
@@ -209,5 +210,6 @@ router.use(aiLearningRouter);
 router.use(webSearchRouter);
 router.use(webhooksRouter);
 router.use(apiKeysRouter);
+router.use(knowledgeBaseRouter);
 
 export default router;

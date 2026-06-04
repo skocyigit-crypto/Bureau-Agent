@@ -10,6 +10,7 @@ import { sendSms as providerSendSms } from "./telephony-providers";
 import { generateImage } from "@workspace/integrations-gemini-ai/image";
 import { buildExcelBase64, buildWordBase64, buildPdfBase64, buildPptxBase64 } from "./document-export";
 import { ingestDocument } from "./document-ingest";
+import { searchKnowledge } from "./knowledge-base";
 import { logger } from "../lib/logger";
 
 export interface ToolContext {
@@ -706,6 +707,37 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
         createdAt: callsTable.createdAt,
       }).from(callsTable).where(eq(callsTable.organisationId, orgId)).orderBy(desc(callsTable.createdAt)).limit(limit);
       return { count: rows.length, calls: rows };
+    },
+  },
+  {
+    name: "search_knowledge_base",
+    description: "Recherche dans la base de connaissances (documents importes de l'organisation) les passages pertinents pour repondre a une question. Utilise-le quand l'utilisateur pose une question dont la reponse pourrait se trouver dans ses documents.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "La question ou les mots-cles a rechercher dans les documents" },
+        limit: { type: "integer", description: "Nombre max d'extraits (1-10, defaut 6)" },
+      },
+      required: ["query"],
+    },
+    fields: {
+      query: { kind: "string", required: true, min: 2, max: 500 },
+      limit: { kind: "number", integer: true, min: 1, max: 10 },
+    },
+    execute: async (a, { orgId, userId }) => {
+      const hits = await searchKnowledge(orgId, a.query as string, {
+        topK: (a.limit as number) ?? 6,
+        userId,
+      });
+      return {
+        count: hits.length,
+        extraits: hits.map((h) => ({
+          document: h.fileName,
+          documentId: h.documentId,
+          pertinence: Number(h.score.toFixed(3)),
+          contenu: trim(h.content, 600),
+        })),
+      };
     },
   },
   {

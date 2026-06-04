@@ -28,3 +28,13 @@ export const ai = new GoogleGenAI(
         apiKey: (directKey || proxyKey)!,
       },
 );
+
+// Client dédié aux EMBEDDINGS. Le proxy IA Replit n'expose pas l'endpoint
+// d'embeddings (`:batchEmbedContents` -> INVALID_ENDPOINT), on cible donc
+// l'API Google directe avec une clé API. Si seule la clé proxy est présente,
+// on retombe sur `ai` (les appels d'embedding échoueront alors explicitement,
+// ce qui est préférable à un silence). Nécessite GEMINI_API_KEY pour les
+// embeddings.
+export const embeddingAi = directKey
+  ? new GoogleGenAI({ apiKey: directKey })
+  : ai;
