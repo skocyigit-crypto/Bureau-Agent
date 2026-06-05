@@ -2327,7 +2327,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         if (!data.to || !data.subject || !data.body) { res.status(400).json({ error: "Destinataire, sujet et corps requis." }); return; }
         try {
           const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;"><h2 style="color:#6366f1;">${data.subject}</h2><div style="line-height:1.6;color:#333;">${data.body.replace(/\n/g, '<br>')}</div><hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;"><p style="font-size:12px;color:#9ca3af;">Envoye via Agent de Bureau — Votre assistant de bureau intelligent</p></div>`;
-          const sendRes = await sendEmail(Array.isArray(data.to) ? data.to[0] : data.to, data.subject, html, data.body);
+          const sendRes = await sendEmail(Array.isArray(data.to) ? data.to[0] : data.to, data.subject, html, data.body, { orgId });
           if (!sendRes.success) { result = { success: false, message: sendRes.error || "Service email non configure." }; break; }
           result = { success: true, message: `Email envoye a ${data.to} — Sujet: "${data.subject}"` };
         } catch (emailErr: any) {
@@ -2621,7 +2621,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         try {
           const invHtml = `<h2>Facture ${inv2.reference}</h2><p>Cher(e) ${inv2.clientName},</p><p>Veuillez trouver ci-joint votre facture d'un montant de <strong>${inv2.totalAmount}€ TTC</strong>.</p><p>Date d'echeance: ${inv2.dueDate ? new Date(inv2.dueDate).toLocaleDateString("fr-FR") : "30 jours"}</p><p>Cordialement,<br>Agent de Bureau</p>`;
           const invText = `Facture ${inv2.reference} - ${inv2.totalAmount} EUR TTC. Echeance: ${inv2.dueDate ? new Date(inv2.dueDate).toLocaleDateString("fr-FR") : "30 jours"}.`;
-          const sendRes2 = await sendEmail(email2, `Facture ${inv2.reference} — ${inv2.totalAmount}€ TTC`, invHtml, invText);
+          const sendRes2 = await sendEmail(email2, `Facture ${inv2.reference} — ${inv2.totalAmount}€ TTC`, invHtml, invText, { orgId });
           if (!sendRes2.success) { result = { success: false, message: sendRes2.error || "Service email non configure." }; break; }
           await db.update(facturesClientTable).set({ status: inv2.status === "brouillon" ? "envoyee" : inv2.status }).where(eq(facturesClientTable.id, invoiceId));
           result = { success: true, message: `Facture ${inv2.reference} envoyee a ${email2}.` };
@@ -2639,7 +2639,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         try {
           const remHtml = `<h2>Rappel de paiement</h2><p>Cher(e) ${acct.clientName},</p><p>Nous vous rappelons que vous avez un solde impaye de <strong>${Number(acct.solde || 0).toFixed(2)}€</strong> dont <strong>${Number(acct.montantEnRetard || 0).toFixed(2)}€ en retard</strong>.</p><p>Merci de regulariser votre situation dans les meilleurs delais.</p><p>Cordialement,<br>Agent de Bureau</p>`;
           const remText = `Rappel de paiement: solde impaye ${Number(acct.solde || 0).toFixed(2)} EUR dont ${Number(acct.montantEnRetard || 0).toFixed(2)} EUR en retard.`;
-          const sendRes3 = await sendEmail(acctEmail, `Rappel de paiement — ${Number(acct.montantEnRetard || 0).toFixed(2)}€ en retard`, remHtml, remText);
+          const sendRes3 = await sendEmail(acctEmail, `Rappel de paiement — ${Number(acct.montantEnRetard || 0).toFixed(2)}€ en retard`, remHtml, remText, { orgId });
           if (!sendRes3.success) { result = { success: false, message: sendRes3.error || "Service email non configure." }; break; }
           await db.update(compteClientTable).set({ lastReminderAt: new Date(), reminderCount: (acct.reminderCount || 0) + 1 }).where(eq(compteClientTable.id, accountId));
           result = { success: true, message: `Rappel de paiement envoye a ${acctEmail} pour ${acct.clientName} (${Number(acct.montantEnRetard || 0).toFixed(2)}€ en retard).` };

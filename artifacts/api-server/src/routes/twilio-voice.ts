@@ -666,7 +666,7 @@ async function sendCallRecapEmail(args: {
 
     // Send to each recipient (BCC pattern would require provider support; we keep it explicit per-user).
     for (const to of emails) {
-      sendEmail(to, subject, html, text).catch(() => {});
+      sendEmail(to, subject, html, text, { orgId: args.orgId }).catch(() => {});
     }
     logger.info({ orgId: args.orgId, callDbId: args.callDbId, recipients: emails.length }, "[TwilioVoice] Call recap emails dispatched");
   } catch (err) {

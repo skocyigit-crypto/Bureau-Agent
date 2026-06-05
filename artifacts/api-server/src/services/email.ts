@@ -3,6 +3,7 @@ import nodemailer from "nodemailer";
 import { Resend } from "resend";
 import { logger } from "../lib/logger";
 import { escapeHtml } from "../lib/html-escape";
+import { getOrgEmailSender } from "./email-providers";
 
 const SMTP_HOST = process.env.SMTP_HOST || "";
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || "587");
@@ -167,11 +168,86 @@ function createSmtpTransport() {
   });
 }
 
-export async function sendEmail(to: string, subject: string, html: string, text: string): Promise<{ success: boolean; error?: string; preview?: string; provider?: string }> {
+// Envoi via un client Resend donné, avec retry "domaine non vérifié" ->
+// onboarding@resend.dev. Partagé entre la clé plateforme et la clé BYOK
+// d'une organisation. `tag` distingue les logs (platform / org / test).
+async function sendViaResend(
+  client: Resend,
+  from: string,
+  usedFallback: boolean,
+  mail: { to: string; subject: string; html: string; text: string },
+  tag: string,
+): Promise<{ success: boolean; error?: string; provider?: string }> {
+  try {
+    const result = await client.emails.send({ from, to: [mail.to], subject: mail.subject, html: mail.html, text: mail.text });
+    if (result.error) {
+      const errMsg = (result.error as any)?.message || JSON.stringify(result.error);
+      logger.error({ err: result.error, from, to: mail.to }, `[Email/Resend:${tag}] Erreur envoi a ${mail.to}`);
+      if (!usedFallback && /domain|verif|forbidden|not allowed/i.test(errMsg)) {
+        try {
+          const retry = await client.emails.send({ from: "Agent de Bureau <onboarding@resend.dev>", to: [mail.to], subject: mail.subject, html: mail.html, text: mail.text });
+          if (!retry.error) {
+            logger.info(`[Email/Resend:${tag}] Envoye via fallback onboarding@resend.dev a ${mail.to}: ${retry.data?.id}`);
+            return { success: true, provider: `resend-${tag}-fallback` };
+          }
+          return { success: false, error: `Resend retry: ${(retry.error as any)?.message || JSON.stringify(retry.error)}` };
+        } catch (retryErr: any) {
+          return { success: false, error: `Resend retry exception: ${retryErr.message}` };
+        }
+      }
+      return { success: false, error: `Resend: ${errMsg}` };
+    }
+    logger.info(`[Email/Resend:${tag}] Envoye a ${mail.to}: ${result.data?.id} (from=${from})`);
+    return { success: true, provider: `resend-${tag}` };
+  } catch (err: any) {
+    logger.error({ err: err.message }, `[Email/Resend:${tag}] Exception envoi a ${mail.to}:`);
+    return { success: false, error: `Resend exception: ${err.message}` };
+  }
+}
+
+/**
+ * Envoie un email de test directement avec une clé Resend fournie (BYOK),
+ * SANS repli sur la plateforme — pour que le test révèle la vraie erreur de
+ * la clé du client (clé invalide, domaine non vérifié, ...).
+ */
+export async function sendTestEmailWithKey(apiKey: string, fromEmail: string | null, to: string): Promise<{ success: boolean; error?: string; from?: string }> {
+  const picked = pickResendFrom(fromEmail);
+  const client = new Resend(apiKey);
+  const r = await sendViaResend(client, picked.from, picked.usedFallback, {
+    to,
+    subject: "Test d'envoi — Agent de Bureau",
+    html: "<p>Votre clé d'envoi d'emails fonctionne. Cet email a été envoyé avec la clé de votre organisation.</p>",
+    text: "Votre cle d'envoi d'emails fonctionne (cle de votre organisation).",
+  }, "test");
+  return r.success ? { success: true, from: picked.from } : { success: false, error: r.error };
+}
+
+export async function sendEmail(to: string, subject: string, html: string, text: string, opts?: { orgId?: number }): Promise<{ success: boolean; error?: string; preview?: string; provider?: string }> {
   // On collecte la derniere erreur de chaque provider pour pouvoir la
   // remonter au frontend si TOUS les providers echouent. Sans ca, l'admin
   // voit "Envoi email echoue" sans aucun moyen de savoir pourquoi.
   let lastError: string | undefined;
+
+  // BYOK par locataire : si l'organisation a configuré sa propre clé Resend
+  // active, on l'utilise en priorité (les coûts lui sont imputés). En cas
+  // d'échec, on RETOMBE sur la chaîne plateforme (politique confirmée par
+  // l'admin : "fallback clé plateforme") pour ne jamais bloquer un envoi.
+  if (opts?.orgId) {
+    try {
+      const sender = await getOrgEmailSender(opts.orgId);
+      if (sender) {
+        const picked = pickResendFrom(sender.fromEmail);
+        const orgClient = new Resend(sender.apiKey);
+        const r = await sendViaResend(orgClient, picked.from, picked.usedFallback, { to, subject, html, text }, "org");
+        if (r.success) return r;
+        lastError = r.error;
+        logger.warn({ orgId: opts.orgId, lastError }, "[Email] Clé d'organisation en échec, repli sur la plateforme");
+      }
+    } catch (err: any) {
+      lastError = `Org email exception: ${err.message}`;
+      logger.error({ err: err.message, orgId: opts.orgId }, "[Email] Exception clé organisation, repli plateforme");
+    }
+  }
 
   const resend = await getResendClient();
   if (resend) {

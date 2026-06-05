@@ -33,6 +33,7 @@ export * from "./app-audit";
 export * from "./payment-reminders";
 export * from "./face-profiles";
 export * from "./telephony";
+export * from "./email-providers";
 export * from "./invitations";
 export * from "./documents";
 export * from "./ai-usage";

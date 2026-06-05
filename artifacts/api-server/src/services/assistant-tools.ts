@@ -438,10 +438,10 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
     },
     requiresConfirmation: true,
     summarize: (a) => `Envoyer un e-mail à ${a.to} — sujet: « ${trim(a.subject, 80)} »`,
-    execute: async (a) => {
+    execute: async (a, { orgId }) => {
       const html = /<\w+/.test(a.body) ? a.body : `<div style="font-family:system-ui">${a.body.replace(/\n/g, "<br>")}</div>`;
       const text = a.body.replace(/<[^>]+>/g, "");
-      const r = await sendEmail(a.to, a.subject, html, text);
+      const r = await sendEmail(a.to, a.subject, html, text, { orgId });
       return r;
     },
   },

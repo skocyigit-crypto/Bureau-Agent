@@ -85,6 +85,7 @@ import adminSaasDashboardRouter from "./admin-saas-dashboard";
 import webhooksRouter from "./webhooks";
 import apiKeysRouter from "./api-keys";
 import knowledgeBaseRouter from "./knowledge-base";
+import emailProvidersRouter from "./email-providers";
 
 const router: IRouter = Router();
 
@@ -182,6 +183,7 @@ router.use(aiUsageRouter);
 router.use(agentCollaborationRouter);
 router.use("/face", faceRecognitionRouter);
 router.use(telephonyRouter);
+router.use(emailProvidersRouter);
 router.use(voiceCommandRouter);
 router.use(voiceSiteOpsRouter);
 router.use(invitationsRouter);

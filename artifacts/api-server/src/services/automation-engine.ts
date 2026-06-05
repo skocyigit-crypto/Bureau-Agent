@@ -548,7 +548,7 @@ async function executeAction(
       const subject = interpolate(p.subject ?? ruleName, context);
       const bodyText = interpolate(p.body ?? `Automatisation: ${ruleName}`, context);
       const html = `<p>${bodyText.replace(/\n/g, "<br>")}</p>`;
-      const result = await sendEmail(to, subject, html, bodyText);
+      const result = await sendEmail(to, subject, html, bodyText, { orgId: orgId ?? undefined });
       if (!result.success) {
         logger.warn({ to, err: result.error }, "[Automation] send_email: echec envoi");
       }
