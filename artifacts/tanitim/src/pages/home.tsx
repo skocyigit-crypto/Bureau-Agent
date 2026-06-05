@@ -17,6 +17,7 @@ const ContactModal = lazy(() =>
 );
 type ContactKind = "rappel" | "devis";
 import { HeroLiveScene, LiveActivityTicker, CursorGlow } from "@/components/HeroLiveScene";
+import { ShowcaseAvatar3D } from "@/components/ShowcaseAvatar3D";
 import { AnimatedDashboardMock } from "@/components/AnimatedDashboardMock";
 import { 
   PhoneCall, 
@@ -211,6 +212,61 @@ export default function Home() {
 
         {/* 2.1 LIVE ACTIVITY TICKER — continuous motion strip */}
         <LiveActivityTicker />
+
+        {/* 2.4 SHOWCASE 3D AVATAR — big talking head, on-device viseme engine */}
+        <section className="relative overflow-hidden bg-[#1a2744] py-24 text-white">
+          <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay pointer-events-none" style={{backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.65\' numOctaves=\'3\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")'}}></div>
+          <div className="container relative z-10 mx-auto grid items-center gap-12 px-4 lg:grid-cols-2">
+            <motion.div
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+              className="order-2 text-center lg:order-1 lg:text-left"
+            >
+              <span className="mb-5 inline-flex items-center gap-2 rounded-full bg-white/5 px-4 py-2 text-sm font-medium text-white/80 backdrop-blur-md">
+                <span className="h-2 w-2 rounded-full bg-[#f59e0b]" />
+                Démo voix • 100% sur votre appareil
+              </span>
+              <h2 className="mb-5 text-4xl font-extrabold leading-tight md:text-5xl">
+                Rencontrez votre{" "}
+                <span className="bg-gradient-to-r from-[#f59e0b] to-yellow-200 bg-clip-text text-transparent">
+                  agent de bureau
+                </span>
+              </h2>
+              <p className="mx-auto mb-8 max-w-xl text-lg leading-relaxed text-blue-100/80 lg:mx-0">
+                Cliquez sur l'avatar pour l'entendre se présenter. La synthèse vocale
+                s'exécute entièrement sur votre appareil — aucune donnée audio ne quitte
+                votre navigateur. C'est le même moteur de lecture labiale que l'assistant
+                intégré à l'application.
+              </p>
+              <ul className="mx-auto max-w-md space-y-2 text-left text-blue-100/70 lg:mx-0">
+                <li className="flex items-center gap-3">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f59e0b]/20 text-[#f59e0b]">✓</span>
+                  Voix synthétisée localement, sans serveur tiers
+                </li>
+                <li className="flex items-center gap-3">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f59e0b]/20 text-[#f59e0b]">✓</span>
+                  Lecture labiale en temps réel (français)
+                </li>
+                <li className="flex items-center gap-3">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f59e0b]/20 text-[#f59e0b]">✓</span>
+                  Accueil professionnel, 24h/24
+                </li>
+              </ul>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+              className="order-1 lg:order-2"
+            >
+              <ShowcaseAvatar3D />
+            </motion.div>
+          </div>
+        </section>
 
         {/* 2.5 AJAN DEMO — public Gemini-powered live demo */}
         <AjanDemo />

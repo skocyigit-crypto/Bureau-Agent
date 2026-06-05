@@ -338,9 +338,9 @@ function htmlToTextCmd(html: string): string {
   return html.replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-async function sendEmailViaResend(to: string, subject: string, html: string): Promise<boolean> {
+async function sendEmailViaResend(to: string, subject: string, html: string, orgId?: number): Promise<boolean> {
   try {
-    const result = await sendEmail(to, subject, html, htmlToTextCmd(html));
+    const result = await sendEmail(to, subject, html, htmlToTextCmd(html), { orgId });
     if (!result.success) { logger.info(`[Commandant/Email] Echec envoi a ${to}: ${result.error || "inconnu"}`); return false; }
     return true;
   } catch (err: any) {
@@ -763,7 +763,7 @@ JSON attendu:
         const invoice = overdueInvoices.find(f => f.reference === reminder.invoiceRef || f.clientName === reminder.clientName);
         if (invoice?.clientEmail) {
           const html = emailWrap("Rappel de paiement", `<h2 style="color:#dc2626;">Rappel - ${escapeHtml(invoice.reference)}</h2><p>${escapeHtml(reminder.message)}</p><div style="background:#fef2f2;padding:20px;border-radius:10px;text-align:center;margin:20px 0;"><div style="font-size:24px;font-weight:700;color:#dc2626;">${(Number(invoice.totalAmount) - Number(invoice.paidAmount)).toFixed(2)} EUR</div></div>${org?.bankIban ? `<p style="font-size:12px;color:#64748b;">IBAN: ${escapeHtml(org.bankIban)} | Ref: ${escapeHtml(invoice.reference)}</p>` : ""}`);
-          const sent = await sendEmailViaResend(invoice.clientEmail, `Rappel - Facture ${invoice.reference}`, html);
+          const sent = await sendEmailViaResend(invoice.clientEmail, `Rappel - Facture ${invoice.reference}`, html, orgId);
           if (sent) emailsSent++;
         }
       }
@@ -1083,7 +1083,7 @@ router.post("/commandant/drive-send-file", async (req: Request, res: Response): 
       <p style="color:#64748b;font-size:13px;">Cordialement,<br><strong>Agent de Bureau</strong></p>`;
 
     const html = emailWrap("Envoi de document", body);
-    const sent = await sendEmailViaResend(recipientEmail, subject, html);
+    const sent = await sendEmailViaResend(recipientEmail, subject, html, orgId);
 
     res.json({ success: sent, message: sent ? `Document envoye a ${recipientEmail}` : "Echec de l'envoi" });
   } catch (err: any) {
@@ -1220,7 +1220,7 @@ router.post("/commandant/send-task-reminder", async (req: Request, res: Response
       <p style="color:#64748b;font-size:13px;">Merci de traiter cette tache dans les meilleurs delais.</p>`;
 
     const html = emailWrap("Rappel de tache", body);
-    const sent = await sendEmailViaResend(recipientEmail, `[RAPPEL] Tache en retard: ${task.title}`, html);
+    const sent = await sendEmailViaResend(recipientEmail, `[RAPPEL] Tache en retard: ${task.title}`, html, orgId);
 
     res.json({ success: sent });
   } catch (err: any) {
