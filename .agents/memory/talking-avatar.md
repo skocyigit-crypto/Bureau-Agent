@@ -33,10 +33,28 @@ app, the marketing site, and the mobile app, speaking French and Turkish.
   the OS engine (on-device) so it is acceptable as-is.
 
 ## Lip-sync timing
-- Web prefers Web Speech `onboundary` events, with a ~90ms timer fallback for
-  browsers without boundary support.
+- Web uses a rAF scheduler: each char carries a duration weight (vowels long,
+  stops short, punctuation = pause), cumulative weight maps elapsed time → char
+  position. `onboundary` events re-anchor the cursor AND adaptively learn the real
+  ms-per-weight pace; with no boundary support it plays from the rate-based guess
+  and closes the mouth at the end. State updates only when the viseme changes.
 - Mobile (expo-speech gives no boundary events) drives visemes purely on a steady
   timer (~85ms) while speaking and stops on `onDone`/`onStopped`/`onError`.
+- **`onboundary.charIndex` is UTF-16 code-unit based** — build the per-char
+  timeline by indexing `text[i]` over `text.length`, NOT `Array.from(text)`
+  (code points). Using code points desyncs the anchor on any astral char (emoji).
+- **Guard every utterance callback with `if (utterRef.current !== u) return;`**
+  — `speechSynthesis.cancel()` + immediate new `speak()` lets the OLD utterance's
+  `onend`/`onerror` fire late and clobber the NEW playback (stops rAF, resets
+  viseme/speaking). The identity check is the only thing preventing the race.
+
+## "Most advanced lip-sync" is bounded by the privacy constraint
+- Web Speech API **never exposes the synthesized audio buffer**, so true
+  audio-frequency lip-sync is impossible while honoring on-device-only TTS. The
+  ceiling is a *linguistic* viseme engine (phoneme→shape + real timing), not an
+  audio analyser. Don't chase FFT/audio-reactive mouth on web — it can't be done
+  without a remote/streamed voice. Richer = more visemes (sibilant/tongue/round)
+  + coarticulation via render easing, not audio.
 
 ## Reusable AvatarDock (controls wrapper around TalkingAvatar)
 - `AvatarDock` wraps `TalkingAvatar` with FR/TR toggle, mute, replay/stop, a

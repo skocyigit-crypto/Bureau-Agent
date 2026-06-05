@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { type VisemeKey, VISEME_SHAPES } from "./visemes";
+import { type VisemeKey, type MouthShape, VISEME_SHAPES } from "./visemes";
 
 export type AvatarEmotion = "auto" | "neutral" | "happy" | "thinking" | "listening";
 
@@ -109,11 +109,13 @@ export function AvatarFace({
   const pupilsRef = useRef<SVGGElement | null>(null);
   const ringARef = useRef<SVGCircleElement | null>(null);
   const ringBRef = useRef<SVGCircleElement | null>(null);
+  const browRef = useRef<SVGGElement | null>(null);
 
-  // eased mouth params + corner lift
-  const cur = useRef({ w: 0.52, h: 0.05, round: 0.25, corner: 1.5 });
-  const target = useRef<{ w: number; h: number; round: number }>(VISEME_SHAPES.rest);
+  // eased mouth params + corner lift + viseme-driven teeth/tongue
+  const cur = useRef({ w: 0.52, h: 0.05, round: 0.25, corner: 1.5, teeth: 0, tongue: 0 });
+  const target = useRef<MouthShape>(VISEME_SHAPES.rest);
   const cornerTarget = useRef(emo.corner);
+  const browBaseRef = useRef(emo.brow);
 
   useEffect(() => {
     target.current = VISEME_SHAPES[viseme];
@@ -121,6 +123,9 @@ export function AvatarFace({
   useEffect(() => {
     cornerTarget.current = emo.corner;
   }, [emo.corner]);
+  useEffect(() => {
+    browBaseRef.current = emo.brow;
+  }, [emo.brow]);
 
   // gaze tracking
   const gazeTarget = useRef({ x: 0, y: 0 });
@@ -172,6 +177,12 @@ export function AvatarFace({
       c.h += (tg.h - c.h) * 0.45;
       c.round += (tg.round - c.round) * 0.35;
       c.corner += (cornerTarget.current - c.corner) * 0.12;
+      // teeth/tongue follow the viseme when it specifies them, else fall back to
+      // openness so vowels still flash teeth and the tongue shows on wide opens.
+      const teethTg = tg.teeth ?? (c.h > 0.22 ? 0.9 : 0);
+      const tongueTg = tg.tongue ?? (c.h > 0.4 ? Math.min(0.85, (c.h - 0.4) * 2.2) : 0);
+      c.teeth += (teethTg - c.teeth) * 0.4;
+      c.tongue += (tongueTg - c.tongue) * 0.4;
       const path = mouthPath(c.w, c.h, c.corner);
       if (lipRef.current) lipRef.current.setAttribute("d", path);
       if (innerRef.current) {
@@ -179,14 +190,13 @@ export function AvatarFace({
         innerRef.current.setAttribute("opacity", String(Math.min(1, c.h * 1.9)));
       }
       if (teethRef.current) {
-        teethRef.current.setAttribute("opacity", String(c.h > 0.22 ? 0.92 : 0));
+        teethRef.current.setAttribute("opacity", String(Math.min(1, c.teeth)));
         teethRef.current.setAttribute("width", String(2 * MAX_HALF_W * c.w * 0.66));
         teethRef.current.setAttribute("x", String(CX - MAX_HALF_W * c.w * 0.66));
       }
       if (tongueRef.current) {
-        const show = c.h > 0.4 ? Math.min(0.85, (c.h - 0.4) * 2.2) : 0;
-        tongueRef.current.setAttribute("opacity", String(show));
-        tongueRef.current.setAttribute("cy", String(CY_MOUTH + MAX_OPEN * c.h * 0.46));
+        tongueRef.current.setAttribute("opacity", String(Math.min(0.9, c.tongue)));
+        tongueRef.current.setAttribute("cy", String(CY_MOUTH + MAX_OPEN * Math.max(c.h, 0.18) * 0.46));
       }
 
       // gaze easing — when gaze is disabled the target collapses to centre, so
@@ -214,6 +224,13 @@ export function AvatarFace({
           "transform",
           `translate(${hx.toFixed(2)} ${hy.toFixed(2)}) rotate(${rot.toFixed(2)} 100 116)`,
         );
+      }
+
+      // eyebrows lift with mouth openness while speaking (emphasis) so the whole
+      // upper face moves, not just the mouth.
+      if (browRef.current) {
+        const lift = browBaseRef.current + (speaking ? -(0.6 + c.h * 1.8) : 0);
+        browRef.current.setAttribute("transform", `translate(0 ${lift.toFixed(2)})`);
       }
 
       // audio-reactive rings (driven by mouth openness while speaking)
@@ -346,8 +363,8 @@ export function AvatarFace({
           <ellipse cx="70" cy="122" rx="12" ry="8" fill={`url(#${uid}-cheek)`} />
           <ellipse cx="130" cy="122" rx="12" ry="8" fill={`url(#${uid}-cheek)`} />
 
-          {/* eyebrows (emotion-driven) */}
-          <g style={{ transform: `translateY(${emo.brow + (speaking ? -0.6 : 0)}px)`, transition: "transform .2s" }}>
+          {/* eyebrows (emotion-driven + speech emphasis, animated via browRef) */}
+          <g ref={browRef}>
             <rect
               x="62" y="88" width="24" height="5" rx="2.5" fill={p.hair}
               style={{ transformBox: "fill-box", transformOrigin: "center", transform: `rotate(${emo.browTilt}deg)` }}
