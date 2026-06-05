@@ -1,5 +1,5 @@
 export { AvatarFace, DEFAULT_PALETTE } from "./AvatarFace";
-export type { AvatarFaceProps, AvatarPalette } from "./AvatarFace";
+export type { AvatarFaceProps, AvatarPalette, AvatarEmotion } from "./AvatarFace";
 export { TalkingAvatar } from "./TalkingAvatar";
 export type { TalkingAvatarProps, TalkingAvatarHandle } from "./TalkingAvatar";
 export { AvatarDock } from "./AvatarDock";

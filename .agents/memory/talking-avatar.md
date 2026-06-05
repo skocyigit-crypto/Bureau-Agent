@@ -51,6 +51,35 @@ app, the marketing site, and the mobile app, speaking French and Turkish.
 - **How to apply:** give each host a unique `storageKey` so voice prefs don't
   collide; feed the dock the latest assistant/summary text, not the whole thread.
 
+## AvatarFace renders TINY in production — never size-gate core detail
+- Every real usage of `AvatarFace`/`TalkingAvatar` is **44–56px** (floating button,
+  dock, demo). A size-based LOD gate (e.g. "only show cheeks/lashes/headset when
+  size ≥ 92") therefore hides the richness in 100% of real renders.
+- **Why:** the avatar was once size-gated and looked "too simple" everywhere because
+  no caller ever hit the threshold.
+- **How to apply:** keep facial detail ungated. Only reserve the few sub-pixel-fiddly
+  bits (the mic boom) behind a low threshold (`size >= 72`). Verify at ~44px, not at
+  the 220px default, before declaring it done.
+
+## AvatarPalette is a public exported type — extend it additively only
+- `AvatarPalette` is exported from `@workspace/ai-avatar`. Any field you add to it
+  must be **optional** (`?`), with the concrete value living in `DEFAULT_PALETTE`
+  (typed `Required<AvatarPalette>`) and merged in at render.
+- **Why:** making new fields required is a breaking API change — external callers
+  that typed a `palette` object before the field existed fail typecheck.
+- **How to apply:** new look-and-feel knobs → optional prop + default. Same rule for
+  any new `AvatarFace`/`TalkingAvatar` prop (keep them optional / pass-through).
+
+## The `gaze` prop must gate EVERY motion source
+- Disabling gaze means three things must stop, not one: the `mousemove` listener,
+  the idle-saccade `setInterval`, AND the rAF loop's gaze→pupil/head contribution.
+- **Why:** gating only the cursor listener still leaves saccades mutating the target
+  and the rAF easing pupils/head — eyes keep wandering when the caller asked for a
+  still face.
+- **How to apply:** when `gaze` is false, collapse the gaze target to centre inside
+  the rAF tick (so pupils recentre then stay static) and early-return the saccade
+  effect; include `gaze` in both effects' dep arrays.
+
 ## voice-assistant screen is intentionally EXCLUDED from AvatarDock
 - The mobile `voice-assistant` screen already drives `expo-speech` directly with
   its own full-screen wave UI. Adding an AvatarDock there would double-speak the
