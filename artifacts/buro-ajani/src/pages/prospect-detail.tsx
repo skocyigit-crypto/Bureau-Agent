@@ -1,6 +1,6 @@
 import { useRoute, useLocation, Link } from "wouter";
 import { confirmAction } from "@/hooks/use-confirm";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { AccessDenied } from "@/components/access-denied";
 import { format } from "date-fns";
@@ -95,39 +95,53 @@ export default function ProspectDetail() {
   const [notesValue, setNotesValue] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
 
+  // Garde anti-course : si l'utilisateur navigue rapidement entre deux prospects,
+  // une ancienne requête peut résoudre APRÈS la nouvelle et écraser l'état avec
+  // les données du mauvais prospect. On compare l'id capturé au début de la
+  // requête à l'id actuellement affiché avant chaque setState.
+  const activeProspectIdRef = useRef(prospectId);
+  activeProspectIdRef.current = prospectId;
+
   const load = useCallback(async () => {
     if (!prospectId) return;
+    const reqId = prospectId;
     setLoading(true);
     setNotFound(false);
     try {
       const res = await fetch(`${BASE}/api/prospects/${prospectId}`, { credentials: "include" });
+      if (activeProspectIdRef.current !== reqId) return;
       if (res.status === 404) { setNotFound(true); setProspect(null); setLinkedContact(null); return; }
       if (!res.ok) throw new Error("erreur");
       const data: Prospect = await res.json();
+      if (activeProspectIdRef.current !== reqId) return;
       setProspect(data);
       setTags(data.tags || []);
       if (data.contactId) {
         try {
           const cr = await fetch(`${BASE}/api/contacts/${data.contactId}`, { credentials: "include" });
+          if (activeProspectIdRef.current !== reqId) return;
           if (cr.ok) setLinkedContact(await cr.json()); else setLinkedContact(null);
-        } catch { setLinkedContact(null); }
+        } catch { if (activeProspectIdRef.current === reqId) setLinkedContact(null); }
       } else {
         setLinkedContact(null);
       }
     } catch {
-      toast({ title: "Erreur", description: "Impossible de charger le prospect.", variant: "destructive" });
+      if (activeProspectIdRef.current === reqId)
+        toast({ title: "Erreur", description: "Impossible de charger le prospect.", variant: "destructive" });
     } finally {
-      setLoading(false);
+      if (activeProspectIdRef.current === reqId) setLoading(false);
     }
   }, [prospectId, toast]);
 
   const loadHistory = useCallback(async () => {
     if (!prospectId) return;
+    const reqId = prospectId;
     setHistoryLoading(true);
     try {
       const res = await fetch(`${BASE}/api/prospects/${prospectId}/history`, { credentials: "include" });
+      if (activeProspectIdRef.current !== reqId) return;
       if (res.ok) setHistoryData(await res.json());
-    } catch {} finally { setHistoryLoading(false); }
+    } catch {} finally { if (activeProspectIdRef.current === reqId) setHistoryLoading(false); }
   }, [prospectId]);
 
   useEffect(() => { load(); loadHistory(); }, [load, loadHistory]);

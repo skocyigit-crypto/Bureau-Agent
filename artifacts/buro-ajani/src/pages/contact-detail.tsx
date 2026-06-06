@@ -85,14 +85,21 @@ export default function ContactDetail() {
     }
   });
 
+  // Garde anti-course : une navigation rapide entre contacts peut faire résoudre
+  // une ancienne requête après la nouvelle et écraser les projets du mauvais contact.
+  const activeContactIdRef = useRef(contactId);
+  activeContactIdRef.current = contactId;
+
   const loadProjetsData = useCallback(async () => {
     if (!contactId) return;
+    const reqId = contactId;
     setIsProjetsLoading(true);
     try {
       const res = await fetch(`${BASE}/api/projets?contactId=${contactId}&limit=20`, { credentials: "include" });
+      if (activeContactIdRef.current !== reqId) return;
       if (res.ok) { const d = await res.json(); setProjetsData(d.projets || []); }
     } catch {}
-    finally { setIsProjetsLoading(false); }
+    finally { if (activeContactIdRef.current === reqId) setIsProjetsLoading(false); }
   }, [contactId, BASE]);
 
   const formInitialized = useRef(false);
