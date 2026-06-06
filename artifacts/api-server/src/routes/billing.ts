@@ -206,20 +206,26 @@ router.post("/billing/match-payments", async (req: Request, res: Response): Prom
       if (bestMatch) {
         matchedInvoiceIds.add(bestMatch.invoiceId);
 
-        await db.update(paymentsTable).set({
-          invoiceId: bestMatch.invoiceId,
-          organisationId: bestMatch.orgId,
-          matchedBy: "auto",
-          matchConfidence: String(bestMatch.confidence),
-          status: "matched",
-        }).where(eq(paymentsTable.id, payment.id));
+        // Transaction : le paiement et la facture doivent basculer ensemble.
+        // Sans cela, un crash entre les deux updates laisse le paiement
+        // "matched" mais la facture impayee (etat partiel incoherent).
+        const match = bestMatch;
+        await db.transaction(async (tx) => {
+          await tx.update(paymentsTable).set({
+            invoiceId: match.invoiceId,
+            organisationId: match.orgId,
+            matchedBy: "auto",
+            matchConfidence: String(match.confidence),
+            status: "matched",
+          }).where(eq(paymentsTable.id, payment.id));
 
-        if (bestMatch.confidence >= 80) {
-          await db.update(invoicesTable).set({
-            status: "payee",
-            paidAt: new Date(),
-          }).where(eq(invoicesTable.id, bestMatch.invoiceId));
-        }
+          if (match.confidence >= 80) {
+            await tx.update(invoicesTable).set({
+              status: "payee",
+              paidAt: new Date(),
+            }).where(eq(invoicesTable.id, match.invoiceId));
+          }
+        });
 
         matched++;
       }
@@ -270,18 +276,23 @@ router.post("/billing/payments/:id/assign", async (req: Request, res: Response):
     const [invoice] = await db.select().from(invoicesTable).where(eq(invoicesTable.id, invoiceId));
     if (!invoice) { res.status(404).json({ error: "Facture introuvable." }); return; }
 
-    await db.update(paymentsTable).set({
-      invoiceId,
-      organisationId: invoice.organisationId,
-      matchedBy: "manual",
-      matchConfidence: "100",
-      status: "matched",
-    }).where(eq(paymentsTable.id, id));
+    // Transaction : affectation du paiement + passage de la facture en "payee"
+    // doivent etre atomiques, sinon un echec entre les deux laisse un etat
+    // partiel (paiement affecte mais facture toujours impayee).
+    await db.transaction(async (tx) => {
+      await tx.update(paymentsTable).set({
+        invoiceId,
+        organisationId: invoice.organisationId,
+        matchedBy: "manual",
+        matchConfidence: "100",
+        status: "matched",
+      }).where(eq(paymentsTable.id, id));
 
-    await db.update(invoicesTable).set({
-      status: "payee",
-      paidAt: new Date(),
-    }).where(eq(invoicesTable.id, invoiceId));
+      await tx.update(invoicesTable).set({
+        status: "payee",
+        paidAt: new Date(),
+      }).where(eq(invoicesTable.id, invoiceId));
+    });
 
     res.json({ message: "Paiement affecte et facture marquee comme payee." });
   } catch (err: any) {
