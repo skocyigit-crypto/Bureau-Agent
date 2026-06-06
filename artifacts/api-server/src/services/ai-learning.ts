@@ -957,6 +957,54 @@ export function fingerprintLearned(text: string): string {
   return crypto.createHash("sha256").update(text).digest("hex").slice(0, 12);
 }
 
+// --- Boucle de feedback -> suppression des suggestions proactives ----------
+//
+// Ferme la boucle d'apprentissage pour le flux DÉTERMINISTE (pilier A): quand
+// le dirigeant rejette de façon RÉPÉTÉE et NETTE un type de suggestion proactive
+// (👎), le moteur cesse d'en produire de NOUVELLES (et auto-résout les pending de
+// ce type). C'est ainsi que les votes influencent concrètement ce que l'utilisateur
+// voit, et pas seulement le ton des textes rédigés par l'IA.
+//
+// Garde-fous: seuil STRICT (score très négatif + échantillon suffisant) pour ne
+// pas sur-supprimer sur du bruit; et côté moteur, on n'applique JAMAIS la
+// suppression aux suggestions de sévérité « urgent » (sécurité/trésorerie/etc.)
+// — un type mal noté ne doit pas masquer une urgence réelle.
+const SUPPRESS_SCORE_MAX = -0.5;
+const SUPPRESS_MIN_DOWN = 3;
+const SUPPRESS_CACHE_TTL_MS = 5 * 60 * 1000;
+const suppressCache = new Map<number, { types: Set<string>; expiresAt: number }>();
+
+// Renvoie l'ensemble des `type` de suggestions proactives nettement et
+// durablement rejetés par l'org. Fail-soft (jamais d'exception): renvoie un
+// ensemble vide en cas d'erreur. Mis en cache 5 min, invalidé par tout
+// recompute/feedback via invalidateContextCache (qui purge aussi ce cache).
+export async function getSuppressedSuggestionTypes(
+  orgId: number | undefined | null,
+): Promise<Set<string>> {
+  if (!orgId || !Number.isFinite(orgId)) return new Set();
+  const cached = suppressCache.get(orgId);
+  if (cached && cached.expiresAt > Date.now()) return cached.types;
+  try {
+    const rows = await db
+      .select({ key: aiLearnedPreferencesTable.key })
+      .from(aiLearnedPreferencesTable)
+      .where(
+        and(
+          eq(aiLearnedPreferencesTable.organisationId, orgId),
+          eq(aiLearnedPreferencesTable.kind, "suggestion_type"),
+          lt(aiLearnedPreferencesTable.score, SUPPRESS_SCORE_MAX),
+          gte(aiLearnedPreferencesTable.downCount, SUPPRESS_MIN_DOWN),
+        ),
+      );
+    const types = new Set(rows.map((r) => r.key));
+    suppressCache.set(orgId, { types, expiresAt: Date.now() + SUPPRESS_CACHE_TTL_MS });
+    return types;
+  } catch (err) {
+    logger.warn({ err, orgId }, "[ai-learning] getSuppressedSuggestionTypes failed (fail-soft)");
+    return new Set();
+  }
+}
+
 // --- Cron quotidien --------------------------------------------------------
 
 // Fenêtre de recalcul: au plus une fois par ~jour et par organisation. Le tick
