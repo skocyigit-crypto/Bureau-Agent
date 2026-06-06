@@ -71,6 +71,9 @@ function invalidateContextCache(orgId: number): void {
   for (const k of contextCache.keys()) {
     if (k.startsWith(prefix)) contextCache.delete(k);
   }
+  // Purge aussi le cache des types supprimés: un nouveau vote 👍/👎 doit pouvoir
+  // ré-ouvrir ou fermer immédiatement un type côté moteur proactif.
+  suppressCache.delete(orgId);
 }
 
 // --- Agrégation du feedback -> préférences apprises ------------------------

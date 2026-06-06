@@ -26,6 +26,7 @@ import { and, eq, lt, gte, inArray, notInArray, isNotNull, desc } from "drizzle-
 import { broadcaster } from "./broadcaster";
 import { logger } from "../lib/logger";
 import { analyzeTreasuryRisk, CASH_CRUNCH_THRESHOLD, CASH_CRUNCH_RESOLVE_THRESHOLD } from "./treasury-risk";
+import { getSuppressedSuggestionTypes } from "./ai-learning";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 // "Toujours en éveil": le veilleur déterministe (sans coût IA) ré-évalue
@@ -85,6 +86,19 @@ const RETIRED_DETECTOR_TYPES = ["vehicle_service"] as const;
 // Seuil d'inactivité (jours) au-delà duquel un contact client/prospect est
 // proposé pour une reprise de contact (détecteur F).
 const INACTIVE_CONTACT_DAYS = 60;
+
+// Applique la boucle de feedback au flux déterministe: retire les candidats dont
+// le `type` a été nettement et durablement rejeté par le dirigeant (👎), SAUF
+// ceux de sévérité « urgent » qui doivent toujours remonter (un type mal noté ne
+// doit jamais masquer une urgence réelle : trésorerie, appel tendu, etc.).
+// Fonction PURE (sans I/O) pour être testable unitairement.
+export function filterSuppressedCandidates(
+  candidates: Candidate[],
+  suppressed: Set<string>,
+): Candidate[] {
+  if (suppressed.size === 0) return candidates;
+  return candidates.filter((c) => c.severity === "urgent" || !suppressed.has(c.type));
+}
 
 function frDate(d: Date): string {
   return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -526,7 +540,7 @@ async function detectMyTasksDueToday(orgId: number, now: Date): Promise<Candidat
  */
 export async function runProactiveForOrg(orgId: number): Promise<number> {
   const now = new Date();
-  const candidates: Candidate[] = [
+  const rawCandidates: Candidate[] = [
     ...(await detectOverdueTasks(orgId, now)),
     ...(await detectMissedCallFollowups(orgId, now)),
     ...(await detectCalendarConflicts(orgId, now)),
@@ -538,6 +552,13 @@ export async function runProactiveForOrg(orgId: number): Promise<number> {
     // Détecteurs personnels (couche par employé).
     ...(await detectMyTasksDueToday(orgId, now)),
   ];
+
+  // Boucle de feedback (votes 👍/👎): on retire les candidats des types nettement
+  // et durablement rejetés par le dirigeant. Les pending déjà existants de ces
+  // types ne seront plus régénérés -> ils tombent dans `stale` ci-dessous et sont
+  // auto-résolus. Les urgences ne sont jamais supprimées (cf. filterSuppressedCandidates).
+  const suppressed = await getSuppressedSuggestionTypes(orgId);
+  const candidates = filterSuppressedCandidates(rawCandidates, suppressed);
   const candidateKeys = new Set(candidates.map((c) => c.dedupeKey));
 
   // Suggestions pending actuelles pour cette org.
