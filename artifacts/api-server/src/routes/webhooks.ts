@@ -12,6 +12,7 @@ import { requireRole } from "../middleware/auth";
 import { zodErrorResponse } from "../lib/zod-error";
 import { encryptSensitiveData } from "../lib/crypto";
 import { assertSafePublicUrl } from "../lib/ssrf-guard";
+import { manualRetryDelivery } from "../services/webhook-service";
 import { logAudit } from "./audit";
 
 // Endpoints webhook sortants génériques (Faz 1). CRUD tenant-scoped + rotation
@@ -295,6 +296,59 @@ router.get("/webhooks/:id/deliveries", async (req, res) => {
       createdAt: r.createdAt,
     })),
   );
+});
+
+// Rejoue manuellement une livraison (bouton « Rejouer » de l'historique).
+// Réservé aux rôles d'administration via la garde path-scopée "/webhooks".
+router.post("/webhooks/:id/deliveries/:deliveryId/retry", async (req, res) => {
+  const id = Number(req.params.id);
+  const deliveryId = Number(req.params.deliveryId);
+  if (!Number.isInteger(id) || !Number.isInteger(deliveryId)) {
+    res.status(400).json({ error: "Identifiant invalide." });
+    return;
+  }
+  const orgId = getOrgId(req);
+
+  const result = await manualRetryDelivery(orgId, id, deliveryId);
+  if (!result.ok) {
+    if (result.code === "inactive") {
+      res.status(400).json({
+        error: "Endpoint désactivé : réactivez-le avant de rejouer une livraison.",
+      });
+      return;
+    }
+    res.status(404).json({ error: "Livraison webhook introuvable." });
+    return;
+  }
+
+  await logAudit(
+    req.session?.userId,
+    req.session?.userEmail as string | undefined,
+    "webhook_delivery_retry",
+    "webhook_delivery",
+    String(deliveryId),
+    { endpointId: id },
+    req.ip,
+    req.get("user-agent"),
+    orgId,
+  );
+
+  const d = result.delivery;
+  res.json({
+    id: d.id,
+    endpointId: d.endpointId,
+    eventType: d.eventType,
+    eventId: d.eventId,
+    status: d.status,
+    attempts: d.attempts,
+    maxAttempts: d.maxAttempts,
+    responseStatus: d.responseStatus,
+    error: d.error,
+    durationMs: d.durationMs,
+    nextRetryAt: d.nextRetryAt,
+    deliveredAt: d.deliveredAt,
+    createdAt: d.createdAt,
+  });
 });
 
 export default router;

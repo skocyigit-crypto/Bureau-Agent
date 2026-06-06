@@ -2335,6 +2335,40 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /webhooks/{id}/deliveries/{deliveryId}/retry:
+    post:
+      operationId: retryWebhookDelivery
+      summary: Rejouer immédiatement une livraison webhook (nouvelle tentative)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: deliveryId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Nouvelle tentative lancée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookDelivery"
+        "400":
+          description: Requête invalide (ex. endpoint désactivé)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /api-keys:
     get:
       operationId: listApiKeys

@@ -24,7 +24,7 @@
  */
 
 import crypto from "crypto";
-import { and, or, eq, lte, lt, arrayOverlaps, sql } from "drizzle-orm";
+import { and, or, eq, lte, lt, arrayOverlaps, inArray, sql } from "drizzle-orm";
 import {
   db,
   webhookEndpointsTable,
@@ -404,6 +404,70 @@ async function processRetryQueue(): Promise<void> {
   } finally {
     retryRunning = false;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Retry manuel : un admin rejoue une livraison depuis l'écran « API & Webhooks ».
+//
+// CONCURRENCE : on NE rejoue PAS l'envoi directement depuis le chemin HTTP.
+// On se contente de remettre la livraison dans la file (status=retrying, due
+// maintenant) et on laisse le WORKER de retry l'exécuter. Le worker est l'UNIQUE
+// exécuteur d'une livraison (un seul tick à la fois grâce à `retryRunning`), ce
+// qui élimine par construction tout double envoi : un fan-out immédiat ici
+// pourrait entrer en collision avec le tick du worker (le filet "pending
+// périmé" rattraperait une ligne remise à pending dont le createdAt est ancien).
+// Coût : la nouvelle tentative part au prochain tick (<= RETRY_TICK_MS).
+// ---------------------------------------------------------------------------
+
+export async function manualRetryDelivery(
+  orgId: number,
+  endpointId: number,
+  deliveryId: number,
+): Promise<
+  | { ok: true; delivery: WebhookDelivery }
+  | { ok: false; code: "not_found" | "inactive" }
+> {
+  // Endpoint scoppé org : un endpoint coupé par le circuit breaker doit d'abord
+  // être réactivé (ce qui remet failureCount à zéro) — sinon le worker
+  // abandonnerait aussitôt la livraison (cf. processRetryQueue).
+  const [endpoint] = await db
+    .select()
+    .from(webhookEndpointsTable)
+    .where(
+      and(
+        eq(webhookEndpointsTable.id, endpointId),
+        eq(webhookEndpointsTable.organisationId, orgId),
+      ),
+    );
+  if (!endpoint) return { ok: false, code: "not_found" };
+  if (!endpoint.active) return { ok: false, code: "inactive" };
+
+  // Re-mise en file ATOMIQUE et scoppée (org + endpoint + id). Le garde de statut
+  // empêche de « ressusciter » une livraison déjà réussie et fait converger des
+  // clics concurrents vers la même ligne (budget complet restauré : attempts=0).
+  const [reset] = await db
+    .update(webhookDeliveriesTable)
+    .set({
+      status: "retrying",
+      attempts: 0,
+      error: null,
+      responseStatus: null,
+      responseBody: null,
+      nextRetryAt: new Date(), // éligible dès le prochain tick du worker
+      deliveredAt: null,
+    })
+    .where(
+      and(
+        eq(webhookDeliveriesTable.id, deliveryId),
+        eq(webhookDeliveriesTable.endpointId, endpointId),
+        eq(webhookDeliveriesTable.organisationId, orgId),
+        inArray(webhookDeliveriesTable.status, ["failed", "retrying", "pending"]),
+      ),
+    )
+    .returning();
+  if (!reset) return { ok: false, code: "not_found" };
+
+  return { ok: true, delivery: reset };
 }
 
 // ---------------------------------------------------------------------------

@@ -6,7 +6,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListWebhooks, useCreateWebhook, useUpdateWebhook, useDeleteWebhook,
-  useRotateWebhookSecret, useListWebhookDeliveries,
+  useRotateWebhookSecret, useListWebhookDeliveries, useRetryWebhookDelivery,
   useListApiKeys, useCreateApiKey, useRevealApiKey, useRevokeApiKey,
   getListWebhooksQueryKey, getListApiKeysQueryKey, getListWebhookDeliveriesQueryKey,
   type WebhookEndpoint, type ApiKeySummary,
@@ -636,7 +636,28 @@ function FragmentRow({
 
 /** Tableau des livraisons d'un endpoint (chargé à la demande). */
 function DeliveriesTable({ endpointId }: { endpointId: number }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
   const { data, isLoading } = useListWebhookDeliveries(endpointId);
+  const retryDelivery = useRetryWebhookDelivery();
+
+  function doRetry(deliveryId: number) {
+    retryDelivery.mutate(
+      { id: endpointId, deliveryId },
+      {
+        onSuccess: () => {
+          // Rafraîchit l'historique (nouveau statut) et la liste (failureCount /
+          // dernier statut de l'endpoint changent après la nouvelle tentative).
+          qc.invalidateQueries({ queryKey: getListWebhookDeliveriesQueryKey(endpointId) });
+          qc.invalidateQueries({ queryKey: getListWebhooksQueryKey() });
+          toast({ title: "Livraison reprogrammée", description: "Une nouvelle tentative va être effectuée dans la minute." });
+        },
+        onError: (err) =>
+          toast({ title: "Échec", description: errMsg(err, "Impossible de rejouer la livraison."), variant: "destructive" }),
+      },
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 py-8 text-muted-foreground">
@@ -658,29 +679,47 @@ function DeliveriesTable({ endpointId }: { endpointId: number }) {
             <TableHead>Tentatives</TableHead>
             <TableHead>HTTP</TableHead>
             <TableHead>Date</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {deliveries.map((d) => (
-            <TableRow key={d.id}>
-              <TableCell className="font-mono text-xs">{d.eventType}</TableCell>
-              <TableCell>
-                <Badge
-                  variant="outline"
-                  className={
-                    d.status === "delivered" ? "text-emerald-700"
-                      : d.status === "failed" ? "text-red-700"
-                      : "text-amber-700"
-                  }
-                >
-                  {d.status}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-xs">{d.attempts}/{d.maxAttempts}</TableCell>
-              <TableCell className="text-xs">{d.responseStatus ?? "—"}</TableCell>
-              <TableCell className="text-xs text-muted-foreground">{fmtDate(d.createdAt)}</TableCell>
-            </TableRow>
-          ))}
+          {deliveries.map((d) => {
+            const canRetry = d.status === "failed" || d.status === "retrying";
+            return (
+              <TableRow key={d.id}>
+                <TableCell className="font-mono text-xs">{d.eventType}</TableCell>
+                <TableCell>
+                  <Badge
+                    variant="outline"
+                    title={d.error ?? undefined}
+                    className={
+                      d.status === "success" ? "text-emerald-700"
+                        : d.status === "failed" ? "text-red-700"
+                        : "text-amber-700"
+                    }
+                  >
+                    {d.status}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-xs">{d.attempts}/{d.maxAttempts}</TableCell>
+                <TableCell className="text-xs">{d.responseStatus ?? "—"}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">{fmtDate(d.createdAt)}</TableCell>
+                <TableCell className="text-right">
+                  {canRetry && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Rejouer cette livraison"
+                      disabled={retryDelivery.isPending}
+                      onClick={() => doRetry(d.id)}
+                    >
+                      <RotateCw className="w-4 h-4" />
+                    </Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>

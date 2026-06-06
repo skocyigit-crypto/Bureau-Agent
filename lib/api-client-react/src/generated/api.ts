@@ -8279,6 +8279,94 @@ export function useListWebhookDeliveries<
 }
 
 /**
+ * @summary Rejouer immédiatement une livraison webhook (nouvelle tentative)
+ */
+export const getRetryWebhookDeliveryUrl = (id: number, deliveryId: number) => {
+  return `/api/webhooks/${id}/deliveries/${deliveryId}/retry`;
+};
+
+export const retryWebhookDelivery = async (
+  id: number,
+  deliveryId: number,
+  options?: RequestInit,
+): Promise<WebhookDelivery> => {
+  return customFetch<WebhookDelivery>(
+    getRetryWebhookDeliveryUrl(id, deliveryId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getRetryWebhookDeliveryMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof retryWebhookDelivery>>,
+    TError,
+    { id: number; deliveryId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof retryWebhookDelivery>>,
+  TError,
+  { id: number; deliveryId: number },
+  TContext
+> => {
+  const mutationKey = ["retryWebhookDelivery"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof retryWebhookDelivery>>,
+    { id: number; deliveryId: number }
+  > = (props) => {
+    const { id, deliveryId } = props ?? {};
+
+    return retryWebhookDelivery(id, deliveryId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RetryWebhookDeliveryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof retryWebhookDelivery>>
+>;
+
+export type RetryWebhookDeliveryMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Rejouer immédiatement une livraison webhook (nouvelle tentative)
+ */
+export const useRetryWebhookDelivery = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof retryWebhookDelivery>>,
+    TError,
+    { id: number; deliveryId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof retryWebhookDelivery>>,
+  TError,
+  { id: number; deliveryId: number },
+  TContext
+> => {
+  return useMutation(getRetryWebhookDeliveryMutationOptions(options));
+};
+
+/**
  * @summary Lister les clés API de l'organisation (jamais la clé complète)
  */
 export const getListApiKeysUrl = () => {

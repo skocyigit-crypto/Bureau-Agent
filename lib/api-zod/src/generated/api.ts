@@ -2689,6 +2689,30 @@ export const ListWebhookDeliveriesResponse = zod.array(
 );
 
 /**
+ * @summary Rejouer immédiatement une livraison webhook (nouvelle tentative)
+ */
+export const RetryWebhookDeliveryParams = zod.object({
+  id: zod.coerce.number(),
+  deliveryId: zod.coerce.number(),
+});
+
+export const RetryWebhookDeliveryResponse = zod.object({
+  id: zod.number(),
+  endpointId: zod.number(),
+  eventType: zod.string(),
+  eventId: zod.string().nullish(),
+  status: zod.string(),
+  attempts: zod.number(),
+  maxAttempts: zod.number(),
+  responseStatus: zod.number().nullish(),
+  error: zod.string().nullish(),
+  durationMs: zod.number().nullish(),
+  nextRetryAt: zod.coerce.date().nullish(),
+  deliveredAt: zod.coerce.date().nullish(),
+  createdAt: zod.coerce.date(),
+});
+
+/**
  * @summary Lister les clés API de l'organisation (jamais la clé complète)
  */
 export const ListApiKeysResponseItem = zod.object({
