@@ -14,7 +14,7 @@ import {
   messagesTable,
   notesInternesTable,
 } from "@workspace/db";
-import { and, eq, sql, gte, isNotNull, desc, notInArray } from "drizzle-orm";
+import { and, eq, sql, gte, isNotNull, desc, notInArray, or, lt, isNull } from "drizzle-orm";
 import crypto from "node:crypto";
 import { logger } from "../lib/logger";
 
@@ -959,33 +959,66 @@ export function fingerprintLearned(text: string): string {
 
 // --- Cron quotidien --------------------------------------------------------
 
-const LEARNING_INTERVAL_MS = 24 * 60 * 60 * 1000;
+// Fenêtre de recalcul: au plus une fois par ~jour et par organisation. Le tick
+// passe plus souvent (toutes les 6 h) pour rattraper les fenêtres manquées sans
+// dépendre d'un process resté allumé 24 h d'affilée.
+const LEARNING_WINDOW_MS = 20 * 60 * 60 * 1000;
+const LEARNING_TICK_MS = 6 * 60 * 60 * 1000;
 const LEARNING_STARTUP_DELAY_MS = 90 * 1000;
+let learningTicker: ReturnType<typeof setInterval> | null = null;
+
+// Réclamation atomique des organisations dues pour un recalcul: on AVANCE
+// `aiLearningLastRunAt` au moment de la sélection (UPDATE ... RETURNING, atomique
+// côté Postgres). État 100% dérivé de la base -> durable au redémarrage: un
+// restart ne relance plus le cycle complet 90 s après le boot si une org a déjà
+// été recalculée dans la fenêtre. Empêche aussi le double-firing entre deux
+// instances (la seconde ne matche plus le filtre de cadence).
+export async function claimOrgsDueForLearning(cutoff: Date): Promise<number[]> {
+  const claimed = await db
+    .update(organisationsTable)
+    .set({ aiLearningLastRunAt: new Date() })
+    .where(
+      and(
+        eq(organisationsTable.actif, true),
+        or(
+          isNull(organisationsTable.aiLearningLastRunAt),
+          lt(organisationsTable.aiLearningLastRunAt, cutoff),
+        ),
+      ),
+    )
+    .returning({ id: organisationsTable.id });
+  return claimed.map((o) => o.id);
+}
 
 async function runLearningForAllOrgs(): Promise<void> {
   try {
-    const orgs = await db.select({ id: organisationsTable.id }).from(organisationsTable);
-    for (const o of orgs) {
+    const cutoff = new Date(Date.now() - LEARNING_WINDOW_MS);
+    const claimed = await claimOrgsDueForLearning(cutoff);
+
+    for (const orgId of claimed) {
       try {
-        await recomputeLearnedPreferences(o.id);
-        await mineRecurringPatterns(o.id);
-        await recomputeAllUserProfiles(o.id);
+        await recomputeLearnedPreferences(orgId);
+        await mineRecurringPatterns(orgId);
+        await recomputeAllUserProfiles(orgId);
       } catch (err) {
-        logger.warn({ err, orgId: o.id }, "[ai-learning] org cycle failed");
+        logger.warn({ err, orgId }, "[ai-learning] org cycle failed");
       }
     }
-    logger.info({ orgs: orgs.length }, "[ai-learning] cycle terminé");
+    if (claimed.length > 0) {
+      logger.info({ orgs: claimed.length }, "[ai-learning] cycle terminé");
+    }
   } catch (err) {
     logger.error({ err }, "[ai-learning] cycle global échoué");
   }
 }
 
 export function startAiLearning(): void {
+  if (learningTicker) return;
   setTimeout(() => {
     void runLearningForAllOrgs();
   }, LEARNING_STARTUP_DELAY_MS);
-  setInterval(() => {
+  learningTicker = setInterval(() => {
     void runLearningForAllOrgs();
-  }, LEARNING_INTERVAL_MS);
-  logger.info("[ai-learning] cron démarré");
+  }, LEARNING_TICK_MS);
+  logger.info("[ai-learning] cron démarré — fenêtre quotidienne persistée par organisation");
 }
