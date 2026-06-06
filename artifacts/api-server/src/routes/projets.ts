@@ -28,7 +28,10 @@ router.get("/projets", async (req: Request, res: Response): Promise<void> => {
   if (priority && priority !== "all") conditions.push(eq(projetsTable.priority, priority));
   const useUnaccent = await ensureUnaccentExtension();
   if (assignedTo) conditions.push(accentInsensitiveIlike(projetsTable.assignedTo, `%${assignedTo}%`, useUnaccent));
-  if (contactIdQ) conditions.push(eq(projetsTable.contactId, Number(contactIdQ)));
+  if (contactIdQ) {
+    const cid = Number(contactIdQ);
+    if (Number.isFinite(cid)) conditions.push(eq(projetsTable.contactId, cid));
+  }
   if (search) {
     const pattern = `%${search}%`;
     const il = (col: Column): SQL => accentInsensitiveIlike(col, pattern, useUnaccent);

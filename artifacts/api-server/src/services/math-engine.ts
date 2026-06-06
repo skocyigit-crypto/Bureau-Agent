@@ -381,7 +381,9 @@ function processFinancial(text: string): MathSubComponent[] {
   while ((match = margePattern.exec(text)) !== null) {
     const profit = normalizeNumber(match[1]);
     const revenue = normalizeNumber(match[2]);
-    const margePct = (profit / revenue) * 100;
+    // Garde anti div/0 : un CA nul donnerait Infinity (affiche "Infinity%"
+    // cote client / stocke tel quel). On retombe sur 0%.
+    const margePct = revenue !== 0 ? (profit / revenue) * 100 : 0;
     results.push({
       id: `fin_marge_${results.length}`,
       expression: match[0],
