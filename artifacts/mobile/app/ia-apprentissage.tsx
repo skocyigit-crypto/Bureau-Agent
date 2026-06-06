@@ -100,6 +100,7 @@ export default function IaApprentissageScreen() {
   const [selectedUserId, setSelectedUserId] = useState<number | null>(user?.id ?? null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [userLoading, setUserLoading] = useState(true);
+  const [userRecomputing, setUserRecomputing] = useState(false);
   const [team, setTeam] = useState<LearnableUser[]>([]);
 
   const loadUserProfile = useCallback(async (uid: number) => {
@@ -129,6 +130,26 @@ export default function IaApprentissageScreen() {
   useEffect(() => {
     if (selectedUserId != null) void loadUserProfile(selectedUserId);
   }, [selectedUserId, loadUserProfile]);
+
+  const recomputeUser = useCallback(async () => {
+    if (selectedUserId == null) return;
+    setUserRecomputing(true);
+    try {
+      const res = await fetchAuth(`${LEARNING_API}/recompute-user`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: selectedUserId }),
+      });
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setUserProfile({ userId: data.profile?.userId ?? selectedUserId, facts: data.profile?.facts ?? [] });
+      }
+    } catch {
+      /* fail-soft */
+    } finally {
+      setUserRecomputing(false);
+    }
+  }, [fetchAuth, selectedUserId]);
 
   useEffect(() => {
     if (!isManager) return;
@@ -307,9 +328,12 @@ export default function IaApprentissageScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHead}>
               <Feather name="user" size={18} color="#8b5cf6" />
-              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
+              <Text style={[styles.sectionTitle, { color: colors.foreground, flex: 1 }]}>
                 {viewingSelf ? "Votre profil personnel" : "Profil de l'employé"}
               </Text>
+              <Pressable onPress={recomputeUser} disabled={userRecomputing || userLoading} hitSlop={12}>
+                {userRecomputing ? <ActivityIndicator size="small" color={colors.primary} /> : <Feather name="refresh-cw" size={18} color={colors.primary} />}
+              </Pressable>
             </View>
             <Text style={[styles.intro, { color: colors.mutedForeground }]}>
               {isManager

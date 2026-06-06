@@ -6,6 +6,7 @@ import {
   recomputeLearnedPreferences,
   mineRecurringPatterns,
   getUserLearningProfile,
+  recomputeUserProfile,
   listLearnableUsers,
 } from "../services/ai-learning";
 import { logger } from "../lib/logger";
@@ -111,6 +112,62 @@ router.post(
     } catch (err) {
       logger.error({ err }, "[ai-learning] recompute failed");
       res.status(500).json({ error: "Erreur lors du recalcul de l'apprentissage." });
+    }
+  },
+);
+
+// POST /ai-learning/recompute-user — recalcule le profil PERSONNEL d'un employé.
+// Gizlilik/accès: un employé recalcule SON propre profil ; un dirigeant peut
+// recalculer celui de n'importe quel membre de son organisation.
+const lastUserRecomputeByKey = new Map<string, number>();
+function pruneUserRecomputeMap(): void {
+  if (lastUserRecomputeByKey.size <= RECOMPUTE_MAP_MAX) return;
+  while (lastUserRecomputeByKey.size > RECOMPUTE_MAP_MAX) {
+    const first = lastUserRecomputeByKey.keys().next().value;
+    if (first === undefined) break;
+    lastUserRecomputeByKey.delete(first);
+  }
+}
+
+router.post(
+  "/ai-learning/recompute-user",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const orgId = getOrgId(req);
+      const me = req.session?.userId;
+      if (!me) {
+        res.status(401).json({ error: "Non authentifié." });
+        return;
+      }
+      const raw = req.body?.userId;
+      const requested =
+        raw === undefined || raw === null || raw === "" ? me : Number(raw);
+      if (!Number.isInteger(requested) || requested <= 0) {
+        res.status(400).json({ error: "Identifiant employé invalide." });
+        return;
+      }
+      // Un non-dirigeant ne peut recalculer que son propre profil.
+      if (requested !== me && !isManager(req)) {
+        res.status(403).json({ error: "Vous ne pouvez recalculer que votre propre profil." });
+        return;
+      }
+
+      const cooldownKey = `${orgId}:${requested}`;
+      const now = Date.now();
+      const last = lastUserRecomputeByKey.get(cooldownKey) ?? 0;
+      if (now - last < RECOMPUTE_COOLDOWN_MS) {
+        res.status(429).json({ error: "Veuillez patienter avant de relancer l'analyse." });
+        return;
+      }
+      lastUserRecomputeByKey.set(cooldownKey, now);
+      pruneUserRecomputeMap();
+
+      const factsWritten = await recomputeUserProfile(orgId, requested);
+      const profile = await getUserLearningProfile(orgId, requested);
+      res.json({ success: true, factsWritten, profile });
+    } catch (err) {
+      logger.error({ err }, "[ai-learning] recompute-user failed");
+      res.status(500).json({ error: "Erreur lors du recalcul du profil personnel." });
     }
   },
 );

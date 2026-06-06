@@ -144,6 +144,7 @@ export default function IaApprentissagePage() {
   const [selectedUserId, setSelectedUserId] = useState<number>(user.id);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [userLoading, setUserLoading] = useState(true);
+  const [userRecomputing, setUserRecomputing] = useState(false);
   const [team, setTeam] = useState<LearnableUser[]>([]);
 
   const loadUserProfile = useCallback(async (uid: number) => {
@@ -162,6 +163,38 @@ export default function IaApprentissagePage() {
   }, [toast]);
 
   useEffect(() => { void loadUserProfile(selectedUserId); }, [selectedUserId, loadUserProfile]);
+
+  const recomputeUser = async () => {
+    setUserRecomputing(true);
+    try {
+      const res = await fetch(`${LEARNING_API}/recompute-user`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: selectedUserId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 429) {
+        toast({ title: "Patientez", description: data.error ?? "Réessayez dans un instant." });
+      } else if (res.status === 403) {
+        toast({ title: "Accès refusé", description: data.error ?? "Action non autorisée.", variant: "destructive" });
+      } else if (!res.ok) {
+        throw new Error("recompute-user");
+      } else {
+        setUserProfile({ userId: data.profile?.userId ?? selectedUserId, facts: data.profile?.facts ?? [] });
+        toast({
+          title: "Profil mis à jour",
+          description: viewingSelf
+            ? "L'IA a réanalysé votre activité."
+            : "L'IA a réanalysé l'activité de cet employé.",
+        });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Le recalcul du profil a échoué.", variant: "destructive" });
+    } finally {
+      setUserRecomputing(false);
+    }
+  };
 
   useEffect(() => {
     if (!isManager) return;
@@ -357,6 +390,10 @@ export default function IaApprentissagePage() {
                 : "Ce que l'IA a appris de votre activité pour personnaliser ses suggestions et le ton de ses réponses."}
             </p>
           </div>
+          <Button variant="outline" size="sm" onClick={recomputeUser} disabled={userRecomputing || userLoading}>
+            {userRecomputing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+            {viewingSelf ? "Recalculer mon profil" : "Recalculer ce profil"}
+          </Button>
         </div>
 
         {isManager && team.length > 0 && (
