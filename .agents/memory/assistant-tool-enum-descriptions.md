@@ -29,3 +29,12 @@ missing). The column is `text`, so bad values are accepted and only surface as
 - Canonical sets (verified): prospects.stage = nouveau, contact, qualification,
   proposition, negociation, gagne, perdu. tasks.status / calls.status: see
   task-status-enum.md.
+
+## Sibling risk: bulk-operations validation whitelists
+
+`bulk-operations.ts` has one inline status/stage whitelist per route
+(`!["..."].includes(x)`). These are a SECOND copy of each domain enum and drift
+from the canonical route/schema set: a route accepted an orphan literal that no
+read query matches (silent bad write), and `/bulk/prospects/stage` had no
+whitelist at all (wrote arbitrary stage). When changing any domain enum, audit
+the matching bulk route too — they don't share a constant.

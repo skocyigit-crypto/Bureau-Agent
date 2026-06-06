@@ -161,7 +161,7 @@ router.post("/bulk/factures/status", requireMinOperateur, async (req: Request, r
     const orgId = getOrgId(req);
     const { ids, status } = req.body;
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
-    if (!["brouillon", "emise", "partiellement_payee", "payee", "annulee"].includes(status)) { res.status(400).json({ error: "Statut invalide" }); return; }
+    if (!["brouillon", "envoyee", "payee", "partiellement_payee", "en_retard", "annulee"].includes(status)) { res.status(400).json({ error: "Statut invalide" }); return; }
     await db.update(facturesClientTable).set({ status, updatedAt: new Date() }).where(and(eq(facturesClientTable.organisationId, orgId), inArray(facturesClientTable.id, ids)));
     res.json({ success: true, updated: ids.length });
   } catch (err: any) {
@@ -248,6 +248,7 @@ router.post("/bulk/prospects/stage", requireMinOperateur, async (req: Request, r
     const orgId = getOrgId(req);
     const { ids, stage } = req.body;
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
+    if (!["nouveau", "contact", "qualification", "proposition", "negociation", "gagne", "perdu"].includes(stage)) { res.status(400).json({ error: "Étape invalide" }); return; }
 
     await db.update(prospectsTable)
       .set({ stage, updatedAt: new Date() })
