@@ -91,10 +91,13 @@ async function checkOverdueTasks() {
       .select({ id: notificationsTable.id })
       .from(notificationsTable)
       .where(
+        // Dedup sur l'EXISTENCE (lu ou non lu). Avec un filtre read=false, des
+        // que l'utilisateur marquait le rappel comme lu sans traiter la tache,
+        // le tick suivant ne trouvait plus rien et recreait une notification ->
+        // spam toutes les 5 min. On ne notifie donc qu'une seule fois par tache.
         and(
           eq(notificationsTable.sourceType, "task_overdue"),
           eq(notificationsTable.sourceId, String(task.id)),
-          eq(notificationsTable.read, false)
         )
       )
       .limit(1);
@@ -158,10 +161,12 @@ async function checkUpcomingCalendarEvents() {
       .select({ id: notificationsTable.id })
       .from(notificationsTable)
       .where(
+        // Dedup sur l'EXISTENCE (lu ou non lu). Sinon, marquer le rappel comme
+        // lu avant le debut de l'evenement faisait recreer une notification a
+        // chaque tick (toutes les 5 min). Un evenement n'est rappele qu'une fois.
         and(
           eq(notificationsTable.sourceType, "calendar_reminder"),
           eq(notificationsTable.sourceId, String(event.id)),
-          eq(notificationsTable.read, false)
         )
       )
       .limit(1);

@@ -25,13 +25,19 @@ router.get("/calendar/events", async (req: Request, res: Response): Promise<void
   const { start, end, type, search, q } = req.query;
 
   let conditions: any[] = [eq(calendarEventsTable.organisationId, orgId)];
+  // Chevauchement (et non inclusion totale) : un evenement appartient a la
+  // fenetre [start, end] s'il se termine APRES le debut de la fenetre ET
+  // commence AVANT sa fin. L'ancienne logique (startDate >= start &&
+  // endDate <= end) excluait a tort les evenements qui debordent les bornes
+  // (ex. reunion de nuit, evenement multi-jours, RDV commence juste avant le
+  // debut de la semaine affichee), qui disparaissaient de la vue calendrier.
   if (start && typeof start === "string") {
     const d = new Date(start);
-    if (!isNaN(d.getTime())) conditions.push(gte(calendarEventsTable.startDate, d));
+    if (!isNaN(d.getTime())) conditions.push(gte(calendarEventsTable.endDate, d));
   }
   if (end && typeof end === "string") {
     const d = new Date(end);
-    if (!isNaN(d.getTime())) conditions.push(lte(calendarEventsTable.endDate, d));
+    if (!isNaN(d.getTime())) conditions.push(lte(calendarEventsTable.startDate, d));
   }
   if (type && type !== "tous" && typeof type === "string") conditions.push(eq(calendarEventsTable.type, type));
 
