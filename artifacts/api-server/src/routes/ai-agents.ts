@@ -1025,7 +1025,7 @@ Utilise cette veille pour contextualiser tes alertes et suggestions avec l'actua
 === FIN VEILLE ===`;
 }
 
-async function runSingleAgent(agent: typeof AGENTS[0], orgId: number, signal?: AbortSignal, goal?: string): Promise<any> {
+async function runSingleAgent(agent: typeof AGENTS[0], orgId: number, signal?: AbortSignal, goal?: string, userId?: number): Promise<any> {
   const startTime = Date.now();
   const today = new Date().toISOString().split("T")[0];
   const checkAbort = () => { if (signal?.aborted) throw new Error("aborted"); };
@@ -1088,7 +1088,7 @@ ${trendHistory.map(h => `  ${h.reportDate}: score ${h.score}, ${h.errorsFound} e
       ? `\n\n=== OBJECTIF PRIORITAIRE DU DIRIGEANT ===\nLe patron te confie une mission specifique pour cette execution: "${cleanGoal}"\nConcentre ton analyse, tes alertes et tes suggestions en priorite sur cet objectif, tout en restant dans ton domaine de competence. Si l'objectif sort de ton domaine, dis-le clairement et traite ce que tu peux.\n=== FIN OBJECTIF ===`
       : "";
 
-    const learnedContext = await buildLearnedContextBlock(orgId);
+    const learnedContext = await buildLearnedContextBlock(orgId, userId);
     const { context: researchContext, payload: researchPayload } = await buildAgentResearch(agent, orgId, today);
     const fullPrompt = `${getAgentPrompt(agent)}${collaborationContext}${trendContext}${learnedContext}${researchContext}${goalContext}\n\n${AGENT_RESPONSE_FORMAT}\n\nDate du rapport: ${today}\nDonnees actuelles (cette semaine + semaine precedente + patterns):\n${JSON.stringify(data, null, 2)}`;
 
@@ -1426,7 +1426,7 @@ function scheduleJobCleanup(orgId: number, job: JobState) {
   job.cleanupTimer.unref?.();
 }
 
-async function runAgentsJob(orgId: number, job: JobState) {
+async function runAgentsJob(orgId: number, job: JobState, userId?: number) {
   const startedAt = job.startedAt;
   const childReports: any[] = [];
 
@@ -1449,7 +1449,7 @@ async function runAgentsJob(orgId: number, job: JobState) {
         index: idx, agentId: agent.id, agentName: agent.name, agentIcon: agent.icon,
       });
       try {
-        const report = await runSingleAgent(agent, orgId, signal);
+        const report = await runSingleAgent(agent, orgId, signal, undefined, userId);
         childReports.push(report);
         emitJobEvent(job, "agent-done", {
           index: idx, agentId: agent.id, agentName: agent.name, agentIcon: agent.icon,
@@ -1555,7 +1555,7 @@ router.post("/ai/agents/run", requireAdmin, async (_req, res) => {
     };
     job.emitter.setMaxListeners(50);
     runningJobs.set(orgId, job);
-    runAgentsJob(orgId, job).catch(err => logger.error({ err }, "runAgentsJob failed"));
+    runAgentsJob(orgId, job, _req.session?.userId).catch(err => logger.error({ err }, "runAgentsJob failed"));
 
     res.json({ status: "started", message: "Analyse lancee en arriere-plan.", totalAgents: AGENTS.length });
   } catch (error: any) {
@@ -1610,7 +1610,7 @@ router.post("/ai/agents/run/stream", requireAdmin, async (req, res) => {
     };
     job.emitter.setMaxListeners(50);
     runningJobs.set(orgId, job);
-    runAgentsJob(orgId, job).catch(err => logger.error({ err }, "runAgentsJob failed"));
+    runAgentsJob(orgId, job, req.session?.userId).catch(err => logger.error({ err }, "runAgentsJob failed"));
   }
 
   const stream = openSseStream(res);
@@ -1652,7 +1652,7 @@ router.post("/ai/agents/run/:agentId", requireAdmin, async (req, res) => {
       return;
     }
     const goal = typeof req.body?.goal === "string" ? req.body.goal : undefined;
-    const report = await runSingleAgent(agent, orgId, undefined, goal);
+    const report = await runSingleAgent(agent, orgId, undefined, goal, req.session?.userId);
     res.json(report);
   } catch (error: any) {
     if (error instanceof AiQuotaExceededError) { res.status(429).json({ error: error.message, quotaExceeded: true }); return; }
@@ -1693,12 +1693,13 @@ router.post("/ai/agents/run/:agentId/stream", requireAdmin, async (req, res) => 
       }
     } catch {}
 
-    const fullPrompt = `${getAgentPrompt(agent)}${collaborationContext}${trendContext}\n\n${AGENT_RESPONSE_FORMAT}\n\nDate du rapport: ${today}\nDonnees actuelles (cette semaine + semaine precedente + patterns):\n${JSON.stringify(data, null, 2)}`;
+    const learnedContext = await buildLearnedContextBlock(orgId, req.session?.userId);
+    const fullPrompt = `${getAgentPrompt(agent)}${collaborationContext}${trendContext}${learnedContext}\n\n${AGENT_RESPONSE_FORMAT}\n\nDate du rapport: ${today}\nDonnees actuelles (cette semaine + semaine precedente + patterns):\n${JSON.stringify(data, null, 2)}`;
 
     const cacheKey = buildAiCacheKey({
       route: `/ai/agents/${agent.id}`,
       organisationId: orgId,
-      input: { day: today, dataHash: JSON.stringify(data).slice(0, 400) },
+      input: { day: today, dataHash: JSON.stringify(data).slice(0, 400), learned: learnedContext },
     });
 
     let text = "";

@@ -50,3 +50,19 @@ Beyond category weights, two finer signals feed the agents:
 It MUST pass through `sanitizeFeedback()` (strip newlines/quotes, bound length) and be labelled as
 "feedback, not instructions" in the block — otherwise it's a prompt-injection vector. Never inject raw
 user notes into a prompt structure.
+
+# Expert agents: per-user personalization vs cron org-level
+
+The 10 expert agents inject the ACTING user's personal learned profile (writing
+style/focus) only on user-initiated runs; `buildLearnedContextBlock(orgId, userId)`
+is threaded from `req.session.userId` through every interactive path. The cron
+auto-cycle (`runAutoCycle`) intentionally passes NO userId → org-level only (no
+acting user).
+
+**Why:** agents should adapt tone/focus to whoever triggers them, but scheduled
+background runs have no "owner" so must stay neutral/org-wide.
+**How to apply (security):** any path that personalizes a cached AI output MUST put
+the learned-context string into the cache key `input` (cross-user isolation). Adding
+`userId` to the prompt without it lets one user's styled output leak to another via a
+cache hit. When adding a NEW personalized agent path, copy both the prompt injection
+AND the `learned:` cache-key field together — never one without the other.
