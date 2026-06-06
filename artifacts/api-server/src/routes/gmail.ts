@@ -93,7 +93,7 @@ router.get("/gmail/inbox", async (req: Request, res: Response): Promise<void> =>
 
     const listRes = await gmail.users.messages.list({
       userId: "me",
-      maxResults: Math.min(parseInt(String(maxResults)), 50),
+      maxResults: Math.min(Math.max(parseInt(String(maxResults)) || 25, 1), 50),
       q: String(q),
       ...(pageToken ? { pageToken: String(pageToken) } : {}),
     });

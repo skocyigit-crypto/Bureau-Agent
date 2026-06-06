@@ -56,11 +56,14 @@ router.get("/calendar/events", async (req: Request, res: Response): Promise<void
       .where(and(...conditions))
       .orderBy(calendarEventsTable.startDate);
 
+    const startDate = start ? new Date(start as string) : null;
+    const endDate = end ? new Date(end as string) : null;
+    const validStart = startDate && !isNaN(startDate.getTime()) ? startDate : null;
+    const validEnd = endDate && !isNaN(endDate.getTime()) ? endDate : null;
+
     const taskConditions: any[] = [eq(tasksTable.organisationId, orgId)];
-    if (start && end) {
-      taskConditions.push(gte(tasksTable.dueDate, new Date(start as string)));
-      taskConditions.push(lte(tasksTable.dueDate, new Date(end as string)));
-    }
+    if (validStart) taskConditions.push(gte(tasksTable.dueDate, validStart));
+    if (validEnd) taskConditions.push(lte(tasksTable.dueDate, validEnd));
 
     const tasks = await db
       .select()
@@ -85,10 +88,8 @@ router.get("/calendar/events", async (req: Request, res: Response): Promise<void
     const projetConditions: any[] = [
       eq(projetsTable.organisationId, orgId),
     ];
-    if (start && end) {
-      projetConditions.push(gte(projetsTable.endDate, new Date(start as string)));
-      projetConditions.push(lte(projetsTable.endDate, new Date(end as string)));
-    }
+    if (validStart) projetConditions.push(gte(projetsTable.endDate, validStart));
+    if (validEnd) projetConditions.push(lte(projetsTable.endDate, validEnd));
     const projets = await db
       .select({ id: projetsTable.id, title: projetsTable.title, endDate: projetsTable.endDate, status: projetsTable.status, priority: projetsTable.priority, clientName: projetsTable.clientName, progress: projetsTable.progress })
       .from(projetsTable)

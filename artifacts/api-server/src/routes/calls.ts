@@ -332,7 +332,7 @@ router.post("/calls/ai-briefing", async (req, res): Promise<void> => {
       : [];
 
     const contact = contactId
-      ? await db.select().from(contactsTable).where(eq(contactsTable.id, contactId)).then(r => r[0])
+      ? await db.select().from(contactsTable).where(and(eq(contactsTable.id, contactId), eq(contactsTable.organisationId, orgId))).then(r => r[0])
       : null;
 
     const { ai } = await import("@workspace/integrations-gemini-ai");

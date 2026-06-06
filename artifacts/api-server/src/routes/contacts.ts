@@ -266,8 +266,8 @@ router.delete("/contacts/:id", async (req, res): Promise<void> => {
       return;
     }
 
-    await db.update(tasksTable).set({ relatedContactId: null }).where(eq(tasksTable.relatedContactId, params.data.id));
-    await db.update(calendarEventsTable).set({ relatedContactId: null }).where(eq(calendarEventsTable.relatedContactId, params.data.id));
+    await db.update(tasksTable).set({ relatedContactId: null }).where(and(eq(tasksTable.relatedContactId, params.data.id), eq(tasksTable.organisationId, orgId)));
+    await db.update(calendarEventsTable).set({ relatedContactId: null }).where(and(eq(calendarEventsTable.relatedContactId, params.data.id), eq(calendarEventsTable.organisationId, orgId)));
 
     res.sendStatus(204);
   } catch (err: any) {
