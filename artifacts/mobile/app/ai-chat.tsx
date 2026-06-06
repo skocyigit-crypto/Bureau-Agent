@@ -114,7 +114,7 @@ function getFollowUps(content: string): string[] {
 }
 
 function parseMarkdown(text: string, textColor: string, mutedColor: string) {
-  const lines = text.split("\n");
+  const lines = (text || "").split("\n");
   const elements: React.ReactNode[] = [];
   lines.forEach((line, lineIdx) => {
     if (line.startsWith("- ") || line.startsWith("• ")) {

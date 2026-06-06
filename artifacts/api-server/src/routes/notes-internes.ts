@@ -55,7 +55,7 @@ router.put("/notes-internes/:id", requireRole("agent"), async (req: Request, res
     if (color !== undefined) updates.color = color;
     if (pinned !== undefined) updates.pinned = !!pinned;
     if (tags !== undefined) updates.tags = Array.isArray(tags) ? tags : [];
-    const [row] = await db.update(notesInternesTable).set(updates).where(eq(notesInternesTable.id, id)).returning();
+    const [row] = await db.update(notesInternesTable).set(updates).where(and(eq(notesInternesTable.id, id), eq(notesInternesTable.organisationId, orgId))).returning();
     res.json(row);
   } catch (err) {
     req.log.error({ err }, "PUT /notes-internes/:id");

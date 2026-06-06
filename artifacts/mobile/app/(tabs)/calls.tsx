@@ -39,10 +39,10 @@ interface Call {
 }
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  answered: { label: "Repondu", color: "#22c55e" },
-  missed: { label: "Manque", color: "#ef4444" },
-  voicemail: { label: "Messagerie", color: "#f59e0b" },
-  outgoing: { label: "Sortant", color: "#3b82f6" },
+  repondu: { label: "Repondu", color: "#22c55e" },
+  manque: { label: "Manque", color: "#ef4444" },
+  messagerie: { label: "Messagerie", color: "#f59e0b" },
+  en_cours: { label: "En cours", color: "#3b82f6" },
 };
 
 const FORM_FIELDS = [
@@ -142,8 +142,8 @@ export default function CallsScreen() {
   const todayStats = useMemo(() => {
     const today = new Date().toDateString();
     const todayCalls = calls.filter((c) => new Date(c.createdAt).toDateString() === today);
-    const missed = todayCalls.filter((c) => c.status === "missed").length;
-    const answered = todayCalls.filter((c) => c.status === "answered").length;
+    const missed = todayCalls.filter((c) => c.status === "manque").length;
+    const answered = todayCalls.filter((c) => c.status === "repondu").length;
     const totalDuration = todayCalls.reduce((sum, c) => sum + (c.duration || 0), 0);
     return { total: todayCalls.length, missed, answered, totalDuration };
   }, [calls]);
@@ -163,7 +163,7 @@ export default function CallsScreen() {
       if (res.ok) {
         setShowForm(false);
         setEditId(null);
-        setFormValues({ direction: "entrant", status: "answered" });
+        setFormValues({ direction: "entrant", status: "repondu" });
         fetchCalls();
       }
     } catch {} finally { setFormLoading(false); }
@@ -238,7 +238,7 @@ export default function CallsScreen() {
     { key: "outgoing", label: "Sortants" },
   ];
 
-  const missedCount = calls.filter((c) => c.status === "missed").length;
+  const missedCount = calls.filter((c) => c.status === "manque").length;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -319,7 +319,7 @@ export default function CallsScreen() {
           ListEmptyComponent={<EmptyState icon="phone-off" title="Aucun appel" subtitle="Les appels apparaitront ici" />}
           renderItem={({ item }) => {
             const status = STATUS_MAP[item.status] ?? { label: item.status, color: colors.mutedForeground };
-            const isMissed = item.status === "missed";
+            const isMissed = item.status === "manque";
             const isOutgoing = item.direction === "sortant" || item.direction === "outgoing";
             return (
               <Swipeable
@@ -410,7 +410,7 @@ export default function CallsScreen() {
           onDelete={() => handleDelete(selected.id)}
           title={selected.contactName || selected.phoneNumber || "Inconnu"}
           subtitle={selected.direction === "entrant" || selected.direction === "entrant" ? "Appel entrant" : "Appel sortant"}
-          icon={selected.status === "missed" ? "phone-missed" : "phone"}
+          icon={selected.status === "manque" ? "phone-missed" : "phone"}
           iconColor={STATUS_MAP[selected.status]?.color}
           badge={{ label: STATUS_MAP[selected.status]?.label ?? selected.status, color: STATUS_MAP[selected.status]?.color ?? "#64748b" }}
           fields={[

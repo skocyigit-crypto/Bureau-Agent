@@ -73,17 +73,17 @@ const TABS: { key: TabKey; label: string; icon: keyof typeof Feather.glyphMap }[
 ];
 
 const CALL_STATUS: Record<string, { label: string; color: string }> = {
-  answered:   { label: "Répondu",      color: "#22c55e" },
-  missed:     { label: "Manqué",       color: "#ef4444" },
-  voicemail:  { label: "Messagerie",   color: "#f59e0b" },
-  in_progress:{ label: "En cours",     color: "#3b82f6" },
+  repondu:    { label: "Répondu",      color: "#22c55e" },
+  manque:     { label: "Manqué",       color: "#ef4444" },
+  messagerie: { label: "Messagerie",   color: "#f59e0b" },
+  en_cours:   { label: "En cours",     color: "#3b82f6" },
 };
 
 const TASK_STATUS: Record<string, { label: string; color: string }> = {
-  a_faire:     { label: "À faire",     color: "#64748b" },
+  en_attente:  { label: "À faire",     color: "#64748b" },
   en_cours:    { label: "En cours",    color: "#3b82f6" },
-  terminee:    { label: "Terminée",    color: "#22c55e" },
-  annulee:     { label: "Annulée",     color: "#94a3b8" },
+  termine:     { label: "Terminée",    color: "#22c55e" },
+  annule:      { label: "Annulée",     color: "#94a3b8" },
 };
 
 const PROJET_STATUS: Record<string, { label: string; color: string }> = {
@@ -364,7 +364,7 @@ export default function ContactDetailScreen() {
               </View>
             ) : tasks.map(t => {
               const st = TASK_STATUS[t.status] ?? { label: t.status, color: "#64748b" };
-              const overdue = t.dueDate && new Date(t.dueDate) < new Date() && t.status !== "terminee";
+              const overdue = t.dueDate && new Date(t.dueDate) < new Date() && t.status !== "termine";
               return (
                 <View key={t.id} style={[styles.itemCard, { backgroundColor: colors.card, borderColor: colors.border, borderLeftWidth: 3, borderLeftColor: st.color }]}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
