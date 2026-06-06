@@ -137,7 +137,7 @@ async function gatherDailyData(userId: number, orgId: number) {
     db.select({ count: count() }).from(tasksTable).where(and(
       eq(tasksTable.organisationId, orgId),
       eq(tasksTable.createdBy, userId),
-      eq(tasksTable.status, "terminee"),
+      eq(tasksTable.status, "termine"),
       gte(tasksTable.updatedAt, todayStart),
       lte(tasksTable.updatedAt, todayEnd)
     )),
@@ -187,7 +187,7 @@ async function gatherDailyData(userId: number, orgId: number) {
       .where(and(
         eq(tasksTable.organisationId, orgId),
         eq(tasksTable.createdBy, userId),
-        eq(tasksTable.status, "terminee"),
+        eq(tasksTable.status, "termine"),
         gte(tasksTable.updatedAt, todayStart)
       ))
       .orderBy(desc(tasksTable.updatedAt))

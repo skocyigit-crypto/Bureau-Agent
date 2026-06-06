@@ -80,7 +80,7 @@ async function checkOverdueTasks() {
     .where(
       and(
         lte(tasksTable.dueDate, now),
-        sql`${tasksTable.status} NOT IN ('terminee', 'annulee')`
+        sql`${tasksTable.status} NOT IN ('termine', 'annule')`
       )
     );
 
@@ -449,7 +449,7 @@ async function getTriggerItems(rule: any): Promise<any[]> {
         .from(tasksTable)
         .where(and(
           lte(tasksTable.dueDate, new Date()),
-          sql`${tasksTable.status} NOT IN ('terminee', 'annulee')`,
+          sql`${tasksTable.status} NOT IN ('termine', 'annule')`,
           ...(orgId ? [eq(tasksTable.organisationId, orgId)] : []),
         ))
         .limit(20);

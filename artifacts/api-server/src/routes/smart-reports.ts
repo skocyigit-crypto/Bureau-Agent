@@ -50,15 +50,15 @@ router.get("/smart-reports/executive-summary", async (req: Request, res: Respons
 
       db.select({
         total: sql<number>`count(*)::int`,
-        completed: sql<number>`count(*) filter (where ${tasksTable.status} = 'terminee')::int`,
+        completed: sql<number>`count(*) filter (where ${tasksTable.status} = 'termine')::int`,
         inProgress: sql<number>`count(*) filter (where ${tasksTable.status} = 'en_cours')::int`,
-        overdue: sql<number>`count(*) filter (where ${tasksTable.status} != 'terminee' and ${tasksTable.dueDate} < now())::int`,
+        overdue: sql<number>`count(*) filter (where ${tasksTable.status} != 'termine' and ${tasksTable.dueDate} < now())::int`,
         highPriority: sql<number>`count(*) filter (where ${tasksTable.priority} = 'haute')::int`,
       }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), gte(tasksTable.createdAt, startDate))),
 
       db.select({
         total: sql<number>`count(*)::int`,
-        completed: sql<number>`count(*) filter (where ${tasksTable.status} = 'terminee')::int`,
+        completed: sql<number>`count(*) filter (where ${tasksTable.status} = 'termine')::int`,
       }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), gte(tasksTable.createdAt, prevStart), lte(tasksTable.createdAt, startDate))),
 
       db.select({
@@ -204,7 +204,7 @@ router.get("/smart-reports/reminders", async (req: Request, res: Response): Prom
     const [overdueTasks, upcomingEvents, urgentProspects, missedCalls, overdueProjects] = await Promise.all([
       db.select().from(tasksTable).where(and(
         eq(tasksTable.organisationId, orgId),
-        sql`${tasksTable.status} != 'terminee'`,
+        sql`${tasksTable.status} != 'termine'`,
         sql`${tasksTable.dueDate} < now()`,
       )).orderBy(desc(tasksTable.dueDate)).limit(10),
 

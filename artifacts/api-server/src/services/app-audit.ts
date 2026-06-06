@@ -106,11 +106,11 @@ export async function gatherAuditSignals(orgId: number): Promise<AuditSignals> {
     count(db.select({ n: N }).from(tasksTable).where(and(
       eq(tasksTable.organisationId, orgId),
       lte(tasksTable.dueDate, now),
-      sql`${tasksTable.status} NOT IN ('terminee', 'annulee')`,
+      sql`${tasksTable.status} NOT IN ('termine', 'annule')`,
     ))),
     count(db.select({ n: N }).from(tasksTable).where(and(
       eq(tasksTable.organisationId, orgId),
-      sql`${tasksTable.status} NOT IN ('terminee', 'annulee')`,
+      sql`${tasksTable.status} NOT IN ('termine', 'annule')`,
     ))),
     count(db.select({ n: N }).from(messagesTable).where(and(
       eq(messagesTable.organisationId, orgId),

@@ -379,7 +379,7 @@ Reponds UNIQUEMENT en JSON:
         totalCalls: recentCalls.length,
         lastCallDate: recentCalls[0]?.createdAt || null,
         lastSentiment: recentCalls[0]?.sentiment || null,
-        openTasks: recentTasks.filter(t => t.status !== "terminee").length,
+        openTasks: recentTasks.filter(t => t.status !== "termine").length,
         upcomingEvents: upcomingEvents.length,
         contactCategory: contact?.category || null,
         contactCompany: contact?.company || null,
@@ -585,7 +585,7 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
 
       const openTasks = contactId
         ? await db.select({ title: tasksTable.title, status: tasksTable.status, priority: tasksTable.priority, dueDate: tasksTable.dueDate })
-            .from(tasksTable).where(and(eq(tasksTable.relatedContactId, contactId), eq(tasksTable.organisationId, orgId), sql`${tasksTable.status} != 'terminee'`)).limit(10)
+            .from(tasksTable).where(and(eq(tasksTable.relatedContactId, contactId), eq(tasksTable.organisationId, orgId), sql`${tasksTable.status} != 'termine'`)).limit(10)
         : [];
 
       const recentMessages = contactId
@@ -817,7 +817,7 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
             await tx.insert(tasksTable).values({
               title: action.type === "escalation" ? `[URGENT] ${action.description}` : action.type === "devis" ? `[DEVIS] ${action.description}` : action.type === "email" ? `[EMAIL] ${action.description}` : action.description || `Tache creee par ${saveAgentFirstName}`,
               description: `Creee automatiquement par ${saveAgentFirstName} suite a l'appel de ${contactName || phoneNumber}.\nType: ${action.type}\nPriorite: ${action.priority || "moyenne"}\nDelai: ${action.dueInHours ? action.dueInHours + "h" : "non specifie"}\n\n${summary || ""}`,
-              status: "a_faire",
+              status: "en_attente",
               priority: priorityMap[action.priority] || "moyenne",
               relatedContactId: contactId || null,
               relatedCallId: call.id,

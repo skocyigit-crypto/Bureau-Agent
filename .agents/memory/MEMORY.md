@@ -38,4 +38,5 @@
 - [Voice pending-action confirm](voice-pending-action-confirm.md) — confirm `accept` indices key into the READY subset only (not full action list); "mark complete" must re-guard `status IN open` at confirm, not just parse.
 - [PDF generation with pdfkit](pdf-generation-pdfkit.md) — bufferPages+footers-after-content (never pageAdded → stack overflow); resolve non-hoisted pdfkit via createRequire from owning package; Helvetica handles French not Turkish.
 - [Assistant write-tools confirmation gate](assistant-write-tools-confirmation.md) — new assistant tools that persist (rows/docs/email/media) must set requiresConfirmation + local try/catch; pass nested input as a JSON-string param.
+- [Task status canonical enum](task-status-enum.md) — only en_attente/en_cours/termine/annule; legacy terminee/annulee/a_faire/todo fail silently (0 rows, overcount), typecheck won't catch; grep task code.
 - [RAG knowledge base dual-mode](rag-knowledge-base.md) — embeddings unavailable in env; KB search falls back to lexical BM25, auto-upgrades to semantic cosine if a valid key appears; no pgvector dep.

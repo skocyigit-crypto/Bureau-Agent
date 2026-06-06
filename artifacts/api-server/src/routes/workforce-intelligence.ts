@@ -191,7 +191,7 @@ async function gatherEmployeeStats(orgId: number): Promise<EmployeeStats[]> {
       .where(and(
         eq(tasksTable.organisationId, orgId),
         inArray(tasksTable.createdBy, userIds),
-        eq(tasksTable.status, "terminee"),
+        eq(tasksTable.status, "termine"),
         gte(tasksTable.updatedAt, since7d)
       ))
       .groupBy(tasksTable.createdBy),
@@ -203,7 +203,7 @@ async function gatherEmployeeStats(orgId: number): Promise<EmployeeStats[]> {
       .where(and(
         eq(tasksTable.organisationId, orgId),
         inArray(tasksTable.createdBy, userIds),
-        eq(tasksTable.status, "terminee"),
+        eq(tasksTable.status, "termine"),
         gte(tasksTable.updatedAt, todayStart)
       ))
       .groupBy(tasksTable.createdBy),

@@ -32,7 +32,7 @@ router.post("/bulk/tasks/complete", requireMinOperateur, async (req: Request, re
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
 
     const result = await db.update(tasksTable)
-      .set({ status: "terminee", updatedAt: new Date() })
+      .set({ status: "termine", updatedAt: new Date() })
       .where(and(eq(tasksTable.organisationId, orgId), inArray(tasksTable.id, ids)));
 
     res.json({ success: true, updated: ids.length });
@@ -99,7 +99,7 @@ router.post("/bulk/tasks/status", requireMinOperateur, async (req: Request, res:
     const orgId = getOrgId(req);
     const { ids, status } = req.body;
     if (!Array.isArray(ids) || ids.length === 0) { res.status(400).json({ error: "ids requis" }); return; }
-    if (!["todo", "en_cours", "terminee", "annulee"].includes(status)) { res.status(400).json({ error: "Statut invalide" }); return; }
+    if (!["en_attente", "en_cours", "termine", "annule"].includes(status)) { res.status(400).json({ error: "Statut invalide" }); return; }
     await db.update(tasksTable).set({ status, updatedAt: new Date() }).where(and(eq(tasksTable.organisationId, orgId), inArray(tasksTable.id, ids)));
     res.json({ success: true, updated: ids.length });
   } catch (err: any) {

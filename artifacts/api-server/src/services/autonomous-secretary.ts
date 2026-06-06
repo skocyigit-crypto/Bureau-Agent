@@ -101,7 +101,7 @@ export async function gatherContext(orgId: number): Promise<SecretaryContext> {
       .where(and(
         eq(tasksTable.organisationId, orgId),
         lte(tasksTable.dueDate, now),
-        sql`${tasksTable.status} NOT IN ('terminee', 'annulee')`,
+        sql`${tasksTable.status} NOT IN ('termine', 'annule')`,
       ))
       .orderBy(desc(tasksTable.dueDate)).limit(15),
     db.select({ id: callsTable.id, phoneNumber: callsTable.phoneNumber, contactName: callsTable.contactName, createdAt: callsTable.createdAt })

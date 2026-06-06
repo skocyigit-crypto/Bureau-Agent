@@ -555,10 +555,10 @@ export default function Tasks() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Changer le statut</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => handleBulkStatus("todo")}>À faire</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleBulkStatus("en_attente")}>À faire</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleBulkStatus("en_cours")}>En cours</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleBulkStatus("terminee")}>Terminée</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleBulkStatus("annulee")}>Annulée</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleBulkStatus("termine")}>Terminée</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleBulkStatus("annule")}>Annulée</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
               <Button variant="destructive" size="sm" onClick={handleBulkDelete}>

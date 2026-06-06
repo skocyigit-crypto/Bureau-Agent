@@ -66,7 +66,7 @@ export async function gatherUserMetrics(dateDebut: Date, dateFin: Date, orgId: n
 
     const taskConditions: any[] = [
       sql`${tasksTable.assignedTo} ILIKE ${`%${fullName}%`}`,
-      eq(tasksTable.status, "terminee"),
+      eq(tasksTable.status, "termine"),
       gte(tasksTable.updatedAt, dateDebut),
       lte(tasksTable.updatedAt, dateFin),
     ];

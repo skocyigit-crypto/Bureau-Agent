@@ -1382,7 +1382,7 @@ twilioVoiceRouter.post("/telephony/twilio/recording-complete", async (req: Reque
           organisationId: orgId,
           title: `Rappeler ${who} — message vocal`,
           description: snippet,
-          status: "a_faire" as any,
+          status: "en_attente" as any,
           priority: "haute" as any,
           dueDate: new Date(Date.now() + 24 * 3600 * 1000),
           callId: callRow.id,

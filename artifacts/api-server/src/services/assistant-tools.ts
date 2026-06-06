@@ -223,7 +223,7 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
   // ---------- TASKS ----------
   {
     name: "list_tasks",
-    description: "Liste les taches, optionnellement filtrees par statut (en_attente, en_cours, terminee).",
+    description: "Liste les taches, optionnellement filtrees par statut (en_attente, en_cours, termine, annule).",
     parameters: {
       type: "object",
       properties: {

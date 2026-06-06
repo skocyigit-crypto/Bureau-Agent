@@ -161,7 +161,7 @@ async function collectEmployeeData(orgId: number) {
       .from(tasksTable).where(and(
         eq(tasksTable.organisationId, orgId),
         inArray(tasksTable.createdBy, ids),
-        eq(tasksTable.status, "terminee"),
+        eq(tasksTable.status, "termine"),
         gte(tasksTable.updatedAt, since7d)
       )).groupBy(tasksTable.createdBy),
 
