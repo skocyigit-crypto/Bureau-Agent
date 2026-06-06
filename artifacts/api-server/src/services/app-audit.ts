@@ -23,8 +23,9 @@ import {
   calendarEventsTable,
   documentsTable,
 } from "@workspace/db/schema";
-import { and, eq, gte, lte, sql, inArray } from "drizzle-orm";
+import { and, eq, sql, inArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { withDbRetry } from "../lib/db-retry";
 import { getTool, validateArgs } from "./assistant-tools";
 import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
 import { extractGeminiTokens, recordAiUsage, geminiActualModel } from "./ai-utils";
@@ -85,76 +86,64 @@ export interface AuditSignals {
   unprocessedDocuments: number;
 }
 
-async function count(query: Promise<Array<{ n: number }>>): Promise<number> {
-  const rows = await query;
-  return rows[0]?.n ?? 0;
-}
-
 export async function gatherAuditSignals(orgId: number): Promise<AuditSignals> {
   const now = new Date();
   const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
   const in48h = new Date(now.getTime() + 48 * 60 * 60 * 1000);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-  const N = sql<number>`count(*)::int`;
 
-  const [
-    overdueTasks, openTasks, unreadMessages, missedCallsToday,
-    inactiveContacts, totalContacts, upcomingEvents48h, pendingProposals,
-    totalDocuments, unscannedDocuments, threatDocuments, unprocessedDocuments,
-  ] = await Promise.all([
-    count(db.select({ n: N }).from(tasksTable).where(and(
-      eq(tasksTable.organisationId, orgId),
-      lte(tasksTable.dueDate, now),
-      sql`${tasksTable.status} NOT IN ('termine', 'annule')`,
-    ))),
-    count(db.select({ n: N }).from(tasksTable).where(and(
-      eq(tasksTable.organisationId, orgId),
-      sql`${tasksTable.status} NOT IN ('termine', 'annule')`,
-    ))),
-    count(db.select({ n: N }).from(messagesTable).where(and(
-      eq(messagesTable.organisationId, orgId),
-      eq(messagesTable.isRead, false),
-      lte(messagesTable.createdAt, oneHourAgo),
-    ))),
-    count(db.select({ n: N }).from(callsTable).where(and(
-      eq(callsTable.organisationId, orgId),
-      eq(callsTable.status, "manque"),
-      gte(callsTable.createdAt, todayStart),
-    ))),
-    count(db.select({ n: N }).from(contactsTable).where(and(
-      eq(contactsTable.organisationId, orgId),
-      lte(contactsTable.updatedAt, thirtyDaysAgo),
-    ))),
-    count(db.select({ n: N }).from(contactsTable).where(eq(contactsTable.organisationId, orgId))),
-    count(db.select({ n: N }).from(calendarEventsTable).where(and(
-      eq(calendarEventsTable.organisationId, orgId),
-      gte(calendarEventsTable.startDate, now),
-      lte(calendarEventsTable.startDate, in48h),
-    ))),
-    count(db.select({ n: N }).from(agentProposalsTable).where(and(
-      eq(agentProposalsTable.organisationId, orgId),
-      eq(agentProposalsTable.status, "en_attente"),
-    ))),
-    count(db.select({ n: N }).from(documentsTable).where(eq(documentsTable.organisationId, orgId))),
-    count(db.select({ n: N }).from(documentsTable).where(and(
-      eq(documentsTable.organisationId, orgId),
-      sql`${documentsTable.scannedAt} IS NULL`,
-    ))),
-    count(db.select({ n: N }).from(documentsTable).where(and(
-      eq(documentsTable.organisationId, orgId),
-      sql`${documentsTable.scanVerdict} IN ('malveillant', 'suspect')`,
-    ))),
-    count(db.select({ n: N }).from(documentsTable).where(and(
-      eq(documentsTable.organisationId, orgId),
-      eq(documentsTable.aiProcessed, false),
-    ))),
-  ]);
+  // Un seul SELECT par table (count(*) FILTER) au lieu de 12 requêtes isolées :
+  // divise par ~2 le nombre de connexions simultanées prises au pool. Les crons
+  // concurrents l'épuisaient sinon (-> "timeout exceeded when trying to connect").
+  // L'ensemble est enveloppé d'un retry sur erreur de connexion transitoire
+  // (counts idempotents -> sûr à réessayer).
+  const [tasksRow, messagesRow, callsRow, contactsRow, eventsRow, proposalsRow, docsRow] =
+    await withDbRetry(
+      () => Promise.all([
+        db.select({
+          overdue: sql<number>`count(*) filter (where ${tasksTable.dueDate} <= ${now} and ${tasksTable.status} not in ('termine','annule'))::int`,
+          open: sql<number>`count(*) filter (where ${tasksTable.status} not in ('termine','annule'))::int`,
+        }).from(tasksTable).where(eq(tasksTable.organisationId, orgId)),
+        db.select({
+          unread: sql<number>`count(*) filter (where ${messagesTable.isRead} = false and ${messagesTable.createdAt} <= ${oneHourAgo})::int`,
+        }).from(messagesTable).where(eq(messagesTable.organisationId, orgId)),
+        db.select({
+          missedToday: sql<number>`count(*) filter (where ${callsTable.status} = 'manque' and ${callsTable.createdAt} >= ${todayStart})::int`,
+        }).from(callsTable).where(eq(callsTable.organisationId, orgId)),
+        db.select({
+          inactive: sql<number>`count(*) filter (where ${contactsTable.updatedAt} <= ${thirtyDaysAgo})::int`,
+          total: sql<number>`count(*)::int`,
+        }).from(contactsTable).where(eq(contactsTable.organisationId, orgId)),
+        db.select({
+          upcoming48h: sql<number>`count(*) filter (where ${calendarEventsTable.startDate} >= ${now} and ${calendarEventsTable.startDate} <= ${in48h})::int`,
+        }).from(calendarEventsTable).where(eq(calendarEventsTable.organisationId, orgId)),
+        db.select({
+          pending: sql<number>`count(*) filter (where ${agentProposalsTable.status} = 'en_attente')::int`,
+        }).from(agentProposalsTable).where(eq(agentProposalsTable.organisationId, orgId)),
+        db.select({
+          total: sql<number>`count(*)::int`,
+          unscanned: sql<number>`count(*) filter (where ${documentsTable.scannedAt} is null)::int`,
+          threat: sql<number>`count(*) filter (where ${documentsTable.scanVerdict} in ('malveillant','suspect'))::int`,
+          unprocessed: sql<number>`count(*) filter (where ${documentsTable.aiProcessed} = false)::int`,
+        }).from(documentsTable).where(eq(documentsTable.organisationId, orgId)),
+      ]),
+      { label: `audit:gatherSignals:org=${orgId}` },
+    );
 
   return {
-    overdueTasks, openTasks, unreadMessages, missedCallsToday,
-    inactiveContacts, totalContacts, upcomingEvents48h, pendingProposals,
-    totalDocuments, unscannedDocuments, threatDocuments, unprocessedDocuments,
+    overdueTasks: tasksRow[0]?.overdue ?? 0,
+    openTasks: tasksRow[0]?.open ?? 0,
+    unreadMessages: messagesRow[0]?.unread ?? 0,
+    missedCallsToday: callsRow[0]?.missedToday ?? 0,
+    inactiveContacts: contactsRow[0]?.inactive ?? 0,
+    totalContacts: contactsRow[0]?.total ?? 0,
+    upcomingEvents48h: eventsRow[0]?.upcoming48h ?? 0,
+    pendingProposals: proposalsRow[0]?.pending ?? 0,
+    totalDocuments: docsRow[0]?.total ?? 0,
+    unscannedDocuments: docsRow[0]?.unscanned ?? 0,
+    threatDocuments: docsRow[0]?.threat ?? 0,
+    unprocessedDocuments: docsRow[0]?.unprocessed ?? 0,
   };
 }
 

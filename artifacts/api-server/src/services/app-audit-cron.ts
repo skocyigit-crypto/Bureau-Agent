@@ -14,6 +14,7 @@ import { db } from "@workspace/db";
 import { organisationsTable, appAuditFindingsTable } from "@workspace/db/schema";
 import { and, eq, gte } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { withDbRetry } from "../lib/db-retry";
 import { runAuditForOrg } from "./app-audit";
 
 const TICK_MS = 60 * 60 * 1000; // 1h
@@ -47,7 +48,10 @@ async function tick(): Promise<void> {
   }
 
   try {
-    const orgs = await db.select({ id: organisationsTable.id }).from(organisationsTable);
+    const orgs = await withDbRetry(
+      () => db.select({ id: organisationsTable.id }).from(organisationsTable),
+      { label: "audit-cron:list-orgs" },
+    );
 
     for (const org of orgs) {
       try {
@@ -56,14 +60,17 @@ async function tick(): Promise<void> {
         if (attemptedToday.orgIds.has(org.id)) continue;
 
         // Garde "une fois par jour" persistant: déjà audité aujourd'hui ?
-        const existing = await db.select({ id: appAuditFindingsTable.id })
-          .from(appAuditFindingsTable)
-          .where(and(
-            eq(appAuditFindingsTable.organisationId, org.id),
-            eq(appAuditFindingsTable.runId, runId),
-            gte(appAuditFindingsTable.createdAt, todayStart),
-          ))
-          .limit(1);
+        const existing = await withDbRetry(
+          () => db.select({ id: appAuditFindingsTable.id })
+            .from(appAuditFindingsTable)
+            .where(and(
+              eq(appAuditFindingsTable.organisationId, org.id),
+              eq(appAuditFindingsTable.runId, runId),
+              gte(appAuditFindingsTable.createdAt, todayStart),
+            ))
+            .limit(1),
+          { label: `audit-cron:already-audited:org=${org.id}` },
+        );
         if (existing.length > 0) { attemptedToday.orgIds.add(org.id); continue; }
 
         await runAuditForOrg(org.id, runId);
