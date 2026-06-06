@@ -174,8 +174,12 @@ export default function DocumentsPage() {
   // L'annulation choisit le bon endpoint selon ce mode.
   const [bulkScanKind, setBulkScanKind] = useState<"selected" | "all" | null>(null);
   const bulkScanCtrlRef = useRef<AbortController | null>(null);
+  // Ignore les reponses obsoletes quand les filtres changent vite : sans ce garde,
+  // la reponse d'un ancien filtre peut arriver apres et ecraser la liste affichee.
+  const docsGenRef = useRef(0);
 
   const loadDocuments = useCallback(async () => {
+    const gen = ++docsGenRef.current;
     setLoading(true);
     try {
       const params = new URLSearchParams({ limit: "100" });
@@ -187,9 +191,11 @@ export default function DocumentsPage() {
         fetch(`${API}/api/documents/list?${params}`, { credentials: "include" }),
         fetch(`${API}/api/documents/stats/overview`, { credentials: "include" }),
       ]);
+      if (gen !== docsGenRef.current) return;
 
       if (docsRes.ok) {
         const data = await docsRes.json();
+        if (gen !== docsGenRef.current) return;
         setDocuments(data.documents || []);
         setTotal(data.total || 0);
       } else {
@@ -197,13 +203,16 @@ export default function DocumentsPage() {
         toast({ title: "Erreur de chargement des documents", variant: "destructive" });
       }
       if (statsRes.ok) {
-        setStats(await statsRes.json());
+        const s = await statsRes.json();
+        if (gen !== docsGenRef.current) return;
+        setStats(s);
       }
     } catch (err) {
+      if (gen !== docsGenRef.current) return;
       console.error("[Documents] load failed:", err);
       toast({ title: "Erreur de chargement des documents", variant: "destructive" });
     } finally {
-      setLoading(false);
+      if (gen === docsGenRef.current) setLoading(false);
     }
   }, [filterEntity, filterCategory, filterScan]);
 

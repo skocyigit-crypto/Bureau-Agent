@@ -855,14 +855,23 @@ export default function DocumentReaderScreen() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<ReaderTab>("contenu");
 
+  const activeIdRef = useRef(id);
+  activeIdRef.current = id;
+
   const loadDoc = useCallback(async () => {
     if (!id) return;
+    const reqId = id;
     setLoading(true);
     try {
       const res = await fetchAuth(`${API_BASE}/api/documents/${id}/preview`);
-      if (res.ok) setDoc(await res.json());
+      if (activeIdRef.current !== reqId) return;
+      if (res.ok) {
+        const data = await res.json();
+        if (activeIdRef.current !== reqId) return;
+        setDoc(data);
+      }
     } catch {}
-    finally { setLoading(false); }
+    finally { if (activeIdRef.current === reqId) setLoading(false); }
   }, [fetchAuth, id]);
 
   useEffect(() => { loadDoc(); }, [loadDoc]);

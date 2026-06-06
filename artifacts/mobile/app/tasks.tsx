@@ -215,23 +215,35 @@ export default function TasksScreen() {
 
   const { cached, isFromCache, updateCache } = useOfflineCache<Task[]>("tasks_list", []);
 
+  // Refs pour le fallback hors-ligne : on evite de mettre `cached`/`tasks.length`
+  // dans les deps de `load` (sinon `load` change a chaque fetch -> useEffect([load])
+  // refetch en boucle continue). reqGen ignore les reponses obsoletes (filtre rapide).
+  const cachedRef = useRef(cached);
+  cachedRef.current = cached;
+  const tasksLenRef = useRef(tasks.length);
+  tasksLenRef.current = tasks.length;
+  const reqGenRef = useRef(0);
+
   const load = useCallback(async () => {
+    const gen = ++reqGenRef.current;
     try {
       const params = new URLSearchParams({ limit: "80", sortBy: "dueDate", sortOrder: "asc" });
       if (filter !== "all") params.set("status", filter);
       if (priorityFilter !== "all") params.set("priority", priorityFilter);
       if (search) params.set("search", search);
       const res = await fetchAuth(`${API_BASE}/api/tasks?${params}`);
+      if (gen !== reqGenRef.current) return;
       if (res.ok) {
         const d = await res.json();
+        if (gen !== reqGenRef.current) return;
         const list: Task[] = d.tasks ?? d ?? [];
         setTasks(list);
         if (filter === "all" && priorityFilter === "all" && !search) updateCache(list);
       }
     } catch {
-      if (cached.length > 0 && tasks.length === 0) setTasks(cached);
-    } finally { setLoading(false); setRefreshing(false); }
-  }, [filter, priorityFilter, search, fetchAuth, cached, tasks.length, updateCache]);
+      if (gen === reqGenRef.current && cachedRef.current.length > 0 && tasksLenRef.current === 0) setTasks(cachedRef.current);
+    } finally { if (gen === reqGenRef.current) { setLoading(false); setRefreshing(false); } }
+  }, [filter, priorityFilter, search, fetchAuth, updateCache]);
 
   useEffect(() => {
     if (isFromCache && cached.length > 0 && tasks.length === 0) setTasks(cached);

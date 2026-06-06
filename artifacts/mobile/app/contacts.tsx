@@ -184,22 +184,33 @@ export default function ContactsScreen() {
 
   const { cached, isFromCache, updateCache } = useOfflineCache<Contact[]>("contacts_list", []);
 
+  // cf. tasks.tsx : refs pour le fallback hors-ligne afin de garder `load` stable
+  // (sinon refetch en boucle via useEffect([load])) + reqGen anti-reponse-obsolete.
+  const cachedRef = useRef(cached);
+  cachedRef.current = cached;
+  const contactsLenRef = useRef(contacts.length);
+  contactsLenRef.current = contacts.length;
+  const reqGenRef = useRef(0);
+
   const load = useCallback(async () => {
+    const gen = ++reqGenRef.current;
     try {
       const params = new URLSearchParams({ limit: "100", sortBy: "lastName", sortOrder: "asc" });
       if (search) params.set("search", search);
       const res = await fetchAuth(`${API_BASE}/api/contacts?${params}`);
+      if (gen !== reqGenRef.current) return;
       if (res.ok) {
         const d = await res.json();
+        if (gen !== reqGenRef.current) return;
         const list: Contact[] = d.contacts ?? d ?? [];
         setContacts(list);
         setTotal(d.total ?? list.length);
         if (!search) updateCache(list);
       }
     } catch {
-      if (cached.length > 0 && contacts.length === 0) setContacts(cached);
-    } finally { setLoading(false); setRefreshing(false); }
-  }, [search, fetchAuth, cached, contacts.length, updateCache]);
+      if (gen === reqGenRef.current && cachedRef.current.length > 0 && contactsLenRef.current === 0) setContacts(cachedRef.current);
+    } finally { if (gen === reqGenRef.current) { setLoading(false); setRefreshing(false); } }
+  }, [search, fetchAuth, updateCache]);
 
   useEffect(() => {
     if (isFromCache && cached.length > 0 && contacts.length === 0) setContacts(cached);
