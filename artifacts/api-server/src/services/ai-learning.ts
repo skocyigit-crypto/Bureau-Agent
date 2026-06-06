@@ -691,6 +691,9 @@ export interface UserLearningFact {
 }
 export interface UserLearningProfile {
   userId: number;
+  // Date du dernier recalcul du profil (max des `updatedAt` des faits), ou null
+  // si aucun fait n'a encore été appris. Sert à afficher "Dernière analyse: …".
+  computedAt: string | null;
   facts: UserLearningFact[];
 }
 
@@ -706,8 +709,16 @@ export async function getUserLearningProfile(orgId: number, userId: number): Pro
       eq(aiUserProfileFactsTable.userId, userId),
     ))
     .orderBy(desc(aiUserProfileFactsTable.occurrences));
+  // Dernier recalcul = max des `updatedAt` (chaque upsert lors d'un recompute
+  // remet ce champ à jour). Calculé en mémoire pour éviter une 2e requête.
+  let computedAtMs = 0;
+  for (const f of facts) {
+    const t = f.updatedAt ? f.updatedAt.getTime() : 0;
+    if (t > computedAtMs) computedAtMs = t;
+  }
   return {
     userId,
+    computedAt: computedAtMs > 0 ? new Date(computedAtMs).toISOString() : null,
     facts: facts.map((f) => ({
       factType: f.factType,
       label: f.label,

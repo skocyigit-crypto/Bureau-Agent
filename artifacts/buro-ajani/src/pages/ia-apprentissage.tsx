@@ -47,6 +47,7 @@ interface UserFact {
 }
 interface UserProfile {
   userId: number;
+  computedAt: string | null;
   facts: UserFact[];
 }
 interface LearnableUser {
@@ -74,6 +75,23 @@ const PROPOSAL_CATEGORY_LABELS: Record<string, string> = {
 function prefLabel(p: Preference): string {
   if (p.kind === "suggestion_type") return SUGGESTION_LABELS[p.key] ?? p.key;
   return CATEGORY_LABELS[p.key] ?? p.key;
+}
+
+// "il y a 2 h", "il y a 5 min", "à l'instant"… à partir d'une date ISO.
+function relativeTime(iso: string | null): string | null {
+  if (!iso) return null;
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return null;
+  const sec = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  if (sec < 60) return "à l'instant";
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `il y a ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `il y a ${h} h`;
+  const j = Math.floor(h / 24);
+  if (j < 30) return `il y a ${j} j`;
+  const mois = Math.floor(j / 30);
+  return `il y a ${mois} mois`;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -153,9 +171,9 @@ export default function IaApprentissagePage() {
       const res = await fetch(`${LEARNING_API}/user-profile?userId=${uid}`, { credentials: "include" });
       if (!res.ok) throw new Error("user-profile");
       const data = await res.json();
-      setUserProfile({ userId: data.userId ?? uid, facts: data.facts ?? [] });
+      setUserProfile({ userId: data.userId ?? uid, computedAt: data.computedAt ?? null, facts: data.facts ?? [] });
     } catch {
-      setUserProfile({ userId: uid, facts: [] });
+      setUserProfile({ userId: uid, computedAt: null, facts: [] });
       toast({ title: "Erreur", description: "Impossible de charger ce profil personnel.", variant: "destructive" });
     } finally {
       setUserLoading(false);
@@ -181,7 +199,7 @@ export default function IaApprentissagePage() {
       } else if (!res.ok) {
         throw new Error("recompute-user");
       } else {
-        setUserProfile({ userId: data.profile?.userId ?? selectedUserId, facts: data.profile?.facts ?? [] });
+        setUserProfile({ userId: data.profile?.userId ?? selectedUserId, computedAt: data.profile?.computedAt ?? null, facts: data.profile?.facts ?? [] });
         toast({
           title: "Profil mis à jour",
           description: viewingSelf
@@ -390,10 +408,19 @@ export default function IaApprentissagePage() {
                 : "Ce que l'IA a appris de votre activité pour personnaliser ses suggestions et le ton de ses réponses."}
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={recomputeUser} disabled={userRecomputing || userLoading}>
-            {userRecomputing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-            {viewingSelf ? "Recalculer mon profil" : "Recalculer ce profil"}
-          </Button>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <Button variant="outline" size="sm" onClick={recomputeUser} disabled={userRecomputing || userLoading}>
+              {userRecomputing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+              {viewingSelf ? "Recalculer mon profil" : "Recalculer ce profil"}
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              {userRecomputing
+                ? "Analyse en cours…"
+                : relativeTime(userProfile?.computedAt ?? null)
+                  ? `Dernière analyse : ${relativeTime(userProfile?.computedAt ?? null)}`
+                  : "Jamais analysé"}
+            </span>
+          </div>
         </div>
 
         {isManager && team.length > 0 && (

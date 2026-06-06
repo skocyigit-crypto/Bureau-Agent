@@ -48,6 +48,23 @@ function prefLabel(p: Preference): string {
   return CATEGORY_LABELS[p.key] ?? p.key;
 }
 
+// "il y a 2 h", "il y a 5 min", "à l'instant"… à partir d'une date ISO.
+function relativeTime(iso: string | null): string | null {
+  if (!iso) return null;
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return null;
+  const sec = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  if (sec < 60) return "à l'instant";
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `il y a ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `il y a ${h} h`;
+  const j = Math.floor(h / 24);
+  if (j < 30) return `il y a ${j} j`;
+  const mois = Math.floor(j / 30);
+  return `il y a ${mois} mois`;
+}
+
 interface UserFact {
   factType: string;
   label: string;
@@ -57,6 +74,7 @@ interface UserFact {
 }
 interface UserProfile {
   userId: number;
+  computedAt: string | null;
   facts: UserFact[];
 }
 interface LearnableUser {
@@ -109,12 +127,12 @@ export default function IaApprentissageScreen() {
       const res = await fetchAuth(`${LEARNING_API}/user-profile?userId=${uid}`);
       if (res.ok) {
         const data = await res.json();
-        setUserProfile({ userId: data.userId ?? uid, facts: data.facts ?? [] });
+        setUserProfile({ userId: data.userId ?? uid, computedAt: data.computedAt ?? null, facts: data.facts ?? [] });
       } else {
-        setUserProfile({ userId: uid, facts: [] });
+        setUserProfile({ userId: uid, computedAt: null, facts: [] });
       }
     } catch {
-      setUserProfile({ userId: uid, facts: [] });
+      setUserProfile({ userId: uid, computedAt: null, facts: [] });
     } finally {
       setUserLoading(false);
     }
@@ -142,7 +160,7 @@ export default function IaApprentissageScreen() {
       });
       if (res.ok) {
         const data = await res.json().catch(() => ({}));
-        setUserProfile({ userId: data.profile?.userId ?? selectedUserId, facts: data.profile?.facts ?? [] });
+        setUserProfile({ userId: data.profile?.userId ?? selectedUserId, computedAt: data.profile?.computedAt ?? null, facts: data.profile?.facts ?? [] });
       }
     } catch {
       /* fail-soft */
@@ -335,6 +353,13 @@ export default function IaApprentissageScreen() {
                 {userRecomputing ? <ActivityIndicator size="small" color={colors.primary} /> : <Feather name="refresh-cw" size={18} color={colors.primary} />}
               </Pressable>
             </View>
+            <Text style={[styles.lastAnalysis, { color: colors.mutedForeground }]}>
+              {userRecomputing
+                ? "Analyse en cours…"
+                : relativeTime(userProfile?.computedAt ?? null)
+                  ? `Dernière analyse : ${relativeTime(userProfile?.computedAt ?? null)}`
+                  : "Jamais analysé"}
+            </Text>
             <Text style={[styles.intro, { color: colors.mutedForeground }]}>
               {isManager
                 ? "Ce que l'IA a appris de chaque employé : horaires, domaines, thèmes, interlocuteurs et style d'écriture."
@@ -480,6 +505,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 18, fontWeight: "700" },
   intro: { fontSize: 13, lineHeight: 18, marginBottom: 16 },
+  lastAnalysis: { fontSize: 12, marginTop: 4, marginBottom: 8 },
   empty: { alignItems: "center", justifyContent: "center", paddingVertical: 64, gap: 8 },
   emptyTitle: { fontSize: 17, fontWeight: "700" },
   emptySub: { fontSize: 14, textAlign: "center", paddingHorizontal: 24, lineHeight: 20 },

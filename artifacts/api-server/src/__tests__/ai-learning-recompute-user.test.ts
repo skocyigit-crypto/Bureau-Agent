@@ -141,6 +141,14 @@ function recompute(token: string, userId?: number) {
   return userId === undefined ? req.send({}) : req.send({ userId });
 }
 
+function getProfile(token: string, userId?: number) {
+  const url =
+    userId === undefined
+      ? "/api/ai-learning/user-profile"
+      : `/api/ai-learning/user-profile?userId=${userId}`;
+  return request(app).get(url).set("Authorization", `Bearer ${token}`);
+}
+
 describe("Recalcul manuel du profil par employé (gizlilik)", () => {
   it("agent → recalcule son PROPRE profil sans userId (200)", async () => {
     const res = await recompute(agentX.token);
@@ -148,11 +156,21 @@ describe("Recalcul manuel du profil par employé (gizlilik)", () => {
     expect(res.body?.success).toBe(true);
     expect(res.body?.profile?.userId).toBe(agentX.id);
     expect(Array.isArray(res.body?.profile?.facts)).toBe(true);
+    // Le profil expose la date du dernier recalcul (champ présent, même null).
+    expect(res.body?.profile).toHaveProperty("computedAt");
   });
 
   it("agent → NE recalcule PAS le profil d'un collègue (403)", async () => {
     const res = await recompute(agentX.token, admin.id);
     expect(res.status).toBe(403);
+  });
+
+  it("GET /user-profile → computedAt vaut null quand aucun fait appris", async () => {
+    // agentW n'a aucun fait : la date de dernière analyse doit être absente (null).
+    const res = await getProfile(agentW.token);
+    expect(res.status).toBe(200);
+    expect(res.body?.facts).toEqual([]);
+    expect(res.body?.computedAt).toBeNull();
   });
 
   it("dirigeant → recalcule le profil d'un employé de son tenant (200)", async () => {
