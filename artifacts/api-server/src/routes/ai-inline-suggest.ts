@@ -207,7 +207,9 @@ router.post("/ai/inline-suggest", async (req: Request, res: Response): Promise<v
     const lastWindow = safeText.slice(-80);
     const safeTitle = sanitizePromptInput(typeof title === "string" ? title : "", 200);
     const safeContact = sanitizePromptInput(typeof contactName === "string" ? contactName : "", 120);
-    const learnedBlock = await buildLearnedContextBlock(orgId);
+    // Bloc d'apprentissage PERSONNALISÉ : on passe l'utilisateur courant pour
+    // que l'auto-complétion adopte ses habitudes/ton (couche par employé).
+    const learnedBlock = await buildLearnedContextBlock(orgId, userId);
     const cacheKey = buildAiCacheKey({
       route: "/ai/inline-suggest",
       organisationId: orgId,

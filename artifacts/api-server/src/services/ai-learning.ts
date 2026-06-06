@@ -11,6 +11,8 @@ import {
   tasksTable,
   usersTable,
   organisationsTable,
+  messagesTable,
+  notesInternesTable,
 } from "@workspace/db";
 import { and, eq, sql, gte, isNotNull, desc, notInArray } from "drizzle-orm";
 import crypto from "node:crypto";
@@ -406,6 +408,40 @@ async function upsertUserFact(
     });
 }
 
+// Détection (DÉTERMINISTE, sans IA) du style d'écriture d'un employé à partir
+// d'un échantillon de ses messages/notes. Renvoie un libellé humain borné ou
+// null si l'échantillon est trop maigre pour conclure. Aucune donnée brute
+// n'est conservée — seulement des caractéristiques agrégées (longueur, registre
+// vous/tu, emojis, ton). Sert à adapter le ton de l'IA à la personne.
+const WRITING_STYLE_EMOJI_RE = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}]/u;
+function analyzeWritingStyle(texts: string[]): { label: string; occ: number } | null {
+  const samples = texts.map((t) => (t ?? "").trim()).filter((t) => t.length > 0);
+  if (samples.length < 5) return null;
+  const n = samples.length;
+  const avgLen = samples.reduce((s, t) => s + t.length, 0) / n;
+  let vous = 0;
+  let tu = 0;
+  let emoji = 0;
+  let excl = 0;
+  for (const t of samples) {
+    const low = t.toLowerCase();
+    if (/\b(vous|votre|vos)\b/.test(low)) vous++;
+    if (/\b(tu|toi|ton|ta|tes)\b/.test(low)) tu++;
+    if (WRITING_STYLE_EMOJI_RE.test(t)) emoji++;
+    if (t.includes("!")) excl++;
+  }
+  const parts: string[] = [];
+  if (avgLen < 80) parts.push("messages courts et directs");
+  else if (avgLen < 250) parts.push("messages de longueur moyenne");
+  else parts.push("messages détaillés");
+  const third = Math.ceil(n * 0.3);
+  if (vous > tu && vous >= third) parts.push("vouvoiement (vous)");
+  else if (tu > vous && tu >= third) parts.push("tutoiement (tu)");
+  if (emoji >= third) parts.push("emojis fréquents");
+  if (excl >= Math.ceil(n * 0.4)) parts.push("ton expressif (points d'exclamation)");
+  return { label: `Style d'écriture: ${parts.join(", ")}.`, occ: n };
+}
+
 export async function recomputeUserProfile(orgId: number, userId: number): Promise<number> {
   const since = new Date(Date.now() - USER_WINDOW_DAYS * 86_400_000);
   let written = 0;
@@ -515,6 +551,39 @@ export async function recomputeUserProfile(orgId: number, userId: number): Promi
     written++;
   }
 
+  // 5) Style d'écriture (déterministe) à partir des messages et notes rédigés
+  //    par l'employé. On agrège des caractéristiques (longueur, registre,
+  //    emojis, ton) sans stocker le texte brut. Un seul fait writing_style par
+  //    employé (value stable "profil"), mis à jour à chaque recompute.
+  const styleMessages = await db
+    .select({ content: messagesTable.content })
+    .from(messagesTable)
+    .where(and(
+      eq(messagesTable.organisationId, orgId),
+      eq(messagesTable.createdBy, userId),
+      gte(messagesTable.createdAt, since),
+    ))
+    .orderBy(desc(messagesTable.createdAt))
+    .limit(200);
+  const styleNotes = await db
+    .select({ content: notesInternesTable.content })
+    .from(notesInternesTable)
+    .where(and(
+      eq(notesInternesTable.organisationId, orgId),
+      eq(notesInternesTable.userId, userId),
+      gte(notesInternesTable.createdAt, since),
+    ))
+    .orderBy(desc(notesInternesTable.createdAt))
+    .limit(200);
+  const style = analyzeWritingStyle(
+    [...styleMessages, ...styleNotes].map((r) => r.content ?? ""),
+  );
+  if (style) {
+    await upsertUserFact(orgId, userId, "writing_style", style.label, "profil", style.occ, new Date());
+    kept.push(`writing_style${KEY_SEP}profil`);
+    written++;
+  }
+
   // Purge des faits obsolètes pour CET utilisateur uniquement.
   const factExpr = sql`${aiUserProfileFactsTable.factType} || ${KEY_SEP} || ${aiUserProfileFactsTable.value}`;
   if (kept.length > 0) {
@@ -609,6 +678,83 @@ export async function getLearningProfile(orgId: number): Promise<LearningProfile
       decidedAt: r.decidedAt ? r.decidedAt.toISOString() : null,
     })),
   };
+}
+
+// --- Profil PERSONNEL (par employé) — lecture pour l'UI --------------------
+
+export interface UserLearningFact {
+  factType: string;
+  label: string;
+  value: string;
+  occurrences: number;
+  lastSeenAt: string | null;
+}
+export interface UserLearningProfile {
+  userId: number;
+  facts: UserLearningFact[];
+}
+
+// Renvoie les faits appris pour UN employé (heures, domaines, thèmes,
+// interlocuteurs, style d'écriture). Borné par la cardinalité naturelle des
+// faits (recompute limite déjà chaque catégorie).
+export async function getUserLearningProfile(orgId: number, userId: number): Promise<UserLearningProfile> {
+  const facts = await db
+    .select()
+    .from(aiUserProfileFactsTable)
+    .where(and(
+      eq(aiUserProfileFactsTable.organisationId, orgId),
+      eq(aiUserProfileFactsTable.userId, userId),
+    ))
+    .orderBy(desc(aiUserProfileFactsTable.occurrences));
+  return {
+    userId,
+    facts: facts.map((f) => ({
+      factType: f.factType,
+      label: f.label,
+      value: f.value,
+      occurrences: f.occurrences,
+      lastSeenAt: f.lastSeenAt ? f.lastSeenAt.toISOString() : null,
+    })),
+  };
+}
+
+export interface LearnableUser {
+  id: number;
+  nom: string;
+  prenom: string;
+  role: string;
+  factCount: number;
+}
+
+// Liste des employés actifs du tenant avec le nombre de faits appris (vue
+// "patron"). Réservé aux dirigeants au niveau de la route.
+export async function listLearnableUsers(orgId: number): Promise<LearnableUser[]> {
+  const rows = await db
+    .select({
+      id: usersTable.id,
+      nom: usersTable.nom,
+      prenom: usersTable.prenom,
+      role: usersTable.role,
+      factCount: sql<number>`count(${aiUserProfileFactsTable.id})`,
+    })
+    .from(usersTable)
+    .leftJoin(
+      aiUserProfileFactsTable,
+      and(
+        eq(aiUserProfileFactsTable.userId, usersTable.id),
+        eq(aiUserProfileFactsTable.organisationId, orgId),
+      ),
+    )
+    .where(and(eq(usersTable.organisationId, orgId), eq(usersTable.actif, true)))
+    .groupBy(usersTable.id, usersTable.nom, usersTable.prenom, usersTable.role)
+    .orderBy(usersTable.nom, usersTable.prenom);
+  return rows.map((r) => ({
+    id: r.id,
+    nom: r.nom,
+    prenom: r.prenom,
+    role: r.role,
+    factCount: Number(r.factCount ?? 0),
+  }));
 }
 
 // --- Injection: bloc de contexte borné (fail-soft) -------------------------
@@ -742,6 +888,7 @@ async function computeUserContextBlock(orgId: number, userId: number): Promise<s
   const focus = facts.filter((f) => f.factType === "work_focus").slice(0, 4);
   const themes = facts.filter((f) => f.factType === "task_theme").slice(0, 4);
   const contacts = facts.filter((f) => f.factType === "frequent_contact").slice(0, 3);
+  const style = facts.find((f) => f.factType === "writing_style");
 
   const lines: string[] = [];
   if (hours.length > 0) {
@@ -755,6 +902,9 @@ async function computeUserContextBlock(orgId: number, userId: number): Promise<s
   }
   if (contacts.length > 0) {
     lines.push(`- Interlocuteurs récurrents: ${contacts.map((c) => `${c.label} (${c.occurrences}x)`).join(", ")}.`);
+  }
+  if (style?.label) {
+    lines.push(`- ${style.label} Reproduis ce registre dans les rédactions proposées à cette personne.`);
   }
   if (lines.length === 0) return "";
 

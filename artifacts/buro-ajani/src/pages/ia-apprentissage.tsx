@@ -2,11 +2,13 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Brain, RefreshCw, Loader2, ThumbsUp, ThumbsDown, Phone, Clock,
   ListChecks, Lightbulb, Inbox, TrendingUp, TrendingDown, XCircle,
+  User, Users, PenLine,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useWorkspaceUser } from "@/components/workspace-user";
 
 const LEARNING_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/ai-learning";
 
@@ -36,6 +38,24 @@ interface Profile {
   patterns: Pattern[];
   corrections: Correction[];
 }
+interface UserFact {
+  factType: string;
+  label: string;
+  value: string;
+  occurrences: number;
+  lastSeenAt: string | null;
+}
+interface UserProfile {
+  userId: number;
+  facts: UserFact[];
+}
+interface LearnableUser {
+  id: number;
+  nom: string;
+  prenom: string;
+  role: string;
+  factCount: number;
+}
 
 const SUGGESTION_LABELS: Record<string, string> = {
   overdue_task: "Tâches en retard",
@@ -54,6 +74,24 @@ const PROPOSAL_CATEGORY_LABELS: Record<string, string> = {
 function prefLabel(p: Preference): string {
   if (p.kind === "suggestion_type") return SUGGESTION_LABELS[p.key] ?? p.key;
   return CATEGORY_LABELS[p.key] ?? p.key;
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  super_admin: "Dirigeant", administrateur: "Administrateur",
+  agent: "Agent", lecture_seule: "Lecture seule",
+};
+const MANAGER_ROLES = new Set(["super_admin", "administrateur"]);
+
+// Regroupe les faits personnels par catégorie pour l'affichage.
+function groupUserFacts(facts: UserFact[]) {
+  const byType = (t: string) => facts.filter((f) => f.factType === t);
+  return {
+    hours: byType("busy_hour"),
+    focus: byType("work_focus"),
+    themes: byType("task_theme"),
+    contacts: byType("frequent_contact"),
+    writingStyle: facts.find((f) => f.factType === "writing_style") ?? null,
+  };
 }
 
 export default function IaApprentissagePage() {
@@ -99,6 +137,47 @@ export default function IaApprentissagePage() {
       setRecomputing(false);
     }
   };
+
+  // --- Profil PERSONNEL (par employé) -------------------------------------
+  const { user } = useWorkspaceUser();
+  const isManager = MANAGER_ROLES.has(user.role);
+  const [selectedUserId, setSelectedUserId] = useState<number>(user.id);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [userLoading, setUserLoading] = useState(true);
+  const [team, setTeam] = useState<LearnableUser[]>([]);
+
+  const loadUserProfile = useCallback(async (uid: number) => {
+    setUserLoading(true);
+    try {
+      const res = await fetch(`${LEARNING_API}/user-profile?userId=${uid}`, { credentials: "include" });
+      if (!res.ok) throw new Error("user-profile");
+      const data = await res.json();
+      setUserProfile({ userId: data.userId ?? uid, facts: data.facts ?? [] });
+    } catch {
+      setUserProfile({ userId: uid, facts: [] });
+      toast({ title: "Erreur", description: "Impossible de charger ce profil personnel.", variant: "destructive" });
+    } finally {
+      setUserLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => { void loadUserProfile(selectedUserId); }, [selectedUserId, loadUserProfile]);
+
+  useEffect(() => {
+    if (!isManager) return;
+    void (async () => {
+      try {
+        const res = await fetch(`${LEARNING_API}/users`, { credentials: "include" });
+        if (!res.ok) return;
+        const data = await res.json();
+        setTeam(data.users ?? []);
+      } catch { /* fail-soft: pas de sélecteur d'équipe */ }
+    })();
+  }, [isManager]);
+
+  const ug = groupUserFacts(userProfile?.facts ?? []);
+  const userEmpty = !userLoading && (userProfile?.facts.length ?? 0) === 0;
+  const viewingSelf = selectedUserId === user.id;
 
   const liked = profile.preferences.filter((p) => p.score >= 0.34 && p.upCount + p.downCount >= 1);
   const disliked = profile.preferences.filter((p) => p.score <= -0.34 && p.upCount + p.downCount >= 1);
@@ -263,6 +342,154 @@ export default function IaApprentissagePage() {
           )}
         </div>
       )}
+
+      {/* --- Profil PERSONNEL (par employé) --- */}
+      <div className="pt-2">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
+          <div>
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <User className="h-5 w-5 text-violet-500" />
+              {viewingSelf ? "Votre profil personnel" : "Profil de l'employé"}
+            </h2>
+            <p className="text-muted-foreground text-sm mt-1">
+              {isManager
+                ? "Ce que l'IA a appris de chaque employé : horaires, domaines, thèmes, interlocuteurs et style d'écriture."
+                : "Ce que l'IA a appris de votre activité pour personnaliser ses suggestions et le ton de ses réponses."}
+            </p>
+          </div>
+        </div>
+
+        {isManager && team.length > 0 && (
+          <Card className="mb-4">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Users className="h-4 w-4 text-muted-foreground" /> Choisir un employé
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {team.map((m) => (
+                  <Button
+                    key={m.id}
+                    size="sm"
+                    variant={m.id === selectedUserId ? "default" : "outline"}
+                    onClick={() => setSelectedUserId(m.id)}
+                  >
+                    {m.prenom} {m.nom}
+                    <Badge variant="secondary" className="ml-2 text-[10px]">
+                      {ROLE_LABELS[m.role] ?? m.role}
+                    </Badge>
+                    {m.factCount > 0 && (
+                      <span className="ml-1.5 text-[10px] text-muted-foreground">· {m.factCount}</span>
+                    )}
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {userLoading ? (
+          <div className="flex justify-center py-12"><Loader2 className="h-7 w-7 animate-spin text-muted-foreground" /></div>
+        ) : userEmpty ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12 text-center gap-3">
+              <Inbox className="h-10 w-10 text-muted-foreground/40" />
+              <CardTitle className="text-base">
+                {viewingSelf ? "Rien appris sur vous pour l'instant" : "Rien appris sur cet employé pour l'instant"}
+              </CardTitle>
+              <CardDescription className="max-w-md">
+                L'IA apprend automatiquement à partir de l'activité (appels, tâches, messages). Le profil
+                se remplira au fil de l'usage.
+              </CardDescription>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {ug.writingStyle && (
+              <Card className="md:col-span-2">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <PenLine className="h-4 w-4 text-violet-500" /> Style d'écriture
+                  </CardTitle>
+                  <CardDescription>L'IA reproduit ce registre dans les rédactions proposées.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm">{ug.writingStyle.label}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-amber-500" /> Heures &amp; domaines
+                </CardTitle>
+                <CardDescription>Quand et sur quoi cette personne travaille.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {ug.hours.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-2">
+                      <Clock className="h-3.5 w-3.5" /> Heures d'activité
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {ug.hours.map((h) => <Badge key={h.value} variant="outline">{h.label}</Badge>)}
+                    </div>
+                  </div>
+                )}
+                {ug.focus.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-2">
+                      <ListChecks className="h-3.5 w-3.5" /> Domaines de travail
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {ug.focus.map((f) => <Badge key={f.value} variant="outline">{f.label} · {f.occurrences}×</Badge>)}
+                    </div>
+                  </div>
+                )}
+                {ug.hours.length === 0 && ug.focus.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Pas encore de données.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Lightbulb className="h-4 w-4 text-amber-500" /> Thèmes &amp; contacts
+                </CardTitle>
+                <CardDescription>Sujets récurrents et interlocuteurs habituels.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {ug.themes.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-2">
+                      <ListChecks className="h-3.5 w-3.5" /> Thèmes de tâches
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {ug.themes.map((t) => <Badge key={t.value} variant="outline">{t.label} · {t.occurrences}×</Badge>)}
+                    </div>
+                  </div>
+                )}
+                {ug.contacts.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-2">
+                      <Phone className="h-3.5 w-3.5" /> Interlocuteurs récurrents
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {ug.contacts.map((c) => <Badge key={c.value} variant="outline">{c.label} · {c.occurrences}×</Badge>)}
+                    </div>
+                  </div>
+                )}
+                {ug.themes.length === 0 && ug.contacts.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Pas encore de données.</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

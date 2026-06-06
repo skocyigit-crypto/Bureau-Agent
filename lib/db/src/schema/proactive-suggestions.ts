@@ -14,6 +14,13 @@ export const proactiveSuggestionsTable = pgTable("proactive_suggestions", {
   organisationId: integer("organisation_id")
     .notNull()
     .references(() => organisationsTable.id, { onDelete: "cascade" }),
+  // Cible PERSONNELLE de la suggestion (couche d'apprentissage par employé).
+  // NULL = suggestion à l'échelle de l'org (visible par tous). Renseigné =
+  // suggestion privée à cet utilisateur (visible par lui + un responsable
+  // administrateur/super_admin). La déduplication reste portée par dedupeKey
+  // (qui encode l'utilisateur pour les détecteurs personnels, ex "u42:..."),
+  // donc l'index unique pending (org, dedupeKey) reste correct sans changement.
+  userId: integer("user_id").references(() => usersTable.id, { onDelete: "set null" }),
   // overdue_task | missed_call_followup | calendar_conflict | ...
   type: text("type").notNull(),
   // info | warning | urgent
@@ -39,6 +46,7 @@ export const proactiveSuggestionsTable = pgTable("proactive_suggestions", {
   }),
 }, (table) => [
   index("proactive_sugg_org_status_idx").on(table.organisationId, table.status),
+  index("proactive_sugg_org_user_status_idx").on(table.organisationId, table.userId, table.status),
   index("proactive_sugg_org_dedupe_idx").on(table.organisationId, table.dedupeKey),
   index("proactive_sugg_created_at_idx").on(table.createdAt),
   // Garantie de déduplication au niveau base: une seule suggestion "pending"

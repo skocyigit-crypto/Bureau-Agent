@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { db, proactiveSuggestionsTable, organisationsTable } from "@workspace/db";
-import { and, eq, inArray, desc } from "drizzle-orm";
+import { and, eq, inArray, desc, or, isNull, type SQL } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
 import { runProactiveForOrg } from "../services/proactive-engine";
@@ -11,6 +11,24 @@ const router = Router();
 
 const SEVERITY_RANK: Record<string, number> = { urgent: 3, warning: 2, info: 1 };
 const STATUSES = ["pending", "accepted", "dismissed", "done"] as const;
+
+// Couche d'apprentissage PAR EMPLOYÉ — règle de confidentialité.
+// Une suggestion porte parfois un `userId` (cible personnelle). Un employé ne
+// voit/agit QUE sur les suggestions à l'échelle de l'org (userId NULL) + les
+// siennes. Un responsable (administrateur / super_admin) voit/agit sur tout.
+// Renvoie une condition SQL à intégrer au `and(...)`, ou undefined si aucun
+// filtre (responsable) — drizzle ignore les conditions undefined.
+function visibilityFilter(req: Request): SQL | undefined {
+  const role = req.session?.userRole as string | undefined;
+  const isManager = role === "super_admin" || role === "administrateur";
+  if (isManager) return undefined;
+  const userId = req.session?.userId ?? null;
+  if (userId == null) return isNull(proactiveSuggestionsTable.userId);
+  return or(
+    isNull(proactiveSuggestionsTable.userId),
+    eq(proactiveSuggestionsTable.userId, userId),
+  );
+}
 
 // GET /proactive/suggestions?status=pending — liste les suggestions du tenant.
 router.get("/proactive/suggestions", async (req: Request, res: Response): Promise<void> => {
@@ -26,6 +44,7 @@ router.get("/proactive/suggestions", async (req: Request, res: Response): Promis
         and(
           eq(proactiveSuggestionsTable.organisationId, orgId),
           eq(proactiveSuggestionsTable.status, status),
+          visibilityFilter(req),
         ),
       )
       .orderBy(desc(proactiveSuggestionsTable.createdAt))
@@ -69,6 +88,7 @@ async function resolveSuggestion(
         and(
           eq(proactiveSuggestionsTable.id, id),
           eq(proactiveSuggestionsTable.organisationId, orgId),
+          visibilityFilter(req),
         ),
       )
       .returning();
@@ -111,6 +131,7 @@ router.post("/proactive/suggestions/:id/feedback", async (req: Request, res: Res
         and(
           eq(proactiveSuggestionsTable.id, id),
           eq(proactiveSuggestionsTable.organisationId, orgId),
+          visibilityFilter(req),
         ),
       )
       .returning({ id: proactiveSuggestionsTable.id, type: proactiveSuggestionsTable.type });

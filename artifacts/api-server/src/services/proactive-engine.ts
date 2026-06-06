@@ -46,6 +46,10 @@ interface Candidate {
   severity: Severity;
   title: string;
   detail?: string;
+  // Cible PERSONNELLE (couche d'apprentissage par employé). Renseigné par les
+  // détecteurs personnels -> suggestion privée (visible par l'utilisateur + un
+  // responsable). Absent -> suggestion à l'échelle de l'org (visible par tous).
+  userId?: number;
   relatedEntityType?: string;
   relatedEntityId?: number;
   actionType?: string;
@@ -64,6 +68,9 @@ const DETECTOR_TYPES = [
   "meeting_prep",
   "inactive_contact",
   "cash_crunch",
+  // Détecteurs PERSONNELS (couche d'apprentissage par employé) -> suggestion
+  // privée portant un userId. Préfixés "my_" par convention.
+  "my_tasks_due_today",
 ] as const;
 
 // Types de détecteurs RETIRÉS. On les garde ici (et non dans DETECTOR_TYPES,
@@ -466,6 +473,52 @@ async function detectCashCrunch(orgId: number, _now: Date): Promise<Candidate[]>
   }
 }
 
+// --- Détecteur personnel : mes tâches dues aujourd'hui --------------------
+// Couche d'apprentissage PAR EMPLOYÉ. Pour chaque tâche due AUJOURD'HUI (pas
+// encore en retard) rattachée à un créateur (createdBy non nul), on émet une
+// suggestion PRIVÉE à cet utilisateur (userId renseigné). Distinct du détecteur
+// org "overdue_task" (qui ne se déclenche qu'APRÈS l'échéance) : aucun doublon.
+// dedupeKey préfixé "u<uid>:" -> l'index unique pending (org, dedupeKey) reste
+// correct sans modification. Auto-résolu quand la tâche est terminée/annulée ou
+// que la journée passe (la tâche sort de la fenêtre des candidats).
+async function detectMyTasksDueToday(orgId: number, now: Date): Promise<Candidate[]> {
+  const startOfDay = new Date(now);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(startOfDay.getTime() + DAY_MS);
+  const rows = await db
+    .select()
+    .from(tasksTable)
+    .where(
+      and(
+        eq(tasksTable.organisationId, orgId),
+        notInArray(tasksTable.status, ["termine", "annule"]),
+        isNotNull(tasksTable.createdBy),
+        isNotNull(tasksTable.dueDate),
+        gte(tasksTable.dueDate, startOfDay),
+        lt(tasksTable.dueDate, endOfDay),
+      ),
+    )
+    .orderBy(desc(tasksTable.dueDate))
+    .limit(100);
+
+  return rows.map((t) => {
+    const uid = t.createdBy as number;
+    const due = t.dueDate as Date;
+    return {
+      type: "my_tasks_due_today",
+      severity: "warning" as Severity,
+      userId: uid,
+      title: `À faire aujourd'hui : ${t.title}`,
+      detail: `Cette tâche est prévue pour aujourd'hui (${frDate(due)}). Pensez à la traiter avant la fin de journée.`,
+      relatedEntityType: "task",
+      relatedEntityId: t.id,
+      actionType: "open_task",
+      actionPayload: { taskId: t.id, priority: t.priority },
+      dedupeKey: `u${uid}:due_today:${t.id}`,
+    };
+  });
+}
+
 /**
  * Exécute tous les détecteurs pour une organisation, déduplique contre les
  * suggestions pending existantes, auto-résout celles qui ne s'appliquent plus,
@@ -482,6 +535,8 @@ export async function runProactiveForOrg(orgId: number): Promise<number> {
     ...(await detectMeetingPrep(orgId, now)),
     ...(await detectInactiveContacts(orgId, now)),
     ...(await detectCashCrunch(orgId, now)),
+    // Détecteurs personnels (couche par employé).
+    ...(await detectMyTasksDueToday(orgId, now)),
   ];
   const candidateKeys = new Set(candidates.map((c) => c.dedupeKey));
 
@@ -534,6 +589,7 @@ export async function runProactiveForOrg(orgId: number): Promise<number> {
     await db.insert(proactiveSuggestionsTable).values(
       toInsert.map((c) => ({
         organisationId: orgId,
+        userId: c.userId ?? null,
         type: c.type,
         severity: c.severity,
         title: c.title,
