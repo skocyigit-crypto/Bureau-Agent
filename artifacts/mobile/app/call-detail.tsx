@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -72,16 +72,24 @@ export default function CallDetailScreen() {
   const [aiLoading, setAiLoading] = useState<"briefing" | "coaching" | null>(null);
   const [aiResult, setAiResult] = useState<string | null>(null);
 
+  // Garde anti-course : navigation rapide entre appels -> une ancienne requete
+  // peut resoudre apres la nouvelle et ecraser l'ecran avec le mauvais appel.
+  const activeIdRef = useRef(id);
+  activeIdRef.current = id;
+
   const load = useCallback(async () => {
     if (!id) return;
+    const reqId = id;
     try {
       const res = await fetchAuth(`${API_BASE}/api/calls/${id}`);
+      if (activeIdRef.current !== reqId) return;
       if (res.ok) {
         const d = await res.json();
+        if (activeIdRef.current !== reqId) return;
         setCall(d);
         setNotes(d.notes ?? "");
       }
-    } catch {} finally { setLoading(false); }
+    } catch {} finally { if (activeIdRef.current === reqId) setLoading(false); }
   }, [id, fetchAuth]);
 
   useEffect(() => { load(); }, [load]);

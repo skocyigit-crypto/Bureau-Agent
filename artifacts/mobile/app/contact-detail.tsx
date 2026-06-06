@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -140,8 +140,15 @@ export default function ContactDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>("apercu");
 
+  // Garde anti-course : navigation rapide entre contacts -> une ancienne
+  // requete peut resoudre apres la nouvelle et ecraser l'ecran avec le mauvais
+  // contact. On compare l'id capture au debut a l'id actuel avant chaque setState.
+  const activeIdRef = useRef(id);
+  activeIdRef.current = id;
+
   const load = useCallback(async () => {
     if (!id) return;
+    const reqId = id;
     try {
       const [cRes, callRes, taskRes, projRes, devisRes] = await Promise.all([
         fetchAuth(`${API_BASE}/api/contacts/${id}`),
@@ -150,12 +157,23 @@ export default function ContactDetailScreen() {
         fetchAuth(`${API_BASE}/api/contacts/${id}/projets`),
         fetchAuth(`${API_BASE}/api/contacts/${id}/devis`),
       ]);
-      if (cRes.ok) setContact(await cRes.json());
-      if (callRes.ok) { const d = await callRes.json(); setCalls(d.calls ?? d ?? []); }
-      if (taskRes.ok) { const d = await taskRes.json(); setTasks(d.tasks ?? d ?? []); }
-      if (projRes.ok) { const d = await projRes.json(); setProjets(d.projets ?? d ?? []); }
-      if (devisRes.ok) { const d = await devisRes.json(); setDevis(d.devis ?? d.data ?? d ?? []); }
-    } catch {} finally { setLoading(false); }
+      if (activeIdRef.current !== reqId) return;
+      // On parse tous les corps AVANT de toucher l'etat, puis on re-verifie une
+      // derniere fois : l'id peut changer pendant le parse JSON (await).
+      const [cJson, callJson, taskJson, projJson, devisJson] = await Promise.all([
+        cRes.ok ? cRes.json() : null,
+        callRes.ok ? callRes.json() : null,
+        taskRes.ok ? taskRes.json() : null,
+        projRes.ok ? projRes.json() : null,
+        devisRes.ok ? devisRes.json() : null,
+      ]);
+      if (activeIdRef.current !== reqId) return;
+      if (cJson) setContact(cJson);
+      if (callJson) setCalls(callJson.calls ?? callJson ?? []);
+      if (taskJson) setTasks(taskJson.tasks ?? taskJson ?? []);
+      if (projJson) setProjets(projJson.projets ?? projJson ?? []);
+      if (devisJson) setDevis(devisJson.devis ?? devisJson.data ?? devisJson ?? []);
+    } catch {} finally { if (activeIdRef.current === reqId) setLoading(false); }
   }, [id, fetchAuth]);
 
   useEffect(() => { load(); }, [load]);

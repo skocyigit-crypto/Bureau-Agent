@@ -34,8 +34,10 @@ export async function streamSse(
 
   try {
     while (true) {
+      if (handlers.signal?.aborted) break;
       const { value, done } = await reader.read();
       if (done) break;
+      if (handlers.signal?.aborted) break;
       buffer += decoder.decode(value, { stream: true });
 
       let idx;
@@ -50,6 +52,7 @@ export async function streamSse(
           else if (line.startsWith("data:")) dataStr += line.slice(5).trim();
         }
         if (!dataStr) continue;
+        if (handlers.signal?.aborted) break;
         try {
           handlers.onEvent(event, JSON.parse(dataStr));
         } catch {

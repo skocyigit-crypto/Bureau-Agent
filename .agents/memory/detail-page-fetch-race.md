@@ -24,3 +24,16 @@ wins, not concurrent updates in one tick.
 (`useGetContact(id)`, `useGetCall(id)`) are already keyed by id and cancel/ignore
 stale results, so entities loaded through them are race-free; only the secondary
 raw fetches alongside them (e.g. a projets list) need the guard.
+
+**Re-check after EVERY await, not just the first.** Parsing the body is itself an
+await (`await res.json()`), so a single guard before parsing is not enough — the
+id can change during the parse. Either re-check immediately before each
+`setState`, or (cleaner for multi-fetch loaders) parse all bodies first
+(`Promise.all` of `res.ok ? res.json() : null`), re-check once, then do all the
+synchronous `setState`s together.
+
+**Applies to Expo mobile too** (`useLocalSearchParams<{id}>()` screens stay
+mounted across param changes, same as web `wouter`). The SSE reader sibling
+(`lib/sse-stream.ts`) is the same hazard in stream form: gate `handlers.onEvent`
+on `handlers.signal?.aborted` (at loop entry, after `reader.read()`, and before
+each dispatch) so buffered events don't fire after unmount/abort.
