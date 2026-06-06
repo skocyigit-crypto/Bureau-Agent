@@ -32,15 +32,15 @@ router.get("/smart-reports/executive-summary", async (req: Request, res: Respons
     ] = await Promise.all([
       db.select({
         total: sql<number>`count(*)::int`,
-        answered: sql<number>`count(*) filter (where ${callsTable.status} = 'answered')::int`,
-        missed: sql<number>`count(*) filter (where ${callsTable.status} = 'missed')::int`,
+        answered: sql<number>`count(*) filter (where ${callsTable.status} = 'repondu')::int`,
+        missed: sql<number>`count(*) filter (where ${callsTable.status} = 'manque')::int`,
         avgDuration: sql<number>`coalesce(avg(${callsTable.duration}), 0)::int`,
         totalDuration: sql<number>`coalesce(sum(${callsTable.duration}), 0)::int`,
       }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, startDate))),
 
       db.select({
         total: sql<number>`count(*)::int`,
-        answered: sql<number>`count(*) filter (where ${callsTable.status} = 'answered')::int`,
+        answered: sql<number>`count(*) filter (where ${callsTable.status} = 'repondu')::int`,
       }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, prevStart), lte(callsTable.createdAt, startDate))),
 
       db.select({
@@ -223,7 +223,7 @@ router.get("/smart-reports/reminders", async (req: Request, res: Response): Prom
 
       db.select().from(callsTable).where(and(
         eq(callsTable.organisationId, orgId),
-        eq(callsTable.status, "missed"),
+        eq(callsTable.status, "manque"),
         gte(callsTable.createdAt, new Date(now.getTime() - 24 * 60 * 60 * 1000)),
       )).orderBy(desc(callsTable.createdAt)).limit(5),
 

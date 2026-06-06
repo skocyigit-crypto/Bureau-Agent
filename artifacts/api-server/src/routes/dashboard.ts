@@ -773,8 +773,8 @@ router.get("/dashboard/smart-pulse", async (req, res): Promise<void> => {
       db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, todayStart))).then(r => Number(r[0]?.c ?? 0)),
       db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, weekStart))).then(r => Number(r[0]?.c ?? 0)),
       db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, prevWeekStart), lt(callsTable.createdAt, weekStart))).then(r => Number(r[0]?.c ?? 0)),
-      db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, todayStart), eq(callsTable.status, "missed"))).then(r => Number(r[0]?.c ?? 0)),
-      db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, weekStart), eq(callsTable.status, "missed"))).then(r => Number(r[0]?.c ?? 0)),
+      db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, todayStart), eq(callsTable.status, "manque"))).then(r => Number(r[0]?.c ?? 0)),
+      db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, weekStart), eq(callsTable.status, "manque"))).then(r => Number(r[0]?.c ?? 0)),
       db.select({ c: sql<number>`count(*)` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), gte(tasksTable.createdAt, todayStart))).then(r => Number(r[0]?.c ?? 0)),
       db.select({ c: sql<number>`count(*)` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.status, "en_attente"), lt(tasksTable.dueDate, now))).then(r => Number(r[0]?.c ?? 0)),
       db.select({ c: sql<number>`count(*)` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.status, "termine"), gte(tasksTable.updatedAt, weekStart))).then(r => Number(r[0]?.c ?? 0)),
@@ -861,9 +861,9 @@ router.get("/dashboard/anomaly-stream", async (req, res): Promise<void> => {
     const oc = eq(callsTable.organisationId, orgId);
 
     const [recentMissed, recentTotal, hourlyMissed, hourlyTotal, repeatedCallers] = await Promise.all([
-      db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, last1h), eq(callsTable.status, "missed"))).then(r => Number(r[0]?.c ?? 0)),
+      db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, last1h), eq(callsTable.status, "manque"))).then(r => Number(r[0]?.c ?? 0)),
       db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, last1h))).then(r => Number(r[0]?.c ?? 0)),
-      db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, last24h), eq(callsTable.status, "missed"))).then(r => Number(r[0]?.c ?? 0)),
+      db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, last24h), eq(callsTable.status, "manque"))).then(r => Number(r[0]?.c ?? 0)),
       db.select({ c: sql<number>`count(*)` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, last24h))).then(r => Number(r[0]?.c ?? 0)),
       db.execute(sql`
         SELECT phone_number, count(*) as cnt, max(contact_name) as name 
