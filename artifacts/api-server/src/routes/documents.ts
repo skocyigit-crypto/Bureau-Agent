@@ -357,7 +357,7 @@ router.post("/documents/process", requireMinAgent, async (req: Request, res: Res
         docUpdates.scannedAt = new Date(scanResult.scannedAt);
       }
       await db.update(documentsTable).set(docUpdates)
-        .where(eq(documentsTable.id, parseInt(String(documentId))));
+        .where(and(eq(documentsTable.id, parseInt(String(documentId))), eq(documentsTable.organisationId, orgId)));
     }
 
     logger.info({ orgId, fileName: name, totalRows: result.totalRows, suggestedModule: result.suggestedModule }, "Document processed for import");

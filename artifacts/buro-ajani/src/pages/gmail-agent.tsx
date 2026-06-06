@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getListTasksQueryKey } from "@workspace/api-client-react";
+import { getListTasksQueryKey, getListContactsQueryKey } from "@workspace/api-client-react";
 import { format, isToday, isYesterday } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
@@ -552,6 +552,7 @@ export default function GmailAgentPage() {
       toast({ title: "Contact ajoute au CRM" });
       qc.invalidateQueries({ queryKey: ["contact-lookup", senderEmail] });
       qc.invalidateQueries({ queryKey: ["contacts"] });
+      qc.invalidateQueries({ queryKey: getListContactsQueryKey() });
     } catch (e: any) {
       toast({ title: "Erreur", description: e?.message || "Impossible d'ajouter le contact.", variant: "destructive" });
     } finally {

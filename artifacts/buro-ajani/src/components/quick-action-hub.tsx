@@ -142,7 +142,7 @@ function QuickTaskForm({ onSubmit, loading }: { onSubmit: (d: any) => void; load
   const [dueDate, setDueDate] = useState("");
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); onSubmit({ title, description, priority, status: "a_faire", dueDate: dueDate || undefined }); }} className="space-y-3 mt-3">
+    <form onSubmit={(e) => { e.preventDefault(); onSubmit({ title, description, priority, status: "en_attente", dueDate: dueDate || undefined }); }} className="space-y-3 mt-3">
       <div><Label className="text-xs">Titre *</Label><Input value={title} onChange={e => setTitle(e.target.value)} required placeholder="Rappeler M. Dupont" /></div>
       <div><Label className="text-xs">Description</Label><Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Details..." rows={2} /></div>
       <div className="grid grid-cols-2 gap-3">

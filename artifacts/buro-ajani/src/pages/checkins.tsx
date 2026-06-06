@@ -223,7 +223,7 @@ export default function CheckinsPage() {
   const handleDuplicate = async (id: number) => {
     const baseUrl = (import.meta.env.BASE_URL || "/").replace(/\/?$/, "/");
     const res = await fetch(`${baseUrl}api/checkins/${id}/duplicate`, { method: "POST", credentials: "include" });
-    if (res.ok) { toast({ title: "Pointage dupliqué" }); queryClient.invalidateQueries({ queryKey: ["checkins"] }); }
+    if (res.ok) { toast({ title: "Pointage dupliqué" }); invalidateAll(); }
     else toast({ title: "Erreur", description: "Impossible de dupliquer", variant: "destructive" });
   };
 

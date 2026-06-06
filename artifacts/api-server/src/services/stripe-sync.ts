@@ -22,8 +22,9 @@ function statusFromStripe(s: Stripe.Subscription.Status): string {
     case "canceled":
       return "annulee";
     case "incomplete":
-    case "incomplete_expired":
       return "en_attente";
+    case "incomplete_expired":
+      return "annulee";
     case "unpaid":
       return "past_due";
     case "paused":

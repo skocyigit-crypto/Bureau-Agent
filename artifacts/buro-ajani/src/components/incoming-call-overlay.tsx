@@ -4,7 +4,7 @@ import { Phone, PhoneOff, Voicemail, Clock, User, Building, Star, PhoneIncoming,
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { useCreateCall, useListContacts } from "@workspace/api-client-react";
+import { useCreateCall, useListContacts, getListCallsQueryKey, getListTasksQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
@@ -326,8 +326,8 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
       if (!res.ok) throw new Error("Save failed");
       const data = await res.json();
       setAiSaveResult(data);
-      queryClient.invalidateQueries({ queryKey: ["calls"] });
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
       toast({ title: "Appel IA enregistre", description: data.message });
     } catch {
@@ -350,7 +350,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
       }
     }, {
       onSuccess: (data: any) => {
-        queryClient.invalidateQueries({ queryKey: ["calls"] });
+        queryClient.invalidateQueries({ queryKey: getListCallsQueryKey() });
         const toastMsg = status === "repondu" ? "Appel enregistre" : status === "manque" ? "Appel manque enregistre" : "Message vocal enregistre";
         toast({ title: toastMsg });
 
@@ -361,7 +361,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
             .then(result => {
               setAiResult(result);
               setAiProcessing(false);
-              queryClient.invalidateQueries({ queryKey: ["tasks"] });
+              queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
               queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
               queryClient.invalidateQueries({ queryKey: ["notifications"] });
               if (result.tasksCreated > 0 || result.appointmentCreated) {
