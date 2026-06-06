@@ -170,8 +170,10 @@ router.get("/documents/list", requireMinAgent, async (req: Request, res: Respons
     const entityId = req.query.entityId ? parseInt(String(req.query.entityId)) : undefined;
     const category = req.query.category ? String(req.query.category) : undefined;
     const scanVerdict = req.query.scanVerdict ? String(req.query.scanVerdict) : undefined;
-    const limit = Math.min(parseInt(String(req.query.limit || "50")), 200);
-    const offset = parseInt(String(req.query.offset || "0"));
+    const limitRaw = parseInt(String(req.query.limit || "50"));
+    const limit = Math.min(Math.max(Number.isFinite(limitRaw) ? limitRaw : 50, 1), 200);
+    const offsetRaw = parseInt(String(req.query.offset || "0"));
+    const offset = Math.max(Number.isFinite(offsetRaw) ? offsetRaw : 0, 0);
 
     const conditions: any[] = [eq(documentsTable.organisationId, orgId)];
     if (entityType) conditions.push(eq(documentsTable.entityType, entityType));

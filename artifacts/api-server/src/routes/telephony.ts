@@ -91,7 +91,7 @@ telephonyWebhookRouter.post("/telephony/webhook/:provider", async (req, res): Pr
   const provider = String(req.params.provider);
   const payload = req.body;
 
-  const { ok: valid } = await validateProviderWebhook(provider, req);
+  const { ok: valid, orgId } = await validateProviderWebhook(provider, req);
   if (!valid) {
     logger.warn({ provider, ip: req.ip }, "Rejected unsigned telephony webhook");
     res.status(401).json({ error: "Signature invalide." });
@@ -108,7 +108,9 @@ telephonyWebhookRouter.post("/telephony/webhook/:provider", async (req, res): Pr
       if (callSid) {
         const existing = await db.select({ id: telephonyCallLogsTable.id })
           .from(telephonyCallLogsTable)
-          .where(eq(telephonyCallLogsTable.providerCallSid, callSid))
+          .where(orgId != null
+            ? and(eq(telephonyCallLogsTable.providerCallSid, callSid), eq(telephonyCallLogsTable.organisationId, orgId))
+            : eq(telephonyCallLogsTable.providerCallSid, callSid))
           .limit(1);
         if (existing.length > 0) {
           await db.update(telephonyCallLogsTable)
@@ -123,7 +125,9 @@ telephonyWebhookRouter.post("/telephony/webhook/:provider", async (req, res): Pr
       if (uuid) {
         const existing = await db.select({ id: telephonyCallLogsTable.id })
           .from(telephonyCallLogsTable)
-          .where(eq(telephonyCallLogsTable.providerCallSid, uuid))
+          .where(orgId != null
+            ? and(eq(telephonyCallLogsTable.providerCallSid, uuid), eq(telephonyCallLogsTable.organisationId, orgId))
+            : eq(telephonyCallLogsTable.providerCallSid, uuid))
           .limit(1);
         if (existing.length > 0) {
           await db.update(telephonyCallLogsTable)
@@ -137,7 +141,9 @@ telephonyWebhookRouter.post("/telephony/webhook/:provider", async (req, res): Pr
       if (callId) {
         const existing = await db.select({ id: telephonyCallLogsTable.id })
           .from(telephonyCallLogsTable)
-          .where(eq(telephonyCallLogsTable.providerCallSid, callId))
+          .where(orgId != null
+            ? and(eq(telephonyCallLogsTable.providerCallSid, callId), eq(telephonyCallLogsTable.organisationId, orgId))
+            : eq(telephonyCallLogsTable.providerCallSid, callId))
           .limit(1);
         if (existing.length > 0) {
           await db.update(telephonyCallLogsTable)

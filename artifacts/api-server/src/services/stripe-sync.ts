@@ -5,6 +5,7 @@ import { logger } from "../lib/logger";
 import { getPlanForPriceId } from "./stripe-client";
 import { logLicenseEvent } from "./license-audit";
 import { sendSubscriptionSuspendedEmail, sendSubscriptionRecoveredEmail } from "./email";
+import { invalidateQuotaCache } from "./ai-quota";
 
 async function getOrgEmail(orgId: number): Promise<{ email: string | null; name: string }> {
   const [org] = await db.select({ email: organisationsTable.email, name: organisationsTable.name }).from(organisationsTable).where(eq(organisationsTable.id, orgId)).limit(1);
@@ -74,6 +75,7 @@ export async function handleCheckoutCompleted(session: Stripe.Checkout.Session) 
       updatedAt: new Date(),
     })
     .where(eq(subscriptionsTable.organisationId, orgId));
+  invalidateQuotaCache(orgId);
   logger.info({ orgId, plan, subscriptionId }, "[stripe-sync] checkout completed -> subscription activated");
 }
 
@@ -122,6 +124,7 @@ export async function handleSubscriptionUpdated(sub: Stripe.Subscription) {
     updates.price = String(planDef.price);
   }
   await db.update(subscriptionsTable).set(updates).where(eq(subscriptionsTable.organisationId, orgId));
+  invalidateQuotaCache(orgId);
   logger.info({ orgId, status: sub.status, plan: planFromPrice }, "[stripe-sync] subscription updated");
 
   if (planFromPrice && planDef && previousPlan && previousPlan !== planFromPrice) {
@@ -179,6 +182,7 @@ export async function handleSubscriptionDeleted(sub: Stripe.Subscription) {
       updatedAt: new Date(),
     })
     .where(eq(subscriptionsTable.organisationId, orgId));
+  invalidateQuotaCache(orgId);
   logger.info({ orgId }, "[stripe-sync] subscription deleted -> downgraded to essai");
 }
 

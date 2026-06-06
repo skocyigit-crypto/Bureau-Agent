@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getListTasksQueryKey } from "@workspace/api-client-react";
 import { format, isToday, isYesterday } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
@@ -422,7 +423,7 @@ export default function GmailAgentPage() {
         title: "Tache creee",
         description: t ? `Priorite ${priority}${dueDate ? " — echeance fixee" : ""}` : "Saisie manuelle a completer",
       });
-      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: getListTasksQueryKey() });
     } catch {
       toast({ title: "Erreur creation tache", variant: "destructive" });
     } finally {
