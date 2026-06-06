@@ -40,35 +40,33 @@ interface Task {
 }
 
 const STATUS_CFG: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
-  todo:        { label: "À faire",     color: "#6b7280", icon: "circle"       },
-  in_progress: { label: "En cours",    color: "#3b82f6", icon: "loader"       },
-  done:        { label: "Terminé",     color: "#22c55e", icon: "check-circle" },
-  cancelled:   { label: "Annulé",      color: "#ef4444", icon: "x-circle"    },
+  en_attente:  { label: "À faire",     color: "#6b7280", icon: "circle"       },
+  en_cours:    { label: "En cours",    color: "#3b82f6", icon: "loader"       },
+  termine:     { label: "Terminé",     color: "#22c55e", icon: "check-circle" },
+  annule:      { label: "Annulé",      color: "#ef4444", icon: "x-circle"    },
 };
 
 const PRIORITY_CFG: Record<string, { label: string; color: string }> = {
-  low:      { label: "Basse",  color: "#22c55e" },
-  medium:   { label: "Moyenne",color: "#f59e0b" },
-  high:     { label: "Haute", color: "#ef4444" },
-  critical: { label: "Critique",color: "#dc2626" },
+  basse:    { label: "Basse",  color: "#22c55e" },
+  moyenne:  { label: "Moyenne",color: "#f59e0b" },
+  haute:    { label: "Haute", color: "#ef4444" },
 };
 
 const FORM_FIELDS = [
   { key: "title", label: "Titre de la tâche", required: true },
   {
     key: "status", label: "Statut", type: "select" as const, options: [
-      { value: "todo",        label: "À faire"   },
-      { value: "in_progress", label: "En cours"  },
-      { value: "done",        label: "Terminé"   },
-      { value: "cancelled",   label: "Annulé"    },
+      { value: "en_attente",  label: "À faire"   },
+      { value: "en_cours",    label: "En cours"  },
+      { value: "termine",     label: "Terminé"   },
+      { value: "annule",      label: "Annulé"    },
     ],
   },
   {
     key: "priority", label: "Priorité", type: "select" as const, options: [
-      { value: "low",      label: "Basse"    },
-      { value: "medium",   label: "Moyenne"  },
-      { value: "high",     label: "Haute"    },
-      { value: "critical", label: "Critique" },
+      { value: "basse",    label: "Basse"    },
+      { value: "moyenne",  label: "Moyenne"  },
+      { value: "haute",    label: "Haute"    },
     ],
   },
   { key: "dueDate",    label: "Date d'échéance (AAAA-MM-JJ)" },
@@ -104,10 +102,10 @@ function TaskCard({ task, colors, onDelete, onOpen, onToggleDone }: {
   onToggleDone: (id: number, current: string) => void;
 }) {
   const ref = useRef<Swipeable>(null);
-  const sc = STATUS_CFG[task.status] ?? STATUS_CFG.todo;
-  const pc = PRIORITY_CFG[task.priority] ?? PRIORITY_CFG.medium;
-  const isDone = task.status === "done";
-  const isOverdue = task.dueDate && task.status !== "done" && task.status !== "cancelled"
+  const sc = STATUS_CFG[task.status] ?? STATUS_CFG.en_attente;
+  const pc = PRIORITY_CFG[task.priority] ?? PRIORITY_CFG.moyenne;
+  const isDone = task.status === "termine";
+  const isOverdue = task.dueDate && task.status !== "termine" && task.status !== "annule"
     && new Date(task.dueDate) < new Date();
 
   function handleSwipeOpen(direction: "left" | "right") {
@@ -212,7 +210,7 @@ export default function TasksScreen() {
   const [selected, setSelected] = useState<Task | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
-  const [formValues, setFormValues] = useState<Record<string, string>>({ status: "todo", priority: "medium" });
+  const [formValues, setFormValues] = useState<Record<string, string>>({ status: "en_attente", priority: "moyenne" });
   const [formLoading, setFormLoading] = useState(false);
 
   const { cached, isFromCache, updateCache } = useOfflineCache<Task[]>("tasks_list", []);
@@ -260,7 +258,7 @@ export default function TasksScreen() {
   }
 
   async function handleToggleDone(id: number, current: string) {
-    const next = current === "done" ? "todo" : "done";
+    const next = current === "termine" ? "en_attente" : "termine";
     setTasks(prev => prev.map(t => t.id === id ? { ...t, status: next } : t));
     if (selected?.id === id) setSelected(prev => prev ? { ...prev, status: next } : null);
     try {
@@ -285,7 +283,7 @@ export default function TasksScreen() {
       });
       if (res.ok) {
         setShowForm(false); setEditId(null);
-        setFormValues({ status: "todo", priority: "medium" });
+        setFormValues({ status: "en_attente", priority: "moyenne" });
         load();
       }
     } finally { setFormLoading(false); }
@@ -295,8 +293,8 @@ export default function TasksScreen() {
     setEditId(t.id);
     setFormValues({
       title: t.title || "",
-      status: t.status || "todo",
-      priority: t.priority || "medium",
+      status: t.status || "en_attente",
+      priority: t.priority || "moyenne",
       dueDate: t.dueDate ? t.dueDate.split("T")[0] : "",
       assignedTo: t.assignedTo || "",
       description: t.description || "",
@@ -307,16 +305,16 @@ export default function TasksScreen() {
 
   const statusFilters = [
     { key: "all", label: "Tout" },
-    { key: "todo", label: "À faire" },
-    { key: "in_progress", label: "En cours" },
-    { key: "done", label: "Terminé" },
-    { key: "cancelled", label: "Annulé" },
+    { key: "en_attente", label: "À faire" },
+    { key: "en_cours", label: "En cours" },
+    { key: "termine", label: "Terminé" },
+    { key: "annule", label: "Annulé" },
   ];
 
-  const todo = tasks.filter(t => t.status === "todo").length;
-  const inProgress = tasks.filter(t => t.status === "in_progress").length;
-  const done = tasks.filter(t => t.status === "done").length;
-  const overdue = tasks.filter(t => t.dueDate && t.status !== "done" && t.status !== "cancelled" && new Date(t.dueDate) < new Date()).length;
+  const todo = tasks.filter(t => t.status === "en_attente").length;
+  const inProgress = tasks.filter(t => t.status === "en_cours").length;
+  const done = tasks.filter(t => t.status === "termine").length;
+  const overdue = tasks.filter(t => t.dueDate && t.status !== "termine" && t.status !== "annule" && new Date(t.dueDate) < new Date()).length;
 
   const detailFields = selected ? [
     { label: "Statut",    value: STATUS_CFG[selected.status]?.label ?? selected.status },
@@ -424,7 +422,7 @@ export default function TasksScreen() {
         />
       )}
 
-      <FAB onPress={() => { setEditId(null); setFormValues({ status: "todo", priority: "medium" }); setShowForm(true); }} icon="plus" />
+      <FAB onPress={() => { setEditId(null); setFormValues({ status: "en_attente", priority: "moyenne" }); setShowForm(true); }} icon="plus" />
 
       <FormModal
         visible={showForm}
@@ -448,9 +446,9 @@ export default function TasksScreen() {
         onClose={() => setSelected(null)}
         extraActions={selected ? [
           {
-            label: selected.status === "done" ? "Rouvrir" : "Marquer terminé",
-            icon: selected.status === "done" ? "rotate-ccw" as const : "check-circle" as const,
-            color: selected.status === "done" ? "#f59e0b" : "#22c55e",
+            label: selected.status === "termine" ? "Rouvrir" : "Marquer terminé",
+            icon: selected.status === "termine" ? "rotate-ccw" as const : "check-circle" as const,
+            color: selected.status === "termine" ? "#f59e0b" : "#22c55e",
             onPress: () => { handleToggleDone(selected.id, selected.status); setSelected(null); },
           },
         ] : undefined}

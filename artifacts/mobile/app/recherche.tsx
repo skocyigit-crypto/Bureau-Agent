@@ -177,14 +177,21 @@ export default function RechercheScreen() {
   const [results, setResults] = useState<SearchResults | null>(null);
   const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reqIdRef = useRef(0);
 
   const search = useCallback(async (q: string) => {
-    if (q.trim().length < 2) { setResults(null); return; }
+    if (q.trim().length < 2) { reqIdRef.current++; setResults(null); setLoading(false); return; }
+    const reqId = ++reqIdRef.current;
     setLoading(true);
     try {
       const res = await fetchAuth(`${API_BASE}/api/search?q=${encodeURIComponent(q)}&limit=5`);
-      if (res.ok) setResults(await res.json());
-    } catch {} finally { setLoading(false); }
+      const data = res.ok ? await res.json() : null;
+      if (reqId === reqIdRef.current) setResults(data);
+    } catch {
+      if (reqId === reqIdRef.current) setResults(null);
+    } finally {
+      if (reqId === reqIdRef.current) setLoading(false);
+    }
   }, [fetchAuth]);
 
   useEffect(() => {
