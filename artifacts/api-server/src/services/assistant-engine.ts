@@ -108,7 +108,7 @@ export async function runAssistantTurn(
 
   const contents = await loadHistoryForGemini(conversationId, ctx.orgId);
   // Pilier B: mémoire de l'organisation injectée dans l'instruction système (fail-soft).
-  const learnedBlock = await buildLearnedContextBlock(ctx.orgId);
+  const learnedBlock = await buildLearnedContextBlock(ctx.orgId, ctx.userId);
   const systemInstruction = SYSTEM_INSTRUCTION + learnedBlock;
   let hops = 0;
 

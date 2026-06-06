@@ -1,5 +1,6 @@
 import { pgTable, serial, integer, text, real, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { organisationsTable } from "./organisations";
+import { usersTable } from "./users";
 
 // Couche d'apprentissage IA (pilier B).
 //
@@ -58,3 +59,38 @@ export const aiRecurringPatternsTable = pgTable("ai_recurring_patterns", {
 
 export type AiLearnedPreference = typeof aiLearnedPreferencesTable.$inferSelect;
 export type AiRecurringPattern = typeof aiRecurringPatternsTable.$inferSelect;
+
+// Profil personnel PAR UTILISATEUR (couche d'apprentissage — dimension "qui").
+//
+// En plus de la mémoire org-wide (tables ci-dessus), on mine des faits
+// DÉTERMINISTES par employé pour personnaliser l'IA individuellement (heures
+// d'activité, domaines de travail, thèmes de tâches, interlocuteurs récurrents).
+// `userId` est TOUJOURS renseigné (non-null) -> index unique simple, pas de
+// piège NULL-distinct. Source des signaux: audit_logs (par user), tasks/calls
+// (createdBy). Aucun appel IA, aucun coût quota.
+// factType: "busy_hour" | "work_focus" | "task_theme" | "frequent_contact"
+export const aiUserProfileFactsTable = pgTable("ai_user_profile_facts", {
+  id: serial("id").primaryKey(),
+  organisationId: integer("organisation_id")
+    .notNull()
+    .references(() => organisationsTable.id, { onDelete: "cascade" }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => usersTable.id, { onDelete: "cascade" }),
+  factType: text("fact_type").notNull(),
+  label: text("label").notNull(),
+  value: text("value").notNull(),
+  occurrences: integer("occurrences").notNull().default(0),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex("ai_user_profile_fact_uniq").on(
+    table.organisationId,
+    table.userId,
+    table.factType,
+    table.value,
+  ),
+  index("ai_user_profile_fact_org_user_idx").on(table.organisationId, table.userId),
+]);
+
+export type AiUserProfileFact = typeof aiUserProfileFactsTable.$inferSelect;

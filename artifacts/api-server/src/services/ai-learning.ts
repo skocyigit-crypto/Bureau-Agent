@@ -2,11 +2,14 @@ import {
   db,
   aiLearnedPreferencesTable,
   aiRecurringPatternsTable,
+  aiUserProfileFactsTable,
   proactiveSuggestionsTable,
   aiInsightsTable,
   agentProposalsTable,
+  auditLogsTable,
   callsTable,
   tasksTable,
+  usersTable,
   organisationsTable,
 } from "@workspace/db";
 import { and, eq, sql, gte, isNotNull, desc, notInArray } from "drizzle-orm";
@@ -38,7 +41,13 @@ const CONTEXT_TOTAL_MAX_CHARS = 1200;
 // Cache mémoire court du bloc de contexte (évite de marteler la DB à chaque
 // appel IA). Déterministe -> sûr de mettre en cache brièvement.
 const CONTEXT_TTL_MS = 5 * 60 * 1000;
-const contextCache = new Map<number, { text: string; expiresAt: number }>();
+// Bloc personnel (par employé) ajouté APRÈS le bloc org. Borné séparément pour
+// garder un budget de tokens déterministe: org (<=1200) + perso (<=600).
+const CONTEXT_USER_MAX_CHARS = 600;
+// Clé de cache = `${orgId}:${userId|0}`. userId=0 => bloc org seul (rétro-compat
+// pour les appelants qui ne passent pas d'utilisateur). Le cache est donc
+// segmenté PAR utilisateur, et l'invalidation purge toutes les variantes de l'org.
+const contextCache = new Map<string, { text: string; expiresAt: number }>();
 const CONTEXT_CACHE_MAX = 500;
 
 function pruneContextCache(): void {
@@ -55,7 +64,11 @@ function pruneContextCache(): void {
 }
 
 function invalidateContextCache(orgId: number): void {
-  contextCache.delete(orgId);
+  // Purge le bloc org ET toutes les variantes par utilisateur (`${orgId}:*`).
+  const prefix = `${orgId}:`;
+  for (const k of contextCache.keys()) {
+    if (k.startsWith(prefix)) contextCache.delete(k);
+  }
 }
 
 // --- Agrégation du feedback -> préférences apprises ------------------------
@@ -356,6 +369,187 @@ export async function mineRecurringPatterns(orgId: number): Promise<number> {
   return written;
 }
 
+// --- Profil PERSONNEL par employé (dimension "qui") ------------------------
+//
+// Mine des faits DÉTERMINISTES par utilisateur (aucun appel IA): heures
+// d'activité (journal d'audit), domaines de travail (ressources les plus
+// manipulées), thèmes de tâches créées, interlocuteurs récurrents (appels
+// logués). Fenêtre glissante 90 jours, seuils anti-bruit, purge des faits
+// devenus obsolètes -> ai_user_profile_facts reste un reflet courant.
+
+const USER_WINDOW_DAYS = 90;
+const USER_TOP_HOURS = 3;
+const USER_TOP_FOCUS = 5;
+const USER_TOP_THEMES = 5;
+const USER_TOP_CONTACTS = 5;
+
+async function upsertUserFact(
+  orgId: number,
+  userId: number,
+  factType: string,
+  label: string,
+  value: string,
+  occurrences: number,
+  lastSeenAt: Date | null,
+): Promise<void> {
+  await db
+    .insert(aiUserProfileFactsTable)
+    .values({ organisationId: orgId, userId, factType, label, value, occurrences, lastSeenAt, updatedAt: new Date() })
+    .onConflictDoUpdate({
+      target: [
+        aiUserProfileFactsTable.organisationId,
+        aiUserProfileFactsTable.userId,
+        aiUserProfileFactsTable.factType,
+        aiUserProfileFactsTable.value,
+      ],
+      set: { label, occurrences, lastSeenAt, updatedAt: new Date() },
+    });
+}
+
+export async function recomputeUserProfile(orgId: number, userId: number): Promise<number> {
+  const since = new Date(Date.now() - USER_WINDOW_DAYS * 86_400_000);
+  let written = 0;
+  const kept: string[] = [];
+
+  // 1) Heures d'activité de l'employé (toute action consignée au journal).
+  const hours = await db
+    .select({
+      hour: sql<number>`extract(hour from ${auditLogsTable.createdAt})::int`,
+      occ: sql<number>`count(*)`,
+    })
+    .from(auditLogsTable)
+    .where(and(
+      eq(auditLogsTable.organisationId, orgId),
+      eq(auditLogsTable.userId, userId),
+      gte(auditLogsTable.createdAt, since),
+    ))
+    .groupBy(sql`extract(hour from ${auditLogsTable.createdAt})::int`)
+    .orderBy(desc(sql`count(*)`))
+    .limit(USER_TOP_HOURS);
+  for (const h of hours) {
+    const occ = Number(h.occ ?? 0);
+    const hr = Number(h.hour ?? 0);
+    if (occ < 3) continue;
+    await upsertUserFact(orgId, userId, "busy_hour", `${hr} h`, String(hr), occ, null);
+    kept.push(`busy_hour${KEY_SEP}${String(hr)}`);
+    written++;
+  }
+
+  // 2) Domaines de travail (ressources les plus manipulées).
+  const focus = await db
+    .select({
+      resource: auditLogsTable.resource,
+      occ: sql<number>`count(*)`,
+      last: sql<string>`max(${auditLogsTable.createdAt})`,
+    })
+    .from(auditLogsTable)
+    .where(and(
+      eq(auditLogsTable.organisationId, orgId),
+      eq(auditLogsTable.userId, userId),
+      gte(auditLogsTable.createdAt, since),
+    ))
+    .groupBy(auditLogsTable.resource)
+    .orderBy(desc(sql`count(*)`))
+    .limit(USER_TOP_FOCUS);
+  for (const f of focus) {
+    const occ = Number(f.occ ?? 0);
+    const res = (f.resource ?? "").trim();
+    if (occ < 3 || res.length === 0) continue;
+    await upsertUserFact(orgId, userId, "work_focus", humanizeResource(res), res, occ, f.last ? new Date(f.last) : null);
+    kept.push(`work_focus${KEY_SEP}${res}`);
+    written++;
+  }
+
+  // 3) Thèmes de tâches créées par l'employé (1er mot du titre).
+  const themes = await db
+    .select({
+      theme: sql<string>`lower(split_part(trim(${tasksTable.title}), ' ', 1))`,
+      occ: sql<number>`count(*)`,
+      last: sql<string>`max(${tasksTable.createdAt})`,
+    })
+    .from(tasksTable)
+    .where(and(
+      eq(tasksTable.organisationId, orgId),
+      eq(tasksTable.createdBy, userId),
+      gte(tasksTable.createdAt, since),
+    ))
+    .groupBy(sql`lower(split_part(trim(${tasksTable.title}), ' ', 1))`)
+    .orderBy(desc(sql`count(*)`))
+    .limit(USER_TOP_THEMES * 2);
+  let themeCount = 0;
+  for (const t of themes) {
+    const occ = Number(t.occ ?? 0);
+    const theme = (t.theme ?? "").trim();
+    if (occ < 2 || theme.length < 3) continue;
+    await upsertUserFact(orgId, userId, "task_theme", theme, theme, occ, t.last ? new Date(t.last) : null);
+    kept.push(`task_theme${KEY_SEP}${theme}`);
+    written++;
+    if (++themeCount >= USER_TOP_THEMES) break;
+  }
+
+  // 4) Interlocuteurs récurrents (appels logués par l'employé).
+  const labelExpr = sql<string>`coalesce(nullif(trim(${callsTable.contactName}), ''), ${callsTable.phoneNumber}, 'Inconnu')`;
+  const valueExpr = sql<string>`coalesce(nullif(${callsTable.phoneNumber}, ''), nullif(trim(${callsTable.contactName}), ''), 'inconnu')`;
+  const contacts = await db
+    .select({
+      label: labelExpr,
+      value: valueExpr,
+      occ: sql<number>`count(*)`,
+      last: sql<string>`max(${callsTable.createdAt})`,
+    })
+    .from(callsTable)
+    .where(and(
+      eq(callsTable.organisationId, orgId),
+      eq(callsTable.createdBy, userId),
+      gte(callsTable.createdAt, since),
+    ))
+    .groupBy(labelExpr, valueExpr)
+    .orderBy(desc(sql`count(*)`))
+    .limit(USER_TOP_CONTACTS);
+  for (const c of contacts) {
+    const occ = Number(c.occ ?? 0);
+    const value = (c.value ?? "").trim();
+    if (occ < 2 || value.length === 0) continue;
+    await upsertUserFact(orgId, userId, "frequent_contact", c.label ?? value, value, occ, c.last ? new Date(c.last) : null);
+    kept.push(`frequent_contact${KEY_SEP}${value}`);
+    written++;
+  }
+
+  // Purge des faits obsolètes pour CET utilisateur uniquement.
+  const factExpr = sql`${aiUserProfileFactsTable.factType} || ${KEY_SEP} || ${aiUserProfileFactsTable.value}`;
+  if (kept.length > 0) {
+    await db.delete(aiUserProfileFactsTable).where(and(
+      eq(aiUserProfileFactsTable.organisationId, orgId),
+      eq(aiUserProfileFactsTable.userId, userId),
+      notInArray(factExpr, kept),
+    ));
+  } else {
+    await db.delete(aiUserProfileFactsTable).where(and(
+      eq(aiUserProfileFactsTable.organisationId, orgId),
+      eq(aiUserProfileFactsTable.userId, userId),
+    ));
+  }
+
+  invalidateContextCache(orgId);
+  return written;
+}
+
+export async function recomputeAllUserProfiles(orgId: number): Promise<number> {
+  const users = await db
+    .select({ id: usersTable.id })
+    .from(usersTable)
+    .where(and(eq(usersTable.organisationId, orgId), eq(usersTable.actif, true)));
+  let total = 0;
+  for (const u of users) {
+    try {
+      total += await recomputeUserProfile(orgId, u.id);
+    } catch (err) {
+      logger.warn({ err, orgId, userId: u.id }, "[ai-learning] user profile cycle failed (skipping user)");
+    }
+  }
+  return total;
+}
+
 // --- Lecture: profil pour l'UI "Ce que l'IA a appris" ----------------------
 
 export interface LearningProfile {
@@ -512,19 +706,84 @@ async function computeContextBlock(orgId: number): Promise<string> {
   return block;
 }
 
+// Libellés FR pour les ressources du journal d'audit (domaines de travail).
+const RESOURCE_LABELS: Record<string, string> = {
+  contacts: "contacts", contact: "contacts",
+  tasks: "tâches", task: "tâches",
+  calls: "appels", call: "appels",
+  messages: "messages", message: "messages",
+  calendar: "agenda", calendar_events: "agenda", appointments: "rendez-vous",
+  documents: "documents", document: "documents",
+  prospects: "prospects", prospect: "prospects",
+  projets: "projets", projet: "projets", projects: "projets",
+  factures: "factures", facture: "factures", devis: "devis",
+  contracts: "contrats", contract: "contrats",
+};
+function humanizeResource(r: string): string {
+  const k = r.toLowerCase();
+  return RESOURCE_LABELS[k] ?? k;
+}
+
+// Bloc de contexte PERSONNEL (par employé). Construit à partir de
+// ai_user_profile_facts (heures d'activité, domaines de travail, thèmes de
+// tâches, interlocuteurs récurrents). Fail-soft, déjà borné.
+async function computeUserContextBlock(orgId: number, userId: number): Promise<string> {
+  const facts = await db
+    .select()
+    .from(aiUserProfileFactsTable)
+    .where(and(
+      eq(aiUserProfileFactsTable.organisationId, orgId),
+      eq(aiUserProfileFactsTable.userId, userId),
+    ))
+    .orderBy(desc(aiUserProfileFactsTable.occurrences));
+  if (facts.length === 0) return "";
+
+  const hours = facts.filter((f) => f.factType === "busy_hour").slice(0, 3);
+  const focus = facts.filter((f) => f.factType === "work_focus").slice(0, 4);
+  const themes = facts.filter((f) => f.factType === "task_theme").slice(0, 4);
+  const contacts = facts.filter((f) => f.factType === "frequent_contact").slice(0, 3);
+
+  const lines: string[] = [];
+  if (hours.length > 0) {
+    lines.push(`- Heures d'activité habituelles: ${hours.map((h) => h.label).join(", ")}.`);
+  }
+  if (focus.length > 0) {
+    lines.push(`- Domaines de travail principaux: ${focus.map((f) => f.label).join(", ")}.`);
+  }
+  if (themes.length > 0) {
+    lines.push(`- Thèmes de tâches fréquents: ${themes.map((t) => t.label).join(", ")}.`);
+  }
+  if (contacts.length > 0) {
+    lines.push(`- Interlocuteurs récurrents: ${contacts.map((c) => `${c.label} (${c.occurrences}x)`).join(", ")}.`);
+  }
+  if (lines.length === 0) return "";
+
+  let block = `\n\n[Profil personnel de l'employé — pour adapter le ton, les priorités et les suggestions à cette personne]\n${lines.join("\n")}`;
+  if (block.length > CONTEXT_USER_MAX_CHARS) block = block.slice(0, CONTEXT_USER_MAX_CHARS - 1) + "…";
+  return block;
+}
+
 // Bloc de contexte injectable. NE LÈVE JAMAIS: renvoie "" en cas d'erreur ou si
 // rien n'a été appris (fail-soft, quota-safe). Mis en cache 5 min.
-export async function buildLearnedContextBlock(orgId: number | undefined | null): Promise<string> {
+// Si `userId` est fourni, on ajoute le profil PERSONNEL de l'employé après la
+// mémoire de l'organisation (cache segmenté par utilisateur).
+export async function buildLearnedContextBlock(
+  orgId: number | undefined | null,
+  userId?: number | null,
+): Promise<string> {
   if (!orgId || !Number.isFinite(orgId)) return "";
+  const uid = userId && Number.isFinite(userId) ? userId : 0;
+  const cacheKey = `${orgId}:${uid}`;
   try {
-    const cached = contextCache.get(orgId);
+    const cached = contextCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) return cached.text;
-    const text = await computeContextBlock(orgId);
+    let text = await computeContextBlock(orgId);
+    if (uid) text += await computeUserContextBlock(orgId, uid);
     pruneContextCache();
-    contextCache.set(orgId, { text, expiresAt: Date.now() + CONTEXT_TTL_MS });
+    contextCache.set(cacheKey, { text, expiresAt: Date.now() + CONTEXT_TTL_MS });
     return text;
   } catch (err) {
-    logger.warn({ err, orgId }, "[ai-learning] buildLearnedContextBlock failed (fail-soft)");
+    logger.warn({ err, orgId, userId }, "[ai-learning] buildLearnedContextBlock failed (fail-soft)");
     return "";
   }
 }
@@ -549,6 +808,7 @@ async function runLearningForAllOrgs(): Promise<void> {
       try {
         await recomputeLearnedPreferences(o.id);
         await mineRecurringPatterns(o.id);
+        await recomputeAllUserProfiles(o.id);
       } catch (err) {
         logger.warn({ err, orgId: o.id }, "[ai-learning] org cycle failed");
       }
