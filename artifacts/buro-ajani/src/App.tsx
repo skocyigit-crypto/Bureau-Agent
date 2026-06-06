@@ -155,7 +155,7 @@ function AppRoutes() {
         <Route path="/pointage" component={withLicenseGate(CheckinsPage)} />
         <Route path="/agents-ia" component={withLicenseGate(AiAgentsPage)} />
         <Route path="/calendrier" component={withLicenseGate(CalendarPage)} />
-        <Route path="/audit" component={() => { const [, nav] = useLocation(); useEffect(() => nav("/gestion-licence"), []); return null; }} />
+        <Route path="/audit" component={() => { const [, nav] = useLocation(); useEffect(() => nav("/auto-audit"), []); return null; }} />
         <Route path="/automatisations" component={withLicenseGate(AutomationsPage)} />
         <Route path="/performance" component={withLicenseGate(PerformancePage)} />
         <Route path="/google-workspace" component={withLicenseGate(GoogleWorkspacePage)} />

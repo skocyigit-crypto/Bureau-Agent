@@ -546,7 +546,7 @@ router.delete("/calls/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  await db.delete(tasksTable).where(eq(tasksTable.relatedCallId, params.data.id));
+  await db.delete(tasksTable).where(and(eq(tasksTable.relatedCallId, params.data.id), eq(tasksTable.organisationId, orgId)));
 
   res.sendStatus(204);
 });
