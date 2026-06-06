@@ -222,7 +222,13 @@ async function syncUserToday(token: {
       eq(checkinsTable.employeeName, employeeName),
       gte(checkinsTable.checkInAt, todayStart),
       lte(checkinsTable.checkInAt, todayEnd),
-      sql`${checkinsTable.notes} LIKE '%[google-auto]%'`,
+      // Anti-duplication: ignorer si un pointage Google existe deja pour ce
+      // jour, qu'il vienne de l'auto-sync ([google-auto]) OU d'un import manuel
+      // depuis l'agenda ([google-sync], cf. google-calendar-sync.ts). Sans le
+      // second tag, un pointage importe manuellement aujourd'hui ne serait pas
+      // detecte et l'auto-sync creerait une ligne en double pour les memes
+      // evenements.
+      sql`(${checkinsTable.notes} LIKE '%[google-auto]%' OR ${checkinsTable.notes} LIKE '%[google-sync]%')`,
     ))
     .limit(1);
 
