@@ -283,7 +283,7 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
   // ---------- PROSPECTS ----------
   {
     name: "list_prospects",
-    description: "Liste les prospects, optionnellement filtres par etape (nouveau, qualifie, propose, gagne, perdu).",
+    description: "Liste les prospects, optionnellement filtres par etape (nouveau, contact, qualification, proposition, negociation, gagne, perdu).",
     parameters: {
       type: "object",
       properties: { stage: { type: "string" }, limit: { type: "integer" } },
@@ -312,7 +312,7 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
         phone: { type: "string" },
         email: { type: "string" },
         value: { type: "number", description: "Montant estime en EUR" },
-        stage: { type: "string", description: "nouveau, qualifie, propose, negociation, gagne, perdu" },
+        stage: { type: "string", description: "nouveau, contact, qualification, proposition, negociation, gagne, perdu" },
         notes: { type: "string" },
       },
       required: ["title"],
@@ -324,7 +324,7 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
       phone: { kind: "string", max: 40 },
       email: { kind: "string", email: true, max: 200 },
       value: { kind: "number", min: 0 },
-      stage: { kind: "string", max: 50 },
+      stage: { kind: "string", enum: ["nouveau", "contact", "qualification", "proposition", "negociation", "gagne", "perdu"] as const },
       notes: { kind: "string", max: 4000 },
     },
     requiresConfirmation: true,
