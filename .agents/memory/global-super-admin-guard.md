@@ -62,3 +62,22 @@ own prefix — `router.use("/webhooks", requireRole(...))` — which covers
 but not siblings. **Why webhooks must be admin-only:** a webhook streams ALL org
 events to an arbitrary external URL, so any low-priv member creating one is a
 data-exfiltration vector. Locked by `webhooks-access-control.test.ts`.
+
+## Backoffice routes intentionally have NO org filter (don't "fix" them)
+
+prospects / devis / factures-client routers are mounted in routes/index.ts under
+`router.use("/x", requireSuperAdmin)` BEFORE `requireTenant`. They use a
+`parseOrgFilter` (optional `?organisationId=`) and otherwise query GLOBALLY across
+all tenants by design (super-admin backoffice). Their PATCH/DELETE-by-id with no
+`organisationId` in the WHERE is therefore CORRECT, not an IDOR.
+
+**Why:** an audit can mistake these for missing-tenant-scope bugs and add
+`eq(organisationId, orgId)`, which would break the super-admin's global view.
+
+**How to apply:** before flagging a missing org filter, check the router's mount
+point in routes/index.ts. After `requireTenant` = client layer (must scope by
+getOrgId, usually via check-then-act select). Before it under requireSuperAdmin =
+global by design. Client single-write routes (e.g. documents) verify ownership
+with an org-scoped SELECT first, then write by id — that pattern is safe. All
+bulk-operations routes correctly AND `eq(organisationId, orgId)` with
+`inArray(id, ids)`.
