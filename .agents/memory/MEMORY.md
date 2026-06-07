@@ -45,3 +45,4 @@
 - [Assistant tool enum descriptions](assistant-tool-enum-descriptions.md) — enum values in LLM-tool descriptions feed eq() filters/inserts; keep canonical or model silently matches 0 rows; enum-validate create_*.
 - [Domain status enums (tasks/calls)](task-status-enum.md) — tasks=en_attente/en_cours/termine/annule, calls=repondu/manque/messagerie (French); wrong/English literals fail silently; English only in API mapping.
 - [RAG knowledge base dual-mode](rag-knowledge-base.md) — embeddings unavailable in env; KB search falls back to lexical BM25, auto-upgrades to semantic cosine if a valid key appears; no pgvector dep.
+- [Document-AI execute-action contract](document-ai-execute-contract.md) — capture screens must POST the FULL SuggestedAction obj + extractedFields; legacy document-ai.tsx sends wrong shape (always 400); creer_tache maps echeance→due_date + org-checked contact link.

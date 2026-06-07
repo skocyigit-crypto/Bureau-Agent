@@ -454,6 +454,7 @@ export default function DashboardScreen() {
             <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 8 }]}>Acces rapide</Text>
             <View style={styles.quickGrid}>
               {[
+                { icon: "camera" as const, label: "Capture IA", route: "/smart-capture", color: "#0d9488" },
                 { icon: "message-square" as const, label: "Messages", route: "/messages", color: "#8b5cf6", badge: unreadCounts.message },
                 { icon: "bell" as const, label: "Rappels", route: "/rappels", color: "#ef4444", badge: rappelsUnread },
                 { icon: "calendar" as const, label: "Calendrier", route: "/calendar", color: "#ec4899" },

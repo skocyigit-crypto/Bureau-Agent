@@ -457,6 +457,29 @@ export async function executeDocumentAction(
       case "creer_tache": {
         const data = { ...extractedFields, ...action.data };
         const taskTitle = data.title || data.titre || data.objet || "Tache depuis document";
+        // Echeance: les factures/courriers extraits par l'IA exposent souvent une
+        // date d'echeance. On la mappe sur due_date pour que la "tache de paiement
+        // avec date limite" promise par la Capture Intelligente soit reelle.
+        const rawDue = data.dueDate ?? data.echeance ?? data.dateEcheance ?? data.date_echeance ?? data.echeancePaiement ?? null;
+        let dueDate: Date | null = null;
+        if (rawDue) {
+          const parsed = new Date(rawDue);
+          if (!Number.isNaN(parsed.getTime())) dueDate = parsed;
+        }
+        const rawContactId = data.relatedContactId ?? data.contactId ?? null;
+        let relatedContactId: number | null =
+          rawContactId != null && Number.isInteger(Number(rawContactId)) && Number(rawContactId) > 0
+            ? Number(rawContactId)
+            : null;
+        // Garde multi-tenant: ne lier la tache qu'a un contact appartenant a
+        // l'organisation. Un id provenant de l'IA/client n'est jamais fiable.
+        if (relatedContactId !== null) {
+          const owned = await db.select({ id: contactsTable.id })
+            .from(contactsTable)
+            .where(and(eq(contactsTable.id, relatedContactId), eq(contactsTable.organisationId, orgId)))
+            .limit(1);
+          if (!owned[0]) relatedContactId = null;
+        }
         const [task] = await db.insert(tasksTable).values({
           organisationId: orgId,
           title: taskTitle,
@@ -464,6 +487,8 @@ export async function executeDocumentAction(
           status: "en_attente",
           priority: action.priority === "haute" ? "haute" : action.priority === "basse" ? "basse" : "moyenne",
           assignedTo: userId.toString(),
+          dueDate,
+          relatedContactId,
         }).returning({ id: tasksTable.id });
         return {
           success: true,
