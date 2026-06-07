@@ -34,6 +34,12 @@ interface Pattern {
   occurrences: number;
   lastSeenAt: string | null;
 }
+interface Correction {
+  title: string;
+  category: string;
+  note: string | null;
+  decidedAt: string | null;
+}
 
 const SUGGESTION_LABELS: Record<string, string> = {
   overdue_task: "Tâches en retard",
@@ -43,6 +49,10 @@ const SUGGESTION_LABELS: Record<string, string> = {
 const CATEGORY_LABELS: Record<string, string> = {
   calls: "Appels", tasks: "Tâches", finance: "Finance", contacts: "Contacts",
   projets: "Projets", prospects: "Prospects", general: "Général",
+};
+const PROPOSAL_CATEGORY_LABELS: Record<string, string> = {
+  tache: "Tâche", email: "E-mail", sms: "SMS", rappel: "Rappel",
+  relance: "Relance", contact: "Contact", autre: "Divers",
 };
 
 function prefLabel(p: Preference): string {
@@ -112,6 +122,7 @@ export default function IaApprentissageScreen() {
 
   const [preferences, setPreferences] = useState<Preference[]>([]);
   const [patterns, setPatterns] = useState<Pattern[]>([]);
+  const [corrections, setCorrections] = useState<Correction[]>([]);
   const [loading, setLoading] = useState(true);
   const [recomputing, setRecomputing] = useState(false);
   const [reactivating, setReactivating] = useState<string | null>(null);
@@ -194,6 +205,7 @@ export default function IaApprentissageScreen() {
         const data = await res.json();
         setPreferences(data.preferences ?? []);
         setPatterns(data.patterns ?? []);
+        setCorrections(data.corrections ?? []);
       }
     } catch {
       /* fail-soft */
@@ -212,6 +224,7 @@ export default function IaApprentissageScreen() {
         const data = await res.json().catch(() => ({}));
         setPreferences(data.profile?.preferences ?? []);
         setPatterns(data.profile?.patterns ?? []);
+        setCorrections(data.profile?.corrections ?? []);
       }
     } catch {
       /* fail-soft */
@@ -232,6 +245,7 @@ export default function IaApprentissageScreen() {
         const data = await res.json().catch(() => ({}));
         setPreferences(data.profile?.preferences ?? []);
         setPatterns(data.profile?.patterns ?? []);
+        setCorrections(data.profile?.corrections ?? []);
       }
     } catch {
       /* fail-soft */
@@ -251,7 +265,7 @@ export default function IaApprentissageScreen() {
   const hours = patterns.filter((p) => p.patternType === "busy_hour");
   const themes = patterns.filter((p) => p.patternType === "task_theme");
 
-  const isEmpty = !loading && preferences.length === 0 && patterns.length === 0;
+  const isEmpty = !loading && preferences.length === 0 && patterns.length === 0 && corrections.length === 0;
 
   const ug = groupUserFacts(userProfile?.facts ?? []);
   const userEmpty = !userLoading && (userProfile?.facts.length ?? 0) === 0;
@@ -402,6 +416,45 @@ export default function IaApprentissageScreen() {
                         )}
                       </Pressable>
                     ) : null}
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            {corrections.length > 0 ? (
+              <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={styles.cardHead}>
+                  <Feather name="x-circle" size={16} color="#dc2626" />
+                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>Corrections récentes</Text>
+                </View>
+                <Text style={[styles.rowSub, { color: colors.mutedForeground, marginBottom: 12 }]}>
+                  Propositions que vous avez refusées. L'IA en tient compte pour ne plus les reproduire.
+                </Text>
+                {corrections.map((c, i) => (
+                  <View key={`corr-${i}`} style={styles.correctionRow}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <Feather name="thumbs-down" size={14} color="#dc2626" />
+                        <Text style={[styles.rowLabel, { color: colors.foreground }]} numberOfLines={2}>{c.title}</Text>
+                      </View>
+                      {c.note ? (
+                        <Text style={[styles.rowSub, { color: colors.mutedForeground, marginTop: 4 }]} numberOfLines={2}>
+                          « {c.note} »
+                        </Text>
+                      ) : null}
+                    </View>
+                    <View style={{ alignItems: "flex-end", gap: 4 }}>
+                      <View style={[styles.tag, { borderColor: colors.border }]}>
+                        <Text style={{ color: colors.foreground, fontSize: 11 }}>
+                          {PROPOSAL_CATEGORY_LABELS[c.category] ?? c.category}
+                        </Text>
+                      </View>
+                      {c.decidedAt ? (
+                        <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>
+                          {new Date(c.decidedAt).toLocaleDateString("fr-FR")}
+                        </Text>
+                      ) : null}
+                    </View>
                   </View>
                 ))}
               </View>
@@ -588,6 +641,7 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1,
     borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
   },
+  correctionRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, paddingVertical: 8 },
   group: { marginBottom: 14 },
   groupLabel: { fontSize: 12, fontWeight: "600", marginBottom: 8 },
   tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
