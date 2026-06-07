@@ -12,6 +12,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -127,6 +128,18 @@ export default function SmartCaptureScreen() {
   const [batchLoading, setBatchLoading] = useState(false);
   const [actionResults, setActionResults] = useState<ActionResult[]>([]);
 
+  // Edition des champs cles avant validation (montant / echeance / contact lie).
+  // On garde la valeur courante + la valeur initiale lue de l'IA: on ne pousse
+  // un override que pour les champs reellement modifies par l'utilisateur, afin
+  // de ne jamais forcer un contact que l'IA n'avait pas proposé.
+  const [editing, setEditing] = useState(false);
+  const [editMontant, setEditMontant] = useState("");
+  const [editEcheance, setEditEcheance] = useState("");
+  const [editContactId, setEditContactId] = useState<number | null>(null);
+  const [initMontant, setInitMontant] = useState("");
+  const [initEcheance, setInitEcheance] = useState("");
+  const [initContactId, setInitContactId] = useState<number | null>(null);
+
   function assetToCapture(asset: ImagePicker.ImagePickerAsset): Capture {
     const ext = (asset.mimeType?.split("/")[1] || "jpg").replace("jpeg", "jpg");
     return {
@@ -210,6 +223,20 @@ export default function SmartCaptureScreen() {
       }
       const d: AnalysisResult = await res.json();
       setResult(d);
+      // Pre-remplir les champs editables avec ce que l'IA a lu.
+      const f = d.extractedFields || {};
+      const m = pickField(f, KEY_FIELD_ALIASES[0].keys) ?? "";
+      const e = pickField(f, KEY_FIELD_ALIASES[1].keys) ?? "";
+      // Ne pre-selectionner un contact QUE si l'IA en a explicitement fourni un.
+      // Sinon on laisse vide: l'utilisateur le choisira lui-meme (sa selection
+      // devient alors une vraie modification -> envoyee a la validation).
+      const rawContact = f.relatedContactId ?? f.contactId ?? null;
+      const cId = typeof rawContact === "number" ? rawContact : Number(rawContact);
+      const initC = Number.isFinite(cId) && cId > 0 ? cId : null;
+      setEditMontant(m); setInitMontant(m);
+      setEditEcheance(e); setInitEcheance(e);
+      setEditContactId(initC); setInitContactId(initC);
+      setEditing(false);
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {
       Alert.alert("Erreur réseau", "Impossible de contacter le serveur.");
@@ -218,14 +245,41 @@ export default function SmartCaptureScreen() {
     }
   }
 
+  // Construit les overrides a partir des SEULS champs modifies. On les pousse a
+  // la fois dans extractedFields et dans action.data (cote serveur, action.data
+  // ecrase extractedFields) pour garantir que la valeur editee soit bien prise.
+  function buildOverrides(): Record<string, any> {
+    const ov: Record<string, any> = {};
+    const m = editMontant.trim();
+    if (m !== initMontant.trim()) {
+      ov.montantTTC = m; ov.montant = m; ov.montantTotal = m;
+    }
+    const e = editEcheance.trim();
+    if (e !== initEcheance.trim()) {
+      ov.echeance = e; ov.dueDate = e; ov.dateEcheance = e;
+    }
+    if (editContactId !== initContactId) {
+      ov.relatedContactId = editContactId; ov.contactId = editContactId;
+    }
+    return ov;
+  }
+
+  function applyOverrides(act: SuggestedAction, ov: Record<string, any>): SuggestedAction {
+    return Object.keys(ov).length ? { ...act, data: { ...act.data, ...ov } } : act;
+  }
+
   async function runAction(act: SuggestedAction) {
     if (!result) return;
     setActionLoading(act.action + act.label);
     try {
+      const ov = buildOverrides();
       const res = await fetchAuth(`${API_BASE}/api/document-ai/execute-action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: act, extractedFields: result.extractedFields }),
+        body: JSON.stringify({
+          action: applyOverrides(act, ov),
+          extractedFields: { ...result.extractedFields, ...ov },
+        }),
       });
       const d = await res.json().catch(() => ({ success: false, message: "Erreur" }));
       setActionResults(prev => [...prev, { ...d, action: act.action, module: act.module }]);
@@ -245,10 +299,14 @@ export default function SmartCaptureScreen() {
     if (pending.length === 0) return;
     setBatchLoading(true);
     try {
+      const ov = buildOverrides();
       const res = await fetchAuth(`${API_BASE}/api/document-ai/batch-execute`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actions: pending, extractedFields: result.extractedFields }),
+        body: JSON.stringify({
+          actions: pending.map(a => applyOverrides(a, ov)),
+          extractedFields: { ...result.extractedFields, ...ov },
+        }),
       });
       const d = await res.json().catch(() => ({ results: [] }));
       const results: ActionResult[] = Array.isArray(d.results) ? d.results : [];
@@ -265,12 +323,27 @@ export default function SmartCaptureScreen() {
     setCapture(null);
     setResult(null);
     setActionResults([]);
+    setEditing(false);
+    setEditMontant(""); setInitMontant("");
+    setEditEcheance(""); setInitEcheance("");
+    setEditContactId(null); setInitContactId(null);
   }
 
   const docCfg = result ? (DOC_TYPE_MAP[result.documentType] ?? DOC_TYPE_MAP.inconnu) : null;
+  // Champs effectifs = lecture IA + overrides edites, pour que la fiche reflete
+  // immediatement ce qui sera reellement envoye a la validation.
+  const effectiveFields = result ? { ...result.extractedFields, ...buildOverrides() } : {};
   const keyFields = result
-    ? KEY_FIELD_ALIASES.map(f => ({ ...f, value: pickField(result.extractedFields, f.keys) })).filter(f => f.value)
+    ? KEY_FIELD_ALIASES.map(f => ({ ...f, value: pickField(effectiveFields, f.keys) })).filter(f => f.value)
     : [];
+  const detectedContacts = result
+    ? result.relatedEntities.filter(e => e.type === "contacts" || e.type === "contact")
+    : [];
+  const selectedContact = detectedContacts.find(c => c.id === editContactId) ?? null;
+  const edited =
+    editMontant.trim() !== initMontant.trim() ||
+    editEcheance.trim() !== initEcheance.trim() ||
+    editContactId !== initContactId;
   const pendingCount = result
     ? result.suggestedActions.filter(a => !actionResults.find(r => r.action === a.action && r.module === a.module)).length
     : 0;
@@ -287,7 +360,7 @@ export default function SmartCaptureScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: isWeb ? 118 : 100 }]}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: isWeb ? 118 : 100 }]} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         {/* Capture zone */}
         {!capture ? (
           <View style={[styles.captureCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -354,10 +427,10 @@ export default function SmartCaptureScreen() {
               </View>
               {!!result.summary && <Text style={[styles.summary, { color: colors.mutedForeground }]}>{result.summary}</Text>}
 
-              {keyFields.length > 0 && (
+              {!editing && (keyFields.length > 0 || selectedContact) && (
                 <View style={styles.keyGrid}>
                   {keyFields.map((f, i) => (
-                    <View key={i} style={[styles.keyChip, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                    <View key={i} style={[styles.keyChip, { backgroundColor: colors.background, borderColor: edited ? ACCENT + "55" : colors.border }]}>
                       <Feather name={f.icon} size={12} color={ACCENT} />
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.keyLabel, { color: colors.mutedForeground }]}>{f.label}</Text>
@@ -365,8 +438,77 @@ export default function SmartCaptureScreen() {
                       </View>
                     </View>
                   ))}
+                  {selectedContact && (
+                    <View style={[styles.keyChip, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                      <Feather name="user-check" size={12} color={ACCENT} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.keyLabel, { color: colors.mutedForeground }]}>Contact lié</Text>
+                        <Text style={[styles.keyValue, { color: colors.foreground }]} numberOfLines={1}>{selectedContact.name}</Text>
+                      </View>
+                    </View>
+                  )}
                 </View>
               )}
+
+              {/* Panneau d'edition des champs cles avant validation */}
+              {editing && (
+                <View style={[styles.editPanel, { borderColor: ACCENT + "40", backgroundColor: ACCENT + "08" }]}>
+                  <Text style={[styles.editFieldLabel, { color: colors.mutedForeground }]}>Montant TTC</Text>
+                  <TextInput
+                    value={editMontant}
+                    onChangeText={setEditMontant}
+                    keyboardType="decimal-pad"
+                    placeholder="ex : 1250.00"
+                    placeholderTextColor={colors.mutedForeground}
+                    style={[styles.editInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
+                  />
+                  <Text style={[styles.editFieldLabel, { color: colors.mutedForeground }]}>Échéance</Text>
+                  <TextInput
+                    value={editEcheance}
+                    onChangeText={setEditEcheance}
+                    autoCapitalize="none"
+                    placeholder="AAAA-MM-JJ"
+                    placeholderTextColor={colors.mutedForeground}
+                    style={[styles.editInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.card }]}
+                  />
+                  <Text style={[styles.editFieldLabel, { color: colors.mutedForeground }]}>Contact lié</Text>
+                  {detectedContacts.length > 0 ? (
+                    <View style={styles.contactChipRow}>
+                      <Pressable
+                        onPress={() => setEditContactId(null)}
+                        style={[styles.contactChip, { borderColor: editContactId === null ? ACCENT : colors.border, backgroundColor: editContactId === null ? ACCENT + "18" : colors.card }]}
+                      >
+                        <Text style={[styles.contactChipText, { color: editContactId === null ? ACCENT : colors.mutedForeground }]}>Aucun</Text>
+                      </Pressable>
+                      {detectedContacts.map((c, i) => {
+                        const sel = editContactId === c.id;
+                        return (
+                          <Pressable
+                            key={i}
+                            onPress={() => setEditContactId(c.id)}
+                            style={[styles.contactChip, { borderColor: sel ? ACCENT : colors.border, backgroundColor: sel ? ACCENT + "18" : colors.card }]}
+                          >
+                            <Feather name="user" size={11} color={sel ? ACCENT : colors.mutedForeground} />
+                            <Text style={[styles.contactChipText, { color: sel ? ACCENT : colors.foreground }]} numberOfLines={1}>{c.name || "Contact"}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ) : (
+                    <Text style={[styles.editHint, { color: colors.mutedForeground }]}>Aucun contact détecté à lier.</Text>
+                  )}
+                </View>
+              )}
+
+              <Pressable
+                onPress={() => setEditing(v => !v)}
+                style={[styles.editToggle, { borderColor: editing ? ACCENT : colors.border, backgroundColor: editing ? ACCENT + "12" : "transparent" }]}
+              >
+                <Feather name={editing ? "check" : "edit-2"} size={13} color={editing ? ACCENT : colors.mutedForeground} />
+                <Text style={[styles.editToggleText, { color: editing ? ACCENT : colors.mutedForeground }]}>
+                  {editing ? "Terminer la modification" : edited ? "Informations modifiées · ajuster" : "Modifier les informations"}
+                </Text>
+              </Pressable>
             </View>
 
             {/* Related contacts */}
@@ -502,6 +644,15 @@ const styles = StyleSheet.create({
   keyChip: { flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, borderWidth: 1, width: "48%" },
   keyLabel: { fontSize: 10, fontFamily: "Inter_500Medium" },
   keyValue: { fontSize: 12.5, fontFamily: "Inter_700Bold", marginTop: 1 },
+  editPanel: { marginTop: 12, padding: 12, borderRadius: 12, borderWidth: 1, gap: 6 },
+  editFieldLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", marginTop: 4 },
+  editInput: { height: 42, borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, fontSize: 14, fontFamily: "Inter_500Medium" },
+  editHint: { fontSize: 12, fontFamily: "Inter_400Regular", fontStyle: "italic" },
+  contactChipRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  contactChip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 18, borderWidth: 1, maxWidth: "100%" },
+  contactChipText: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  editToggle: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, height: 38, borderRadius: 10, borderWidth: 1, marginTop: 12 },
+  editToggleText: { fontSize: 12.5, fontFamily: "Inter_600SemiBold" },
   sectionTitle: { fontSize: 13, fontFamily: "Inter_700Bold", marginBottom: 10 },
   relRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8, borderTopWidth: 1 },
   relIcon: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center" },

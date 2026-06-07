@@ -25,6 +25,13 @@ the correct shape.
 full action object + `extractedFields`. If `document-ai.tsx` is ever reused,
 fix its payload first.
 
+**Override precedence:** the executor merges `{ ...extractedFields, ...action.data }`,
+so `action.data` WINS. A client that lets the user edit fields (montant/échéance/
+contact) before approving MUST write the overrides into BOTH `extractedFields` AND
+each `action.data` — writing only to `extractedFields` is silently overridden by any
+value the AI already put in `action.data`. Only override fields the user actually
+changed, or you force values (e.g. a contact link) the AI never proposed.
+
 `creer_tache` now maps a due date (echeance/dateEcheance/dueDate) onto
 `tasks.due_date` and links `relatedContactId` only after re-checking the contact
 belongs to the caller's org (never trust an AI/client-supplied id).
