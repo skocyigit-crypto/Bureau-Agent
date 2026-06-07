@@ -1,8 +1,9 @@
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { auditLogsTable } from "@workspace/db/schema";
-import { desc, eq, gte, lte, and, sql, ilike } from "drizzle-orm";
+import { desc, eq, gte, lte, and, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 
 const router = Router();
 
@@ -50,7 +51,8 @@ router.get("/audit/logs", async (req: Request, res: Response): Promise<void> => 
     if (uid > 0) conditions.push(eq(auditLogsTable.userId, uid));
   }
   if (userEmail && typeof userEmail === "string" && userEmail.trim()) {
-    conditions.push(ilike(auditLogsTable.userEmail, `%${userEmail.trim()}%`));
+    const useUnaccent = await ensureUnaccentExtension();
+    conditions.push(accentInsensitiveIlike(auditLogsTable.userEmail, `%${userEmail.trim()}%`, useUnaccent));
   }
   if (from && typeof from === "string") {
     const d = new Date(from);
@@ -137,7 +139,8 @@ router.get("/audit/export/csv", async (req: Request, res: Response): Promise<voi
     if (action && typeof action === "string") conditions.push(eq(auditLogsTable.action, action));
     if (resource && typeof resource === "string") conditions.push(eq(auditLogsTable.resource, resource));
     if (userEmail && typeof userEmail === "string" && userEmail.trim()) {
-      conditions.push(ilike(auditLogsTable.userEmail, `%${userEmail.trim()}%`));
+      const useUnaccent = await ensureUnaccentExtension();
+      conditions.push(accentInsensitiveIlike(auditLogsTable.userEmail, `%${userEmail.trim()}%`, useUnaccent));
     }
     if (from && typeof from === "string") {
       const d = new Date(from);
