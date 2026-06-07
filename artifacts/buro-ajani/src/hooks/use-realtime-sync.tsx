@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { toast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
+import { useWorkspaceUser } from "@/components/workspace-user";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -43,6 +44,13 @@ export function useRealtimeSync() {
   const [, navigate] = useLocation();
   const navigateRef = useRef(navigate);
   navigateRef.current = navigate;
+  // Tâche #87 : l'id de l'utilisateur courant sert à NE PAS lui notifier ses
+  // propres créations (le serveur diffuse aussi l'event quand c'est lui qui a
+  // créé le message/la tâche). On le garde dans une ref pour rester accessible
+  // depuis le `onmessage` sans recréer la connexion SSE.
+  const { user } = useWorkspaceUser();
+  const currentUserIdRef = useRef<number | undefined>(user?.id);
+  currentUserIdRef.current = user?.id;
   const esRef = useRef<EventSource | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectDelay = useRef(1000);
@@ -87,6 +95,39 @@ export function useRealtimeSync() {
             action: (
               <ToastAction
                 altText="Voir les documents à risque"
+                onClick={() => navigateRef.current(href)}
+              >
+                Voir
+              </ToastAction>
+            ),
+          });
+        }
+
+        // Tâche #87 : miroir web du deep-link mobile (#83). À l'arrivée d'un
+        // nouveau message / d'une nouvelle tâche, on affiche un toast non
+        // intrusif dont l'action « Voir » ouvre directement le bon item
+        // (et plus seulement la liste), via le `resourceId` déjà présent dans
+        // l'event SSE. On saute les créations déclenchées par l'utilisateur
+        // courant (il vient de la créer lui-même) pour éviter le bruit.
+        if (
+          (event.type === "message" || event.type === "task") &&
+          event.action === "created" &&
+          event.triggeredBy !== currentUserIdRef.current
+        ) {
+          const isMessage = event.type === "message";
+          const listRoute = isMessage ? "/messages" : "/taches";
+          const href =
+            typeof event.resourceId === "number"
+              ? `${listRoute}?id=${event.resourceId}`
+              : listRoute;
+          toast({
+            title: isMessage ? "Nouveau message" : "Nouvelle tâche",
+            description: isMessage
+              ? "Un message vient d'arriver dans votre boîte."
+              : "Une nouvelle tâche a été ajoutée.",
+            action: (
+              <ToastAction
+                altText={isMessage ? "Ouvrir le message" : "Ouvrir la tâche"}
                 onClick={() => navigateRef.current(href)}
               >
                 Voir

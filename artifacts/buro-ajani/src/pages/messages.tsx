@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { confirmAction } from "@/hooks/use-confirm";
-import { useListMessages, useUpdateMessage, useCreateMessage, useDeleteMessage, getListMessagesQueryKey, useListContacts } from "@workspace/api-client-react";
+import { useListMessages, useUpdateMessage, useCreateMessage, useDeleteMessage, getListMessagesQueryKey, useListContacts, useGetMessage } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -54,11 +54,35 @@ export default function Messages() {
   const [editingMessage, setEditingMessage] = useState<any | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
+  const [deepLinkMessageId, setDeepLinkMessageId] = useState<number | null>(null);
 
   // Tâche #68: efface le badge "Messages" dans la sidebar dès que l'utilisateur ouvre la page.
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("message-badge-clear"));
   }, []);
+
+  // Tâche #87: deep-link depuis un toast / une notification « Nouveau message ».
+  // On lit le param `?id=` au montage, on le mémorise pour aller chercher le
+  // message, puis on nettoie l'URL (miroir web du comportement mobile #83).
+  useEffect(() => {
+    const mId = new URLSearchParams(window.location.search).get("id");
+    if (mId && !isNaN(parseInt(mId))) {
+      setDeepLinkMessageId(parseInt(mId));
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
+  const { data: deepLinkMessage } = useGetMessage(deepLinkMessageId as number, {
+    query: { enabled: deepLinkMessageId !== null, queryKey: ["message-deeplink", deepLinkMessageId] },
+  });
+
+  useEffect(() => {
+    if (deepLinkMessage && deepLinkMessageId !== null) {
+      handleOpenEdit(deepLinkMessage);
+      setDeepLinkMessageId(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkMessage]);
 
   const queryParams = {
     read: readFilter === "all" ? undefined : readFilter === "read",
