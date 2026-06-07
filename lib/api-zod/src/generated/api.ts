@@ -982,6 +982,9 @@ export const DraftAiEmailResponse = zod.object({
 /**
  * @summary Get the current user's preferences (AI assistance, etc.)
  */
+export const getMyPreferencesResponseQuietHoursDaysItemMin = 0;
+export const getMyPreferencesResponseQuietHoursDaysItemMax = 6;
+
 export const GetMyPreferencesResponse = zod.object({
   inlineSuggestEnabled: zod
     .boolean()
@@ -1067,11 +1070,54 @@ export const GetMyPreferencesResponse = zod.object({
     .describe(
       "Per-category opt-in for WhatsApp push notifications. Each flag is independent. When omitted or false, the user does not receive WhatsApp notifications of that category. Requires the user's `telephone` to be set and the org to have an active Twilio provider configured.",
     ),
+  quietHours: zod
+    .object({
+      enabled: zod
+        .boolean()
+        .optional()
+        .describe(
+          "Master switch. When false (default), quiet hours are not applied.",
+        ),
+      start: zod
+        .string()
+        .optional()
+        .describe(
+          'Window start time in 24h \"HH:MM\" format (user\'s timezone). If start > end, the window spans midnight (e.g. \"22:00\" -> \"07:00\") and is attached to the start day.',
+        ),
+      end: zod
+        .string()
+        .optional()
+        .describe('Window end time in 24h \"HH:MM\" format (exclusive).'),
+      days: zod
+        .array(
+          zod
+            .number()
+            .min(getMyPreferencesResponseQuietHoursDaysItemMin)
+            .max(getMyPreferencesResponseQuietHoursDaysItemMax),
+        )
+        .optional()
+        .describe(
+          "Weekdays the window applies to (0=Sunday ... 6=Saturday). Empty or omitted means every day. For overnight windows the day refers to the start day.",
+        ),
+      timezone: zod
+        .string()
+        .optional()
+        .describe(
+          'IANA timezone used to evaluate the window. Defaults to \"Europe\/Paris\".',
+        ),
+    })
+    .optional()
+    .describe(
+      'Quiet hours (\"heures silencieuses\"). During this window, outbound push notifications (WhatsApp) are suppressed for the user. Other channels (in-app, email) are unaffected.',
+    ),
 });
 
 /**
  * @summary Update the current user's preferences
  */
+export const updateMyPreferencesBodyQuietHoursDaysItemMin = 0;
+export const updateMyPreferencesBodyQuietHoursDaysItemMax = 6;
+
 export const UpdateMyPreferencesBody = zod.object({
   inlineSuggestEnabled: zod
     .boolean()
@@ -1157,7 +1203,50 @@ export const UpdateMyPreferencesBody = zod.object({
     .describe(
       "Per-category opt-in for WhatsApp push notifications. Each flag is independent. When omitted or false, the user does not receive WhatsApp notifications of that category. Requires the user's `telephone` to be set and the org to have an active Twilio provider configured.",
     ),
+  quietHours: zod
+    .object({
+      enabled: zod
+        .boolean()
+        .optional()
+        .describe(
+          "Master switch. When false (default), quiet hours are not applied.",
+        ),
+      start: zod
+        .string()
+        .optional()
+        .describe(
+          'Window start time in 24h \"HH:MM\" format (user\'s timezone). If start > end, the window spans midnight (e.g. \"22:00\" -> \"07:00\") and is attached to the start day.',
+        ),
+      end: zod
+        .string()
+        .optional()
+        .describe('Window end time in 24h \"HH:MM\" format (exclusive).'),
+      days: zod
+        .array(
+          zod
+            .number()
+            .min(updateMyPreferencesBodyQuietHoursDaysItemMin)
+            .max(updateMyPreferencesBodyQuietHoursDaysItemMax),
+        )
+        .optional()
+        .describe(
+          "Weekdays the window applies to (0=Sunday ... 6=Saturday). Empty or omitted means every day. For overnight windows the day refers to the start day.",
+        ),
+      timezone: zod
+        .string()
+        .optional()
+        .describe(
+          'IANA timezone used to evaluate the window. Defaults to \"Europe\/Paris\".',
+        ),
+    })
+    .optional()
+    .describe(
+      'Quiet hours (\"heures silencieuses\"). During this window, outbound push notifications (WhatsApp) are suppressed for the user. Other channels (in-app, email) are unaffected.',
+    ),
 });
+
+export const updateMyPreferencesResponseQuietHoursDaysItemMin = 0;
+export const updateMyPreferencesResponseQuietHoursDaysItemMax = 6;
 
 export const UpdateMyPreferencesResponse = zod.object({
   inlineSuggestEnabled: zod
@@ -1243,6 +1332,46 @@ export const UpdateMyPreferencesResponse = zod.object({
     .optional()
     .describe(
       "Per-category opt-in for WhatsApp push notifications. Each flag is independent. When omitted or false, the user does not receive WhatsApp notifications of that category. Requires the user's `telephone` to be set and the org to have an active Twilio provider configured.",
+    ),
+  quietHours: zod
+    .object({
+      enabled: zod
+        .boolean()
+        .optional()
+        .describe(
+          "Master switch. When false (default), quiet hours are not applied.",
+        ),
+      start: zod
+        .string()
+        .optional()
+        .describe(
+          'Window start time in 24h \"HH:MM\" format (user\'s timezone). If start > end, the window spans midnight (e.g. \"22:00\" -> \"07:00\") and is attached to the start day.',
+        ),
+      end: zod
+        .string()
+        .optional()
+        .describe('Window end time in 24h \"HH:MM\" format (exclusive).'),
+      days: zod
+        .array(
+          zod
+            .number()
+            .min(updateMyPreferencesResponseQuietHoursDaysItemMin)
+            .max(updateMyPreferencesResponseQuietHoursDaysItemMax),
+        )
+        .optional()
+        .describe(
+          "Weekdays the window applies to (0=Sunday ... 6=Saturday). Empty or omitted means every day. For overnight windows the day refers to the start day.",
+        ),
+      timezone: zod
+        .string()
+        .optional()
+        .describe(
+          'IANA timezone used to evaluate the window. Defaults to \"Europe\/Paris\".',
+        ),
+    })
+    .optional()
+    .describe(
+      'Quiet hours (\"heures silencieuses\"). During this window, outbound push notifications (WhatsApp) are suppressed for the user. Other channels (in-app, email) are unaffected.',
     ),
 });
 

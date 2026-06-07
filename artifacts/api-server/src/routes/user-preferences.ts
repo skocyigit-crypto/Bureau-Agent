@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq } from "drizzle-orm";
-import { db, usersTable, type UserPreferences, type InlineSuggestFieldFlags, type WhatsAppNotificationFlags } from "@workspace/db";
+import { db, usersTable, type UserPreferences, type InlineSuggestFieldFlags, type WhatsAppNotificationFlags, type QuietHoursPrefs } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -48,6 +48,70 @@ function normalizeWhatsAppNotifications(
     call: flags?.call ?? false,
     appointment: flags?.appointment ?? false,
     message: flags?.message ?? false,
+  };
+}
+
+const HHMM_RE = /^(\d{1,2}):(\d{2})$/;
+function isValidHHMM(value: string): boolean {
+  const m = HHMM_RE.exec(value);
+  if (!m) return false;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  return h >= 0 && h <= 23 && min >= 0 && min <= 59;
+}
+
+function normalizeHHMM(value: string): string {
+  const m = HHMM_RE.exec(value)!;
+  return `${String(Number(m[1])).padStart(2, "0")}:${m[2]}`;
+}
+
+/**
+ * Parse `quietHours`. Renvoie `undefined` si absent, `null` si invalide
+ * (rejette toute la requete), sinon l'objet valide normalise.
+ */
+function parseQuietHours(value: unknown): QuietHoursPrefs | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== "object") return null;
+  const src = value as Record<string, unknown>;
+  const out: QuietHoursPrefs = {};
+  if ("enabled" in src) {
+    if (typeof src.enabled !== "boolean") return null;
+    out.enabled = src.enabled;
+  }
+  if ("start" in src) {
+    if (typeof src.start !== "string" || !isValidHHMM(src.start)) return null;
+    out.start = normalizeHHMM(src.start);
+  }
+  if ("end" in src) {
+    if (typeof src.end !== "string" || !isValidHHMM(src.end)) return null;
+    out.end = normalizeHHMM(src.end);
+  }
+  if ("days" in src) {
+    if (!Array.isArray(src.days)) return null;
+    const days: number[] = [];
+    for (const d of src.days) {
+      if (typeof d !== "number" || !Number.isInteger(d) || d < 0 || d > 6) return null;
+      if (!days.includes(d)) days.push(d);
+    }
+    out.days = days.sort((a, b) => a - b);
+  }
+  if ("timezone" in src) {
+    if (typeof src.timezone !== "string") return null;
+    const tz = src.timezone.trim();
+    if (tz.length > 64) return null;
+    out.timezone = tz;
+  }
+  return out;
+}
+
+function normalizeQuietHours(qh: QuietHoursPrefs | null | undefined): Required<QuietHoursPrefs> {
+  return {
+    enabled: qh?.enabled ?? false,
+    start: qh?.start ?? "22:00",
+    end: qh?.end ?? "07:00",
+    days: Array.isArray(qh?.days) ? qh!.days! : [],
+    timezone: qh?.timezone && qh.timezone.trim() ? qh.timezone.trim() : "Europe/Paris",
   };
 }
 
@@ -104,6 +168,11 @@ function parsePreferencesPatch(body: unknown): UserPreferences | null {
     if (parsed === null) return null;
     if (parsed !== undefined) out.whatsappNotifications = parsed;
   }
+  if ("quietHours" in src) {
+    const parsed = parseQuietHours(src.quietHours);
+    if (parsed === null) return null;
+    if (parsed !== undefined) out.quietHours = parsed;
+  }
   return out;
 }
 
@@ -130,6 +199,7 @@ function normalizePreferences(prefs: UserPreferences | null | undefined): UserPr
     inlineSuggestLanguage: prefs?.inlineSuggestLanguage ?? "francais",
     inlineSuggestFields: normalizeInlineSuggestFields(prefs?.inlineSuggestFields),
     whatsappNotifications: normalizeWhatsAppNotifications(prefs?.whatsappNotifications),
+    quietHours: normalizeQuietHours(prefs?.quietHours),
   };
 }
 
@@ -190,6 +260,12 @@ router.patch("/me/preferences", async (req: Request, res: Response): Promise<voi
       merged.whatsappNotifications = {
         ...(existingPrefs.whatsappNotifications ?? {}),
         ...parsed.whatsappNotifications,
+      };
+    }
+    if (parsed.quietHours !== undefined) {
+      merged.quietHours = {
+        ...(existingPrefs.quietHours ?? {}),
+        ...parsed.quietHours,
       };
     }
     await db

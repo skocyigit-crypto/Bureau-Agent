@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { InlineSuggestFieldFlags } from "./inlineSuggestFieldFlags";
+import type { QuietHoursPrefs } from "./quietHoursPrefs";
 import type { WhatsAppNotificationFlags } from "./whatsAppNotificationFlags";
 
 export interface UserPreferences {
@@ -15,4 +16,5 @@ export interface UserPreferences {
   inlineSuggestLanguage?: string;
   inlineSuggestFields?: InlineSuggestFieldFlags;
   whatsappNotifications?: WhatsAppNotificationFlags;
+  quietHours?: QuietHoursPrefs;
 }

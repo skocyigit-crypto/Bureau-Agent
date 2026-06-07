@@ -168,6 +168,22 @@ export interface WhatsAppNotificationFlags {
   message?: boolean;
 }
 
+/**
+ * Quiet hours ("heures silencieuses"). During this window, outbound push notifications (WhatsApp) are suppressed for the user. Other channels (in-app, email) are unaffected.
+ */
+export interface QuietHoursPrefs {
+  /** Master switch. When false (default), quiet hours are not applied. */
+  enabled?: boolean;
+  /** Window start time in 24h "HH:MM" format (user's timezone). If start > end, the window spans midnight (e.g. "22:00" -> "07:00") and is attached to the start day. */
+  start?: string;
+  /** Window end time in 24h "HH:MM" format (exclusive). */
+  end?: string;
+  /** Weekdays the window applies to (0=Sunday ... 6=Saturday). Empty or omitted means every day. For overnight windows the day refers to the start day. */
+  days?: number[];
+  /** IANA timezone used to evaluate the window. Defaults to "Europe/Paris". */
+  timezone?: string;
+}
+
 export interface UserPreferences {
   /** Master switch for inline ghost-text AI suggestions. When true, suggestions are shown while typing in any field type covered by `inlineSuggestFields` (notes, prospect notes, email bodies, call notes, task descriptions, message bodies, project descriptions, project notes, quote and invoice comments). */
   inlineSuggestEnabled?: boolean;
@@ -175,6 +191,7 @@ export interface UserPreferences {
   inlineSuggestLanguage?: string;
   inlineSuggestFields?: InlineSuggestFieldFlags;
   whatsappNotifications?: WhatsAppNotificationFlags;
+  quietHours?: QuietHoursPrefs;
 }
 
 export type WhatsappConversationStatus =

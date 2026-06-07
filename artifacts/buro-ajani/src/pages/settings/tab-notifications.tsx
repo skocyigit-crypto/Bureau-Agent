@@ -1,16 +1,18 @@
 import { useState, useEffect, useMemo } from "react";
-import { Bell, Save, MessageCircle } from "lucide-react";
+import { Bell, Save, MessageCircle, Moon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import {
   useGetMyPreferences,
   useUpdateMyPreferences,
   getGetMyPreferencesQueryKey,
   type WhatsAppNotificationFlags,
+  type QuietHoursPrefs,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -61,6 +63,7 @@ export function TabNotifications() {
   return (
     <div className="space-y-6">
       <WhatsAppNotificationsCard />
+      <QuietHoursCard />
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
@@ -273,6 +276,233 @@ function WhatsAppNotificationsCard() {
             onCheckedChange={(v) => update("message", v)}
           />
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Section Heures silencieuses : fenetre "ne pas deranger" cote serveur. Pendant
+// cette plage, les notifications WhatsApp sortantes sont supprimees pour cet
+// utilisateur (sauvegarde dans user_preferences.quietHours).
+// ---------------------------------------------------------------------------
+
+type QuietHoursDraft = {
+  enabled: boolean;
+  start: string;
+  end: string;
+  days: number[];
+  timezone: string;
+};
+
+const QH_DEFAULTS: QuietHoursDraft = {
+  enabled: false,
+  start: "22:00",
+  end: "07:00",
+  days: [],
+  timezone: "Europe/Paris",
+};
+
+// 0 = dimanche ... 6 = samedi (aligne sur Date.getDay / serveur).
+const WEEKDAYS: { value: number; label: string }[] = [
+  { value: 1, label: "Lun" },
+  { value: 2, label: "Mar" },
+  { value: 3, label: "Mer" },
+  { value: 4, label: "Jeu" },
+  { value: 5, label: "Ven" },
+  { value: 6, label: "Sam" },
+  { value: 0, label: "Dim" },
+];
+
+function normalizeServerQuietHours(qh: QuietHoursPrefs | undefined): QuietHoursDraft {
+  return {
+    enabled: qh?.enabled ?? QH_DEFAULTS.enabled,
+    start: typeof qh?.start === "string" ? qh.start : QH_DEFAULTS.start,
+    end: typeof qh?.end === "string" ? qh.end : QH_DEFAULTS.end,
+    days: Array.isArray(qh?.days) ? [...qh.days].sort((a, b) => a - b) : [],
+    timezone: typeof qh?.timezone === "string" && qh.timezone ? qh.timezone : QH_DEFAULTS.timezone,
+  };
+}
+
+function sameDays(a: number[], b: number[]): boolean {
+  if (a.length !== b.length) return false;
+  const sa = [...a].sort((x, y) => x - y);
+  const sb = [...b].sort((x, y) => x - y);
+  return sa.every((v, i) => v === sb[i]);
+}
+
+function QuietHoursCard() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const prefsQuery = useGetMyPreferences({
+    query: {
+      queryKey: getGetMyPreferencesQueryKey(),
+      retry: false,
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+    },
+  });
+  const updateMutation = useUpdateMyPreferences();
+
+  const serverDraft = useMemo<QuietHoursDraft>(() => {
+    const qh = (prefsQuery.data as any)?.quietHours as QuietHoursPrefs | undefined;
+    return normalizeServerQuietHours(qh);
+  }, [prefsQuery.data]);
+
+  const [draft, setDraft] = useState<QuietHoursDraft>(QH_DEFAULTS);
+  const [hydrated, setHydrated] = useState(false);
+
+  const dirty = useMemo(() => {
+    return (
+      draft.enabled !== serverDraft.enabled ||
+      draft.start !== serverDraft.start ||
+      draft.end !== serverDraft.end ||
+      draft.timezone !== serverDraft.timezone ||
+      !sameDays(draft.days, serverDraft.days)
+    );
+  }, [draft, serverDraft]);
+
+  // Hydratation initiale + reconciliation apres save sans ecraser une edition.
+  useEffect(() => {
+    if (!prefsQuery.isSuccess) return;
+    if (!hydrated) {
+      setDraft(serverDraft);
+      setHydrated(true);
+    } else if (!dirty) {
+      setDraft(serverDraft);
+    }
+  }, [prefsQuery.isSuccess, serverDraft, hydrated, dirty]);
+
+  const toggleDay = (day: number) => {
+    setDraft((prev) => ({
+      ...prev,
+      days: prev.days.includes(day)
+        ? prev.days.filter((d) => d !== day)
+        : [...prev.days, day].sort((a, b) => a - b),
+    }));
+  };
+
+  const handleSave = async () => {
+    try {
+      await updateMutation.mutateAsync({
+        data: {
+          quietHours: {
+            enabled: draft.enabled,
+            start: draft.start,
+            end: draft.end,
+            days: draft.days,
+            timezone: draft.timezone,
+          },
+        } as any,
+      });
+      await qc.invalidateQueries({ queryKey: getGetMyPreferencesQueryKey() });
+      toast({ title: "Heures silencieuses enregistrees" });
+    } catch (err: any) {
+      toast({
+        title: "Echec de l'enregistrement",
+        description: err?.message || "Erreur reseau",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const disabled = prefsQuery.isLoading || updateMutation.isPending;
+  const overnight = draft.start > draft.end;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Moon className="w-5 h-5 text-indigo-500" />
+              Heures silencieuses
+            </CardTitle>
+            <CardDescription>
+              Pendant cette plage horaire, vous ne recevez plus de notifications WhatsApp.
+              Les autres canaux (dans l'application) restent actifs.
+            </CardDescription>
+          </div>
+          {dirty && (
+            <Button size="sm" onClick={handleSave} disabled={disabled} className="gap-2">
+              <Save className="w-4 h-4" /> Enregistrer
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label>Activer les heures silencieuses</Label>
+            <p className="text-xs text-muted-foreground">Suspend les notifications WhatsApp sur la plage choisie</p>
+          </div>
+          <Switch
+            disabled={disabled}
+            checked={draft.enabled}
+            onCheckedChange={(v) => setDraft((prev) => ({ ...prev, enabled: v }))}
+          />
+        </div>
+
+        {draft.enabled && (
+          <>
+            <Separator />
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="qh-start">Debut</Label>
+                <Input
+                  id="qh-start"
+                  type="time"
+                  className="w-32"
+                  disabled={disabled}
+                  value={draft.start}
+                  onChange={(e) => setDraft((prev) => ({ ...prev, start: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="qh-end">Fin</Label>
+                <Input
+                  id="qh-end"
+                  type="time"
+                  className="w-32"
+                  disabled={disabled}
+                  value={draft.end}
+                  onChange={(e) => setDraft((prev) => ({ ...prev, end: e.target.value }))}
+                />
+              </div>
+            </div>
+            {overnight && (
+              <p className="text-xs text-muted-foreground">
+                Plage de nuit : de {draft.start} jusqu'au lendemain {draft.end}.
+              </p>
+            )}
+
+            <Separator />
+            <div className="space-y-2">
+              <Label>Jours d'application</Label>
+              <p className="text-xs text-muted-foreground">
+                Aucun jour selectionne = tous les jours.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {WEEKDAYS.map((d) => {
+                  const active = draft.days.includes(d.value);
+                  return (
+                    <Button
+                      key={d.value}
+                      type="button"
+                      size="sm"
+                      variant={active ? "default" : "outline"}
+                      disabled={disabled}
+                      className="w-14"
+                      onClick={() => toggleDay(d.value)}
+                    >
+                      {d.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );

@@ -2715,6 +2715,35 @@ components:
           $ref: "#/components/schemas/InlineSuggestFieldFlags"
         whatsappNotifications:
           $ref: "#/components/schemas/WhatsAppNotificationFlags"
+        quietHours:
+          $ref: "#/components/schemas/QuietHoursPrefs"
+
+    QuietHoursPrefs:
+      type: object
+      description: Quiet hours ("heures silencieuses"). During this window, outbound push notifications (WhatsApp) are suppressed for the user. Other channels (in-app, email) are unaffected.
+      properties:
+        enabled:
+          type: boolean
+          description: Master switch. When false (default), quiet hours are not applied.
+        start:
+          type: string
+          description: Window start time in 24h "HH:MM" format (user's timezone). If start > end, the window spans midnight (e.g. "22:00" -> "07:00") and is attached to the start day.
+          example: "22:00"
+        end:
+          type: string
+          description: Window end time in 24h "HH:MM" format (exclusive).
+          example: "07:00"
+        days:
+          type: array
+          description: Weekdays the window applies to (0=Sunday ... 6=Saturday). Empty or omitted means every day. For overnight windows the day refers to the start day.
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+        timezone:
+          type: string
+          description: IANA timezone used to evaluate the window. Defaults to "Europe/Paris".
+          example: "Europe/Paris"
 
     WhatsAppNotificationFlags:
       type: object

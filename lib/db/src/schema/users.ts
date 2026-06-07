@@ -21,11 +21,29 @@ export interface WhatsAppNotificationFlags {
   message?: boolean;     // nouveau message interne
 }
 
+/**
+ * Heures silencieuses : fenetre pendant laquelle les notifications push
+ * sortantes (WhatsApp) sont supprimees pour cet utilisateur.
+ * - start/end au format "HH:MM" (24h). Si start > end, la fenetre est de nuit
+ *   (ex. 22:00 -> 07:00) et est rattachee au jour de DEBUT.
+ * - days : jours (0=dimanche ... 6=samedi) ou la fenetre s'applique. Vide ou
+ *   absent = tous les jours.
+ * - timezone : IANA (defaut "Europe/Paris").
+ */
+export interface QuietHoursPrefs {
+  enabled?: boolean;
+  start?: string;
+  end?: string;
+  days?: number[];
+  timezone?: string;
+}
+
 export interface UserPreferences {
   inlineSuggestEnabled?: boolean;
   inlineSuggestLanguage?: string;
   inlineSuggestFields?: InlineSuggestFieldFlags;
   whatsappNotifications?: WhatsAppNotificationFlags;
+  quietHours?: QuietHoursPrefs;
 }
 
 export const usersTable = pgTable("users", {

@@ -188,6 +188,7 @@ export * from "./messagePriority";
 export * from "./messageType";
 export * from "./notification";
 export * from "./notificationType";
+export * from "./quietHoursPrefs";
 export * from "./recordAiInlineSuggestEventBody";
 export * from "./recordAiInlineSuggestEventBodyEvent";
 export * from "./recordAiInlineSuggestEventBodyFieldType";

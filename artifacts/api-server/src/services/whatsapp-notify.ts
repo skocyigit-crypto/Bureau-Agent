@@ -13,6 +13,7 @@
 import { and, eq } from "drizzle-orm";
 import { db, telephonyProvidersTable, usersTable } from "@workspace/db";
 import { logger } from "../lib/logger";
+import { isWithinQuietHours } from "./quiet-hours";
 
 interface TwilioConfig {
   accountSid?: string;
@@ -132,6 +133,12 @@ export async function sendWhatsAppNotification(
     if (!user || !user.actif) return false;
     if (!user.telephone) return false;
     if (!isOptedIn(user.preferences, kind)) return false;
+    // Heures silencieuses : on supprime le push pendant la fenetre configuree.
+    const quietHours = (user.preferences as { quietHours?: Parameters<typeof isWithinQuietHours>[0] } | null)?.quietHours;
+    if (isWithinQuietHours(quietHours)) {
+      logger.debug({ orgId, userId, kind }, "[whatsapp-notify] supprime (heures silencieuses)");
+      return false;
+    }
 
     const toAddr = toWhatsAppAddress(user.telephone);
     if (!toAddr) return false;
