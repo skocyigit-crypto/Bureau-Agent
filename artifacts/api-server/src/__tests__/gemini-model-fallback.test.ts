@@ -19,17 +19,19 @@ process.env.GEMINI_FLASH_MODEL = "gemini-2.5-flash";
 process.env.GEMINI_PRO_FALLBACK_MODEL = "gemini-pro-latest";
 process.env.GEMINI_FLASH_FALLBACK_MODEL = "gemini-flash-latest";
 
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   isModelRetiredError,
   fallbackGeminiModel,
   geminiGenerateWithFallback,
   geminiActualModel,
   installGeminiModelFallback,
+  onGeminiModelFallback,
   GEMINI_PRO_MODEL,
   GEMINI_FLASH_MODEL,
   GEMINI_PRO_FALLBACK_MODEL,
   GEMINI_FLASH_FALLBACK_MODEL,
+  type GeminiFallbackEvent,
 } from "../services/ai-utils";
 
 /**
@@ -356,5 +358,153 @@ describe("installGeminiModelFallback (streaming)", () => {
     // Un 2e appel ne doit pas re-wrapper : les references restent identiques.
     expect(mod.ai.models.generateContentStream).toBe(beforeStream);
     expect(mod.ai.models.generateContent).toBe(beforeGen);
+  });
+});
+
+/**
+ * Verrouille le CABLAGE de l'observateur d'alerte admin
+ * (`onGeminiModelFallback` -> `notifyGeminiFallback`). Quand Google retire un
+ * modele et que l'app bascule en transparence sur le repli, cet observateur est
+ * le seul signal qui previent un operateur qu'un modele doit etre migre. Les
+ * tests precedents verifient que le *repli* a lieu mais jamais que l'observateur
+ * est *notifie* (avec le bon from/to/kind), ni qu'un observateur defaillant ne
+ * peut pas casser la generation. On verrouille donc:
+ *   - une notification unique {from,to,kind:"generate"} sur un repli de generation ;
+ *   - une notification {kind:"stream"} sur un repli de flux (creation ET 1er chunk) ;
+ *   - aucun impact d'un observateur qui leve (generation/flux normaux) ;
+ *   - `onGeminiModelFallback(null)` retire bien l'observateur (silence total).
+ */
+describe("onGeminiModelFallback (observateur d'alerte admin)", () => {
+  let models: { generateContentStream: (params: any) => Promise<AsyncIterable<any>> };
+
+  beforeAll(async () => {
+    // Le patch streaming est pose au boot (idempotent) ; on recupere le client mocke.
+    await installGeminiModelFallback();
+    const mod: any = await import("@workspace/integrations-gemini-ai");
+    models = mod.ai.models;
+  });
+
+  afterEach(() => {
+    // L'observateur est un singleton de module : toujours le retirer pour ne pas
+    // fuiter d'un test a l'autre (un test suivant verrait des evenements parasites).
+    onGeminiModelFallback(null);
+  });
+
+  it("notifie l'observateur exactement une fois avec {from,to,kind:'generate'} sur un repli de generation", async () => {
+    const events: GeminiFallbackEvent[] = [];
+    onGeminiModelFallback((e) => events.push(e));
+
+    const fn = vi.fn(async (m: string) => {
+      if (m === GEMINI_PRO_MODEL) throw new Error("[400] UNSUPPORTED_MODEL: model retired");
+      return `ok:${m}`;
+    });
+    const res = await geminiGenerateWithFallback(GEMINI_PRO_MODEL, fn);
+
+    expect(res).toBe(`ok:${GEMINI_PRO_FALLBACK_MODEL}`);
+    expect(events).toEqual([
+      { from: GEMINI_PRO_MODEL, to: GEMINI_PRO_FALLBACK_MODEL, kind: "generate" },
+    ]);
+  });
+
+  it("ne notifie PAS l'observateur quand la generation primaire reussit", async () => {
+    const events: GeminiFallbackEvent[] = [];
+    onGeminiModelFallback((e) => events.push(e));
+
+    await geminiGenerateWithFallback(GEMINI_PRO_MODEL, async (m) => `ok:${m}`);
+
+    expect(events).toEqual([]);
+  });
+
+  it("notifie {from,to,kind:'stream'} quand la CREATION du flux bascule sur le repli", async () => {
+    const events: GeminiFallbackEvent[] = [];
+    onGeminiModelFallback((e) => events.push(e));
+
+    mockState.streamImpl = vi.fn(async (params: any) => {
+      if (params.model === GEMINI_FLASH_MODEL) {
+        throw new Error("models/gemini-2.5-flash is not found for API version v1beta");
+      }
+      return (async function* () {
+        yield { text: "ok-fallback" };
+      })();
+    });
+
+    const stream = await models.generateContentStream({ model: GEMINI_FLASH_MODEL });
+    await collect(stream);
+
+    expect(events).toEqual([
+      { from: GEMINI_FLASH_MODEL, to: GEMINI_FLASH_FALLBACK_MODEL, kind: "stream" },
+    ]);
+  });
+
+  it("notifie {from,to,kind:'stream'} quand l'erreur de retrait survient au 1er chunk", async () => {
+    const events: GeminiFallbackEvent[] = [];
+    onGeminiModelFallback((e) => events.push(e));
+
+    mockState.streamImpl = vi.fn(async (params: any) => {
+      if (params.model === GEMINI_PRO_MODEL) {
+        return throwOnFirstChunk(new Error("[400] UNSUPPORTED_MODEL: model retired"));
+      }
+      return (async function* () {
+        yield { text: "bonjour" };
+      })();
+    });
+
+    const stream = await models.generateContentStream({ model: GEMINI_PRO_MODEL });
+    await collect(stream);
+
+    expect(events).toEqual([
+      { from: GEMINI_PRO_MODEL, to: GEMINI_PRO_FALLBACK_MODEL, kind: "stream" },
+    ]);
+  });
+
+  it("un observateur qui leve ne casse jamais la generation (le repli aboutit)", async () => {
+    onGeminiModelFallback(() => {
+      throw new Error("observer defaillant");
+    });
+
+    const fn = vi.fn(async (m: string) => {
+      if (m === GEMINI_PRO_MODEL) throw new Error("UNSUPPORTED_MODEL: model retired");
+      return `ok:${m}`;
+    });
+    const res = await geminiGenerateWithFallback(GEMINI_PRO_MODEL, fn);
+
+    expect(res).toBe(`ok:${GEMINI_PRO_FALLBACK_MODEL}`);
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
+
+  it("un observateur qui leve ne casse jamais le streaming (le flux de repli aboutit)", async () => {
+    onGeminiModelFallback(() => {
+      throw new Error("observer defaillant");
+    });
+
+    mockState.streamImpl = vi.fn(async (params: any) => {
+      if (params.model === GEMINI_FLASH_MODEL) {
+        throw new Error("models/gemini-2.5-flash is not found for API version v1beta");
+      }
+      return (async function* () {
+        yield { text: "ok-fallback" };
+      })();
+    });
+
+    const stream = await models.generateContentStream({ model: GEMINI_FLASH_MODEL });
+    const chunks = await collect(stream);
+
+    expect(chunks.map((c) => c.text)).toEqual(["ok-fallback"]);
+  });
+
+  it("onGeminiModelFallback(null) retire l'observateur (plus aucune notification)", async () => {
+    const events: GeminiFallbackEvent[] = [];
+    onGeminiModelFallback((e) => events.push(e));
+    onGeminiModelFallback(null);
+
+    const fn = vi.fn(async (m: string) => {
+      if (m === GEMINI_PRO_MODEL) throw new Error("UNSUPPORTED_MODEL: model retired");
+      return `ok:${m}`;
+    });
+    const res = await geminiGenerateWithFallback(GEMINI_PRO_MODEL, fn);
+
+    // Le repli a bien eu lieu (la generation aboutit), mais sans aucune alerte.
+    expect(res).toBe(`ok:${GEMINI_PRO_FALLBACK_MODEL}`);
+    expect(events).toEqual([]);
   });
 });
