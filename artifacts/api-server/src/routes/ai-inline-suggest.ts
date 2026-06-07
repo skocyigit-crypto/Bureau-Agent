@@ -184,9 +184,14 @@ router.post("/ai/inline-suggest", async (req: Request, res: Response): Promise<v
     // Auto-detect when the client opted into "auto"; otherwise honour the
     // explicit choice (after validation against the supported set).
     let language: string;
-    if (requestedLanguage === "auto") {
-      const detected = detectLanguage(safeText);
-      language = detected ?? fallbackLanguage;
+    const autoMode = requestedLanguage === "auto";
+    // `detected` is true ONLY when the server actually identified a language
+    // from the text — not when auto mode fell back to `fallbackLanguage`.
+    let detected = false;
+    if (autoMode) {
+      const detectedLang = detectLanguage(safeText);
+      detected = detectedLang != null;
+      language = detectedLang ?? fallbackLanguage;
     } else {
       language = normalizeLanguage(requestedLanguage, fallbackLanguage);
     }
@@ -215,8 +220,8 @@ router.post("/ai/inline-suggest", async (req: Request, res: Response): Promise<v
       organisationId: orgId,
       input: { fieldType, lastWindow, title: safeTitle, contactName: safeContact, language, learned: fingerprintLearned(learnedBlock) },
     });
-    const cached = getCached<{ suggestion: string }>(cacheKey);
-    if (cached) { res.json(cached); return; }
+    const cached = getCached<{ suggestion: string; language?: string; detected?: boolean }>(cacheKey);
+    if (cached) { res.json({ ...cached, language, detected }); return; }
 
     const prompt = buildPrompt({
       fieldType: String(fieldType),
@@ -266,7 +271,7 @@ router.post("/ai/inline-suggest", async (req: Request, res: Response): Promise<v
     const suggestion = cleanSuggestion(raw, safeText);
     const payload = { suggestion };
     setCached(cacheKey, payload, AI_CACHE_TTL.SHORT);
-    res.json(payload);
+    res.json({ ...payload, language, detected });
   } catch (err: any) {
     logger.error({ err: err?.message }, "[ai/inline-suggest] error");
     // Always respond 200 with empty suggestion to keep ghost-text UX silent.

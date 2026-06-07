@@ -87,6 +87,16 @@ export const INLINE_SUGGEST_LANGUAGES = [
 const DEFAULT_LANGUAGE = "francais";
 const VALID_LANGUAGES: Set<string> = new Set(INLINE_SUGGEST_LANGUAGES.map((l) => l.value));
 
+const LANGUAGE_LABELS: Record<string, string> = Object.fromEntries(
+  INLINE_SUGGEST_LANGUAGES.map((l) => [l.value, l.label]),
+);
+
+/** Human-readable label for an inline-suggest language code (falls back to the code). */
+export function inlineSuggestLanguageLabel(code: string | null | undefined): string {
+  if (!code) return "";
+  return LANGUAGE_LABELS[code] ?? code;
+}
+
 function getLastExplicitLanguage(): string {
   if (typeof window === "undefined") return DEFAULT_LANGUAGE;
   try {
@@ -473,6 +483,8 @@ interface UseInlineSuggestOptions {
 
 interface UseInlineSuggestResult {
   suggestion: string;
+  /** Language the server auto-detected for the current suggestion, or null. */
+  detectedLanguage: string | null;
   clear: () => void;
   trackAccepted: (length: number) => void;
   trackDismissed: (length: number) => void;
@@ -524,6 +536,9 @@ export function useInlineSuggest(opts: UseInlineSuggestOptions): UseInlineSugges
   const [fieldFlags] = useInlineSuggestFields();
   const fieldEnabled = isConfigurableField(fieldType) ? fieldFlags[fieldType] : true;
   const [suggestion, setSuggestion] = useState("");
+  // Language the server actually used, surfaced only when the field is in
+  // "auto" mode so the UI can show a discreet detected-language hint.
+  const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null);
   const lastReqTextRef = useRef<string>("");
   const reqIdRef = useRef(0);
   const mutate = useRequestAiInlineSuggest();
@@ -552,6 +567,7 @@ export function useInlineSuggest(opts: UseInlineSuggestOptions): UseInlineSugges
       reqIdRef.current++;
       lastReqTextRef.current = text;
       setSuggestion("");
+      setDetectedLanguage(null);
       return;
     }
     const trimmed = text.trim();
@@ -581,12 +597,16 @@ export function useInlineSuggest(opts: UseInlineSuggestOptions): UseInlineSugges
             const s = (data?.suggestion ?? "").toString();
             lastReqTextRef.current = text;
             setSuggestion(s);
+            // Only surface the detected language when the server auto-detected
+            // it (field in "auto" mode) and we actually have a suggestion.
+            setDetectedLanguage(s && data?.detected ? (data.language ?? null) : null);
             if (s) fireEvent(fieldType, "shown", s.length);
           },
           onError: () => {
             if (myReqId !== reqIdRef.current) return;
             // Fail silently
             setSuggestion("");
+            setDetectedLanguage(null);
           },
         },
       );
@@ -602,6 +622,7 @@ export function useInlineSuggest(opts: UseInlineSuggestOptions): UseInlineSugges
     reqIdRef.current++;
     lastReqTextRef.current = text;
     setSuggestion("");
+    setDetectedLanguage(null);
   }, [text]);
 
   const trackAccepted = useCallback((length: number) => {
@@ -616,5 +637,5 @@ export function useInlineSuggest(opts: UseInlineSuggestOptions): UseInlineSugges
     fireEvent(fieldType, "edited", survivedLength);
   }, [fieldType]);
 
-  return { suggestion, clear, trackAccepted, trackDismissed, trackEdited };
+  return { suggestion, detectedLanguage, clear, trackAccepted, trackDismissed, trackEdited };
 }

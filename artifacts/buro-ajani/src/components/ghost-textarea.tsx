@@ -6,6 +6,7 @@ import {
   useInlineSuggest,
   useInlineSuggestEnabled,
   measureSuggestionSurvival,
+  inlineSuggestLanguageLabel,
   INLINE_SUGGEST_EDIT_THRESHOLD,
   type InlineSuggestFieldType,
 } from "@/hooks/use-inline-suggest";
@@ -34,7 +35,7 @@ export const GhostTextarea = React.forwardRef<HTMLTextAreaElement, GhostTextarea
 
     React.useImperativeHandle(forwardedRef, () => innerRef.current as HTMLTextAreaElement);
 
-    const { suggestion, clear, trackAccepted, trackDismissed, trackEdited } = useInlineSuggest({
+    const { suggestion, detectedLanguage, clear, trackAccepted, trackDismissed, trackEdited } = useInlineSuggest({
       fieldType,
       text: value,
       title: context?.title ?? null,
@@ -135,6 +136,15 @@ export const GhostTextarea = React.forwardRef<HTMLTextAreaElement, GhostTextarea
               <kbd className="font-sans font-semibold">Tab</kbd> pour accepter ·{" "}
               <kbd className="font-sans font-semibold">Esc</kbd>
             </span>
+          </div>
+        )}
+        {suggestion && detectedLanguage && (
+          <div
+            className="pointer-events-none absolute bottom-1 left-2 flex items-center gap-1 rounded-md border border-border/60 bg-background/90 px-1.5 py-0.5 text-[10px] text-muted-foreground shadow-sm backdrop-blur-sm"
+            title="Langue détectée automatiquement pour cette suggestion"
+          >
+            <span aria-hidden>🌐</span>
+            <span>{inlineSuggestLanguageLabel(detectedLanguage)}</span>
           </div>
         )}
         {showToggle && (

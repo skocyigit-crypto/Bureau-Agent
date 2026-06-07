@@ -1060,6 +1060,12 @@ paths:
                   suggestion:
                     type: string
                     description: Short continuation to display as ghost text. Empty string when no suggestion is appropriate.
+                  language:
+                    type: string
+                    description: Language actually used to generate the suggestion (e.g. "francais", "english"). Useful to display a detected-language hint when the client requested "auto".
+                  detected:
+                    type: boolean
+                    description: True when the language was auto-detected from the text (client requested "auto"); false when an explicit language was honoured.
                 required: [suggestion]
 
   /ai/inline-suggest/event:

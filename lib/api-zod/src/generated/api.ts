@@ -1295,6 +1295,18 @@ export const RequestAiInlineSuggestResponse = zod.object({
     .describe(
       "Short continuation to display as ghost text. Empty string when no suggestion is appropriate.",
     ),
+  language: zod
+    .string()
+    .optional()
+    .describe(
+      'Language actually used to generate the suggestion (e.g. \"francais\", \"english\"). Useful to display a detected-language hint when the client requested \"auto\".',
+    ),
+  detected: zod
+    .boolean()
+    .optional()
+    .describe(
+      'True when the language was auto-detected from the text (client requested \"auto\"); false when an explicit language was honoured.',
+    ),
 });
 
 /**

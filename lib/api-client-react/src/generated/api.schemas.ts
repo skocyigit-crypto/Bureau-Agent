@@ -1814,6 +1814,10 @@ export type RequestAiInlineSuggestBody = {
 export type RequestAiInlineSuggest200 = {
   /** Short continuation to display as ghost text. Empty string when no suggestion is appropriate. */
   suggestion: string;
+  /** Language actually used to generate the suggestion (e.g. "francais", "english"). Useful to display a detected-language hint when the client requested "auto". */
+  language?: string;
+  /** True when the language was auto-detected from the text (client requested "auto"); false when an explicit language was honoured. */
+  detected?: boolean;
 };
 
 export type RecordAiInlineSuggestEventBodyFieldType =
