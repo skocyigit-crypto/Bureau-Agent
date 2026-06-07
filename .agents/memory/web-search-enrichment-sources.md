@@ -36,3 +36,21 @@ A Google-style "anlık cevap" card can be fully deterministic and quota-free:
   included). Canonical host is `api.frankfurter.dev/v1/latest`; `api.frankfurter.app`
   **301-redirects** there. Call the `.dev/v1` URL directly AND set `redirect: "error"` on
   the fetch (anti-SSRF) — otherwise refusing redirects breaks the call. Cache rates ~1h.
+- Weather + geocoding: **open-meteo** — free, **no API key**. Geocode via
+  `geocoding-api.open-meteo.com/v1/search` (returns lat/lon + IANA `timezone`); forecast via
+  `api.open-meteo.com/v1/forecast`. Fixed hosts + `redirect: "error"` (anti-SSRF). The
+  geocoder's `timezone` field also powers city-aware date/time answers (Intl + that tz).
+- Date/time: fully local via `Intl.DateTimeFormat("fr-FR", { timeZone })`; only geocodes when
+  a city is given.
+
+## Instant-answer gating traps (learned the hard way)
+- **Keyword regexes need explicit separators / word boundaries**, or partial-word prefixes
+  fire network calls: `weather`→`weathering`, `meteo`→`meteora`. Require a separator
+  (preposition / space / `:`) between the keyword and the location.
+- **Date/time city tails must be preposition-introduced** (`à`/`in` + city), and otherwise
+  the query must match the date/time phrase EXACTLY. A loose trailing `(.*)` lets
+  `aujourd'hui paris` geocode "paris" and hijack a real web search.
+- **Area units:** the unit-token regex must allow digits AND `normalizeUnitToken` must map
+  `²→2`, `³→3`, or `m²`/`m2`/`km2` silently never match the UNITS table.
+- Bound every user-key-influenced cache (city names, coords) with FIFO eviction — unbounded
+  Maps grow for the process lifetime.

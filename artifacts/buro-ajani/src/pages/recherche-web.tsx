@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearch } from "wouter";
-import { Search, ShieldCheck, ShieldAlert, ShieldX, ExternalLink, Loader2, Globe, Sparkles, AlertTriangle, Clock, Newspaper, Languages, CalendarClock, X, Calculator, Ruler, Coins } from "lucide-react";
+import { Search, ShieldCheck, ShieldAlert, ShieldX, ExternalLink, Loader2, Globe, Sparkles, AlertTriangle, Clock, Newspaper, Languages, CalendarClock, X, Calculator, Ruler, Coins, CloudSun } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,7 +47,7 @@ interface WebSearchResponse {
   site?: string;
 }
 
-type InstantAnswerKind = "calculator" | "unit" | "currency";
+type InstantAnswerKind = "calculator" | "unit" | "currency" | "weather" | "datetime";
 
 interface InstantAnswer {
   kind: InstantAnswerKind;
@@ -577,6 +577,10 @@ export default function RechercheWebPage() {
                 <Calculator className="h-5 w-5" />
               ) : instant.kind === "currency" ? (
                 <Coins className="h-5 w-5" />
+              ) : instant.kind === "weather" ? (
+                <CloudSun className="h-5 w-5" />
+              ) : instant.kind === "datetime" ? (
+                <Clock className="h-5 w-5" />
               ) : (
                 <Ruler className="h-5 w-5" />
               )}
