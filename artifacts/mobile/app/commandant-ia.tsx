@@ -85,6 +85,28 @@ function UrgencyBadge({ level }: { level: string }) {
 }
 
 // ─── BRIEFING ────────────────────────────────────────────────────────────────
+// Tâche #31 : navigation depuis les « Points urgents » du briefing mobile.
+// Mappe le type d'item vers l'écran correspondant (mêmes cibles que les puces
+// du chat). Renvoie null si le type est inconnu -> la ligne reste non cliquable.
+function urgentItemRoute(item: { type: string; id?: number }): string | null {
+  switch (item.type) {
+    case "contact":
+      return item.id ? `/contact-detail?id=${item.id}` : "/contacts";
+    case "tache":
+      return "/tasks";
+    case "evenement":
+      return "/calendar";
+    case "facture":
+      return "/abonnement";
+    case "projet":
+      return "/projets";
+    case "message":
+      return "/messages";
+    default:
+      return null;
+  }
+}
+
 function BriefingSection({ data, loading, onRefresh }: { data: BriefingData | null; loading: boolean; onRefresh: () => void }) {
   const colors = useColors();
 
@@ -159,19 +181,33 @@ function BriefingSection({ data, loading, onRefresh }: { data: BriefingData | nu
       {data.urgentItems && data.urgentItems.length > 0 && (
         <View>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Points urgents</Text>
-          {data.urgentItems.slice(0, 5).map((item, i) => (
-            <View key={i} style={[styles.urgentItem, { backgroundColor: colors.card, borderColor: (TYPE_COLORS[item.type] ?? "#64748b") + "30" }]}>
-              <View style={[styles.urgentDot, { backgroundColor: TYPE_COLORS[item.type] ?? "#64748b" }]} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.urgentTitle, { color: colors.foreground }]}>{item.title}</Text>
-                {item.description && <Text style={[styles.urgentDesc, { color: colors.mutedForeground }]}>{item.description}</Text>}
-              </View>
-              <View style={[styles.urgentBadge, { backgroundColor: (TYPE_COLORS[item.type] ?? "#64748b") + "18" }]}>
-                <Feather name={TYPE_ICONS[item.type] ?? "circle"} size={10} color={TYPE_COLORS[item.type] ?? "#64748b"} />
-                <Text style={[styles.urgentBadgeText, { color: TYPE_COLORS[item.type] ?? "#64748b" }]}>{item.type}</Text>
-              </View>
-            </View>
-          ))}
+          {data.urgentItems.slice(0, 5).map((item, i) => {
+            const route = urgentItemRoute(item);
+            return (
+              <Pressable
+                key={i}
+                disabled={!route}
+                onPress={() => route && router.push(route as any)}
+                accessibilityRole={route ? "button" : undefined}
+                style={({ pressed }) => [
+                  styles.urgentItem,
+                  { backgroundColor: colors.card, borderColor: (TYPE_COLORS[item.type] ?? "#64748b") + "30" },
+                  pressed && route ? { opacity: 0.6 } : null,
+                ]}
+              >
+                <View style={[styles.urgentDot, { backgroundColor: TYPE_COLORS[item.type] ?? "#64748b" }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.urgentTitle, { color: colors.foreground }]}>{item.title}</Text>
+                  {item.description && <Text style={[styles.urgentDesc, { color: colors.mutedForeground }]}>{item.description}</Text>}
+                </View>
+                <View style={[styles.urgentBadge, { backgroundColor: (TYPE_COLORS[item.type] ?? "#64748b") + "18" }]}>
+                  <Feather name={TYPE_ICONS[item.type] ?? "circle"} size={10} color={TYPE_COLORS[item.type] ?? "#64748b"} />
+                  <Text style={[styles.urgentBadgeText, { color: TYPE_COLORS[item.type] ?? "#64748b" }]}>{item.type}</Text>
+                </View>
+                {route && <Feather name="chevron-right" size={16} color={colors.mutedForeground} />}
+              </Pressable>
+            );
+          })}
         </View>
       )}
 
