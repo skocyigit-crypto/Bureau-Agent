@@ -24,6 +24,8 @@ interface Preference {
   downCount: number;
   score: number;
   updatedAt: string;
+  suppressed?: boolean;
+  suppressionOverridden?: boolean;
 }
 interface Pattern {
   patternType: string;
@@ -112,6 +114,7 @@ export default function IaApprentissageScreen() {
   const [patterns, setPatterns] = useState<Pattern[]>([]);
   const [loading, setLoading] = useState(true);
   const [recomputing, setRecomputing] = useState(false);
+  const [reactivating, setReactivating] = useState<string | null>(null);
 
   // --- Profil PERSONNEL (par employé) ---
   const isManager = user ? MANAGER_ROLES.has(user.role) : false;
@@ -217,8 +220,33 @@ export default function IaApprentissageScreen() {
     }
   }, [fetchAuth]);
 
+  const reactivate = useCallback(async (type: string) => {
+    setReactivating(type);
+    try {
+      const res = await fetchAuth(`${LEARNING_API}/reactivate-suggestion-type`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type }),
+      });
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setPreferences(data.profile?.preferences ?? []);
+        setPatterns(data.profile?.patterns ?? []);
+      }
+    } catch {
+      /* fail-soft */
+    } finally {
+      setReactivating(null);
+    }
+  }, [fetchAuth]);
+
   const liked = preferences.filter((p) => p.score >= 0.34 && p.upCount + p.downCount >= 1);
-  const disliked = preferences.filter((p) => p.score <= -0.34 && p.upCount + p.downCount >= 1);
+  // Types mis en sourdine (le moteur n'en produit plus) — affichés à part avec
+  // une action « Réafficher », et exclus de la liste « moins appréciées ».
+  const muted = preferences.filter((p) => p.suppressed);
+  const disliked = preferences.filter(
+    (p) => p.score <= -0.34 && p.upCount + p.downCount >= 1 && !p.suppressed,
+  );
   const callers = patterns.filter((p) => p.patternType === "frequent_caller");
   const hours = patterns.filter((p) => p.patternType === "busy_hour");
   const themes = patterns.filter((p) => p.patternType === "task_theme");
@@ -338,6 +366,46 @@ export default function IaApprentissageScreen() {
                 </Text>
               ) : null}
             </View>
+
+            {muted.length > 0 ? (
+              <View style={[styles.card, { backgroundColor: colors.card, borderColor: "#f59e0b66" }]}>
+                <View style={styles.cardHead}>
+                  <Feather name="bell-off" size={16} color="#d97706" />
+                  <Text style={[styles.cardTitle, { color: colors.foreground }]}>Suggestions mises en sourdine</Text>
+                </View>
+                <Text style={[styles.rowSub, { color: colors.mutedForeground, marginBottom: 12 }]}>
+                  Après plusieurs 👎, l'assistant a cessé de proposer ces types. Les alertes urgentes
+                  restent toujours affichées.
+                  {isManager ? " Touchez « Réafficher » pour les réactiver." : " Un dirigeant peut les réactiver."}
+                </Text>
+                {muted.map((p) => (
+                  <View key={`muted-${p.kind}-${p.key}`} style={styles.row}>
+                    <Feather name="bell-off" size={16} color="#d97706" />
+                    <Text style={[styles.rowLabel, { color: colors.foreground }]} numberOfLines={1}>{prefLabel(p)}</Text>
+                    <View style={[styles.badge, { backgroundColor: "#ef444422" }]}>
+                      <Text style={{ color: "#dc2626", fontSize: 12, fontWeight: "700" }}>{p.downCount} 👎</Text>
+                    </View>
+                    {isManager ? (
+                      <Pressable
+                        onPress={() => reactivate(p.key)}
+                        disabled={reactivating === p.key}
+                        style={[styles.reactivateBtn, { borderColor: colors.primary }]}
+                        hitSlop={6}
+                      >
+                        {reactivating === p.key ? (
+                          <ActivityIndicator size="small" color={colors.primary} />
+                        ) : (
+                          <>
+                            <Feather name="bell" size={13} color={colors.primary} />
+                            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: "700" }}>Réafficher</Text>
+                          </>
+                        )}
+                      </Pressable>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+            ) : null}
           </>
         )}
 
@@ -516,6 +584,10 @@ const styles = StyleSheet.create({
   rowLabel: { flex: 1, fontSize: 14 },
   rowSub: { fontSize: 13, lineHeight: 18 },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  reactivateBtn: {
+    flexDirection: "row", alignItems: "center", gap: 5, borderWidth: 1,
+    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6,
+  },
   group: { marginBottom: 14 },
   groupLabel: { fontSize: 12, fontWeight: "600", marginBottom: 8 },
   tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
