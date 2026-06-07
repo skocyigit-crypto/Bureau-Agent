@@ -628,11 +628,12 @@ router.post("/commandant/email-smart-reply", async (req: Request, res: Response)
     }
 
     const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId));
+    const learnedBlock = await buildLearnedContextBlock(orgId);
 
     const systemPrompt = `Tu es un expert en communication d'entreprise pour "${org?.name || "Agent de Bureau"}". Tu rediges des reponses email professionnelles, pertinentes et efficaces en francais. Tu t'adaptes au ton demande et tu personnalises selon le contexte du contact.
 Tu as acces aux rapports des agents IA specialises pour enrichir ta reponse avec du contexte pertinent.
 
-${collaborationPrompt}`;
+${collaborationPrompt}${learnedBlock}`;
 
     const prompt = `Redige une reponse a cet email:
 - De: ${emailFrom || "Inconnu"}
@@ -657,7 +658,7 @@ JSON attendu:
     const cacheKey = buildAiCacheKey({
       route: "/commandant/email-smart-reply",
       organisationId: orgId,
-      input: { emailFrom, emailSubject, emailBodyHash: (emailBody || "").slice(0, 500), tone, contactId },
+      input: { emailFrom, emailSubject, emailBodyHash: (emailBody || "").slice(0, 500), tone, contactId, learned: fingerprintLearned(learnedBlock) },
     });
     const aiResponse = await multiAiGenerateCached(cacheKey, AI_CACHE_TTL.MEDIUM, prompt, systemPrompt, orgId, req.path);
     let parsed: any;
@@ -1275,12 +1276,13 @@ router.post("/commandant/smart-search", async (req: Request, res: Response): Pro
 
     let aiSummary = "";
     if (totalResults > 0) {
+      const learnedBlock = await buildLearnedContextBlock(orgId);
       const prompt = `Analyse ces resultats de recherche pour "${query}" et donne un resume utile en francais (2-3 phrases max):
 Contacts: ${contacts.length} (${contacts.map(c => `${c.firstName} ${c.lastName}`).join(", ")})
 Taches: ${tasks.length} (${tasks.map(t => t.title).join(", ")})
 Evenements: ${events.length}
 Factures: ${invoices.length}
-Prospects: ${prospects.length}
+Prospects: ${prospects.length}${learnedBlock}
 Resume:`;
       try { aiSummary = await multiAiGenerate(prompt, undefined, orgId, req.path); } catch (e) { logger.error({ err: e }, "[Commandant/Search] AI summary failed:"); }
     }
@@ -1362,11 +1364,12 @@ router.post("/commandant/smart-search/stream", async (req: Request, res: Respons
       return;
     }
 
+    const learnedBlock = await buildLearnedContextBlock(orgId);
     const cacheKey = buildAiCacheKey({
       route: "/commandant/smart-search",
       organisationId: orgId,
       userId,
-      input: { query, ids: { c: contacts.map(c => c.id), t: tasks.map(t => t.id), e: events.map(e => e.id), i: invoices.map(i => i.id), p: prospects.map(p => p.id) } },
+      input: { query, ids: { c: contacts.map(c => c.id), t: tasks.map(t => t.id), e: events.map(e => e.id), i: invoices.map(i => i.id), p: prospects.map(p => p.id) }, learned: fingerprintLearned(learnedBlock) },
     });
     const cached = getCached<string>(cacheKey);
     if (cached) {
@@ -1381,7 +1384,7 @@ Contacts: ${contacts.length} (${contacts.map(c => `${c.firstName} ${c.lastName}`
 Taches: ${tasks.length} (${tasks.map(t => t.title).join(", ")})
 Evenements: ${events.length}
 Factures: ${invoices.length}
-Prospects: ${prospects.length}
+Prospects: ${prospects.length}${learnedBlock}
 Resume:`;
 
     const result = await multiAiGenerateStream({
@@ -1430,7 +1433,8 @@ router.post("/commandant/analyze-text", async (req: Request, res: Response): Pro
       rewrite: "Reecris ce texte de maniere plus professionnelle et claire en francais. JSON: {rewritten: '...', improvements: ['...'], tone: '...'}",
     };
 
-    const systemPrompt = "Tu es un expert en analyse de texte. Reponds UNIQUEMENT en JSON valide.";
+    const learnedBlock = await buildLearnedContextBlock(orgId);
+    const systemPrompt = `Tu es un expert en analyse de texte. Reponds UNIQUEMENT en JSON valide.${learnedBlock}`;
     const prompt = `${typePrompts[analysisType] || typePrompts.summary}\n\nTexte a analyser:\n${text}`;
 
     const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
@@ -1461,13 +1465,14 @@ router.post("/commandant/analyze-text/stream", async (req: Request, res: Respons
     rewrite: "Reecris ce texte de maniere plus professionnelle et claire en francais. JSON: {rewritten: '...', improvements: ['...'], tone: '...'}",
   };
 
-  const systemPrompt = "Tu es un expert en analyse de texte. Reponds UNIQUEMENT en JSON valide.";
+  const learnedBlock = await buildLearnedContextBlock(orgId);
+  const systemPrompt = `Tu es un expert en analyse de texte. Reponds UNIQUEMENT en JSON valide.${learnedBlock}`;
   const prompt = `${typePrompts[analysisType] || typePrompts.summary}\n\nTexte a analyser:\n${text}`;
   const cacheKey = buildAiCacheKey({
     route: "/commandant/analyze-text",
     organisationId: orgId,
     userId,
-    input: { analysisType: analysisType || "summary", text },
+    input: { analysisType: analysisType || "summary", text, learned: fingerprintLearned(learnedBlock) },
   });
 
   const stream = openSseStream(res);
@@ -1550,6 +1555,7 @@ router.post("/commandant/execute-command", async (req: Request, res: Response): 
 
     const agentInsights = await getLatestAgentInsights(orgId);
     const agentSummary = Object.entries(agentInsights).map(([id, i]) => `${id}: score ${i.score}/100`).join(", ");
+    const learnedBlock = await buildLearnedContextBlock(orgId);
 
     const systemPrompt = `Tu es le Commandant IA d'Agent de Bureau. Tu recois des commandes en langage naturel et tu dois les interpreter pour fournir une reponse actionnable.
 
@@ -1577,7 +1583,7 @@ Reponds en JSON:
   "data": {},
   "suggestedFollowUps": ["commandes de suivi suggerees"],
   "confidence": 0-100
-}`;
+}${learnedBlock}`;
 
     const aiResponse = await multiAiGenerate(`Commande utilisateur: "${command}"`, systemPrompt, orgId, req.path);
     let parsed: any;
@@ -1635,6 +1641,7 @@ router.post("/commandant/execute-command/stream", async (req: Request, res: Resp
 
     const agentInsights = await getLatestAgentInsights(orgId);
     const agentSummary = Object.entries(agentInsights).map(([id, i]) => `${id}: score ${i.score}/100`).join(", ");
+    const learnedBlock = await buildLearnedContextBlock(orgId);
 
     const systemPrompt = `Tu es le Commandant IA d'Agent de Bureau. Tu recois des commandes en langage naturel et tu dois les interpreter pour fournir une reponse actionnable.
 
@@ -1662,13 +1669,13 @@ Reponds en JSON:
   "data": {},
   "suggestedFollowUps": ["commandes de suivi suggerees"],
   "confidence": 0-100
-}`;
+}${learnedBlock}`;
 
     const cacheKey = buildAiCacheKey({
       route: "/commandant/execute-command",
       organisationId: orgId,
       userId,
-      input: { command, ctx: context },
+      input: { command, ctx: context, learned: fingerprintLearned(learnedBlock) },
     });
     const cached = getCached<string>(cacheKey);
     if (cached) {
@@ -1769,7 +1776,8 @@ router.get("/commandant/weekly-digest", async (req: Request, res: Response): Pro
       evenements: { tenus: eventsHeld },
     };
 
-    const systemPrompt = `Tu es le Commandant IA d'Agent de Bureau. Genere un digest hebdomadaire complet pour le dirigeant. Sois strategique, concret et utilise les chiffres. Francais uniquement.`;
+    const learnedBlock = await buildLearnedContextBlock(orgId);
+    const systemPrompt = `Tu es le Commandant IA d'Agent de Bureau. Genere un digest hebdomadaire complet pour le dirigeant. Sois strategique, concret et utilise les chiffres. Francais uniquement.${learnedBlock}`;
     const prompt = `Genere le digest hebdomadaire (${weekAgo.toLocaleDateString("fr-FR")} au ${now.toLocaleDateString("fr-FR")}):
 
 DONNEES DE LA SEMAINE:
@@ -1875,11 +1883,12 @@ router.post("/commandant/weekly-digest/stream", async (req: Request, res: Respon
 
     // Bucket cache key by ISO day so repeated views within a day reuse the same digest.
     const dayBucket = now.toISOString().slice(0, 10);
+    const learnedBlock = await buildLearnedContextBlock(orgId);
     const cacheKey = buildAiCacheKey({
       route: "/commandant/weekly-digest",
       organisationId: orgId,
       userId,
-      input: { day: dayBucket, weekData, agentScores, crossIssues: crossIssues.length },
+      input: { day: dayBucket, weekData, agentScores, crossIssues: crossIssues.length, learned: fingerprintLearned(learnedBlock) },
     });
     const cached = getCached<string>(cacheKey);
     if (cached) {
@@ -1895,7 +1904,7 @@ router.post("/commandant/weekly-digest/stream", async (req: Request, res: Respon
       return;
     }
 
-    const systemPrompt = `Tu es le Commandant IA d'Agent de Bureau. Genere un digest hebdomadaire complet pour le dirigeant. Sois strategique, concret et utilise les chiffres. Francais uniquement.`;
+    const systemPrompt = `Tu es le Commandant IA d'Agent de Bureau. Genere un digest hebdomadaire complet pour le dirigeant. Sois strategique, concret et utilise les chiffres. Francais uniquement.${learnedBlock}`;
     const prompt = `Genere le digest hebdomadaire (${weekAgo.toLocaleDateString("fr-FR")} au ${now.toLocaleDateString("fr-FR")}):
 
 DONNEES DE LA SEMAINE:
