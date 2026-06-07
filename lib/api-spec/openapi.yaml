@@ -2717,6 +2717,34 @@ components:
           $ref: "#/components/schemas/WhatsAppNotificationFlags"
         quietHours:
           $ref: "#/components/schemas/QuietHoursPrefs"
+        mutedBadges:
+          $ref: "#/components/schemas/BadgeMuteFlags"
+
+    BadgeMuteFlags:
+      type: object
+      description: Per-section mute for sidebar "new-item" badges. When a flag is true, that section's badge is hidden while live counters for the other sections keep working. Independent per section; defaults to false (not muted).
+      properties:
+        rappel:
+          type: boolean
+          description: Mute the "Rappels" badge.
+        call:
+          type: boolean
+          description: Mute the "Appels" badge.
+        message:
+          type: boolean
+          description: Mute the "Messages" badge.
+        prospect:
+          type: boolean
+          description: Mute the "Prospects" badge (super-admin only).
+        task:
+          type: boolean
+          description: Mute the "Tâches" badge.
+        note:
+          type: boolean
+          description: Mute the "Notes internes" badge.
+        agentQueue:
+          type: boolean
+          description: Mute the "File d'approbation" badge.
 
     QuietHoursPrefs:
       type: object

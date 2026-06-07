@@ -1110,6 +1110,32 @@ export const GetMyPreferencesResponse = zod.object({
     .describe(
       'Quiet hours (\"heures silencieuses\"). During this window, outbound push notifications (WhatsApp) are suppressed for the user. Other channels (in-app, email) are unaffected.',
     ),
+  mutedBadges: zod
+    .object({
+      rappel: zod.boolean().optional().describe('Mute the \"Rappels\" badge.'),
+      call: zod.boolean().optional().describe('Mute the \"Appels\" badge.'),
+      message: zod
+        .boolean()
+        .optional()
+        .describe('Mute the \"Messages\" badge.'),
+      prospect: zod
+        .boolean()
+        .optional()
+        .describe('Mute the \"Prospects\" badge (super-admin only).'),
+      task: zod.boolean().optional().describe('Mute the \"Tâches\" badge.'),
+      note: zod
+        .boolean()
+        .optional()
+        .describe('Mute the \"Notes internes\" badge.'),
+      agentQueue: zod
+        .boolean()
+        .optional()
+        .describe('Mute the \"File d\'approbation\" badge.'),
+    })
+    .optional()
+    .describe(
+      'Per-section mute for sidebar \"new-item\" badges. When a flag is true, that section\'s badge is hidden while live counters for the other sections keep working. Independent per section; defaults to false (not muted).',
+    ),
 });
 
 /**
@@ -1243,6 +1269,32 @@ export const UpdateMyPreferencesBody = zod.object({
     .describe(
       'Quiet hours (\"heures silencieuses\"). During this window, outbound push notifications (WhatsApp) are suppressed for the user. Other channels (in-app, email) are unaffected.',
     ),
+  mutedBadges: zod
+    .object({
+      rappel: zod.boolean().optional().describe('Mute the \"Rappels\" badge.'),
+      call: zod.boolean().optional().describe('Mute the \"Appels\" badge.'),
+      message: zod
+        .boolean()
+        .optional()
+        .describe('Mute the \"Messages\" badge.'),
+      prospect: zod
+        .boolean()
+        .optional()
+        .describe('Mute the \"Prospects\" badge (super-admin only).'),
+      task: zod.boolean().optional().describe('Mute the \"Tâches\" badge.'),
+      note: zod
+        .boolean()
+        .optional()
+        .describe('Mute the \"Notes internes\" badge.'),
+      agentQueue: zod
+        .boolean()
+        .optional()
+        .describe('Mute the \"File d\'approbation\" badge.'),
+    })
+    .optional()
+    .describe(
+      'Per-section mute for sidebar \"new-item\" badges. When a flag is true, that section\'s badge is hidden while live counters for the other sections keep working. Independent per section; defaults to false (not muted).',
+    ),
 });
 
 export const updateMyPreferencesResponseQuietHoursDaysItemMin = 0;
@@ -1372,6 +1424,32 @@ export const UpdateMyPreferencesResponse = zod.object({
     .optional()
     .describe(
       'Quiet hours (\"heures silencieuses\"). During this window, outbound push notifications (WhatsApp) are suppressed for the user. Other channels (in-app, email) are unaffected.',
+    ),
+  mutedBadges: zod
+    .object({
+      rappel: zod.boolean().optional().describe('Mute the \"Rappels\" badge.'),
+      call: zod.boolean().optional().describe('Mute the \"Appels\" badge.'),
+      message: zod
+        .boolean()
+        .optional()
+        .describe('Mute the \"Messages\" badge.'),
+      prospect: zod
+        .boolean()
+        .optional()
+        .describe('Mute the \"Prospects\" badge (super-admin only).'),
+      task: zod.boolean().optional().describe('Mute the \"Tâches\" badge.'),
+      note: zod
+        .boolean()
+        .optional()
+        .describe('Mute the \"Notes internes\" badge.'),
+      agentQueue: zod
+        .boolean()
+        .optional()
+        .describe('Mute the \"File d\'approbation\" badge.'),
+    })
+    .optional()
+    .describe(
+      'Per-section mute for sidebar \"new-item\" badges. When a flag is true, that section\'s badge is hidden while live counters for the other sections keep working. Independent per section; defaults to false (not muted).',
     ),
 });
 

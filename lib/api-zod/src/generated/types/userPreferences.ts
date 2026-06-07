@@ -5,6 +5,7 @@
  * Bureau Agent API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { BadgeMuteFlags } from "./badgeMuteFlags";
 import type { InlineSuggestFieldFlags } from "./inlineSuggestFieldFlags";
 import type { QuietHoursPrefs } from "./quietHoursPrefs";
 import type { WhatsAppNotificationFlags } from "./whatsAppNotificationFlags";
@@ -17,4 +18,5 @@ export interface UserPreferences {
   inlineSuggestFields?: InlineSuggestFieldFlags;
   whatsappNotifications?: WhatsAppNotificationFlags;
   quietHours?: QuietHoursPrefs;
+  mutedBadges?: BadgeMuteFlags;
 }

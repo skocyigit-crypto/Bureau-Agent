@@ -38,12 +38,28 @@ export interface QuietHoursPrefs {
   timezone?: string;
 }
 
+/**
+ * Sourdine par section des badges "nouveautes" de la sidebar. Quand un
+ * indicateur est mis en sourdine (true), son badge n'apparait plus, mais les
+ * compteurs des autres sections restent actifs.
+ */
+export interface BadgeMuteFlags {
+  rappel?: boolean;
+  call?: boolean;
+  message?: boolean;
+  prospect?: boolean;
+  task?: boolean;
+  note?: boolean;
+  agentQueue?: boolean;
+}
+
 export interface UserPreferences {
   inlineSuggestEnabled?: boolean;
   inlineSuggestLanguage?: string;
   inlineSuggestFields?: InlineSuggestFieldFlags;
   whatsappNotifications?: WhatsAppNotificationFlags;
   quietHours?: QuietHoursPrefs;
+  mutedBadges?: BadgeMuteFlags;
 }
 
 export const usersTable = pgTable("users", {

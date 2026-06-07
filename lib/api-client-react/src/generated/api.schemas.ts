@@ -184,6 +184,26 @@ export interface QuietHoursPrefs {
   timezone?: string;
 }
 
+/**
+ * Per-section mute for sidebar "new-item" badges. When a flag is true, that section's badge is hidden while live counters for the other sections keep working. Independent per section; defaults to false (not muted).
+ */
+export interface BadgeMuteFlags {
+  /** Mute the "Rappels" badge. */
+  rappel?: boolean;
+  /** Mute the "Appels" badge. */
+  call?: boolean;
+  /** Mute the "Messages" badge. */
+  message?: boolean;
+  /** Mute the "Prospects" badge (super-admin only). */
+  prospect?: boolean;
+  /** Mute the "Tâches" badge. */
+  task?: boolean;
+  /** Mute the "Notes internes" badge. */
+  note?: boolean;
+  /** Mute the "File d'approbation" badge. */
+  agentQueue?: boolean;
+}
+
 export interface UserPreferences {
   /** Master switch for inline ghost-text AI suggestions. When true, suggestions are shown while typing in any field type covered by `inlineSuggestFields` (notes, prospect notes, email bodies, call notes, task descriptions, message bodies, project descriptions, project notes, quote and invoice comments). */
   inlineSuggestEnabled?: boolean;
@@ -192,6 +212,7 @@ export interface UserPreferences {
   inlineSuggestFields?: InlineSuggestFieldFlags;
   whatsappNotifications?: WhatsAppNotificationFlags;
   quietHours?: QuietHoursPrefs;
+  mutedBadges?: BadgeMuteFlags;
 }
 
 export type WhatsappConversationStatus =

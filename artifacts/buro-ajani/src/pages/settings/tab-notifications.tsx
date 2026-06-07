@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Bell, Save, MessageCircle, Moon } from "lucide-react";
+import { Bell, Save, MessageCircle, Moon, BellOff } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ import {
   getGetMyPreferencesQueryKey,
   type WhatsAppNotificationFlags,
   type QuietHoursPrefs,
+  type BadgeMuteFlags,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -64,6 +65,7 @@ export function TabNotifications() {
     <div className="space-y-6">
       <WhatsAppNotificationsCard />
       <QuietHoursCard />
+      <BadgeMuteCard />
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
@@ -503,6 +505,132 @@ function QuietHoursCard() {
             </div>
           </>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Section Badges : sourdine par section des compteurs "nouveautes" de la
+// sidebar (Tâche #76). Sauvegarde cote serveur (user_preferences.mutedBadges).
+// Mettre une section en sourdine masque son badge sans toucher aux compteurs
+// des autres sections.
+// ---------------------------------------------------------------------------
+
+const BADGE_SECTIONS: { key: keyof BadgeMuteFlags; label: string; desc: string }[] = [
+  { key: "rappel", label: "Rappels", desc: "Badge des rappels du calendrier" },
+  { key: "call", label: "Appels", desc: "Badge des appels manques / messagerie" },
+  { key: "message", label: "Messages", desc: "Badge des nouveaux messages internes" },
+  { key: "task", label: "Taches", desc: "Badge des nouvelles taches assignees" },
+  { key: "note", label: "Notes internes", desc: "Badge des nouvelles notes internes" },
+  { key: "prospect", label: "Prospects", desc: "Badge des nouveaux prospects (super-admin)" },
+  { key: "agentQueue", label: "File d'approbation", desc: "Badge des propositions de l'agent en attente" },
+];
+
+const BADGE_MUTE_DEFAULTS: Required<BadgeMuteFlags> = {
+  rappel: false,
+  call: false,
+  message: false,
+  task: false,
+  note: false,
+  prospect: false,
+  agentQueue: false,
+};
+
+function BadgeMuteCard() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const prefsQuery = useGetMyPreferences({
+    query: {
+      queryKey: getGetMyPreferencesQueryKey(),
+      retry: false,
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+    },
+  });
+  const updateMutation = useUpdateMyPreferences();
+
+  const serverFlags = useMemo<Required<BadgeMuteFlags>>(() => {
+    const mb = (prefsQuery.data as any)?.mutedBadges as BadgeMuteFlags | undefined;
+    return { ...BADGE_MUTE_DEFAULTS, ...(mb ?? {}) };
+  }, [prefsQuery.data]);
+
+  const [draft, setDraft] = useState<Required<BadgeMuteFlags>>(BADGE_MUTE_DEFAULTS);
+  const [hydrated, setHydrated] = useState(false);
+
+  const dirty = useMemo(() => {
+    return (Object.keys(draft) as Array<keyof BadgeMuteFlags>).some((k) => draft[k] !== serverFlags[k]);
+  }, [draft, serverFlags]);
+
+  useEffect(() => {
+    if (!prefsQuery.isSuccess) return;
+    if (!hydrated) {
+      setDraft(serverFlags);
+      setHydrated(true);
+    } else if (!dirty) {
+      setDraft(serverFlags);
+    }
+  }, [prefsQuery.isSuccess, serverFlags, hydrated, dirty]);
+
+  const update = (key: keyof BadgeMuteFlags, value: boolean) => {
+    setDraft((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSave = async () => {
+    try {
+      await updateMutation.mutateAsync({ data: { mutedBadges: draft } as any });
+      await qc.invalidateQueries({ queryKey: getGetMyPreferencesQueryKey() });
+      toast({ title: "Sourdine des badges enregistree" });
+    } catch (err: any) {
+      toast({
+        title: "Echec de l'enregistrement",
+        description: err?.message || "Erreur reseau",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const disabled = prefsQuery.isLoading || updateMutation.isPending;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <BellOff className="w-5 h-5 text-amber-500" />
+              Badges de la barre laterale
+            </CardTitle>
+            <CardDescription>
+              Mettez en sourdine le compteur "nouveautes" de certaines sections.
+              Les compteurs des autres sections restent actifs.
+            </CardDescription>
+          </div>
+          {dirty && (
+            <Button size="sm" onClick={handleSave} disabled={disabled} className="gap-2">
+              <Save className="w-4 h-4" /> Enregistrer
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {BADGE_SECTIONS.map((section, idx) => (
+          <div key={section.key}>
+            {idx > 0 && <Separator className="mb-4" />}
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>{section.label}</Label>
+                <p className="text-xs text-muted-foreground">{section.desc}</p>
+              </div>
+              <Switch
+                disabled={disabled}
+                checked={draft[section.key] === true}
+                onCheckedChange={(v) => update(section.key, v)}
+                aria-label={`Mettre en sourdine le badge ${section.label}`}
+              />
+            </div>
+          </div>
+        ))}
       </CardContent>
     </Card>
   );

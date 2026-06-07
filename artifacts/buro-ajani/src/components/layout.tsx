@@ -23,6 +23,7 @@ import { useDeviceEnvContext, triggerHaptic } from "@/hooks/use-device-environme
 import { TrialBanner } from "@/components/trial-banner";
 import { LicenseStatusBanner } from "@/components/license-status-banner";
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
+import { useGetMyPreferences, getGetMyPreferencesQueryKey, type BadgeMuteFlags } from "@workspace/api-client-react";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import { IntegrationDiscovery } from "@/components/integration-discovery";
 import { HelpCenter } from "@/components/help-center";
@@ -74,6 +75,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [orgName, setOrgName] = useState<string | null>(null);
   const isSuperAdmin = user.role === "super_admin";
   useRealtimeSync();
+
+  // Tâche #76: sourdine par section des badges "nouveautes". Mise en sourdine
+  // cote serveur (user_preferences.mutedBadges) -> partagee entre appareils.
+  // Un badge en sourdine est masque, mais les compteurs des autres sections
+  // continuent de tourner normalement.
+  const prefsQuery = useGetMyPreferences({
+    query: {
+      queryKey: getGetMyPreferencesQueryKey(),
+      retry: false,
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+    },
+  });
+  const mutedBadges = useMemo<BadgeMuteFlags>(
+    () => ((prefsQuery.data as any)?.mutedBadges as BadgeMuteFlags | undefined) ?? {},
+    [prefsQuery.data],
+  );
 
   // Map des badges: type d'evenement realtime-sync -> { storageKey, route, gated? }
   // Permet de generaliser le compteur "non lus" pour Prospects, Messages, Taches, etc.
@@ -260,15 +278,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
           ...(canUseAi ? [{ name: "Assistant proactif", href: "/assistant-proactif", icon: Sparkles }] : []),
           ...(canUseAi ? [{ name: "Ce que l'IA a appris", href: "/ia-apprentissage", icon: Brain }] : []),
           { name: "Calendrier", href: "/calendrier", icon: Calendar },
-          { name: "Rappels", href: "/notifications", icon: Bell, badge: badges.rappel },
+          { name: "Rappels", href: "/notifications", icon: Bell, badge: mutedBadges.rappel ? 0 : badges.rappel },
           { name: "Activité récente", href: "/activite-recente", icon: Activity },
         ],
       },
       {
         label: "Communication",
         items: [
-          { name: "Appels", href: "/appels", icon: Phone, badge: badges.call },
-          { name: "Messages", href: "/messages", icon: MessageSquare, badge: badges.message },
+          { name: "Appels", href: "/appels", icon: Phone, badge: mutedBadges.call ? 0 : badges.call },
+          { name: "Messages", href: "/messages", icon: MessageSquare, badge: mutedBadges.message ? 0 : badges.message },
           { name: "WhatsApp clients", href: "/whatsapp", icon: MessageCircle },
           ...(canUseAi ? [{ name: "Agent Mail IA", href: "/gmail-agent", icon: Mail }] : []),
           { name: "Centre de sécurité", href: "/securite", icon: ShieldCheck },
@@ -283,17 +301,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
           // Voir le panneau /admin pour la gestion commerciale (leads, devis,
           // factures B2B, stock de licences). Refactor "Admin Backoffice +
           // Müşteri Sadeleştirme" — Tâche #52.
-          ...(isSuperAdmin ? [{ name: "Prospects", href: "/prospects", icon: Target, badge: badges.prospect }] : []),
+          ...(isSuperAdmin ? [{ name: "Prospects", href: "/prospects", icon: Target, badge: mutedBadges.prospect ? 0 : badges.prospect }] : []),
         ],
       },
       {
         label: "Organisation du travail",
         items: [
-          { name: "Tâches", href: "/taches", icon: CheckSquare, badge: badges.task },
+          { name: "Tâches", href: "/taches", icon: CheckSquare, badge: mutedBadges.task ? 0 : badges.task },
           { name: "Projets", href: "/projets", icon: Puzzle },
           { name: "Trésorerie & Risque", href: "/tresorerie", icon: Wallet },
           ...(canUseAi ? [{ name: "Saisie vocale chantier", href: "/saisie-chantier", icon: HardHat }] : []),
-          { name: "Notes internes", href: "/notes-internes", icon: StickyNote, badge: badges.note },
+          { name: "Notes internes", href: "/notes-internes", icon: StickyNote, badge: mutedBadges.note ? 0 : badges.note },
           { name: "Pointage", href: "/pointage", icon: Clock },
           ...(isAdmin ? [{ name: "Localisation equipe", href: "/equipe/localisation", icon: MapPin }] : []),
         ],
@@ -314,7 +332,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             items: [
               { name: "Équipe IA", href: "/equipe-ia", icon: Brain },
               { name: "Commandant IA", href: "/commandant-ia", icon: Sparkles },
-              { name: "File d'approbation", href: "/file-approbation", icon: Inbox, badge: agentQueueCount },
+              { name: "File d'approbation", href: "/file-approbation", icon: Inbox, badge: mutedBadges.agentQueue ? 0 : agentQueueCount },
               ...(isAdmin ? [{ name: "Auto-audit", href: "/auto-audit", icon: ScanSearch }] : []),
               { name: "Assistant Universel", href: "/asistan", icon: Sparkles },
               { name: "Agents IA", href: "/agents-ia", icon: Brain },
@@ -369,7 +387,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         ],
       },
     ].filter(g => g.items.length > 0);
-  }, [user.role, isSuperAdmin, badges, agentQueueCount]);
+  }, [user.role, isSuperAdmin, badges, agentQueueCount, mutedBadges]);
 
 
   return (

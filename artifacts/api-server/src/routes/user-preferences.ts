@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { eq } from "drizzle-orm";
-import { db, usersTable, type UserPreferences, type InlineSuggestFieldFlags, type WhatsAppNotificationFlags, type QuietHoursPrefs } from "@workspace/db";
+import { db, usersTable, type UserPreferences, type InlineSuggestFieldFlags, type WhatsAppNotificationFlags, type QuietHoursPrefs, type BadgeMuteFlags } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -115,6 +115,44 @@ function normalizeQuietHours(qh: QuietHoursPrefs | null | undefined): Required<Q
   };
 }
 
+const BADGE_MUTE_KEYS: ReadonlyArray<keyof BadgeMuteFlags> = [
+  "rappel",
+  "call",
+  "message",
+  "prospect",
+  "task",
+  "note",
+  "agentQueue",
+];
+
+function parseMutedBadges(value: unknown): BadgeMuteFlags | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== "object") return null;
+  const src = value as Record<string, unknown>;
+  const out: BadgeMuteFlags = {};
+  for (const key of BADGE_MUTE_KEYS) {
+    if (key in src) {
+      const v = src[key];
+      if (typeof v !== "boolean") return null;
+      out[key] = v;
+    }
+  }
+  return out;
+}
+
+function normalizeMutedBadges(flags: BadgeMuteFlags | null | undefined): Required<BadgeMuteFlags> {
+  return {
+    rappel: flags?.rappel ?? false,
+    call: flags?.call ?? false,
+    message: flags?.message ?? false,
+    prospect: flags?.prospect ?? false,
+    task: flags?.task ?? false,
+    note: flags?.note ?? false,
+    agentQueue: flags?.agentQueue ?? false,
+  };
+}
+
 const INLINE_SUGGEST_FIELD_KEYS: ReadonlyArray<keyof InlineSuggestFieldFlags> = [
   "note",
   "prospect_note",
@@ -173,6 +211,11 @@ function parsePreferencesPatch(body: unknown): UserPreferences | null {
     if (parsed === null) return null;
     if (parsed !== undefined) out.quietHours = parsed;
   }
+  if ("mutedBadges" in src) {
+    const parsed = parseMutedBadges(src.mutedBadges);
+    if (parsed === null) return null;
+    if (parsed !== undefined) out.mutedBadges = parsed;
+  }
   return out;
 }
 
@@ -200,6 +243,7 @@ function normalizePreferences(prefs: UserPreferences | null | undefined): UserPr
     inlineSuggestFields: normalizeInlineSuggestFields(prefs?.inlineSuggestFields),
     whatsappNotifications: normalizeWhatsAppNotifications(prefs?.whatsappNotifications),
     quietHours: normalizeQuietHours(prefs?.quietHours),
+    mutedBadges: normalizeMutedBadges(prefs?.mutedBadges),
   };
 }
 
@@ -266,6 +310,12 @@ router.patch("/me/preferences", async (req: Request, res: Response): Promise<voi
       merged.quietHours = {
         ...(existingPrefs.quietHours ?? {}),
         ...parsed.quietHours,
+      };
+    }
+    if (parsed.mutedBadges !== undefined) {
+      merged.mutedBadges = {
+        ...(existingPrefs.mutedBadges ?? {}),
+        ...parsed.mutedBadges,
       };
     }
     await db
