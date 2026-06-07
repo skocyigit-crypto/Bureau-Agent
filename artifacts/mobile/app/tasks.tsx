@@ -71,7 +71,13 @@ const FORM_FIELDS = [
   },
   { key: "dueDate",    label: "Date d'échéance (AAAA-MM-JJ)" },
   { key: "assignedTo", label: "Assigné à" },
-  { key: "description", label: "Description", type: "multiline" as const },
+  {
+    key: "description",
+    label: "Description",
+    type: "multiline" as const,
+    inlineSuggest: "task_description" as const,
+    inlineSuggestTitleKey: "title",
+  },
 ];
 
 function RightAction({ progress }: { progress: Animated.AnimatedInterpolation<number> }) {

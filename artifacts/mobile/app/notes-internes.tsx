@@ -147,7 +147,7 @@ function NoteEditor({ note, onSave, onClose, saving, colors, isDark }: NoteEdito
   const [tags, setTags] = useState(note?.tags?.join(", ") ?? "");
   const cardBg = isDark ? DARK_CARD_COLORS[color] ?? "#1e293b" : COLOR_MAP[color] ?? "#ffffff";
 
-  const { suggestion, clear } = useInlineSuggest({
+  const { suggestion, clear, trackAccepted, trackDismissed } = useInlineSuggest({
     fieldType: "note",
     text: content,
     title: title || null,
@@ -155,8 +155,14 @@ function NoteEditor({ note, onSave, onClose, saving, colors, isDark }: NoteEdito
   const acceptSuggestion = useCallback(() => {
     if (!suggestion) return;
     setContent(prev => prev + suggestion);
+    trackAccepted(suggestion.length);
     clear();
-  }, [suggestion, clear]);
+  }, [suggestion, clear, trackAccepted]);
+  const dismissSuggestion = useCallback(() => {
+    if (!suggestion) return;
+    trackDismissed(suggestion.length);
+    clear();
+  }, [suggestion, clear, trackDismissed]);
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -217,6 +223,9 @@ function NoteEditor({ note, onSave, onClose, saving, colors, isDark }: NoteEdito
                 <Text style={[styles.suggestionBtnText, { color: colors.primary }]}>
                   Ajouter
                 </Text>
+              </Pressable>
+              <Pressable onPress={dismissSuggestion} hitSlop={8} style={styles.suggestionDismiss}>
+                <Feather name="x" size={14} color={colors.mutedForeground} />
               </Pressable>
             </View>
           ) : null}
@@ -514,6 +523,9 @@ const styles = StyleSheet.create({
   suggestionBtnText: {
     fontSize: 11,
     fontFamily: "Inter_600SemiBold",
+  },
+  suggestionDismiss: {
+    padding: 2,
   },
   editorTagsInput: { fontSize: 13, fontFamily: "Inter_400Regular", paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
   colorRow: { flexDirection: "row", gap: 8, marginTop: 12 },

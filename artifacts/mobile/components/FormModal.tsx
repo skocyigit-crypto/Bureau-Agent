@@ -14,6 +14,10 @@ import {
 } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
+import {
+  useInlineSuggest,
+  type InlineSuggestFieldType,
+} from "@/hooks/useInlineSuggest";
 
 interface FieldConfig {
   key: string;
@@ -22,6 +26,16 @@ interface FieldConfig {
   type?: "text" | "email" | "phone" | "multiline" | "select";
   options?: { value: string; label: string }[];
   required?: boolean;
+  /**
+   * When set, this field receives debounced AI ghost-text suggestions
+   * (respecting the user's inline-suggest preference) using the given
+   * inline-suggest field type.
+   */
+  inlineSuggest?: InlineSuggestFieldType;
+  /** Optional key in `values` whose content is forwarded as the suggestion title/subject. */
+  inlineSuggestTitleKey?: string;
+  /** Optional key in `values` whose content is forwarded as the suggestion contact name. */
+  inlineSuggestContactKey?: string;
 }
 
 interface FormModalProps {
@@ -73,76 +87,12 @@ export function FormModal({
             showsVerticalScrollIndicator={false}
           >
             {fields.map((field) => (
-              <View key={field.key} style={styles.fieldGroup}>
-                <Text style={[styles.label, { color: colors.mutedForeground }]}>
-                  {field.label}
-                  {field.required ? " *" : ""}
-                </Text>
-                {field.type === "select" ? (
-                  <View style={styles.selectRow}>
-                    {field.options?.map((opt) => (
-                      <Pressable
-                        key={opt.value}
-                        onPress={() => onChange(field.key, opt.value)}
-                        style={[
-                          styles.selectChip,
-                          {
-                            backgroundColor:
-                              values[field.key] === opt.value
-                                ? colors.primary
-                                : colors.muted,
-                            borderColor:
-                              values[field.key] === opt.value
-                                ? colors.primary
-                                : colors.border,
-                          },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.selectText,
-                            {
-                              color:
-                                values[field.key] === opt.value
-                                  ? colors.primaryForeground
-                                  : colors.foreground,
-                            },
-                          ]}
-                        >
-                          {opt.label}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                ) : (
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: colors.muted,
-                        borderColor: colors.border,
-                        color: colors.foreground,
-                      },
-                      field.type === "multiline" && styles.multilineInput,
-                    ]}
-                    placeholder={field.placeholder || field.label}
-                    placeholderTextColor={colors.mutedForeground}
-                    value={values[field.key] || ""}
-                    onChangeText={(v) => onChange(field.key, v)}
-                    keyboardType={
-                      field.type === "email"
-                        ? "email-address"
-                        : field.type === "phone"
-                        ? "phone-pad"
-                        : "default"
-                    }
-                    autoCapitalize={field.type === "email" ? "none" : "sentences"}
-                    multiline={field.type === "multiline"}
-                    numberOfLines={field.type === "multiline" ? 4 : 1}
-                    textAlignVertical={field.type === "multiline" ? "top" : "center"}
-                  />
-                )}
-              </View>
+              <FormField
+                key={field.key}
+                field={field}
+                values={values}
+                onChange={onChange}
+              />
             ))}
           </ScrollView>
 
@@ -179,6 +129,134 @@ export function FormModal({
         </View>
       </KeyboardAvoidingView>
     </Modal>
+  );
+}
+
+interface FormFieldProps {
+  field: FieldConfig;
+  values: Record<string, string>;
+  onChange: (key: string, value: string) => void;
+}
+
+function FormField({ field, values, onChange }: FormFieldProps) {
+  const colors = useColors();
+  const value = values[field.key] || "";
+  const titleVal = field.inlineSuggestTitleKey ? values[field.inlineSuggestTitleKey] : null;
+  const contactVal = field.inlineSuggestContactKey ? values[field.inlineSuggestContactKey] : null;
+
+  const { suggestion, clear, trackAccepted, trackDismissed } = useInlineSuggest({
+    fieldType: field.inlineSuggest ?? "note",
+    text: value,
+    title: titleVal || null,
+    contactName: contactVal || null,
+    enabled: !!field.inlineSuggest,
+  });
+
+  const acceptSuggestion = () => {
+    if (!suggestion) return;
+    onChange(field.key, value + suggestion);
+    trackAccepted(suggestion.length);
+    clear();
+  };
+
+  const dismissSuggestion = () => {
+    if (!suggestion) return;
+    trackDismissed(suggestion.length);
+    clear();
+  };
+
+  return (
+    <View style={styles.fieldGroup}>
+      <Text style={[styles.label, { color: colors.mutedForeground }]}>
+        {field.label}
+        {field.required ? " *" : ""}
+      </Text>
+      {field.type === "select" ? (
+        <View style={styles.selectRow}>
+          {field.options?.map((opt) => (
+            <Pressable
+              key={opt.value}
+              onPress={() => onChange(field.key, opt.value)}
+              style={[
+                styles.selectChip,
+                {
+                  backgroundColor:
+                    value === opt.value ? colors.primary : colors.muted,
+                  borderColor:
+                    value === opt.value ? colors.primary : colors.border,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.selectText,
+                  {
+                    color:
+                      value === opt.value
+                        ? colors.primaryForeground
+                        : colors.foreground,
+                  },
+                ]}
+              >
+                {opt.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : (
+        <>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.muted,
+                borderColor: colors.border,
+                color: colors.foreground,
+              },
+              field.type === "multiline" && styles.multilineInput,
+            ]}
+            placeholder={field.placeholder || field.label}
+            placeholderTextColor={colors.mutedForeground}
+            value={value}
+            onChangeText={(v) => onChange(field.key, v)}
+            keyboardType={
+              field.type === "email"
+                ? "email-address"
+                : field.type === "phone"
+                ? "phone-pad"
+                : "default"
+            }
+            autoCapitalize={field.type === "email" ? "none" : "sentences"}
+            multiline={field.type === "multiline"}
+            numberOfLines={field.type === "multiline" ? 4 : 1}
+            textAlignVertical={field.type === "multiline" ? "top" : "center"}
+          />
+          {field.inlineSuggest && suggestion ? (
+            <View style={[styles.suggestionRow, { borderColor: colors.border, backgroundColor: colors.muted }]}>
+              <Feather name="zap" size={12} color={colors.primary} />
+              <Text
+                style={[styles.suggestionText, { color: colors.mutedForeground }]}
+                numberOfLines={3}
+              >
+                {suggestion}
+              </Text>
+              <Pressable
+                onPress={acceptSuggestion}
+                style={[styles.suggestionBtn, { borderColor: colors.primary }]}
+                hitSlop={6}
+              >
+                <Text style={[styles.suggestionBtnText, { color: colors.primary }]}>
+                  Ajouter
+                </Text>
+              </Pressable>
+              <Pressable onPress={dismissSuggestion} hitSlop={8} style={styles.suggestionDismiss}>
+                <Feather name="x" size={14} color={colors.mutedForeground} />
+              </Pressable>
+            </View>
+          ) : null}
+        </>
+      )}
+    </View>
   );
 }
 
@@ -230,6 +308,35 @@ const styles = StyleSheet.create({
   multilineInput: {
     height: 100,
     paddingTop: 14,
+  },
+  suggestionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderRadius: 10,
+  },
+  suggestionText: {
+    flex: 1,
+    fontSize: 13,
+    fontStyle: "italic",
+    fontFamily: "Inter_400Regular",
+  },
+  suggestionBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  suggestionBtnText: {
+    fontSize: 12,
+    fontFamily: "Inter_600SemiBold",
+  },
+  suggestionDismiss: {
+    padding: 2,
   },
   selectRow: {
     flexDirection: "row",

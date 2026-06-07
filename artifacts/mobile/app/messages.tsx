@@ -66,7 +66,14 @@ const FORM_FIELDS = [
       { value: "haute", label: "Haute" },
     ],
   },
-  { key: "content", label: "Contenu", type: "multiline" as const, required: true },
+  {
+    key: "content",
+    label: "Contenu",
+    type: "multiline" as const,
+    required: true,
+    inlineSuggest: "message_content" as const,
+    inlineSuggestContactKey: "contactName",
+  },
 ];
 
 export default function MessagesScreen() {

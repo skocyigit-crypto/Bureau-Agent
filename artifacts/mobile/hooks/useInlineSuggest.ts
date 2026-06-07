@@ -204,10 +204,41 @@ interface UseInlineSuggestOptions {
 const DEBOUNCE_MS = 500;
 const MIN_CHARS = 8;
 
+type FetchAuth = (url: string, options?: RequestInit) => Promise<Response>;
+
+/**
+ * Best-effort reporting of inline-suggest analytics events
+ * (shown / accepted / dismissed) to /api/ai/inline-suggest/event.
+ * Fails silently so the ghost-text UX is never disrupted.
+ */
+function fireInlineSuggestEvent(
+  fetchAuth: FetchAuth,
+  fieldType: InlineSuggestFieldType,
+  event: "shown" | "accepted" | "dismissed",
+  length: number,
+): void {
+  try {
+    void fetchAuth(`${API_BASE}/api/ai/inline-suggest/event`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fieldType,
+        event,
+        length: Math.max(0, Math.floor(length || 0)),
+      }),
+    }).catch(() => {});
+  } catch {
+    /* ignore */
+  }
+}
+
 /**
  * Issues debounced inline-suggest requests against /api/ai/inline-suggest,
  * forwarding the user's saved language preference. Suggestions are
- * surfaced to the caller as `suggestion`.
+ * surfaced to the caller as `suggestion`. Acceptance and dismissal can be
+ * reported via `trackAccepted` / `trackDismissed`; "shown" events are
+ * emitted automatically when a suggestion appears so analytics stay in
+ * sync with the web app.
  */
 export function useInlineSuggest(opts: UseInlineSuggestOptions) {
   const { fieldType, text, title, contactName, enabled = true } = opts;
@@ -256,6 +287,7 @@ export function useInlineSuggest(opts: UseInlineSuggestOptions) {
         const s = (data?.suggestion ?? "").toString();
         lastReqTextRef.current = text;
         setSuggestion(s);
+        if (s) fireInlineSuggestEvent(fetchAuth, fieldType, "shown", s.length);
       } catch {
         if (myReqId !== reqIdRef.current) return;
         setSuggestion("");
@@ -272,5 +304,15 @@ export function useInlineSuggest(opts: UseInlineSuggestOptions) {
     setSuggestion("");
   }, [text]);
 
-  return { suggestion, clear, language };
+  const trackAccepted = useCallback(
+    (length: number) => fireInlineSuggestEvent(fetchAuth, fieldType, "accepted", length),
+    [fetchAuth, fieldType],
+  );
+
+  const trackDismissed = useCallback(
+    (length: number) => fireInlineSuggestEvent(fetchAuth, fieldType, "dismissed", length),
+    [fetchAuth, fieldType],
+  );
+
+  return { suggestion, clear, trackAccepted, trackDismissed, language };
 }
