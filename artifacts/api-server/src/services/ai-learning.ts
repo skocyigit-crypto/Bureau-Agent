@@ -625,7 +625,18 @@ export async function recomputeAllUserProfiles(orgId: number): Promise<number> {
 // --- Lecture: profil pour l'UI "Ce que l'IA a appris" ----------------------
 
 export interface LearningProfile {
-  preferences: Array<{ kind: string; key: string; upCount: number; downCount: number; score: number; updatedAt: string }>;
+  preferences: Array<{
+    kind: string;
+    key: string;
+    upCount: number;
+    downCount: number;
+    score: number;
+    updatedAt: string;
+    /** `suggestion_type` actuellement mis en sourdine (le moteur n'en produit plus). */
+    suppressed: boolean;
+    /** Le dirigeant a explicitement réactivé ce type malgré ses 👎. */
+    suppressionOverridden: boolean;
+  }>;
   patterns: Array<{ patternType: string; label: string; value: string; occurrences: number; lastSeenAt: string | null }>;
   /** Propositions récemment refusées par le dirigeant — corrections concrètes. */
   corrections: Array<{ title: string; category: string; note: string | null; decidedAt: string | null }>;
@@ -659,14 +670,24 @@ export async function getLearningProfile(orgId: number): Promise<LearningProfile
       .limit(RECENT_REJECTIONS),
   ]);
   return {
-    preferences: prefs.map((p) => ({
-      kind: p.kind,
-      key: p.key,
-      upCount: p.upCount,
-      downCount: p.downCount,
-      score: p.score,
-      updatedAt: p.updatedAt.toISOString(),
-    })),
+    preferences: prefs.map((p) => {
+      const overridden = p.suppressionOverridden !== 0;
+      const suppressed =
+        p.kind === "suggestion_type" &&
+        !overridden &&
+        p.score < SUPPRESS_SCORE_MAX &&
+        p.downCount >= SUPPRESS_MIN_DOWN;
+      return {
+        kind: p.kind,
+        key: p.key,
+        upCount: p.upCount,
+        downCount: p.downCount,
+        score: p.score,
+        updatedAt: p.updatedAt.toISOString(),
+        suppressed,
+        suppressionOverridden: overridden,
+      };
+    }),
     patterns: pats.map((p) => ({
       patternType: p.patternType,
       label: p.label,
@@ -997,6 +1018,9 @@ export async function getSuppressedSuggestionTypes(
           eq(aiLearnedPreferencesTable.kind, "suggestion_type"),
           lt(aiLearnedPreferencesTable.score, SUPPRESS_SCORE_MAX),
           gte(aiLearnedPreferencesTable.downCount, SUPPRESS_MIN_DOWN),
+          // Le dirigeant peut RÉACTIVER explicitement un type: on ne le supprime
+          // plus, même si l'historique de votes reste très négatif.
+          eq(aiLearnedPreferencesTable.suppressionOverridden, 0),
         ),
       );
     const types = new Set(rows.map((r) => r.key));
@@ -1006,6 +1030,29 @@ export async function getSuppressedSuggestionTypes(
     logger.warn({ err, orgId }, "[ai-learning] getSuppressedSuggestionTypes failed (fail-soft)");
     return new Set();
   }
+}
+
+// Réactive (« réaffiche ») un type de suggestion mis en sourdine: pose le drapeau
+// `suppressionOverridden`. Durable car le recalcul quotidien (upsertPreference) ne
+// touche QUE up/down/score/updatedAt — le drapeau survit malgré l'historique de
+// 👎. Invalide le cache de suppression pour un effet immédiat. Renvoie true si une
+// ligne a bien été mise à jour (type connu et précédemment appris).
+export async function reactivateSuggestionType(orgId: number, type: string): Promise<boolean> {
+  const key = (type ?? "").trim();
+  if (!orgId || !Number.isFinite(orgId) || !key) return false;
+  const updated = await db
+    .update(aiLearnedPreferencesTable)
+    .set({ suppressionOverridden: 1, updatedAt: new Date() })
+    .where(
+      and(
+        eq(aiLearnedPreferencesTable.organisationId, orgId),
+        eq(aiLearnedPreferencesTable.kind, "suggestion_type"),
+        eq(aiLearnedPreferencesTable.key, key),
+      ),
+    )
+    .returning({ id: aiLearnedPreferencesTable.id });
+  invalidateContextCache(orgId);
+  return updated.length > 0;
 }
 
 // --- Cron quotidien --------------------------------------------------------

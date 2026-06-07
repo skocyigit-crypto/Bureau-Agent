@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Brain, RefreshCw, Loader2, ThumbsUp, ThumbsDown, Phone, Clock,
   ListChecks, Lightbulb, Inbox, TrendingUp, TrendingDown, XCircle,
-  User, Users, PenLine,
+  User, Users, PenLine, BellOff, Bell,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,8 @@ interface Preference {
   downCount: number;
   score: number;
   updatedAt: string;
+  suppressed?: boolean;
+  suppressionOverridden?: boolean;
 }
 interface Pattern {
   patternType: string;
@@ -117,6 +119,7 @@ export default function IaApprentissagePage() {
   const [profile, setProfile] = useState<Profile>({ preferences: [], patterns: [], corrections: [] });
   const [loading, setLoading] = useState(true);
   const [recomputing, setRecomputing] = useState(false);
+  const [reactivating, setReactivating] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -153,6 +156,35 @@ export default function IaApprentissagePage() {
       toast({ title: "Erreur", description: "Le recalcul a échoué.", variant: "destructive" });
     } finally {
       setRecomputing(false);
+    }
+  };
+
+  const reactivate = async (type: string) => {
+    setReactivating(type);
+    try {
+      const res = await fetch(`${LEARNING_API}/reactivate-suggestion-type`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 403) {
+        toast({ title: "Accès refusé", description: "Réservé aux dirigeants.", variant: "destructive" });
+      } else if (!res.ok) {
+        throw new Error("reactivate");
+      } else {
+        setProfile({
+          preferences: data.profile?.preferences ?? [],
+          patterns: data.profile?.patterns ?? [],
+          corrections: data.profile?.corrections ?? [],
+        });
+        toast({ title: "Suggestions réactivées", description: "L'IA proposera de nouveau ce type de suggestion." });
+      }
+    } catch {
+      toast({ title: "Erreur", description: "La réactivation a échoué.", variant: "destructive" });
+    } finally {
+      setReactivating(null);
     }
   };
 
@@ -231,7 +263,13 @@ export default function IaApprentissagePage() {
   const viewingSelf = selectedUserId === user.id;
 
   const liked = profile.preferences.filter((p) => p.score >= 0.34 && p.upCount + p.downCount >= 1);
-  const disliked = profile.preferences.filter((p) => p.score <= -0.34 && p.upCount + p.downCount >= 1);
+  // Types actuellement mis en sourdine (le moteur n'en produit plus) — affichés
+  // à part avec une action « Réafficher ». On les exclut de la liste « moins
+  // appréciées » pour éviter le doublon.
+  const muted = profile.preferences.filter((p) => p.suppressed);
+  const disliked = profile.preferences.filter(
+    (p) => p.score <= -0.34 && p.upCount + p.downCount >= 1 && !p.suppressed,
+  );
   const callers = profile.patterns.filter((p) => p.patternType === "frequent_caller");
   const hours = profile.patterns.filter((p) => p.patternType === "busy_hour");
   const themes = profile.patterns.filter((p) => p.patternType === "task_theme");
@@ -356,6 +394,55 @@ export default function IaApprentissagePage() {
               )}
             </CardContent>
           </Card>
+
+          {muted.length > 0 && (
+            <Card className="md:col-span-2 border-amber-200 dark:border-amber-900/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <BellOff className="h-4 w-4 text-amber-600" /> Suggestions mises en sourdine
+                </CardTitle>
+                <CardDescription>
+                  Après plusieurs 👎, l'assistant proactif a cessé de proposer ces types de suggestions.
+                  Les alertes urgentes restent toujours affichées.
+                  {isManager
+                    ? " Cliquez sur « Réafficher » pour les réactiver."
+                    : " Un dirigeant peut les réactiver."}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {muted.map((p) => (
+                  <div
+                    key={`muted-${p.kind}-${p.key}`}
+                    className="flex items-center justify-between gap-3 border-b last:border-0 pb-3 last:pb-0"
+                  >
+                    <span className="text-sm flex items-center gap-2 min-w-0">
+                      <BellOff className="h-4 w-4 text-amber-600 shrink-0" />
+                      <span className="truncate">{prefLabel(p)}</span>
+                      <Badge className="bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 shrink-0">
+                        {p.downCount} 👎
+                      </Badge>
+                    </span>
+                    {isManager && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0"
+                        onClick={() => reactivate(p.key)}
+                        disabled={reactivating === p.key}
+                      >
+                        {reactivating === p.key ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Bell className="h-4 w-4 mr-2" />
+                        )}
+                        Réafficher
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           {corrections.length > 0 && (
             <Card className="md:col-span-2">

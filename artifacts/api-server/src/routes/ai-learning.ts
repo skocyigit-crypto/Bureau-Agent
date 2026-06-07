@@ -8,6 +8,7 @@ import {
   getUserLearningProfile,
   recomputeUserProfile,
   listLearnableUsers,
+  reactivateSuggestionType,
 } from "../services/ai-learning";
 import { logger } from "../lib/logger";
 
@@ -76,6 +77,37 @@ router.get("/ai-learning/user-profile", async (req: Request, res: Response): Pro
     res.status(500).json({ error: "Erreur lors du chargement du profil personnel." });
   }
 });
+
+// POST /ai-learning/reactivate-suggestion-type — « réafficher » un type mis en
+// sourdine. Réservé aux dirigeants (réglage org-wide du comportement proactif).
+router.post(
+  "/ai-learning/reactivate-suggestion-type",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      if (!isManager(req)) {
+        res.status(403).json({ error: "Réservé aux dirigeants." });
+        return;
+      }
+      const orgId = getOrgId(req);
+      const rawType = req.body?.type;
+      const type = typeof rawType === "string" ? rawType.trim() : "";
+      if (!type) {
+        res.status(400).json({ error: "Type de suggestion invalide." });
+        return;
+      }
+      const ok = await reactivateSuggestionType(orgId, type);
+      if (!ok) {
+        res.status(404).json({ error: "Type de suggestion introuvable." });
+        return;
+      }
+      const profile = await getLearningProfile(orgId);
+      res.json({ success: true, profile });
+    } catch (err) {
+      logger.error({ err }, "[ai-learning] reactivate-suggestion-type failed");
+      res.status(500).json({ error: "Erreur lors de la réactivation du type." });
+    }
+  },
+);
 
 // POST /ai-learning/recompute — recalcule préférences + motifs (admin, cooldown).
 const RECOMPUTE_COOLDOWN_MS = 30 * 1000;

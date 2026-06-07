@@ -30,3 +30,24 @@ owners kept seeing suggestion types they had clearly rejected.
 and auto-resolve through the existing logic — no separate cleanup path. When
 adding a new detector, remember its type becomes suppressible the same way; keep
 genuinely safety-critical detectors at `urgent` severity so they survive.
+
+# Durable "re-enable" of an auto-suppressed type
+
+Suppression is DERIVED from votes and rebuilt by the daily recompute
+(`recomputeLearnedPreferences` re-aggregates raw feedback into
+`ai_learned_preferences`). So resetting/deleting a pref row is NOT a durable
+un-mute — next recompute re-derives the negative score and re-suppresses.
+
+**Rule:** durable owner re-enable uses an explicit `suppression_overridden`
+column (additive, default 0). `getSuppressedSuggestionTypes` requires
+`suppression_overridden = 0`; `reactivateSuggestionType(org,type)` sets it to 1
+and purges the suppress cache.
+
+**Why it survives recompute:** `upsertPreference`'s `onConflictDoUpdate` set
+clause touches ONLY `up/down/score/updatedAt` — it never overwrites the override
+flag. Any NEW column on `ai_learned_preferences` that must persist across
+recompute MUST stay out of that set clause (and out of the INSERT defaults path).
+
+**How to apply:** the re-enable route is manager-only (super_admin|administrateur);
+non-managers see the muted list but cannot mutate. Schema column reaches prod via
+Publish only (never push to prod).

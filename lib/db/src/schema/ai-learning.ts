@@ -24,6 +24,12 @@ export const aiLearnedPreferencesTable = pgTable("ai_learned_preferences", {
   downCount: integer("down_count").notNull().default(0),
   // Score normalisé dans [-1, 1] = (up - down) / (up + down).
   score: real("score").notNull().default(0),
+  // Réactivation explicite par le dirigeant: quand un `suggestion_type` est mis
+  // en sourdine automatiquement (score très négatif + assez de 👎), le patron
+  // peut le forcer à RÉAPPARAÎTRE. Ce drapeau survit au recalcul quotidien
+  // (upsertPreference ne touche QUE up/down/score/updatedAt), donc la
+  // réactivation est durable malgré l'historique de votes négatifs.
+  suppressionOverridden: integer("suppression_overridden").notNull().default(0),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   uniqueIndex("ai_learned_pref_org_kind_key_uniq").on(
