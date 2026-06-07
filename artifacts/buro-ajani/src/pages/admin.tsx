@@ -60,6 +60,14 @@ export default function AdminBackofficePage() {
       enabled: true,
     },
     {
+      label: "Factures client",
+      description: "Factures émises aux clients + relances — vue globale toutes organisations",
+      icon: Receipt,
+      href: "/admin/factures-client",
+      status: "Actif",
+      enabled: true,
+    },
+    {
       label: "Stock de licences",
       description: "Inventaire des packs de licences vendus / disponibles (à venir)",
       icon: Package,
