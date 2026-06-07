@@ -476,15 +476,46 @@ interface UseInlineSuggestResult {
   clear: () => void;
   trackAccepted: (length: number) => void;
   trackDismissed: (length: number) => void;
+  trackEdited: (survivedLength: number) => void;
 }
 
-function fireEvent(fieldType: InlineSuggestFieldType, event: "shown" | "accepted" | "dismissed", length: number): void {
+function fireEvent(
+  fieldType: InlineSuggestFieldType,
+  event: "shown" | "accepted" | "dismissed" | "edited",
+  length: number,
+): void {
   try {
     void recordAiInlineSuggestEvent({ fieldType, event, length: Math.max(0, Math.floor(length || 0)) }).catch(() => {});
   } catch {
     /* ignore */
   }
 }
+
+/**
+ * Estimate how much of an accepted suggestion survived in the final text.
+ * Word-based (cheap, robust to edits anywhere in the field): returns a
+ * ratio 0..1 of accepted characters whose word still appears in `finalText`.
+ * Short suggestions fall back to substring containment.
+ */
+export function measureSuggestionSurvival(accepted: string, finalText: string): number {
+  const acc = (accepted ?? "").trim();
+  if (!acc) return 1;
+  const finalNorm = (finalText ?? "").toLowerCase();
+  const words = acc.split(/\s+/).filter((w) => w.length >= 3);
+  if (words.length === 0) {
+    return finalNorm.includes(acc.toLowerCase()) ? 1 : 0;
+  }
+  let survived = 0;
+  let total = 0;
+  for (const w of words) {
+    total += w.length;
+    if (finalNorm.includes(w.toLowerCase())) survived += w.length;
+  }
+  return total > 0 ? survived / total : 1;
+}
+
+/** Below this survival ratio, an accepted suggestion is considered "edited". */
+export const INLINE_SUGGEST_EDIT_THRESHOLD = 0.6;
 
 export function useInlineSuggest(opts: UseInlineSuggestOptions): UseInlineSuggestResult {
   const { fieldType, text, title, contactName, enabled = true } = opts;
@@ -581,5 +612,9 @@ export function useInlineSuggest(opts: UseInlineSuggestOptions): UseInlineSugges
     fireEvent(fieldType, "dismissed", length);
   }, [fieldType]);
 
-  return { suggestion, clear, trackAccepted, trackDismissed };
+  const trackEdited = useCallback((survivedLength: number) => {
+    fireEvent(fieldType, "edited", survivedLength);
+  }, [fieldType]);
+
+  return { suggestion, clear, trackAccepted, trackDismissed, trackEdited };
 }

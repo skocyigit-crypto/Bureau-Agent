@@ -1832,6 +1832,9 @@ export const RecordAiInlineSuggestEventBodyFieldType = {
   invoice_comment: "invoice_comment",
 } as const;
 
+/**
+ * "edited" is reported after an "accepted" event when the user subsequently rewrote most of the inserted text — a quality signal that the suggestion was not actually useful. `length` then carries the number of accepted characters that survived.
+ */
 export type RecordAiInlineSuggestEventBodyEvent =
   (typeof RecordAiInlineSuggestEventBodyEvent)[keyof typeof RecordAiInlineSuggestEventBodyEvent];
 
@@ -1839,10 +1842,12 @@ export const RecordAiInlineSuggestEventBodyEvent = {
   shown: "shown",
   accepted: "accepted",
   dismissed: "dismissed",
+  edited: "edited",
 } as const;
 
 export type RecordAiInlineSuggestEventBody = {
   fieldType: RecordAiInlineSuggestEventBodyFieldType;
+  /** "edited" is reported after an "accepted" event when the user subsequently rewrote most of the inserted text — a quality signal that the suggestion was not actually useful. `length` then carries the number of accepted characters that survived. */
   event: RecordAiInlineSuggestEventBodyEvent;
   /**
    * Length (in characters) of the suggestion involved in this event
@@ -1868,8 +1873,12 @@ export type GetAiInlineSuggestMetrics200Totals = {
   shown: number;
   accepted: number;
   dismissed: number;
+  /** accepted suggestions the user later rewrote */
+  edited: number;
   /** accepted / shown (0..1), 0 when shown = 0 */
   acceptanceRate: number;
+  /** edited / accepted (0..1), 0 when accepted = 0 */
+  editRate: number;
 };
 
 export type GetAiInlineSuggestMetrics200ByFieldItem = {
@@ -1877,7 +1886,9 @@ export type GetAiInlineSuggestMetrics200ByFieldItem = {
   shown: number;
   accepted: number;
   dismissed: number;
+  edited: number;
   acceptanceRate: number;
+  editRate: number;
   avgAcceptedLength: number;
 };
 

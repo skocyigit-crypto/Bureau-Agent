@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 import {
   useInlineSuggest,
   useInlineSuggestEnabled,
+  measureSuggestionSurvival,
+  INLINE_SUGGEST_EDIT_THRESHOLD,
   type InlineSuggestFieldType,
 } from "@/hooks/use-inline-suggest";
 
@@ -20,16 +22,19 @@ interface GhostTextareaProps
 
 export const GhostTextarea = React.forwardRef<HTMLTextAreaElement, GhostTextareaProps>(
   function GhostTextarea(
-    { value, onChange, fieldType, context, enableSuggest = true, showToggle = false, className, onKeyDown, ...rest },
+    { value, onChange, fieldType, context, enableSuggest = true, showToggle = false, className, onKeyDown, onBlur, ...rest },
     forwardedRef,
   ) {
     const innerRef = React.useRef<HTMLTextAreaElement | null>(null);
     const ghostRef = React.useRef<HTMLDivElement | null>(null);
     const [globalEnabled, setGlobalEnabled] = useInlineSuggestEnabled();
+    // Remembers the most recently accepted suggestion so we can measure, on
+    // blur, whether the user kept it or rewrote it (a "edited" quality signal).
+    const lastAcceptRef = React.useRef<string | null>(null);
 
     React.useImperativeHandle(forwardedRef, () => innerRef.current as HTMLTextAreaElement);
 
-    const { suggestion, clear, trackAccepted, trackDismissed } = useInlineSuggest({
+    const { suggestion, clear, trackAccepted, trackDismissed, trackEdited } = useInlineSuggest({
       fieldType,
       text: value,
       title: context?.title ?? null,
@@ -61,9 +66,25 @@ export const GhostTextarea = React.forwardRef<HTMLTextAreaElement, GhostTextarea
         } catch { /* noop */ }
       });
       trackAccepted(accepted.length);
+      lastAcceptRef.current = accepted;
       clear();
       return true;
     }, [suggestion, value, clear, trackAccepted]);
+
+    const handleBlur = React.useCallback(
+      (e: React.FocusEvent<HTMLTextAreaElement>) => {
+        const accepted = lastAcceptRef.current;
+        if (accepted) {
+          lastAcceptRef.current = null;
+          const survival = measureSuggestionSurvival(accepted, e.target.value);
+          if (survival < INLINE_SUGGEST_EDIT_THRESHOLD) {
+            trackEdited(Math.round(survival * accepted.length));
+          }
+        }
+        onBlur?.(e);
+      },
+      [trackEdited, onBlur],
+    );
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (suggestion && e.key === "Tab" && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
@@ -101,6 +122,7 @@ export const GhostTextarea = React.forwardRef<HTMLTextAreaElement, GhostTextarea
           value={value}
           onChange={onChange}
           onKeyDown={handleKeyDown}
+          onBlur={handleBlur}
           onScroll={handleScroll}
           spellCheck={rest.spellCheck}
           className={cn("relative bg-transparent", className)}

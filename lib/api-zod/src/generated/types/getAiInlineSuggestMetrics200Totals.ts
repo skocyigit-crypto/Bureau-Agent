@@ -10,6 +10,10 @@ export type GetAiInlineSuggestMetrics200Totals = {
   shown: number;
   accepted: number;
   dismissed: number;
+  /** accepted suggestions the user later rewrote */
+  edited: number;
   /** accepted / shown (0..1), 0 when shown = 0 */
   acceptanceRate: number;
+  /** edited / accepted (0..1), 0 when accepted = 0 */
+  editRate: number;
 };

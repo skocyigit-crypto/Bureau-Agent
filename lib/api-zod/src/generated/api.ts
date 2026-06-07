@@ -1298,7 +1298,7 @@ export const RequestAiInlineSuggestResponse = zod.object({
 });
 
 /**
- * @summary Record a ghost-text suggestion event (shown / accepted / dismissed)
+ * @summary Record a ghost-text suggestion event (shown / accepted / dismissed / edited)
  */
 export const recordAiInlineSuggestEventBodyLengthMin = 0;
 
@@ -1315,7 +1315,11 @@ export const RecordAiInlineSuggestEventBody = zod.object({
     "quote_comment",
     "invoice_comment",
   ]),
-  event: zod.enum(["shown", "accepted", "dismissed"]),
+  event: zod
+    .enum(["shown", "accepted", "dismissed", "edited"])
+    .describe(
+      '\"edited\" is reported after an \"accepted\" event when the user subsequently rewrote most of the inserted text — a quality signal that the suggestion was not actually useful. `length` then carries the number of accepted characters that survived.',
+    ),
   length: zod
     .number()
     .min(recordAiInlineSuggestEventBodyLengthMin)
@@ -1348,9 +1352,15 @@ export const GetAiInlineSuggestMetricsResponse = zod.object({
     shown: zod.number(),
     accepted: zod.number(),
     dismissed: zod.number(),
+    edited: zod
+      .number()
+      .describe("accepted suggestions the user later rewrote"),
     acceptanceRate: zod
       .number()
       .describe("accepted \/ shown (0..1), 0 when shown = 0"),
+    editRate: zod
+      .number()
+      .describe("edited \/ accepted (0..1), 0 when accepted = 0"),
   }),
   byField: zod.array(
     zod.object({
@@ -1358,7 +1368,9 @@ export const GetAiInlineSuggestMetricsResponse = zod.object({
       shown: zod.number(),
       accepted: zod.number(),
       dismissed: zod.number(),
+      edited: zod.number(),
       acceptanceRate: zod.number(),
+      editRate: zod.number(),
       avgAcceptedLength: zod.number(),
     }),
   ),

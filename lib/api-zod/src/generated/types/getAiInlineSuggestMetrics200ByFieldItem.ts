@@ -11,6 +11,8 @@ export type GetAiInlineSuggestMetrics200ByFieldItem = {
   shown: number;
   accepted: number;
   dismissed: number;
+  edited: number;
   acceptanceRate: number;
+  editRate: number;
   avgAcceptedLength: number;
 };

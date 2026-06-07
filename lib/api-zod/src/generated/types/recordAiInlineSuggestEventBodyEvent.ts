@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * "edited" is reported after an "accepted" event when the user subsequently rewrote most of the inserted text — a quality signal that the suggestion was not actually useful. `length` then carries the number of accepted characters that survived.
+ */
 export type RecordAiInlineSuggestEventBodyEvent =
   (typeof RecordAiInlineSuggestEventBodyEvent)[keyof typeof RecordAiInlineSuggestEventBodyEvent];
 
@@ -13,4 +16,5 @@ export const RecordAiInlineSuggestEventBodyEvent = {
   shown: "shown",
   accepted: "accepted",
   dismissed: "dismissed",
+  edited: "edited",
 } as const;

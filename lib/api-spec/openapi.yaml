@@ -1066,7 +1066,7 @@ paths:
     post:
       operationId: recordAiInlineSuggestEvent
       tags: [ai]
-      summary: Record a ghost-text suggestion event (shown / accepted / dismissed)
+      summary: Record a ghost-text suggestion event (shown / accepted / dismissed / edited)
       requestBody:
         required: true
         content:
@@ -1079,7 +1079,12 @@ paths:
                   enum: [note, prospect_note, email_body, call_note, task_description, message_content, project_description, project_note, quote_comment, invoice_comment]
                 event:
                   type: string
-                  enum: [shown, accepted, dismissed]
+                  enum: [shown, accepted, dismissed, edited]
+                  description: >-
+                    "edited" is reported after an "accepted" event when the user
+                    subsequently rewrote most of the inserted text — a quality
+                    signal that the suggestion was not actually useful. `length`
+                    then carries the number of accepted characters that survived.
                 length:
                   type: integer
                   minimum: 0
@@ -1129,10 +1134,16 @@ paths:
                         type: integer
                       dismissed:
                         type: integer
+                      edited:
+                        type: integer
+                        description: accepted suggestions the user later rewrote
                       acceptanceRate:
                         type: number
                         description: accepted / shown (0..1), 0 when shown = 0
-                    required: [shown, accepted, dismissed, acceptanceRate]
+                      editRate:
+                        type: number
+                        description: edited / accepted (0..1), 0 when accepted = 0
+                    required: [shown, accepted, dismissed, edited, acceptanceRate, editRate]
                   byField:
                     type: array
                     items:
@@ -1146,11 +1157,15 @@ paths:
                           type: integer
                         dismissed:
                           type: integer
+                        edited:
+                          type: integer
                         acceptanceRate:
+                          type: number
+                        editRate:
                           type: number
                         avgAcceptedLength:
                           type: number
-                      required: [fieldType, shown, accepted, dismissed, acceptanceRate, avgAcceptedLength]
+                      required: [fieldType, shown, accepted, dismissed, edited, acceptanceRate, editRate, avgAcceptedLength]
                   daily:
                     type: array
                     description: Per-day counters across the requested window (gaps filled with zeros), oldest first

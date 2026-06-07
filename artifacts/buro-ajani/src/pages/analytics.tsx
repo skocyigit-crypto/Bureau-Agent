@@ -756,7 +756,7 @@ function InlineSuggestMetricsCard() {
     { query: { queryKey: ["aiInlineSuggestMetrics", 30] } },
   );
 
-  const totals = data?.totals ?? { shown: 0, accepted: 0, dismissed: 0, acceptanceRate: 0 };
+  const totals = data?.totals ?? { shown: 0, accepted: 0, dismissed: 0, edited: 0, acceptanceRate: 0, editRate: 0 };
   const byField = data?.byField ?? [];
   const daily = data?.daily ?? [];
   const dailyChart = daily.map((d) => ({
@@ -786,7 +786,7 @@ function InlineSuggestMetricsCard() {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
               <div className="rounded-md border bg-muted/30 p-3">
                 <div className="text-xs text-muted-foreground">Affichées</div>
                 <div className="text-lg font-semibold">{totals.shown}</div>
@@ -802,6 +802,12 @@ function InlineSuggestMetricsCard() {
               <div className="rounded-md border bg-muted/30 p-3">
                 <div className="text-xs text-muted-foreground">Taux d'acceptation</div>
                 <div className="text-lg font-semibold">{formatPct(totals.acceptanceRate)}</div>
+              </div>
+              <div className="rounded-md border bg-muted/30 p-3">
+                <div className="text-xs text-muted-foreground" title="Suggestions acceptées puis réécrites en grande partie">
+                  Réécrites après coup
+                </div>
+                <div className="text-lg font-semibold">{formatPct(totals.editRate)}</div>
               </div>
             </div>
 
@@ -863,6 +869,7 @@ function InlineSuggestMetricsCard() {
                       <span className="font-medium">{FIELD_LABELS[row.fieldType] ?? row.fieldType}</span>
                       <span className="text-muted-foreground">
                         {row.accepted} / {row.shown} acceptées · {formatPct(row.acceptanceRate)}
+                        {row.edited > 0 ? ` · ${formatPct(row.editRate)} réécrites` : ""}
                       </span>
                     </div>
                     <Progress value={Math.min(100, Math.round((row.acceptanceRate || 0) * 100))} className="h-2" />

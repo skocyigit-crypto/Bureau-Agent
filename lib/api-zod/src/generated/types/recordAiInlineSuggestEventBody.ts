@@ -10,6 +10,7 @@ import type { RecordAiInlineSuggestEventBodyFieldType } from "./recordAiInlineSu
 
 export type RecordAiInlineSuggestEventBody = {
   fieldType: RecordAiInlineSuggestEventBodyFieldType;
+  /** "edited" is reported after an "accepted" event when the user subsequently rewrote most of the inserted text — a quality signal that the suggestion was not actually useful. `length` then carries the number of accepted characters that survived. */
   event: RecordAiInlineSuggestEventBodyEvent;
   /**
    * Length (in characters) of the suggestion involved in this event

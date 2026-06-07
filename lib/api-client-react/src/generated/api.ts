@@ -3733,7 +3733,7 @@ export const useRequestAiInlineSuggest = <
 };
 
 /**
- * @summary Record a ghost-text suggestion event (shown / accepted / dismissed)
+ * @summary Record a ghost-text suggestion event (shown / accepted / dismissed / edited)
  */
 export const getRecordAiInlineSuggestEventUrl = () => {
   return `/api/ai/inline-suggest/event`;
@@ -3797,7 +3797,7 @@ export type RecordAiInlineSuggestEventMutationBody =
 export type RecordAiInlineSuggestEventMutationError = ErrorType<unknown>;
 
 /**
- * @summary Record a ghost-text suggestion event (shown / accepted / dismissed)
+ * @summary Record a ghost-text suggestion event (shown / accepted / dismissed / edited)
  */
 export const useRecordAiInlineSuggestEvent = <
   TError = ErrorType<unknown>,

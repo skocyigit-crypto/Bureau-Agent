@@ -18,7 +18,7 @@ const FIELD_TYPES = new Set([
   "invoice_comment",
 ]);
 
-const EVENTS = new Set(["shown", "accepted", "dismissed"]);
+const EVENTS = new Set(["shown", "accepted", "dismissed", "edited"]);
 
 router.post("/ai/inline-suggest/event", async (req: Request, res: Response): Promise<void> => {
   try {
@@ -55,6 +55,7 @@ router.get("/ai/inline-suggest/metrics", async (req: Request, res: Response): Pr
       shown: sql<number>`sum(case when event = 'shown' then 1 else 0 end)::int`,
       accepted: sql<number>`sum(case when event = 'accepted' then 1 else 0 end)::int`,
       dismissed: sql<number>`sum(case when event = 'dismissed' then 1 else 0 end)::int`,
+      edited: sql<number>`sum(case when event = 'edited' then 1 else 0 end)::int`,
       avgAcceptedLength: sql<number>`coalesce(avg(case when event = 'accepted' then length end), 0)::float8`,
     })
       .from(aiInlineSuggestEventsTable)
@@ -66,13 +67,17 @@ router.get("/ai/inline-suggest/metrics", async (req: Request, res: Response): Pr
         const shown = Number(r.shown) || 0;
         const accepted = Number(r.accepted) || 0;
         const dismissed = Number(r.dismissed) || 0;
+        const edited = Number(r.edited) || 0;
         const acceptanceRate = shown > 0 ? accepted / shown : 0;
+        const editRate = accepted > 0 ? edited / accepted : 0;
         return {
           fieldType: r.fieldType,
           shown,
           accepted,
           dismissed,
+          edited,
           acceptanceRate,
+          editRate,
           avgAcceptedLength: Number(r.avgAcceptedLength) || 0,
         };
       })
@@ -115,11 +120,13 @@ router.get("/ai/inline-suggest/metrics", async (req: Request, res: Response): Pr
         acc.shown += r.shown;
         acc.accepted += r.accepted;
         acc.dismissed += r.dismissed;
+        acc.edited += r.edited;
         return acc;
       },
-      { shown: 0, accepted: 0, dismissed: 0, acceptanceRate: 0 },
+      { shown: 0, accepted: 0, dismissed: 0, edited: 0, acceptanceRate: 0, editRate: 0 },
     );
     totals.acceptanceRate = totals.shown > 0 ? totals.accepted / totals.shown : 0;
+    totals.editRate = totals.accepted > 0 ? totals.edited / totals.accepted : 0;
 
     res.json({
       period: { days, since: since.toISOString() },
