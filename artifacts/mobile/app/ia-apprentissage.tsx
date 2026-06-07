@@ -308,6 +308,9 @@ export default function IaApprentissageScreen() {
                 <Feather name="thumbs-up" size={16} color="#22c55e" />
                 <Text style={[styles.cardTitle, { color: colors.foreground }]}>Préférences apprises</Text>
               </View>
+              <Text style={[styles.rowSub, { color: colors.mutedForeground, marginBottom: 12 }]}>
+                Ce que vous appréciez ou souhaitez éviter.
+              </Text>
               {liked.length === 0 && disliked.length === 0 ? (
                 <Text style={[styles.rowSub, { color: colors.mutedForeground }]}>
                   Pas encore assez de retours pour dégager une préférence.
@@ -338,6 +341,9 @@ export default function IaApprentissageScreen() {
                 <Feather name="zap" size={16} color="#f59e0b" />
                 <Text style={[styles.cardTitle, { color: colors.foreground }]}>Habitudes détectées</Text>
               </View>
+              <Text style={[styles.rowSub, { color: colors.mutedForeground, marginBottom: 12 }]}>
+                Motifs récurrents repérés dans votre activité.
+              </Text>
               {callers.length > 0 ? (
                 <View style={styles.group}>
                   <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>Interlocuteurs fréquents</Text>
@@ -538,6 +544,9 @@ export default function IaApprentissageScreen() {
                       <Feather name="edit-3" size={16} color="#8b5cf6" />
                       <Text style={[styles.cardTitle, { color: colors.foreground }]}>Style d'écriture</Text>
                     </View>
+                    <Text style={[styles.rowSub, { color: colors.mutedForeground, marginBottom: 8 }]}>
+                      L'IA reproduit ce registre dans les rédactions proposées.
+                    </Text>
                     <Text style={[styles.rowSub, { color: colors.foreground }]}>{ug.writingStyle.label}</Text>
                   </View>
                 ) : null}
@@ -547,6 +556,9 @@ export default function IaApprentissageScreen() {
                     <Feather name="clock" size={16} color="#f59e0b" />
                     <Text style={[styles.cardTitle, { color: colors.foreground }]}>Heures &amp; domaines</Text>
                   </View>
+                  <Text style={[styles.rowSub, { color: colors.mutedForeground, marginBottom: 12 }]}>
+                    Quand et sur quoi cette personne travaille.
+                  </Text>
                   {ug.hours.length > 0 ? (
                     <View style={styles.group}>
                       <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>Heures d'activité</Text>
@@ -581,6 +593,9 @@ export default function IaApprentissageScreen() {
                     <Feather name="zap" size={16} color="#f59e0b" />
                     <Text style={[styles.cardTitle, { color: colors.foreground }]}>Thèmes &amp; contacts</Text>
                   </View>
+                  <Text style={[styles.rowSub, { color: colors.mutedForeground, marginBottom: 12 }]}>
+                    Sujets récurrents et interlocuteurs habituels.
+                  </Text>
                   {ug.themes.length > 0 ? (
                     <View style={styles.group}>
                       <Text style={[styles.groupLabel, { color: colors.mutedForeground }]}>Thèmes de tâches</Text>
