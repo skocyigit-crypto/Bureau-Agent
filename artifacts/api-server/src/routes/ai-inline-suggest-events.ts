@@ -78,6 +78,38 @@ router.get("/ai/inline-suggest/metrics", async (req: Request, res: Response): Pr
       })
       .sort((a, b) => b.shown - a.shown);
 
+    const dailyRows = await db.select({
+      day: sql<string>`to_char(date_trunc('day', ${aiInlineSuggestEventsTable.createdAt} at time zone 'UTC'), 'YYYY-MM-DD')`,
+      shown: sql<number>`sum(case when event = 'shown' then 1 else 0 end)::int`,
+      accepted: sql<number>`sum(case when event = 'accepted' then 1 else 0 end)::int`,
+      dismissed: sql<number>`sum(case when event = 'dismissed' then 1 else 0 end)::int`,
+    })
+      .from(aiInlineSuggestEventsTable)
+      .where(and(eq(aiInlineSuggestEventsTable.organisationId, orgId), gte(aiInlineSuggestEventsTable.createdAt, since)))
+      .groupBy(sql`date_trunc('day', ${aiInlineSuggestEventsTable.createdAt} at time zone 'UTC')`);
+
+    const dailyMap = new Map(dailyRows.map((r) => [String(r.day), r]));
+    const daily: Array<{ date: string; shown: number; accepted: number; dismissed: number; acceptanceRate: number }> = [];
+    const cursor = new Date(since);
+    cursor.setUTCHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    while (cursor.getTime() <= today.getTime()) {
+      const key = cursor.toISOString().slice(0, 10);
+      const row = dailyMap.get(key);
+      const shown = Number(row?.shown) || 0;
+      const accepted = Number(row?.accepted) || 0;
+      const dismissed = Number(row?.dismissed) || 0;
+      daily.push({
+        date: key,
+        shown,
+        accepted,
+        dismissed,
+        acceptanceRate: shown > 0 ? accepted / shown : 0,
+      });
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+
     const totals = byField.reduce(
       (acc, r) => {
         acc.shown += r.shown;
@@ -93,6 +125,7 @@ router.get("/ai/inline-suggest/metrics", async (req: Request, res: Response): Pr
       period: { days, since: since.toISOString() },
       totals,
       byField,
+      daily,
     });
   } catch (err: any) {
     req.log?.error?.({ err }, "[ai/inline-suggest/metrics] failed");

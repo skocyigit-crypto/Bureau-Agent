@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { GetAiInlineSuggestMetrics200ByFieldItem } from "./getAiInlineSuggestMetrics200ByFieldItem";
+import type { GetAiInlineSuggestMetrics200DailyItem } from "./getAiInlineSuggestMetrics200DailyItem";
 import type { GetAiInlineSuggestMetrics200Period } from "./getAiInlineSuggestMetrics200Period";
 import type { GetAiInlineSuggestMetrics200Totals } from "./getAiInlineSuggestMetrics200Totals";
 
@@ -13,4 +14,6 @@ export type GetAiInlineSuggestMetrics200 = {
   period: GetAiInlineSuggestMetrics200Period;
   totals: GetAiInlineSuggestMetrics200Totals;
   byField: GetAiInlineSuggestMetrics200ByFieldItem[];
+  /** Per-day counters across the requested window (gaps filled with zeros), oldest first */
+  daily: GetAiInlineSuggestMetrics200DailyItem[];
 };

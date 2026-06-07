@@ -758,6 +758,13 @@ function InlineSuggestMetricsCard() {
 
   const totals = data?.totals ?? { shown: 0, accepted: 0, dismissed: 0, acceptanceRate: 0 };
   const byField = data?.byField ?? [];
+  const daily = data?.daily ?? [];
+  const dailyChart = daily.map((d) => ({
+    ...d,
+    label: new Date(`${d.date}T00:00:00Z`).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }),
+    ratePct: Math.round((d.acceptanceRate || 0) * 1000) / 10,
+  }));
+  const hasTrend = dailyChart.some((d) => d.shown > 0);
 
   return (
     <Card>
@@ -796,6 +803,52 @@ function InlineSuggestMetricsCard() {
                 <div className="text-xs text-muted-foreground">Taux d'acceptation</div>
                 <div className="text-lg font-semibold">{formatPct(totals.acceptanceRate)}</div>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-xs font-medium text-muted-foreground">Tendance du taux d'acceptation (par jour)</div>
+              {hasTrend ? (
+                <div className="h-48 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={dailyChart} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="inlineSuggestRate" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
+                          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.02} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" minTickGap={24} />
+                      <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} width={44} />
+                      <RechartsTooltip
+                        formatter={(value: number, name: string) => {
+                          if (name === "ratePct") return [`${value}%`, "Taux d'acceptation"];
+                          return [value, name];
+                        }}
+                        labelFormatter={(label, payload) => {
+                          const p = payload?.[0]?.payload as (typeof dailyChart)[number] | undefined;
+                          if (!p) return label;
+                          return `${label} · ${p.accepted}/${p.shown} acceptées`;
+                        }}
+                        contentStyle={{ fontSize: 12 }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="ratePct"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth={2}
+                        fill="url(#inlineSuggestRate)"
+                        dot={false}
+                        activeDot={{ r: 4 }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
+                  Pas assez de données pour tracer une tendance.
+                </div>
+              )}
             </div>
 
             {byField.length === 0 ? (

@@ -1151,7 +1151,26 @@ paths:
                         avgAcceptedLength:
                           type: number
                       required: [fieldType, shown, accepted, dismissed, acceptanceRate, avgAcceptedLength]
-                required: [period, totals, byField]
+                  daily:
+                    type: array
+                    description: Per-day counters across the requested window (gaps filled with zeros), oldest first
+                    items:
+                      type: object
+                      properties:
+                        date:
+                          type: string
+                          description: Day in YYYY-MM-DD (UTC)
+                        shown:
+                          type: integer
+                        accepted:
+                          type: integer
+                        dismissed:
+                          type: integer
+                        acceptanceRate:
+                          type: number
+                          description: accepted / shown (0..1), 0 when shown = 0
+                      required: [date, shown, accepted, dismissed, acceptanceRate]
+                required: [period, totals, byField, daily]
 
   /ai/agents/run:
     post:

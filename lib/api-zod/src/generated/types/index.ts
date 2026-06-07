@@ -114,6 +114,7 @@ export * from "./getAiAgentsConfig200";
 export * from "./getAiAgentsConfig200AgentsItem";
 export * from "./getAiInlineSuggestMetrics200";
 export * from "./getAiInlineSuggestMetrics200ByFieldItem";
+export * from "./getAiInlineSuggestMetrics200DailyItem";
 export * from "./getAiInlineSuggestMetrics200Period";
 export * from "./getAiInlineSuggestMetrics200Totals";
 export * from "./getAiInlineSuggestMetricsParams";

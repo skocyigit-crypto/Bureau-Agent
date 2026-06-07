@@ -1362,6 +1362,21 @@ export const GetAiInlineSuggestMetricsResponse = zod.object({
       avgAcceptedLength: zod.number(),
     }),
   ),
+  daily: zod
+    .array(
+      zod.object({
+        date: zod.string().describe("Day in YYYY-MM-DD (UTC)"),
+        shown: zod.number(),
+        accepted: zod.number(),
+        dismissed: zod.number(),
+        acceptanceRate: zod
+          .number()
+          .describe("accepted \/ shown (0..1), 0 when shown = 0"),
+      }),
+    )
+    .describe(
+      "Per-day counters across the requested window (gaps filled with zeros), oldest first",
+    ),
 });
 
 /**

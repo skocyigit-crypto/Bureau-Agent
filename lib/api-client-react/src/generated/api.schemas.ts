@@ -1881,10 +1881,22 @@ export type GetAiInlineSuggestMetrics200ByFieldItem = {
   avgAcceptedLength: number;
 };
 
+export type GetAiInlineSuggestMetrics200DailyItem = {
+  /** Day in YYYY-MM-DD (UTC) */
+  date: string;
+  shown: number;
+  accepted: number;
+  dismissed: number;
+  /** accepted / shown (0..1), 0 when shown = 0 */
+  acceptanceRate: number;
+};
+
 export type GetAiInlineSuggestMetrics200 = {
   period: GetAiInlineSuggestMetrics200Period;
   totals: GetAiInlineSuggestMetrics200Totals;
   byField: GetAiInlineSuggestMetrics200ByFieldItem[];
+  /** Per-day counters across the requested window (gaps filled with zeros), oldest first */
+  daily: GetAiInlineSuggestMetrics200DailyItem[];
 };
 
 export type RunAllAiAgents200 = {
