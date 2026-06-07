@@ -22,6 +22,7 @@
 - [Dev DB drift + scan cancel e2e](dev-db-drift-and-scan-e2e.md) — drizzle push offers a DESTRUCTIVE user_sessions→agent_proposals rename (never accept); org delete blocked by append-only audit.
 - [AI council anchor pattern](ai-council-anchor.md) — OpenAI/Anthropic ~45s-timeout via proxy; use Gemini Flash anchor + short grace + abort stragglers; never block on slow providers (auto-run in-memory).
 - [Web search via Gemini grounding + SSRF](web-search-grounding-ssrf.md) — Gemini googleSearch grounding (no search API); resolve redirects on allowlisted Google hosts only, never fetch destinations.
+- [Web-search enrichment sources](web-search-enrichment-sources.md) — Brave managed billing is image-only AND agent-time-only (not runtime); real images/videos/maps/shopping need SerpAPI key; calculator/unit/currency (frankfurter, no key, TRY incl.) ship free.
 - [AI Council + agent learning](ai-council-and-agent-learning.md) — consult Gemini+GPT+Claude in parallel (non-stream only); cache key MUST include learned-context fingerprint or learning breaks.
 - [Webhook session<->tenant binding](webhook-session-tenant-binding.md) — signature alone won't stop cross-tenant leaks; re-assert session.orgId===tenant.orgId each turn; set fulfilled only post DB write.
 - [Tenant org NOT NULL hardening](tenant-org-not-null.md) — "0 nulls now" ≠ null invalid; some org_id inserts are legit null (payments/google_oauth_tokens/license_audit_log); typecheck api-server after.

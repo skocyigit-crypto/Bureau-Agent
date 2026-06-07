@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearch } from "wouter";
-import { Search, ShieldCheck, ShieldAlert, ShieldX, ExternalLink, Loader2, Globe, Sparkles, AlertTriangle, Clock, Newspaper, Languages, CalendarClock, X } from "lucide-react";
+import { Search, ShieldCheck, ShieldAlert, ShieldX, ExternalLink, Loader2, Globe, Sparkles, AlertTriangle, Clock, Newspaper, Languages, CalendarClock, X, Calculator, Ruler, Coins } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,15 @@ interface WebSearchResponse {
   freshness?: Freshness;
   lang?: SearchLang;
   site?: string;
+}
+
+type InstantAnswerKind = "calculator" | "unit" | "currency";
+
+interface InstantAnswer {
+  kind: InstantAnswerKind;
+  expression: string;
+  result: string;
+  detail?: string;
 }
 
 interface SearchFilters {
@@ -151,6 +160,7 @@ export default function RechercheWebPage() {
   const [query, setQuery] = useState(initialQuery);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<WebSearchResponse | null>(null);
+  const [instant, setInstant] = useState<InstantAnswer | null>(null);
   const [searched, setSearched] = useState(false);
   const [pendingDanger, setPendingDanger] = useState<WebSearchResultItem | null>(null);
   const [safeOnly, setSafeOnly] = useState(false);
@@ -202,6 +212,21 @@ export default function RechercheWebPage() {
     setRecents(saveRecent(q));
     setLoading(true);
     setSearched(true);
+
+    // Réponse instantanée (calculatrice / unités / devises) : requête légère et
+    // sans quota, lancée en parallèle de la recherche web. Aucune erreur visible.
+    setInstant(null);
+    void fetch(`${baseUrl}/api/web-search/instant?q=${encodeURIComponent(q)}`, {
+      credentials: "include",
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json: { instant?: InstantAnswer | null } | null) => {
+        if (json && json.instant) setInstant(json.instant);
+      })
+      .catch(() => {
+        /* réseau : on ignore, la recherche web reste affichée */
+      });
+
     try {
       const res = await fetch(`${baseUrl}/api/web-search`, {
         method: "POST",
@@ -541,6 +566,32 @@ export default function RechercheWebPage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Réponse instantanée (calculatrice / unités / devises) — comme Google */}
+      {searched && instant && (
+        <Card className="mb-5 border-primary/20 bg-gradient-to-br from-primary/[0.06] to-transparent">
+          <CardContent className="flex items-center gap-4 p-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              {instant.kind === "calculator" ? (
+                <Calculator className="h-5 w-5" />
+              ) : instant.kind === "currency" ? (
+                <Coins className="h-5 w-5" />
+              ) : (
+                <Ruler className="h-5 w-5" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs text-muted-foreground">{instant.expression}</p>
+              <p className="truncate text-2xl font-semibold tracking-tight text-foreground">
+                {instant.result}
+              </p>
+              {instant.detail && (
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">{instant.detail}</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Résumé sécurité */}

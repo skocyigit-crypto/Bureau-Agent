@@ -9,6 +9,7 @@ import {
   type WebSearchResponse,
   type WebSearchLang,
 } from "../services/web-search";
+import { resolveInstantAnswer } from "../services/instant-answer";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -78,6 +79,32 @@ router.post("/web-search", async (req, res) => {
   } catch (err) {
     logger.error({ err }, "[web-search] search failed");
     res.status(500).json({ error: "La recherche web a echoue. Reessayez." });
+  }
+});
+
+/**
+ * Reponse instantanee ("anlik cevap" / boite type Google) : calculatrice,
+ * conversion d'unites, conversion de devises. Deterministe, rapide, SANS quota
+ * IA (les taux de change passent par un service public gratuit sans cle).
+ * Renvoie toujours 200 ; `instant` vaut `null` quand rien ne correspond.
+ */
+router.get("/web-search/instant", async (req, res) => {
+  const orgId = getOrgId(req);
+  if (!orgId) {
+    res.status(403).json({ error: "Organisation requise." });
+    return;
+  }
+  const q = typeof req.query.q === "string" ? req.query.q : "";
+  if (q.trim().length < 2 || q.length > 300) {
+    res.json({ instant: null });
+    return;
+  }
+  try {
+    const instant = await resolveInstantAnswer(q);
+    res.json({ instant });
+  } catch (err) {
+    logger.warn({ err }, "[web-search] instant answer failed");
+    res.json({ instant: null });
   }
 });
 
