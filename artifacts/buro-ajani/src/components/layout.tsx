@@ -14,6 +14,7 @@ import { GlobalSearch } from "@/components/global-search";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ExportMenu } from "@/components/export-menu";
 import { NotificationBell } from "@/components/notification-bell";
+import { AgentRunChip } from "@/components/agent-run-chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SmartBrowserToolbar } from "@/components/smart-browser-panel";
 import { QuickActionHub } from "@/components/quick-action-hub";
@@ -466,6 +467,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               )}
               <ConnectionIndicator />
               <SmartBrowserToolbar />
+              <AgentRunChip />
               <div className="w-px h-4 bg-border" />
               <ThemeToggle />
               <ExportMenu />
