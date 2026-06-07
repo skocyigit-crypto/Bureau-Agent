@@ -42,6 +42,12 @@ A Google-style "anlık cevap" card can be fully deterministic and quota-free:
   geocoder's `timezone` field also powers city-aware date/time answers (Intl + that tz).
 - Date/time: fully local via `Intl.DateTimeFormat("fr-FR", { timeZone })`; only geocodes when
   a city is given.
+- IBAN validation: 100 % local, no network — ISO 13616 length table per country + mod-97
+  (ISO 7064, compute in 7-char chunks to avoid int overflow). Only declare valid if the
+  country code is in the length table (never "valid" from mod-97 alone).
+- Public holidays / jours fériés: **date.nager.at** — free, **no API key**.
+  `date.nager.at/api/v3/PublicHolidays/{year}/{ISO2}` returns French `localName`. Fixed host
+  + `redirect:"error"`. Default country FR for this French-first app; detect others by name.
 
 ## Instant-answer gating traps (learned the hard way)
 - **Keyword regexes need explicit separators / word boundaries**, or partial-word prefixes
@@ -54,3 +60,8 @@ A Google-style "anlık cevap" card can be fully deterministic and quota-free:
   `²→2`, `³→3`, or `m²`/`m2`/`km2` silently never match the UNITS table.
 - Bound every user-key-influenced cache (city names, coords) with FIFO eviction — unbounded
   Maps grow for the process lifetime.
+- **Cache negatives briefly, successes long.** A `null`/error result (transient outage) must
+  use a SHORT TTL or one network blip disables the feature for the whole success-TTL window.
+- **A local detector that strips spaces from the WHOLE query hijacks unrelated queries.** IBAN
+  ran first and collapsed `"FR 2026 budget"` → `"FR2026BUDGET"` → matched. Without an explicit
+  keyword, require the ENTIRE query to match the token shape (no other words/lowercase/accents).

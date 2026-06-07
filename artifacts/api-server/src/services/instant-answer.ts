@@ -8,7 +8,14 @@ import { logger } from "../lib/logger";
 // Toute requête non reconnue renvoie `null` -> aucune carte affichée.
 // ---------------------------------------------------------------------------
 
-export type InstantAnswerKind = "calculator" | "unit" | "currency" | "weather" | "datetime";
+export type InstantAnswerKind =
+  | "calculator"
+  | "unit"
+  | "currency"
+  | "weather"
+  | "datetime"
+  | "iban"
+  | "holidays";
 
 export interface InstantAnswer {
   kind: InstantAnswerKind;
@@ -859,6 +866,224 @@ async function tryDateTime(query: string): Promise<InstantAnswer | null> {
   }
 }
 
+// --- Validation IBAN (100 % locale, déterministe, sans réseau) -----------
+
+// Longueur totale officielle de l'IBAN par code pays (ISO 13616).
+const IBAN_LENGTHS: Record<string, number> = {
+  AD: 24, AE: 23, AL: 28, AT: 20, AZ: 28, BA: 20, BE: 16, BG: 22, BH: 22,
+  BR: 29, BY: 28, CH: 21, CR: 22, CY: 28, CZ: 24, DE: 22, DK: 18, DO: 28,
+  EE: 20, EG: 29, ES: 24, FI: 18, FO: 18, FR: 27, GB: 22, GE: 22, GI: 23,
+  GL: 18, GR: 27, GT: 28, HR: 21, HU: 28, IE: 22, IL: 23, IS: 26, IT: 27,
+  JO: 30, KW: 30, KZ: 20, LB: 28, LC: 32, LI: 21, LT: 20, LU: 20, LV: 21,
+  MC: 27, MD: 24, ME: 22, MK: 19, MR: 27, MT: 31, MU: 30, NL: 18, NO: 15,
+  PK: 24, PL: 28, PS: 29, PT: 25, QA: 29, RO: 24, RS: 22, SA: 24, SE: 24,
+  SI: 19, SK: 24, SM: 27, TN: 24, TR: 26, UA: 29, VG: 24, XK: 20,
+};
+
+// Noms FR de quelques pays courants (sinon on affiche le code ISO).
+const IBAN_COUNTRY_FR: Record<string, string> = {
+  FR: "France", BE: "Belgique", CH: "Suisse", LU: "Luxembourg", DE: "Allemagne",
+  ES: "Espagne", IT: "Italie", GB: "Royaume-Uni", NL: "Pays-Bas", PT: "Portugal",
+  MC: "Monaco", TR: "Turquie", IE: "Irlande", AT: "Autriche", PL: "Pologne",
+};
+
+/** mod-97 (ISO 7064) calculé par tronçons pour éviter le dépassement d'entier. */
+function mod97(numeric: string): number {
+  let remainder = 0;
+  for (let i = 0; i < numeric.length; i += 7) {
+    const chunk = String(remainder) + numeric.slice(i, i + 7);
+    remainder = Number(chunk) % 97;
+  }
+  return remainder;
+}
+
+function groupIban(s: string): string {
+  return s.replace(/(.{4})/g, "$1 ").trim();
+}
+
+function tryIban(query: string): InstantAnswer | null {
+  const raw = query.trim();
+  const hasKeyword = /\biban\b/i.test(raw);
+  // Source = la requête (sans le mot-clé « iban » éventuel).
+  const source = hasKeyword ? raw.replace(/\biban\b/i, " ").trim() : raw;
+  // SANS le mot-clé, la requête ENTIÈRE doit ressembler à un IBAN (2 lettres,
+  // 2 chiffres, puis alphanumérique groupé par espaces/tirets uniquement). Cela
+  // évite que « FR 2026 budget » → « FR2026BUDGET » détourne la carte : la
+  // présence d'un autre mot (minuscules, accents) fait échouer ce test.
+  if (
+    !hasKeyword &&
+    !/^[A-Za-z]{2}[0-9]{2}[A-Za-z0-9]*(?:[ -][A-Za-z0-9]+)*$/.test(source)
+  ) {
+    return null;
+  }
+  const candidate = source.replace(/[\s-]/g, "").toUpperCase();
+  if (candidate.length < 5 || candidate.length > 34) return null;
+  if (!/^[A-Z]{2}[0-9]{2}[A-Z0-9]+$/.test(candidate)) return null;
+  const country = candidate.slice(0, 2);
+  const expectedLen = IBAN_LENGTHS[country];
+  // On ne valide que les pays présents dans la table ISO 13616 : un code pays
+  // inconnu n'est jamais déclaré « valide » sur la seule clé mod-97.
+  if (expectedLen === undefined) return null;
+  const countryLabel = IBAN_COUNTRY_FR[country] ?? country;
+
+  let valid = true;
+  let reason: string | null = null;
+  if (candidate.length !== expectedLen) {
+    valid = false;
+    reason = `Longueur incorrecte : ${candidate.length} caractères au lieu de ${expectedLen} attendus (${countryLabel}).`;
+  } else {
+    const rearranged = candidate.slice(4) + candidate.slice(0, 4);
+    const numeric = rearranged.replace(/[A-Z]/g, (c) => String(c.charCodeAt(0) - 55));
+    if (mod97(numeric) !== 1) {
+      valid = false;
+      reason = "Clé de contrôle incorrecte (l'IBAN comporte une erreur de saisie).";
+    }
+  }
+
+  return {
+    kind: "iban",
+    expression: `IBAN · ${countryLabel}`,
+    result: valid ? "✅ IBAN valide" : "❌ IBAN invalide",
+    detail: valid ? groupIban(candidate) : reason ?? undefined,
+  };
+}
+
+// --- Jours fériés (date.nager.at, gratuit, sans clé) ---------------------
+
+interface HolidayItem {
+  date: string;
+  localName: string;
+  global: boolean;
+}
+
+const HOLIDAY_TTL_MS = 12 * 60 * 60_000;
+// Les échecs/absences sont mis en cache brièvement : une panne réseau passagère
+// ne doit pas désactiver les jours fériés pendant des heures.
+const HOLIDAY_NULL_TTL_MS = 10 * 60_000;
+const HOLIDAY_MAX_ENTRIES = 200;
+const holidayCache = new Map<string, { value: HolidayItem[] | null; exp: number }>();
+
+// Nom de pays (FR/EN/TR) -> code ISO supporté par date.nager.at.
+const HOLIDAY_COUNTRIES: Record<string, string> = {
+  france: "FR", belgique: "BE", belgium: "BE", suisse: "CH", switzerland: "CH",
+  luxembourg: "LU", allemagne: "DE", germany: "DE", almanya: "DE",
+  espagne: "ES", spain: "ES", ispanya: "ES", italie: "IT", italy: "IT", italya: "IT",
+  "royaume-uni": "GB", "royaume uni": "GB", angleterre: "GB", "united kingdom": "GB",
+  uk: "GB", "états-unis": "US", "etats-unis": "US", "états unis": "US", usa: "US",
+  "united states": "US", canada: "CA", "pays-bas": "NL", "pays bas": "NL",
+  netherlands: "NL", portugal: "PT", turquie: "TR", türkiye: "TR", turkiye: "TR",
+  turkey: "TR", irlande: "IE", ireland: "IE", autriche: "AT", austria: "AT",
+  pologne: "PL", poland: "PL",
+};
+
+const HOLIDAY_COUNTRY_FR: Record<string, string> = {
+  FR: "France", BE: "Belgique", CH: "Suisse", LU: "Luxembourg", DE: "Allemagne",
+  ES: "Espagne", IT: "Italie", GB: "Royaume-Uni", US: "États-Unis", CA: "Canada",
+  NL: "Pays-Bas", PT: "Portugal", TR: "Turquie", IE: "Irlande", AT: "Autriche",
+  PL: "Pologne",
+};
+
+async function fetchHolidays(code: string, year: number): Promise<HolidayItem[] | null> {
+  const key = `${code}:${year}`;
+  const now = Date.now();
+  const hit = holidayCache.get(key);
+  if (hit && hit.exp > now) return hit.value;
+  let holidays: HolidayItem[] | null = null;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), OPEN_METEO_TIMEOUT_MS);
+    // Hôte FIXE + redirect:"error" (anti-SSRF), comme open-meteo/frankfurter.
+    const url = `https://date.nager.at/api/v3/PublicHolidays/${year}/${code}`;
+    const resp = await fetch(url, { signal: ctrl.signal, redirect: "error" });
+    clearTimeout(timer);
+    if (resp.ok) {
+      const json = (await resp.json()) as Array<{
+        date?: string;
+        localName?: string;
+        global?: boolean;
+      }>;
+      if (Array.isArray(json) && json.length) {
+        holidays = json
+          .filter((h) => typeof h.date === "string" && typeof h.localName === "string")
+          .map((h) => ({ date: h.date as string, localName: h.localName as string, global: h.global !== false }));
+      }
+    }
+  } catch {
+    holidays = null;
+  }
+  boundedCacheSet(
+    holidayCache,
+    key,
+    { value: holidays, exp: now + (holidays ? HOLIDAY_TTL_MS : HOLIDAY_NULL_TTL_MS) },
+    HOLIDAY_MAX_ENTRIES,
+  );
+  return holidays;
+}
+
+async function tryPublicHolidays(query: string): Promise<InstantAnswer | null> {
+  const raw = query.trim();
+  if (
+    !/\b(jours?\s+f[ée]ri[ée]s?|f[êe]tes?\s+l[ée]gales?|public\s+holidays?|bank\s+holidays?|resmi\s+tatil(?:ler)?|tatil\s+g[üu]nleri|bayram(?:lar)?)\b/i.test(
+      raw,
+    )
+  ) {
+    return null;
+  }
+  const yearM = raw.match(/\b(20\d{2})\b/);
+  const year = yearM ? Number(yearM[1]) : new Date().getFullYear();
+  if (year < 2000 || year > 2100) return null;
+
+  // Détection du pays (par nom), sinon France par défaut.
+  let code = "FR";
+  const lower = raw.toLowerCase();
+  for (const [name, iso] of Object.entries(HOLIDAY_COUNTRIES)) {
+    if (lower.includes(name)) {
+      code = iso;
+      break;
+    }
+  }
+
+  const holidays = await fetchHolidays(code, year);
+  if (!holidays || !holidays.length) return null;
+  const label = HOLIDAY_COUNTRY_FR[code] ?? code;
+
+  const fmt = (iso: string): string =>
+    capitalizeFirst(
+      new Intl.DateTimeFormat("fr-FR", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }).format(new Date(`${iso}T00:00:00`)),
+    );
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const upcoming = holidays.find((h) => h.date >= todayIso);
+
+  if (upcoming && upcoming.date.startsWith(String(year))) {
+    const diffDays = Math.round(
+      (new Date(`${upcoming.date}T00:00:00`).getTime() - new Date(`${todayIso}T00:00:00`).getTime()) /
+        86_400_000,
+    );
+    const when =
+      diffDays === 0 ? "aujourd'hui" : diffDays === 1 ? "demain" : `dans ${diffDays} jours`;
+    return {
+      kind: "holidays",
+      expression: `Prochain jour férié · ${label}`,
+      result: `🗓️ ${upcoming.localName} — ${fmt(upcoming.date)}`,
+      detail: `${when} · ${holidays.length} jours fériés en ${year}`,
+    };
+  }
+
+  // Année passée ou aucun férié à venir : on résume l'année demandée.
+  return {
+    kind: "holidays",
+    expression: `Jours fériés · ${label} ${year}`,
+    result: `🗓️ ${holidays.length} jours fériés en ${year}`,
+    detail: `Du ${fmt(holidays[0].date)} au ${fmt(holidays[holidays.length - 1].date)}`,
+  };
+}
+
 // --- Point d'entrée ------------------------------------------------------
 
 /**
@@ -870,12 +1095,17 @@ export async function resolveInstantAnswer(rawQuery: string): Promise<InstantAns
   const query = rawQuery.trim();
   if (query.length < 2 || query.length > 140) return null;
   try {
-    // Date/heure et météo d'abord (déclenchées par des mots-clés explicites),
-    // puis devises (motif spécifique), puis unités, puis calcul.
+    // IBAN d'abord : 100 % local, motif très spécifique, aucun réseau.
+    const iban = tryIban(query);
+    if (iban) return iban;
+    // Date/heure, météo et jours fériés (déclenchés par des mots-clés
+    // explicites), puis devises (motif spécifique), puis unités, puis calcul.
     const dt = await tryDateTime(query);
     if (dt) return dt;
     const weather = await tryWeather(query);
     if (weather) return weather;
+    const holidays = await tryPublicHolidays(query);
+    if (holidays) return holidays;
     const currency = await tryCurrencyConversion(query);
     if (currency) return currency;
     const unit = tryUnitConversion(query);
