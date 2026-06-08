@@ -153,7 +153,12 @@ router.post("/stripe/create-checkout-session", async (req: Request, res: Respons
         .where(eq(subscriptionsTable.organisationId, orgId));
     }
     const baseUrl = getPublicAppUrl();
-    const session = await stripe.checkout.sessions.create({
+    // Opt-in VAT/TVA handling (off by default to avoid breaking checkout in envs
+    // where Stripe Tax isn't configured). Set STRIPE_AUTOMATIC_TAX=1 once Stripe Tax
+    // is enabled in the dashboard: Stripe then computes French/EU VAT, collects the
+    // buyer's address, and lets B2B customers enter a VAT id (reverse-charge).
+    const automaticTaxEnabled = process.env.STRIPE_AUTOMATIC_TAX === "1";
+    const params: Stripe.Checkout.SessionCreateParams = {
       mode: "subscription",
       customer: customerId,
       line_items: [{ price: priceId, quantity: 1 }],
@@ -164,7 +169,13 @@ router.post("/stripe/create-checkout-session", async (req: Request, res: Respons
         metadata: { organisationId: String(orgId), plan },
       },
       metadata: { organisationId: String(orgId), plan },
-    });
+    };
+    if (automaticTaxEnabled) {
+      params.automatic_tax = { enabled: true };
+      params.customer_update = { address: "auto", name: "auto" };
+      params.tax_id_collection = { enabled: true };
+    }
+    const session = await stripe.checkout.sessions.create(params);
     res.json({ url: session.url, sessionId: session.id });
   } catch (err) {
     logger.error({ err, orgId, plan }, "[stripe] create-checkout-session failed");

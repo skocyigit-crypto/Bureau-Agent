@@ -89,7 +89,13 @@ export async function handleSubscriptionUpdated(sub: Stripe.Subscription) {
   }
   const item = sub.items.data[0];
   const priceId = item?.price?.id ?? "";
-  const planFromPrice = getPlanForPriceId(priceId);
+  // Plan resolution is doubly-sourced: first the env price-id map, then the
+  // subscription metadata.plan we stamp at checkout. The metadata fallback means a
+  // mismatched/unset STRIPE_PRICE_* in an environment no longer silently leaves the
+  // plan (and its limits) un-updated on subscription.updated/renewal events.
+  const metaPlan = sub.metadata?.plan;
+  const metaPlanValid = metaPlan && metaPlan in PLANS && metaPlan !== "essai" ? metaPlan : null;
+  const planFromPrice = getPlanForPriceId(priceId) ?? metaPlanValid;
   const planDef = planFromPrice ? PLANS[planFromPrice as keyof typeof PLANS] : null;
   const itemAny = item as unknown as { current_period_end?: number; current_period_start?: number } | undefined;
   const subAny = sub as unknown as { current_period_end?: number; current_period_start?: number };
@@ -203,20 +209,34 @@ export async function handleInvoicePaid(invoice: Stripe.Invoice) {
   const periodStart = invoice.period_start ? new Date(invoice.period_start * 1000) : new Date();
   const periodEnd = invoice.period_end ? new Date(invoice.period_end * 1000) : new Date();
   const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, orgId)).limit(1);
-  await db.insert(invoicesTable).values({
-    organisationId: orgId,
-    periodLabel,
-    periodStart,
-    periodEnd,
-    plan: sub?.plan ?? "starter",
-    baseAmount: total,
-    overageAmount: "0",
-    totalAmount: total,
-    currency,
-    status: "payee",
-    paidAt: new Date(),
-    notes: `Stripe invoice ${invoice.id}`,
-  }).onConflictDoNothing?.().catch(() => {});
+  // A single successful payment fires BOTH invoice.paid AND invoice.payment_succeeded
+  // (distinct event ids -> our event-level dedupe lets both through). Key the row on
+  // the Stripe invoice id so only ONE invoice row is written per payment, even under
+  // concurrent delivery or Stripe retries.
+  if (invoice.id) {
+    try {
+      await db
+        .insert(invoicesTable)
+        .values({
+          organisationId: orgId,
+          periodLabel,
+          periodStart,
+          periodEnd,
+          plan: sub?.plan ?? "starter",
+          baseAmount: total,
+          overageAmount: "0",
+          totalAmount: total,
+          currency,
+          status: "payee",
+          paidAt: new Date(),
+          stripeInvoiceId: invoice.id,
+          notes: `Stripe invoice ${invoice.id}`,
+        })
+        .onConflictDoNothing({ target: invoicesTable.stripeInvoiceId });
+    } catch (err) {
+      logger.warn({ err, orgId, invoice: invoice.id }, "[stripe-sync] invoice row insert failed");
+    }
+  }
   const isPaymentSuspension = sub?.status === "suspended" && (sub as any)?.suspensionReason !== "manual";
   if ((sub?.paymentFailedCount ?? 0) > 0 || sub?.status === "past_due" || isPaymentSuspension) {
     const wasSuspended = isPaymentSuspension;

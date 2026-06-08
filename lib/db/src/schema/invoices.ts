@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, varchar, text, timestamp, numeric, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, varchar, text, timestamp, numeric, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { organisationsTable } from "./organisations";
 
 export const OVERAGE_RATES = {
@@ -33,12 +33,19 @@ export const invoicesTable = pgTable("invoices", {
     };
   }>(),
   notes: text("notes"),
+  // Stripe invoice id (e.g. "in_..."). NULLABLE on purpose: invoices created from
+  // bank uploads / manual billing have no Stripe id. Stripe-sourced rows set it so a
+  // single successful payment — which fires BOTH invoice.paid AND
+  // invoice.payment_succeeded (distinct event ids) — is recorded only once via the
+  // partial unique index below + onConflictDoNothing.
+  stripeInvoiceId: varchar("stripe_invoice_id", { length: 255 }),
   paidAt: timestamp("paid_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [
   index("invoices_org_id_idx").on(table.organisationId),
   index("invoices_status_idx").on(table.status),
+  uniqueIndex("invoices_stripe_invoice_id_unique").on(table.stripeInvoiceId),
 ]);
 
 export const paymentsTable = pgTable("payments", {
