@@ -2845,11 +2845,9 @@ async function runSuperAgentCycle(orgId: number, userId: number) {
     saLog(orgId, "info", "email", "Analyse de la boîte mail...");
     let emailTasksCreated = 0;
     try {
-      const { getAuthClientForUser } = await import("../lib/google-auth");
-      const oauth2Client = await getAuthClientForUser(userId);
-      if (oauth2Client) {
-        const { google } = await import("googleapis");
-        const gmail = google.gmail({ version: "v1", auth: oauth2Client });
+      const { getGmailForUser } = await import("../lib/google-auth");
+      const gmail = await getGmailForUser(userId);
+      if (gmail) {
 
         const listRes = await gmail.users.messages.list({ userId: "me", q: "is:unread is:inbox -category:promotions -category:social", maxResults: 15 }).catch(() => null);
         const messages = listRes?.data?.messages ?? [];

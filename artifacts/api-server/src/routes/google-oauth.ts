@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { google } from "googleapis";
 import {
   db,
   googleOAuthTokensTable,
@@ -11,6 +10,7 @@ import crypto from "crypto";
 import { logger } from "../lib/logger";
 import { getOrgId } from "../middleware/tenant";
 import {
+  createOAuthClient,
   getGoogleRedirectUri,
   getOrgGoogleCredentials,
   encryptToken,
@@ -57,13 +57,9 @@ const DEFAULT_SERVICES = ["gmail", "calendar", "drive"];
 // Modele SaaS centralise : on construit TOUJOURS le client OAuth2 a partir des
 // identifiants GLOBAUX du serveur (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET).
 // Les identifiants ne sont jamais propres a une organisation ni exposes a l'UI.
-async function getOAuth2ClientForOrg(
-  organisationId: number | null | undefined,
-) {
-  const creds = await getOrgGoogleCredentials(organisationId, { envOnly: true });
-  if (!creds) return null;
-  return new google.auth.OAuth2(creds.clientId, creds.clientSecret, getGoogleRedirectUri());
-}
+// La construction est deleguee a `createOAuthClient` (lib/google-auth.ts), seule
+// source de verite pour fabriquer un client OAuth2.
+const getOAuth2ClientForOrg = createOAuthClient;
 
 router.get("/status", async (req, res): Promise<void> => {
   try {

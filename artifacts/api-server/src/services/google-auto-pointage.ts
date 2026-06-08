@@ -1,20 +1,13 @@
-import { google } from "googleapis";
 import { db, googleOAuthTokensTable, checkinsTable, usersTable } from "@workspace/db";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
-import { getOrgGoogleCredentials, getGoogleRedirectUri, encryptToken, decryptToken, ensureTokenRowEncrypted } from "../lib/google-auth";
+import { getCalendarForUser } from "../lib/google-auth";
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 let isRunning = false;
 
 const SYNC_INTERVAL_MS = 30 * 60 * 1000;
 const SYNC_TAG = "[google-auto]";
-
-async function getOAuth2Client(organisationId: number | null | undefined) {
-  const creds = await getOrgGoogleCredentials(organisationId, { envOnly: true });
-  if (!creds) return null;
-  return new google.auth.OAuth2(creds.clientId, creds.clientSecret, getGoogleRedirectUri());
-}
 
 export function startGoogleAutoPointage() {
   if (intervalHandle) return;
@@ -121,44 +114,11 @@ async function syncUserToday(token: {
 
   if (!user || !user.organisationId || !user.actif) return result;
 
-  const oauth2Client = await getOAuth2Client(token.organisationId ?? user.organisationId);
-  if (!oauth2Client) return result;
-
-  await ensureTokenRowEncrypted({
-    id: token.tokenId,
-    accessToken: token.accessToken,
-    refreshToken: token.refreshToken,
-  });
-
-  oauth2Client.setCredentials({
-    access_token: decryptToken(token.accessToken),
-    refresh_token: decryptToken(token.refreshToken),
-  });
-
-  if (token.expiresAt && token.expiresAt < new Date()) {
-    if (!token.refreshToken) {
-      logger.warn(`[GoogleAutoPointage] Token expire sans refresh pour user ${token.userId}`);
-      result.errors++;
-      return result;
-    }
-    try {
-      const { credentials } = await oauth2Client.refreshAccessToken();
-      await db.update(googleOAuthTokensTable)
-        .set({
-          accessToken: encryptToken(credentials.access_token!),
-          expiresAt: credentials.expiry_date ? new Date(credentials.expiry_date) : new Date(Date.now() + 3600000),
-          updatedAt: new Date(),
-        })
-        .where(eq(googleOAuthTokensTable.id, token.tokenId));
-      oauth2Client.setCredentials(credentials);
-    } catch (err: any) {
-      logger.warn({ err: err.message }, `[GoogleAutoPointage] Token refresh echoue user ${token.userId}:`);
-      result.errors++;
-      return result;
-    }
-  }
-
-  const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+  // Client Calendar pret a l'emploi via la couche centralisee (lib/google-auth) :
+  // dechiffrement des jetons + rafraichissement automatique persiste sont geres
+  // la-bas — plus de bloc "expiresAt + refreshAccessToken + UPDATE" duplique ici.
+  const calendar = await getCalendarForUser(token.userId);
+  if (!calendar) return result;
 
   const now = new Date();
   const todayStart = new Date(now);

@@ -1,11 +1,15 @@
 import { Router } from "express";
-import { google } from "googleapis";
 import { db, googleOAuthTokensTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { getOrgId } from "../middleware/tenant";
 import { ingestDocument } from "../services/document-ingest";
-import { getAuthClientForUser as getAuthClient } from "../lib/google-auth";
+import {
+  getGmailForUser,
+  getCalendarForUser,
+  getDriveForUser,
+  getTasksForUser,
+} from "../lib/google-auth";
 
 const router = Router();
 
@@ -119,10 +123,9 @@ router.get("/google-workspace/recent-emails", async (req, res): Promise<void> =>
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.json({ emails: [], error: "non_connecte" }); return; }
+    const gmail = await getGmailForUser(userId);
+    if (!gmail) { res.json({ emails: [], error: "non_connecte" }); return; }
 
-    const gmail = google.gmail({ version: "v1", auth });
     const listData = (await gmail.users.messages.list({ userId: "me", maxResults: 10, q: "is:inbox" })).data;
 
     if (!listData.messages) {
@@ -165,10 +168,9 @@ router.get("/google-workspace/upcoming-events", async (req, res): Promise<void> 
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.json({ events: [], error: "non_connecte" }); return; }
+    const calendar = await getCalendarForUser(userId);
+    if (!calendar) { res.json({ events: [], error: "non_connecte" }); return; }
 
-    const calendar = google.calendar({ version: "v3", auth });
     const now = new Date().toISOString();
     const endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -205,10 +207,9 @@ router.get("/google-workspace/recent-files", async (req, res): Promise<void> => 
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.json({ files: [], error: "non_connecte" }); return; }
+    const drive = await getDriveForUser(userId);
+    if (!drive) { res.json({ files: [], error: "non_connecte" }); return; }
 
-    const drive = google.drive({ version: "v3", auth });
     const filesData = (await drive.files.list({
       pageSize: 15,
       orderBy: "modifiedTime desc",
@@ -240,10 +241,9 @@ router.get("/google-workspace/tasks", async (req, res): Promise<void> => {
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.json({ tasks: [], error: "non_connecte" }); return; }
+    const tasksApi = await getTasksForUser(userId);
+    if (!tasksApi) { res.json({ tasks: [], error: "non_connecte" }); return; }
 
-    const tasksApi = google.tasks({ version: "v1", auth });
     const lists = (await tasksApi.tasklists.list({ maxResults: 20 })).data;
 
     const tasks: any[] = [];
@@ -281,10 +281,9 @@ router.get("/google-workspace/calendar-list", async (req, res): Promise<void> =>
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.json({ calendars: [], error: "non_connecte" }); return; }
+    const calendar = await getCalendarForUser(userId);
+    if (!calendar) { res.json({ calendars: [], error: "non_connecte" }); return; }
 
-    const calendar = google.calendar({ version: "v3", auth });
     const calData = (await calendar.calendarList.list()).data;
 
     res.json({ calendars: calData.items || [] });
@@ -302,10 +301,9 @@ router.post("/google-workspace/create-event", async (req, res): Promise<void> =>
     const { title, start, end, description, location } = req.body;
     if (!title || !start || !end) { res.status(400).json({ error: "title, start, end requis" }); return; }
 
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.status(400).json({ error: "Compte Google non connecte." }); return; }
+    const calendar = await getCalendarForUser(userId);
+    if (!calendar) { res.status(400).json({ error: "Compte Google non connecte." }); return; }
 
-    const calendar = google.calendar({ version: "v3", auth });
     const event = (await calendar.events.insert({
       calendarId: "primary",
       requestBody: {
@@ -332,8 +330,8 @@ router.post("/google-workspace/send-email", async (req, res): Promise<void> => {
     const { to, subject, body } = req.body;
     if (!to || !subject || !body) { res.status(400).json({ error: "to, subject, body requis" }); return; }
 
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.status(400).json({ error: "Compte Google non connecte." }); return; }
+    const gmail = await getGmailForUser(userId);
+    if (!gmail) { res.status(400).json({ error: "Compte Google non connecte." }); return; }
 
     const rawMessage = [
       `To: ${to}`,
@@ -345,7 +343,6 @@ router.post("/google-workspace/send-email", async (req, res): Promise<void> => {
 
     const encoded = Buffer.from(rawMessage).toString("base64url");
 
-    const gmail = google.gmail({ version: "v1", auth });
     const result = (await gmail.users.messages.send({ userId: "me", requestBody: { raw: encoded } })).data;
 
     res.json({ success: true, messageId: result.id });
@@ -363,10 +360,9 @@ router.get("/google-workspace/drive-search", async (req, res): Promise<void> => 
     const { q } = req.query;
     if (!q || typeof q !== "string") { res.status(400).json({ error: "Parametre q requis" }); return; }
 
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.json({ files: [], error: "non_connecte" }); return; }
+    const drive = await getDriveForUser(userId);
+    if (!drive) { res.json({ files: [], error: "non_connecte" }); return; }
 
-    const drive = google.drive({ version: "v3", auth });
     const filesData = (await drive.files.list({
       q: `name contains '${q.replace(/'/g, "\\'")}' and trashed = false`,
       pageSize: 10,
@@ -394,10 +390,9 @@ router.post("/google-workspace/drive-import", async (req, res): Promise<void> =>
     const { fileId } = req.body;
     if (!fileId || typeof fileId !== "string") { res.status(400).json({ error: "fileId requis" }); return; }
 
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.status(400).json({ error: "Compte Google non connecte." }); return; }
+    const drive = await getDriveForUser(userId);
+    if (!drive) { res.status(400).json({ error: "Compte Google non connecte." }); return; }
 
-    const drive = google.drive({ version: "v3", auth });
 
     // 1) Metadonnees pour valider l'acces + recuperer nom/type/taille.
     const meta = (await drive.files.get({ fileId, fields: "id,name,mimeType,size" })).data as any;

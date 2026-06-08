@@ -39,3 +39,19 @@ identical global client or refresh fails silently once the access token expires.
   `GOOGLE_CLIENT_SECRET` (placeholders cause `invalid_client`) and register the
   redirect URI `https://<domain>/api/google-oauth/callback` (from `getGoogleRedirectUri`)
   in Google Cloud Console.
+
+**Rule — never build a Google service client inline; use the per-service factories.**
+`lib/google-auth.ts` is the single source of truth: `createOAuthClient(orgId?)` is the
+only bare-client constructor, and `getAuthClientForUser(userId)` sets `expiry_date` for
+proactive refresh AND attaches `oauth2Client.on("tokens", …)` which persists refreshed
+access/refresh tokens ENCRYPTED back to DB. App code must call the typed factories
+`getGmailForUser / getCalendarForUser / getDriveForUser / getDocsForUser /
+getSheetsForUser / getTasksForUser` (return a ready client or null) — never
+`google.gmail({auth})` + a hand-rolled `setCredentials/refreshAccessToken/UPDATE` block.
+**Why:** those manual refresh blocks were duplicated across routes/services and drifted;
+centralizing means refresh + at-rest encryption happen once and consistently.
+**How to apply:** intentional exceptions stay out of this layer — `google-oauth.ts`
+`/refresh` (explicit user-triggered force-refresh endpoint, its whole purpose) and
+`services/email.ts` (Replit connector system mail, different auth model). `services/
+google-drive-backup.ts` (service-account, platform backups) is also separate; align it
+only if "all Google" must be truly universal.

@@ -1,20 +1,13 @@
-import { google } from "googleapis";
-import { db, googleOAuthTokensTable, checkinsTable, platformSyncLogsTable } from "@workspace/db";
+import { db, checkinsTable, platformSyncLogsTable } from "@workspace/db";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
-import { getOrgGoogleCredentials, getGoogleRedirectUri, encryptToken, decryptToken, ensureTokenRowEncrypted } from "../lib/google-auth";
+import { getCalendarForUser } from "../lib/google-auth";
 
 interface SyncResult {
   imported: number;
   skipped: number;
   errors: number;
   details: string[];
-}
-
-async function getOAuth2Client(organisationId: number | null | undefined) {
-  const creds = await getOrgGoogleCredentials(organisationId, { envOnly: true });
-  if (!creds) return null;
-  return new google.auth.OAuth2(creds.clientId, creds.clientSecret, getGoogleRedirectUri());
 }
 
 function getLocalDateKey(dateTime: string, timeZone: string | undefined): string {
@@ -72,45 +65,14 @@ export async function syncGoogleCalendarToCheckins(params: {
   const { userId, organisationId, dateFrom, dateTo, employeeName, employeeRole } = params;
   const result: SyncResult = { imported: 0, skipped: 0, errors: 0, details: [] };
 
-  const tokens = await db.select().from(googleOAuthTokensTable)
-    .where(eq(googleOAuthTokensTable.userId, userId));
-
-  if (tokens.length === 0) {
+  // Client Calendar pret a l'emploi via la couche centralisee (lib/google-auth) :
+  // resolution des identifiants, dechiffrement des jetons, et rafraichissement
+  // automatique persiste sont geres la-bas — plus de bloc "expiresAt + refresh"
+  // duplique ici.
+  const calendar = await getCalendarForUser(userId);
+  if (!calendar) {
     throw new Error("Aucun compte Google connecte. Connectez votre compte dans Parametres > Google Workspace.");
   }
-
-  const token = tokens[0];
-  await ensureTokenRowEncrypted(token);
-  const oauth2Client = await getOAuth2Client(token.organisationId ?? organisationId);
-  if (!oauth2Client) {
-    throw new Error("Google Workspace n'est pas configure. Contactez votre administrateur.");
-  }
-
-  oauth2Client.setCredentials({
-    access_token: decryptToken(token.accessToken),
-    refresh_token: decryptToken(token.refreshToken),
-  });
-
-  if (token.expiresAt && token.expiresAt < new Date()) {
-    if (!token.refreshToken) {
-      throw new Error("Token Google expire. Reconnectez votre compte dans Parametres.");
-    }
-    try {
-      const { credentials } = await oauth2Client.refreshAccessToken();
-      await db.update(googleOAuthTokensTable)
-        .set({
-          accessToken: encryptToken(credentials.access_token!),
-          expiresAt: credentials.expiry_date ? new Date(credentials.expiry_date) : new Date(Date.now() + 3600000),
-          updatedAt: new Date(),
-        })
-        .where(eq(googleOAuthTokensTable.userId, userId));
-      oauth2Client.setCredentials(credentials);
-    } catch {
-      throw new Error("Impossible de rafraichir le token Google. Reconnectez votre compte.");
-    }
-  }
-
-  const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
   const timeMin = new Date(dateFrom);
   timeMin.setHours(0, 0, 0, 0);

@@ -1,5 +1,4 @@
 import { Router, type Request, type Response } from "express";
-import { google } from "googleapis";
 import { logger } from "../lib/logger";
 import { GEMINI_FLASH_MODEL } from "../services/ai-utils";
 import { analyzeUrlsBatch } from "../services/url-safety";
@@ -9,7 +8,7 @@ import { emitSecurityAlert } from "../services/security-alerts";
 import { getInboundMaxSubmitBytes } from "../services/file-malware";
 import { getOrgId } from "../middleware/tenant";
 import { ingestDocument } from "../services/document-ingest";
-import { getAuthClientForUser as getAuthClient } from "../lib/google-auth";
+import { getGmailForUser } from "../lib/google-auth";
 
 const router = Router();
 
@@ -65,9 +64,8 @@ router.get("/gmail/profile", async (req: Request, res: Response): Promise<void> 
   try {
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.json({ authenticated: false }); return; }
-    const gmail = google.gmail({ version: "v1", auth });
+    const gmail = await getGmailForUser(userId);
+    if (!gmail) { res.json({ authenticated: false }); return; }
     const profile = await gmail.users.getProfile({ userId: "me" });
     res.json({
       authenticated: true,
@@ -85,11 +83,10 @@ router.get("/gmail/inbox", async (req: Request, res: Response): Promise<void> =>
   try {
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.json({ emails: [], authenticated: false }); return; }
+    const gmail = await getGmailForUser(userId);
+    if (!gmail) { res.json({ emails: [], authenticated: false }); return; }
 
     const { q = "is:inbox", maxResults = "25", pageToken } = req.query;
-    const gmail = google.gmail({ version: "v1", auth });
 
     const listRes = await gmail.users.messages.list({
       userId: "me",
@@ -142,11 +139,10 @@ router.get("/gmail/message/:id", async (req: Request, res: Response): Promise<vo
   try {
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.status(403).json({ error: "non_connecte" }); return; }
+    const gmail = await getGmailForUser(userId);
+    if (!gmail) { res.status(403).json({ error: "non_connecte" }); return; }
 
     const msgId = String(req.params.id);
-    const gmail = google.gmail({ version: "v1", auth });
     const detailRes = await (gmail.users.messages as any).get({ userId: "me", id: msgId, format: "full" });
     const detail = detailRes.data;
     const headers = parseHeaders(detail.payload?.headers || []);
@@ -188,11 +184,10 @@ router.get("/gmail/thread/:threadId", async (req: Request, res: Response): Promi
   try {
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.status(403).json({ error: "non_connecte" }); return; }
+    const gmail = await getGmailForUser(userId);
+    if (!gmail) { res.status(403).json({ error: "non_connecte" }); return; }
 
     const threadId = String(req.params.threadId);
-    const gmail = google.gmail({ version: "v1", auth });
     const threadRes = await (gmail.users.threads as any).get({ userId: "me", id: threadId, format: "full" });
     const threadData = threadRes.data;
 
@@ -226,15 +221,14 @@ router.post("/gmail/send", async (req: Request, res: Response): Promise<void> =>
   try {
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.status(403).json({ error: "non_connecte" }); return; }
+    const gmail = await getGmailForUser(userId);
+    if (!gmail) { res.status(403).json({ error: "non_connecte" }); return; }
 
     const { to, subject, body, cc, bcc, isHtml = true } = req.body;
     if (!to || !subject || !body) {
       res.status(400).json({ error: "Destinataire, objet et corps requis." }); return;
     }
 
-    const gmail = google.gmail({ version: "v1", auth });
     const profile = await gmail.users.getProfile({ userId: "me" });
     const fromEmail = profile.data.emailAddress;
     const contentType = isHtml ? "text/html" : "text/plain";
@@ -264,15 +258,14 @@ router.post("/gmail/reply", async (req: Request, res: Response): Promise<void> =
   try {
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.status(403).json({ error: "non_connecte" }); return; }
+    const gmail = await getGmailForUser(userId);
+    if (!gmail) { res.status(403).json({ error: "non_connecte" }); return; }
 
     const { messageId, threadId, to, subject, body, cc } = req.body;
     if (!to || !body) {
       res.status(400).json({ error: "Destinataire et corps requis." }); return;
     }
 
-    const gmail = google.gmail({ version: "v1", auth });
     const profile = await gmail.users.getProfile({ userId: "me" });
     const fromEmail = profile.data.emailAddress;
     const replySubject = subject?.startsWith("Re:") ? subject : `Re: ${subject || ""}`;
@@ -302,12 +295,11 @@ router.patch("/gmail/message/:id/star", async (req: Request, res: Response): Pro
   try {
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.status(403).json({ error: "non_connecte" }); return; }
+    const gmail = await getGmailForUser(userId);
+    if (!gmail) { res.status(403).json({ error: "non_connecte" }); return; }
 
     const id = String(req.params.id);
     const { starred } = req.body;
-    const gmail = google.gmail({ version: "v1", auth });
 
     await (gmail.users.messages as any).modify({
       userId: "me", id,
@@ -324,12 +316,11 @@ router.patch("/gmail/message/:id/read", async (req: Request, res: Response): Pro
   try {
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.status(403).json({ error: "non_connecte" }); return; }
+    const gmail = await getGmailForUser(userId);
+    if (!gmail) { res.status(403).json({ error: "non_connecte" }); return; }
 
     const id = String(req.params.id);
     const { read = true } = req.body;
-    const gmail = google.gmail({ version: "v1", auth });
 
     await (gmail.users.messages as any).modify({
       userId: "me", id,
@@ -346,11 +337,10 @@ router.post("/gmail/message/:id/archive", async (req: Request, res: Response): P
   try {
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.status(403).json({ error: "non_connecte" }); return; }
+    const gmail = await getGmailForUser(userId);
+    if (!gmail) { res.status(403).json({ error: "non_connecte" }); return; }
 
     const id = String(req.params.id);
-    const gmail = google.gmail({ version: "v1", auth });
     await (gmail.users.messages as any).modify({
       userId: "me", id,
       requestBody: { removeLabelIds: ["INBOX"] },
@@ -373,12 +363,11 @@ router.get("/gmail/message/:id/attachment/:attId", async (req: Request, res: Res
   try {
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.status(403).json({ error: "non_connecte" }); return; }
+    const gmail = await getGmailForUser(userId);
+    if (!gmail) { res.status(403).json({ error: "non_connecte" }); return; }
 
     const msgId = String(req.params.id);
     const attId = String(req.params.attId);
-    const gmail = google.gmail({ version: "v1", auth });
 
     // 1) Relit le message pour retrouver l'attachment et son filename.
     const detailRes = await (gmail.users.messages as any).get({ userId: "me", id: msgId, format: "full" });
@@ -414,12 +403,11 @@ router.post("/gmail/message/:id/attachment/:attId/save", async (req: Request, re
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
     const orgId = getOrgId(req);
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.status(403).json({ error: "non_connecte" }); return; }
+    const gmail = await getGmailForUser(userId);
+    if (!gmail) { res.status(403).json({ error: "non_connecte" }); return; }
 
     const msgId = String(req.params.id);
     const attId = String(req.params.attId);
-    const gmail = google.gmail({ version: "v1", auth });
 
     const detailRes = await (gmail.users.messages as any).get({ userId: "me", id: msgId, format: "full" });
     const payload = detailRes.data?.payload;
@@ -481,11 +469,10 @@ router.delete("/gmail/message/:id/trash", async (req: Request, res: Response): P
   try {
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.status(403).json({ error: "non_connecte" }); return; }
+    const gmail = await getGmailForUser(userId);
+    if (!gmail) { res.status(403).json({ error: "non_connecte" }); return; }
 
     const id = String(req.params.id);
-    const gmail = google.gmail({ version: "v1", auth });
     await (gmail.users.messages as any).trash({ userId: "me", id });
     res.json({ success: true, message: "Email deplace vers la corbeille." });
   } catch (error: any) {
@@ -678,11 +665,10 @@ router.post("/gmail/message/:id/scan", async (req: Request, res: Response): Prom
   try {
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.status(403).json({ error: "non_connecte" }); return; }
+    const gmail = await getGmailForUser(userId);
+    if (!gmail) { res.status(403).json({ error: "non_connecte" }); return; }
 
     const msgId = String(req.params.id);
-    const gmail = google.gmail({ version: "v1", auth });
 
     // 1. Fetch full message
     const detailRes = await (gmail.users.messages as any).get({ userId: "me", id: msgId, format: "full" });
@@ -896,10 +882,9 @@ router.get("/gmail/labels", async (req: Request, res: Response): Promise<void> =
   try {
     const userId = req.session?.userId;
     if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
-    const auth = await getAuthClient(userId);
-    if (!auth) { res.json({ labels: [], authenticated: false }); return; }
+    const gmail = await getGmailForUser(userId);
+    if (!gmail) { res.json({ labels: [], authenticated: false }); return; }
 
-    const gmail = google.gmail({ version: "v1", auth });
     const labelsRes = await gmail.users.labels.list({ userId: "me" });
 
     const labels = (labelsRes.data.labels || [])

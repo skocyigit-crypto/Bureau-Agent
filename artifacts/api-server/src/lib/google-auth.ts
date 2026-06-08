@@ -211,9 +211,31 @@ export async function getOrgIdForUser(userId: number): Promise<number | null> {
 }
 
 // ---------------------------------------------------------------------------
+// Client OAuth2 "nu" (sans jetons utilisateur), construit a partir des
+// identifiants GLOBAUX du serveur (modele SaaS centralise). Sert au flux de
+// consentement (auth-url / callback) ou l'on n'a pas encore de jetons. Source
+// unique de construction du client : remplace les anciens helpers dupliques
+// `getOAuth2ClientForOrg` / `getOAuth2Client` eparpilles dans les routes/services.
+// Renvoie null si les identifiants serveur ne sont pas configures.
+// ---------------------------------------------------------------------------
+
+export async function createOAuthClient(organisationId?: number | null) {
+  const creds = await getOrgGoogleCredentials(organisationId ?? null, { envOnly: true });
+  if (!creds) return null;
+  return new google.auth.OAuth2(creds.clientId, creds.clientSecret, getGoogleRedirectUri());
+}
+
+// ---------------------------------------------------------------------------
 // Client OAuth2 pret a l'emploi pour un utilisateur : recupere ses jetons,
-// resout les identifiants de SON organisation, et configure le client googleapis
-// (qui rafraichit automatiquement l'access_token via le refresh_token).
+// resout les identifiants GLOBAUX (env), et configure le client googleapis.
+//
+// Rafraichissement UNIFIE : on positionne `expiry_date` pour que la librairie
+// sache quand le jeton est perime et le rafraichisse PROACTIVEMENT (sans cela
+// elle pouvait envoyer un access_token expire -> 401). L'ecouteur `tokens`
+// persiste alors le nouvel access_token (et l'eventuel refresh_token) CHIFFRE en
+// base, pour TOUTES les surfaces Google. Cela remplace les blocs manuels
+// "verifier expiresAt + refreshAccessToken + UPDATE" qui etaient dupliques dans
+// chaque service (calendar-sync, auto-pointage, ...).
 // Renvoie null si aucun jeton ou aucun identifiant disponible.
 // ---------------------------------------------------------------------------
 
@@ -227,16 +249,76 @@ export async function getAuthClientForUser(userId: number) {
 
   await ensureTokenRowEncrypted(tokens[0]);
 
-  const orgId = tokens[0].organisationId ?? (await getOrgIdForUser(userId));
   // Modele centralise : on rafraichit les jetons avec le MEME client global qui
   // les a emis (env), jamais un client org legacy.
-  const creds = await getOrgGoogleCredentials(orgId, { envOnly: true });
-  if (!creds) return null;
+  const oauth2Client = await createOAuthClient(tokens[0].organisationId);
+  if (!oauth2Client) return null;
 
-  const oauth2Client = new google.auth.OAuth2(creds.clientId, creds.clientSecret, getGoogleRedirectUri());
   oauth2Client.setCredentials({
     access_token: decryptToken(tokens[0].accessToken),
     refresh_token: decryptToken(tokens[0].refreshToken),
+    // Permet a la librairie de rafraichir proactivement quand le jeton est perime.
+    expiry_date: tokens[0].expiresAt ? tokens[0].expiresAt.getTime() : undefined,
   });
+
+  // Persistance automatique des jetons rafraichis (chiffres). Google ne renvoie
+  // un refresh_token que rarement (premiere autorisation) : on ne l'ecrase que
+  // s'il est present, sinon on conserve l'existant.
+  oauth2Client.on("tokens", (refreshed) => {
+    const updates: {
+      accessToken?: string;
+      refreshToken?: string;
+      expiresAt?: Date;
+      updatedAt: Date;
+    } = { updatedAt: new Date() };
+    if (refreshed.access_token) updates.accessToken = encryptToken(refreshed.access_token);
+    if (refreshed.refresh_token) updates.refreshToken = encryptToken(refreshed.refresh_token);
+    if (refreshed.expiry_date) updates.expiresAt = new Date(refreshed.expiry_date);
+    if (!updates.accessToken && !updates.refreshToken) return;
+    db.update(googleOAuthTokensTable)
+      .set(updates)
+      .where(eq(googleOAuthTokensTable.userId, userId))
+      .catch((err) =>
+        logger.warn({ err, userId }, "[google-auth] persistance du jeton rafraichi echouee"),
+      );
+  });
+
   return oauth2Client;
+}
+
+// ---------------------------------------------------------------------------
+// Fabriques par service : "userId -> client API Google pret a l'emploi" (ou
+// null si le compte n'est pas connecte). Point d'entree UNIQUE et identique pour
+// toutes les applications Google — les routes/services ne construisent plus
+// jamais `google.xxx({ auth })` a la main ni ne gerent l'OAuth eux-memes.
+// ---------------------------------------------------------------------------
+
+export async function getGmailForUser(userId: number) {
+  const auth = await getAuthClientForUser(userId);
+  return auth ? google.gmail({ version: "v1", auth }) : null;
+}
+
+export async function getCalendarForUser(userId: number) {
+  const auth = await getAuthClientForUser(userId);
+  return auth ? google.calendar({ version: "v3", auth }) : null;
+}
+
+export async function getDriveForUser(userId: number) {
+  const auth = await getAuthClientForUser(userId);
+  return auth ? google.drive({ version: "v3", auth }) : null;
+}
+
+export async function getDocsForUser(userId: number) {
+  const auth = await getAuthClientForUser(userId);
+  return auth ? google.docs({ version: "v1", auth }) : null;
+}
+
+export async function getSheetsForUser(userId: number) {
+  const auth = await getAuthClientForUser(userId);
+  return auth ? google.sheets({ version: "v4", auth }) : null;
+}
+
+export async function getTasksForUser(userId: number) {
+  const auth = await getAuthClientForUser(userId);
+  return auth ? google.tasks({ version: "v1", auth }) : null;
 }
