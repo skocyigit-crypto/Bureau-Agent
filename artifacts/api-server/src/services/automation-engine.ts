@@ -228,15 +228,18 @@ async function checkUnreadMessages() {
   const start = performance.now();
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
-  const unread = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(messagesTable)
-    .where(
-      and(
-        eq(messagesTable.isRead, false),
-        lte(messagesTable.createdAt, oneHourAgo)
-      )
-    );
+  const unread = await withDbRetry(
+    () => db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(messagesTable)
+      .where(
+        and(
+          eq(messagesTable.isRead, false),
+          lte(messagesTable.createdAt, oneHourAgo)
+        )
+      ),
+    { label: "automation:checkUnreadMessages" },
+  );
 
   const count = unread[0]?.count || 0;
   if (count === 0) return;
@@ -272,10 +275,13 @@ async function checkInactiveContacts() {
   const start = performance.now();
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-  const inactive = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(contactsTable)
-    .where(lte(contactsTable.updatedAt, thirtyDaysAgo));
+  const inactive = await withDbRetry(
+    () => db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(contactsTable)
+      .where(lte(contactsTable.updatedAt, thirtyDaysAgo)),
+    { label: "automation:checkInactiveContacts" },
+  );
 
   const count = inactive[0]?.count || 0;
   if (count === 0) return;
@@ -310,14 +316,17 @@ async function checkOverdueProjects() {
   const start = performance.now();
   const now = new Date();
 
-  const overdueProjects = await db
-    .select({ id: projetsTable.id, title: projetsTable.title, endDate: projetsTable.endDate, organisationId: projetsTable.organisationId })
-    .from(projetsTable)
-    .where(and(
-      lte(projetsTable.endDate, now),
-      sql`${projetsTable.status} NOT IN ('termine', 'annule')`,
-    ))
-    .limit(50);
+  const overdueProjects = await withDbRetry(
+    () => db
+      .select({ id: projetsTable.id, title: projetsTable.title, endDate: projetsTable.endDate, organisationId: projetsTable.organisationId })
+      .from(projetsTable)
+      .where(and(
+        lte(projetsTable.endDate, now),
+        sql`${projetsTable.status} NOT IN ('termine', 'annule')`,
+      ))
+      .limit(50),
+    { label: "automation:checkOverdueProjects" },
+  );
 
   if (overdueProjects.length === 0) return;
 
@@ -375,15 +384,18 @@ async function checkMissedCalls() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const missed = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(callsTable)
-    .where(
-      and(
-        eq(callsTable.status, "manque"),
-        gte(callsTable.createdAt, today)
-      )
-    );
+  const missed = await withDbRetry(
+    () => db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(callsTable)
+      .where(
+        and(
+          eq(callsTable.status, "manque"),
+          gte(callsTable.createdAt, today)
+        )
+      ),
+    { label: "automation:checkMissedCalls" },
+  );
 
   const count = missed[0]?.count || 0;
   if (count === 0) return;
@@ -432,56 +444,64 @@ async function getTriggerItems(rule: any): Promise<any[]> {
       // Find missed calls in the last execution interval
       const intervalMs = scheduleToMs(rule.schedule) || 5 * 60 * 1000;
       const since = new Date(Date.now() - intervalMs * 2); // 2x interval to avoid gaps
-      const query = db
-        .select({ id: callsTable.id, phoneNumber: callsTable.phoneNumber, createdAt: callsTable.createdAt })
-        .from(callsTable)
-        .where(and(
-          eq(callsTable.status, "manque"),
-          gte(callsTable.createdAt, since),
-          ...(orgId ? [eq(callsTable.organisationId, orgId)] : []),
-        ))
-        .limit(50);
-      return await query;
+      return await withDbRetry(
+        () => db
+          .select({ id: callsTable.id, phoneNumber: callsTable.phoneNumber, createdAt: callsTable.createdAt })
+          .from(callsTable)
+          .where(and(
+            eq(callsTable.status, "manque"),
+            gte(callsTable.createdAt, since),
+            ...(orgId ? [eq(callsTable.organisationId, orgId)] : []),
+          ))
+          .limit(50),
+        { label: "automation:getTriggerItems:missed_call" },
+      );
     }
 
     case "contact_no_activity": {
       const days: number = conditions.inactivityDays ?? 30;
       const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-      const query = db
-        .select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName, phone: contactsTable.phone, email: contactsTable.email })
-        .from(contactsTable)
-        .where(and(
-          lte(contactsTable.updatedAt, cutoff),
-          ...(orgId ? [eq(contactsTable.organisationId, orgId)] : []),
-        ))
-        .limit(20);
-      return await query;
+      return await withDbRetry(
+        () => db
+          .select({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName, phone: contactsTable.phone, email: contactsTable.email })
+          .from(contactsTable)
+          .where(and(
+            lte(contactsTable.updatedAt, cutoff),
+            ...(orgId ? [eq(contactsTable.organisationId, orgId)] : []),
+          ))
+          .limit(20),
+        { label: "automation:getTriggerItems:contact_no_activity" },
+      );
     }
 
     case "task_overdue": {
-      const query = db
-        .select({ id: tasksTable.id, title: tasksTable.title, dueDate: tasksTable.dueDate })
-        .from(tasksTable)
-        .where(and(
-          lte(tasksTable.dueDate, new Date()),
-          sql`${tasksTable.status} NOT IN ('termine', 'annule')`,
-          ...(orgId ? [eq(tasksTable.organisationId, orgId)] : []),
-        ))
-        .limit(20);
-      return await query;
+      return await withDbRetry(
+        () => db
+          .select({ id: tasksTable.id, title: tasksTable.title, dueDate: tasksTable.dueDate })
+          .from(tasksTable)
+          .where(and(
+            lte(tasksTable.dueDate, new Date()),
+            sql`${tasksTable.status} NOT IN ('termine', 'annule')`,
+            ...(orgId ? [eq(tasksTable.organisationId, orgId)] : []),
+          ))
+          .limit(20),
+        { label: "automation:getTriggerItems:task_overdue" },
+      );
     }
 
     case "projet_overdue": {
-      const query = db
-        .select({ id: projetsTable.id, title: projetsTable.title, endDate: projetsTable.endDate, clientName: projetsTable.clientName, status: projetsTable.status })
-        .from(projetsTable)
-        .where(and(
-          lte(projetsTable.endDate, new Date()),
-          sql`${projetsTable.status} NOT IN ('termine', 'annule')`,
-          ...(orgId ? [eq(projetsTable.organisationId, orgId)] : []),
-        ))
-        .limit(20);
-      return await query;
+      return await withDbRetry(
+        () => db
+          .select({ id: projetsTable.id, title: projetsTable.title, endDate: projetsTable.endDate, clientName: projetsTable.clientName, status: projetsTable.status })
+          .from(projetsTable)
+          .where(and(
+            lte(projetsTable.endDate, new Date()),
+            sql`${projetsTable.status} NOT IN ('termine', 'annule')`,
+            ...(orgId ? [eq(projetsTable.organisationId, orgId)] : []),
+          ))
+          .limit(20),
+        { label: "automation:getTriggerItems:projet_overdue" },
+      );
     }
 
     default:
