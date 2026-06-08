@@ -17,6 +17,7 @@ import {
 import { and, eq, sql, gte, isNotNull, desc, notInArray, or, lt, isNull } from "drizzle-orm";
 import crypto from "node:crypto";
 import { logger } from "../lib/logger";
+import { withDbRetry } from "../lib/db-retry";
 
 // ---------------------------------------------------------------------------
 // Couche d'apprentissage IA (pilier B)
@@ -111,20 +112,23 @@ export async function recomputeLearnedPreferences(orgId: number): Promise<number
   const kept: string[] = [];
 
   // Suggestions proactives: feedback up/down groupé par type.
-  const sugg = await db
-    .select({
-      key: proactiveSuggestionsTable.type,
-      up: sql<number>`count(*) filter (where ${proactiveSuggestionsTable.feedback} = 'up')`,
-      down: sql<number>`count(*) filter (where ${proactiveSuggestionsTable.feedback} = 'down')`,
-    })
-    .from(proactiveSuggestionsTable)
-    .where(
-      and(
-        eq(proactiveSuggestionsTable.organisationId, orgId),
-        isNotNull(proactiveSuggestionsTable.feedback),
-      ),
-    )
-    .groupBy(proactiveSuggestionsTable.type);
+  const sugg = await withDbRetry(
+    () => db
+      .select({
+        key: proactiveSuggestionsTable.type,
+        up: sql<number>`count(*) filter (where ${proactiveSuggestionsTable.feedback} = 'up')`,
+        down: sql<number>`count(*) filter (where ${proactiveSuggestionsTable.feedback} = 'down')`,
+      })
+      .from(proactiveSuggestionsTable)
+      .where(
+        and(
+          eq(proactiveSuggestionsTable.organisationId, orgId),
+          isNotNull(proactiveSuggestionsTable.feedback),
+        ),
+      )
+      .groupBy(proactiveSuggestionsTable.type),
+    { label: "ai-learning:recompute-suggestions" },
+  );
   for (const row of sugg) {
     const up = Number(row.up ?? 0);
     const down = Number(row.down ?? 0);
@@ -135,15 +139,18 @@ export async function recomputeLearnedPreferences(orgId: number): Promise<number
   }
 
   // Insights: vote +1 / -1 groupé par catégorie.
-  const ins = await db
-    .select({
-      key: aiInsightsTable.category,
-      up: sql<number>`count(*) filter (where ${aiInsightsTable.vote} > 0)`,
-      down: sql<number>`count(*) filter (where ${aiInsightsTable.vote} < 0)`,
-    })
-    .from(aiInsightsTable)
-    .where(and(eq(aiInsightsTable.organisationId, orgId), sql`${aiInsightsTable.vote} <> 0`))
-    .groupBy(aiInsightsTable.category);
+  const ins = await withDbRetry(
+    () => db
+      .select({
+        key: aiInsightsTable.category,
+        up: sql<number>`count(*) filter (where ${aiInsightsTable.vote} > 0)`,
+        down: sql<number>`count(*) filter (where ${aiInsightsTable.vote} < 0)`,
+      })
+      .from(aiInsightsTable)
+      .where(and(eq(aiInsightsTable.organisationId, orgId), sql`${aiInsightsTable.vote} <> 0`))
+      .groupBy(aiInsightsTable.category),
+    { label: "ai-learning:recompute-insights" },
+  );
   for (const row of ins) {
     const up = Number(row.up ?? 0);
     const down = Number(row.down ?? 0);
@@ -156,15 +163,18 @@ export async function recomputeLearnedPreferences(orgId: number): Promise<number
   // Propositions de la file d'approbation: décisions du patron, groupées par
   // catégorie. Approuvée/exécutée = signal positif (up), rejetée = négatif (down).
   // C'est ainsi que les agents apprennent CE QUE le dirigeant valide ou refuse.
-  const props = await db
-    .select({
-      key: agentProposalsTable.category,
-      up: sql<number>`count(*) filter (where ${agentProposalsTable.status} in ('approuvee','executee'))`,
-      down: sql<number>`count(*) filter (where ${agentProposalsTable.status} = 'rejetee')`,
-    })
-    .from(agentProposalsTable)
-    .where(eq(agentProposalsTable.organisationId, orgId))
-    .groupBy(agentProposalsTable.category);
+  const props = await withDbRetry(
+    () => db
+      .select({
+        key: agentProposalsTable.category,
+        up: sql<number>`count(*) filter (where ${agentProposalsTable.status} in ('approuvee','executee'))`,
+        down: sql<number>`count(*) filter (where ${agentProposalsTable.status} = 'rejetee')`,
+      })
+      .from(agentProposalsTable)
+      .where(eq(agentProposalsTable.organisationId, orgId))
+      .groupBy(agentProposalsTable.category),
+    { label: "ai-learning:recompute-proposals" },
+  );
   for (const row of props) {
     const up = Number(row.up ?? 0);
     const down = Number(row.down ?? 0);

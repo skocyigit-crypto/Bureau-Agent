@@ -15,6 +15,7 @@ import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "./ai-
 import { extractGeminiTokens, recordAiUsage, geminiActualModel, safeJsonParse, GEMINI_FLASH_MODEL } from "./ai-utils";
 import { buildAiCacheKey, getOrCompute, AI_CACHE_TTL, withProviderTimeout } from "./ai-cache";
 import { buildLearnedContextBlock, fingerprintLearned } from "./ai-learning";
+import { withDbRetry } from "../lib/db-retry";
 
 interface RawSignals {
   overdueTasks: number;
@@ -49,7 +50,7 @@ async function gatherSignals(orgId: number): Promise<RawSignals> {
     projetsEnRetardRow,
     projetsActifsRow,
     contactsIdleRow,
-  ] = await Promise.all([
+  ] = await withDbRetry(() => Promise.all([
     db.select({ c: count() }).from(tasksTable).where(and(
       eq(tasksTable.organisationId, orgId),
       sql`${tasksTable.dueDate} < ${now.toISOString()}`,
@@ -99,7 +100,7 @@ async function gatherSignals(orgId: number): Promise<RawSignals> {
       eq(contactsTable.organisationId, orgId),
       or(isNull(contactsTable.lastCallAt), lt(contactsTable.lastCallAt, monthAgo)),
     )),
-  ]);
+  ]), { label: "ai-insights:gatherSignals" });
 
   return {
     overdueTasks: Number(overdueTasksRow[0]?.c ?? 0),
@@ -376,7 +377,10 @@ async function purgeOldInsights(): Promise<void> {
 async function runCronCycle(): Promise<void> {
   try {
     await purgeOldInsights();
-    const orgs = await db.select({ id: organisationsTable.id }).from(organisationsTable).where(eq(organisationsTable.actif, true));
+    const orgs = await withDbRetry(
+      () => db.select({ id: organisationsTable.id }).from(organisationsTable).where(eq(organisationsTable.actif, true)),
+      { label: "ai-insights:runCronCycle:orgs" },
+    );
     let total = 0;
     for (const o of orgs) {
       try {

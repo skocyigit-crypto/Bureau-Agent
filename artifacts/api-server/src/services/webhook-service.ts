@@ -34,6 +34,7 @@ import {
 } from "@workspace/db";
 import { decryptSensitiveData } from "../lib/crypto";
 import { assertSafePublicUrl } from "../lib/ssrf-guard";
+import { withDbRetry } from "../lib/db-retry";
 import { logger } from "../lib/logger";
 import { broadcaster, type SyncEvent } from "./broadcaster";
 
@@ -355,25 +356,28 @@ async function processRetryQueue(): Promise<void> {
   try {
     const now = new Date();
     const staleBefore = new Date(now.getTime() - STALE_PENDING_MS);
-    const due = await db
-      .select()
-      .from(webhookDeliveriesTable)
-      .where(
-        or(
-          // Retentatives programmées dont l'échéance est atteinte.
-          and(
-            eq(webhookDeliveriesTable.status, "retrying"),
-            lte(webhookDeliveriesTable.nextRetryAt, now),
+    const due = await withDbRetry(
+      () => db
+        .select()
+        .from(webhookDeliveriesTable)
+        .where(
+          or(
+            // Retentatives programmées dont l'échéance est atteinte.
+            and(
+              eq(webhookDeliveriesTable.status, "retrying"),
+              lte(webhookDeliveriesTable.nextRetryAt, now),
+            ),
+            // Filet de sécurité : pending jamais résolu (crash entre insert et envoi).
+            and(
+              eq(webhookDeliveriesTable.status, "pending"),
+              lt(webhookDeliveriesTable.createdAt, staleBefore),
+            ),
           ),
-          // Filet de sécurité : pending jamais résolu (crash entre insert et envoi).
-          and(
-            eq(webhookDeliveriesTable.status, "pending"),
-            lt(webhookDeliveriesTable.createdAt, staleBefore),
-          ),
-        ),
-      )
-      .orderBy(webhookDeliveriesTable.createdAt)
-      .limit(RETRY_BATCH);
+        )
+        .orderBy(webhookDeliveriesTable.createdAt)
+        .limit(RETRY_BATCH),
+      { label: "webhook:processRetryQueue:due" },
+    );
 
     if (due.length === 0) return;
 

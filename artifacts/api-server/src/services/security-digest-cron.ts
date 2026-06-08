@@ -14,6 +14,7 @@ import { sendEmail } from "./email";
 import { computeSecurityScore } from "./security-score";
 import { loadSecurityScoreInput } from "./security-score-input";
 import { logger } from "../lib/logger";
+import { withDbRetry } from "../lib/db-retry";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000; // fenetre minimale entre deux envois
 const TICK_MS = 24 * 60 * 60 * 1000; // verifie une fois par jour les orgs en retard
@@ -115,15 +116,19 @@ Vous pouvez desactiver cette synthese dans Securite > Reglages.`;
 
 async function tick() {
   try {
-    const orgs = await db
-      .select({
-        id: organisationsTable.id,
-        email: organisationsTable.email,
-        name: organisationsTable.name,
-        lastSecurityDigestAt: organisationsTable.lastSecurityDigestAt,
-      })
-      .from(organisationsTable)
-      .where(and(eq(organisationsTable.actif, true), eq(organisationsTable.weeklySecurityEmail, true)));
+    const orgs = await withDbRetry(
+      () =>
+        db
+          .select({
+            id: organisationsTable.id,
+            email: organisationsTable.email,
+            name: organisationsTable.name,
+            lastSecurityDigestAt: organisationsTable.lastSecurityDigestAt,
+          })
+          .from(organisationsTable)
+          .where(and(eq(organisationsTable.actif, true), eq(organisationsTable.weeklySecurityEmail, true))),
+      { label: "security-digest:orgs" },
+    );
 
     for (const org of orgs) {
       if (!org.email) continue;

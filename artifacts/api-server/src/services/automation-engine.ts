@@ -12,6 +12,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, lte, and, gte, lt, sql, desc, isNull, isNotNull, or } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { withDbRetry } from "../lib/db-retry";
 import { sendEmail } from "./email";
 import { broadcaster } from "./broadcaster";
 
@@ -48,19 +49,22 @@ async function runAllAutomations() {
     await checkMissedCalls();
     await checkOverdueProjects();
 
-    const customRules = await db
-      .select()
-      .from(automationRulesTable)
-      .where(
-        and(
-          eq(automationRulesTable.enabled, true),
-          isNotNull(automationRulesTable.organisationId),
-          or(
-            isNull(automationRulesTable.nextRun),
-            lte(automationRulesTable.nextRun, new Date())
+    const customRules = await withDbRetry(
+      () => db
+        .select()
+        .from(automationRulesTable)
+        .where(
+          and(
+            eq(automationRulesTable.enabled, true),
+            isNotNull(automationRulesTable.organisationId),
+            or(
+              isNull(automationRulesTable.nextRun),
+              lte(automationRulesTable.nextRun, new Date())
+            )
           )
-        )
-      );
+        ),
+      { label: "automation:runAllAutomations:customRules" },
+    );
 
     for (const rule of customRules) {
       await executeRule(rule);
@@ -74,15 +78,18 @@ async function checkOverdueTasks() {
   const now = new Date();
   const start = performance.now();
 
-  const overdueTasks = await db
-    .select()
-    .from(tasksTable)
-    .where(
-      and(
-        lte(tasksTable.dueDate, now),
-        sql`${tasksTable.status} NOT IN ('termine', 'annule')`
-      )
-    );
+  const overdueTasks = await withDbRetry(
+    () => db
+      .select()
+      .from(tasksTable)
+      .where(
+        and(
+          lte(tasksTable.dueDate, now),
+          sql`${tasksTable.status} NOT IN ('termine', 'annule')`
+        )
+      ),
+    { label: "automation:checkOverdueTasks" },
+  );
 
   if (overdueTasks.length === 0) return;
 
@@ -146,15 +153,18 @@ async function checkUpcomingCalendarEvents() {
   const soon = new Date(now.getTime() + 30 * 60 * 1000);
   const start = performance.now();
 
-  const upcoming = await db
-    .select()
-    .from(calendarEventsTable)
-    .where(
-      and(
-        gte(calendarEventsTable.startDate, now),
-        lte(calendarEventsTable.startDate, soon)
-      )
-    );
+  const upcoming = await withDbRetry(
+    () => db
+      .select()
+      .from(calendarEventsTable)
+      .where(
+        and(
+          gte(calendarEventsTable.startDate, now),
+          lte(calendarEventsTable.startDate, soon)
+        )
+      ),
+    { label: "automation:checkUpcomingCalendarEvents" },
+  );
 
   for (const event of upcoming) {
     const existing = await db

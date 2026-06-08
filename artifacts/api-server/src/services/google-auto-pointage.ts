@@ -2,6 +2,7 @@ import { db, googleOAuthTokensTable, checkinsTable, usersTable } from "@workspac
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { getCalendarForUser } from "../lib/google-auth";
+import { withDbRetry } from "../lib/db-retry";
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 let isRunning = false;
@@ -53,15 +54,18 @@ async function runAutoSync() {
 }
 
 async function doSync() {
-  const allTokens = await db.select({
-    tokenId: googleOAuthTokensTable.id,
-    userId: googleOAuthTokensTable.userId,
-    accessToken: googleOAuthTokensTable.accessToken,
-    refreshToken: googleOAuthTokensTable.refreshToken,
-    scope: googleOAuthTokensTable.scope,
-    expiresAt: googleOAuthTokensTable.expiresAt,
-    organisationId: googleOAuthTokensTable.organisationId,
-  }).from(googleOAuthTokensTable);
+  const allTokens = await withDbRetry(
+    () => db.select({
+      tokenId: googleOAuthTokensTable.id,
+      userId: googleOAuthTokensTable.userId,
+      accessToken: googleOAuthTokensTable.accessToken,
+      refreshToken: googleOAuthTokensTable.refreshToken,
+      scope: googleOAuthTokensTable.scope,
+      expiresAt: googleOAuthTokensTable.expiresAt,
+      organisationId: googleOAuthTokensTable.organisationId,
+    }).from(googleOAuthTokensTable),
+    { label: "google-auto-pointage:all-tokens" },
+  );
 
   if (allTokens.length === 0) return;
 
@@ -103,14 +107,17 @@ async function syncUserToday(token: {
 }): Promise<{ imported: number; skipped: number; errors: number }> {
   const result = { imported: 0, skipped: 0, errors: 0 };
 
-  const [user] = await db.select({
-    id: usersTable.id,
-    prenom: usersTable.prenom,
-    nom: usersTable.nom,
-    role: usersTable.role,
-    organisationId: usersTable.organisationId,
-    actif: usersTable.actif,
-  }).from(usersTable).where(eq(usersTable.id, token.userId)).limit(1);
+  const [user] = await withDbRetry(
+    () => db.select({
+      id: usersTable.id,
+      prenom: usersTable.prenom,
+      nom: usersTable.nom,
+      role: usersTable.role,
+      organisationId: usersTable.organisationId,
+      actif: usersTable.actif,
+    }).from(usersTable).where(eq(usersTable.id, token.userId)).limit(1),
+    { label: "google-auto-pointage:user" },
+  );
 
   if (!user || !user.organisationId || !user.actif) return result;
 
@@ -175,22 +182,25 @@ async function syncUserToday(token: {
   const employeeName = `${user.prenom} ${user.nom}`;
   const organisationId = user.organisationId;
 
-  const existing = await db.select({ id: checkinsTable.id, notes: checkinsTable.notes })
-    .from(checkinsTable)
-    .where(and(
-      eq(checkinsTable.organisationId, organisationId),
-      eq(checkinsTable.employeeName, employeeName),
-      gte(checkinsTable.checkInAt, todayStart),
-      lte(checkinsTable.checkInAt, todayEnd),
-      // Anti-duplication: ignorer si un pointage Google existe deja pour ce
-      // jour, qu'il vienne de l'auto-sync ([google-auto]) OU d'un import manuel
-      // depuis l'agenda ([google-sync], cf. google-calendar-sync.ts). Sans le
-      // second tag, un pointage importe manuellement aujourd'hui ne serait pas
-      // detecte et l'auto-sync creerait une ligne en double pour les memes
-      // evenements.
-      sql`(${checkinsTable.notes} LIKE '%[google-auto]%' OR ${checkinsTable.notes} LIKE '%[google-sync]%')`,
-    ))
-    .limit(1);
+  const existing = await withDbRetry(
+    () => db.select({ id: checkinsTable.id, notes: checkinsTable.notes })
+      .from(checkinsTable)
+      .where(and(
+        eq(checkinsTable.organisationId, organisationId),
+        eq(checkinsTable.employeeName, employeeName),
+        gte(checkinsTable.checkInAt, todayStart),
+        lte(checkinsTable.checkInAt, todayEnd),
+        // Anti-duplication: ignorer si un pointage Google existe deja pour ce
+        // jour, qu'il vienne de l'auto-sync ([google-auto]) OU d'un import manuel
+        // depuis l'agenda ([google-sync], cf. google-calendar-sync.ts). Sans le
+        // second tag, un pointage importe manuellement aujourd'hui ne serait pas
+        // detecte et l'auto-sync creerait une ligne en double pour les memes
+        // evenements.
+        sql`(${checkinsTable.notes} LIKE '%[google-auto]%' OR ${checkinsTable.notes} LIKE '%[google-sync]%')`,
+      ))
+      .limit(1),
+    { label: "google-auto-pointage:existing-checkin" },
+  );
 
   if (existing.length > 0) {
     result.skipped++;

@@ -14,6 +14,7 @@ import { db } from "@workspace/db";
 import { organisationsTable, agentProposalsTable } from "@workspace/db/schema";
 import { and, eq, gte } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { withDbRetry } from "../lib/db-retry";
 import { proposeActionsForOrg } from "./autonomous-secretary";
 
 const TICK_MS = 60 * 60 * 1000; // 1h
@@ -33,19 +34,25 @@ async function tick(): Promise<void> {
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
 
   try {
-    const orgs = await db.select({ id: organisationsTable.id }).from(organisationsTable);
+    const orgs = await withDbRetry(
+      () => db.select({ id: organisationsTable.id }).from(organisationsTable),
+      { label: "autonomous-secretary:orgs" },
+    );
 
     for (const org of orgs) {
       try {
         // Garde "une fois par jour" persistant: déjà généré aujourd'hui ?
-        const existing = await db.select({ id: agentProposalsTable.id })
-          .from(agentProposalsTable)
-          .where(and(
-            eq(agentProposalsTable.organisationId, org.id),
-            eq(agentProposalsTable.runId, runId),
-            gte(agentProposalsTable.createdAt, todayStart),
-          ))
-          .limit(1);
+        const existing = await withDbRetry(
+          () => db.select({ id: agentProposalsTable.id })
+            .from(agentProposalsTable)
+            .where(and(
+              eq(agentProposalsTable.organisationId, org.id),
+              eq(agentProposalsTable.runId, runId),
+              gte(agentProposalsTable.createdAt, todayStart),
+            ))
+            .limit(1),
+          { label: "autonomous-secretary:existing-proposal" },
+        );
         if (existing.length > 0) continue;
 
         await proposeActionsForOrg(org.id, runId);

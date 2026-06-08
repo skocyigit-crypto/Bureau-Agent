@@ -2,6 +2,7 @@ import { db, organisationsTable, subscriptionsTable, callsTable, contactsTable, 
 import { and, eq, gte, sql, count as sqlCount } from "drizzle-orm";
 import { sendEmail } from "./email";
 import { logger } from "../lib/logger";
+import { withDbRetry } from "../lib/db-retry";
 
 const WARN_THRESHOLD = 0.8;
 const COOLDOWN_HOURS = 72;
@@ -9,15 +10,27 @@ const lastWarnedAt = new Map<number, number>();
 let timer: NodeJS.Timeout | null = null;
 
 async function checkOrganisation(orgId: number, orgEmail: string | null, orgName: string) {
-  const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, orgId)).limit(1);
+  const [sub] = await withDbRetry(
+    () => db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, orgId)).limit(1),
+    { label: "quota-warning:subscription" },
+  );
   if (!sub || sub.status === "annulee" || sub.status === "cancelled") return;
 
   const monthStart = new Date();
   monthStart.setUTCDate(1); monthStart.setUTCHours(0, 0, 0, 0);
 
-  const [usersAgg] = await db.select({ c: sqlCount() }).from(usersTable).where(and(eq(usersTable.organisationId, orgId), eq(usersTable.actif, true)));
-  const [contactsAgg] = await db.select({ c: sqlCount() }).from(contactsTable).where(eq(contactsTable.organisationId, orgId));
-  const [callsAgg] = await db.select({ c: sqlCount() }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, monthStart)));
+  const [usersAgg] = await withDbRetry(
+    () => db.select({ c: sqlCount() }).from(usersTable).where(and(eq(usersTable.organisationId, orgId), eq(usersTable.actif, true))),
+    { label: "quota-warning:users-count" },
+  );
+  const [contactsAgg] = await withDbRetry(
+    () => db.select({ c: sqlCount() }).from(contactsTable).where(eq(contactsTable.organisationId, orgId)),
+    { label: "quota-warning:contacts-count" },
+  );
+  const [callsAgg] = await withDbRetry(
+    () => db.select({ c: sqlCount() }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, monthStart))),
+    { label: "quota-warning:calls-count" },
+  );
 
   const usage = {
     users: { used: Number(usersAgg?.c ?? 0), max: sub.maxUsers ?? 0 },
@@ -57,12 +70,15 @@ async function checkOrganisation(orgId: number, orgEmail: string | null, orgName
 
 async function tick() {
   try {
-    const orgs = await db.select({
-      id: organisationsTable.id,
-      email: organisationsTable.email,
-      name: organisationsTable.name,
-      actif: organisationsTable.actif,
-    }).from(organisationsTable).where(eq(organisationsTable.actif, true));
+    const orgs = await withDbRetry(
+      () => db.select({
+        id: organisationsTable.id,
+        email: organisationsTable.email,
+        name: organisationsTable.name,
+        actif: organisationsTable.actif,
+      }).from(organisationsTable).where(eq(organisationsTable.actif, true)),
+      { label: "quota-warning:orgs" },
+    );
 
     for (const org of orgs) {
       try {

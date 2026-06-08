@@ -3,6 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { sendTrialEndingEmail } from "./email";
 import { logLicenseEvent } from "./license-audit";
 import { logger } from "../lib/logger";
+import { withDbRetry } from "../lib/db-retry";
 
 let timer: NodeJS.Timeout | null = null;
 type Bucket = "T-3" | "T-1" | "T-0";
@@ -10,34 +11,40 @@ type Bucket = "T-3" | "T-1" | "T-0";
 async function alreadyNotified(orgId: number, bucket: Bucket, trialEndsAt: Date): Promise<boolean> {
   const action = bucket === "T-0" ? "trial_expired" : "trial_ending_warning";
   const isoEnd = trialEndsAt.toISOString();
-  const [hit] = await db
-    .select({ id: licenseAuditLogTable.id })
-    .from(licenseAuditLogTable)
-    .where(and(
-      eq(licenseAuditLogTable.organisationId, orgId),
-      eq(licenseAuditLogTable.action, action),
-      sql`${licenseAuditLogTable.metadata}->>'bucket' = ${bucket}`,
-      sql`${licenseAuditLogTable.metadata}->>'trialEndsAt' = ${isoEnd}`,
-    ))
-    .limit(1);
+  const [hit] = await withDbRetry(
+    () => db
+      .select({ id: licenseAuditLogTable.id })
+      .from(licenseAuditLogTable)
+      .where(and(
+        eq(licenseAuditLogTable.organisationId, orgId),
+        eq(licenseAuditLogTable.action, action),
+        sql`${licenseAuditLogTable.metadata}->>'bucket' = ${bucket}`,
+        sql`${licenseAuditLogTable.metadata}->>'trialEndsAt' = ${isoEnd}`,
+      ))
+      .limit(1),
+    { label: "trial-warning:already-notified" },
+  );
   return Boolean(hit);
 }
 
 async function tick() {
   try {
-    const rows = await db
-      .select({
-        id: organisationsTable.id,
-        name: organisationsTable.name,
-        email: organisationsTable.email,
-        actif: organisationsTable.actif,
-        plan: subscriptionsTable.plan,
-        status: subscriptionsTable.status,
-        trialEndsAt: subscriptionsTable.trialEndsAt,
-      })
-      .from(organisationsTable)
-      .innerJoin(subscriptionsTable, eq(subscriptionsTable.organisationId, organisationsTable.id))
-      .where(and(eq(organisationsTable.actif, true), eq(subscriptionsTable.plan, "essai")));
+    const rows = await withDbRetry(
+      () => db
+        .select({
+          id: organisationsTable.id,
+          name: organisationsTable.name,
+          email: organisationsTable.email,
+          actif: organisationsTable.actif,
+          plan: subscriptionsTable.plan,
+          status: subscriptionsTable.status,
+          trialEndsAt: subscriptionsTable.trialEndsAt,
+        })
+        .from(organisationsTable)
+        .innerJoin(subscriptionsTable, eq(subscriptionsTable.organisationId, organisationsTable.id))
+        .where(and(eq(organisationsTable.actif, true), eq(subscriptionsTable.plan, "essai"))),
+      { label: "trial-warning:trial-orgs" },
+    );
 
     const now = Date.now();
     for (const row of rows) {

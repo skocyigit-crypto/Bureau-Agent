@@ -25,6 +25,7 @@ import {
 import { and, eq, lt, gte, inArray, notInArray, isNotNull, desc } from "drizzle-orm";
 import { broadcaster } from "./broadcaster";
 import { logger } from "../lib/logger";
+import { withDbRetry } from "../lib/db-retry";
 import { analyzeTreasuryRisk, CASH_CRUNCH_THRESHOLD, CASH_CRUNCH_RESOLVE_THRESHOLD } from "./treasury-risk";
 import { getSuppressedSuggestionTypes } from "./ai-learning";
 
@@ -109,19 +110,22 @@ function frTime(d: Date): string {
 
 // --- Détecteur 1 : tâches en retard ---------------------------------------
 async function detectOverdueTasks(orgId: number, now: Date): Promise<Candidate[]> {
-  const rows = await db
-    .select()
-    .from(tasksTable)
-    .where(
-      and(
-        eq(tasksTable.organisationId, orgId),
-        notInArray(tasksTable.status, ["termine", "annule"]),
-        isNotNull(tasksTable.dueDate),
-        lt(tasksTable.dueDate, now),
-      ),
-    )
-    .orderBy(desc(tasksTable.dueDate))
-    .limit(50);
+  const rows = await withDbRetry(
+    () => db
+      .select()
+      .from(tasksTable)
+      .where(
+        and(
+          eq(tasksTable.organisationId, orgId),
+          notInArray(tasksTable.status, ["termine", "annule"]),
+          isNotNull(tasksTable.dueDate),
+          lt(tasksTable.dueDate, now),
+        ),
+      )
+      .orderBy(desc(tasksTable.dueDate))
+      .limit(50),
+    { label: "proactive:overdue-tasks" },
+  );
 
   return rows.map((t) => {
     const due = t.dueDate as Date;
@@ -147,28 +151,34 @@ async function detectOverdueTasks(orgId: number, now: Date): Promise<Candidate[]
 // --- Détecteur 2 : appels manqués sans suivi ------------------------------
 async function detectMissedCallFollowups(orgId: number, now: Date): Promise<Candidate[]> {
   const since = new Date(now.getTime() - 7 * DAY_MS);
-  const calls = await db
-    .select()
-    .from(callsTable)
-    .where(
-      and(
-        eq(callsTable.organisationId, orgId),
-        eq(callsTable.status, "manque"),
-        eq(callsTable.direction, "entrant"),
-        gte(callsTable.createdAt, since),
-      ),
-    )
-    .orderBy(desc(callsTable.createdAt))
-    .limit(50);
+  const calls = await withDbRetry(
+    () => db
+      .select()
+      .from(callsTable)
+      .where(
+        and(
+          eq(callsTable.organisationId, orgId),
+          eq(callsTable.status, "manque"),
+          eq(callsTable.direction, "entrant"),
+          gte(callsTable.createdAt, since),
+        ),
+      )
+      .orderBy(desc(callsTable.createdAt))
+      .limit(50),
+    { label: "proactive:missed-calls" },
+  );
 
   if (calls.length === 0) return [];
 
   // Appels déjà suivis d'une tâche liée -> on ne re-suggère pas.
   const callIds = calls.map((c) => c.id);
-  const linked = await db
-    .select({ relatedCallId: tasksTable.relatedCallId })
-    .from(tasksTable)
-    .where(and(eq(tasksTable.organisationId, orgId), inArray(tasksTable.relatedCallId, callIds)));
+  const linked = await withDbRetry(
+    () => db
+      .select({ relatedCallId: tasksTable.relatedCallId })
+      .from(tasksTable)
+      .where(and(eq(tasksTable.organisationId, orgId), inArray(tasksTable.relatedCallId, callIds))),
+    { label: "proactive:missed-calls-linked" },
+  );
   const linkedSet = new Set(linked.map((l) => l.relatedCallId));
 
   return calls
@@ -197,12 +207,15 @@ async function detectMissedCallFollowups(orgId: number, now: Date): Promise<Cand
 
 // --- Détecteur 3 : conflits d'agenda --------------------------------------
 async function detectCalendarConflicts(orgId: number, now: Date): Promise<Candidate[]> {
-  const events = await db
-    .select()
-    .from(calendarEventsTable)
-    .where(and(eq(calendarEventsTable.organisationId, orgId), gte(calendarEventsTable.endDate, now)))
-    .orderBy(calendarEventsTable.startDate)
-    .limit(100);
+  const events = await withDbRetry(
+    () => db
+      .select()
+      .from(calendarEventsTable)
+      .where(and(eq(calendarEventsTable.organisationId, orgId), gte(calendarEventsTable.endDate, now)))
+      .orderBy(calendarEventsTable.startDate)
+      .limit(100),
+    { label: "proactive:calendar-conflicts" },
+  );
 
   const out: Candidate[] = [];
   const seen = new Set<string>();
@@ -252,27 +265,33 @@ async function detectCalendarConflicts(orgId: number, now: Date): Promise<Candid
 // partir : on propose un rappel rapide pour désamorcer.
 async function detectNegativeCallFollowups(orgId: number, now: Date): Promise<Candidate[]> {
   const since = new Date(now.getTime() - 7 * DAY_MS);
-  const calls = await db
-    .select()
-    .from(callsTable)
-    .where(
-      and(
-        eq(callsTable.organisationId, orgId),
-        inArray(callsTable.sentiment, ["negatif", "tres_negatif"]),
-        gte(callsTable.createdAt, since),
-      ),
-    )
-    .orderBy(desc(callsTable.createdAt))
-    .limit(50);
+  const calls = await withDbRetry(
+    () => db
+      .select()
+      .from(callsTable)
+      .where(
+        and(
+          eq(callsTable.organisationId, orgId),
+          inArray(callsTable.sentiment, ["negatif", "tres_negatif"]),
+          gte(callsTable.createdAt, since),
+        ),
+      )
+      .orderBy(desc(callsTable.createdAt))
+      .limit(50),
+    { label: "proactive:negative-calls" },
+  );
 
   if (calls.length === 0) return [];
 
   // Appels déjà suivis d'une tâche liée -> on ne re-suggère pas.
   const callIds = calls.map((c) => c.id);
-  const linked = await db
-    .select({ relatedCallId: tasksTable.relatedCallId })
-    .from(tasksTable)
-    .where(and(eq(tasksTable.organisationId, orgId), inArray(tasksTable.relatedCallId, callIds)));
+  const linked = await withDbRetry(
+    () => db
+      .select({ relatedCallId: tasksTable.relatedCallId })
+      .from(tasksTable)
+      .where(and(eq(tasksTable.organisationId, orgId), inArray(tasksTable.relatedCallId, callIds))),
+    { label: "proactive:negative-calls-linked" },
+  );
   const linkedSet = new Set(linked.map((l) => l.relatedCallId));
 
   return calls
@@ -309,19 +328,22 @@ async function detectNegativeCallFollowups(orgId: number, now: Date): Promise<Ca
 // reste à la demande, pilier IA).
 async function detectUrgentMessages(orgId: number, now: Date): Promise<Candidate[]> {
   const cutoff = new Date(now.getTime() - 2 * 60 * 60 * 1000);
-  const rows = await db
-    .select()
-    .from(messagesTable)
-    .where(
-      and(
-        eq(messagesTable.organisationId, orgId),
-        eq(messagesTable.isRead, false),
-        eq(messagesTable.priority, "haute"),
-        lt(messagesTable.createdAt, cutoff),
-      ),
-    )
-    .orderBy(desc(messagesTable.createdAt))
-    .limit(30);
+  const rows = await withDbRetry(
+    () => db
+      .select()
+      .from(messagesTable)
+      .where(
+        and(
+          eq(messagesTable.organisationId, orgId),
+          eq(messagesTable.isRead, false),
+          eq(messagesTable.priority, "haute"),
+          lt(messagesTable.createdAt, cutoff),
+        ),
+      )
+      .orderBy(desc(messagesTable.createdAt))
+      .limit(30),
+    { label: "proactive:urgent-messages" },
+  );
 
   return rows.map((m) => {
     const who = m.contactName?.trim() || m.phoneNumber;
@@ -350,18 +372,21 @@ async function detectUrgentMessages(orgId: number, now: Date): Promise<Candidate
 // passé (il sort de la fenêtre des candidats).
 async function detectMeetingPrep(orgId: number, now: Date): Promise<Candidate[]> {
   const horizon = new Date(now.getTime() + DAY_MS);
-  const events = await db
-    .select()
-    .from(calendarEventsTable)
-    .where(
-      and(
-        eq(calendarEventsTable.organisationId, orgId),
-        gte(calendarEventsTable.startDate, now),
-        lt(calendarEventsTable.startDate, horizon),
-      ),
-    )
-    .orderBy(calendarEventsTable.startDate)
-    .limit(30);
+  const events = await withDbRetry(
+    () => db
+      .select()
+      .from(calendarEventsTable)
+      .where(
+        and(
+          eq(calendarEventsTable.organisationId, orgId),
+          gte(calendarEventsTable.startDate, now),
+          lt(calendarEventsTable.startDate, horizon),
+        ),
+      )
+      .orderBy(calendarEventsTable.startDate)
+      .limit(30),
+    { label: "proactive:meeting-prep" },
+  );
 
   return events
     .filter((e) => !e.allDay && e.status !== "annule")
@@ -393,18 +418,21 @@ async function detectMeetingPrep(orgId: number, now: Date): Promise<Candidate[]>
 // pour proposer une reprise de contact sans noyer l'utilisateur.
 async function detectInactiveContacts(orgId: number, now: Date): Promise<Candidate[]> {
   const cutoff = new Date(now.getTime() - INACTIVE_CONTACT_DAYS * DAY_MS);
-  const rows = await db
-    .select()
-    .from(contactsTable)
-    .where(
-      and(
-        eq(contactsTable.organisationId, orgId),
-        inArray(contactsTable.category, ["client", "prospect"]),
-        lt(contactsTable.updatedAt, cutoff),
-      ),
-    )
-    .orderBy(desc(contactsTable.updatedAt))
-    .limit(10);
+  const rows = await withDbRetry(
+    () => db
+      .select()
+      .from(contactsTable)
+      .where(
+        and(
+          eq(contactsTable.organisationId, orgId),
+          inArray(contactsTable.category, ["client", "prospect"]),
+          lt(contactsTable.updatedAt, cutoff),
+        ),
+      )
+      .orderBy(desc(contactsTable.updatedAt))
+      .limit(10),
+    { label: "proactive:inactive-contacts" },
+  );
 
   return rows.map((c) => {
     const name = `${c.firstName} ${c.lastName}`.trim();
@@ -444,17 +472,20 @@ async function detectCashCrunch(orgId: number, _now: Date): Promise<Candidate[]>
     // Sans cela, le bruit d'échantillonnage Monte Carlo autour du seuil ferait
     // créer/auto-résoudre l'alerte à chaque tick alors que les données réelles
     // n'ont pas bougé.
-    const [pending] = await db
-      .select({ id: proactiveSuggestionsTable.id })
-      .from(proactiveSuggestionsTable)
-      .where(
-        and(
-          eq(proactiveSuggestionsTable.organisationId, orgId),
-          eq(proactiveSuggestionsTable.type, "cash_crunch"),
-          eq(proactiveSuggestionsTable.status, "pending"),
-        ),
-      )
-      .limit(1);
+    const [pending] = await withDbRetry(
+      () => db
+        .select({ id: proactiveSuggestionsTable.id })
+        .from(proactiveSuggestionsTable)
+        .where(
+          and(
+            eq(proactiveSuggestionsTable.organisationId, orgId),
+            eq(proactiveSuggestionsTable.type, "cash_crunch"),
+            eq(proactiveSuggestionsTable.status, "pending"),
+          ),
+        )
+        .limit(1),
+      { label: "proactive:cash-crunch-pending" },
+    );
     const alreadyOpen = !!pending;
     const shouldAlert = alreadyOpen ? p >= CASH_CRUNCH_RESOLVE_THRESHOLD : p > CASH_CRUNCH_THRESHOLD;
     if (!shouldAlert) return [];
@@ -499,21 +530,24 @@ async function detectMyTasksDueToday(orgId: number, now: Date): Promise<Candidat
   const startOfDay = new Date(now);
   startOfDay.setHours(0, 0, 0, 0);
   const endOfDay = new Date(startOfDay.getTime() + DAY_MS);
-  const rows = await db
-    .select()
-    .from(tasksTable)
-    .where(
-      and(
-        eq(tasksTable.organisationId, orgId),
-        notInArray(tasksTable.status, ["termine", "annule"]),
-        isNotNull(tasksTable.createdBy),
-        isNotNull(tasksTable.dueDate),
-        gte(tasksTable.dueDate, startOfDay),
-        lt(tasksTable.dueDate, endOfDay),
-      ),
-    )
-    .orderBy(desc(tasksTable.dueDate))
-    .limit(100);
+  const rows = await withDbRetry(
+    () => db
+      .select()
+      .from(tasksTable)
+      .where(
+        and(
+          eq(tasksTable.organisationId, orgId),
+          notInArray(tasksTable.status, ["termine", "annule"]),
+          isNotNull(tasksTable.createdBy),
+          isNotNull(tasksTable.dueDate),
+          gte(tasksTable.dueDate, startOfDay),
+          lt(tasksTable.dueDate, endOfDay),
+        ),
+      )
+      .orderBy(desc(tasksTable.dueDate))
+      .limit(100),
+    { label: "proactive:my-tasks-due-today" },
+  );
 
   return rows.map((t) => {
     const uid = t.createdBy as number;
@@ -562,19 +596,22 @@ export async function runProactiveForOrg(orgId: number): Promise<number> {
   const candidateKeys = new Set(candidates.map((c) => c.dedupeKey));
 
   // Suggestions pending actuelles pour cette org.
-  const existing = await db
-    .select({
-      id: proactiveSuggestionsTable.id,
-      type: proactiveSuggestionsTable.type,
-      dedupeKey: proactiveSuggestionsTable.dedupeKey,
-    })
-    .from(proactiveSuggestionsTable)
-    .where(
-      and(
-        eq(proactiveSuggestionsTable.organisationId, orgId),
-        eq(proactiveSuggestionsTable.status, "pending"),
+  const existing = await withDbRetry(
+    () => db
+      .select({
+        id: proactiveSuggestionsTable.id,
+        type: proactiveSuggestionsTable.type,
+        dedupeKey: proactiveSuggestionsTable.dedupeKey,
+      })
+      .from(proactiveSuggestionsTable)
+      .where(
+        and(
+          eq(proactiveSuggestionsTable.organisationId, orgId),
+          eq(proactiveSuggestionsTable.status, "pending"),
+        ),
       ),
-    );
+    { label: "proactive:existing-pending" },
+  );
   const existingKeys = new Set(existing.map((e) => e.dedupeKey));
 
   // Auto-résolution : pending d'un type géré dont la condition a disparu, OU
@@ -852,15 +889,18 @@ export async function recordModelFallbackSuggestion(input: {
 
 async function tick(): Promise<void> {
   try {
-    const orgs = await db
-      .select({ id: organisationsTable.id })
-      .from(organisationsTable)
-      .where(
-        and(
-          eq(organisationsTable.actif, true),
-          eq(organisationsTable.proactiveEngineEnabled, true),
+    const orgs = await withDbRetry(
+      () => db
+        .select({ id: organisationsTable.id })
+        .from(organisationsTable)
+        .where(
+          and(
+            eq(organisationsTable.actif, true),
+            eq(organisationsTable.proactiveEngineEnabled, true),
+          ),
         ),
-      );
+      { label: "proactive:tick-orgs" },
+    );
     for (const org of orgs) {
       try {
         await runProactiveForOrg(org.id);

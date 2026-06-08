@@ -10,6 +10,7 @@ import {
 } from "@workspace/db";
 import { eq, and, desc, sql, gte, lte, inArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { withDbRetry } from "../lib/db-retry";
 
 let monitorInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -59,34 +60,45 @@ async function runDataProtectionCheck() {
   logger.info("[DataProtection] Verification de la protection des donnees...");
 
   try {
-    const orgsWithSubs = await db
-      .select({
-        orgId: organisationsTable.id,
-        orgName: organisationsTable.name,
-        orgActif: organisationsTable.actif,
-        plan: subscriptionsTable.plan,
-        subStatus: subscriptionsTable.status,
-        trialEndsAt: subscriptionsTable.trialEndsAt,
-      })
-      .from(organisationsTable)
-      .innerJoin(subscriptionsTable, eq(subscriptionsTable.organisationId, organisationsTable.id))
-      .where(eq(organisationsTable.actif, true));
+    const orgsWithSubs = await withDbRetry(
+      () =>
+        db
+          .select({
+            orgId: organisationsTable.id,
+            orgName: organisationsTable.name,
+            orgActif: organisationsTable.actif,
+            plan: subscriptionsTable.plan,
+            subStatus: subscriptionsTable.status,
+            trialEndsAt: subscriptionsTable.trialEndsAt,
+          })
+          .from(organisationsTable)
+          .innerJoin(subscriptionsTable, eq(subscriptionsTable.organisationId, organisationsTable.id))
+          .where(eq(organisationsTable.actif, true)),
+      { label: "data-protection:orgs-with-subs" },
+    );
 
     if (orgsWithSubs.length === 0) {
       logger.info("[DataProtection] Aucune organisation active trouvee.");
       return;
     }
 
-    const backupConfigs = await db.select().from(backupConfigTable);
+    const backupConfigs = await withDbRetry(
+      () => db.select().from(backupConfigTable),
+      { label: "data-protection:backup-configs" },
+    );
     const driveConfig = backupConfigs.find(c => c.platform === "google_drive");
     const localConfig = backupConfigs.find(c => c.platform === "local");
 
-    const recentBackups = await db
-      .select()
-      .from(autoBackupsTable)
-      .where(eq(autoBackupsTable.status, "termine"))
-      .orderBy(desc(autoBackupsTable.createdAt))
-      .limit(20);
+    const recentBackups = await withDbRetry(
+      () =>
+        db
+          .select()
+          .from(autoBackupsTable)
+          .where(eq(autoBackupsTable.status, "termine"))
+          .orderBy(desc(autoBackupsTable.createdAt))
+          .limit(20),
+      { label: "data-protection:recent-backups" },
+    );
 
     const lastSuccessfulBackup = recentBackups[0] || null;
 
@@ -130,7 +142,10 @@ async function getTableRecordCounts(): Promise<Record<string, number>> {
 
   for (const table of tables) {
     try {
-      const result = await db.execute(sql`SELECT COUNT(*) as cnt FROM ${sql.identifier(table)}`);
+      const result = await withDbRetry(
+        () => db.execute(sql`SELECT COUNT(*) as cnt FROM ${sql.identifier(table)}`),
+        { label: `data-protection:count-${table}` },
+      );
       const rows = Array.isArray(result) ? result : (result as any)?.rows || [];
       counts[table] = parseInt(rows[0]?.cnt || "0", 10);
     } catch {
@@ -148,16 +163,20 @@ async function analyzeOrgBackupStatus(
   localConfig: any | null,
   totalRecords: number
 ): Promise<OrgBackupStatus> {
-  const admins = await db
-    .select({ id: usersTable.id, email: usersTable.email })
-    .from(usersTable)
-    .where(
-      and(
-        eq(usersTable.organisationId, org.orgId),
-        eq(usersTable.actif, true),
-        inArray(usersTable.role, ["super_admin", "administrateur"])
-      )
-    );
+  const admins = await withDbRetry(
+    () =>
+      db
+        .select({ id: usersTable.id, email: usersTable.email })
+        .from(usersTable)
+        .where(
+          and(
+            eq(usersTable.organisationId, org.orgId),
+            eq(usersTable.actif, true),
+            inArray(usersTable.role, ["super_admin", "administrateur"])
+          )
+        ),
+    { label: "data-protection:org-admins" },
+  );
 
   const issues: string[] = [];
   let severity: string = "info";

@@ -3,6 +3,7 @@ import { db, autoBackupsTable, backupConfigTable, googleOAuthTokensTable, usersT
 import { eq, sql, desc } from "drizzle-orm";
 import crypto from "crypto";
 import { logger } from "../lib/logger";
+import { withDbRetry } from "../lib/db-retry";
 import { getOrgGoogleCredentials, getGoogleRedirectUri, decryptToken, ensureTokenRowEncrypted } from "../lib/google-auth";
 
 const DRIVE_FOLDER_NAME = "Agent de Bureau - Sauvegardes";
@@ -53,19 +54,22 @@ async function getGoogleDriveAccessToken(): Promise<string | null> {
   //    n'utiliser que le compte du proprietaire de la plateforme (sinon -> null,
   //    et la sauvegarde echoue proprement plutot que de fuiter chez un client).
   try {
-    const tokens = await db
-      .select({
-        id: googleOAuthTokensTable.id,
-        accessToken: googleOAuthTokensTable.accessToken,
-        refreshToken: googleOAuthTokensTable.refreshToken,
-        scope: googleOAuthTokensTable.scope,
-        organisationId: googleOAuthTokensTable.organisationId,
-      })
-      .from(googleOAuthTokensTable)
-      .innerJoin(usersTable, eq(usersTable.id, googleOAuthTokensTable.userId))
-      .where(eq(usersTable.role, "super_admin"))
-      .orderBy(desc(googleOAuthTokensTable.updatedAt))
-      .limit(10);
+    const tokens = await withDbRetry(
+      () => db
+        .select({
+          id: googleOAuthTokensTable.id,
+          accessToken: googleOAuthTokensTable.accessToken,
+          refreshToken: googleOAuthTokensTable.refreshToken,
+          scope: googleOAuthTokensTable.scope,
+          organisationId: googleOAuthTokensTable.organisationId,
+        })
+        .from(googleOAuthTokensTable)
+        .innerJoin(usersTable, eq(usersTable.id, googleOAuthTokensTable.userId))
+        .where(eq(usersTable.role, "super_admin"))
+        .orderBy(desc(googleOAuthTokensTable.updatedAt))
+        .limit(10),
+      { label: "drive-backup:super-admin-tokens" },
+    );
 
     const driveToken = tokens.find(t => (t.scope || "").includes("drive"));
     if (!driveToken) return null;
@@ -216,7 +220,10 @@ async function collectFullBackupData(): Promise<object> {
   const snapshot: Record<string, any> = {};
   for (const table of tables) {
     try {
-      const rows = await db.execute(sql`SELECT * FROM ${sql.identifier(table)}`);
+      const rows = await withDbRetry(
+        () => db.execute(sql`SELECT * FROM ${sql.identifier(table)}`),
+        { label: `drive-backup:dump-${table}` },
+      );
       snapshot[table] = {
         count: Array.isArray(rows) ? rows.length : (rows as any)?.rows?.length || 0,
         data: Array.isArray(rows) ? rows : (rows as any)?.rows || [],
@@ -411,7 +418,10 @@ export async function performGoogleDriveBackup(): Promise<{
 
     const duration = Date.now() - startTime;
 
-    const configs = await db.select().from(backupConfigTable).where(eq(backupConfigTable.platform, "google"));
+    const configs = await withDbRetry(
+      () => db.select().from(backupConfigTable).where(eq(backupConfigTable.platform, "google")),
+      { label: "drive-backup:backup-config" },
+    );
     const retentionDays = configs.length > 0 ? configs[0].retentionDays : 90;
     await cleanupOldDriveBackups(accessToken, folderId, retentionDays);
 

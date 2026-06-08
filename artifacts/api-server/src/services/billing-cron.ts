@@ -2,6 +2,7 @@ import { generateMonthlyInvoices } from "./billing-engine";
 import { db, invoicesTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { withDbRetry } from "../lib/db-retry";
 
 let lastRunMonth: string | null = null;
 let timer: NodeJS.Timeout | null = null;
@@ -14,10 +15,13 @@ async function runForMonth(year: number, month: number): Promise<void> {
   const label = periodLabel(year, month);
   if (lastRunMonth === label) return;
   // Cross-instance safety: skip if invoices already exist for this period
-  const [existing] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(invoicesTable)
-    .where(eq(invoicesTable.periodLabel, label));
+  const [existing] = await withDbRetry(
+    () => db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(invoicesTable)
+      .where(eq(invoicesTable.periodLabel, label)),
+    { label: "billing-cron:existing-invoices" },
+  );
   if ((existing?.count ?? 0) > 0) {
     logger.info({ periodLabel: label, existing: existing?.count }, "[billing-cron] period already has invoices, skipping");
     lastRunMonth = label;
