@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system";
+import { uploadAsync, FileSystemUploadType } from "expo-file-system/legacy";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -96,7 +96,7 @@ type Step = "pick" | "meta" | "done";
 export default function DocumentImportScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { fetchAuth } = useAuth();
+  const { fetchAuth, authHeaders } = useAuth();
   const isWeb = Platform.OS === "web";
 
   const [step, setStep] = useState<Step>("pick");
@@ -144,48 +144,75 @@ export default function DocumentImportScreen() {
     const uploaded: UploadedDoc[] = [];
     const errs: string[] = [];
 
+    const url = `${API_BASE}/api/documents/upload`;
+    // Métadonnées communes, transmises en champs texte multipart (strings).
+    const meta = {
+      category: metaValues.category || "general",
+      entityType: metaValues.entityType || "",
+      tags: metaValues.tags
+        ? metaValues.tags.split(",").map(t => t.trim()).filter(Boolean).join(",")
+        : "",
+      description: metaValues.description || "",
+    };
+
     for (const file of pickedFiles) {
       try {
-        let base64: string;
+        let status: number;
+        let bodyText: string;
+
         if (Platform.OS === "web") {
+          // Web: pas de module natif uploadAsync → multipart via FormData.
+          // Le navigateur streame le blob avec la boundary; pas d'expansion
+          // base64 (~+33%) ni de copie JSON.stringify dans le tas JS.
           const response = await fetch(file.uri);
           const blob = await response.blob();
-          base64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve((reader.result as string).split(",")[1]);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
+          const form = new FormData();
+          form.append("fileName", file.name);
+          form.append("mimeType", file.mimeType);
+          form.append("category", meta.category);
+          form.append("entityType", meta.entityType);
+          form.append("tags", meta.tags);
+          form.append("description", meta.description);
+          form.append("file", blob, file.name);
+          // NE PAS fixer Content-Type: le navigateur ajoute la boundary multipart.
+          const res = await fetchAuth(url, { method: "POST", body: form });
+          status = res.status;
+          bodyText = await res.text();
         } else {
-          base64 = await FileSystem.readAsStringAsync(file.uri, { encoding: "base64" as any });
+          // Natif: uploadAsync streame le fichier depuis le disque, sans jamais
+          // charger son contenu (ni son base64) dans le tas JS du téléphone —
+          // c'est le coeur du correctif mémoire pour les gros fichiers (jusqu'à 25 Mo).
+          const res = await uploadAsync(url, file.uri, {
+            httpMethod: "POST",
+            uploadType: FileSystemUploadType.MULTIPART,
+            fieldName: "file",
+            mimeType: file.mimeType,
+            parameters: {
+              fileName: file.name,
+              mimeType: file.mimeType,
+              category: meta.category,
+              entityType: meta.entityType,
+              tags: meta.tags,
+              description: meta.description,
+            },
+            headers: authHeaders(),
+          });
+          status = res.status;
+          bodyText = res.body;
         }
 
-        const payload = {
-          filename: file.name,
-          mimeType: file.mimeType,
-          fileSize: file.size,
-          content: base64,
-          category: metaValues.category || "general",
-          entityType: metaValues.entityType || undefined,
-          tags: metaValues.tags ? metaValues.tags.split(",").map(t => t.trim()).filter(Boolean) : [],
-          description: metaValues.description || undefined,
-        };
-
-        const res = await fetchAuth(`${API_BASE}/api/documents/upload`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        if (res.ok) {
-          const d = await res.json();
-          uploaded.push(d.document ?? d);
+        if (status >= 200 && status < 300) {
+          const d = JSON.parse(bodyText);
+          const doc = d.document ?? d;
+          // Le serveur renvoie `fileName`; l'écran d'aperçu lit `filename`.
+          uploaded.push({ ...doc, filename: doc.fileName ?? doc.filename ?? file.name });
         } else {
-          const err = await res.json().catch(() => ({}));
-          errs.push(`${file.name} : ${err.error ?? "Erreur"}`);
+          let msg = "Erreur";
+          try { msg = JSON.parse(bodyText)?.error ?? msg; } catch { /* corps non JSON */ }
+          errs.push(`${file.name} : ${msg}`);
         }
       } catch {
-        errs.push(`${file.name} : Erreur de lecture`);
+        errs.push(`${file.name} : Erreur d'envoi`);
       }
     }
 

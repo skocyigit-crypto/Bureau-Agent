@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import crypto from "crypto";
+import multer from "multer";
 import { db, documentsTable, bulkScanJobsTable, organisationsTable } from "@workspace/db";
 import { eq, and, or, ne, lt, desc, sql, inArray } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
@@ -21,11 +22,62 @@ import { startBulkScan, getBulkScanStatus, cancelBulkScan } from "../services/do
 const router = Router();
 const requireMinAgent = requireRole("super_admin", "administrateur", "agent");
 
-router.post("/documents/upload", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
+// Téléversement en flux (multipart) pour le mobile: le fichier est streamé
+// depuis le disque côté client (expo `uploadAsync`) et reçu ici en mémoire
+// serveur, évitant la double copie base64 (base64 ~+33% + copie JSON.stringify)
+// dans le tas JS du téléphone — cause de pics mémoire sur les gros fichiers.
+// La couche stockage/scan reste en base64: on convertit le buffer UNE fois ici.
+// multer est un no-op pour les requêtes JSON: la compat web (base64) est intacte.
+const uploadMem = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: (MAX_FILE_SIZE_MB + 1) * 1024 * 1024 },
+});
+
+function handleUploadStream(req: Request, res: Response, next: (err?: unknown) => void): void {
+  uploadMem.single("file")(req, res, (err: unknown) => {
+    if (err) {
+      const code = (err as { code?: string })?.code;
+      const msg = code === "LIMIT_FILE_SIZE"
+        ? `Fichier trop volumineux (max ${MAX_FILE_SIZE_MB} Mo).`
+        : "Téléversement invalide.";
+      res.status(400).json({ error: msg });
+      return;
+    }
+    next();
+  });
+}
+
+router.post("/documents/upload", requireMinAgent, handleUploadStream, async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
     const userId = req.session?.userId;
-    const { fileContent, fileName, mimeType: rawMime, entityType, entityId, category, description, tags, analyzeWithAi } = req.body;
+
+    // Deux transports supportés sur le même endpoint:
+    //  - multipart/form-data (mobile): fichier dans `req.file`, méta en champs texte.
+    //  - application/json (web legacy): base64 dans `req.body.fileContent`.
+    const uploadedFile = req.file;
+    const fileContent = uploadedFile
+      ? uploadedFile.buffer.toString("base64")
+      : req.body.fileContent;
+    const fileName = uploadedFile
+      ? (req.body.fileName || req.body.filename || uploadedFile.originalname)
+      : (req.body.fileName || req.body.filename);
+    const rawMime = uploadedFile
+      ? (req.body.mimeType || uploadedFile.mimetype)
+      : req.body.mimeType;
+    const { entityType, entityId, category, description } = req.body;
+    let tags = req.body.tags;
+    if (typeof tags === "string") {
+      // multipart transmet les tags en JSON array OU en CSV. On normalise
+      // TOUJOURS vers string[]: un JSON non-array (objet/scalaire) ne doit pas
+      // atteindre `ingestDocument` (qui fait `[...tags]` et planterait -> 500).
+      let parsed: unknown;
+      try { parsed = JSON.parse(tags); } catch { parsed = undefined; }
+      tags = Array.isArray(parsed)
+        ? parsed.map((t) => String(t).trim()).filter(Boolean)
+        : tags.split(",").map((t: string) => t.trim()).filter(Boolean);
+    }
+    const analyzeWithAi = req.body.analyzeWithAi === true || req.body.analyzeWithAi === "true";
 
     const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.socket?.remoteAddress || "unknown";
 
