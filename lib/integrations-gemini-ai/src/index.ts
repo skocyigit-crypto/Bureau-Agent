@@ -1,3 +1,3 @@
-export { ai, embeddingAi } from "./client";
+export { ai, embeddingAi, createGeminiClient } from "./client";
 export { generateImage } from "./image";
 export { batchProcess, batchProcessWithSSE, isRateLimitError, type BatchOptions } from "./batch";

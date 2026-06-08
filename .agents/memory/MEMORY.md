@@ -5,6 +5,7 @@
 - [Retiring a proactive detector](detector-retirement.md) — drop type from DETECTOR_TYPES AND add to RETIRED_DETECTOR_TYPES so old pending rows self-resolve everywhere (no manual SQL).
 - [Gemini model-retirement fallback](gemini-model-fallback.md) — boot-time singleton patch of ai.models retries model-retired errors with env-overridable *-latest fallback; covers all call sites.
 - [Security middleware stack](security-middleware-stack.md) — /api threatDetection blocks URLs/base64 (bypass per-route); global express.json is 1mb (mount higher limit before it).
+- [Per-org AI BYOK](ai-byok.md) — tenant AI keys need TWO fallbacks: acquisition + runtime auth-error replay (callOrgGemini/callOrgEmbedding); quota/network errors must NOT fall back.
 - [Google connection model](google-connection-model.md) — all Google surfaces use per-user OAuth (google_oauth_tokens); never the shared Replit connector, never hardcoded status.
 - [Google OAuth centralized](google-oauth-centralized.md) — ONE global env OAuth client for all tenants (envOnly), per-user token isolation, no credential UI; BYOC reverted.
 - [Google OAuth redirect URI](google-oauth-redirect-uri.md) — prod callback must derive from REPLIT_DOMAINS (not REPLIT_DEV_DOMAIN) + be registered in Google Cloud Console, else redirect_uri_mismatch.

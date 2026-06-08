@@ -30,3 +30,10 @@ export const anthropic = new Proxy({} as Anthropic, {
     return (getAnthropic() as any)[prop];
   },
 });
+
+// Fabrique BYOK : construit un client Anthropic avec la cle API d'une
+// organisation (API Anthropic directe, sans le proxy IA Replit).
+export function createAnthropicClient(apiKey: string): Anthropic {
+  if (!apiKey) throw new Error("createAnthropicClient: apiKey requis.");
+  return new Anthropic({ apiKey });
+}

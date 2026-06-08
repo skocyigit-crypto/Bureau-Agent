@@ -38,6 +38,7 @@ import {
   notificationsTable,
 } from "@workspace/db";
 import { ai } from "@workspace/integrations-gemini-ai";
+import { callOrgGemini } from "../services/ai-providers";
 import {
   GEMINI_FLASH_MODEL,
   geminiActualModel,
@@ -310,7 +311,9 @@ async function runReceptionistTurn(session: CallSession): Promise<ReceptionistRe
   const aiStart = Date.now();
   let response: { text?: string };
   try {
-    response = (await ai.models.generateContent({
+    // Client Gemini per-org (BYOK) : cle de l'org si configuree, repli
+    // plateforme automatique si la cle org est absente OU invalide a l'exec.
+    response = (await callOrgGemini(session.orgId, (client) => client.models.generateContent({
       model: GEMINI_FLASH_MODEL,
       contents: contents as unknown as Parameters<typeof ai.models.generateContent>[0]["contents"],
       config: {
@@ -320,7 +323,7 @@ async function runReceptionistTurn(session: CallSession): Promise<ReceptionistRe
         temperature: 0.5,
         thinkingConfig: { thinkingBudget: 0 },
       },
-    })) as { text?: string };
+    }))) as { text?: string };
   } catch (err) {
     await recordAiUsage({
       organisationId: session.orgId,

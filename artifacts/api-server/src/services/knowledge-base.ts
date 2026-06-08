@@ -1,7 +1,7 @@
 import { db } from "@workspace/db";
 import { documentsTable, documentChunksTable } from "@workspace/db/schema";
 import { and, eq, isNotNull, sql } from "drizzle-orm";
-import { ai, embeddingAi } from "@workspace/integrations-gemini-ai";
+import { callOrgGemini, callOrgEmbedding } from "./ai-providers";
 import { withProviderTimeout } from "./ai-cache";
 import { assertAiQuota, reserveAiCall } from "./ai-quota";
 import {
@@ -107,12 +107,16 @@ export async function embedTexts(
         if (i >= clean.length) return;
         const text = clean[i]!;
         inputTokens += approxTokens(text);
-        const resp = await withProviderTimeout(
+        // Embeddings per-org (BYOK) : cle Gemini de l'org si configuree, repli
+        // plateforme automatique si absente OU invalide a l'execution.
+        const resp: any = await withProviderTimeout(
           () =>
-            embeddingAi.models.embedContent({
-              model: KB_EMBED_MODEL,
-              contents: text,
-            }),
+            callOrgEmbedding(ctx.orgId, (c) =>
+              c.models.embedContent({
+                model: KB_EMBED_MODEL,
+                contents: text,
+              }),
+            ),
           { timeoutMs: 30_000, label: "kb-embed" },
         );
         const v = (resp?.embeddings?.[0]?.values ?? []).map(Number);
@@ -554,12 +558,16 @@ export async function answerFromKnowledge(
   const release = reserveAiCall(orgId, 0.02);
   const started = Date.now();
   try {
-    const resp = await withProviderTimeout(
+    // Gemini per-org (BYOK) : cle de l'org si configuree, repli plateforme
+    // automatique si absente OU invalide a l'execution.
+    const resp: any = await withProviderTimeout(
       () =>
-        ai.models.generateContent({
-          model: GEMINI_FLASH_MODEL,
-          contents: prompt,
-        }),
+        callOrgGemini(orgId, (c) =>
+          c.models.generateContent({
+            model: GEMINI_FLASH_MODEL,
+            contents: prompt,
+          }),
+        ),
       { timeoutMs: 30_000, label: "kb-answer" },
     );
     const answer = (resp?.text ?? "").trim() || NOT_FOUND_MSG;

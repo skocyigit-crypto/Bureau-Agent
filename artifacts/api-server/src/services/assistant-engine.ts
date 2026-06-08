@@ -1,4 +1,5 @@
 import { ai } from "@workspace/integrations-gemini-ai";
+import { callOrgGemini } from "./ai-providers";
 import { executeTool, getGeminiToolDeclarations, getTool, type ToolContext } from "./assistant-tools";
 import { db } from "@workspace/db";
 import { assistantMessagesTable, assistantConversationsTable } from "@workspace/db/schema";
@@ -117,7 +118,9 @@ export async function runAssistantTurn(
     let response: GeminiResponse;
     const t0 = Date.now();
     try {
-      const raw = await ai.models.generateContent({
+      // Client Gemini per-org (BYOK) : cle de l'org si configuree, repli
+      // plateforme automatique si la cle org est absente OU invalide a l'exec.
+      const raw = await callOrgGemini(ctx.orgId, (client) => client.models.generateContent({
         model: MODEL,
         contents: contents as unknown as Parameters<typeof ai.models.generateContent>[0]["contents"],
         config: {
@@ -126,7 +129,7 @@ export async function runAssistantTurn(
           // use plain JSON-Schema-style records, so we cast through unknown.
           tools: [getGeminiToolDeclarations()] as unknown as Parameters<typeof ai.models.generateContent>[0]["config"] extends infer C ? C extends { tools?: infer T } ? T : never : never,
         },
-      });
+      }));
       response = raw as unknown as GeminiResponse;
     } catch (err) {
       logger.error({ err, conversationId }, "[assistant] generateContent failed");

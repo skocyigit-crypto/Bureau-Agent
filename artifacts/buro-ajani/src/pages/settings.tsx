@@ -23,6 +23,7 @@ import { TabProfilOrg } from "./settings/tab-profil-org";
 import { TabPreferencesIa } from "./settings/tab-preferences-ia";
 import { TabApiWebhooks } from "./settings/tab-api-webhooks";
 import { TabEmailExpediteur } from "./settings/tab-email-expediteur";
+import { TabClesIa } from "./settings/tab-cles-ia";
 
 export default function SettingsPage() {
   const { user } = useWorkspaceUser();
@@ -52,7 +53,7 @@ export default function SettingsPage() {
       window.history.replaceState({}, "", window.location.pathname);
     }
     const tabParam = params.get("tab");
-    const VALID_TABS = ["profil", "abonnement", "equipe", "google", "appels", "sauvegardes", "installation", "notifications", "securite", "mises-a-jour", "intelligence-artificielle", "preferences-ia", ...(isAdmin ? ["api-webhooks", "email-expediteur"] : [])];
+    const VALID_TABS = ["profil", "abonnement", "equipe", "google", "appels", "sauvegardes", "installation", "notifications", "securite", "mises-a-jour", "intelligence-artificielle", "preferences-ia", ...(isAdmin ? ["api-webhooks", "email-expediteur", "cles-ia"] : [])];
     if (tabParam && VALID_TABS.includes(tabParam)) {
       setActiveTab(tabParam);
       window.history.replaceState({}, "", window.location.pathname);
@@ -145,6 +146,12 @@ export default function SettingsPage() {
               Email expéditeur
             </TabsTrigger>
           )}
+          {isAdmin && (
+            <TabsTrigger value="cles-ia" className="gap-2">
+              <BrainCircuit className="w-4 h-4" />
+              Clés IA
+            </TabsTrigger>
+          )}
           {isSuperAdmin && (
             <TabsTrigger value="mises-a-jour" className="gap-2">
               <Rocket className="w-4 h-4" />
@@ -206,6 +213,12 @@ export default function SettingsPage() {
         {isAdmin && (
           <TabsContent value="email-expediteur" className="space-y-6 mt-6">
             <TabEmailExpediteur />
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="cles-ia" className="space-y-6 mt-6">
+            <TabClesIa />
           </TabsContent>
         )}
 

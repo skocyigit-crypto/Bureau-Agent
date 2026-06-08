@@ -86,6 +86,7 @@ import webhooksRouter from "./webhooks";
 import apiKeysRouter from "./api-keys";
 import knowledgeBaseRouter from "./knowledge-base";
 import emailProvidersRouter from "./email-providers";
+import aiProvidersRouter from "./ai-providers";
 
 const router: IRouter = Router();
 
@@ -184,6 +185,7 @@ router.use(agentCollaborationRouter);
 router.use("/face", faceRecognitionRouter);
 router.use(telephonyRouter);
 router.use(emailProvidersRouter);
+router.use(aiProvidersRouter);
 router.use(voiceCommandRouter);
 router.use(voiceSiteOpsRouter);
 router.use(invitationsRouter);

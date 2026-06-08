@@ -30,3 +30,10 @@ export const openai = new Proxy({} as OpenAI, {
     return (getOpenAI() as any)[prop];
   },
 });
+
+// Fabrique BYOK : construit un client OpenAI avec la cle API d'une organisation
+// (API OpenAI directe api.openai.com, sans le proxy IA Replit / sans baseURL).
+export function createOpenAIClient(apiKey: string): OpenAI {
+  if (!apiKey) throw new Error("createOpenAIClient: apiKey requis.");
+  return new OpenAI({ apiKey });
+}

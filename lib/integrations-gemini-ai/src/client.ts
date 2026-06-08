@@ -38,3 +38,11 @@ export const ai = new GoogleGenAI(
 export const embeddingAi = directKey
   ? new GoogleGenAI({ apiKey: directKey })
   : ai;
+
+// Fabrique BYOK : construit un client Gemini avec la cle API d'une organisation
+// (API Google directe, sans le proxy IA Replit). Utilise par le resolver
+// per-org cote serveur quand un client a configure sa propre cle.
+export function createGeminiClient(apiKey: string): GoogleGenAI {
+  if (!apiKey) throw new Error("createGeminiClient: apiKey requis.");
+  return new GoogleGenAI({ apiKey });
+}

@@ -10,6 +10,7 @@ import {
   geminiActualModel,
   GEMINI_PRO_MODEL,
 } from "./ai-utils";
+import { getOrgGeminiClient, getOrgOpenAIClient, getOrgAnthropicClient } from "./ai-providers";
 
 export interface SseStream {
   send: (event: string, data: unknown) => void;
@@ -153,7 +154,7 @@ export async function multiAiGenerateStream(opts: StreamOptions): Promise<Stream
   // ── Gemini stream ──
   try {
     checkAbort();
-    const { ai } = await import("@workspace/integrations-gemini-ai");
+    const ai = await getOrgGeminiClient(organisationId);
     const config: Record<string, unknown> = { abortSignal: signal };
     if (maxOutputTokens) config.maxOutputTokens = maxOutputTokens;
     if (responseMimeType) config.responseMimeType = responseMimeType;
@@ -222,7 +223,7 @@ export async function multiAiGenerateStream(opts: StreamOptions): Promise<Stream
   // ── OpenAI stream ──
   try {
     checkAbort();
-    const { openai } = await import("@workspace/integrations-openai-ai-server");
+    const openai = await getOrgOpenAIClient(organisationId);
     const stream: any = await (openai as any).chat.completions.create(
       {
         model: openaiModel,
@@ -289,7 +290,7 @@ export async function multiAiGenerateStream(opts: StreamOptions): Promise<Stream
   // ── Anthropic stream ──
   try {
     checkAbort();
-    const { anthropic } = await import("@workspace/integrations-anthropic-ai");
+    const anthropic = await getOrgAnthropicClient(organisationId);
     const stream: any = (anthropic as any).messages.stream({
       model: anthropicModel,
       max_tokens: maxOutputTokens || 4096,
