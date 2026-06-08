@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Link } from "wouter";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -423,11 +422,11 @@ export function TabAbonnement() {
         <p className="text-xs text-muted-foreground">
           Pour toute question sur votre facturation, contactez notre support.
         </p>
-        <Link href="mailto:support@agentdebureau.fr">
+        <a href="mailto:support@agentdebureau.fr">
           <Button variant="outline" size="sm" className="text-xs">
             Contacter le support
           </Button>
-        </Link>
+        </a>
       </div>
     </div>
   );
