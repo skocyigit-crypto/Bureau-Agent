@@ -31,3 +31,25 @@ read injected internal data aloud if asked).
 
 **Why:** architect review flagged that capability gains for the phone agent are only
 acceptable if they don't leak internal data to an anonymous caller or stall the live call.
+
+## Known-caller actions: authorize by relatedContactId, NOT phone suffix
+
+When a *known* caller acts on "their own" data over the phone (read their next
+appointment, cancel an appointment), the caller is authenticated only by inbound
+number — weak auth. Matching their rows by last-9-digit phone suffix
+(`regexp_replace(...) LIKE '%suffix'`) is **not safe**: two contacts in the same
+tenant can collide by suffix/format, so a phone-suffix `UPDATE ... SET status=annule`
+can cancel (or a SELECT can disclose) a *third party's* appointment.
+
+**Rule:** bind on the strong key `calendar_events.relatedContactId`. Set
+`relatedContactId: session.callerContactId` at appointment creation. For
+reads/cancellations use the shared `ownAppointmentMatch(contactId, phoneLike, hasDigits)`
+predicate: `relatedContactId = contactId` OR (phone match **only when**
+`relatedContactId IS NULL`, i.e. legacy/unlinked rows). Never phone-match a row that
+already belongs to a different contact.
+
+**Also:** outbound SMS to a caller/owner must validate strict E.164
+(`/^\+[1-9]\d{6,14}$/`), not just `startsWith("+")`, to avoid cost/abuse on masked or
+malformed numbers. And the dup-write guard `session.fulfilled` must actually be set
+`true` after each successful persist — it was a latent no-op, so any repeated
+`outcome` re-wrote appointments/messages/tasks and re-sent SMS.

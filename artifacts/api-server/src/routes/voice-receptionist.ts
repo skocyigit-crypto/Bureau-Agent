@@ -27,19 +27,22 @@
 
 import { Router, type IRouter, type Request, type Response } from "express";
 import crypto from "crypto";
-import { and, eq, sql, desc, gte, lt } from "drizzle-orm";
+import { and, eq, sql, desc, gte, lt, inArray, or, isNull } from "drizzle-orm";
 import {
   db,
   telephonyProvidersTable,
   telephonyCallLogsTable,
+  telephonySmsLogsTable,
   callsTable,
   messagesTable,
   calendarEventsTable,
   notificationsTable,
   contactsTable,
+  tasksTable,
 } from "@workspace/db";
 import { ai } from "@workspace/integrations-gemini-ai";
 import { callOrgGemini } from "../services/ai-providers";
+import { sendSms, type TelephonyProviderConfig } from "../services/telephony-providers";
 import {
   GEMINI_FLASH_MODEL,
   geminiActualModel,
@@ -125,6 +128,22 @@ interface CallSession {
   /** Creneaux deja occupes (texte compact, horaires uniquement) calcule une
    *  seule fois au debut de l'appel pour eviter de proposer un horaire pris. */
   busyBlock: string;
+  /** Id du contact connu correspondant au numero (null si inconnu). */
+  callerContactId: number | null;
+  /** Contexte PRIVE de l'appelant connu (ses propres taches ouvertes / prochain
+   *  RDV) — uniquement ses donnees, jamais celles d'autrui. */
+  callerContext: string;
+  /** Config du fournisseur telephonie (pour envoyer un SMS de confirmation /
+   *  alerte patron) + reglages aiReceptionist. Conserve uniquement le temps de
+   *  l'appel en memoire (deja present cote serveur). */
+  providerConfig: TelephonyProviderConfig;
+  cfg: Record<string, unknown>;
+  /** Resume court de l'appel (rempli par l'IA quand done=true). */
+  summary: string;
+  /** Sentiment detecte de l'appel (positif/neutre/negatif/tres_negatif). */
+  sentiment: string;
+  /** L'appelant a signale une urgence. */
+  urgent: boolean;
 }
 
 const SESSION_TTL_MS = 30 * 60 * 1000;
@@ -252,6 +271,7 @@ async function resolveTenants(accountSid: string): Promise<TenantMatch[]> {
 interface CallerInfo {
   name: string | null;
   callCount: number;
+  contactId: number | null;
 }
 
 /**
@@ -260,15 +280,35 @@ interface CallerInfo {
  * (tolerante aux differences de format / indicatif). Best-effort: toute erreur
  * renvoie un appelant inconnu (la secretaire fonctionne normalement).
  */
+/**
+ * Predicat SQL "ce rendez-vous appartient bien a l'appelant". Liaison FORTE par
+ * `relatedContactId` quand l'appelant est un contact connu; sinon (ou pour les
+ * lignes heritees sans contact rattache) repli sur le numero — uniquement quand
+ * `relatedContactId` est NULL, pour ne jamais toucher le RDV d'un autre contact.
+ */
+function ownAppointmentMatch(contactId: number | null, phoneLike: string, hasDigits: boolean) {
+  const byPhone = hasDigits
+    ? and(
+        isNull(calendarEventsTable.relatedContactId),
+        sql`regexp_replace(coalesce(${calendarEventsTable.contactPhone}, ''), '\D', '', 'g') LIKE ${phoneLike}`,
+      )
+    : undefined;
+  if (contactId) {
+    return or(eq(calendarEventsTable.relatedContactId, contactId), byPhone);
+  }
+  return byPhone ?? sql`false`;
+}
+
 async function lookupCaller(orgId: number, phone: string): Promise<CallerInfo> {
   const digits = (phone || "").replace(/\D/g, "");
-  if (digits.length < 6) return { name: null, callCount: 0 };
+  if (digits.length < 6) return { name: null, callCount: 0, contactId: null };
   const suffix = digits.slice(-9);
   const like = `%${suffix}`;
   try {
     const [contactRow, countRow] = await Promise.all([
       db
         .select({
+          id: contactsTable.id,
           firstName: contactsTable.firstName,
           lastName: contactsTable.lastName,
           company: contactsTable.company,
@@ -291,12 +331,139 @@ async function lookupCaller(orgId: number, phone: string): Promise<CallerInfo> {
     const name = c
       ? [c.firstName, c.lastName].filter(Boolean).join(" ").trim() || (c.company ?? "").trim() || null
       : null;
-    return { name: name || null, callCount: Number(countRow[0]?.c ?? 0) };
+    return { name: name || null, callCount: Number(countRow[0]?.c ?? 0), contactId: c?.id ?? null };
   } catch (err) {
     logger.warn({ err, orgId }, "[voice] lookupCaller a echoue — appelant traite comme inconnu");
-    return { name: null, callCount: 0 };
+    return { name: null, callCount: 0, contactId: null };
   }
 }
+
+/**
+ * Contexte PRIVE d'un appelant CONNU (reconnu par son numero = contact de l'org):
+ * ses propres taches ouvertes et son prochain rendez-vous a venir. Sert a ce que
+ * la secretaire reponde "votre RDV est bien jeudi 14h" sans que l'appelant ait a
+ * le demander. STRICTEMENT ses donnees: jamais celles d'un autre contact. Le
+ * rapprochement RDV se fait sur SON numero (contactPhone) ou son contactId.
+ * Org-scope, best-effort: toute erreur -> chaine vide.
+ */
+async function fetchCallerContext(
+  orgId: number,
+  contactId: number | null,
+  phone: string,
+): Promise<string> {
+  const digits = (phone || "").replace(/\D/g, "");
+  if (!contactId && digits.length < 6) return "";
+  const like = `%${digits.slice(-9)}`;
+  try {
+    const now = new Date();
+    const [tasks, appts] = await Promise.all([
+      contactId
+        ? db
+            .select({ title: tasksTable.title, dueDate: tasksTable.dueDate })
+            .from(tasksTable)
+            .where(and(
+              eq(tasksTable.organisationId, orgId),
+              eq(tasksTable.relatedContactId, contactId),
+              inArray(tasksTable.status, ["en_attente", "en_cours"]),
+            ))
+            .orderBy(tasksTable.dueDate)
+            .limit(3)
+        : Promise.resolve([] as { title: string; dueDate: Date | null }[]),
+      db
+        .select({
+          title: calendarEventsTable.title,
+          start: calendarEventsTable.startDate,
+          status: calendarEventsTable.status,
+        })
+        .from(calendarEventsTable)
+        .where(and(
+          eq(calendarEventsTable.organisationId, orgId),
+          gte(calendarEventsTable.startDate, now),
+          sql`coalesce(${calendarEventsTable.status}, '') <> 'annule'`,
+          // Liaison FORTE au contact (relatedContactId) en priorite; le
+          // rapprochement par numero n'est tolere que pour les lignes
+          // heritees SANS contact rattache, afin de ne jamais divulguer le
+          // RDV d'un autre contact dont le suffixe de numero coinciderait.
+          ownAppointmentMatch(contactId, like, digits.length >= 6),
+        ))
+        .orderBy(calendarEventsTable.startDate)
+        .limit(1),
+    ]);
+
+    const parts: string[] = [];
+    const appt = appts[0];
+    if (appt) {
+      const whenFmt = new Intl.DateTimeFormat("fr-FR", {
+        weekday: "long", day: "2-digit", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris",
+      });
+      const statut = (appt.status === "a_confirmer") ? " (a confirmer)" : "";
+      parts.push(`Son prochain rendez-vous: ${whenFmt.format(appt.start as Date)}${statut}.`);
+    }
+    if (tasks.length) {
+      parts.push(
+        "Ses demandes en cours: " +
+          tasks.map((t) => t.title).filter(Boolean).slice(0, 3).join("; ") + ".",
+      );
+    }
+    return parts.join("\n");
+  } catch (err) {
+    logger.warn({ err, orgId }, "[voice] fetchCallerContext a echoue — sans contexte appelant");
+    return "";
+  }
+}
+
+/**
+ * Envoie un SMS a l'appelant (confirmation de RDV / message) ou au patron
+ * (alerte) via le fournisseur Twilio de l'org. Best-effort: toute erreur est
+ * loggee mais n'interrompt jamais l'appel. N'envoie qu'a un numero +E.164.
+ * Journalise dans telephony_sms_logs comme le SMS d'appel manque.
+ */
+async function sendVoiceSms(
+  session: CallSession,
+  to: string,
+  body: string,
+  reason: string,
+): Promise<void> {
+  try {
+    // E.164 strict (+ indicatif puis 6 a 14 chiffres): exclut numero masque,
+    // anonyme, ou format local — evite tout SMS errone / coute inutile.
+    if (!to || !/^\+[1-9]\d{6,14}$/.test(to)) return;
+    const cfg = session.providerConfig;
+    const fromNumber = cfg.fromNumber || cfg.phoneNumber || "";
+    if (!fromNumber) return;
+    const result = await sendSms("twilio", cfg, { to, from: fromNumber, body });
+    await db.insert(telephonySmsLogsTable).values({
+      organisationId: session.orgId,
+      providerId: session.providerId,
+      providerMessageSid: result.messageSid || null,
+      direction: "outbound",
+      fromNumber,
+      toNumber: to,
+      body,
+      status: result.success ? (result.status || "sent") : "failed",
+      metadata: { reason, error: result.error || null, aiReceptionist: true },
+    }).catch(() => {});
+  } catch (err) {
+    logger.warn({ err, orgId: session.orgId, reason }, "[voice] envoi SMS echoue");
+  }
+}
+
+/** TwiML de transfert vers un humain: on relaie l'appel vers le numero conseiller. */
+function dialTwiml(targetNumber: string, callerId: string, intro: string, lang: RecLang, voice: string): string {
+  const speechLang = SPEECH_LANG[lang];
+  return (
+    `<?xml version="1.0" encoding="UTF-8"?><Response>` +
+    `<Say voice="${escapeXml(voice)}" language="${speechLang}">${escapeXml(intro)}</Say>` +
+    `<Dial timeout="25" callerId="${escapeXml(callerId)}">${escapeXml(targetNumber)}</Dial>` +
+    `</Response>`
+  );
+}
+
+const TRANSFER_INTRO: Record<RecLang, string> = {
+  fr: "Je vous mets en relation avec un conseiller, un instant je vous prie.",
+  tr: "Sizi bir yetkiliye baglıyorum, lutfen bir saniye.",
+  en: "I'm connecting you with a colleague, one moment please.",
+};
 
 function personalizedGreeting(lang: RecLang, name: string): string {
   if (lang === "tr") return `Merhaba ${name}, tekrar aradiniz. Size nasil yardimci olabilirim?`;
@@ -393,9 +560,19 @@ interface ReceptionistMessage {
 interface ReceptionistResult {
   say: string;
   done: boolean;
-  outcome: "appointment" | "message" | null;
+  outcome: "appointment" | "message" | "cancel" | null;
   appointment: ReceptionistAppointment | null;
   message: ReceptionistMessage | null;
+  /** Resume oral court de l'appel (rempli quand done=true). */
+  summary: string;
+  /** Sentiment global percu de l'appelant. */
+  sentiment: "positif" | "neutre" | "negatif" | "tres_negatif";
+  /** L'appelant signale une urgence reelle (incident, delai critique...). */
+  urgent: boolean;
+  /** L'appelant demande a parler a un humain / conseiller. */
+  transfer: boolean;
+  /** Langue detectee de l'appelant (pour bascule auto si activee). */
+  lang: RecLang | null;
 }
 
 function buildSystemInstruction(
@@ -404,6 +581,8 @@ function buildSystemInstruction(
   caller?: CallerInfo,
   knowledgeBlock?: string,
   busyBlock?: string,
+  callerContext?: string,
+  opts?: { autoDetectLang?: boolean; allowCancellation?: boolean; transferEnabled?: boolean },
 ): string {
   const now = new Date();
   const todayStr = new Intl.DateTimeFormat("fr-FR", {
@@ -424,7 +603,13 @@ function buildSystemInstruction(
     (caller?.name
       ? `L'appelant est un contact CONNU de l'entreprise: ${caller.name}` +
         (caller.callCount > 0 ? ` (deja ${caller.callCount} appel(s) enregistre(s))` : "") +
-        `. Adresse-toi a lui par son nom et NE redemande PAS son nom (tu le connais deja); utilise "${caller.name}" pour remplir le champ "name" d'un rendez-vous ou d'un message.\n`
+        `. Adresse-toi a lui par son nom et NE redemande PAS son nom (tu le connais deja); utilise "${caller.name}" pour remplir le champ "name" d'un rendez-vous ou d'un message.\n` +
+        (caller.callCount >= 3
+          ? `C'est un appelant FIDELE (habitue): sois particulierement chaleureuse et attentionnee, comme avec un client de longue date.\n`
+          : "")
+      : "") +
+    (callerContext
+      ? `\nCONTEXTE PERSONNEL DE CET APPELANT (SES propres donnees uniquement — tu peux les lui rappeler s'il le demande, ex. l'horaire de SON rendez-vous; ne JAMAIS divulguer les donnees d'un autre):\n${callerContext}\n`
       : "") +
     (knowledgeBlock
       ? `\nCONNAISSANCES DE L'ENTREPRISE (extraits de SES documents — appuie-toi DESSUS pour repondre precisement; n'en revele rien qui ne reponde pas a la question, et ne divulgue JAMAIS d'informations sur d'autres clients):\n${knowledgeBlock}\n`
@@ -442,6 +627,12 @@ function buildSystemInstruction(
     `- REPONDRE aux questions sur l'entreprise (horaires, services, tarifs, adresse, etc.) en t'appuyant sur les CONNAISSANCES ci-dessus si elles sont fournies. Si l'info n'y figure pas, ne l'invente pas: propose de prendre un message.\n` +
     `- Prendre un RENDEZ-VOUS: recueille le nom de l'appelant (sauf s'il est deja connu ci-dessus), le motif, et une date/heure souhaitee. Verifie qu'elle ne chevauche pas un CRENEAU DEJA OCCUPE; sinon propose une alternative libre. Confirme oralement.\n` +
     `- Prendre un MESSAGE: recueille le nom de l'appelant (sauf s'il est deja connu ci-dessus) et le contenu du message.\n` +
+    (opts?.transferEnabled
+      ? `- TRANSFERER vers un humain: si l'appelant demande explicitement a parler a une personne / un conseiller, ou si la demande depasse ton role, mets "transfer": true (et dis poliment que tu le mets en relation). N'abuse pas du transfert: privilegie d'abord de repondre ou prendre un message.\n`
+      : "") +
+    (opts?.allowCancellation && caller?.name
+      ? `- ANNULER un rendez-vous: si CET appelant connu demande d'annuler SON rendez-vous (celui indique dans son contexte personnel), confirme oralement et mets outcome="cancel". N'annule jamais le rendez-vous d'une autre personne.\n`
+      : "") +
     `Tu ne dois JAMAIS inventer d'informations confidentielles ni garantir une disponibilite definitive: ` +
     `pour un rendez-vous, precise qu'il reste "a confirmer" par l'equipe.\n\n` +
     `Renvoie UNIQUEMENT un JSON valide, sans aucun texte autour, avec cette structure exacte:\n` +
@@ -450,13 +641,27 @@ function buildSystemInstruction(
     `  "done": false,\n` +
     `  "outcome": null,\n` +
     `  "appointment": { "name": "string", "reason": "string", "startIso": "2026-06-05T14:30:00" ou null, "whenText": "string" },\n` +
-    `  "message": { "name": "string", "content": "string" }\n` +
+    `  "message": { "name": "string", "content": "string" },\n` +
+    `  "transfer": false,\n` +
+    `  "urgent": false,\n` +
+    `  "sentiment": "neutre",\n` +
+    `  "summary": "",\n` +
+    `  "lang": "${lang}"\n` +
     `}\n` +
     `Regles:\n` +
     `- Tant qu'il te manque une info pour aboutir, garde outcome=null et pose UNE seule question a la fois.\n` +
     `- Quand tu as TOUTES les infos d'un rendez-vous, mets outcome="appointment" et remplis "appointment".\n` +
     `- Quand tu as TOUTES les infos d'un message, mets outcome="message" et remplis "message".\n` +
+    (opts?.allowCancellation
+      ? `- Pour annuler le rendez-vous de l'appelant connu, mets outcome="cancel".\n`
+      : "") +
     `- startIso doit etre une date/heure ISO 8601 si tu peux la determiner a partir de la demande et de la date du jour, sinon null.\n` +
+    `- "urgent": mets true UNIQUEMENT si l'appelant exprime une urgence reelle (incident, panne, delai critique, mecontentement grave).\n` +
+    `- "sentiment": evalue l'humeur globale de l'appelant parmi "positif", "neutre", "negatif", "tres_negatif".\n` +
+    `- "summary": quand done=true, redige un resume FACTUEL en une phrase de l'appel (motif + issue), sinon laisse "".\n` +
+    (opts?.autoDetectLang
+      ? `- "lang": indique la langue PRINCIPALE parlee par l'appelant ("fr", "tr" ou "en"). Si elle differe, je basculerai et tu repondras desormais dans cette langue.\n`
+      : `- "lang": laisse "${lang}".\n`) +
     `- Quand l'appelant n'a plus rien a ajouter, mets done=true et termine poliment.\n` +
     `- Mets outcome une SEULE fois dans l'appel (ne le repete pas aux tours suivants).`
   );
@@ -491,9 +696,15 @@ async function runReceptionistTurn(session: CallSession): Promise<ReceptionistRe
         systemInstruction: buildSystemInstruction(
           session.orgName,
           session.lang,
-          { name: session.callerName, callCount: session.callCount },
+          { name: session.callerName, callCount: session.callCount, contactId: session.callerContactId },
           knowledgeBlock,
           session.busyBlock,
+          session.callerContext,
+          {
+            autoDetectLang: session.cfg.autoDetectLanguage === true,
+            allowCancellation: session.cfg.allowPhoneCancellation === true,
+            transferEnabled: typeof session.cfg.forwardToNumber === "string" && (session.cfg.forwardToNumber as string).trim().length > 0,
+          },
         ),
         responseMimeType: "application/json",
         maxOutputTokens: 700,
@@ -535,6 +746,11 @@ async function runReceptionistTurn(session: CallSession): Promise<ReceptionistRe
     outcome: null,
     appointment: null,
     message: null,
+    summary: "",
+    sentiment: "neutre",
+    urgent: false,
+    transfer: false,
+    lang: null,
   };
   const parsed = safeJsonParse<Partial<ReceptionistResult>>(response.text, fallback);
 
@@ -542,8 +758,15 @@ async function runReceptionistTurn(session: CallSession): Promise<ReceptionistRe
     typeof parsed.say === "string" && parsed.say.trim()
       ? parsed.say.slice(0, 600)
       : fallback.say;
+  // L'annulation n'est honoree que si l'org l'autorise ET l'appelant est connu.
+  const cancellationAllowed =
+    session.cfg.allowPhoneCancellation === true && !!session.callerName;
   const outcome =
-    parsed.outcome === "appointment" || parsed.outcome === "message" ? parsed.outcome : null;
+    parsed.outcome === "appointment" || parsed.outcome === "message"
+      ? parsed.outcome
+      : parsed.outcome === "cancel" && cancellationAllowed
+        ? "cancel"
+        : null;
 
   let appointment: ReceptionistAppointment | null = null;
   if (outcome === "appointment" && parsed.appointment && typeof parsed.appointment === "object") {
@@ -564,7 +787,40 @@ async function runReceptionistTurn(session: CallSession): Promise<ReceptionistRe
     };
   }
 
-  return { say, done: !!parsed.done, outcome, appointment, message };
+  const sentiment: ReceptionistResult["sentiment"] =
+    parsed.sentiment === "positif" || parsed.sentiment === "negatif" || parsed.sentiment === "tres_negatif"
+      ? parsed.sentiment
+      : "neutre";
+  const summary = typeof parsed.summary === "string" ? parsed.summary.slice(0, 500) : "";
+  const transfer = parsed.transfer === true;
+  const lang =
+    parsed.lang === "fr" || parsed.lang === "tr" || parsed.lang === "en" ? parsed.lang : null;
+
+  // Memorise l'etat percu pour la finalisation (resume / sentiment / urgence).
+  if (summary) session.summary = summary;
+  session.sentiment = sentiment;
+  if (parsed.urgent === true) session.urgent = true;
+
+  // Bascule de langue temps reel (opt-in): si la langue detectee differe, on
+  // adapte la session pour les prochains tours ET la reponse vocale courante.
+  if (session.cfg.autoDetectLanguage === true && lang && lang !== session.lang) {
+    session.lang = lang;
+    session.voice = sanitizeVoice(session.cfg.voice) ?? DEFAULT_VOICE[lang];
+    logger.info({ orgId: session.orgId, lang }, "[voice] bascule de langue auto");
+  }
+
+  return {
+    say,
+    done: !!parsed.done,
+    outcome,
+    appointment,
+    message,
+    summary,
+    sentiment,
+    urgent: parsed.urgent === true,
+    transfer,
+    lang,
+  };
 }
 
 // --- Persistance ----------------------------------------------------------
@@ -577,9 +833,35 @@ function transcriptText(session: CallSession): string {
     .join("\n");
 }
 
+/** Texte de SMS de confirmation (a l'appelant) selon la langue de l'appel. */
+function smsConfirmText(
+  kind: "appointment" | "message" | "cancel",
+  session: CallSession,
+  whenText?: string,
+): string {
+  const org = session.orgName;
+  if (session.lang === "tr") {
+    if (kind === "appointment")
+      return `Randevu talebiniz${whenText ? ` (${whenText})` : ""} alindi, ekibimiz onaylayacaktir. — ${org}`;
+    if (kind === "cancel") return `Randevunuz iptal edildi. — ${org}`;
+    return `Mesajiniz ekibimize iletildi. En kisa surede donus yapacagiz. — ${org}`;
+  }
+  if (session.lang === "en") {
+    if (kind === "appointment")
+      return `Your appointment request${whenText ? ` (${whenText})` : ""} is noted, our team will confirm it. — ${org}`;
+    if (kind === "cancel") return `Your appointment has been cancelled. — ${org}`;
+    return `Your message has been passed to our team. We'll get back to you shortly. — ${org}`;
+  }
+  if (kind === "appointment")
+    return `Votre demande de rendez-vous${whenText ? ` (${whenText})` : ""} est bien enregistree, a confirmer par notre equipe. — ${org}`;
+  if (kind === "cancel") return `Votre rendez-vous a bien ete annule. — ${org}`;
+  return `Votre message a bien ete transmis a notre equipe. Nous revenons vers vous rapidement. — ${org}`;
+}
+
 async function persistOutcome(session: CallSession, result: ReceptionistResult): Promise<void> {
   if (session.fulfilled || !result.outcome) return;
   const caller = session.callerNumber || "inconnu";
+  const smsEnabled = session.cfg.smsConfirmation !== false; // defaut ON
 
   // `fulfilled` n'est passe a true qu'APRES une ecriture reussie: si un insert
   // echoue, on laisse la porte ouverte a une nouvelle tentative au tour suivant
@@ -609,10 +891,14 @@ async function persistOutcome(session: CallSession, result: ReceptionistResult):
             reminder: "15min",
             contactName: a.name || null,
             contactPhone: caller,
+            // Liaison forte au contact connu: permet une annulation/contexte
+            // ulterieurs surs (par contactId, pas par suffixe de numero).
+            relatedContactId: session.callerContactId,
             status: "a_confirmer",
             priority: "normale",
           })
           .returning({ id: calendarEventsTable.id });
+        session.fulfilled = true;
 
         await db.insert(notificationsTable).values({
           organisationId: session.orgId,
@@ -626,6 +912,31 @@ async function persistOutcome(session: CallSession, result: ReceptionistResult):
           sourceType: "ai_receptionist_appointment",
           sourceId: event ? String(event.id) : null,
         });
+
+        // Tache de suivi automatique (defaut ON): rappeler a l'equipe de
+        // confirmer ce RDV pris par telephone (echeance = horaire du RDV).
+        if (session.cfg.autoFollowupTask !== false) {
+          await db.insert(tasksTable).values({
+            organisationId: session.orgId,
+            title: `Confirmer le RDV telephonique: ${a.name || caller}`,
+            description:
+              `RDV pris par la secretaire telephonique IA, a confirmer.\n` +
+              `Motif: ${a.reason || "non precise"}\n` +
+              `Horaire: ${a.whenText || "—"}\n` +
+              `Telephone: ${caller}`,
+            status: "en_attente",
+            priority: "haute",
+            dueDate: validStart,
+            relatedContactId: session.callerContactId,
+          }).catch((err) => {
+            logger.warn({ err, orgId: session.orgId }, "[voice] creation tache de suivi echouee");
+          });
+        }
+
+        // SMS de confirmation a l'appelant (defaut ON, uniquement +E.164).
+        if (smsEnabled) {
+          await sendVoiceSms(session, caller, smsConfirmText("appointment", session, a.whenText), "appointment-confirm");
+        }
         return;
       }
 
@@ -641,6 +952,7 @@ async function persistOutcome(session: CallSession, result: ReceptionistResult):
         type: "rappel",
         priority: "haute",
       });
+      session.fulfilled = true;
       await db.insert(notificationsTable).values({
         organisationId: session.orgId,
         type: "info",
@@ -651,6 +963,9 @@ async function persistOutcome(session: CallSession, result: ReceptionistResult):
         sourceType: "ai_receptionist_callback",
         sourceId: null,
       });
+      if (smsEnabled) {
+        await sendVoiceSms(session, caller, smsConfirmText("message", session), "callback-confirm");
+      }
       return;
     }
 
@@ -664,6 +979,7 @@ async function persistOutcome(session: CallSession, result: ReceptionistResult):
         type: "appel",
         priority: "moyenne",
       });
+      session.fulfilled = true;
       await db.insert(notificationsTable).values({
         organisationId: session.orgId,
         type: "info",
@@ -674,6 +990,49 @@ async function persistOutcome(session: CallSession, result: ReceptionistResult):
         sourceType: "ai_receptionist_message",
         sourceId: null,
       });
+      if (smsEnabled) {
+        await sendVoiceSms(session, caller, smsConfirmText("message", session), "message-confirm");
+      }
+      return;
+    }
+
+    // Annulation par telephone (opt-in + appelant CONNU uniquement). On
+    // n'annule QUE ses propres RDV a venir, lies par contactId (repli numero
+    // seulement sur les lignes sans contact): jamais le RDV d'un tiers.
+    if (result.outcome === "cancel") {
+      const digits = (session.callerNumber || "").replace(/\D/g, "");
+      if (!session.callerName || digits.length < 6) return; // garde-fou
+      const like = `%${digits.slice(-9)}`;
+      const cancelled = await db
+        .update(calendarEventsTable)
+        .set({ status: "annule" })
+        .where(and(
+          eq(calendarEventsTable.organisationId, session.orgId),
+          gte(calendarEventsTable.startDate, new Date()),
+          inArray(calendarEventsTable.status, ["a_confirmer", "confirme", "planifie"]),
+          // Uniquement SES propres RDV: liaison forte par contactId, repli
+          // numero seulement sur les lignes sans contact rattache (jamais le
+          // RDV d'un tiers dont le suffixe de numero coinciderait).
+          ownAppointmentMatch(session.callerContactId, like, true),
+        ))
+        .returning({ id: calendarEventsTable.id });
+      session.fulfilled = true;
+      if (cancelled.length > 0) {
+        await db.insert(notificationsTable).values({
+          organisationId: session.orgId,
+          type: "alerte",
+          title: "Rendez-vous annule par telephone (secretaire IA)",
+          message: `${session.callerName} (${caller}) a annule son rendez-vous par telephone.`,
+          priority: "haute",
+          actionUrl: "/calendrier",
+          sourceType: "ai_receptionist_cancel",
+          sourceId: cancelled[0] ? String(cancelled[0].id) : null,
+        });
+        if (smsEnabled) {
+          await sendVoiceSms(session, caller, smsConfirmText("cancel", session), "cancel-confirm");
+        }
+      }
+      return;
     }
   } catch (err) {
     logger.error({ err, orgId: session.orgId }, "[voice] echec persistance outcome");
@@ -686,21 +1045,63 @@ async function finalizeCall(callSid: string, session: CallSession): Promise<void
   const caller = session.callerNumber || "inconnu";
   const duration = Math.max(0, Math.round((Date.now() - session.startedAt) / 1000));
   const transcript = transcriptText(session);
+  const summary = (session.summary || "").trim();
+  const tags = ["secretaire-ia"];
+  if (session.urgent) tags.push("urgent");
+  if (session.sentiment === "negatif" || session.sentiment === "tres_negatif") tags.push("mecontent");
+  const notes =
+    (summary ? `[Resume IA] ${summary}\n\n` : "") +
+    `[Secretaire telephonique IA]\n${transcript}`;
 
   try {
     await db.insert(callsTable).values({
       organisationId: session.orgId,
       phoneNumber: caller,
-      contactName: null,
+      contactName: session.callerName,
       direction: "entrant",
       status: "termine",
       duration,
-      notes: `[Secretaire telephonique IA]\n${transcript}`,
-      sentiment: "neutre",
-      tags: ["secretaire-ia"],
+      notes,
+      sentiment: session.sentiment || "neutre",
+      tags,
     });
   } catch (err) {
     logger.error({ err, orgId: session.orgId }, "[voice] echec insertion callsTable");
+  }
+
+  // Alerte patron instantanee si l'appel est urgent ou tres negatif: une
+  // notification haute priorite ("urgent") + un SMS optionnel au patron si un
+  // numero d'alerte est configure (cfg.ownerAlertNumber). Best-effort.
+  const needsAlert =
+    session.urgent || session.sentiment === "negatif" || session.sentiment === "tres_negatif";
+  if (needsAlert) {
+    try {
+      const reason = session.urgent ? "URGENCE signalee" : "appelant mecontent";
+      await db.insert(notificationsTable).values({
+        organisationId: session.orgId,
+        type: "alerte",
+        title: `Appel a traiter en priorite (${reason})`,
+        message:
+          `${session.callerName || caller}: ${summary || "appel necessitant votre attention"}` +
+          ` (sentiment: ${session.sentiment}).`,
+        priority: "haute",
+        actionUrl: "/communication",
+        sourceType: "ai_receptionist_urgent",
+        sourceId: null,
+      });
+      const ownerNumber =
+        typeof session.cfg.ownerAlertNumber === "string" ? (session.cfg.ownerAlertNumber as string).trim() : "";
+      if (ownerNumber) {
+        await sendVoiceSms(
+          session,
+          ownerNumber,
+          `[Agent de Bureau] Appel ${reason} de ${session.callerName || caller}. ${summary || ""}`.trim(),
+          "owner-alert",
+        );
+      }
+    } catch (err) {
+      logger.warn({ err, orgId: session.orgId }, "[voice] alerte patron echouee");
+    }
   }
 
   try {
@@ -770,9 +1171,19 @@ voiceReceptionistRouter.post("/voice/twilio/incoming", async (req: Request, res:
   // injecte dans la persona) + creneaux occupes, en parallele (best-effort, une
   // seule fois en debut d'appel: les disponibilites sont injectees a chaque tour).
   const [caller, busyBlock] = await Promise.all([
-    withTimeout(lookupCaller(tenant.orgId, body.From ?? ""), VOICE_RETRIEVAL_TIMEOUT_MS, { name: null, callCount: 0 }),
+    withTimeout(lookupCaller(tenant.orgId, body.From ?? ""), VOICE_RETRIEVAL_TIMEOUT_MS, { name: null, callCount: 0, contactId: null }),
     withTimeout(fetchBusySlots(tenant.orgId), VOICE_RETRIEVAL_TIMEOUT_MS, ""),
   ]);
+
+  // Contexte personnel de l'appelant CONNU (ses propres taches / prochain RDV),
+  // best-effort + borne en latence. Inutile (et evite) pour un inconnu.
+  const callerContext = caller.name
+    ? await withTimeout(
+        fetchCallerContext(tenant.orgId, caller.contactId, body.From ?? ""),
+        VOICE_RETRIEVAL_TIMEOUT_MS,
+        "",
+      )
+    : "";
 
   const customGreeting =
     typeof cfg.greeting === "string" && cfg.greeting.trim() ? cfg.greeting.trim() : null;
@@ -794,6 +1205,13 @@ voiceReceptionistRouter.post("/voice/twilio/incoming", async (req: Request, res:
     callerName: caller.name,
     callCount: caller.callCount,
     busyBlock,
+    callerContactId: caller.contactId,
+    callerContext,
+    providerConfig: tenant.config as TelephonyProviderConfig,
+    cfg,
+    summary: "",
+    sentiment: "neutre",
+    urgent: false,
   });
 
   res.status(200).send(gatherTwiml(greeting, lang, voice));
@@ -857,6 +1275,20 @@ voiceReceptionistRouter.post("/voice/twilio/respond", async (req: Request, res: 
 
   if (result.outcome && !session.fulfilled) {
     await persistOutcome(session, result);
+  }
+
+  // Transfert vers un humain (opt-in via cfg.forwardToNumber): si l'IA estime
+  // qu'il faut relayer l'appel et qu'un numero conseiller est configure, on
+  // finalise (trace l'appel) puis on relaie via <Dial>. callerId = numero
+  // Twilio de l'org (le numero appele) pour rester un appel sortant legitime.
+  const forwardTo =
+    typeof session.cfg.forwardToNumber === "string" ? (session.cfg.forwardToNumber as string).trim() : "";
+  if (result.transfer && forwardTo) {
+    const intro = result.say && result.say.trim() ? result.say.trim() : TRANSFER_INTRO[session.lang];
+    const callerId = session.toNumber || session.providerConfig.fromNumber || session.providerConfig.phoneNumber || forwardTo;
+    await finalizeCall(callSid, session);
+    res.status(200).send(dialTwiml(forwardTo, callerId, intro, session.lang, session.voice));
+    return;
   }
 
   const userTurns = session.turns.filter((t) => t.role === "user").length;
