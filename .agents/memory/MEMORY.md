@@ -49,3 +49,4 @@
 - [RAG knowledge base dual-mode](rag-knowledge-base.md) — embeddings unavailable in env; KB search falls back to lexical BM25, auto-upgrades to semantic cosine if a valid key appears; no pgvector dep.
 - [Document-AI execute-action contract](document-ai-execute-contract.md) — capture screens must POST the FULL SuggestedAction obj + extractedFields; legacy document-ai.tsx sends wrong shape (always 400); creer_tache maps echeance→due_date + org-checked contact link.
 - [Time-series day bucketing UTC](time-bucketing-utc.md) — SQL date_trunc on timestamptz uses session TZ; force `at time zone 'UTC'` to match JS UTC gap-fill keys or boundary days shift.
+- [Stripe webhook idempotency & invoice dedupe](stripe-webhook-idempotency.md) — one payment fires invoice.paid+invoice.payment_succeeded (dedupe on invoice id, not event id); webhook must mark processed ONLY after handler success (else retries lost).

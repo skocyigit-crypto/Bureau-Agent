@@ -234,7 +234,12 @@ export async function handleInvoicePaid(invoice: Stripe.Invoice) {
         })
         .onConflictDoNothing({ target: invoicesTable.stripeInvoiceId });
     } catch (err) {
-      logger.warn({ err, orgId, invoice: invoice.id }, "[stripe-sync] invoice row insert failed");
+      // onConflictDoNothing already absorbs the duplicate-invoice-id case (0 rows,
+      // no throw). Any error reaching here is a REAL persistence failure, so we
+      // rethrow: the webhook then returns 500 and Stripe retries, instead of
+      // silently acknowledging a payment we failed to record (accounting gap).
+      logger.error({ err, orgId, invoice: invoice.id }, "[stripe-sync] invoice row insert failed");
+      throw err;
     }
   }
   const isPaymentSuspension = sub?.status === "suspended" && (sub as any)?.suspensionReason !== "manual";

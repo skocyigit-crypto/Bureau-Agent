@@ -44,25 +44,36 @@ stripeWebhookRouter.post(
       res.status(400).json({ error: "Signature invalide" });
       return;
     }
-    // Idempotency: dedupe by event.id (Stripe retries failed deliveries).
-    // The schema has event_id as PRIMARY KEY, so onConflictDoNothing is safe.
-    // If the dedupe insert itself fails (DB outage, etc.) we return 500 so
-    // Stripe retries later. Processing a paid invoice twice can double-charge
-    // / double-credit the customer; a transient retry is the safer failure
-    // mode than a silent "continue anyway".
+    // Idempotency via a "processing" -> "processed" state machine (Stripe retries
+    // failed deliveries). event_id is the PRIMARY KEY. We claim the event as
+    // "processing" first, run the handler, and only flip it to "processed" AFTER
+    // success. Dedupe skips ONLY rows already "processed": a row still at
+    // "processing" means a previous attempt crashed before completing (or a
+    // concurrent delivery is in flight), so we MUST let the retry reprocess it —
+    // all handlers are idempotent (invoices dedupe on stripeInvoiceId,
+    // subscription updates are upserts). If the dedupe store itself is
+    // unavailable we return 500 so Stripe retries later.
     try {
       const inserted = await db
         .insert(stripeWebhookEventsTable)
-        .values({ eventId: event.id, eventType: event.type })
+        .values({ eventId: event.id, eventType: event.type, status: "processing" })
         .onConflictDoNothing({ target: stripeWebhookEventsTable.eventId })
         .returning({ eventId: stripeWebhookEventsTable.eventId });
       if (inserted.length === 0) {
-        logger.info({ eventId: event.id, type: event.type }, "[stripe-webhook] duplicate event skipped");
-        res.json({ received: true, deduped: true });
-        return;
+        const [existing] = await db
+          .select({ status: stripeWebhookEventsTable.status })
+          .from(stripeWebhookEventsTable)
+          .where(eq(stripeWebhookEventsTable.eventId, event.id))
+          .limit(1);
+        if (existing?.status === "processed") {
+          logger.info({ eventId: event.id, type: event.type }, "[stripe-webhook] duplicate event skipped");
+          res.json({ received: true, deduped: true });
+          return;
+        }
+        logger.warn({ eventId: event.id, type: event.type }, "[stripe-webhook] re-processing event left in 'processing' by a prior failed/concurrent attempt");
       }
     } catch (err) {
-      logger.error({ err, eventId: event.id, type: event.type }, "[stripe-webhook] dedupe insert failed - asking Stripe to retry");
+      logger.error({ err, eventId: event.id, type: event.type }, "[stripe-webhook] dedupe store unavailable - asking Stripe to retry");
       res.status(500).json({ error: "Dedupe store unavailable, retry later" });
       return;
     }
@@ -88,6 +99,13 @@ stripeWebhookRouter.post(
         default:
           logger.debug({ type: event.type }, "[stripe-webhook] unhandled event");
       }
+      // Handler succeeded -> flip the claim to "processed" so future retries of
+      // this event id are deduped. A failed handler (catch below) leaves the row
+      // at "processing", which a Stripe retry is allowed to reprocess.
+      await db
+        .update(stripeWebhookEventsTable)
+        .set({ status: "processed", processedAt: new Date() })
+        .where(eq(stripeWebhookEventsTable.eventId, event.id));
       res.json({ received: true });
     } catch (err) {
       logger.error({ err, type: event.type }, "[stripe-webhook] handler failed");
