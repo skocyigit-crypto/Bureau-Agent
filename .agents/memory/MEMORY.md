@@ -24,6 +24,7 @@
 - [Web search via Gemini grounding + SSRF](web-search-grounding-ssrf.md) — Gemini googleSearch grounding (no search API); resolve redirects on allowlisted Google hosts only, never fetch destinations.
 - [Web-search enrichment sources](web-search-enrichment-sources.md) — Brave managed billing is image-only AND agent-time-only (not runtime); real images/videos/maps/shopping need SerpAPI key; calculator/unit/currency (frankfurter, no key, TRY incl.) ship free.
 - [AI Council + agent learning](ai-council-and-agent-learning.md) — consult Gemini+GPT+Claude in parallel (non-stream only); cache key MUST include learned-context fingerprint or learning breaks.
+- [AI cache org isolation](ai-cache-org-isolation.md) — buildAiCacheKey must NEVER fall back to a shared "noorg" bucket; missing org → per-call random token, else cross-tenant cache leak (demo/test ↔ client).
 - [Webhook session<->tenant binding](webhook-session-tenant-binding.md) — signature alone won't stop cross-tenant leaks; re-assert session.orgId===tenant.orgId each turn; set fulfilled only post DB write.
 - [Tenant org NOT NULL hardening](tenant-org-not-null.md) — "0 nulls now" ≠ null invalid; some org_id inserts are legit null (payments/google_oauth_tokens/license_audit_log); typecheck api-server after.
 - [Live API e2e from scripts](live-api-e2e-from-scripts.md) — non-browser POSTs need Origin header (else CSRF 403); use login wantsToken bearer; logged-in users can't be hard-deleted (audit) → anonymize.

@@ -19,7 +19,24 @@ export function buildAiCacheKey(parts: {
 }): string {
   const norm = JSON.stringify(parts.input ?? null);
   const hash = crypto.createHash("sha256").update(norm).digest("hex").slice(0, 24);
-  const orgPart = parts.organisationId ?? "noorg";
+  // ISOLATION MULTI-TENANT (garde-fou): toute réponse IA mise en cache DOIT être
+  // cloisonnée par organisation. Si l'organisationId manque (ne devrait jamais
+  // arriver: toutes les routes IA passent par requireTenant), on N'UTILISE PAS
+  // un seau partagé "noorg" — sinon deux tenants (ou la démo/test du patron et
+  // un client licencié) avec le même prompt partageraient la même entrée de
+  // cache = fuite de données. On génère à la place un jeton ALÉATOIRE par appel:
+  // get/set ne se rejoindront jamais entre requêtes -> aucun partage possible
+  // (l'entrée non lue expire via le TTL). On loggue pour repérer le bug en amont.
+  let orgPart: string;
+  if (parts.organisationId != null) {
+    orgPart = String(parts.organisationId);
+  } else {
+    orgPart = `noorg-${crypto.randomBytes(8).toString("hex")}`;
+    logger.warn(
+      { route: parts.route },
+      "[ai-cache] organisationId manquant — cache non partagé (clé unique) pour éviter toute fuite inter-tenant",
+    );
+  }
   const userPart = parts.userId ?? "nouser";
   return `${parts.route}:${orgPart}:${userPart}:${hash}`;
 }
