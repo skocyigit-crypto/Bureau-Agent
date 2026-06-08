@@ -21,6 +21,7 @@ interface RawSignals {
   overdueInvoices: number;
   overdueInvoicesAmount: number;
   missedCallsToday: number;
+  missedCallsYesterday: number;
   unrespondedCallsLastWeek: number;
   newProspectsThisWeek: number;
   idleProspects: number;
@@ -33,6 +34,7 @@ async function gatherSignals(orgId: number): Promise<RawSignals> {
   const now = new Date();
   const startToday = new Date(now); startToday.setHours(0, 0, 0, 0);
   const endToday = new Date(now); endToday.setHours(23, 59, 59, 999);
+  const startYesterday = new Date(startToday.getTime() - 86400000);
   const weekAgo = new Date(now.getTime() - 7 * 86400000);
   const monthAgo = new Date(now.getTime() - 30 * 86400000);
 
@@ -40,6 +42,7 @@ async function gatherSignals(orgId: number): Promise<RawSignals> {
     overdueTasksRow,
     overdueInvoicesRow,
     missedCallsRow,
+    missedCallsYesterdayRow,
     unrespondedCallsRow,
     newProspectsRow,
     idleProspectsRow,
@@ -62,6 +65,12 @@ async function gatherSignals(orgId: number): Promise<RawSignals> {
       eq(callsTable.status, "manque"),
       gte(callsTable.createdAt, startToday),
       lte(callsTable.createdAt, endToday),
+    )),
+    db.select({ c: count() }).from(callsTable).where(and(
+      eq(callsTable.organisationId, orgId),
+      eq(callsTable.status, "manque"),
+      gte(callsTable.createdAt, startYesterday),
+      lt(callsTable.createdAt, startToday),
     )),
     db.select({ c: count() }).from(callsTable).where(and(
       eq(callsTable.organisationId, orgId),
@@ -97,6 +106,7 @@ async function gatherSignals(orgId: number): Promise<RawSignals> {
     overdueInvoices: Number(overdueInvoicesRow[0]?.c ?? 0),
     overdueInvoicesAmount: Number(overdueInvoicesRow[0]?.s ?? 0),
     missedCallsToday: Number(missedCallsRow[0]?.c ?? 0),
+    missedCallsYesterday: Number(missedCallsYesterdayRow[0]?.c ?? 0),
     unrespondedCallsLastWeek: Number(unrespondedCallsRow[0]?.c ?? 0),
     newProspectsThisWeek: Number(newProspectsRow[0]?.c ?? 0),
     idleProspects: Number(idleProspectsRow[0]?.c ?? 0),
@@ -138,6 +148,21 @@ function deterministicInsights(signals: RawSignals): InsightDraft[] {
       category: "calls", severity: signals.missedCallsToday >= 3 ? "warn" : "info",
       title: `${signals.missedCallsToday} appel${signals.missedCallsToday > 1 ? "s" : ""} manque${signals.missedCallsToday > 1 ? "s" : ""} aujourd'hui`,
       message: `Rappelez ces contacts avant la fin de journee pour preserver la relation.`,
+      actionUrl: "/appels?filter=manques", actionLabel: "Rappeler",
+    });
+  }
+  // Tendance jour-sur-jour: pic d'appels manques vs hier (signal proactif distinct
+  // de l'alerte "appels manques aujourd'hui" ci-dessus). On ne le declenche que sur
+  // une hausse nette pour eviter le bruit les jours calmes.
+  if (
+    signals.missedCallsToday >= 3 &&
+    signals.missedCallsToday >= signals.missedCallsYesterday * 2 &&
+    signals.missedCallsToday - signals.missedCallsYesterday >= 3
+  ) {
+    out.push({
+      category: "calls", severity: "warn",
+      title: `Pic d'appels manques aujourd'hui`,
+      message: `${signals.missedCallsToday} appels manques aujourd'hui contre ${signals.missedCallsYesterday} hier. Verifiez la disponibilite de la ligne et rappelez en priorite.`,
       actionUrl: "/appels?filter=manques", actionLabel: "Rappeler",
     });
   }

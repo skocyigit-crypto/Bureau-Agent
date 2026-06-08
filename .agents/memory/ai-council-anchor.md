@@ -34,6 +34,14 @@ analytical report). Don't reintroduce Pro for agents or a long all-providers
 `Promise.allSettled` — that brings back ~45s waits and total failures when Gemini
 also hiccups.
 
+**Hedged/raced council usage accounting:** when a council races providers (anchor +
+hedge + abort, e.g. `hedgedCouncil` in `ai-commandant.ts`), a provider that loses the
+race but **still completes** with a billable response must call its `record()` too —
+not only the winner. Losers that arrive after `done===true` are otherwise dropped,
+under-counting per-org quota/cost. Aborted attempts have no response object → nothing
+to record (acceptable). **Why:** `assertAiQuota` is checked once upfront; if late
+completers aren't recorded, latency races silently let an org over-spend.
+
 **Autonomy is now durable (resolved):** per-org auto-run state lives in DB
 (`organisations.agentAutoRunEnabled` + `agentAutoRunLastRunAt`), driven by ONE
 global `startAgentAutoRunScheduler()` ticker (boot from index.ts). The scheduler

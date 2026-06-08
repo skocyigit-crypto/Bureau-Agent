@@ -8,7 +8,10 @@ import {
   extractAnthropicTokens,
   sanitizePromptInput,
   geminiActualModel,
+  isRetryableAiError,
   GEMINI_PRO_MODEL,
+  OPENAI_MODEL,
+  ANTHROPIC_MODEL,
 } from "./ai-utils";
 import { getOrgGeminiClient, getOrgOpenAIClient, getOrgAnthropicClient } from "./ai-providers";
 
@@ -132,8 +135,8 @@ export async function multiAiGenerateStream(opts: StreamOptions): Promise<Stream
     signal,
     onToken,
     geminiModel = GEMINI_PRO_MODEL,
-    openaiModel = "gpt-5.2",
-    anthropicModel = "claude-sonnet-4-6",
+    openaiModel = OPENAI_MODEL,
+    anthropicModel = ANTHROPIC_MODEL,
     maxOutputTokens,
     responseMimeType,
   } = opts;
@@ -151,73 +154,84 @@ export async function multiAiGenerateStream(opts: StreamOptions): Promise<Stream
     if (signal.aborted) throw new Error("aborted");
   };
 
-  // ── Gemini stream ──
-  try {
-    checkAbort();
-    const ai = await getOrgGeminiClient(organisationId);
-    const config: Record<string, unknown> = { abortSignal: signal };
-    if (maxOutputTokens) config.maxOutputTokens = maxOutputTokens;
-    if (responseMimeType) config.responseMimeType = responseMimeType;
-
-    const stream: AsyncIterable<any> = await (ai as any).models.generateContentStream({
-      model: geminiModel,
-      contents: safeSystem
-        ? [{ role: "user", parts: [{ text: safeSystem + "\n\n" + safePrompt }] }]
-        : safePrompt,
-      config,
-    });
-
-    let fullText = "";
-    let lastChunk: any = null;
-    let abortedDuring = false;
+  // ── Gemini stream (1 nouvelle tentative si echec TRANSITOIRE et AVANT tout token) ──
+  // On ne retente le MEME fournisseur que si rien n'a encore ete envoye au client
+  // (sinon on dupliquerait le texte deja streame). Sinon on bascule sur OpenAI.
+  let geminiEmittedAny = false;
+  for (let attempt = 0; attempt <= 1; attempt++) {
     try {
-      for await (const chunk of stream) {
-        if (signal.aborted) { abortedDuring = true; break; }
-        lastChunk = chunk;
-        const piece = typeof chunk?.text === "string" ? chunk.text
-          : typeof chunk?.text === "function" ? chunk.text()
-          : "";
-        if (piece) {
-          fullText += piece;
-          onToken(piece);
-        }
-      }
-    } catch (iterErr) {
-      if (signal.aborted) abortedDuring = true;
-      else throw iterErr;
-    }
+      checkAbort();
+      const ai = await getOrgGeminiClient(organisationId);
+      const config: Record<string, unknown> = { abortSignal: signal };
+      if (maxOutputTokens) config.maxOutputTokens = maxOutputTokens;
+      if (responseMimeType) config.responseMimeType = responseMimeType;
 
-    if (abortedDuring) {
+      const stream: AsyncIterable<any> = await (ai as any).models.generateContentStream({
+        model: geminiModel,
+        contents: safeSystem
+          ? [{ role: "user", parts: [{ text: safeSystem + "\n\n" + safePrompt }] }]
+          : safePrompt,
+        config,
+      });
+
+      let fullText = "";
+      let lastChunk: any = null;
+      let abortedDuring = false;
+      try {
+        for await (const chunk of stream) {
+          if (signal.aborted) { abortedDuring = true; break; }
+          lastChunk = chunk;
+          const piece = typeof chunk?.text === "string" ? chunk.text
+            : typeof chunk?.text === "function" ? chunk.text()
+            : "";
+          if (piece) {
+            fullText += piece;
+            geminiEmittedAny = true;
+            onToken(piece);
+          }
+        }
+      } catch (iterErr) {
+        if (signal.aborted) abortedDuring = true;
+        else throw iterErr;
+      }
+
+      if (abortedDuring) {
+        const tokens = extractGeminiTokens(lastChunk);
+        const actualModel = geminiActualModel(lastChunk, geminiModel);
+        const inTok = tokens.input || estimateTokens(promptForEstimate);
+        const outTok = tokens.output || estimateTokens(fullText);
+        const durationMs = Date.now() - t0;
+        persistUsage(organisationId, "gemini", actualModel, route, inTok, outTok, durationMs);
+        throw new StreamAbortedError({
+          fullText, provider: "gemini", model: actualModel,
+          inputTokens: inTok, outputTokens: outTok, durationMs, aborted: true,
+        });
+      }
+
+      if (!fullText || fullText.length < 2) {
+        throw new StreamFailedError("gemini", "Empty Gemini stream");
+      }
+
       const tokens = extractGeminiTokens(lastChunk);
       const actualModel = geminiActualModel(lastChunk, geminiModel);
-      const inTok = tokens.input || estimateTokens(promptForEstimate);
-      const outTok = tokens.output || estimateTokens(fullText);
       const durationMs = Date.now() - t0;
-      persistUsage(organisationId, "gemini", actualModel, route, inTok, outTok, durationMs);
-      throw new StreamAbortedError({
+      persistUsage(organisationId, "gemini", actualModel, route, tokens.input, tokens.output, durationMs);
+      return {
         fullText, provider: "gemini", model: actualModel,
-        inputTokens: inTok, outputTokens: outTok, durationMs, aborted: true,
-      });
+        inputTokens: tokens.input, outputTokens: tokens.output, durationMs,
+      };
+    } catch (err: any) {
+      if (err instanceof StreamAbortedError) throw err;
+      if (err instanceof AiQuotaExceededError) throw err;
+      if (signal.aborted) throw err;
+      if (attempt === 0 && !geminiEmittedAny && isRetryableAiError(err)) {
+        logger.warn({ err: err?.message ?? err }, "[ai-stream] Gemini echec transitoire avant tout token — nouvelle tentative");
+        continue;
+      }
+      errors.push("Gemini: " + (err?.message ?? err));
+      logger.warn({ err: err?.message ?? err }, "[ai-stream] Gemini stream failed, falling back");
+      break;
     }
-
-    if (!fullText || fullText.length < 2) {
-      throw new StreamFailedError("gemini", "Empty Gemini stream");
-    }
-
-    const tokens = extractGeminiTokens(lastChunk);
-    const actualModel = geminiActualModel(lastChunk, geminiModel);
-    const durationMs = Date.now() - t0;
-    persistUsage(organisationId, "gemini", actualModel, route, tokens.input, tokens.output, durationMs);
-    return {
-      fullText, provider: "gemini", model: actualModel,
-      inputTokens: tokens.input, outputTokens: tokens.output, durationMs,
-    };
-  } catch (err: any) {
-    if (err instanceof StreamAbortedError) throw err;
-    if (err instanceof AiQuotaExceededError) throw err;
-    if (signal.aborted) throw err;
-    errors.push("Gemini: " + (err?.message ?? err));
-    logger.warn({ err: err?.message ?? err }, "[ai-stream] Gemini stream failed, falling back");
   }
 
   // ── OpenAI stream ──

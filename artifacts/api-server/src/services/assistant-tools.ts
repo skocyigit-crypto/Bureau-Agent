@@ -141,6 +141,34 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
       };
     },
   },
+  {
+    name: "get_financial_summary",
+    description: "Resume FINANCIER en montants (EUR): total restant a encaisser (factures impayees), montant en retard (echeance depassee), et chiffre encaisse ce mois-ci. Utilise-le quand on demande 'combien on me doit', 'combien en retard', 'le CA/chiffre d'affaires du mois', les impayes en argent (pas seulement le nombre).",
+    parameters: { type: "object", properties: {} },
+    fields: {},
+    execute: async (_a, { orgId }) => {
+      const now = new Date();
+      const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+      const [row] = await db.select({
+        restantAEncaisser: sql<number>`coalesce(sum(${facturesClientTable.totalAmount} - ${facturesClientTable.paidAmount}) filter (where ${facturesClientTable.status} in ('envoyee','en_attente','en_retard')), 0)::float8`,
+        facturesImpayees: sql<number>`count(*) filter (where ${facturesClientTable.status} in ('envoyee','en_attente','en_retard'))::int`,
+        montantEnRetard: sql<number>`coalesce(sum(${facturesClientTable.totalAmount} - ${facturesClientTable.paidAmount}) filter (where ${facturesClientTable.status} in ('envoyee','en_attente','en_retard') and ${facturesClientTable.dueDate} is not null and ${facturesClientTable.dueDate} < now()), 0)::float8`,
+        facturesEnRetard: sql<number>`count(*) filter (where ${facturesClientTable.status} in ('envoyee','en_attente','en_retard') and ${facturesClientTable.dueDate} is not null and ${facturesClientTable.dueDate} < now())::int`,
+        encaisseCeMois: sql<number>`coalesce(sum(${facturesClientTable.paidAmount}) filter (where ${facturesClientTable.paidAt} >= ${monthStart}), 0)::float8`,
+        facturesPayeesCeMois: sql<number>`count(*) filter (where ${facturesClientTable.paidAt} >= ${monthStart})::int`,
+      }).from(facturesClientTable).where(eq(facturesClientTable.organisationId, orgId));
+      const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
+      return {
+        devise: "EUR",
+        restantAEncaisser: round2(row?.restantAEncaisser ?? 0),
+        facturesImpayees: row?.facturesImpayees ?? 0,
+        montantEnRetard: round2(row?.montantEnRetard ?? 0),
+        facturesEnRetard: row?.facturesEnRetard ?? 0,
+        encaisseCeMois: round2(row?.encaisseCeMois ?? 0),
+        facturesPayeesCeMois: row?.facturesPayeesCeMois ?? 0,
+      };
+    },
+  },
   // ---------- CONTACTS ----------
   {
     name: "list_contacts",

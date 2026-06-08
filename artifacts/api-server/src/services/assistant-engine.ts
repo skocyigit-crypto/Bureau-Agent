@@ -3,7 +3,7 @@ import { callOrgGemini } from "./ai-providers";
 import { executeTool, getGeminiToolDeclarations, getTool, type ToolContext } from "./assistant-tools";
 import { db } from "@workspace/db";
 import { assistantMessagesTable, assistantConversationsTable } from "@workspace/db/schema";
-import { eq, asc, and } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache } from "./ai-quota";
 import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL } from "./ai-utils";
@@ -11,6 +11,10 @@ import { buildLearnedContextBlock } from "./ai-learning";
 
 const MODEL = process.env.ASSISTANT_MODEL || GEMINI_PRO_MODEL;
 const MAX_TOOL_HOPS = 6;
+// Rappel d'historique borne: on ne reinjecte que les N derniers messages d'une
+// conversation pour limiter le cout en tokens et la latence sur les longs fils,
+// tout en gardant un contexte coherent (cf. loadHistoryForGemini).
+const HISTORY_MAX_MESSAGES = Math.max(10, Number(process.env.ASSISTANT_HISTORY_MAX_MESSAGES ?? 80));
 
 export type StreamEvent =
   | { type: "step"; toolName: string; toolArgs?: unknown; toolResult?: unknown }
@@ -41,12 +45,24 @@ IMPORTANT:
 - Si une action echoue, explique pourquoi en 1 phrase et propose une alternative.`;
 
 async function loadHistoryForGemini(conversationId: number, orgId: number): Promise<GeminiContent[]> {
-  const msgs = await db.select().from(assistantMessagesTable)
+  // On charge les N derniers messages (desc + limit) puis on remet l'ordre
+  // chronologique. Borne le cout en tokens / la latence sur les longs fils.
+  const recent = await db.select().from(assistantMessagesTable)
     .where(and(
       eq(assistantMessagesTable.conversationId, conversationId),
       eq(assistantMessagesTable.organisationId, orgId),
     ))
-    .orderBy(asc(assistantMessagesTable.createdAt));
+    .orderBy(desc(assistantMessagesTable.createdAt))
+    .limit(HISTORY_MAX_MESSAGES);
+  recent.reverse();
+  // Si la fenetre debute au milieu d'un echange d'outils, on retire les entrees
+  // d'outils en tete pour ne JAMAIS commencer par une `functionResponse`
+  // orpheline (Gemini rejette un function part sans son functionCall precedent).
+  let startIdx = 0;
+  while (startIdx < recent.length && !(recent[startIdx]!.role === "user" || recent[startIdx]!.role === "assistant")) {
+    startIdx++;
+  }
+  const msgs = recent.slice(startIdx);
   const out: GeminiContent[] = [];
   for (const m of msgs) {
     if (m.role === "user") {

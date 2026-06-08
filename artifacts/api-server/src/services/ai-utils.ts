@@ -31,6 +31,16 @@ export const GEMINI_PRO_FALLBACK_MODEL =
   process.env.GEMINI_PRO_FALLBACK_MODEL || "gemini-pro-latest";
 
 /**
+ * Modeles OpenAI / Anthropic centralises (meme logique que Gemini ci-dessus):
+ * surchargeables par variable d'environnement pour migrer sans redeploiement
+ * quand un fournisseur retire une version. Avant, ces noms etaient codes en dur
+ * dans `ai-stream.ts` et `ai-commandant.ts` -> casse silencieuse a la deprecation.
+ * Utilises par le flux temps-reel (ai-stream) et le conseil IA (ai-commandant).
+ */
+export const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.2";
+export const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
+
+/**
  * Signatures d'erreurs renvoyees par l'API Gemini lorsqu'un nom de modele
  * n'est plus servi (version retiree, modele inconnu pour la version d'API).
  * Volontairement restreint pour ne pas confondre avec d'autres 404/erreurs.
@@ -310,6 +320,17 @@ const RETRYABLE_PATTERNS = [
 function isRetryable(err: unknown): boolean {
   const msg = (err as any)?.message || String(err);
   return RETRYABLE_PATTERNS.some((p) => p.test(msg));
+}
+
+/**
+ * Variante exportee de `isRetryable`: une erreur IA est-elle transitoire
+ * (503/502/504, surcharge, indisponibilite, reset reseau) et donc digne d'une
+ * nouvelle tentative sur le MEME fournisseur ? Utilisee par ai-stream.ts pour
+ * re-essayer Gemini quand l'echec survient AVANT tout token (sinon on
+ * dupliquerait du texte deja envoye au client).
+ */
+export function isRetryableAiError(err: unknown): boolean {
+  return isRetryable(err);
 }
 
 export interface AiRetryOptions {

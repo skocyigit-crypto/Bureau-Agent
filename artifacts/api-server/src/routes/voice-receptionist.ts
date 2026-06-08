@@ -36,6 +36,7 @@ import {
   messagesTable,
   calendarEventsTable,
   notificationsTable,
+  contactsTable,
 } from "@workspace/db";
 import { ai } from "@workspace/integrations-gemini-ai";
 import { callOrgGemini } from "../services/ai-providers";
@@ -116,6 +117,10 @@ interface CallSession {
   fulfilled: boolean;
   startedAt: number;
   emptyCount: number;
+  /** Nom du contact connu correspondant au numero appelant (null si inconnu). */
+  callerName: string | null;
+  /** Nombre d'appels anterieurs deja enregistres pour ce numero. */
+  callCount: number;
 }
 
 const SESSION_TTL_MS = 30 * 60 * 1000;
@@ -238,6 +243,63 @@ async function resolveTenants(accountSid: string): Promise<TenantMatch[]> {
     .filter((r) => r.authToken.length > 0 && r.orgId != null);
 }
 
+// --- Reconnaissance de l'appelant -----------------------------------------
+
+interface CallerInfo {
+  name: string | null;
+  callCount: number;
+}
+
+/**
+ * Reconnait un appelant connu: on rapproche son numero d'un contact de l'org
+ * et on compte ses appels anterieurs. Comparaison sur les 9 derniers chiffres
+ * (tolerante aux differences de format / indicatif). Best-effort: toute erreur
+ * renvoie un appelant inconnu (la secretaire fonctionne normalement).
+ */
+async function lookupCaller(orgId: number, phone: string): Promise<CallerInfo> {
+  const digits = (phone || "").replace(/\D/g, "");
+  if (digits.length < 6) return { name: null, callCount: 0 };
+  const suffix = digits.slice(-9);
+  const like = `%${suffix}`;
+  try {
+    const [contactRow, countRow] = await Promise.all([
+      db
+        .select({
+          firstName: contactsTable.firstName,
+          lastName: contactsTable.lastName,
+          company: contactsTable.company,
+        })
+        .from(contactsTable)
+        .where(and(
+          eq(contactsTable.organisationId, orgId),
+          sql`regexp_replace(coalesce(${contactsTable.phone}, ''), '\D', '', 'g') LIKE ${like}`,
+        ))
+        .limit(1),
+      db
+        .select({ c: sql<number>`count(*)::int` })
+        .from(callsTable)
+        .where(and(
+          eq(callsTable.organisationId, orgId),
+          sql`regexp_replace(coalesce(${callsTable.phoneNumber}, ''), '\D', '', 'g') LIKE ${like}`,
+        )),
+    ]);
+    const c = contactRow[0];
+    const name = c
+      ? [c.firstName, c.lastName].filter(Boolean).join(" ").trim() || (c.company ?? "").trim() || null
+      : null;
+    return { name: name || null, callCount: Number(countRow[0]?.c ?? 0) };
+  } catch (err) {
+    logger.warn({ err, orgId }, "[voice] lookupCaller a echoue — appelant traite comme inconnu");
+    return { name: null, callCount: 0 };
+  }
+}
+
+function personalizedGreeting(lang: RecLang, name: string): string {
+  if (lang === "tr") return `Merhaba ${name}, tekrar aradiniz. Size nasil yardimci olabilirim?`;
+  if (lang === "en") return `Hello ${name}, good to hear from you again. How may I help you?`;
+  return `Bonjour ${name}, ravie de vous reentendre. Comment puis-je vous aider ?`;
+}
+
 // --- Moteur IA (persona secretaire contrainte) ----------------------------
 
 interface ReceptionistAppointment {
@@ -258,7 +320,7 @@ interface ReceptionistResult {
   message: ReceptionistMessage | null;
 }
 
-function buildSystemInstruction(orgName: string, lang: RecLang): string {
+function buildSystemInstruction(orgName: string, lang: RecLang, caller?: CallerInfo): string {
   const now = new Date();
   const todayStr = new Intl.DateTimeFormat("fr-FR", {
     weekday: "long",
@@ -274,11 +336,17 @@ function buildSystemInstruction(orgName: string, lang: RecLang): string {
     `Tu reponds AU TELEPHONE a un appelant (souvent un client ou un prospect). ` +
     `Parle en ${LANG_NAME[lang]}, de maniere chaleureuse, breve et naturelle: ` +
     `des reponses ORALES de 1 a 2 phrases maximum, sans listes ni emojis ni mise en forme.\n` +
-    `Date et heure actuelles (Europe/Paris): ${todayStr}.\n\n` +
+    `Date et heure actuelles (Europe/Paris): ${todayStr}.\n` +
+    (caller?.name
+      ? `L'appelant est un contact CONNU de l'entreprise: ${caller.name}` +
+        (caller.callCount > 0 ? ` (deja ${caller.callCount} appel(s) enregistre(s))` : "") +
+        `. Adresse-toi a lui par son nom et NE redemande PAS son nom (tu le connais deja); utilise "${caller.name}" pour remplir le champ "name" d'un rendez-vous ou d'un message.\n`
+      : "") +
+    `\n` +
     `Ton role est STRICTEMENT limite a l'accueil:\n` +
     `- Saluer et comprendre la demande de l'appelant.\n` +
-    `- Prendre un RENDEZ-VOUS: recueille le nom de l'appelant, le motif, et une date/heure souhaitee. Confirme oralement.\n` +
-    `- Prendre un MESSAGE: recueille le nom de l'appelant et le contenu du message.\n` +
+    `- Prendre un RENDEZ-VOUS: recueille le nom de l'appelant (sauf s'il est deja connu ci-dessus), le motif, et une date/heure souhaitee. Confirme oralement.\n` +
+    `- Prendre un MESSAGE: recueille le nom de l'appelant (sauf s'il est deja connu ci-dessus) et le contenu du message.\n` +
     `- Repondre tres brievement aux questions generales; si tu ne connais pas l'info, propose de prendre un message.\n` +
     `Tu ne dois JAMAIS inventer d'informations confidentielles ni garantir une disponibilite precise: ` +
     `pour un rendez-vous, precise qu'il sera "a confirmer".\n\n` +
@@ -317,7 +385,10 @@ async function runReceptionistTurn(session: CallSession): Promise<ReceptionistRe
       model: GEMINI_FLASH_MODEL,
       contents: contents as unknown as Parameters<typeof ai.models.generateContent>[0]["contents"],
       config: {
-        systemInstruction: buildSystemInstruction(session.orgName, session.lang),
+        systemInstruction: buildSystemInstruction(session.orgName, session.lang, {
+          name: session.callerName,
+          callCount: session.callCount,
+        }),
         responseMimeType: "application/json",
         maxOutputTokens: 700,
         temperature: 0.5,
@@ -589,8 +660,15 @@ voiceReceptionistRouter.post("/voice/twilio/incoming", async (req: Request, res:
     return;
   }
 
+  // Reconnaissance de l'appelant (best-effort): si le numero correspond a un
+  // contact connu, on personnalise la salutation et on injecte le nom dans la
+  // persona pour eviter de redemander une info deja connue.
+  const caller = await lookupCaller(tenant.orgId, body.From ?? "");
+
+  const customGreeting =
+    typeof cfg.greeting === "string" && cfg.greeting.trim() ? cfg.greeting.trim() : null;
   const greeting =
-    typeof cfg.greeting === "string" && cfg.greeting.trim() ? cfg.greeting.trim() : DEFAULT_GREETING[lang];
+    customGreeting ?? (caller.name ? personalizedGreeting(lang, caller.name) : DEFAULT_GREETING[lang]);
 
   sessions.set(callSid, {
     orgId: tenant.orgId,
@@ -604,6 +682,8 @@ voiceReceptionistRouter.post("/voice/twilio/incoming", async (req: Request, res:
     fulfilled: false,
     startedAt: Date.now(),
     emptyCount: 0,
+    callerName: caller.name,
+    callCount: caller.callCount,
   });
 
   res.status(200).send(gatherTwiml(greeting, lang, voice));

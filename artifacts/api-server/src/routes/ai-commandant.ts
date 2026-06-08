@@ -5,10 +5,10 @@ import { getOrgId } from "../middleware/tenant";
 import { stripAccents, ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { sendEmail } from "../services/email";
 import { getContextForContact, getLatestAgentInsights, buildCommandantContextPrompt } from "./agent-collaboration";
-import { safeJsonParse, extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, geminiActualModel, sanitizePromptInput, GEMINI_PRO_MODEL } from "../services/ai-utils";
+import { safeJsonParse, extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, geminiActualModel, sanitizePromptInput, aiCallWithRetry, GEMINI_PRO_MODEL, OPENAI_MODEL, ANTHROPIC_MODEL } from "../services/ai-utils";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
 import { buildLearnedContextBlock, fingerprintLearned } from "../services/ai-learning";
-import { getOrCompute, buildAiCacheKey, getCached, setCached, withProviderTimeout, AI_CACHE_TTL } from "../services/ai-cache";
+import { getOrCompute, buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 import { openSseStream, multiAiGenerateStream, StreamAbortedError } from "../services/ai-stream";
 import { logger } from "../lib/logger";
 import { scanBase64Content } from "../middleware/security";
@@ -39,77 +39,178 @@ async function getAnthropic() {
   return anthropic;
 }
 
+// Hedging du conseil IA: au lieu d'essayer Gemini -> OpenAI -> Anthropic en
+// SERIE (jusqu'a ~75s d'attente quand les premiers echouent/trainent), on lance
+// Gemini d'abord puis, s'il n'a pas repondu sous COUNCIL_HEDGE_MS, on demarre le
+// fournisseur suivant EN PARALLELE. Le premier resultat valide gagne, les autres
+// sont annules (AbortController) pour ne pas gaspiller tokens/quota. Un echec
+// rapide d'un fournisseur declenche immediatement le suivant (sans attendre le
+// delai de hedge). Erreur de quota -> on remonte tout de suite (comme avant).
+const COUNCIL_HEDGE_MS = Number(process.env.AI_COUNCIL_HEDGE_MS ?? 6000);
+const COUNCIL_TIMEOUT_MS = Number(process.env.AI_COUNCIL_TIMEOUT_MS ?? 25_000);
+
+type CouncilAttempt = {
+  provider: "gemini" | "openai" | "anthropic";
+  run: (signal: AbortSignal) => Promise<{ text: string; record: () => void } | null>;
+};
+
+function isQuotaErr(err: unknown): boolean {
+  return String((err as any)?.message ?? "").toLowerCase().includes("quota");
+}
+
+async function hedgedCouncil(attempts: CouncilAttempt[]): Promise<string> {
+  const errors: string[] = [];
+  const controllers: AbortController[] = [];
+  const timers: NodeJS.Timeout[] = [];
+
+  return await new Promise<string>((resolve, reject) => {
+    let started = 0;
+    let settled = 0;
+    let done = false;
+    let hedgeTimer: NodeJS.Timeout | null = null;
+
+    const cleanup = () => {
+      if (hedgeTimer) { clearTimeout(hedgeTimer); hedgeTimer = null; }
+      for (const t of timers) clearTimeout(t);
+      for (const c of controllers) { try { c.abort(); } catch { /* noop */ } }
+    };
+
+    const launchNext = () => {
+      if (done || started >= attempts.length) return;
+      const attempt = attempts[started++]!;
+      const controller = new AbortController();
+      controllers.push(controller);
+      const to = setTimeout(() => { try { controller.abort(); } catch { /* noop */ } }, COUNCIL_TIMEOUT_MS);
+      timers.push(to);
+
+      aiCallWithRetry(() => attempt.run(controller.signal), { maxRetries: 1, label: `council-${attempt.provider}` })
+        .then((result) => {
+          clearTimeout(to);
+          settled++;
+          if (done) {
+            // Perdant arrive APRES le gagnant: si l'appel a tout de meme produit
+            // une reponse facturable, on enregistre sa conso pour que le quota /
+            // cout par org refletent CHAQUE appel reellement consomme (les appels
+            // avortes n'ont pas de reponse exploitable -> rien a enregistrer).
+            if (result && result.text && result.text.length > 10) {
+              try { result.record(); } catch { /* noop */ }
+            }
+            return;
+          }
+          if (result && result.text && result.text.length > 10) {
+            done = true;
+            result.record();
+            cleanup();
+            resolve(result.text);
+            return;
+          }
+          errors.push(`${attempt.provider}: vide`);
+          if (hedgeTimer) { clearTimeout(hedgeTimer); hedgeTimer = null; }
+          launchNext();
+          if (settled >= attempts.length && !done) { done = true; cleanup(); resolve(`[AI indisponible] ${errors.join("; ")}`); }
+        })
+        .catch((err) => {
+          clearTimeout(to);
+          settled++;
+          if (done) return;
+          if (isQuotaErr(err)) { done = true; cleanup(); reject(err); return; }
+          errors.push(`${attempt.provider}: ${(err as any)?.message ?? err}`);
+          if (hedgeTimer) { clearTimeout(hedgeTimer); hedgeTimer = null; }
+          launchNext();
+          if (settled >= attempts.length && !done) { done = true; cleanup(); resolve(`[AI indisponible] ${errors.join("; ")}`); }
+        });
+
+      // Programme le demarrage hedge du fournisseur suivant si celui-ci traine.
+      if (started < attempts.length) {
+        hedgeTimer = setTimeout(() => { hedgeTimer = null; launchNext(); }, COUNCIL_HEDGE_MS);
+      }
+    };
+
+    launchNext();
+  });
+}
+
 async function multiAiGenerate(prompt: string, systemPrompt?: string, orgId?: number, route?: string): Promise<string> {
-  if (orgId) {
-    try { await assertAiQuota(orgId); } catch (e: any) { throw e; }
-  }
+  if (orgId) await assertAiQuota(orgId);
 
   const safePrompt = sanitizePromptInput(prompt, 24000);
   const safeSystem = sanitizePromptInput(systemPrompt, 8000);
-
-  const errors: string[] = [];
   const t0 = Date.now();
+  const usedRoute = route || "/commandant";
 
-  try {
-    const ai = await getGemini();
-    const r = await withProviderTimeout(() => ai.models.generateContent({
-      model: GEMINI_PRO_MODEL,
-      contents: safeSystem ? [{ role: "user", parts: [{ text: safeSystem + "\n\n" + safePrompt }] }] : safePrompt,
-    }), { timeoutMs: 25_000, label: "gemini" });
-    const text = typeof r === "object" && r !== null && "text" in r ? String(r.text) : String(r);
-    if (text && text.length > 10) {
-      if (orgId) {
-        const tokens = extractGeminiTokens(r);
-        recordAiUsage({ organisationId: orgId, provider: "gemini", model: geminiActualModel(r, GEMINI_PRO_MODEL), route: route || "/commandant", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
-        invalidateQuotaCache(orgId);
-      }
-      return text;
-    }
-  } catch (e: any) {
-    if (String(e.message).includes("quota")) throw e;
-    errors.push("Gemini: " + e.message);
-  }
+  const attempts: CouncilAttempt[] = [
+    {
+      provider: "gemini",
+      run: async (signal) => {
+        const ai = await getGemini();
+        const r = await ai.models.generateContent({
+          model: GEMINI_PRO_MODEL,
+          contents: safeSystem ? [{ role: "user", parts: [{ text: safeSystem + "\n\n" + safePrompt }] }] : safePrompt,
+          config: { abortSignal: signal },
+        });
+        const text = typeof r === "object" && r !== null && "text" in r ? String((r as any).text) : String(r);
+        if (!text || text.length <= 10) return null;
+        return {
+          text,
+          record: () => {
+            if (!orgId) return;
+            const tokens = extractGeminiTokens(r);
+            recordAiUsage({ organisationId: orgId, provider: "gemini", model: geminiActualModel(r, GEMINI_PRO_MODEL), route: usedRoute, inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+            invalidateQuotaCache(orgId);
+          },
+        };
+      },
+    },
+    {
+      provider: "openai",
+      run: async (signal) => {
+        const openai = await getOpenAI();
+        const r = await openai.chat.completions.create({
+          model: OPENAI_MODEL,
+          messages: [
+            ...(safeSystem ? [{ role: "system" as const, content: safeSystem }] : []),
+            { role: "user" as const, content: safePrompt },
+          ],
+        }, { signal });
+        const text = r.choices?.[0]?.message?.content;
+        if (!text || text.length <= 10) return null;
+        return {
+          text,
+          record: () => {
+            if (!orgId) return;
+            const tokens = extractOpenAITokens(r);
+            recordAiUsage({ organisationId: orgId, provider: "openai", model: OPENAI_MODEL, route: usedRoute, inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+            invalidateQuotaCache(orgId);
+          },
+        };
+      },
+    },
+    {
+      provider: "anthropic",
+      run: async (signal) => {
+        const anthropic = await getAnthropic();
+        const r = await anthropic.messages.create({
+          model: ANTHROPIC_MODEL,
+          max_tokens: 4096,
+          ...(safeSystem ? { system: safeSystem } : {}),
+          messages: [{ role: "user", content: safePrompt }],
+        }, { signal });
+        const text = r.content?.[0]?.type === "text" ? r.content[0].text : "";
+        if (!text || text.length <= 10) return null;
+        return {
+          text,
+          record: () => {
+            if (!orgId) return;
+            const tokens = extractAnthropicTokens(r);
+            recordAiUsage({ organisationId: orgId, provider: "anthropic", model: ANTHROPIC_MODEL, route: usedRoute, inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
+            invalidateQuotaCache(orgId);
+          },
+        };
+      },
+    },
+  ];
 
-  try {
-    const openai = await getOpenAI();
-    const r = await withProviderTimeout(() => openai.chat.completions.create({
-      model: "gpt-5.2",
-      messages: [
-        ...(safeSystem ? [{ role: "system" as const, content: safeSystem }] : []),
-        { role: "user" as const, content: safePrompt },
-      ],
-    }), { timeoutMs: 25_000, label: "openai" });
-    const text = r.choices?.[0]?.message?.content;
-    if (text && text.length > 10) {
-      if (orgId) {
-        const tokens = extractOpenAITokens(r);
-        recordAiUsage({ organisationId: orgId, provider: "openai", model: "gpt-5.2", route: route || "/commandant", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
-        invalidateQuotaCache(orgId);
-      }
-      return text;
-    }
-  } catch (e: any) { errors.push("OpenAI: " + e.message); }
-
-  try {
-    const anthropic = await getAnthropic();
-    const r = await withProviderTimeout(() => anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 4096,
-      ...(safeSystem ? { system: safeSystem } : {}),
-      messages: [{ role: "user", content: safePrompt }],
-    }), { timeoutMs: 25_000, label: "anthropic" });
-    const text = r.content?.[0]?.type === "text" ? r.content[0].text : "";
-    if (text && text.length > 10) {
-      if (orgId) {
-        const tokens = extractAnthropicTokens(r);
-        recordAiUsage({ organisationId: orgId, provider: "anthropic", model: "claude-sonnet-4-6", route: route || "/commandant", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
-        invalidateQuotaCache(orgId);
-      }
-      return text;
-    }
-  } catch (e: any) { errors.push("Anthropic: " + e.message); }
-
-  return `[AI indisponible] ${errors.join("; ")}`;
+  return hedgedCouncil(attempts);
 }
 
 async function multiAiGenerateCached(
