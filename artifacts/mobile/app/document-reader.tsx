@@ -16,6 +16,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { getDocument, type DocumentDetail } from "@workspace/api-client-react";
+
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -49,29 +51,7 @@ interface MultiModelResult {
 interface QAAnswer { model: string; provider: string; answer: string; tokensUsed?: number; durationMs?: number; error?: string; }
 interface ChatMessage { role: "user" | "assistant"; content: string; answers?: QAAnswer[]; timestamp: string; }
 
-interface DocPreview {
-  id: number;
-  fileName: string;
-  mimeType: string;
-  fileSize: number;
-  entityType?: string | null;
-  entityId?: number | null;
-  category?: string;
-  description?: string | null;
-  tags?: string[] | null;
-  aiProcessed: boolean;
-  aiAnalysis?: Record<string, any> | null;
-  extractedText?: string | null;
-  extractedData?: Record<string, any> | null;
-  imageBase64?: string | null;
-  rawText?: string | null;
-  status?: string;
-  scanVerdict?: string | null;
-  scanEngine?: string | null;
-  scanDetail?: string | null;
-  scannedAt?: string | null;
-  createdAt: string;
-}
+type DocPreview = DocumentDetail;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const PAGE_SIZE = 3000;
@@ -516,8 +496,8 @@ function AnalyseTab({ doc, docId, onReloadDoc }: { doc: DocPreview; docId: numbe
   const [asking, setAsking] = useState(false);
   const [selectedModels, setSelectedModels] = useState<AIModel[]>(["gemini", "openai", "claude"]);
 
-  const multiModel: MultiModelResult | null = doc.aiAnalysis?.multiModel ?? null;
-  const legacyAi = doc.aiAnalysis && !doc.aiAnalysis.multiModel ? doc.aiAnalysis : null;
+  const multiModel = (doc.aiAnalysis?.multiModel as MultiModelResult | undefined) ?? null;
+  const legacyAi = (doc.aiAnalysis && !doc.aiAnalysis.multiModel ? doc.aiAnalysis : null) as { summary?: string } | null;
 
   async function handleMultiAnalyze() {
     setAnalyzing(true);
@@ -863,16 +843,12 @@ export default function DocumentReaderScreen() {
     const reqId = id;
     setLoading(true);
     try {
-      const res = await fetchAuth(`${API_BASE}/api/documents/${id}/preview`);
+      const data = await getDocument(Number(id));
       if (activeIdRef.current !== reqId) return;
-      if (res.ok) {
-        const data = await res.json();
-        if (activeIdRef.current !== reqId) return;
-        setDoc(data);
-      }
+      setDoc(data);
     } catch {}
     finally { if (activeIdRef.current === reqId) setLoading(false); }
-  }, [fetchAuth, id]);
+  }, [id]);
 
   useEffect(() => { loadDoc(); }, [loadDoc]);
 
@@ -894,7 +870,7 @@ export default function DocumentReaderScreen() {
   }
 
   const mimeInfo = doc ? getMimeInfo(doc.mimeType) : null;
-  const multiModel: MultiModelResult | null = doc?.aiAnalysis?.multiModel ?? null;
+  const multiModel = (doc?.aiAnalysis?.multiModel as MultiModelResult | undefined) ?? null;
 
   return (
     <View style={[rd.container, { backgroundColor: colors.background }]}>

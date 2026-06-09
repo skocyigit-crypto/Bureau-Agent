@@ -540,6 +540,9 @@ router.get("/documents/:id", requireMinAgent, async (req: Request, res: Response
 
     if (!doc) { res.status(404).json({ error: "Document introuvable" }); return; }
 
+    const isImage = doc.mimeType?.startsWith("image/");
+    const isText = doc.mimeType === "text/plain" || doc.mimeType === "application/json" || doc.mimeType === "text/xml" || doc.mimeType === "application/xml";
+
     res.json({
       id: doc.id,
       fileName: doc.originalName,
@@ -554,6 +557,10 @@ router.get("/documents/:id", requireMinAgent, async (req: Request, res: Response
       aiAnalysis: doc.aiAnalysis,
       extractedText: doc.extractedText,
       extractedData: doc.extractedData,
+      // For images: return the base64 so mobile can display inline
+      imageBase64: isImage && doc.fileContent ? `data:${doc.mimeType};base64,${doc.fileContent}` : null,
+      // For plain text files: also return decoded text content
+      rawText: isText && doc.fileContent ? Buffer.from(doc.fileContent, "base64").toString("utf-8").slice(0, 500000) : null,
       status: doc.status,
       scanVerdict: doc.scanVerdict,
       scanEngine: doc.scanEngine,

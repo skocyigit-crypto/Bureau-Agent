@@ -5069,6 +5069,14 @@ components:
           type: object
           additionalProperties: true
           nullable: true
+        imageBase64:
+          type: string
+          nullable: true
+          description: Data URI of the file content for images, so the reader can display them inline.
+        rawText:
+          type: string
+          nullable: true
+          description: Decoded text content for plain-text files, so the reader can render them.
         status:
           type: string
           nullable: true

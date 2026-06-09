@@ -3387,6 +3387,18 @@ export const GetDocumentResponse = zod.object({
   aiAnalysis: zod.record(zod.string(), zod.unknown()).nullish(),
   extractedText: zod.string().nullish(),
   extractedData: zod.record(zod.string(), zod.unknown()).nullish(),
+  imageBase64: zod
+    .string()
+    .nullish()
+    .describe(
+      "Data URI of the file content for images, so the reader can display them inline.",
+    ),
+  rawText: zod
+    .string()
+    .nullish()
+    .describe(
+      "Decoded text content for plain-text files, so the reader can render them.",
+    ),
   status: zod.string().nullish(),
   scanVerdict: zod.string().nullish(),
   scanEngine: zod.string().nullish(),

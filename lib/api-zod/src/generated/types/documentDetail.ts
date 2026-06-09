@@ -22,6 +22,10 @@ export interface DocumentDetail {
   aiAnalysis?: DocumentDetailAiAnalysis;
   extractedText?: string | null;
   extractedData?: DocumentDetailExtractedData;
+  /** Data URI of the file content for images, so the reader can display them inline. */
+  imageBase64?: string | null;
+  /** Decoded text content for plain-text files, so the reader can render them. */
+  rawText?: string | null;
   status?: string | null;
   scanVerdict?: string | null;
   scanEngine?: string | null;
