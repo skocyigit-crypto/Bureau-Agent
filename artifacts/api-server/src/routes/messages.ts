@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, asc, ilike, or, sql, and } from "drizzle-orm";
+import { eq, desc, asc, ilike, or, sql, and, lt } from "drizzle-orm";
 import { db, messagesTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
+import { withDbRetry } from "../lib/db-retry";
 import {
   ListMessagesQueryParams,
   CreateMessageBody,
@@ -183,31 +184,64 @@ router.patch("/messages/:id", async (req, res): Promise<void> => {
   }
 });
 
+// Export CSV en STREAMING. L'ancienne version chargeait jusqu'a 5000 lignes en
+// memoire d'un coup (pression memoire + risque de troncature silencieuse au-dela
+// du plafond). On pagine desormais par lots via une pagination keyset sur l'id
+// (decroissant) et on ecrit chaque lot dans la reponse, sans plafond artificiel.
+// Si la PREMIERE requete echoue avant tout envoi, on renvoie un 500 JSON propre;
+// au-dela, l'en-tete est deja parti et on termine simplement le flux.
+const MESSAGES_EXPORT_BATCH = 1000;
+
 router.get("/messages/export/csv", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
+  const headers = ["Type", "Contact", "Numéro", "Contenu", "Priorité", "Lu", "Date"];
+  const escape = (v: any) => {
+    if (v == null) return "";
+    const s = String(v).replace(/"/g, '""');
+    return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s;
+  };
+  const fmtDate = (d: any) => (d ? new Date(d).toLocaleDateString("fr-FR") : "");
   try {
-    const rows = await db.select({
-      id: messagesTable.id, type: messagesTable.type, contactName: messagesTable.contactName,
-      phoneNumber: messagesTable.phoneNumber, content: messagesTable.content,
-      priority: messagesTable.priority, isRead: messagesTable.isRead, createdAt: messagesTable.createdAt,
-    }).from(messagesTable).where(eq(messagesTable.organisationId, orgId)).orderBy(desc(messagesTable.createdAt)).limit(5000);
-    const headers = ["Type", "Contact", "Numéro", "Contenu", "Priorité", "Lu", "Date"];
-    const escape = (v: any) => {
-      if (v == null) return "";
-      const s = String(v).replace(/"/g, '""');
-      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s;
-    };
-    const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString("fr-FR") : "";
-    const lines = [headers.join(","), ...rows.map(r => [
-      escape(r.type), escape(r.contactName), escape(r.phoneNumber),
-      escape(r.content), escape(r.priority), r.isRead ? "Oui" : "Non", escape(fmtDate(r.createdAt)),
-    ].join(","))];
-    res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename="messages_${Date.now()}.csv"`);
-    res.send("\uFEFF" + lines.join("\n"));
+    let lastId = Number.MAX_SAFE_INTEGER;
+    let wroteHeader = false;
+    for (;;) {
+      const rows = await withDbRetry(
+        () =>
+          db
+            .select({
+              id: messagesTable.id, type: messagesTable.type, contactName: messagesTable.contactName,
+              phoneNumber: messagesTable.phoneNumber, content: messagesTable.content,
+              priority: messagesTable.priority, isRead: messagesTable.isRead, createdAt: messagesTable.createdAt,
+            })
+            .from(messagesTable)
+            .where(and(eq(messagesTable.organisationId, orgId), lt(messagesTable.id, lastId)))
+            .orderBy(desc(messagesTable.id))
+            .limit(MESSAGES_EXPORT_BATCH),
+        { label: "messages.export.batch" },
+      );
+      if (!wroteHeader) {
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader("Content-Disposition", `attachment; filename="messages_${Date.now()}.csv"`);
+        res.write("\uFEFF" + headers.join(",") + "\n");
+        wroteHeader = true;
+      }
+      if (rows.length === 0) break;
+      const chunk = rows.map((r) => [
+        escape(r.type), escape(r.contactName), escape(r.phoneNumber),
+        escape(r.content), escape(r.priority), r.isRead ? "Oui" : "Non", escape(fmtDate(r.createdAt)),
+      ].join(",")).join("\n");
+      res.write(chunk + "\n");
+      lastId = rows[rows.length - 1].id;
+      if (rows.length < MESSAGES_EXPORT_BATCH) break;
+    }
+    res.end();
   } catch (err: any) {
     req.log.error({ err }, "Erreur export messages CSV");
-    res.status(500).json({ error: "Erreur lors de l'export." });
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Erreur lors de l'export." });
+    } else {
+      res.end();
+    }
   }
 });
 

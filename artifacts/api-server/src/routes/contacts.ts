@@ -16,6 +16,22 @@ import { zodErrorResponse } from "../lib/zod-error";
 
 const router: IRouter = Router();
 
+// Bornes de pagination pour les sous-ressources d'un contact (appels, taches,
+// projets, devis). Sans plafond, un contact tres actif renvoyait toutes ses
+// lignes d'un coup. limit borne a [1, MAX], offset >= 0.
+const SUBRESOURCE_DEFAULT_LIMIT = 20;
+const SUBRESOURCE_MAX_LIMIT = 200;
+
+function parsePagination(query: Record<string, unknown>): { limit: number; offset: number } {
+  const rawLimit = parseInt(String(query.limit ?? ""), 10);
+  const rawOffset = parseInt(String(query.offset ?? ""), 10);
+  const limit = Number.isNaN(rawLimit)
+    ? SUBRESOURCE_DEFAULT_LIMIT
+    : Math.min(Math.max(rawLimit, 1), SUBRESOURCE_MAX_LIMIT);
+  const offset = Number.isNaN(rawOffset) ? 0 : Math.max(rawOffset, 0);
+  return { limit, offset };
+}
+
 const contactSortColumns: Record<string, any> = {
   createdAt: contactsTable.createdAt,
   firstName: contactsTable.firstName,
@@ -285,7 +301,7 @@ router.get("/contacts/:id/calls", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const limit = parseInt(req.query.limit as string || "20", 10);
+  const { limit, offset } = parsePagination(req.query);
 
   try {
     const [calls, countResult] = await Promise.all([
@@ -294,14 +310,15 @@ router.get("/contacts/:id/calls", async (req, res): Promise<void> => {
         .from(callsTable)
         .where(and(eq(callsTable.contactId, id), eq(callsTable.organisationId, orgId)))
         .orderBy(desc(callsTable.createdAt))
-        .limit(limit),
+        .limit(limit)
+        .offset(offset),
       db
         .select({ count: sql<number>`count(*)::int` })
         .from(callsTable)
         .where(and(eq(callsTable.contactId, id), eq(callsTable.organisationId, orgId))),
     ]);
 
-    res.json({ calls, total: countResult[0]?.count ?? 0 });
+    res.json({ calls, total: countResult[0]?.count ?? 0, limit, offset });
   } catch (err: any) {
     req.log.error({ err }, "Erreur appels contact");
     res.status(500).json({ error: "Erreur lors de la recuperation des appels." });
@@ -345,15 +362,24 @@ router.get("/contacts/:id/tasks", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
+  const { limit, offset } = parsePagination(req.query);
 
   try {
-    const tasks = await db
-      .select()
-      .from(tasksTable)
-      .where(and(eq(tasksTable.relatedContactId, id), eq(tasksTable.organisationId, orgId)))
-      .orderBy(desc(tasksTable.createdAt));
+    const [tasks, countResult] = await Promise.all([
+      db
+        .select()
+        .from(tasksTable)
+        .where(and(eq(tasksTable.relatedContactId, id), eq(tasksTable.organisationId, orgId)))
+        .orderBy(desc(tasksTable.createdAt))
+        .limit(limit)
+        .offset(offset),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(tasksTable)
+        .where(and(eq(tasksTable.relatedContactId, id), eq(tasksTable.organisationId, orgId))),
+    ]);
 
-    res.json({ tasks });
+    res.json({ tasks, total: countResult[0]?.count ?? 0, limit, offset });
   } catch (err: any) {
     req.log.error({ err }, "Erreur taches contact");
     res.status(500).json({ error: "Erreur lors de la recuperation des taches." });
@@ -365,12 +391,16 @@ router.get("/contacts/:id/projets", async (req, res): Promise<void> => {
   const id = parseInt(raw!, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   const orgId = getOrgId(req);
+  const { limit, offset } = parsePagination(req.query);
   try {
     const contact = await db.select({ id: contactsTable.id }).from(contactsTable).where(and(eq(contactsTable.id, id), eq(contactsTable.organisationId, orgId))).limit(1);
     if (!contact[0]) { res.status(404).json({ error: "Contact not found" }); return; }
-    const projets = await db.select({ id: projetsTable.id, title: projetsTable.title, status: projetsTable.status, progress: projetsTable.progress, endDate: projetsTable.endDate, budget: projetsTable.budget, clientName: projetsTable.clientName, createdAt: projetsTable.createdAt })
-      .from(projetsTable).where(and(eq(projetsTable.organisationId, orgId), eq(projetsTable.contactId, id))).orderBy(desc(projetsTable.createdAt)).limit(20);
-    res.json({ projets });
+    const [projets, countResult] = await Promise.all([
+      db.select({ id: projetsTable.id, title: projetsTable.title, status: projetsTable.status, progress: projetsTable.progress, endDate: projetsTable.endDate, budget: projetsTable.budget, clientName: projetsTable.clientName, createdAt: projetsTable.createdAt })
+        .from(projetsTable).where(and(eq(projetsTable.organisationId, orgId), eq(projetsTable.contactId, id))).orderBy(desc(projetsTable.createdAt)).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)::int` }).from(projetsTable).where(and(eq(projetsTable.organisationId, orgId), eq(projetsTable.contactId, id))),
+    ]);
+    res.json({ projets, total: countResult[0]?.count ?? 0, limit, offset });
   } catch (err: any) {
     req.log.error({ err }, "Erreur projets contact");
     res.status(500).json({ error: "Erreur lors de la récupération des projets." });
@@ -382,6 +412,7 @@ router.get("/contacts/:id/devis", async (req, res): Promise<void> => {
   const id = parseInt(raw!, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   const orgId = getOrgId(req);
+  const { limit, offset } = parsePagination(req.query);
   try {
     const contact = await db.select({ email: contactsTable.email, firstName: contactsTable.firstName, lastName: contactsTable.lastName, company: contactsTable.company }).from(contactsTable).where(and(eq(contactsTable.id, id), eq(contactsTable.organisationId, orgId))).limit(1);
     if (!contact[0]) { res.status(404).json({ error: "Contact not found" }); return; }
@@ -389,15 +420,17 @@ router.get("/contacts/:id/devis", async (req, res): Promise<void> => {
     const { devisTable, facturesClientTable } = await import("@workspace/db");
     const useUnaccent = await ensureUnaccentExtension();
     const namePattern = `%${name}%`;
-    const [devisList, facturesList] = await Promise.all([
+    const devisWhere = and(eq(devisTable.organisationId, orgId), or(ilike(devisTable.clientEmail, contact[0].email || "__none__"), accentInsensitiveIlike(devisTable.clientName, namePattern, useUnaccent)));
+    const facturesWhere = and(eq(facturesClientTable.organisationId, orgId), or(ilike(facturesClientTable.clientEmail, contact[0].email || "__none__"), accentInsensitiveIlike(facturesClientTable.clientName, namePattern, useUnaccent)));
+    const [devisList, facturesList, devisCount, facturesCount] = await Promise.all([
       db.select({ id: devisTable.id, reference: devisTable.reference, status: devisTable.status, totalAmount: devisTable.totalAmount, createdAt: devisTable.createdAt }).from(devisTable)
-        .where(and(eq(devisTable.organisationId, orgId), or(ilike(devisTable.clientEmail, contact[0].email || "__none__"), accentInsensitiveIlike(devisTable.clientName, namePattern, useUnaccent))))
-        .orderBy(desc(devisTable.createdAt)).limit(20),
+        .where(devisWhere).orderBy(desc(devisTable.createdAt)).limit(limit).offset(offset),
       db.select({ id: facturesClientTable.id, reference: facturesClientTable.reference, status: facturesClientTable.status, totalAmount: facturesClientTable.totalAmount, paidAmount: facturesClientTable.paidAmount, createdAt: facturesClientTable.createdAt }).from(facturesClientTable)
-        .where(and(eq(facturesClientTable.organisationId, orgId), or(ilike(facturesClientTable.clientEmail, contact[0].email || "__none__"), accentInsensitiveIlike(facturesClientTable.clientName, namePattern, useUnaccent))))
-        .orderBy(desc(facturesClientTable.createdAt)).limit(20),
+        .where(facturesWhere).orderBy(desc(facturesClientTable.createdAt)).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)::int` }).from(devisTable).where(devisWhere),
+      db.select({ count: sql<number>`count(*)::int` }).from(facturesClientTable).where(facturesWhere),
     ]);
-    res.json({ devis: devisList, factures: facturesList });
+    res.json({ devis: devisList, factures: facturesList, devisTotal: devisCount[0]?.count ?? 0, facturesTotal: facturesCount[0]?.count ?? 0, limit, offset });
   } catch (err: any) {
     req.log.error({ err }, "Erreur devis/factures contact");
     res.status(500).json({ error: "Erreur lors de la récupération." });

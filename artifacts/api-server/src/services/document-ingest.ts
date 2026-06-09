@@ -8,6 +8,7 @@ import {
   type StoredScanRecord,
 } from "../middleware/security";
 import { logger } from "../lib/logger";
+import { withDbRetry } from "../lib/db-retry";
 
 /**
  * Helpers PARTAGES d'ingestion de documents. Centralise la creation d'un
@@ -272,4 +273,47 @@ export async function ingestDocument(params: IngestDocumentParams): Promise<Inge
   }
 
   return { status: "created", doc };
+}
+
+export type IngestDocumentDurableResult =
+  | IngestDocumentResult
+  | { status: "error"; error: string };
+
+/**
+ * Variante DURABLE de `ingestDocument` pour les canaux d'entree ou une perte
+ * silencieuse n'est pas acceptable (ex: media WhatsApp entrant en
+ * fire-and-forget). Reessaie l'ingestion sur les erreurs de connexion
+ * transitoires (withDbRetry) puis, en cas d'echec persistant, journalise un
+ * evenement de securite recuperable et renvoie `{ status: "error" }` au lieu de
+ * laisser l'exception se perdre. L'appelant peut alors notifier l'humain.
+ *
+ * Les issues metier non-exceptionnelles (`rejected`/`blocked`) ne sont PAS
+ * reessayees : ce sont des verdicts deterministes, pas des pannes.
+ */
+export async function ingestDocumentDurable(
+  params: IngestDocumentParams,
+  opts: { attempts?: number } = {},
+): Promise<IngestDocumentDurableResult> {
+  try {
+    return await withDbRetry(() => ingestDocument(params), {
+      attempts: opts.attempts ?? 3,
+      label: "ingestDocument",
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error(
+      { err, orgId: params.orgId, source: params.source, fileName: params.fileName },
+      "[document-ingest] echec persistant de l'ingestion — document NON enregistre",
+    );
+    logSecurityEvent(
+      "document_ingest_failed",
+      params.ip ?? "unknown",
+      params.userId ?? null,
+      `Echec persistant de l'enregistrement d'un fichier entrant${
+        params.source ? ` (${params.source})` : ""
+      }: ${params.fileName} — ${message}`,
+      "warning",
+    );
+    return { status: "error", error: message };
+  }
 }

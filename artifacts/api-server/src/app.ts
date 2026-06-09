@@ -285,6 +285,67 @@ const strictLimiter = rateLimit({
   validate: { xForwardedForHeader: false, ip: false },
 });
 
+// Webhooks Twilio (WhatsApp entrant + secretaire vocale). Ces endpoints
+// arrivent TOUS depuis les IPs de Twilio: une limite par IP (comme
+// strictLimiter) serait partagee entre TOUS les tenants et pourrait etrangler
+// du trafic legitime, ou inversement laisser un seul expediteur inonder le
+// serveur. On limite donc par EXPEDITEUR (AccountSid + numero From/Caller),
+// extrait du corps deja parse (urlencoded). Cela protege contre l'inondation
+// d'un emetteur sans penaliser les autres. Repli sur l'IP si le corps n'est pas
+// exploitable.
+// Garde-fou de FLOOD coarse, TOUJOURS active, AVANT le limiteur par expediteur.
+// Le webhookLimiter ci-dessous derive sa cle de champs du CORPS (AccountSid,
+// From/Caller/WaId) — donc FORGEABLES avant la validation de signature. Un
+// attaquant pourrait faire varier ces champs a chaque requete pour generer une
+// infinite de cles depuis une seule IP et contourner toute limite. Comme les
+// webhooks Twilio sont par ailleurs exclus du limiteur generique base sur l'IP,
+// il faut une borne par IP qu'on ne peut PAS falsifier. Plafond volontairement
+// haut (flood evident, ~10 req/s) pour ne pas etrangler le trafic Twilio
+// legitime agrege sur ses IPs sortantes partagees, tout en stoppant une
+// inondation depuis une IP unique (y compris du trafic non signe / invalide).
+const webhookIpFloodGuard = rateLimit({
+  windowMs: 60 * 1000,
+  max: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop de requetes webhook. Veuillez ralentir." },
+});
+
+const webhookLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop de requetes webhook. Veuillez ralentir." },
+  keyGenerator: (req: Request): string => {
+    const b = (req.body ?? {}) as Record<string, string>;
+    const sid = typeof b.AccountSid === "string" ? b.AccountSid : "";
+    const from =
+      (typeof b.From === "string" && b.From) ||
+      (typeof b.Caller === "string" && b.Caller) ||
+      (typeof b.WaId === "string" && b.WaId) ||
+      "";
+    if (sid || from) return `twilio:${sid}:${from}`;
+    return req.ip ?? "unknown";
+  },
+  validate: { xForwardedForHeader: false, ip: false, keyGeneratorIpFallback: false },
+});
+
+// Vrai pour les POST sur les webhooks Twilio entrants (WhatsApp + voix). Sert a
+// la fois a appliquer le webhookLimiter dedie et a exclure ces chemins du
+// limiteur generique base sur l'IP.
+function isTwilioWebhook(req: Request): boolean {
+  if (req.method !== "POST") return false;
+  const p = req.path;
+  const ou = req.originalUrl.split("?")[0];
+  return (
+    p === "/whatsapp/twilio/inbound" ||
+    ou === "/api/whatsapp/twilio/inbound" ||
+    p.startsWith("/voice/twilio/") ||
+    ou.startsWith("/api/voice/twilio/")
+  );
+}
+
 // Stripe webhook needs RAW body (signature verification) — must come BEFORE express.json
 import { stripeWebhookRouter } from "./routes/stripe";
 app.use(stripeWebhookRouter);
@@ -372,7 +433,15 @@ app.use(guardian);
 app.use(ipProtection);
 
 app.use("/api/ai", aiLimiter);
-app.use("/api/voice", aiLimiter);
+// /api/voice englobe les webhooks voix Twilio (/api/voice/twilio/*). Ceux-ci
+// NE doivent PAS passer par aiLimiter (base sur l'IP) sinon tous les tenants
+// partageant les IPs sortantes de Twilio s'etranglent mutuellement — c'est
+// exactement le probleme que webhookLimiter (par expediteur) corrige. On les
+// exclut donc ici; ils sont limites plus bas par webhookLimiter.
+app.use("/api/voice", (req: Request, res: Response, next: NextFunction) => {
+  if (isTwilioWebhook(req)) return next();
+  return aiLimiter(req, res, next);
+});
 app.use("/api/document-ai", aiLimiter);
 app.use("/api/commandant", aiLimiter);
 app.use("/api/calls", (req: Request, res: Response, next: NextFunction) => {
@@ -382,7 +451,19 @@ app.use("/api/calls", (req: Request, res: Response, next: NextFunction) => {
   }
   return next();
 });
+// Webhooks Twilio: garde-fou de flood par IP (non falsifiable, toujours actif)
+// PUIS limiteur par expediteur (equite entre tenants). Les deux s'appliquent
+// avant le limiteur generique base sur l'IP, dont ces chemins sont ensuite
+// exclus.
+app.use("/api/whatsapp/twilio/inbound", webhookIpFloodGuard, webhookLimiter);
+app.use("/api/voice/twilio", webhookIpFloodGuard, webhookLimiter);
 app.use("/api", (req: Request, _res: Response, next: NextFunction) => {
+  // Les webhooks Twilio sont deja limites par expediteur (webhookLimiter).
+  // Les exclure du limiteur generique base sur l'IP evite d'etrangler tous les
+  // tenants qui partagent les IPs sortantes de Twilio.
+  if (isTwilioWebhook(req)) {
+    return next();
+  }
   if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
     return strictLimiter(req, _res, next);
   }

@@ -17,6 +17,7 @@ import {
   telephonyProvidersTable,
   usersTable,
   assistantConversationsTable,
+  whatsappProcessedMessagesTable,
 } from "@workspace/db";
 import { runAssistantTurn, type StreamEvent } from "../services/assistant-engine";
 import { logger } from "../lib/logger";
@@ -24,7 +25,10 @@ import { analyzeUrlsBatch, extractUrls, type UrlScanResult } from "../services/u
 import { scanBase64ContentFull } from "../middleware/security";
 import { recordSecurityScan } from "../services/security-scans";
 import { emitSecurityAlert } from "../services/security-alerts";
-import { ingestDocument } from "../services/document-ingest";
+import { ingestDocumentDurable } from "../services/document-ingest";
+import { notifyOrgUsers } from "../services/whatsapp-notify";
+import { withDbRetry } from "../lib/db-retry";
+import { assertSafePublicUrl } from "../lib/ssrf-guard";
 import {
   isMalwareSubmissionEnabled,
   getInboundMaxSubmitBytes,
@@ -36,34 +40,74 @@ import {
 
 export const whatsappRouter: IRouter = Router();
 
-// --- Idempotency ----------------------------------------------------------
+// --- Idempotency (DB-backed, multi-instance) ------------------------------
 //
 // Twilio rejoue le webhook en cas de 5xx ou de timeout. Sans garde, chaque
 // rejeu reexecute runAssistantTurn -> double consommation de quota IA et
 // effets secondaires duplicats (creation de contacts, envois d'emails...).
-// Cache in-memory simple : on stocke le MessageSid traite pendant 10 min.
-// C'est suffisant car Twilio limite ses rejeus a une fenetre de quelques
-// minutes. Pour une durcissement DB (multi-instance), voir TODO en bas du
-// fichier WHATSAPP_SETUP.md.
-const PROCESSED_MESSAGE_TTL_MS = 10 * 60 * 1000;
-const processedMessages = new Map<string, number>();
+//
+// L'ancien cache in-memory (Map TTL 10 min) ne dedoublonnait PAS en
+// multi-instance: un rejeu tombant sur une autre instance etait retraite. On
+// persiste donc l'etat en base (table whatsapp_processed_messages), avec la
+// MEME machine a etats que le webhook Stripe:
+//   - claimMessage() revendique le MessageSid en "processing" (insert
+//     ON CONFLICT DO NOTHING). Premiere insertion -> "new" (on traite). Conflit
+//     -> on lit le statut: "processed" -> "duplicate" (on ignore), sinon
+//     "reprocess" (une tentative precedente a echoue avant la fin: un rejeu
+//     DOIT pouvoir la retraiter, les effets de bord etant idempotents/fail-soft).
+//   - markProcessed() bascule en "processed" UNIQUEMENT apres traitement reussi.
+//
+// Fail-open: si le magasin de dedup est indisponible (panne DB), on prefere
+// TRAITER le message (au risque d'un rare doublon) plutot que de le perdre.
+type ClaimResult = "new" | "duplicate" | "reprocess";
 
-function isAlreadyProcessed(messageSid: string): boolean {
-  if (!messageSid) return false;
-  const now = Date.now();
-  // Purge opportuniste si la map grossit.
-  if (processedMessages.size > 5000) {
-    for (const [sid, ts] of processedMessages) {
-      if (now - ts > PROCESSED_MESSAGE_TTL_MS) processedMessages.delete(sid);
-    }
+async function claimMessage(messageSid: string, orgId: number | null): Promise<ClaimResult> {
+  if (!messageSid) return "new";
+  try {
+    const inserted = await withDbRetry(
+      () =>
+        db
+          .insert(whatsappProcessedMessagesTable)
+          .values({ messageSid, organisationId: orgId, status: "processing" })
+          .onConflictDoNothing({ target: whatsappProcessedMessagesTable.messageSid })
+          .returning({ messageSid: whatsappProcessedMessagesTable.messageSid }),
+      { label: "whatsapp.claimMessage.insert" },
+    );
+    if (inserted.length > 0) return "new";
+    const [existing] = await withDbRetry(
+      () =>
+        db
+          .select({ status: whatsappProcessedMessagesTable.status })
+          .from(whatsappProcessedMessagesTable)
+          .where(eq(whatsappProcessedMessagesTable.messageSid, messageSid))
+          .limit(1),
+      { label: "whatsapp.claimMessage.select" },
+    );
+    return existing?.status === "processed" ? "duplicate" : "reprocess";
+  } catch (err) {
+    // Magasin de dedup indisponible: on traite quand meme (fail-open) pour ne
+    // pas perdre le message; un doublon eventuel reste preferable a une perte.
+    logger.error({ err, messageSid }, "[whatsapp] dedup store indisponible — traitement sans dedup");
+    return "new";
   }
-  const seenAt = processedMessages.get(messageSid);
-  if (seenAt && now - seenAt < PROCESSED_MESSAGE_TTL_MS) return true;
-  return false;
 }
 
-function markProcessed(messageSid: string): void {
-  if (messageSid) processedMessages.set(messageSid, Date.now());
+async function markProcessed(messageSid: string): Promise<void> {
+  if (!messageSid) return;
+  try {
+    await withDbRetry(
+      () =>
+        db
+          .update(whatsappProcessedMessagesTable)
+          .set({ status: "processed", processedAt: new Date() })
+          .where(eq(whatsappProcessedMessagesTable.messageSid, messageSid)),
+      { label: "whatsapp.markProcessed" },
+    );
+  } catch (err) {
+    // Le message a deja ete traite; ne pas faire echouer la reponse. Au pire un
+    // rejeu Twilio retraitera (effets idempotents).
+    logger.warn({ err, messageSid }, "[whatsapp] echec du marquage 'processed'");
+  }
 }
 
 // --- Helpers --------------------------------------------------------------
@@ -234,19 +278,45 @@ function formatUrlVerdict(results: UrlScanResult[]): string {
 }
 
 /** Telecharge un media Twilio (URL protegee, Basic Auth) en base64. */
+// Domaines Twilio autorises pour les medias entrants. L'URL MediaUrl provient
+// du corps du webhook (donnee fournie par un tiers): meme si la signature
+// Twilio est verifiee, on applique une defense en profondeur anti-SSRF avant de
+// suivre cette URL avec les identifiants Twilio en en-tete. On exige https + un
+// hote Twilio + une destination publique (assertSafePublicUrl, anti-DNS-rebind
+// best-effort), sans quoi un MediaUrl detourne pourrait sonder l'infra interne.
+const TWILIO_MEDIA_HOST_SUFFIXES = [".twilio.com", ".twiliocdn.com"];
+
+function isAllowedTwilioMediaHost(host: string): boolean {
+  const h = host.toLowerCase();
+  return TWILIO_MEDIA_HOST_SUFFIXES.some((s) => h === s.slice(1) || h.endsWith(s));
+}
+
 async function fetchTwilioMediaBase64(
   url: string,
   accountSid: string,
   authToken: string,
 ): Promise<string | null> {
+  // Validation anti-SSRF: https obligatoire, hote Twilio, IP publique.
+  let parsed: URL;
+  try {
+    parsed = await assertSafePublicUrl(url);
+  } catch (err) {
+    logger.warn({ err, url }, "[whatsapp] MediaUrl rejetee par la garde SSRF");
+    return null;
+  }
+  if (parsed.protocol !== "https:" || !isAllowedTwilioMediaHost(parsed.hostname)) {
+    logger.warn({ url, host: parsed.hostname }, "[whatsapp] MediaUrl hors domaine Twilio autorise — ignoree");
+    return null;
+  }
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 8000);
-    const resp = await fetch(url, {
+    const resp = await fetch(parsed.toString(), {
       headers: {
         Authorization: "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64"),
       },
       signal: ctrl.signal,
+      redirect: "error",
     }).finally(() => clearTimeout(timer));
     if (!resp.ok) return null;
     const buf = Buffer.from(await resp.arrayBuffer());
@@ -366,7 +436,11 @@ async function tryHandleSecurityScan(
       // qui re-valide type/taille, applique la garde heuristique et persiste le
       // verdict via le scan complet en arriere-plan. Les types non supportes
       // (ex: note vocale) sont simplement ignores (status "rejected").
-      void ingestDocument({
+      // Ingestion DURABLE: retry transitoire + a defaut, on NE perd PAS le
+      // fichier silencieusement — on notifie les membres de l'organisation
+      // (au lieu d'un simple log noye). Reste fire-and-forget pour ne pas
+      // bloquer la reponse Twilio.
+      void ingestDocumentDurable({
         orgId, userId,
         fileContent: b64,
         fileName: filename,
@@ -376,7 +450,18 @@ async function tryHandleSecurityScan(
         description: `Recu via WhatsApp${body.From ? ` de ${body.From}` : ""}`,
         source: "whatsapp",
         ip: "whatsapp-webhook",
-      }).catch((err) => logger.error({ err, orgId }, "[whatsapp] echec auto-enregistrement document"));
+      })
+        .then((r) => {
+          if (r.status === "error") {
+            notifyOrgUsers(
+              orgId,
+              `Un fichier reçu via WhatsApp (${filename}) n'a pas pu être enregistré dans la bibliothèque. Demandez à l'expéditeur de le renvoyer ou importez-le manuellement.`,
+              "message",
+              userId,
+            ).catch(() => {});
+          }
+        })
+        .catch((err) => logger.error({ err, orgId }, "[whatsapp] echec auto-enregistrement document"));
     }
     verdicts.push("");
     verdicts.push(anyThreat ? "Ne pas ouvrir les fichiers signales." : "Fichiers verifies.");
@@ -427,13 +512,6 @@ whatsappRouter.post("/whatsapp/twilio/inbound", async (req: Request, res: Respon
     return;
   }
 
-  // Idempotency : si Twilio rejoue le meme MessageSid, on renvoie 200 vide
-  // (l'utilisateur a deja recu la reponse au premier passage).
-  if (messageSid && isAlreadyProcessed(messageSid)) {
-    res.status(200).send(twimlEmpty());
-    return;
-  }
-
   // 1. Tenant + signature
   const tenants = await resolveTenantFromAccountSid(accountSid);
   if (tenants.length === 0) {
@@ -445,6 +523,17 @@ whatsappRouter.post("/whatsapp/twilio/inbound", async (req: Request, res: Respon
   if (!tenant) {
     logger.warn({ accountSid }, "[whatsapp] signature invalide");
     res.status(403).send(twimlEmpty());
+    return;
+  }
+
+  // Idempotency (DB-backed) : on revendique le MessageSid APRES validation de la
+  // signature (pour ne pas remplir la table avec des requetes non authentiques).
+  // Un rejeu Twilio d'un message DEJA traite ("processed") renvoie 200 vide
+  // (l'utilisateur a deja recu la reponse). Un message laisse en "processing"
+  // par une tentative precedente echouee est retraite (effets idempotents).
+  const claim = await claimMessage(messageSid, tenant.orgId);
+  if (claim === "duplicate") {
+    res.status(200).send(twimlEmpty());
     return;
   }
 
@@ -479,7 +568,7 @@ whatsappRouter.post("/whatsapp/twilio/inbound", async (req: Request, res: Respon
       res.status(500).send(twimlEmpty());
       return;
     }
-    markProcessed(messageSid);
+    await markProcessed(messageSid);
     void generateDraftInBackground(conversationId, tenant.orgId);
     res.status(200).send(twimlEmpty());
     return;
@@ -490,7 +579,7 @@ whatsappRouter.post("/whatsapp/twilio/inbound", async (req: Request, res: Respon
   try {
     const scanReply = await tryHandleSecurityScan(body, accountSid, tenant.authToken, tenant.orgId, userId);
     if (scanReply !== null) {
-      markProcessed(messageSid);
+      await markProcessed(messageSid);
       const MAX_LEN = 1500;
       const out = scanReply.length > MAX_LEN ? scanReply.slice(0, MAX_LEN) + "..." : scanReply;
       res.status(200).send(twimlMessage(out));
@@ -542,7 +631,7 @@ whatsappRouter.post("/whatsapp/twilio/inbound", async (req: Request, res: Respon
     // Twilio WhatsApp impose une limite de 1600 caracteres par message.
     const MAX_LEN = 1500;
     const truncated = reply.length > MAX_LEN ? reply.slice(0, MAX_LEN) + "..." : reply;
-    markProcessed(messageSid);
+    await markProcessed(messageSid);
     res.status(200).send(twimlMessage(truncated));
   } catch (err) {
     logger.error({ err, orgId: tenant.orgId, userId }, "[whatsapp] echec runAssistantTurn");

@@ -1,6 +1,7 @@
 export * from "./organisations";
 export * from "./subscriptions";
 export * from "./stripe-webhook-events";
+export * from "./whatsapp-processed-messages";
 export * from "./contacts";
 export * from "./calls";
 export * from "./tasks";

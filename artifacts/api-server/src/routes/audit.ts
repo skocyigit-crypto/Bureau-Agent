@@ -1,11 +1,14 @@
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
 import { auditLogsTable } from "@workspace/db/schema";
-import { desc, eq, gte, lte, and, sql } from "drizzle-orm";
+import { desc, eq, gte, lte, and, sql, lt } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
+import { withDbRetry } from "../lib/db-retry";
 
 const router = Router();
+
+const AUDIT_EXPORT_BATCH = 1000;
 
 function requireAdmin(req: Request, res: Response): boolean {
   const userId = req.session?.userId;
@@ -150,23 +153,48 @@ router.get("/audit/export/csv", async (req: Request, res: Response): Promise<voi
       const d = new Date(to);
       if (!isNaN(d.getTime())) conditions.push(lte(auditLogsTable.createdAt, d));
     }
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-    const rows = await db.select().from(auditLogsTable)
-      .where(whereClause)
-      .orderBy(desc(auditLogsTable.createdAt)).limit(10000);
+    const baseClause = conditions.length > 0 ? and(...conditions) : undefined;
     const escape = (v: any) => { if (v == null) return ""; const s = String(v).replace(/"/g, '""'); return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s; };
     const headers = ["Date", "Utilisateur", "Action", "Ressource", "ID Ressource", "IP"];
-    const lines = [headers.join(","), ...rows.map(r => [
-      escape(r.createdAt ? new Date(r.createdAt).toLocaleString("fr-FR") : ""),
-      escape(r.userEmail), escape(r.action), escape(r.resource),
-      escape(r.resourceId), escape(r.ipAddress),
-    ].join(","))];
-    res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename="audit_${Date.now()}.csv"`);
-    res.send("\uFEFF" + lines.join("\n"));
+    // Export en STREAMING par lots (pagination keyset sur l'id decroissant) au
+    // lieu d'un plafond de 10000 lignes charge d'un coup: pas de troncature
+    // silencieuse, memoire bornee. 500 propre uniquement si la 1re requete echoue
+    // avant tout envoi.
+    let lastId = Number.MAX_SAFE_INTEGER;
+    let wroteHeader = false;
+    for (;;) {
+      const rows = await withDbRetry(
+        () =>
+          db.select().from(auditLogsTable)
+            .where(baseClause ? and(baseClause, lt(auditLogsTable.id, lastId)) : lt(auditLogsTable.id, lastId))
+            .orderBy(desc(auditLogsTable.id))
+            .limit(AUDIT_EXPORT_BATCH),
+        { label: "audit.export.batch" },
+      );
+      if (!wroteHeader) {
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader("Content-Disposition", `attachment; filename="audit_${Date.now()}.csv"`);
+        res.write("\uFEFF" + headers.join(",") + "\n");
+        wroteHeader = true;
+      }
+      if (rows.length === 0) break;
+      const chunk = rows.map((r) => [
+        escape(r.createdAt ? new Date(r.createdAt).toLocaleString("fr-FR") : ""),
+        escape(r.userEmail), escape(r.action), escape(r.resource),
+        escape(r.resourceId), escape(r.ipAddress),
+      ].join(",")).join("\n");
+      res.write(chunk + "\n");
+      lastId = rows[rows.length - 1].id;
+      if (rows.length < AUDIT_EXPORT_BATCH) break;
+    }
+    res.end();
   } catch (err: any) {
     req.log.error({ err }, "Erreur export audit CSV");
-    res.status(500).json({ error: "Erreur lors de l'export." });
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Erreur lors de l'export." });
+    } else {
+      res.end();
+    }
   }
 });
 
