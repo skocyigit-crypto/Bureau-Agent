@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, desc, asc, ilike, or, sql, and, type Column, type SQL } from "drizzle-orm";
-import { db, contactsTable, callsTable, tasksTable, calendarEventsTable, usersTable, projetsTable } from "@workspace/db";
+import { eq, desc, asc, ilike, or, sql, and, isNull, type Column, type SQL } from "drizzle-orm";
+import { db, contactsTable, callsTable, tasksTable, calendarEventsTable, usersTable, projetsTable, messagesTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import {
   ListContactsQueryParams,
@@ -196,6 +196,19 @@ router.patch("/contacts/:id", async (req, res): Promise<void> => {
   const userId = req.session?.userId;
 
   try {
+    // On lit l'etat AVANT mise a jour pour calculer l'ancien nom d'affichage
+    // ("prenom nom"). Cela permet de resynchroniser le snapshot contact_name
+    // pose sur les messages lies, sans ecraser un nom saisi manuellement.
+    const [existing] = await db
+      .select({ firstName: contactsTable.firstName, lastName: contactsTable.lastName })
+      .from(contactsTable)
+      .where(and(eq(contactsTable.id, params.data.id), eq(contactsTable.organisationId, orgId)));
+
+    if (!existing) {
+      res.status(404).json({ error: "Contact not found" });
+      return;
+    }
+
     const [contact] = await db.update(contactsTable)
       .set({ ...parsed.data, updatedBy: userId })
       .where(and(eq(contactsTable.id, params.data.id), eq(contactsTable.organisationId, orgId)))
@@ -204,6 +217,29 @@ router.patch("/contacts/:id", async (req, res): Promise<void> => {
     if (!contact) {
       res.status(404).json({ error: "Contact not found" });
       return;
+    }
+
+    // Synchronisation du nom snapshote sur les messages lies. On ne touche
+    // qu'aux messages dont contact_name correspond a l'ANCIEN nom auto-rempli
+    // (ou est vide/NULL) : un nom saisi explicitement par l'utilisateur, donc
+    // different de l'ancien snapshot, est preserve. Scope strict a l'org.
+    const oldName = `${existing.firstName} ${existing.lastName}`.trim();
+    const newName = `${contact.firstName} ${contact.lastName}`.trim();
+    if (newName && newName !== oldName) {
+      const matchAutoFilled = oldName
+        ? or(
+            eq(messagesTable.contactName, oldName),
+            isNull(messagesTable.contactName),
+            eq(messagesTable.contactName, ""),
+          )
+        : or(isNull(messagesTable.contactName), eq(messagesTable.contactName, ""));
+      await db.update(messagesTable)
+        .set({ contactName: newName })
+        .where(and(
+          eq(messagesTable.contactId, contact.id),
+          eq(messagesTable.organisationId, orgId),
+          matchAutoFilled!,
+        ));
     }
 
     res.json(contact);
