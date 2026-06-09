@@ -14,7 +14,7 @@ import { logger } from "../lib/logger";
  *     conversationnelle temps reel), avec leur propre logique de fallback.
  */
 export const GEMINI_FLASH_MODEL = process.env.GEMINI_FLASH_MODEL || "gemini-2.5-flash";
-export const GEMINI_PRO_MODEL = process.env.GEMINI_PRO_MODEL || "gemini-2.5-pro";
+export const GEMINI_PRO_MODEL = process.env.GEMINI_PRO_MODEL || "gemini-3.1-pro-preview";
 
 /**
  * Modeles de repli (fallback) utilises automatiquement quand un modele Gemini
