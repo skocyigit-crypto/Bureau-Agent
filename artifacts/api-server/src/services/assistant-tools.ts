@@ -5,7 +5,8 @@ import {
 } from "@workspace/db/schema";
 import { eq, and, desc, gte, lte, sql, ilike, or } from "drizzle-orm";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
-import { RELEVANCE, normText, prepareQuery, scorePhoneMatch, rankByRelevance, scoreProjectFields } from "../helpers/relevance";
+import { prepareQuery, rankByRelevance } from "../helpers/relevance";
+import { scoreContact, scoreTask, scoreEvent, scoreCall, scoreProject } from "../helpers/tool-scorers";
 import { sendEmail } from "./email";
 import { sendSms as providerSendSms } from "./telephony-providers";
 import { generateImage } from "@workspace/integrations-gemini-ai/image";
@@ -256,24 +257,8 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
           accentInsensitiveIlike(contactsTable.phone, like, useUnaccent),
         )!,
       )).limit(100);
-      const { nq, nqDigits } = prepareQuery(query);
-      const scoreContact = (r: typeof rows[number]): number => {
-        const first = normText(r.firstName);
-        const last = normText(r.lastName);
-        const full = `${first} ${last}`.trim();
-        const company = normText(r.company);
-        const email = normText(r.email);
-        let score = 0;
-        if (full === nq || `${last} ${first}`.trim() === nq) score = Math.max(score, RELEVANCE.EXACT);
-        if (first === nq || last === nq || email === nq) score = Math.max(score, RELEVANCE.FIELD_EXACT);
-        if (company === nq) score = Math.max(score, RELEVANCE.COMPANY_EXACT);
-        if (first.startsWith(nq) || last.startsWith(nq)) score = Math.max(score, RELEVANCE.PREFIX);
-        if (full.startsWith(nq) || company.startsWith(nq)) score = Math.max(score, RELEVANCE.FULL_PREFIX);
-        score = Math.max(score, scorePhoneMatch(r.phone, nqDigits));
-        if (full.includes(nq) || company.includes(nq) || email.includes(nq)) score = Math.max(score, RELEVANCE.FIELD_SUBSTRING);
-        return score;
-      };
-      const ranked = rankByRelevance(rows, scoreContact, { limit }).map(({ row: r, score }) => ({
+      const q = prepareQuery(query);
+      const ranked = rankByRelevance(rows, (r) => scoreContact(r, q), { limit }).map(({ row: r, score }) => ({
         id: r.id,
         firstName: r.firstName,
         lastName: r.lastName,
@@ -450,18 +435,8 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
         status: tasksTable.status, priority: tasksTable.priority, dueDate: tasksTable.dueDate,
         createdAt: tasksTable.createdAt,
       }).from(tasksTable).where(and(...conds)).limit(100);
-      const { nq } = prepareQuery(query);
-      const scoreTask = (r: typeof rows[number]): number => {
-        const title = normText(r.title);
-        const desc = normText(r.description);
-        let score = 0;
-        if (title === nq) score = Math.max(score, RELEVANCE.EXACT);
-        if (title.startsWith(nq)) score = Math.max(score, RELEVANCE.PREFIX);
-        if (title.includes(nq)) score = Math.max(score, RELEVANCE.SUBSTRING);
-        if (desc.includes(nq)) score = Math.max(score, RELEVANCE.DESC_SUBSTRING);
-        return score;
-      };
-      const ranked = rankByRelevance(rows, scoreTask, { limit }).map(({ row: r, score }) => ({
+      const q = prepareQuery(query);
+      const ranked = rankByRelevance(rows, (r) => scoreTask(r, q), { limit }).map(({ row: r, score }) => ({
         id: r.id,
         title: r.title,
         status: r.status,
@@ -613,10 +588,8 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
         address: projetsTable.address, status: projetsTable.status, priority: projetsTable.priority,
         progress: projetsTable.progress, createdAt: projetsTable.createdAt,
       }).from(projetsTable).where(and(...conds)).limit(100);
-      const { nq } = prepareQuery(query);
-      const ranked = rankByRelevance(rows, (r) => scoreProjectFields(r, nq), {
-        limit,
-      }).map(({ row: r, score }) => ({
+      const q = prepareQuery(query);
+      const ranked = rankByRelevance(rows, (r) => scoreProject(r, q), { limit }).map(({ row: r, score }) => ({
         id: r.id,
         title: r.title,
         clientName: r.clientName,
@@ -870,21 +843,9 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
         type: calendarEventsTable.type, startDate: calendarEventsTable.startDate,
         endDate: calendarEventsTable.endDate,
       }).from(calendarEventsTable).where(and(...conds)).limit(100);
-      const { nq } = prepareQuery(query);
+      const q = prepareQuery(query);
       const now = Date.now();
-      const scoreEvent = (r: typeof rows[number]): number => {
-        const title = normText(r.title);
-        const desc = normText(r.description);
-        const loc = normText(r.location);
-        let score = 0;
-        if (title === nq) score = Math.max(score, RELEVANCE.EXACT);
-        if (title.startsWith(nq)) score = Math.max(score, RELEVANCE.PREFIX);
-        if (title.includes(nq)) score = Math.max(score, RELEVANCE.SUBSTRING);
-        if (loc.includes(nq)) score = Math.max(score, RELEVANCE.FIELD_SUBSTRING);
-        if (desc.includes(nq)) score = Math.max(score, RELEVANCE.DESC_SUBSTRING);
-        return score;
-      };
-      const ranked = rankByRelevance(rows, scoreEvent, {
+      const ranked = rankByRelevance(rows, (r) => scoreEvent(r, q), {
         limit,
         // Soonest upcoming first (smallest absolute distance to now).
         tiebreak: (a, b) => Math.abs(a.startDate.getTime() - now) - Math.abs(b.startDate.getTime() - now),
@@ -1330,17 +1291,8 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
           accentInsensitiveIlike(callsTable.phoneNumber, like, useUnaccent),
         )!,
       )).limit(100);
-      const { nq, nqDigits } = prepareQuery(query);
-      const scoreCall = (r: typeof rows[number]): number => {
-        const name = normText(r.contactName);
-        let score = 0;
-        if (name && name === nq) score = Math.max(score, RELEVANCE.EXACT);
-        if (name && name.startsWith(nq)) score = Math.max(score, RELEVANCE.PREFIX);
-        if (name && name.includes(nq)) score = Math.max(score, RELEVANCE.SUBSTRING);
-        score = Math.max(score, scorePhoneMatch(r.phoneNumber, nqDigits));
-        return score;
-      };
-      const ranked = rankByRelevance(rows, scoreCall, { limit }).map(({ row: r, score }) => ({
+      const q = prepareQuery(query);
+      const ranked = rankByRelevance(rows, (r) => scoreCall(r, q), { limit }).map(({ row: r, score }) => ({
         id: r.id,
         direction: r.direction,
         phoneNumber: r.phoneNumber,
