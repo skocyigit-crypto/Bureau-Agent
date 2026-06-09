@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -80,6 +80,43 @@ function normalizeEntities(raw: any): RetrievedEntity[] {
     });
   }
   return out;
+}
+
+// Slim demo transcript handed off from the marketing site (tanitim). Mirrors the
+// web assistant (buro-ajani/commandant-ia): {r,t} where r = "u"/"a". Capped at
+// 400 chars/message, last 6 kept by the producer. Rendered as collapsible prior
+// context and sent once with the first real message so the Commandant's first
+// answer accounts for the whole exchange. Never stored locally beyond the turn.
+type DemoMsg = { r: string; t: string };
+
+function sanitizeDemo(raw: any): DemoMsg[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((s) => s && (s.r === "u" || s.r === "a") && typeof s.t === "string" && s.t.trim())
+    .map((s) => ({ r: s.r as string, t: String(s.t).slice(0, 400) }));
+}
+
+// Decode the base64 `?demo=` payload (UTF-8 safe so French/Turkish accents
+// survive). Matches tanitim's btoa(unescape(encodeURIComponent(json))) without
+// relying on escape/unescape, which are not guaranteed on Hermes.
+function decodeDemoParam(raw: string): DemoMsg[] | null {
+  try {
+    const bin = atob(decodeURIComponent(raw));
+    let json: string;
+    try {
+      json = decodeURIComponent(
+        Array.prototype.map
+          .call(bin, (c: string) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+          .join(""),
+      );
+    } catch {
+      json = bin;
+    }
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
 const CONVERSATION_ID_KEY = "commandant_conversation_id";
@@ -179,9 +216,12 @@ export default function AIChatScreen() {
   const [avatarSpeaking, setAvatarSpeaking] = useState(false);
   const [voiceUnavailable, setVoiceUnavailable] = useState(false);
   const [voicePrefsLoaded, setVoicePrefsLoaded] = useState(false);
+  const [importedDemo, setImportedDemo] = useState<DemoMsg[] | null>(null);
+  const [demoOpen, setDemoOpen] = useState(true);
   const avatarRef = useRef<TalkingAvatarHandle>(null);
   const flatListRef = useRef<FlatList>(null);
   const recognitionRef = useRef<any>(null);
+  const { demo: demoParam } = useLocalSearchParams<{ demo?: string | string[] }>();
 
   const SpeechRecognitionClass = isWeb
     ? ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
@@ -277,6 +317,75 @@ export default function AIChatScreen() {
     return () => { cancelled = true; };
   }, [fetchAuth, welcomeMessage]);
 
+  // Cross-app handoff from the marketing-site demo (tanitim), mirroring the web
+  // assistant. The transcript can arrive two ways:
+  //   1) the `?demo=BASE64` route param (deep links + Expo web URLs), or
+  //   2) on web only, the shared-origin localStorage key the marketing site
+  //      writes (all artifacts share one origin via path-based routing) — used
+  //      as a durable fallback if the param was dropped during sign-up/login.
+  // It is decoded once on mount, pre-fills the input with the visitor's last
+  // question, and is shown as collapsible prior context. The durable key is
+  // always cleared after consumption so a stale demo never leaks into a later
+  // session (TTL 30 min, matching buro-ajani).
+  useEffect(() => {
+    const HANDOFF_KEY = "ajan.demo.handoff";
+    const HANDOFF_TTL_MS = 30 * 60 * 1000;
+
+    const applySlim = (raw: any): boolean => {
+      const clean = sanitizeDemo(raw);
+      if (clean.length === 0) return false;
+      const lastUser = [...clean].reverse().find((s) => s.r === "u");
+      if (!lastUser) return false;
+      setImportedDemo(clean);
+      setInput(`[Suite de la demo du site] ${lastUser.t}`);
+      return true;
+    };
+
+    let consumed = false;
+
+    // 1) Route param (preferred — works for deep links and Expo web URLs).
+    try {
+      const raw = Array.isArray(demoParam) ? demoParam[0] : demoParam;
+      if (raw) {
+        const parsed = decodeDemoParam(raw);
+        if (parsed) consumed = applySlim(parsed);
+      }
+    } catch {
+      // ignore malformed handoff payloads
+    }
+
+    // 2) Web-only fallbacks: URL search param + shared-origin localStorage.
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      if (!consumed) {
+        try {
+          const url = new URL(window.location.href);
+          const raw = url.searchParams.get("demo");
+          if (raw) {
+            const parsed = decodeDemoParam(raw);
+            if (parsed) consumed = applySlim(parsed);
+          }
+        } catch {
+          // ignore malformed URL
+        }
+      }
+      if (!consumed) {
+        try {
+          const stored = window.localStorage.getItem(HANDOFF_KEY);
+          if (stored) {
+            const parsed = JSON.parse(stored) as { ts?: number; msgs?: any[] };
+            const fresh = typeof parsed.ts === "number" && Date.now() - parsed.ts < HANDOFF_TTL_MS;
+            if (fresh && parsed.msgs) consumed = applySlim(parsed.msgs);
+          }
+        } catch {
+          // ignore malformed fallback payloads
+        }
+      }
+      // Always clear the durable key once we've had a chance to consume it.
+      try { window.localStorage.removeItem(HANDOFF_KEY); } catch { /* ignore */ }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const ensureConversationId = useCallback(async (): Promise<number | null> => {
     if (conversationIdRef.current) return conversationIdRef.current;
     try {
@@ -299,6 +408,13 @@ export default function AIChatScreen() {
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || isTyping) return;
+    // Attach the imported demo transcript only on the first real message of a
+    // fresh exchange (no server messages yet — just the welcome bubble), so the
+    // Commandant's first answer accounts for it. Sent once then cleared, so it
+    // never leaks into later turns or unrelated conversations. Mirrors the web
+    // assistant's `messages.length === 0` guard.
+    const isFreshExchange = messages.every((m) => m.id === "welcome");
+    const demoContext = importedDemo && importedDemo.length > 0 && isFreshExchange ? importedDemo : null;
     const userMsg: Message = { id: `u-${Date.now()}`, role: "user", content: text.trim(), timestamp: new Date().toISOString() };
     const updated = [...messages, userMsg];
     setMessages(updated);
@@ -313,7 +429,7 @@ export default function AIChatScreen() {
       const res = await fetchAuth(`${API_BASE}/api/commandant/conversations/${convId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text.trim() }),
+        body: JSON.stringify(demoContext ? { message: text.trim(), demoContext } : { message: text.trim() }),
       });
 
       let reply = "Desole, je n'ai pas pu traiter votre demande. Veuillez reessayer.";
@@ -338,6 +454,9 @@ export default function AIChatScreen() {
         entities: entities.length > 0 ? entities : undefined,
       };
       setMessages([...updated, aiMsg]);
+      // Demo context has now been folded into the first answer — drop it so it
+      // is never resent and the collapsible prior-context block disappears.
+      if (demoContext) setImportedDemo(null);
       if (voiceOn) setSpokenText(reply);
     } catch {
       const errorMsg: Message = { id: `e-${Date.now()}`, role: "assistant", content: "Une erreur est survenue. Verifiez votre connexion et reessayez.", timestamp: new Date().toISOString() };
@@ -346,7 +465,7 @@ export default function AIChatScreen() {
       setIsTyping(false);
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 200);
     }
-  }, [fetchAuth, isTyping, messages, ensureConversationId, voiceOn]);
+  }, [fetchAuth, isTyping, messages, ensureConversationId, voiceOn, importedDemo]);
 
   async function clearHistory() {
     // Start a brand-new server-side conversation so the assistant forgets prior context.
@@ -610,32 +729,61 @@ export default function AIChatScreen() {
           showsVerticalScrollIndicator={false}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
           ListHeaderComponent={
-            messages.length <= 1 ? (
-              <View style={styles.quickActionsContainer}>
-                <Text style={[styles.quickActionsTitle, { color: colors.mutedForeground }]}>Actions rapides</Text>
-                <View style={styles.quickActionsGrid}>
-                  {QUICK_ACTIONS.map((a) => (
-                    <Pressable
-                      key={a.label}
-                      onPress={() => {
-                        if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        sendMessage(a.prompt);
-                      }}
-                      style={({ pressed }) => [
-                        styles.quickAction,
-                        { backgroundColor: colors.card, borderColor: colors.border },
-                        pressed && { opacity: 0.7 },
-                      ]}
-                    >
-                      <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + "15" }]}>
-                        <Feather name={a.icon} size={16} color={colors.primary} />
-                      </View>
-                      <Text style={[styles.quickActionLabel, { color: colors.foreground }]}>{a.label}</Text>
-                    </Pressable>
-                  ))}
+            <>
+              {importedDemo && importedDemo.length > 0 && (
+                <View style={styles.demoBox}>
+                  <Pressable onPress={() => setDemoOpen((o) => !o)} style={styles.demoHeader}>
+                    <View style={styles.demoHeaderLeft}>
+                      <Feather name="zap" size={13} color="#b45309" />
+                      <Text style={styles.demoHeaderText}>
+                        Conversation importee du site ({importedDemo.length} message{importedDemo.length > 1 ? "s" : ""})
+                      </Text>
+                    </View>
+                    <Feather name={demoOpen ? "chevron-down" : "chevron-right"} size={16} color="#b45309" />
+                  </Pressable>
+                  {demoOpen && (
+                    <View style={styles.demoBody}>
+                      {importedDemo.map((m, i) => (
+                        <View key={i} style={[styles.demoMsgRow, { alignItems: m.r === "u" ? "flex-end" : "flex-start" }]}>
+                          <View style={[styles.demoBubble, m.r === "u" ? styles.demoBubbleUser : styles.demoBubbleAi]}>
+                            <Text style={[styles.demoBubbleText, { color: m.r === "u" ? "#fff" : "#92400e" }]}>{m.t}</Text>
+                          </View>
+                        </View>
+                      ))}
+                      <Text style={styles.demoFootnote}>
+                        Le Commandant tiendra compte de cet echange dans sa premiere reponse.
+                      </Text>
+                    </View>
+                  )}
                 </View>
-              </View>
-            ) : null
+              )}
+              {messages.length <= 1 ? (
+                <View style={styles.quickActionsContainer}>
+                  <Text style={[styles.quickActionsTitle, { color: colors.mutedForeground }]}>Actions rapides</Text>
+                  <View style={styles.quickActionsGrid}>
+                    {QUICK_ACTIONS.map((a) => (
+                      <Pressable
+                        key={a.label}
+                        onPress={() => {
+                          if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          sendMessage(a.prompt);
+                        }}
+                        style={({ pressed }) => [
+                          styles.quickAction,
+                          { backgroundColor: colors.card, borderColor: colors.border },
+                          pressed && { opacity: 0.7 },
+                        ]}
+                      >
+                        <View style={[styles.quickActionIcon, { backgroundColor: colors.primary + "15" }]}>
+                          <Feather name={a.icon} size={16} color={colors.primary} />
+                        </View>
+                        <Text style={[styles.quickActionLabel, { color: colors.foreground }]}>{a.label}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+            </>
           }
           ListFooterComponent={
             isTyping ? (
@@ -775,6 +923,17 @@ const styles = StyleSheet.create({
   quickAction: { width: "48%", flexDirection: "row", alignItems: "center", padding: 12, borderRadius: 12, borderWidth: 1, gap: 10 },
   quickActionIcon: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   quickActionLabel: { fontSize: 12, fontFamily: "Inter_500Medium", flex: 1 },
+  demoBox: { marginBottom: 16, borderRadius: 12, borderWidth: 1, borderColor: "#fcd34d", backgroundColor: "#fffbeb", overflow: "hidden" },
+  demoHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, paddingHorizontal: 12, paddingVertical: 10 },
+  demoHeaderLeft: { flexDirection: "row", alignItems: "center", gap: 6, flex: 1 },
+  demoHeaderText: { flex: 1, fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#b45309" },
+  demoBody: { paddingHorizontal: 12, paddingBottom: 12, gap: 8 },
+  demoMsgRow: { width: "100%" },
+  demoBubble: { maxWidth: "85%", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
+  demoBubbleUser: { backgroundColor: "#d97706" },
+  demoBubbleAi: { backgroundColor: "#fff", borderWidth: 1, borderColor: "#fde68a" },
+  demoBubbleText: { fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 19 },
+  demoFootnote: { fontSize: 10, fontFamily: "Inter_400Regular", color: "#b45309", opacity: 0.8, paddingTop: 2 },
   inputBar: { borderTopWidth: 1, paddingHorizontal: 16, paddingTop: 10 },
   voiceBanner: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, marginBottom: 8 },
   inputRow: { flexDirection: "row", alignItems: "flex-end", gap: 8, marginBottom: 8 },
