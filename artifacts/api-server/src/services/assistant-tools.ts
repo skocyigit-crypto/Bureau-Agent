@@ -11,6 +11,7 @@ import { generateImage } from "@workspace/integrations-gemini-ai/image";
 import { buildExcelBase64, buildWordBase64, buildPdfBase64, buildPptxBase64 } from "./document-export";
 import { ingestDocument } from "./document-ingest";
 import { searchKnowledge } from "./knowledge-base";
+import { logAudit } from "../routes/audit";
 import { logger } from "../lib/logger";
 
 export interface ToolContext {
@@ -1478,6 +1479,49 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
           .where(and(eq(contactsTable.id, a.contactId), eq(contactsTable.organisationId, orgId)));
       }
       return { success: true, id: row.id, url: `/appels/${row.id}` };
+    },
+  },
+  {
+    name: "delete_call",
+    description:
+      "Supprime definitivement un appel enregistre par erreur. " +
+      "Fournir l'id de l'appel. L'appel doit appartenir a l'organisation. " +
+      "Les taches liees a cet appel sont aussi supprimees, et si l'appel est rattache a un contact, son compteur d'appels est decremente. " +
+      "NECESSITE UNE CONFIRMATION EXPLICITE.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "integer", description: "ID de l'appel a supprimer" },
+      },
+      required: ["id"],
+    },
+    fields: {
+      id: { kind: "number", required: true, integer: true, min: 1 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Supprimer definitivement l'appel #${a.id}`,
+    execute: async (a, { orgId, userId }) => {
+      const [existing] = await db.select({ id: callsTable.id, contactId: callsTable.contactId, phoneNumber: callsTable.phoneNumber, direction: callsTable.direction })
+        .from(callsTable)
+        .where(and(eq(callsTable.id, a.id), eq(callsTable.organisationId, orgId)));
+      if (!existing) return { success: false, error: "Appel introuvable dans votre organisation." };
+
+      const [deleted] = await db.delete(callsTable)
+        .where(and(eq(callsTable.id, a.id), eq(callsTable.organisationId, orgId)))
+        .returning({ id: callsTable.id });
+      if (!deleted) return { success: false, error: "Appel introuvable dans votre organisation." };
+
+      await db.delete(tasksTable).where(and(eq(tasksTable.relatedCallId, a.id), eq(tasksTable.organisationId, orgId)));
+
+      if (existing.contactId != null) {
+        await db.update(contactsTable)
+          .set({ totalCalls: sql`GREATEST(${contactsTable.totalCalls} - 1, 0)` })
+          .where(and(eq(contactsTable.id, existing.contactId), eq(contactsTable.organisationId, orgId)));
+      }
+
+      await logAudit(userId, undefined, "delete", "call", String(existing.id), { phoneNumber: existing.phoneNumber, direction: existing.direction }, undefined, undefined, orgId);
+
+      return { success: true, id: existing.id };
     },
   },
   {
