@@ -47,6 +47,8 @@ const TYPE_META: Record<string, { label: string; icon: keyof typeof Feather.glyp
   urgent_message: { label: "Message prioritaire", icon: "message-square" },
   meeting_prep: { label: "Préparer une réunion", icon: "calendar" },
   inactive_contact: { label: "Contact à relancer", icon: "user-plus" },
+  message_sla_breach: { label: "Message sans réponse", icon: "message-square" },
+  quiet_customer: { label: "Client silencieux", icon: "user-x" },
 };
 
 const ACTION_NAV: Record<string, { label: string; route: string }> = {

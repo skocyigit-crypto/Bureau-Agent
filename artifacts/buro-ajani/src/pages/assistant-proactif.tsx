@@ -48,6 +48,8 @@ const TYPE_META: Record<string, { label: string; icon: typeof Clock }> = {
   urgent_message: { label: "Message prioritaire", icon: MessageSquare },
   meeting_prep: { label: "Préparer une réunion", icon: CalendarClock },
   inactive_contact: { label: "Contact à relancer", icon: UserPlus },
+  message_sla_breach: { label: "Message sans réponse", icon: MessageSquare },
+  quiet_customer: { label: "Client silencieux", icon: UserPlus },
 };
 
 const ACTION_NAV: Record<string, { label: string; path: string }> = {

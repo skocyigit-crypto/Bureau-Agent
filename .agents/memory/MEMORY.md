@@ -19,6 +19,7 @@
 - [Security scan engines](security-scan-engines.md) — file/URL scanning engine setup and fallbacks.
 - [executeSql error surfacing](executesql-error-surfacing.md) — sandbox executeSql returns SQL errors in `.output`, does NOT throw; assert via row counts, not try/catch.
 - [Proactive autonomy engine](proactive-autonomy-engine.md) — deterministic no-AI detectors → proactive_suggestions; DB partial-unique dedupe on pending; opt-in cron per org.
+- [Message-SLA & quiet-customer detectors](proactive-message-quiet-detectors.md) — inbound msg = createdBy NULL (no direction col); SLA partitioned from urgent_message by priority; quiet_customer window [21,60) disjoint from inactive_contact.
 - [Document threat alerts](document-threat-alerts.md) — stored docs go "dangerous" only via re-scan endpoints; event-driven proactive suggestion alerts owners regardless of cron opt-in.
 - [Prod schema & rename trap](prod-schema-publish-flow.md) — prod schema only via Publish diff, never direct DDL; legacy user_sessions makes push-force rename-destroy new tables — pre-create additively.
 - [Dev DB drift + scan cancel e2e](dev-db-drift-and-scan-e2e.md) — drizzle push offers a DESTRUCTIVE user_sessions→agent_proposals rename (never accept); org delete blocked by append-only audit.

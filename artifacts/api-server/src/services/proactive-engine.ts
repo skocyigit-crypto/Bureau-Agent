@@ -22,7 +22,7 @@ import {
   messagesTable,
   proactiveSuggestionsTable,
 } from "@workspace/db";
-import { and, eq, lt, gte, inArray, notInArray, isNotNull, desc } from "drizzle-orm";
+import { and, eq, lt, gte, inArray, notInArray, isNotNull, isNull, desc } from "drizzle-orm";
 import { broadcaster } from "./broadcaster";
 import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
@@ -70,6 +70,9 @@ const DETECTOR_TYPES = [
   "meeting_prep",
   "inactive_contact",
   "cash_crunch",
+  // SLA de réponse aux messages entrants + clients devenus silencieux.
+  "message_sla_breach",
+  "quiet_customer",
   // Détecteurs PERSONNELS (couche d'apprentissage par employé) -> suggestion
   // privée portant un userId. Préfixés "my_" par convention.
   "my_tasks_due_today",
@@ -87,6 +90,26 @@ const RETIRED_DETECTOR_TYPES = ["vehicle_service"] as const;
 // Seuil d'inactivité (jours) au-delà duquel un contact client/prospect est
 // proposé pour une reprise de contact (détecteur F).
 const INACTIVE_CONTACT_DAYS = 60;
+
+// --- Réglages : SLA de réponse aux messages entrants (détecteur 9) ---------
+// Un message ENTRANT (rédigé par l'extérieur -> createdBy NULL) resté sans
+// réponse au-delà de ce délai déclenche une relance. Distinct de
+// urgent_message (priorité « haute », non lu, > 2 h) : ici on mesure le TEMPS
+// DE RÉPONSE de TOUS les messages entrants non « haute » priorité (partition
+// par priorité -> aucun doublon avec urgent_message), résolu par l'envoi d'une
+// réponse. Réglable via PROACTIVE_MESSAGE_SLA_HOURS (défaut 8 h).
+const MESSAGE_SLA_HOURS = Number(process.env.PROACTIVE_MESSAGE_SLA_HOURS ?? 8);
+// Fenêtre bornée : un très vieux message non répondu ne doit pas ressurgir
+// indéfiniment (au-delà, la suggestion s'auto-résout faute de candidat).
+const MESSAGE_SLA_LOOKBACK_DAYS = 14;
+
+// --- Réglages : client devenu silencieux (détecteur 10) --------------------
+// Contact client/prospect AYANT ÉTÉ actif (plusieurs appels) puis sans aucun
+// appel depuis un délai inhabituel, mais PAS ENCORE « inactif »
+// (< INACTIVE_CONTACT_DAYS). Fenêtre [QUIET_CUSTOMER_AFTER_DAYS ;
+// INACTIVE_CONTACT_DAYS[ -> aucun chevauchement avec inactive_contact.
+const QUIET_CUSTOMER_AFTER_DAYS = 21;
+const QUIET_CUSTOMER_MIN_CALLS = 2;
 
 // Applique la boucle de feedback au flux déterministe: retire les candidats dont
 // le `type` a été nettement et durablement rejeté par le dirigeant (👎), SAUF
@@ -567,6 +590,148 @@ async function detectMyTasksDueToday(orgId: number, now: Date): Promise<Candidat
   });
 }
 
+// --- Détecteur 9 : SLA de réponse aux messages entrants -------------------
+// Helper PUR (testable) : à partir des messages entrants candidats et de la
+// date de la DERNIÈRE réponse sortante connue par numéro, renvoie les entrants
+// encore SANS réponse (aucune réponse postérieure à leur réception). Une seule
+// réponse plus récente « répond » à tous les entrants antérieurs du même
+// numéro -> ils s'auto-résolvent. Comparaison par numéro de téléphone (toujours
+// présent), plus robuste que contactId (nullable).
+export function selectUnansweredInbound<
+  T extends { phoneNumber: string; createdAt: Date },
+>(inbound: T[], latestReplyAtByPhone: Map<string, number>): T[] {
+  return inbound.filter((m) => {
+    const replyAt = latestReplyAtByPhone.get(m.phoneNumber);
+    return replyAt === undefined || replyAt <= m.createdAt.getTime();
+  });
+}
+
+async function detectMessageSlaBreaches(orgId: number, now: Date): Promise<Candidate[]> {
+  const slaCutoff = new Date(now.getTime() - MESSAGE_SLA_HOURS * 60 * 60 * 1000);
+  const lookbackFloor = new Date(now.getTime() - MESSAGE_SLA_LOOKBACK_DAYS * DAY_MS);
+  // Entrants candidats : rédigés par l'extérieur (createdBy NULL), assez vieux
+  // pour dépasser le SLA, dans la fenêtre bornée, et non « haute » priorité
+  // (cette tranche-là est déjà couverte par urgent_message -> aucun doublon).
+  const inbound = await withDbRetry(
+    () => db
+      .select()
+      .from(messagesTable)
+      .where(
+        and(
+          eq(messagesTable.organisationId, orgId),
+          isNull(messagesTable.createdBy),
+          notInArray(messagesTable.priority, ["haute"]),
+          lt(messagesTable.createdAt, slaCutoff),
+          gte(messagesTable.createdAt, lookbackFloor),
+        ),
+      )
+      .orderBy(desc(messagesTable.createdAt))
+      .limit(50),
+    { label: "proactive:message-sla-inbound" },
+  );
+
+  if (inbound.length === 0) return [];
+
+  // Réponses sortantes (createdBy NON NULL = rédigées par un employé) vers ces
+  // mêmes numéros, dans la fenêtre : on retient la plus récente par numéro.
+  const phones = Array.from(new Set(inbound.map((m) => m.phoneNumber)));
+  const replies = await withDbRetry(
+    () => db
+      .select({ phoneNumber: messagesTable.phoneNumber, createdAt: messagesTable.createdAt })
+      .from(messagesTable)
+      .where(
+        and(
+          eq(messagesTable.organisationId, orgId),
+          isNotNull(messagesTable.createdBy),
+          inArray(messagesTable.phoneNumber, phones),
+          gte(messagesTable.createdAt, lookbackFloor),
+        ),
+      ),
+    { label: "proactive:message-sla-replies" },
+  );
+  const latestReplyAtByPhone = new Map<string, number>();
+  for (const r of replies) {
+    const t = (r.createdAt as Date).getTime();
+    const prev = latestReplyAtByPhone.get(r.phoneNumber);
+    if (prev === undefined || t > prev) latestReplyAtByPhone.set(r.phoneNumber, t);
+  }
+
+  return selectUnansweredInbound(
+    inbound.map((m) => ({ ...m, createdAt: m.createdAt as Date })),
+    latestReplyAtByPhone,
+  ).map((m) => {
+    const who = m.contactName?.trim() || m.phoneNumber;
+    const when = m.createdAt as Date;
+    const hours = Math.max(0, Math.floor((now.getTime() - when.getTime()) / (60 * 60 * 1000)));
+    const content = (m.content || "").trim();
+    const snippet = content.slice(0, 120);
+    return {
+      type: "message_sla_breach",
+      severity: "warning" as Severity,
+      title: `Message sans réponse — ${who}`,
+      detail:
+        `Reçu le ${frDate(when)} à ${frTime(when)} (il y a ~${hours} h) et toujours sans réponse. ` +
+        `« ${snippet}${content.length > 120 ? "…" : ""} »`,
+      relatedEntityType: "message",
+      relatedEntityId: m.id,
+      actionType: "open_messages",
+      actionPayload: { messageId: m.id, contactId: m.contactId ?? null, phone: m.phoneNumber },
+      dedupeKey: `message_sla:${m.id}`,
+    };
+  });
+}
+
+// --- Détecteur 10 : client devenu silencieux ------------------------------
+// Contact client/prospect ayant été ACTIF (au moins QUIET_CUSTOMER_MIN_CALLS
+// appels) puis sans aucun appel depuis QUIET_CUSTOMER_AFTER_DAYS jours, mais
+// pas encore « inactif » (< INACTIVE_CONTACT_DAYS). Distinct d'inactive_contact
+// (qui se base sur contacts.updatedAt et un seuil plus long) : ici on capte le
+// « refroidissement » d'une relation engagée, pour relancer AVANT la perte.
+// S'auto-résout dès qu'un nouvel appel rafraîchit lastCallAt (sort par le bas
+// de la fenêtre) ou quand le contact franchit le seuil d'inactivité (par le
+// haut -> repris par inactive_contact).
+async function detectQuietCustomers(orgId: number, now: Date): Promise<Candidate[]> {
+  const silentSince = new Date(now.getTime() - QUIET_CUSTOMER_AFTER_DAYS * DAY_MS);
+  const inactiveFloor = new Date(now.getTime() - INACTIVE_CONTACT_DAYS * DAY_MS);
+  const rows = await withDbRetry(
+    () => db
+      .select()
+      .from(contactsTable)
+      .where(
+        and(
+          eq(contactsTable.organisationId, orgId),
+          inArray(contactsTable.category, ["client", "prospect"]),
+          gte(contactsTable.totalCalls, QUIET_CUSTOMER_MIN_CALLS),
+          isNotNull(contactsTable.lastCallAt),
+          lt(contactsTable.lastCallAt, silentSince),
+          gte(contactsTable.lastCallAt, inactiveFloor),
+        ),
+      )
+      .orderBy(desc(contactsTable.lastCallAt))
+      .limit(10),
+    { label: "proactive:quiet-customers" },
+  );
+
+  return rows.map((c) => {
+    const name = `${c.firstName} ${c.lastName}`.trim();
+    const last = c.lastCallAt as Date;
+    const days = Math.max(0, Math.floor((now.getTime() - last.getTime()) / DAY_MS));
+    return {
+      type: "quiet_customer",
+      severity: "info" as Severity,
+      title: `${name} ne donne plus de nouvelles`,
+      detail:
+        `Ce ${c.category} était actif (${c.totalCalls} appels) mais n'a plus appelé depuis ${days} jours ` +
+        `(dernier échange le ${frDate(last)}). Une relance peut éviter de perdre la relation.`,
+      relatedEntityType: "contact",
+      relatedEntityId: c.id,
+      actionType: "open_contact",
+      actionPayload: { contactId: c.id, email: c.email ?? null, phone: c.phone, name },
+      dedupeKey: `quiet_customer:${c.id}`,
+    };
+  });
+}
+
 /**
  * Exécute tous les détecteurs pour une organisation, déduplique contre les
  * suggestions pending existantes, auto-résout celles qui ne s'appliquent plus,
@@ -583,6 +748,8 @@ export async function runProactiveForOrg(orgId: number): Promise<number> {
     ...(await detectMeetingPrep(orgId, now)),
     ...(await detectInactiveContacts(orgId, now)),
     ...(await detectCashCrunch(orgId, now)),
+    ...(await detectMessageSlaBreaches(orgId, now)),
+    ...(await detectQuietCustomers(orgId, now)),
     // Détecteurs personnels (couche par employé).
     ...(await detectMyTasksDueToday(orgId, now)),
   ];
@@ -923,7 +1090,7 @@ export function startProactiveEngine(): void {
   }, TICK_MS);
   logger.info(
     { tickMs: TICK_MS },
-    "[proactive] moteur d'autonomie démarré — 8 détecteurs déterministes (dont radar de trésorerie BTP)",
+    "[proactive] moteur d'autonomie démarré — 10 détecteurs déterministes (dont SLA messages, clients silencieux, radar de trésorerie BTP)",
   );
 }
 
