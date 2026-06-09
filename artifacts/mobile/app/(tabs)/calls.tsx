@@ -45,22 +45,35 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
   en_cours: { label: "En cours", color: "#3b82f6" },
 };
 
-const FORM_FIELDS = [
-  { key: "contactName", label: "Nom du contact", required: true },
+const DIRECTION_OPTIONS = [
+  { value: "entrant", label: "Entrant" },
+  { value: "sortant", label: "Sortant" },
+];
+
+const STATUS_OPTIONS = [
+  { value: "repondu", label: "Repondu" },
+  { value: "manque", label: "Manque" },
+  { value: "messagerie", label: "Messagerie" },
+];
+
+// A la creation: pas de champ "Nom du contact" car le serveur derive ce nom
+// du contact lie (contactId) — un texte libre serait ignore. Numero et
+// direction sont editables uniquement ici.
+const CREATE_FIELDS = [
   { key: "phoneNumber", label: "Numero de telephone", type: "phone" as const, required: true },
-  {
-    key: "direction", label: "Direction", type: "select" as const, options: [
-      { value: "entrant", label: "Entrant" },
-      { value: "sortant", label: "Sortant" },
-    ],
-  },
-  {
-    key: "status", label: "Statut", type: "select" as const, options: [
-      { value: "repondu", label: "Repondu" },
-      { value: "manque", label: "Manque" },
-      { value: "messagerie", label: "Messagerie" },
-    ],
-  },
+  { key: "direction", label: "Direction", type: "select" as const, options: DIRECTION_OPTIONS },
+  { key: "status", label: "Statut", type: "select" as const, options: STATUS_OPTIONS },
+  { key: "duration", label: "Duree (secondes)" },
+  { key: "notes", label: "Notes", type: "multiline" as const },
+];
+
+// A l'edition: numero et direction sont immuables cote serveur (UpdateCallBody
+// ne les expose pas) -> affiches en lecture seule pour le contexte. Seuls
+// statut / duree / notes sont reellement modifiables.
+const EDIT_FIELDS = [
+  { key: "phoneNumber", label: "Numero de telephone", type: "phone" as const, readOnly: true },
+  { key: "direction", label: "Direction", type: "select" as const, options: DIRECTION_OPTIONS, readOnly: true },
+  { key: "status", label: "Statut", type: "select" as const, options: STATUS_OPTIONS },
   { key: "duration", label: "Duree (secondes)" },
   { key: "notes", label: "Notes", type: "multiline" as const },
 ];
@@ -146,7 +159,8 @@ export default function CallsScreen() {
   }, [calls]);
 
   async function handleSubmit() {
-    if (!formValues.contactName?.trim() && !formValues.phoneNumber?.trim()) return;
+    // A la creation, le numero est requis (le serveur derive le nom du contact).
+    if (!editId && !formValues.phoneNumber?.trim()) return;
     setFormLoading(true);
     try {
       const duration = parseInt(formValues.duration || "0") || 0;
@@ -402,7 +416,7 @@ export default function CallsScreen() {
         onClose={() => { setShowForm(false); setEditId(null); }}
         onSubmit={handleSubmit}
         title={editId ? "Modifier l'appel" : "Nouvel appel"}
-        fields={FORM_FIELDS}
+        fields={editId ? EDIT_FIELDS : CREATE_FIELDS}
         values={formValues}
         onChange={(k, v) => setFormValues((p) => ({ ...p, [k]: v }))}
         loading={formLoading}

@@ -27,6 +27,12 @@ interface FieldConfig {
   options?: { value: string; label: string }[];
   required?: boolean;
   /**
+   * When true the field is shown for context only and cannot be edited.
+   * Use this for values the server treats as immutable so the form never
+   * offers a change that would be silently dropped on save.
+   */
+  readOnly?: boolean;
+  /**
    * When set, this field receives debounced AI ghost-text suggestions
    * (respecting the user's inline-suggest preference) using the given
    * inline-suggest field type.
@@ -164,6 +170,34 @@ function FormField({ field, values, onChange }: FormFieldProps) {
     trackDismissed(suggestion.length);
     clear();
   };
+
+  if (field.readOnly) {
+    const displayValue =
+      field.type === "select"
+        ? field.options?.find((o) => o.value === value)?.label ?? value
+        : value;
+    return (
+      <View style={styles.fieldGroup}>
+        <Text style={[styles.label, { color: colors.mutedForeground }]}>
+          {field.label}
+        </Text>
+        <View
+          style={[
+            styles.input,
+            styles.readOnlyInput,
+            { backgroundColor: colors.muted, borderColor: colors.border },
+          ]}
+        >
+          <Text
+            style={[styles.readOnlyText, { color: colors.mutedForeground }]}
+            numberOfLines={1}
+          >
+            {displayValue || "—"}
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.fieldGroup}>
@@ -308,6 +342,14 @@ const styles = StyleSheet.create({
   multilineInput: {
     height: 100,
     paddingTop: 14,
+  },
+  readOnlyInput: {
+    justifyContent: "center",
+    opacity: 0.7,
+  },
+  readOnlyText: {
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
   },
   suggestionRow: {
     flexDirection: "row",
