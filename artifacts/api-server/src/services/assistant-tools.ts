@@ -413,6 +413,73 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
     },
   },
   {
+    name: "find_task",
+    description:
+      "Recherche une tache par titre ou description et retourne une liste classee des meilleures " +
+      "correspondances avec leur id. Lecture seule. A utiliser pour resoudre le nom prononce par " +
+      "l'utilisateur (ex: « marque comme terminee la tache de relance de la facture ») en id avant " +
+      "d'appeler update_task. Retourne plusieurs candidats si ambigu — demande confirmation a " +
+      "l'utilisateur avant de modifier.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Mots du titre ou de la description a rechercher" },
+        status: { type: "string", description: "Filtre optionnel: en_attente, en_cours, termine, annule" },
+        limit: { type: "integer", description: "Nombre max de correspondances (1-20, defaut 5)" },
+      },
+      required: ["query"],
+    },
+    fields: {
+      query: { kind: "string", required: true, min: 1, max: 200 },
+      status: { kind: "string", enum: ["en_attente", "en_cours", "termine", "annule"] as const },
+      limit: { kind: "number", integer: true, min: 1, max: 20 },
+    },
+    execute: async (a, { orgId }) => {
+      const query = String(a.query).trim();
+      const limit = Math.min((a.limit as number) ?? 5, 20);
+      const useUnaccent = await ensureUnaccentExtension();
+      const like = `%${query}%`;
+      const conds = [
+        eq(tasksTable.organisationId, orgId),
+        or(
+          accentInsensitiveIlike(tasksTable.title, like, useUnaccent),
+          accentInsensitiveIlike(tasksTable.description, like, useUnaccent),
+        )!,
+      ];
+      if (a.status) conds.push(eq(tasksTable.status, a.status as string));
+      const rows = await db.select({
+        id: tasksTable.id, title: tasksTable.title, description: tasksTable.description,
+        status: tasksTable.status, priority: tasksTable.priority, dueDate: tasksTable.dueDate,
+        createdAt: tasksTable.createdAt,
+      }).from(tasksTable).where(and(...conds)).limit(100);
+      const nq = stripAccents(query).toLowerCase();
+      const norm = (s: unknown) => stripAccents(String(s ?? "")).toLowerCase().trim();
+      const scoreTask = (r: typeof rows[number]): number => {
+        const title = norm(r.title);
+        const desc = norm(r.description);
+        let score = 0;
+        if (title === nq) score = Math.max(score, 100);
+        if (title.startsWith(nq)) score = Math.max(score, 70);
+        if (title.includes(nq)) score = Math.max(score, 50);
+        if (desc.includes(nq)) score = Math.max(score, 30);
+        return score;
+      };
+      const ranked = rows
+        .map((r) => ({ r, score: scoreTask(r) }))
+        .sort((x, y) => (y.score - x.score) || (y.r.createdAt.getTime() - x.r.createdAt.getTime()))
+        .slice(0, limit)
+        .map(({ r, score }) => ({
+          id: r.id,
+          title: r.title,
+          status: r.status,
+          priority: r.priority,
+          dueDate: r.dueDate,
+          pertinence: score,
+        }));
+      return { count: ranked.length, tasks: ranked };
+    },
+  },
+  {
     name: "create_task",
     description: "Cree une nouvelle tache.",
     parameters: {
@@ -633,6 +700,84 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
         lte(calendarEventsTable.startDate, end),
       )).orderBy(calendarEventsTable.startDate).limit(50);
       return { count: rows.length, events: rows };
+    },
+  },
+  {
+    name: "find_event",
+    description:
+      "Recherche un evenement de l'agenda (rendez-vous, reunion) par titre, description ou lieu et " +
+      "retourne une liste classee des meilleures correspondances avec leur id. Lecture seule. A utiliser " +
+      "pour resoudre le nom prononce par l'utilisateur (ex: « reporte la reunion de chantier cuisine ») " +
+      "en id avant d'appeler reschedule_calendar_event. Par defaut ne retourne que les evenements a venir " +
+      "(mettre includePast a true pour inclure le passe). Retourne plusieurs candidats si ambigu — demande " +
+      "confirmation a l'utilisateur avant de modifier.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Mots du titre, de la description ou du lieu a rechercher" },
+        includePast: { type: "boolean", description: "Inclure les evenements deja passes (defaut false)" },
+        limit: { type: "integer", description: "Nombre max de correspondances (1-20, defaut 5)" },
+      },
+      required: ["query"],
+    },
+    fields: {
+      query: { kind: "string", required: true, min: 1, max: 200 },
+      limit: { kind: "number", integer: true, min: 1, max: 20 },
+    },
+    execute: async (a, { orgId }) => {
+      const query = String(a.query).trim();
+      const limit = Math.min((a.limit as number) ?? 5, 20);
+      const includePast = a.includePast === true;
+      const useUnaccent = await ensureUnaccentExtension();
+      const like = `%${query}%`;
+      const conds = [
+        eq(calendarEventsTable.organisationId, orgId),
+        or(
+          accentInsensitiveIlike(calendarEventsTable.title, like, useUnaccent),
+          accentInsensitiveIlike(calendarEventsTable.description, like, useUnaccent),
+          accentInsensitiveIlike(calendarEventsTable.location, like, useUnaccent),
+        )!,
+      ];
+      if (!includePast) conds.push(gte(calendarEventsTable.startDate, new Date()));
+      const rows = await db.select({
+        id: calendarEventsTable.id, title: calendarEventsTable.title,
+        description: calendarEventsTable.description, location: calendarEventsTable.location,
+        type: calendarEventsTable.type, startDate: calendarEventsTable.startDate,
+        endDate: calendarEventsTable.endDate,
+      }).from(calendarEventsTable).where(and(...conds)).limit(100);
+      const nq = stripAccents(query).toLowerCase();
+      const norm = (s: unknown) => stripAccents(String(s ?? "")).toLowerCase().trim();
+      const now = Date.now();
+      const scoreEvent = (r: typeof rows[number]): number => {
+        const title = norm(r.title);
+        const desc = norm(r.description);
+        const loc = norm(r.location);
+        let score = 0;
+        if (title === nq) score = Math.max(score, 100);
+        if (title.startsWith(nq)) score = Math.max(score, 70);
+        if (title.includes(nq)) score = Math.max(score, 50);
+        if (loc.includes(nq)) score = Math.max(score, 40);
+        if (desc.includes(nq)) score = Math.max(score, 30);
+        return score;
+      };
+      const ranked = rows
+        .map((r) => ({ r, score: scoreEvent(r) }))
+        .sort((x, y) => {
+          if (y.score !== x.score) return y.score - x.score;
+          // Soonest upcoming first (smallest absolute distance to now).
+          return Math.abs(x.r.startDate.getTime() - now) - Math.abs(y.r.startDate.getTime() - now);
+        })
+        .slice(0, limit)
+        .map(({ r, score }) => ({
+          id: r.id,
+          title: r.title,
+          location: r.location,
+          type: r.type,
+          startDate: r.startDate,
+          endDate: r.endDate,
+          pertinence: score,
+        }));
+      return { count: ranked.length, events: ranked };
     },
   },
   {
