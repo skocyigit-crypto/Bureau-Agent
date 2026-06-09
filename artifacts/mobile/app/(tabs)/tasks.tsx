@@ -18,6 +18,18 @@ import {
 import { Swipeable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import {
+  listTasks,
+  createTask,
+  updateTask,
+  deleteTask,
+  getTask,
+  type Task,
+  type CreateTaskBody,
+  type UpdateTaskBody,
+  type ListTasksParams,
+} from "@workspace/api-client-react";
+
 import { DetailModal } from "@/components/DetailModal";
 import { EmptyState } from "@/components/EmptyState";
 import { FAB } from "@/components/FAB";
@@ -26,16 +38,6 @@ import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useUnreadBadges } from "@/contexts/UnreadBadgesContext";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useColors } from "@/hooks/useColors";
-
-interface Task {
-  id: number;
-  title: string;
-  description: string;
-  status: string;
-  priority: string;
-  dueDate: string | null;
-  assignedTo: string | null;
-}
 
 const STATUS_MAP: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
   en_attente: { label: "En attente", color: "#f59e0b", icon: "clock" },
@@ -121,7 +123,7 @@ function SwipeableTask({ item, colors, onToggle, onDelete, onOpen }: SwipeableTa
     return { label: new Date(dateStr).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }), color: colors.mutedForeground, urgent: false };
   }
 
-  const dueInfo = item.status !== "termine" ? getDueDateInfo(item.dueDate) : null;
+  const dueInfo = item.status !== "termine" ? getDueDateInfo(item.dueDate ?? null) : null;
 
   function handleSwipeOpen(direction: "left" | "right") {
     swipeRef.current?.close();
@@ -223,23 +225,20 @@ export default function TasksScreen() {
 
   const fetchTasks = useCallback(async () => {
     try {
-      const params = new URLSearchParams({ limit: "50", sortOrder: "desc" });
-      if (filter !== "all") params.set("status", filter);
-      if (search) params.set("search", search);
-      const res = await fetchAuth(`${API_BASE}/api/tasks?${params}`);
-      if (res.ok) {
-        const data = await res.json();
-        const list: Task[] = data.tasks ?? [];
-        setTasks(list);
-        if (filter === "all" && !search) updateCache(list);
-      }
+      const params: ListTasksParams = { limit: 50, sortOrder: "desc" };
+      if (filter !== "all") params.status = filter as ListTasksParams["status"];
+      if (search) params.search = search;
+      const data = await listTasks(params);
+      const list = data.tasks ?? [];
+      setTasks(list);
+      if (filter === "all" && !search) updateCache(list);
     } catch {
       if (cached.length > 0 && tasks.length === 0) setTasks(cached);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [filter, search, fetchAuth, cached, tasks.length, updateCache]);
+  }, [filter, search, cached, tasks.length, updateCache]);
 
   useEffect(() => {
     if (isFromCache && cached.length > 0 && tasks.length === 0) setTasks(cached);
@@ -276,9 +275,7 @@ export default function TasksScreen() {
     consumedOpenRef.current = idStr;
     (async () => {
       try {
-        const res = await fetchAuth(`${API_BASE}/api/tasks/${id}`);
-        if (!res.ok || cancelled) return;
-        const task = (await res.json()) as Task;
+        const task = await getTask(id);
         if (cancelled || !task || typeof task.id !== "number") return;
         setSelected(task);
       } catch {
@@ -286,20 +283,16 @@ export default function TasksScreen() {
       }
     })();
     return () => { cancelled = true; };
-  }, [openParam, tasks, fetchAuth]);
+  }, [openParam, tasks]);
 
   function onRefresh() { setRefreshing(true); fetchTasks(); }
 
   async function toggleStatus(task: Task) {
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const nextStatus = task.status === "termine" ? "en_attente" : task.status === "en_attente" ? "en_cours" : "termine";
-    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: nextStatus } : t));
+    const nextStatus: UpdateTaskBody["status"] = task.status === "termine" ? "en_attente" : task.status === "en_attente" ? "en_cours" : "termine";
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: nextStatus! } : t));
     try {
-      await fetchAuth(`${API_BASE}/api/tasks/${task.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: nextStatus }),
-      });
+      await updateTask(task.id, { status: nextStatus });
       fetchTasks();
     } catch {
       setTasks(prev => prev.map(t => t.id === task.id ? task : t));
@@ -309,7 +302,7 @@ export default function TasksScreen() {
   async function handleDelete(id: number) {
     setTasks(prev => prev.filter(t => t.id !== id));
     try {
-      await fetchAuth(`${API_BASE}/api/tasks/${id}`, { method: "DELETE" });
+      await deleteTask(id);
       setSelected(null);
     } catch {
       fetchTasks();
@@ -320,19 +313,23 @@ export default function TasksScreen() {
     if (!formValues.title?.trim()) return;
     setFormLoading(true);
     try {
-      const url = editId ? `${API_BASE}/api/tasks/${editId}` : `${API_BASE}/api/tasks`;
-      const method = editId ? "PATCH" : "POST";
-      const res = await fetchAuth(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formValues),
-      });
-      if (res.ok) {
-        setShowForm(false);
-        setEditId(null);
-        setFormValues({ priority: "moyenne", status: "en_attente" });
-        fetchTasks();
+      const body: CreateTaskBody = {
+        title: formValues.title.trim(),
+        description: formValues.description || undefined,
+        status: formValues.status as CreateTaskBody["status"],
+        priority: formValues.priority as CreateTaskBody["priority"],
+        assignedTo: formValues.assignedTo || undefined,
+        dueDate: formValues.dueDate || undefined,
+      };
+      if (editId) {
+        await updateTask(editId, body as UpdateTaskBody);
+      } else {
+        await createTask(body);
       }
+      setShowForm(false);
+      setEditId(null);
+      setFormValues({ priority: "moyenne", status: "en_attente" });
+      fetchTasks();
     } catch {
       if (Platform.OS !== "web") Alert.alert("Erreur", "Impossible de sauvegarder la tache.");
     } finally { setFormLoading(false); }
@@ -496,7 +493,7 @@ export default function TasksScreen() {
           onEdit={() => openEdit(selected)}
           onDelete={() => handleDelete(selected.id)}
           title={selected.title}
-          subtitle={selected.description}
+          subtitle={selected.description ?? undefined}
           icon={(STATUS_MAP[selected.status]?.icon ?? "check-square") as keyof typeof Feather.glyphMap}
           iconColor={STATUS_MAP[selected.status]?.color}
           badge={{ label: STATUS_MAP[selected.status]?.label ?? selected.status, color: STATUS_MAP[selected.status]?.color ?? "#64748b" }}

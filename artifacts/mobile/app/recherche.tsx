@@ -25,7 +25,6 @@ interface SearchResults {
   devis: any[];
   factures: any[];
   stock: any[];
-  commandes: any[];
   projets: any[];
   totalResults: number;
 }
@@ -121,15 +120,6 @@ const CATEGORIES: ResultCategory[] = [
     route: "/stock",
     getTitle: (s) => s.name || s.reference || "",
     getSub: (s) => s.category || s.reference || "",
-  },
-  {
-    key: "commandes",
-    label: "Commandes",
-    icon: "shopping-cart",
-    color: "#b45309",
-    route: "/commandes-fournisseur",
-    getTitle: (c) => c.reference || c.fournisseurName || `BC #${c.id}`,
-    getSub: (c) => c.fournisseurName || c.status || "",
   },
 ];
 
@@ -256,7 +246,7 @@ export default function RechercheScreen() {
           </View>
           <Text style={[styles.emptyTitle, { color: colors.foreground }]}>Recherchez dans toute l'app</Text>
           <Text style={[styles.emptySub, { color: colors.mutedForeground }]}>
-            Contacts, prospects, devis, factures, tâches, projets, messages, stock et commandes.
+            Contacts, prospects, devis, factures, tâches, projets, messages et stock.
           </Text>
           <View style={styles.categoryGrid}>
             {CATEGORIES.map(cat => (

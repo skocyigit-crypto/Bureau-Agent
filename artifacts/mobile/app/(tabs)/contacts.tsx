@@ -18,6 +18,17 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import {
+  listContacts,
+  createContact,
+  updateContact,
+  deleteContact,
+  type Contact,
+  type CreateContactBody,
+  type UpdateContactBody,
+  type ListContactsParams,
+} from "@workspace/api-client-react";
+
 import { DetailModal } from "@/components/DetailModal";
 import { EmptyState } from "@/components/EmptyState";
 import { FAB } from "@/components/FAB";
@@ -25,20 +36,6 @@ import { FormModal } from "@/components/FormModal";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useColors } from "@/hooks/useColors";
-
-interface Contact {
-  id: number;
-  firstName: string;
-  lastName: string;
-  company: string;
-  phone: string;
-  email: string;
-  category: string;
-  totalCalls: number;
-  lastCallAt?: string;
-  address?: string;
-  notes?: string;
-}
 
 const CATEGORY_COLORS: Record<string, string> = {
   client: "#22c55e",
@@ -92,7 +89,7 @@ function ContactRow({
 }) {
   const catColor = CATEGORY_COLORS[item.category] ?? colors.mutedForeground;
 
-  function formatLastContact(dateStr?: string): string {
+  function formatLastContact(dateStr?: string | null): string {
     if (!dateStr) return "";
     const d = new Date(dateStr);
     const now = new Date();
@@ -178,23 +175,20 @@ export default function ContactsScreen() {
 
   const fetchContacts = useCallback(async () => {
     try {
-      const params = new URLSearchParams({ limit: "200", sortBy: "lastName", sortOrder: "asc" });
-      if (search) params.set("search", search);
-      if (filterCat !== "all") params.set("category", filterCat);
-      const res = await fetchAuth(`${API_BASE}/api/contacts?${params}`);
-      if (res.ok) {
-        const data = await res.json();
-        const list: Contact[] = data.contacts ?? [];
-        setContacts(list);
-        if (!search && filterCat === "all") updateCache(list);
-      }
+      const params: ListContactsParams = { limit: 200, sortBy: "lastName", sortOrder: "asc" };
+      if (search) params.search = search;
+      if (filterCat !== "all") params.category = filterCat as ListContactsParams["category"];
+      const data = await listContacts(params);
+      const list = data.contacts ?? [];
+      setContacts(list);
+      if (!search && filterCat === "all") updateCache(list);
     } catch {
       if (cached.length > 0 && contacts.length === 0) setContacts(cached);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [search, filterCat, fetchAuth, cached, contacts.length, updateCache]);
+  }, [search, filterCat, cached, contacts.length, updateCache]);
 
   useEffect(() => {
     if (isFromCache && cached.length > 0 && contacts.length === 0) setContacts(cached);
@@ -212,25 +206,31 @@ export default function ContactsScreen() {
     if (!formValues.firstName?.trim() || !formValues.lastName?.trim()) return;
     setFormLoading(true);
     try {
-      const url = editId ? `${API_BASE}/api/contacts/${editId}` : `${API_BASE}/api/contacts`;
-      const method = editId ? "PATCH" : "POST";
-      const res = await fetchAuth(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formValues),
-      });
-      if (res.ok) {
-        setShowForm(false);
-        setEditId(null);
-        setFormValues({ category: "client" });
-        fetchContacts();
+      const body: CreateContactBody = {
+        firstName: formValues.firstName.trim(),
+        lastName: formValues.lastName.trim(),
+        company: formValues.company || undefined,
+        email: formValues.email || undefined,
+        phone: formValues.phone?.trim() || "",
+        category: formValues.category as CreateContactBody["category"],
+        address: formValues.address || undefined,
+        notes: formValues.notes || undefined,
+      };
+      if (editId) {
+        await updateContact(editId, body as UpdateContactBody);
+      } else {
+        await createContact(body);
       }
+      setShowForm(false);
+      setEditId(null);
+      setFormValues({ category: "client" });
+      fetchContacts();
     } catch {} finally { setFormLoading(false); }
   }
 
   async function handleDelete(id: number) {
     try {
-      await fetchAuth(`${API_BASE}/api/contacts/${id}`, { method: "DELETE" });
+      await deleteContact(id);
       setSelected(null);
       fetchContacts();
     } catch {}
@@ -425,7 +425,7 @@ export default function ContactsScreen() {
           onEdit={() => openEdit(selected)}
           onDelete={() => handleDelete(selected.id)}
           title={`${selected.firstName} ${selected.lastName}`}
-          subtitle={selected.company}
+          subtitle={selected.company ?? undefined}
           icon="user"
           iconColor={CATEGORY_COLORS[selected.category]}
           badge={{ label: CATEGORY_LABELS[selected.category] ?? selected.category, color: CATEGORY_COLORS[selected.category] ?? "#64748b" }}

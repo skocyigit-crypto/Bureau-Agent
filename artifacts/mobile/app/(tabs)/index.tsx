@@ -17,6 +17,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { listCalls, type Call } from "@workspace/api-client-react";
+
 import { EmptyState } from "@/components/EmptyState";
 import { StatCard } from "@/components/StatCard";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
@@ -36,15 +38,6 @@ interface DashboardData {
   todayTasks: number;
   projetsActifs: number;
   projetsEnRetard: number;
-}
-
-interface RecentCall {
-  id: number;
-  contactName: string;
-  phoneNumber: string;
-  status: string;
-  direction: string;
-  createdAt: string;
 }
 
 interface UpcomingEvent {
@@ -92,7 +85,7 @@ export default function DashboardScreen() {
   const rappelsUnread = unreadCounts.rappel;
   const isWeb = Platform.OS === "web";
   const [data, setData] = useState<DashboardData | null>(null);
-  const [recentCalls, setRecentCalls] = useState<RecentCall[]>([]);
+  const [recentCalls, setRecentCalls] = useState<Call[]>([]);
   const [events, setEvents] = useState<UpcomingEvent[]>([]);
   const [overdueTasks, setOverdueTasks] = useState<OverdueTask[]>([]);
   const [security, setSecurity] = useState<SecurityVerdict | null>(null);
@@ -107,9 +100,9 @@ export default function DashboardScreen() {
 
   const fetchDashboard = useCallback(async (silent = false) => {
     try {
-      const [summaryRes, callsRes, eventsRes, tasksRes, securityRes] = await Promise.all([
+      const [summaryRes, callsData, eventsRes, tasksRes, securityRes] = await Promise.all([
         fetchAuth(`${API_BASE}/api/dashboard/summary`),
-        fetchAuth(`${API_BASE}/api/calls?limit=5&sortOrder=desc`),
+        listCalls({ limit: 5, sortOrder: "desc" }).catch(() => null),
         fetchAuth(`${API_BASE}/api/calendar/events?limit=3`).catch(() => null),
         fetchAuth(`${API_BASE}/api/tasks?status=en_attente&sortOrder=asc&limit=5`).catch(() => null),
         fetchAuth(`${API_BASE}/api/documents/stats/overview`).catch(() => null),
@@ -132,9 +125,8 @@ export default function DashboardScreen() {
         setData(d);
         updateCache(d);
       }
-      if (callsRes.ok) {
-        const callData = await callsRes.json();
-        setRecentCalls(callData.calls?.slice(0, 5) ?? []);
+      if (callsData) {
+        setRecentCalls(callsData.calls?.slice(0, 5) ?? []);
       }
       if (eventsRes?.ok) {
         const eventData = await eventsRes.json();
@@ -442,7 +434,7 @@ export default function DashboardScreen() {
                   <View key={call.id} style={[styles.recentItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <View style={[styles.recentIcon, { backgroundColor: (STATUS_COLORS[call.status] || "#64748b") + "18" }]}>
                       <Feather
-                        name={call.status === "missed" ? "phone-missed" : call.direction === "sortant" ? "phone-outgoing" : "phone-incoming"}
+                        name={call.status === "manque" ? "phone-missed" : call.direction === "sortant" ? "phone-outgoing" : "phone-incoming"}
                         size={16}
                         color={STATUS_COLORS[call.status] || "#64748b"}
                       />
@@ -455,7 +447,7 @@ export default function DashboardScreen() {
                         {call.direction === "entrant" ? "Entrant" : "Sortant"}
                       </Text>
                     </Pressable>
-                    {call.status === "missed" && call.phoneNumber && (
+                    {call.status === "manque" && call.phoneNumber && (
                       <Pressable
                         onPress={() => {
                           if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

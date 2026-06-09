@@ -30,7 +30,6 @@ const ENTITY_CFG: Record<string, { icon: keyof typeof Feather.glyphMap; color: s
   devis:    { icon: "file-text",    color: "#3b82f6", label: "Devis"           },
   facture:  { icon: "dollar-sign",  color: "#22c55e", label: "Facture"         },
   prospect: { icon: "trending-up",  color: "#f59e0b", label: "Prospect"        },
-  commande: { icon: "shopping-cart",color: "#8b5cf6", label: "Bon de Commande" },
   contact:  { icon: "user",         color: "#0ea5e9", label: "Contact"         },
   appel:    { icon: "phone",        color: "#22c55e", label: "Appel"           },
   tache:    { icon: "check-square", color: "#f97316", label: "Tâche"           },
@@ -129,11 +128,10 @@ export default function ActiviteRecenteScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [devisR, facturesR, prospectsR, commandesR, contactsR, callsR, tasksR, messagesR, projetsR] = await Promise.all([
+      const [devisR, facturesR, prospectsR, contactsR, callsR, tasksR, messagesR, projetsR] = await Promise.all([
         fetchAuth(`${API_BASE}/api/devis?limit=30&sortBy=createdAt&sortOrder=desc`).then(r => r.ok ? r.json() : null).catch(() => null),
         fetchAuth(`${API_BASE}/api/factures-client?limit=30&sortBy=createdAt&sortOrder=desc`).then(r => r.ok ? r.json() : null).catch(() => null),
         fetchAuth(`${API_BASE}/api/prospects?limit=30&sortBy=createdAt&sortOrder=desc`).then(r => r.ok ? r.json() : null).catch(() => null),
-        fetchAuth(`${API_BASE}/api/commandes-fournisseur?limit=30&sortBy=createdAt&sortOrder=desc`).then(r => r.ok ? r.json() : null).catch(() => null),
         fetchAuth(`${API_BASE}/api/contacts?limit=30&sortBy=createdAt&sortOrder=desc`).then(r => r.ok ? r.json() : null).catch(() => null),
         fetchAuth(`${API_BASE}/api/calls?limit=30&sortBy=createdAt&sortOrder=desc`).then(r => r.ok ? r.json() : null).catch(() => null),
         fetchAuth(`${API_BASE}/api/tasks?limit=30&sortBy=createdAt&sortOrder=desc`).then(r => r.ok ? r.json() : null).catch(() => null),
@@ -154,10 +152,6 @@ export default function ActiviteRecenteScreen() {
       (prospectsR?.prospects || []).forEach((p: any) => items.push({
         type: "prospect", title: p.title, subtitle: p.company || p.contactName,
         amount: p.value, status: p.stage, createdAt: p.createdAt,
-      }));
-      (commandesR?.data || []).forEach((c: any) => items.push({
-        type: "commande", title: c.reference || `BC #${c.id}`, subtitle: c.fournisseurName,
-        amount: c.totalAmount, status: c.status, createdAt: c.createdAt,
       }));
       (contactsR?.contacts || []).forEach((c: any) => items.push({
         type: "contact", title: `${c.firstName} ${c.lastName}`.trim(), subtitle: c.company || c.email,
@@ -210,7 +204,6 @@ export default function ActiviteRecenteScreen() {
     { key: "projet",  label: "Projets"  },
     { key: "contact", label: "Contacts" },
     { key: "message", label: "Messages" },
-    { key: "commande",label: "Commandes"},
   ];
 
   return (

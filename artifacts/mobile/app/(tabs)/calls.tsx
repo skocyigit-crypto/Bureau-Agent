@@ -17,6 +17,17 @@ import {
 import { Swipeable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import {
+  listCalls,
+  createCall,
+  updateCall,
+  deleteCall,
+  type Call,
+  type CreateCallBody,
+  type UpdateCallBody,
+  type ListCallsParams,
+} from "@workspace/api-client-react";
+
 import { DetailModal } from "@/components/DetailModal";
 import { EmptyState } from "@/components/EmptyState";
 import { FAB } from "@/components/FAB";
@@ -26,17 +37,6 @@ import { useUnreadBadges } from "@/contexts/UnreadBadgesContext";
 import { useColors } from "@/hooks/useColors";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { router, useFocusEffect } from "expo-router";
-
-interface Call {
-  id: number;
-  contactName: string;
-  phoneNumber: string;
-  status: string;
-  direction: string;
-  duration: number;
-  notes?: string;
-  createdAt: string;
-}
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   repondu: { label: "Repondu", color: "#22c55e" },
@@ -87,23 +87,20 @@ export default function CallsScreen() {
 
   const fetchCalls = useCallback(async () => {
     try {
-      const params = new URLSearchParams({ limit: "100", sortOrder: "desc" });
-      if (filter !== "all") params.set("status", filter);
-      if (search) params.set("search", search);
-      const res = await fetchAuth(`${API_BASE}/api/calls?${params}`);
-      if (res.ok) {
-        const data = await res.json();
-        const list = data.calls ?? [];
-        setCalls(list);
-        updateCache(list);
-      }
+      const params: ListCallsParams = { limit: 100, sortOrder: "desc" };
+      if (filter !== "all") params.status = filter as ListCallsParams["status"];
+      if (search) params.search = search;
+      const data = await listCalls(params);
+      const list = data.calls ?? [];
+      setCalls(list);
+      updateCache(list);
     } catch {
       if (cached.length > 0 && calls.length === 0) setCalls(cached);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [filter, search, fetchAuth]);
+  }, [filter, search]);
 
   useEffect(() => {
     if (cached.length > 0 && calls.length === 0) setCalls(cached);
@@ -152,20 +149,30 @@ export default function CallsScreen() {
     if (!formValues.contactName?.trim() && !formValues.phoneNumber?.trim()) return;
     setFormLoading(true);
     try {
-      const body = { ...formValues, duration: parseInt(formValues.duration || "0") };
-      const url = editId ? `${API_BASE}/api/calls/${editId}` : `${API_BASE}/api/calls`;
-      const method = editId ? "PATCH" : "POST";
-      const res = await fetchAuth(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (res.ok) {
-        setShowForm(false);
-        setEditId(null);
-        setFormValues({ direction: "entrant", status: "repondu" });
-        fetchCalls();
+      const duration = parseInt(formValues.duration || "0") || 0;
+      if (editId) {
+        // UpdateCallBody n'expose ni phoneNumber ni direction (immuables
+        // cote serveur) — seuls statut / duree / notes sont modifiables.
+        const body: UpdateCallBody = {
+          status: formValues.status as UpdateCallBody["status"],
+          duration,
+          notes: formValues.notes || undefined,
+        };
+        await updateCall(editId, body);
+      } else {
+        const body: CreateCallBody = {
+          phoneNumber: formValues.phoneNumber?.trim() || "",
+          direction: formValues.direction as CreateCallBody["direction"],
+          status: formValues.status as CreateCallBody["status"],
+          duration,
+          notes: formValues.notes || undefined,
+        };
+        await createCall(body);
       }
+      setShowForm(false);
+      setEditId(null);
+      setFormValues({ direction: "entrant", status: "repondu" });
+      fetchCalls();
     } catch {} finally { setFormLoading(false); }
   }
 
@@ -173,7 +180,7 @@ export default function CallsScreen() {
     setCalls((prev) => prev.filter((c) => c.id !== id));
     setSelected(null);
     try {
-      await fetchAuth(`${API_BASE}/api/calls/${id}`, { method: "DELETE" });
+      await deleteCall(id);
     } catch {
       fetchCalls();
     }
@@ -320,7 +327,7 @@ export default function CallsScreen() {
           renderItem={({ item }) => {
             const status = STATUS_MAP[item.status] ?? { label: item.status, color: colors.mutedForeground };
             const isMissed = item.status === "manque";
-            const isOutgoing = item.direction === "sortant" || item.direction === "outgoing";
+            const isOutgoing = item.direction === "sortant";
             return (
               <Swipeable
                 ref={(ref) => { swipeRefs.current[item.id] = ref; }}
@@ -409,7 +416,7 @@ export default function CallsScreen() {
           onEdit={() => openEdit(selected)}
           onDelete={() => handleDelete(selected.id)}
           title={selected.contactName || selected.phoneNumber || "Inconnu"}
-          subtitle={selected.direction === "entrant" || selected.direction === "entrant" ? "Appel entrant" : "Appel sortant"}
+          subtitle={selected.direction === "entrant" ? "Appel entrant" : "Appel sortant"}
           icon={selected.status === "manque" ? "phone-missed" : "phone"}
           iconColor={STATUS_MAP[selected.status]?.color}
           badge={{ label: STATUS_MAP[selected.status]?.label ?? selected.status, color: STATUS_MAP[selected.status]?.color ?? "#64748b" }}

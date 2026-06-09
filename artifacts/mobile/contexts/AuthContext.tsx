@@ -1,6 +1,14 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { setBaseUrl, setAuthTokenGetter } from "@workspace/api-client-react";
 import { API_BASE } from "@/lib/api-config";
 import { loadSessionToken, saveSessionToken, clearSessionToken } from "@/lib/secure-session";
+
+// Configure le client API genere (OpenAPI / @workspace/api-client-react) une
+// seule fois au chargement du module : meme URL de base que `fetchAuth`. Les
+// fonctions generees (listCalls, createContact, ...) recoivent un chemin
+// relatif (`/api/...`) et `customFetch` y prefixe API_BASE. Le Bearer token,
+// lui, est fourni dynamiquement via setAuthTokenGetter dans AuthProvider.
+setBaseUrl(API_BASE);
 
 interface User {
   id: number;
@@ -54,6 +62,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [apiToken, setApiToken] = useState<string | null>(null);
+
+  // Le client API genere lit le token via un getter synchrone : on garde
+  // donc une ref a jour plutot que de re-enregistrer le getter a chaque
+  // changement de token (le getter capture la ref, pas la valeur figee).
+  const apiTokenRef = useRef<string | null>(null);
+  useEffect(() => { apiTokenRef.current = apiToken; }, [apiToken]);
+  useEffect(() => {
+    setAuthTokenGetter(() => apiTokenRef.current);
+    return () => setAuthTokenGetter(null);
+  }, []);
 
   const fetchAuth = useCallback(async (url: string, options: RequestInit = {}): Promise<Response> => {
     const headers: Record<string, string> = {
