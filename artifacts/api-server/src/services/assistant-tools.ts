@@ -999,6 +999,69 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
     },
   },
   {
+    name: "create_call",
+    description:
+      "Enregistre un nouvel appel qui n'existait pas encore dans le systeme (ex: « note que j'ai appele +33... et ils n'ont pas repondu »). " +
+      "phoneNumber est obligatoire. direction valide: entrant (l'appel a ete recu), sortant (l'appel a ete passe). " +
+      "status valide: repondu (l'appel a abouti), manque (appel manque), messagerie (laisse sur la messagerie vocale). " +
+      "Optionnel: contactId (lier a un contact existant), contactName, duration (en secondes), notes. " +
+      "NECESSITE UNE CONFIRMATION EXPLICITE.",
+    parameters: {
+      type: "object",
+      properties: {
+        phoneNumber: { type: "string", description: "Numero de telephone (format international si possible, +33...)" },
+        direction: { type: "string", description: "entrant, sortant" },
+        status: { type: "string", description: "repondu, manque, messagerie" },
+        contactId: { type: "integer", description: "ID d'un contact existant a lier (optionnel)" },
+        contactName: { type: "string", description: "Nom du contact (optionnel)" },
+        duration: { type: "integer", description: "Duree de l'appel en secondes (optionnel)" },
+        notes: { type: "string", description: "Compte-rendu / notes de l'appel (optionnel)" },
+      },
+      required: ["phoneNumber", "direction", "status"],
+    },
+    fields: {
+      phoneNumber: { kind: "string", required: true, min: 3, max: 40 },
+      direction: { kind: "string", required: true, enum: ["entrant", "sortant"] as const },
+      status: { kind: "string", required: true, enum: ["repondu", "manque", "messagerie"] as const },
+      contactId: { kind: "number", integer: true, min: 1 },
+      contactName: { kind: "string", max: 200 },
+      duration: { kind: "number", integer: true, min: 0 },
+      notes: { kind: "string", max: 4000 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => {
+      const dir = a.direction === "entrant" ? "entrant" : "sortant";
+      const who = a.contactName ? `${a.contactName} (${a.phoneNumber})` : a.phoneNumber;
+      return `Enregistrer un nouvel appel ${dir} avec ${who} — statut ${a.status}${a.notes != null ? ` (note: « ${trim(a.notes, 60)} »)` : ""}`;
+    },
+    execute: async (a, { orgId, userId }) => {
+      if (a.contactId != null) {
+        const [contact] = await db.select({ id: contactsTable.id })
+          .from(contactsTable)
+          .where(and(eq(contactsTable.id, a.contactId), eq(contactsTable.organisationId, orgId)));
+        if (!contact) return { success: false, error: "Contact introuvable dans votre organisation." };
+      }
+      const [row] = await db.insert(callsTable).values({
+        organisationId: orgId,
+        phoneNumber: a.phoneNumber,
+        direction: a.direction,
+        status: a.status,
+        contactId: a.contactId ?? null,
+        contactName: a.contactName ?? null,
+        duration: a.duration ?? 0,
+        notes: a.notes ?? null,
+        createdBy: userId,
+        updatedBy: userId,
+      }).returning({ id: callsTable.id });
+      if (a.contactId != null) {
+        await db.update(contactsTable)
+          .set({ totalCalls: sql`${contactsTable.totalCalls} + 1`, lastCallAt: new Date() })
+          .where(and(eq(contactsTable.id, a.contactId), eq(contactsTable.organisationId, orgId)));
+      }
+      return { success: true, id: row.id, url: `/appels/${row.id}` };
+    },
+  },
+  {
     name: "search_knowledge_base",
     description: "Recherche dans la base de connaissances (documents importes de l'organisation) les passages pertinents pour repondre a une question. Utilise-le quand l'utilisateur pose une question dont la reponse pourrait se trouver dans ses documents.",
     parameters: {
