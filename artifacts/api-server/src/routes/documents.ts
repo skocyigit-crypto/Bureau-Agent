@@ -1614,53 +1614,6 @@ router.post("/documents/:id/ask", requireMinAgent, async (req: Request, res: Res
   }
 });
 
-// ── IN-APP PREVIEW — returns extractedText + base64 for images ──────────────
-router.get("/documents/:id/preview", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const orgId = getOrgId(req);
-    const docId = parseInt(String(req.params.id));
-    if (isNaN(docId)) { res.status(400).json({ error: "ID invalide" }); return; }
-
-    const [doc] = await db.select().from(documentsTable)
-      .where(and(eq(documentsTable.id, docId), eq(documentsTable.organisationId, orgId)));
-
-    if (!doc) { res.status(404).json({ error: "Document introuvable" }); return; }
-
-    const isImage = doc.mimeType?.startsWith("image/");
-    const isText = doc.mimeType === "text/plain" || doc.mimeType === "application/json" || doc.mimeType === "text/xml" || doc.mimeType === "application/xml";
-
-    res.json({
-      id: doc.id,
-      fileName: doc.originalName,
-      mimeType: doc.mimeType,
-      fileSize: doc.fileSize,
-      entityType: doc.entityType,
-      entityId: doc.entityId,
-      category: doc.category,
-      description: doc.description,
-      tags: doc.tags,
-      aiProcessed: doc.aiProcessed,
-      aiAnalysis: doc.aiAnalysis,
-      extractedText: doc.extractedText ?? null,
-      extractedData: doc.extractedData ?? null,
-      // For images: return the base64 so mobile can display inline
-      imageBase64: isImage && doc.fileContent ? `data:${doc.mimeType};base64,${doc.fileContent}` : null,
-      // For plain text files: also return decoded text content
-      rawText: isText && doc.fileContent ? Buffer.from(doc.fileContent, "base64").toString("utf-8").slice(0, 500000) : null,
-      status: doc.status,
-      scanVerdict: doc.scanVerdict,
-      scanEngine: doc.scanEngine,
-      scanDetail: doc.scanDetail,
-      scannedAt: doc.scannedAt,
-      createdAt: doc.createdAt,
-      updatedAt: doc.updatedAt,
-    });
-  } catch (err: any) {
-    logger.error({ err }, "Document preview error");
-    res.status(500).json({ error: "Erreur lors de la preview" });
-  }
-});
-
 // ── SEARCH ACROSS ENTITY TYPE ────────────────────────────────────────────────
 router.get("/documents/by-source", requireMinAgent, async (req: Request, res: Response): Promise<void> => {
   try {
