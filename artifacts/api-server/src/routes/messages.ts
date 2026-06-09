@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, asc, ilike, or, sql, and, lt } from "drizzle-orm";
-import { db, messagesTable } from "@workspace/db";
+import { db, messagesTable, contactsTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { withDbRetry } from "../lib/db-retry";
 import {
@@ -96,7 +96,22 @@ router.post("/messages", async (req, res): Promise<void> => {
   const userId = req.session?.userId;
 
   try {
-    const [message] = await db.insert(messagesTable).values({ ...parsed.data, organisationId: orgId, createdBy: userId, updatedBy: userId }).returning();
+    // Si le message est lie a un contact existant mais qu'aucun nom n'a ete
+    // saisi, on resout le nom d'affichage depuis le contact (scope a l'org)
+    // pour eviter d'afficher "Inconnu" cote web et mobile.
+    const values = { ...parsed.data, organisationId: orgId, createdBy: userId, updatedBy: userId };
+    if (values.contactId && !values.contactName?.trim()) {
+      const [contact] = await db
+        .select({ firstName: contactsTable.firstName, lastName: contactsTable.lastName })
+        .from(contactsTable)
+        .where(and(eq(contactsTable.id, values.contactId), eq(contactsTable.organisationId, orgId)));
+      if (contact) {
+        const displayName = `${contact.firstName} ${contact.lastName}`.trim();
+        if (displayName) values.contactName = displayName;
+      }
+    }
+
+    const [message] = await db.insert(messagesTable).values(values).returning();
 
     // Notification WhatsApp aux membres opt-in (kind="message"). On exclut
     // le createur du message. On limite le contenu a 140 caracteres pour
