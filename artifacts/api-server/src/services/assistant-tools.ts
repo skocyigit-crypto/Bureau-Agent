@@ -5,6 +5,7 @@ import {
 } from "@workspace/db/schema";
 import { eq, and, desc, gte, lte, sql, ilike, or } from "drizzle-orm";
 import { ensureUnaccentExtension, accentInsensitiveIlike, stripAccents } from "../helpers/accent-search";
+import { RELEVANCE, normText, prepareQuery, scorePhoneMatch, rankByRelevance } from "../helpers/relevance";
 import { sendEmail } from "./email";
 import { sendSms as providerSendSms } from "./telephony-providers";
 import { generateImage } from "@workspace/integrations-gemini-ai/image";
@@ -255,42 +256,32 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
           accentInsensitiveIlike(contactsTable.phone, like, useUnaccent),
         )!,
       )).limit(100);
-      const nq = stripAccents(query).toLowerCase();
-      const nqDigits = query.replace(/\D/g, "");
-      const norm = (s: unknown) => stripAccents(String(s ?? "")).toLowerCase().trim();
+      const { nq, nqDigits } = prepareQuery(query);
       const scoreContact = (r: typeof rows[number]): number => {
-        const first = norm(r.firstName);
-        const last = norm(r.lastName);
+        const first = normText(r.firstName);
+        const last = normText(r.lastName);
         const full = `${first} ${last}`.trim();
-        const company = norm(r.company);
-        const email = norm(r.email);
+        const company = normText(r.company);
+        const email = normText(r.email);
         let score = 0;
-        if (full === nq || `${last} ${first}`.trim() === nq) score = Math.max(score, 100);
-        if (first === nq || last === nq || email === nq) score = Math.max(score, 95);
-        if (company === nq) score = Math.max(score, 85);
-        if (first.startsWith(nq) || last.startsWith(nq)) score = Math.max(score, 70);
-        if (full.startsWith(nq) || company.startsWith(nq)) score = Math.max(score, 60);
-        if (nqDigits.length >= 3) {
-          const phoneDigits = String(r.phone ?? "").replace(/\D/g, "");
-          if (phoneDigits === nqDigits) score = Math.max(score, 98);
-          else if (phoneDigits.includes(nqDigits)) score = Math.max(score, 75);
-        }
-        if (full.includes(nq) || company.includes(nq) || email.includes(nq)) score = Math.max(score, 40);
+        if (full === nq || `${last} ${first}`.trim() === nq) score = Math.max(score, RELEVANCE.EXACT);
+        if (first === nq || last === nq || email === nq) score = Math.max(score, RELEVANCE.FIELD_EXACT);
+        if (company === nq) score = Math.max(score, RELEVANCE.COMPANY_EXACT);
+        if (first.startsWith(nq) || last.startsWith(nq)) score = Math.max(score, RELEVANCE.PREFIX);
+        if (full.startsWith(nq) || company.startsWith(nq)) score = Math.max(score, RELEVANCE.FULL_PREFIX);
+        score = Math.max(score, scorePhoneMatch(r.phone, nqDigits));
+        if (full.includes(nq) || company.includes(nq) || email.includes(nq)) score = Math.max(score, RELEVANCE.FIELD_SUBSTRING);
         return score;
       };
-      const ranked = rows
-        .map((r) => ({ r, score: scoreContact(r) }))
-        .sort((x, y) => (y.score - x.score) || (y.r.createdAt.getTime() - x.r.createdAt.getTime()))
-        .slice(0, limit)
-        .map(({ r, score }) => ({
-          id: r.id,
-          firstName: r.firstName,
-          lastName: r.lastName,
-          company: r.company,
-          email: r.email,
-          phone: r.phone,
-          pertinence: score,
-        }));
+      const ranked = rankByRelevance(rows, scoreContact, { limit }).map(({ row: r, score }) => ({
+        id: r.id,
+        firstName: r.firstName,
+        lastName: r.lastName,
+        company: r.company,
+        email: r.email,
+        phone: r.phone,
+        pertinence: score,
+      }));
       return { count: ranked.length, contacts: ranked };
     },
   },
@@ -459,30 +450,25 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
         status: tasksTable.status, priority: tasksTable.priority, dueDate: tasksTable.dueDate,
         createdAt: tasksTable.createdAt,
       }).from(tasksTable).where(and(...conds)).limit(100);
-      const nq = stripAccents(query).toLowerCase();
-      const norm = (s: unknown) => stripAccents(String(s ?? "")).toLowerCase().trim();
+      const { nq } = prepareQuery(query);
       const scoreTask = (r: typeof rows[number]): number => {
-        const title = norm(r.title);
-        const desc = norm(r.description);
+        const title = normText(r.title);
+        const desc = normText(r.description);
         let score = 0;
-        if (title === nq) score = Math.max(score, 100);
-        if (title.startsWith(nq)) score = Math.max(score, 70);
-        if (title.includes(nq)) score = Math.max(score, 50);
-        if (desc.includes(nq)) score = Math.max(score, 30);
+        if (title === nq) score = Math.max(score, RELEVANCE.EXACT);
+        if (title.startsWith(nq)) score = Math.max(score, RELEVANCE.PREFIX);
+        if (title.includes(nq)) score = Math.max(score, RELEVANCE.SUBSTRING);
+        if (desc.includes(nq)) score = Math.max(score, RELEVANCE.DESC_SUBSTRING);
         return score;
       };
-      const ranked = rows
-        .map((r) => ({ r, score: scoreTask(r) }))
-        .sort((x, y) => (y.score - x.score) || (y.r.createdAt.getTime() - x.r.createdAt.getTime()))
-        .slice(0, limit)
-        .map(({ r, score }) => ({
-          id: r.id,
-          title: r.title,
-          status: r.status,
-          priority: r.priority,
-          dueDate: r.dueDate,
-          pertinence: score,
-        }));
+      const ranked = rankByRelevance(rows, scoreTask, { limit }).map(({ row: r, score }) => ({
+        id: r.id,
+        title: r.title,
+        status: r.status,
+        priority: r.priority,
+        dueDate: r.dueDate,
+        pertinence: score,
+      }));
       return { count: ranked.length, tasks: ranked };
     },
   },
@@ -903,38 +889,33 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
         type: calendarEventsTable.type, startDate: calendarEventsTable.startDate,
         endDate: calendarEventsTable.endDate,
       }).from(calendarEventsTable).where(and(...conds)).limit(100);
-      const nq = stripAccents(query).toLowerCase();
-      const norm = (s: unknown) => stripAccents(String(s ?? "")).toLowerCase().trim();
+      const { nq } = prepareQuery(query);
       const now = Date.now();
       const scoreEvent = (r: typeof rows[number]): number => {
-        const title = norm(r.title);
-        const desc = norm(r.description);
-        const loc = norm(r.location);
+        const title = normText(r.title);
+        const desc = normText(r.description);
+        const loc = normText(r.location);
         let score = 0;
-        if (title === nq) score = Math.max(score, 100);
-        if (title.startsWith(nq)) score = Math.max(score, 70);
-        if (title.includes(nq)) score = Math.max(score, 50);
-        if (loc.includes(nq)) score = Math.max(score, 40);
-        if (desc.includes(nq)) score = Math.max(score, 30);
+        if (title === nq) score = Math.max(score, RELEVANCE.EXACT);
+        if (title.startsWith(nq)) score = Math.max(score, RELEVANCE.PREFIX);
+        if (title.includes(nq)) score = Math.max(score, RELEVANCE.SUBSTRING);
+        if (loc.includes(nq)) score = Math.max(score, RELEVANCE.FIELD_SUBSTRING);
+        if (desc.includes(nq)) score = Math.max(score, RELEVANCE.DESC_SUBSTRING);
         return score;
       };
-      const ranked = rows
-        .map((r) => ({ r, score: scoreEvent(r) }))
-        .sort((x, y) => {
-          if (y.score !== x.score) return y.score - x.score;
-          // Soonest upcoming first (smallest absolute distance to now).
-          return Math.abs(x.r.startDate.getTime() - now) - Math.abs(y.r.startDate.getTime() - now);
-        })
-        .slice(0, limit)
-        .map(({ r, score }) => ({
-          id: r.id,
-          title: r.title,
-          location: r.location,
-          type: r.type,
-          startDate: r.startDate,
-          endDate: r.endDate,
-          pertinence: score,
-        }));
+      const ranked = rankByRelevance(rows, scoreEvent, {
+        limit,
+        // Soonest upcoming first (smallest absolute distance to now).
+        tiebreak: (a, b) => Math.abs(a.startDate.getTime() - now) - Math.abs(b.startDate.getTime() - now),
+      }).map(({ row: r, score }) => ({
+        id: r.id,
+        title: r.title,
+        location: r.location,
+        type: r.type,
+        startDate: r.startDate,
+        endDate: r.endDate,
+        pertinence: score,
+      }));
       return { count: ranked.length, events: ranked };
     },
   },
@@ -1368,36 +1349,26 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
           accentInsensitiveIlike(callsTable.phoneNumber, like, useUnaccent),
         )!,
       )).limit(100);
-      const nq = stripAccents(query).toLowerCase();
-      const nqDigits = query.replace(/\D/g, "");
-      const norm = (s: unknown) => stripAccents(String(s ?? "")).toLowerCase().trim();
+      const { nq, nqDigits } = prepareQuery(query);
       const scoreCall = (r: typeof rows[number]): number => {
-        const name = norm(r.contactName);
+        const name = normText(r.contactName);
         let score = 0;
-        if (name && name === nq) score = Math.max(score, 100);
-        if (name && name.startsWith(nq)) score = Math.max(score, 70);
-        if (name && name.includes(nq)) score = Math.max(score, 50);
-        if (nqDigits.length >= 3) {
-          const phoneDigits = String(r.phoneNumber ?? "").replace(/\D/g, "");
-          if (phoneDigits && phoneDigits === nqDigits) score = Math.max(score, 98);
-          else if (phoneDigits && phoneDigits.includes(nqDigits)) score = Math.max(score, 75);
-        }
+        if (name && name === nq) score = Math.max(score, RELEVANCE.EXACT);
+        if (name && name.startsWith(nq)) score = Math.max(score, RELEVANCE.PREFIX);
+        if (name && name.includes(nq)) score = Math.max(score, RELEVANCE.SUBSTRING);
+        score = Math.max(score, scorePhoneMatch(r.phoneNumber, nqDigits));
         return score;
       };
-      const ranked = rows
-        .map((r) => ({ r, score: scoreCall(r) }))
-        .sort((x, y) => (y.score - x.score) || (y.r.createdAt.getTime() - x.r.createdAt.getTime()))
-        .slice(0, limit)
-        .map(({ r, score }) => ({
-          id: r.id,
-          direction: r.direction,
-          phoneNumber: r.phoneNumber,
-          contactName: r.contactName,
-          status: r.status,
-          duration: r.duration,
-          createdAt: r.createdAt,
-          pertinence: score,
-        }));
+      const ranked = rankByRelevance(rows, scoreCall, { limit }).map(({ row: r, score }) => ({
+        id: r.id,
+        direction: r.direction,
+        phoneNumber: r.phoneNumber,
+        contactName: r.contactName,
+        status: r.status,
+        duration: r.duration,
+        createdAt: r.createdAt,
+        pertinence: score,
+      }));
       return { count: ranked.length, calls: ranked };
     },
   },
