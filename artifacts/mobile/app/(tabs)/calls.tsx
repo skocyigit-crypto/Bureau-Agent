@@ -22,7 +22,9 @@ import {
   createCall,
   updateCall,
   deleteCall,
+  listContacts,
   type Call,
+  type Contact,
   type CreateCallBody,
   type UpdateCallBody,
   type ListCallsParams,
@@ -56,16 +58,29 @@ const STATUS_OPTIONS = [
   { value: "messagerie", label: "Messagerie" },
 ];
 
-// A la creation: pas de champ "Nom du contact" car le serveur derive ce nom
-// du contact lie (contactId) — un texte libre serait ignore. Numero et
-// direction sont editables uniquement ici.
-const CREATE_FIELDS = [
-  { key: "phoneNumber", label: "Numero de telephone", type: "phone" as const, required: true },
-  { key: "direction", label: "Direction", type: "select" as const, options: DIRECTION_OPTIONS },
-  { key: "status", label: "Statut", type: "select" as const, options: STATUS_OPTIONS },
-  { key: "duration", label: "Duree (secondes)" },
-  { key: "notes", label: "Notes", type: "multiline" as const },
-];
+type ContactOption = { id: number; name: string; phone?: string | null };
+
+// A la creation on propose, comme sur le web et le flux message (Tâche #265),
+// soit de choisir un contact existant (-> contactId + pré-remplissage du
+// téléphone), soit de saisir un nouveau numero a la main. Le serveur derive le
+// nom du contact du contactId lie quand il est fourni.
+function buildCreateFields(contactOptions: ContactOption[]) {
+  return [
+    {
+      key: "contactId",
+      label: "Contact existant",
+      type: "contact" as const,
+      contactOptions,
+      linkedPhoneKey: "phoneNumber",
+      placeholder: "Rechercher un contact...",
+    },
+    { key: "phoneNumber", label: "Numero de telephone", type: "phone" as const, required: true },
+    { key: "direction", label: "Direction", type: "select" as const, options: DIRECTION_OPTIONS },
+    { key: "status", label: "Statut", type: "select" as const, options: STATUS_OPTIONS },
+    { key: "duration", label: "Duree (secondes)" },
+    { key: "notes", label: "Notes", type: "multiline" as const },
+  ];
+}
 
 // A l'edition: numero et direction sont immuables cote serveur (UpdateCallBody
 // ne les expose pas) -> affiches en lecture seule pour le contexte. Seuls
@@ -94,7 +109,29 @@ export default function CallsScreen() {
   const [formLoading, setFormLoading] = useState(false);
   const [selected, setSelected] = useState<Call | null>(null);
   const [editId, setEditId] = useState<number | null>(null);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const contactsLoadedRef = useRef(false);
   const swipeRefs = useRef<Record<number, Swipeable | null>>({});
+
+  const contactOptions: ContactOption[] = contacts.map((c) => ({
+    id: c.id,
+    name: `${c.firstName} ${c.lastName}`.trim() || c.phone,
+    phone: c.phone,
+  }));
+
+  // Charge la liste des contacts (une fois) pour alimenter le selecteur du
+  // formulaire d'appel. Best-effort : si ca echoue, l'utilisateur peut
+  // toujours saisir un numero a la main.
+  const loadContacts = useCallback(async () => {
+    if (contactsLoadedRef.current) return;
+    contactsLoadedRef.current = true;
+    try {
+      const data = await listContacts({ limit: 100, sortBy: "lastName", sortOrder: "asc" });
+      setContacts(data.contacts ?? []);
+    } catch {
+      contactsLoadedRef.current = false;
+    }
+  }, []);
 
   const { cached, isFromCache, updateCache } = useOfflineCache<Call[]>("calls_list", []);
 
@@ -174,7 +211,9 @@ export default function CallsScreen() {
         };
         await updateCall(editId, body);
       } else {
+        const contactId = formValues.contactId ? parseInt(formValues.contactId, 10) : null;
         const body: CreateCallBody = {
+          contactId: Number.isFinite(contactId) ? contactId : null,
           phoneNumber: formValues.phoneNumber?.trim() || "",
           direction: formValues.direction as CreateCallBody["direction"],
           status: formValues.status as CreateCallBody["status"],
@@ -409,14 +448,14 @@ export default function CallsScreen() {
         />
       )}
 
-      <FAB icon="plus" onPress={() => { setEditId(null); setFormValues({ direction: "entrant", status: "repondu" }); setShowForm(true); }} />
+      <FAB icon="plus" onPress={() => { setEditId(null); setFormValues({ direction: "entrant", status: "repondu" }); loadContacts(); setShowForm(true); }} />
 
       <FormModal
         visible={showForm}
         onClose={() => { setShowForm(false); setEditId(null); }}
         onSubmit={handleSubmit}
         title={editId ? "Modifier l'appel" : "Nouvel appel"}
-        fields={editId ? EDIT_FIELDS : CREATE_FIELDS}
+        fields={editId ? EDIT_FIELDS : buildCreateFields(contactOptions)}
         values={formValues}
         onChange={(k, v) => setFormValues((p) => ({ ...p, [k]: v }))}
         loading={formLoading}
