@@ -479,17 +479,25 @@ export default function CallsScreen() {
             { label: "Date", value: new Date(selected.createdAt).toLocaleString("fr-FR"), icon: "calendar" },
             ...(selected.notes ? [{ label: "Notes", value: selected.notes, icon: "file-text" as const }] : []),
           ]}
-          extraActions={[{
-            label: "Projet",
-            icon: "folder",
-            color: "#6366f1",
-            onPress: async () => {
-              try {
-                const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: `Appel - ${selected.contactName || selected.phoneNumber}`, status: "planifie", priority: "moyenne", progress: 0, notes: `Projet créé depuis un appel de ${selected.contactName || selected.phoneNumber}` }) });
-                if (res.ok) { setSelected(null); router.push("/projets" as any); }
-              } catch {}
+          extraActions={[
+            ...(selected.contactId ? [{
+              label: "Voir le contact",
+              icon: "user" as const,
+              color: "#22c55e",
+              onPress: () => { const id = selected.contactId; setSelected(null); router.push(`/contact-detail?id=${id}` as any); },
+            }] : []),
+            {
+              label: "Projet",
+              icon: "folder" as const,
+              color: "#6366f1",
+              onPress: async () => {
+                try {
+                  const res = await fetchAuth(`${API_BASE}/api/projets`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: `Appel - ${selected.contactName || selected.phoneNumber}`, status: "planifie", priority: "moyenne", progress: 0, notes: `Projet créé depuis un appel de ${selected.contactName || selected.phoneNumber}` }) });
+                  if (res.ok) { setSelected(null); router.push("/projets" as any); }
+                } catch {}
+              },
             },
-          }]}
+          ]}
         />
       ) : null}
     </View>
