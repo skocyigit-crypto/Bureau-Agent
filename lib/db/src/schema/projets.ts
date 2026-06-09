@@ -1,4 +1,5 @@
 import { pgTable, serial, integer, text, timestamp, numeric, jsonb, index, doublePrecision } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { organisationsTable } from "./organisations";
 import { contactsTable } from "./contacts";
 
@@ -37,6 +38,14 @@ export const projetsTable = pgTable("projets", {
   index("projets_org_id_idx").on(table.organisationId),
   index("projets_status_idx").on(table.status),
   index("projets_contact_id_idx").on(table.contactId),
+  // Accent-insensitive trigram search index used by the Commandant chat
+  // (find_project) and smart search. Requires `pg_trgm` + `unaccent` and the
+  // IMMUTABLE `f_unaccent()` wrapper (see lib/db/scripts/ensure-search-extensions.sql).
+  index("projets_search_trgm_idx").using(
+    "gin",
+    sql`f_unaccent(${table.title}) gin_trgm_ops`,
+    sql`f_unaccent(coalesce(${table.description}, '')) gin_trgm_ops`,
+  ),
 ]);
 
 export type Projet = typeof projetsTable.$inferSelect;

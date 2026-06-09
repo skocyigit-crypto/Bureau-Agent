@@ -1,7 +1,7 @@
 import { db } from "@workspace/db";
 import {
   contactsTable, tasksTable, prospectsTable, calendarEventsTable,
-  callsTable, messagesTable, facturesClientTable,
+  callsTable, messagesTable, facturesClientTable, projetsTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, gte, lte, sql, ilike, or } from "drizzle-orm";
 import { ensureUnaccentExtension, accentInsensitiveIlike, stripAccents } from "../helpers/accent-search";
@@ -579,6 +579,156 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
         .returning({ id: tasksTable.id, status: tasksTable.status });
       if (!row) return { success: false, error: "Tache introuvable dans votre organisation." };
       return { success: true, id: row.id, status: row.status, url: "/taches" };
+    },
+  },
+  // ---------- PROJETS / CHANTIERS ----------
+  {
+    name: "find_project",
+    description:
+      "Recherche un projet ou chantier par titre, description, nom du client, societe du client ou " +
+      "adresse, et retourne une liste classee des meilleures correspondances avec leur id. Lecture seule. " +
+      "A utiliser pour resoudre le nom prononce par l'utilisateur (ex: « mets a jour le chantier cuisine " +
+      "Dupont ») en id avant d'appeler update_project. Retourne plusieurs candidats si ambigu — demande " +
+      "confirmation a l'utilisateur avant de modifier.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Mots du titre, description, client ou adresse a rechercher" },
+        status: { type: "string", description: "Filtre optionnel: planifie, en_cours, en_pause, termine, annule" },
+        limit: { type: "integer", description: "Nombre max de correspondances (1-20, defaut 5)" },
+      },
+      required: ["query"],
+    },
+    fields: {
+      query: { kind: "string", required: true, min: 1, max: 200 },
+      status: { kind: "string", enum: ["planifie", "en_cours", "en_pause", "termine", "annule"] as const },
+      limit: { kind: "number", integer: true, min: 1, max: 20 },
+    },
+    execute: async (a, { orgId }) => {
+      const query = String(a.query).trim();
+      const limit = Math.min((a.limit as number) ?? 5, 20);
+      const useUnaccent = await ensureUnaccentExtension();
+      const like = `%${query}%`;
+      const conds = [
+        eq(projetsTable.organisationId, orgId),
+        or(
+          accentInsensitiveIlike(projetsTable.title, like, useUnaccent),
+          accentInsensitiveIlike(projetsTable.description, like, useUnaccent),
+          accentInsensitiveIlike(projetsTable.clientName, like, useUnaccent),
+          accentInsensitiveIlike(projetsTable.clientCompany, like, useUnaccent),
+          accentInsensitiveIlike(projetsTable.address, like, useUnaccent),
+        )!,
+      ];
+      if (a.status) conds.push(eq(projetsTable.status, a.status as string));
+      const rows = await db.select({
+        id: projetsTable.id, title: projetsTable.title, description: projetsTable.description,
+        clientName: projetsTable.clientName, clientCompany: projetsTable.clientCompany,
+        address: projetsTable.address, status: projetsTable.status, priority: projetsTable.priority,
+        progress: projetsTable.progress, createdAt: projetsTable.createdAt,
+      }).from(projetsTable).where(and(...conds)).limit(100);
+      const nq = stripAccents(query).toLowerCase();
+      const norm = (s: unknown) => stripAccents(String(s ?? "")).toLowerCase().trim();
+      const scoreProject = (r: typeof rows[number]): number => {
+        const title = norm(r.title);
+        const client = norm(r.clientName);
+        const company = norm(r.clientCompany);
+        const addr = norm(r.address);
+        const desc = norm(r.description);
+        let score = 0;
+        if (title === nq) score = Math.max(score, 100);
+        if (title.startsWith(nq)) score = Math.max(score, 70);
+        if (title.includes(nq)) score = Math.max(score, 50);
+        if (client.includes(nq)) score = Math.max(score, 45);
+        if (company.includes(nq)) score = Math.max(score, 42);
+        if (addr.includes(nq)) score = Math.max(score, 40);
+        if (desc.includes(nq)) score = Math.max(score, 30);
+        return score;
+      };
+      const ranked = rows
+        .map((r) => ({ r, score: scoreProject(r) }))
+        .sort((x, y) => (y.score - x.score) || (y.r.createdAt.getTime() - x.r.createdAt.getTime()))
+        .slice(0, limit)
+        .map(({ r, score }) => ({
+          id: r.id,
+          title: r.title,
+          clientName: r.clientName,
+          clientCompany: r.clientCompany,
+          address: r.address,
+          status: r.status,
+          priority: r.priority,
+          progress: r.progress,
+          pertinence: score,
+        }));
+      return { count: ranked.length, projects: ranked };
+    },
+  },
+  {
+    name: "update_project",
+    description:
+      "Met a jour un projet ou chantier existant: statut, priorite, progression, dates ou notes. " +
+      "Statut valide: planifie, en_cours, en_pause, termine, annule. Priorite: basse, moyenne, haute. " +
+      "Progression: entier 0-100. Fournir l'id du projet et au moins un champ a modifier. " +
+      "NECESSITE UNE CONFIRMATION EXPLICITE.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "integer", description: "ID du projet a modifier" },
+        status: { type: "string", description: "planifie, en_cours, en_pause, termine, annule" },
+        priority: { type: "string", description: "basse, moyenne, haute" },
+        progress: { type: "integer", description: "Progression 0-100" },
+        startDate: { type: "string", description: "Date de debut, ISO 8601 (optionnel)" },
+        endDate: { type: "string", description: "Date de fin prevue, ISO 8601 (optionnel)" },
+        notes: { type: "string", description: "Notes du projet (optionnel)" },
+      },
+      required: ["id"],
+    },
+    fields: {
+      id: { kind: "number", required: true, integer: true, min: 1 },
+      status: { kind: "string", enum: ["planifie", "en_cours", "en_pause", "termine", "annule"] as const },
+      priority: { kind: "string", enum: ["basse", "moyenne", "haute"] as const },
+      progress: { kind: "number", integer: true, min: 0, max: 100 },
+      startDate: { kind: "iso-date" },
+      endDate: { kind: "iso-date" },
+      notes: { kind: "string", max: 4000 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => {
+      const parts: string[] = [];
+      if (a.status) parts.push(`statut → ${a.status}`);
+      if (a.priority) parts.push(`priorite → ${a.priority}`);
+      if (a.progress != null) parts.push(`progression → ${a.progress}%`);
+      if (a.startDate) parts.push(`debut → ${a.startDate}`);
+      if (a.endDate) parts.push(`fin → ${a.endDate}`);
+      if (a.notes != null) parts.push("notes mises a jour");
+      return `Mettre a jour le projet #${a.id}${parts.length ? ` (${parts.join(", ")})` : ""}`;
+    },
+    execute: async (a, { orgId }) => {
+      const updates: Record<string, unknown> = { updatedAt: new Date() };
+      if (a.status != null) {
+        updates.status = a.status;
+        if (a.status === "termine") updates.actualEndDate = new Date();
+      }
+      if (a.priority != null) updates.priority = a.priority;
+      if (a.progress != null) updates.progress = Math.min(100, Math.max(0, Number(a.progress)));
+      if (a.notes != null) updates.notes = a.notes;
+      if (a.startDate != null) {
+        const d = new Date(a.startDate);
+        if (Number.isNaN(d.getTime())) return { success: false, error: "startDate invalide (utilisez ISO 8601)." };
+        updates.startDate = d;
+      }
+      if (a.endDate != null) {
+        const d = new Date(a.endDate);
+        if (Number.isNaN(d.getTime())) return { success: false, error: "endDate invalide (utilisez ISO 8601)." };
+        updates.endDate = d;
+      }
+      if (Object.keys(updates).length <= 1) {
+        return { success: false, error: "Aucune modification fournie (statut, priorite, progression, dates ou notes)." };
+      }
+      const [row] = await db.update(projetsTable).set(updates)
+        .where(and(eq(projetsTable.id, a.id), eq(projetsTable.organisationId, orgId)))
+        .returning({ id: projetsTable.id, status: projetsTable.status, progress: projetsTable.progress });
+      if (!row) return { success: false, error: "Projet introuvable dans votre organisation." };
+      return { success: true, id: row.id, status: row.status, progress: row.progress, url: "/projets" };
     },
   },
   // ---------- PROSPECTS ----------
