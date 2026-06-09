@@ -21,8 +21,10 @@ import {
   createMessage,
   deleteMessage,
   getMessage,
+  listContacts,
   listMessages,
   updateMessage,
+  type Contact,
   type CreateMessageBody,
   type CreateMessageBodyPriority,
   type CreateMessageBodyType,
@@ -54,32 +56,53 @@ const PRIORITY_COLORS: Record<string, string> = {
   basse: "#22c55e",
 };
 
-const FORM_FIELDS = [
-  { key: "contactName", label: "Nom du contact", required: true },
-  { key: "phoneNumber", label: "Telephone", type: "phone" as const, required: true },
-  {
-    key: "type", label: "Type", type: "select" as const, options: [
-      { value: "messagerie_vocale", label: "Messagerie vocale" },
-      { value: "note", label: "Note" },
-      { value: "rappel", label: "Rappel" },
-    ],
-  },
-  {
-    key: "priority", label: "Priorite", type: "select" as const, options: [
-      { value: "basse", label: "Basse" },
-      { value: "moyenne", label: "Moyenne" },
-      { value: "haute", label: "Haute" },
-    ],
-  },
-  {
-    key: "content",
-    label: "Contenu",
-    type: "multiline" as const,
-    required: true,
-    inlineSuggest: "message_content" as const,
-    inlineSuggestContactKey: "contactName",
-  },
-];
+type ContactOption = { id: number; name: string; phone?: string | null };
+
+// Le formulaire d'édition ne touche pas au contact (l'API n'accepte que
+// content/priority/isRead en update). À la création on propose, comme sur le
+// web, soit de choisir un contact existant (-> contactId + pré-remplissage du
+// téléphone), soit de saisir un nouveau nom + téléphone (Tâche #262).
+function buildFormFields(isEdit: boolean, contactOptions: ContactOption[]) {
+  return [
+    ...(isEdit
+      ? []
+      : [
+          {
+            key: "contactId",
+            label: "Contact existant",
+            type: "contact" as const,
+            contactOptions,
+            linkedPhoneKey: "phoneNumber",
+            linkedNameKey: "contactName",
+            placeholder: "Rechercher un contact...",
+          },
+        ]),
+    { key: "contactName", label: "Nom du contact" },
+    { key: "phoneNumber", label: "Telephone", type: "phone" as const, required: true },
+    {
+      key: "type", label: "Type", type: "select" as const, options: [
+        { value: "messagerie_vocale", label: "Messagerie vocale" },
+        { value: "note", label: "Note" },
+        { value: "rappel", label: "Rappel" },
+      ],
+    },
+    {
+      key: "priority", label: "Priorite", type: "select" as const, options: [
+        { value: "basse", label: "Basse" },
+        { value: "moyenne", label: "Moyenne" },
+        { value: "haute", label: "Haute" },
+      ],
+    },
+    {
+      key: "content",
+      label: "Contenu",
+      type: "multiline" as const,
+      required: true,
+      inlineSuggest: "message_content" as const,
+      inlineSuggestContactKey: "contactName",
+    },
+  ];
+}
 
 export default function MessagesScreen() {
   const colors = useColors();
@@ -102,7 +125,29 @@ export default function MessagesScreen() {
   const [formLoading, setFormLoading] = useState(false);
   const [selected, setSelected] = useState<Message | null>(null);
   const [editId, setEditId] = useState<number | null>(null);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const contactsLoadedRef = useRef(false);
   const swipeRefs = useRef<Record<number, Swipeable | null>>({});
+
+  const contactOptions: ContactOption[] = contacts.map((c) => ({
+    id: c.id,
+    name: `${c.firstName} ${c.lastName}`.trim() || c.phone,
+    phone: c.phone,
+  }));
+
+  // Charge la liste des contacts (une fois) pour alimenter le sélecteur du
+  // formulaire de message. Best-effort : si ça échoue, l'utilisateur peut
+  // toujours saisir un nom + téléphone à la main.
+  const loadContacts = useCallback(async () => {
+    if (contactsLoadedRef.current) return;
+    contactsLoadedRef.current = true;
+    try {
+      const data = await listContacts({ limit: 100, sortBy: "lastName", sortOrder: "asc" });
+      setContacts(data.contacts ?? []);
+    } catch {
+      contactsLoadedRef.current = false;
+    }
+  }, []);
 
   const { cached, isFromCache, updateCache } = useOfflineCache<Message[]>("messages_list", []);
 
@@ -193,7 +238,9 @@ export default function MessagesScreen() {
         };
         await updateMessage(editId, body);
       } else {
+        const contactId = formValues.contactId ? parseInt(formValues.contactId, 10) : null;
         const body: CreateMessageBody = {
+          contactId: Number.isFinite(contactId) ? contactId : null,
           contactName: formValues.contactName?.trim() || null,
           phoneNumber: formValues.phoneNumber || "",
           content: formValues.content,
@@ -424,14 +471,14 @@ export default function MessagesScreen() {
         />
       )}
 
-      <FAB onPress={() => { setEditId(null); setFormValues({ type: "note", priority: "moyenne", phoneNumber: "" }); setShowForm(true); }} />
+      <FAB onPress={() => { setEditId(null); setFormValues({ type: "note", priority: "moyenne", phoneNumber: "" }); loadContacts(); setShowForm(true); }} />
 
       <FormModal
         visible={showForm}
         onClose={() => { setShowForm(false); setEditId(null); }}
         onSubmit={handleSubmit}
         title={editId ? "Modifier le message" : "Nouveau message"}
-        fields={FORM_FIELDS}
+        fields={buildFormFields(editId !== null, contactOptions)}
         values={formValues}
         onChange={(k, v) => setFormValues((p) => ({ ...p, [k]: v }))}
         loading={formLoading}

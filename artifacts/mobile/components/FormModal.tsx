@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import React from "react";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -23,8 +23,18 @@ interface FieldConfig {
   key: string;
   label: string;
   placeholder?: string;
-  type?: "text" | "email" | "phone" | "multiline" | "select";
+  type?: "text" | "email" | "phone" | "multiline" | "select" | "contact";
   options?: { value: string; label: string }[];
+  /**
+   * For `type: "contact"` — the list of selectable existing contacts. The
+   * field value (`values[key]`) holds the picked contact id as a string
+   * ("" means none / typing a new contact instead).
+   */
+  contactOptions?: { id: number; name: string; phone?: string | null }[];
+  /** For `type: "contact"` — sibling field key that receives the picked contact's phone. */
+  linkedPhoneKey?: string;
+  /** For `type: "contact"` — sibling field key that receives the picked contact's name. */
+  linkedNameKey?: string;
   required?: boolean;
   /**
    * When true the field is shown for context only and cannot be edited.
@@ -147,6 +157,23 @@ interface FormFieldProps {
 function FormField({ field, values, onChange }: FormFieldProps) {
   const colors = useColors();
   const value = values[field.key] || "";
+  const [contactQuery, setContactQuery] = useState("");
+  const contactOptions = field.contactOptions ?? [];
+  const selectedContact = useMemo(
+    () => contactOptions.find((c) => String(c.id) === value),
+    [contactOptions, value],
+  );
+  const filteredContacts = useMemo(() => {
+    const q = contactQuery.trim().toLowerCase();
+    if (!q) return contactOptions.slice(0, 6);
+    return contactOptions
+      .filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          (c.phone ?? "").toLowerCase().includes(q),
+      )
+      .slice(0, 6);
+  }, [contactOptions, contactQuery]);
   const titleVal = field.inlineSuggestTitleKey ? values[field.inlineSuggestTitleKey] : null;
   const contactVal = field.inlineSuggestContactKey ? values[field.inlineSuggestContactKey] : null;
 
@@ -205,7 +232,103 @@ function FormField({ field, values, onChange }: FormFieldProps) {
         {field.label}
         {field.required ? " *" : ""}
       </Text>
-      {field.type === "select" ? (
+      {field.type === "contact" ? (
+        selectedContact ? (
+          <View
+            style={[
+              styles.contactSelected,
+              { backgroundColor: colors.muted, borderColor: colors.border },
+            ]}
+          >
+            <View style={{ flex: 1 }}>
+              <Text
+                style={[styles.contactSelectedName, { color: colors.foreground }]}
+                numberOfLines={1}
+              >
+                {selectedContact.name}
+              </Text>
+              {selectedContact.phone ? (
+                <Text
+                  style={[styles.contactSelectedPhone, { color: colors.mutedForeground }]}
+                  numberOfLines={1}
+                >
+                  {selectedContact.phone}
+                </Text>
+              ) : null}
+            </View>
+            <Pressable
+              onPress={() => onChange(field.key, "")}
+              hitSlop={8}
+              style={styles.contactClearBtn}
+            >
+              <Feather name="x" size={16} color={colors.mutedForeground} />
+            </Pressable>
+          </View>
+        ) : (
+          <>
+            <View
+              style={[
+                styles.contactSearch,
+                { backgroundColor: colors.muted, borderColor: colors.border },
+              ]}
+            >
+              <Feather name="search" size={15} color={colors.mutedForeground} />
+              <TextInput
+                style={[styles.contactSearchInput, { color: colors.foreground }]}
+                placeholder={field.placeholder || "Rechercher un contact..."}
+                placeholderTextColor={colors.mutedForeground}
+                value={contactQuery}
+                onChangeText={setContactQuery}
+                autoCapitalize="none"
+              />
+            </View>
+            {contactOptions.length === 0 ? (
+              <Text style={[styles.contactHint, { color: colors.mutedForeground }]}>
+                Aucun contact enregistré — saisissez un nouveau nom ci-dessous.
+              </Text>
+            ) : filteredContacts.length === 0 ? (
+              <Text style={[styles.contactHint, { color: colors.mutedForeground }]}>
+                Aucun contact trouvé.
+              </Text>
+            ) : (
+              <View style={styles.contactList}>
+                {filteredContacts.map((c) => (
+                  <Pressable
+                    key={c.id}
+                    onPress={() => {
+                      onChange(field.key, String(c.id));
+                      if (field.linkedPhoneKey && c.phone)
+                        onChange(field.linkedPhoneKey, c.phone);
+                      if (field.linkedNameKey) onChange(field.linkedNameKey, c.name);
+                      setContactQuery("");
+                    }}
+                    style={({ pressed }) => [
+                      styles.contactRow,
+                      { borderBottomColor: colors.border },
+                      pressed && { backgroundColor: colors.muted },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.contactRowName, { color: colors.foreground }]}
+                      numberOfLines={1}
+                    >
+                      {c.name}
+                    </Text>
+                    {c.phone ? (
+                      <Text
+                        style={[styles.contactRowPhone, { color: colors.mutedForeground }]}
+                        numberOfLines={1}
+                      >
+                        {c.phone}
+                      </Text>
+                    ) : null}
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </>
+        )
+      ) : field.type === "select" ? (
         <View style={styles.selectRow}>
           {field.options?.map((opt) => (
             <Pressable
@@ -379,6 +502,65 @@ const styles = StyleSheet.create({
   },
   suggestionDismiss: {
     padding: 2,
+  },
+  contactSearch: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 46,
+  },
+  contactSearchInput: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
+  },
+  contactHint: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    marginTop: 8,
+  },
+  contactList: {
+    marginTop: 8,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  contactRow: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  contactRowName: {
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+  },
+  contactRowPhone: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    marginTop: 2,
+  },
+  contactSelected: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  contactSelectedName: {
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+  },
+  contactSelectedPhone: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    marginTop: 2,
+  },
+  contactClearBtn: {
+    padding: 4,
   },
   selectRow: {
     flexDirection: "row",
