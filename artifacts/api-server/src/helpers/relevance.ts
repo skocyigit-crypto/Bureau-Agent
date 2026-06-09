@@ -85,43 +85,6 @@ export function byCreatedAtDesc(a: { createdAt: Date }, b: { createdAt: Date }):
   return b.createdAt.getTime() - a.createdAt.getTime();
 }
 
-/**
- * Fields a project/chantier row exposes to the relevance scorer. Values are
- * normalised internally, so callers pass the raw DB values.
- */
-export interface ProjectFields {
-  title: unknown;
-  clientName: unknown;
-  clientCompany: unknown;
-  address: unknown;
-  description: unknown;
-}
-
-/**
- * Score a project/chantier row for the find_project resolver tool, using the
- * shared RELEVANCE tiers so project search ranks the same way as the other
- * name -> id tools:
- *   - title exact / prefix / substring -> EXACT / PREFIX / SUBSTRING
- *   - client name, client company or address contains the query -> FIELD_SUBSTRING
- *   - description contains the query -> DESC_SUBSTRING
- * Returns 0 when nothing matches.
- */
-export function scoreProjectFields(fields: ProjectFields, nq: string): number {
-  const title = normText(fields.title);
-  const client = normText(fields.clientName);
-  const company = normText(fields.clientCompany);
-  const addr = normText(fields.address);
-  const desc = normText(fields.description);
-  let score = 0;
-  if (title === nq) score = Math.max(score, RELEVANCE.EXACT);
-  if (title.startsWith(nq)) score = Math.max(score, RELEVANCE.PREFIX);
-  if (title.includes(nq)) score = Math.max(score, RELEVANCE.SUBSTRING);
-  if (client.includes(nq) || company.includes(nq) || addr.includes(nq))
-    score = Math.max(score, RELEVANCE.FIELD_SUBSTRING);
-  if (desc.includes(nq)) score = Math.max(score, RELEVANCE.DESC_SUBSTRING);
-  return score;
-}
-
 export interface RankOptions<T> {
   /** Maximum number of ranked rows to return. */
   limit: number;
