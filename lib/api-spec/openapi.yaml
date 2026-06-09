@@ -2552,6 +2552,29 @@ paths:
                   total:
                     type: integer
                 required: [projets, total]
+    post:
+      operationId: createProjet
+      tags: [projets]
+      summary: Create a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjetBody"
+      responses:
+        "201":
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Projet"
+        "400":
+          description: Requête invalide
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 
   /projets/stats:
     get:
@@ -2584,6 +2607,54 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Projet"
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateProjet
+      tags: [projets]
+      summary: Update a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProjetBody"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Projet"
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteProjet
+      tags: [projets]
+      summary: Delete a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
         "404":
           description: Introuvable
           content:
@@ -2655,6 +2726,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DocumentDetail"
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteDocument
+      tags: [documents]
+      summary: Delete a document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
         "404":
           description: Introuvable
           content:
@@ -4678,6 +4768,132 @@ components:
         overBudget:
           type: integer
       required: [byStatus, total, active, termine, overdue, avgProgress, highPriority, totalBudget, totalSpent, overBudget]
+
+    CreateProjetBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [planifie, en_cours, en_pause, termine, annule]
+        priority:
+          type: string
+        clientName:
+          type: string
+          nullable: true
+        clientCompany:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        budget:
+          type: string
+          nullable: true
+        currency:
+          type: string
+        progress:
+          type: integer
+        startDate:
+          type: string
+          format: date-time
+          nullable: true
+        endDate:
+          type: string
+          format: date-time
+          nullable: true
+        assignedTo:
+          type: string
+          nullable: true
+        teamMembers:
+          type: array
+          items:
+            type: string
+        milestones:
+          type: array
+          items:
+            $ref: "#/components/schemas/Milestone"
+        tags:
+          type: array
+          items:
+            type: string
+        notes:
+          type: string
+          nullable: true
+        contactId:
+          type: integer
+          nullable: true
+      required: [title]
+
+    UpdateProjetBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [planifie, en_cours, en_pause, termine, annule]
+        priority:
+          type: string
+        clientName:
+          type: string
+          nullable: true
+        clientCompany:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        budget:
+          type: string
+          nullable: true
+        spent:
+          type: string
+          nullable: true
+        currency:
+          type: string
+        progress:
+          type: integer
+        startDate:
+          type: string
+          format: date-time
+          nullable: true
+        endDate:
+          type: string
+          format: date-time
+          nullable: true
+        actualEndDate:
+          type: string
+          format: date-time
+          nullable: true
+        assignedTo:
+          type: string
+          nullable: true
+        teamMembers:
+          type: array
+          items:
+            type: string
+        milestones:
+          type: array
+          items:
+            $ref: "#/components/schemas/Milestone"
+        tags:
+          type: array
+          items:
+            type: string
+        notes:
+          type: string
+          nullable: true
+        contactId:
+          type: integer
+          nullable: true
 
     Document:
       type: object

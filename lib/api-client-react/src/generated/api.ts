@@ -44,6 +44,7 @@ import type {
   CreateCheckinBody,
   CreateContactBody,
   CreateMessageBody,
+  CreateProjetBody,
   CreateStockArticleBody,
   CreateTaskBody,
   DailyReport,
@@ -124,6 +125,7 @@ import type {
   UpdateCheckinBody,
   UpdateContactBody,
   UpdateMessageBody,
+  UpdateProjetBody,
   UpdateStockArticleBody,
   UpdateTaskBody,
   UserPreferences,
@@ -8798,6 +8800,92 @@ export function useListProjets<
 }
 
 /**
+ * @summary Create a project
+ */
+export const getCreateProjetUrl = () => {
+  return `/api/projets`;
+};
+
+export const createProjet = async (
+  createProjetBody: CreateProjetBody,
+  options?: RequestInit,
+): Promise<Projet> => {
+  return customFetch<Projet>(getCreateProjetUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createProjetBody),
+  });
+};
+
+export const getCreateProjetMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createProjet>>,
+    TError,
+    { data: BodyType<CreateProjetBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createProjet>>,
+  TError,
+  { data: BodyType<CreateProjetBody> },
+  TContext
+> => {
+  const mutationKey = ["createProjet"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createProjet>>,
+    { data: BodyType<CreateProjetBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createProjet(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateProjetMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createProjet>>
+>;
+export type CreateProjetMutationBody = BodyType<CreateProjetBody>;
+export type CreateProjetMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Create a project
+ */
+export const useCreateProjet = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createProjet>>,
+    TError,
+    { data: BodyType<CreateProjetBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createProjet>>,
+  TError,
+  { data: BodyType<CreateProjetBody> },
+  TContext
+> => {
+  return useMutation(getCreateProjetMutationOptions(options));
+};
+
+/**
  * @summary Project statistics
  */
 export const getGetProjetStatsUrl = () => {
@@ -8956,6 +9044,177 @@ export function useGetProjet<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Update a project
+ */
+export const getUpdateProjetUrl = (id: number) => {
+  return `/api/projets/${id}`;
+};
+
+export const updateProjet = async (
+  id: number,
+  updateProjetBody: UpdateProjetBody,
+  options?: RequestInit,
+): Promise<Projet> => {
+  return customFetch<Projet>(getUpdateProjetUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateProjetBody),
+  });
+};
+
+export const getUpdateProjetMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProjet>>,
+    TError,
+    { id: number; data: BodyType<UpdateProjetBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateProjet>>,
+  TError,
+  { id: number; data: BodyType<UpdateProjetBody> },
+  TContext
+> => {
+  const mutationKey = ["updateProjet"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateProjet>>,
+    { id: number; data: BodyType<UpdateProjetBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateProjet(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateProjetMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateProjet>>
+>;
+export type UpdateProjetMutationBody = BodyType<UpdateProjetBody>;
+export type UpdateProjetMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Update a project
+ */
+export const useUpdateProjet = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProjet>>,
+    TError,
+    { id: number; data: BodyType<UpdateProjetBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateProjet>>,
+  TError,
+  { id: number; data: BodyType<UpdateProjetBody> },
+  TContext
+> => {
+  return useMutation(getUpdateProjetMutationOptions(options));
+};
+
+/**
+ * @summary Delete a project
+ */
+export const getDeleteProjetUrl = (id: number) => {
+  return `/api/projets/${id}`;
+};
+
+export const deleteProjet = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteProjetUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteProjetMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteProjet>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteProjet>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteProjet"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteProjet>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteProjet(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteProjetMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteProjet>>
+>;
+
+export type DeleteProjetMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Delete a project
+ */
+export const useDeleteProjet = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteProjet>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteProjet>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteProjetMutationOptions(options));
+};
 
 /**
  * @summary List documents grouped by source entity
@@ -9219,3 +9478,87 @@ export function useGetDocument<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Delete a document
+ */
+export const getDeleteDocumentUrl = (id: number) => {
+  return `/api/documents/${id}`;
+};
+
+export const deleteDocument = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteDocumentUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteDocumentMutationOptions = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteDocument>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteDocument>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteDocument"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteDocument>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteDocument(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteDocumentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteDocument>>
+>;
+
+export type DeleteDocumentMutationError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Delete a document
+ */
+export const useDeleteDocument = <
+  TError = ErrorType<ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteDocument>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteDocument>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteDocumentMutationOptions(options));
+};

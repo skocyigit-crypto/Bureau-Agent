@@ -1542,6 +1542,72 @@ export interface ProjetStats {
   overBudget: number;
 }
 
+export type CreateProjetBodyStatus =
+  (typeof CreateProjetBodyStatus)[keyof typeof CreateProjetBodyStatus];
+
+export const CreateProjetBodyStatus = {
+  planifie: "planifie",
+  en_cours: "en_cours",
+  en_pause: "en_pause",
+  termine: "termine",
+  annule: "annule",
+} as const;
+
+export interface CreateProjetBody {
+  title: string;
+  description?: string | null;
+  status?: CreateProjetBodyStatus;
+  priority?: string;
+  clientName?: string | null;
+  clientCompany?: string | null;
+  address?: string | null;
+  budget?: string | null;
+  currency?: string;
+  progress?: number;
+  startDate?: string | null;
+  endDate?: string | null;
+  assignedTo?: string | null;
+  teamMembers?: string[];
+  milestones?: Milestone[];
+  tags?: string[];
+  notes?: string | null;
+  contactId?: number | null;
+}
+
+export type UpdateProjetBodyStatus =
+  (typeof UpdateProjetBodyStatus)[keyof typeof UpdateProjetBodyStatus];
+
+export const UpdateProjetBodyStatus = {
+  planifie: "planifie",
+  en_cours: "en_cours",
+  en_pause: "en_pause",
+  termine: "termine",
+  annule: "annule",
+} as const;
+
+export interface UpdateProjetBody {
+  title?: string;
+  description?: string | null;
+  status?: UpdateProjetBodyStatus;
+  priority?: string;
+  clientName?: string | null;
+  clientCompany?: string | null;
+  address?: string | null;
+  budget?: string | null;
+  spent?: string | null;
+  currency?: string;
+  progress?: number;
+  startDate?: string | null;
+  endDate?: string | null;
+  actualEndDate?: string | null;
+  assignedTo?: string | null;
+  teamMembers?: string[];
+  milestones?: Milestone[];
+  tags?: string[];
+  notes?: string | null;
+  contactId?: number | null;
+}
+
 export interface Document {
   id: number;
   fileName: string;

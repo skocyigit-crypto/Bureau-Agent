@@ -21,15 +21,19 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   listProjets,
   getProjetStats,
+  createProjet,
+  updateProjet,
+  deleteProjet,
   type Projet,
   type ListProjetsParams,
+  type CreateProjetBody,
+  type UpdateProjetBody,
 } from "@workspace/api-client-react";
 
 import { DetailModal } from "@/components/DetailModal";
 import { EmptyState } from "@/components/EmptyState";
 import { FAB } from "@/components/FAB";
 import { FormModal } from "@/components/FormModal";
-import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useColors } from "@/hooks/useColors";
 
@@ -224,7 +228,6 @@ function SwipeableProjet({ item, colors, onDelete, onOpen }: SwipeableProjetProp
 export default function ProjetsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { fetchAuth } = useAuth();
   const isWeb = Platform.OS === "web";
   const [projets, setProjets] = useState<Projet[]>([]);
   const [stats, setStats] = useState({ total: 0, actifs: 0, enRetard: 0, termines: 0 });
@@ -277,7 +280,7 @@ export default function ProjetsScreen() {
   async function handleDelete(id: number) {
     setProjets(prev => prev.filter(p => p.id !== id));
     try {
-      await fetchAuth(`${API_BASE}/api/projets/${id}`, { method: "DELETE" });
+      await deleteProjet(id);
       setSelected(null);
       fetchProjets();
     } catch {
@@ -286,22 +289,28 @@ export default function ProjetsScreen() {
   }
 
   async function handleSubmit() {
-    if (!formValues.title?.trim()) return;
+    const title = formValues.title?.trim();
+    if (!title) return;
     setFormLoading(true);
     try {
-      const url = editId ? `${API_BASE}/api/projets/${editId}` : `${API_BASE}/api/projets`;
-      const method = editId ? "PATCH" : "POST";
-      const res = await fetchAuth(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formValues),
-      });
-      if (res.ok) {
-        setShowForm(false);
-        setEditId(null);
-        setFormValues({ priority: "moyenne", status: "planifie" });
-        fetchProjets();
+      const status = formValues.status as UpdateProjetBody["status"];
+      const fields = {
+        clientName: formValues.clientName ?? "",
+        clientCompany: formValues.clientCompany ?? "",
+        priority: formValues.priority || undefined,
+        status,
+        assignedTo: formValues.assignedTo ?? "",
+        notes: formValues.notes ?? "",
+      };
+      if (editId) {
+        await updateProjet(editId, { title, ...fields } satisfies UpdateProjetBody);
+      } else {
+        await createProjet({ title, ...fields } satisfies CreateProjetBody);
       }
+      setShowForm(false);
+      setEditId(null);
+      setFormValues({ priority: "moyenne", status: "planifie" });
+      fetchProjets();
     } catch {
       if (Platform.OS !== "web") Alert.alert("Erreur", "Impossible de sauvegarder le projet.");
     } finally { setFormLoading(false); }

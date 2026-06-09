@@ -3105,6 +3105,40 @@ export const ListProjetsResponse = zod.object({
 });
 
 /**
+ * @summary Create a project
+ */
+export const CreateProjetBody = zod.object({
+  title: zod.string(),
+  description: zod.string().nullish(),
+  status: zod
+    .enum(["planifie", "en_cours", "en_pause", "termine", "annule"])
+    .optional(),
+  priority: zod.string().optional(),
+  clientName: zod.string().nullish(),
+  clientCompany: zod.string().nullish(),
+  address: zod.string().nullish(),
+  budget: zod.string().nullish(),
+  currency: zod.string().optional(),
+  progress: zod.number().optional(),
+  startDate: zod.coerce.date().nullish(),
+  endDate: zod.coerce.date().nullish(),
+  assignedTo: zod.string().nullish(),
+  teamMembers: zod.array(zod.string()).optional(),
+  milestones: zod
+    .array(
+      zod.object({
+        title: zod.string(),
+        dueDate: zod.string().nullish(),
+        completed: zod.boolean(),
+      }),
+    )
+    .optional(),
+  tags: zod.array(zod.string()).optional(),
+  notes: zod.string().nullish(),
+  contactId: zod.number().nullish(),
+});
+
+/**
  * @summary Project statistics
  */
 export const GetProjetStatsResponse = zod.object({
@@ -3167,6 +3201,90 @@ export const GetProjetResponse = zod.object({
   notes: zod.string().nullish(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Update a project
+ */
+export const UpdateProjetParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateProjetBody = zod.object({
+  title: zod.string().optional(),
+  description: zod.string().nullish(),
+  status: zod
+    .enum(["planifie", "en_cours", "en_pause", "termine", "annule"])
+    .optional(),
+  priority: zod.string().optional(),
+  clientName: zod.string().nullish(),
+  clientCompany: zod.string().nullish(),
+  address: zod.string().nullish(),
+  budget: zod.string().nullish(),
+  spent: zod.string().nullish(),
+  currency: zod.string().optional(),
+  progress: zod.number().optional(),
+  startDate: zod.coerce.date().nullish(),
+  endDate: zod.coerce.date().nullish(),
+  actualEndDate: zod.coerce.date().nullish(),
+  assignedTo: zod.string().nullish(),
+  teamMembers: zod.array(zod.string()).optional(),
+  milestones: zod
+    .array(
+      zod.object({
+        title: zod.string(),
+        dueDate: zod.string().nullish(),
+        completed: zod.boolean(),
+      }),
+    )
+    .optional(),
+  tags: zod.array(zod.string()).optional(),
+  notes: zod.string().nullish(),
+  contactId: zod.number().nullish(),
+});
+
+export const UpdateProjetResponse = zod.object({
+  id: zod.number(),
+  organisationId: zod.number(),
+  contactId: zod.number().nullish(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  status: zod.enum(["planifie", "en_cours", "en_pause", "termine", "annule"]),
+  priority: zod.string(),
+  clientName: zod.string().nullish(),
+  clientCompany: zod.string().nullish(),
+  address: zod.string().nullish(),
+  latitude: zod.number().nullish(),
+  longitude: zod.number().nullish(),
+  budget: zod.string().nullish(),
+  spent: zod.string().nullish(),
+  currency: zod.string(),
+  progress: zod.number(),
+  startDate: zod.coerce.date().nullish(),
+  endDate: zod.coerce.date().nullish(),
+  actualEndDate: zod.coerce.date().nullish(),
+  assignedTo: zod.string().nullish(),
+  teamMembers: zod.array(zod.string()).nullish(),
+  milestones: zod
+    .array(
+      zod.object({
+        title: zod.string(),
+        dueDate: zod.string().nullish(),
+        completed: zod.boolean(),
+      }),
+    )
+    .nullish(),
+  tags: zod.array(zod.string()).nullish(),
+  notes: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a project
+ */
+export const DeleteProjetParams = zod.object({
+  id: zod.coerce.number(),
 });
 
 /**
@@ -3278,4 +3396,11 @@ export const GetDocumentResponse = zod.object({
   uploadedBy: zod.number().nullish(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a document
+ */
+export const DeleteDocumentParams = zod.object({
+  id: zod.coerce.number(),
 });

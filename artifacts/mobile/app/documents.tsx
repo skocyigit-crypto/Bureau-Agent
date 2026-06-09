@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   listDocumentsBySource,
   getDocumentStatsOverview,
+  deleteDocument,
   type Document,
   type DocumentsBySource,
   type DocumentReuseSavings,
@@ -328,7 +329,7 @@ export default function DocumentsScreen() {
 
   async function handleDelete(id: number) {
     setData(prev => prev ? { ...prev, documents: prev.documents.filter(d => d.id !== id) } : null);
-    try { await fetchAuth(`${API_BASE}/api/documents/${id}`, { method: "DELETE" }); load(); }
+    try { await deleteDocument(id); load(); }
     catch { load(); }
   }
 
