@@ -2729,6 +2729,16 @@ router.post("/commandant/conversations/:id/messages", async (req: Request, res: 
     if (!userMessage || userMessage.length < 1) { res.status(400).json({ error: "Message requis" }); return; }
     if (userMessage.length > 8000) { res.status(400).json({ error: "Message trop long (max 8000 caracteres)" }); return; }
 
+    // Optional demo transcript handed off from the marketing-site demo. Slim
+    // {r,t} messages ("u"/"a"). Sanitized + size-capped, prepended to the prompt
+    // so the first answer accounts for the visitor's prior exchange. Never stored.
+    const rawDemo = Array.isArray(req.body?.demoContext) ? req.body.demoContext : [];
+    const demoTranscript = rawDemo
+      .filter((m: any) => m && (m.r === "u" || m.r === "a") && typeof m.t === "string" && m.t.trim())
+      .slice(-6)
+      .map((m: any) => `${m.r === "u" ? "Utilisateur" : "Commandant"}: ${String(m.t).slice(0, 400)}`)
+      .join("\n\n");
+
     const conv = await ensureConversationOwnership(orgId, userId, id);
     if (!conv) { res.status(404).json({ error: "Conversation introuvable" }); return; }
 
@@ -2785,9 +2795,15 @@ CONTEXTE BUREAU (instantane):
       .map(m => `${m.role === "user" ? "Utilisateur" : "Commandant"}: ${m.content}`)
       .join("\n\n");
 
+    const demoBlock = demoTranscript
+      ? `Conversation de demonstration menee par le visiteur sur le site vitrine (contexte fourni, a prendre en compte):\n${demoTranscript}\n\n`
+      : "";
+
     const prompt = transcript
-      ? `Conversation precedente:\n${transcript}\n\nNouvelle question de l'utilisateur:\n${userMessage}`
-      : userMessage;
+      ? `${demoBlock}Conversation precedente:\n${transcript}\n\nNouvelle question de l'utilisateur:\n${userMessage}`
+      : demoBlock
+        ? `${demoBlock}Nouvelle question de l'utilisateur:\n${userMessage}`
+        : userMessage;
 
     const aiResponse = await multiAiGenerate(prompt, systemPrompt, orgId, req.path);
 

@@ -19,7 +19,7 @@ import {
   MapPin, BarChart3, Shield, Bell, TrendingUp, ArrowRight, Sparkles,
   MessageSquare, Target, Play, Eye, Coffee, Navigation, ExternalLink,
   Search, Wand2, Copy, Mic, Bot, Printer, FolderKanban,
-  MessageCircle, Plus, Trash2, Edit2, Check, X,
+  MessageCircle, Plus, Trash2, Edit2, Check, X, ChevronDown, ChevronRight,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -1237,6 +1237,11 @@ function ChatTab() {
   const [pendingScrollMessageId, setPendingScrollMessageId] = useState<number | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<number | null>(null);
   const messageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  // Full demo transcript imported from the marketing site (slim {r,t} messages).
+  // Rendered as collapsible prior context and sent with the first real message so
+  // the Commandant's first answer accounts for the whole exchange.
+  const [importedDemo, setImportedDemo] = useState<{ r: string; t: string }[] | null>(null);
+  const [demoOpen, setDemoOpen] = useState(true);
   const { toast } = useToast();
 
   // Cross-app handoff: when arriving from /tanitim/ demo, decode the visitor's
@@ -1252,11 +1257,15 @@ function ChatTab() {
 
     const applySlim = (slim: { r: string; t: string }[]): boolean => {
       if (!Array.isArray(slim) || slim.length === 0) return false;
-      const lastUser = [...slim].reverse().find(
-        (s) => s?.r === "u" && typeof s.t === "string" && s.t.trim(),
-      );
+      const clean = slim
+        .filter((s) => s && (s.r === "u" || s.r === "a") && typeof s.t === "string" && s.t.trim())
+        .map((s) => ({ r: s.r, t: String(s.t).slice(0, 400) }));
+      const lastUser = [...clean].reverse().find((s) => s.r === "u");
       if (!lastUser) return false;
-      setInput(`[Suite de la demo du site] ${String(lastUser.t).slice(0, 400)}`);
+      // Keep the full exchange so it can be shown as prior context and sent with
+      // the first real message; still pre-fill the input with the last question.
+      setImportedDemo(clean);
+      setInput(`[Suite de la demo du site] ${lastUser.t}`);
       return true;
     };
 
@@ -1411,12 +1420,22 @@ function ChatTab() {
       }
     }
     setInput("");
+    // Attach the imported demo transcript only on the first real message of a
+    // fresh exchange, so the Commandant's first answer accounts for it. Sent once
+    // then cleared, so it never leaks into later turns or unrelated conversations.
+    const demoContext = importedDemo && importedDemo.length && messages.length === 0
+      ? importedDemo
+      : null;
     const optimistic = { id: `tmp-${Date.now()}`, role: "user", content: text, createdAt: new Date().toISOString() };
     setMessages(prev => [...prev, optimistic]);
     setSending(true);
     try {
-      const d = await apiPost(`/commandant/conversations/${convId}/messages`, { message: text });
+      const d = await apiPost(
+        `/commandant/conversations/${convId}/messages`,
+        demoContext ? { message: text, demoContext } : { message: text },
+      );
       if (d.success) {
+        setImportedDemo(null);
         setMessages(prev => {
           const without = prev.filter(m => m.id !== optimistic.id);
           return [...without, d.userMessage, d.assistantMessage];
@@ -1590,6 +1609,35 @@ function ChatTab() {
         </CardHeader>
         <CardContent className="flex-1 overflow-hidden p-0 flex flex-col">
           <ScrollArea className="flex-1 p-4">
+            {importedDemo && importedDemo.length > 0 && (
+              <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50/60">
+                <button
+                  type="button"
+                  onClick={() => setDemoOpen(o => !o)}
+                  className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-medium text-amber-800"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Conversation importee du site ({importedDemo.length} message{importedDemo.length > 1 ? "s" : ""})
+                  </span>
+                  {demoOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                </button>
+                {demoOpen && (
+                  <div className="space-y-2 px-3 pb-3">
+                    {importedDemo.map((m, i) => (
+                      <div key={i} className={`flex flex-col ${m.r === "u" ? "items-end" : "items-start"}`}>
+                        <div className={`max-w-[80%] rounded-lg px-3 py-1.5 text-xs whitespace-pre-wrap ${m.r === "u" ? "bg-amber-600/90 text-white" : "bg-white border border-amber-100 text-amber-900"}`}>
+                          {m.t}
+                        </div>
+                      </div>
+                    ))}
+                    <p className="text-[10px] text-amber-700/80 pt-1">
+                      Le Commandant tiendra compte de cet echange dans sa premiere reponse.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
             {loadingMsgs ? (
               <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
             ) : messages.length === 0 ? (
