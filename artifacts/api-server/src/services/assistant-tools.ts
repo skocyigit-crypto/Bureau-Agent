@@ -1337,7 +1337,8 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
     name: "find_recent_call",
     description:
       "Trouve des appels recents par nom de contact ou numero de telephone et retourne une liste " +
-      "classee par recence avec leur id. Lecture seule. A utiliser pour resoudre « mon dernier appel " +
+      "classee des meilleures correspondances (pertinence du nom/numero d'abord, recence en cas " +
+      "d'egalite) avec leur id. Lecture seule. A utiliser pour resoudre « mon dernier appel " +
       "avec le plombier » en id avant d'appeler log_call. Retourne plusieurs candidats si ambigu.",
     parameters: {
       type: "object",
@@ -1352,8 +1353,9 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
       limit: { kind: "number", integer: true, min: 1, max: 20 },
     },
     execute: async (a, { orgId }) => {
+      const query = String(a.query).trim();
       const limit = Math.min((a.limit as number) ?? 5, 20);
-      const like = `%${String(a.query).trim()}%`;
+      const like = `%${query}%`;
       const useUnaccent = await ensureUnaccentExtension();
       const rows = await db.select({
         id: callsTable.id, direction: callsTable.direction, phoneNumber: callsTable.phoneNumber,
@@ -1365,8 +1367,38 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
           accentInsensitiveIlike(callsTable.contactName, like, useUnaccent),
           accentInsensitiveIlike(callsTable.phoneNumber, like, useUnaccent),
         )!,
-      )).orderBy(desc(callsTable.createdAt)).limit(limit);
-      return { count: rows.length, calls: rows };
+      )).limit(100);
+      const nq = stripAccents(query).toLowerCase();
+      const nqDigits = query.replace(/\D/g, "");
+      const norm = (s: unknown) => stripAccents(String(s ?? "")).toLowerCase().trim();
+      const scoreCall = (r: typeof rows[number]): number => {
+        const name = norm(r.contactName);
+        let score = 0;
+        if (name && name === nq) score = Math.max(score, 100);
+        if (name && name.startsWith(nq)) score = Math.max(score, 70);
+        if (name && name.includes(nq)) score = Math.max(score, 50);
+        if (nqDigits.length >= 3) {
+          const phoneDigits = String(r.phoneNumber ?? "").replace(/\D/g, "");
+          if (phoneDigits && phoneDigits === nqDigits) score = Math.max(score, 98);
+          else if (phoneDigits && phoneDigits.includes(nqDigits)) score = Math.max(score, 75);
+        }
+        return score;
+      };
+      const ranked = rows
+        .map((r) => ({ r, score: scoreCall(r) }))
+        .sort((x, y) => (y.score - x.score) || (y.r.createdAt.getTime() - x.r.createdAt.getTime()))
+        .slice(0, limit)
+        .map(({ r, score }) => ({
+          id: r.id,
+          direction: r.direction,
+          phoneNumber: r.phoneNumber,
+          contactName: r.contactName,
+          status: r.status,
+          duration: r.duration,
+          createdAt: r.createdAt,
+          pertinence: score,
+        }));
+      return { count: ranked.length, calls: ranked };
     },
   },
   {

@@ -63,6 +63,9 @@ const ids = {
   eventOtherOrg: 0,
   callOrgA: 0,
   callOtherOrg: 0,
+  callExactNew: 0,
+  callExactOld: 0,
+  callPhone: 0,
 };
 
 async function seedOrg(label: string) {
@@ -168,16 +171,31 @@ beforeAll(async () => {
   ids.eventPast = events[1].id;
   ids.eventOtherOrg = events[2].id;
 
-  // ---- Appels (org A + org B) : accent + isolation ----
+  // ---- Appels (org A + org B) : classement par pertinence + recence + accent + isolation ----
+  // query "plombier" : "Plombier" (exact, 100) > "Hélène Plombier" (sous-chaîne, 50),
+  // MEME si "Hélène Plombier" est le plus recent. Entre deux exacts, le plus recent gagne
+  // (recence = simple départage). callPhone teste la correspondance par numero.
+  const callNewest = new Date(now);
+  const callOld = new Date(now - DAY_MS);
+  const callOlder = new Date(now - 2 * DAY_MS);
   const calls = await db
     .insert(callsTable)
     .values([
-      { organisationId: orgA, contactName: "Hélène Plombier", phoneNumber: `${phone}5`, direction: "entrant", status: "repondu" },
-      { organisationId: orgB, contactName: "Hélène Plombier", phoneNumber: `${phone}8`, direction: "entrant", status: "repondu" },
+      // Sous-chaîne mais LE PLUS RECENT : ne doit pas battre un exact plus ancien.
+      { organisationId: orgA, contactName: "Hélène Plombier", phoneNumber: `${phone}5`, direction: "entrant", status: "repondu", createdAt: callNewest },
+      // Exact, plus recent des deux exacts.
+      { organisationId: orgA, contactName: "Plombier", phoneNumber: `${phone}6`, direction: "sortant", status: "repondu", createdAt: callOld },
+      // Exact, plus ancien des deux exacts.
+      { organisationId: orgA, contactName: "Plombier", phoneNumber: `${phone}7`, direction: "entrant", status: "manque", createdAt: callOlder },
+      // Org B : même nom mais ne doit pas fuiter.
+      { organisationId: orgB, contactName: "Hélène Plombier", phoneNumber: `${phone}8`, direction: "entrant", status: "repondu", createdAt: callNewest },
     ])
     .returning({ id: callsTable.id });
   ids.callOrgA = calls[0].id;
-  ids.callOtherOrg = calls[1].id;
+  ids.callExactNew = calls[1].id;
+  ids.callExactOld = calls[2].id;
+  ids.callOtherOrg = calls[3].id;
+  ids.callPhone = calls[1].id;
 });
 
 afterAll(async () => {
@@ -278,6 +296,35 @@ describe("find_recent_call", () => {
     const out = await runTool("find_recent_call", { query: "helene" });
     const list = out.calls as Array<{ id: number }>;
     expect(list.some((c) => c.id === ids.callOrgA)).toBe(true);
+  });
+
+  it("classe la meilleure correspondance avant un appel plus recent mais moins pertinent", async () => {
+    const out = await runTool("find_recent_call", { query: "plombier", limit: 10 });
+    const list = out.calls as Array<{ id: number; pertinence: number }>;
+    const idx = (id: number) => list.findIndex((c) => c.id === id);
+    // Les deux exacts ("Plombier") passent AVANT la sous-chaîne plus recente ("Hélène Plombier").
+    expect(idx(ids.callExactNew)).toBeGreaterThanOrEqual(0);
+    expect(idx(ids.callExactNew)).toBeLessThan(idx(ids.callOrgA));
+    expect(idx(ids.callExactOld)).toBeLessThan(idx(ids.callOrgA));
+    const byId = new Map(list.map((c) => [c.id, c.pertinence]));
+    expect(byId.get(ids.callExactNew)!).toBeGreaterThan(byId.get(ids.callOrgA)!);
+  });
+
+  it("utilise la recence comme simple départage entre deux correspondances égales", async () => {
+    const out = await runTool("find_recent_call", { query: "plombier", limit: 10 });
+    const list = out.calls as Array<{ id: number }>;
+    const idx = (id: number) => list.findIndex((c) => c.id === id);
+    // Deux exacts (même pertinence) : le plus recent gagne le départage.
+    expect(idx(ids.callExactNew)).toBeLessThan(idx(ids.callExactOld));
+  });
+
+  it("trouve et classe un appel par numero de telephone", async () => {
+    const target = String(stamp).slice(-7);
+    const out = await runTool("find_recent_call", { query: `${target}6`, limit: 10 });
+    const list = out.calls as Array<{ id: number; pertinence: number }>;
+    const found = list.find((c) => c.id === ids.callPhone);
+    expect(found).toBeDefined();
+    expect(found!.pertinence).toBeGreaterThanOrEqual(75);
   });
 
   it("n'expose jamais un appel d'une autre organisation", async () => {
