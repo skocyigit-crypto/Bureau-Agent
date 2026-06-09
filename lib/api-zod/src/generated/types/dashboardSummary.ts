@@ -18,4 +18,18 @@ export interface DashboardSummary {
   callsThisWeek: number;
   /** Percentage change from previous period */
   callsTrend: number;
+  /** Number of projects with status en_cours */
+  projetsActifs: number;
+  /** Number of projects past their end date and not finished/cancelled */
+  projetsEnRetard: number;
+  /** All-time total number of calls */
+  totalCalls: number;
+  /** All-time number of missed calls */
+  missedCalls: number;
+  /** All-time answered call rate as a percentage */
+  answeredRate: number;
+  /** Number of calls today (alias of totalCallsToday) */
+  todayCalls: number;
+  /** Number of tasks due today that are not finished/cancelled */
+  todayTasks: number;
 }

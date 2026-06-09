@@ -3314,7 +3314,28 @@ components:
         callsTrend:
           type: number
           description: Percentage change from previous period
-      required: [totalCallsToday, answeredCallsToday, missedCallsToday, avgCallDuration, totalContacts, pendingTasks, unreadMessages, callsThisWeek, callsTrend]
+        projetsActifs:
+          type: integer
+          description: Number of projects with status en_cours
+        projetsEnRetard:
+          type: integer
+          description: Number of projects past their end date and not finished/cancelled
+        totalCalls:
+          type: integer
+          description: All-time total number of calls
+        missedCalls:
+          type: integer
+          description: All-time number of missed calls
+        answeredRate:
+          type: number
+          description: All-time answered call rate as a percentage
+        todayCalls:
+          type: integer
+          description: Number of calls today (alias of totalCallsToday)
+        todayTasks:
+          type: integer
+          description: Number of tasks due today that are not finished/cancelled
+      required: [totalCallsToday, answeredCallsToday, missedCallsToday, avgCallDuration, totalContacts, pendingTasks, unreadMessages, callsThisWeek, callsTrend, projetsActifs, projetsEnRetard, totalCalls, missedCalls, answeredRate, todayCalls, todayTasks]
 
     CallAnalytics:
       type: object

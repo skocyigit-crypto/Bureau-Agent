@@ -588,6 +588,25 @@ export const GetDashboardSummaryResponse = zod.object({
   unreadMessages: zod.number(),
   callsThisWeek: zod.number(),
   callsTrend: zod.number().describe("Percentage change from previous period"),
+  projetsActifs: zod
+    .number()
+    .describe("Number of projects with status en_cours"),
+  projetsEnRetard: zod
+    .number()
+    .describe(
+      "Number of projects past their end date and not finished\/cancelled",
+    ),
+  totalCalls: zod.number().describe("All-time total number of calls"),
+  missedCalls: zod.number().describe("All-time number of missed calls"),
+  answeredRate: zod
+    .number()
+    .describe("All-time answered call rate as a percentage"),
+  todayCalls: zod
+    .number()
+    .describe("Number of calls today (alias of totalCallsToday)"),
+  todayTasks: zod
+    .number()
+    .describe("Number of tasks due today that are not finished\/cancelled"),
 });
 
 /**

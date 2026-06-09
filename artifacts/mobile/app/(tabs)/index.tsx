@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { listCalls, type Call } from "@workspace/api-client-react";
+import { listCalls, type Call, type DashboardSummary } from "@workspace/api-client-react";
 
 import { EmptyState } from "@/components/EmptyState";
 import { StatCard } from "@/components/StatCard";
@@ -26,19 +26,7 @@ import { useUnreadBadges } from "@/contexts/UnreadBadgesContext";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useColors } from "@/hooks/useColors";
 
-interface DashboardData {
-  totalCalls: number;
-  missedCalls: number;
-  totalContacts: number;
-  pendingTasks: number;
-  unreadMessages: number;
-  avgCallDuration: number;
-  answeredRate: number;
-  todayCalls: number;
-  todayTasks: number;
-  projetsActifs: number;
-  projetsEnRetard: number;
-}
+type DashboardData = DashboardSummary;
 
 interface UpcomingEvent {
   id: number;
@@ -108,20 +96,7 @@ export default function DashboardScreen() {
         fetchAuth(`${API_BASE}/api/documents/stats/overview`).catch(() => null),
       ]);
       if (summaryRes.ok) {
-        const json = await summaryRes.json();
-        const d: DashboardData = {
-          totalCalls: json.totalCalls ?? json.totalCallsToday ?? 0,
-          missedCalls: json.missedCalls ?? json.missedCallsToday ?? 0,
-          totalContacts: json.totalContacts ?? 0,
-          pendingTasks: json.pendingTasks ?? 0,
-          unreadMessages: json.unreadMessages ?? 0,
-          avgCallDuration: json.avgCallDuration ?? 0,
-          answeredRate: json.answeredRate ?? 0,
-          todayCalls: json.todayCalls ?? json.totalCallsToday ?? 0,
-          todayTasks: json.todayTasks ?? json.pendingTasks ?? 0,
-          projetsActifs: json.projetsActifs ?? 0,
-          projetsEnRetard: json.projetsEnRetard ?? 0,
-        };
+        const d: DashboardData = await summaryRes.json();
         setData(d);
         updateCache(d);
       }

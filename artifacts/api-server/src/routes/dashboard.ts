@@ -66,6 +66,8 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
 
   const oProjet = eq(projetsTable.organisationId, orgId);
   const now = new Date();
+  const tomorrowStart = new Date(todayStart);
+  tomorrowStart.setDate(tomorrowStart.getDate() + 1);
 
   const [
     todayCalls,
@@ -79,6 +81,10 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     callsLastWeek,
     projetsActifs,
     projetsEnRetard,
+    totalCallsAll,
+    answeredCallsAll,
+    missedCallsAll,
+    todayTasks,
   ] = await Promise.all([
     safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, todayStart))), defaultCount),
     safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, todayStart), eq(callsTable.status, "repondu"))), defaultCount),
@@ -91,11 +97,19 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, gte(callsTable.createdAt, prevWeekStart), sql`${callsTable.createdAt} < ${weekStart}`)), defaultCount),
     safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(projetsTable).where(and(oProjet, eq(projetsTable.status, "en_cours"))), defaultCount),
     safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(projetsTable).where(and(oProjet, lt(projetsTable.endDate, now), sql`${projetsTable.status} NOT IN ('termine','annule')`)), defaultCount),
+    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(oc), defaultCount),
+    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, eq(callsTable.status, "repondu"))), defaultCount),
+    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(callsTable).where(and(oc, eq(callsTable.status, "manque"))), defaultCount),
+    safeQuery(db.select({ count: sql<number>`count(*)::int` }).from(tasksTable).where(and(oTask, gte(tasksTable.dueDate, todayStart), lt(tasksTable.dueDate, tomorrowStart), sql`${tasksTable.status} NOT IN ('termine','annule')`)), defaultCount),
   ]);
 
   const thisWeekCount = callsThisWeek[0]?.count ?? 0;
   const lastWeekCount = callsLastWeek[0]?.count ?? 0;
   const trend = lastWeekCount === 0 ? 0 : ((thisWeekCount - lastWeekCount) / lastWeekCount) * 100;
+
+  const totalCalls = totalCallsAll[0]?.count ?? 0;
+  const answeredCalls = answeredCallsAll[0]?.count ?? 0;
+  const answeredRate = totalCalls > 0 ? Math.round((answeredCalls / totalCalls) * 1000) / 10 : 0;
 
   res.json({
     totalCallsToday: todayCalls[0]?.count ?? 0,
@@ -109,6 +123,11 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     callsTrend: Math.round(trend * 10) / 10,
     projetsActifs: projetsActifs[0]?.count ?? 0,
     projetsEnRetard: projetsEnRetard[0]?.count ?? 0,
+    totalCalls,
+    missedCalls: missedCallsAll[0]?.count ?? 0,
+    answeredRate,
+    todayCalls: todayCalls[0]?.count ?? 0,
+    todayTasks: todayTasks[0]?.count ?? 0,
   });
 });
 
