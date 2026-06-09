@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import React from "react";
 import {
+  ActivityIndicator,
   Alert,
   Linking,
   Modal,
@@ -42,6 +43,7 @@ interface DetailModalProps {
   fields: DetailField[];
   badge?: { label: string; color: string };
   extraActions?: ExtraAction[];
+  refreshing?: boolean;
 }
 
 export function DetailModal({
@@ -56,6 +58,7 @@ export function DetailModal({
   fields,
   badge,
   extraActions,
+  refreshing,
 }: DetailModalProps) {
   const colors = useColors();
 
@@ -88,7 +91,9 @@ export function DetailModal({
               <Feather name="x" size={22} color={colors.foreground} />
             </Pressable>
             <Text style={[styles.headerTitle, { color: colors.foreground }]}>Details</Text>
-            <View style={{ width: 22 }} />
+            <View style={styles.headerRight}>
+              {refreshing ? <ActivityIndicator size="small" color={colors.primary} /> : null}
+            </View>
           </View>
 
           <ScrollView
@@ -203,6 +208,10 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontFamily: "Inter_600SemiBold",
+  },
+  headerRight: {
+    width: 22,
+    alignItems: "flex-end",
   },
   body: {
     padding: 20,

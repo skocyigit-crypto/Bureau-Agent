@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
   listProjets,
+  getProjet,
   getProjetStats,
   createProjet,
   updateProjet,
@@ -239,6 +240,8 @@ export default function ProjetsScreen() {
   const [formValues, setFormValues] = useState<Record<string, string>>({ priority: "moyenne", status: "planifie" });
   const [formLoading, setFormLoading] = useState(false);
   const [selected, setSelected] = useState<Projet | null>(null);
+  const [detailRefreshing, setDetailRefreshing] = useState(false);
+  const detailReqId = useRef(0);
   const [editId, setEditId] = useState<number | null>(null);
 
   const { cached, isFromCache, updateCache } = useOfflineCache<Projet[]>("projets_list", []);
@@ -268,6 +271,28 @@ export default function ProjetsScreen() {
       setRefreshing(false);
     }
   }, [filter, search, cached, projets.length, updateCache]);
+
+  const openDetail = useCallback(async (projet: Projet) => {
+    setSelected(projet);
+    const reqId = ++detailReqId.current;
+    setDetailRefreshing(true);
+    try {
+      const fresh = await getProjet(projet.id);
+      if (detailReqId.current !== reqId) return;
+      setSelected(fresh);
+      setProjets(prev => prev.map(p => (p.id === fresh.id ? fresh : p)));
+    } catch {
+      // Keep the cached placeholder if the refresh fails.
+    } finally {
+      if (detailReqId.current === reqId) setDetailRefreshing(false);
+    }
+  }, []);
+
+  const closeDetail = useCallback(() => {
+    detailReqId.current++;
+    setDetailRefreshing(false);
+    setSelected(null);
+  }, []);
 
   useEffect(() => {
     if (isFromCache && cached.length > 0 && projets.length === 0) setProjets(cached);
@@ -468,7 +493,7 @@ export default function ProjetsScreen() {
               item={item}
               colors={colors}
               onDelete={handleDelete}
-              onOpen={setSelected}
+              onOpen={openDetail}
             />
           )}
         />
@@ -495,7 +520,8 @@ export default function ProjetsScreen() {
         title={selected?.title ?? ""}
         subtitle={selected ? `${STATUS_MAP[selected.status]?.label ?? selected.status} · ${selected.progress}%` : ""}
         fields={detailFields}
-        onClose={() => setSelected(null)}
+        refreshing={detailRefreshing}
+        onClose={closeDetail}
         onEdit={selected ? () => openEdit(selected) : undefined}
         onDelete={selected ? () => {
           if (Platform.OS === "web") {
