@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Send, Mic, MicOff, ArrowRight, Search, Zap, Bot, User, Loader2, X, Volume2, VolumeX, RotateCcw, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TalkingAvatar, type SpeechLang, type TalkingAvatarHandle } from "@workspace/ai-avatar";
+import { encodeHandoff, persistHandoff, slimHistory } from "@workspace/demo-handoff";
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 // In dev the API server runs on the same proxy host; in prod the marketing site
@@ -41,39 +42,12 @@ const GOOGLE_SAMPLES: { q: string; google: string[]; ajan: string }[] = [
   },
 ];
 
-type SlimMsg = { r: string; t: string };
-
-function slimHistory(history: Msg[]): SlimMsg[] {
-  return history.slice(-6).map((m) => ({ r: m.role[0], t: m.text.slice(0, 400) }));
-}
-
-function encodeHandoff(history: Msg[]): string {
-  try {
-    return btoa(unescape(encodeURIComponent(JSON.stringify(slimHistory(history)))));
-  } catch { return ""; }
-}
-
-// Durable fallback so the demo conversation survives the sign-up / login
-// redirect even if the URL param is dropped along the way. tanitim and the app
-// share an origin (path-based routing), so localStorage is visible to both.
-// The consumer (commandant-ia) reads the URL param first, then this key, and
-// clears it once consumed. Short TTL keeps it from leaking into later sessions.
-const HANDOFF_KEY = "ajan.demo.handoff";
-function persistHandoff(history: Msg[]) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(
-      HANDOFF_KEY,
-      JSON.stringify({ ts: Date.now(), msgs: slimHistory(history) }),
-    );
-  } catch { /* ignore */ }
-}
-
-// Durable, server-side handoff. The base64 URL param + localStorage above are
-// instant but die after 30 min and never cross devices. We also POST the
-// transcript to get a short-lived claim token; the app claims it on first login
-// and can resume even days later / on another device. The token is stashed in
-// localStorage (survives the sign-up redirect) and also placed on the URL.
+// Durable, server-side handoff. The base64 URL param + localStorage codec
+// (shared in @workspace/demo-handoff) are instant but die after 30 min and
+// never cross devices. We also POST the transcript to get a short-lived claim
+// token; the app claims it on first login and can resume even days later / on
+// another device. The token is stashed in localStorage (survives the sign-up
+// redirect) and also placed on the URL.
 const HANDOFF_TOKEN_KEY = "ajan.demo.token";
 async function createServerHandoff(history: Msg[]): Promise<string> {
   try {
@@ -240,7 +214,7 @@ export function AjanDemo() {
 
   const goToApp = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault();
-    persistHandoff(history);
+    persistHandoff(history, typeof window !== "undefined" ? window.localStorage : null, Date.now());
     const encoded = encodeHandoff(history);
     // Persist server-side and get a claim token so the conversation survives the
     // 30-min window and can resume on another device once claimed at login.

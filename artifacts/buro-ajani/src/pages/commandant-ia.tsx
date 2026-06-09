@@ -25,6 +25,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { streamSse } from "@/lib/ai-stream-client";
 import { AvatarDock } from "@workspace/ai-avatar";
+import { decodeHandoffParam, consumeHandoff, lastUserPrompt } from "@workspace/demo-handoff";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -1252,20 +1253,17 @@ function ChatTab() {
   // marketing site writes on the same origin. The URL param wins; the
   // localStorage fallback is consumed (and cleared) only if no param is present.
   useEffect(() => {
-    const HANDOFF_KEY = "ajan.demo.handoff";
-    const HANDOFF_TTL_MS = 30 * 60 * 1000; // 30 min — long enough to sign up.
-
-    const applySlim = (slim: { r: string; t: string }[]): boolean => {
+    const applySlim = (slim: { r: string; t: string }[] | null): boolean => {
       if (!Array.isArray(slim) || slim.length === 0) return false;
       const clean = slim
         .filter((s) => s && (s.r === "u" || s.r === "a") && typeof s.t === "string" && s.t.trim())
         .map((s) => ({ r: s.r, t: String(s.t).slice(0, 400) }));
-      const lastUser = [...clean].reverse().find((s) => s.r === "u");
-      if (!lastUser) return false;
+      const prompt = lastUserPrompt(clean);
+      if (!prompt) return false;
       // Keep the full exchange so it can be shown as prior context and sent with
       // the first real message; still pre-fill the input with the last question.
       setImportedDemo(clean);
-      setInput(`[Suite de la demo du site] ${lastUser.t}`);
+      setInput(`[Suite de la demo du site] ${prompt}`);
       return true;
     };
 
@@ -1276,8 +1274,7 @@ function ChatTab() {
       const url = new URL(window.location.href);
       const raw = url.searchParams.get("demo");
       if (raw) {
-        const json = decodeURIComponent(escape(atob(decodeURIComponent(raw))));
-        imported = applySlim(JSON.parse(json) as { r: string; t: string }[]);
+        imported = applySlim(decodeHandoffParam(raw));
         url.searchParams.delete("demo");
         window.history.replaceState({}, "", url.pathname + (url.search ? url.search : "") + url.hash);
       }
@@ -1286,22 +1283,11 @@ function ChatTab() {
     }
 
     // 2) localStorage fallback (survives a dropped param through redirects).
-    if (!imported) {
-      try {
-        const stored = window.localStorage.getItem(HANDOFF_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored) as { ts?: number; msgs?: { r: string; t: string }[] };
-          const fresh = typeof parsed.ts === "number" && Date.now() - parsed.ts < HANDOFF_TTL_MS;
-          if (fresh && parsed.msgs) imported = applySlim(parsed.msgs);
-        }
-      } catch {
-        // ignore malformed fallback payloads
-      }
-    }
-
-    // Always clear the durable key once we've had a chance to consume it, so a
+    // consumeHandoff enforces the 30-min TTL and ALWAYS clears the key, so a
     // stale demo never leaks into a later, unrelated session.
-    try { window.localStorage.removeItem(HANDOFF_KEY); } catch { /* ignore */ }
+    const storage = typeof window !== "undefined" ? window.localStorage : null;
+    const fallback = consumeHandoff(storage, Date.now());
+    if (!imported && fallback) imported = applySlim(fallback);
 
     if (imported) {
       toast({ title: "Demo importee", description: "Votre conversation du site est prete a continuer." });

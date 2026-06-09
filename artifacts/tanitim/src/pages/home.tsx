@@ -19,6 +19,7 @@ type ContactKind = "rappel" | "devis";
 import { HeroLiveScene, LiveActivityTicker, CursorGlow } from "@/components/HeroLiveScene";
 import { ShowcaseAvatar3D } from "@/components/ShowcaseAvatar3D";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
+import { PAGE_META } from "@/lib/page-meta";
 import { AnimatedDashboardMock } from "@/components/AnimatedDashboardMock";
 import { 
   PhoneCall, 
@@ -137,11 +138,7 @@ export default function Home() {
   const openDemo = (source?: string) => { setDemoSource(source); setDemoOpen(true); };
   const openContact = (kind: ContactKind, source?: string) => { setContactSource(source); setContactKind(kind); };
 
-  useDocumentMeta({
-    title: "Agent de Bureau — Le secrétariat IA de votre entreprise",
-    description: "CRM, appels, devis, facturation, stock et IA multi-agents : la plateforme française complète qui centralise et automatise la gestion de votre bureau.",
-    path: "/",
-  });
+  useDocumentMeta(PAGE_META.home);
 
   return (
     <div className="min-h-screen bg-background flex flex-col overflow-x-hidden font-sans">

@@ -2,14 +2,11 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { useState } from "react";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
+import { PAGE_META } from "@/lib/page-meta";
 
 export default function Gizlilik() {
   const [demoOpen, setDemoOpen] = useState(false);
-  useDocumentMeta({
-    title: "Gizlilik Politikası",
-    description: "Agent de Bureau / Büro Ajanı kişisel verilerinizi nasıl topladığını ve koruduğunu açıklar — KVKK ve GDPR uyumlu.",
-    path: "/gizlilik",
-  });
+  useDocumentMeta(PAGE_META.gizlilik);
   return (
     <div className="min-h-screen bg-background">
       <Navbar onDemoClick={() => setDemoOpen(true)} />

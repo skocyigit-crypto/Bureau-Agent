@@ -13,6 +13,9 @@
       "path": "./lib/ai-avatar"
     },
     {
+      "path": "./lib/demo-handoff"
+    },
+    {
       "path": "./lib/api-zod"
     },
     {

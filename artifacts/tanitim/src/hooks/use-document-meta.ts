@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { composePageTitle } from "@/lib/page-meta";
 
 export interface DocumentMeta {
   title: string;
@@ -8,8 +9,6 @@ export interface DocumentMeta {
   ogTitle?: string;
   ogDescription?: string;
 }
-
-const SITE_NAME = "Agent de Bureau";
 
 function setMetaTag(attr: "name" | "property", key: string, content: string) {
   let el = document.head.querySelector<HTMLMetaElement>(
@@ -45,9 +44,7 @@ export function useDocumentMeta({
   ogDescription,
 }: DocumentMeta): void {
   useEffect(() => {
-    const fullTitle = title.includes(SITE_NAME)
-      ? title
-      : `${title} — ${SITE_NAME}`;
+    const fullTitle = composePageTitle(title);
     document.title = fullTitle;
 
     setMetaTag("name", "description", description);

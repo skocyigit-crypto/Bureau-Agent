@@ -2,14 +2,11 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { useState } from "react";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
+import { PAGE_META } from "@/lib/page-meta";
 
 export default function CGU() {
   const [demoOpen, setDemoOpen] = useState(false);
-  useDocumentMeta({
-    title: "Conditions Générales d'Utilisation",
-    description: "Conditions générales d'utilisation de la plateforme SaaS Agent de Bureau : accès, abonnement et responsabilités.",
-    path: "/cgu",
-  });
+  useDocumentMeta(PAGE_META.cgu);
   return (
     <div className="min-h-screen bg-background">
       <Navbar onDemoClick={() => setDemoOpen(true)} />
