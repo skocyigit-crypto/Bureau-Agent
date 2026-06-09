@@ -1,4 +1,5 @@
 import { Router } from "express";
+import multer from "multer";
 import { analyzeDocument, executeDocumentAction, type SuggestedAction } from "../services/document-ai";
 import { scanBase64ContentFull, logSecurityEvent } from "../middleware/security";
 import { getOrgId } from "../middleware/tenant";
@@ -7,6 +8,36 @@ import { logger } from "../lib/logger";
 
 const router = Router();
 const requireMinAgent = requireRole("super_admin", "administrateur", "agent");
+
+const MAX_FILE_SIZE_MB = 25;
+
+// Upload multipart/form-data pour l'analyse de documents (capture mobile).
+// On garde le fichier en memoire (pas de disque) car il est tout de suite
+// converti en base64 pour le scan + l'analyse IA, puis libere. La limite multer
+// double la limite metier pour laisser une marge a l'enrobage multipart; la
+// taille reelle est revalidee plus bas contre MAX_FILE_SIZE_MB.
+const uploadAnalyze = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_FILE_SIZE_MB * 1024 * 1024, files: 1 },
+}).single("file");
+
+// Wrapper qui traduit les erreurs multer (ex: fichier trop gros) en 400 propre
+// et qui rend l'upload optionnel: si la requete est en JSON (compat ascendante),
+// multer ne trouve pas de champ fichier et on retombe sur req.body.
+function acceptUpload(req: any, res: any, next: any): void {
+  uploadAnalyze(req, res, (err: any) => {
+    if (err) {
+      const tooBig = err?.code === "LIMIT_FILE_SIZE";
+      res.status(400).json({
+        error: tooBig
+          ? `Le fichier depasse la taille maximale de ${MAX_FILE_SIZE_MB} Mo.`
+          : "Fichier invalide ou illisible.",
+      });
+      return;
+    }
+    next();
+  });
+}
 
 const SUPPORTED_MIME_TYPES = [
   "application/pdf",
@@ -47,16 +78,31 @@ const EXTENSION_MIME_MAP: Record<string, string> = {
   ".tiff": "image/tiff",
 };
 
-const MAX_FILE_SIZE_MB = 25;
-
 function resolveMimeType(fileName: string, providedMime: string): string {
   if (SUPPORTED_MIME_TYPES.includes(providedMime)) return providedMime;
   const ext = fileName.toLowerCase().match(/\.[^.]+$/)?.[0] || "";
   return EXTENSION_MIME_MAP[ext] || providedMime;
 }
 
-router.post("/document-ai/analyze", requireMinAgent, async (req, res): Promise<void> => {
-  const { fileContent, mimeType: rawMimeType, fileName } = req.body;
+router.post("/document-ai/analyze", requireMinAgent, acceptUpload, async (req, res): Promise<void> => {
+  // Deux modes d'entree:
+  //  - multipart/form-data (capture mobile): le fichier arrive dans req.file,
+  //    on le convertit en base64 ici (le scan + l'analyse IA travaillent en
+  //    base64). Le nom/mime peuvent etre fournis en champs de formulaire.
+  //  - JSON (compat ascendante): { fileContent (base64), mimeType, fileName }.
+  let fileContent: string | undefined;
+  let rawMimeType: string | undefined;
+  let fileName: string | undefined;
+
+  if (req.file) {
+    fileContent = req.file.buffer.toString("base64");
+    fileName = (req.body?.fileName as string) || req.file.originalname || "document";
+    rawMimeType = (req.body?.mimeType as string) || req.file.mimetype;
+  } else {
+    fileContent = req.body?.fileContent;
+    rawMimeType = req.body?.mimeType;
+    fileName = req.body?.fileName;
+  }
 
   if (!fileContent || !fileName) {
     res.status(400).json({ error: "fileContent et fileName sont requis." });

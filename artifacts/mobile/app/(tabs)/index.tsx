@@ -1,9 +1,11 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  AppState,
+  type AppStateStatus,
   Linking,
   Platform,
   Pressable,
@@ -82,8 +84,6 @@ function formatCumulativeSaved(savedMs: number): string {
   return `${rounded.toLocaleString("fr-FR")} s`;
 }
 
-const REFRESH_INTERVAL = 60_000;
-
 export default function DashboardScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -100,7 +100,8 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hasLoadedRef = useRef(false);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   const { cached: cachedDashboard, isFromCache, updateCache } = useOfflineCache<DashboardData | null>("dashboard_summary", null);
 
@@ -166,10 +167,29 @@ export default function DashboardScreen() {
     if (isFromCache && cachedDashboard && !data) setData(cachedDashboard);
   }, [isFromCache, cachedDashboard, data]);
 
+  // Rafraichissement intelligent: au lieu d'un polling fixe toutes les 60 s
+  // (qui consomme batterie/data meme quand l'ecran n'est pas regarde), on
+  // recharge uniquement quand l'ecran reprend le focus (changement d'onglet)
+  // et quand l'app revient au premier plan (AppState 'active'). Le pull-to-
+  // refresh manuel reste disponible.
+  useFocusEffect(
+    useCallback(() => {
+      // Premier focus: chargement initial (avec spinner). Focus suivants:
+      // rafraichissement silencieux car `loading` est deja false.
+      fetchDashboard(hasLoadedRef.current);
+      hasLoadedRef.current = true;
+    }, [fetchDashboard]),
+  );
+
   useEffect(() => {
-    fetchDashboard();
-    intervalRef.current = setInterval(() => fetchDashboard(true), REFRESH_INTERVAL);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    const sub = AppState.addEventListener("change", (next: AppStateStatus) => {
+      const prev = appStateRef.current;
+      appStateRef.current = next;
+      if (next === "active" && (prev === "background" || prev === "inactive")) {
+        fetchDashboard(true);
+      }
+    });
+    return () => sub.remove();
   }, [fetchDashboard]);
 
   function onRefresh() { setRefreshing(true); fetchDashboard(); }
@@ -232,7 +252,7 @@ export default function DashboardScreen() {
               )}
             </View>
           </View>
-          <Pressable onPress={() => quickNav("/notifications")} style={[styles.notifBtn, { backgroundColor: "rgba(255,255,255,0.12)" }]}>
+          <Pressable onPress={() => quickNav("/notifications")} hitSlop={8} style={[styles.notifBtn, { backgroundColor: "rgba(255,255,255,0.12)" }]}>
             <Feather name="bell" size={18} color="#fff" />
             {(data?.unreadMessages || 0) > 0 && (
               <View style={[styles.notifDot, { backgroundColor: colors.destructive }]}>
@@ -240,7 +260,7 @@ export default function DashboardScreen() {
               </View>
             )}
           </Pressable>
-          <Pressable onPress={() => router.push("/settings" as any)} style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
+          <Pressable onPress={() => router.push("/settings" as any)} hitSlop={8} style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
             <Text style={[styles.avatarText, { color: colors.primaryForeground }]}>
               {user ? (user.prenom[0] + user.nom[0]).toUpperCase() : "AB"}
             </Text>
@@ -257,6 +277,7 @@ export default function DashboardScreen() {
             <Pressable
               key={a.label}
               onPress={() => quickNav(a.route)}
+              hitSlop={6}
               style={({ pressed }) => [styles.quickCreateBtn, { backgroundColor: a.color + "25", opacity: pressed ? 0.7 : 1 }]}
             >
               <Feather name={a.icon} size={16} color={a.color} />
@@ -440,9 +461,10 @@ export default function DashboardScreen() {
                           if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                           Linking.openURL(`tel:${call.phoneNumber}`);
                         }}
+                        hitSlop={10}
                         style={[styles.callbackBtn, { backgroundColor: "#22c55e20" }]}
                       >
-                        <Feather name="phone-call" size={14} color="#22c55e" />
+                        <Feather name="phone-call" size={16} color="#15803d" />
                       </Pressable>
                     )}
                     <Text style={[styles.recentTime, { color: colors.mutedForeground }]}>{formatTime(call.createdAt)}</Text>

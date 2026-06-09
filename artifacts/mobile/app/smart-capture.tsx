@@ -61,9 +61,10 @@ interface ActionResult {
 
 interface Capture {
   uri: string;
-  base64: string;
   mimeType: string;
   fileName: string;
+  /** Taille en octets si l'image picker la fournit (sert au garde-fou). */
+  fileSize?: number;
 }
 
 const DOC_TYPE_MAP: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
@@ -144,9 +145,9 @@ export default function SmartCaptureScreen() {
     const ext = (asset.mimeType?.split("/")[1] || "jpg").replace("jpeg", "jpg");
     return {
       uri: asset.uri,
-      base64: asset.base64 ?? "",
       mimeType: asset.mimeType || "image/jpeg",
       fileName: asset.fileName || `capture-${Date.now()}.${ext}`,
+      fileSize: asset.fileSize,
     };
   }
 
@@ -160,10 +161,10 @@ export default function SmartCaptureScreen() {
       const shot = await ImagePicker.launchCameraAsync({
         mediaTypes: ["images"],
         quality: 0.6,
-        base64: true,
+        base64: false,
         allowsEditing: false,
       });
-      if (!shot.canceled && shot.assets[0]?.base64) {
+      if (!shot.canceled && shot.assets[0]?.uri) {
         setCapture(assetToCapture(shot.assets[0]));
         setResult(null);
         setActionResults([]);
@@ -183,9 +184,9 @@ export default function SmartCaptureScreen() {
       const picked = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ["images"],
         quality: 0.6,
-        base64: true,
+        base64: false,
       });
-      if (!picked.canceled && picked.assets[0]?.base64) {
+      if (!picked.canceled && picked.assets[0]?.uri) {
         setCapture(assetToCapture(picked.assets[0]));
         setResult(null);
         setActionResults([]);
@@ -196,25 +197,37 @@ export default function SmartCaptureScreen() {
   }
 
   async function analyse() {
-    if (!capture?.base64) return;
-    // Garde de taille: le parser JSON du serveur plafonne bien avant les 25 Mo
-    // metier. base64 ~= 4/3 des octets bruts -> on bloque au-dela de ~13 Mo bruts.
-    const approxBytes = Math.floor(capture.base64.length * 0.75);
-    if (approxBytes > 13 * 1024 * 1024) {
+    if (!capture?.uri) return;
+    // Garde de taille cote client (le serveur plafonne aussi a 25 Mo). On
+    // s'appuie sur la taille reelle du fichier quand le picker la fournit;
+    // sinon on laisse passer et le serveur tranchera.
+    if (capture.fileSize && capture.fileSize > 25 * 1024 * 1024) {
       Alert.alert("Image trop lourde", "Cette photo est trop volumineuse. Reprenez-la d'un peu plus loin ou réessayez.");
       return;
     }
     if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setAnalysing(true);
     try {
+      // Upload en multipart/form-data: le fichier est streame depuis son URI
+      // (RN) ou son blob (web) sans jamais charger une enorme chaine base64 en
+      // memoire JS. On NE fixe PAS Content-Type: RN/le navigateur ajoutent
+      // automatiquement le boundary multipart correct.
+      const form = new FormData();
+      if (isWeb) {
+        const blob = await (await fetch(capture.uri)).blob();
+        form.append("file", blob, capture.fileName);
+      } else {
+        form.append("file", {
+          uri: capture.uri,
+          name: capture.fileName,
+          type: capture.mimeType,
+        } as any);
+      }
+      form.append("fileName", capture.fileName);
+      form.append("mimeType", capture.mimeType);
       const res = await fetchAuth(`${API_BASE}/api/document-ai/analyze`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fileContent: capture.base64,
-          mimeType: capture.mimeType,
-          fileName: capture.fileName,
-        }),
+        body: form,
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));

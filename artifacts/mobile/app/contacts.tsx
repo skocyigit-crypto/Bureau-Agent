@@ -144,19 +144,19 @@ function ContactRow({ contact, colors, onDelete, onOpen }: {
           {contact.phone && (
             <Pressable
               onPress={() => Linking.openURL(`tel:${contact.phone}`)}
-              style={[styles.actionBtn, { backgroundColor: "#22c55e18" }]}
-              hitSlop={8}
+              style={[styles.actionBtn, { backgroundColor: "#22c55e22" }]}
+              hitSlop={10}
             >
-              <Feather name="phone" size={14} color="#22c55e" />
+              <Feather name="phone" size={16} color="#15803d" />
             </Pressable>
           )}
           {contact.email && (
             <Pressable
               onPress={() => Linking.openURL(`mailto:${contact.email}`)}
-              style={[styles.actionBtn, { backgroundColor: "#3b82f618" }]}
-              hitSlop={8}
+              style={[styles.actionBtn, { backgroundColor: "#3b82f622" }]}
+              hitSlop={10}
             >
-              <Feather name="mail" size={14} color="#3b82f6" />
+              <Feather name="mail" size={16} color="#1d4ed8" />
             </Pressable>
           )}
         </View>
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
   tagText: { fontSize: 9, fontFamily: "Inter_600SemiBold" },
   tagMore: { fontSize: 10, fontFamily: "Inter_400Regular", alignSelf: "center" },
   contactActions: { flexDirection: "row", gap: 6 },
-  actionBtn: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  actionBtn: { width: 40, height: 40, borderRadius: 11, alignItems: "center", justifyContent: "center" },
   swipeDelete: { justifyContent: "center", alignItems: "center", width: 90, borderRadius: 12, marginBottom: 8, gap: 4, backgroundColor: "#ef4444" },
   swipeText: { color: "#fff", fontSize: 11, fontFamily: "Inter_600SemiBold" },
 });
