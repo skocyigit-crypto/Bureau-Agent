@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { confirmAction } from "@/hooks/use-confirm";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useListContacts, useCreateContact, useUpdateContact, useDeleteContact, getListContactsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Users, Search, Filter, MoreHorizontal, Phone, Mail, Building, Plus, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Download, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, LayoutGrid, LayoutList, Upload, Printer, Edit, Tag, Copy, FolderKanban } from "lucide-react";
@@ -78,8 +79,10 @@ export default function Contacts() {
     }
   }, []);
 
+  const debouncedSearch = useDebouncedValue(search, 300);
+
   const queryParams = {
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     category: categoryFilter !== "all" ? categoryFilter as any : undefined,
     sortBy: sortBy as any,
     sortOrder: sortOrder as any,
@@ -105,6 +108,10 @@ export default function Contacts() {
   });
 
   const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
+
+  // Revenir à la première page quand la recherche (debouncée) change, sans
+  // remettre la page à zéro à chaque frappe.
+  useEffect(() => { setPage(0); }, [debouncedSearch]);
 
   const handleSort = (column: string) => {
     if (sortBy === column) {
@@ -362,8 +369,9 @@ export default function Contacts() {
           <Input
             placeholder="Rechercher par nom, entreprise, email..."
             className="pl-9 w-full"
+            aria-label="Rechercher des contacts"
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+            onChange={(e) => setSearch(e.target.value)}
           />
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -594,16 +602,16 @@ export default function Contacts() {
           {data ? `${data.total} contact(s) - Page ${page + 1} sur ${totalPages}` : ""}
         </p>
         <div className="flex items-center gap-1">
-          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(0)}>
+          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(0)} aria-label="Première page">
             <ChevronsLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(p => p - 1)} aria-label="Page précédente">
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
+          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} aria-label="Page suivante">
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)}>
+          <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)} aria-label="Dernière page">
             <ChevronsRight className="h-4 w-4" />
           </Button>
         </div>

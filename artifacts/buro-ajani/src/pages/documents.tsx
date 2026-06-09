@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { confirmAction } from "@/hooks/use-confirm";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ import {
   FileText, FileSpreadsheet, Image as ImageIcon, File, Download,
   Trash2, Brain, Sparkles, Search, Filter, BarChart3, HardDrive,
   Upload, Loader2, Eye, Printer, Edit, FolderKanban, ShieldCheck, ShieldAlert,
-  Shield, ShieldQuestion, X, RotateCcw,
+  Shield, ShieldQuestion, X, RotateCcw, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -24,6 +25,11 @@ import { useLocation } from "wouter";
 import { streamSse } from "@/lib/ai-stream-client";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+// La liste documents est filtrée côté client (l'API /list ne recherche pas par
+// nom de fichier). On pagine donc les résultats filtrés côté client pour éviter
+// de rendre des dizaines de cartes d'un coup.
+const DOCS_PAGE_SIZE = 12;
 
 const ENTITY_LABELS: Record<string, string> = {
   contact: "Contact",
@@ -152,6 +158,7 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
+  const [docPage, setDocPage] = useState(0);
   const [filterEntity, setFilterEntity] = useState<string>("all");
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [filterScan, setFilterScan] = useState<string>(() => {
@@ -545,9 +552,28 @@ export default function DocumentsPage() {
     }
   };
 
-  const filtered = documents.filter(d =>
-    !search || d.fileName.toLowerCase().includes(search.toLowerCase())
+  const debouncedSearch = useDebouncedValue(search, 300);
+
+  const filtered = useMemo(
+    () =>
+      documents.filter(
+        d => !debouncedSearch || d.fileName.toLowerCase().includes(debouncedSearch.toLowerCase())
+      ),
+    [documents, debouncedSearch]
   );
+
+  const docTotalPages = Math.max(1, Math.ceil(filtered.length / DOCS_PAGE_SIZE));
+  const pagedDocs = useMemo(
+    () => filtered.slice(docPage * DOCS_PAGE_SIZE, docPage * DOCS_PAGE_SIZE + DOCS_PAGE_SIZE),
+    [filtered, docPage]
+  );
+
+  // Revenir à la première page quand le filtrage change la liste (recherche
+  // debouncée ou filtres serveur), ou si la page courante dépasse le total.
+  useEffect(() => { setDocPage(0); }, [debouncedSearch, filterEntity, filterCategory, filterScan]);
+  useEffect(() => {
+    if (docPage > docTotalPages - 1) setDocPage(docTotalPages - 1);
+  }, [docPage, docTotalPages]);
 
   return (
     <div className="space-y-6">
@@ -641,6 +667,7 @@ export default function DocumentsPage() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="pl-9"
+                aria-label="Rechercher un document"
               />
             </div>
             <Select value={filterEntity} onValueChange={setFilterEntity}>
@@ -819,7 +846,7 @@ export default function DocumentsPage() {
                   <span className="text-xs text-muted-foreground">Tout sélectionner ({filtered.length})</span>
                 </div>
               )}
-              {filtered.map(doc => {
+              {pagedDocs.map(doc => {
                 const Icon = getFileIcon(doc.mimeType);
                 return (
                   <Card key={doc.id} className="hover:bg-accent/30 transition-colors">
@@ -914,6 +941,21 @@ export default function DocumentsPage() {
                   </Card>
                 );
               })}
+              {docTotalPages > 1 && (
+                <div className="flex items-center justify-between pt-2">
+                  <p className="text-xs text-muted-foreground">
+                    {filtered.length} document(s) — Page {docPage + 1} sur {docTotalPages}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="icon" className="h-8 w-8" disabled={docPage === 0} onClick={() => setDocPage(p => p - 1)} aria-label="Page précédente">
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="icon" className="h-8 w-8" disabled={docPage >= docTotalPages - 1} onClick={() => setDocPage(p => p + 1)} aria-label="Page suivante">
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

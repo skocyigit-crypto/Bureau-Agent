@@ -16,6 +16,7 @@ import { LiveActivityFeed } from "@/components/live-activity-feed";
 import { SafeComponent, QueryErrorAlert } from "@/components/safe-component";
 import officeTeamImg from "@/assets/images/office-team.png";
 import { useGetDashboardSummary, useGetRecentActivity, useGetTopContacts, useGetWeeklyReport, useGetHourlyPerformance, useGetTaskStats } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Tooltip as RechartsTooltip, Bar, Cell, LineChart, Line, Legend } from "recharts";
@@ -66,28 +67,20 @@ function useDocumentSecurity() {
   return { verdict, error };
 }
 
+type TeamMember = { id: number; name: string; role: string; status: string; lastSeen: string };
+
 function useTeamStatus() {
-  const [team, setTeam] = useState<{ id: number; name: string; role: string; status: string; lastSeen: string }[]>([]);
-  const [error, setError] = useState(false);
-  useEffect(() => {
-    let mounted = true;
-    const controller = new AbortController();
-    const fetchTeam = async () => {
-      try {
-        const res = await fetch(`${API}/api/team-status`, { credentials: "include", signal: controller.signal });
-        if (!mounted) return;
-        if (res.ok) { const d = await res.json(); setTeam(d.members || []); setError(false); }
-        else { console.error("[Dashboard] team-status HTTP error:", res.status); setError(true); }
-      } catch (err: any) {
-        if (err?.name === "AbortError") return;
-        if (mounted) { console.error("[Dashboard] team-status fetch failed:", err); setError(true); }
-      }
-    };
-    fetchTeam();
-    const t = setInterval(fetchTeam, 30000);
-    return () => { mounted = false; controller.abort(); clearInterval(t); };
-  }, []);
-  return { team, error };
+  const query = useQuery({
+    queryKey: ["dashboard", "team-status"],
+    queryFn: async ({ signal }): Promise<TeamMember[]> => {
+      const res = await fetch(`${API}/api/team-status`, { credentials: "include", signal });
+      if (!res.ok) throw new Error(`team-status ${res.status}`);
+      const d = await res.json();
+      return (d.members || []) as TeamMember[];
+    },
+    refetchInterval: 30000,
+  });
+  return { team: query.data ?? [], isLoading: query.isLoading, error: query.isError };
 }
 
 function useWeekComparison() {
@@ -120,14 +113,15 @@ interface AiQuotaData {
 }
 
 function useAiQuota() {
-  const [quota, setQuota] = useState<AiQuotaData | null>(null);
-  useEffect(() => {
-    fetch(`${API}/api/ai-usage/quota`, { credentials: "include" })
-      .then(r => { if (!r.ok) return null; return r.json(); })
-      .then(d => { if (d) setQuota(d); })
-      .catch(() => {});
-  }, []);
-  return quota;
+  const query = useQuery({
+    queryKey: ["dashboard", "ai-quota"],
+    queryFn: async ({ signal }): Promise<AiQuotaData> => {
+      const res = await fetch(`${API}/api/ai-usage/quota`, { credentials: "include", signal });
+      if (!res.ok) throw new Error(`ai-quota ${res.status}`);
+      return (await res.json()) as AiQuotaData;
+    },
+  });
+  return { quota: query.data ?? null, isLoading: query.isLoading, error: query.isError };
 }
 
 function useTrialStatus() {
@@ -369,12 +363,12 @@ export default function Dashboard() {
   const [quickActionTab, setQuickActionTab] = useState<"contact" | "tache" | "appel" | "message" | "evenement" | "projet">("contact");
   const openQuickAction = (tab: typeof quickActionTab) => { setQuickActionTab(tab); setQuickActionOpen(true); };
   const now = useLiveClock();
-  const { team: teamMembers, error: teamError } = useTeamStatus();
+  const { team: teamMembers, isLoading: teamLoading, error: teamError } = useTeamStatus();
   const { isTrial, dismissed, dismiss } = useTrialStatus();
   const orgProfileComplete = useOrgProfileComplete();
   const systemHealthy = useSystemHealth();
   const { data: weekComparison, error: weekCompError } = useWeekComparison();
-  const aiQuota = useAiQuota();
+  const { quota: aiQuota, isLoading: aiQuotaLoading } = useAiQuota();
   const { data: summary, isLoading: isLoadingSummary, error: summaryError } = useGetDashboardSummary({ query: { queryKey: ["dashboardSummary"] } });
   const { data: recentActivity, isLoading: isLoadingActivity, error: activityError } = useGetRecentActivity({ limit: 6 }, { query: { queryKey: ["recentActivity"] } });
   const { data: topContacts, isLoading: isLoadingContacts, error: contactsError } = useGetTopContacts({ limit: 5 }, { query: { queryKey: ["topContacts"] } });
@@ -596,7 +590,7 @@ export default function Dashboard() {
             ) : (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <UserCheck className="w-3.5 h-3.5" />
-                <span>{teamError ? "Erreur de chargement de l'équipe" : "Chargement de l'équipe..."}</span>
+                <span>{teamLoading ? "Chargement de l'équipe..." : teamError ? "Erreur de chargement de l'équipe" : "Aucun membre d'équipe"}</span>
               </div>
             )}
           </CardContent>
@@ -953,6 +947,11 @@ export default function Dashboard() {
                     <p className="text-xs text-white/50">
                       {Math.max(aiQuota.percentCost, aiQuota.percentCalls).toFixed(0)}% du plafond mensuel
                     </p>
+                  </>
+                ) : aiQuotaLoading ? (
+                  <>
+                    <p className="font-semibold text-amber-300">Chargement…</p>
+                    <p className="text-xs text-white/50">Quota IA</p>
                   </>
                 ) : (
                   <>
