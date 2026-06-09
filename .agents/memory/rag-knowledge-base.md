@@ -14,10 +14,19 @@ is not valid for Google's embedding endpoint. So the service is **dual-mode**:
 
 - `embedding`/`embedModel` columns are NULLABLE; `indexDocument` is fail-soft and
   stores null vectors when embedding fails.
-- `searchKnowledge` runs **semantic cosine** ranking only if embeddings exist,
-  otherwise falls back to **BM25-style lexical** ranking (FR+EN stopwords,
-  `KB_MIN_SCORE_LEXICAL` ≈ 0.05). `getKnowledgeStatus().searchMode` reports
-  `"semantic" | "lexical"` and the UIs badge it.
+- `searchKnowledge` runs **hybrid** ranking when embeddings exist: per-query
+  max-normalized cosine blended with normalized BM25 via `KB_HYBRID_SEM_WEIGHT`
+  (0.6 sem / 0.4 lex). A chunk passes the relevance gate if EITHER signal clears
+  its floor (`KB_MIN_SCORE` for cosine OR `KB_MIN_SCORE_LEXICAL` for lexical), so
+  the "no relevant source → NOT_FOUND" behavior is preserved. With no embeddings
+  it falls back to **BM25-only** (FR+EN stopwords). `getKnowledgeStatus().searchMode`
+  still reports `"semantic" | "lexical"` (semantic = embeddings present) — that
+  enum is unchanged even though semantic mode is now hybrid under the hood.
+- Final top-k uses **MMR diversity selection** (`selectDiverse`): ranks a pool
+  (`KB_CANDIDATE_POOL`×topK, min `KB_CANDIDATE_POOL_MIN`), drops near-duplicates
+  (token-set Jaccard ≥ `KB_DEDUP_THRESHOLD` 0.85 — chunkText overlap produces
+  them) and balances relevance vs novelty (`KB_MMR_LAMBDA` 0.7). Applies to BOTH
+  hybrid and lexical paths.
 - If a valid embedding key ever appears, reindexing auto-upgrades rows to semantic.
 
 **Why:** keeps the feature always-available without a hard dependency on an

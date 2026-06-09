@@ -36,6 +36,29 @@ const KB_MIN_SCORE = Number(process.env.KB_MIN_SCORE ?? 0.45);
 // répond pas).
 const KB_MIN_SCORE_LEXICAL = Number(process.env.KB_MIN_SCORE_LEXICAL ?? 0.05);
 const KB_CONTEXT_MAX_CHARS = Number(process.env.KB_CONTEXT_MAX_CHARS ?? 8000);
+// Recherche HYBRIDE: quand des embeddings ET un signal lexical existent, on
+// combine le cosinus sémantique (normalisé 0..1 sur le lot) avec le score BM25
+// (déjà normalisé 0..1). Poids du sémantique dans le mélange; le lexical reçoit
+// (1 - poids). Sémantique privilégié par défaut, le lexical sert de correctif
+// (mots-clés exacts, sigles, références que l'embedding rate parfois).
+const KB_HYBRID_SEM_WEIGHT = Math.min(
+  Math.max(Number(process.env.KB_HYBRID_SEM_WEIGHT ?? 0.6), 0),
+  1,
+);
+// Sélection finale type MMR (Maximal Marginal Relevance): on évite de renvoyer
+// plusieurs chunks quasi identiques (le recouvrement de chunkText en produit) et
+// on privilégie la diversité. λ pondère pertinence vs nouveauté; un candidat
+// dont la similarité Jaccard à un chunk déjà retenu dépasse le seuil de
+// déduplication est écarté.
+const KB_MMR_LAMBDA = Math.min(Math.max(Number(process.env.KB_MMR_LAMBDA ?? 0.7), 0), 1);
+const KB_DEDUP_THRESHOLD = Math.min(
+  Math.max(Number(process.env.KB_DEDUP_THRESHOLD ?? 0.85), 0),
+  1,
+);
+// Taille du vivier de candidats passé à la sélection diversifiée (multiple de
+// topK, avec un plancher pour les petits topK).
+const KB_CANDIDATE_POOL = Number(process.env.KB_CANDIDATE_POOL ?? 4);
+const KB_CANDIDATE_POOL_MIN = Number(process.env.KB_CANDIDATE_POOL_MIN ?? 30);
 
 // ---------------------------------------------------------------------------
 // Découpage en chunks
@@ -390,6 +413,54 @@ function lexicalRank(query: string, docs: { content: string }[]): number[] {
   return max > 0 ? scores.map((s) => s / max) : scores;
 }
 
+/** Similarité de Jaccard entre deux ensembles de tokens (0..1). Sert à repérer
+ *  les chunks quasi identiques (recouvrement) et à mesurer la redondance lors de
+ *  la sélection diversifiée. */
+function jaccard(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  let inter = 0;
+  for (const t of a) if (b.has(t)) inter += 1;
+  const union = a.size + b.size - inter;
+  return union > 0 ? inter / union : 0;
+}
+
+/** Sélection finale type MMR: parcourt le vivier trié par pertinence et retient
+ *  jusqu'à `topK` chunks en maximisant `λ·pertinence − (1−λ)·redondance`. Écarte
+ *  les quasi-doublons (Jaccard ≥ KB_DEDUP_THRESHOLD avec un chunk déjà retenu).
+ *  Le vivier doit déjà être trié par score décroissant. */
+function selectDiverse<T extends { content: string; score: number }>(
+  pool: T[],
+  topK: number,
+): T[] {
+  if (pool.length <= 1 || topK <= 1) return pool.slice(0, topK);
+  const withToks = pool.map((c) => ({ item: c, toks: new Set(tokenize(c.content)) }));
+  const selected: { item: T; toks: Set<string> }[] = [];
+  const remaining = [...withToks];
+
+  while (selected.length < topK && remaining.length > 0) {
+    let bestIdx = -1;
+    let bestVal = -Infinity;
+    for (let i = 0; i < remaining.length; i++) {
+      const cand = remaining[i]!;
+      let maxSim = 0;
+      for (const s of selected) {
+        const sim = jaccard(cand.toks, s.toks);
+        if (sim > maxSim) maxSim = sim;
+      }
+      if (maxSim >= KB_DEDUP_THRESHOLD) continue; // quasi-doublon: on l'ignore
+      const mmr = KB_MMR_LAMBDA * cand.item.score - (1 - KB_MMR_LAMBDA) * maxSim;
+      if (mmr > bestVal) {
+        bestVal = mmr;
+        bestIdx = i;
+      }
+    }
+    if (bestIdx === -1) break; // tout le reste est redondant
+    selected.push(remaining[bestIdx]!);
+    remaining.splice(bestIdx, 1);
+  }
+  return selected.map((s) => s.item);
+}
+
 export interface KbSearchHit {
   documentId: number;
   fileName: string;
@@ -425,9 +496,10 @@ export async function searchKnowledge(
   if (rows.length === 0) return [];
 
   // Embedding de la requête: best-effort. S'il est calculable ET qu'au moins un
-  // chunk possède un vecteur, on fait une recherche SÉMANTIQUE (cosinus). Sinon
-  // on bascule sur le classement LEXICAL (BM25). Les deux respectent le scope
-  // tenant (rows déjà filtrées par organisation).
+  // chunk possède un vecteur, on fait une recherche HYBRIDE (cosinus sémantique
+  // MÉLANGÉ au score lexical BM25). Sinon on bascule sur le classement LEXICAL
+  // seul (BM25). Les deux respectent le scope tenant (rows déjà filtrées par
+  // organisation).
   let qVec: number[] | null = null;
   try {
     const [v] = await embedTexts([q], {
@@ -443,26 +515,49 @@ export async function searchKnowledge(
   const hasEmbeddings = rows.some(
     (r) => Array.isArray(r.embedding) && (r.embedding as number[]).length > 0,
   );
+  const useSemantic = Boolean(qVec) && hasEmbeddings;
 
-  let scored: KbSearchHit[];
-  if (qVec && hasEmbeddings) {
-    const minScore = opts.minScore ?? KB_MIN_SCORE;
-    scored = rows
-      .filter((r) => Array.isArray(r.embedding) && (r.embedding as number[]).length > 0)
-      .map((r) => ({
-        documentId: r.documentId,
-        fileName: r.fileName ?? "Document",
-        chunkIndex: r.chunkIndex,
-        content: r.content,
-        score: cosineSim(qVec!, r.embedding as number[]),
-      }))
-      .filter((r) => r.score >= minScore)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, topK);
+  // Le signal lexical (BM25) est toujours calculé: il sert seul en repli, et de
+  // correctif (mots-clés/sigles exacts) dans le mélange hybride.
+  const lex = lexicalRank(q, rows);
+
+  let candidates: KbSearchHit[];
+  if (useSemantic) {
+    // Cosinus brut par chunk (0 si pas de vecteur), puis normalisation 0..1 sur
+    // le lot pour rendre le sémantique comparable au lexical avant mélange.
+    const sem = rows.map((r) =>
+      Array.isArray(r.embedding) && (r.embedding as number[]).length > 0
+        ? cosineSim(qVec!, r.embedding as number[])
+        : 0,
+    );
+    const maxSem = Math.max(0, ...sem);
+    const minScoreSem = opts.minScore ?? KB_MIN_SCORE;
+    const minScoreLex = KB_MIN_SCORE_LEXICAL;
+    candidates = rows
+      .map((r, i) => {
+        const semRaw = sem[i] ?? 0;
+        const lexNorm = lex[i] ?? 0;
+        const semNorm = maxSem > 0 ? semRaw / maxSem : 0;
+        const hybrid =
+          KB_HYBRID_SEM_WEIGHT * semNorm + (1 - KB_HYBRID_SEM_WEIGHT) * lexNorm;
+        return {
+          documentId: r.documentId,
+          fileName: r.fileName ?? "Document",
+          chunkIndex: r.chunkIndex,
+          content: r.content,
+          score: hybrid,
+          _sem: semRaw,
+          _lex: lexNorm,
+        };
+      })
+      // Garde-fou pertinence: on retient un chunk dès qu'UN des deux signaux est
+      // au-dessus de son plancher (sémantique OU lexical). Si aucun ne l'est, le
+      // chunk est hors sujet → exclu (préserve le comportement "aucune source").
+      .filter((r) => r._sem >= minScoreSem || r._lex >= minScoreLex)
+      .map(({ _sem, _lex, ...hit }) => hit);
   } else {
     const minScore = opts.minScore ?? KB_MIN_SCORE_LEXICAL;
-    const lex = lexicalRank(q, rows);
-    scored = rows
+    candidates = rows
       .map((r, i) => ({
         documentId: r.documentId,
         fileName: r.fileName ?? "Document",
@@ -470,12 +565,16 @@ export async function searchKnowledge(
         content: r.content,
         score: lex[i] ?? 0,
       }))
-      .filter((r) => r.score >= minScore)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, topK);
+      .filter((r) => r.score >= minScore);
   }
 
-  return scored;
+  // Tri par pertinence, puis sélection diversifiée (MMR + déduplication) sur un
+  // vivier restreint pour éviter les quasi-doublons et favoriser des extraits
+  // complémentaires.
+  candidates.sort((a, b) => b.score - a.score);
+  const poolSize = Math.max(topK * KB_CANDIDATE_POOL, KB_CANDIDATE_POOL_MIN);
+  const pool = candidates.slice(0, poolSize);
+  return selectDiverse(pool, topK);
 }
 
 // ---------------------------------------------------------------------------
