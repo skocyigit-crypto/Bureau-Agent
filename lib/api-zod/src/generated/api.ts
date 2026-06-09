@@ -3021,3 +3021,261 @@ export const RevealApiKeyResponse = zod.object({
 export const RevokeApiKeyParams = zod.object({
   id: zod.coerce.number(),
 });
+
+/**
+ * @summary List projects
+ */
+export const listProjetsQueryLimitDefault = 50;
+export const listProjetsQueryOffsetDefault = 0;
+export const listProjetsQuerySortByDefault = `createdAt`;
+export const listProjetsQuerySortOrderDefault = `desc`;
+
+export const ListProjetsQueryParams = zod.object({
+  status: zod
+    .enum(["planifie", "en_cours", "en_pause", "termine", "annule", "all"])
+    .optional(),
+  priority: zod.coerce.string().optional(),
+  assignedTo: zod.coerce.string().optional(),
+  contactId: zod.coerce.number().optional(),
+  search: zod.coerce.string().optional(),
+  limit: zod.coerce.number().default(listProjetsQueryLimitDefault),
+  offset: zod.coerce.number().default(listProjetsQueryOffsetDefault),
+  sortBy: zod
+    .enum([
+      "createdAt",
+      "updatedAt",
+      "title",
+      "endDate",
+      "priority",
+      "progress",
+      "budget",
+    ])
+    .default(listProjetsQuerySortByDefault),
+  sortOrder: zod
+    .enum(["asc", "desc"])
+    .default(listProjetsQuerySortOrderDefault),
+});
+
+export const ListProjetsResponse = zod.object({
+  projets: zod.array(
+    zod.object({
+      id: zod.number(),
+      organisationId: zod.number(),
+      contactId: zod.number().nullish(),
+      title: zod.string(),
+      description: zod.string().nullish(),
+      status: zod.enum([
+        "planifie",
+        "en_cours",
+        "en_pause",
+        "termine",
+        "annule",
+      ]),
+      priority: zod.string(),
+      clientName: zod.string().nullish(),
+      clientCompany: zod.string().nullish(),
+      address: zod.string().nullish(),
+      latitude: zod.number().nullish(),
+      longitude: zod.number().nullish(),
+      budget: zod.string().nullish(),
+      spent: zod.string().nullish(),
+      currency: zod.string(),
+      progress: zod.number(),
+      startDate: zod.coerce.date().nullish(),
+      endDate: zod.coerce.date().nullish(),
+      actualEndDate: zod.coerce.date().nullish(),
+      assignedTo: zod.string().nullish(),
+      teamMembers: zod.array(zod.string()).nullish(),
+      milestones: zod
+        .array(
+          zod.object({
+            title: zod.string(),
+            dueDate: zod.string().nullish(),
+            completed: zod.boolean(),
+          }),
+        )
+        .nullish(),
+      tags: zod.array(zod.string()).nullish(),
+      notes: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+  total: zod.number(),
+});
+
+/**
+ * @summary Project statistics
+ */
+export const GetProjetStatsResponse = zod.object({
+  byStatus: zod.array(
+    zod.object({
+      status: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+  total: zod.number(),
+  active: zod.number(),
+  termine: zod.number(),
+  overdue: zod.number(),
+  avgProgress: zod.number(),
+  highPriority: zod.number(),
+  totalBudget: zod.string(),
+  totalSpent: zod.string(),
+  overBudget: zod.number(),
+});
+
+/**
+ * @summary Get a project
+ */
+export const GetProjetParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetProjetResponse = zod.object({
+  id: zod.number(),
+  organisationId: zod.number(),
+  contactId: zod.number().nullish(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  status: zod.enum(["planifie", "en_cours", "en_pause", "termine", "annule"]),
+  priority: zod.string(),
+  clientName: zod.string().nullish(),
+  clientCompany: zod.string().nullish(),
+  address: zod.string().nullish(),
+  latitude: zod.number().nullish(),
+  longitude: zod.number().nullish(),
+  budget: zod.string().nullish(),
+  spent: zod.string().nullish(),
+  currency: zod.string(),
+  progress: zod.number(),
+  startDate: zod.coerce.date().nullish(),
+  endDate: zod.coerce.date().nullish(),
+  actualEndDate: zod.coerce.date().nullish(),
+  assignedTo: zod.string().nullish(),
+  teamMembers: zod.array(zod.string()).nullish(),
+  milestones: zod
+    .array(
+      zod.object({
+        title: zod.string(),
+        dueDate: zod.string().nullish(),
+        completed: zod.boolean(),
+      }),
+    )
+    .nullish(),
+  tags: zod.array(zod.string()).nullish(),
+  notes: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary List documents grouped by source entity
+ */
+export const listDocumentsBySourceQueryLimitDefault = 60;
+
+export const ListDocumentsBySourceQueryParams = zod.object({
+  entityType: zod.coerce.string().optional(),
+  q: zod.coerce.string().optional(),
+  scanVerdict: zod.enum(["safe", "dangerous", "none", "all"]).optional(),
+  limit: zod.coerce.number().default(listDocumentsBySourceQueryLimitDefault),
+});
+
+export const ListDocumentsBySourceResponse = zod.object({
+  documents: zod.array(
+    zod.object({
+      id: zod.number(),
+      fileName: zod.string(),
+      mimeType: zod.string(),
+      fileSize: zod.number(),
+      fileSizeFormatted: zod.string(),
+      entityType: zod.string().nullish(),
+      entityId: zod.number().nullish(),
+      category: zod.string(),
+      description: zod.string().nullish(),
+      tags: zod.array(zod.string()).nullish(),
+      aiProcessed: zod.boolean(),
+      hasText: zod.boolean(),
+      status: zod.string().nullish(),
+      scanVerdict: zod.string().nullish(),
+      scanEngine: zod.string().nullish(),
+      scannedAt: zod.coerce.date().nullish(),
+      uploadedBy: zod.number().nullish(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+  total: zod.number(),
+  bySource: zod.array(
+    zod.object({
+      entity_type: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+  byScan: zod.object({
+    safe: zod.number(),
+    dangerous: zod.number(),
+    unscanned: zod.number(),
+  }),
+});
+
+/**
+ * @summary Document statistics overview
+ */
+export const GetDocumentStatsOverviewResponse = zod.object({
+  totalDocuments: zod.number(),
+  totalSize: zod.string(),
+  totalSizeBytes: zod.number(),
+  byEntityType: zod.array(
+    zod.object({
+      entity_type: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+  byCategory: zod.array(
+    zod.object({
+      category: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+  byScanVerdict: zod.object({
+    safe: zod.number(),
+    dangerous: zod.number(),
+    unscanned: zod.number(),
+  }),
+  reuseSavings: zod.object({
+    reusedScanCount: zod.number(),
+    reusedScanSavedMs: zod.number(),
+  }),
+});
+
+/**
+ * @summary Get a document
+ */
+export const GetDocumentParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetDocumentResponse = zod.object({
+  id: zod.number(),
+  fileName: zod.string(),
+  mimeType: zod.string(),
+  fileSize: zod.number(),
+  entityType: zod.string().nullish(),
+  entityId: zod.number().nullish(),
+  category: zod.string().nullish(),
+  description: zod.string().nullish(),
+  tags: zod.array(zod.string()).nullish(),
+  aiProcessed: zod.boolean().nullish(),
+  aiAnalysis: zod.record(zod.string(), zod.unknown()).nullish(),
+  extractedText: zod.string().nullish(),
+  extractedData: zod.record(zod.string(), zod.unknown()).nullish(),
+  status: zod.string().nullish(),
+  scanVerdict: zod.string().nullish(),
+  scanEngine: zod.string().nullish(),
+  scanDetail: zod.string().nullish(),
+  scanSha256: zod.string().nullish(),
+  scannedAt: zod.coerce.date().nullish(),
+  uploadedBy: zod.number().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});

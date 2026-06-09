@@ -1479,6 +1479,157 @@ export interface StockPdfImportResponse {
   errors: string[];
 }
 
+export interface Milestone {
+  title: string;
+  dueDate?: string | null;
+  completed: boolean;
+}
+
+export type ProjetStatus = (typeof ProjetStatus)[keyof typeof ProjetStatus];
+
+export const ProjetStatus = {
+  planifie: "planifie",
+  en_cours: "en_cours",
+  en_pause: "en_pause",
+  termine: "termine",
+  annule: "annule",
+} as const;
+
+export interface Projet {
+  id: number;
+  organisationId: number;
+  contactId?: number | null;
+  title: string;
+  description?: string | null;
+  status: ProjetStatus;
+  priority: string;
+  clientName?: string | null;
+  clientCompany?: string | null;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  budget?: string | null;
+  spent?: string | null;
+  currency: string;
+  progress: number;
+  startDate?: string | null;
+  endDate?: string | null;
+  actualEndDate?: string | null;
+  assignedTo?: string | null;
+  teamMembers?: string[] | null;
+  milestones?: Milestone[] | null;
+  tags?: string[] | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProjetStatusCount {
+  status: string;
+  count: number;
+}
+
+export interface ProjetStats {
+  byStatus: ProjetStatusCount[];
+  total: number;
+  active: number;
+  termine: number;
+  overdue: number;
+  avgProgress: number;
+  highPriority: number;
+  totalBudget: string;
+  totalSpent: string;
+  overBudget: number;
+}
+
+export interface Document {
+  id: number;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  fileSizeFormatted: string;
+  entityType?: string | null;
+  entityId?: number | null;
+  category: string;
+  description?: string | null;
+  tags?: string[] | null;
+  aiProcessed: boolean;
+  hasText: boolean;
+  status?: string | null;
+  scanVerdict?: string | null;
+  scanEngine?: string | null;
+  scannedAt?: string | null;
+  uploadedBy?: number | null;
+  createdAt: string;
+}
+
+export interface DocumentSourceCount {
+  entity_type: string;
+  count: number;
+}
+
+export interface DocumentScanCounts {
+  safe: number;
+  dangerous: number;
+  unscanned: number;
+}
+
+export interface DocumentsBySource {
+  documents: Document[];
+  total: number;
+  bySource: DocumentSourceCount[];
+  byScan: DocumentScanCounts;
+}
+
+export interface DocumentCategoryCount {
+  category: string;
+  count: number;
+}
+
+export interface DocumentReuseSavings {
+  reusedScanCount: number;
+  reusedScanSavedMs: number;
+}
+
+export interface DocumentStatsOverview {
+  totalDocuments: number;
+  totalSize: string;
+  totalSizeBytes: number;
+  byEntityType: DocumentSourceCount[];
+  byCategory: DocumentCategoryCount[];
+  byScanVerdict: DocumentScanCounts;
+  reuseSavings: DocumentReuseSavings;
+}
+
+export type DocumentDetailAiAnalysis = { [key: string]: unknown } | null;
+
+export type DocumentDetailExtractedData = { [key: string]: unknown } | null;
+
+export interface DocumentDetail {
+  id: number;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  entityType?: string | null;
+  entityId?: number | null;
+  category?: string | null;
+  description?: string | null;
+  tags?: string[] | null;
+  aiProcessed?: boolean | null;
+  aiAnalysis?: DocumentDetailAiAnalysis;
+  extractedText?: string | null;
+  extractedData?: DocumentDetailExtractedData;
+  status?: string | null;
+  scanVerdict?: string | null;
+  scanEngine?: string | null;
+  scanDetail?: string | null;
+  scanSha256?: string | null;
+  scannedAt?: string | null;
+  uploadedBy?: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type ListCallsParams = {
   status?: ListCallsStatus;
   limit?: number;
@@ -2193,5 +2344,72 @@ export type ListWhatsappConversationsStatus =
 export const ListWhatsappConversationsStatus = {
   open: "open",
   closed: "closed",
+  all: "all",
+} as const;
+
+export type ListProjetsParams = {
+  status?: ListProjetsStatus;
+  priority?: string;
+  assignedTo?: string;
+  contactId?: number;
+  search?: string;
+  limit?: number;
+  offset?: number;
+  sortBy?: ListProjetsSortBy;
+  sortOrder?: ListProjetsSortOrder;
+};
+
+export type ListProjetsStatus =
+  (typeof ListProjetsStatus)[keyof typeof ListProjetsStatus];
+
+export const ListProjetsStatus = {
+  planifie: "planifie",
+  en_cours: "en_cours",
+  en_pause: "en_pause",
+  termine: "termine",
+  annule: "annule",
+  all: "all",
+} as const;
+
+export type ListProjetsSortBy =
+  (typeof ListProjetsSortBy)[keyof typeof ListProjetsSortBy];
+
+export const ListProjetsSortBy = {
+  createdAt: "createdAt",
+  updatedAt: "updatedAt",
+  title: "title",
+  endDate: "endDate",
+  priority: "priority",
+  progress: "progress",
+  budget: "budget",
+} as const;
+
+export type ListProjetsSortOrder =
+  (typeof ListProjetsSortOrder)[keyof typeof ListProjetsSortOrder];
+
+export const ListProjetsSortOrder = {
+  asc: "asc",
+  desc: "desc",
+} as const;
+
+export type ListProjets200 = {
+  projets: Projet[];
+  total: number;
+};
+
+export type ListDocumentsBySourceParams = {
+  entityType?: string;
+  q?: string;
+  scanVerdict?: ListDocumentsBySourceScanVerdict;
+  limit?: number;
+};
+
+export type ListDocumentsBySourceScanVerdict =
+  (typeof ListDocumentsBySourceScanVerdict)[keyof typeof ListDocumentsBySourceScanVerdict];
+
+export const ListDocumentsBySourceScanVerdict = {
+  safe: "safe",
+  dangerous: "dangerous",
+  none: "none",
   all: "all",
 } as const;

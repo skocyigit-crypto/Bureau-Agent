@@ -16,6 +16,15 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import {
+  listDocumentsBySource,
+  getDocumentStatsOverview,
+  type Document,
+  type DocumentsBySource,
+  type DocumentReuseSavings,
+  type ListDocumentsBySourceParams,
+} from "@workspace/api-client-react";
+
 import { EmptyState } from "@/components/EmptyState";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useColors } from "@/hooks/useColors";
@@ -23,30 +32,6 @@ import { streamSse } from "@/lib/sse-stream";
 import { bulkScanCancelEndpoint, canRequestCancel, showAllScanCancel } from "@/lib/bulk-scan";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-interface Doc {
-  id: number;
-  fileName: string;
-  mimeType: string;
-  fileSize: number;
-  fileSizeFormatted: string;
-  entityType?: string | null;
-  entityId?: number | null;
-  category: string;
-  description?: string | null;
-  tags?: string[] | null;
-  aiProcessed: boolean;
-  hasText?: boolean;
-  status: string;
-  uploadedBy?: number | null;
-  scanVerdict?: string | null;
-  scanEngine?: string | null;
-  scannedAt?: string | null;
-  createdAt: string;
-}
-
-interface SourceCount { entity_type: string; count: number; }
-
-interface ReuseSavings { reusedScanCount: number; reusedScanSavedMs: number; }
 
 // Traduit un total de millisecondes economisees en libelle lisible (minutes au
 // dela de 60 s, sinon secondes), pour le compteur cumulatif persiste. Aligne
@@ -60,13 +45,6 @@ function formatCumulativeSaved(savedMs: number): string {
   }
   const rounded = totalSeconds < 10 ? Math.round(totalSeconds * 10) / 10 : Math.round(totalSeconds);
   return `${rounded.toLocaleString("fr-FR")} s`;
-}
-
-interface BySourceData {
-  documents: Doc[];
-  total: number;
-  bySource: SourceCount[];
-  byScan?: { safe: number; dangerous: number; unscanned: number };
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -112,7 +90,7 @@ function getMimeIcon(mimeType: string): { icon: keyof typeof Feather.glyphMap; c
 
 // ── Doc Card ──────────────────────────────────────────────────────────────────
 function DocCard({ doc, colors, onDelete, onDownload, onRead, onRescan, scanning, highlighted }: {
-  doc: Doc;
+  doc: Document;
   colors: ReturnType<typeof import("@/hooks/useColors").useColors>;
   onDelete: (id: number) => void;
   onDownload: (id: number, name: string) => void;
@@ -258,13 +236,13 @@ export default function DocumentsScreen() {
     return Number.isFinite(n) ? n : null;
   }, [params.open]);
 
-  const listRef = useRef<FlatList<Doc>>(null);
+  const listRef = useRef<FlatList<Document>>(null);
   const [highlightedId, setHighlightedId] = useState<number | null>(null);
   // Évite de re-défiler/re-surligner à chaque refresh tant que l'id ne change pas.
   const highlightHandledRef = useRef<number | null>(null);
 
-  const [data, setData] = useState<BySourceData | null>(null);
-  const [reuseSavings, setReuseSavings] = useState<ReuseSavings | null>(null);
+  const [data, setData] = useState<DocumentsBySource | null>(null);
+  const [reuseSavings, setReuseSavings] = useState<DocumentReuseSavings | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
@@ -285,22 +263,19 @@ export default function DocumentsScreen() {
 
   const load = useCallback(async () => {
     try {
-      const params = new URLSearchParams({ limit: "120" });
-      if (sourceFilter !== "all") params.set("entityType", sourceFilter);
-      if (search.trim()) params.set("q", search.trim());
-      if (scanFilter !== "all") params.set("scanVerdict", scanFilter);
-      const [res, statsRes] = await Promise.all([
-        fetchAuth(`${API_BASE}/api/documents/by-source?${params}`),
-        fetchAuth(`${API_BASE}/api/documents/stats/overview`),
+      const params: ListDocumentsBySourceParams = { limit: 120 };
+      if (sourceFilter !== "all") params.entityType = sourceFilter;
+      if (search.trim()) params.q = search.trim();
+      if (scanFilter !== "all") params.scanVerdict = scanFilter as ListDocumentsBySourceParams["scanVerdict"];
+      const [bySource, stats] = await Promise.all([
+        listDocumentsBySource(params),
+        getDocumentStatsOverview(),
       ]);
-      if (res.ok) setData(await res.json());
-      if (statsRes.ok) {
-        const stats = await statsRes.json();
-        setReuseSavings(stats?.reuseSavings ?? null);
-      }
+      setData(bySource);
+      setReuseSavings(stats.reuseSavings ?? null);
     } catch {}
     finally { setLoading(false); setRefreshing(false); }
-  }, [fetchAuth, sourceFilter, search, scanFilter]);
+  }, [sourceFilter, search, scanFilter]);
 
   useEffect(() => { setLoading(true); load(); }, [load]);
   function onRefresh() { setRefreshing(true); load(); }

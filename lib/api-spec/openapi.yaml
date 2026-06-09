@@ -2486,6 +2486,182 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+  # === PROJETS ===
+  /projets:
+    get:
+      operationId: listProjets
+      tags: [projets]
+      summary: List projects
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [planifie, en_cours, en_pause, termine, annule, all]
+        - name: priority
+          in: query
+          schema:
+            type: string
+        - name: assignedTo
+          in: query
+          schema:
+            type: string
+        - name: contactId
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [createdAt, updatedAt, title, endDate, priority, progress, budget]
+            default: createdAt
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        "200":
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projets:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Projet"
+                  total:
+                    type: integer
+                required: [projets, total]
+
+  /projets/stats:
+    get:
+      operationId: getProjetStats
+      tags: [projets]
+      summary: Project statistics
+      responses:
+        "200":
+          description: Project statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjetStats"
+
+  /projets/{id}:
+    get:
+      operationId: getProjet
+      tags: [projets]
+      summary: Get a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Project detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Projet"
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # === DOCUMENTS ===
+  /documents/by-source:
+    get:
+      operationId: listDocumentsBySource
+      tags: [documents]
+      summary: List documents grouped by source entity
+      parameters:
+        - name: entityType
+          in: query
+          schema:
+            type: string
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: scanVerdict
+          in: query
+          schema:
+            type: string
+            enum: [safe, dangerous, none, all]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 60
+      responses:
+        "200":
+          description: Documents with per-source and per-scan counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentsBySource"
+
+  /documents/stats/overview:
+    get:
+      operationId: getDocumentStatsOverview
+      tags: [documents]
+      summary: Document statistics overview
+      responses:
+        "200":
+          description: Document statistics overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentStatsOverview"
+
+  /documents/{id}:
+    get:
+      operationId: getDocument
+      tags: [documents]
+      summary: Get a document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Document detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentDetail"
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     ErrorResponse:
@@ -4368,3 +4544,341 @@ components:
             type: string
       required: [imported, articles, errors]
 
+
+    Milestone:
+      type: object
+      properties:
+        title:
+          type: string
+        dueDate:
+          type: string
+          nullable: true
+        completed:
+          type: boolean
+      required: [title, completed]
+
+    Projet:
+      type: object
+      properties:
+        id:
+          type: integer
+        organisationId:
+          type: integer
+        contactId:
+          type: integer
+          nullable: true
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [planifie, en_cours, en_pause, termine, annule]
+        priority:
+          type: string
+        clientName:
+          type: string
+          nullable: true
+        clientCompany:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        latitude:
+          type: number
+          nullable: true
+        longitude:
+          type: number
+          nullable: true
+        budget:
+          type: string
+          nullable: true
+        spent:
+          type: string
+          nullable: true
+        currency:
+          type: string
+        progress:
+          type: integer
+        startDate:
+          type: string
+          format: date-time
+          nullable: true
+        endDate:
+          type: string
+          format: date-time
+          nullable: true
+        actualEndDate:
+          type: string
+          format: date-time
+          nullable: true
+        assignedTo:
+          type: string
+          nullable: true
+        teamMembers:
+          type: array
+          items:
+            type: string
+          nullable: true
+        milestones:
+          type: array
+          items:
+            $ref: "#/components/schemas/Milestone"
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, organisationId, title, status, priority, currency, progress, createdAt, updatedAt]
+
+    ProjetStatusCount:
+      type: object
+      properties:
+        status:
+          type: string
+        count:
+          type: integer
+      required: [status, count]
+
+    ProjetStats:
+      type: object
+      properties:
+        byStatus:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjetStatusCount"
+        total:
+          type: integer
+        active:
+          type: integer
+        termine:
+          type: integer
+        overdue:
+          type: integer
+        avgProgress:
+          type: integer
+        highPriority:
+          type: integer
+        totalBudget:
+          type: string
+        totalSpent:
+          type: string
+        overBudget:
+          type: integer
+      required: [byStatus, total, active, termine, overdue, avgProgress, highPriority, totalBudget, totalSpent, overBudget]
+
+    Document:
+      type: object
+      properties:
+        id:
+          type: integer
+        fileName:
+          type: string
+        mimeType:
+          type: string
+        fileSize:
+          type: integer
+        fileSizeFormatted:
+          type: string
+        entityType:
+          type: string
+          nullable: true
+        entityId:
+          type: integer
+          nullable: true
+        category:
+          type: string
+        description:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+          nullable: true
+        aiProcessed:
+          type: boolean
+        hasText:
+          type: boolean
+        status:
+          type: string
+          nullable: true
+        scanVerdict:
+          type: string
+          nullable: true
+        scanEngine:
+          type: string
+          nullable: true
+        scannedAt:
+          type: string
+          format: date-time
+          nullable: true
+        uploadedBy:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, fileName, mimeType, fileSize, fileSizeFormatted, category, aiProcessed, hasText, createdAt]
+
+    DocumentSourceCount:
+      type: object
+      properties:
+        entity_type:
+          type: string
+        count:
+          type: integer
+      required: [entity_type, count]
+
+    DocumentScanCounts:
+      type: object
+      properties:
+        safe:
+          type: integer
+        dangerous:
+          type: integer
+        unscanned:
+          type: integer
+      required: [safe, dangerous, unscanned]
+
+    DocumentsBySource:
+      type: object
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: "#/components/schemas/Document"
+        total:
+          type: integer
+        bySource:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentSourceCount"
+        byScan:
+          $ref: "#/components/schemas/DocumentScanCounts"
+      required: [documents, total, bySource, byScan]
+
+    DocumentCategoryCount:
+      type: object
+      properties:
+        category:
+          type: string
+        count:
+          type: integer
+      required: [category, count]
+
+    DocumentReuseSavings:
+      type: object
+      properties:
+        reusedScanCount:
+          type: integer
+        reusedScanSavedMs:
+          type: number
+      required: [reusedScanCount, reusedScanSavedMs]
+
+    DocumentStatsOverview:
+      type: object
+      properties:
+        totalDocuments:
+          type: integer
+        totalSize:
+          type: string
+        totalSizeBytes:
+          type: number
+        byEntityType:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentSourceCount"
+        byCategory:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentCategoryCount"
+        byScanVerdict:
+          $ref: "#/components/schemas/DocumentScanCounts"
+        reuseSavings:
+          $ref: "#/components/schemas/DocumentReuseSavings"
+      required: [totalDocuments, totalSize, totalSizeBytes, byEntityType, byCategory, byScanVerdict, reuseSavings]
+
+    DocumentDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        fileName:
+          type: string
+        mimeType:
+          type: string
+        fileSize:
+          type: integer
+        entityType:
+          type: string
+          nullable: true
+        entityId:
+          type: integer
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+          nullable: true
+        aiProcessed:
+          type: boolean
+          nullable: true
+        aiAnalysis:
+          type: object
+          additionalProperties: true
+          nullable: true
+        extractedText:
+          type: string
+          nullable: true
+        extractedData:
+          type: object
+          additionalProperties: true
+          nullable: true
+        status:
+          type: string
+          nullable: true
+        scanVerdict:
+          type: string
+          nullable: true
+        scanEngine:
+          type: string
+          nullable: true
+        scanDetail:
+          type: string
+          nullable: true
+        scanSha256:
+          type: string
+          nullable: true
+        scannedAt:
+          type: string
+          format: date-time
+          nullable: true
+        uploadedBy:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, fileName, mimeType, fileSize, createdAt, updatedAt]

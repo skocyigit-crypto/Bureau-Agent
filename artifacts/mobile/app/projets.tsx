@@ -18,6 +18,13 @@ import {
 import { Swipeable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import {
+  listProjets,
+  getProjetStats,
+  type Projet,
+  type ListProjetsParams,
+} from "@workspace/api-client-react";
+
 import { DetailModal } from "@/components/DetailModal";
 import { EmptyState } from "@/components/EmptyState";
 import { FAB } from "@/components/FAB";
@@ -25,31 +32,6 @@ import { FormModal } from "@/components/FormModal";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useColors } from "@/hooks/useColors";
-
-interface Milestone {
-  id: string;
-  title: string;
-  dueDate?: string;
-  completed: boolean;
-}
-
-interface Projet {
-  id: number;
-  title: string;
-  status: string;
-  priority: string;
-  clientName?: string | null;
-  clientCompany?: string | null;
-  budget?: string | null;
-  spent?: string | null;
-  progress: number;
-  startDate?: string | null;
-  endDate?: string | null;
-  assignedTo?: string | null;
-  milestones?: Milestone[];
-  tags?: string[];
-  notes?: string | null;
-}
 
 const STATUS_MAP: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
   planifie: { label: "Planifie", color: "#64748b", icon: "calendar" },
@@ -260,39 +242,29 @@ export default function ProjetsScreen() {
 
   const fetchProjets = useCallback(async () => {
     try {
-      const params = new URLSearchParams({ limit: "50", sortOrder: "desc" });
-      if (filter !== "all") params.set("status", filter);
-      if (search) params.set("search", search);
-      const [projRes, statsRes] = await Promise.all([
-        fetchAuth(`${API_BASE}/api/projets?${params}`),
-        fetchAuth(`${API_BASE}/api/projets/stats`),
+      const params: ListProjetsParams = { limit: 50, sortOrder: "desc" };
+      if (filter !== "all") params.status = filter as ListProjetsParams["status"];
+      if (search) params.search = search;
+      const [projData, statsData] = await Promise.all([
+        listProjets(params),
+        getProjetStats(),
       ]);
-      if (projRes.ok) {
-        const data = await projRes.json();
-        const list: Projet[] = data.projets ?? [];
-        setProjets(list);
-        if (filter === "all" && !search) updateCache(list);
-      }
-      if (statsRes.ok) {
-        const data = await statsRes.json();
-        const now = new Date();
-        const enRetard = (data.projets || []).filter((p: any) =>
-          p.endDate && new Date(p.endDate) < now && p.status !== "termine" && p.status !== "annule"
-        ).length;
-        setStats({
-          total: data.stats?.total ?? 0,
-          actifs: data.stats?.actifs ?? 0,
-          enRetard: data.stats?.enRetard ?? 0,
-          termines: data.stats?.termines ?? 0,
-        });
-      }
+      const list = projData.projets;
+      setProjets(list);
+      if (filter === "all" && !search) updateCache(list);
+      setStats({
+        total: statsData.total,
+        actifs: statsData.active,
+        enRetard: statsData.overdue,
+        termines: statsData.termine,
+      });
     } catch {
       if (cached.length > 0 && projets.length === 0) setProjets(cached);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [filter, search, fetchAuth, cached, projets.length, updateCache]);
+  }, [filter, search, cached, projets.length, updateCache]);
 
   useEffect(() => {
     if (isFromCache && cached.length > 0 && projets.length === 0) setProjets(cached);

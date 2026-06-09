@@ -54,6 +54,9 @@ import type {
   DeleteDailyReport200,
   DisconnectIntegration200,
   DisconnectWorkspaceService200,
+  DocumentDetail,
+  DocumentStatsOverview,
+  DocumentsBySource,
   DraftAiEmailBody,
   ErrorResponse,
   GetAiAgentReportsParams,
@@ -88,13 +91,18 @@ import type {
   ListContacts200,
   ListContactsParams,
   ListDailyReportsParams,
+  ListDocumentsBySourceParams,
   ListMessages200,
   ListMessagesParams,
+  ListProjets200,
+  ListProjetsParams,
   ListStockArticlesParams,
   ListTasks200,
   ListTasksParams,
   ListWhatsappConversationsParams,
   Message,
+  Projet,
+  ProjetStats,
   RecordAiInlineSuggestEventBody,
   RequestAiAnalysisBody,
   RequestAiInlineSuggest200,
@@ -8694,3 +8702,520 @@ export const useRevokeApiKey = <
 > => {
   return useMutation(getRevokeApiKeyMutationOptions(options));
 };
+
+/**
+ * @summary List projects
+ */
+export const getListProjetsUrl = (params?: ListProjetsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/projets?${stringifiedParams}`
+    : `/api/projets`;
+};
+
+export const listProjets = async (
+  params?: ListProjetsParams,
+  options?: RequestInit,
+): Promise<ListProjets200> => {
+  return customFetch<ListProjets200>(getListProjetsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListProjetsQueryKey = (params?: ListProjetsParams) => {
+  return [`/api/projets`, ...(params ? [params] : [])] as const;
+};
+
+export const getListProjetsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listProjets>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListProjetsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listProjets>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListProjetsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listProjets>>> = ({
+    signal,
+  }) => listProjets(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listProjets>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListProjetsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listProjets>>
+>;
+export type ListProjetsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List projects
+ */
+
+export function useListProjets<
+  TData = Awaited<ReturnType<typeof listProjets>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListProjetsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listProjets>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListProjetsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Project statistics
+ */
+export const getGetProjetStatsUrl = () => {
+  return `/api/projets/stats`;
+};
+
+export const getProjetStats = async (
+  options?: RequestInit,
+): Promise<ProjetStats> => {
+  return customFetch<ProjetStats>(getGetProjetStatsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetProjetStatsQueryKey = () => {
+  return [`/api/projets/stats`] as const;
+};
+
+export const getGetProjetStatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProjetStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getProjetStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetProjetStatsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getProjetStats>>> = ({
+    signal,
+  }) => getProjetStats({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProjetStats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProjetStatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProjetStats>>
+>;
+export type GetProjetStatsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Project statistics
+ */
+
+export function useGetProjetStats<
+  TData = Awaited<ReturnType<typeof getProjetStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getProjetStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProjetStatsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get a project
+ */
+export const getGetProjetUrl = (id: number) => {
+  return `/api/projets/${id}`;
+};
+
+export const getProjet = async (
+  id: number,
+  options?: RequestInit,
+): Promise<Projet> => {
+  return customFetch<Projet>(getGetProjetUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetProjetQueryKey = (id: number) => {
+  return [`/api/projets/${id}`] as const;
+};
+
+export const getGetProjetQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProjet>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjet>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetProjetQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getProjet>>> = ({
+    signal,
+  }) => getProjet(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof getProjet>>, TError, TData> & {
+    queryKey: QueryKey;
+  };
+};
+
+export type GetProjetQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProjet>>
+>;
+export type GetProjetQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get a project
+ */
+
+export function useGetProjet<
+  TData = Awaited<ReturnType<typeof getProjet>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProjet>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProjetQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List documents grouped by source entity
+ */
+export const getListDocumentsBySourceUrl = (
+  params?: ListDocumentsBySourceParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/documents/by-source?${stringifiedParams}`
+    : `/api/documents/by-source`;
+};
+
+export const listDocumentsBySource = async (
+  params?: ListDocumentsBySourceParams,
+  options?: RequestInit,
+): Promise<DocumentsBySource> => {
+  return customFetch<DocumentsBySource>(getListDocumentsBySourceUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListDocumentsBySourceQueryKey = (
+  params?: ListDocumentsBySourceParams,
+) => {
+  return [`/api/documents/by-source`, ...(params ? [params] : [])] as const;
+};
+
+export const getListDocumentsBySourceQueryOptions = <
+  TData = Awaited<ReturnType<typeof listDocumentsBySource>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListDocumentsBySourceParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listDocumentsBySource>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListDocumentsBySourceQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listDocumentsBySource>>
+  > = ({ signal }) =>
+    listDocumentsBySource(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listDocumentsBySource>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListDocumentsBySourceQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listDocumentsBySource>>
+>;
+export type ListDocumentsBySourceQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List documents grouped by source entity
+ */
+
+export function useListDocumentsBySource<
+  TData = Awaited<ReturnType<typeof listDocumentsBySource>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListDocumentsBySourceParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listDocumentsBySource>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListDocumentsBySourceQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Document statistics overview
+ */
+export const getGetDocumentStatsOverviewUrl = () => {
+  return `/api/documents/stats/overview`;
+};
+
+export const getDocumentStatsOverview = async (
+  options?: RequestInit,
+): Promise<DocumentStatsOverview> => {
+  return customFetch<DocumentStatsOverview>(getGetDocumentStatsOverviewUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetDocumentStatsOverviewQueryKey = () => {
+  return [`/api/documents/stats/overview`] as const;
+};
+
+export const getGetDocumentStatsOverviewQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDocumentStatsOverview>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getDocumentStatsOverview>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetDocumentStatsOverviewQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getDocumentStatsOverview>>
+  > = ({ signal }) => getDocumentStatsOverview({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDocumentStatsOverview>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDocumentStatsOverviewQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDocumentStatsOverview>>
+>;
+export type GetDocumentStatsOverviewQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Document statistics overview
+ */
+
+export function useGetDocumentStatsOverview<
+  TData = Awaited<ReturnType<typeof getDocumentStatsOverview>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getDocumentStatsOverview>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDocumentStatsOverviewQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get a document
+ */
+export const getGetDocumentUrl = (id: number) => {
+  return `/api/documents/${id}`;
+};
+
+export const getDocument = async (
+  id: number,
+  options?: RequestInit,
+): Promise<DocumentDetail> => {
+  return customFetch<DocumentDetail>(getGetDocumentUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetDocumentQueryKey = (id: number) => {
+  return [`/api/documents/${id}`] as const;
+};
+
+export const getGetDocumentQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDocument>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDocument>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetDocumentQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getDocument>>> = ({
+    signal,
+  }) => getDocument(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDocument>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetDocumentQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getDocument>>
+>;
+export type GetDocumentQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get a document
+ */
+
+export function useGetDocument<
+  TData = Awaited<ReturnType<typeof getDocument>>,
+  TError = ErrorType<ErrorResponse>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getDocument>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetDocumentQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
