@@ -4,8 +4,8 @@ import {
   callsTable, messagesTable, facturesClientTable, projetsTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, gte, lte, sql, ilike, or } from "drizzle-orm";
-import { ensureUnaccentExtension, accentInsensitiveIlike, stripAccents } from "../helpers/accent-search";
-import { RELEVANCE, normText, prepareQuery, scorePhoneMatch, rankByRelevance } from "../helpers/relevance";
+import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
+import { RELEVANCE, normText, prepareQuery, scorePhoneMatch, rankByRelevance, scoreProjectFields } from "../helpers/relevance";
 import { sendEmail } from "./email";
 import { sendSms as providerSendSms } from "./telephony-providers";
 import { generateImage } from "@workspace/integrations-gemini-ai/image";
@@ -613,39 +613,20 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
         address: projetsTable.address, status: projetsTable.status, priority: projetsTable.priority,
         progress: projetsTable.progress, createdAt: projetsTable.createdAt,
       }).from(projetsTable).where(and(...conds)).limit(100);
-      const nq = stripAccents(query).toLowerCase();
-      const norm = (s: unknown) => stripAccents(String(s ?? "")).toLowerCase().trim();
-      const scoreProject = (r: typeof rows[number]): number => {
-        const title = norm(r.title);
-        const client = norm(r.clientName);
-        const company = norm(r.clientCompany);
-        const addr = norm(r.address);
-        const desc = norm(r.description);
-        let score = 0;
-        if (title === nq) score = Math.max(score, 100);
-        if (title.startsWith(nq)) score = Math.max(score, 70);
-        if (title.includes(nq)) score = Math.max(score, 50);
-        if (client.includes(nq)) score = Math.max(score, 45);
-        if (company.includes(nq)) score = Math.max(score, 42);
-        if (addr.includes(nq)) score = Math.max(score, 40);
-        if (desc.includes(nq)) score = Math.max(score, 30);
-        return score;
-      };
-      const ranked = rows
-        .map((r) => ({ r, score: scoreProject(r) }))
-        .sort((x, y) => (y.score - x.score) || (y.r.createdAt.getTime() - x.r.createdAt.getTime()))
-        .slice(0, limit)
-        .map(({ r, score }) => ({
-          id: r.id,
-          title: r.title,
-          clientName: r.clientName,
-          clientCompany: r.clientCompany,
-          address: r.address,
-          status: r.status,
-          priority: r.priority,
-          progress: r.progress,
-          pertinence: score,
-        }));
+      const { nq } = prepareQuery(query);
+      const ranked = rankByRelevance(rows, (r) => scoreProjectFields(r, nq), {
+        limit,
+      }).map(({ row: r, score }) => ({
+        id: r.id,
+        title: r.title,
+        clientName: r.clientName,
+        clientCompany: r.clientCompany,
+        address: r.address,
+        status: r.status,
+        priority: r.priority,
+        progress: r.progress,
+        pertinence: score,
+      }));
       return { count: ranked.length, projects: ranked };
     },
   },

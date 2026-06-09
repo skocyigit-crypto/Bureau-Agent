@@ -23,6 +23,8 @@ import {
   scorePhoneMatch,
   byCreatedAtDesc,
   rankByRelevance,
+  scoreProjectFields,
+  type ProjectFields,
 } from "../helpers/relevance";
 
 describe("RELEVANCE — ordre relatif des paliers", () => {
@@ -220,5 +222,82 @@ describe("rankByRelevance — tri, departage, decoupe", () => {
 
   it("retourne un tableau vide pour une entree vide", () => {
     expect(rankByRelevance([], (r: Row) => r.s, { limit: 5 })).toEqual([]);
+  });
+});
+
+describe("scoreProjectFields — chaque champ -> palier RELEVANCE", () => {
+  const base: ProjectFields = {
+    title: "",
+    clientName: "",
+    clientCompany: "",
+    address: "",
+    description: "",
+  };
+
+  it("titre exact -> EXACT", () => {
+    expect(
+      scoreProjectFields({ ...base, title: "Cuisine Dupont" }, "cuisine dupont"),
+    ).toBe(RELEVANCE.EXACT);
+  });
+
+  it("titre commencant par la requete -> PREFIX", () => {
+    expect(
+      scoreProjectFields({ ...base, title: "Cuisine Dupont" }, "cuisine"),
+    ).toBe(RELEVANCE.PREFIX);
+  });
+
+  it("titre contenant la requete (pas au debut) -> SUBSTRING", () => {
+    expect(
+      scoreProjectFields({ ...base, title: "Renovation Cuisine" }, "cuisine"),
+    ).toBe(RELEVANCE.SUBSTRING);
+  });
+
+  it("nom du client contenant la requete -> FIELD_SUBSTRING", () => {
+    expect(
+      scoreProjectFields({ ...base, clientName: "Ali Yilmaz" }, "yilmaz"),
+    ).toBe(RELEVANCE.FIELD_SUBSTRING);
+  });
+
+  it("societe du client contenant la requete -> FIELD_SUBSTRING", () => {
+    expect(
+      scoreProjectFields({ ...base, clientCompany: "Acme SARL" }, "acme"),
+    ).toBe(RELEVANCE.FIELD_SUBSTRING);
+  });
+
+  it("adresse contenant la requete -> FIELD_SUBSTRING", () => {
+    expect(
+      scoreProjectFields({ ...base, address: "12 rue des Lilas" }, "lilas"),
+    ).toBe(RELEVANCE.FIELD_SUBSTRING);
+  });
+
+  it("description contenant la requete -> DESC_SUBSTRING", () => {
+    expect(
+      scoreProjectFields(
+        { ...base, description: "Pose de carrelage et peinture" },
+        "carrelage",
+      ),
+    ).toBe(RELEVANCE.DESC_SUBSTRING);
+  });
+
+  it("aucune correspondance -> 0", () => {
+    expect(
+      scoreProjectFields({ ...base, title: "Cuisine Dupont" }, "garage"),
+    ).toBe(0);
+  });
+
+  it("ignore les accents et la casse", () => {
+    expect(
+      scoreProjectFields({ ...base, title: "Rénovation Salle" }, "renovation salle"),
+    ).toBe(RELEVANCE.EXACT);
+  });
+
+  it("garde le meilleur palier quand plusieurs champs correspondent", () => {
+    // Titre exact (EXACT) doit primer sur une correspondance de description.
+    expect(
+      scoreProjectFields(
+        { ...base, title: "Cuisine", description: "cuisine moderne" },
+        "cuisine",
+      ),
+    ).toBe(RELEVANCE.EXACT);
   });
 });
