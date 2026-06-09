@@ -108,7 +108,20 @@ class StreamFailedError extends Error {
 
 function estimateTokens(text: string): number {
   if (!text) return 0;
-  return Math.max(1, Math.ceil(text.length / 4));
+  // `text.length / 4` est calibre sur l'anglais ASCII et SOUS-compte
+  // fortement le francais/turc: les caracteres accentues (é, ç, ı, ş, ğ…)
+  // occupent 2 octets UTF-8 et sont souvent decoupes en plusieurs
+  // sous-tokens par les tokenizers. Pour l'application de quota (ou
+  // sous-compter laisse depasser), on s'appuie sur la longueur en OCTETS
+  // UTF-8 (qui suit bien mieux le nombre de tokens pour ces scripts) et on
+  // pose un plancher base sur le nombre de mots (~1.3 token/mot) pour ne
+  // pas sous-estimer les chaines courtes multi-octets.
+  const byteLength = Buffer.byteLength(text, "utf8");
+  const trimmed = text.trim();
+  const words = trimmed ? trimmed.split(/\s+/).length : 0;
+  const byteEstimate = byteLength / 4;
+  const wordEstimate = words * 1.3;
+  return Math.max(1, Math.ceil(Math.max(byteEstimate, wordEstimate)));
 }
 
 function persistUsage(

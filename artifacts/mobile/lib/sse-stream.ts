@@ -55,7 +55,10 @@ export async function streamSse(
         if (handlers.signal?.aborted) break;
         try {
           handlers.onEvent(event, JSON.parse(dataStr));
-        } catch {
+        } catch (err) {
+          // Donnee SSE non-JSON: on la transmet en texte brut mais on
+          // trace le parse rate pour ne pas masquer un format inattendu.
+          console.warn(`[sse-stream] payload "${event}" non-JSON, transmis en texte brut:`, err);
           handlers.onEvent(event, dataStr);
         }
       }

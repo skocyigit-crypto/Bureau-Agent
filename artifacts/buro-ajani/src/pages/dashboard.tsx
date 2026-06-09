@@ -50,9 +50,17 @@ function useDocumentSecurity() {
         const res = await fetch(`${API}/api/documents/stats/overview`, { credentials: "include", signal: controller.signal });
         if (!mounted) return;
         if (res.ok) {
-          const d = await res.json();
-          setVerdict(d.byScanVerdict ?? null);
-          setError(false);
+          const d = await res.json().catch(() => null);
+          // Un 200 avec un corps vide/malforme (ou sans byScanVerdict) doit
+          // afficher un etat d'erreur plutot qu'un panneau vide trompeur.
+          if (d && typeof d === "object" && d.byScanVerdict && typeof d.byScanVerdict === "object") {
+            setVerdict(d.byScanVerdict);
+            setError(false);
+          } else {
+            console.error("[Dashboard] documents stats: corps 200 vide/malforme");
+            setVerdict(null);
+            setError(true);
+          }
         } else {
           console.error("[Dashboard] documents stats HTTP error:", res.status);
           setError(true);
@@ -390,7 +398,7 @@ export default function Dashboard() {
     return `hsl(var(--primary) / ${intensity})`;
   };
 
-  const maxHourlyCalls = hourlyPerf?.hours?.reduce((max: number, h: any) => Math.max(max, h.total), 0) || 1;
+  const maxHourlyCalls = (Array.isArray(hourlyPerf?.hours) ? hourlyPerf.hours : []).reduce((max: number, h: any) => Math.max(max, h?.total ?? 0), 0) || 1;
 
   const kpiCards: { title: string; value: number; icon: typeof Phone; trend?: number; trendLabel?: string; href: string; variant: Icon3DVariant }[] = [
     {
@@ -761,7 +769,7 @@ export default function Dashboard() {
           <CardContent>
             {isLoadingHourly ? (
               <Skeleton className="h-[250px] w-full" />
-            ) : hourlyPerf && hourlyPerf.hours.length > 0 ? (
+            ) : Array.isArray(hourlyPerf?.hours) && hourlyPerf.hours.length > 0 ? (
               <div className="h-[250px] w-full mt-4">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={hourlyPerf.hours} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>

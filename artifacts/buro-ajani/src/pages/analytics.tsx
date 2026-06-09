@@ -128,7 +128,7 @@ export default function Analytics() {
   const radarData = [
     { subject: "Reponse", value: answerRate, fullMark: 100 },
     { subject: "Taches", value: taskStats?.completionRate ?? 0, fullMark: 100 },
-    { subject: "Sentiment+", value: distribution?.bySentiment ? Math.round((distribution.bySentiment.find((s: any) => s.sentiment === "positif")?.count ?? 0) / Math.max(1, distribution.bySentiment.reduce((a: number, b: any) => a + b.count, 0)) * 100) : 0, fullMark: 100 },
+    { subject: "Sentiment+", value: Array.isArray(distribution?.bySentiment) ? Math.round((distribution.bySentiment.find((s: any) => s.sentiment === "positif")?.count ?? 0) / Math.max(1, distribution.bySentiment.reduce((a: number, b: any) => a + (b?.count ?? 0), 0)) * 100) : 0, fullMark: 100 },
     { subject: "Ponctualite", value: Math.min(100, 100 - (taskStats?.overdueTasks ?? 0) * 10), fullMark: 100 },
     { subject: "Volume", value: Math.min(100, (weeklyReport?.totalCalls ?? 0) * 5), fullMark: 100 },
   ];

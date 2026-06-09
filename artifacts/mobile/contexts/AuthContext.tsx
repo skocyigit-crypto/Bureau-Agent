@@ -1,6 +1,6 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { API_BASE, SESSION_STORAGE_KEY } from "@/lib/api-config";
+import { API_BASE } from "@/lib/api-config";
+import { loadSessionToken, saveSessionToken, clearSessionToken } from "@/lib/secure-session";
 
 interface User {
   id: number;
@@ -45,9 +45,10 @@ const AuthContext = createContext<AuthContextType>({
  * gerer la rotation. C'etait un anti-pattern documente cote serveur.
  *
  * APRES: le serveur signe un token opaque via HMAC-SHA256 (rotation
- * SESSION_SECRETS deja en place). On le stocke dans AsyncStorage et
- * on l'envoie via `Authorization: Bearer <token>` — l'en-tete HTTP
- * standard, supporte tel quel par tous les middlewares en aval.
+ * SESSION_SECRETS deja en place). On le stocke dans un coffre CHIFFRE
+ * (`expo-secure-store`, voir `@/lib/secure-session`) et on l'envoie via
+ * `Authorization: Bearer <token>` — l'en-tete HTTP standard, supporte tel
+ * quel par tous les middlewares en aval.
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -70,29 +71,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function restoreSession() {
     try {
-      const stored = await AsyncStorage.getItem(SESSION_STORAGE_KEY);
-      if (stored) {
-        let token: string | null = null;
-        try {
-          const parsed = JSON.parse(stored);
-          token = typeof parsed?.token === "string" ? parsed.token : null;
-        } catch {
-          token = null;
-        }
-        if (!token) {
-          await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
+      const token = await loadSessionToken();
+      if (token) {
+        setApiToken(token);
+        const res = await fetch(`${API_BASE}/api/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data);
         } else {
-          setApiToken(token);
-          const res = await fetch(`${API_BASE}/api/auth/me`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (res.ok) {
-            const data = await res.json();
-            setUser(data);
-          } else {
-            await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
-            setApiToken(null);
-          }
+          await clearSessionToken();
+          setApiToken(null);
         }
       }
     } catch (err) {
@@ -119,10 +109,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (typeof data?.apiToken === "string" && data.apiToken.length > 0) {
         setApiToken(data.apiToken);
-        await AsyncStorage.setItem(
-          SESSION_STORAGE_KEY,
-          JSON.stringify({ token: data.apiToken }),
-        );
+        try {
+          await saveSessionToken(data.apiToken);
+        } catch (err) {
+          // La session reste valide en memoire pour cette execution, mais
+          // ne survivra pas a un redemarrage. On previent l'utilisateur.
+          console.warn("[Auth] persistance du token echouee:", err);
+          return {
+            success: true,
+            error: "Connexion etablie mais le stockage securise est indisponible : vous devrez vous reconnecter au redemarrage.",
+          };
+        }
       } else {
         // Le backend a refuse d'emettre un token (deploiement legacy?).
         // Refuser le login plutot que de laisser une session muette.
@@ -152,7 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setUser(null);
       setApiToken(null);
-      await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
+      await clearSessionToken();
     }
   }
 

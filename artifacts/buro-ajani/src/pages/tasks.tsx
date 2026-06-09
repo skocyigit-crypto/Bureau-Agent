@@ -219,13 +219,18 @@ export default function Tasks() {
 
   const handleDuplicate = async (id: number) => {
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
-    const res = await fetch(`${BASE}/api/tasks/${id}/duplicate`, { method: "POST", credentials: "include" });
-    if (res.ok) {
-      toast({ title: "Tâche dupliquée" });
-      queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
-    } else {
-      const d = await res.json();
-      toast({ title: "Erreur", description: d.error, variant: "destructive" });
+    try {
+      const res = await fetch(`${BASE}/api/tasks/${id}/duplicate`, { method: "POST", credentials: "include" });
+      if (res.ok) {
+        toast({ title: "Tâche dupliquée" });
+        queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+      } else {
+        const d = await res.json().catch(() => ({}));
+        toast({ title: "Erreur", description: d.error, variant: "destructive" });
+      }
+    } catch (err) {
+      console.error("[tasks] duplicate failed:", err);
+      toast({ title: "Erreur réseau", description: "Impossible de dupliquer la tâche.", variant: "destructive" });
     }
   };
 
@@ -234,13 +239,19 @@ export default function Tasks() {
     if (!(await confirmAction({ title: `Supprimer ${selectedIds.size} tâche(s) ?`, confirmLabel: "Supprimer", destructive: true }))) return;
     const ids = Array.from(selectedIds);
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
-    const res = await fetch(`${BASE}/api/bulk/tasks/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
-    setSelectedIds(new Set());
-    queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
-    if (res.ok) {
-      toast({ title: `${ids.length} tâche(s) supprimée(s)` });
-    } else {
-      toast({ title: "Erreur lors de la suppression", variant: "destructive" });
+    try {
+      const res = await fetch(`${BASE}/api/bulk/tasks/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+      if (res.ok) {
+        toast({ title: `${ids.length} tâche(s) supprimée(s)` });
+      } else {
+        toast({ title: "Erreur lors de la suppression", variant: "destructive" });
+      }
+    } catch (err) {
+      console.error("[tasks] bulk delete failed:", err);
+      queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+      toast({ title: "Erreur réseau", description: "La suppression a échoué.", variant: "destructive" });
     }
   };
 
@@ -248,13 +259,19 @@ export default function Tasks() {
     if (selectedIds.size === 0) return;
     const ids = Array.from(selectedIds);
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
-    const res = await fetch(`${BASE}/api/bulk/tasks/complete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
-    setSelectedIds(new Set());
-    queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
-    if (res.ok) {
-      toast({ title: `${ids.length} tâche(s) marquée(s) terminée(s)` });
-    } else {
-      toast({ title: "Erreur", variant: "destructive" });
+    try {
+      const res = await fetch(`${BASE}/api/bulk/tasks/complete`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids }) });
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+      if (res.ok) {
+        toast({ title: `${ids.length} tâche(s) marquée(s) terminée(s)` });
+      } else {
+        toast({ title: "Erreur", variant: "destructive" });
+      }
+    } catch (err) {
+      console.error("[tasks] bulk complete failed:", err);
+      queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+      toast({ title: "Erreur réseau", description: "La mise à jour a échoué.", variant: "destructive" });
     }
   };
 
@@ -262,13 +279,19 @@ export default function Tasks() {
     if (selectedIds.size === 0) return;
     const ids = Array.from(selectedIds);
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
-    const res = await fetch(`${BASE}/api/bulk/tasks/priority`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids, priority }) });
-    setSelectedIds(new Set());
-    queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
-    if (res.ok) {
-      toast({ title: `${ids.length} tâche(s) → priorité ${priority}` });
-    } else {
-      toast({ title: "Erreur", variant: "destructive" });
+    try {
+      const res = await fetch(`${BASE}/api/bulk/tasks/priority`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids, priority }) });
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+      if (res.ok) {
+        toast({ title: `${ids.length} tâche(s) → priorité ${priority}` });
+      } else {
+        toast({ title: "Erreur", variant: "destructive" });
+      }
+    } catch (err) {
+      console.error("[tasks] bulk priority failed:", err);
+      queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+      toast({ title: "Erreur réseau", description: "La mise à jour a échoué.", variant: "destructive" });
     }
   };
 
@@ -280,24 +303,37 @@ export default function Tasks() {
     if (selectedIds.size === 0) return;
     const ids = Array.from(selectedIds);
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
-    const res = await fetch(`${BASE}/api/bulk/tasks/status`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids, status }) });
-    if (res.ok) { toast({ title: `${ids.length} tâche(s) mise(s) à jour` }); setSelectedIds(new Set()); queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() }); }
-    else toast({ title: "Erreur", variant: "destructive" });
+    try {
+      const res = await fetch(`${BASE}/api/bulk/tasks/status`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids, status }) });
+      if (res.ok) { toast({ title: `${ids.length} tâche(s) mise(s) à jour` }); setSelectedIds(new Set()); queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() }); }
+      else toast({ title: "Erreur", variant: "destructive" });
+    } catch (err) {
+      console.error("[tasks] bulk status failed:", err);
+      toast({ title: "Erreur réseau", description: "La mise à jour a échoué.", variant: "destructive" });
+    }
   };
 
   const handleBulkAssign = async () => {
     if (selectedIds.size === 0 || !bulkAssignName.trim()) return;
     const ids = Array.from(selectedIds);
     const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
-    const res = await fetch(`${BASE}/api/bulk/tasks/assign`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids, assignedTo: bulkAssignName.trim() }) });
-    setBulkAssignName("");
-    setShowAssignInput(false);
-    setSelectedIds(new Set());
-    queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
-    if (res.ok) {
-      toast({ title: `${ids.length} tâche(s) assignée(s) à ${bulkAssignName.trim()}` });
-    } else {
-      toast({ title: "Erreur", variant: "destructive" });
+    try {
+      const res = await fetch(`${BASE}/api/bulk/tasks/assign`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids, assignedTo: bulkAssignName.trim() }) });
+      setBulkAssignName("");
+      setShowAssignInput(false);
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+      if (res.ok) {
+        toast({ title: `${ids.length} tâche(s) assignée(s) à ${bulkAssignName.trim()}` });
+      } else {
+        toast({ title: "Erreur", variant: "destructive" });
+      }
+    } catch (err) {
+      console.error("[tasks] bulk assign failed:", err);
+      setBulkAssignName("");
+      setShowAssignInput(false);
+      queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+      toast({ title: "Erreur réseau", description: "L'assignation a échoué.", variant: "destructive" });
     }
   };
 
