@@ -17,6 +17,14 @@ import {
 import { Swipeable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import {
+  getMessage,
+  listMessages,
+  type ListMessagesParams,
+  type ListMessagesType,
+  type Message,
+} from "@workspace/api-client-react";
+
 import { DetailModal } from "@/components/DetailModal";
 import { EmptyState } from "@/components/EmptyState";
 import { FAB } from "@/components/FAB";
@@ -25,17 +33,6 @@ import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useUnreadBadges } from "@/contexts/UnreadBadgesContext";
 import { useColors } from "@/hooks/useColors";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
-
-interface Message {
-  id: number;
-  contactName: string;
-  phoneNumber: string;
-  content: string;
-  type: string;
-  priority: string;
-  isRead: boolean;
-  createdAt: string;
-}
 
 const TYPE_MAP: Record<string, { label: string; color: string; icon: keyof typeof Feather.glyphMap }> = {
   messagerie_vocale: { label: "Messagerie vocale", color: "#8b5cf6", icon: "mic" },
@@ -103,23 +100,20 @@ export default function MessagesScreen() {
 
   const fetchMessages = useCallback(async () => {
     try {
-      const params = new URLSearchParams({ limit: "100", sortOrder: "desc" });
-      if (search) params.set("search", search);
-      if (filter !== "all") params.set("type", filter);
-      const res = await fetchAuth(`${API_BASE}/api/messages?${params}`);
-      if (res.ok) {
-        const data = await res.json();
-        const list = data.messages ?? [];
-        setMessages(list);
-        updateCache(list);
-      }
+      const params: ListMessagesParams = { limit: 100, sortOrder: "desc" };
+      if (search) params.search = search;
+      if (filter !== "all") params.type = filter as ListMessagesType;
+      const data = await listMessages(params);
+      const list = data.messages ?? [];
+      setMessages(list);
+      updateCache(list);
     } catch {
       if (cached && messages.length === 0) setMessages(cached);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [search, filter, fetchAuth]);
+  }, [search, filter]);
 
   useEffect(() => {
     if (cached && messages.length === 0) setMessages(cached);
@@ -157,9 +151,7 @@ export default function MessagesScreen() {
     consumedOpenRef.current = idStr;
     (async () => {
       try {
-        const res = await fetchAuth(`${API_BASE}/api/messages/${id}`);
-        if (!res.ok || cancelled) return;
-        const msg = (await res.json()) as Message;
+        const msg = await getMessage(id);
         if (cancelled || !msg || typeof msg.id !== "number") return;
         setSelected(msg);
         markAsRead(msg);

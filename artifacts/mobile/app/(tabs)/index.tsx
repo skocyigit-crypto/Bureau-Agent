@@ -17,7 +17,14 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { listCalls, type Call, type DashboardSummary } from "@workspace/api-client-react";
+import {
+  getDashboardSummary,
+  listCalls,
+  listTasks,
+  type Call,
+  type DashboardSummary,
+  type Task,
+} from "@workspace/api-client-react";
 
 import { EmptyState } from "@/components/EmptyState";
 import { StatCard } from "@/components/StatCard";
@@ -34,13 +41,6 @@ interface UpcomingEvent {
   startTime: string;
   createdAt?: string;
   type: string;
-}
-
-interface OverdueTask {
-  id: number;
-  title: string;
-  priority: string;
-  dueDate: string;
 }
 
 interface SecurityVerdict {
@@ -75,7 +75,7 @@ export default function DashboardScreen() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [recentCalls, setRecentCalls] = useState<Call[]>([]);
   const [events, setEvents] = useState<UpcomingEvent[]>([]);
-  const [overdueTasks, setOverdueTasks] = useState<OverdueTask[]>([]);
+  const [overdueTasks, setOverdueTasks] = useState<Task[]>([]);
   const [security, setSecurity] = useState<SecurityVerdict | null>(null);
   const [reuseSavings, setReuseSavings] = useState<ReuseSavings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,15 +88,15 @@ export default function DashboardScreen() {
 
   const fetchDashboard = useCallback(async (silent = false) => {
     try {
-      const [summaryRes, callsData, eventsRes, tasksRes, securityRes] = await Promise.all([
-        fetchAuth(`${API_BASE}/api/dashboard/summary`),
+      const [summary, callsData, eventsRes, tasksData, securityRes] = await Promise.all([
+        getDashboardSummary(),
         listCalls({ limit: 5, sortOrder: "desc" }).catch(() => null),
         fetchAuth(`${API_BASE}/api/calendar/events?limit=3`).catch(() => null),
-        fetchAuth(`${API_BASE}/api/tasks?status=en_attente&sortOrder=asc&limit=5`).catch(() => null),
+        listTasks({ status: "en_attente", sortOrder: "asc", limit: 5 }).catch(() => null),
         fetchAuth(`${API_BASE}/api/documents/stats/overview`).catch(() => null),
       ]);
-      if (summaryRes.ok) {
-        const d: DashboardData = await summaryRes.json();
+      {
+        const d: DashboardData = summary;
         setData(d);
         updateCache(d);
       }
@@ -107,12 +107,11 @@ export default function DashboardScreen() {
         const eventData = await eventsRes.json();
         setEvents((eventData.events || eventData.data || []).slice(0, 3));
       }
-      if (tasksRes?.ok) {
-        const taskData = await tasksRes.json();
+      if (tasksData) {
         const now = new Date();
         setOverdueTasks(
-          (taskData.tasks || [])
-            .filter((t: any) => t.dueDate && new Date(t.dueDate) < now && t.status !== "termine")
+          tasksData.tasks
+            .filter((t) => t.dueDate && new Date(t.dueDate) < now && t.status !== "termine")
             .slice(0, 3)
         );
       }
