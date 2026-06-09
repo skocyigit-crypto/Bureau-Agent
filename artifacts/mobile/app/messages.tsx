@@ -194,6 +194,7 @@ export default function MessagesScreen() {
         await updateMessage(editId, body);
       } else {
         const body: CreateMessageBody = {
+          contactName: formValues.contactName?.trim() || null,
           phoneNumber: formValues.phoneNumber || "",
           content: formValues.content,
           type: (formValues.type || "note") as CreateMessageBodyType,

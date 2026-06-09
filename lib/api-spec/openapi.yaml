@@ -3268,6 +3268,9 @@ components:
         contactId:
           type: integer
           nullable: true
+        contactName:
+          type: string
+          nullable: true
         phoneNumber:
           type: string
         content:

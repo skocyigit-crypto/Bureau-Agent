@@ -456,6 +456,7 @@ export const ListMessagesResponse = zod.object({
  */
 export const CreateMessageBody = zod.object({
   contactId: zod.number().nullish(),
+  contactName: zod.string().nullish(),
   phoneNumber: zod.string(),
   content: zod.string(),
   type: zod.enum(["messagerie_vocale", "note", "rappel"]),

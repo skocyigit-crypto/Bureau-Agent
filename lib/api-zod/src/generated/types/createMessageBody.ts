@@ -10,6 +10,7 @@ import type { CreateMessageBodyType } from "./createMessageBodyType";
 
 export interface CreateMessageBody {
   contactId?: number | null;
+  contactName?: string | null;
   phoneNumber: string;
   content: string;
   type: CreateMessageBodyType;

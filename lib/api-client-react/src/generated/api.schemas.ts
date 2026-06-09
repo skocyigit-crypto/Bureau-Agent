@@ -634,6 +634,7 @@ export const CreateMessageBodyPriority = {
 
 export interface CreateMessageBody {
   contactId?: number | null;
+  contactName?: string | null;
   phoneNumber: string;
   content: string;
   type: CreateMessageBodyType;
