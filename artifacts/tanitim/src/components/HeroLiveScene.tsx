@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Phone, Mail, Calendar, CheckSquare, DollarSign, Bot, Sparkles, Bell, Users } from "lucide-react";
+import { useLowPowerMode } from "@/hooks/use-low-power";
 
 // Animated 3D-feel hero scene: orbiting cards, drifting particles, animated
 // gradient mesh, ECG waveform. Pure CSS + SVG + framer-motion (no WebGL deps).
@@ -162,8 +163,12 @@ function OrbitingCard({
 export function HeroLiveScene() {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const lowPower = useLowPowerMode();
 
   useEffect(() => {
+    // Skip the mouse-tilt listener entirely in low-power mode (also typically
+    // touch devices, where there's no pointer to follow).
+    if (lowPower) return;
     const handler = (e: MouseEvent) => {
       const el = wrapRef.current;
       if (!el) return;
@@ -176,7 +181,32 @@ export function HeroLiveScene() {
     };
     window.addEventListener("mousemove", handler);
     return () => window.removeEventListener("mousemove", handler);
-  }, []);
+  }, [lowPower]);
+
+  // Low-power / mobile / reduced-motion: a clean static backdrop — a single
+  // soft gradient wash plus the central AI badge. No particles, orbiting cards,
+  // ECG waveform, shooting stars, or continuous CSS animations.
+  if (lowPower) {
+    return (
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="pointer-events-none absolute inset-0">
+          <div
+            className="absolute -top-40 -left-40 w-[700px] h-[700px] rounded-full blur-[120px] opacity-40"
+            style={{ background: "radial-gradient(circle, rgba(245,158,11,0.5) 0%, rgba(245,158,11,0) 70%)" }}
+          />
+          <div
+            className="absolute top-1/3 -right-40 w-[600px] h-[600px] rounded-full blur-[120px] opacity-40"
+            style={{ background: "radial-gradient(circle, rgba(59,130,246,0.45) 0%, rgba(59,130,246,0) 70%)" }}
+          />
+        </div>
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+          <div className="relative w-24 h-24 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-[0_0_60px_-5px_rgba(245,158,11,0.7)]">
+            <Sparkles className="w-10 h-10 text-white drop-shadow-md" aria-hidden="true" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={wrapRef} className="absolute inset-0 overflow-hidden pointer-events-none">

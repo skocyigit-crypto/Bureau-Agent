@@ -18,6 +18,7 @@ const ContactModal = lazy(() =>
 type ContactKind = "rappel" | "devis";
 import { HeroLiveScene, LiveActivityTicker, CursorGlow } from "@/components/HeroLiveScene";
 import { ShowcaseAvatar3D } from "@/components/ShowcaseAvatar3D";
+import { useDocumentMeta } from "@/hooks/use-document-meta";
 import { AnimatedDashboardMock } from "@/components/AnimatedDashboardMock";
 import { 
   PhoneCall, 
@@ -127,23 +128,34 @@ export default function Home() {
   const { scrollYProgress } = useScroll();
   const parallaxY = useTransform(scrollYProgress, [0, 1], [0, -100]);
   const [demoOpen, setDemoOpen] = useState(false);
+  const [demoSource, setDemoSource] = useState<string | undefined>(undefined);
   const [contactKind, setContactKind] = useState<ContactKind | null>(null);
+  const [contactSource, setContactSource] = useState<string | undefined>(undefined);
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [newsletterDone, setNewsletterDone] = useState(false);
+
+  const openDemo = (source?: string) => { setDemoSource(source); setDemoOpen(true); };
+  const openContact = (kind: ContactKind, source?: string) => { setContactSource(source); setContactKind(kind); };
+
+  useDocumentMeta({
+    title: "Agent de Bureau — Le secrétariat IA de votre entreprise",
+    description: "CRM, appels, devis, facturation, stock et IA multi-agents : la plateforme française complète qui centralise et automatise la gestion de votre bureau.",
+    path: "/",
+  });
 
   return (
     <div className="min-h-screen bg-background flex flex-col overflow-x-hidden font-sans">
       {demoOpen && (
         <Suspense fallback={null}>
-          <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
+          <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} source={demoSource} />
         </Suspense>
       )}
       {contactKind && (
         <Suspense fallback={null}>
-          <ContactModal open={contactKind !== null} kind={contactKind} onClose={() => setContactKind(null)} />
+          <ContactModal open={contactKind !== null} kind={contactKind} onClose={() => setContactKind(null)} source={contactSource} />
         </Suspense>
       )}
-      <Navbar onDemoClick={() => setDemoOpen(true)} />
+      <Navbar onDemoClick={() => openDemo("Navigation — bouton démo")} />
 
       <main className="flex-grow pt-20">
         {/* 1. HERO SECTION */}
@@ -184,7 +196,7 @@ export default function Home() {
                       <ArrowRight className="ml-2 w-5 h-5" />
                     </Button>
                   </a>
-                  <Button size="lg" variant="outline" className="h-16 px-10 text-lg bg-white/5 border-white/20 text-white hover:bg-white/10 rounded-full w-full sm:w-auto font-semibold transition-all hover:scale-105 backdrop-blur-sm" onClick={() => setDemoOpen(true)}>
+                  <Button size="lg" variant="outline" className="h-16 px-10 text-lg bg-white/5 border-white/20 text-white hover:bg-white/10 rounded-full w-full sm:w-auto font-semibold transition-all hover:scale-105 backdrop-blur-sm" onClick={() => openDemo("Présentation générale de la plateforme")}>
                     Planifier une démo
                   </Button>
                 </motion.div>
@@ -781,12 +793,12 @@ export default function Home() {
                   <span className="text-5xl font-extrabold text-primary">199€</span>
                   <span className="text-muted-foreground font-medium">/mois</span>
                 </div>
-                <Button variant="outline" className="w-full h-14 rounded-xl text-lg font-bold border-2 mb-3 hover:bg-primary/5" onClick={() => setContactKind("devis")}>
+                <Button variant="outline" className="w-full h-14 rounded-xl text-lg font-bold border-2 mb-3 hover:bg-primary/5" onClick={() => openContact("devis", "Offre Entreprise (sur mesure)")}>
                   Demander un devis sur mesure
                 </Button>
                 <button
                   type="button"
-                  onClick={() => setContactKind("rappel")}
+                  onClick={() => openContact("rappel", "Offre Entreprise (sur mesure)")}
                   className="w-full text-sm font-semibold text-muted-foreground hover:text-primary transition-colors mb-8"
                 >
                   ou être rappelé sous 2h →
@@ -1043,7 +1055,7 @@ export default function Home() {
                     Commencer gratuitement
                   </Button>
                 </a>
-                <Button size="lg" variant="outline" className="h-16 px-12 text-xl border-2 border-white/20 text-white hover:bg-white/10 rounded-full w-full sm:w-auto font-bold hover:scale-105 transition-all backdrop-blur-sm" onClick={() => setDemoOpen(true)}>
+                <Button size="lg" variant="outline" className="h-16 px-12 text-xl border-2 border-white/20 text-white hover:bg-white/10 rounded-full w-full sm:w-auto font-bold hover:scale-105 transition-all backdrop-blur-sm" onClick={() => openDemo("Parler à un expert")}>
                   Parler à un expert
                 </Button>
               </div>

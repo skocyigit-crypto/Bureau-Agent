@@ -41,11 +41,32 @@ const GOOGLE_SAMPLES: { q: string; google: string[]; ajan: string }[] = [
   },
 ];
 
+type SlimMsg = { r: string; t: string };
+
+function slimHistory(history: Msg[]): SlimMsg[] {
+  return history.slice(-6).map((m) => ({ r: m.role[0], t: m.text.slice(0, 400) }));
+}
+
 function encodeHandoff(history: Msg[]): string {
   try {
-    const slim = history.slice(-6).map((m) => ({ r: m.role[0], t: m.text.slice(0, 400) }));
-    return btoa(unescape(encodeURIComponent(JSON.stringify(slim))));
+    return btoa(unescape(encodeURIComponent(JSON.stringify(slimHistory(history)))));
   } catch { return ""; }
+}
+
+// Durable fallback so the demo conversation survives the sign-up / login
+// redirect even if the URL param is dropped along the way. tanitim and the app
+// share an origin (path-based routing), so localStorage is visible to both.
+// The consumer (commandant-ia) reads the URL param first, then this key, and
+// clears it once consumed. Short TTL keeps it from leaking into later sessions.
+const HANDOFF_KEY = "ajan.demo.handoff";
+function persistHandoff(history: Msg[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      HANDOFF_KEY,
+      JSON.stringify({ ts: Date.now(), msgs: slimHistory(history) }),
+    );
+  } catch { /* ignore */ }
 }
 
 const VOICE_PREF_KEY = "tanitim.demo.voice";
@@ -77,6 +98,7 @@ export function AjanDemo() {
   const [voiceUnavailable, setVoiceUnavailable] = useState(false);
   const avatarRef = useRef<TalkingAvatarHandle>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const recognitionRef = useRef<any>(null);
 
   const SpeechRecognition =
@@ -133,6 +155,9 @@ export function AjanDemo() {
       }]);
     } finally {
       setSending(false);
+      // Return keyboard focus to the input after a send (incl. suggestion-chip
+      // and voice sends) so keyboard users can keep typing without re-tabbing.
+      requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [history, sending]);
 
@@ -175,7 +200,12 @@ export function AjanDemo() {
 
   const handoffUrl = (() => {
     const encoded = encodeHandoff(history);
-    return encoded ? `/buro-ajani/?demo=${encodeURIComponent(encoded)}` : "/register";
+    // Point straight at the in-app assistant (commandant-ia) which consumes the
+    // handoff. When logged out, buro-ajani renders login/register in-place at the
+    // same URL, so the ?demo= param survives sign-up.
+    return encoded
+      ? `/buro-ajani/commandant-ia?demo=${encodeURIComponent(encoded)}`
+      : "/register";
   })();
 
   const sample = GOOGLE_SAMPLES[activeSample];
@@ -310,13 +340,13 @@ export function AjanDemo() {
               )}
 
               {/* Messages */}
-              <div ref={scrollRef} className="h-[400px] md:h-[440px] overflow-y-auto px-5 py-6 space-y-4 scroll-smooth">
+              <div ref={scrollRef} role="log" aria-live="polite" aria-label="Conversation avec l'Agent de Bureau" className="h-[400px] md:h-[440px] overflow-y-auto px-5 py-6 space-y-4 scroll-smooth">
                 {history.length === 0 && (
                   <div className="flex flex-col items-center justify-center h-full text-center px-4">
                     <div className="relative w-20 h-20 mb-4">
                       <div className="absolute inset-0 rounded-full bg-amber-500/20 animate-ping" />
                       <div className="absolute inset-2 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/40">
-                        <Sparkles className="w-8 h-8 text-slate-900" />
+                        <Sparkles className="w-8 h-8 text-slate-900" aria-hidden="true" />
                       </div>
                     </div>
                     <p className="text-white/90 font-semibold mb-2">Posez votre première question</p>
@@ -346,7 +376,7 @@ export function AjanDemo() {
                     >
                       {m.role === "assistant" && (
                         <div className="w-8 h-8 shrink-0 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-md shadow-amber-500/20">
-                          <Bot className="w-4 h-4 text-slate-900" />
+                          <Bot className="w-4 h-4 text-slate-900" aria-hidden="true" />
                         </div>
                       )}
                       <div
@@ -360,7 +390,7 @@ export function AjanDemo() {
                       </div>
                       {m.role === "user" && (
                         <div className="w-8 h-8 shrink-0 rounded-lg bg-slate-700 flex items-center justify-center">
-                          <User className="w-4 h-4 text-white/80" />
+                          <User className="w-4 h-4 text-white/80" aria-hidden="true" />
                         </div>
                       )}
                     </motion.div>
@@ -370,7 +400,7 @@ export function AjanDemo() {
                 {sending && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-2.5 justify-start">
                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
-                      <Bot className="w-4 h-4 text-slate-900" />
+                      <Bot className="w-4 h-4 text-slate-900" aria-hidden="true" />
                     </div>
                     <div className="bg-slate-800/80 backdrop-blur border border-white/10 rounded-2xl rounded-tl-sm px-4 py-3 flex gap-1.5 items-center">
                       <span className="w-2 h-2 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: "0ms" }} />
@@ -399,13 +429,15 @@ export function AjanDemo() {
                 )}
                 <div className="flex items-center gap-2">
                   <input
+                    ref={inputRef}
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}
                     placeholder={recording ? "Ecoute en cours…" : "Posez votre question en français…"}
+                    aria-label="Posez votre question à l'Agent de Bureau"
                     disabled={sending}
-                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/40 focus:outline-none focus:border-amber-400/60 focus:bg-white/10 transition disabled:opacity-50"
+                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-amber-400/70 focus:border-amber-400/60 focus:bg-white/10 transition disabled:opacity-50"
                   />
                   {SpeechRecognition && (
                     <button
@@ -417,8 +449,9 @@ export function AjanDemo() {
                           : "bg-white/5 border border-white/10 hover:bg-white/10 text-white/70"
                       }`}
                       title={recording ? "Arrêter" : "Parler"}
+                      aria-label={recording ? "Arrêter la dictée vocale" : "Dicter votre question"}
                     >
-                      {recording ? <MicOff className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5" />}
+                      {recording ? <MicOff className="w-5 h-5 text-white" aria-hidden="true" /> : <Mic className="w-5 h-5" aria-hidden="true" />}
                     </button>
                   )}
                   <button
@@ -426,17 +459,19 @@ export function AjanDemo() {
                     disabled={sending || !input.trim()}
                     className="shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center shadow-lg shadow-amber-500/30 transition"
                     title="Envoyer"
+                    aria-label="Envoyer la question"
                   >
-                    {sending ? <Loader2 className="w-5 h-5 text-slate-900 animate-spin" /> : <Send className="w-5 h-5 text-slate-900" />}
+                    {sending ? <Loader2 className="w-5 h-5 text-slate-900 animate-spin" aria-hidden="true" /> : <Send className="w-5 h-5 text-slate-900" aria-hidden="true" />}
                   </button>
                 </div>
                 {history.length > 0 && (
                   <a
                     href={handoffUrl}
+                    onClick={() => persistHandoff(history)}
                     className="mt-3 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500/20 to-emerald-600/20 hover:from-emerald-500/30 hover:to-emerald-600/30 border border-emerald-500/40 text-emerald-300 text-sm font-medium transition group"
                   >
                     Continuer cette conversation dans l'app
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" aria-hidden="true" />
                   </a>
                 )}
               </div>

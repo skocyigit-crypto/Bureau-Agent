@@ -9,6 +9,7 @@ import {
   type VisemeKey,
 } from "@workspace/ai-avatar";
 import { Volume2, Square, MicOff } from "lucide-react";
+import { useLowPowerMode } from "@/hooks/use-low-power";
 
 // True when the browser can create a WebGL context. Headless/sandboxed browsers
 // and some low-end devices can't — we fall back to the 2D SVG avatar there.
@@ -207,7 +208,25 @@ export function ShowcaseAvatar3D({ className = "" }: { className?: string }) {
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true,
     [],
   );
-  const webglOk = useMemo(detectWebGL, []);
+  const lowPower = useLowPowerMode();
+  // Skip WebGL entirely on low-end/mobile/reduced-motion contexts: the 2D SVG
+  // avatar uses the same viseme engine but no GPU 3D scene.
+  const webglOk = useMemo(() => !lowPower && detectWebGL(), [lowPower]);
+
+  // Pause the 3D render loop when the avatar is scrolled off-screen so it stops
+  // consuming GPU/CPU while not visible. The viseme engine itself is unaffected.
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const [onScreen, setOnScreen] = useState(true);
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      ([entry]) => setOnScreen(entry.isIntersecting),
+      { threshold: 0.05 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   useEffect(() => () => tts.cancel(), [tts]);
 
@@ -242,7 +261,7 @@ export function ShowcaseAvatar3D({ className = "" }: { className?: string }) {
 
   return (
     <div className={`relative ${className}`}>
-      <div className="relative mx-auto aspect-square w-full max-w-[420px]">
+      <div ref={stageRef} className="relative mx-auto aspect-square w-full max-w-[420px]">
         {/* Glow backdrop */}
         <div className="pointer-events-none absolute inset-0 rounded-full bg-amber-400/20 blur-3xl" />
         {webglOk ? (
@@ -252,6 +271,7 @@ export function ShowcaseAvatar3D({ className = "" }: { className?: string }) {
               dpr={[1, 2]}
               camera={{ position: [0, 0, 4.1], fov: 38 }}
               gl={{ antialias: true, alpha: true }}
+              frameloop={onScreen ? "always" : "never"}
               onClick={handleSpeak}
               className="cursor-pointer"
             >

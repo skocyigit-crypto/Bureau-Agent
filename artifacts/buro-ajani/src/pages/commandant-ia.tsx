@@ -1239,26 +1239,63 @@ function ChatTab() {
   const messageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const { toast } = useToast();
 
-  // Cross-app handoff: when arriving from /tanitim/ demo with ?demo=BASE64,
-  // decode the conversation and pre-fill the chat input with the last user
-  // question + a short context note so the assistant continues naturally.
+  // Cross-app handoff: when arriving from /tanitim/ demo, decode the visitor's
+  // conversation and pre-fill the chat input with their last question + a short
+  // context note so the assistant continues naturally. The conversation can
+  // arrive two ways: the ?demo=BASE64 URL param, or — if that param was dropped
+  // during the sign-up/login redirect — a short-lived localStorage key that the
+  // marketing site writes on the same origin. The URL param wins; the
+  // localStorage fallback is consumed (and cleared) only if no param is present.
   useEffect(() => {
+    const HANDOFF_KEY = "ajan.demo.handoff";
+    const HANDOFF_TTL_MS = 30 * 60 * 1000; // 30 min — long enough to sign up.
+
+    const applySlim = (slim: { r: string; t: string }[]): boolean => {
+      if (!Array.isArray(slim) || slim.length === 0) return false;
+      const lastUser = [...slim].reverse().find(
+        (s) => s?.r === "u" && typeof s.t === "string" && s.t.trim(),
+      );
+      if (!lastUser) return false;
+      setInput(`[Suite de la demo du site] ${String(lastUser.t).slice(0, 400)}`);
+      return true;
+    };
+
+    let imported = false;
+
+    // 1) URL param (preferred — most precise, reflects the exact landing).
     try {
       const url = new URL(window.location.href);
       const raw = url.searchParams.get("demo");
-      if (!raw) return;
-      const json = decodeURIComponent(escape(atob(decodeURIComponent(raw))));
-      const slim = JSON.parse(json) as { r: string; t: string }[];
-      if (!Array.isArray(slim) || slim.length === 0) return;
-      const lastUser = [...slim].reverse().find(s => s?.r === "u" && typeof s.t === "string" && s.t.trim());
-      if (lastUser) {
-        setInput(`[Suite de la demo du site] ${String(lastUser.t).slice(0, 400)}`);
+      if (raw) {
+        const json = decodeURIComponent(escape(atob(decodeURIComponent(raw))));
+        imported = applySlim(JSON.parse(json) as { r: string; t: string }[]);
+        url.searchParams.delete("demo");
+        window.history.replaceState({}, "", url.pathname + (url.search ? url.search : "") + url.hash);
       }
-      url.searchParams.delete("demo");
-      window.history.replaceState({}, "", url.pathname + (url.search ? url.search : "") + url.hash);
-      toast({ title: "Demo importee", description: "Votre conversation du site est prete a continuer." });
     } catch {
       // ignore malformed handoff payloads
+    }
+
+    // 2) localStorage fallback (survives a dropped param through redirects).
+    if (!imported) {
+      try {
+        const stored = window.localStorage.getItem(HANDOFF_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as { ts?: number; msgs?: { r: string; t: string }[] };
+          const fresh = typeof parsed.ts === "number" && Date.now() - parsed.ts < HANDOFF_TTL_MS;
+          if (fresh && parsed.msgs) imported = applySlim(parsed.msgs);
+        }
+      } catch {
+        // ignore malformed fallback payloads
+      }
+    }
+
+    // Always clear the durable key once we've had a chance to consume it, so a
+    // stale demo never leaks into a later, unrelated session.
+    try { window.localStorage.removeItem(HANDOFF_KEY); } catch { /* ignore */ }
+
+    if (imported) {
+      toast({ title: "Demo importee", description: "Votre conversation du site est prete a continuer." });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -1,9 +1,15 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { useState } from "react";
+import { useDocumentMeta } from "@/hooks/use-document-meta";
 
 export default function Confidentialite() {
   const [demoOpen, setDemoOpen] = useState(false);
+  useDocumentMeta({
+    title: "Politique de confidentialité",
+    description: "Comment Agent de Bureau collecte, protège et traite vos données personnelles, en conformité avec le RGPD.",
+    path: "/confidentialite",
+  });
   return (
     <div className="min-h-screen bg-background">
       <Navbar onDemoClick={() => setDemoOpen(true)} />

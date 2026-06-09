@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { X, Loader2, CheckCircle2, PhoneCall, FileText, ArrowRight } from "lucide-react";
+import { X, Loader2, CheckCircle2, PhoneCall, FileText, ArrowRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,8 @@ interface ContactModalProps {
   open: boolean;
   kind: ContactKind;
   onClose: () => void;
+  /** Feature section the visitor came from, used to tailor the messaging. */
+  source?: string;
 }
 
 const COPY: Record<ContactKind, {
@@ -46,7 +48,7 @@ const COPY: Record<ContactKind, {
   },
 };
 
-export function ContactModal({ open, kind, onClose }: ContactModalProps) {
+export function ContactModal({ open, kind, onClose, source }: ContactModalProps) {
   const [form, setForm] = useState({
     firstName: "", lastName: "", email: "", phone: "",
     company: "", employeeCount: "", budget: "", message: "",
@@ -65,10 +67,13 @@ export function ContactModal({ open, kind, onClose }: ContactModalProps) {
     setSubmitting(true);
     setError("");
     try {
+      const message = source
+        ? `[Intéressé par : ${source}]${form.message ? `\n${form.message}` : ""}`
+        : form.message;
       const res = await fetch("/api/public/contact-request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind, ...form }),
+        body: JSON.stringify({ kind, ...form, message }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -145,6 +150,13 @@ export function ContactModal({ open, kind, onClose }: ContactModalProps) {
                     <p className="text-muted-foreground mt-1">{copy.subtitle}</p>
                   </div>
                 </div>
+
+                {source && (
+                  <div className="mb-6 -mt-2 inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/20 px-4 py-1.5 text-sm font-medium text-primary">
+                    <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
+                    À propos de : {source}
+                  </div>
+                )}
 
                 <form onSubmit={submit} className="space-y-5">
                   <div className="grid grid-cols-2 gap-4">

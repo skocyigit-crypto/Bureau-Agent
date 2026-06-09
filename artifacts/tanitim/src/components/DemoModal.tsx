@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Loader2, CheckCircle2, PhoneCall, Calendar, Users, Building2, ArrowRight } from "lucide-react";
+import { X, Loader2, CheckCircle2, PhoneCall, Calendar, Users, Building2, ArrowRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,9 +9,11 @@ import { motion, AnimatePresence } from "framer-motion";
 interface DemoModalProps {
   open: boolean;
   onClose: () => void;
+  /** Feature section the visitor came from, used to tailor the messaging. */
+  source?: string;
 }
 
-export function DemoModal({ open, onClose }: DemoModalProps) {
+export function DemoModal({ open, onClose, source }: DemoModalProps) {
   const [form, setForm] = useState({
     firstName: "", lastName: "", email: "", phone: "",
     company: "", employeeCount: "", message: "",
@@ -28,10 +30,13 @@ export function DemoModal({ open, onClose }: DemoModalProps) {
     setSubmitting(true);
     setError("");
     try {
+      const message = source
+        ? `[Intéressé par : ${source}]${form.message ? `\n${form.message}` : ""}`
+        : form.message;
       const res = await fetch("/api/public/demo-request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, message }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -115,6 +120,13 @@ export function DemoModal({ open, onClose }: DemoModalProps) {
                     <p className="text-muted-foreground mt-1">Session personnalisée de 30 min avec notre équipe produit.</p>
                   </div>
                 </div>
+
+                {source && (
+                  <div className="mb-6 -mt-2 inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/20 px-4 py-1.5 text-sm font-medium text-primary">
+                    <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
+                    Démo axée sur : {source}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-3 gap-4 mb-8 p-4 bg-muted/30 rounded-2xl border border-border/60">
                   {[

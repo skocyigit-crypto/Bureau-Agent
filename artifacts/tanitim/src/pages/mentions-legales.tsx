@@ -1,9 +1,15 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { useState } from "react";
+import { useDocumentMeta } from "@/hooks/use-document-meta";
 
 export default function MentionsLegales() {
   const [demoOpen, setDemoOpen] = useState(false);
+  useDocumentMeta({
+    title: "Mentions légales",
+    description: "Mentions légales d'Agent de Bureau : éditeur, hébergement, propriété intellectuelle et contact.",
+    path: "/mentions-legales",
+  });
   return (
     <div className="min-h-screen bg-background">
       <Navbar onDemoClick={() => setDemoOpen(true)} />
