@@ -18,11 +18,19 @@ import { Swipeable } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
+  createMessage,
+  deleteMessage,
   getMessage,
   listMessages,
+  updateMessage,
+  type CreateMessageBody,
+  type CreateMessageBodyPriority,
+  type CreateMessageBodyType,
   type ListMessagesParams,
   type ListMessagesType,
   type Message,
+  type UpdateMessageBody,
+  type UpdateMessageBodyPriority,
 } from "@workspace/api-client-react";
 
 import { DetailModal } from "@/components/DetailModal";
@@ -177,19 +185,26 @@ export default function MessagesScreen() {
     if (!formValues.content?.trim()) return;
     setFormLoading(true);
     try {
-      const url = editId ? `${API_BASE}/api/messages/${editId}` : `${API_BASE}/api/messages`;
-      const method = editId ? "PATCH" : "POST";
-      const res = await fetchAuth(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formValues),
-      });
-      if (res.ok) {
-        setShowForm(false);
-        setEditId(null);
-        setFormValues({ type: "note", priority: "moyenne", phoneNumber: "" });
-        fetchMessages();
+      if (editId) {
+        // L'API n'accepte que content/priority/isRead en update (UpdateMessageBody).
+        const body: UpdateMessageBody = {
+          content: formValues.content,
+          priority: (formValues.priority || "moyenne") as UpdateMessageBodyPriority,
+        };
+        await updateMessage(editId, body);
+      } else {
+        const body: CreateMessageBody = {
+          phoneNumber: formValues.phoneNumber || "",
+          content: formValues.content,
+          type: (formValues.type || "note") as CreateMessageBodyType,
+          priority: (formValues.priority || "moyenne") as CreateMessageBodyPriority,
+        };
+        await createMessage(body);
       }
+      setShowForm(false);
+      setEditId(null);
+      setFormValues({ type: "note", priority: "moyenne", phoneNumber: "" });
+      fetchMessages();
     } catch {} finally { setFormLoading(false); }
   }
 
@@ -210,11 +225,8 @@ export default function MessagesScreen() {
     if (msg.isRead) return;
     setMessages((prev) => prev.map((m) => m.id === msg.id ? { ...m, isRead: true } : m));
     try {
-      await fetchAuth(`${API_BASE}/api/messages/${msg.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isRead: true }),
-      });
+      const body: UpdateMessageBody = { isRead: true };
+      await updateMessage(msg.id, body);
     } catch {}
   }
 
@@ -223,22 +235,15 @@ export default function MessagesScreen() {
     if (!unread.length) return;
     if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setMessages((prev) => prev.map((m) => ({ ...m, isRead: true })));
-    await Promise.all(
-      unread.map((m) =>
-        fetchAuth(`${API_BASE}/api/messages/${m.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isRead: true }),
-        })
-      )
-    );
+    const body: UpdateMessageBody = { isRead: true };
+    await Promise.all(unread.map((m) => updateMessage(m.id, body)));
   }
 
   async function handleDelete(id: number) {
     setMessages((prev) => prev.filter((m) => m.id !== id));
     setSelected(null);
     try {
-      await fetchAuth(`${API_BASE}/api/messages/${id}`, { method: "DELETE" });
+      await deleteMessage(id);
     } catch {
       fetchMessages();
     }
