@@ -23,6 +23,10 @@ export const organisationsTable = pgTable("organisations", {
   weeklySecurityEmail: boolean("weekly_security_email").notNull().default(false),
   lastSecurityDigestAt: timestamp("last_security_digest_at", { withTimezone: true }),
   proactiveEngineEnabled: boolean("proactive_engine_enabled").notNull().default(true),
+  // Réglages par org du moteur proactif (réglables depuis l'UI). Défauts =
+  // valeurs historiques codées en dur (8 h / 21 j). Voir proactive-engine.ts.
+  messageSlaHours: integer("message_sla_hours").notNull().default(8),
+  quietCustomerAfterDays: integer("quiet_customer_after_days").notNull().default(21),
   agentAutoRunEnabled: boolean("agent_auto_run_enabled").notNull().default(false),
   agentAutoRunLastRunAt: timestamp("agent_auto_run_last_run_at", { withTimezone: true }),
   aiLearningLastRunAt: timestamp("ai_learning_last_run_at", { withTimezone: true }),

@@ -3,7 +3,16 @@ import { db, proactiveSuggestionsTable, organisationsTable } from "@workspace/db
 import { and, eq, inArray, desc, or, isNull, type SQL } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
-import { runProactiveForOrg } from "../services/proactive-engine";
+import {
+  runProactiveForOrg,
+  clampInt,
+  DEFAULT_MESSAGE_SLA_HOURS,
+  DEFAULT_QUIET_CUSTOMER_AFTER_DAYS,
+  MESSAGE_SLA_HOURS_MIN,
+  MESSAGE_SLA_HOURS_MAX,
+  QUIET_CUSTOMER_AFTER_DAYS_MIN,
+  QUIET_CUSTOMER_AFTER_DAYS_MAX,
+} from "../services/proactive-engine";
 import { bumpPreferenceFromFeedback } from "../services/ai-learning";
 import { logger } from "../lib/logger";
 
@@ -184,37 +193,110 @@ router.post("/proactive/run", async (req: Request, res: Response): Promise<void>
   }
 });
 
-// GET /proactive/settings — état d'activation du moteur pour l'org.
+// GET /proactive/settings — réglages du moteur pour l'org (activation +
+// fenêtres réglables : délai de réponse aux messages, seuil « client silencieux »).
+// Renvoie aussi les bornes/défauts pour que l'UI valide et affiche les limites.
 router.get("/proactive/settings", async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
     const [org] = await db
-      .select({ enabled: organisationsTable.proactiveEngineEnabled })
+      .select({
+        enabled: organisationsTable.proactiveEngineEnabled,
+        messageSlaHours: organisationsTable.messageSlaHours,
+        quietCustomerAfterDays: organisationsTable.quietCustomerAfterDays,
+      })
       .from(organisationsTable)
       .where(eq(organisationsTable.id, orgId));
-    res.json({ enabled: org?.enabled ?? true });
+    res.json({
+      enabled: org?.enabled ?? true,
+      messageSlaHours: clampInt(
+        org?.messageSlaHours,
+        MESSAGE_SLA_HOURS_MIN,
+        MESSAGE_SLA_HOURS_MAX,
+        DEFAULT_MESSAGE_SLA_HOURS,
+      ),
+      quietCustomerAfterDays: clampInt(
+        org?.quietCustomerAfterDays,
+        QUIET_CUSTOMER_AFTER_DAYS_MIN,
+        QUIET_CUSTOMER_AFTER_DAYS_MAX,
+        DEFAULT_QUIET_CUSTOMER_AFTER_DAYS,
+      ),
+      bounds: {
+        messageSlaHours: { min: MESSAGE_SLA_HOURS_MIN, max: MESSAGE_SLA_HOURS_MAX, default: DEFAULT_MESSAGE_SLA_HOURS },
+        quietCustomerAfterDays: {
+          min: QUIET_CUSTOMER_AFTER_DAYS_MIN,
+          max: QUIET_CUSTOMER_AFTER_DAYS_MAX,
+          default: DEFAULT_QUIET_CUSTOMER_AFTER_DAYS,
+        },
+      },
+    });
   } catch (err) {
     logger.error({ err }, "[proactive] settings get failed");
     res.status(500).json({ error: "Erreur lors du chargement des réglages." });
   }
 });
 
-// PATCH /proactive/settings — active/désactive le moteur pour l'org.
-// Réservé aux administrateurs (réglage org-wide): un agent ne doit pas pouvoir
-// couper la surveillance proactive de toute l'organisation.
+// PATCH /proactive/settings — met à jour les réglages du moteur pour l'org.
+// Champs optionnels (mise à jour partielle): `enabled` (bool), `messageSlaHours`
+// (int borné), `quietCustomerAfterDays` (int borné). Réservé aux administrateurs
+// (réglage org-wide): un agent ne doit pas pouvoir couper ou dérégler la
+// surveillance proactive de toute l'organisation.
 router.patch("/proactive/settings", requireRole("administrateur"), async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
-    const enabled = req.body?.enabled;
-    if (typeof enabled !== "boolean") {
-      res.status(400).json({ error: "Champ 'enabled' booléen requis." });
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const update: Record<string, unknown> = {};
+
+    if ("enabled" in body) {
+      if (typeof body.enabled !== "boolean") {
+        res.status(400).json({ error: "Champ 'enabled' doit être un booléen." });
+        return;
+      }
+      update.proactiveEngineEnabled = body.enabled;
+    }
+
+    if ("messageSlaHours" in body) {
+      const n = Number(body.messageSlaHours);
+      if (!Number.isFinite(n) || n < MESSAGE_SLA_HOURS_MIN || n > MESSAGE_SLA_HOURS_MAX) {
+        res.status(400).json({
+          error: `Le délai de réponse doit être un nombre entre ${MESSAGE_SLA_HOURS_MIN} et ${MESSAGE_SLA_HOURS_MAX} heures.`,
+        });
+        return;
+      }
+      update.messageSlaHours = Math.round(n);
+    }
+
+    if ("quietCustomerAfterDays" in body) {
+      const n = Number(body.quietCustomerAfterDays);
+      if (!Number.isFinite(n) || n < QUIET_CUSTOMER_AFTER_DAYS_MIN || n > QUIET_CUSTOMER_AFTER_DAYS_MAX) {
+        res.status(400).json({
+          error: `Le seuil « client silencieux » doit être un nombre entre ${QUIET_CUSTOMER_AFTER_DAYS_MIN} et ${QUIET_CUSTOMER_AFTER_DAYS_MAX} jours.`,
+        });
+        return;
+      }
+      update.quietCustomerAfterDays = Math.round(n);
+    }
+
+    if (Object.keys(update).length === 0) {
+      res.status(400).json({ error: "Aucun réglage à mettre à jour." });
       return;
     }
-    await db
+
+    const [saved] = await db
       .update(organisationsTable)
-      .set({ proactiveEngineEnabled: enabled })
-      .where(eq(organisationsTable.id, orgId));
-    res.json({ success: true, enabled });
+      .set(update)
+      .where(eq(organisationsTable.id, orgId))
+      .returning({
+        enabled: organisationsTable.proactiveEngineEnabled,
+        messageSlaHours: organisationsTable.messageSlaHours,
+        quietCustomerAfterDays: organisationsTable.quietCustomerAfterDays,
+      });
+    res.json({
+      success: true,
+      enabled: saved?.enabled ?? true,
+      messageSlaHours: saved?.messageSlaHours ?? DEFAULT_MESSAGE_SLA_HOURS,
+      quietCustomerAfterDays: saved?.quietCustomerAfterDays ?? DEFAULT_QUIET_CUSTOMER_AFTER_DAYS,
+    });
   } catch (err) {
     logger.error({ err }, "[proactive] settings patch failed");
     res.status(500).json({ error: "Erreur lors de la mise à jour des réglages." });

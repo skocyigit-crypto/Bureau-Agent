@@ -88,8 +88,9 @@ const DETECTOR_TYPES = [
 const RETIRED_DETECTOR_TYPES = ["vehicle_service"] as const;
 
 // Seuil d'inactivité (jours) au-delà duquel un contact client/prospect est
-// proposé pour une reprise de contact (détecteur F).
-const INACTIVE_CONTACT_DAYS = 60;
+// proposé pour une reprise de contact (détecteur F). Exporté : sert de borne
+// haute au réglage « client silencieux » (la fenêtre doit rester [seuil ; 60[).
+export const INACTIVE_CONTACT_DAYS = 60;
 
 // --- Réglages : SLA de réponse aux messages entrants (détecteur 9) ---------
 // Un message ENTRANT (rédigé par l'extérieur -> createdBy NULL) resté sans
@@ -97,8 +98,12 @@ const INACTIVE_CONTACT_DAYS = 60;
 // urgent_message (priorité « haute », non lu, > 2 h) : ici on mesure le TEMPS
 // DE RÉPONSE de TOUS les messages entrants non « haute » priorité (partition
 // par priorité -> aucun doublon avec urgent_message), résolu par l'envoi d'une
-// réponse. Réglable via PROACTIVE_MESSAGE_SLA_HOURS (défaut 8 h).
-const MESSAGE_SLA_HOURS = Number(process.env.PROACTIVE_MESSAGE_SLA_HOURS ?? 8);
+// réponse. Le délai est désormais RÉGLABLE PAR ORG (organisations.messageSlaHours)
+// depuis l'UI ; la valeur par défaut reste 8 h (ou PROACTIVE_MESSAGE_SLA_HOURS).
+export const DEFAULT_MESSAGE_SLA_HOURS = Number(process.env.PROACTIVE_MESSAGE_SLA_HOURS ?? 8);
+// Bornes du réglage (heures) : au moins 1 h, au plus 1 semaine.
+export const MESSAGE_SLA_HOURS_MIN = 1;
+export const MESSAGE_SLA_HOURS_MAX = 168;
 // Fenêtre bornée : un très vieux message non répondu ne doit pas ressurgir
 // indéfiniment (au-delà, la suggestion s'auto-résout faute de candidat).
 const MESSAGE_SLA_LOOKBACK_DAYS = 14;
@@ -106,10 +111,31 @@ const MESSAGE_SLA_LOOKBACK_DAYS = 14;
 // --- Réglages : client devenu silencieux (détecteur 10) --------------------
 // Contact client/prospect AYANT ÉTÉ actif (plusieurs appels) puis sans aucun
 // appel depuis un délai inhabituel, mais PAS ENCORE « inactif »
-// (< INACTIVE_CONTACT_DAYS). Fenêtre [QUIET_CUSTOMER_AFTER_DAYS ;
-// INACTIVE_CONTACT_DAYS[ -> aucun chevauchement avec inactive_contact.
-const QUIET_CUSTOMER_AFTER_DAYS = 21;
+// (< INACTIVE_CONTACT_DAYS). Fenêtre [quietCustomerAfterDays ;
+// INACTIVE_CONTACT_DAYS[ -> aucun chevauchement avec inactive_contact. Le seuil
+// est RÉGLABLE PAR ORG (organisations.quietCustomerAfterDays) depuis l'UI.
+export const DEFAULT_QUIET_CUSTOMER_AFTER_DAYS = 21;
+// Bornes du réglage (jours) : au moins 1 j, et strictement < INACTIVE_CONTACT_DAYS
+// pour garder la fenêtre [seuil ; 60[ non vide et disjointe d'inactive_contact.
+export const QUIET_CUSTOMER_AFTER_DAYS_MIN = 1;
+export const QUIET_CUSTOMER_AFTER_DAYS_MAX = INACTIVE_CONTACT_DAYS - 1;
 const QUIET_CUSTOMER_MIN_CALLS = 2;
+
+// Borne une valeur entière dans [min ; max], en repliant les valeurs invalides
+// (NaN/non finies) sur le défaut fourni. Pur -> testable.
+export function clampInt(value: unknown, min: number, max: number, fallback: number): number {
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+// Réglages proactifs résolus pour une org (déjà bornés). Threadés dans les
+// détecteurs concernés par runProactiveForOrg pour éviter une relecture par
+// détecteur.
+export interface OrgProactiveConfig {
+  messageSlaHours: number;
+  quietCustomerAfterDays: number;
+}
 
 // Applique la boucle de feedback au flux déterministe: retire les candidats dont
 // le `type` a été nettement et durablement rejeté par le dirigeant (👎), SAUF
@@ -606,8 +632,8 @@ export function selectUnansweredInbound<
   });
 }
 
-async function detectMessageSlaBreaches(orgId: number, now: Date): Promise<Candidate[]> {
-  const slaCutoff = new Date(now.getTime() - MESSAGE_SLA_HOURS * 60 * 60 * 1000);
+async function detectMessageSlaBreaches(orgId: number, now: Date, slaHours: number): Promise<Candidate[]> {
+  const slaCutoff = new Date(now.getTime() - slaHours * 60 * 60 * 1000);
   const lookbackFloor = new Date(now.getTime() - MESSAGE_SLA_LOOKBACK_DAYS * DAY_MS);
   // Entrants candidats : rédigés par l'extérieur (createdBy NULL), assez vieux
   // pour dépasser le SLA, dans la fenêtre bornée, et non « haute » priorité
@@ -690,8 +716,8 @@ async function detectMessageSlaBreaches(orgId: number, now: Date): Promise<Candi
 // S'auto-résout dès qu'un nouvel appel rafraîchit lastCallAt (sort par le bas
 // de la fenêtre) ou quand le contact franchit le seuil d'inactivité (par le
 // haut -> repris par inactive_contact).
-async function detectQuietCustomers(orgId: number, now: Date): Promise<Candidate[]> {
-  const silentSince = new Date(now.getTime() - QUIET_CUSTOMER_AFTER_DAYS * DAY_MS);
+async function detectQuietCustomers(orgId: number, now: Date, afterDays: number): Promise<Candidate[]> {
+  const silentSince = new Date(now.getTime() - afterDays * DAY_MS);
   const inactiveFloor = new Date(now.getTime() - INACTIVE_CONTACT_DAYS * DAY_MS);
   const rows = await withDbRetry(
     () => db
@@ -733,12 +759,54 @@ async function detectQuietCustomers(orgId: number, now: Date): Promise<Candidate
 }
 
 /**
+ * Lit les réglages proactifs par org (colonnes organisations.messageSlaHours /
+ * quietCustomerAfterDays), bornés sur les valeurs sûres. Fail-soft : toute
+ * erreur de lecture replie sur les défauts historiques.
+ */
+export async function getOrgProactiveConfig(orgId: number): Promise<OrgProactiveConfig> {
+  try {
+    const [row] = await withDbRetry(
+      () => db
+        .select({
+          messageSlaHours: organisationsTable.messageSlaHours,
+          quietCustomerAfterDays: organisationsTable.quietCustomerAfterDays,
+        })
+        .from(organisationsTable)
+        .where(eq(organisationsTable.id, orgId))
+        .limit(1),
+      { label: "proactive:org-config" },
+    );
+    return {
+      messageSlaHours: clampInt(
+        row?.messageSlaHours,
+        MESSAGE_SLA_HOURS_MIN,
+        MESSAGE_SLA_HOURS_MAX,
+        DEFAULT_MESSAGE_SLA_HOURS,
+      ),
+      quietCustomerAfterDays: clampInt(
+        row?.quietCustomerAfterDays,
+        QUIET_CUSTOMER_AFTER_DAYS_MIN,
+        QUIET_CUSTOMER_AFTER_DAYS_MAX,
+        DEFAULT_QUIET_CUSTOMER_AFTER_DAYS,
+      ),
+    };
+  } catch (err) {
+    logger.warn({ err, orgId }, "[proactive] lecture réglages org échouée — repli défauts");
+    return {
+      messageSlaHours: DEFAULT_MESSAGE_SLA_HOURS,
+      quietCustomerAfterDays: DEFAULT_QUIET_CUSTOMER_AFTER_DAYS,
+    };
+  }
+}
+
+/**
  * Exécute tous les détecteurs pour une organisation, déduplique contre les
  * suggestions pending existantes, auto-résout celles qui ne s'appliquent plus,
  * insère les nouvelles et diffuse un événement SSE. Renvoie le nombre créé.
  */
 export async function runProactiveForOrg(orgId: number): Promise<number> {
   const now = new Date();
+  const cfg = await getOrgProactiveConfig(orgId);
   const rawCandidates: Candidate[] = [
     ...(await detectOverdueTasks(orgId, now)),
     ...(await detectMissedCallFollowups(orgId, now)),
@@ -748,8 +816,8 @@ export async function runProactiveForOrg(orgId: number): Promise<number> {
     ...(await detectMeetingPrep(orgId, now)),
     ...(await detectInactiveContacts(orgId, now)),
     ...(await detectCashCrunch(orgId, now)),
-    ...(await detectMessageSlaBreaches(orgId, now)),
-    ...(await detectQuietCustomers(orgId, now)),
+    ...(await detectMessageSlaBreaches(orgId, now, cfg.messageSlaHours)),
+    ...(await detectQuietCustomers(orgId, now, cfg.quietCustomerAfterDays)),
     // Détecteurs personnels (couche par employé).
     ...(await detectMyTasksDueToday(orgId, now)),
   ];

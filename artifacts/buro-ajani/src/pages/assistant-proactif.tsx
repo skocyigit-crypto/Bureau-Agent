@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 
 const PROACTIVE_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/proactive";
@@ -77,6 +78,13 @@ export default function AssistantProactifPage() {
   const [running, setRunning] = useState(false);
   const [filter, setFilter] = useState<Status>("pending");
   const [enabled, setEnabled] = useState(true);
+  // Fenêtres réglables par org (chaînes pour l'édition libre du champ).
+  const [slaHours, setSlaHours] = useState("8");
+  const [quietDays, setQuietDays] = useState("21");
+  const [bounds, setBounds] = useState({
+    slaMin: 1, slaMax: 168, quietMin: 1, quietMax: 59,
+  });
+  const [savingWindows, setSavingWindows] = useState(false);
 
   const load = useCallback(async (status: Status) => {
     setLoading(true);
@@ -99,7 +107,20 @@ export default function AssistantProactifPage() {
     void (async () => {
       try {
         const res = await fetch(`${PROACTIVE_API}/settings`, { credentials: "include" });
-        if (res.ok) { const d = await res.json(); setEnabled(d.enabled !== false); }
+        if (res.ok) {
+          const d = await res.json();
+          setEnabled(d.enabled !== false);
+          if (typeof d.messageSlaHours === "number") setSlaHours(String(d.messageSlaHours));
+          if (typeof d.quietCustomerAfterDays === "number") setQuietDays(String(d.quietCustomerAfterDays));
+          if (d.bounds) {
+            setBounds({
+              slaMin: d.bounds.messageSlaHours?.min ?? 1,
+              slaMax: d.bounds.messageSlaHours?.max ?? 168,
+              quietMin: d.bounds.quietCustomerAfterDays?.min ?? 1,
+              quietMax: d.bounds.quietCustomerAfterDays?.max ?? 59,
+            });
+          }
+        }
       } catch { /* fail-soft */ }
     })();
   }, []);
@@ -150,6 +171,36 @@ export default function AssistantProactifPage() {
     }
   };
 
+  const saveWindows = async () => {
+    const sla = Math.round(Number(slaHours));
+    const quiet = Math.round(Number(quietDays));
+    if (!Number.isFinite(sla) || sla < bounds.slaMin || sla > bounds.slaMax) {
+      toast({ title: "Valeur invalide", description: `Le délai doit être entre ${bounds.slaMin} et ${bounds.slaMax} heures.`, variant: "destructive" });
+      return;
+    }
+    if (!Number.isFinite(quiet) || quiet < bounds.quietMin || quiet > bounds.quietMax) {
+      toast({ title: "Valeur invalide", description: `Le seuil doit être entre ${bounds.quietMin} et ${bounds.quietMax} jours.`, variant: "destructive" });
+      return;
+    }
+    setSavingWindows(true);
+    try {
+      const res = await fetch(`${PROACTIVE_API}/settings`, {
+        method: "PATCH", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageSlaHours: sla, quietCustomerAfterDays: quiet }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error ?? "settings");
+      if (typeof d.messageSlaHours === "number") setSlaHours(String(d.messageSlaHours));
+      if (typeof d.quietCustomerAfterDays === "number") setQuietDays(String(d.quietCustomerAfterDays));
+      toast({ title: "Réglages enregistrés", description: "Les seuils d'alerte ont été mis à jour." });
+    } catch (e) {
+      toast({ title: "Erreur", description: e instanceof Error ? e.message : "Réglages non enregistrés.", variant: "destructive" });
+    } finally {
+      setSavingWindows(false);
+    }
+  };
+
   const toggleEnabled = async (next: boolean) => {
     setEnabled(next);
     try {
@@ -196,6 +247,58 @@ export default function AssistantProactifPage() {
             {counts.urgent > 0 && <Badge className={SEVERITY_STYLE.urgent.badge}>{counts.urgent} urgent</Badge>}
             {counts.warning > 0 && <Badge className={SEVERITY_STYLE.warning.badge}>{counts.warning} à traiter</Badge>}
             {counts.info > 0 && <Badge className={SEVERITY_STYLE.info.badge}>{counts.info} info</Badge>}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Seuils d'alerte</CardTitle>
+          <CardDescription>
+            Réglez à partir de quand l'assistant signale un message resté sans réponse
+            ou un client devenu silencieux. Adaptez ces délais au rythme de votre activité.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="sla-hours">Message sans réponse après</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="sla-hours" type="number" inputMode="numeric"
+                  min={bounds.slaMin} max={bounds.slaMax}
+                  value={slaHours}
+                  onChange={(e) => setSlaHours(e.target.value)}
+                  className="w-28"
+                />
+                <span className="text-sm text-muted-foreground">heures</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Entre {bounds.slaMin} et {bounds.slaMax} h. Un message entrant sans réponse passé ce délai est signalé.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="quiet-days">Client silencieux après</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="quiet-days" type="number" inputMode="numeric"
+                  min={bounds.quietMin} max={bounds.quietMax}
+                  value={quietDays}
+                  onChange={(e) => setQuietDays(e.target.value)}
+                  className="w-28"
+                />
+                <span className="text-sm text-muted-foreground">jours</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Entre {bounds.quietMin} et {bounds.quietMax} j. Un client actif sans nouvel échange passé ce délai est signalé.
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={saveWindows} disabled={savingWindows} size="sm">
+              {savingWindows ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+              Enregistrer les seuils
+            </Button>
           </div>
         </CardContent>
       </Card>
