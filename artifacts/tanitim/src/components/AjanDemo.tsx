@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Send, Mic, MicOff, ArrowRight, Search, Zap, Bot, User, Loader2, X, Volume2, VolumeX, RotateCcw, Square } from "lucide-react";
+import { Sparkles, Send, Mic, MicOff, ArrowRight, Search, Zap, Bot, User, Loader2, X, Volume2, VolumeX, RotateCcw, Square, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TalkingAvatar, type SpeechLang, type TalkingAvatarHandle } from "@workspace/ai-avatar";
 import { encodeHandoff, persistHandoff, slimHistory } from "@workspace/demo-handoff";
@@ -9,6 +9,17 @@ const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 // In dev the API server runs on the same proxy host; in prod the marketing site
 // sits behind the same domain as /api, so a relative path works in both modes.
 const API_PREFIX = "/api";
+
+// Cross-app handoff into the native mobile assistant. The mobile app registers
+// the `agentdebureau://` scheme (artifacts/mobile/app.json) and expo-router maps
+// the `ai-chat` route, so `agentdebureau://ai-chat?demo=BASE64` lands straight in
+// the assistant with the demo transcript imported (ai-chat.tsx consumes `demo`).
+// For browsers/devices without the native app installed (or desktop), we fall
+// back to the Expo-web build of the same screen, mounted at /mobile/ai-chat —
+// which reads the same `?demo=` param. Keeping both lets a prospect continue on
+// mobile whether or not the native app is on the device.
+const MOBILE_APP_DEEP_LINK = "agentdebureau://ai-chat";
+const MOBILE_WEB_FALLBACK = "/mobile/ai-chat";
 
 type Msg = { role: "user" | "assistant"; text: string; timestamp: number };
 
@@ -226,6 +237,45 @@ export function AjanDemo() {
       ? `/buro-ajani/commandant-ia?${params.toString()}`
       : "/register";
     window.location.href = url;
+  }, [history]);
+
+  // No-JS / right-click fallback for the mobile handoff: the Expo-web assistant,
+  // which reads the same `?demo=` param. The onClick handler below first tries
+  // the native deep link and only uses this if the app doesn't take over.
+  const mobileHandoffUrl = (() => {
+    const encoded = encodeHandoff(history);
+    return encoded
+      ? `${MOBILE_WEB_FALLBACK}?demo=${encodeURIComponent(encoded)}`
+      : MOBILE_WEB_FALLBACK;
+  })();
+
+  const goToMobile = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    // Mirror the durable localStorage handoff so the Expo-web fallback can pick
+    // the transcript up even if the URL param is ever dropped (shared origin).
+    persistHandoff(history, typeof window !== "undefined" ? window.localStorage : null, Date.now());
+    const encoded = encodeHandoff(history);
+    const demoQuery = encoded ? `?demo=${encodeURIComponent(encoded)}` : "";
+    const deepLink = `${MOBILE_APP_DEEP_LINK}${demoQuery}`;
+    const webFallback = `${MOBILE_WEB_FALLBACK}${demoQuery}`;
+
+    // Try to open the native app via its custom scheme. If it isn't installed
+    // the page stays visible, so after a short grace period we route to the
+    // Expo-web build of the assistant instead. If the app does take over, the
+    // tab is backgrounded (visibilitychange) and we cancel the fallback.
+    const fallbackTimer = window.setTimeout(() => {
+      if (!document.hidden) window.location.href = webFallback;
+    }, 1200);
+    const onVisibility = () => {
+      if (document.hidden) window.clearTimeout(fallbackTimer);
+    };
+    document.addEventListener("visibilitychange", onVisibility, { once: true });
+    try {
+      window.location.href = deepLink;
+    } catch {
+      window.clearTimeout(fallbackTimer);
+      window.location.href = webFallback;
+    }
   }, [history]);
 
   const sample = GOOGLE_SAMPLES[activeSample];
@@ -485,14 +535,25 @@ export function AjanDemo() {
                   </button>
                 </div>
                 {history.length > 0 && (
-                  <a
-                    href={handoffUrl}
-                    onClick={goToApp}
-                    className="mt-3 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500/20 to-emerald-600/20 hover:from-emerald-500/30 hover:to-emerald-600/30 border border-emerald-500/40 text-emerald-300 text-sm font-medium transition group"
-                  >
-                    Continuer cette conversation dans l'app
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" aria-hidden="true" />
-                  </a>
+                  <div className="mt-3 space-y-2">
+                    <a
+                      href={handoffUrl}
+                      onClick={goToApp}
+                      className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500/20 to-emerald-600/20 hover:from-emerald-500/30 hover:to-emerald-600/30 border border-emerald-500/40 text-emerald-300 text-sm font-medium transition group"
+                    >
+                      Continuer cette conversation dans l'app
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" aria-hidden="true" />
+                    </a>
+                    <a
+                      href={mobileHandoffUrl}
+                      onClick={goToMobile}
+                      className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-500/20 to-indigo-600/20 hover:from-blue-500/30 hover:to-indigo-600/30 border border-blue-500/40 text-blue-200 text-sm font-medium transition group"
+                    >
+                      <Smartphone className="w-4 h-4" aria-hidden="true" />
+                      Continuer sur mobile
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" aria-hidden="true" />
+                    </a>
+                  </div>
                 )}
               </div>
             </div>
