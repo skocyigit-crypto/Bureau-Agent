@@ -308,6 +308,65 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
       return { success: true, id: row.id, url: `/taches` };
     },
   },
+  {
+    name: "update_task",
+    description:
+      "Met a jour une tache existante: statut, priorite, titre, description ou echeance. " +
+      "Statut valide: en_attente, en_cours, termine, annule. Priorite: basse, moyenne, haute. " +
+      "Fournir l'id de la tache et au moins un champ a modifier. NECESSITE UNE CONFIRMATION EXPLICITE.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "integer", description: "ID de la tache a modifier" },
+        status: { type: "string", description: "en_attente, en_cours, termine, annule" },
+        priority: { type: "string", description: "basse, moyenne, haute" },
+        title: { type: "string" },
+        description: { type: "string" },
+        dueDate: { type: "string", description: "ISO 8601, optionnel" },
+      },
+      required: ["id"],
+    },
+    fields: {
+      id: { kind: "number", required: true, integer: true, min: 1 },
+      status: { kind: "string", enum: ["en_attente", "en_cours", "termine", "annule"] as const },
+      priority: { kind: "string", enum: ["basse", "moyenne", "haute"] as const },
+      title: { kind: "string", min: 1, max: 300 },
+      description: { kind: "string", max: 4000 },
+      dueDate: { kind: "iso-date" },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => {
+      const parts: string[] = [];
+      if (a.status) parts.push(`statut → ${a.status}`);
+      if (a.priority) parts.push(`priorite → ${a.priority}`);
+      if (a.title) parts.push(`titre → « ${trim(a.title, 60)} »`);
+      if (a.dueDate) parts.push(`echeance → ${a.dueDate}`);
+      if (a.description != null) parts.push("description mise a jour");
+      return `Mettre a jour la tache #${a.id}${parts.length ? ` (${parts.join(", ")})` : ""}`;
+    },
+    execute: async (a, { orgId, userId }) => {
+      const updates: Record<string, unknown> = { updatedBy: userId };
+      if (a.status != null) updates.status = a.status;
+      if (a.priority != null) updates.priority = a.priority;
+      if (a.title != null) updates.title = a.title;
+      if (a.description != null) updates.description = a.description;
+      if (a.dueDate != null) {
+        const due = new Date(a.dueDate);
+        if (Number.isNaN(due.getTime())) {
+          return { success: false, error: "dueDate invalide (utilisez ISO 8601)." };
+        }
+        updates.dueDate = due;
+      }
+      if (Object.keys(updates).length <= 1) {
+        return { success: false, error: "Aucune modification fournie (statut, priorite, titre, description ou echeance)." };
+      }
+      const [row] = await db.update(tasksTable).set(updates)
+        .where(and(eq(tasksTable.id, a.id), eq(tasksTable.organisationId, orgId)))
+        .returning({ id: tasksTable.id, status: tasksTable.status });
+      if (!row) return { success: false, error: "Tache introuvable dans votre organisation." };
+      return { success: true, id: row.id, status: row.status, url: "/taches" };
+    },
+  },
   // ---------- PROSPECTS ----------
   {
     name: "list_prospects",
@@ -370,6 +429,42 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
         notes: a.notes ?? null,
       }).returning({ id: prospectsTable.id });
       return { success: true, id: row.id, url: "/prospects" };
+    },
+  },
+  {
+    name: "advance_prospect",
+    description:
+      "Fait progresser un prospect existant vers une nouvelle etape du pipeline. " +
+      "Etapes valides (ordre): nouveau, contact, qualification, proposition, negociation, gagne, perdu. " +
+      "Fournir l'id du prospect et l'etape cible. NECESSITE UNE CONFIRMATION EXPLICITE.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "integer", description: "ID du prospect" },
+        stage: { type: "string", description: "nouveau, contact, qualification, proposition, negociation, gagne, perdu" },
+        lostReason: { type: "string", description: "Raison de la perte (si stage = perdu)" },
+      },
+      required: ["id", "stage"],
+    },
+    fields: {
+      id: { kind: "number", required: true, integer: true, min: 1 },
+      stage: { kind: "string", required: true, enum: ["nouveau", "contact", "qualification", "proposition", "negociation", "gagne", "perdu"] as const },
+      lostReason: { kind: "string", max: 1000 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Faire passer le prospect #${a.id} a l'etape « ${a.stage} »${a.stage === "perdu" && a.lostReason ? ` (raison: ${trim(a.lostReason, 60)})` : ""}`,
+    execute: async (a, { orgId }) => {
+      const updates: Record<string, unknown> = { stage: a.stage, updatedAt: new Date() };
+      if (a.stage === "gagne") updates.wonAt = new Date();
+      if (a.stage === "perdu") {
+        updates.lostAt = new Date();
+        if (a.lostReason != null) updates.lostReason = a.lostReason;
+      }
+      const [row] = await db.update(prospectsTable).set(updates)
+        .where(and(eq(prospectsTable.id, a.id), eq(prospectsTable.organisationId, orgId)))
+        .returning({ id: prospectsTable.id, stage: prospectsTable.stage });
+      if (!row) return { success: false, error: "Prospect introuvable dans votre organisation." };
+      return { success: true, id: row.id, stage: row.stage, url: "/prospects" };
     },
   },
   // ---------- CALENDAR ----------
@@ -444,6 +539,63 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
         createdBy: userId,
       }).returning({ id: calendarEventsTable.id });
       return { success: true, id: row.id, url: "/calendrier" };
+    },
+  },
+  {
+    name: "reschedule_calendar_event",
+    description:
+      "Reporte (deplace) un evenement existant de l'agenda a une nouvelle date/heure. " +
+      "Fournir 'startDate' (ISO 8601). 'endDate' est optionnel: si absent, la duree initiale de l'evenement est conservee. " +
+      "NECESSITE UNE CONFIRMATION EXPLICITE.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "integer", description: "ID de l'evenement a deplacer" },
+        startDate: { type: "string", description: "Nouvelle date/heure de debut, ISO 8601" },
+        endDate: { type: "string", description: "Nouvelle date/heure de fin, ISO 8601 (optionnel)" },
+      },
+      required: ["id", "startDate"],
+    },
+    fields: {
+      id: { kind: "number", required: true, integer: true, min: 1 },
+      startDate: { kind: "iso-date", required: true },
+      endDate: { kind: "iso-date" },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Reporter l'evenement #${a.id} au ${a.startDate}${a.endDate ? ` (fin ${a.endDate})` : ""}`,
+    execute: async (a, { orgId, userId }) => {
+      const start = new Date(a.startDate);
+      if (Number.isNaN(start.getTime())) {
+        return { success: false, error: "startDate invalide (utilisez ISO 8601)." };
+      }
+      const [existing] = await db.select({
+        id: calendarEventsTable.id,
+        startDate: calendarEventsTable.startDate,
+        endDate: calendarEventsTable.endDate,
+      }).from(calendarEventsTable)
+        .where(and(eq(calendarEventsTable.id, a.id), eq(calendarEventsTable.organisationId, orgId)));
+      if (!existing) return { success: false, error: "Evenement introuvable dans votre organisation." };
+      let end: Date;
+      if (a.endDate != null) {
+        end = new Date(a.endDate);
+        if (Number.isNaN(end.getTime())) {
+          return { success: false, error: "endDate invalide (utilisez ISO 8601)." };
+        }
+      } else {
+        const origStart = new Date(existing.startDate).getTime();
+        const origEnd = new Date(existing.endDate).getTime();
+        const duration = Number.isFinite(origStart) && Number.isFinite(origEnd) ? Math.max(0, origEnd - origStart) : 0;
+        end = new Date(start.getTime() + duration);
+      }
+      if (end < start) {
+        return { success: false, error: "endDate doit etre apres startDate." };
+      }
+      const [row] = await db.update(calendarEventsTable)
+        .set({ startDate: start, endDate: end, updatedBy: userId })
+        .where(and(eq(calendarEventsTable.id, a.id), eq(calendarEventsTable.organisationId, orgId)))
+        .returning({ id: calendarEventsTable.id, startDate: calendarEventsTable.startDate, endDate: calendarEventsTable.endDate });
+      if (!row) return { success: false, error: "Evenement introuvable dans votre organisation." };
+      return { success: true, id: row.id, startDate: row.startDate, endDate: row.endDate, url: "/calendrier" };
     },
   },
   // ---------- COMMS (CONFIRMATION REQUIRED) ----------
