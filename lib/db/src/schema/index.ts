@@ -48,6 +48,7 @@ export * from "./locations";
 export * from "./ai-insights";
 export * from "./assistant";
 export * from "./commandant-chat";
+export * from "./demo-handoffs";
 export * from "./security-lists";
 export * from "./proactive-suggestions";
 export * from "./ai-learning";

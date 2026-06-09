@@ -69,6 +69,34 @@ function persistHandoff(history: Msg[]) {
   } catch { /* ignore */ }
 }
 
+// Durable, server-side handoff. The base64 URL param + localStorage above are
+// instant but die after 30 min and never cross devices. We also POST the
+// transcript to get a short-lived claim token; the app claims it on first login
+// and can resume even days later / on another device. The token is stashed in
+// localStorage (survives the sign-up redirect) and also placed on the URL.
+const HANDOFF_TOKEN_KEY = "ajan.demo.token";
+async function createServerHandoff(history: Msg[]): Promise<string> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3000);
+    const res = await fetch(`${API_PREFIX}/public/demo-handoff`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transcript: slimHistory(history) }),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    const data = await res.json().catch(() => ({}));
+    const token = typeof data?.token === "string" ? data.token : "";
+    if (token) {
+      try { window.localStorage.setItem(HANDOFF_TOKEN_KEY, JSON.stringify({ ts: Date.now(), token })); } catch { /* ignore */ }
+    }
+    return token;
+  } catch {
+    return "";
+  }
+}
+
 const VOICE_PREF_KEY = "tanitim.demo.voice";
 function readVoicePref(): { on: boolean; lang: SpeechLang } {
   if (typeof window === "undefined") return { on: true, lang: "fr" };
@@ -198,6 +226,8 @@ export function AjanDemo() {
     setRecording(false);
   }, []);
 
+  // Fallback href (no JS / right-click "open in new tab"): the instant base64
+  // route. The onClick handler upgrades this to also carry a server token.
   const handoffUrl = (() => {
     const encoded = encodeHandoff(history);
     // Point straight at the in-app assistant (commandant-ia) which consumes the
@@ -207,6 +237,22 @@ export function AjanDemo() {
       ? `/buro-ajani/commandant-ia?demo=${encodeURIComponent(encoded)}`
       : "/register";
   })();
+
+  const goToApp = useCallback(async (e: React.MouseEvent) => {
+    e.preventDefault();
+    persistHandoff(history);
+    const encoded = encodeHandoff(history);
+    // Persist server-side and get a claim token so the conversation survives the
+    // 30-min window and can resume on another device once claimed at login.
+    const token = await createServerHandoff(history);
+    const params = new URLSearchParams();
+    if (encoded) params.set("demo", encoded);
+    if (token) params.set("demo_token", token);
+    const url = params.toString()
+      ? `/buro-ajani/commandant-ia?${params.toString()}`
+      : "/register";
+    window.location.href = url;
+  }, [history]);
 
   const sample = GOOGLE_SAMPLES[activeSample];
 
@@ -467,7 +513,7 @@ export function AjanDemo() {
                 {history.length > 0 && (
                   <a
                     href={handoffUrl}
-                    onClick={() => persistHandoff(history)}
+                    onClick={goToApp}
                     className="mt-3 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500/20 to-emerald-600/20 hover:from-emerald-500/30 hover:to-emerald-600/30 border border-emerald-500/40 text-emerald-300 text-sm font-medium transition group"
                   >
                     Continuer cette conversation dans l'app

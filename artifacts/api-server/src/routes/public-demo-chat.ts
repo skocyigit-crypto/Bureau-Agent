@@ -1,10 +1,28 @@
 import { Router, type Request, type Response } from "express";
+import crypto from "crypto";
 import rateLimit from "express-rate-limit";
+import { db, demoHandoffsTable } from "@workspace/db";
+import { lt, or, isNotNull } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sanitizePromptInput, GEMINI_FLASH_MODEL } from "../services/ai-utils";
 import { withProviderTimeout } from "../services/ai-cache";
 
 const router = Router();
+
+// How long an unclaimed demo handoff (or any consumed leftover) lingers before
+// it is purged. Long enough for a prospect to come back "days later", short
+// enough to keep the table tidy and respect privacy.
+const HANDOFF_RETENTION_DAYS = 14;
+
+// Separate, generous limiter so persisting a handoff is never blocked by the
+// stricter 20/hr demo-chat budget (a prospect chatting then clicking "continue").
+const demoHandoffLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  message: { error: "Trop de requetes. Reessayez plus tard." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Public demo: 20 messages / hour / IP. No auth. No real org data — uses a
 // curated synthetic dataset baked into the system prompt so the live demo
@@ -111,6 +129,39 @@ router.post("/public/demo-chat", demoChatLimiter, async (req: Request, res: Resp
       reply: "Je suis momentanement indisponible. Pendant ce temps, decouvrez nos fonctionnalites en bas de page ou demarrez votre essai gratuit (14 jours, sans CB).",
       degraded: true,
     });
+  }
+});
+
+// Persist a demo transcript server-side and return a secret claim token. The
+// marketing site calls this when the visitor clicks "continuer dans l'app" so
+// the conversation survives the sign-up redirect, the 30-min localStorage TTL,
+// and a switch of device once the token is claimed by the new account.
+router.post("/public/demo-handoff", demoHandoffLimiter, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const raw = Array.isArray(req.body?.transcript) ? req.body.transcript : [];
+    const transcript = raw
+      .filter((m: any) => m && (m.r === "u" || m.r === "a") && typeof m.t === "string" && m.t.trim())
+      .slice(-12)
+      .map((m: any) => ({ r: m.r === "u" ? "u" : "a", t: sanitizePromptInput(String(m.t), 400) }))
+      .filter((m: { r: string; t: string }) => m.t);
+    if (transcript.length === 0) {
+      res.status(400).json({ error: "Transcript requis." });
+      return;
+    }
+
+    const token = crypto.randomBytes(24).toString("hex"); // 48 hex chars
+    await db.insert(demoHandoffsTable).values({ claimToken: token, transcript });
+
+    // Best-effort purge of consumed leftovers and expired unclaimed rows.
+    const cutoff = new Date(Date.now() - HANDOFF_RETENTION_DAYS * 86400000);
+    void db.delete(demoHandoffsTable)
+      .where(or(isNotNull(demoHandoffsTable.consumedAt), lt(demoHandoffsTable.createdAt, cutoff)))
+      .catch((err) => logger.warn({ err: err?.message }, "[demo-handoff] purge failed"));
+
+    res.json({ token });
+  } catch (err: any) {
+    logger.error({ err: err?.message }, "[demo-handoff] create failed");
+    res.status(500).json({ error: "Erreur interne." });
   }
 });
 

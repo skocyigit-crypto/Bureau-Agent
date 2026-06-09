@@ -1306,6 +1306,53 @@ function ChatTab() {
     if (imported) {
       toast({ title: "Demo importee", description: "Votre conversation du site est prete a continuer." });
     }
+
+    // Server-persisted handoff: survives the 30-min localStorage window and lets
+    // a prospect resume on another device once the token is claimed. We claim
+    // any token carried from the marketing site, then fetch the bound transcript
+    // (which also works days later / on a fresh device with no token at all).
+    (async () => {
+      const TOKEN_KEY = "ajan.demo.token";
+      let token = "";
+      try {
+        const url = new URL(window.location.href);
+        token = url.searchParams.get("demo_token") || "";
+        if (token) {
+          url.searchParams.delete("demo_token");
+          window.history.replaceState({}, "", url.pathname + (url.search ? url.search : "") + url.hash);
+        }
+      } catch { /* ignore */ }
+      if (!token) {
+        try {
+          const raw = window.localStorage.getItem(TOKEN_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw) as { token?: string };
+            if (typeof parsed.token === "string") token = parsed.token;
+          }
+        } catch { /* ignore */ }
+      }
+      // Clear the durable token regardless so it never leaks into a later session.
+      try { window.localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
+
+      try {
+        if (token) {
+          await apiPost("/commandant/demo-handoff/claim", { token }).catch(() => {});
+        }
+        const d = await apiGet("/commandant/demo-handoff");
+        const h = d?.handoff;
+        if (h && Array.isArray(h.transcript)) {
+          // Only apply if the instant (base64) path didn't already import a demo,
+          // to avoid duplicating context — but always purge the server row.
+          if (!imported && applySlim(h.transcript)) {
+            imported = true;
+            toast({ title: "Demo importee", description: "Votre conversation du site est prete a continuer." });
+          }
+          if (typeof h.id === "number") {
+            await apiPost("/commandant/demo-handoff/consume", { id: h.id }).catch(() => {});
+          }
+        }
+      } catch { /* ignore — demo continuity is best-effort */ }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

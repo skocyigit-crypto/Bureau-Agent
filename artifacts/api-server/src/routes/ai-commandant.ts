@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { db, callsTable, contactsTable, tasksTable, messagesTable, calendarEventsTable, facturesClientTable, compteClientTable, organisationsTable, prospectsTable, notificationsTable, paymentRemindersTable, licenseAuditLogTable, projetsTable, usersTable, checkinsTable, auditLogsTable, commandantConversationsTable, commandantMessagesTable } from "@workspace/db";
+import { db, callsTable, contactsTable, tasksTable, messagesTable, calendarEventsTable, facturesClientTable, compteClientTable, organisationsTable, prospectsTable, notificationsTable, paymentRemindersTable, licenseAuditLogTable, projetsTable, usersTable, checkinsTable, auditLogsTable, commandantConversationsTable, commandantMessagesTable, demoHandoffsTable } from "@workspace/db";
 import { eq, sql, and, desc, gte, lte, lt, ne, isNull, isNotNull, or, ilike, count, asc, type Column, type SQL } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { stripAccents, ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
@@ -2845,6 +2845,86 @@ CONTEXTE BUREAU (instantane):
     });
   } catch (err: any) {
     handleCommandantError(err, res, "[Commandant/Conv/Send]");
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Marketing-site demo handoff (server-persisted continuity)
+//
+// A prospect runs the public demo on the marketing site (anonymous), then signs
+// up. Previously the transcript only lived in a URL param + a 30-min
+// localStorage key, so it was lost if they signed up later or on another
+// device. The marketing site now also POSTs the transcript to
+// /public/demo-handoff which returns a secret token. The three routes below let
+// the now-authenticated user (1) bind that token to their account, (2) fetch
+// the bound-but-unconsumed transcript from any device, and (3) purge it once
+// imported. See lib/db/src/schema/demo-handoffs.ts.
+// ---------------------------------------------------------------------------
+
+// Claim a server-persisted demo handoff for the current account (idempotent:
+// only binds rows that are still unclaimed, so a stolen/replayed token cannot
+// hijack a transcript already bound to another account).
+router.post("/commandant/demo-handoff/claim", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const userId = getUserId(req);
+    if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
+    const token = typeof req.body?.token === "string" ? req.body.token.trim() : "";
+    if (!token || token.length > 64) { res.status(400).json({ error: "Token invalide" }); return; }
+    await db.update(demoHandoffsTable)
+      .set({ organisationId: orgId, userId, claimedAt: new Date() })
+      .where(and(
+        eq(demoHandoffsTable.claimToken, token),
+        isNull(demoHandoffsTable.claimedAt),
+        isNull(demoHandoffsTable.consumedAt),
+      ));
+    res.json({ success: true });
+  } catch (err: any) {
+    handleCommandantError(err, res, "[Commandant/DemoHandoff/Claim]");
+  }
+});
+
+// Return the most recent claimed-but-unconsumed demo handoff for the current
+// user, so they can resume even days later or on a different device.
+router.get("/commandant/demo-handoff", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const userId = getUserId(req);
+    if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
+    const [row] = await db.select({ id: demoHandoffsTable.id, transcript: demoHandoffsTable.transcript })
+      .from(demoHandoffsTable)
+      .where(and(
+        eq(demoHandoffsTable.organisationId, orgId),
+        eq(demoHandoffsTable.userId, userId),
+        isNotNull(demoHandoffsTable.claimedAt),
+        isNull(demoHandoffsTable.consumedAt),
+      ))
+      .orderBy(desc(demoHandoffsTable.claimedAt))
+      .limit(1);
+    res.json({ handoff: row ?? null });
+  } catch (err: any) {
+    handleCommandantError(err, res, "[Commandant/DemoHandoff/Get]");
+  }
+});
+
+// Purge a demo handoff once it has been imported in-app (privacy: consumed
+// transcripts are deleted outright, scoped to the owner).
+router.post("/commandant/demo-handoff/consume", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const userId = getUserId(req);
+    if (!userId) { res.status(401).json({ error: "Non authentifie" }); return; }
+    const id = parseInt(String(req.body?.id));
+    if (isNaN(id)) { res.status(400).json({ error: "ID invalide" }); return; }
+    await db.delete(demoHandoffsTable)
+      .where(and(
+        eq(demoHandoffsTable.id, id),
+        eq(demoHandoffsTable.organisationId, orgId),
+        eq(demoHandoffsTable.userId, userId),
+      ));
+    res.json({ success: true });
+  } catch (err: any) {
+    handleCommandantError(err, res, "[Commandant/DemoHandoff/Consume]");
   }
 });
 
