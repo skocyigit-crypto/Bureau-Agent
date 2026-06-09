@@ -290,6 +290,9 @@ export default function DashboardScreen() {
               <StatCard title="Contacts" value={data.totalContacts} icon="users" color={colors.success ?? "#22c55e"} />
               <StatCard title="Taches" value={data.pendingTasks} icon="check-square" color={colors.warning ?? "#f59e0b"} subtitle="En attente" badge={unreadCounts.task} />
             </View>
+            <Pressable style={[styles.statsRow, { flex: undefined }]} onPress={() => quickNav("/(tabs)/tasks")}>
+              <StatCard title="Aujourd'hui" value={data.todayTasks} icon="calendar" color="#0ea5e9" subtitle="Echeance du jour" />
+            </Pressable>
             <Pressable style={[styles.statsRow, { flex: undefined }]} onPress={() => quickNav("/projets")}>
               <StatCard title="Projets" value={data.projetsActifs} icon="folder" color="#6366f1" subtitle="En cours" />
               <StatCard title="En retard" value={data.projetsEnRetard} icon="alert-circle" color={data.projetsEnRetard > 0 ? colors.destructive : colors.mutedForeground} subtitle="Projets" />
