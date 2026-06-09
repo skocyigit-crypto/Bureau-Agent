@@ -4,7 +4,7 @@ import {
   callsTable, messagesTable, facturesClientTable,
 } from "@workspace/db/schema";
 import { eq, and, desc, gte, lte, sql, ilike, or } from "drizzle-orm";
-import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
+import { ensureUnaccentExtension, accentInsensitiveIlike, stripAccents } from "../helpers/accent-search";
 import { sendEmail } from "./email";
 import { sendSms as providerSendSms } from "./telephony-providers";
 import { generateImage } from "@workspace/integrations-gemini-ai/image";
@@ -204,6 +204,87 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
         phone: contactsTable.phone,
       }).from(contactsTable).where(and(...conds)).orderBy(desc(contactsTable.createdAt)).limit(limit);
       return { count: rows.length, contacts: rows };
+    },
+  },
+  {
+    name: "find_contact",
+    description:
+      "Recherche un contact par nom, prenom, entreprise, e-mail ou telephone et retourne une liste " +
+      "classee des meilleures correspondances avec leur id. Lecture seule. A utiliser pour resoudre " +
+      "le nom prononce par l'utilisateur (ex: « le numero d'Ali Yilmaz ») en id avant d'appeler update_contact. " +
+      "Retourne plusieurs candidats si ambigu — demande confirmation a l'utilisateur avant de modifier.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Nom, prenom, entreprise, e-mail ou telephone a rechercher" },
+        limit: { type: "integer", description: "Nombre max de correspondances (1-20, defaut 5)" },
+      },
+      required: ["query"],
+    },
+    fields: {
+      query: { kind: "string", required: true, min: 1, max: 200 },
+      limit: { kind: "number", integer: true, min: 1, max: 20 },
+    },
+    execute: async (a, { orgId }) => {
+      const query = String(a.query).trim();
+      const limit = Math.min((a.limit as number) ?? 5, 20);
+      const useUnaccent = await ensureUnaccentExtension();
+      const like = `%${query}%`;
+      const rows = await db.select({
+        id: contactsTable.id,
+        firstName: contactsTable.firstName,
+        lastName: contactsTable.lastName,
+        company: contactsTable.company,
+        email: contactsTable.email,
+        phone: contactsTable.phone,
+        createdAt: contactsTable.createdAt,
+      }).from(contactsTable).where(and(
+        eq(contactsTable.organisationId, orgId),
+        or(
+          accentInsensitiveIlike(contactsTable.firstName, like, useUnaccent),
+          accentInsensitiveIlike(contactsTable.lastName, like, useUnaccent),
+          accentInsensitiveIlike(contactsTable.company, like, useUnaccent),
+          accentInsensitiveIlike(contactsTable.email, like, useUnaccent),
+          accentInsensitiveIlike(contactsTable.phone, like, useUnaccent),
+        )!,
+      )).limit(100);
+      const nq = stripAccents(query).toLowerCase();
+      const nqDigits = query.replace(/\D/g, "");
+      const norm = (s: unknown) => stripAccents(String(s ?? "")).toLowerCase().trim();
+      const scoreContact = (r: typeof rows[number]): number => {
+        const first = norm(r.firstName);
+        const last = norm(r.lastName);
+        const full = `${first} ${last}`.trim();
+        const company = norm(r.company);
+        const email = norm(r.email);
+        let score = 0;
+        if (full === nq || `${last} ${first}`.trim() === nq) score = Math.max(score, 100);
+        if (first === nq || last === nq || email === nq) score = Math.max(score, 95);
+        if (company === nq) score = Math.max(score, 85);
+        if (first.startsWith(nq) || last.startsWith(nq)) score = Math.max(score, 70);
+        if (full.startsWith(nq) || company.startsWith(nq)) score = Math.max(score, 60);
+        if (nqDigits.length >= 3) {
+          const phoneDigits = String(r.phone ?? "").replace(/\D/g, "");
+          if (phoneDigits === nqDigits) score = Math.max(score, 98);
+          else if (phoneDigits.includes(nqDigits)) score = Math.max(score, 75);
+        }
+        if (full.includes(nq) || company.includes(nq) || email.includes(nq)) score = Math.max(score, 40);
+        return score;
+      };
+      const ranked = rows
+        .map((r) => ({ r, score: scoreContact(r) }))
+        .sort((x, y) => (y.score - x.score) || (y.r.createdAt.getTime() - x.r.createdAt.getTime()))
+        .slice(0, limit)
+        .map(({ r, score }) => ({
+          id: r.id,
+          firstName: r.firstName,
+          lastName: r.lastName,
+          company: r.company,
+          email: r.email,
+          phone: r.phone,
+          pertinence: score,
+        }));
+      return { count: ranked.length, contacts: ranked };
     },
   },
   {
@@ -946,6 +1027,42 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
         contactName: callsTable.contactName, status: callsTable.status, duration: callsTable.duration,
         createdAt: callsTable.createdAt,
       }).from(callsTable).where(eq(callsTable.organisationId, orgId)).orderBy(desc(callsTable.createdAt)).limit(limit);
+      return { count: rows.length, calls: rows };
+    },
+  },
+  {
+    name: "find_recent_call",
+    description:
+      "Trouve des appels recents par nom de contact ou numero de telephone et retourne une liste " +
+      "classee par recence avec leur id. Lecture seule. A utiliser pour resoudre « mon dernier appel " +
+      "avec le plombier » en id avant d'appeler log_call. Retourne plusieurs candidats si ambigu.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Nom du contact ou numero de telephone a rechercher" },
+        limit: { type: "integer", description: "Nombre max d'appels (1-20, defaut 5)" },
+      },
+      required: ["query"],
+    },
+    fields: {
+      query: { kind: "string", required: true, min: 1, max: 200 },
+      limit: { kind: "number", integer: true, min: 1, max: 20 },
+    },
+    execute: async (a, { orgId }) => {
+      const limit = Math.min((a.limit as number) ?? 5, 20);
+      const like = `%${String(a.query).trim()}%`;
+      const useUnaccent = await ensureUnaccentExtension();
+      const rows = await db.select({
+        id: callsTable.id, direction: callsTable.direction, phoneNumber: callsTable.phoneNumber,
+        contactName: callsTable.contactName, status: callsTable.status, duration: callsTable.duration,
+        createdAt: callsTable.createdAt,
+      }).from(callsTable).where(and(
+        eq(callsTable.organisationId, orgId),
+        or(
+          accentInsensitiveIlike(callsTable.contactName, like, useUnaccent),
+          accentInsensitiveIlike(callsTable.phoneNumber, like, useUnaccent),
+        )!,
+      )).orderBy(desc(callsTable.createdAt)).limit(limit);
       return { count: rows.length, calls: rows };
     },
   },
