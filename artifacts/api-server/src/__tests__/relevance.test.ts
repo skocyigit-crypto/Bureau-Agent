@@ -15,7 +15,6 @@
  *   4. prepareQuery / normText : repli d'accents et de casse.
  */
 import { describe, expect, it } from "vitest";
-
 import {
   RELEVANCE,
   normText,
