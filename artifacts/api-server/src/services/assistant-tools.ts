@@ -248,6 +248,66 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
       return { success: true, id: row.id, url: `/contacts/${row.id}` };
     },
   },
+  {
+    name: "update_contact",
+    description:
+      "Met a jour un contact existant: prenom, nom, telephone, e-mail, entreprise, categorie ou notes. " +
+      "Fournir l'id du contact et au moins un champ a modifier. Les champs non fournis restent inchanges. " +
+      "Categorie valide: client, prospect, fournisseur, partenaire, autre. NECESSITE UNE CONFIRMATION EXPLICITE.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "integer", description: "ID du contact a modifier" },
+        firstName: { type: "string" },
+        lastName: { type: "string" },
+        phone: { type: "string", description: "Format international si possible (+33...)" },
+        email: { type: "string" },
+        company: { type: "string" },
+        category: { type: "string", description: "client, prospect, fournisseur, partenaire, autre" },
+        notes: { type: "string" },
+      },
+      required: ["id"],
+    },
+    fields: {
+      id: { kind: "number", required: true, integer: true, min: 1 },
+      firstName: { kind: "string", min: 1, max: 120 },
+      lastName: { kind: "string", min: 1, max: 120 },
+      phone: { kind: "string", min: 3, max: 40 },
+      email: { kind: "string", email: true, max: 200 },
+      company: { kind: "string", max: 200 },
+      category: { kind: "string", enum: ["client", "prospect", "fournisseur", "partenaire", "autre"] as const },
+      notes: { kind: "string", max: 2000 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => {
+      const parts: string[] = [];
+      if (a.firstName != null || a.lastName != null) parts.push(`nom → ${[a.firstName, a.lastName].filter(Boolean).join(" ")}`);
+      if (a.phone != null) parts.push(`telephone → ${a.phone}`);
+      if (a.email != null) parts.push(`e-mail → ${a.email}`);
+      if (a.company != null) parts.push(`entreprise → ${trim(a.company, 60)}`);
+      if (a.category != null) parts.push(`categorie → ${a.category}`);
+      if (a.notes != null) parts.push("notes mises a jour");
+      return `Mettre a jour le contact #${a.id}${parts.length ? ` (${parts.join(", ")})` : ""}`;
+    },
+    execute: async (a, { orgId, userId }) => {
+      const updates: Record<string, unknown> = { updatedBy: userId };
+      if (a.firstName != null) updates.firstName = a.firstName;
+      if (a.lastName != null) updates.lastName = a.lastName;
+      if (a.phone != null) updates.phone = a.phone;
+      if (a.email != null) updates.email = a.email;
+      if (a.company != null) updates.company = a.company;
+      if (a.category != null) updates.category = a.category;
+      if (a.notes != null) updates.notes = a.notes;
+      if (Object.keys(updates).length <= 1) {
+        return { success: false, error: "Aucune modification fournie (prenom, nom, telephone, e-mail, entreprise, categorie ou notes)." };
+      }
+      const [row] = await db.update(contactsTable).set(updates)
+        .where(and(eq(contactsTable.id, a.id), eq(contactsTable.organisationId, orgId)))
+        .returning({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName });
+      if (!row) return { success: false, error: "Contact introuvable dans votre organisation." };
+      return { success: true, id: row.id, firstName: row.firstName, lastName: row.lastName, url: `/contacts/${row.id}` };
+    },
+  },
   // ---------- TASKS ----------
   {
     name: "list_tasks",
@@ -887,6 +947,55 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
         createdAt: callsTable.createdAt,
       }).from(callsTable).where(eq(callsTable.organisationId, orgId)).orderBy(desc(callsTable.createdAt)).limit(limit);
       return { count: rows.length, calls: rows };
+    },
+  },
+  {
+    name: "log_call",
+    description:
+      "Enregistre le resultat d'un appel existant: met a jour son statut et/ou ajoute des notes. " +
+      "Statut valide: repondu (l'appel a abouti), manque (appel manque), messagerie (laisse sur la messagerie vocale). " +
+      "Les notes fournies sont ajoutees a la suite des notes existantes (elles ne les remplacent pas). " +
+      "Fournir l'id de l'appel et au moins un champ (status ou notes). NECESSITE UNE CONFIRMATION EXPLICITE.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "integer", description: "ID de l'appel a mettre a jour" },
+        status: { type: "string", description: "repondu, manque, messagerie" },
+        notes: { type: "string", description: "Notes a ajouter au compte-rendu de l'appel" },
+      },
+      required: ["id"],
+    },
+    fields: {
+      id: { kind: "number", required: true, integer: true, min: 1 },
+      status: { kind: "string", enum: ["repondu", "manque", "messagerie"] as const },
+      notes: { kind: "string", max: 4000 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => {
+      const parts: string[] = [];
+      if (a.status) parts.push(`statut → ${a.status}`);
+      if (a.notes != null) parts.push(`note ajoutee: « ${trim(a.notes, 60)} »`);
+      return `Enregistrer le resultat de l'appel #${a.id}${parts.length ? ` (${parts.join(", ")})` : ""}`;
+    },
+    execute: async (a, { orgId, userId }) => {
+      if (a.status == null && a.notes == null) {
+        return { success: false, error: "Aucune modification fournie (statut ou notes)." };
+      }
+      const [existing] = await db.select({ id: callsTable.id, notes: callsTable.notes })
+        .from(callsTable)
+        .where(and(eq(callsTable.id, a.id), eq(callsTable.organisationId, orgId)));
+      if (!existing) return { success: false, error: "Appel introuvable dans votre organisation." };
+      const updates: Record<string, unknown> = { updatedBy: userId };
+      if (a.status != null) updates.status = a.status;
+      if (a.notes != null) {
+        const prev = (existing.notes ?? "").trim();
+        updates.notes = prev ? `${prev}\n${a.notes}` : a.notes;
+      }
+      const [row] = await db.update(callsTable).set(updates)
+        .where(and(eq(callsTable.id, a.id), eq(callsTable.organisationId, orgId)))
+        .returning({ id: callsTable.id, status: callsTable.status });
+      if (!row) return { success: false, error: "Appel introuvable dans votre organisation." };
+      return { success: true, id: row.id, status: row.status, url: `/appels/${row.id}` };
     },
   },
   {
