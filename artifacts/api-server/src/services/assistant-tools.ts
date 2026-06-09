@@ -21,6 +21,7 @@ export interface ToolContext {
 export type FieldSpec =
   | { kind: "string"; required?: boolean; min?: number; max?: number; enum?: readonly string[]; email?: boolean }
   | { kind: "number"; required?: boolean; min?: number; max?: number; integer?: boolean }
+  | { kind: "boolean"; required?: boolean }
   | { kind: "iso-date"; required?: boolean };
 
 export interface ToolDef<TArgs = Record<string, unknown>> {
@@ -71,6 +72,11 @@ export function validateArgs(
       if (spec.min != null && n < spec.min) return { ok: false, error: `${key} doit etre >= ${spec.min}` };
       if (spec.max != null && n > spec.max) return { ok: false, error: `${key} doit etre <= ${spec.max}` };
       out[key] = n;
+    } else if (spec.kind === "boolean") {
+      if (typeof v === "boolean") out[key] = v;
+      else if (v === "true") out[key] = true;
+      else if (v === "false") out[key] = false;
+      else return { ok: false, error: `${key} doit etre un booleen` };
     } else if (spec.kind === "iso-date") {
       if (typeof v !== "string" || !ISO_DATE_RE.test(v)) return { ok: false, error: `${key} doit etre une date ISO 8601` };
       const d = new Date(v);
@@ -722,6 +728,7 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
     },
     fields: {
       query: { kind: "string", required: true, min: 1, max: 200 },
+      includePast: { kind: "boolean" },
       limit: { kind: "number", integer: true, min: 1, max: 20 },
     },
     execute: async (a, { orgId }) => {
