@@ -90,6 +90,26 @@ function recordUsage(orgId: number, response: GeminiResponse, t0: number): void 
   } catch { /* swallow usage tracking errors */ }
 }
 
+/** Sérialisation déterministe (clés triées) pour bâtir une clé de cache stable
+ *  insensible à l'ordre des propriétés des arguments d'outil. */
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null";
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  const obj = value as Record<string, unknown>;
+  return `{${Object.keys(obj).sort().map(k => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(",")}}`;
+}
+
+/** Clé de cache d'une lecture: nom de l'outil + arguments normalisés. */
+function readCacheKey(name: string, args: Record<string, unknown>): string {
+  return `${name}:${stableStringify(args)}`;
+}
+
+/** Détecte un jeu de résultats vide pour les outils de listing/recherche qui
+ *  exposent un champ `count`. Sert à déclencher le conseil d'auto-correction. */
+function isEmptyReadResult(payload: Record<string, unknown>): boolean {
+  return typeof payload.count === "number" && payload.count === 0;
+}
+
 interface RunOptions {
   /** When resuming after a confirmed/rejected pending action, the engine
    *  skips the user-message persistence step (the user message already exists). */
@@ -128,6 +148,14 @@ export async function runAssistantTurn(
   const learnedBlock = await buildLearnedContextBlock(ctx.orgId, ctx.userId);
   const systemInstruction = SYSTEM_INSTRUCTION + learnedBlock;
   let hops = 0;
+
+  // État borné à CE tour uniquement:
+  //  - readResultCache: réutilise le résultat d'une lecture identique (même
+  //    outil + mêmes arguments) au lieu de la relancer. JAMAIS d'écritures.
+  //  - selfCorrectionHinted: garde anti-boucle — un conseil d'auto-correction
+  //    n'est ajouté qu'UNE fois par (outil + arguments).
+  const readResultCache = new Map<string, Record<string, unknown>>();
+  const selfCorrectionHinted = new Set<string>();
 
   while (hops < MAX_TOOL_HOPS) {
     hops++;
@@ -185,24 +213,49 @@ export async function runAssistantTurn(
       toolCallRows.push({ id: row.id, name: fc.functionCall.name, args });
     }
 
-    // Execute each call. If ANY requires confirmation, persist the call,
-    // emit pending_action, and STOP the loop. Resume happens via /confirm.
-    const responseParts: GeminiPart[] = [];
-    for (const call of toolCallRows) {
-      const tool = getTool(call.name);
-      // Server-enforced confirmation gate (NOT just prompt-based)
-      if (tool?.requiresConfirmation) {
-        const summary = tool.summarize?.(call.args as never) ?? `Confirmer l'execution de ${call.name}`;
-        emit({ type: "pending_action", messageId: call.id, toolName: call.name, toolArgs: call.args, summary });
-        // Loop stops here — no further model call until /confirm fires
-        return;
-      }
+    // Le 1er outil exigeant une confirmation borne l'exécution de ce hop:
+    // tout outil de lecture AVANT lui s'exécute, puis on émet pending_action et
+    // on STOP (la reprise se fait via /confirm). Conserve la sémantique
+    // séquentielle d'avant: les lectures situées APRÈS un outil de confirmation
+    // ne sont pas exécutées ce hop.
+    const firstConfirmIdx = toolCallRows.findIndex(c => getTool(c.name)?.requiresConfirmation);
+    const readCalls = firstConfirmIdx === -1 ? toolCallRows : toolCallRows.slice(0, firstConfirmIdx);
 
+    // Exécution PARALLÈLE des lectures de ce hop. Les `step` de début sont émis
+    // dans l'ordre, puis chaque lecture est servie depuis le cache du tour si
+    // disponible (même outil + mêmes arguments), sinon exécutée.
+    const executed = await Promise.all(readCalls.map(async (call) => {
       emit({ type: "step", toolName: call.name, toolArgs: call.args });
-      const result = await executeTool(call.name, call.args, ctx);
-      const payload: Record<string, unknown> = result.ok
-        ? (result.result as Record<string, unknown>) ?? {}
-        : { error: result.error ?? "Erreur" };
+      const key = readCacheKey(call.name, call.args);
+      let basePayload = readResultCache.get(key);
+      if (!basePayload) {
+        const result = await executeTool(call.name, call.args, ctx);
+        basePayload = result.ok
+          ? (result.result as Record<string, unknown>) ?? {}
+          : { error: result.error ?? "Erreur" };
+        readResultCache.set(key, basePayload);
+      }
+      // Auto-correction: sur erreur ou résultat vide, on glisse UN conseil dans
+      // le functionResponse pour que le modèle réessaie une fois avec des
+      // paramètres ajustés (ou annonce qu'il n'a rien trouvé). Borné à une fois
+      // par (outil + arguments) et, globalement, par le budget de hops.
+      let payload = basePayload;
+      const isError = "error" in basePayload;
+      if ((isError || isEmptyReadResult(basePayload)) && !selfCorrectionHinted.has(key)) {
+        selfCorrectionHinted.add(key);
+        payload = {
+          ...basePayload,
+          _conseil: isError
+            ? "Cet appel a echoue. Corrige les parametres et reessaie UNE seule fois; sinon explique l'echec en une phrase. N'invente pas de donnees."
+            : "Aucun resultat. Reessaie UNE seule fois avec des parametres ajustes (orthographe, filtre plus large, autre periode); sinon indique clairement qu'aucun resultat n'a ete trouve. N'invente pas de donnees.",
+        };
+      }
+      return { call, payload };
+    }));
+
+    // Émission des résultats + persistance dans l'ordre d'origine.
+    const responseParts: GeminiPart[] = [];
+    for (const { call, payload } of executed) {
       emit({ type: "step", toolName: call.name, toolArgs: call.args, toolResult: payload });
       responseParts.push({ functionResponse: { name: call.name, response: payload } });
       await db.insert(assistantMessagesTable).values({
@@ -210,6 +263,18 @@ export async function runAssistantTurn(
         toolName: call.name, toolArgs: call.args, toolResult: payload, content: "",
       });
     }
+
+    // Outil de confirmation présent: on s'arrête ici APRÈS avoir persisté les
+    // lectures préalables. Le gate de confirmation reste côté serveur.
+    if (firstConfirmIdx !== -1) {
+      const call = toolCallRows[firstConfirmIdx]!;
+      const tool = getTool(call.name);
+      const summary = tool?.summarize?.(call.args as never) ?? `Confirmer l'execution de ${call.name}`;
+      emit({ type: "pending_action", messageId: call.id, toolName: call.name, toolArgs: call.args, summary });
+      // Loop stops here — no further model call until /confirm fires
+      return;
+    }
+
     contents.push({ role: "function", parts: responseParts });
   }
 
