@@ -400,13 +400,16 @@ export default function Dashboard() {
 
   const maxHourlyCalls = (Array.isArray(hourlyPerf?.hours) ? hourlyPerf.hours : []).reduce((max: number, h: any) => Math.max(max, h?.total ?? 0), 0) || 1;
 
-  const kpiCards: { title: string; value: number; icon: typeof Phone; trend?: number; trendLabel?: string; href: string; variant: Icon3DVariant }[] = [
+  const kpiCards: { title: string; value: number; icon: typeof Phone; trend?: number; trendLabel?: string; sub?: string; href: string; variant: Icon3DVariant }[] = [
     {
       title: "Appels Aujourd'hui",
       value: summary?.totalCallsToday || 0,
       icon: Phone,
       trend: summary?.callsTrend,
       trendLabel: "depuis hier",
+      sub: summary
+        ? `${summary.totalCalls} au total · ${summary.missedCalls} manqués · ${summary.answeredRate}% répondus`
+        : undefined,
       href: "/appels",
       variant: "blue",
     },
@@ -663,6 +666,9 @@ export default function Dashboard() {
                         )}
                         {kpi.trendLabel}
                       </p>
+                    )}
+                    {kpi.sub && (
+                      <p className="text-xs text-muted-foreground mt-1">{kpi.sub}</p>
                     )}
                   </>
                 )}
