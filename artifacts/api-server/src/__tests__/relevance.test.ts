@@ -14,7 +14,7 @@
  *   3. scorePhoneMatch : exact vs partiel vs requete trop courte ;
  *   4. prepareQuery / normText : repli d'accents et de casse.
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   RELEVANCE,
   normText,
@@ -24,6 +24,48 @@ import {
   byCreatedAtDesc,
   rankByRelevance,
 } from "../helpers/relevance";
+
+// ---------------------------------------------------------------------------
+// Stub @workspace/db BEFORE assistant-tools is imported so the find_* tools can
+// be executed in-process without a real database. The chainable stub captures
+// the WHERE condition handed to `.where(...)` so the test can introspect which
+// columns each tool actually queries. db.execute() throws so
+// ensureUnaccentExtension() resolves to `false` -> accentInsensitiveIlike()
+// falls back to a plain ilike() (simpler, column-bearing SQL nodes to walk).
+// ---------------------------------------------------------------------------
+const dbStub = vi.hoisted(() => {
+  const captured: { where?: unknown } = {};
+  const chain: Record<string, unknown> = {};
+  Object.assign(chain, {
+    from: () => chain,
+    where: (cond: unknown) => {
+      captured.where = cond;
+      return chain;
+    },
+    orderBy: () => chain,
+    limit: async () => [],
+  });
+  const db = {
+    execute: async () => {
+      throw new Error("db stub: no unaccent extension in tests");
+    },
+    select: () => chain,
+  };
+  return { captured, db };
+});
+vi.mock("@workspace/db", () => ({ db: dbStub.db, documentsTable: {} }));
+
+const { Column, SQL, getTableColumns } = await import("drizzle-orm");
+const {
+  contactsTable,
+  tasksTable,
+  projetsTable,
+  calendarEventsTable,
+  callsTable,
+} = await import("@workspace/db/schema");
+const { getTool } = await import("../services/assistant-tools");
+const { scoreContact, scoreTask, scoreEvent, scoreCall, scoreProject } =
+  await import("../helpers/tool-scorers");
 
 describe("RELEVANCE — ordre relatif des paliers", () => {
   it("respecte exact > prefixe > sous-chaine pour le champ primaire", () => {
@@ -221,4 +263,133 @@ describe("rankByRelevance — tri, departage, decoupe", () => {
   it("retourne un tableau vide pour une entree vide", () => {
     expect(rankByRelevance([], (r: Row) => r.s, { limit: 5 })).toEqual([]);
   });
+});
+
+/**
+ * Garde anti-derive: les champs filtres en SQL == les champs lus par le scorer.
+ *
+ * Chaque outil find_* fait DEUX choses qui doivent rester synchronisees :
+ *   1. il construit une clause WHERE `or(ilike(col, ...), ...)` qui decide
+ *      QUELS enregistrements remontent de la base ;
+ *   2. il reclasse ces enregistrements en memoire via un scorer pur
+ *      (scoreContact / scoreTask / ...) qui decide LEQUEL est choisi en premier.
+ *
+ * Si un champ est filtre mais jamais score (queried-but-unscored), il ne pourra
+ * jamais gagner le classement. S'il est score mais jamais filtre
+ * (scored-but-unqueried), l'enregistrement ne remontera jamais pour etre score.
+ * Les tests unitaires du scorer seul ne voient pas la requete, donc ils ne
+ * peuvent pas attraper cette derive. Ce test relie les deux cotes :
+ *   - cote SQL : on execute reellement l'outil (db stub) et on inspecte la
+ *     condition WHERE capturee, en ne gardant que les colonnes operandes d'un
+ *     ILIKE (le filtre de recherche), pas le garde-tenant `=` ni les filtres
+ *     de statut/date ;
+ *   - cote scorer : on appelle le scorer avec une ligne Proxy qui enregistre
+ *     chaque champ lu.
+ * Les deux ensembles doivent etre strictement egaux. Ajouter un champ de
+ * recherche d'un seul cote fait echouer ce test bruyamment.
+ */
+describe("find_* — derive champ SQL <-> champ scorer", () => {
+  // Map identite Column -> nom de propriete JS (firstName, clientCompany, ...),
+  // partagee par les cinq tables interrogees par les outils find_*.
+  const columnToKey = new Map<unknown, string>();
+  for (const table of [
+    contactsTable,
+    tasksTable,
+    projetsTable,
+    calendarEventsTable,
+    callsTable,
+  ]) {
+    for (const [key, col] of Object.entries(getTableColumns(table))) {
+      columnToKey.set(col, key);
+    }
+  }
+
+  /** Un noeud SQL est un comparateur ILIKE si l'un de ses fragments le dit. */
+  function isIlikeNode(node: InstanceType<typeof SQL>): boolean {
+    return node.queryChunks.some(
+      (c) =>
+        Array.isArray((c as { value?: unknown }).value) &&
+        ((c as { value: unknown[] }).value as string[])
+          .join("")
+          .toLowerCase()
+          .includes("ilike"),
+    );
+  }
+
+  /**
+   * Collecte les colonnes operandes d'un ILIKE dans la condition WHERE. On ne
+   * retient une colonne que si son noeud SQL parent direct est un ILIKE, ce qui
+   * exclut le garde-tenant `organisation_id = ?` et les filtres `status = ?` /
+   * `start_date >= ?`.
+   */
+  function collectIlikeColumns(node: unknown, out: Set<unknown>): void {
+    if (!(node instanceof SQL)) return;
+    const ilikeHere = isIlikeNode(node);
+    for (const chunk of node.queryChunks) {
+      if (chunk instanceof Column) {
+        if (ilikeHere) out.add(chunk);
+      } else if (chunk instanceof SQL) {
+        collectIlikeColumns(chunk, out);
+      }
+    }
+  }
+
+  async function sqlFilterFields(toolName: string): Promise<Set<string>> {
+    const tool = getTool(toolName);
+    if (!tool) throw new Error(`outil introuvable: ${toolName}`);
+    dbStub.captured.where = undefined;
+    await tool.execute({ query: "alpha 123456" }, { orgId: 1, userId: 1 });
+    const cols = new Set<unknown>();
+    collectIlikeColumns(dbStub.captured.where, cols);
+    return new Set(
+      [...cols].map((c) => {
+        const key = columnToKey.get(c);
+        if (!key) throw new Error("colonne ILIKE non mappee a une cle JS");
+        return key;
+      }),
+    );
+  }
+
+  // Une requete avec du texte ET des chiffres pour que les branches telephone
+  // des scorers lisent bien le champ phone/phoneNumber.
+  const PROBE = prepareQuery("alpha 123456");
+
+  function scorerReadFields(
+    scorer: (row: never, q: typeof PROBE) => number,
+  ): Set<string> {
+    const read = new Set<string>();
+    const row = new Proxy(
+      {},
+      {
+        get(_t, prop) {
+          if (typeof prop === "string") read.add(prop);
+          return undefined;
+        },
+      },
+    );
+    scorer(row as never, PROBE);
+    return read;
+  }
+
+  const CASES = [
+    { tool: "find_contact", scorer: scoreContact },
+    { tool: "find_task", scorer: scoreTask },
+    { tool: "find_project", scorer: scoreProject },
+    { tool: "find_event", scorer: scoreEvent },
+    { tool: "find_recent_call", scorer: scoreCall },
+  ] as const;
+
+  it.each(CASES)(
+    "$tool: champs filtres SQL == champs lus par le scorer",
+    async ({ tool, scorer }) => {
+      const sql = await sqlFilterFields(tool);
+      const scored = scorerReadFields(scorer);
+      // Garde-fou: chaque outil filtre ET score au moins un champ.
+      expect(sql.size).toBeGreaterThan(0);
+      expect(scored.size).toBeGreaterThan(0);
+      // Egalite stricte des deux ensembles -> aucun champ filtre-mais-non-score
+      // ni score-mais-non-filtre.
+      expect([...sql].sort()).toEqual([...scored].sort());
+    },
+  );
 });
