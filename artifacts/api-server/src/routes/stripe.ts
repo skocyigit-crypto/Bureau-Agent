@@ -5,7 +5,8 @@ import { eq } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { logger } from "../lib/logger";
 import {
-  getStripe,
+  getStripeClient,
+  getStripeWebhookSecret,
   isStripeConfigured,
   getPriceIdForPlan,
   getPublicAppUrl,
@@ -25,8 +26,8 @@ stripeWebhookRouter.post(
   "/api/stripe/webhook",
   raw({ type: "application/json", limit: "1mb" }),
   async (req: Request, res: Response) => {
-    const stripe = getStripe();
-    const secret = process.env.STRIPE_WEBHOOK_SECRET;
+    const stripe = await getStripeClient();
+    const secret = await getStripeWebhookSecret();
     if (!stripe || !secret) {
       res.status(503).json({ error: "Stripe webhook non configure" });
       return;
@@ -117,9 +118,9 @@ stripeWebhookRouter.post(
 // Authenticated router (mounted under /api with auth+tenant)
 const router: Router = Router();
 
-router.get("/stripe/status", (_req: Request, res: Response) => {
+router.get("/stripe/status", async (_req: Request, res: Response) => {
   res.json({
-    configured: isStripeConfigured(),
+    configured: await isStripeConfigured(),
     prices: {
       starter: Boolean(process.env.STRIPE_PRICE_STARTER),
       professionnel: Boolean(process.env.STRIPE_PRICE_PROFESSIONNEL),
@@ -130,7 +131,7 @@ router.get("/stripe/status", (_req: Request, res: Response) => {
 });
 
 router.post("/stripe/create-checkout-session", async (req: Request, res: Response) => {
-  const stripe = getStripe();
+  const stripe = await getStripeClient();
   if (!stripe) {
     res.status(503).json({ error: "Paiements Stripe non actives. Contactez l'administrateur." });
     return;
@@ -202,7 +203,7 @@ router.post("/stripe/create-checkout-session", async (req: Request, res: Respons
 });
 
 router.post("/stripe/create-portal-session", async (req: Request, res: Response) => {
-  const stripe = getStripe();
+  const stripe = await getStripeClient();
   if (!stripe) {
     res.status(503).json({ error: "Stripe non configure" });
     return;
@@ -230,7 +231,7 @@ router.post("/stripe/create-portal-session", async (req: Request, res: Response)
 });
 
 router.post("/stripe/cancel-subscription", async (req: Request, res: Response) => {
-  const stripe = getStripe();
+  const stripe = await getStripeClient();
   if (!stripe) {
     res.status(503).json({ error: "Stripe non configure" });
     return;
@@ -265,7 +266,7 @@ router.post("/stripe/cancel-subscription", async (req: Request, res: Response) =
 });
 
 router.post("/stripe/resume-subscription", async (req: Request, res: Response) => {
-  const stripe = getStripe();
+  const stripe = await getStripeClient();
   if (!stripe) {
     res.status(503).json({ error: "Stripe non configure" });
     return;

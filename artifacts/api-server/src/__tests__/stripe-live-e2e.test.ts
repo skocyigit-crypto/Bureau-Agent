@@ -41,12 +41,12 @@ import {
   subscriptionsTable,
   invoicesTable,
 } from "@workspace/db";
-import { getStripe } from "../services/stripe-client";
+import { getStripeClient } from "../services/stripe-client";
 import { handleInvoicePaid, handleSubscriptionUpdated } from "../services/stripe-sync";
 
 const secret = process.env.STRIPE_SECRET_KEY ?? "";
 const isTestKey = secret.startsWith("sk_test_");
-const stripe = isTestKey ? getStripe() : null;
+const stripe = isTestKey ? await getStripeClient() : null;
 
 const PLAN_DEFS = [
   { plan: "starter", name: "Agent de Bureau — Starter", amount: 2900 },
