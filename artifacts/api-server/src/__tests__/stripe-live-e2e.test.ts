@@ -45,7 +45,11 @@ import { getStripeClient } from "../services/stripe-client";
 import { handleInvoicePaid, handleSubscriptionUpdated } from "../services/stripe-sync";
 
 const secret = process.env.STRIPE_SECRET_KEY ?? "";
-const isTestKey = secret.startsWith("sk_test_");
+// Sibling tests (e.g. stripe-webhook-idempotency) set a fake `sk_test_dummy_*`
+// key on process.env at module load; under vitest's singleFork pool that leaks
+// into this module. Only a REAL Stripe test key should activate these live
+// network tests — never a dummy sentinel.
+const isTestKey = secret.startsWith("sk_test_") && !secret.includes("dummy");
 const stripe = isTestKey ? await getStripeClient() : null;
 
 const PLAN_DEFS = [

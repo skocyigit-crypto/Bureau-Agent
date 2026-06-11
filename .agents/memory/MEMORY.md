@@ -35,6 +35,8 @@
 - [API key management ownership](api-key-mgmt-ownership.md) — api-key auth impersonates its creator; list/reveal/revoke must be owner-or-admin scoped + audited, not just requireAuth+requireTenant.
 - [Outbound webhook delivery](outbound-webhook-delivery.md) — tenant-URL delivery: SSRF-check (DNS-resolve) every attempt, sign with per-attempt timestamp, atomic SQL failure-count/breaker.
 - [Drizzle composite-FK ordering trap](drizzle-composite-fk-ordering.md) — composite FK needs unique() not uniqueIndex; incremental push adds FK before UNIQUE & push-force swallows the error; drop+recreate to fix.
+- [Replit Stripe connector shape](stripe-connector-shape.md) — secret under settings.secret (not secret_key), NO webhook_secret, managed acct starts TEST; billing is env-first, connector fallback, all async.
+- [vitest singleFork env leak](vitest-singlefork-env.md) — api-server runs all test files in one process; process.env mutations leak across files; gate opt-in tests against dummy sentinels.
 - [Google tokens at rest](google-token-at-rest.md) — google_oauth_tokens access/refresh encrypted via lib/crypto; legacy plaintext migrates lazily on read (refresh never rewrites refresh_token).
 - [Multi-tenant FK convention](tenant-fk-convention.md) — cross-entity FKs point at global PK (not composite); isolation is app-level (getOrgId at write), so validate referenced row's org first.
 - [BTP / CREPI-OS scope](btp-crepios-scope.md) — red lines: autonomous SEPA, physical lock, OS/VLM kernel. Buildable = human-approved suggestions in proactive-engine; only `vehicules` is new.

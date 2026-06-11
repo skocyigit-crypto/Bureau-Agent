@@ -58,15 +58,16 @@ async function fetchConnectorCredentials(): Promise<StripeCredentials | null> {
 }
 
 async function resolveCredentials(): Promise<StripeCredentials | null> {
-  if (credCache && Date.now() - credCache.at < CRED_TTL_MS) return credCache.creds;
-  // 1. Explicit env config wins.
+  // 1. Explicit env config wins — checked on EVERY call (env reads are free), so
+  //    setting/rotating/removing env vars takes effect immediately and is never
+  //    masked by a previously-cached connector credential.
   const envKey = process.env.STRIPE_SECRET_KEY;
   if (envKey) {
-    const creds: StripeCredentials = { secretKey: envKey, webhookSecret: process.env.STRIPE_WEBHOOK_SECRET };
-    credCache = { creds, at: Date.now() };
-    return creds;
+    return { secretKey: envKey, webhookSecret: process.env.STRIPE_WEBHOOK_SECRET };
   }
-  // 2. Replit-managed Stripe connection.
+  // 2. Replit-managed Stripe connection — only the connector fetch is cached
+  //    (short TTL) to avoid hitting the proxy on every billing call / status poll.
+  if (credCache && Date.now() - credCache.at < CRED_TTL_MS) return credCache.creds;
   const fromConnector = await fetchConnectorCredentials();
   if (fromConnector) {
     credCache = { creds: fromConnector, at: Date.now() };
