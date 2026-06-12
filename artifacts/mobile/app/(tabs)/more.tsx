@@ -226,6 +226,7 @@ export default function MoreScreen() {
             <MenuItem icon="grid" label="Integrations" sublabel="Logiciels connectes" color="#22c55e" onPress={() => nav("/integrations")} />
             <MenuItem icon="monitor" label="Logiciels" sublabel="Catalogue et connexions SaaS" color="#0891b2" onPress={() => nav("/integrations")} />
             <MenuItem icon="globe" label="Google Workspace" sublabel="Gmail, Drive, Agenda, Meet" color="#4285f4" onPress={() => nav("/google-workspace")} />
+            <MenuItem icon="clock" label="Horaires d'ouverture" sublabel="Jours, heures et fuseau horaire des rendez-vous" color="#6366f1" onPress={() => nav("/horaires-ouverture")} />
             <MenuItem icon="key" label="Licences & Facturation" sublabel="Tableau de bord licences et paiements" color="#166534" onPress={() => nav("/license-management")} />
             {user?.role === "super_admin" ? (
               <MenuItem icon="home" label="Organisations" sublabel="Gestion des licences" color="#f59e0b" onPress={() => nav("/organisations")} />
