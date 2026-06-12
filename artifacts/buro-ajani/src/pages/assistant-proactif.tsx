@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import {
   Sparkles, RefreshCw, Loader2, CheckCircle2, X, ThumbsUp, ThumbsDown,
   Clock, PhoneMissed, CalendarClock, ArrowRight, AlertTriangle, Inbox, ShieldAlert,
-  PhoneOff, MessageSquare, UserPlus, Mail, Send,
+  PhoneOff, MessageSquare, UserPlus, Mail, Send, Receipt, MessageCircle,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -53,6 +53,7 @@ const TYPE_META: Record<string, { label: string; icon: typeof Clock }> = {
   message_sla_breach: { label: "Message sans réponse", icon: MessageSquare },
   quiet_customer: { label: "Client silencieux", icon: UserPlus },
   email_reply_needed: { label: "E-mail à répondre", icon: Mail },
+  payment_reminder: { label: "Relance de paiement", icon: Receipt },
 };
 
 const ACTION_NAV: Record<string, { label: string; path: string }> = {
@@ -193,16 +194,20 @@ export default function AssistantProactifPage() {
     });
   };
 
-  // Envoi de la réponse APPROUVÉE (corps éventuellement édité) à un e-mail.
+  // Envoi APPROUVÉ (corps éventuellement édité) : réponse e-mail OU relance de
+  // paiement. Le type de suggestion choisit l'endpoint et le message de succès.
   const sendReply = async (s: Suggestion) => {
+    const isReminder = s.type === "payment_reminder";
+    const channel = isReminder ? String((s.actionPayload ?? {}).channel ?? "email") : "email";
     const draft = getDraft(s);
     if (!draft.body.trim()) {
-      toast({ title: "Réponse vide", description: "Rédigez une réponse avant l'envoi.", variant: "destructive" });
+      toast({ title: "Message vide", description: "Rédigez le message avant l'envoi.", variant: "destructive" });
       return;
     }
     setSendingId(s.id);
     try {
-      const res = await fetch(`${PROACTIVE_API}/suggestions/${s.id}/send-reply`, {
+      const endpoint = isReminder ? "send-reminder" : "send-reply";
+      const res = await fetch(`${PROACTIVE_API}/suggestions/${s.id}/${endpoint}`, {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ subject: draft.subject, body: draft.body }),
@@ -210,7 +215,14 @@ export default function AssistantProactifPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "send");
       setSuggestions((prev) => prev.filter((x) => x.id !== s.id));
-      toast({ title: "Réponse envoyée", description: "L'e-mail a été envoyé dans le fil d'origine." });
+      if (isReminder) {
+        toast({
+          title: "Relance envoyée",
+          description: channel === "sms" ? "Le SMS de relance a été envoyé au client." : "L'e-mail de relance a été envoyé au client.",
+        });
+      } else {
+        toast({ title: "Réponse envoyée", description: "L'e-mail a été envoyé dans le fil d'origine." });
+      }
     } catch (e) {
       toast({ title: "Erreur", description: e instanceof Error ? e.message : "Envoi impossible.", variant: "destructive" });
     } finally {
@@ -220,8 +232,17 @@ export default function AssistantProactifPage() {
 
   // Rejeter un e-mail proposé : ignore la suggestion ET enregistre un 👎 pour que
   // l'assistant apprenne à moins en proposer (boucle de suppression existante).
+  // NB : pour les relances de paiement, on n'enregistre PAS de 👎 — le
+  // recouvrement est critique et ce type n'est jamais mis en sourdine ;
+  // l'espacement (hystérésis) suffit à éviter le harcèlement.
   const rejectEmail = async (id: number) => {
     void sendFeedback(id, "down");
+    await resolve(id, "dismiss");
+  };
+
+  // Rejeter une relance de paiement : on ignore simplement cette facture pour
+  // l'instant (sans signal d'apprentissage négatif global).
+  const rejectReminder = async (id: number) => {
     await resolve(id, "dismiss");
   };
 
@@ -389,7 +410,11 @@ export default function AssistantProactifPage() {
             const Icon = meta.icon;
             const nav = s.actionType ? ACTION_NAV[s.actionType] : undefined;
             const isEmail = s.type === "email_reply_needed";
-            const draft = isEmail ? getDraft(s) : null;
+            const isReminder = s.type === "payment_reminder";
+            const isDraftable = isEmail || isReminder;
+            const reminderChannel = isReminder ? String((s.actionPayload ?? {}).channel ?? "email") : "email";
+            const showSubject = isEmail || (isReminder && reminderChannel !== "sms");
+            const draft = isDraftable ? getDraft(s) : null;
             return (
               <Card key={s.id} className={`border-l-4 ${sev.border}`}>
                 <CardHeader className="pb-2">
@@ -404,19 +429,29 @@ export default function AssistantProactifPage() {
                     <Badge className={`${sev.badge} shrink-0`}>{sev.label}</Badge>
                   </div>
                 </CardHeader>
-                {isEmail && draft && s.status === "pending" && (
+                {isDraftable && draft && s.status === "pending" && (
                   <CardContent className="space-y-2 pt-0 pb-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor={`subj-${s.id}`} className="text-xs text-muted-foreground">Objet</Label>
-                      <Input
-                        id={`subj-${s.id}`}
-                        value={draft.subject}
-                        onChange={(e) => updateDraft(s.id, { subject: e.target.value })}
-                      />
-                    </div>
+                    {isReminder && (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        {reminderChannel === "sms" ? <MessageCircle className="h-3.5 w-3.5" /> : <Mail className="h-3.5 w-3.5" />}
+                        <span>
+                          Relance par {reminderChannel === "sms" ? "SMS" : "e-mail"} à {String((s.actionPayload ?? {}).recipient ?? "")}
+                        </span>
+                      </div>
+                    )}
+                    {showSubject && (
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`subj-${s.id}`} className="text-xs text-muted-foreground">Objet</Label>
+                        <Input
+                          id={`subj-${s.id}`}
+                          value={draft.subject}
+                          onChange={(e) => updateDraft(s.id, { subject: e.target.value })}
+                        />
+                      </div>
+                    )}
                     <div className="space-y-1.5">
                       <Label htmlFor={`body-${s.id}`} className="text-xs text-muted-foreground">
-                        Brouillon de réponse (modifiable avant envoi)
+                        {isReminder ? "Brouillon de relance (modifiable avant envoi)" : "Brouillon de réponse (modifiable avant envoi)"}
                       </Label>
                       <Textarea
                         id={`body-${s.id}`}
@@ -436,10 +471,10 @@ export default function AssistantProactifPage() {
                       {nav.label} <ArrowRight className="h-3.5 w-3.5 ml-1" />
                     </Button>
                   )}
-                  {s.status === "pending" && isEmail && (
+                  {s.status === "pending" && isDraftable && (
                     <>
-                      <Button variant="outline" size="sm" onClick={() => rejectEmail(s.id)} disabled={sendingId === s.id}>
-                        <X className="h-4 w-4 mr-1" /> Rejeter
+                      <Button variant="outline" size="sm" onClick={() => (isReminder ? rejectReminder(s.id) : rejectEmail(s.id))} disabled={sendingId === s.id}>
+                        <X className="h-4 w-4 mr-1" /> {isReminder ? "Ignorer" : "Rejeter"}
                       </Button>
                       <Button size="sm" onClick={() => sendReply(s)} disabled={sendingId === s.id}>
                         {sendingId === s.id ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}
@@ -447,7 +482,7 @@ export default function AssistantProactifPage() {
                       </Button>
                     </>
                   )}
-                  {s.status === "pending" && !isEmail && (
+                  {s.status === "pending" && !isDraftable && (
                     <>
                       <Button variant="ghost" size="icon" title="Utile"
                         className={s.feedback === "up" ? "text-emerald-600" : ""}

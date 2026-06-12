@@ -28,6 +28,7 @@ import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
 import { analyzeTreasuryRisk, CASH_CRUNCH_THRESHOLD, CASH_CRUNCH_RESOLVE_THRESHOLD } from "./treasury-risk";
 import { getSuppressedSuggestionTypes } from "./ai-learning";
+import { runPaymentReminderScanForOrg } from "./payment-reminder";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 // "Toujours en éveil": le veilleur déterministe (sans coût IA) ré-évalue
@@ -909,7 +910,20 @@ export async function runProactiveForOrg(orgId: number): Promise<number> {
     }
   }
 
-  return toInsert.length;
+  // Suivi automatique des paiements (Tâche #293) : détecteur de factures clients
+  // impayées/en retard, avec son propre cycle de vie (brouillon de relance +
+  // envoi humain). Déterministe comme les autres détecteurs -> il tourne au même
+  // rythme (cron 10 min + « Analyser maintenant »). Isolé en try/catch : un échec
+  // ici ne doit jamais casser le reste du moteur proactif.
+  let paymentCreated = 0;
+  try {
+    const r = await runPaymentReminderScanForOrg(orgId);
+    paymentCreated = r.created;
+  } catch (err) {
+    logger.warn({ err, orgId }, "[proactive] scan relances de paiement échoué");
+  }
+
+  return toInsert.length + paymentCreated;
 }
 
 /**

@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { db, proactiveSuggestionsTable, organisationsTable } from "@workspace/db";
+import { db, proactiveSuggestionsTable, organisationsTable, facturesClientTable } from "@workspace/db";
 import { and, eq, inArray, desc, or, isNull, type SQL } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
@@ -15,6 +15,9 @@ import {
 } from "../services/proactive-engine";
 import { bumpPreferenceFromFeedback } from "../services/ai-learning";
 import { sendInboxReply, runInboxScanForOrg, EMAIL_REPLY_SUGGESTION_TYPE } from "../services/autonomous-inbox";
+import { PAYMENT_REMINDER_SUGGESTION_TYPE } from "../services/payment-reminder";
+import { sendEmail } from "../services/email";
+import { sendSms as providerSendSms } from "../services/telephony-providers";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -327,6 +330,153 @@ router.post("/proactive/suggestions/:id/send-reply", async (req: Request, res: R
   } catch (err) {
     logger.error({ err }, "[proactive] send-reply failed");
     res.status(500).json({ error: "Erreur lors de l'envoi de la réponse." });
+  }
+});
+
+// POST /proactive/suggestions/:id/send-reminder — envoie la relance de paiement
+// APPROUVÉE par l'humain pour une suggestion `payment_reminder`. Le corps édité
+// prime sur le brouillon. Envoi par e-mail (Resend/Gmail/SMTP) ou SMS (Twilio)
+// selon le canal stocké dans le payload. La suggestion passe en `accepted` +
+// feedback 👍, et la facture est marquée comme relancée (compteur + date) pour
+// l'espacement anti-spam. Aucune action autonome : SEUL chemin d'envoi.
+router.post("/proactive/suggestions/:id/send-reminder", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(400).json({ error: "ID invalide." });
+      return;
+    }
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const editedSubject = typeof body.subject === "string" ? body.subject.trim() : "";
+    const editedBody = typeof body.body === "string" ? body.body.trim() : "";
+    if (!editedBody) {
+      res.status(400).json({ error: "Le corps de la relance est requis." });
+      return;
+    }
+
+    const [suggestion] = await db
+      .select()
+      .from(proactiveSuggestionsTable)
+      .where(
+        and(
+          eq(proactiveSuggestionsTable.id, id),
+          eq(proactiveSuggestionsTable.organisationId, orgId),
+          eq(proactiveSuggestionsTable.type, PAYMENT_REMINDER_SUGGESTION_TYPE),
+          eq(proactiveSuggestionsTable.status, "pending"),
+          visibilityFilter(req),
+        ),
+      )
+      .limit(1);
+    if (!suggestion) {
+      res.status(404).json({ error: "Suggestion introuvable ou déjà traitée." });
+      return;
+    }
+
+    const payload = (suggestion.actionPayload ?? {}) as Record<string, unknown>;
+    const channel = payload.channel === "sms" ? "sms" : "email";
+    const recipient = String(payload.recipient || "");
+    const invoiceId = Number(payload.invoiceId);
+    const subject = editedSubject || String(payload.draftSubject || `Relance — Facture ${payload.reference ?? ""}`);
+    if (!recipient || !Number.isFinite(invoiceId) || invoiceId <= 0) {
+      res.status(409).json({ error: "Contexte d'envoi incomplet (destinataire ou facture manquant)." });
+      return;
+    }
+
+    // Réservation ATOMIQUE avant l'envoi (pending -> accepted) : empêche un
+    // double envoi sous concurrence. Seule la première requête « gagne ».
+    const actingUserId = req.session?.userId ?? null;
+    const claimed = await db
+      .update(proactiveSuggestionsTable)
+      .set({ status: "accepted", resolvedAt: new Date(), resolvedByUserId: actingUserId })
+      .where(
+        and(
+          eq(proactiveSuggestionsTable.id, id),
+          eq(proactiveSuggestionsTable.organisationId, orgId),
+          eq(proactiveSuggestionsTable.type, PAYMENT_REMINDER_SUGGESTION_TYPE),
+          eq(proactiveSuggestionsTable.status, "pending"),
+        ),
+      )
+      .returning({ id: proactiveSuggestionsTable.id });
+    if (claimed.length === 0) {
+      res.status(409).json({ error: "Cette relance a déjà été traitée." });
+      return;
+    }
+
+    try {
+      if (channel === "sms") {
+        const sid = process.env.TWILIO_ACCOUNT_SID;
+        const token = process.env.TWILIO_AUTH_TOKEN;
+        const from = process.env.TWILIO_PHONE_NUMBER;
+        if (!sid || !token || !from) throw new Error("twilio_not_configured");
+        const r = await providerSendSms(
+          "twilio",
+          { accountSid: sid, authToken: token, fromNumber: from },
+          { to: recipient, body: editedBody },
+        );
+        if (!r.success) throw new Error(r.error || "sms_failed");
+      } else {
+        const html = editedBody.includes("<")
+          ? editedBody
+          : `<div style="font-family:system-ui;font-size:15px;line-height:1.6;color:#0f1729">${editedBody.replace(/\n/g, "<br>")}</div>`;
+        const r = await sendEmail(recipient, subject, html, editedBody, { orgId });
+        if (!r.success) throw new Error(r.error || "email_failed");
+      }
+    } catch (err) {
+      // Échec d'envoi : on REND la suggestion (accepted -> pending) pour réessai.
+      await db
+        .update(proactiveSuggestionsTable)
+        .set({ status: "pending", resolvedAt: null, resolvedByUserId: null })
+        .where(
+          and(
+            eq(proactiveSuggestionsTable.id, id),
+            eq(proactiveSuggestionsTable.organisationId, orgId),
+          ),
+        );
+      if (err instanceof Error && err.message === "twilio_not_configured") {
+        res.status(409).json({ error: "SMS non configuré (Twilio). Utilisez l'e-mail ou configurez Twilio." });
+        return;
+      }
+      logger.error({ err, id }, "[proactive] send-reminder envoi échoué");
+      res.status(502).json({ error: err instanceof Error ? err.message : "L'envoi de la relance a échoué." });
+      return;
+    }
+
+    // Envoi réussi : marque la facture comme relancée (compteur + date) — sert à
+    // l'espacement anti-spam du détecteur (org-scopé).
+    const now = new Date();
+    await db
+      .update(facturesClientTable)
+      .set({
+        reminderCount: Number(payload.reminderNumber) || 1,
+        lastReminderAt: now,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(facturesClientTable.id, invoiceId),
+          eq(facturesClientTable.organisationId, orgId),
+        ),
+      );
+
+    // Retour positif fort (signal d'apprentissage). Note : ce type n'est JAMAIS
+    // mis en sourdine (recouvrement critique), mais on enregistre quand même le
+    // signal positif pour la cohérence de la boucle de feedback.
+    await db
+      .update(proactiveSuggestionsTable)
+      .set({ feedback: "up" })
+      .where(
+        and(
+          eq(proactiveSuggestionsTable.id, id),
+          eq(proactiveSuggestionsTable.organisationId, orgId),
+        ),
+      );
+    void bumpPreferenceFromFeedback(orgId, "suggestion_type", PAYMENT_REMINDER_SUGGESTION_TYPE).catch(() => {});
+
+    res.json({ success: true });
+  } catch (err) {
+    logger.error({ err }, "[proactive] send-reminder failed");
+    res.status(500).json({ error: "Erreur lors de l'envoi de la relance." });
   }
 });
 
