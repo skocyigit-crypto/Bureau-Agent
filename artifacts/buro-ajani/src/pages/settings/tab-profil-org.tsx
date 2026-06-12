@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Building2, Save, Loader2, Globe, Phone, Mail, MapPin, Bot, FileText, CreditCard, Landmark, Receipt, Image as ImageIcon, Info } from "lucide-react";
+import { Building2, Save, Loader2, Globe, Phone, Mail, MapPin, Bot, FileText, CreditCard, Landmark, Receipt, Image as ImageIcon, Info, ScanLine } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,7 @@ interface OrgProfile {
   invoiceFooter: string | null;
   autoInvoiceEnabled: boolean;
   autoEmailInvoice: boolean;
+  expenseAutoCaptureEnabled: boolean;
   createdAt: string;
 }
 
@@ -59,6 +60,7 @@ export function TabProfilOrg() {
     invoiceFooter: "",
     autoInvoiceEnabled: true,
     autoEmailInvoice: true,
+    expenseAutoCaptureEnabled: true,
   });
 
   useEffect(() => {
@@ -85,6 +87,7 @@ export function TabProfilOrg() {
             invoiceFooter: data.invoiceFooter || "",
             autoInvoiceEnabled: data.autoInvoiceEnabled,
             autoEmailInvoice: data.autoEmailInvoice,
+            expenseAutoCaptureEnabled: data.expenseAutoCaptureEnabled,
           });
         } else {
           toast({ title: "Erreur", description: "Impossible de charger le profil.", variant: "destructive" });
@@ -424,6 +427,36 @@ export function TabProfilOrg() {
               checked={form.autoEmailInvoice}
               onCheckedChange={(v) => isAdmin && setForm((f) => ({ ...f, autoEmailInvoice: v }))}
               disabled={!isAdmin}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base flex items-center gap-2">
+            <ScanLine className="h-4 w-4 text-rose-500" />
+            Capture automatique des recus
+          </CardTitle>
+          <CardDescription>Analyse IA des justificatifs de depense importes ou recus par email.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium">Analyser automatiquement les recus et factures</p>
+              <p className="text-xs text-muted-foreground">
+                Lorsque cette option est activee, chaque fichier eligible importe ou recu par
+                email (recu, facture fournisseur, justificatif) est analyse par l'IA pour en
+                extraire la depense automatiquement. Pratique, mais chaque analyse consomme du
+                quota IA. Desactivez cette option pour economiser votre quota : vous pourrez
+                toujours lancer l'analyse manuellement quand vous le souhaitez.
+              </p>
+            </div>
+            <Switch
+              checked={form.expenseAutoCaptureEnabled}
+              onCheckedChange={(v) => isAdmin && setForm((f) => ({ ...f, expenseAutoCaptureEnabled: v }))}
+              disabled={!isAdmin}
+              aria-label="Activer la capture automatique des recus"
             />
           </div>
         </CardContent>

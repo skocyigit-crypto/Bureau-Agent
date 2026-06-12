@@ -33,6 +33,7 @@ router.get("/org-profile", async (req: Request, res: Response): Promise<void> =>
         invoiceFooter: organisationsTable.invoiceFooter,
         autoInvoiceEnabled: organisationsTable.autoInvoiceEnabled,
         autoEmailInvoice: organisationsTable.autoEmailInvoice,
+        expenseAutoCaptureEnabled: organisationsTable.expenseAutoCaptureEnabled,
         createdAt: organisationsTable.createdAt,
       })
       .from(organisationsTable)
@@ -81,6 +82,7 @@ router.put("/org-profile", async (req: Request, res: Response): Promise<void> =>
     invoiceFooter,
     autoInvoiceEnabled,
     autoEmailInvoice,
+    expenseAutoCaptureEnabled,
   } = req.body;
 
   const updates: Record<string, any> = {};
@@ -112,6 +114,7 @@ router.put("/org-profile", async (req: Request, res: Response): Promise<void> =>
   if (invoiceFooter !== undefined) updates.invoiceFooter = invoiceFooter ? String(invoiceFooter).trim() : null;
   if (autoInvoiceEnabled !== undefined) updates.autoInvoiceEnabled = Boolean(autoInvoiceEnabled);
   if (autoEmailInvoice !== undefined) updates.autoEmailInvoice = Boolean(autoEmailInvoice);
+  if (expenseAutoCaptureEnabled !== undefined) updates.expenseAutoCaptureEnabled = Boolean(expenseAutoCaptureEnabled);
 
   if (Object.keys(updates).length === 0) {
     res.status(400).json({ error: "Aucune donnee a mettre a jour." });
