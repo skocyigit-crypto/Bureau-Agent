@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
-import { Building2, Save, Loader2, Globe, Phone, Mail, MapPin, Bot, FileText, CreditCard, Landmark, Receipt, Image as ImageIcon, Info, ScanLine } from "lucide-react";
+import { Building2, Save, Loader2, Globe, Phone, Mail, MapPin, Bot, FileText, CreditCard, Landmark, Receipt, Image as ImageIcon, Info, ScanLine, CalendarClock, Clock } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +38,58 @@ interface OrgProfile {
   autoInvoiceEnabled: boolean;
   autoEmailInvoice: boolean;
   expenseAutoCaptureEnabled: boolean;
+  workingDays: string;
+  workingHoursStart: string;
+  workingHoursEnd: string;
+  appointmentTimezone: string;
+  appointmentDurationMinutes: number;
   createdAt: string;
+}
+
+const WEEKDAYS: ReadonlyArray<{ value: number; label: string; short: string }> = [
+  { value: 1, label: "Lundi", short: "Lun" },
+  { value: 2, label: "Mardi", short: "Mar" },
+  { value: 3, label: "Mercredi", short: "Mer" },
+  { value: 4, label: "Jeudi", short: "Jeu" },
+  { value: 5, label: "Vendredi", short: "Ven" },
+  { value: 6, label: "Samedi", short: "Sam" },
+  { value: 7, label: "Dimanche", short: "Dim" },
+];
+
+const TIMEZONE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: "Europe/Paris", label: "Europe/Paris (France)" },
+  { value: "Europe/Brussels", label: "Europe/Bruxelles (Belgique)" },
+  { value: "Europe/Zurich", label: "Europe/Zurich (Suisse)" },
+  { value: "Europe/Luxembourg", label: "Europe/Luxembourg" },
+  { value: "Europe/London", label: "Europe/Londres (Royaume-Uni)" },
+  { value: "Europe/Madrid", label: "Europe/Madrid (Espagne)" },
+  { value: "Europe/Lisbon", label: "Europe/Lisbonne (Portugal)" },
+  { value: "Europe/Berlin", label: "Europe/Berlin (Allemagne)" },
+  { value: "Europe/Rome", label: "Europe/Rome (Italie)" },
+  { value: "Europe/Istanbul", label: "Europe/Istanbul (Turquie)" },
+  { value: "Africa/Casablanca", label: "Afrique/Casablanca (Maroc)" },
+  { value: "Africa/Algiers", label: "Afrique/Alger (Algérie)" },
+  { value: "Africa/Tunis", label: "Afrique/Tunis (Tunisie)" },
+  { value: "America/Montreal", label: "Amérique/Montréal (Québec)" },
+  { value: "UTC", label: "UTC (temps universel)" },
+];
+
+const DURATION_OPTIONS: ReadonlyArray<{ value: number; label: string }> = [
+  { value: 15, label: "15 minutes" },
+  { value: 30, label: "30 minutes" },
+  { value: 45, label: "45 minutes" },
+  { value: 60, label: "1 heure" },
+  { value: 90, label: "1 h 30" },
+  { value: 120, label: "2 heures" },
+];
+
+function parseWorkingDays(value: string | null | undefined): number[] {
+  if (!value) return [1, 2, 3, 4, 5];
+  const days = value
+    .split(",")
+    .map((s) => Number(s.trim()))
+    .filter((n) => Number.isInteger(n) && n >= 1 && n <= 7);
+  return days.length > 0 ? Array.from(new Set(days)).sort((a, b) => a - b) : [1, 2, 3, 4, 5];
 }
 
 export function TabProfilOrg() {
@@ -61,6 +119,11 @@ export function TabProfilOrg() {
     autoInvoiceEnabled: true,
     autoEmailInvoice: true,
     expenseAutoCaptureEnabled: true,
+    workingDays: [1, 2, 3, 4, 5] as number[],
+    workingHoursStart: "09:00",
+    workingHoursEnd: "18:00",
+    appointmentTimezone: "Europe/Paris",
+    appointmentDurationMinutes: 30,
   });
 
   useEffect(() => {
@@ -88,6 +151,11 @@ export function TabProfilOrg() {
             autoInvoiceEnabled: data.autoInvoiceEnabled,
             autoEmailInvoice: data.autoEmailInvoice,
             expenseAutoCaptureEnabled: data.expenseAutoCaptureEnabled,
+            workingDays: parseWorkingDays(data.workingDays),
+            workingHoursStart: data.workingHoursStart || "09:00",
+            workingHoursEnd: data.workingHoursEnd || "18:00",
+            appointmentTimezone: data.appointmentTimezone || "Europe/Paris",
+            appointmentDurationMinutes: data.appointmentDurationMinutes || 30,
           });
         } else {
           toast({ title: "Erreur", description: "Impossible de charger le profil.", variant: "destructive" });
@@ -282,6 +350,149 @@ export function TabProfilOrg() {
               Ce nom sera utilise lors des appels automatises et des reponses IA.
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base flex items-center gap-2">
+            <CalendarClock className="h-4 w-4 text-indigo-500" />
+            Horaires d'ouverture
+          </CardTitle>
+          <CardDescription>
+            Definissent les creneaux de rendez-vous proposes et les disponibilites
+            utilisees par le standard vocal IA.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Jours d'ouverture</Label>
+            <div className="flex flex-wrap gap-2">
+              {WEEKDAYS.map((day) => {
+                const active = form.workingDays.includes(day.value);
+                return (
+                  <button
+                    key={day.value}
+                    type="button"
+                    disabled={!isAdmin}
+                    aria-pressed={active}
+                    onClick={() =>
+                      isAdmin &&
+                      setForm((f) => ({
+                        ...f,
+                        workingDays: f.workingDays.includes(day.value)
+                          ? f.workingDays.filter((d) => d !== day.value)
+                          : [...f.workingDays, day.value].sort((a, b) => a - b),
+                      }))
+                    }
+                    className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-60 ${
+                      active
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-input bg-background hover:bg-muted"
+                    }`}
+                    title={day.label}
+                  >
+                    {day.short}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Selectionnez les jours ou votre entreprise prend des rendez-vous.
+            </p>
+          </div>
+
+          <Separator />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="workingHoursStart" className="flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5" />
+                Heure d'ouverture
+              </Label>
+              <Input
+                id="workingHoursStart"
+                type="time"
+                value={form.workingHoursStart}
+                onChange={(e) => setForm((f) => ({ ...f, workingHoursStart: e.target.value }))}
+                disabled={!isAdmin}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="workingHoursEnd" className="flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5" />
+                Heure de fermeture
+              </Label>
+              <Input
+                id="workingHoursEnd"
+                type="time"
+                value={form.workingHoursEnd}
+                onChange={(e) => setForm((f) => ({ ...f, workingHoursEnd: e.target.value }))}
+                disabled={!isAdmin}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="appointmentTimezone" className="flex items-center gap-1.5">
+                <Globe className="h-3.5 w-3.5" />
+                Fuseau horaire
+              </Label>
+              <Select
+                value={form.appointmentTimezone}
+                onValueChange={(v) => isAdmin && setForm((f) => ({ ...f, appointmentTimezone: v }))}
+                disabled={!isAdmin}
+              >
+                <SelectTrigger id="appointmentTimezone" aria-label="Fuseau horaire">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIMEZONE_OPTIONS.some((t) => t.value === form.appointmentTimezone) ? null : (
+                    <SelectItem value={form.appointmentTimezone}>{form.appointmentTimezone}</SelectItem>
+                  )}
+                  {TIMEZONE_OPTIONS.map((tz) => (
+                    <SelectItem key={tz.value} value={tz.value}>
+                      {tz.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="appointmentDurationMinutes" className="flex items-center gap-1.5">
+                <CalendarClock className="h-3.5 w-3.5" />
+                Duree par defaut d'un rendez-vous
+              </Label>
+              <Select
+                value={String(form.appointmentDurationMinutes)}
+                onValueChange={(v) => isAdmin && setForm((f) => ({ ...f, appointmentDurationMinutes: Number(v) }))}
+                disabled={!isAdmin}
+              >
+                <SelectTrigger id="appointmentDurationMinutes" aria-label="Duree par defaut d'un rendez-vous">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DURATION_OPTIONS.some((d) => d.value === form.appointmentDurationMinutes) ? null : (
+                    <SelectItem value={String(form.appointmentDurationMinutes)}>
+                      {form.appointmentDurationMinutes} minutes
+                    </SelectItem>
+                  )}
+                  {DURATION_OPTIONS.map((d) => (
+                    <SelectItem key={d.value} value={String(d.value)}>
+                      {d.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <p className="text-xs text-muted-foreground flex items-start gap-1.5">
+            <Info className="h-3 w-3 mt-0.5 shrink-0" />
+            Ces reglages s'appliquent immediatement au calcul des creneaux libres et
+            aux disponibilites annoncees par l'assistant telephonique.
+          </p>
         </CardContent>
       </Card>
 
