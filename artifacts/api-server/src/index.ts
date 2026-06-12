@@ -18,6 +18,7 @@ import { startSecurityDigestCron } from "./services/security-digest-cron";
 import { startProactiveEngine, recordModelFallbackSuggestion } from "./services/proactive-engine";
 import { startAiLearning } from "./services/ai-learning";
 import { startAutonomousSecretaryCron } from "./services/autonomous-secretary-cron";
+import { startAutonomousInboxCron } from "./services/autonomous-inbox-cron";
 import { startAppAuditCron } from "./services/app-audit-cron";
 import { startAgentAutoRunScheduler } from "./routes/ai-agents";
 import { startWebhookEngine } from "./services/webhook-service";
@@ -131,6 +132,7 @@ async function startServer(): Promise<void> {
     startProactiveEngine();
     startAiLearning();
     startAutonomousSecretaryCron();
+    startAutonomousInboxCron();
     startAppAuditCron();
     startAgentAutoRunScheduler();
     startWebhookEngine();

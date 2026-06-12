@@ -14,6 +14,7 @@ import {
   QUIET_CUSTOMER_AFTER_DAYS_MAX,
 } from "../services/proactive-engine";
 import { bumpPreferenceFromFeedback } from "../services/ai-learning";
+import { sendInboxReply, runInboxScanForOrg, EMAIL_REPLY_SUGGESTION_TYPE } from "../services/autonomous-inbox";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -173,6 +174,10 @@ function pruneRunMap(): void {
   }
 }
 
+// Scan de boîte e-mail autonome : plus coûteux (Gmail + IA) -> cooldown plus long.
+const INBOX_SCAN_COOLDOWN_MS = 60 * 1000;
+const lastInboxScanByOrg = new Map<number, number>();
+
 router.post("/proactive/run", async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
@@ -190,6 +195,163 @@ router.post("/proactive/run", async (req: Request, res: Response): Promise<void>
   } catch (err) {
     logger.error({ err }, "[proactive] run failed");
     res.status(500).json({ error: "Erreur lors de l'analyse proactive." });
+  }
+});
+
+// POST /proactive/suggestions/:id/send-reply — envoie la réponse APPROUVÉE par
+// l'humain pour une suggestion `email_reply_needed`. Le corps édité par
+// l'utilisateur prime sur le brouillon IA. Envoi dans le fil Gmail d'origine,
+// depuis la boîte qui a reçu l'e-mail (scannedByUserId stocké dans le payload).
+// La suggestion passe en `accepted` + feedback 👍 (signal positif d'apprentissage).
+// Aucune action autonome : c'est le SEUL chemin d'envoi.
+router.post("/proactive/suggestions/:id/send-reply", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(400).json({ error: "ID invalide." });
+      return;
+    }
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const editedSubject = typeof body.subject === "string" ? body.subject.trim() : "";
+    const editedBody = typeof body.body === "string" ? body.body.trim() : "";
+    if (!editedBody) {
+      res.status(400).json({ error: "Le corps de la réponse est requis." });
+      return;
+    }
+
+    const [suggestion] = await db
+      .select()
+      .from(proactiveSuggestionsTable)
+      .where(
+        and(
+          eq(proactiveSuggestionsTable.id, id),
+          eq(proactiveSuggestionsTable.organisationId, orgId),
+          eq(proactiveSuggestionsTable.type, EMAIL_REPLY_SUGGESTION_TYPE),
+          eq(proactiveSuggestionsTable.status, "pending"),
+          visibilityFilter(req),
+        ),
+      )
+      .limit(1);
+    if (!suggestion) {
+      res.status(404).json({ error: "Suggestion introuvable ou déjà traitée." });
+      return;
+    }
+
+    const payload = (suggestion.actionPayload ?? {}) as Record<string, unknown>;
+    const scannedByUserId = Number(payload.scannedByUserId);
+    const to = String(payload.fromEmail || "");
+    const threadId = payload.threadId ? String(payload.threadId) : undefined;
+    const messageId = payload.messageId ? String(payload.messageId) : undefined;
+    const subject = editedSubject || String(payload.draftSubject || payload.subject || "");
+    if (!Number.isFinite(scannedByUserId) || scannedByUserId <= 0 || !to) {
+      res.status(409).json({ error: "Contexte d'envoi incomplet (boîte ou destinataire manquant)." });
+      return;
+    }
+
+    // Garde anti-usurpation : l'envoi part de la boîte Gmail `scannedByUserId`
+    // (souvent un responsable). Une suggestion à l'échelle de l'org est visible
+    // par tous ; sans ce contrôle, un employé pourrait déclencher un envoi depuis
+    // la boîte d'autrui. On n'autorise donc que : le propriétaire de la boîte
+    // lui-même, OU un responsable (administrateur/super_admin).
+    const actingUserId = req.session?.userId ?? null;
+    const actingRole = req.session?.userRole as string | undefined;
+    const isManager = actingRole === "administrateur" || actingRole === "super_admin";
+    if (!isManager && actingUserId !== scannedByUserId) {
+      res.status(403).json({ error: "Vous n'êtes pas autorisé à envoyer depuis cette boîte e-mail." });
+      return;
+    }
+
+    // Réservation ATOMIQUE avant l'envoi (pending -> accepted) : empêche un
+    // double envoi sous concurrence (deux clics / deux onglets). Seule la
+    // première requête « gagne » le passage de statut ; les autres voient 0 ligne.
+    const claimed = await db
+      .update(proactiveSuggestionsTable)
+      .set({ status: "accepted", resolvedAt: new Date(), resolvedByUserId: actingUserId })
+      .where(
+        and(
+          eq(proactiveSuggestionsTable.id, id),
+          eq(proactiveSuggestionsTable.organisationId, orgId),
+          eq(proactiveSuggestionsTable.type, EMAIL_REPLY_SUGGESTION_TYPE),
+          eq(proactiveSuggestionsTable.status, "pending"),
+        ),
+      )
+      .returning({ id: proactiveSuggestionsTable.id });
+    if (claimed.length === 0) {
+      res.status(409).json({ error: "Cette réponse a déjà été traitée." });
+      return;
+    }
+
+    try {
+      await sendInboxReply({
+        userId: scannedByUserId,
+        to,
+        subject,
+        bodyHtml: editedBody.includes("<") ? editedBody : `<p>${editedBody.replace(/\n/g, "<br>")}</p>`,
+        threadId,
+        messageId,
+      });
+    } catch (err) {
+      // Échec d'envoi : on REND la suggestion (accepted -> pending) pour que
+      // l'utilisateur puisse réessayer ; la réservation atomique est annulée.
+      await db
+        .update(proactiveSuggestionsTable)
+        .set({ status: "pending", resolvedAt: null, resolvedByUserId: null })
+        .where(
+          and(
+            eq(proactiveSuggestionsTable.id, id),
+            eq(proactiveSuggestionsTable.organisationId, orgId),
+          ),
+        );
+      if (err instanceof Error && err.message === "mailbox_disconnected") {
+        res.status(409).json({ error: "La boîte Gmail liée à cette suggestion est déconnectée." });
+        return;
+      }
+      throw err;
+    }
+
+    // Envoi réussi : marque le retour positif (signal d'apprentissage).
+    await db
+      .update(proactiveSuggestionsTable)
+      .set({ feedback: "up" })
+      .where(
+        and(
+          eq(proactiveSuggestionsTable.id, id),
+          eq(proactiveSuggestionsTable.organisationId, orgId),
+        ),
+      );
+    // Envoyer une réponse = signal positif fort : renforce la préférence apprise.
+    void bumpPreferenceFromFeedback(orgId, "suggestion_type", EMAIL_REPLY_SUGGESTION_TYPE).catch(() => {});
+
+    res.json({ success: true });
+  } catch (err) {
+    logger.error({ err }, "[proactive] send-reply failed");
+    res.status(500).json({ error: "Erreur lors de l'envoi de la réponse." });
+  }
+});
+
+// POST /proactive/inbox/scan — déclenchement manuel du scan de boîte e-mail
+// autonome pour l'org (cooldown léger anti-spam, partagé avec /run).
+router.post("/proactive/inbox/scan", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const now = Date.now();
+    const last = lastInboxScanByOrg.get(orgId) ?? 0;
+    if (now - last < INBOX_SCAN_COOLDOWN_MS) {
+      const waitSec = Math.ceil((INBOX_SCAN_COOLDOWN_MS - (now - last)) / 1000);
+      res.status(429).json({ error: `Patientez ${waitSec}s avant le prochain scan.` });
+      return;
+    }
+    lastInboxScanByOrg.set(orgId, now);
+    if (lastInboxScanByOrg.size > RUN_MAP_MAX) {
+      const first = lastInboxScanByOrg.keys().next().value;
+      if (first !== undefined) lastInboxScanByOrg.delete(first);
+    }
+    const result = await runInboxScanForOrg(orgId);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    logger.error({ err }, "[proactive] inbox scan failed");
+    res.status(500).json({ error: "Erreur lors du scan de la boîte e-mail." });
   }
 });
 

@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import {
   Sparkles, RefreshCw, Loader2, CheckCircle2, X, ThumbsUp, ThumbsDown,
   Clock, PhoneMissed, CalendarClock, ArrowRight, AlertTriangle, Inbox, ShieldAlert,
-  PhoneOff, MessageSquare, UserPlus,
+  PhoneOff, MessageSquare, UserPlus, Mail, Send,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 
 const PROACTIVE_API = import.meta.env.BASE_URL.replace(/\/$/, "") + "/api/proactive";
@@ -51,6 +52,7 @@ const TYPE_META: Record<string, { label: string; icon: typeof Clock }> = {
   inactive_contact: { label: "Contact à relancer", icon: UserPlus },
   message_sla_breach: { label: "Message sans réponse", icon: MessageSquare },
   quiet_customer: { label: "Client silencieux", icon: UserPlus },
+  email_reply_needed: { label: "E-mail à répondre", icon: Mail },
 };
 
 const ACTION_NAV: Record<string, { label: string; path: string }> = {
@@ -85,6 +87,9 @@ export default function AssistantProactifPage() {
     slaMin: 1, slaMax: 168, quietMin: 1, quietMax: 59,
   });
   const [savingWindows, setSavingWindows] = useState(false);
+  // Brouillons e-mail édités localement (par id de suggestion) + envoi en cours.
+  const [drafts, setDrafts] = useState<Record<number, { subject: string; body: string }>>({});
+  const [sendingId, setSendingId] = useState<number | null>(null);
 
   const load = useCallback(async (status: Status) => {
     setLoading(true);
@@ -169,6 +174,55 @@ export default function AssistantProactifPage() {
     } catch {
       toast({ title: "Erreur", description: "Retour non enregistré.", variant: "destructive" });
     }
+  };
+
+  // Initialise (paresseusement) le brouillon éditable depuis le payload IA.
+  const getDraft = (s: Suggestion): { subject: string; body: string } => {
+    if (drafts[s.id]) return drafts[s.id]!;
+    const p = (s.actionPayload ?? {}) as Record<string, unknown>;
+    return {
+      subject: String(p.draftSubject ?? `Re: ${p.subject ?? ""}`),
+      body: String(p.draftBodyPlain ?? p.draftBodyHtml ?? ""),
+    };
+  };
+
+  const updateDraft = (id: number, patch: Partial<{ subject: string; body: string }>) => {
+    setDrafts((prev) => {
+      const base = prev[id] ?? { subject: "", body: "" };
+      return { ...prev, [id]: { ...base, ...patch } };
+    });
+  };
+
+  // Envoi de la réponse APPROUVÉE (corps éventuellement édité) à un e-mail.
+  const sendReply = async (s: Suggestion) => {
+    const draft = getDraft(s);
+    if (!draft.body.trim()) {
+      toast({ title: "Réponse vide", description: "Rédigez une réponse avant l'envoi.", variant: "destructive" });
+      return;
+    }
+    setSendingId(s.id);
+    try {
+      const res = await fetch(`${PROACTIVE_API}/suggestions/${s.id}/send-reply`, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject: draft.subject, body: draft.body }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "send");
+      setSuggestions((prev) => prev.filter((x) => x.id !== s.id));
+      toast({ title: "Réponse envoyée", description: "L'e-mail a été envoyé dans le fil d'origine." });
+    } catch (e) {
+      toast({ title: "Erreur", description: e instanceof Error ? e.message : "Envoi impossible.", variant: "destructive" });
+    } finally {
+      setSendingId(null);
+    }
+  };
+
+  // Rejeter un e-mail proposé : ignore la suggestion ET enregistre un 👎 pour que
+  // l'assistant apprenne à moins en proposer (boucle de suppression existante).
+  const rejectEmail = async (id: number) => {
+    void sendFeedback(id, "down");
+    await resolve(id, "dismiss");
   };
 
   const saveWindows = async () => {
@@ -334,6 +388,8 @@ export default function AssistantProactifPage() {
             const meta = TYPE_META[s.type] ?? { label: s.type, icon: AlertTriangle };
             const Icon = meta.icon;
             const nav = s.actionType ? ACTION_NAV[s.actionType] : undefined;
+            const isEmail = s.type === "email_reply_needed";
+            const draft = isEmail ? getDraft(s) : null;
             return (
               <Card key={s.id} className={`border-l-4 ${sev.border}`}>
                 <CardHeader className="pb-2">
@@ -348,6 +404,30 @@ export default function AssistantProactifPage() {
                     <Badge className={`${sev.badge} shrink-0`}>{sev.label}</Badge>
                   </div>
                 </CardHeader>
+                {isEmail && draft && s.status === "pending" && (
+                  <CardContent className="space-y-2 pt-0 pb-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`subj-${s.id}`} className="text-xs text-muted-foreground">Objet</Label>
+                      <Input
+                        id={`subj-${s.id}`}
+                        value={draft.subject}
+                        onChange={(e) => updateDraft(s.id, { subject: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`body-${s.id}`} className="text-xs text-muted-foreground">
+                        Brouillon de réponse (modifiable avant envoi)
+                      </Label>
+                      <Textarea
+                        id={`body-${s.id}`}
+                        value={draft.body}
+                        onChange={(e) => updateDraft(s.id, { body: e.target.value })}
+                        rows={6}
+                        className="resize-y"
+                      />
+                    </div>
+                  </CardContent>
+                )}
                 <CardContent className="flex flex-wrap items-center gap-2 pt-0">
                   <Badge variant="outline" className="text-xs">{meta.label}</Badge>
                   <div className="flex-1" />
@@ -356,7 +436,18 @@ export default function AssistantProactifPage() {
                       {nav.label} <ArrowRight className="h-3.5 w-3.5 ml-1" />
                     </Button>
                   )}
-                  {s.status === "pending" && (
+                  {s.status === "pending" && isEmail && (
+                    <>
+                      <Button variant="outline" size="sm" onClick={() => rejectEmail(s.id)} disabled={sendingId === s.id}>
+                        <X className="h-4 w-4 mr-1" /> Rejeter
+                      </Button>
+                      <Button size="sm" onClick={() => sendReply(s)} disabled={sendingId === s.id}>
+                        {sendingId === s.id ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}
+                        Envoyer
+                      </Button>
+                    </>
+                  )}
+                  {s.status === "pending" && !isEmail && (
                     <>
                       <Button variant="ghost" size="icon" title="Utile"
                         className={s.feedback === "up" ? "text-emerald-600" : ""}
