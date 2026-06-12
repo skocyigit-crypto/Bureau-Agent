@@ -6,10 +6,11 @@ import {
   EXPENSE_PAYMENT_STATUSES,
   EXPENSE_CATEGORIES,
 } from "@workspace/db";
-import { and, eq, gte, lte, desc, sql, type SQL } from "drizzle-orm";
+import { and, eq, gte, lte, lt, desc, sql, type SQL } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { requireRole } from "../middleware/auth";
 import { computeDedupeHash, parseDocumentDate } from "../services/expense-capture";
+import { withDbRetry } from "../lib/db-retry";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -24,33 +25,41 @@ function num(raw: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+// Construit les conditions de filtrage communes au registre, aux statistiques
+// et à l'export (catégorie, fournisseur, dates, statut de paiement, statut).
+function buildFilterConditions(req: Request, orgId: number): SQL[] {
+  const conds: SQL[] = [eq(depensesTable.organisationId, orgId)];
+
+  const status = typeof req.query.status === "string" ? req.query.status : "";
+  if (status && STATUS_SET.has(status)) conds.push(eq(depensesTable.status, status));
+
+  const category = typeof req.query.category === "string" ? req.query.category : "";
+  if (category && CATEGORY_SET.has(category)) conds.push(eq(depensesTable.category, category));
+
+  const paymentStatus = typeof req.query.paymentStatus === "string" ? req.query.paymentStatus : "";
+  if (paymentStatus && PAYMENT_SET.has(paymentStatus)) conds.push(eq(depensesTable.paymentStatus, paymentStatus));
+
+  const vendor = typeof req.query.vendor === "string" ? req.query.vendor.trim() : "";
+  if (vendor) {
+    const like = `%${vendor.toLowerCase()}%`;
+    conds.push(sql`lower(${depensesTable.vendor}) like ${like}`);
+  }
+
+  const from = parseDocumentDate(req.query.from);
+  if (from) conds.push(gte(depensesTable.expenseDate, from));
+  const to = parseDocumentDate(req.query.to);
+  if (to) conds.push(lte(depensesTable.expenseDate, to));
+
+  return conds;
+}
+
 // GET /depenses — registre + file d'inspection avec filtres.
 // Query: status, category, vendor (recherche), from, to (dates ISO),
 // paymentStatus, limit. Renvoie aussi un résumé (compteurs + totaux).
 router.get("/depenses", async (req: Request, res: Response): Promise<void> => {
   try {
     const orgId = getOrgId(req);
-    const conds: SQL[] = [eq(depensesTable.organisationId, orgId)];
-
-    const status = typeof req.query.status === "string" ? req.query.status : "";
-    if (status && STATUS_SET.has(status)) conds.push(eq(depensesTable.status, status));
-
-    const category = typeof req.query.category === "string" ? req.query.category : "";
-    if (category && CATEGORY_SET.has(category)) conds.push(eq(depensesTable.category, category));
-
-    const paymentStatus = typeof req.query.paymentStatus === "string" ? req.query.paymentStatus : "";
-    if (paymentStatus && PAYMENT_SET.has(paymentStatus)) conds.push(eq(depensesTable.paymentStatus, paymentStatus));
-
-    const vendor = typeof req.query.vendor === "string" ? req.query.vendor.trim() : "";
-    if (vendor) {
-      const like = `%${vendor.toLowerCase()}%`;
-      conds.push(sql`lower(${depensesTable.vendor}) like ${like}`);
-    }
-
-    const from = parseDocumentDate(req.query.from);
-    if (from) conds.push(gte(depensesTable.expenseDate, from));
-    const to = parseDocumentDate(req.query.to);
-    if (to) conds.push(lte(depensesTable.expenseDate, to));
+    const conds = buildFilterConditions(req, orgId);
 
     const limit = Math.max(1, Math.min(500, Number(req.query.limit) || 200));
 
@@ -113,6 +122,156 @@ router.get("/depenses", async (req: Request, res: Response): Promise<void> => {
   } catch (err) {
     logger.error({ err }, "[depenses] list failed");
     res.status(500).json({ error: "Erreur lors du chargement des dépenses." });
+  }
+});
+
+// GET /depenses/stats — agrégats pour les graphiques de synthèse (dépenses par
+// catégorie, par mois, par fournisseur). Respecte les mêmes filtres que le
+// registre. Par défaut, restreint aux dépenses approuvées (registre) si aucun
+// statut n'est précisé.
+router.get("/depenses/stats", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const conds = buildFilterConditions(req, orgId);
+    const hasStatus = typeof req.query.status === "string" && STATUS_SET.has(req.query.status);
+    if (!hasStatus) conds.push(eq(depensesTable.status, "approuve"));
+
+    // Bucketing mensuel forcé en UTC pour s'aligner sur les clés JS.
+    const monthExpr = sql<string>`to_char(date_trunc('month', ${depensesTable.expenseDate} at time zone 'UTC'), 'YYYY-MM')`;
+
+    const [byCategory, byMonth, byVendor] = await Promise.all([
+      db
+        .select({
+          category: depensesTable.category,
+          total: sql<number>`coalesce(sum(${depensesTable.amountTtc}), 0)::float8`,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(depensesTable)
+        .where(and(...conds))
+        .groupBy(depensesTable.category)
+        .orderBy(sql`2 desc`),
+      db
+        .select({
+          month: monthExpr,
+          total: sql<number>`coalesce(sum(${depensesTable.amountTtc}), 0)::float8`,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(depensesTable)
+        .where(and(...conds, sql`${depensesTable.expenseDate} is not null`))
+        .groupBy(monthExpr)
+        .orderBy(sql`1 asc`),
+      db
+        .select({
+          vendor: depensesTable.vendor,
+          total: sql<number>`coalesce(sum(${depensesTable.amountTtc}), 0)::float8`,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(depensesTable)
+        .where(and(...conds))
+        .groupBy(depensesTable.vendor)
+        .orderBy(sql`2 desc`)
+        .limit(8),
+    ]);
+
+    res.json({ byCategory, byMonth, byVendor });
+  } catch (err) {
+    logger.error({ err }, "[depenses] stats failed");
+    res.status(500).json({ error: "Erreur lors du calcul des statistiques." });
+  }
+});
+
+// GET /depenses/export — export CSV (séparateur ;, BOM UTF-8 pour Excel) du
+// registre filtré. Export en STREAMING par lots (pagination keyset sur l'id
+// décroissant) : pas de troncature silencieuse, mémoire bornée. 500 propre
+// uniquement si la 1re requête échoue avant tout envoi.
+const EXPORT_BATCH = 1000;
+router.get("/depenses/export", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const conds = buildFilterConditions(req, orgId);
+    const hasStatus = typeof req.query.status === "string" && STATUS_SET.has(req.query.status);
+    if (!hasStatus) conds.push(eq(depensesTable.status, "approuve"));
+    const baseClause = and(...conds);
+
+    const escape = (v: unknown): string => {
+      if (v == null) return "";
+      const s = String(v).replace(/"/g, '""');
+      return /[";\n]/.test(s) ? `"${s}"` : s;
+    };
+    const fmtDate = (d: Date | string | null): string => {
+      if (!d) return "";
+      const dt = d instanceof Date ? d : new Date(d);
+      return Number.isNaN(dt.getTime()) ? "" : dt.toISOString().slice(0, 10);
+    };
+    const headers = [
+      "Date",
+      "Fournisseur",
+      "Libellé",
+      "Référence",
+      "Catégorie",
+      "HT",
+      "TVA",
+      "TTC",
+      "Devise",
+      "Statut",
+      "Paiement",
+      "Échéance",
+      "Source",
+      "Notes",
+    ];
+
+    let lastId = Number.MAX_SAFE_INTEGER;
+    let wroteHeader = false;
+    for (;;) {
+      const rows = await withDbRetry(
+        () =>
+          db
+            .select()
+            .from(depensesTable)
+            .where(and(baseClause, lt(depensesTable.id, lastId)))
+            .orderBy(desc(depensesTable.id))
+            .limit(EXPORT_BATCH),
+        { label: "depenses.export.batch" },
+      );
+      if (!wroteHeader) {
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader("Content-Disposition", `attachment; filename="depenses_${Date.now()}.csv"`);
+        res.write("\uFEFF" + headers.join(";") + "\n");
+        wroteHeader = true;
+      }
+      if (rows.length === 0) break;
+      const chunk = rows
+        .map((r) =>
+          [
+            escape(fmtDate(r.expenseDate)),
+            escape(r.vendor),
+            escape(r.title),
+            escape(r.reference),
+            escape(r.category),
+            escape(r.amountHt),
+            escape(r.amountTva),
+            escape(r.amountTtc),
+            escape(r.currency),
+            escape(r.status),
+            escape(r.paymentStatus),
+            escape(fmtDate(r.dueDate)),
+            escape(r.source),
+            escape(r.notes),
+          ].join(";"),
+        )
+        .join("\n");
+      res.write(chunk + "\n");
+      lastId = rows[rows.length - 1].id;
+      if (rows.length < EXPORT_BATCH) break;
+    }
+    res.end();
+  } catch (err) {
+    logger.error({ err }, "[depenses] export failed");
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Erreur lors de l'export des dépenses." });
+    } else {
+      res.end();
+    }
   }
 });
 

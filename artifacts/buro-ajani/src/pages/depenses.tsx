@@ -13,7 +13,22 @@ import {
   Plus,
   FileText,
   Save,
+  Download,
+  PieChart as PieChartIcon,
 } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -102,6 +117,48 @@ const EMPTY_SUMMARY: Summary = {
   payableTotal: 0,
 };
 
+const CHART_COLORS = [
+  "hsl(142.1 76.2% 36.3%)",
+  "hsl(221 83% 53%)",
+  "hsl(43 96% 56%)",
+  "hsl(0 84.2% 60.2%)",
+  "hsl(262 83% 58%)",
+  "hsl(199 89% 48%)",
+  "hsl(24 95% 53%)",
+  "hsl(330 81% 60%)",
+  "hsl(173 58% 39%)",
+  "hsl(215.4 16.3% 46.9%)",
+];
+
+interface CategoryStat {
+  category: string;
+  total: number;
+  count: number;
+}
+interface MonthStat {
+  month: string;
+  total: number;
+  count: number;
+}
+interface VendorStat {
+  vendor: string;
+  total: number;
+  count: number;
+}
+interface Stats {
+  byCategory: CategoryStat[];
+  byMonth: MonthStat[];
+  byVendor: VendorStat[];
+}
+
+const EMPTY_STATS: Stats = { byCategory: [], byMonth: [], byVendor: [] };
+
+function fmtMonth(m: string): string {
+  const [y, mo] = m.split("-");
+  const dt = new Date(Number(y), Number(mo) - 1, 1);
+  return Number.isNaN(dt.getTime()) ? m : dt.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" });
+}
+
 function eur(n: number): string {
   return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(n || 0);
 }
@@ -167,6 +224,9 @@ export default function DepensesPage() {
   const [tab, setTab] = useState<"queue" | "ledger">("queue");
   const [depenses, setDepenses] = useState<Depense[]>([]);
   const [summary, setSummary] = useState<Summary>(EMPTY_SUMMARY);
+  const [stats, setStats] = useState<Stats>(EMPTY_STATS);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
 
@@ -183,20 +243,22 @@ export default function DepensesPage() {
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Paramètres de filtrage du registre (partagés entre liste, stats et export).
+  const ledgerParams = useCallback(() => {
+    const params = new URLSearchParams();
+    params.set("status", "approuve");
+    if (filterCategory !== "all") params.set("category", filterCategory);
+    if (filterVendor.trim()) params.set("vendor", filterVendor.trim());
+    if (filterFrom) params.set("from", filterFrom);
+    if (filterTo) params.set("to", filterTo);
+    if (filterPayment !== "all") params.set("paymentStatus", filterPayment);
+    return params;
+  }, [filterCategory, filterVendor, filterFrom, filterTo, filterPayment]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (tab === "queue") {
-        params.set("status", "en_attente");
-      } else {
-        params.set("status", "approuve");
-        if (filterCategory !== "all") params.set("category", filterCategory);
-        if (filterVendor.trim()) params.set("vendor", filterVendor.trim());
-        if (filterFrom) params.set("from", filterFrom);
-        if (filterTo) params.set("to", filterTo);
-        if (filterPayment !== "all") params.set("paymentStatus", filterPayment);
-      }
+      const params = tab === "queue" ? new URLSearchParams({ status: "en_attente" }) : ledgerParams();
       const res = await fetch(`${BASE}/api/depenses?${params.toString()}`, { credentials: "include" });
       if (!res.ok) throw new Error("load");
       const data = await res.json();
@@ -207,11 +269,59 @@ export default function DepensesPage() {
     } finally {
       setLoading(false);
     }
-  }, [tab, filterCategory, filterVendor, filterFrom, filterTo, filterPayment, toast]);
+  }, [tab, ledgerParams, toast]);
+
+  const loadStats = useCallback(async () => {
+    setStatsLoading(true);
+    try {
+      const res = await fetch(`${BASE}/api/depenses/stats?${ledgerParams().toString()}`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("stats");
+      const data = await res.json();
+      setStats({
+        byCategory: Array.isArray(data.byCategory) ? data.byCategory : [],
+        byMonth: Array.isArray(data.byMonth) ? data.byMonth : [],
+        byVendor: Array.isArray(data.byVendor) ? data.byVendor : [],
+      });
+    } catch {
+      setStats(EMPTY_STATS);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [ledgerParams]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (tab === "ledger") loadStats();
+  }, [tab, loadStats]);
+
+  const exportCsv = useCallback(async () => {
+    setExporting(true);
+    try {
+      const res = await fetch(`${BASE}/api/depenses/export?${ledgerParams().toString()}`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("export");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `depenses_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast({ title: "Export prêt", description: "Le registre filtré a été téléchargé." });
+    } catch {
+      toast({ title: "Erreur", description: "L'export a échoué.", variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  }, [ledgerParams, toast]);
 
   const act = useCallback(
     async (id: number, action: "approve" | "reject") => {
@@ -344,6 +454,16 @@ export default function DepensesPage() {
           <Button variant="outline" size="sm" onClick={openCreate}>
             <Plus className="mr-1.5 h-4 w-4" /> Nouvelle dépense
           </Button>
+          {tab === "ledger" && (
+            <Button variant="outline" size="sm" onClick={exportCsv} disabled={exporting}>
+              {exporting ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-1.5 h-4 w-4" />
+              )}
+              Exporter
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => load()} disabled={loading}>
             <RefreshCw className={`mr-1.5 h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Actualiser
           </Button>
@@ -450,6 +570,112 @@ export default function DepensesPage() {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {/* Synthèse graphique (registre) */}
+      {tab === "ledger" && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <PieChartIcon className="h-4 w-4 text-muted-foreground" />
+                Dépenses par catégorie
+              </CardTitle>
+              <CardDescription>Répartition du registre filtré (TTC)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {statsLoading ? (
+                <Skeleton className="h-72 w-full" />
+              ) : stats.byCategory.length === 0 ? (
+                <p className="py-20 text-center text-sm text-muted-foreground">Aucune donnée à afficher.</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={288}>
+                  <PieChart>
+                    <Pie
+                      data={stats.byCategory.map((c) => ({
+                        name: CATEGORY_LABELS[c.category] || c.category,
+                        value: c.total,
+                      }))}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={90}
+                      label={({ percent }) => `${((percent || 0) * 100).toFixed(0)}%`}
+                    >
+                      {stats.byCategory.map((_, i) => (
+                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip formatter={(v: number) => eur(v)} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <BookOpen className="h-4 w-4 text-muted-foreground" />
+                Dépenses par mois
+              </CardTitle>
+              <CardDescription>Évolution mensuelle du registre filtré (TTC)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {statsLoading ? (
+                <Skeleton className="h-72 w-full" />
+              ) : stats.byMonth.length === 0 ? (
+                <p className="py-20 text-center text-sm text-muted-foreground">Aucune donnée à afficher.</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={288}>
+                  <BarChart
+                    data={stats.byMonth.map((m) => ({ name: fmtMonth(m.month), total: m.total }))}
+                    margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} tickFormatter={(v: number) => eur(v)} width={80} />
+                    <RechartsTooltip formatter={(v: number) => eur(v)} />
+                    <Bar dataKey="total" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} name="Total" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          {stats.byVendor.length > 0 && (
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Wallet className="h-4 w-4 text-muted-foreground" />
+                  Principaux fournisseurs
+                </CardTitle>
+                <CardDescription>Top 8 par montant (TTC)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {statsLoading ? (
+                  <Skeleton className="h-64 w-full" />
+                ) : (
+                  <ResponsiveContainer width="100%" height={Math.max(160, stats.byVendor.length * 36)}>
+                    <BarChart
+                      layout="vertical"
+                      data={stats.byVendor.map((v) => ({ name: v.vendor || "Inconnu", total: v.total }))}
+                      margin={{ top: 4, right: 16, left: 8, bottom: 4 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+                      <XAxis type="number" tick={{ fontSize: 12 }} tickFormatter={(v: number) => eur(v)} />
+                      <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} width={140} />
+                      <RechartsTooltip formatter={(v: number) => eur(v)} />
+                      <Bar dataKey="total" fill={CHART_COLORS[1]} radius={[0, 4, 4, 0]} name="Total" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
 
       {/* Liste */}
