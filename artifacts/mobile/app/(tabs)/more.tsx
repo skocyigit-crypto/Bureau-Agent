@@ -177,6 +177,7 @@ export default function MoreScreen() {
           <MenuItem icon="folder" label="Documents" sublabel="Fichiers, contrats et pièces jointes" color="#0f766e" onPress={() => nav("/documents")} />
           <MenuItem icon="book-open" label="Base de connaissances" sublabel="Questions-réponses IA fondées sur vos documents" color="#0ea5e9" onPress={() => nav("/knowledge-base")} />
           <MenuItem icon="upload" label="Importer des Documents" sublabel="Upload PDF, images, Word, Excel" color="#0f766e" onPress={() => nav("/document-import")} />
+          <MenuItem icon="credit-card" label="Dépenses" sublabel="Photographier un reçu, valider la file et le registre" color="#0d9488" onPress={() => nav("/depenses")} />
         </View>
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
