@@ -10,7 +10,7 @@ import {
   FileUp, Brain, CheckCircle2, XCircle, AlertTriangle,
   FileText, Users, ListChecks, Loader2, Sparkles, ArrowRight, Eye,
   Upload, Trash2, RefreshCw, Zap, ChevronDown, ChevronUp,
-  MessageSquare, Printer, FolderKanban,
+  MessageSquare, Printer, FolderKanban, Wallet,
 } from "lucide-react";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -274,6 +274,15 @@ export default function DocumentAiPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            title="Registre des dépenses"
+            onClick={() => (window.location.href = `${(import.meta.env.BASE_URL || "/").replace(/\/$/, "")}/depenses`)}
+          >
+            <Wallet className="w-4 h-4" />
+            <span className="hidden sm:inline">Dépenses</span>
+          </Button>
           <Button variant="outline" size="icon" title="Imprimer" onClick={() => window.print()}><Printer className="w-4 h-4" /></Button>
           {analysisResult && (
             <Button variant="outline" onClick={handleReset} className="gap-2">

@@ -85,6 +85,7 @@ import adminSaasDashboardRouter from "./admin-saas-dashboard";
 import webhooksRouter from "./webhooks";
 import apiKeysRouter from "./api-keys";
 import knowledgeBaseRouter from "./knowledge-base";
+import depensesRouter from "./depenses";
 import emailProvidersRouter from "./email-providers";
 import aiProvidersRouter from "./ai-providers";
 
@@ -215,5 +216,6 @@ router.use(webSearchRouter);
 router.use(webhooksRouter);
 router.use(apiKeysRouter);
 router.use(knowledgeBaseRouter);
+router.use(depensesRouter);
 
 export default router;

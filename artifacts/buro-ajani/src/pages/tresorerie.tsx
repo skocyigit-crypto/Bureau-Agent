@@ -53,6 +53,8 @@ interface TreasuryRisk {
   overdue: OverdueInvoice[];
   overdueCount: number;
   overdueTotal: number;
+  expensesPayableCount: number;
+  expensesPayableTotal: number;
   simulation: {
     runs: number;
     insolvencyProbability: number;
@@ -366,6 +368,24 @@ export default function TresoreriePage() {
               )}
             </CardContent>
           </Card>
+
+          {risk.expensesPayableCount > 0 && (
+            <Card>
+              <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+                <div className="flex items-center gap-3 text-sm">
+                  <TrendingDown className="h-5 w-5 shrink-0 text-emerald-600" />
+                  <span>
+                    <strong>{risk.expensesPayableCount}</strong> dépense(s) approuvée(s) à payer —{" "}
+                    <strong>{eur(risk.expensesPayableTotal)}</strong> de sorties de caisse intégrées à la
+                    simulation.
+                  </span>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => (window.location.href = `${BASE}/depenses`)}>
+                  Voir les dépenses
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
 

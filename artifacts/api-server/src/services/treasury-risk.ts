@@ -14,7 +14,7 @@
 //     (échéance + retard aléatoire ~ N(loc, scale)),
 //   - de l'autoliquidation TVA (encaissement HT vs TTC).
 
-import { db, facturesClientTable, treasurySettingsTable } from "@workspace/db";
+import { db, facturesClientTable, treasurySettingsTable, depensesTable } from "@workspace/db";
 import { and, eq, inArray } from "drizzle-orm";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -61,6 +61,9 @@ export interface TreasuryRiskResult {
   overdue: OverdueInvoice[];
   overdueCount: number;
   overdueTotal: number;
+  // Dépenses approuvées non payées (sorties de caisse certaines).
+  expensesPayableCount: number;
+  expensesPayableTotal: number;
   simulation: {
     runs: number;
     insolvencyProbability: number; // 0..1
@@ -155,6 +158,46 @@ async function loadCollectibles(
   return { collectibles, overdue, pendingTotal };
 }
 
+interface PayableExpense {
+  amount: number; // sortie de caisse (TTC)
+  dayOut: number; // jour de sortie (0..horizon)
+}
+
+/**
+ * Charge les dépenses approuvées et non payées de l'org : ce sont des sorties
+ * de caisse certaines (pas de hasard). Le jour de sortie est l'échéance si
+ * elle existe, sinon la date de la dépense ; toute date passée tombe à jour 0.
+ */
+async function loadPayableExpenses(
+  orgId: number,
+  now: Date,
+): Promise<{ expenses: PayableExpense[]; payableTotal: number }> {
+  const rows = await db
+    .select()
+    .from(depensesTable)
+    .where(
+      and(
+        eq(depensesTable.organisationId, orgId),
+        eq(depensesTable.status, "approuve"),
+        eq(depensesTable.paymentStatus, "a_payer"),
+      ),
+    );
+
+  const expenses: PayableExpense[] = [];
+  let payableTotal = 0;
+  for (const r of rows) {
+    const amount = Number(r.amountTtc ?? 0);
+    if (amount <= 0) continue;
+    payableTotal += amount;
+
+    const ref = r.dueDate ?? r.expenseDate;
+    let dayOut = ref ? Math.round((new Date(ref).getTime() - now.getTime()) / DAY_MS) : 0;
+    if (dayOut < 0) dayOut = 0; // dépense due/passée : sortie imminente
+    expenses.push({ amount, dayOut });
+  }
+  return { expenses, payableTotal };
+}
+
 /**
  * Analyse complète du risque de trésorerie d'une organisation sur 90 jours.
  * `simulations` permet d'alléger le calcul côté cron.
@@ -185,9 +228,18 @@ export async function analyzeTreasuryRisk(
     defaultAutoliquidation,
     now,
   );
+  const { expenses, payableTotal: expensesPayableTotal } = await loadPayableExpenses(orgId, now);
 
   const expectedCollectible = collectibles.reduce((s, c) => s + c.collectible, 0);
   const overdueTotal = overdue.reduce((s, o) => s + o.remaining, 0);
+  const expensesPayableCount = expenses.length;
+
+  // Sorties de caisse déterministes des dépenses approuvées : un seul vecteur
+  // par jour, réutilisé tel quel dans chaque simulation (aucune part aléatoire).
+  const expenseOutflowByDay = new Float64Array(HORIZON_DAYS + 1);
+  for (const e of expenses) {
+    if (e.dayOut <= HORIZON_DAYS) expenseOutflowByDay[e.dayOut] += e.amount;
+  }
 
   // Sans configuration de trésorerie, on ne fabrique pas de probabilité : on
   // renvoie les factures réelles (overdue/pending) mais une simulation neutre.
@@ -204,6 +256,8 @@ export async function analyzeTreasuryRisk(
       overdue,
       overdueCount: overdue.length,
       overdueTotal,
+      expensesPayableCount,
+      expensesPayableTotal,
       simulation: {
         runs: 0,
         insolvencyProbability: 0,
@@ -234,11 +288,12 @@ export async function analyzeTreasuryRisk(
       if (day <= HORIZON_DAYS) inflow[day] += inv.collectible;
     }
 
-    let cash = currentCash + inflow[0];
+    let cash = currentCash + inflow[0] - expenseOutflowByDay[0];
     let crossed = cash < 0;
     for (let d = 1; d <= HORIZON_DAYS; d++) {
       cash -= dailyFixed;
       cash += inflow[d];
+      cash -= expenseOutflowByDay[d];
       if (cash < 0) crossed = true;
     }
     if (crossed) insolvent++;
@@ -273,6 +328,8 @@ export async function analyzeTreasuryRisk(
     overdue,
     overdueCount: overdue.length,
     overdueTotal,
+    expensesPayableCount,
+    expensesPayableTotal,
     simulation: {
       runs: simulations,
       insolvencyProbability,

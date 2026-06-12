@@ -16,6 +16,7 @@ import {
 } from "../services/proactive-engine";
 import { openSseStream } from "../services/ai-stream";
 import { ingestDocument, resolveMime, ALLOWED_MIME_TYPES, MAX_FILE_SIZE_MB, findReusableCleanScan } from "../services/document-ingest";
+import { triggerExpenseCapture } from "../services/expense-capture";
 import { EventEmitter } from "events";
 import { startBulkScan, getBulkScanStatus, cancelBulkScan } from "../services/document-scan-job";
 
@@ -110,6 +111,19 @@ router.post("/documents/upload", requireMinAgent, handleUploadStream, async (req
 
     const doc = ingest.doc;
     const mimeType = doc.mimeType;
+
+    // Capture automatique des dépenses : si le justificatif est une facture /
+    // note de frais, il est poussé en arrière-plan dans la file d'inspection
+    // des dépenses. N'impacte jamais la réponse d'upload (fire-and-forget).
+    triggerExpenseCapture({
+      docId: doc.id,
+      orgId,
+      userId: userId ?? null,
+      fileContent,
+      mimeType,
+      fileName,
+      source: "upload",
+    });
 
     let aiResult = null;
     if (analyzeWithAi) {

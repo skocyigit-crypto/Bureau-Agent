@@ -8,6 +8,7 @@ import { emitSecurityAlert } from "../services/security-alerts";
 import { getInboundMaxSubmitBytes } from "../services/file-malware";
 import { getOrgId } from "../middleware/tenant";
 import { ingestDocument } from "../services/document-ingest";
+import { triggerExpenseCapture } from "../services/expense-capture";
 import { getGmailForUser } from "../lib/google-auth";
 
 const router = Router();
@@ -449,6 +450,18 @@ router.post("/gmail/message/:id/attachment/:attId/save", async (req: Request, re
       res.status(400).json({ error: ingest.error });
       return;
     }
+
+    // Capture automatique des dépenses depuis la pièce jointe e-mail (file
+    // d'inspection). Fire-and-forget : n'impacte pas la sauvegarde.
+    triggerExpenseCapture({
+      docId: ingest.doc.id,
+      orgId,
+      userId,
+      fileContent,
+      mimeType: ingest.doc.mimeType,
+      fileName: meta.filename,
+      source: "gmail",
+    });
 
     res.json({
       success: true,

@@ -58,3 +58,4 @@
 - [Assistant engine tool-loop](assistant-engine-tool-loop.md) — reads run parallel + turn-scoped cache + one-shot self-correction hint; first confirm tool bounds the hop, never cache writes, event contract frozen.
 - [Assistant validateArgs strips undeclared args](assistant-validateargs-strips-unknown.md) — tool params must be in BOTH `parameters` AND `fields` or they're dropped pre-execute; booleans need `kind:"boolean"`.
 - [Large CSV/data export streaming](large-export-streaming.md) — bulk exports must keyset-paginate + res.write chunks; set headers/header-row only after 1st batch so failures branch on res.headersSent (clean 500 vs res.end).
+- [Expense auto-capture flow](expense-capture-flow.md) — uploads+Gmail fire bg Document-AI per eligible file (org-toggle gated, idempotent by documentId); dup detection warns-not-blocks; approved a_payer feed treasury MC as deterministic outflows.

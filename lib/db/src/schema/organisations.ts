@@ -23,6 +23,11 @@ export const organisationsTable = pgTable("organisations", {
   weeklySecurityEmail: boolean("weekly_security_email").notNull().default(false),
   lastSecurityDigestAt: timestamp("last_security_digest_at", { withTimezone: true }),
   proactiveEngineEnabled: boolean("proactive_engine_enabled").notNull().default(true),
+  // Capture automatique des dépenses : tout justificatif entrant (upload ou
+  // pièce jointe e-mail) reconnu comme facture/note de frais est analysé par
+  // Document IA puis poussé dans la file d'inspection des dépenses. Voir
+  // services/expense-capture.ts.
+  expenseAutoCaptureEnabled: boolean("expense_auto_capture_enabled").notNull().default(true),
   // Réglages par org du moteur proactif (réglables depuis l'UI). Défauts =
   // valeurs historiques codées en dur (8 h / 21 j). Voir proactive-engine.ts.
   messageSlaHours: integer("message_sla_hours").notNull().default(8),

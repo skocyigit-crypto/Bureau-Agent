@@ -59,3 +59,4 @@ export * from "./webhook-deliveries";
 export * from "./api-keys";
 export * from "./integration-connections";
 export * from "./knowledge-base";
+export * from "./depenses";
