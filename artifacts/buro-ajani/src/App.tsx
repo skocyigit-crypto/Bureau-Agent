@@ -56,6 +56,7 @@ import TelephonyPage from "@/pages/telephony";
 import TelechargerPage from "@/pages/telecharger";
 import { QuickActionHub } from "@/components/quick-action-hub";
 import InvitationAcceptPage from "@/pages/invitation-accept";
+import RendezVousPublicPage from "@/pages/rendez-vous-public";
 import OnboardingPage from "@/pages/onboarding";
 import ProspectsPage from "@/pages/prospects";
 import ProspectDetail from "@/pages/prospect-detail";
@@ -333,6 +334,7 @@ function App() {
 
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
   const isInvitationPath = /\/invitation\/[^/]+/.test(window.location.pathname);
+  const isRdvPath = /\/rdv\/[^/]+/.test(window.location.pathname);
   const deviceEnv = useDeviceEnvironment();
 
   useEffect(() => {
@@ -354,6 +356,21 @@ function App() {
           <TooltipProvider>
             <WouterRouter base={basePath}>
               <InvitationAcceptPage />
+            </WouterRouter>
+            <Toaster />
+          </TooltipProvider>
+        </QueryClientProvider>
+      </ErrorBoundary>
+    );
+  }
+
+  if (isRdvPath) {
+    return (
+      <ErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <WouterRouter base={basePath}>
+              <RendezVousPublicPage />
             </WouterRouter>
             <Toaster />
           </TooltipProvider>

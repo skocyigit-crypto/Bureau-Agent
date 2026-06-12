@@ -178,6 +178,7 @@ function EventFormDialog({
   selectedDate,
   selectedHour,
   editEvent,
+  prefillSlot,
   onSave,
   isPending,
 }: {
@@ -186,6 +187,7 @@ function EventFormDialog({
   selectedDate: Date | null;
   selectedHour?: number;
   editEvent?: any;
+  prefillSlot?: { start: Date; end: Date } | null;
   onSave: (data: any) => void;
   isPending: boolean;
 }) {
@@ -213,6 +215,14 @@ function EventFormDialog({
           priority: editEvent.priority || "normale",
           status: editEvent.status || "confirme",
         });
+      } else if (prefillSlot) {
+        const s = prefillSlot.start;
+        const e = prefillSlot.end;
+        setForm({
+          ...defaultEvent,
+          startTime: `${pad(s.getHours())}:${pad(s.getMinutes())}`,
+          endTime: `${pad(e.getHours())}:${pad(e.getMinutes())}`,
+        });
       } else {
         const h = selectedHour ?? 9;
         setForm({
@@ -223,7 +233,7 @@ function EventFormDialog({
       }
       setActiveTab("general");
     }
-  }, [open, editEvent, selectedHour]);
+  }, [open, editEvent, selectedHour, prefillSlot]);
 
   const update = (key: string, value: string) => setForm(p => ({ ...p, [key]: value }));
 
@@ -614,6 +624,90 @@ function EventDetailDialog({
   );
 }
 
+function AvailabilityDialog({
+  open,
+  onOpenChange,
+  onPick,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  onPick: (slot: { start: string; end: string }) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [slots, setSlots] = useState<{ start: string; end: string }[]>([]);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setLoading(true);
+    setError("");
+    (async () => {
+      try {
+        const now = new Date();
+        const to = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+        const res = await fetch(
+          `${baseUrl}/api/calendar/availability?from=${now.toISOString()}&to=${to.toISOString()}&limit=20`,
+          { credentials: "include" },
+        );
+        if (!res.ok) throw new Error("Erreur");
+        const data = await res.json();
+        if (!cancelled) setSlots(data.slots || []);
+      } catch {
+        if (!cancelled) setError("Impossible de calculer les creneaux libres.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-amber-600" />
+            Creneaux libres
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-2">
+          {loading && (
+            <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
+              Calcul des disponibilites...
+            </div>
+          )}
+          {!loading && error && (
+            <p className="text-sm text-destructive py-4 text-center">{error}</p>
+          )}
+          {!loading && !error && slots.length === 0 && (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              Aucun creneau libre dans les 14 prochains jours (verifiez les horaires d'ouverture).
+            </p>
+          )}
+          {!loading && !error && slots.map((slot, i) => {
+            const s = new Date(slot.start);
+            const e = new Date(slot.end);
+            const dateLabel = s.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
+            const timeLabel = `${s.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} - ${e.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
+            return (
+              <Button
+                key={`${slot.start}-${i}`}
+                variant="outline"
+                className="w-full justify-between h-auto py-2.5"
+                onClick={() => onPick(slot)}
+              >
+                <span className="text-sm capitalize">{dateLabel}</span>
+                <span className="text-sm text-muted-foreground">{timeLabel}</span>
+              </Button>
+            );
+          })}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function CalendarPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -625,6 +719,8 @@ export default function CalendarPage() {
   const [selectedHour, setSelectedHour] = useState<number | undefined>();
   const [editingEvent, setEditingEvent] = useState<any>(null);
   const [viewingEvent, setViewingEvent] = useState<any>(null);
+  const [showAvailability, setShowAvailability] = useState(false);
+  const [prefillSlot, setPrefillSlot] = useState<{ start: Date; end: Date } | null>(null);
   const deepLinkHandledRef = useRef(false);
 
   const year = currentDate.getFullYear();
@@ -830,12 +926,21 @@ export default function CalendarPage() {
           </a>
           <Button variant="outline" size="sm" className="text-xs" title="Imprimer" onClick={() => window.print()}><Printer className="w-3 h-3" /></Button>
           <Button
+            variant="outline"
+            size="sm"
+            className="text-xs"
+            onClick={() => setShowAvailability(true)}
+          >
+            <Clock className="w-3 h-3 mr-1" /> Creneaux libres
+          </Button>
+          <Button
             size="sm"
             className="bg-amber-500 hover:bg-amber-600 text-white"
             onClick={() => {
               setSelectedDate(selectedDate || new Date());
               setSelectedHour(undefined);
               setEditingEvent(null);
+              setPrefillSlot(null);
               setShowEventForm(true);
             }}
           >
@@ -1136,12 +1241,28 @@ export default function CalendarPage() {
 
       <EventFormDialog
         open={showEventForm}
-        onOpenChange={setShowEventForm}
+        onOpenChange={(o) => { setShowEventForm(o); if (!o) setPrefillSlot(null); }}
         selectedDate={selectedDate}
         selectedHour={selectedHour}
         editEvent={editingEvent}
+        prefillSlot={prefillSlot}
         onSave={handleSaveEvent}
         isPending={createMutation.isPending || updateMutation.isPending}
+      />
+
+      <AvailabilityDialog
+        open={showAvailability}
+        onOpenChange={setShowAvailability}
+        onPick={(slot) => {
+          const start = new Date(slot.start);
+          const end = new Date(slot.end);
+          setShowAvailability(false);
+          setSelectedDate(start);
+          setSelectedHour(undefined);
+          setEditingEvent(null);
+          setPrefillSlot({ start, end });
+          setShowEventForm(true);
+        }}
       />
 
       <EventDetailDialog

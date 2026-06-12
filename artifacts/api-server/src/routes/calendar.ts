@@ -7,8 +7,47 @@ import { getOrgId } from "../middleware/tenant";
 import { resolveUserNames, enrichWithUserNames } from "../helpers/user-tracking";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { notifyOrgUsers } from "../services/whatsapp-notify";
+import { computeFreeSlots } from "../services/availability";
 
 const router = Router();
+
+/**
+ * Creneaux LIBRES calcules a partir des horaires d'ouverture de l'org et des
+ * evenements existants (agenda local + agenda Google de l'utilisateur). Sert a
+ * la creation de RDV depuis l'UI calendrier et a la proposition de creneaux.
+ */
+router.get("/calendar/availability", async (req: Request, res: Response): Promise<void> => {
+  const userId = req.session?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  const orgId = getOrgId(req);
+
+  const { from, to, duration, limit, step } = req.query;
+  const now = new Date();
+  let fromDate = typeof from === "string" ? new Date(from) : now;
+  if (isNaN(fromDate.getTime())) fromDate = now;
+  let toDate = typeof to === "string" ? new Date(to) : new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+  if (isNaN(toDate.getTime())) toDate = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+
+  const durationMinutes = typeof duration === "string" && Number(duration) > 0 ? Number(duration) : undefined;
+  const slotLimit = typeof limit === "string" && Number(limit) > 0 ? Math.min(Number(limit), 50) : 20;
+  const stepMinutes = typeof step === "string" && Number(step) > 0 ? Number(step) : undefined;
+
+  try {
+    const slots = await computeFreeSlots({
+      orgId,
+      userId,
+      from: fromDate,
+      to: toDate,
+      durationMinutes,
+      stepMinutes,
+      limit: slotLimit,
+    });
+    res.json({ slots });
+  } catch (err) {
+    req.log.error({ err }, "Erreur calcul des disponibilites");
+    res.status(500).json({ error: "Erreur lors du calcul des disponibilites." });
+  }
+});
 
 const ALLOWED_UPDATE_FIELDS = new Set([
   "title", "description", "type", "startDate", "endDate", "allDay",

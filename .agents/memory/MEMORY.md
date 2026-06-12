@@ -60,3 +60,4 @@
 - [Large CSV/data export streaming](large-export-streaming.md) — bulk exports must keyset-paginate + res.write chunks; set headers/header-row only after 1st batch so failures branch on res.headersSent (clean 500 vs res.end).
 - [Expense auto-capture flow](expense-capture-flow.md) — uploads+Gmail fire bg Document-AI per eligible file (org-toggle gated, idempotent by documentId); dup detection warns-not-blocks; approved a_payer feed treasury MC as deterministic outflows.
 - [Payment-reminder proactive type](payment-reminder-type.md) — collection-critical type, locally-managed lifecycle (not in DETECTOR_TYPES), NEVER suppressed; spacing not suppression controls spam; only the send route sends.
+- [buro-ajani public routes](buro-ajani-public-routes.md) — anonymous pages need a pathname-regex branch in App.tsx before auth-state (like isInvitationPath); plain <Route> never reached logged-out; backend mounts token route before requireAuth.

@@ -53,6 +53,7 @@ import {
 } from "../services/ai-utils";
 import { assertAiQuota, invalidateQuotaCache } from "../services/ai-quota";
 import { searchKnowledge } from "../services/knowledge-base";
+import { isSlotFree, computeFreeSlots } from "../services/availability";
 import { logger } from "../lib/logger";
 
 export const voiceReceptionistRouter: IRouter = Router();
@@ -128,6 +129,9 @@ interface CallSession {
   /** Creneaux deja occupes (texte compact, horaires uniquement) calcule une
    *  seule fois au debut de l'appel pour eviter de proposer un horaire pris. */
   busyBlock: string;
+  /** Creneaux LIBRES suggeres (calcules a partir des horaires d'ouverture et de
+   *  l'agenda) — proposes a l'appelant pour ne suggerer que des horaires reels. */
+  freeBlock: string;
   /** Id du contact connu correspondant au numero (null si inconnu). */
   callerContactId: number | null;
   /** Contexte PRIVE de l'appelant connu (ses propres taches ouvertes / prochain
@@ -545,6 +549,29 @@ async function fetchBusySlots(orgId: number): Promise<string> {
   }
 }
 
+/**
+ * Creneaux LIBRES (texte compact) calcules a partir des horaires d'ouverture et
+ * de l'agenda — l'IA ne propose ainsi que des horaires reellement disponibles.
+ */
+async function fetchFreeSlots(orgId: number): Promise<string> {
+  try {
+    const now = new Date();
+    const horizon = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+    const slots = await computeFreeSlots({ orgId, from: now, to: horizon, limit: 6 });
+    if (slots.length === 0) return "";
+    const fmtStart = new Intl.DateTimeFormat("fr-FR", {
+      weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris",
+    });
+    const fmtEnd = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+    return slots
+      .map((s) => `- ${fmtStart.format(new Date(s.start))} -> ${fmtEnd.format(new Date(s.end))}`)
+      .join("\n");
+  } catch (err) {
+    logger.warn({ err, orgId }, "[voice] fetchFreeSlots a echoue — sans suggestions de creneaux");
+    return "";
+  }
+}
+
 // --- Moteur IA (persona secretaire contrainte) ----------------------------
 
 interface ReceptionistAppointment {
@@ -583,6 +610,7 @@ function buildSystemInstruction(
   busyBlock?: string,
   callerContext?: string,
   opts?: { autoDetectLang?: boolean; allowCancellation?: boolean; transferEnabled?: boolean },
+  freeBlock?: string,
 ): string {
   const now = new Date();
   const todayStr = new Intl.DateTimeFormat("fr-FR", {
@@ -616,6 +644,9 @@ function buildSystemInstruction(
       : "") +
     (busyBlock
       ? `\nCRENEAUX DEJA OCCUPES (horaires uniquement, USAGE INTERNE). Ne propose et ne confirme JAMAIS un rendez-vous qui chevauche l'un de ces creneaux; propose un horaire reellement libre, proche de la demande:\n${busyBlock}\n`
+      : "") +
+    (freeBlock
+      ? `\nCRENEAUX LIBRES SUGGERES (calcules a partir des horaires d'ouverture et de l'agenda — ce sont des horaires REELLEMENT disponibles). Quand l'appelant veut un rendez-vous sans horaire precis, ou si l'horaire demande est occupe, propose UN ou DEUX de ces creneaux (n'enumere jamais toute la liste):\n${freeBlock}\n`
       : "") +
     `\nREGLES DE CONFIDENTIALITE (l'appelant est un visiteur ANONYME et NON authentifie):\n` +
     `- N'enumere et ne lis JAMAIS a voix haute la liste des CRENEAUX DEJA OCCUPES (c'est interne); dis seulement si un horaire demande est libre ou propose une alternative.\n` +
@@ -705,6 +736,7 @@ async function runReceptionistTurn(session: CallSession): Promise<ReceptionistRe
             allowCancellation: session.cfg.allowPhoneCancellation === true,
             transferEnabled: typeof session.cfg.forwardToNumber === "string" && (session.cfg.forwardToNumber as string).trim().length > 0,
           },
+          session.freeBlock,
         ),
         responseMimeType: "application/json",
         maxOutputTokens: 700,
@@ -872,7 +904,22 @@ async function persistOutcome(session: CallSession, result: ReceptionistResult):
       const start = a.startIso ? new Date(a.startIso) : null;
       const validStart = start && !Number.isNaN(start.getTime()) ? start : null;
 
+      // Garde-fou anti-chevauchement: meme si l'IA a propose un horaire libre,
+      // on revalide AVANT d'ecrire (l'agenda a pu bouger pendant l'appel). En
+      // cas de conflit, on NE cree PAS d'evenement qui chevauche — on bascule
+      // sur le chemin "demande a planifier" (message), exactement comme une
+      // demande sans date exploitable.
+      let slotFree = true;
       if (validStart) {
+        const candidateEnd = new Date(validStart.getTime() + 30 * 60000);
+        slotFree = await withTimeout(
+          isSlotFree({ orgId: session.orgId, start: validStart, end: candidateEnd }),
+          VOICE_RETRIEVAL_TIMEOUT_MS,
+          true, // en cas de timeout: on n'invente pas de conflit, on laisse passer
+        );
+      }
+
+      if (validStart && slotFree) {
         const end = new Date(validStart.getTime() + 30 * 60000);
         const [event] = await db
           .insert(calendarEventsTable)
@@ -1170,9 +1217,10 @@ voiceReceptionistRouter.post("/voice/twilio/incoming", async (req: Request, res:
   // Reconnaissance appelant (contact connu -> salutation personnalisee + nom
   // injecte dans la persona) + creneaux occupes, en parallele (best-effort, une
   // seule fois en debut d'appel: les disponibilites sont injectees a chaque tour).
-  const [caller, busyBlock] = await Promise.all([
+  const [caller, busyBlock, freeBlock] = await Promise.all([
     withTimeout(lookupCaller(tenant.orgId, body.From ?? ""), VOICE_RETRIEVAL_TIMEOUT_MS, { name: null, callCount: 0, contactId: null }),
     withTimeout(fetchBusySlots(tenant.orgId), VOICE_RETRIEVAL_TIMEOUT_MS, ""),
+    withTimeout(fetchFreeSlots(tenant.orgId), VOICE_RETRIEVAL_TIMEOUT_MS, ""),
   ]);
 
   // Contexte personnel de l'appelant CONNU (ses propres taches / prochain RDV),
@@ -1205,6 +1253,7 @@ voiceReceptionistRouter.post("/voice/twilio/incoming", async (req: Request, res:
     callerName: caller.name,
     callCount: caller.callCount,
     busyBlock,
+    freeBlock,
     callerContactId: caller.contactId,
     callerContext,
     providerConfig: tenant.config as TelephonyProviderConfig,

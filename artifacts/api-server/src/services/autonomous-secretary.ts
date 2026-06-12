@@ -30,7 +30,7 @@ import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
 import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_FLASH_MODEL } from "./ai-utils";
 
 /** Outils que l'agent autonome a le droit de proposer. */
-const ALLOWED_TOOLS = ["create_task", "send_email", "send_sms", "create_calendar_event", "create_contact"] as const;
+const ALLOWED_TOOLS = ["create_task", "send_email", "send_sms", "create_calendar_event", "create_contact", "propose_appointment_slots"] as const;
 type AllowedTool = (typeof ALLOWED_TOOLS)[number];
 
 const MAX_PROPOSALS_PER_RUN = 6;

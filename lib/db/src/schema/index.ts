@@ -17,6 +17,7 @@ export * from "./auto-backups";
 export * from "./users";
 export * from "./google-oauth";
 export * from "./calendar-events";
+export * from "./appointment-offers";
 export * from "./audit-logs";
 export * from "./automations";
 export * from "./performance-reports";

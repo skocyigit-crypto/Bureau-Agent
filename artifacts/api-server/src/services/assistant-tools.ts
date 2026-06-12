@@ -13,6 +13,8 @@ import { generateImage } from "@workspace/integrations-gemini-ai/image";
 import { buildExcelBase64, buildWordBase64, buildPdfBase64, buildPptxBase64 } from "./document-export";
 import { ingestDocument } from "./document-ingest";
 import { searchKnowledge } from "./knowledge-base";
+import { computeFreeSlots } from "./availability";
+import { createOffer, sendOfferMessage, resolveContactForOffer, offerLink } from "./appointment-offers";
 import { logAudit } from "../routes/audit";
 import { logger } from "../lib/logger";
 
@@ -963,6 +965,117 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
         .returning({ id: calendarEventsTable.id, startDate: calendarEventsTable.startDate, endDate: calendarEventsTable.endDate });
       if (!row) return { success: false, error: "Evenement introuvable dans votre organisation." };
       return { success: true, id: row.id, startDate: row.startDate, endDate: row.endDate, url: "/calendrier" };
+    },
+  },
+  {
+    name: "propose_appointment_slots",
+    description:
+      "Propose au client 2 a 3 creneaux de rendez-vous REELLEMENT LIBRES (calcules a partir des horaires d'ouverture et de l'agenda) " +
+      "et lui envoie un message (email ou SMS) avec un lien de selection. Le client choisit, le RDV est alors ecrit dans l'agenda. " +
+      "Fournir soit 'contactId' (le client en fiche), soit les coordonnees ('contactName' + 'contactEmail' ou 'contactPhone'). " +
+      "NECESSITE UNE CONFIRMATION EXPLICITE avant envoi.",
+    parameters: {
+      type: "object",
+      properties: {
+        contactId: { type: "integer", description: "ID du contact en fiche (recommande). Pre-remplit nom/email/telephone." },
+        contactName: { type: "string", description: "Nom du client (si pas de contactId)." },
+        contactEmail: { type: "string", description: "Email du client (requis si channel=email et pas de contactId)." },
+        contactPhone: { type: "string", description: "Telephone E.164 du client (requis si channel=sms et pas de contactId)." },
+        reason: { type: "string", description: "Motif du rendez-vous (devient le titre de l'evenement)." },
+        durationMinutes: { type: "integer", description: "Duree du RDV en minutes (defaut: duree par defaut de l'org)." },
+        fromDate: { type: "string", description: "Debut de la fenetre de recherche, ISO 8601 (defaut: maintenant)." },
+        toDate: { type: "string", description: "Fin de la fenetre de recherche, ISO 8601 (defaut: +14 jours)." },
+        channel: { type: "string", description: "Canal d'envoi: email | sms (defaut: email)." },
+        count: { type: "integer", description: "Nombre de creneaux a proposer (2-3, defaut 3)." },
+      },
+      required: [],
+    },
+    fields: {
+      contactId: { kind: "number", integer: true, min: 1 },
+      contactName: { kind: "string", max: 200 },
+      contactEmail: { kind: "string", email: true, max: 255 },
+      contactPhone: { kind: "string", max: 30 },
+      reason: { kind: "string", max: 300 },
+      durationMinutes: { kind: "number", integer: true, min: 5, max: 480 },
+      fromDate: { kind: "iso-date" },
+      toDate: { kind: "iso-date" },
+      channel: { kind: "string", enum: ["email", "sms"] as const },
+      count: { kind: "number", integer: true, min: 1, max: 3 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) =>
+      `Proposer ${a.count ?? 3} creneaux de RDV${a.reason ? ` (${a.reason})` : ""} a ${a.contactName ?? a.contactEmail ?? a.contactPhone ?? `contact #${a.contactId}`} par ${a.channel ?? "email"}`,
+    execute: async (a, { orgId, userId }) => {
+      const channel: "email" | "sms" = a.channel === "sms" ? "sms" : "email";
+      let contactName = a.contactName ?? null;
+      let contactEmail = a.contactEmail ?? null;
+      let contactPhone = a.contactPhone ?? null;
+      let relatedContactId: number | null = null;
+
+      if (a.contactId != null) {
+        const c = await resolveContactForOffer(orgId, a.contactId);
+        if (!c) return { success: false, error: "Contact introuvable dans votre organisation." };
+        relatedContactId = c.id;
+        contactName = contactName || c.name;
+        contactEmail = contactEmail || c.email;
+        contactPhone = contactPhone || c.phone;
+      }
+
+      if (channel === "email" && !contactEmail) {
+        return { success: false, error: "Aucune adresse email pour ce client (requis pour le canal email)." };
+      }
+      if (channel === "sms" && !contactPhone) {
+        return { success: false, error: "Aucun numero de telephone pour ce client (requis pour le canal SMS)." };
+      }
+
+      const now = new Date();
+      let from = a.fromDate ? new Date(a.fromDate) : now;
+      if (Number.isNaN(from.getTime())) from = now;
+      let to = a.toDate ? new Date(a.toDate) : new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+      if (Number.isNaN(to.getTime())) to = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+
+      const count = a.count && a.count >= 1 && a.count <= 3 ? a.count : 3;
+      const slots = await computeFreeSlots({
+        orgId,
+        userId,
+        from,
+        to,
+        durationMinutes: a.durationMinutes,
+        limit: count,
+      });
+      if (slots.length === 0) {
+        return { success: false, error: "Aucun creneau libre trouve dans la periode demandee. Elargissez la fenetre ou ajustez les horaires d'ouverture." };
+      }
+
+      const durationMinutes = a.durationMinutes && a.durationMinutes > 0
+        ? a.durationMinutes
+        : Math.round((new Date(slots[0].end).getTime() - new Date(slots[0].start).getTime()) / 60000);
+
+      const offer = await createOffer({
+        orgId,
+        createdBy: userId,
+        relatedContactId,
+        contactName,
+        contactEmail,
+        contactPhone,
+        reason: a.reason ?? null,
+        durationMinutes,
+        slots,
+        channel,
+      });
+
+      const sent = await sendOfferMessage(offer);
+      if (!sent.success) {
+        return { success: false, error: `Offre creee mais envoi ${channel} echoue: ${sent.error ?? "raison inconnue"}`, offerId: offer.id };
+      }
+
+      return {
+        success: true,
+        offerId: offer.id,
+        proposed: slots.length,
+        channel,
+        link: offerLink(offer.token),
+      };
     },
   },
   // ---------- COMMS (CONFIRMATION REQUIRED) ----------

@@ -34,6 +34,14 @@ export const organisationsTable = pgTable("organisations", {
   quietCustomerAfterDays: integer("quiet_customer_after_days").notNull().default(21),
   agentAutoRunEnabled: boolean("agent_auto_run_enabled").notNull().default(false),
   agentAutoRunLastRunAt: timestamp("agent_auto_run_last_run_at", { withTimezone: true }),
+  // Horaires d'ouverture utilises par le service de disponibilites (creneaux
+  // de rendez-vous). Jours = numeros ISO (1=lundi .. 7=dimanche) separes par
+  // des virgules. Heures = "HH:MM" 24h. Fuseau IANA. Duree par defaut d'un RDV.
+  workingDays: varchar("working_days", { length: 20 }).notNull().default("1,2,3,4,5"),
+  workingHoursStart: varchar("working_hours_start", { length: 5 }).notNull().default("09:00"),
+  workingHoursEnd: varchar("working_hours_end", { length: 5 }).notNull().default("18:00"),
+  appointmentTimezone: varchar("appointment_timezone", { length: 60 }).notNull().default("Europe/Paris"),
+  appointmentDurationMinutes: integer("appointment_duration_minutes").notNull().default(30),
   aiLearningLastRunAt: timestamp("ai_learning_last_run_at", { withTimezone: true }),
   reusedScanCount: integer("reused_scan_count").notNull().default(0),
   reusedScanSavedMs: bigint("reused_scan_saved_ms", { mode: "number" }).notNull().default(0),
