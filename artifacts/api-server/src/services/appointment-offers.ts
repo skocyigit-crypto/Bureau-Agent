@@ -180,9 +180,67 @@ async function markSent(offerId: number): Promise<void> {
     .catch(() => {});
 }
 
+/** Libelle lisible d'un client pour les notifications internes. */
+function clientLabel(offer: typeof appointmentOffersTable.$inferSelect): string {
+  return offer.contactName || offer.contactEmail || offer.contactPhone || "client";
+}
+
+/** Envoi best-effort d'un message au client (email prioritaire, SMS sinon). */
+async function notifyClient(
+  offer: typeof appointmentOffersTable.$inferSelect,
+  subject: string,
+  html: string,
+  text: string,
+  sms: string,
+): Promise<void> {
+  try {
+    if (offer.contactEmail) {
+      await sendEmail(offer.contactEmail, subject, html, text, { orgId: offer.organisationId });
+    } else if (offer.contactPhone) {
+      const sid = process.env.TWILIO_ACCOUNT_SID;
+      const tok = process.env.TWILIO_AUTH_TOKEN;
+      const from = process.env.TWILIO_PHONE_NUMBER;
+      if (sid && tok && from) {
+        await providerSendSms(
+          "twilio",
+          { accountSid: sid, authToken: tok, fromNumber: from },
+          { to: offer.contactPhone, body: sms },
+        );
+      }
+    }
+  } catch (err) {
+    logger.warn({ err, offerId: offer.id }, "[appointment-offers] notification client echouee");
+  }
+}
+
+/** Confirmation/reprogrammation au client (best-effort) + notification interne. */
+function announceBooking(
+  offer: typeof appointmentOffersTable.$inferSelect,
+  whenStr: string,
+  orgName: string,
+  reprogramme: boolean,
+): void {
+  const greeting = `Bonjour${offer.contactName ? ` ${offer.contactName}` : ""},`;
+  const verb = reprogramme ? "a bien ete reprogramme pour" : "est confirme pour";
+  const html = `<div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;color:#0f1729;"><p>${greeting}</p><p>Votre rendez-vous (<strong>${offer.reason}</strong>) ${verb}&nbsp;:</p><p style="font-size:16px;font-weight:700;">${whenStr}</p><p style="font-size:13px;color:#94a3b8;">${orgName}</p></div>`;
+  const text = `${greeting}\n\nVotre rendez-vous (${offer.reason}) ${verb}:\n${whenStr}\n\n${orgName}`;
+  const subject = reprogramme ? `Rendez-vous reprogramme — ${orgName}` : `Rendez-vous confirme — ${orgName}`;
+  const sms = `${orgName}: votre rendez-vous (${offer.reason}) est ${reprogramme ? "reprogramme" : "confirme"} pour ${whenStr}.`;
+  void notifyClient(offer, subject, html, text, sms);
+  void notifyOrgUsers(
+    offer.organisationId,
+    `${reprogramme ? "Rendez-vous reprogramme" : "Nouveau rendez-vous confirme"}: ${clientLabel(offer)} — ${whenStr} (${offer.reason})`,
+    "appointment",
+  ).catch(() => {});
+}
+
 export type ConfirmResult =
   | { ok: true; eventId: number; slot: TimeSlot }
-  | { ok: false; code: "not_found" | "expired" | "already" | "invalid_slot" | "conflict"; message: string };
+  | { ok: false; code: "not_found" | "expired" | "already" | "invalid_slot" | "conflict" | "not_confirmed"; message: string };
+
+export type CancelResult =
+  | { ok: true }
+  | { ok: false; code: "not_found" | "not_confirmed"; message: string };
 
 /**
  * Confirme la selection d'un creneau par le client.
@@ -261,41 +319,162 @@ export async function confirmOfferSelection(token: string, slotIndex: number): P
   // Confirmation au client (best-effort) + notification interne.
   const { name: orgName, tz } = await getOrgContext(offer.organisationId);
   const whenStr = fmtSlot(slot, tz);
-  void (async () => {
-    try {
-      if (offer.contactEmail) {
-        const html = `<div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;color:#0f1729;"><p>Bonjour${offer.contactName ? ` ${offer.contactName}` : ""},</p><p>Votre rendez-vous (<strong>${offer.reason}</strong>) est confirme pour&nbsp;:</p><p style="font-size:16px;font-weight:700;">${whenStr}</p><p style="font-size:13px;color:#94a3b8;">${orgName}</p></div>`;
-        await sendEmail(
-          offer.contactEmail,
-          `Rendez-vous confirme — ${orgName}`,
-          html,
-          `Bonjour${offer.contactName ? ` ${offer.contactName}` : ""},\n\nVotre rendez-vous (${offer.reason}) est confirme pour:\n${whenStr}\n\n${orgName}`,
-          { orgId: offer.organisationId },
-        );
-      } else if (offer.contactPhone) {
-        const sid = process.env.TWILIO_ACCOUNT_SID;
-        const tok = process.env.TWILIO_AUTH_TOKEN;
-        const from = process.env.TWILIO_PHONE_NUMBER;
-        if (sid && tok && from) {
-          await providerSendSms(
-            "twilio",
-            { accountSid: sid, authToken: tok, fromNumber: from },
-            { to: offer.contactPhone, body: `${orgName}: votre rendez-vous (${offer.reason}) est confirme pour ${whenStr}.` },
-          );
-        }
-      }
-    } catch (err) {
-      logger.warn({ err, offerId: offer.id }, "[appointment-offers] confirmation client echouee");
-    }
-  })();
+  announceBooking(offer, whenStr, orgName, false);
 
+  return { ok: true, eventId: event.id, slot };
+}
+
+/**
+ * Annule un rendez-vous confirme depuis le lien public (capability `token`).
+ * - transition atomique `confirme` -> `annule` (anti-double action),
+ * - passe l'evenement d'agenda en `annule` (le creneau redevient libre),
+ * - notifie l'organisation et le client (best-effort).
+ * Idempotent: un rendez-vous deja annule renvoie `ok` sans rien refaire.
+ */
+export async function cancelOffer(token: string): Promise<CancelResult> {
+  const [offer] = await db
+    .select()
+    .from(appointmentOffersTable)
+    .where(eq(appointmentOffersTable.token, token))
+    .limit(1);
+  if (!offer) return { ok: false, code: "not_found", message: "Offre introuvable." };
+  if (offer.status === "annule") return { ok: true }; // idempotent
+  if (offer.status !== "confirme") {
+    return { ok: false, code: "not_confirmed", message: "Aucun rendez-vous confirme a annuler." };
+  }
+
+  // Transition atomique: seule confirme -> annule reussit.
+  const claimed = await db
+    .update(appointmentOffersTable)
+    .set({ status: "annule" })
+    .where(and(eq(appointmentOffersTable.id, offer.id), eq(appointmentOffersTable.status, "confirme")))
+    .returning({ id: appointmentOffersTable.id });
+  if (claimed.length === 0) return { ok: true }; // course: deja annule ailleurs
+
+  // L'evenement d'agenda passe en `annule` -> le creneau redevient libre.
+  if (offer.calendarEventId) {
+    await db
+      .update(calendarEventsTable)
+      .set({ status: "annule" })
+      .where(
+        and(
+          eq(calendarEventsTable.id, offer.calendarEventId),
+          eq(calendarEventsTable.organisationId, offer.organisationId),
+        ),
+      )
+      .catch(() => {});
+  }
+
+  // Notifications (best-effort).
+  const { name: orgName, tz } = await getOrgContext(offer.organisationId);
+  const whenStr =
+    offer.selectedStart && offer.selectedEnd
+      ? fmtSlot({ start: offer.selectedStart.toISOString(), end: offer.selectedEnd.toISOString() }, tz)
+      : "";
+  const greeting = `Bonjour${offer.contactName ? ` ${offer.contactName}` : ""},`;
+  const html = `<div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;color:#0f1729;"><p>${greeting}</p><p>Votre rendez-vous (<strong>${offer.reason}</strong>)${whenStr ? ` du ${whenStr}` : ""} a bien ete annule.</p><p style="font-size:13px;color:#94a3b8;">${orgName}</p></div>`;
+  const text = `${greeting}\n\nVotre rendez-vous (${offer.reason})${whenStr ? ` du ${whenStr}` : ""} a bien ete annule.\n\n${orgName}`;
+  const sms = `${orgName}: votre rendez-vous (${offer.reason})${whenStr ? ` du ${whenStr}` : ""} a bien ete annule.`;
+  void notifyClient(offer, `Rendez-vous annule — ${orgName}`, html, text, sms);
   void notifyOrgUsers(
     offer.organisationId,
-    `Nouveau rendez-vous confirme: ${offer.contactName || offer.contactEmail || offer.contactPhone || "client"} — ${whenStr} (${offer.reason})`,
+    `Rendez-vous annule par le client: ${clientLabel(offer)}${whenStr ? ` — ${whenStr}` : ""} (${offer.reason})`,
     "appointment",
   ).catch(() => {});
 
-  return { ok: true, eventId: event.id, slot };
+  return { ok: true };
+}
+
+/**
+ * Reprogramme un rendez-vous confirme sur un autre creneau de l'offre.
+ * - revalide la disponibilite du nouveau creneau (en ignorant l'evenement
+ *   courant pour ne pas se bloquer soi-meme),
+ * - deplace l'evenement d'agenda de maniere atomique (transition gardee sur
+ *   `confirme`), le recree si l'evenement a disparu,
+ * - renvoie une nouvelle confirmation au client + notifie l'organisation.
+ */
+export async function rescheduleOffer(token: string, slotIndex: number): Promise<ConfirmResult> {
+  const [offer] = await db
+    .select()
+    .from(appointmentOffersTable)
+    .where(eq(appointmentOffersTable.token, token))
+    .limit(1);
+  if (!offer) return { ok: false, code: "not_found", message: "Offre introuvable." };
+  if (offer.status === "annule") return { ok: false, code: "expired", message: "Ce rendez-vous a ete annule." };
+  if (offer.status !== "confirme") {
+    return { ok: false, code: "not_confirmed", message: "Aucun rendez-vous a reprogrammer." };
+  }
+
+  const slots = (offer.slots || []) as TimeSlot[];
+  if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= slots.length) {
+    return { ok: false, code: "invalid_slot", message: "Creneau invalide." };
+  }
+  const slot = slots[slotIndex];
+  const start = new Date(slot.start);
+  const end = new Date(slot.end);
+
+  // Revalidation: on ignore l'evenement courant pour ne pas se bloquer soi-meme.
+  const free = await isSlotFree({
+    orgId: offer.organisationId,
+    userId: offer.createdBy ?? undefined,
+    start,
+    end,
+    excludeEventId: offer.calendarEventId ?? undefined,
+  });
+  if (!free) return { ok: false, code: "conflict", message: "Ce creneau vient d'etre reserve. Merci d'en choisir un autre." };
+
+  // Deplacement atomique de l'offre: garde sur status='confirme'.
+  const claimed = await db
+    .update(appointmentOffersTable)
+    .set({ selectedSlotIndex: slotIndex, selectedStart: start, selectedEnd: end })
+    .where(and(eq(appointmentOffersTable.id, offer.id), eq(appointmentOffersTable.status, "confirme")))
+    .returning({ id: appointmentOffersTable.id });
+  if (claimed.length === 0) {
+    return { ok: false, code: "already", message: "Ce rendez-vous n'est plus modifiable." };
+  }
+
+  // Deplacement de l'evenement d'agenda (ou recreation s'il a disparu).
+  let eventId = offer.calendarEventId ?? null;
+  if (eventId) {
+    const moved = await db
+      .update(calendarEventsTable)
+      .set({ startDate: start, endDate: end, status: "confirme" })
+      .where(and(eq(calendarEventsTable.id, eventId), eq(calendarEventsTable.organisationId, offer.organisationId)))
+      .returning({ id: calendarEventsTable.id });
+    if (moved.length === 0) eventId = null;
+  }
+  if (!eventId) {
+    const [event] = await db
+      .insert(calendarEventsTable)
+      .values({
+        organisationId: offer.organisationId,
+        title: offer.reason || "Rendez-vous",
+        description: "Rendez-vous reprogramme par le client via lien de selection.",
+        type: "rendez_vous",
+        startDate: start,
+        endDate: end,
+        status: "confirme",
+        relatedContactId: offer.relatedContactId ?? null,
+        contactName: offer.contactName ?? null,
+        contactPhone: offer.contactPhone ?? null,
+        contactEmail: offer.contactEmail ?? null,
+        createdBy: offer.createdBy ?? null,
+      })
+      .returning({ id: calendarEventsTable.id });
+    eventId = event.id;
+    await db
+      .update(appointmentOffersTable)
+      .set({ calendarEventId: eventId })
+      .where(eq(appointmentOffersTable.id, offer.id))
+      .catch(() => {});
+  }
+
+  // Nouvelle confirmation au client (best-effort) + notification interne.
+  const { name: orgName, tz } = await getOrgContext(offer.organisationId);
+  const whenStr = fmtSlot(slot, tz);
+  announceBooking(offer, whenStr, orgName, true);
+
+  return { ok: true, eventId, slot };
 }
 
 /** Donnees publiques (sans token interne) pour la page de selection. */

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRoute } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle2, XCircle, CalendarClock, Clock } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, CalendarClock, Clock, CalendarX2 } from "lucide-react";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "") + "/";
 
@@ -32,6 +32,10 @@ export default function RendezVousPublicPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState<number | null>(null);
   const [confirmedLabel, setConfirmedLabel] = useState<string | null>(null);
+  // Mode de la page une fois le rendez-vous confirme.
+  const [view, setView] = useState<"summary" | "reschedule">("summary");
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelled, setCancelled] = useState(false);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -54,6 +58,7 @@ export default function RendezVousPublicPage() {
     load();
   }, [load]);
 
+  // Confirmation initiale d'un creneau (offre `envoye`).
   async function selectSlot(index: number) {
     if (!token || submitting !== null) return;
     setSubmitting(index);
@@ -82,8 +87,67 @@ export default function RendezVousPublicPage() {
     }
   }
 
-  const isConfirmed = offer?.status === "confirme" || confirmedLabel !== null;
-  const isExpired = offer?.status === "expire" || offer?.status === "annule";
+  // Reprogrammation sur un autre creneau (rendez-vous deja `confirme`).
+  async function rescheduleSlot(index: number) {
+    if (!token || submitting !== null) return;
+    setSubmitting(index);
+    setError("");
+    try {
+      const res = await fetch(`${BASE}api/appointments/offer/${token}/reschedule`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slotIndex: index }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const slot = offer?.slots[index];
+        setConfirmedLabel(slot?.label ?? null);
+        setOffer((prev) => (prev ? { ...prev, status: "confirme", selectedSlotIndex: index } : prev));
+        setView("summary");
+      } else {
+        setError(data.error || "Ce creneau n'a pas pu etre reprogramme.");
+        if (data.code === "conflict" || data.code === "already" || data.code === "annule") {
+          await load();
+        }
+      }
+    } catch {
+      setError("Erreur reseau lors de la reprogrammation.");
+    } finally {
+      setSubmitting(null);
+    }
+  }
+
+  // Annulation du rendez-vous confirme.
+  async function cancelAppointment() {
+    if (!token || cancelling) return;
+    setCancelling(true);
+    setError("");
+    try {
+      const res = await fetch(`${BASE}api/appointments/offer/${token}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setCancelled(true);
+        setOffer((prev) => (prev ? { ...prev, status: "annule" } : prev));
+      } else {
+        setError(data.error || "Ce rendez-vous n'a pas pu etre annule.");
+        await load();
+      }
+    } catch {
+      setError("Erreur reseau lors de l'annulation.");
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+  const isCancelled = cancelled || offer?.status === "annule";
+  const isConfirmed = !isCancelled && (offer?.status === "confirme" || confirmedLabel !== null);
+  const isExpired = !isCancelled && offer?.status === "expire";
+  const selectedLabel =
+    confirmedLabel ||
+    (offer && offer.selectedSlotIndex !== null ? offer.slots[offer.selectedSlotIndex]?.label : null);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f1729] via-[#1a2744] to-[#0f1729] p-4">
@@ -95,11 +159,15 @@ export default function RendezVousPublicPage() {
           <CardTitle>{offer?.orgName || "Rendez-vous"}</CardTitle>
           {offer && !loading && !error && (
             <CardDescription>
-              {isConfirmed
-                ? "Votre rendez-vous est confirme"
-                : isExpired
-                  ? "Cette proposition n'est plus valable"
-                  : `Choisissez un creneau pour : ${offer.reason}`}
+              {isCancelled
+                ? "Ce rendez-vous a ete annule"
+                : isConfirmed
+                  ? view === "reschedule"
+                    ? "Choisissez un nouveau creneau"
+                    : "Votre rendez-vous est confirme"
+                  : isExpired
+                    ? "Cette proposition n'est plus valable"
+                    : `Choisissez un creneau pour : ${offer.reason}`}
             </CardDescription>
           )}
         </CardHeader>
@@ -117,18 +185,96 @@ export default function RendezVousPublicPage() {
             </div>
           )}
 
-          {!loading && offer && isConfirmed && (
+          {!loading && offer && isCancelled && (
+            <div className="flex flex-col items-center gap-3 py-6 text-center">
+              <CalendarX2 className="h-10 w-10 text-destructive" />
+              <p className="font-medium">Rendez-vous annule</p>
+              <p className="text-xs text-muted-foreground">
+                Votre rendez-vous a bien ete annule. Pour reprendre rendez-vous, contactez {offer.orgName}.
+              </p>
+            </div>
+          )}
+
+          {!loading && offer && isConfirmed && view === "summary" && (
             <div className="flex flex-col items-center gap-3 py-6 text-center">
               <CheckCircle2 className="h-10 w-10 text-emerald-500" />
               <p className="font-medium">Rendez-vous confirme</p>
-              {(confirmedLabel ||
-                (offer.selectedSlotIndex !== null && offer.slots[offer.selectedSlotIndex]?.label)) && (
-                <p className="text-sm text-muted-foreground">
-                  {confirmedLabel || offer.slots[offer.selectedSlotIndex!]?.label}
-                </p>
+              {selectedLabel && <p className="text-sm text-muted-foreground">{selectedLabel}</p>}
+              <p className="text-xs text-muted-foreground">Vous recevrez une confirmation. Merci&nbsp;!</p>
+
+              {error && (
+                <p className="w-full rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
               )}
-              <p className="text-xs text-muted-foreground">
-                Vous recevrez une confirmation. Merci&nbsp;!
+
+              <div className="mt-2 flex w-full flex-col gap-2">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  disabled={cancelling}
+                  onClick={() => {
+                    setError("");
+                    setView("reschedule");
+                  }}
+                >
+                  <CalendarClock className="mr-2 h-4 w-4" /> Choisir un autre creneau
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full text-destructive hover:text-destructive"
+                  disabled={cancelling}
+                  onClick={cancelAppointment}
+                >
+                  {cancelling ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <CalendarX2 className="mr-2 h-4 w-4" />
+                  )}
+                  Annuler le rendez-vous
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {!loading && offer && isConfirmed && view === "reschedule" && (
+            <div className="space-y-2">
+              {error && (
+                <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+              )}
+              {offer.slots.map((slot, i) => {
+                const isCurrent = offer.selectedSlotIndex === i;
+                return (
+                  <Button
+                    key={`${slot.start}-${i}`}
+                    variant="outline"
+                    className="h-auto w-full justify-start py-3 text-left"
+                    disabled={submitting !== null || isCurrent}
+                    onClick={() => rescheduleSlot(i)}
+                  >
+                    {submitting === i ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin shrink-0" />
+                    ) : (
+                      <Clock className="mr-2 h-4 w-4 shrink-0 text-amber-500" />
+                    )}
+                    <span className="text-sm">
+                      {slot.label}
+                      {isCurrent && " (actuel)"}
+                    </span>
+                  </Button>
+                );
+              })}
+              <Button
+                variant="ghost"
+                className="w-full"
+                disabled={submitting !== null}
+                onClick={() => {
+                  setError("");
+                  setView("summary");
+                }}
+              >
+                Retour
+              </Button>
+              <p className="pt-1 text-center text-xs text-muted-foreground">
+                Duree : {offer.durationMinutes} min · Fuseau : {offer.timezone}
               </p>
             </div>
           )}
@@ -142,7 +288,7 @@ export default function RendezVousPublicPage() {
             </div>
           )}
 
-          {!loading && offer && !isConfirmed && !isExpired && (
+          {!loading && offer && !isConfirmed && !isExpired && !isCancelled && (
             <div className="space-y-2">
               {error && (
                 <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
