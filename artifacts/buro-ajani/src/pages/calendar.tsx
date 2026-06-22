@@ -13,7 +13,7 @@ import {
   Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, MapPin, Download,
   Users, CheckSquare, Trash2, Phone, Mail, Building, User, FileText,
   AlertCircle, Star, Search, X, ChevronDown, Edit2, Eye, Printer, Copy, FolderKanban, ExternalLink,
-  Lock,
+  Lock, Ban,
 } from "lucide-react";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -182,6 +182,7 @@ function EventFormDialog({
   prefillSlot,
   onSave,
   isPending,
+  closureInfo,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -191,6 +192,7 @@ function EventFormDialog({
   prefillSlot?: { start: Date; end: Date } | null;
   onSave: (data: any) => void;
   isPending: boolean;
+  closureInfo?: { label: string | null } | null;
 }) {
   const [form, setForm] = useState(defaultEvent);
   const [activeTab, setActiveTab] = useState<"general" | "contact" | "options">("general");
@@ -301,6 +303,20 @@ function EventFormDialog({
             </p>
           )}
         </DialogHeader>
+
+        {closureInfo && (
+          <div className="flex items-start gap-2.5 rounded-lg border border-red-200 dark:border-red-800/60 bg-red-50 dark:bg-red-950/30 px-3.5 py-3 text-sm text-red-700 dark:text-red-400">
+            <Ban className="w-4 h-4 mt-0.5 shrink-0" />
+            <div className="min-w-0">
+              <p className="font-semibold leading-snug">
+                {closureInfo.label ? `Fermé — ${closureInfo.label}` : "Jour de fermeture exceptionnelle"}
+              </p>
+              <p className="text-xs text-red-600/80 dark:text-red-400/70 mt-0.5">
+                Aucun rendez-vous ne peut être créé ce jour.
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="flex gap-1 bg-muted rounded-lg p-0.5 mb-4">
           {[
@@ -475,8 +491,9 @@ function EventFormDialog({
           </Button>
           <Button
             onClick={handleSave}
-            disabled={!form.title.trim() || !selectedDate || isPending}
+            disabled={!form.title.trim() || !selectedDate || isPending || (!editEvent && !!closureInfo)}
             className="flex-1 bg-amber-500 hover:bg-amber-600 text-white"
+            title={(!editEvent && closureInfo) ? "Impossible de créer un rendez-vous un jour de fermeture" : undefined}
           >
             {isPending ? "Enregistrement..." : editEvent ? "Mettre a jour" : "Creer le rendez-vous"}
           </Button>
@@ -1419,6 +1436,7 @@ export default function CalendarPage() {
         prefillSlot={prefillSlot}
         onSave={handleSaveEvent}
         isPending={createMutation.isPending || updateMutation.isPending}
+        closureInfo={selectedDate ? getClosureForDate(selectedDate) : null}
       />
 
       <AvailabilityDialog
