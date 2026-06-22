@@ -269,6 +269,44 @@ router.patch("/calendar/events/:id", async (req: Request, res: Response): Promis
 
   updateData.updatedBy = userId;
 
+  // Guard: if the update moves the event to a different day, verify that day
+  // is not a closure day (same check as POST /calendar/events).
+  // The day string is derived in the org's timezone — same logic as POST — to
+  // avoid false positives/negatives for non-UTC tenants near midnight UTC.
+  if (updateData.startDate !== undefined) {
+    const newStart = new Date(updateData.startDate as string);
+    if (!isNaN(newStart.getTime())) {
+      const { timezone: orgTz } = await getWorkingHoursConfig(orgId);
+      const newDateStr = new Intl.DateTimeFormat("en-CA", {
+        timeZone: orgTz,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(newStart); // en-CA renders YYYY-MM-DD natively
+
+      const closureHit = await db
+        .select({ label: organisationClosuresTable.label })
+        .from(organisationClosuresTable)
+        .where(
+          and(
+            eq(organisationClosuresTable.organisationId, orgId),
+            lte(organisationClosuresTable.dateStart, newDateStr),
+            gte(organisationClosuresTable.dateEnd, newDateStr),
+          ),
+        )
+        .limit(1);
+
+      if (closureHit.length > 0) {
+        const label = closureHit[0].label;
+        const reason = label ? ` (${label})` : "";
+        res.status(409).json({
+          error: `Impossible de déplacer le rendez-vous au ${newDateStr} : l'organisation est fermée ce jour${reason}.`,
+        });
+        return;
+      }
+    }
+  }
+
   try {
     const [updated] = await db
       .update(calendarEventsTable)
