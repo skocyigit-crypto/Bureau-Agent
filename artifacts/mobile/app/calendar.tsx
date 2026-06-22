@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Platform,
   Pressable,
@@ -35,6 +36,13 @@ interface CalendarEvent {
   status?: string;
   contactName?: string;
   contactPhone?: string;
+}
+
+interface OrgClosure {
+  id: number;
+  dateStart: string;
+  dateEnd: string;
+  label?: string;
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -125,11 +133,16 @@ export default function CalendarScreen() {
     workingHoursEnd?: string;
     appointmentTimezone?: string;
   } | null>(null);
+  const [closures, setClosures] = useState<OrgClosure[]>([]);
 
   useEffect(() => {
     fetchAuth(`${API_BASE}/api/org-profile`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setOrgProfile(d))
+      .catch(() => {});
+    fetchAuth(`${API_BASE}/api/org-closures`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (Array.isArray(d)) setClosures(d); })
       .catch(() => {});
   }, [fetchAuth]);
 
@@ -189,6 +202,13 @@ export default function CalendarScreen() {
     const d = new Date(dateStr + "T12:00:00");
     const tz = orgProfile?.appointmentTimezone || "UTC";
     return workingDaySet.has(getIsoWeekdayInTz(d, tz));
+  }
+
+  function isDateClosed(dateStr: string): OrgClosure | null {
+    for (const c of closures) {
+      if (dateStr >= c.dateStart && dateStr <= c.dateEnd) return c;
+    }
+    return null;
   }
 
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -393,6 +413,9 @@ export default function CalendarScreen() {
                       !isSelected && !isToday && cell.dateStr && !isWorkingDateStr(cell.dateStr)
                         ? { backgroundColor: "rgba(0,0,0,0.18)" }
                         : undefined,
+                      !isSelected && cell.dateStr && isDateClosed(cell.dateStr)
+                        ? { backgroundColor: "rgba(239,68,68,0.22)" }
+                        : undefined,
                     ]}
                   >
                     {cell.day ? (
@@ -404,16 +427,21 @@ export default function CalendarScreen() {
                           !isSelected && cell.dateStr && !isWorkingDateStr(cell.dateStr)
                             ? { color: "rgba(255,255,255,0.35)" }
                             : undefined,
+                          !isSelected && cell.dateStr && isDateClosed(cell.dateStr)
+                            ? { color: "#fca5a5" }
+                            : undefined,
                         ]}>
                           {cell.day}
                         </Text>
-                        {cell.eventColors.length > 0 && (
+                        {!isSelected && cell.dateStr && isDateClosed(cell.dateStr) ? (
+                          <Text style={styles.closedBadge}>Fermé</Text>
+                        ) : cell.eventColors.length > 0 ? (
                           <View style={styles.eventDots}>
                             {cell.eventColors.slice(0, 3).map((c, i) => (
                               <View key={i} style={[styles.eventDot, { backgroundColor: isSelected ? "rgba(255,255,255,0.8)" : c }]} />
                             ))}
                           </View>
-                        )}
+                        ) : null}
                       </>
                     ) : null}
                   </Pressable>
@@ -445,17 +473,21 @@ export default function CalendarScreen() {
                 </View>
               </View>
               {selectedDateStr && orgProfile && (() => {
-                const isOpen = isWorkingDateStr(selectedDateStr);
+                const closure = isDateClosed(selectedDateStr);
+                const isOpen = !closure && isWorkingDateStr(selectedDateStr);
                 const DAY_FROM = 6;
                 const DAY_TO = 22;
                 const slots = Array.from({ length: DAY_TO - DAY_FROM }, (_, i) => DAY_FROM + i);
+                const closureLabel = closure
+                  ? (closure.label ? `Fermé — ${closure.label}` : "Fermeture exceptionnelle")
+                  : "Jour fermé — hors jours d'ouverture";
                 return (
-                  <View style={[styles.hoursTimeline, { borderColor: colors.border }]}>
+                  <View style={[styles.hoursTimeline, { borderColor: closure ? "#ef4444" : colors.border }]}>
                     <View style={styles.hoursTimelineHeader}>
-                      <Text style={[styles.hoursTimelineLabel, { color: isOpen ? colors.primary : colors.mutedForeground }]}>
+                      <Text style={[styles.hoursTimelineLabel, { color: isOpen ? colors.primary : closure ? "#ef4444" : colors.mutedForeground }]}>
                         {isOpen
                           ? `Ouvert ${orgProfile.workingHoursStart ?? ""} – ${orgProfile.workingHoursEnd ?? ""}`
-                          : "Jour fermé — hors jours d'ouverture"}
+                          : closureLabel}
                       </Text>
                       {orgProfile.appointmentTimezone && (
                         <Text style={[styles.hoursTimelineTz, { color: colors.mutedForeground }]}>
@@ -471,7 +503,7 @@ export default function CalendarScreen() {
                             key={h}
                             style={[
                               styles.hoursTimelineSlot,
-                              { backgroundColor: active ? colors.primary : colors.border },
+                              { backgroundColor: closure ? "rgba(239,68,68,0.25)" : active ? colors.primary : colors.border },
                               h === DAY_FROM && { borderTopLeftRadius: 4, borderBottomLeftRadius: 4 },
                               h === DAY_TO - 1 && { borderTopRightRadius: 4, borderBottomRightRadius: 4 },
                             ]}
@@ -547,7 +579,22 @@ export default function CalendarScreen() {
         />
       )}
 
-      <FAB icon="plus" onPress={() => { setEditId(null); setFormValues({ type: "rendez_vous" }); setShowForm(true); }} />
+      <FAB
+        icon="plus"
+        onPress={() => {
+          if (selectedDateStr && isDateClosed(selectedDateStr)) {
+            const closure = isDateClosed(selectedDateStr)!;
+            const msg = closure.label
+              ? `Ce jour est marqué comme fermé (${closure.label}). Vous ne pouvez pas créer d'événement ici.`
+              : "Ce jour est une fermeture exceptionnelle. Vous ne pouvez pas créer d'événement ici.";
+            Alert.alert("Jour fermé", msg, [{ text: "OK" }]);
+            return;
+          }
+          setEditId(null);
+          setFormValues({ type: "rendez_vous" });
+          setShowForm(true);
+        }}
+      />
 
       <FormModal
         visible={showForm}
@@ -614,6 +661,7 @@ const styles = StyleSheet.create({
   dayNum: { fontSize: 14, fontFamily: "Inter_500Medium" },
   eventDots: { flexDirection: "row", gap: 2, marginTop: 2 },
   eventDot: { width: 4, height: 4, borderRadius: 2 },
+  closedBadge: { fontSize: 7, fontFamily: "Inter_700Bold", color: "#fca5a5", marginTop: 1, letterSpacing: 0.2 },
   loadingContainer: { flex: 1, alignItems: "center", justifyContent: "center" },
   listContent: { padding: 16 },
   listHeader: { flexDirection: "row", alignItems: "center", marginBottom: 12, gap: 10 },
