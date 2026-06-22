@@ -156,6 +156,8 @@ export default function SettingsScreen() {
 
         <PreferencesIaCard />
 
+        <ClosuresCard />
+
         <PrivacyCard />
 
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -919,6 +921,310 @@ function PreferencesIaCard() {
   );
 }
 
+// ── Fermetures exceptionnelles ─────────────────────────────────────────────────
+
+interface OrgClosure {
+  id: number;
+  organisationId: number;
+  dateStart: string;
+  dateEnd: string;
+  label: string | null;
+  createdAt: string;
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidDate(s: string): boolean {
+  if (!DATE_RE.test(s)) return false;
+  const d = new Date(s + "T00:00:00Z");
+  return !isNaN(d.getTime());
+}
+
+function formatClosureDate(start: string, end: string): string {
+  const fmt = (d: string) => {
+    const [y, m, day] = d.split("-");
+    return `${day}/${m}/${y}`;
+  };
+  return start === end ? fmt(start) : `${fmt(start)} → ${fmt(end)}`;
+}
+
+function ClosuresCard() {
+  const colors = useColors();
+  const { fetchAuth, user } = useAuth();
+
+  const isAdmin =
+    user?.role === "administrateur" || user?.role === "super_admin";
+
+  const [closures, setClosures] = useState<OrgClosure[]>([]);
+  const [loadingList, setLoadingList] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [dateStart, setDateStart] = useState("");
+  const [dateEnd, setDateEnd] = useState("");
+  const [label, setLabel] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [formError, setFormError] = useState("");
+
+  const loadClosures = useCallback(async () => {
+    try {
+      const res = await fetchAuth(`${API_BASE}/api/org-closures`);
+      if (res && res.ok) {
+        const data = await res.json();
+        setClosures(Array.isArray(data) ? data : []);
+      }
+    } catch {
+      // silent
+    } finally {
+      setLoadingList(false);
+    }
+  }, [fetchAuth]);
+
+  useEffect(() => {
+    loadClosures();
+  }, [loadClosures]);
+
+  const handleAdd = useCallback(async () => {
+    const start = dateStart.trim();
+    const end = dateEnd.trim() || start;
+
+    if (!isValidDate(start)) {
+      setFormError("Date de début invalide (format attendu JJ/MM/AAAA ou AAAA-MM-JJ).");
+      return;
+    }
+    if (!isValidDate(end)) {
+      setFormError("Date de fin invalide.");
+      return;
+    }
+    if (end < start) {
+      setFormError("La date de fin doit être postérieure ou égale à la date de début.");
+      return;
+    }
+
+    setSaving(true);
+    setFormError("");
+    try {
+      const res = await fetchAuth(`${API_BASE}/api/org-closures`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dateStart: start, dateEnd: end, label: label.trim() || undefined }),
+      });
+      if (!res || !res.ok) {
+        const body = await res?.json().catch(() => ({}));
+        setFormError((body as any)?.error ?? "Impossible d'ajouter la fermeture.");
+        return;
+      }
+      const row: OrgClosure = await res.json();
+      setClosures(prev => [...prev, row].sort((a, b) => a.dateStart.localeCompare(b.dateStart)));
+      setDateStart("");
+      setDateEnd("");
+      setLabel("");
+      setShowForm(false);
+    } catch {
+      setFormError("Erreur réseau.");
+    } finally {
+      setSaving(false);
+    }
+  }, [fetchAuth, dateStart, dateEnd, label]);
+
+  const handleDelete = useCallback((id: number) => {
+    Alert.alert(
+      "Supprimer la fermeture",
+      "Voulez-vous vraiment supprimer cette fermeture exceptionnelle ?",
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Supprimer",
+          style: "destructive",
+          onPress: async () => {
+            setDeletingId(id);
+            try {
+              const res = await fetchAuth(`${API_BASE}/api/org-closures/${id}`, { method: "DELETE" });
+              if (res && res.ok) {
+                setClosures(prev => prev.filter(c => c.id !== id));
+              } else {
+                Alert.alert("Erreur", "Impossible de supprimer cette fermeture.");
+              }
+            } catch {
+              Alert.alert("Erreur", "Erreur réseau.");
+            } finally {
+              setDeletingId(null);
+            }
+          },
+        },
+      ]
+    );
+  }, [fetchAuth]);
+
+  return (
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={styles.cardHeader}>
+        <Feather name="x-circle" size={18} color={colors.primary} />
+        <Text style={[styles.cardTitle, { color: colors.foreground, flex: 1 }]}>
+          Fermetures exceptionnelles
+        </Text>
+        {isAdmin && (
+          <Pressable
+            onPress={() => { setShowForm(v => !v); setFormError(""); }}
+            hitSlop={8}
+            style={({ pressed }) => ({
+              padding: 4,
+              borderRadius: 6,
+              opacity: pressed ? 0.6 : 1,
+            })}
+          >
+            <Feather name={showForm ? "minus" : "plus"} size={20} color={colors.primary} />
+          </Pressable>
+        )}
+      </View>
+
+      <View style={{ paddingHorizontal: 16, paddingBottom: 10 }}>
+        <Text style={[styles.toggleSublabel, { color: colors.mutedForeground }]}>
+          Jours où votre bureau sera fermé — ces dates bloquent la prise de rendez-vous pour toute l'organisation.
+        </Text>
+      </View>
+
+      {loadingList ? (
+        <ActivityIndicator color={colors.primary} style={{ padding: 16 }} />
+      ) : closures.length === 0 ? (
+        <Text style={[styles.noSub, { color: colors.mutedForeground }]}>
+          Aucune fermeture exceptionnelle enregistrée.
+        </Text>
+      ) : (
+        <View>
+          {closures.map((c, idx) => {
+            const isLast = idx === closures.length - 1;
+            const isDeleting = deletingId === c.id;
+            return (
+              <View
+                key={c.id}
+                style={[
+                  styles.closureRow,
+                  {
+                    borderBottomColor: colors.border,
+                    borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
+                    opacity: isDeleting ? 0.4 : 1,
+                  },
+                ]}
+              >
+                <View style={styles.closureInfo}>
+                  <View style={[styles.closureDateBadge, { backgroundColor: colors.primary + "18" }]}>
+                    <Feather name="calendar" size={12} color={colors.primary} />
+                    <Text style={[styles.closureDateText, { color: colors.primary }]}>
+                      {formatClosureDate(c.dateStart, c.dateEnd)}
+                    </Text>
+                  </View>
+                  {c.label ? (
+                    <Text style={[styles.closureLabel, { color: colors.foreground }]} numberOfLines={1}>
+                      {c.label}
+                    </Text>
+                  ) : null}
+                </View>
+                {isAdmin && (
+                  isDeleting ? (
+                    <ActivityIndicator size="small" color="#ef4444" />
+                  ) : (
+                    <Pressable
+                      onPress={() => handleDelete(c.id)}
+                      hitSlop={10}
+                      style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: 4 })}
+                    >
+                      <Feather name="trash-2" size={16} color="#ef4444" />
+                    </Pressable>
+                  )
+                )}
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      {isAdmin && showForm && (
+        <View style={[styles.closureForm, { backgroundColor: colors.muted, borderTopColor: colors.border }]}>
+          <Text style={[styles.closureFormTitle, { color: colors.foreground }]}>
+            Nouvelle fermeture
+          </Text>
+
+          <View style={styles.closureFormRow}>
+            <View style={styles.closureFormField}>
+              <Text style={[styles.closureFormLabel, { color: colors.mutedForeground }]}>
+                Date de début *
+              </Text>
+              <TextInput
+                style={[styles.closureFormInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
+                value={dateStart}
+                onChangeText={t => { setDateStart(t); setFormError(""); }}
+                placeholder="AAAA-MM-JJ"
+                placeholderTextColor={colors.mutedForeground}
+                keyboardType="numbers-and-punctuation"
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={10}
+              />
+            </View>
+            <View style={styles.closureFormField}>
+              <Text style={[styles.closureFormLabel, { color: colors.mutedForeground }]}>
+                Date de fin
+              </Text>
+              <TextInput
+                style={[styles.closureFormInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
+                value={dateEnd}
+                onChangeText={t => { setDateEnd(t); setFormError(""); }}
+                placeholder="AAAA-MM-JJ"
+                placeholderTextColor={colors.mutedForeground}
+                keyboardType="numbers-and-punctuation"
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={10}
+              />
+            </View>
+          </View>
+
+          <View style={styles.closureFormFieldFull}>
+            <Text style={[styles.closureFormLabel, { color: colors.mutedForeground }]}>
+              Libellé (optionnel)
+            </Text>
+            <TextInput
+              style={[styles.closureFormInput, { borderColor: colors.border, color: colors.foreground, backgroundColor: colors.card }]}
+              value={label}
+              onChangeText={t => setLabel(t)}
+              placeholder="ex. Pont du 8 mai, Congés d'été…"
+              placeholderTextColor={colors.mutedForeground}
+              maxLength={200}
+            />
+          </View>
+
+          {formError ? (
+            <Text style={styles.closureFormError}>{formError}</Text>
+          ) : null}
+
+          <View style={styles.closureFormBtns}>
+            <Pressable
+              onPress={() => { setShowForm(false); setDateStart(""); setDateEnd(""); setLabel(""); setFormError(""); }}
+              style={[styles.closureFormBtn, { borderColor: colors.border }]}
+            >
+              <Text style={[styles.closureFormBtnText, { color: colors.mutedForeground }]}>Annuler</Text>
+            </Pressable>
+            <Pressable
+              onPress={handleAdd}
+              disabled={saving}
+              style={({ pressed }) => [
+                styles.closureFormBtn,
+                { backgroundColor: colors.primary, borderColor: colors.primary, opacity: pressed || saving ? 0.6 : 1 },
+              ]}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={[styles.closureFormBtnText, { color: "#fff" }]}>Ajouter</Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
 // ── Stiller ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
@@ -972,4 +1278,22 @@ const styles = StyleSheet.create({
   // Kilit butonu
   lockNowBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth },
   lockNowText: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#ef4444" },
+
+  // Closures
+  closureRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 10 },
+  closureInfo: { flex: 1, gap: 2 },
+  closureDateBadge: { flexDirection: "row", alignItems: "center", gap: 5, alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+  closureDateText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  closureLabel: { fontSize: 13, fontFamily: "Inter_400Regular", paddingLeft: 2 },
+  closureForm: { borderTopWidth: StyleSheet.hairlineWidth, padding: 16, gap: 12 },
+  closureFormTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  closureFormRow: { flexDirection: "row", gap: 10 },
+  closureFormField: { flex: 1, gap: 4 },
+  closureFormFieldFull: { gap: 4 },
+  closureFormLabel: { fontSize: 11, fontFamily: "Inter_500Medium" },
+  closureFormInput: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 9, fontSize: 13, fontFamily: "Inter_400Regular" },
+  closureFormError: { fontSize: 12, fontFamily: "Inter_400Regular", color: "#ef4444" },
+  closureFormBtns: { flexDirection: "row", gap: 8 },
+  closureFormBtn: { flex: 1, alignItems: "center", justifyContent: "center", paddingVertical: 10, borderRadius: 8, borderWidth: 1 },
+  closureFormBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
 });
