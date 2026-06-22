@@ -7,14 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Icon3D } from "@/components/icon-3d";
 import {
   Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, MapPin, Download,
   Users, CheckSquare, Trash2, Phone, Mail, Building, User, FileText,
   AlertCircle, Star, Search, X, ChevronDown, Edit2, Eye, Printer, Copy, FolderKanban, ExternalLink,
-  Lock, Ban,
+  Lock, Ban, DoorClosed, DoorOpen,
 } from "lucide-react";
+import { useWorkspaceUser } from "@/components/workspace-user";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -192,7 +193,7 @@ function EventFormDialog({
   prefillSlot?: { start: Date; end: Date } | null;
   onSave: (data: any) => void;
   isPending: boolean;
-  closureInfo?: { label: string | null } | null;
+  closureInfo?: { label: string | null; id?: number } | null;
 }) {
   const [form, setForm] = useState(defaultEvent);
   const [activeTab, setActiveTab] = useState<"general" | "contact" | "options">("general");
@@ -726,9 +727,117 @@ function AvailabilityDialog({
   );
 }
 
+function ClosureDayDialog({
+  open,
+  onOpenChange,
+  date,
+  existingClosure,
+  onAdd,
+  onRemove,
+  isPending,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  date: Date | null;
+  existingClosure: { id: number; label: string | null } | null;
+  onAdd: (label: string) => void;
+  onRemove: (id: number) => void;
+  isPending: boolean;
+}) {
+  const [label, setLabel] = useState("");
+
+  useEffect(() => {
+    if (open) setLabel(existingClosure?.label ?? "");
+  }, [open, existingClosure]);
+
+  const dateLabel = date
+    ? date.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+    : "";
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {existingClosure ? (
+              <><DoorOpen className="w-5 h-5 text-red-500" /> Gérer la fermeture</>
+            ) : (
+              <><DoorClosed className="w-5 h-5 text-red-500" /> Fermer ce jour</>
+            )}
+          </DialogTitle>
+          {dateLabel && (
+            <DialogDescription className="flex items-center gap-1.5 mt-1">
+              <CalendarIcon className="w-3.5 h-3.5" /> {dateLabel}
+            </DialogDescription>
+          )}
+        </DialogHeader>
+
+        {existingClosure ? (
+          <div className="space-y-4">
+            <div className="flex items-start gap-2.5 rounded-lg border border-red-200 dark:border-red-800/60 bg-red-50 dark:bg-red-950/30 px-3.5 py-3 text-sm text-red-700 dark:text-red-400">
+              <Lock className="w-4 h-4 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-semibold leading-snug">
+                  {existingClosure.label ? `Fermé — ${existingClosure.label}` : "Fermeture exceptionnelle"}
+                </p>
+                <p className="text-xs text-red-600/80 dark:text-red-400/70 mt-0.5">
+                  Supprimer cette fermeture pour rouvrir le jour.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
+                Annuler
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                disabled={isPending}
+                onClick={() => onRemove(existingClosure.id)}
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                {isPending ? "Suppression..." : "Supprimer la fermeture"}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs font-medium">Motif de fermeture <span className="text-muted-foreground font-normal">(optionnel)</span></Label>
+              <Input
+                value={label}
+                onChange={e => setLabel(e.target.value)}
+                placeholder="Ex : Pont du 14 juillet, Fermeture annuelle..."
+                className="mt-1"
+                autoFocus
+                onKeyDown={e => { if (e.key === "Enter") onAdd(label); }}
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
+                Annuler
+              </Button>
+              <Button
+                disabled={isPending}
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white"
+                onClick={() => onAdd(label)}
+              >
+                <DoorClosed className="w-3.5 h-3.5 mr-1.5" />
+                {isPending ? "Enregistrement..." : "Fermer ce jour"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function CalendarPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useWorkspaceUser();
+  const isAdmin = user?.role === "super_admin" || user?.role === "administrateur";
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [view, setView] = useState<"mois" | "semaine" | "jour">("semaine");
@@ -740,6 +849,8 @@ export default function CalendarPage() {
   const [showAvailability, setShowAvailability] = useState(false);
   const [prefillSlot, setPrefillSlot] = useState<{ start: Date; end: Date } | null>(null);
   const deepLinkHandledRef = useRef(false);
+  const [showClosureForm, setShowClosureForm] = useState(false);
+  const [closureFormDate, setClosureFormDate] = useState<Date | null>(null);
 
   const { data: orgProfile } = useQuery({
     queryKey: ["org-profile"],
@@ -765,11 +876,11 @@ export default function CalendarPage() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
 
-  function getClosureForDate(d: Date): { label: string | null } | null {
+  function getClosureForDate(d: Date): { label: string | null; id: number } | null {
     if (!closures || (closures as any[]).length === 0) return null;
     const ds = toDateStr(d);
     const match = (closures as any[]).find((c) => ds >= c.dateStart && ds <= c.dateEnd);
-    return match ? { label: match.label ?? null } : null;
+    return match ? { label: match.label ?? null, id: match.id } : null;
   }
 
   const workingDaySet = useMemo(() => {
@@ -915,6 +1026,44 @@ export default function CalendarPage() {
       toast({ title: "Événement dupliqué (semaine suivante)" });
     },
     onError: () => toast({ title: "Erreur", description: "Impossible de dupliquer l'evenement", variant: "destructive" }),
+  });
+
+  const createClosureMutation = useMutation({
+    mutationFn: async ({ dateStr, label }: { dateStr: string; label: string }) => {
+      const res = await fetch(`${baseUrl}/api/org-closures`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ dateStart: dateStr, dateEnd: dateStr, label: label.trim() || null }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Erreur création fermeture");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["org-closures"] });
+      setShowClosureForm(false);
+      toast({ title: "Jour fermé", description: "La fermeture a été enregistrée." });
+    },
+    onError: (err: any) => toast({ title: "Erreur", description: err.message || "Impossible de fermer ce jour.", variant: "destructive" }),
+  });
+
+  const deleteClosureMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`${baseUrl}/api/org-closures/${id}`, { method: "DELETE", credentials: "include" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Erreur suppression fermeture");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["org-closures"] });
+      setShowClosureForm(false);
+      toast({ title: "Fermeture supprimée", description: "Le jour est de nouveau ouvert." });
+    },
+    onError: (err: any) => toast({ title: "Erreur", description: err.message || "Impossible de supprimer la fermeture.", variant: "destructive" }),
   });
 
   const allEvents = useMemo(() => {
@@ -1138,7 +1287,7 @@ export default function CalendarPage() {
                         setView("jour");
                         setCurrentDate(date);
                       }}
-                      className={`min-h-[80px] p-1.5 text-left transition-colors hover:bg-amber-50/50 dark:hover:bg-amber-950/10
+                      className={`group min-h-[80px] p-1.5 text-left transition-colors hover:bg-amber-50/50 dark:hover:bg-amber-950/10
                         ${!isCurrentMonth ? "opacity-40 bg-card" : closureInfo ? "bg-red-50 dark:bg-red-950/30" : offDay ? "bg-slate-50 dark:bg-slate-800/40" : "bg-card"}
                         ${isSelected ? "ring-2 ring-amber-500 ring-inset" : ""}
                       `}
@@ -1149,8 +1298,27 @@ export default function CalendarPage() {
                         `}>
                           {date.getDate()}
                         </span>
-                        {closureInfo && isCurrentMonth && (
+                        {isCurrentMonth && isAdmin && (
+                          <button
+                            title={closureInfo ? "Supprimer la fermeture" : "Fermer ce jour"}
+                            onClick={(ev) => {
+                              ev.stopPropagation();
+                              setClosureFormDate(date);
+                              setShowClosureForm(true);
+                            }}
+                            className={`opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center w-5 h-5 rounded hover:bg-red-100 dark:hover:bg-red-900/40 ${closureInfo ? "text-red-500" : "text-slate-400 hover:text-red-500"}`}
+                          >
+                            {closureInfo ? <DoorOpen className="w-3 h-3" /> : <DoorClosed className="w-3 h-3" />}
+                          </button>
+                        )}
+                        {closureInfo && isCurrentMonth && !isAdmin && (
                           <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/40 border border-red-200 dark:border-red-800/50 rounded px-1 py-0.5 leading-none">
+                            <Lock className="w-2 h-2 shrink-0" />
+                            Fermé
+                          </span>
+                        )}
+                        {closureInfo && isCurrentMonth && isAdmin && (
+                          <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/40 border border-red-200 dark:border-red-800/50 rounded px-1 py-0.5 leading-none group-hover:hidden">
                             <Lock className="w-2 h-2 shrink-0" />
                             Fermé
                           </span>
@@ -1263,6 +1431,14 @@ export default function CalendarPage() {
                       <span className="font-semibold">Fermeture exceptionnelle</span>
                       {dayClosure.label && <span>— {dayClosure.label}</span>}
                       <span className="text-red-500/70 dark:text-red-500/50">· Aucun rendez-vous ne peut être créé ce jour.</span>
+                      {isAdmin && (
+                        <button
+                          onClick={() => { setClosureFormDate(currentDate); setShowClosureForm(true); }}
+                          className="ml-auto flex items-center gap-1 text-[11px] font-medium text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 border border-red-300 dark:border-red-700 rounded px-2 py-0.5 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+                        >
+                          <DoorOpen className="w-3 h-3" /> Supprimer la fermeture
+                        </button>
+                      )}
                     </div>
                   );
                 }
@@ -1272,12 +1448,30 @@ export default function CalendarPage() {
                 <div className="flex items-center gap-2 px-4 py-2 mb-1 bg-slate-100 dark:bg-slate-800/60 border-b text-xs text-muted-foreground">
                   <span className="inline-block w-2 h-2 rounded-full bg-slate-400 shrink-0" />
                   Jour fermé — hors des jours d'ouverture configurés
+                  {isAdmin && (
+                    <button
+                      onClick={() => { setClosureFormDate(currentDate); setShowClosureForm(true); }}
+                      className="ml-auto flex items-center gap-1 text-[11px] font-medium text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 border border-slate-300 dark:border-slate-600 rounded px-2 py-0.5 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                    >
+                      <DoorClosed className="w-3 h-3" /> Fermer officiellement
+                    </button>
+                  )}
                 </div>
               )}
-              {isWorkingDay(currentDate) && !getClosureForDate(currentDate) && orgProfile?.workingHoursStart && (
+              {isWorkingDay(currentDate) && !getClosureForDate(currentDate) && (
                 <div className="flex items-center gap-2 px-4 py-2 mb-1 bg-amber-50/60 dark:bg-amber-950/20 border-b text-xs text-muted-foreground">
                   <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                  Horaires d'ouverture : {orgProfile.workingHoursStart} – {orgProfile.workingHoursEnd}
+                  {orgProfile?.workingHoursStart
+                    ? `Horaires d'ouverture : ${orgProfile.workingHoursStart} – ${orgProfile.workingHoursEnd}`
+                    : "Jour ouvrable"}
+                  {isAdmin && (
+                    <button
+                      onClick={() => { setClosureFormDate(currentDate); setShowClosureForm(true); }}
+                      className="ml-auto flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-red-600 dark:hover:text-red-400 border border-border rounded px-2 py-0.5 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                    >
+                      <DoorClosed className="w-3 h-3" /> Fermer ce jour
+                    </button>
+                  )}
                 </div>
               )}
               <div className="min-w-0">
@@ -1461,6 +1655,19 @@ export default function CalendarPage() {
         onEdit={handleEditFromDetail}
         onDelete={() => viewingEvent && deleteMutation.mutate(viewingEvent.id)}
         onDuplicate={() => viewingEvent && duplicateMutation.mutate(viewingEvent.id)}
+      />
+
+      <ClosureDayDialog
+        open={showClosureForm}
+        onOpenChange={(o) => { setShowClosureForm(o); if (!o) setClosureFormDate(null); }}
+        date={closureFormDate}
+        existingClosure={closureFormDate ? (getClosureForDate(closureFormDate) ?? null) : null}
+        onAdd={(label) => {
+          if (!closureFormDate) return;
+          createClosureMutation.mutate({ dateStr: toDateStr(closureFormDate), label });
+        }}
+        onRemove={(id) => deleteClosureMutation.mutate(id)}
+        isPending={createClosureMutation.isPending || deleteClosureMutation.isPending}
       />
     </div>
   );
