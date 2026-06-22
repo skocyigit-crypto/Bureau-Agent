@@ -12,7 +12,8 @@ import { Icon3D } from "@/components/icon-3d";
 import {
   Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, MapPin, Download,
   Users, CheckSquare, Trash2, Phone, Mail, Building, User, FileText,
-  AlertCircle, Star, Search, X, ChevronDown, Edit2, Eye, Printer, Copy, FolderKanban, ExternalLink
+  AlertCircle, Star, Search, X, ChevronDown, Edit2, Eye, Printer, Copy, FolderKanban, ExternalLink,
+  Lock,
 } from "lucide-react";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -733,6 +734,27 @@ export default function CalendarPage() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: closures = [] } = useQuery({
+    queryKey: ["org-closures"],
+    queryFn: async () => {
+      const res = await fetch(`${baseUrl}/api/org-closures`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  function toDateStr(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  function getClosureForDate(d: Date): { label: string | null } | null {
+    if (!closures || (closures as any[]).length === 0) return null;
+    const ds = toDateStr(d);
+    const match = (closures as any[]).find((c) => ds >= c.dateStart && ds <= c.dateEnd);
+    return match ? { label: match.label ?? null } : null;
+  }
+
   const workingDaySet = useMemo(() => {
     if (!orgProfile?.workingDays) return null;
     return new Set(String(orgProfile.workingDays).split(",").map(Number));
@@ -891,6 +913,15 @@ export default function CalendarPage() {
   }
 
   function handleTimeSlotClick(date: Date, hour: number) {
+    const closure = getClosureForDate(date);
+    if (closure) {
+      toast({
+        title: "Jour fermé",
+        description: closure.label ? `${closure.label} — aucun rendez-vous possible ce jour.` : "Fermeture exceptionnelle — aucun rendez-vous possible ce jour.",
+        variant: "destructive",
+      });
+      return;
+    }
     setSelectedDate(date);
     setSelectedHour(hour);
     setEditingEvent(null);
@@ -1077,26 +1108,44 @@ export default function CalendarPage() {
                   const isToday = isSameDay(date, today);
                   const isSelected = selectedDate && isSameDay(date, selectedDate);
                   const offDay = isCurrentMonth && !isWorkingDay(date);
+                  const closureInfo = isCurrentMonth ? getClosureForDate(date) : null;
+                  const closureTitle = closureInfo
+                    ? (closureInfo.label ? closureInfo.label : "Fermeture exceptionnelle")
+                    : undefined;
                   return (
                     <button
                       key={i}
+                      title={closureTitle}
                       onClick={() => {
                         setSelectedDate(date);
                         setView("jour");
                         setCurrentDate(date);
                       }}
                       className={`min-h-[80px] p-1.5 text-left transition-colors hover:bg-amber-50/50 dark:hover:bg-amber-950/10
-                        ${!isCurrentMonth ? "opacity-40 bg-card" : offDay ? "bg-slate-50 dark:bg-slate-800/40" : "bg-card"}
+                        ${!isCurrentMonth ? "opacity-40 bg-card" : closureInfo ? "bg-red-50 dark:bg-red-950/30" : offDay ? "bg-slate-50 dark:bg-slate-800/40" : "bg-card"}
                         ${isSelected ? "ring-2 ring-amber-500 ring-inset" : ""}
                       `}
                     >
-                      <span className={`text-xs font-medium inline-flex w-6 h-6 items-center justify-center rounded-full
-                        ${isToday ? "bg-amber-500 text-white" : ""}
-                      `}>
-                        {date.getDate()}
-                      </span>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-xs font-medium inline-flex w-6 h-6 items-center justify-center rounded-full
+                          ${isToday ? "bg-amber-500 text-white" : closureInfo ? "text-red-600 dark:text-red-400 line-through" : ""}
+                        `}>
+                          {date.getDate()}
+                        </span>
+                        {closureInfo && isCurrentMonth && (
+                          <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/40 border border-red-200 dark:border-red-800/50 rounded px-1 py-0.5 leading-none">
+                            <Lock className="w-2 h-2 shrink-0" />
+                            Fermé
+                          </span>
+                        )}
+                      </div>
                       <div className="mt-0.5 space-y-0.5">
-                        {events.slice(0, 3).map((e: any, j: number) => (
+                        {closureInfo && isCurrentMonth && closureInfo.label && (
+                          <div className="text-[9px] text-red-500 dark:text-red-400 truncate font-medium italic px-0.5">
+                            {closureInfo.label}
+                          </div>
+                        )}
+                        {events.slice(0, closureInfo ? 2 : 3).map((e: any, j: number) => (
                           <div
                             key={j}
                             className="text-[10px] truncate rounded px-1 py-0.5 text-white font-medium cursor-pointer hover:opacity-80"
@@ -1106,7 +1155,7 @@ export default function CalendarPage() {
                             {e.title}
                           </div>
                         ))}
-                        {events.length > 3 && <div className="text-[10px] text-muted-foreground pl-1">+{events.length - 3}</div>}
+                        {events.length > (closureInfo ? 2 : 3) && <div className="text-[10px] text-muted-foreground pl-1">+{events.length - (closureInfo ? 2 : 3)}</div>}
                       </div>
                     </button>
                   );
@@ -1119,20 +1168,30 @@ export default function CalendarPage() {
             <div className="overflow-auto max-h-[650px]">
               <div className="grid min-w-[700px]" style={{ gridTemplateColumns: "60px repeat(7, 1fr)" }}>
                 <div />
-                {weekDays.map((d, i) => (
-                  <div
-                    key={i}
-                    className={`text-center py-2 border-b cursor-pointer hover:bg-amber-50/30 dark:hover:bg-amber-950/10 transition-colors
-                      ${isSameDay(d, today) ? "bg-amber-50 dark:bg-amber-950/20" : ""}
-                    `}
-                    onClick={() => { setView("jour"); setCurrentDate(d); }}
-                  >
-                    <p className={`text-[10px] uppercase tracking-wider ${isSameDay(d, today) ? "text-amber-700 font-semibold" : "text-muted-foreground"}`}>
-                      {DAYS_FR[i]}
-                    </p>
-                    <p className={`text-lg font-bold ${isSameDay(d, today) ? "text-amber-600" : ""}`}>{d.getDate()}</p>
-                  </div>
-                ))}
+                {weekDays.map((d, i) => {
+                  const weekDayClosure = getClosureForDate(d);
+                  return (
+                    <div
+                      key={i}
+                      title={weekDayClosure ? (weekDayClosure.label ?? "Fermeture exceptionnelle") : undefined}
+                      className={`text-center py-2 border-b cursor-pointer hover:bg-amber-50/30 dark:hover:bg-amber-950/10 transition-colors
+                        ${isSameDay(d, today) ? "bg-amber-50 dark:bg-amber-950/20" : weekDayClosure ? "bg-red-50 dark:bg-red-950/30" : ""}
+                      `}
+                      onClick={() => { setView("jour"); setCurrentDate(d); }}
+                    >
+                      <p className={`text-[10px] uppercase tracking-wider ${isSameDay(d, today) ? "text-amber-700 font-semibold" : weekDayClosure ? "text-red-500 dark:text-red-400" : "text-muted-foreground"}`}>
+                        {DAYS_FR[i]}
+                      </p>
+                      <p className={`text-lg font-bold ${isSameDay(d, today) ? "text-amber-600" : weekDayClosure ? "text-red-600 dark:text-red-400 line-through" : ""}`}>{d.getDate()}</p>
+                      {weekDayClosure && (
+                        <p className="text-[9px] text-red-500 dark:text-red-400 font-semibold flex items-center justify-center gap-0.5 mt-0.5">
+                          <Lock className="w-2 h-2" />
+                          {weekDayClosure.label ?? "Fermé"}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
                 {HOURS.map(h => (
                   <div key={h} className="contents">
                     <div className="text-[10px] text-muted-foreground pr-2 text-right pt-1 border-r h-12 flex items-start justify-end">
@@ -1142,17 +1201,20 @@ export default function CalendarPage() {
                       const events = getEventsForDate(d).filter((e: any) => new Date(e.startDate).getHours() === h);
                       const isNow = isSameDay(d, today) && today.getHours() === h;
                       const offSlot = !isWithinWorkingSlot(d, h);
+                      const slotClosure = getClosureForDate(d);
                       return (
                         <button
                           key={di}
                           onClick={() => handleTimeSlotClick(d, h)}
-                          className={`border-b border-r h-12 p-0.5 hover:bg-amber-50/40 dark:hover:bg-amber-950/10 transition-colors relative group
-                            ${isNow ? "bg-amber-50/60 dark:bg-amber-950/30" : offSlot ? "bg-slate-50/80 dark:bg-slate-800/30" : ""}
+                          className={`border-b border-r h-12 p-0.5 transition-colors relative group
+                            ${slotClosure ? "bg-red-50/60 dark:bg-red-950/20 cursor-not-allowed" : isNow ? "bg-amber-50/60 dark:bg-amber-950/30 hover:bg-amber-50/40 dark:hover:bg-amber-950/10" : offSlot ? "bg-slate-50/80 dark:bg-slate-800/30 hover:bg-amber-50/40 dark:hover:bg-amber-950/10" : "hover:bg-amber-50/40 dark:hover:bg-amber-950/10"}
                           `}
                         >
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Plus className="w-4 h-4 text-amber-400" />
-                          </div>
+                          {!slotClosure && (
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Plus className="w-4 h-4 text-amber-400" />
+                            </div>
+                          )}
                           {events.map((e: any, ei: number) => (
                             <div
                               key={ei}
@@ -1175,13 +1237,27 @@ export default function CalendarPage() {
 
           {view === "jour" && (
             <div className="overflow-auto max-h-[650px]">
-              {!isWorkingDay(currentDate) && (
+              {(() => {
+                const dayClosure = getClosureForDate(currentDate);
+                if (dayClosure) {
+                  return (
+                    <div className="flex items-center gap-2 px-4 py-2 mb-1 bg-red-50 dark:bg-red-950/30 border-b border-red-200 dark:border-red-800/50 text-xs text-red-700 dark:text-red-400">
+                      <Lock className="w-3.5 h-3.5 shrink-0" />
+                      <span className="font-semibold">Fermeture exceptionnelle</span>
+                      {dayClosure.label && <span>— {dayClosure.label}</span>}
+                      <span className="text-red-500/70 dark:text-red-500/50">· Aucun rendez-vous ne peut être créé ce jour.</span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+              {!isWorkingDay(currentDate) && !getClosureForDate(currentDate) && (
                 <div className="flex items-center gap-2 px-4 py-2 mb-1 bg-slate-100 dark:bg-slate-800/60 border-b text-xs text-muted-foreground">
                   <span className="inline-block w-2 h-2 rounded-full bg-slate-400 shrink-0" />
                   Jour fermé — hors des jours d'ouverture configurés
                 </div>
               )}
-              {isWorkingDay(currentDate) && orgProfile?.workingHoursStart && (
+              {isWorkingDay(currentDate) && !getClosureForDate(currentDate) && orgProfile?.workingHoursStart && (
                 <div className="flex items-center gap-2 px-4 py-2 mb-1 bg-amber-50/60 dark:bg-amber-950/20 border-b text-xs text-muted-foreground">
                   <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                   Horaires d'ouverture : {orgProfile.workingHoursStart} – {orgProfile.workingHoursEnd}
@@ -1192,21 +1268,24 @@ export default function CalendarPage() {
                   const events = getEventsForDate(currentDate).filter((e: any) => new Date(e.startDate).getHours() === h);
                   const isNow = isSameDay(currentDate, today) && today.getHours() === h;
                   const offSlot = !isWithinWorkingSlot(currentDate, h);
+                  const dayViewClosure = getClosureForDate(currentDate);
                   return (
                     <div key={h} className="flex border-b">
-                      <div className={`w-16 shrink-0 text-xs text-right pr-3 pt-2 border-r ${offSlot ? "text-slate-400 dark:text-slate-600" : "text-muted-foreground"}`}>
+                      <div className={`w-16 shrink-0 text-xs text-right pr-3 pt-2 border-r ${dayViewClosure ? "text-red-300 dark:text-red-800" : offSlot ? "text-slate-400 dark:text-slate-600" : "text-muted-foreground"}`}>
                         {pad(h)}:00
                       </div>
                       <button
                         onClick={() => handleTimeSlotClick(currentDate, h)}
-                        className={`flex-1 min-h-[56px] p-1.5 hover:bg-amber-50/40 dark:hover:bg-amber-950/10 transition-colors relative group text-left
-                          ${isNow ? "bg-amber-50/60 dark:bg-amber-950/30" : offSlot ? "bg-slate-50/80 dark:bg-slate-800/30" : ""}
+                        className={`flex-1 min-h-[56px] p-1.5 transition-colors relative group text-left
+                          ${dayViewClosure ? "bg-red-50/50 dark:bg-red-950/20 cursor-not-allowed" : isNow ? "bg-amber-50/60 dark:bg-amber-950/30 hover:bg-amber-50/40 dark:hover:bg-amber-950/10" : offSlot ? "bg-slate-50/80 dark:bg-slate-800/30 hover:bg-amber-50/40 dark:hover:bg-amber-950/10" : "hover:bg-amber-50/40 dark:hover:bg-amber-950/10"}
                         `}
                       >
+                        {!dayViewClosure && (
                         <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 text-amber-500">
                           <Plus className="w-4 h-4" />
                           <span className="text-[10px] font-medium">Ajouter RDV</span>
                         </div>
+                        )}
                         {events.map((e: any, ei: number) => {
                           const startMin = new Date(e.startDate).getMinutes();
                           const endTime = e.endDate ? new Date(e.endDate) : null;
@@ -1318,8 +1397,14 @@ export default function CalendarPage() {
                 <span className="text-xs text-muted-foreground">Taches avec echeance</span>
               </div>
             </div>
-            <div className="mt-3 pt-3 border-t">
-              <p className="text-[10px] text-muted-foreground mb-2">Astuce : Cliquez sur un creneau horaire pour creer un rendez-vous instantanement</p>
+            <div className="mt-3 pt-3 border-t space-y-1.5">
+              <div className="flex items-center gap-2 p-1.5 rounded">
+                <div className="w-3 h-3 rounded bg-red-100 dark:bg-red-900/40 border border-red-300 dark:border-red-700 shrink-0 flex items-center justify-center">
+                  <Lock className="w-2 h-2 text-red-500" />
+                </div>
+                <span className="text-xs text-muted-foreground">Fermeture exceptionnelle</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground">Astuce : Cliquez sur un creneau horaire pour creer un rendez-vous instantanement</p>
             </div>
           </CardContent>
         </Card>
