@@ -1,13 +1,13 @@
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { calendarEventsTable, insertCalendarEventSchema, tasksTable, projetsTable } from "@workspace/db/schema";
+import { calendarEventsTable, insertCalendarEventSchema, tasksTable, projetsTable, organisationClosuresTable } from "@workspace/db/schema";
 import { eq, and, gte, lte, or, type Column, type SQL } from "drizzle-orm";
 import { logAudit } from "./audit";
 import { getOrgId } from "../middleware/tenant";
 import { resolveUserNames, enrichWithUserNames } from "../helpers/user-tracking";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { notifyOrgUsers } from "../services/whatsapp-notify";
-import { computeFreeSlots } from "../services/availability";
+import { computeFreeSlots, getWorkingHoursConfig } from "../services/availability";
 
 const router = Router();
 
@@ -175,6 +175,40 @@ router.post("/calendar/events", async (req: Request, res: Response): Promise<voi
   const parsed = insertCalendarEventSchema.safeParse(body);
   if (!parsed.success) {
     res.status(400).json({ error: "Donnees invalides.", details: parsed.error.issues });
+    return;
+  }
+
+  // Verifier que la date de debut ne tombe pas sur un jour de fermeture.
+  // La date est interpretee dans le fuseau de l'organisation (meme logique que
+  // computeFreeSlots / isSlotFree) pour eviter les faux positifs/negatifs en
+  // bordure de jour UTC pour les tenants non-UTC.
+  const eventStart = parsed.data.startDate instanceof Date ? parsed.data.startDate : new Date(parsed.data.startDate);
+  const { timezone: orgTz } = await getWorkingHoursConfig(orgId);
+  const eventDateStr = new Intl.DateTimeFormat("en-CA", {
+    timeZone: orgTz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(eventStart); // en-CA renders YYYY-MM-DD natively
+
+  const closureHit = await db
+    .select({ id: organisationClosuresTable.id, label: organisationClosuresTable.label })
+    .from(organisationClosuresTable)
+    .where(
+      and(
+        eq(organisationClosuresTable.organisationId, orgId),
+        lte(organisationClosuresTable.dateStart, eventDateStr),
+        gte(organisationClosuresTable.dateEnd, eventDateStr),
+      ),
+    )
+    .limit(1);
+
+  if (closureHit.length > 0) {
+    const label = closureHit[0].label;
+    const reason = label ? ` (${label})` : "";
+    res.status(409).json({
+      error: `Impossible de créer un rendez-vous le ${eventDateStr} : l'organisation est fermée ce jour${reason}.`,
+    });
     return;
   }
 
