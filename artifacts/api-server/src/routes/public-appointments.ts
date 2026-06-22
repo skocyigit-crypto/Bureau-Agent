@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { getPublicOffer, getPublicAvailableSlots, confirmOfferSelection, cancelOffer, rescheduleOffer } from "../services/appointment-offers";
+import { getPublicOffer, getPublicAvailableSlots, getPublicClosures, confirmOfferSelection, cancelOffer, rescheduleOffer } from "../services/appointment-offers";
 
 /**
  * Routes PUBLIQUES de selection de rendez-vous (aucune authentification).
@@ -120,6 +120,25 @@ router.post("/appointments/offer/:token/reschedule", async (req: Request, res: R
   } catch (err) {
     req.log.error({ err }, "[public-appointments] reprogrammation offre echouee");
     res.status(500).json({ error: "Erreur lors de la reprogrammation du rendez-vous." });
+  }
+});
+
+router.get("/appointments/offer/:token/closures", async (req: Request, res: Response): Promise<void> => {
+  const token = String(req.params.token || "");
+  if (!token) {
+    res.status(400).json({ error: "Token manquant." });
+    return;
+  }
+  try {
+    const closures = await getPublicClosures(token);
+    if (closures === null) {
+      res.status(404).json({ error: "Offre introuvable." });
+      return;
+    }
+    res.json({ closures });
+  } catch (err) {
+    req.log.error({ err }, "[public-appointments] closures echouees");
+    res.status(500).json({ error: "Erreur lors du chargement des fermetures." });
   }
 });
 

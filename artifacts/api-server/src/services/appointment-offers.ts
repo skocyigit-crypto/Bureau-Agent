@@ -1,6 +1,6 @@
 import crypto from "crypto";
-import { db, appointmentOffersTable, calendarEventsTable, organisationsTable, contactsTable } from "@workspace/db";
-import { and, eq } from "drizzle-orm";
+import { db, appointmentOffersTable, calendarEventsTable, organisationsTable, contactsTable, organisationClosuresTable } from "@workspace/db";
+import { and, asc, eq } from "drizzle-orm";
 import { sendEmail } from "./email";
 import { sendSms as providerSendSms } from "./telephony-providers";
 import { computeFreeSlots, isSlotFree, isSlotWithinWorkingHours, type TimeSlot } from "./availability";
@@ -675,6 +675,34 @@ export async function getPublicAvailableSlots(
   return {
     slots: rawSlots.map((s) => ({ start: s.start, end: s.end, label: fmtSlot(s, tz) })),
   };
+}
+
+/**
+ * Retourne les plages de fermeture de l'organisation associee a un token public.
+ * Aucune authentification requise — le token non-devinable sert de capability.
+ * Retourne null si le token est inconnu.
+ */
+export async function getPublicClosures(
+  token: string,
+): Promise<Array<{ dateStart: string; dateEnd: string; label: string | null }> | null> {
+  const [offer] = await db
+    .select({ organisationId: appointmentOffersTable.organisationId })
+    .from(appointmentOffersTable)
+    .where(eq(appointmentOffersTable.token, token))
+    .limit(1);
+  if (!offer) return null;
+
+  const rows = await db
+    .select({
+      dateStart: organisationClosuresTable.dateStart,
+      dateEnd: organisationClosuresTable.dateEnd,
+      label: organisationClosuresTable.label,
+    })
+    .from(organisationClosuresTable)
+    .where(eq(organisationClosuresTable.organisationId, offer.organisationId))
+    .orderBy(asc(organisationClosuresTable.dateStart));
+
+  return rows;
 }
 
 /** Resout les coordonnees d'un contact (org-scoped) pour pre-remplir une offre. */

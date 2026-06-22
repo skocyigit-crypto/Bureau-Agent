@@ -24,6 +24,36 @@ interface PublicOffer {
   slots: PublicSlot[];
 }
 
+interface PublicClosure {
+  dateStart: string;
+  dateEnd: string;
+  label: string | null;
+}
+
+/** Converts a UTC ISO string to a YYYY-MM-DD string in the given IANA timezone. */
+function slotDateInTz(isoStart: string, tz: string): string {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date(isoStart));
+    const year = parts.find((p) => p.type === "year")?.value ?? "";
+    const month = parts.find((p) => p.type === "month")?.value ?? "";
+    const day = parts.find((p) => p.type === "day")?.value ?? "";
+    return `${year}-${month}-${day}`;
+  } catch {
+    return isoStart.slice(0, 10);
+  }
+}
+
+/** Returns the matching closure if the slot falls on a closed day, otherwise null. */
+function getClosureForSlot(slot: PublicSlot, closures: PublicClosure[], tz: string): PublicClosure | null {
+  const date = slotDateInTz(slot.start, tz);
+  return closures.find((c) => date >= c.dateStart && date <= c.dateEnd) ?? null;
+}
+
 export default function RendezVousPublicPage() {
   const [, params] = useRoute("/rdv/:token");
   const token = params?.token;
@@ -42,6 +72,9 @@ export default function RendezVousPublicPage() {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [slotsError, setSlotsError] = useState("");
 
+  // Closure dates for the org
+  const [closures, setClosures] = useState<PublicClosure[]>([]);
+
   const load = useCallback(async () => {
     if (!token) return;
     try {
@@ -59,9 +92,25 @@ export default function RendezVousPublicPage() {
     }
   }, [token]);
 
+  const fetchClosures = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${BASE}api/appointments/offer/${token}/closures`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.closures)) {
+          setClosures(data.closures as PublicClosure[]);
+        }
+      }
+    } catch {
+      // Non-blocking — closures are best-effort; absence just means no greying out
+    }
+  }, [token]);
+
   useEffect(() => {
     load();
-  }, [load]);
+    fetchClosures();
+  }, [load, fetchClosures]);
 
   const fetchLiveSlots = useCallback(async () => {
     if (!token) return;
@@ -184,6 +233,8 @@ export default function RendezVousPublicPage() {
     offer?.selectedSlotLabel ||
     (offer && offer.selectedSlotIndex !== null ? offer.slots[offer.selectedSlotIndex]?.label : null);
 
+  const tz = offer?.timezone ?? "Europe/Paris";
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f1729] via-[#1a2744] to-[#0f1729] p-4">
       <Card className="w-full max-w-md">
@@ -297,22 +348,38 @@ export default function RendezVousPublicPage() {
               )}
 
               {!loadingSlots && liveSlots && liveSlots.length > 0 &&
-                liveSlots.map((slot, i) => (
-                  <Button
-                    key={`${slot.start}-${i}`}
-                    variant="outline"
-                    className="h-auto w-full justify-start py-3 text-left"
-                    disabled={submitting !== null}
-                    onClick={() => rescheduleSlot(i, slot)}
-                  >
-                    {submitting === i ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin shrink-0" />
-                    ) : (
-                      <Clock className="mr-2 h-4 w-4 shrink-0 text-amber-500" />
-                    )}
-                    <span className="text-sm">{slot.label}</span>
-                  </Button>
-                ))
+                liveSlots.map((slot, i) => {
+                  const closure = getClosureForSlot(slot, closures, tz);
+                  return closure ? (
+                    <div
+                      key={`${slot.start}-${i}`}
+                      className="flex h-auto w-full items-center justify-start rounded-md border border-border bg-muted/40 px-4 py-3 opacity-60 cursor-not-allowed"
+                    >
+                      <CalendarX2 className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                      <div className="flex flex-col gap-0.5 text-left">
+                        <span className="text-sm text-muted-foreground line-through">{slot.label}</span>
+                        <span className="text-xs font-medium text-muted-foreground">
+                          Fermé{closure.label ? ` — ${closure.label}` : ""}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      key={`${slot.start}-${i}`}
+                      variant="outline"
+                      className="h-auto w-full justify-start py-3 text-left"
+                      disabled={submitting !== null}
+                      onClick={() => rescheduleSlot(i, slot)}
+                    >
+                      {submitting === i ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin shrink-0" />
+                      ) : (
+                        <Clock className="mr-2 h-4 w-4 shrink-0 text-amber-500" />
+                      )}
+                      <span className="text-sm">{slot.label}</span>
+                    </Button>
+                  );
+                })
               }
 
               <Button
@@ -346,22 +413,38 @@ export default function RendezVousPublicPage() {
               {error && (
                 <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
               )}
-              {offer.slots.map((slot, i) => (
-                <Button
-                  key={`${slot.start}-${i}`}
-                  variant="outline"
-                  className="h-auto w-full justify-start py-3 text-left"
-                  disabled={submitting !== null}
-                  onClick={() => selectSlot(i)}
-                >
-                  {submitting === i ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin shrink-0" />
-                  ) : (
-                    <Clock className="mr-2 h-4 w-4 shrink-0 text-amber-500" />
-                  )}
-                  <span className="text-sm">{slot.label}</span>
-                </Button>
-              ))}
+              {offer.slots.map((slot, i) => {
+                const closure = getClosureForSlot(slot, closures, tz);
+                return closure ? (
+                  <div
+                    key={`${slot.start}-${i}`}
+                    className="flex h-auto w-full items-center justify-start rounded-md border border-border bg-muted/40 px-4 py-3 opacity-60 cursor-not-allowed"
+                  >
+                    <CalendarX2 className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div className="flex flex-col gap-0.5 text-left">
+                      <span className="text-sm text-muted-foreground line-through">{slot.label}</span>
+                      <span className="text-xs font-medium text-muted-foreground">
+                        Fermé{closure.label ? ` — ${closure.label}` : ""}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    key={`${slot.start}-${i}`}
+                    variant="outline"
+                    className="h-auto w-full justify-start py-3 text-left"
+                    disabled={submitting !== null}
+                    onClick={() => selectSlot(i)}
+                  >
+                    {submitting === i ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin shrink-0" />
+                    ) : (
+                      <Clock className="mr-2 h-4 w-4 shrink-0 text-amber-500" />
+                    )}
+                    <span className="text-sm">{slot.label}</span>
+                  </Button>
+                );
+              })}
               <p className="pt-2 text-center text-xs text-muted-foreground">
                 Duree : {offer.durationMinutes} min · Fuseau : {offer.timezone}
               </p>
