@@ -723,6 +723,77 @@ export default function CalendarPage() {
   const [prefillSlot, setPrefillSlot] = useState<{ start: Date; end: Date } | null>(null);
   const deepLinkHandledRef = useRef(false);
 
+  const { data: orgProfile } = useQuery({
+    queryKey: ["org-profile"],
+    queryFn: async () => {
+      const res = await fetch(`${baseUrl}/api/org-profile`, { credentials: "include" });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const workingDaySet = useMemo(() => {
+    if (!orgProfile?.workingDays) return null;
+    return new Set(String(orgProfile.workingDays).split(",").map(Number));
+  }, [orgProfile]);
+
+  function orgHhmmToLocalHour(hhMM: string, orgTz: string): number {
+    const [hh, mm] = hhMM.split(":").map(Number);
+    const now = new Date();
+    const [yr, mo, dy] = now.toISOString().slice(0, 10).split("-").map(Number);
+    const midnightUtc = new Date(Date.UTC(yr, mo - 1, dy, 0, 0, 0));
+    try {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: orgTz, hour: "2-digit", minute: "2-digit", hour12: false,
+      }).formatToParts(midnightUtc);
+      const orgH = parseInt(parts.find(p => p.type === "hour")?.value ?? "0", 10);
+      const orgM = parseInt(parts.find(p => p.type === "minute")?.value ?? "0", 10);
+      const safeH = orgH === 24 ? 0 : orgH;
+      const offsetMins = safeH <= 12 ? safeH * 60 + orgM : (safeH - 24) * 60 + orgM;
+      const utcDate = new Date(midnightUtc.getTime() + (hh * 60 + mm - offsetMins) * 60 * 1000);
+      return utcDate.getHours();
+    } catch {
+      return hh;
+    }
+  }
+
+  function getIsoWeekdayInTz(d: Date, tz: string): number {
+    try {
+      const name = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "long" }).format(d);
+      const map: Record<string, number> = {
+        Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6, Sunday: 7,
+      };
+      return map[name] ?? ((d.getDay() + 6) % 7 + 1);
+    } catch {
+      const dow = d.getDay();
+      return dow === 0 ? 7 : dow;
+    }
+  }
+
+  const workingHourStart = useMemo(() => {
+    if (!orgProfile?.workingHoursStart) return 9;
+    const tz = orgProfile.appointmentTimezone || "UTC";
+    return orgHhmmToLocalHour(orgProfile.workingHoursStart, tz);
+  }, [orgProfile]);
+
+  const workingHourEnd = useMemo(() => {
+    if (!orgProfile?.workingHoursEnd) return 18;
+    const tz = orgProfile.appointmentTimezone || "UTC";
+    return orgHhmmToLocalHour(orgProfile.workingHoursEnd, tz);
+  }, [orgProfile]);
+
+  function isWorkingDay(d: Date): boolean {
+    if (!workingDaySet) return true;
+    const tz = orgProfile?.appointmentTimezone || "UTC";
+    return workingDaySet.has(getIsoWeekdayInTz(d, tz));
+  }
+
+  function isWithinWorkingSlot(d: Date, h: number): boolean {
+    if (!isWorkingDay(d)) return false;
+    return h >= workingHourStart && h < workingHourEnd;
+  }
+
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const monthDays = useMemo(() => getMonthDays(year, month), [year, month]);
@@ -1005,6 +1076,7 @@ export default function CalendarPage() {
                   const events = getEventsForDate(date);
                   const isToday = isSameDay(date, today);
                   const isSelected = selectedDate && isSameDay(date, selectedDate);
+                  const offDay = isCurrentMonth && !isWorkingDay(date);
                   return (
                     <button
                       key={i}
@@ -1013,8 +1085,8 @@ export default function CalendarPage() {
                         setView("jour");
                         setCurrentDate(date);
                       }}
-                      className={`min-h-[80px] p-1.5 text-left transition-colors bg-card hover:bg-amber-50/50 dark:hover:bg-amber-950/10
-                        ${!isCurrentMonth ? "opacity-40" : ""}
+                      className={`min-h-[80px] p-1.5 text-left transition-colors hover:bg-amber-50/50 dark:hover:bg-amber-950/10
+                        ${!isCurrentMonth ? "opacity-40 bg-card" : offDay ? "bg-slate-50 dark:bg-slate-800/40" : "bg-card"}
                         ${isSelected ? "ring-2 ring-amber-500 ring-inset" : ""}
                       `}
                     >
@@ -1069,12 +1141,13 @@ export default function CalendarPage() {
                     {weekDays.map((d, di) => {
                       const events = getEventsForDate(d).filter((e: any) => new Date(e.startDate).getHours() === h);
                       const isNow = isSameDay(d, today) && today.getHours() === h;
+                      const offSlot = !isWithinWorkingSlot(d, h);
                       return (
                         <button
                           key={di}
                           onClick={() => handleTimeSlotClick(d, h)}
                           className={`border-b border-r h-12 p-0.5 hover:bg-amber-50/40 dark:hover:bg-amber-950/10 transition-colors relative group
-                            ${isNow ? "bg-amber-50/60 dark:bg-amber-950/30" : ""}
+                            ${isNow ? "bg-amber-50/60 dark:bg-amber-950/30" : offSlot ? "bg-slate-50/80 dark:bg-slate-800/30" : ""}
                           `}
                         >
                           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1102,19 +1175,32 @@ export default function CalendarPage() {
 
           {view === "jour" && (
             <div className="overflow-auto max-h-[650px]">
+              {!isWorkingDay(currentDate) && (
+                <div className="flex items-center gap-2 px-4 py-2 mb-1 bg-slate-100 dark:bg-slate-800/60 border-b text-xs text-muted-foreground">
+                  <span className="inline-block w-2 h-2 rounded-full bg-slate-400 shrink-0" />
+                  Jour fermé — hors des jours d'ouverture configurés
+                </div>
+              )}
+              {isWorkingDay(currentDate) && orgProfile?.workingHoursStart && (
+                <div className="flex items-center gap-2 px-4 py-2 mb-1 bg-amber-50/60 dark:bg-amber-950/20 border-b text-xs text-muted-foreground">
+                  <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  Horaires d'ouverture : {orgProfile.workingHoursStart} – {orgProfile.workingHoursEnd}
+                </div>
+              )}
               <div className="min-w-0">
                 {HOURS.map(h => {
                   const events = getEventsForDate(currentDate).filter((e: any) => new Date(e.startDate).getHours() === h);
                   const isNow = isSameDay(currentDate, today) && today.getHours() === h;
+                  const offSlot = !isWithinWorkingSlot(currentDate, h);
                   return (
                     <div key={h} className="flex border-b">
-                      <div className="w-16 shrink-0 text-xs text-muted-foreground text-right pr-3 pt-2 border-r">
+                      <div className={`w-16 shrink-0 text-xs text-right pr-3 pt-2 border-r ${offSlot ? "text-slate-400 dark:text-slate-600" : "text-muted-foreground"}`}>
                         {pad(h)}:00
                       </div>
                       <button
                         onClick={() => handleTimeSlotClick(currentDate, h)}
                         className={`flex-1 min-h-[56px] p-1.5 hover:bg-amber-50/40 dark:hover:bg-amber-950/10 transition-colors relative group text-left
-                          ${isNow ? "bg-amber-50/60 dark:bg-amber-950/30" : ""}
+                          ${isNow ? "bg-amber-50/60 dark:bg-amber-950/30" : offSlot ? "bg-slate-50/80 dark:bg-slate-800/30" : ""}
                         `}
                       >
                         <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 text-amber-500">

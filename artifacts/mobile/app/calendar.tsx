@@ -119,6 +119,78 @@ export default function CalendarScreen() {
     const t = setTimeout(() => setHighlightedEventId(null), 4000);
     return () => clearTimeout(t);
   }, [highlightedEventId]);
+  const [orgProfile, setOrgProfile] = useState<{
+    workingDays?: string;
+    workingHoursStart?: string;
+    workingHoursEnd?: string;
+    appointmentTimezone?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    fetchAuth(`${API_BASE}/api/org-profile`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setOrgProfile(d))
+      .catch(() => {});
+  }, [fetchAuth]);
+
+  const workingDaySet = useMemo(() => {
+    if (!orgProfile?.workingDays) return null;
+    return new Set(String(orgProfile.workingDays).split(",").map(Number));
+  }, [orgProfile]);
+
+  function orgHhmmToLocalHour(hhMM: string, orgTz: string): number {
+    const [hh, mm] = hhMM.split(":").map(Number);
+    const now = new Date();
+    const [yr, mo, dy] = now.toISOString().slice(0, 10).split("-").map(Number);
+    const midnightUtc = new Date(Date.UTC(yr, mo - 1, dy, 0, 0, 0));
+    try {
+      const fmt = new Intl.DateTimeFormat("en-US", {
+        timeZone: orgTz, hour: "2-digit", minute: "2-digit", hour12: false,
+      });
+      const parts = fmt.formatToParts(midnightUtc);
+      const orgH = parseInt(parts.find(p => p.type === "hour")?.value ?? "0", 10);
+      const orgM = parseInt(parts.find(p => p.type === "minute")?.value ?? "0", 10);
+      const safeH = orgH === 24 ? 0 : orgH;
+      const offsetMins = safeH <= 12 ? safeH * 60 + orgM : (safeH - 24) * 60 + orgM;
+      const utcDate = new Date(midnightUtc.getTime() + (hh * 60 + mm - offsetMins) * 60 * 1000);
+      return utcDate.getHours();
+    } catch {
+      return hh;
+    }
+  }
+
+  function getIsoWeekdayInTz(d: Date, tz: string): number {
+    try {
+      const name = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "long" }).format(d);
+      const map: Record<string, number> = {
+        Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6, Sunday: 7,
+      };
+      return map[name] ?? ((d.getDay() + 6) % 7 + 1);
+    } catch {
+      const dow = d.getDay();
+      return dow === 0 ? 7 : dow;
+    }
+  }
+
+  const workingHourStartLocal = useMemo(() => {
+    if (!orgProfile?.workingHoursStart) return 9;
+    const tz = orgProfile.appointmentTimezone || "UTC";
+    return orgHhmmToLocalHour(orgProfile.workingHoursStart, tz);
+  }, [orgProfile]);
+
+  const workingHourEndLocal = useMemo(() => {
+    if (!orgProfile?.workingHoursEnd) return 18;
+    const tz = orgProfile.appointmentTimezone || "UTC";
+    return orgHhmmToLocalHour(orgProfile.workingHoursEnd, tz);
+  }, [orgProfile]);
+
+  function isWorkingDateStr(dateStr: string): boolean {
+    if (!workingDaySet) return true;
+    const d = new Date(dateStr + "T12:00:00");
+    const tz = orgProfile?.appointmentTimezone || "UTC";
+    return workingDaySet.has(getIsoWeekdayInTz(d, tz));
+  }
+
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -318,6 +390,9 @@ export default function CalendarScreen() {
                       styles.dayCell,
                       isSelected && { backgroundColor: colors.primary },
                       isToday && !isSelected && { backgroundColor: colors.primary + "30" },
+                      !isSelected && !isToday && cell.dateStr && !isWorkingDateStr(cell.dateStr)
+                        ? { backgroundColor: "rgba(0,0,0,0.18)" }
+                        : undefined,
                     ]}
                   >
                     {cell.day ? (
@@ -326,6 +401,9 @@ export default function CalendarScreen() {
                           styles.dayNum,
                           { color: isSelected ? "#fff" : isWeekend ? "rgba(255,255,255,0.5)" : "#fff" },
                           isToday && !isSelected && { fontFamily: "Inter_700Bold" },
+                          !isSelected && cell.dateStr && !isWorkingDateStr(cell.dateStr)
+                            ? { color: "rgba(255,255,255,0.35)" }
+                            : undefined,
                         ]}>
                           {cell.day}
                         </Text>
@@ -357,13 +435,60 @@ export default function CalendarScreen() {
           contentContainerStyle={[styles.listContent, { paddingBottom: isWeb ? 118 : 100 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
           ListHeaderComponent={
-            <View style={styles.listHeader}>
-              <Text style={[styles.listDateLabel, { color: colors.foreground }]}>
-                {selectedDayLabel.charAt(0).toUpperCase() + selectedDayLabel.slice(1)}
-              </Text>
-              <View style={[styles.countPill, { backgroundColor: colors.primary + "18" }]}>
-                <Text style={[styles.countPillText, { color: colors.primary }]}>{filteredEvents.length}</Text>
+            <View>
+              <View style={styles.listHeader}>
+                <Text style={[styles.listDateLabel, { color: colors.foreground }]}>
+                  {selectedDayLabel.charAt(0).toUpperCase() + selectedDayLabel.slice(1)}
+                </Text>
+                <View style={[styles.countPill, { backgroundColor: colors.primary + "18" }]}>
+                  <Text style={[styles.countPillText, { color: colors.primary }]}>{filteredEvents.length}</Text>
+                </View>
               </View>
+              {selectedDateStr && orgProfile && (() => {
+                const isOpen = isWorkingDateStr(selectedDateStr);
+                const DAY_FROM = 6;
+                const DAY_TO = 22;
+                const slots = Array.from({ length: DAY_TO - DAY_FROM }, (_, i) => DAY_FROM + i);
+                return (
+                  <View style={[styles.hoursTimeline, { borderColor: colors.border }]}>
+                    <View style={styles.hoursTimelineHeader}>
+                      <Text style={[styles.hoursTimelineLabel, { color: isOpen ? colors.primary : colors.mutedForeground }]}>
+                        {isOpen
+                          ? `Ouvert ${orgProfile.workingHoursStart ?? ""} – ${orgProfile.workingHoursEnd ?? ""}`
+                          : "Jour fermé — hors jours d'ouverture"}
+                      </Text>
+                      {orgProfile.appointmentTimezone && (
+                        <Text style={[styles.hoursTimelineTz, { color: colors.mutedForeground }]}>
+                          {orgProfile.appointmentTimezone}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={styles.hoursTimelineBar}>
+                      {slots.map((h) => {
+                        const active = isOpen && h >= workingHourStartLocal && h < workingHourEndLocal;
+                        return (
+                          <View
+                            key={h}
+                            style={[
+                              styles.hoursTimelineSlot,
+                              { backgroundColor: active ? colors.primary : colors.border },
+                              h === DAY_FROM && { borderTopLeftRadius: 4, borderBottomLeftRadius: 4 },
+                              h === DAY_TO - 1 && { borderTopRightRadius: 4, borderBottomRightRadius: 4 },
+                            ]}
+                          />
+                        );
+                      })}
+                    </View>
+                    <View style={styles.hoursTimelineTicks}>
+                      {[DAY_FROM, 9, 12, 15, 18, DAY_TO].map((h) => (
+                        <Text key={h} style={[styles.hoursTimelineTickLabel, { color: colors.mutedForeground }]}>
+                          {h}h
+                        </Text>
+                      ))}
+                    </View>
+                  </View>
+                );
+              })()}
             </View>
           }
           ListEmptyComponent={
@@ -506,4 +631,12 @@ const styles = StyleSheet.create({
   eventMetaText: { fontSize: 12, fontFamily: "Inter_400Regular" },
   typeBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   typeBadgeText: { fontSize: 11, fontFamily: "Inter_500Medium" },
+  hoursTimeline: { marginBottom: 12, padding: 10, borderRadius: 10, borderWidth: 1 },
+  hoursTimelineHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
+  hoursTimelineLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  hoursTimelineTz: { fontSize: 10, fontFamily: "Inter_400Regular" },
+  hoursTimelineBar: { flexDirection: "row", height: 8, borderRadius: 4, overflow: "hidden", gap: 1 },
+  hoursTimelineSlot: { flex: 1, height: 8 },
+  hoursTimelineTicks: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
+  hoursTimelineTickLabel: { fontSize: 9, fontFamily: "Inter_400Regular" },
 });
