@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -12,7 +12,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -57,6 +56,13 @@ const DURATION_OPTIONS = [
   { value: 120, label: "2 heures" },
 ] as const;
 
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
+const MINUTES = Array.from({ length: 60 }, (_, i) => i);
+
+function fmt(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
 function parseWorkingDays(value: string | null | undefined): number[] {
   if (!value) return [1, 2, 3, 4, 5];
   const days = value
@@ -66,10 +72,6 @@ function parseWorkingDays(value: string | null | undefined): number[] {
   return days.length > 0
     ? Array.from(new Set(days)).sort((a, b) => a - b)
     : [1, 2, 3, 4, 5];
-}
-
-function isValidTime(value: string): boolean {
-  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 }
 
 interface PickerModalProps {
@@ -137,6 +139,208 @@ function PickerModal({ visible, title, options, selected, onSelect, onClose }: P
   );
 }
 
+interface TimePickerModalProps {
+  visible: boolean;
+  title: string;
+  value: string;
+  onConfirm: (value: string) => void;
+  onClose: () => void;
+}
+
+const DRUM_ITEM_HEIGHT = 46;
+const DRUM_VISIBLE = 5;
+const DRUM_LIST_HEIGHT = DRUM_ITEM_HEIGHT * DRUM_VISIBLE;
+
+function TimePickerModal({ visible, title, value, onConfirm, onClose }: TimePickerModalProps) {
+  const colors = useColors();
+  const [hour, setHour] = useState(0);
+  const [minute, setMinute] = useState(0);
+  const hourListRef = useRef<FlatList>(null);
+  const minuteListRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    if (visible) {
+      const parts = value.split(":");
+      const h = Math.min(23, Math.max(0, parseInt(parts[0] ?? "0", 10)));
+      const m = Math.min(59, Math.max(0, parseInt(parts[1] ?? "0", 10)));
+      setHour(h);
+      setMinute(m);
+      setTimeout(() => {
+        hourListRef.current?.scrollToIndex({ index: h, animated: false, viewPosition: 0.5 });
+        minuteListRef.current?.scrollToIndex({ index: m, animated: false, viewPosition: 0.5 });
+      }, 80);
+    }
+  }, [visible, value]);
+
+  function scrollToHour(h: number) {
+    setHour(h);
+    if (Platform.OS !== "web") Haptics.selectionAsync();
+    hourListRef.current?.scrollToIndex({ index: h, animated: true, viewPosition: 0.5 });
+  }
+
+  function scrollToMinute(m: number) {
+    setMinute(m);
+    if (Platform.OS !== "web") Haptics.selectionAsync();
+    minuteListRef.current?.scrollToIndex({ index: m, animated: true, viewPosition: 0.5 });
+  }
+
+  function handleConfirm() {
+    if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    onConfirm(`${fmt(hour)}:${fmt(minute)}`);
+    onClose();
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <View
+          style={[styles.modalSheet, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onStartShouldSetResponder={() => true}
+        >
+          <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{title}</Text>
+            <Pressable onPress={onClose} hitSlop={12}>
+              <Feather name="x" size={20} color={colors.mutedForeground} />
+            </Pressable>
+          </View>
+
+          <View style={[drumStyles.display, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+            <Text style={[drumStyles.displayText, { color: colors.primary }]}>
+              {fmt(hour)} : {fmt(minute)}
+            </Text>
+          </View>
+
+          <View style={drumStyles.columns}>
+            <Text style={[drumStyles.colLabel, { color: colors.mutedForeground }]}>Heure</Text>
+            <View style={{ width: 16 }} />
+            <Text style={[drumStyles.colLabel, { color: colors.mutedForeground }]}>Minute</Text>
+          </View>
+
+          <View style={drumStyles.columns}>
+            <View style={[drumStyles.drumWrap, { borderColor: colors.border }]}>
+              <View
+                style={[
+                  drumStyles.selectionHighlight,
+                  { backgroundColor: colors.primary + "18", borderColor: colors.primary + "40" },
+                ]}
+                pointerEvents="none"
+              />
+              <FlatList
+                ref={hourListRef}
+                data={HOURS}
+                keyExtractor={(i) => String(i)}
+                style={{ height: DRUM_LIST_HEIGHT }}
+                showsVerticalScrollIndicator={false}
+                snapToInterval={DRUM_ITEM_HEIGHT}
+                decelerationRate="fast"
+                onMomentumScrollEnd={(e) => {
+                  const idx = Math.round(e.nativeEvent.contentOffset.y / DRUM_ITEM_HEIGHT);
+                  scrollToHour(Math.min(23, Math.max(0, idx)));
+                }}
+                getItemLayout={(_, index) => ({
+                  length: DRUM_ITEM_HEIGHT,
+                  offset: DRUM_ITEM_HEIGHT * index,
+                  index,
+                })}
+                ListHeaderComponent={<View style={{ height: DRUM_ITEM_HEIGHT * 2 }} />}
+                ListFooterComponent={<View style={{ height: DRUM_ITEM_HEIGHT * 2 }} />}
+                renderItem={({ item }) => {
+                  const selected = item === hour;
+                  return (
+                    <Pressable
+                      style={[
+                        drumStyles.drumItem,
+                        { height: DRUM_ITEM_HEIGHT },
+                      ]}
+                      onPress={() => scrollToHour(item)}
+                    >
+                      <Text
+                        style={[
+                          drumStyles.drumText,
+                          { color: selected ? colors.primary : colors.foreground },
+                          selected && drumStyles.drumTextSelected,
+                        ]}
+                      >
+                        {fmt(item)}
+                      </Text>
+                    </Pressable>
+                  );
+                }}
+              />
+            </View>
+
+            <Text style={[drumStyles.colonSep, { color: colors.mutedForeground }]}>:</Text>
+
+            <View style={[drumStyles.drumWrap, { borderColor: colors.border }]}>
+              <View
+                style={[
+                  drumStyles.selectionHighlight,
+                  { backgroundColor: colors.primary + "18", borderColor: colors.primary + "40" },
+                ]}
+                pointerEvents="none"
+              />
+              <FlatList
+                ref={minuteListRef}
+                data={MINUTES}
+                keyExtractor={(i) => String(i)}
+                style={{ height: DRUM_LIST_HEIGHT }}
+                showsVerticalScrollIndicator={false}
+                snapToInterval={DRUM_ITEM_HEIGHT}
+                decelerationRate="fast"
+                onMomentumScrollEnd={(e) => {
+                  const idx = Math.round(e.nativeEvent.contentOffset.y / DRUM_ITEM_HEIGHT);
+                  scrollToMinute(Math.min(59, Math.max(0, idx)));
+                }}
+                getItemLayout={(_, index) => ({
+                  length: DRUM_ITEM_HEIGHT,
+                  offset: DRUM_ITEM_HEIGHT * index,
+                  index,
+                })}
+                ListHeaderComponent={<View style={{ height: DRUM_ITEM_HEIGHT * 2 }} />}
+                ListFooterComponent={<View style={{ height: DRUM_ITEM_HEIGHT * 2 }} />}
+                renderItem={({ item }) => {
+                  const selected = item === minute;
+                  return (
+                    <Pressable
+                      style={[
+                        drumStyles.drumItem,
+                        { height: DRUM_ITEM_HEIGHT },
+                      ]}
+                      onPress={() => scrollToMinute(item)}
+                    >
+                      <Text
+                        style={[
+                          drumStyles.drumText,
+                          { color: selected ? colors.primary : colors.foreground },
+                          selected && drumStyles.drumTextSelected,
+                        ]}
+                      >
+                        {fmt(item)}
+                      </Text>
+                    </Pressable>
+                  );
+                }}
+              />
+            </View>
+          </View>
+
+          <Pressable
+            style={({ pressed }) => [
+              drumStyles.confirmBtn,
+              { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 },
+            ]}
+            onPress={handleConfirm}
+          >
+            <Text style={[drumStyles.confirmText, { color: colors.primaryForeground }]}>
+              Confirmer
+            </Text>
+          </Pressable>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+}
+
 export default function HorairesOuvertureScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -149,6 +353,7 @@ export default function HorairesOuvertureScreen() {
   const [saving, setSaving] = useState(false);
   const [tzModalVisible, setTzModalVisible] = useState(false);
   const [durationModalVisible, setDurationModalVisible] = useState(false);
+  const [timePickerField, setTimePickerField] = useState<"start" | "end" | null>(null);
 
   const [form, setForm] = useState({
     workingDays: [1, 2, 3, 4, 5] as number[],
@@ -187,14 +392,6 @@ export default function HorairesOuvertureScreen() {
 
   async function save() {
     if (!isAdmin) return;
-    if (!isValidTime(form.workingHoursStart)) {
-      Alert.alert("Format invalide", "L'heure d'ouverture doit etre au format HH:MM (ex: 09:00).");
-      return;
-    }
-    if (!isValidTime(form.workingHoursEnd)) {
-      Alert.alert("Format invalide", "L'heure de fermeture doit etre au format HH:MM (ex: 18:00).");
-      return;
-    }
     if (form.workingDays.length === 0) {
       Alert.alert("Jours invalides", "Selectionnez au moins un jour d'ouverture.");
       return;
@@ -362,7 +559,7 @@ export default function HorairesOuvertureScreen() {
                   Heures d'ouverture
                 </Text>
                 <Text style={[styles.cardDesc, { color: colors.mutedForeground }]}>
-                  Format 24 h — ex : 09:00 et 18:00
+                  Appuyez pour choisir l'heure via le selecteur.
                 </Text>
               </View>
             </View>
@@ -372,28 +569,23 @@ export default function HorairesOuvertureScreen() {
                 <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
                   Ouverture
                 </Text>
-                <TextInput
-                  style={[
-                    styles.timeInput,
+                <Pressable
+                  onPress={() => isAdmin && setTimePickerField("start")}
+                  disabled={!isAdmin}
+                  style={({ pressed }) => [
+                    styles.timeButton,
                     {
-                      color: colors.foreground,
                       backgroundColor: colors.secondary,
-                      borderColor: isValidTime(form.workingHoursStart)
-                        ? colors.border
-                        : "#ef4444",
+                      borderColor: colors.border,
+                      opacity: pressed ? 0.7 : !isAdmin ? 0.55 : 1,
                     },
                   ]}
-                  value={form.workingHoursStart}
-                  onChangeText={(v) =>
-                    isAdmin && setForm((f) => ({ ...f, workingHoursStart: v }))
-                  }
-                  editable={isAdmin}
-                  placeholder="09:00"
-                  placeholderTextColor={colors.mutedForeground}
-                  keyboardType="numbers-and-punctuation"
-                  maxLength={5}
-                  autoCorrect={false}
-                />
+                >
+                  <Feather name="clock" size={14} color={colors.mutedForeground} />
+                  <Text style={[styles.timeButtonText, { color: colors.foreground }]}>
+                    {form.workingHoursStart}
+                  </Text>
+                </Pressable>
               </View>
 
               <View style={[styles.timeSeparator, { backgroundColor: colors.border }]} />
@@ -402,28 +594,23 @@ export default function HorairesOuvertureScreen() {
                 <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
                   Fermeture
                 </Text>
-                <TextInput
-                  style={[
-                    styles.timeInput,
+                <Pressable
+                  onPress={() => isAdmin && setTimePickerField("end")}
+                  disabled={!isAdmin}
+                  style={({ pressed }) => [
+                    styles.timeButton,
                     {
-                      color: colors.foreground,
                       backgroundColor: colors.secondary,
-                      borderColor: isValidTime(form.workingHoursEnd)
-                        ? colors.border
-                        : "#ef4444",
+                      borderColor: colors.border,
+                      opacity: pressed ? 0.7 : !isAdmin ? 0.55 : 1,
                     },
                   ]}
-                  value={form.workingHoursEnd}
-                  onChangeText={(v) =>
-                    isAdmin && setForm((f) => ({ ...f, workingHoursEnd: v }))
-                  }
-                  editable={isAdmin}
-                  placeholder="18:00"
-                  placeholderTextColor={colors.mutedForeground}
-                  keyboardType="numbers-and-punctuation"
-                  maxLength={5}
-                  autoCorrect={false}
-                />
+                >
+                  <Feather name="clock" size={14} color={colors.mutedForeground} />
+                  <Text style={[styles.timeButtonText, { color: colors.foreground }]}>
+                    {form.workingHoursEnd}
+                  </Text>
+                </Pressable>
               </View>
             </View>
           </View>
@@ -528,9 +715,106 @@ export default function HorairesOuvertureScreen() {
         onSelect={(v) => setForm((f) => ({ ...f, appointmentDurationMinutes: Number(v) }))}
         onClose={() => setDurationModalVisible(false)}
       />
+
+      <TimePickerModal
+        visible={timePickerField === "start"}
+        title="Heure d'ouverture"
+        value={form.workingHoursStart}
+        onConfirm={(v) => setForm((f) => ({ ...f, workingHoursStart: v }))}
+        onClose={() => setTimePickerField(null)}
+      />
+
+      <TimePickerModal
+        visible={timePickerField === "end"}
+        title="Heure de fermeture"
+        value={form.workingHoursEnd}
+        onConfirm={(v) => setForm((f) => ({ ...f, workingHoursEnd: v }))}
+        onClose={() => setTimePickerField(null)}
+      />
     </View>
   );
 }
+
+const drumStyles = StyleSheet.create({
+  display: {
+    marginHorizontal: 24,
+    marginTop: 16,
+    marginBottom: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: "center",
+  },
+  displayText: {
+    fontSize: 32,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 2,
+  },
+  columns: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginHorizontal: 24,
+    marginTop: 8,
+    gap: 0,
+  },
+  colLabel: {
+    flex: 1,
+    textAlign: "center",
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  drumWrap: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+    position: "relative",
+  },
+  selectionHighlight: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    height: DRUM_ITEM_HEIGHT,
+    top: DRUM_ITEM_HEIGHT * 2,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    zIndex: 1,
+    pointerEvents: "none",
+  },
+  drumItem: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  drumText: {
+    fontSize: 20,
+    fontFamily: "Inter_400Regular",
+  },
+  drumTextSelected: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 22,
+  },
+  colonSep: {
+    fontSize: 28,
+    fontFamily: "Inter_700Bold",
+    marginHorizontal: 10,
+    marginTop: 20,
+  },
+  confirmBtn: {
+    marginHorizontal: 24,
+    marginVertical: 20,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  confirmText: {
+    fontSize: 16,
+    fontFamily: "Inter_600SemiBold",
+  },
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -605,14 +889,20 @@ const styles = StyleSheet.create({
   timeRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   timeField: { flex: 1, gap: 6 },
   fieldLabel: { fontSize: 12, fontFamily: "Inter_500Medium" },
-  timeInput: {
+  timeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    fontFamily: "Inter_500Medium",
-    textAlign: "center",
+    paddingVertical: 11,
+  },
+  timeButtonText: {
+    fontSize: 18,
+    fontFamily: "Inter_600SemiBold",
+    letterSpacing: 1,
   },
   timeSeparator: { width: 1, height: 36, marginTop: 18 },
   selectorButton: {
@@ -634,31 +924,33 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
   },
-  infoText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
+  infoText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 18 },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "#00000060",
+    backgroundColor: "#00000055",
     justifyContent: "flex-end",
   },
   modalSheet: {
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     borderWidth: 1,
+    borderBottomWidth: 0,
     overflow: "hidden",
   },
   modalHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
   },
   modalTitle: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
   pickerItem: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
