@@ -56,6 +56,7 @@ import aiUsageRouter from "./ai-usage";
 import meetingsRouter from "./meetings";
 import gmailRouter from "./gmail";
 import orgProfileRouter from "./org-profile";
+import orgClosuresRouter from "./org-closures";
 import demoRequestRouter from "./demo-request";
 import contactRequestRouter from "./contact-request";
 import publicDemoChatRouter from "./public-demo-chat";
@@ -196,6 +197,7 @@ router.use(documentsRouter);
 router.use(meetingsRouter);
 router.use(gmailRouter);
 router.use(orgProfileRouter);
+router.use(orgClosuresRouter);
 // NOTE: adminSaasDashboardRouter, prospectsRouter, devisRouter et
 // facturesClientRouter sont montes plus haut, AVANT requireTenant, sous
 // `requireSuperAdmin` (Tâche #53).

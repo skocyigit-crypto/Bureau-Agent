@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Building2, Save, Loader2, Globe, Phone, Mail, MapPin, Bot, FileText, CreditCard, Landmark, Receipt, Image as ImageIcon, Info, ScanLine, CalendarClock, Clock } from "lucide-react";
+import { Building2, Save, Loader2, Globe, Phone, Mail, MapPin, Bot, FileText, CreditCard, Landmark, Receipt, Image as ImageIcon, Info, ScanLine, CalendarClock, Clock, CalendarOff, Plus, Trash2, X } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -92,6 +92,14 @@ function parseWorkingDays(value: string | null | undefined): number[] {
   return days.length > 0 ? Array.from(new Set(days)).sort((a, b) => a - b) : [1, 2, 3, 4, 5];
 }
 
+interface OrgClosure {
+  id: number;
+  dateStart: string;
+  dateEnd: string;
+  label: string | null;
+  createdAt: string;
+}
+
 export function TabProfilOrg() {
   const { toast } = useToast();
   const { user } = useWorkspaceUser();
@@ -101,6 +109,11 @@ export function TabProfilOrg() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<OrgProfile | null>(null);
+  const [closures, setClosures] = useState<OrgClosure[]>([]);
+  const [closuresLoading, setClosuresLoading] = useState(false);
+  const [newClosure, setNewClosure] = useState({ dateStart: "", dateEnd: "", label: "" });
+  const [addingClosure, setAddingClosure] = useState(false);
+  const [showClosureForm, setShowClosureForm] = useState(false);
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -126,12 +139,29 @@ export function TabProfilOrg() {
     appointmentDurationMinutes: 30,
   });
 
+  const loadClosures = async () => {
+    setClosuresLoading(true);
+    try {
+      const res = await fetch(`${BASE}/api/org-closures`, { credentials: "include" });
+      if (res.ok) {
+        const data: OrgClosure[] = await res.json();
+        setClosures(data);
+      }
+    } catch {
+      // best-effort — silencieux
+    } finally {
+      setClosuresLoading(false);
+    }
+  };
+
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(`${BASE}/api/org-profile`, { credentials: "include" });
-        if (res.ok) {
-          const data: OrgProfile = await res.json();
+        const [profileRes] = await Promise.all([
+          fetch(`${BASE}/api/org-profile`, { credentials: "include" }),
+        ]);
+        if (profileRes.ok) {
+          const data: OrgProfile = await profileRes.json();
           setProfile(data);
           setForm({
             name: data.name || "",
@@ -167,6 +197,8 @@ export function TabProfilOrg() {
       }
     };
     load();
+    loadClosures();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [BASE, toast]);
 
   const save = async () => {
@@ -194,6 +226,60 @@ export function TabProfilOrg() {
       setSaving(false);
     }
   };
+
+  const addClosure = async () => {
+    if (!isAdmin || !newClosure.dateStart) return;
+    setAddingClosure(true);
+    try {
+      const res = await fetch(`${BASE}/api/org-closures`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          dateStart: newClosure.dateStart,
+          dateEnd: newClosure.dateEnd || newClosure.dateStart,
+          label: newClosure.label || null,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setClosures((prev) => [...prev, data as OrgClosure].sort((a, b) => a.dateStart.localeCompare(b.dateStart)));
+        setNewClosure({ dateStart: "", dateEnd: "", label: "" });
+        setShowClosureForm(false);
+        toast({ title: "Fermeture ajoutee", description: "La fermeture a ete enregistree." });
+      } else {
+        toast({ title: "Erreur", description: data.error || "Impossible d'ajouter la fermeture.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur reseau", description: "Verifiez votre connexion.", variant: "destructive" });
+    } finally {
+      setAddingClosure(false);
+    }
+  };
+
+  const deleteClosure = async (id: number) => {
+    if (!isAdmin) return;
+    try {
+      const res = await fetch(`${BASE}/api/org-closures/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (res.ok) {
+        setClosures((prev) => prev.filter((c) => c.id !== id));
+        toast({ title: "Fermeture supprimee", description: "La fermeture a ete retiree." });
+      } else {
+        const data = await res.json();
+        toast({ title: "Erreur", description: data.error || "Impossible de supprimer.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur reseau", description: "Verifiez votre connexion.", variant: "destructive" });
+    }
+  };
+
+  function formatClosureDate(dateStr: string): string {
+    const d = new Date(dateStr + "T00:00:00Z");
+    return d.toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+  }
 
   if (loading) {
     return (
@@ -493,6 +579,146 @@ export function TabProfilOrg() {
             Ces reglages s'appliquent immediatement au calcul des creneaux libres et
             aux disponibilites annoncees par l'assistant telephonique.
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base flex items-center gap-2">
+            <CalendarOff className="h-4 w-4 text-orange-500" />
+            Fermetures exceptionnelles
+          </CardTitle>
+          <CardDescription>
+            Jours feries, conges et fermetures ponctuelles. Aucun creneau ne sera
+            propose sur ces dates par le moteur de disponibilites ni par l'assistant vocal.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {closuresLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Chargement...
+            </div>
+          ) : closures.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Aucune fermeture enregistree.</p>
+          ) : (
+            <ul className="space-y-2">
+              {closures.map((c) => (
+                <li
+                  key={c.id}
+                  className="flex items-center justify-between gap-3 rounded-md border px-3 py-2 bg-muted/30"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <CalendarOff className="h-3.5 w-3.5 text-orange-500 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {c.dateStart === c.dateEnd
+                          ? formatClosureDate(c.dateStart)
+                          : `${formatClosureDate(c.dateStart)} → ${formatClosureDate(c.dateEnd)}`}
+                      </p>
+                      {c.label && (
+                        <p className="text-xs text-muted-foreground truncate">{c.label}</p>
+                      )}
+                    </div>
+                  </div>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => deleteClosure(c.id)}
+                      className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                      aria-label="Supprimer cette fermeture"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {isAdmin && (
+            <>
+              {showClosureForm ? (
+                <div className="rounded-md border bg-muted/20 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">Ajouter une fermeture</p>
+                    <button
+                      type="button"
+                      onClick={() => { setShowClosureForm(false); setNewClosure({ dateStart: "", dateEnd: "", label: "" }); }}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="closureDateStart">Date de debut</Label>
+                      <Input
+                        id="closureDateStart"
+                        type="date"
+                        value={newClosure.dateStart}
+                        onChange={(e) => setNewClosure((n) => ({ ...n, dateStart: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="closureDateEnd">
+                        Date de fin{" "}
+                        <span className="text-muted-foreground font-normal">(optionnelle)</span>
+                      </Label>
+                      <Input
+                        id="closureDateEnd"
+                        type="date"
+                        value={newClosure.dateEnd}
+                        min={newClosure.dateStart || undefined}
+                        onChange={(e) => setNewClosure((n) => ({ ...n, dateEnd: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="closureLabel">
+                      Description{" "}
+                      <span className="text-muted-foreground font-normal">(optionnelle)</span>
+                    </Label>
+                    <Input
+                      id="closureLabel"
+                      value={newClosure.label}
+                      onChange={(e) => setNewClosure((n) => ({ ...n, label: e.target.value }))}
+                      placeholder="Ex : Fete nationale, Conges ete..."
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={addClosure}
+                      disabled={addingClosure || !newClosure.dateStart}
+                    >
+                      {addingClosure ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                      Enregistrer
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setShowClosureForm(false); setNewClosure({ dateStart: "", dateEnd: "", label: "" }); }}
+                    >
+                      Annuler
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowClosureForm(true)}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Ajouter une fermeture
+                </Button>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
 

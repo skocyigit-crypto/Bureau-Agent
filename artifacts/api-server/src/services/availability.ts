@@ -1,4 +1,4 @@
-import { db, calendarEventsTable, organisationsTable } from "@workspace/db";
+import { db, calendarEventsTable, organisationsTable, organisationClosuresTable } from "@workspace/db";
 import { and, eq, lt, gt, ne } from "drizzle-orm";
 import { getCalendarForUser } from "../lib/google-auth";
 import { logger } from "../lib/logger";
@@ -12,6 +12,11 @@ import { logger } from "../lib/logger";
  * `calendar_conflict` (proactive-engine) et du voice receptionist:
  *   chevauchement <=> aStart < bEnd && bStart < aEnd
  * Deux creneaux qui se touchent bord a bord (fin == debut) NE chevauchent PAS.
+ *
+ * Les fermetures exceptionnelles (jours feries, conges, fermetures ponctuelles)
+ * sont chargees depuis `organisation_closures` et font sauter les journees
+ * concernees dans la grille de creneaux. `isSlotFree` reflechit egalement les
+ * fermetures pour empecher toute confirmation sur un jour ferme.
  */
 
 export interface TimeSlot {
@@ -137,6 +142,12 @@ function tzDateParts(instant: Date, tz: string): { y: number; mo: number; d: num
   return { y: map.year, mo: map.month, d: map.day };
 }
 
+/** Renvoie la chaine YYYY-MM-DD (dans `tz`) d'un instant donne. */
+function tzDateString(instant: Date, tz: string): string {
+  const { y, mo, d } = tzDateParts(instant, tz);
+  return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
 /** Jour ISO (1=lundi .. 7=dimanche) d'une date calendaire. */
 function isoWeekday(y: number, mo: number, d: number): number {
   const dow = new Date(Date.UTC(y, mo - 1, d)).getUTCDay(); // 0=dim .. 6=sam
@@ -145,6 +156,40 @@ function isoWeekday(y: number, mo: number, d: number): number {
 
 function overlaps(aStart: number, aEnd: number, b: BusyInterval): boolean {
   return aStart < b.end && b.start < aEnd;
+}
+
+// --- Fermetures exceptionnelles -------------------------------------------
+
+interface ClosureRange {
+  dateStart: string; // YYYY-MM-DD
+  dateEnd: string;   // YYYY-MM-DD inclusive
+}
+
+/**
+ * Charge les fermetures exceptionnelles de l'organisation (jours feries,
+ * conges, fermetures ponctuelles). Toute erreur renvoie un tableau vide
+ * (best-effort: une fermeture non chargee se traduit par des creneaux
+ * proposes a tort, pas par une panne totale).
+ */
+async function loadClosures(orgId: number): Promise<ClosureRange[]> {
+  try {
+    const rows = await db
+      .select({
+        dateStart: organisationClosuresTable.dateStart,
+        dateEnd: organisationClosuresTable.dateEnd,
+      })
+      .from(organisationClosuresTable)
+      .where(eq(organisationClosuresTable.organisationId, orgId));
+    return rows;
+  } catch (err) {
+    logger.warn({ err, orgId }, "[availability] chargement des fermetures echoue — fermetures ignorees");
+    return [];
+  }
+}
+
+/** Renvoie true si la date YYYY-MM-DD est couverte par au moins une fermeture. */
+function isDateClosed(dateStr: string, closures: ClosureRange[]): boolean {
+  return closures.some((c) => dateStr >= c.dateStart && dateStr <= c.dateEnd);
 }
 
 // --- Recuperation des intervalles occupes ---------------------------------
@@ -222,7 +267,8 @@ export interface ComputeFreeSlotsInput {
 
 /**
  * Calcule les creneaux libres dans [from, to], au sein des horaires d'ouverture,
- * en excluant tout chevauchement avec un evenement existant.
+ * en excluant tout chevauchement avec un evenement existant et en sautant les
+ * jours fermes (fermetures exceptionnelles de l'organisation).
  */
 export async function computeFreeSlots(input: ComputeFreeSlotsInput): Promise<TimeSlot[]> {
   const cfg = await getWorkingHoursConfig(input.orgId);
@@ -242,9 +288,10 @@ export async function computeFreeSlots(input: ComputeFreeSlotsInput): Promise<Ti
   const from = new Date(windowFrom);
   const to = new Date(windowTo);
 
-  const [local, google] = await Promise.all([
+  const [local, google, closures] = await Promise.all([
     localBusyIntervals(input.orgId, from, to),
     input.userId ? googleBusyIntervals(input.userId, from, to) : Promise.resolve([] as BusyInterval[]),
+    loadClosures(input.orgId),
   ]);
   const busy = [...local, ...google];
 
@@ -258,10 +305,12 @@ export async function computeFreeSlots(input: ComputeFreeSlotsInput): Promise<Ti
     const dayInstant = new Date(windowFrom + i * 24 * 60 * 60 * 1000);
     if (dayInstant.getTime() > windowTo) break;
     const { y, mo, d } = tzDateParts(dayInstant, cfg.timezone);
-    const key = `${y}-${mo}-${d}`;
+    const key = `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     if (seenDays.has(key)) continue;
     seenDays.add(key);
     if (!workingDays.has(isoWeekday(y, mo, d))) continue;
+    // Sauter les jours couverts par une fermeture exceptionnelle.
+    if (isDateClosed(key, closures)) continue;
 
     const dayStart = wallClockToUtc(y, mo, d, Math.floor(cfg.startMinutes / 60), cfg.startMinutes % 60, cfg.timezone);
     const dayEnd = wallClockToUtc(y, mo, d, Math.floor(cfg.endMinutes / 60), cfg.endMinutes % 60, cfg.timezone);
@@ -333,11 +382,20 @@ export interface IsSlotFreeInput {
 /**
  * Verifie qu'un creneau precis est libre (aucun chevauchement). Utilise au moment
  * de la confirmation pour eviter toute course (double reservation).
+ * Renvoie false si le jour du creneau est couvert par une fermeture exceptionnelle.
  */
 export async function isSlotFree(input: IsSlotFreeInput): Promise<boolean> {
   const s = input.start.getTime();
   const e = input.end.getTime();
   if (!Number.isFinite(s) || !Number.isFinite(e) || e <= s) return false;
+
+  // Verifier les fermetures exceptionnelles.
+  const [closures, cfg] = await Promise.all([
+    loadClosures(input.orgId),
+    getWorkingHoursConfig(input.orgId),
+  ]);
+  const dateStr = tzDateString(input.start, cfg.timezone);
+  if (isDateClosed(dateStr, closures)) return false;
 
   const local = await localBusyIntervals(input.orgId, input.start, input.end);
   // localBusyIntervals ne renvoie pas l'id; pour l'exclusion on refait une requete ciblee.
