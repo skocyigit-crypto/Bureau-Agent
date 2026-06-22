@@ -22,6 +22,7 @@ import { startAutonomousInboxCron } from "./services/autonomous-inbox-cron";
 import { startAppAuditCron } from "./services/app-audit-cron";
 import { startAgentAutoRunScheduler } from "./routes/ai-agents";
 import { startWebhookEngine } from "./services/webhook-service";
+import { startAppointmentReminderCron } from "./services/appointment-reminder-cron";
 import { attachVoiceLiveWs } from "./routes/voice-live";
 
 import { closePool, checkDbHealth } from "@workspace/db";
@@ -136,6 +137,7 @@ async function startServer(): Promise<void> {
     startAppAuditCron();
     startAgentAutoRunScheduler();
     startWebhookEngine();
+    startAppointmentReminderCron();
     attachVoiceLiveWs(server);
   });
 

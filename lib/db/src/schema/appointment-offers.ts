@@ -42,6 +42,8 @@ export const appointmentOffersTable = pgTable("appointment_offers", {
   createdBy: integer("created_by").references(() => usersTable.id, { onDelete: "set null" }),
   sentAt: timestamp("sent_at", { withTimezone: true }),
   confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+  /** Horodatage du rappel pre-rendez-vous envoye au client. NULL = pas encore envoye. */
+  reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => [
