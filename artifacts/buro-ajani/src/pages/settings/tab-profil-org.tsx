@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Building2, Save, Loader2, Globe, Phone, Mail, MapPin, Bot, FileText, CreditCard, Landmark, Receipt, Image as ImageIcon, Info, ScanLine, CalendarClock, Clock, CalendarOff, Plus, Trash2, X } from "lucide-react";
+import { Building2, Save, Loader2, Globe, Phone, Mail, MapPin, Bot, FileText, CreditCard, Landmark, Receipt, Image as ImageIcon, Info, ScanLine, CalendarClock, Clock, CalendarOff, Plus, Trash2, X, Download } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -114,6 +114,8 @@ export function TabProfilOrg() {
   const [newClosure, setNewClosure] = useState({ dateStart: "", dateEnd: "", label: "" });
   const [addingClosure, setAddingClosure] = useState(false);
   const [showClosureForm, setShowClosureForm] = useState(false);
+  const [importingHolidays, setImportingHolidays] = useState(false);
+  const [importYear, setImportYear] = useState<number>(new Date().getFullYear());
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -224,6 +226,37 @@ export function TabProfilOrg() {
       toast({ title: "Erreur reseau", description: "Verifiez votre connexion.", variant: "destructive" });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const importHolidays = async (year: number) => {
+    if (!isAdmin) return;
+    setImportingHolidays(true);
+    try {
+      const res = await fetch(`${BASE}/api/org-closures/import-holidays`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ year }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (data.inserted === 0) {
+          toast({ title: "Déjà à jour", description: `Les jours fériés ${year} sont déjà enregistrés.` });
+        } else {
+          toast({
+            title: `${data.inserted} jour${data.inserted > 1 ? "s" : ""} fér${data.inserted > 1 ? "iés" : "ié"} importé${data.inserted > 1 ? "s" : ""}`,
+            description: data.skipped > 0 ? `${data.skipped} déjà présent${data.skipped > 1 ? "s" : ""}.` : undefined,
+          });
+          await loadClosures();
+        }
+      } else {
+        toast({ title: "Erreur", description: data.error || "Impossible d'importer les jours feries.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Erreur reseau", description: "Verifiez votre connexion.", variant: "destructive" });
+    } finally {
+      setImportingHolidays(false);
     }
   };
 
@@ -707,15 +740,44 @@ export function TabProfilOrg() {
                   </div>
                 </div>
               ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowClosureForm(true)}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Ajouter une fermeture
-                </Button>
+                <div className="flex flex-wrap gap-2 items-center">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowClosureForm(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Ajouter une fermeture
+                  </Button>
+                  <div className="flex items-center gap-1.5">
+                    <Select
+                      value={String(importYear)}
+                      onValueChange={(v) => setImportYear(Number(v))}
+                    >
+                      <SelectTrigger className="h-9 w-24 text-sm" aria-label="Annee des jours feries">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[new Date().getFullYear(), new Date().getFullYear() + 1].map((y) => (
+                          <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => importHolidays(importYear)}
+                      disabled={importingHolidays}
+                    >
+                      {importingHolidays
+                        ? <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        : <Download className="h-4 w-4 mr-2" />}
+                      Importer jours fériés {importYear}
+                    </Button>
+                  </div>
+                </div>
               )}
             </>
           )}

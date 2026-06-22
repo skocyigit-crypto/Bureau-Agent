@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { db, organisationClosuresTable } from "@workspace/db";
-import { and, eq, asc } from "drizzle-orm";
+import { and, eq, asc, inArray } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 
 const router = Router();
@@ -83,6 +83,120 @@ router.post("/org-closures", async (req: Request, res: Response): Promise<void> 
     res.status(201).json(row);
   } catch (err: any) {
     req.log.error({ err }, "Erreur POST org-closures");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+
+/**
+ * Compute French public holidays for a given year.
+ * Easter date calculated via the Meeus/Jones/Butcher algorithm.
+ */
+function frenchHolidays(year: number): Array<{ date: string; label: string }> {
+  // Easter Sunday (Meeus/Jones/Butcher)
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31); // 1-based
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+
+  const easter = new Date(Date.UTC(year, month - 1, day));
+
+  function addDays(base: Date, n: number): string {
+    const d = new Date(base.getTime() + n * 86400000);
+    const y = d.getUTCFullYear();
+    const mo = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const da = String(d.getUTCDate()).padStart(2, "0");
+    return `${y}-${mo}-${da}`;
+  }
+
+  function fixed(mo: number, da: number): string {
+    return `${year}-${String(mo).padStart(2, "0")}-${String(da).padStart(2, "0")}`;
+  }
+
+  return [
+    { date: fixed(1, 1), label: "Jour de l'An" },
+    { date: addDays(easter, 1), label: "Lundi de Pâques" },
+    { date: fixed(5, 1), label: "Fête du Travail" },
+    { date: fixed(5, 8), label: "Victoire 1945" },
+    { date: addDays(easter, 39), label: "Ascension" },
+    { date: addDays(easter, 50), label: "Lundi de Pentecôte" },
+    { date: fixed(7, 14), label: "Fête Nationale" },
+    { date: fixed(8, 15), label: "Assomption" },
+    { date: fixed(11, 1), label: "Toussaint" },
+    { date: fixed(11, 11), label: "Armistice" },
+    { date: fixed(12, 25), label: "Noël" },
+  ];
+}
+
+router.post("/org-closures/import-holidays", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const userRole = req.session?.userRole;
+
+  if (!orgId) {
+    res.status(403).json({ error: "Non autorise." });
+    return;
+  }
+
+  if (userRole !== "super_admin" && userRole !== "administrateur") {
+    res.status(403).json({ error: "Seuls les administrateurs peuvent importer les jours feries." });
+    return;
+  }
+
+  const rawYear = req.body?.year;
+  const year = rawYear != null ? Number(rawYear) : new Date().getUTCFullYear();
+
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+    res.status(400).json({ error: "Annee invalide (2000-2100 attendu)." });
+    return;
+  }
+
+  try {
+    const holidays = frenchHolidays(year);
+    const holidayDates = holidays.map((h) => h.date);
+
+    // Fetch already-existing closure dates for this org within the year
+    const existing = await db
+      .select({ dateStart: organisationClosuresTable.dateStart })
+      .from(organisationClosuresTable)
+      .where(
+        and(
+          eq(organisationClosuresTable.organisationId, orgId),
+          inArray(organisationClosuresTable.dateStart, holidayDates),
+        ),
+      );
+
+    const existingSet = new Set(existing.map((r) => r.dateStart));
+    const toInsert = holidays.filter((h) => !existingSet.has(h.date));
+
+    if (toInsert.length === 0) {
+      res.json({ inserted: 0, skipped: holidays.length, message: "Tous les jours feries sont deja enregistres." });
+      return;
+    }
+
+    const inserted = await db
+      .insert(organisationClosuresTable)
+      .values(
+        toInsert.map((h) => ({
+          organisationId: orgId,
+          dateStart: h.date,
+          dateEnd: h.date,
+          label: h.label,
+        })),
+      )
+      .returning();
+
+    res.status(201).json({ inserted: inserted.length, skipped: existingSet.size, rows: inserted });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur POST org-closures/import-holidays");
     res.status(500).json({ error: "Erreur serveur." });
   }
 });
