@@ -3,7 +3,7 @@ import { db, appointmentOffersTable, calendarEventsTable, organisationsTable, co
 import { and, eq } from "drizzle-orm";
 import { sendEmail } from "./email";
 import { sendSms as providerSendSms } from "./telephony-providers";
-import { isSlotFree, type TimeSlot } from "./availability";
+import { computeFreeSlots, isSlotFree, isSlotWithinWorkingHours, type TimeSlot } from "./availability";
 import { notifyOrgUsers } from "./whatsapp-notify";
 import { logger } from "../lib/logger";
 
@@ -386,14 +386,16 @@ export async function cancelOffer(token: string): Promise<CancelResult> {
 }
 
 /**
- * Reprogramme un rendez-vous confirme sur un autre creneau de l'offre.
+ * Reprogramme un rendez-vous confirme.
+ * Accepte soit un index dans les creneaux d'origine (number), soit un
+ * creneau libre issu du calcul de disponibilite en temps reel (TimeSlot).
  * - revalide la disponibilite du nouveau creneau (en ignorant l'evenement
  *   courant pour ne pas se bloquer soi-meme),
  * - deplace l'evenement d'agenda de maniere atomique (transition gardee sur
  *   `confirme`), le recree si l'evenement a disparu,
  * - renvoie une nouvelle confirmation au client + notifie l'organisation.
  */
-export async function rescheduleOffer(token: string, slotIndex: number): Promise<ConfirmResult> {
+export async function rescheduleOffer(token: string, slotRef: number | TimeSlot): Promise<ConfirmResult> {
   const [offer] = await db
     .select()
     .from(appointmentOffersTable)
@@ -405,13 +407,47 @@ export async function rescheduleOffer(token: string, slotIndex: number): Promise
     return { ok: false, code: "not_confirmed", message: "Aucun rendez-vous a reprogrammer." };
   }
 
-  const slots = (offer.slots || []) as TimeSlot[];
-  if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= slots.length) {
-    return { ok: false, code: "invalid_slot", message: "Creneau invalide." };
+  let slot: TimeSlot;
+  let resolvedIndex: number | null = null;
+
+  if (typeof slotRef === "number") {
+    const slots = (offer.slots || []) as TimeSlot[];
+    if (!Number.isInteger(slotRef) || slotRef < 0 || slotRef >= slots.length) {
+      return { ok: false, code: "invalid_slot", message: "Creneau invalide." };
+    }
+    slot = slots[slotRef];
+    resolvedIndex = slotRef;
+  } else {
+    slot = slotRef;
+    resolvedIndex = null;
   }
-  const slot = slots[slotIndex];
+
   const start = new Date(slot.start);
   const end = new Date(slot.end);
+  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start) {
+    return { ok: false, code: "invalid_slot", message: "Creneau invalide." };
+  }
+
+  // Pour un creneau fourni par le client (non issu des slots d'offre originaux),
+  // appliquer l'ensemble des contraintes metier :
+  //   1. La duree doit correspondre exactement a offer.durationMinutes (empêche les
+  //      creneaux trop courts/longs craftes cote client).
+  //   2. La plage doit respecter les horaires d'ouverture et la marge de delai.
+  if (resolvedIndex === null) {
+    const expectedMs = offer.durationMinutes * 60 * 1000;
+    if (end.getTime() - start.getTime() !== expectedMs) {
+      return { ok: false, code: "invalid_slot", message: "La duree du creneau ne correspond pas a l'offre." };
+    }
+    const bookable = await isSlotWithinWorkingHours({
+      orgId: offer.organisationId,
+      start,
+      end,
+      leadMinutes: 60,
+    });
+    if (!bookable) {
+      return { ok: false, code: "invalid_slot", message: "Ce creneau est en dehors des horaires d'ouverture." };
+    }
+  }
 
   // Revalidation: on ignore l'evenement courant pour ne pas se bloquer soi-meme.
   const free = await isSlotFree({
@@ -426,7 +462,7 @@ export async function rescheduleOffer(token: string, slotIndex: number): Promise
   // Deplacement atomique de l'offre: garde sur status='confirme'.
   const claimed = await db
     .update(appointmentOffersTable)
-    .set({ selectedSlotIndex: slotIndex, selectedStart: start, selectedEnd: end })
+    .set({ selectedSlotIndex: resolvedIndex, selectedStart: start, selectedEnd: end })
     .where(and(eq(appointmentOffersTable.id, offer.id), eq(appointmentOffersTable.status, "confirme")))
     .returning({ id: appointmentOffersTable.id });
   if (claimed.length === 0) {
@@ -488,6 +524,20 @@ export async function getPublicOffer(token: string) {
   const { name: orgName, tz } = await getOrgContext(offer.organisationId);
   const expired = offer.status === "expire" || (offer.expiresAt ? offer.expiresAt.getTime() < Date.now() : false);
   const slots = (offer.slots || []) as TimeSlot[];
+
+  // Libelle du creneau selectionne. Pour les reprogrammations sur creneaux libres
+  // en temps reel, selectedSlotIndex est null mais selectedStart/selectedEnd sont
+  // renseignes — on formate directement depuis ces colonnes.
+  let selectedSlotLabel: string | null = null;
+  if (offer.selectedSlotIndex !== null && slots[offer.selectedSlotIndex]) {
+    selectedSlotLabel = fmtSlot(slots[offer.selectedSlotIndex], tz);
+  } else if (offer.selectedStart && offer.selectedEnd) {
+    selectedSlotLabel = fmtSlot(
+      { start: offer.selectedStart.toISOString(), end: offer.selectedEnd.toISOString() },
+      tz,
+    );
+  }
+
   return {
     orgName,
     timezone: tz,
@@ -496,7 +546,50 @@ export async function getPublicOffer(token: string) {
     contactName: offer.contactName,
     status: expired && offer.status === "envoye" ? "expire" : offer.status,
     selectedSlotIndex: offer.selectedSlotIndex,
+    selectedSlotLabel,
     slots: slots.map((s) => ({ start: s.start, end: s.end, label: fmtSlot(s, tz) })),
+  };
+}
+
+/**
+ * Calcule les creneaux libres en temps reel pour une offre donnee (token).
+ * Utilise pour le flux de reprogrammation : le client voit des creneaux
+ * FRAIS (prochains N jours ouvrables) plutot que les creneaux originaux qui
+ * peuvent etre passes ou deja pris.
+ *
+ * Retourne null si l'offre n'est pas trouvee ou si l'operation n'est pas
+ * applicable (annule).
+ */
+export async function getPublicAvailableSlots(
+  token: string,
+  opts?: { days?: number; limit?: number },
+): Promise<{ slots: Array<{ start: string; end: string; label: string }> } | null> {
+  const [offer] = await db
+    .select()
+    .from(appointmentOffersTable)
+    .where(eq(appointmentOffersTable.token, token))
+    .limit(1);
+  if (!offer) return null;
+  if (offer.status === "annule") return null;
+
+  const { tz } = await getOrgContext(offer.organisationId);
+  const days = Math.min(Math.max(opts?.days ?? 14, 1), 60);
+  const limit = Math.min(Math.max(opts?.limit ?? 20, 1), 50);
+  const from = new Date();
+  const to = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+
+  const rawSlots = await computeFreeSlots({
+    orgId: offer.organisationId,
+    userId: offer.createdBy ?? null,
+    from,
+    to,
+    durationMinutes: offer.durationMinutes,
+    limit,
+    leadMinutes: 60,
+  });
+
+  return {
+    slots: rawSlots.map((s) => ({ start: s.start, end: s.end, label: fmtSlot(s, tz) })),
   };
 }
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRoute } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle2, XCircle, CalendarClock, Clock, CalendarX2 } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, CalendarClock, Clock, CalendarX2, RefreshCw } from "lucide-react";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "") + "/";
 
@@ -20,6 +20,7 @@ interface PublicOffer {
   contactName: string | null;
   status: "envoye" | "confirme" | "expire" | "annule";
   selectedSlotIndex: number | null;
+  selectedSlotLabel: string | null;
   slots: PublicSlot[];
 }
 
@@ -32,10 +33,14 @@ export default function RendezVousPublicPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState<number | null>(null);
   const [confirmedLabel, setConfirmedLabel] = useState<string | null>(null);
-  // Mode de la page une fois le rendez-vous confirme.
   const [view, setView] = useState<"summary" | "reschedule">("summary");
   const [cancelling, setCancelling] = useState(false);
   const [cancelled, setCancelled] = useState(false);
+
+  // Live slots for reschedule view
+  const [liveSlots, setLiveSlots] = useState<PublicSlot[] | null>(null);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [slotsError, setSlotsError] = useState("");
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -57,6 +62,35 @@ export default function RendezVousPublicPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const fetchLiveSlots = useCallback(async () => {
+    if (!token) return;
+    setLoadingSlots(true);
+    setSlotsError("");
+    try {
+      const res = await fetch(`${BASE}api/appointments/offer/${token}/available-slots`);
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.slots)) {
+        setLiveSlots(data.slots as PublicSlot[]);
+      } else {
+        setSlotsError(data.error || "Impossible de charger les creneaux disponibles.");
+        setLiveSlots([]);
+      }
+    } catch {
+      setSlotsError("Erreur reseau lors du chargement des creneaux.");
+      setLiveSlots([]);
+    } finally {
+      setLoadingSlots(false);
+    }
+  }, [token]);
+
+  function enterRescheduleView() {
+    setError("");
+    setView("reschedule");
+    if (liveSlots === null) {
+      void fetchLiveSlots();
+    }
+  }
 
   // Confirmation initiale d'un creneau (offre `envoye`).
   async function selectSlot(index: number) {
@@ -87,27 +121,27 @@ export default function RendezVousPublicPage() {
     }
   }
 
-  // Reprogrammation sur un autre creneau (rendez-vous deja `confirme`).
-  async function rescheduleSlot(index: number) {
+  // Reprogrammation sur un creneau libre en temps reel.
+  async function rescheduleSlot(slotIndex: number, slot: PublicSlot) {
     if (!token || submitting !== null) return;
-    setSubmitting(index);
+    setSubmitting(slotIndex);
     setError("");
     try {
       const res = await fetch(`${BASE}api/appointments/offer/${token}/reschedule`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slotIndex: index }),
+        body: JSON.stringify({ slot: { start: slot.start, end: slot.end } }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        const slot = offer?.slots[index];
-        setConfirmedLabel(slot?.label ?? null);
-        setOffer((prev) => (prev ? { ...prev, status: "confirme", selectedSlotIndex: index } : prev));
+        setConfirmedLabel(slot.label);
+        setOffer((prev) => (prev ? { ...prev, status: "confirme", selectedSlotIndex: null } : prev));
         setView("summary");
       } else {
         setError(data.error || "Ce creneau n'a pas pu etre reprogramme.");
         if (data.code === "conflict" || data.code === "already" || data.code === "annule") {
           await load();
+          void fetchLiveSlots();
         }
       }
     } catch {
@@ -147,6 +181,7 @@ export default function RendezVousPublicPage() {
   const isExpired = !isCancelled && offer?.status === "expire";
   const selectedLabel =
     confirmedLabel ||
+    offer?.selectedSlotLabel ||
     (offer && offer.selectedSlotIndex !== null ? offer.slots[offer.selectedSlotIndex]?.label : null);
 
   return (
@@ -211,10 +246,7 @@ export default function RendezVousPublicPage() {
                   variant="outline"
                   className="w-full"
                   disabled={cancelling}
-                  onClick={() => {
-                    setError("");
-                    setView("reschedule");
-                  }}
+                  onClick={enterRescheduleView}
                 >
                   <CalendarClock className="mr-2 h-4 w-4" /> Choisir un autre creneau
                 </Button>
@@ -240,28 +272,49 @@ export default function RendezVousPublicPage() {
               {error && (
                 <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
               )}
-              {offer.slots.map((slot, i) => {
-                const isCurrent = offer.selectedSlotIndex === i;
-                return (
+
+              {loadingSlots && (
+                <div className="flex items-center justify-center py-6 text-muted-foreground">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Chargement des creneaux disponibles...
+                </div>
+              )}
+
+              {!loadingSlots && slotsError && (
+                <div className="flex flex-col items-center gap-2 py-4 text-center">
+                  <p className="text-sm text-destructive">{slotsError}</p>
+                  <Button variant="outline" size="sm" onClick={fetchLiveSlots}>
+                    <RefreshCw className="mr-2 h-3 w-3" /> Reessayer
+                  </Button>
+                </div>
+              )}
+
+              {!loadingSlots && liveSlots !== null && liveSlots.length === 0 && !slotsError && (
+                <div className="py-4 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    Aucun creneau disponible dans les 14 prochains jours. Contactez {offer.orgName} pour convenir d&apos;une date.
+                  </p>
+                </div>
+              )}
+
+              {!loadingSlots && liveSlots && liveSlots.length > 0 &&
+                liveSlots.map((slot, i) => (
                   <Button
                     key={`${slot.start}-${i}`}
                     variant="outline"
                     className="h-auto w-full justify-start py-3 text-left"
-                    disabled={submitting !== null || isCurrent}
-                    onClick={() => rescheduleSlot(i)}
+                    disabled={submitting !== null}
+                    onClick={() => rescheduleSlot(i, slot)}
                   >
                     {submitting === i ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin shrink-0" />
                     ) : (
                       <Clock className="mr-2 h-4 w-4 shrink-0 text-amber-500" />
                     )}
-                    <span className="text-sm">
-                      {slot.label}
-                      {isCurrent && " (actuel)"}
-                    </span>
+                    <span className="text-sm">{slot.label}</span>
                   </Button>
-                );
-              })}
+                ))
+              }
+
               <Button
                 variant="ghost"
                 className="w-full"

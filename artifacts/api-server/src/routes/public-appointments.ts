@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { getPublicOffer, confirmOfferSelection, cancelOffer, rescheduleOffer } from "../services/appointment-offers";
+import { getPublicOffer, getPublicAvailableSlots, confirmOfferSelection, cancelOffer, rescheduleOffer } from "../services/appointment-offers";
 
 /**
  * Routes PUBLIQUES de selection de rendez-vous (aucune authentification).
@@ -58,19 +58,52 @@ router.post("/appointments/offer/:token/select", async (req: Request, res: Respo
   }
 });
 
-router.post("/appointments/offer/:token/reschedule", async (req: Request, res: Response): Promise<void> => {
+router.get("/appointments/offer/:token/available-slots", async (req: Request, res: Response): Promise<void> => {
   const token = String(req.params.token || "");
-  const slotIndex = Number(req.body?.slotIndex);
   if (!token) {
     res.status(400).json({ error: "Token manquant." });
     return;
   }
-  if (!Number.isInteger(slotIndex) || slotIndex < 0) {
-    res.status(400).json({ error: "Creneau invalide." });
+  try {
+    const result = await getPublicAvailableSlots(token);
+    if (!result) {
+      res.status(404).json({ error: "Offre introuvable ou annulee." });
+      return;
+    }
+    res.json(result);
+  } catch (err) {
+    req.log.error({ err }, "[public-appointments] creneaux disponibles echoue");
+    res.status(500).json({ error: "Erreur lors du calcul des creneaux disponibles." });
+  }
+});
+
+router.post("/appointments/offer/:token/reschedule", async (req: Request, res: Response): Promise<void> => {
+  const token = String(req.params.token || "");
+  if (!token) {
+    res.status(400).json({ error: "Token manquant." });
     return;
   }
+
+  // Accepte soit { slotIndex } (creneau de l'offre d'origine) soit { slot: { start, end } }
+  // (creneau libre calcule en temps reel).
+  const rawSlotIndex = req.body?.slotIndex;
+  const rawSlot = req.body?.slot;
+
+  let slotRef: number | { start: string; end: string };
+
+  if (rawSlot && typeof rawSlot === "object" && typeof rawSlot.start === "string" && typeof rawSlot.end === "string") {
+    slotRef = { start: rawSlot.start, end: rawSlot.end };
+  } else {
+    const slotIndex = Number(rawSlotIndex);
+    if (!Number.isInteger(slotIndex) || slotIndex < 0) {
+      res.status(400).json({ error: "Creneau invalide." });
+      return;
+    }
+    slotRef = slotIndex;
+  }
+
   try {
-    const result = await rescheduleOffer(token, slotIndex);
+    const result = await rescheduleOffer(token, slotRef);
     if (!result.ok) {
       const statusByCode: Record<string, number> = {
         not_found: 404,

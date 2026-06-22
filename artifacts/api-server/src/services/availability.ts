@@ -281,6 +281,46 @@ export async function computeFreeSlots(input: ComputeFreeSlotsInput): Promise<Ti
   return slots;
 }
 
+export interface IsSlotWithinWorkingHoursInput {
+  orgId: number;
+  start: Date;
+  end: Date;
+  /** Marge minimale (minutes) entre maintenant et le debut du creneau. Defaut 60. */
+  leadMinutes?: number;
+}
+
+/**
+ * Verifie qu'un creneau respecte les contraintes metier de l'organisation:
+ *   1. Debut au moins `leadMinutes` dans le futur (anti-spam / impossible).
+ *   2. Jour ouvrable configurer.
+ *   3. Debut >= heure d'ouverture ET fin <= heure de fermeture (dans le fuseau
+ *      de l'org).
+ *
+ * NE verifie PAS les chevauchements (utiliser `isSlotFree` pour ca).
+ * Utilise avant d'accepter un creneau fourni par le client (lien public).
+ */
+export async function isSlotWithinWorkingHours(input: IsSlotWithinWorkingHoursInput): Promise<boolean> {
+  const s = input.start.getTime();
+  const e = input.end.getTime();
+  if (!Number.isFinite(s) || !Number.isFinite(e) || e <= s) return false;
+
+  const lead = input.leadMinutes ?? 60;
+  if (s < Date.now() + lead * 60000) return false;
+
+  const cfg = await getWorkingHoursConfig(input.orgId);
+
+  const { y, mo, d } = tzDateParts(input.start, cfg.timezone);
+  if (!new Set(cfg.workingDays).has(isoWeekday(y, mo, d))) return false;
+
+  const dayStart = wallClockToUtc(y, mo, d, Math.floor(cfg.startMinutes / 60), cfg.startMinutes % 60, cfg.timezone);
+  const dayEnd = wallClockToUtc(y, mo, d, Math.floor(cfg.endMinutes / 60), cfg.endMinutes % 60, cfg.timezone);
+
+  if (s < dayStart.getTime()) return false;
+  if (e > dayEnd.getTime()) return false;
+
+  return true;
+}
+
 export interface IsSlotFreeInput {
   orgId: number;
   userId?: number | null;
