@@ -29,6 +29,7 @@ export const calendarEventsTable = pgTable("calendar_events", {
   contactNotes: text("contact_notes"),
   status: text("status").default("confirme"),
   priority: text("priority").default("normale"),
+  googleEventId: text("google_event_id"),
   createdBy: integer("created_by").references(() => usersTable.id, { onDelete: "set null" }),
   updatedBy: integer("updated_by").references(() => usersTable.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

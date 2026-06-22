@@ -1,4 +1,4 @@
-import { db, checkinsTable, platformSyncLogsTable } from "@workspace/db";
+import { db, checkinsTable, platformSyncLogsTable, calendarEventsTable } from "@workspace/db";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { getCalendarForUser } from "../lib/google-auth";
@@ -197,4 +197,113 @@ export async function syncGoogleCalendarToCheckins(params: {
   });
 
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Mirroring des rendez-vous (calendar_events) vers Google Agenda de
+// l'utilisateur assigné. Toutes les fonctions sont best-effort : elles ne
+// lèvent jamais d'exception vers l'appelant et ne bloquent jamais le flux
+// local. En cas d'echec Google (quota, token absent, reseau), on logue en
+// warn et on renvoie null/false — le rendez-vous reste valide en local.
+// ---------------------------------------------------------------------------
+
+/**
+ * Crée un événement dans Google Agenda de l'utilisateur et stocke son id
+ * sur la ligne `calendar_events`. Renvoie l'id Google ou null si indisponible.
+ */
+export async function pushAppointmentToGoogleCalendar(params: {
+  calendarEventId: number;
+  userId: number;
+  title: string;
+  description?: string | null;
+  startDate: Date;
+  endDate: Date;
+  location?: string | null;
+}): Promise<string | null> {
+  try {
+    const calendar = await getCalendarForUser(params.userId);
+    if (!calendar) return null;
+    const res = await calendar.events.insert({
+      calendarId: "primary",
+      requestBody: {
+        summary: params.title,
+        description: params.description ?? undefined,
+        location: params.location ?? undefined,
+        start: { dateTime: params.startDate.toISOString() },
+        end: { dateTime: params.endDate.toISOString() },
+      },
+    });
+    const googleEventId = res.data.id ?? null;
+    if (googleEventId) {
+      await db
+        .update(calendarEventsTable)
+        .set({ googleEventId })
+        .where(eq(calendarEventsTable.id, params.calendarEventId))
+        .catch((err) =>
+          logger.warn({ err, calendarEventId: params.calendarEventId }, "[google-calendar-sync] persistance googleEventId echouee"),
+        );
+    }
+    return googleEventId;
+  } catch (err) {
+    logger.warn({ err, userId: params.userId }, "[google-calendar-sync] pushAppointmentToGoogleCalendar echoue");
+    return null;
+  }
+}
+
+/**
+ * Met à jour un événement existant dans Google Agenda (après reprogrammation).
+ * Renvoie true si la mise à jour a réussi.
+ */
+export async function updateAppointmentInGoogleCalendar(params: {
+  userId: number;
+  googleEventId: string;
+  title: string;
+  description?: string | null;
+  startDate: Date;
+  endDate: Date;
+  location?: string | null;
+}): Promise<boolean> {
+  try {
+    const calendar = await getCalendarForUser(params.userId);
+    if (!calendar) return false;
+    await calendar.events.patch({
+      calendarId: "primary",
+      eventId: params.googleEventId,
+      requestBody: {
+        summary: params.title,
+        description: params.description ?? undefined,
+        location: params.location ?? undefined,
+        start: { dateTime: params.startDate.toISOString() },
+        end: { dateTime: params.endDate.toISOString() },
+      },
+    });
+    return true;
+  } catch (err) {
+    logger.warn({ err, userId: params.userId, googleEventId: params.googleEventId }, "[google-calendar-sync] updateAppointmentInGoogleCalendar echoue");
+    return false;
+  }
+}
+
+/**
+ * Supprime (annule) un événement dans Google Agenda.
+ * Renvoie true si la suppression a réussi (404 = déjà supprimé, aussi true).
+ */
+export async function deleteAppointmentFromGoogleCalendar(params: {
+  userId: number;
+  googleEventId: string;
+}): Promise<boolean> {
+  try {
+    const calendar = await getCalendarForUser(params.userId);
+    if (!calendar) return false;
+    await calendar.events.delete({
+      calendarId: "primary",
+      eventId: params.googleEventId,
+    });
+    return true;
+  } catch (err: any) {
+    // 404 = événement déjà supprimé côté Google → considéré ok.
+    if (err?.code === 404 || err?.response?.status === 404) return true;
+    logger.warn({ err, userId: params.userId, googleEventId: params.googleEventId }, "[google-calendar-sync] deleteAppointmentFromGoogleCalendar echoue");
+    return false;
+  }
 }

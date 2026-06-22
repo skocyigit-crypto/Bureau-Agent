@@ -6,6 +6,11 @@ import { sendSms as providerSendSms } from "./telephony-providers";
 import { computeFreeSlots, isSlotFree, isSlotWithinWorkingHours, type TimeSlot } from "./availability";
 import { notifyOrgUsers } from "./whatsapp-notify";
 import { logger } from "../lib/logger";
+import {
+  pushAppointmentToGoogleCalendar,
+  updateAppointmentInGoogleCalendar,
+  deleteAppointmentFromGoogleCalendar,
+} from "./google-calendar-sync";
 
 /**
  * Flux "propose-confirm" de rendez-vous.
@@ -316,6 +321,20 @@ export async function confirmOfferSelection(token: string, slotIndex: number): P
     .where(eq(appointmentOffersTable.id, offer.id))
     .catch(() => {});
 
+  // Miroir Google Agenda (best-effort — n'interrompt jamais le flux local).
+  if (offer.createdBy) {
+    void pushAppointmentToGoogleCalendar({
+      calendarEventId: event.id,
+      userId: offer.createdBy,
+      title: offer.reason || "Rendez-vous",
+      description: offer.contactName
+        ? `Client : ${offer.contactName}${offer.contactEmail ? ` <${offer.contactEmail}>` : ""}${offer.contactPhone ? ` — ${offer.contactPhone}` : ""}`
+        : undefined,
+      startDate: start,
+      endDate: end,
+    }).catch(() => {});
+  }
+
   // Confirmation au client (best-effort) + notification interne.
   const { name: orgName, tz } = await getOrgContext(offer.organisationId);
   const whenStr = fmtSlot(slot, tz);
@@ -352,7 +371,22 @@ export async function cancelOffer(token: string): Promise<CancelResult> {
   if (claimed.length === 0) return { ok: true }; // course: deja annule ailleurs
 
   // L'evenement d'agenda passe en `annule` -> le creneau redevient libre.
+  let gcalEventIdToDelete: string | null = null;
   if (offer.calendarEventId) {
+    // Recupere le googleEventId avant la mise a jour (besoin de l'id Google).
+    const [ev] = await db
+      .select({ googleEventId: calendarEventsTable.googleEventId })
+      .from(calendarEventsTable)
+      .where(
+        and(
+          eq(calendarEventsTable.id, offer.calendarEventId),
+          eq(calendarEventsTable.organisationId, offer.organisationId),
+        ),
+      )
+      .limit(1)
+      .catch(() => []);
+    gcalEventIdToDelete = ev?.googleEventId ?? null;
+
     await db
       .update(calendarEventsTable)
       .set({ status: "annule" })
@@ -363,6 +397,14 @@ export async function cancelOffer(token: string): Promise<CancelResult> {
         ),
       )
       .catch(() => {});
+  }
+
+  // Suppression dans Google Agenda (best-effort).
+  if (gcalEventIdToDelete && offer.createdBy) {
+    void deleteAppointmentFromGoogleCalendar({
+      userId: offer.createdBy,
+      googleEventId: gcalEventIdToDelete,
+    }).catch(() => {});
   }
 
   // Notifications (best-effort).
@@ -471,7 +513,19 @@ export async function rescheduleOffer(token: string, slotRef: number | TimeSlot)
 
   // Deplacement de l'evenement d'agenda (ou recreation s'il a disparu).
   let eventId = offer.calendarEventId ?? null;
+  let existingGoogleEventId: string | null = null;
+  let isNewEvent = false;
+
   if (eventId) {
+    // Recupere le googleEventId existant avant le deplacement.
+    const [ev] = await db
+      .select({ googleEventId: calendarEventsTable.googleEventId })
+      .from(calendarEventsTable)
+      .where(and(eq(calendarEventsTable.id, eventId), eq(calendarEventsTable.organisationId, offer.organisationId)))
+      .limit(1)
+      .catch(() => []);
+    existingGoogleEventId = ev?.googleEventId ?? null;
+
     const moved = await db
       .update(calendarEventsTable)
       .set({ startDate: start, endDate: end, status: "confirme" })
@@ -480,6 +534,7 @@ export async function rescheduleOffer(token: string, slotRef: number | TimeSlot)
     if (moved.length === 0) eventId = null;
   }
   if (!eventId) {
+    isNewEvent = true;
     const [event] = await db
       .insert(calendarEventsTable)
       .values({
@@ -503,6 +558,35 @@ export async function rescheduleOffer(token: string, slotRef: number | TimeSlot)
       .set({ calendarEventId: eventId })
       .where(eq(appointmentOffersTable.id, offer.id))
       .catch(() => {});
+  }
+
+  // Miroir Google Agenda (best-effort).
+  if (offer.createdBy) {
+    const gcalTitle = offer.reason || "Rendez-vous";
+    const gcalDesc = offer.contactName
+      ? `Client : ${offer.contactName}${offer.contactEmail ? ` <${offer.contactEmail}>` : ""}${offer.contactPhone ? ` — ${offer.contactPhone}` : ""}`
+      : undefined;
+    if (!isNewEvent && existingGoogleEventId) {
+      // L'evenement local existe deja cote Google -> on le met a jour.
+      void updateAppointmentInGoogleCalendar({
+        userId: offer.createdBy,
+        googleEventId: existingGoogleEventId,
+        title: gcalTitle,
+        description: gcalDesc,
+        startDate: start,
+        endDate: end,
+      }).catch(() => {});
+    } else {
+      // Nouveau eventId local (recreation) ou pas encore de googleEventId -> on pousse.
+      void pushAppointmentToGoogleCalendar({
+        calendarEventId: eventId,
+        userId: offer.createdBy,
+        title: gcalTitle,
+        description: gcalDesc,
+        startDate: start,
+        endDate: end,
+      }).catch(() => {});
+    }
   }
 
   // Nouvelle confirmation au client (best-effort) + notification interne.
