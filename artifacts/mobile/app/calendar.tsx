@@ -169,8 +169,10 @@ export default function CalendarScreen() {
 
   const [showClosureSheet, setShowClosureSheet] = useState(false);
   const [closureSheetDate, setClosureSheetDate] = useState<string | null>(null);
+  const [closureEndDate, setClosureEndDate] = useState<string | null>(null);
   const [closureLabel, setClosureLabel] = useState("");
   const [closureLoading, setClosureLoading] = useState(false);
+  const [closureEndDateError, setClosureEndDateError] = useState<string | null>(null);
 
   const closureSheetClosure = useMemo(() => {
     if (!closureSheetDate) return null;
@@ -180,18 +182,33 @@ export default function CalendarScreen() {
 
   function openClosureSheet(dateStr: string) {
     setClosureSheetDate(dateStr);
+    setClosureEndDate(dateStr);
     setClosureLabel("");
+    setClosureEndDateError(null);
     setShowClosureSheet(true);
+  }
+
+  const DATE_RE_SIMPLE = /^\d{4}-\d{2}-\d{2}$/;
+
+  function validateEndDate(end: string, start: string): string | null {
+    if (!DATE_RE_SIMPLE.test(end)) return "Format attendu : AAAA-MM-JJ";
+    const d = new Date(end + "T00:00:00Z");
+    if (isNaN(d.getTime())) return "Date invalide";
+    if (end < start) return "La date de fin doit être ≥ à la date de début";
+    return null;
   }
 
   async function handleAddClosure() {
     if (!closureSheetDate) return;
+    const endDate = closureEndDate ?? closureSheetDate;
+    const err = validateEndDate(endDate, closureSheetDate);
+    if (err) { setClosureEndDateError(err); return; }
     setClosureLoading(true);
     try {
       const res = await fetchAuth(`${API_BASE}/api/org-closures`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dateStart: closureSheetDate, dateEnd: closureSheetDate, label: closureLabel.trim() || undefined }),
+        body: JSON.stringify({ dateStart: closureSheetDate, dateEnd: endDate, label: closureLabel.trim() || undefined }),
       });
       if (res.ok) {
         setShowClosureSheet(false);
@@ -771,14 +788,29 @@ export default function CalendarScreen() {
             </View>
 
             <ScrollView style={styles.sheetBody} contentContainerStyle={styles.sheetBodyContent} keyboardShouldPersistTaps="handled">
-              {closureSheetDate ? (
-                <View style={[styles.sheetDateBadge, { backgroundColor: closureSheetClosure ? "rgba(239,68,68,0.1)" : colors.primary + "12" }]}>
-                  <Feather name="calendar" size={15} color={closureSheetClosure ? "#ef4444" : colors.primary} />
-                  <Text style={[styles.sheetDateText, { color: closureSheetClosure ? "#ef4444" : colors.primary }]}>
-                    {new Date(closureSheetDate + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-                  </Text>
-                </View>
-              ) : null}
+              {closureSheetDate ? (() => {
+                const isRange = !closureSheetClosure && closureEndDate && closureEndDate > closureSheetDate;
+                const startLabel = new Date(closureSheetDate + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "long", year: "numeric" });
+                const endLabel = closureEndDate ? new Date(closureEndDate + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "long", year: "numeric" }) : startLabel;
+                const badgeColor = closureSheetClosure ? "#ef4444" : colors.primary;
+                const badgeBg = closureSheetClosure ? "rgba(239,68,68,0.1)" : colors.primary + "12";
+                return (
+                  <View style={[styles.sheetDateBadge, { backgroundColor: badgeBg, flexDirection: "column", alignItems: "flex-start", gap: 2 }]}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <Feather name="calendar" size={15} color={badgeColor} />
+                      <Text style={[styles.sheetDateText, { color: badgeColor }]}>
+                        {isRange ? `Du ${startLabel}` : startLabel.charAt(0).toUpperCase() + startLabel.slice(1)}
+                      </Text>
+                    </View>
+                    {isRange ? (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: 23 }}>
+                        <Feather name="arrow-right" size={13} color={badgeColor} />
+                        <Text style={[styles.sheetDateText, { color: badgeColor }]}>au {endLabel}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })() : null}
 
               {closureSheetClosure ? (
                 <View>
@@ -798,19 +830,47 @@ export default function CalendarScreen() {
                   </Text>
                 </View>
               ) : (
-                <View>
-                  <Text style={[styles.sheetFieldLabel, { color: colors.mutedForeground }]}>Motif (optionnel)</Text>
-                  <TextInput
-                    style={[styles.sheetInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
-                    placeholder="ex : Congés, Formation, Jour férié…"
-                    placeholderTextColor={colors.mutedForeground}
-                    value={closureLabel}
-                    onChangeText={setClosureLabel}
-                    autoCapitalize="sentences"
-                    returnKeyType="done"
-                  />
+                <View style={{ gap: 16 }}>
+                  <View>
+                    <Text style={[styles.sheetFieldLabel, { color: colors.mutedForeground }]}>Date de fin (optionnelle)</Text>
+                    <TextInput
+                      style={[
+                        styles.sheetInput,
+                        { backgroundColor: colors.muted, borderColor: closureEndDateError ? "#ef4444" : colors.border, color: colors.foreground },
+                      ]}
+                      placeholder={closureSheetDate ?? "AAAA-MM-JJ"}
+                      placeholderTextColor={colors.mutedForeground}
+                      value={closureEndDate ?? ""}
+                      onChangeText={(v) => {
+                        setClosureEndDate(v);
+                        if (closureEndDateError) setClosureEndDateError(null);
+                      }}
+                      keyboardType="numeric"
+                      returnKeyType="next"
+                      maxLength={10}
+                    />
+                    {closureEndDateError ? (
+                      <Text style={[styles.sheetHint, { color: "#ef4444", marginTop: 4 }]}>{closureEndDateError}</Text>
+                    ) : (
+                      <Text style={[styles.sheetHint, { color: colors.mutedForeground, marginTop: 4 }]}>
+                        Laissez vide ou identique pour une fermeture d'un seul jour. Pour une semaine entière, entrez la date du dernier jour.
+                      </Text>
+                    )}
+                  </View>
+                  <View>
+                    <Text style={[styles.sheetFieldLabel, { color: colors.mutedForeground }]}>Motif (optionnel)</Text>
+                    <TextInput
+                      style={[styles.sheetInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
+                      placeholder="ex : Congés, Formation, Jour férié…"
+                      placeholderTextColor={colors.mutedForeground}
+                      value={closureLabel}
+                      onChangeText={setClosureLabel}
+                      autoCapitalize="sentences"
+                      returnKeyType="done"
+                    />
+                  </View>
                   <Text style={[styles.sheetHint, { color: colors.mutedForeground }]}>
-                    Ce jour sera bloqué pour tous les rendez-vous de l'organisation.
+                    Tous les jours de la plage seront bloqués pour les rendez-vous de l'organisation.
                   </Text>
                 </View>
               )}
