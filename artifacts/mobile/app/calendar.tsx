@@ -163,7 +163,13 @@ export default function CalendarScreen() {
     const sub = AppState.addEventListener("change", (nextState) => {
       if (nextState === "active") fetchClosures();
     });
-    return () => sub.remove();
+    const interval = setInterval(() => {
+      if (AppState.currentState === "active") fetchClosures();
+    }, 5 * 60 * 1000);
+    return () => {
+      sub.remove();
+      clearInterval(interval);
+    };
   }, [fetchClosures]);
 
 
