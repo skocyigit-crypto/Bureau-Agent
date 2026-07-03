@@ -155,7 +155,13 @@ export default function DashboardScreen() {
         fetchDashboard(true);
       }
     });
-    return () => sub.remove();
+    const interval = setInterval(() => {
+      if (AppState.currentState === "active") fetchDashboard(true);
+    }, 5 * 60 * 1000);
+    return () => {
+      sub.remove();
+      clearInterval(interval);
+    };
   }, [fetchDashboard]);
 
   function onRefresh() { setRefreshing(true); fetchDashboard(); }
