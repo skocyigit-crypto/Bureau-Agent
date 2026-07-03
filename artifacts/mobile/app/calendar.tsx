@@ -6,12 +6,15 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -110,7 +113,7 @@ function buildGrid(year: number, month: number, events: CalendarEvent[]) {
 export default function CalendarScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { fetchAuth } = useAuth();
+  const { fetchAuth, user } = useAuth();
   const isWeb = Platform.OS === "web";
   const params = useLocalSearchParams<{ eventId?: string | string[] }>();
   const eventIdParam = Array.isArray(params.eventId) ? params.eventId[0] : params.eventId;
@@ -135,16 +138,83 @@ export default function CalendarScreen() {
   } | null>(null);
   const [closures, setClosures] = useState<OrgClosure[]>([]);
 
+  const isAdmin = user?.role === "administrateur" || user?.role === "super_admin";
+
+  const fetchClosures = useCallback(async () => {
+    try {
+      const r = await fetchAuth(`${API_BASE}/api/org-closures`);
+      if (r.ok) {
+        const d = await r.json();
+        if (Array.isArray(d)) setClosures(d);
+      }
+    } catch {}
+  }, [fetchAuth]);
+
   useEffect(() => {
     fetchAuth(`${API_BASE}/api/org-profile`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setOrgProfile(d))
       .catch(() => {});
-    fetchAuth(`${API_BASE}/api/org-closures`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (Array.isArray(d)) setClosures(d); })
-      .catch(() => {});
-  }, [fetchAuth]);
+    fetchClosures();
+  }, [fetchAuth, fetchClosures]);
+
+  const [showClosureSheet, setShowClosureSheet] = useState(false);
+  const [closureSheetDate, setClosureSheetDate] = useState<string | null>(null);
+  const [closureLabel, setClosureLabel] = useState("");
+  const [closureLoading, setClosureLoading] = useState(false);
+
+  const closureSheetClosure = useMemo(() => {
+    if (!closureSheetDate) return null;
+    return isDateClosed(closureSheetDate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [closureSheetDate, closures]);
+
+  function openClosureSheet(dateStr: string) {
+    setClosureSheetDate(dateStr);
+    setClosureLabel("");
+    setShowClosureSheet(true);
+  }
+
+  async function handleAddClosure() {
+    if (!closureSheetDate) return;
+    setClosureLoading(true);
+    try {
+      const res = await fetchAuth(`${API_BASE}/api/org-closures`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dateStart: closureSheetDate, dateEnd: closureSheetDate, label: closureLabel.trim() || undefined }),
+      });
+      if (res.ok) {
+        setShowClosureSheet(false);
+        await fetchClosures();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        Alert.alert("Erreur", err.error ?? "Impossible d'enregistrer la fermeture.");
+      }
+    } catch {
+      Alert.alert("Erreur", "Erreur de connexion au serveur.");
+    } finally {
+      setClosureLoading(false);
+    }
+  }
+
+  async function handleRemoveClosure(id: number) {
+    setClosureLoading(true);
+    try {
+      const res = await fetchAuth(`${API_BASE}/api/org-closures/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setShowClosureSheet(false);
+        await fetchClosures();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        Alert.alert("Erreur", err.error ?? "Impossible de supprimer la fermeture.");
+      }
+    } catch {
+      Alert.alert("Erreur", "Erreur de connexion au serveur.");
+    } finally {
+      setClosureLoading(false);
+    }
+  }
 
   const workingDaySet = useMemo(() => {
     if (!orgProfile?.workingDays) return null;
@@ -434,13 +504,32 @@ export default function CalendarScreen() {
                           {cell.day}
                         </Text>
                         {!isSelected && cell.dateStr && isDateClosed(cell.dateStr) ? (
-                          <Text style={styles.closedBadge}>Fermé</Text>
+                          isAdmin ? (
+                            <Pressable
+                              onPress={() => openClosureSheet(cell.dateStr!)}
+                              hitSlop={4}
+                              style={styles.cellClosedToggle}
+                            >
+                              <Text style={styles.closedBadge}>Fermé</Text>
+                              <Feather name="unlock" size={7} color="#fca5a5" />
+                            </Pressable>
+                          ) : (
+                            <Text style={styles.closedBadge}>Fermé</Text>
+                          )
                         ) : cell.eventColors.length > 0 ? (
                           <View style={styles.eventDots}>
                             {cell.eventColors.slice(0, 3).map((c, i) => (
                               <View key={i} style={[styles.eventDot, { backgroundColor: isSelected ? "rgba(255,255,255,0.8)" : c }]} />
                             ))}
                           </View>
+                        ) : isAdmin && cell.dateStr && !isSelected ? (
+                          <Pressable
+                            onPress={() => openClosureSheet(cell.dateStr!)}
+                            hitSlop={4}
+                            style={styles.cellLockToggle}
+                          >
+                            <Feather name="lock" size={7} color="rgba(255,255,255,0.25)" />
+                          </Pressable>
                         ) : null}
                       </>
                     ) : null}
@@ -484,16 +573,34 @@ export default function CalendarScreen() {
                 return (
                   <View style={[styles.hoursTimeline, { borderColor: closure ? "#ef4444" : colors.border }]}>
                     <View style={styles.hoursTimelineHeader}>
-                      <Text style={[styles.hoursTimelineLabel, { color: isOpen ? colors.primary : closure ? "#ef4444" : colors.mutedForeground }]}>
+                      <Text style={[styles.hoursTimelineLabel, { color: isOpen ? colors.primary : closure ? "#ef4444" : colors.mutedForeground, flex: 1 }]}>
                         {isOpen
                           ? `Ouvert ${orgProfile.workingHoursStart ?? ""} – ${orgProfile.workingHoursEnd ?? ""}`
                           : closureLabel}
                       </Text>
-                      {orgProfile.appointmentTimezone && (
-                        <Text style={[styles.hoursTimelineTz, { color: colors.mutedForeground }]}>
-                          {orgProfile.appointmentTimezone}
-                        </Text>
-                      )}
+                      <View style={styles.hoursTimelineRight}>
+                        {orgProfile.appointmentTimezone && (
+                          <Text style={[styles.hoursTimelineTz, { color: colors.mutedForeground }]}>
+                            {orgProfile.appointmentTimezone}
+                          </Text>
+                        )}
+                        {isAdmin && (
+                          <Pressable
+                            onPress={() => openClosureSheet(selectedDateStr)}
+                            hitSlop={10}
+                            style={[styles.closureToggleBtn, { backgroundColor: closure ? "rgba(239,68,68,0.12)" : "rgba(0,0,0,0.06)" }]}
+                          >
+                            <Feather
+                              name={closure ? "unlock" : "lock"}
+                              size={13}
+                              color={closure ? "#ef4444" : colors.mutedForeground}
+                            />
+                            <Text style={[styles.closureToggleBtnText, { color: closure ? "#ef4444" : colors.mutedForeground }]}>
+                              {closure ? "Lever" : "Fermer"}
+                            </Text>
+                          </Pressable>
+                        )}
+                      </View>
                     </View>
                     <View style={styles.hoursTimelineBar}>
                       {slots.map((h) => {
@@ -640,6 +747,117 @@ export default function CalendarScreen() {
           }] : undefined}
         />
       ) : null}
+
+      <Modal visible={showClosureSheet} animationType="slide" transparent onRequestClose={() => setShowClosureSheet(false)}>
+        <KeyboardAvoidingView style={styles.sheetOverlay} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+          <View style={[styles.sheetContainer, { backgroundColor: colors.background }]}>
+            <View style={[styles.sheetHeader, { borderBottomColor: colors.border }]}>
+              <Pressable onPress={() => setShowClosureSheet(false)} hitSlop={12}>
+                <Feather name="x" size={22} color={colors.foreground} />
+              </Pressable>
+              <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
+                {closureSheetClosure ? "Lever la fermeture" : "Marquer comme fermé"}
+              </Text>
+              <View style={{ width: 22 }} />
+            </View>
+
+            <ScrollView style={styles.sheetBody} contentContainerStyle={styles.sheetBodyContent} keyboardShouldPersistTaps="handled">
+              {closureSheetDate ? (
+                <View style={[styles.sheetDateBadge, { backgroundColor: closureSheetClosure ? "rgba(239,68,68,0.1)" : colors.primary + "12" }]}>
+                  <Feather name="calendar" size={15} color={closureSheetClosure ? "#ef4444" : colors.primary} />
+                  <Text style={[styles.sheetDateText, { color: closureSheetClosure ? "#ef4444" : colors.primary }]}>
+                    {new Date(closureSheetDate + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                  </Text>
+                </View>
+              ) : null}
+
+              {closureSheetClosure ? (
+                <View>
+                  <View style={[styles.sheetInfoBox, { backgroundColor: "rgba(239,68,68,0.08)", borderColor: "rgba(239,68,68,0.3)" }]}>
+                    <Feather name="lock" size={16} color="#ef4444" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.sheetInfoTitle, { color: "#ef4444" }]}>Jour marqué fermé</Text>
+                      {closureSheetClosure.label ? (
+                        <Text style={[styles.sheetInfoSubtitle, { color: colors.mutedForeground }]}>{closureSheetClosure.label}</Text>
+                      ) : (
+                        <Text style={[styles.sheetInfoSubtitle, { color: colors.mutedForeground }]}>Fermeture exceptionnelle</Text>
+                      )}
+                    </View>
+                  </View>
+                  <Text style={[styles.sheetHint, { color: colors.mutedForeground }]}>
+                    Supprimer cette fermeture rouvrira le jour aux rendez-vous.
+                  </Text>
+                </View>
+              ) : (
+                <View>
+                  <Text style={[styles.sheetFieldLabel, { color: colors.mutedForeground }]}>Motif (optionnel)</Text>
+                  <TextInput
+                    style={[styles.sheetInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
+                    placeholder="ex : Congés, Formation, Jour férié…"
+                    placeholderTextColor={colors.mutedForeground}
+                    value={closureLabel}
+                    onChangeText={setClosureLabel}
+                    autoCapitalize="sentences"
+                    returnKeyType="done"
+                  />
+                  <Text style={[styles.sheetHint, { color: colors.mutedForeground }]}>
+                    Ce jour sera bloqué pour tous les rendez-vous de l'organisation.
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+
+            <View style={[styles.sheetFooter, { borderTopColor: colors.border }]}>
+              <Pressable
+                onPress={() => setShowClosureSheet(false)}
+                style={[styles.sheetCancelBtn, { borderColor: colors.border }]}
+              >
+                <Text style={[styles.sheetCancelText, { color: colors.foreground }]}>Annuler</Text>
+              </Pressable>
+              {closureSheetClosure ? (
+                <Pressable
+                  onPress={() => {
+                    Alert.alert(
+                      "Lever la fermeture",
+                      "Confirmer la suppression de cette fermeture ?",
+                      [
+                        { text: "Annuler", style: "cancel" },
+                        { text: "Supprimer", style: "destructive", onPress: () => handleRemoveClosure(closureSheetClosure!.id) },
+                      ]
+                    );
+                  }}
+                  disabled={closureLoading}
+                  style={({ pressed }) => [styles.sheetDestructBtn, { opacity: pressed || closureLoading ? 0.8 : 1 }]}
+                >
+                  {closureLoading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <>
+                      <Feather name="unlock" size={16} color="#fff" />
+                      <Text style={styles.sheetDestructText}>Lever la fermeture</Text>
+                    </>
+                  )}
+                </Pressable>
+              ) : (
+                <Pressable
+                  onPress={handleAddClosure}
+                  disabled={closureLoading}
+                  style={({ pressed }) => [styles.sheetSubmitBtn, { backgroundColor: colors.primary, opacity: pressed || closureLoading ? 0.8 : 1 }]}
+                >
+                  {closureLoading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <>
+                      <Feather name="lock" size={16} color="#fff" />
+                      <Text style={styles.sheetSubmitText}>Confirmer la fermeture</Text>
+                    </>
+                  )}
+                </Pressable>
+              )}
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -682,9 +900,35 @@ const styles = StyleSheet.create({
   hoursTimeline: { marginBottom: 12, padding: 10, borderRadius: 10, borderWidth: 1 },
   hoursTimelineHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
   hoursTimelineLabel: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  hoursTimelineRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   hoursTimelineTz: { fontSize: 10, fontFamily: "Inter_400Regular" },
   hoursTimelineBar: { flexDirection: "row", height: 8, borderRadius: 4, overflow: "hidden", gap: 1 },
   hoursTimelineSlot: { flex: 1, height: 8 },
   hoursTimelineTicks: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
   hoursTimelineTickLabel: { fontSize: 9, fontFamily: "Inter_400Regular" },
+  closureToggleBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  closureToggleBtnText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  cellClosedToggle: { flexDirection: "row", alignItems: "center", gap: 2, marginTop: 1 },
+  cellLockToggle: { marginTop: 2, alignItems: "center" },
+  sheetOverlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" },
+  sheetContainer: { maxHeight: "80%", borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: StyleSheet.hairlineWidth },
+  sheetTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  sheetBody: { maxHeight: 400 },
+  sheetBodyContent: { padding: 20, gap: 16 },
+  sheetDateBadge: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12 },
+  sheetDateText: { fontSize: 14, fontFamily: "Inter_600SemiBold", textTransform: "capitalize" },
+  sheetInfoBox: { flexDirection: "row", alignItems: "flex-start", gap: 12, padding: 14, borderRadius: 12, borderWidth: 1 },
+  sheetInfoTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  sheetInfoSubtitle: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  sheetFieldLabel: { fontSize: 13, fontFamily: "Inter_500Medium", marginBottom: 6 },
+  sheetInput: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, height: 48, fontSize: 15, fontFamily: "Inter_400Regular" },
+  sheetHint: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 10, lineHeight: 18 },
+  sheetFooter: { flexDirection: "row", gap: 12, padding: 20, borderTopWidth: StyleSheet.hairlineWidth },
+  sheetCancelBtn: { flex: 1, height: 48, borderRadius: 12, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  sheetCancelText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  sheetSubmitBtn: { flex: 1, height: 48, borderRadius: 12, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 },
+  sheetSubmitText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: "#fff" },
+  sheetDestructBtn: { flex: 1, height: 48, borderRadius: 12, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, backgroundColor: "#ef4444" },
+  sheetDestructText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: "#fff" },
 });
