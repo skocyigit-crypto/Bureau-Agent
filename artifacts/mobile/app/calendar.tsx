@@ -374,7 +374,7 @@ export default function CalendarScreen() {
     return () => { cancelled = true; };
   }, [focusedEventId, events, fetchAuth]);
 
-  function onRefresh() { setRefreshing(true); fetchEvents(); }
+  function onRefresh() { setRefreshing(true); fetchEvents(); fetchClosures(); }
 
   function changeMonth(delta: number) {
     const d = new Date(currentDate);
