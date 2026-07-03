@@ -16,6 +16,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -178,11 +179,11 @@ export default function CalendarScreen() {
   const [closureEndDate, setClosureEndDate] = useState<string | null>(null);
   const [closureLabel, setClosureLabel] = useState("");
   const [closureLoading, setClosureLoading] = useState(false);
-  const [closureEndDateError, setClosureEndDateError] = useState<string | null>(null);
   const [closureEditMode, setClosureEditMode] = useState(false);
   const [closureEditEndDate, setClosureEditEndDate] = useState("");
   const [closureEditLabel, setClosureEditLabel] = useState("");
-  const [closureEditEndDateError, setClosureEditEndDateError] = useState<string | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState<"create" | "edit" | null>(null);
+  const [datePickerMonth, setDatePickerMonth] = useState(() => new Date());
 
   const closureSheetClosure = useMemo(() => {
     if (!closureSheetDate) return null;
@@ -194,41 +195,51 @@ export default function CalendarScreen() {
     setClosureSheetDate(dateStr);
     setClosureEndDate(dateStr);
     setClosureLabel("");
-    setClosureEndDateError(null);
     setClosureEditMode(false);
     setClosureEditEndDate("");
     setClosureEditLabel("");
-    setClosureEditEndDateError(null);
+    const [y, m] = dateStr.split("-").map(Number);
+    setDatePickerMonth(new Date(y, m - 1, 1));
     setShowClosureSheet(true);
   }
 
   function enterEditMode(closure: OrgClosure) {
     setClosureEditEndDate(closure.dateEnd);
     setClosureEditLabel(closure.label ?? "");
-    setClosureEditEndDateError(null);
+    const [y, m] = closure.dateEnd.split("-").map(Number);
+    setDatePickerMonth(new Date(y, m - 1, 1));
     setClosureEditMode(true);
   }
 
   function cancelEditMode() {
     setClosureEditMode(false);
-    setClosureEditEndDateError(null);
   }
 
-  const DATE_RE_SIMPLE = /^\d{4}-\d{2}-\d{2}$/;
+  function formatDateFr(dateStr: string): string {
+    const [y, mo, d] = dateStr.split("-").map(Number);
+    return new Date(y, mo - 1, d).toLocaleDateString("fr-FR", {
+      weekday: "short", day: "numeric", month: "short", year: "numeric",
+    });
+  }
 
-  function validateEndDate(end: string, start: string): string | null {
-    if (!DATE_RE_SIMPLE.test(end)) return "Format attendu : AAAA-MM-JJ";
-    const d = new Date(end + "T00:00:00Z");
-    if (isNaN(d.getTime())) return "Date invalide";
-    if (end < start) return "La date de fin doit être ≥ à la date de début";
-    return null;
+  function buildPickerGrid(year: number, month: number) {
+    const firstDay = new Date(year, month, 1);
+    let startDow = firstDay.getDay();
+    startDow = (startDow + 6) % 7;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const cells: Array<{ day: number | null; dateStr: string | null }> = [];
+    for (let i = 0; i < startDow; i++) cells.push({ day: null, dateStr: null });
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      cells.push({ day: d, dateStr });
+    }
+    while (cells.length % 7 !== 0) cells.push({ day: null, dateStr: null });
+    return cells;
   }
 
   async function handleAddClosure() {
     if (!closureSheetDate) return;
     const endDate = closureEndDate ?? closureSheetDate;
-    const err = validateEndDate(endDate, closureSheetDate);
-    if (err) { setClosureEndDateError(err); return; }
     setClosureLoading(true);
     try {
       const res = await fetchAuth(`${API_BASE}/api/org-closures`, {
@@ -269,15 +280,18 @@ export default function CalendarScreen() {
   }
 
   async function handleEditClosure(id: number, startDate: string) {
-    const err = validateEndDate(closureEditEndDate, startDate);
-    if (err) { setClosureEditEndDateError(err); return; }
+    const endDate = closureEditEndDate || startDate;
+    if (endDate < startDate) {
+      Alert.alert("Date invalide", "La date de fin doit être ≥ à la date de début.");
+      return;
+    }
     setClosureLoading(true);
     try {
       const res = await fetchAuth(`${API_BASE}/api/org-closures/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          dateEnd: closureEditEndDate,
+          dateEnd: endDate,
           label: closureEditLabel.trim() || null,
         }),
       });
@@ -847,6 +861,112 @@ export default function CalendarScreen() {
         />
       ) : null}
 
+      <Modal
+        visible={showDatePicker !== null}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowDatePicker(null)}
+      >
+        <Pressable style={styles.pickerOverlay} onPress={() => setShowDatePicker(null)}>
+          <Pressable style={[styles.pickerCard, { backgroundColor: colors.background }]} onPress={() => {}}>
+            {(() => {
+              const pickerYear = datePickerMonth.getFullYear();
+              const pickerMonthIdx = datePickerMonth.getMonth();
+              const pickerGrid = buildPickerGrid(pickerYear, pickerMonthIdx);
+              const minDate = showDatePicker === "edit"
+                ? (closureSheetClosure?.dateStart ?? closureSheetDate ?? todayStr)
+                : (closureSheetDate ?? todayStr);
+              const selectedDate = showDatePicker === "edit"
+                ? (closureEditEndDate || minDate)
+                : (closureEndDate ?? minDate);
+              const pickerMonthLabel = datePickerMonth.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+              return (
+                <>
+                  <View style={[styles.pickerHeader, { borderBottomColor: colors.border }]}>
+                    <Pressable
+                      onPress={() => {
+                        const d = new Date(datePickerMonth);
+                        d.setMonth(d.getMonth() - 1);
+                        setDatePickerMonth(d);
+                      }}
+                      hitSlop={12}
+                    >
+                      <Feather name="chevron-left" size={22} color={colors.foreground} />
+                    </Pressable>
+                    <Text style={[styles.pickerMonthLabel, { color: colors.foreground }]}>
+                      {pickerMonthLabel.charAt(0).toUpperCase() + pickerMonthLabel.slice(1)}
+                    </Text>
+                    <Pressable
+                      onPress={() => {
+                        const d = new Date(datePickerMonth);
+                        d.setMonth(d.getMonth() + 1);
+                        setDatePickerMonth(d);
+                      }}
+                      hitSlop={12}
+                    >
+                      <Feather name="chevron-right" size={22} color={colors.foreground} />
+                    </Pressable>
+                  </View>
+                  <View style={styles.pickerDowRow}>
+                    {DOW_LABELS.map((d, i) => (
+                      <Text key={i} style={[styles.pickerDowLabel, { color: colors.mutedForeground }]}>{d}</Text>
+                    ))}
+                  </View>
+                  <View style={styles.pickerGrid}>
+                    {Array.from({ length: Math.ceil(pickerGrid.length / 7) }).map((_, rowIdx) => (
+                      <View key={rowIdx} style={styles.pickerGridRow}>
+                        {pickerGrid.slice(rowIdx * 7, rowIdx * 7 + 7).map((cell, colIdx) => {
+                          const isDisabled = !cell.dateStr || cell.dateStr < minDate;
+                          const isSelected = cell.dateStr === selectedDate;
+                          const isMin = cell.dateStr === minDate;
+                          return (
+                            <Pressable
+                              key={colIdx}
+                              disabled={isDisabled || !cell.day}
+                              onPress={() => {
+                                if (!cell.dateStr) return;
+                                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                if (showDatePicker === "edit") {
+                                  setClosureEditEndDate(cell.dateStr);
+                                } else {
+                                  setClosureEndDate(cell.dateStr);
+                                }
+                                setShowDatePicker(null);
+                              }}
+                              style={[
+                                styles.pickerDayCell,
+                                isSelected && { backgroundColor: colors.primary },
+                                isMin && !isSelected && { backgroundColor: colors.primary + "22" },
+                              ]}
+                            >
+                              {cell.day ? (
+                                <Text style={[
+                                  styles.pickerDayNum,
+                                  { color: isDisabled ? colors.mutedForeground + "55" : isSelected ? "#fff" : colors.foreground },
+                                  isSelected && { fontFamily: "Inter_700Bold" },
+                                ]}>
+                                  {cell.day}
+                                </Text>
+                              ) : null}
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    ))}
+                  </View>
+                  <Pressable
+                    onPress={() => setShowDatePicker(null)}
+                    style={[styles.pickerCancelBtn, { borderTopColor: colors.border }]}
+                  >
+                    <Text style={[styles.pickerCancelText, { color: colors.mutedForeground }]}>Annuler</Text>
+                  </Pressable>
+                </>
+              );
+            })()}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <Modal visible={showClosureSheet} animationType="slide" transparent onRequestClose={() => { if (closureEditMode) { cancelEditMode(); } else { setShowClosureSheet(false); } }}>
         <KeyboardAvoidingView style={styles.sheetOverlay} behavior={Platform.OS === "ios" ? "padding" : "height"}>
           <View style={[styles.sheetContainer, { backgroundColor: colors.background }]}>
@@ -895,29 +1015,24 @@ export default function CalendarScreen() {
                   <View style={{ gap: 16 }}>
                     <View>
                       <Text style={[styles.sheetFieldLabel, { color: colors.mutedForeground }]}>Date de fin</Text>
-                      <TextInput
-                        style={[
-                          styles.sheetInput,
-                          { backgroundColor: colors.muted, borderColor: closureEditEndDateError ? "#ef4444" : colors.border, color: colors.foreground },
-                        ]}
-                        placeholder="AAAA-MM-JJ"
-                        placeholderTextColor={colors.mutedForeground}
-                        value={closureEditEndDate}
-                        onChangeText={(v) => {
-                          setClosureEditEndDate(v);
-                          if (closureEditEndDateError) setClosureEditEndDateError(null);
+                      <TouchableOpacity
+                        onPress={() => {
+                          const [y, m] = (closureEditEndDate || closureSheetClosure!.dateEnd).split("-").map(Number);
+                          setDatePickerMonth(new Date(y, m - 1, 1));
+                          setShowDatePicker("edit");
                         }}
-                        keyboardType="numeric"
-                        returnKeyType="next"
-                        maxLength={10}
-                      />
-                      {closureEditEndDateError ? (
-                        <Text style={[styles.sheetHint, { color: "#ef4444", marginTop: 4 }]}>{closureEditEndDateError}</Text>
-                      ) : (
-                        <Text style={[styles.sheetHint, { color: colors.mutedForeground, marginTop: 4 }]}>
-                          Modifiez la date du dernier jour de fermeture.
+                        activeOpacity={0.7}
+                        style={[styles.datePickerBtn, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                      >
+                        <Feather name="calendar" size={16} color={colors.primary} />
+                        <Text style={[styles.datePickerBtnText, { color: colors.foreground }]}>
+                          {formatDateFr(closureEditEndDate || closureSheetClosure!.dateEnd)}
                         </Text>
-                      )}
+                        <Feather name="chevron-down" size={14} color={colors.mutedForeground} />
+                      </TouchableOpacity>
+                      <Text style={[styles.sheetHint, { color: colors.mutedForeground, marginTop: 4 }]}>
+                        Modifiez la date du dernier jour de fermeture.
+                      </Text>
                     </View>
                     <View>
                       <Text style={[styles.sheetFieldLabel, { color: colors.mutedForeground }]}>Motif (optionnel)</Text>
@@ -966,29 +1081,25 @@ export default function CalendarScreen() {
                 <View style={{ gap: 16 }}>
                   <View>
                     <Text style={[styles.sheetFieldLabel, { color: colors.mutedForeground }]}>Date de fin (optionnelle)</Text>
-                    <TextInput
-                      style={[
-                        styles.sheetInput,
-                        { backgroundColor: colors.muted, borderColor: closureEndDateError ? "#ef4444" : colors.border, color: colors.foreground },
-                      ]}
-                      placeholder={closureSheetDate ?? "AAAA-MM-JJ"}
-                      placeholderTextColor={colors.mutedForeground}
-                      value={closureEndDate ?? ""}
-                      onChangeText={(v) => {
-                        setClosureEndDate(v);
-                        if (closureEndDateError) setClosureEndDateError(null);
+                    <TouchableOpacity
+                      onPress={() => {
+                        const base = closureEndDate ?? closureSheetDate ?? new Date().toISOString().slice(0, 10);
+                        const [y, m] = base.split("-").map(Number);
+                        setDatePickerMonth(new Date(y, m - 1, 1));
+                        setShowDatePicker("create");
                       }}
-                      keyboardType="numeric"
-                      returnKeyType="next"
-                      maxLength={10}
-                    />
-                    {closureEndDateError ? (
-                      <Text style={[styles.sheetHint, { color: "#ef4444", marginTop: 4 }]}>{closureEndDateError}</Text>
-                    ) : (
-                      <Text style={[styles.sheetHint, { color: colors.mutedForeground, marginTop: 4 }]}>
-                        Laissez vide ou identique pour une fermeture d'un seul jour. Pour une semaine entière, entrez la date du dernier jour.
+                      activeOpacity={0.7}
+                      style={[styles.datePickerBtn, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                    >
+                      <Feather name="calendar" size={16} color={colors.primary} />
+                      <Text style={[styles.datePickerBtnText, { color: colors.foreground }]}>
+                        {formatDateFr(closureEndDate ?? closureSheetDate ?? new Date().toISOString().slice(0, 10))}
                       </Text>
-                    )}
+                      <Feather name="chevron-down" size={14} color={colors.mutedForeground} />
+                    </TouchableOpacity>
+                    <Text style={[styles.sheetHint, { color: colors.mutedForeground, marginTop: 4 }]}>
+                      Sélectionnez le dernier jour de fermeture (identique au premier pour une seule journée).
+                    </Text>
                   </View>
                   <View>
                     <Text style={[styles.sheetFieldLabel, { color: colors.mutedForeground }]}>Motif (optionnel)</Text>
@@ -1150,4 +1261,18 @@ const styles = StyleSheet.create({
   sheetSubmitText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: "#fff" },
   sheetDestructBtn: { flex: 1, height: 48, borderRadius: 12, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8, backgroundColor: "#ef4444" },
   sheetDestructText: { fontSize: 15, fontFamily: "Inter_600SemiBold", color: "#fff" },
+  datePickerBtn: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, height: 48 },
+  datePickerBtnText: { flex: 1, fontSize: 15, fontFamily: "Inter_500Medium" },
+  pickerOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center", padding: 24 },
+  pickerCard: { width: "100%", maxWidth: 340, borderRadius: 20, overflow: "hidden", elevation: 8, shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 12 },
+  pickerHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth },
+  pickerMonthLabel: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  pickerDowRow: { flexDirection: "row", paddingHorizontal: 8, paddingTop: 10, paddingBottom: 4 },
+  pickerDowLabel: { flex: 1, textAlign: "center", fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  pickerGrid: { paddingHorizontal: 8, paddingBottom: 8 },
+  pickerGridRow: { flexDirection: "row" },
+  pickerDayCell: { flex: 1, alignItems: "center", justifyContent: "center", height: 38, borderRadius: 10, margin: 1 },
+  pickerDayNum: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  pickerCancelBtn: { borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: 14, alignItems: "center" },
+  pickerCancelText: { fontSize: 15, fontFamily: "Inter_500Medium" },
 });
