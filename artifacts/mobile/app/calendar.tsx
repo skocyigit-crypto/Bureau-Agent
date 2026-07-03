@@ -599,8 +599,14 @@ export default function CalendarScreen() {
                 const DAY_FROM = 6;
                 const DAY_TO = 22;
                 const slots = Array.from({ length: DAY_TO - DAY_FROM }, (_, i) => DAY_FROM + i);
+                const formatClosureDate = (dateStr: string) => {
+                  const [y, m, d] = dateStr.split("-").map(Number);
+                  return new Date(y, m - 1, d).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+                };
                 const closureLabel = closure
-                  ? (closure.label ? `Fermé — ${closure.label}` : "Fermeture exceptionnelle")
+                  ? (closure.dateEnd > closure.dateStart
+                      ? `Fermé du ${formatClosureDate(closure.dateStart)} au ${formatClosureDate(closure.dateEnd)}${closure.label ? ` — ${closure.label}` : ""}`
+                      : (closure.label ? `Fermé — ${closure.label}` : "Fermeture exceptionnelle"))
                   : "Jour fermé — hors jours d'ouverture";
                 return (
                   <View style={[styles.hoursTimeline, { borderColor: closure ? "#ef4444" : colors.border }]}>
