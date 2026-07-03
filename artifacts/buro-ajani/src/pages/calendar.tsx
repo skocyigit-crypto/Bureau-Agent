@@ -1402,10 +1402,19 @@ export default function CalendarPage() {
                 <div />
                 {weekDays.map((d, i) => {
                   const weekDayClosure = getClosureForDate(d);
+                  const fmtWkDate = (ds: string) =>
+                    new Date(ds + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+                  const weekClosureText = weekDayClosure
+                    ? weekDayClosure.dateEnd > weekDayClosure.dateStart
+                      ? `Fermé du ${fmtWkDate(weekDayClosure.dateStart)} au ${fmtWkDate(weekDayClosure.dateEnd)}${weekDayClosure.label ? ` — ${weekDayClosure.label}` : ""}`
+                      : weekDayClosure.label
+                        ? `Fermé — ${weekDayClosure.label}`
+                        : "Fermé"
+                    : undefined;
                   return (
                     <div
                       key={i}
-                      title={weekDayClosure ? (weekDayClosure.label ?? "Fermeture exceptionnelle") : undefined}
+                      title={weekClosureText ?? undefined}
                       className={`group relative text-center py-2 border-b cursor-pointer hover:bg-amber-50/30 dark:hover:bg-amber-950/10 transition-colors
                         ${isSameDay(d, today) ? "bg-amber-50 dark:bg-amber-950/20" : weekDayClosure ? "bg-red-50 dark:bg-red-950/30" : ""}
                       `}
@@ -1418,7 +1427,7 @@ export default function CalendarPage() {
                       {weekDayClosure && (
                         <p className={`text-[9px] text-red-500 dark:text-red-400 font-semibold flex items-center justify-center gap-0.5 mt-0.5 ${isAdmin ? "group-hover:hidden" : ""}`}>
                           <Lock className="w-2 h-2" />
-                          {weekDayClosure.label ?? "Fermé"}
+                          {weekClosureText}
                         </p>
                       )}
                       {isAdmin && (
