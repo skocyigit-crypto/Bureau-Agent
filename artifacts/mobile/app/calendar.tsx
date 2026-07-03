@@ -179,6 +179,10 @@ export default function CalendarScreen() {
   const [closureLabel, setClosureLabel] = useState("");
   const [closureLoading, setClosureLoading] = useState(false);
   const [closureEndDateError, setClosureEndDateError] = useState<string | null>(null);
+  const [closureEditMode, setClosureEditMode] = useState(false);
+  const [closureEditEndDate, setClosureEditEndDate] = useState("");
+  const [closureEditLabel, setClosureEditLabel] = useState("");
+  const [closureEditEndDateError, setClosureEditEndDateError] = useState<string | null>(null);
 
   const closureSheetClosure = useMemo(() => {
     if (!closureSheetDate) return null;
@@ -191,7 +195,23 @@ export default function CalendarScreen() {
     setClosureEndDate(dateStr);
     setClosureLabel("");
     setClosureEndDateError(null);
+    setClosureEditMode(false);
+    setClosureEditEndDate("");
+    setClosureEditLabel("");
+    setClosureEditEndDateError(null);
     setShowClosureSheet(true);
+  }
+
+  function enterEditMode(closure: OrgClosure) {
+    setClosureEditEndDate(closure.dateEnd);
+    setClosureEditLabel(closure.label ?? "");
+    setClosureEditEndDateError(null);
+    setClosureEditMode(true);
+  }
+
+  function cancelEditMode() {
+    setClosureEditMode(false);
+    setClosureEditEndDateError(null);
   }
 
   const DATE_RE_SIMPLE = /^\d{4}-\d{2}-\d{2}$/;
@@ -240,6 +260,34 @@ export default function CalendarScreen() {
       } else {
         const err = await res.json().catch(() => ({}));
         Alert.alert("Erreur", err.error ?? "Impossible de supprimer la fermeture.");
+      }
+    } catch {
+      Alert.alert("Erreur", "Erreur de connexion au serveur.");
+    } finally {
+      setClosureLoading(false);
+    }
+  }
+
+  async function handleEditClosure(id: number, startDate: string) {
+    const err = validateEndDate(closureEditEndDate, startDate);
+    if (err) { setClosureEditEndDateError(err); return; }
+    setClosureLoading(true);
+    try {
+      const res = await fetchAuth(`${API_BASE}/api/org-closures/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dateEnd: closureEditEndDate,
+          label: closureEditLabel.trim() || null,
+        }),
+      });
+      if (res.ok) {
+        setClosureEditMode(false);
+        setShowClosureSheet(false);
+        await fetchClosures();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        Alert.alert("Erreur", data.error ?? "Impossible de modifier la fermeture.");
       }
     } catch {
       Alert.alert("Erreur", "Erreur de connexion au serveur.");
@@ -786,26 +834,31 @@ export default function CalendarScreen() {
         />
       ) : null}
 
-      <Modal visible={showClosureSheet} animationType="slide" transparent onRequestClose={() => setShowClosureSheet(false)}>
+      <Modal visible={showClosureSheet} animationType="slide" transparent onRequestClose={() => { if (closureEditMode) { cancelEditMode(); } else { setShowClosureSheet(false); } }}>
         <KeyboardAvoidingView style={styles.sheetOverlay} behavior={Platform.OS === "ios" ? "padding" : "height"}>
           <View style={[styles.sheetContainer, { backgroundColor: colors.background }]}>
             <View style={[styles.sheetHeader, { borderBottomColor: colors.border }]}>
-              <Pressable onPress={() => setShowClosureSheet(false)} hitSlop={12}>
-                <Feather name="x" size={22} color={colors.foreground} />
+              <Pressable onPress={() => { if (closureEditMode) { cancelEditMode(); } else { setShowClosureSheet(false); } }} hitSlop={12}>
+                <Feather name={closureEditMode ? "arrow-left" : "x"} size={22} color={colors.foreground} />
               </Pressable>
               <Text style={[styles.sheetTitle, { color: colors.foreground }]}>
-                {closureSheetClosure ? "Lever la fermeture" : "Marquer comme fermé"}
+                {closureEditMode ? "Modifier la fermeture" : closureSheetClosure ? "Fermeture existante" : "Marquer comme fermé"}
               </Text>
               <View style={{ width: 22 }} />
             </View>
 
             <ScrollView style={styles.sheetBody} contentContainerStyle={styles.sheetBodyContent} keyboardShouldPersistTaps="handled">
               {closureSheetDate ? (() => {
-                const isRange = !closureSheetClosure && closureEndDate && closureEndDate > closureSheetDate;
-                const startLabel = new Date(closureSheetDate + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "long", year: "numeric" });
-                const endLabel = closureEndDate ? new Date(closureEndDate + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "long", year: "numeric" }) : startLabel;
-                const badgeColor = closureSheetClosure ? "#ef4444" : colors.primary;
-                const badgeBg = closureSheetClosure ? "rgba(239,68,68,0.1)" : colors.primary + "12";
+                const activeClosure = closureSheetClosure;
+                const displayStart = activeClosure ? activeClosure.dateStart : closureSheetDate;
+                const displayEnd = activeClosure
+                  ? (closureEditMode ? closureEditEndDate || activeClosure.dateEnd : activeClosure.dateEnd)
+                  : (closureEndDate ?? closureSheetDate);
+                const isRange = displayEnd > displayStart;
+                const startLabel = new Date(displayStart + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "long", year: "numeric" });
+                const endLabel = new Date(displayEnd + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "long", year: "numeric" });
+                const badgeColor = activeClosure ? "#ef4444" : colors.primary;
+                const badgeBg = activeClosure ? "rgba(239,68,68,0.1)" : colors.primary + "12";
                 return (
                   <View style={[styles.sheetDateBadge, { backgroundColor: badgeBg, flexDirection: "column", alignItems: "flex-start", gap: 2 }]}>
                     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -825,22 +878,77 @@ export default function CalendarScreen() {
               })() : null}
 
               {closureSheetClosure ? (
-                <View>
-                  <View style={[styles.sheetInfoBox, { backgroundColor: "rgba(239,68,68,0.08)", borderColor: "rgba(239,68,68,0.3)" }]}>
-                    <Feather name="lock" size={16} color="#ef4444" />
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.sheetInfoTitle, { color: "#ef4444" }]}>Jour marqué fermé</Text>
-                      {closureSheetClosure.label ? (
-                        <Text style={[styles.sheetInfoSubtitle, { color: colors.mutedForeground }]}>{closureSheetClosure.label}</Text>
+                closureEditMode ? (
+                  <View style={{ gap: 16 }}>
+                    <View>
+                      <Text style={[styles.sheetFieldLabel, { color: colors.mutedForeground }]}>Date de fin</Text>
+                      <TextInput
+                        style={[
+                          styles.sheetInput,
+                          { backgroundColor: colors.muted, borderColor: closureEditEndDateError ? "#ef4444" : colors.border, color: colors.foreground },
+                        ]}
+                        placeholder="AAAA-MM-JJ"
+                        placeholderTextColor={colors.mutedForeground}
+                        value={closureEditEndDate}
+                        onChangeText={(v) => {
+                          setClosureEditEndDate(v);
+                          if (closureEditEndDateError) setClosureEditEndDateError(null);
+                        }}
+                        keyboardType="numeric"
+                        returnKeyType="next"
+                        maxLength={10}
+                      />
+                      {closureEditEndDateError ? (
+                        <Text style={[styles.sheetHint, { color: "#ef4444", marginTop: 4 }]}>{closureEditEndDateError}</Text>
                       ) : (
-                        <Text style={[styles.sheetInfoSubtitle, { color: colors.mutedForeground }]}>Fermeture exceptionnelle</Text>
+                        <Text style={[styles.sheetHint, { color: colors.mutedForeground, marginTop: 4 }]}>
+                          Modifiez la date du dernier jour de fermeture.
+                        </Text>
                       )}
                     </View>
+                    <View>
+                      <Text style={[styles.sheetFieldLabel, { color: colors.mutedForeground }]}>Motif (optionnel)</Text>
+                      <TextInput
+                        style={[styles.sheetInput, { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground }]}
+                        placeholder="ex : Congés, Formation, Jour férié…"
+                        placeholderTextColor={colors.mutedForeground}
+                        value={closureEditLabel}
+                        onChangeText={setClosureEditLabel}
+                        autoCapitalize="sentences"
+                        returnKeyType="done"
+                      />
+                    </View>
                   </View>
-                  <Text style={[styles.sheetHint, { color: colors.mutedForeground }]}>
-                    Supprimer cette fermeture rouvrira le jour aux rendez-vous.
-                  </Text>
-                </View>
+                ) : (
+                  <View>
+                    <View style={[styles.sheetInfoBox, { backgroundColor: "rgba(239,68,68,0.08)", borderColor: "rgba(239,68,68,0.3)" }]}>
+                      <Feather name="lock" size={16} color="#ef4444" />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.sheetInfoTitle, { color: "#ef4444" }]}>
+                          {closureSheetClosure.dateEnd > closureSheetClosure.dateStart ? "Fermeture multi-jours" : "Jour marqué fermé"}
+                        </Text>
+                        {closureSheetClosure.label ? (
+                          <Text style={[styles.sheetInfoSubtitle, { color: colors.mutedForeground }]}>{closureSheetClosure.label}</Text>
+                        ) : (
+                          <Text style={[styles.sheetInfoSubtitle, { color: colors.mutedForeground }]}>Fermeture exceptionnelle</Text>
+                        )}
+                      </View>
+                    </View>
+                    <Pressable
+                      onPress={() => enterEditMode(closureSheetClosure!)}
+                      style={({ pressed }) => [
+                        styles.sheetSubmitBtn,
+                        { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1, marginTop: 12 },
+                      ]}
+                    >
+                      <Feather name="edit-2" size={15} color="#fff" />
+                      <Text style={styles.sheetSubmitText}>Modifier la fermeture</Text>
+                    </Pressable>
+                    <Text style={[styles.sheetHint, { color: colors.mutedForeground, marginTop: 12 }]}>
+                      Vous pouvez aussi supprimer cette fermeture pour rouvrir le jour aux rendez-vous.
+                    </Text>
+                  </View>
+                )
               ) : (
                 <View style={{ gap: 16 }}>
                   <View>
@@ -890,35 +998,52 @@ export default function CalendarScreen() {
 
             <View style={[styles.sheetFooter, { borderTopColor: colors.border }]}>
               <Pressable
-                onPress={() => setShowClosureSheet(false)}
+                onPress={() => { if (closureEditMode) { cancelEditMode(); } else { setShowClosureSheet(false); } }}
                 style={[styles.sheetCancelBtn, { borderColor: colors.border }]}
               >
-                <Text style={[styles.sheetCancelText, { color: colors.foreground }]}>Annuler</Text>
+                <Text style={[styles.sheetCancelText, { color: colors.foreground }]}>{closureEditMode ? "Retour" : "Annuler"}</Text>
               </Pressable>
               {closureSheetClosure ? (
-                <Pressable
-                  onPress={() => {
-                    Alert.alert(
-                      "Lever la fermeture",
-                      "Confirmer la suppression de cette fermeture ?",
-                      [
-                        { text: "Annuler", style: "cancel" },
-                        { text: "Supprimer", style: "destructive", onPress: () => handleRemoveClosure(closureSheetClosure!.id) },
-                      ]
-                    );
-                  }}
-                  disabled={closureLoading}
-                  style={({ pressed }) => [styles.sheetDestructBtn, { opacity: pressed || closureLoading ? 0.8 : 1 }]}
-                >
-                  {closureLoading ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <>
-                      <Feather name="unlock" size={16} color="#fff" />
-                      <Text style={styles.sheetDestructText}>Lever la fermeture</Text>
-                    </>
-                  )}
-                </Pressable>
+                closureEditMode ? (
+                  <Pressable
+                    onPress={() => handleEditClosure(closureSheetClosure!.id, closureSheetClosure!.dateStart)}
+                    disabled={closureLoading}
+                    style={({ pressed }) => [styles.sheetSubmitBtn, { backgroundColor: colors.primary, opacity: pressed || closureLoading ? 0.8 : 1 }]}
+                  >
+                    {closureLoading ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <>
+                        <Feather name="check" size={16} color="#fff" />
+                        <Text style={styles.sheetSubmitText}>Enregistrer</Text>
+                      </>
+                    )}
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    onPress={() => {
+                      Alert.alert(
+                        "Lever la fermeture",
+                        "Confirmer la suppression de cette fermeture ?",
+                        [
+                          { text: "Annuler", style: "cancel" },
+                          { text: "Supprimer", style: "destructive", onPress: () => handleRemoveClosure(closureSheetClosure!.id) },
+                        ]
+                      );
+                    }}
+                    disabled={closureLoading}
+                    style={({ pressed }) => [styles.sheetDestructBtn, { opacity: pressed || closureLoading ? 0.8 : 1 }]}
+                  >
+                    {closureLoading ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <>
+                        <Feather name="unlock" size={16} color="#fff" />
+                        <Text style={styles.sheetDestructText}>Lever la fermeture</Text>
+                      </>
+                    )}
+                  </Pressable>
+                )
               ) : (
                 <Pressable
                   onPress={handleAddClosure}

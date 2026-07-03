@@ -201,6 +201,80 @@ router.post("/org-closures/import-holidays", async (req: Request, res: Response)
   }
 });
 
+router.patch("/org-closures/:id", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  const userRole = req.session?.userRole;
+
+  if (!orgId) {
+    res.status(403).json({ error: "Non autorise." });
+    return;
+  }
+
+  if (userRole !== "super_admin" && userRole !== "administrateur") {
+    res.status(403).json({ error: "Seuls les administrateurs peuvent gerer les fermetures." });
+    return;
+  }
+
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(400).json({ error: "Identifiant invalide." });
+    return;
+  }
+
+  const { dateEnd, label } = req.body;
+
+  const updates: Partial<{ dateEnd: string; label: string | null }> = {};
+
+  if (dateEnd !== undefined) {
+    if (typeof dateEnd !== "string" || !isValidDate(dateEnd)) {
+      res.status(400).json({ error: "Date de fin invalide (format attendu YYYY-MM-DD)." });
+      return;
+    }
+    updates.dateEnd = dateEnd.trim();
+  }
+
+  if (label !== undefined) {
+    updates.label = label && typeof label === "string" ? label.trim().slice(0, 200) || null : null;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    res.status(400).json({ error: "Aucun champ a modifier." });
+    return;
+  }
+
+  try {
+    const existing = await db
+      .select()
+      .from(organisationClosuresTable)
+      .where(and(eq(organisationClosuresTable.id, id), eq(organisationClosuresTable.organisationId, orgId)))
+      .limit(1);
+
+    if (existing.length === 0) {
+      res.status(404).json({ error: "Fermeture introuvable." });
+      return;
+    }
+
+    const current = existing[0];
+    const effectiveDateEnd = updates.dateEnd ?? current.dateEnd;
+
+    if (effectiveDateEnd < current.dateStart) {
+      res.status(400).json({ error: "La date de fin doit etre posterieure ou egale a la date de debut." });
+      return;
+    }
+
+    const [updated] = await db
+      .update(organisationClosuresTable)
+      .set(updates)
+      .where(and(eq(organisationClosuresTable.id, id), eq(organisationClosuresTable.organisationId, orgId)))
+      .returning();
+
+    res.json(updated);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur PATCH org-closures");
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+
 router.delete("/org-closures/:id", async (req: Request, res: Response): Promise<void> => {
   const orgId = getOrgId(req);
   const userRole = req.session?.userRole;
