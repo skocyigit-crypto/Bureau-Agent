@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -157,6 +158,14 @@ export default function CalendarScreen() {
       .catch(() => {});
     fetchClosures();
   }, [fetchAuth, fetchClosures]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") fetchClosures();
+    });
+    return () => sub.remove();
+  }, [fetchClosures]);
+
 
   const [showClosureSheet, setShowClosureSheet] = useState(false);
   const [closureSheetDate, setClosureSheetDate] = useState<string | null>(null);
@@ -316,7 +325,7 @@ export default function CalendarScreen() {
     }
   }, [year, month, fetchAuth]);
 
-  useEffect(() => { setLoading(true); fetchEvents(); }, [fetchEvents]);
+  useEffect(() => { setLoading(true); fetchEvents(); fetchClosures(); }, [fetchEvents, fetchClosures]);
 
   useEffect(() => {
     if (!focusedEventId) return;
