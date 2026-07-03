@@ -1399,7 +1399,7 @@ export default function CalendarPage() {
                     <div
                       key={i}
                       title={weekDayClosure ? (weekDayClosure.label ?? "Fermeture exceptionnelle") : undefined}
-                      className={`text-center py-2 border-b cursor-pointer hover:bg-amber-50/30 dark:hover:bg-amber-950/10 transition-colors
+                      className={`group relative text-center py-2 border-b cursor-pointer hover:bg-amber-50/30 dark:hover:bg-amber-950/10 transition-colors
                         ${isSameDay(d, today) ? "bg-amber-50 dark:bg-amber-950/20" : weekDayClosure ? "bg-red-50 dark:bg-red-950/30" : ""}
                       `}
                       onClick={() => { setView("jour"); setCurrentDate(d); }}
@@ -1409,10 +1409,23 @@ export default function CalendarPage() {
                       </p>
                       <p className={`text-lg font-bold ${isSameDay(d, today) ? "text-amber-600" : weekDayClosure ? "text-red-600 dark:text-red-400 line-through" : ""}`}>{d.getDate()}</p>
                       {weekDayClosure && (
-                        <p className="text-[9px] text-red-500 dark:text-red-400 font-semibold flex items-center justify-center gap-0.5 mt-0.5">
+                        <p className={`text-[9px] text-red-500 dark:text-red-400 font-semibold flex items-center justify-center gap-0.5 mt-0.5 ${isAdmin ? "group-hover:hidden" : ""}`}>
                           <Lock className="w-2 h-2" />
                           {weekDayClosure.label ?? "Fermé"}
                         </p>
+                      )}
+                      {isAdmin && (
+                        <button
+                          title={weekDayClosure ? "Supprimer la fermeture" : "Fermer ce jour"}
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            setClosureFormDate(d);
+                            setShowClosureForm(true);
+                          }}
+                          className={`opacity-0 group-hover:opacity-100 transition-opacity absolute top-1 right-1 inline-flex items-center justify-center w-5 h-5 rounded hover:bg-red-100 dark:hover:bg-red-900/40 ${weekDayClosure ? "text-red-500" : "text-slate-400 hover:text-red-500"}`}
+                        >
+                          {weekDayClosure ? <DoorOpen className="w-3 h-3" /> : <DoorClosed className="w-3 h-3" />}
+                        </button>
                       )}
                     </div>
                   );
