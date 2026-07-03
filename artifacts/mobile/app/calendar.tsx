@@ -399,6 +399,19 @@ export default function CalendarScreen() {
   useEffect(() => { setLoading(true); fetchEvents(); fetchClosures(); }, [fetchEvents, fetchClosures]);
 
   useEffect(() => {
+    const sub = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") fetchEvents();
+    });
+    const interval = setInterval(() => {
+      if (AppState.currentState === "active") fetchEvents();
+    }, 5 * 60 * 1000);
+    return () => {
+      sub.remove();
+      clearInterval(interval);
+    };
+  }, [fetchEvents]);
+
+  useEffect(() => {
     if (!focusedEventId) return;
     const match = events.find((ev) => String(ev.id) === String(focusedEventId));
     if (match) {
