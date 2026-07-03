@@ -727,6 +727,10 @@ function AvailabilityDialog({
   );
 }
 
+function fmtDateInput(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function ClosureDayDialog({
   open,
   onOpenChange,
@@ -739,20 +743,29 @@ function ClosureDayDialog({
   open: boolean;
   onOpenChange: (o: boolean) => void;
   date: Date | null;
-  existingClosure: { id: number; label: string | null } | null;
-  onAdd: (label: string) => void;
+  existingClosure: { id: number; label: string | null; dateStart: string; dateEnd: string } | null;
+  onAdd: (label: string, dateEnd: string) => void;
   onRemove: (id: number) => void;
   isPending: boolean;
 }) {
   const [label, setLabel] = useState("");
+  const [dateEndStr, setDateEndStr] = useState("");
 
   useEffect(() => {
-    if (open) setLabel(existingClosure?.label ?? "");
-  }, [open, existingClosure]);
+    if (open) {
+      setLabel(existingClosure?.label ?? "");
+      setDateEndStr(date ? fmtDateInput(date) : "");
+    }
+  }, [open, existingClosure, date]);
+
+  const dateStartStr = date ? fmtDateInput(date) : "";
+  const isRange = dateEndStr && dateEndStr > dateStartStr;
 
   const dateLabel = date
     ? date.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
     : "";
+
+  const existingIsRange = existingClosure && existingClosure.dateEnd > existingClosure.dateStart;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -762,7 +775,7 @@ function ClosureDayDialog({
             {existingClosure ? (
               <><DoorOpen className="w-5 h-5 text-red-500" /> Gérer la fermeture</>
             ) : (
-              <><DoorClosed className="w-5 h-5 text-red-500" /> Fermer ce jour</>
+              <><DoorClosed className="w-5 h-5 text-red-500" /> {isRange ? "Fermer cette période" : "Fermer ce jour"}</>
             )}
           </DialogTitle>
           {dateLabel && (
@@ -780,8 +793,13 @@ function ClosureDayDialog({
                 <p className="font-semibold leading-snug">
                   {existingClosure.label ? `Fermé — ${existingClosure.label}` : "Fermeture exceptionnelle"}
                 </p>
+                {existingIsRange && (
+                  <p className="text-xs text-red-600/80 dark:text-red-400/70 mt-0.5">
+                    Du {new Date(existingClosure.dateStart + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} au {new Date(existingClosure.dateEnd + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                  </p>
+                )}
                 <p className="text-xs text-red-600/80 dark:text-red-400/70 mt-0.5">
-                  Supprimer cette fermeture pour rouvrir le jour.
+                  Supprimer cette fermeture pour rouvrir {existingIsRange ? "la période" : "le jour"}.
                 </p>
               </div>
             </div>
@@ -802,15 +820,36 @@ function ClosureDayDialog({
           </div>
         ) : (
           <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs font-medium">Début</Label>
+                <Input
+                  type="date"
+                  value={dateStartStr}
+                  readOnly
+                  className="mt-1 bg-muted/40 cursor-default"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-medium">Fin</Label>
+                <Input
+                  type="date"
+                  value={dateEndStr}
+                  min={dateStartStr}
+                  onChange={e => setDateEndStr(e.target.value || dateStartStr)}
+                  className="mt-1"
+                />
+              </div>
+            </div>
             <div>
-              <Label className="text-xs font-medium">Motif de fermeture <span className="text-muted-foreground font-normal">(optionnel)</span></Label>
+              <Label className="text-xs font-medium">Motif <span className="text-muted-foreground font-normal">(optionnel)</span></Label>
               <Input
                 value={label}
                 onChange={e => setLabel(e.target.value)}
                 placeholder="Ex : Pont du 14 juillet, Fermeture annuelle..."
                 className="mt-1"
                 autoFocus
-                onKeyDown={e => { if (e.key === "Enter") onAdd(label); }}
+                onKeyDown={e => { if (e.key === "Enter") onAdd(label, dateEndStr || dateStartStr); }}
               />
             </div>
             <div className="flex gap-2 pt-1">
@@ -820,10 +859,10 @@ function ClosureDayDialog({
               <Button
                 disabled={isPending}
                 className="flex-1 bg-red-500 hover:bg-red-600 text-white"
-                onClick={() => onAdd(label)}
+                onClick={() => onAdd(label, dateEndStr || dateStartStr)}
               >
                 <DoorClosed className="w-3.5 h-3.5 mr-1.5" />
-                {isPending ? "Enregistrement..." : "Fermer ce jour"}
+                {isPending ? "Enregistrement..." : isRange ? "Fermer cette période" : "Fermer ce jour"}
               </Button>
             </div>
           </div>
@@ -876,11 +915,11 @@ export default function CalendarPage() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
 
-  function getClosureForDate(d: Date): { label: string | null; id: number } | null {
+  function getClosureForDate(d: Date): { label: string | null; id: number; dateStart: string; dateEnd: string } | null {
     if (!closures || (closures as any[]).length === 0) return null;
     const ds = toDateStr(d);
     const match = (closures as any[]).find((c) => ds >= c.dateStart && ds <= c.dateEnd);
-    return match ? { label: match.label ?? null, id: match.id } : null;
+    return match ? { label: match.label ?? null, id: match.id, dateStart: match.dateStart, dateEnd: match.dateEnd } : null;
   }
 
   const workingDaySet = useMemo(() => {
@@ -1029,12 +1068,12 @@ export default function CalendarPage() {
   });
 
   const createClosureMutation = useMutation({
-    mutationFn: async ({ dateStr, label }: { dateStr: string; label: string }) => {
+    mutationFn: async ({ dateStr, dateEnd, label }: { dateStr: string; dateEnd: string; label: string }) => {
       const res = await fetch(`${baseUrl}/api/org-closures`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ dateStart: dateStr, dateEnd: dateStr, label: label.trim() || null }),
+        body: JSON.stringify({ dateStart: dateStr, dateEnd, label: label.trim() || null }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -1042,12 +1081,13 @@ export default function CalendarPage() {
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ["org-closures"] });
       setShowClosureForm(false);
-      toast({ title: "Jour fermé", description: "La fermeture a été enregistrée." });
+      const isRange = vars.dateEnd > vars.dateStr;
+      toast({ title: isRange ? "Période fermée" : "Jour fermé", description: "La fermeture a été enregistrée." });
     },
-    onError: (err: any) => toast({ title: "Erreur", description: err.message || "Impossible de fermer ce jour.", variant: "destructive" }),
+    onError: (err: any) => toast({ title: "Erreur", description: err.message || "Impossible de créer la fermeture.", variant: "destructive" }),
   });
 
   const deleteClosureMutation = useMutation({
@@ -1662,9 +1702,9 @@ export default function CalendarPage() {
         onOpenChange={(o) => { setShowClosureForm(o); if (!o) setClosureFormDate(null); }}
         date={closureFormDate}
         existingClosure={closureFormDate ? (getClosureForDate(closureFormDate) ?? null) : null}
-        onAdd={(label) => {
+        onAdd={(label, dateEnd) => {
           if (!closureFormDate) return;
-          createClosureMutation.mutate({ dateStr: toDateStr(closureFormDate), label });
+          createClosureMutation.mutate({ dateStr: toDateStr(closureFormDate), dateEnd, label });
         }}
         onRemove={(id) => deleteClosureMutation.mutate(id)}
         isPending={createClosureMutation.isPending || deleteClosureMutation.isPending}
