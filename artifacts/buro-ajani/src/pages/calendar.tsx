@@ -193,7 +193,7 @@ function EventFormDialog({
   prefillSlot?: { start: Date; end: Date } | null;
   onSave: (data: any) => void;
   isPending: boolean;
-  closureInfo?: { label: string | null; id?: number } | null;
+  closureInfo?: { label: string | null; id?: number; dateStart?: string; dateEnd?: string } | null;
 }) {
   const [form, setForm] = useState(defaultEvent);
   const [activeTab, setActiveTab] = useState<"general" | "contact" | "options">("general");
@@ -310,7 +310,14 @@ function EventFormDialog({
             <Ban className="w-4 h-4 mt-0.5 shrink-0" />
             <div className="min-w-0">
               <p className="font-semibold leading-snug">
-                {closureInfo.label ? `Fermé — ${closureInfo.label}` : "Jour de fermeture exceptionnelle"}
+                {(() => {
+                  const fmtD = (ds: string) =>
+                    new Date(ds + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+                  if (closureInfo.dateStart && closureInfo.dateEnd && closureInfo.dateEnd > closureInfo.dateStart) {
+                    return `Fermé du ${fmtD(closureInfo.dateStart)} au ${fmtD(closureInfo.dateEnd)}${closureInfo.label ? ` — ${closureInfo.label}` : ""}`;
+                  }
+                  return closureInfo.label ? `Fermé — ${closureInfo.label}` : "Jour de fermeture exceptionnelle";
+                })()}
               </p>
               <p className="text-xs text-red-600/80 dark:text-red-400/70 mt-0.5">
                 Aucun rendez-vous ne peut être créé ce jour.
@@ -1478,11 +1485,17 @@ export default function CalendarPage() {
               {(() => {
                 const dayClosure = getClosureForDate(currentDate);
                 if (dayClosure) {
+                  const fmtClosureDate = (ds: string) =>
+                    new Date(ds + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+                  const closureText = dayClosure.dateEnd > dayClosure.dateStart
+                    ? `Fermé du ${fmtClosureDate(dayClosure.dateStart)} au ${fmtClosureDate(dayClosure.dateEnd)}${dayClosure.label ? ` — ${dayClosure.label}` : ""}`
+                    : dayClosure.label
+                      ? `Fermé — ${dayClosure.label}`
+                      : "Fermeture exceptionnelle";
                   return (
                     <div className="flex items-center gap-2 px-4 py-2 mb-1 bg-red-50 dark:bg-red-950/30 border-b border-red-200 dark:border-red-800/50 text-xs text-red-700 dark:text-red-400">
                       <Lock className="w-3.5 h-3.5 shrink-0" />
-                      <span className="font-semibold">Fermeture exceptionnelle</span>
-                      {dayClosure.label && <span>— {dayClosure.label}</span>}
+                      <span className="font-semibold">{closureText}</span>
                       <span className="text-red-500/70 dark:text-red-500/50">· Aucun rendez-vous ne peut être créé ce jour.</span>
                       {isAdmin && (
                         <button
