@@ -86,7 +86,14 @@ const FORM_FIELDS = [
   { key: "contactPhone", label: "Tel. contact", type: "phone" as const },
 ];
 
-function buildGrid(year: number, month: number, events: CalendarEvent[]) {
+function findClosureForDate(dateStr: string, closures: OrgClosure[]): OrgClosure | null {
+  for (const c of closures) {
+    if (dateStr >= c.dateStart && dateStr <= c.dateEnd) return c;
+  }
+  return null;
+}
+
+function buildGrid(year: number, month: number, events: CalendarEvent[], closures: OrgClosure[]) {
   const eventMap: Record<string, string[]> = {};
   events.forEach((ev) => {
     const key = new Date(ev.startDate).toISOString().slice(0, 10);
@@ -102,13 +109,13 @@ function buildGrid(year: number, month: number, events: CalendarEvent[]) {
   startDow = (startDow + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  const cells: Array<{ day: number | null; dateStr: string | null; eventColors: string[] }> = [];
-  for (let i = 0; i < startDow; i++) cells.push({ day: null, dateStr: null, eventColors: [] });
+  const cells: Array<{ day: number | null; dateStr: string | null; eventColors: string[]; closure: OrgClosure | null }> = [];
+  for (let i = 0; i < startDow; i++) cells.push({ day: null, dateStr: null, eventColors: [], closure: null });
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    cells.push({ day: d, dateStr, eventColors: eventMap[dateStr] ?? [] });
+    cells.push({ day: d, dateStr, eventColors: eventMap[dateStr] ?? [], closure: findClosureForDate(dateStr, closures) });
   }
-  while (cells.length % 7 !== 0) cells.push({ day: null, dateStr: null, eventColors: [] });
+  while (cells.length % 7 !== 0) cells.push({ day: null, dateStr: null, eventColors: [], closure: null });
   return cells;
 }
 
@@ -469,7 +476,7 @@ export default function CalendarScreen() {
     setSelectedDateStr(new Date().toISOString().slice(0, 10));
   }
 
-  const grid = useMemo(() => buildGrid(year, month, events), [year, month, events]);
+  const grid = useMemo(() => buildGrid(year, month, events, closures), [year, month, events, closures]);
 
   const filteredEvents = useMemo(() => {
     if (!selectedDateStr) return events;
@@ -572,9 +579,21 @@ export default function CalendarScreen() {
           {Array.from({ length: Math.ceil(grid.length / 7) }).map((_, rowIdx) => (
             <View key={rowIdx} style={styles.gridRow}>
               {grid.slice(rowIdx * 7, rowIdx * 7 + 7).map((cell, colIdx) => {
+                const row = grid.slice(rowIdx * 7, rowIdx * 7 + 7);
                 const isToday = cell.dateStr === todayStr;
                 const isSelected = cell.dateStr === selectedDateStr;
                 const isWeekend = colIdx >= 5;
+                const closure = cell.closure;
+                const prevInClosure = closure !== null && colIdx > 0 && row[colIdx - 1].closure?.id === closure.id;
+                const nextInClosure = closure !== null && colIdx < 6 && row[colIdx + 1].closure?.id === closure.id;
+                const closureBandRadius = closure && !isSelected ? {
+                  borderTopLeftRadius: prevInClosure ? 0 : 8,
+                  borderBottomLeftRadius: prevInClosure ? 0 : 8,
+                  borderTopRightRadius: nextInClosure ? 0 : 8,
+                  borderBottomRightRadius: nextInClosure ? 0 : 8,
+                  marginLeft: prevInClosure ? 0 : 1,
+                  marginRight: nextInClosure ? 0 : 1,
+                } : undefined;
                 return (
                   <Pressable
                     key={colIdx}
@@ -590,9 +609,10 @@ export default function CalendarScreen() {
                       !isSelected && !isToday && cell.dateStr && !isWorkingDateStr(cell.dateStr)
                         ? { backgroundColor: "rgba(0,0,0,0.18)" }
                         : undefined,
-                      !isSelected && cell.dateStr && isDateClosed(cell.dateStr)
+                      !isSelected && closure
                         ? { backgroundColor: "rgba(239,68,68,0.22)" }
                         : undefined,
+                      closureBandRadius,
                     ]}
                   >
                     {cell.day ? (
@@ -604,13 +624,13 @@ export default function CalendarScreen() {
                           !isSelected && cell.dateStr && !isWorkingDateStr(cell.dateStr)
                             ? { color: "rgba(255,255,255,0.35)" }
                             : undefined,
-                          !isSelected && cell.dateStr && isDateClosed(cell.dateStr)
+                          !isSelected && closure
                             ? { color: "#fca5a5" }
                             : undefined,
                         ]}>
                           {cell.day}
                         </Text>
-                        {!isSelected && cell.dateStr && isDateClosed(cell.dateStr) ? (
+                        {!isSelected && closure ? (
                           isAdmin ? (
                             <Pressable
                               onPress={() => openClosureSheet(cell.dateStr!)}
