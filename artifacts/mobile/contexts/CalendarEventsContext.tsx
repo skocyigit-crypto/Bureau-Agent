@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   createContext,
   useCallback,
@@ -8,8 +7,16 @@ import React, {
   useState,
 } from "react";
 import { AppState, type AppStateStatus } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
+
+const STORAGE_KEY = "calendar_seen_marker";
+
+function todayString(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 export interface SharedCalendarEvent {
   id: number | string;
@@ -67,6 +74,13 @@ export function CalendarEventsProvider({ children }: { children: React.ReactNode
   const [todayEvents, setTodayEvents] = useState<SharedCalendarEvent[]>([]);
   const [badgeCount, setBadgeCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  /**
+   * True once AsyncStorage hydration has completed (success or error).
+   * The polling effect waits for this before issuing the first fetch so that
+   * lastSeenCountRef.current is always restored from storage before the first
+   * badge comparison runs — preventing the relaunch flicker.
+   */
+  const [seenMarkerReady, setSeenMarkerReady] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const isFetchingRef = useRef(false);
@@ -144,10 +158,45 @@ export function CalendarEventsProvider({ children }: { children: React.ReactNode
   }, [isAuthenticated, fetchAuth, user]);
 
   const clearBadge = useCallback(() => {
-    lastSeenCountRef.current = currentCountRef.current;
+    const count = currentCountRef.current;
+    lastSeenCountRef.current = count;
     setBadgeCount(0);
+    AsyncStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ date: todayString(), count }),
+    ).catch(() => {});
   }, []);
 
+  // Hydrate lastSeenCountRef from AsyncStorage so the badge doesn't flicker
+  // on app restart when the user already opened the calendar today.
+  // Marks seenMarkerReady=true (or resets it to false on logout) so the
+  // polling effect can gate the first fetch on hydration being complete.
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setSeenMarkerReady(false);
+      return;
+    }
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then((raw) => {
+        if (raw) {
+          try {
+            const { date, count } = JSON.parse(raw) as { date: string; count: number };
+            if (date === todayString() && typeof count === "number") {
+              lastSeenCountRef.current = count;
+            }
+          } catch {
+            // Malformed entry — ignore and let the default (0) stand.
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        setSeenMarkerReady(true);
+      });
+  }, [isAuthenticated]);
+
+  // Start polling only after hydration is complete so the first badge comparison
+  // always uses the restored lastSeenCountRef value from AsyncStorage.
   useEffect(() => {
     if (!isAuthenticated) {
       setTodayEvents([]);
@@ -156,6 +205,7 @@ export function CalendarEventsProvider({ children }: { children: React.ReactNode
       currentCountRef.current = 0;
       return;
     }
+    if (!seenMarkerReady) return;
 
     fetchToday();
 
@@ -175,7 +225,7 @@ export function CalendarEventsProvider({ children }: { children: React.ReactNode
       if (intervalRef.current) clearInterval(intervalRef.current);
       sub.remove();
     };
-  }, [isAuthenticated, fetchToday]);
+  }, [isAuthenticated, seenMarkerReady, fetchToday]);
 
   return (
     <CalendarEventsContext.Provider
