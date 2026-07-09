@@ -5,7 +5,7 @@ import { sql, eq, gte, lte, and, count, avg, desc, asc, lt, ne, isNull, isNotNul
 import { logger } from "../lib/logger";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
 import { buildLearnedContextBlock, fingerprintLearned } from "../services/ai-learning";
-import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL } from "../services/ai-utils";
+import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL, sanitizePromptInput } from "../services/ai-utils";
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 
 const router = Router();
@@ -961,6 +961,9 @@ router.post("/ai/draft-email", async (req, res): Promise<void> => {
       }
     }
 
+    const safeAdditionalContext = sanitizePromptInput(additionalContext, 2000);
+    const safeContactHistory = sanitizePromptInput(contactHistory, 6000);
+
     const { ai } = await import("@workspace/integrations-gemini-ai");
 
     const purposeLabels: Record<string, string> = {
@@ -998,8 +1001,8 @@ Entreprise du destinataire: ${company || "Non specifiee"}
 Categorie du contact: ${category || "Non specifiee"}
 Ton souhaite: ${toneLabels[tone] || tone || "Professionnel et cordial"}
 Langue: ${language || "Francais"}
-${additionalContext ? `Instructions supplementaires: ${additionalContext}` : ""}
-${contactHistory ? `\nHistorique avec ce contact:${contactHistory}` : ""}
+${safeAdditionalContext ? `Instructions supplementaires: ${safeAdditionalContext}` : ""}
+${safeContactHistory ? `\nHistorique avec ce contact:${safeContactHistory}` : ""}
 
 IMPORTANT: 
 - Utilise des noms fictifs si aucun nom n'est fourni
@@ -1884,7 +1887,7 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
 
     const chatHistory = (history || []).slice(-6).map((h: any) => ({
       role: h.role === "user" ? "user" : "model",
-      parts: [{ text: h.content }],
+      parts: [{ text: sanitizePromptInput(h.content, 4000) }],
     }));
 
     let stockData: any[] = [];
@@ -1963,6 +1966,10 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
       if (Number(accountStats[0]?.totalOverdue ?? 0) > 10000) anomalies.push(`Montant total en retard: ${Number(accountStats[0]?.totalOverdue ?? 0).toLocaleString("fr-FR")}€ — CRITIQUE!`);
     } catch (e) { logger.warn({ err: e }, "[AIAnalysis] financial data unavailable"); }
 
+    const safeRecentCalls = recentCalls.map(c => ({ ...c, notes: c.notes ? sanitizePromptInput(c.notes, 1000) : c.notes }));
+    const safeUnreadMsgs = unreadMsgs.map(m => ({ ...m, content: m.content ? sanitizePromptInput(m.content, 1000) : m.content }));
+    const safeMessage = sanitizePromptInput(message, 4000);
+
     const missedRate = (callStats[0]?.total ?? 0) > 0 ? Math.round(((callStats[0]?.missed ?? 0) / (callStats[0]?.total ?? 1)) * 100) : 0;
     if (missedRate > 30) anomalies.push(`Taux d'appels manques critique: ${missedRate}%`);
     if ((taskStats[0]?.overdue ?? 0) > 5) anomalies.push(`${taskStats[0]?.overdue} taches en retard — attention!`);
@@ -2008,13 +2015,13 @@ ${JSON.stringify(invoicesData.slice(0, 8), null, 1)}
 ${JSON.stringify(accountHealthData.slice(0, 8), null, 1)}
 
 ═══ APPELS RECENTS ═══
-${JSON.stringify(recentCalls.slice(0, 8), null, 1)}
+${JSON.stringify(safeRecentCalls.slice(0, 8), null, 1)}
 
 ═══ TACHES EN RETARD ═══
 ${JSON.stringify(overdueTasks.slice(0, 8), null, 1)}
 
 ═══ MESSAGES NON LUS ═══
-${JSON.stringify(unreadMsgs.slice(0, 8), null, 1)}
+${JSON.stringify(safeUnreadMsgs.slice(0, 8), null, 1)}
 
 ═══ TOP CONTACTS ═══
 ${JSON.stringify(topContacts.slice(0, 8), null, 1)}
@@ -2134,7 +2141,7 @@ FORMAT DE REPONSE JSON:
         { role: "user", parts: [{ text: systemContext }] },
         { role: "model", parts: [{ text: '{"response": "Pret a vous aider.", "actions": [], "insights": [], "mood": "positif"}' }] },
         ...chatHistory,
-        { role: "user", parts: [{ text: message }] },
+        { role: "user", parts: [{ text: safeMessage }] },
       ],
       config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
     });

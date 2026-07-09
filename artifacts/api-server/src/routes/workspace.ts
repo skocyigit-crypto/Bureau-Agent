@@ -3,7 +3,7 @@ import { db, callsTable, contactsTable, tasksTable, messagesTable, dailyReportsT
 import { sql, eq, gte, lte, and, count, avg, desc, between, or } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { GEMINI_PRO_MODEL } from "../services/ai-utils";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, requireRole } from "../middleware/auth";
 
 const router = Router();
 
@@ -149,7 +149,7 @@ router.get("/status", async (_req, res) => {
   }
 });
 
-router.post("/connect/:platform/:serviceId", async (req, res): Promise<void> => {
+router.post("/connect/:platform/:serviceId", requireRole("administrateur", "super_admin"), async (req, res): Promise<void> => {
   try {
     const { platform, serviceId } = req.params;
     const platformServices = ALL_PLATFORM_SERVICES[platform];
@@ -190,7 +190,7 @@ router.post("/connect/:platform/:serviceId", async (req, res): Promise<void> => 
   }
 });
 
-router.post("/disconnect/:platform/:serviceId", async (req, res): Promise<void> => {
+router.post("/disconnect/:platform/:serviceId", requireRole("administrateur", "super_admin"), async (req, res): Promise<void> => {
   try {
     const { platform, serviceId } = req.params;
     const platformServices = ALL_PLATFORM_SERVICES[platform];
@@ -217,7 +217,7 @@ router.post("/disconnect/:platform/:serviceId", async (req, res): Promise<void> 
   }
 });
 
-router.post("/connect-all/:platform", async (req, res): Promise<void> => {
+router.post("/connect-all/:platform", requireRole("administrateur", "super_admin"), async (req, res): Promise<void> => {
   try {
     const { platform } = req.params;
     const platformServices = ALL_PLATFORM_SERVICES[platform];
@@ -247,7 +247,7 @@ router.post("/connect-all/:platform", async (req, res): Promise<void> => {
   }
 });
 
-router.post("/disconnect-all/:platform", async (req, res): Promise<void> => {
+router.post("/disconnect-all/:platform", requireRole("administrateur", "super_admin"), async (req, res): Promise<void> => {
   try {
     const { platform } = req.params;
     if (!ALL_PLATFORM_SERVICES[platform]) { res.status(404).json({ error: "Plateforme inconnue." }); return; }
@@ -268,7 +268,7 @@ router.post("/disconnect-all/:platform", async (req, res): Promise<void> => {
   }
 });
 
-router.post("/sync/:platform", async (req, res): Promise<void> => {
+router.post("/sync/:platform", requireRole("administrateur", "super_admin"), async (req, res): Promise<void> => {
   try {
     const { platform } = req.params;
     if (!ALL_PLATFORM_SERVICES[platform]) { res.status(404).json({ error: "Plateforme inconnue." }); return; }
