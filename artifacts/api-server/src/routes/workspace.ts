@@ -151,7 +151,8 @@ router.get("/status", async (_req, res) => {
 
 router.post("/connect/:platform/:serviceId", requireRole("administrateur", "super_admin"), async (req, res): Promise<void> => {
   try {
-    const { platform, serviceId } = req.params;
+    const platform = String(req.params.platform);
+    const serviceId = String(req.params.serviceId);
     const platformServices = ALL_PLATFORM_SERVICES[platform];
     if (!platformServices) { res.status(404).json({ error: "Plateforme inconnue." }); return; }
     const service = platformServices.find(s => s.id === serviceId);
@@ -192,7 +193,8 @@ router.post("/connect/:platform/:serviceId", requireRole("administrateur", "supe
 
 router.post("/disconnect/:platform/:serviceId", requireRole("administrateur", "super_admin"), async (req, res): Promise<void> => {
   try {
-    const { platform, serviceId } = req.params;
+    const platform = String(req.params.platform);
+    const serviceId = String(req.params.serviceId);
     const platformServices = ALL_PLATFORM_SERVICES[platform];
     if (!platformServices) { res.status(404).json({ error: "Plateforme inconnue." }); return; }
     const service = platformServices.find(s => s.id === serviceId);
@@ -219,7 +221,7 @@ router.post("/disconnect/:platform/:serviceId", requireRole("administrateur", "s
 
 router.post("/connect-all/:platform", requireRole("administrateur", "super_admin"), async (req, res): Promise<void> => {
   try {
-    const { platform } = req.params;
+    const platform = String(req.params.platform);
     const platformServices = ALL_PLATFORM_SERVICES[platform];
     if (!platformServices) { res.status(404).json({ error: "Plateforme inconnue." }); return; }
 
@@ -249,7 +251,7 @@ router.post("/connect-all/:platform", requireRole("administrateur", "super_admin
 
 router.post("/disconnect-all/:platform", requireRole("administrateur", "super_admin"), async (req, res): Promise<void> => {
   try {
-    const { platform } = req.params;
+    const platform = String(req.params.platform);
     if (!ALL_PLATFORM_SERVICES[platform]) { res.status(404).json({ error: "Plateforme inconnue." }); return; }
 
     await db.update(platformConnectionsTable)
@@ -270,7 +272,7 @@ router.post("/disconnect-all/:platform", requireRole("administrateur", "super_ad
 
 router.post("/sync/:platform", requireRole("administrateur", "super_admin"), async (req, res): Promise<void> => {
   try {
-    const { platform } = req.params;
+    const platform = String(req.params.platform);
     if (!ALL_PLATFORM_SERVICES[platform]) { res.status(404).json({ error: "Plateforme inconnue." }); return; }
 
     const now = new Date();

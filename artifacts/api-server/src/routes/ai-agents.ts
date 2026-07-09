@@ -2846,7 +2846,7 @@ function saLog(orgId: number, level: SuperAgentLog["level"], source: SuperAgentL
 async function superAgentAI(orgId: number, prompt: string, systemPrompt: string): Promise<string> {
   const t0 = Date.now();
   try {
-    const response = await callOrgGemini(orgId, (ai) =>
+    const response: any = await callOrgGemini(orgId, (ai) =>
       ai.models.generateContent({
         model: GEMINI_FLASH_MODEL,
         contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\n${prompt}` }] }],
@@ -2861,7 +2861,7 @@ async function superAgentAI(orgId: number, prompt: string, systemPrompt: string)
   } catch (err: any) {
     // fallback to OpenAI
     try {
-      const fb = await callOrgOpenAI(orgId, (openai) =>
+      const fb: any = await callOrgOpenAI(orgId, (openai) =>
         openai.chat.completions.create({
           model: "gpt-4o-mini",
           messages: [{ role: "system", content: systemPrompt }, { role: "user", content: prompt + "\n\nReponds UNIQUEMENT en JSON valide." }],

@@ -601,6 +601,9 @@ export async function rescheduleOffer(token: string, slotRef: number | TimeSlot)
   if (claimed.length === 0) {
     return { ok: false, code: "already", message: "Ce rendez-vous n'est plus modifiable." };
   }
+  if (eventId === null) {
+    return { ok: false, code: "conflict", message: "Erreur interne lors de la reprogrammation." };
+  }
 
   // Miroir Google Agenda (best-effort).
   if (offer.createdBy) {
