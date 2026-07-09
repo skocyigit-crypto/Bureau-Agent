@@ -19,10 +19,10 @@ function formatBadge(n: number): string | undefined {
 
 function NativeTabLayout() {
   const { counts } = useUnreadBadges();
-  const { todayCount } = useCalendarEvents();
+  const { badgeCount } = useCalendarEvents();
   const tasksBadge = formatBadge(counts.task);
   const moreBadge = formatBadge(counts.message);
-  const calendarBadge = formatBadge(todayCount);
+  const calendarBadge = formatBadge(badgeCount);
 
   return (
     <NativeTabs>
@@ -60,10 +60,10 @@ function ClassicTabLayout() {
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
   const { counts } = useUnreadBadges();
-  const { todayCount } = useCalendarEvents();
+  const { badgeCount } = useCalendarEvents();
   const tasksBadge = formatBadge(counts.task);
   const moreBadge = formatBadge(counts.message);
-  const calendarBadge = formatBadge(todayCount);
+  const calendarBadge = formatBadge(badgeCount);
 
   return (
     <Tabs

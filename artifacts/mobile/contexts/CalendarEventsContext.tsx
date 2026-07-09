@@ -26,15 +26,21 @@ export interface SharedCalendarEvent {
 interface CalendarEventsContextValue {
   todayEvents: SharedCalendarEvent[];
   todayCount: number;
+  /** Badge count — 0 once the user has opened the calendar screen; resets when new events appear. */
+  badgeCount: number;
   loading: boolean;
   refresh: () => void;
+  /** Call when the user opens the calendar screen to clear the home-tab badge. */
+  clearBadge: () => void;
 }
 
 const CalendarEventsContext = createContext<CalendarEventsContextValue>({
   todayEvents: [],
   todayCount: 0,
+  badgeCount: 0,
   loading: false,
   refresh: () => {},
+  clearBadge: () => {},
 });
 
 export function useCalendarEvents(): CalendarEventsContextValue {
@@ -46,10 +52,15 @@ const POLL_MS = 5 * 60 * 1000;
 export function CalendarEventsProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, fetchAuth } = useAuth();
   const [todayEvents, setTodayEvents] = useState<SharedCalendarEvent[]>([]);
+  const [badgeCount, setBadgeCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const isFetchingRef = useRef(false);
+  /** The event count the user last acknowledged by opening the calendar screen. */
+  const lastSeenCountRef = useRef(0);
+  /** Mirror of todayEvents.length so clearBadge can read it without stale closures. */
+  const currentCountRef = useRef(0);
 
   const fetchToday = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -78,6 +89,11 @@ export function CalendarEventsProvider({ children }: { children: React.ReactNode
           (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
         );
         setTodayEvents(all);
+        currentCountRef.current = all.length;
+        // Show badge only when the fetched count exceeds what the user last saw.
+        if (all.length > lastSeenCountRef.current) {
+          setBadgeCount(all.length);
+        }
       }
     } catch {
     } finally {
@@ -86,9 +102,17 @@ export function CalendarEventsProvider({ children }: { children: React.ReactNode
     }
   }, [isAuthenticated, fetchAuth]);
 
+  const clearBadge = useCallback(() => {
+    lastSeenCountRef.current = currentCountRef.current;
+    setBadgeCount(0);
+  }, []);
+
   useEffect(() => {
     if (!isAuthenticated) {
       setTodayEvents([]);
+      setBadgeCount(0);
+      lastSeenCountRef.current = 0;
+      currentCountRef.current = 0;
       return;
     }
 
@@ -117,8 +141,10 @@ export function CalendarEventsProvider({ children }: { children: React.ReactNode
       value={{
         todayEvents,
         todayCount: todayEvents.length,
+        badgeCount,
         loading,
         refresh: fetchToday,
+        clearBadge,
       }}
     >
       {children}

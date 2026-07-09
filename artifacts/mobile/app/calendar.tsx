@@ -124,7 +124,7 @@ export default function CalendarScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth, user } = useAuth();
-  const { refresh: refreshSharedCalendar } = useCalendarEvents();
+  const { refresh: refreshSharedCalendar, clearBadge } = useCalendarEvents();
   const isWeb = Platform.OS === "web";
   const params = useLocalSearchParams<{ eventId?: string | string[] }>();
   const eventIdParam = Array.isArray(params.eventId) ? params.eventId[0] : params.eventId;
@@ -424,10 +424,13 @@ export default function CalendarScreen() {
   // Refresh the shared CalendarEventsContext (today's events) whenever this
   // screen comes into focus — no separate periodic timer needed here since the
   // context already owns the 5-minute polling for today's snapshot.
+  // Also clear the home-tab calendar badge so it disappears once the user
+  // has opened this screen.
   useFocusEffect(
     useCallback(() => {
       refreshSharedCalendar();
-    }, [refreshSharedCalendar]),
+      clearBadge();
+    }, [refreshSharedCalendar, clearBadge]),
   );
 
   useEffect(() => {
