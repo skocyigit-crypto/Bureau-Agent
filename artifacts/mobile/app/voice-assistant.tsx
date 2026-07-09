@@ -1039,11 +1039,13 @@ export default function VoiceAssistantScreen() {
             onPress={submitText}
             disabled={!textInput.trim() || voiceState === "processing"}
             style={[styles.sendBtn, { backgroundColor: textInput.trim() ? colors.primary : colors.muted }]}
+            accessibilityRole="button"
+            accessibilityLabel={tr("send", lang)}
           >
             <Feather name="send" size={16} color="#fff" />
           </Pressable>
           {messages.length > 1 && (
-            <Pressable onPress={clearChat} style={styles.clearBtn}>
+            <Pressable onPress={clearChat} style={styles.clearBtn} accessibilityRole="button" accessibilityLabel={tr("clear", lang)}>
               <Feather name="trash-2" size={14} color={colors.mutedForeground} />
             </Pressable>
           )}
@@ -1075,6 +1077,8 @@ export default function VoiceAssistantScreen() {
           <Pressable
             onPress={handleMicPress}
             style={[styles.micButton, { backgroundColor: stateColor }]}
+            accessibilityRole="button"
+            accessibilityLabel={stateLabel}
           >
             {voiceState === "processing" ? (
               <ActivityIndicator size="large" color="#fff" />

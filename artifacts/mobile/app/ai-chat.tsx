@@ -646,7 +646,7 @@ export default function AIChatScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={[styles.header, { backgroundColor: colors.secondary, paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
         <View style={styles.headerRow}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Retour">
             <Feather name="arrow-left" size={20} color="#fff" />
           </Pressable>
           <View style={styles.headerCenter}>
@@ -700,10 +700,12 @@ export default function AIChatScreen() {
               disabled={!voiceOn || (!avatarSpeaking && !spokenText.trim())}
               style={[styles.clearBtn, (!voiceOn || (!avatarSpeaking && !spokenText.trim())) && { opacity: 0.4 }]}
               hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={avatarSpeaking ? "Arreter la lecture vocale" : "Relire la reponse a voix haute"}
             >
               <Feather name={avatarSpeaking ? "square" : "rotate-ccw"} size={15} color="rgba(255,255,255,0.85)" />
             </Pressable>
-            <Pressable onPress={clearHistory} style={styles.clearBtn} hitSlop={12}>
+            <Pressable onPress={clearHistory} style={styles.clearBtn} hitSlop={12} accessibilityRole="button" accessibilityLabel="Effacer la conversation">
               <Feather name="trash-2" size={16} color="rgba(255,255,255,0.6)" />
             </Pressable>
           </View>
@@ -820,6 +822,8 @@ export default function AIChatScreen() {
                 onPress={startVoiceInput}
                 style={[styles.voiceBtn, { backgroundColor: voiceListening ? "#ef444420" : colors.background, borderColor: voiceListening ? "#ef4444" : colors.border }]}
                 hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={voiceListening ? "Arreter la dictee vocale" : "Dicter le message"}
               >
                 <Feather name="mic" size={18} color={voiceListening ? "#ef4444" : colors.mutedForeground} />
               </Pressable>
@@ -842,6 +846,8 @@ export default function AIChatScreen() {
               }}
               disabled={!input.trim() || isTyping}
               style={[styles.sendBtn, { backgroundColor: input.trim() && !isTyping ? colors.primary : colors.muted }]}
+              accessibilityRole="button"
+              accessibilityLabel="Envoyer le message"
             >
               {isTyping ? (
                 <ActivityIndicator size="small" color="#fff" />

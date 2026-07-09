@@ -36,7 +36,9 @@ class Task(Base, TenantScopedMixin, TimestampMixin):
     # NOTE: cross-entity FKs reference the target's global serial PK, never a
     # composite (org, id) key — tenant isolation for these links is an
     # APPLICATION-LAYER concern (verify same-org ownership before writing),
-    # not a DB-level guarantee. See tenant/guard.py assert_same_org.
+    # not a DB-level guarantee. Route handlers must load the referenced
+    # contact/call via tenant_scoped_select (tenant/scoped_query.py) rather
+    # than a bare eq(id, ...) lookup before assigning it here.
     related_contact_id: Mapped[int | None] = mapped_column(Integer)
     related_call_id: Mapped[int | None] = mapped_column(Integer)
     # FK to projets.id (onDelete=SET NULL) in the source schema — left as a
