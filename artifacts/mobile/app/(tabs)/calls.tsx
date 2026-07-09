@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   FlatList,
   Linking,
   Platform,
@@ -103,6 +104,11 @@ export default function CallsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput), 400);
+    return () => clearTimeout(t);
+  }, [searchInput]);
   const [filter, setFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
   const [formValues, setFormValues] = useState<Record<string, string>>({ direction: "entrant", status: "repondu" });
@@ -159,7 +165,12 @@ export default function CallsScreen() {
   }, [fetchCalls]);
 
   useEffect(() => {
-    const interval = setInterval(() => { fetchCalls(); }, 120000);
+    // Gated on AppState so this doesn't keep polling every 2 minutes while
+    // the app is backgrounded (was unconditional) — matches the pattern
+    // used on the home dashboard.
+    const interval = setInterval(() => {
+      if (AppState.currentState === "active") fetchCalls();
+    }, 120000);
     return () => clearInterval(interval);
   }, [fetchCalls]);
 
@@ -325,10 +336,10 @@ export default function CallsScreen() {
             style={styles.searchInput}
             placeholder="Rechercher..."
             placeholderTextColor="rgba(255,255,255,0.4)"
-            value={search}
-            onChangeText={setSearch}
+            value={searchInput}
+            onChangeText={setSearchInput}
           />
-          {search ? <Pressable onPress={() => setSearch("")}><Feather name="x" size={16} color="rgba(255,255,255,0.5)" /></Pressable> : null}
+          {searchInput ? <Pressable onPress={() => { setSearchInput(""); setSearch(""); }}><Feather name="x" size={16} color="rgba(255,255,255,0.5)" /></Pressable> : null}
         </View>
         <View style={styles.filterRow}>
           {filters.map((f) => (

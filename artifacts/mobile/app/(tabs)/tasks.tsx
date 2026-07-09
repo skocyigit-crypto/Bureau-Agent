@@ -215,6 +215,11 @@ export default function TasksScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput), 400);
+    return () => clearTimeout(t);
+  }, [searchInput]);
   const [showForm, setShowForm] = useState(false);
   const [formValues, setFormValues] = useState<Record<string, string>>({ priority: "moyenne", status: "en_attente" });
   const [formLoading, setFormLoading] = useState(false);
@@ -397,10 +402,10 @@ export default function TasksScreen() {
             style={styles.searchInput}
             placeholder="Rechercher une tache..."
             placeholderTextColor="rgba(255,255,255,0.4)"
-            value={search}
-            onChangeText={setSearch}
+            value={searchInput}
+            onChangeText={setSearchInput}
           />
-          {search ? <Feather name="x" size={16} color="rgba(255,255,255,0.5)" onPress={() => setSearch("")} /> : null}
+          {searchInput ? <Feather name="x" size={16} color="rgba(255,255,255,0.5)" onPress={() => { setSearchInput(""); setSearch(""); }} /> : null}
         </View>
         <View style={styles.filterRow}>
           {filters.map((f) => (

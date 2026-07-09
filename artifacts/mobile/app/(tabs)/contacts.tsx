@@ -162,6 +162,11 @@ export default function ContactsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput), 400);
+    return () => clearTimeout(t);
+  }, [searchInput]);
   const [filterCat, setFilterCat] = useState("all");
   const [showForm, setShowForm] = useState(false);
   const [formValues, setFormValues] = useState<Record<string, string>>({ category: "client" });
@@ -329,10 +334,10 @@ export default function ContactsScreen() {
             style={styles.searchInput}
             placeholder="Rechercher un contact..."
             placeholderTextColor="rgba(255,255,255,0.4)"
-            value={search}
-            onChangeText={setSearch}
+            value={searchInput}
+            onChangeText={setSearchInput}
           />
-          {search ? <Feather name="x" size={16} color="rgba(255,255,255,0.5)" onPress={() => setSearch("")} /> : null}
+          {searchInput ? <Feather name="x" size={16} color="rgba(255,255,255,0.5)" onPress={() => { setSearchInput(""); setSearch(""); }} /> : null}
         </View>
         <View style={styles.filterRow}>
           {catFilters.map((f) => (
