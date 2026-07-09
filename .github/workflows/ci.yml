@@ -94,8 +94,43 @@ jobs:
           pnpm exec drizzle-kit push --force --config ./drizzle.config.ts &&
           node ./scripts/ensure-audit-append-only.mjs
 
-      - name: Run test suites (api-server, mobile, tanitim, demo-handoff)
-        run: pnpm run test
+      # Run per-package rather than the combined "pnpm run test": these four
+      # steps are individually confirmed passing, but the combined
+      # "pnpm -r --if-present run test" (even with --workspace-concurrency=1)
+      # failed at this same point for reasons that weren't identifiable
+      # without authenticated log access - running them as separate steps
+      # sidesteps whatever pnpm -r does differently.
+      - name: Test - api-server
+        id: test-api-server
+        continue-on-error: true
+        run: pnpm --filter @workspace/api-server run test
+
+      - name: Test - mobile
+        id: test-mobile
+        continue-on-error: true
+        run: pnpm --filter @workspace/mobile run test
+
+      - name: Test - tanitim
+        id: test-tanitim
+        continue-on-error: true
+        run: pnpm --filter @workspace/tanitim run test
+
+      - name: Test - demo-handoff
+        id: test-demo-handoff
+        continue-on-error: true
+        run: pnpm --filter @workspace/demo-handoff run test
+
+      - name: Test suites - gate
+        if: always()
+        run: |
+          echo "api-server: ${{ steps.test-api-server.outcome }}"
+          echo "mobile: ${{ steps.test-mobile.outcome }}"
+          echo "tanitim: ${{ steps.test-tanitim.outcome }}"
+          echo "demo-handoff: ${{ steps.test-demo-handoff.outcome }}"
+          if [ "${{ steps.test-api-server.outcome }}" = "failure" ] || [ "${{ steps.test-mobile.outcome }}" = "failure" ] || [ "${{ steps.test-tanitim.outcome }}" = "failure" ] || [ "${{ steps.test-demo-handoff.outcome }}" = "failure" ]; then
+            echo "One or more test suites failed."
+            exit 1
+          fi
 
   docker-build-api:
     name: Docker image build (api)
