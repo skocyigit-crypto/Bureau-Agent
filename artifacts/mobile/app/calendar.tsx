@@ -637,11 +637,19 @@ export default function CalendarScreen() {
                               hitSlop={4}
                               style={styles.cellClosedToggle}
                             >
-                              <Text style={styles.closedBadge}>Fermé</Text>
+                              <Text style={styles.closedBadge} numberOfLines={1}>
+                                {closure.label
+                                  ? closure.label.slice(0, 6) + (closure.label.length > 6 ? "…" : "")
+                                  : "Fermé"}
+                              </Text>
                               <Feather name="unlock" size={7} color="#fca5a5" />
                             </Pressable>
                           ) : (
-                            <Text style={styles.closedBadge}>Fermé</Text>
+                            <Text style={styles.closedBadge} numberOfLines={1}>
+                              {closure.label
+                                ? closure.label.slice(0, 6) + (closure.label.length > 6 ? "…" : "")
+                                : "Fermé"}
+                            </Text>
                           )
                         ) : cell.eventColors.length > 0 ? (
                           <View style={styles.eventDots}>
