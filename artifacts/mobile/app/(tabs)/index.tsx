@@ -83,6 +83,18 @@ export default function DashboardScreen() {
   const { cached: cachedOverdue, isFromCache: overdueFromCache, updateCache: updateOverdueCache } = useOfflineCache<Task[]>("dashboard_overdue_tasks", []);
   const { cached: cachedSecurity, isFromCache: securityFromCache, updateCache: updateSecurityCache } = useOfflineCache<SecurityVerdict | null>("dashboard_security", null);
   const { cached: cachedReuse, isFromCache: reuseFromCache, updateCache: updateReuseCache } = useOfflineCache<ReuseSavings | null>("dashboard_reuse_savings", null);
+  const { cached: cachedTasksList } = useOfflineCache<Task[]>("tasks_list", []);
+
+  const filterStaleOverdue = useCallback((overdue: Task[], tasksList: Task[]): Task[] => {
+    if (tasksList.length === 0) return overdue;
+    const doneIds = new Set(
+      tasksList
+        .filter((t) => t.status === "termine" || t.status === "annule")
+        .map((t) => t.id),
+    );
+    if (doneIds.size === 0) return overdue;
+    return overdue.filter((t) => !doneIds.has(t.id));
+  }, []);
 
   const fetchDashboard = useCallback(async (silent = false) => {
     try {
@@ -124,7 +136,7 @@ export default function DashboardScreen() {
       if (!silent) {
         if (cachedDashboard && !data) setData(cachedDashboard);
         if (callsFromCache && recentCalls.length === 0) setRecentCalls(cachedCalls);
-        if (overdueFromCache && overdueTasks.length === 0) setOverdueTasks(cachedOverdue);
+        if (overdueFromCache && overdueTasks.length === 0) setOverdueTasks(filterStaleOverdue(cachedOverdue, cachedTasksList));
         if (securityFromCache && !security) setSecurity(cachedSecurity);
         if (reuseFromCache && !reuseSavings) setReuseSavings(cachedReuse);
       }
@@ -132,7 +144,7 @@ export default function DashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [fetchAuth, cachedDashboard, data, updateCache, cachedCalls, callsFromCache, recentCalls.length, updateCallsCache, cachedOverdue, overdueFromCache, overdueTasks.length, updateOverdueCache, cachedSecurity, securityFromCache, security, updateSecurityCache, cachedReuse, reuseFromCache, reuseSavings, updateReuseCache]);
+  }, [fetchAuth, cachedDashboard, data, updateCache, cachedCalls, callsFromCache, recentCalls.length, updateCallsCache, cachedOverdue, overdueFromCache, overdueTasks.length, updateOverdueCache, cachedSecurity, securityFromCache, security, updateSecurityCache, cachedReuse, reuseFromCache, reuseSavings, updateReuseCache, cachedTasksList, filterStaleOverdue]);
 
   useEffect(() => {
     if (isFromCache && cachedDashboard && !data) setData(cachedDashboard);
@@ -143,8 +155,10 @@ export default function DashboardScreen() {
   }, [callsFromCache, cachedCalls, recentCalls.length]);
 
   useEffect(() => {
-    if (overdueFromCache && cachedOverdue.length > 0 && overdueTasks.length === 0) setOverdueTasks(cachedOverdue);
-  }, [overdueFromCache, cachedOverdue, overdueTasks.length]);
+    if (overdueFromCache && cachedOverdue.length > 0 && overdueTasks.length === 0) {
+      setOverdueTasks(filterStaleOverdue(cachedOverdue, cachedTasksList));
+    }
+  }, [overdueFromCache, cachedOverdue, overdueTasks.length, cachedTasksList, filterStaleOverdue]);
 
   useEffect(() => {
     if (securityFromCache && cachedSecurity && !security) setSecurity(cachedSecurity);
@@ -302,9 +316,14 @@ export default function DashboardScreen() {
               <Pressable onPress={() => quickNav("/(tabs)/tasks")} style={[styles.urgentBanner, { backgroundColor: "#ef444415", borderColor: "#ef4444" }]}>
                 <Feather name="alert-triangle" size={18} color="#ef4444" />
                 <View style={{ flex: 1, marginLeft: 10 }}>
-                  <Text style={[styles.urgentTitle, { color: "#ef4444" }]}>
-                    {overdueTasks.length} tache{overdueTasks.length > 1 ? "s" : ""} en retard
-                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Text style={[styles.urgentTitle, { color: "#ef4444" }]}>
+                      {overdueTasks.length} tache{overdueTasks.length > 1 ? "s" : ""} en retard
+                    </Text>
+                    {overdueFromCache && (
+                      <Feather name="wifi-off" size={10} color="#ef444480" />
+                    )}
+                  </View>
                   <Text style={[styles.urgentSub, { color: colors.mutedForeground }]} numberOfLines={1}>
                     {overdueTasks.map((t) => t.title).join(", ")}
                   </Text>
