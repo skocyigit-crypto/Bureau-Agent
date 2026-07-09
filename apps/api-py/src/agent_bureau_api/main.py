@@ -2,9 +2,13 @@
 middleware order, which the plan (§2.7) treats as a spec, not an
 implementation detail:
 
-  trust proxy -> security headers -> CORS -> rate limiters -> session ->
-  guardian (WAF) -> ip_protection -> threat_detection -> csrf_protection ->
-  main router (/api) -> centralized error handler
+  headers -> CORS -> guardian (WAF) -> ip_protection -> rate limiters ->
+  threat_detection -> csrf_protection -> main router (/api) ->
+  centralized error handler
+
+(Starlette applies add_middleware() calls in reverse as the actual
+request-handling stack — see the inline comment below for how this order is
+produced from the add_middleware() call sequence.)
 
 `require_tenant` / `license_check` are NOT global middleware here (nor were
 they in Express, despite being mounted in routes/index.ts near the top) —
@@ -31,6 +35,7 @@ from .middleware.rate_limit import limiter
 from .middleware.security import CsrfProtectionMiddleware, IpProtectionMiddleware, ThreatDetectionMiddleware
 from .routes import api_router
 from .settings import get_settings, resolve_allowed_origins
+from .tenant.scoped_query import install_tenant_isolation_guard
 
 logger = get_logger(__name__)
 
@@ -38,6 +43,11 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     configure_logging()
+    # Defense-in-depth guard (tenant/scoped_query.py) — was previously only
+    # ever installed by a test fixture, never by the app itself, so it had
+    # no effect at runtime. Registers a Session-level event listener, so
+    # this must run once at process startup, not per-request.
+    install_tenant_isolation_guard(strict=True)
     yield
     await close_engine()
 

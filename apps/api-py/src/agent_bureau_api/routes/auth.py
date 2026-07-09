@@ -6,6 +6,7 @@ user CRUD, CSV export) is Phase 2 scope.
 """
 from __future__ import annotations
 
+import asyncio
 import re
 from datetime import datetime, timedelta, timezone
 
@@ -72,11 +73,11 @@ async def login(request: Request, payload: LoginRequest, response: Response, db:
     # constant dummy hash on every early-failure path (nonexistent/disabled/
     # locked account) so response latency doesn't leak which case occurred.
     if user is None or not user.actif or (user.verrouille_jusqua and user.verrouille_jusqua > datetime.now(timezone.utc)):
-        bcrypt.checkpw(payload.password.encode("utf-8"), DUMMY_BCRYPT_HASH)
+        await asyncio.to_thread(bcrypt.checkpw, payload.password.encode("utf-8"), DUMMY_BCRYPT_HASH)
         response.status_code = 401
         return {"error": "Invalid credentials."}
 
-    is_valid = bcrypt.checkpw(payload.password.encode("utf-8"), user.password_hash.encode("utf-8"))
+    is_valid = await asyncio.to_thread(bcrypt.checkpw, payload.password.encode("utf-8"), user.password_hash.encode("utf-8"))
     if not is_valid:
         new_attempts = user.tentatives_echouees + 1
         values: dict = {"tentatives_echouees": new_attempts}
