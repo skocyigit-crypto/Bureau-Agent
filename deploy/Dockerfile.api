@@ -9,7 +9,7 @@ RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 WORKDIR /app
 
 # Copy workspace manifests first for better layer caching
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json tsconfig.json ./
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json tsconfig.json .npmrc ./
 COPY artifacts/api-server/package.json artifacts/api-server/
 COPY lib ./lib
 COPY scripts ./scripts
@@ -39,7 +39,7 @@ RUN corepack enable && corepack prepare pnpm@9.15.0 --activate \
 WORKDIR /app
 
 # Workspace manifests (needed for pnpm to resolve workspace links)
-COPY --chown=app:app pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY --chown=app:app pnpm-workspace.yaml pnpm-lock.yaml package.json .npmrc ./
 COPY --chown=app:app artifacts/api-server/package.json artifacts/api-server/
 COPY --chown=app:app lib ./lib
 
