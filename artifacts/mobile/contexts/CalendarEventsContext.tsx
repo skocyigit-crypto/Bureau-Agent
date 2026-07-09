@@ -56,6 +56,13 @@ export function useCalendarEvents(): CalendarEventsContextValue {
 }
 
 const POLL_MS = 5 * 60 * 1000;
+/**
+ * How long (ms) after clearBadge() a completing fetch is still considered
+ * "within the same focus window" and allowed to absorb its result silently.
+ * 3 s comfortably covers any in-flight request; later polls (POLL_MS = 5 min)
+ * are always outside this window, so genuinely new events raise the badge.
+ */
+const BADGE_CLEAR_GRACE_MS = 3000;
 
 function todayDateString(): string {
   const now = new Date();
@@ -88,6 +95,14 @@ export function CalendarEventsProvider({ children }: { children: React.ReactNode
   const lastSeenCountRef = useRef(0);
   /** Mirror of todayEvents.length so clearBadge can read it without stale closures. */
   const currentCountRef = useRef(0);
+  /**
+   * Timestamp (ms) set by clearBadge().  Any fetch that completes within
+   * BADGE_CLEAR_GRACE_MS of this timestamp will silently absorb its result
+   * into lastSeenCountRef instead of re-raising the badge.  Because it is
+   * time-bounded it expires automatically — failed requests, navigating away,
+   * or later poll cycles (5 min) are unaffected.
+   */
+  const badgeClearedAtRef = useRef(0);
   const cacheHydratedRef = useRef(false);
   const stalePurgedRef = useRef(false);
 
@@ -159,8 +174,15 @@ export function CalendarEventsProvider({ children }: { children: React.ReactNode
         );
         setTodayEvents(all);
         currentCountRef.current = all.length;
-        // Show badge only when the fetched count exceeds what the user last saw.
-        if (all.length > lastSeenCountRef.current) {
+        // If clearBadge() fired within the grace window (fetch was already
+        // in-flight when the user opened the home tab), absorb the result into
+        // lastSeenCountRef so the badge does not flicker back.  The check is
+        // time-bounded: fetches completing after BADGE_CLEAR_GRACE_MS (e.g. the
+        // next 5-minute poll) are unaffected and can raise the badge normally.
+        if (Date.now() - badgeClearedAtRef.current < BADGE_CLEAR_GRACE_MS) {
+          lastSeenCountRef.current = all.length;
+        } else if (all.length > lastSeenCountRef.current) {
+          // Show badge only when the fetched count exceeds what the user last saw.
           setBadgeCount(all.length);
         }
 
@@ -177,6 +199,10 @@ export function CalendarEventsProvider({ children }: { children: React.ReactNode
   const clearBadge = useCallback(() => {
     const count = currentCountRef.current;
     lastSeenCountRef.current = count;
+    // Record the moment of clearing so that any fetch completing within
+    // BADGE_CLEAR_GRACE_MS is treated as part of the same focus window and
+    // will not re-raise the badge.  Expires automatically — no reset needed.
+    badgeClearedAtRef.current = Date.now();
     setBadgeCount(0);
     AsyncStorage.setItem(
       STORAGE_KEY,
