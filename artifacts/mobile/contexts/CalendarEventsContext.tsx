@@ -89,6 +89,7 @@ export function CalendarEventsProvider({ children }: { children: React.ReactNode
   /** Mirror of todayEvents.length so clearBadge can read it without stale closures. */
   const currentCountRef = useRef(0);
   const cacheHydratedRef = useRef(false);
+  const stalePurgedRef = useRef(false);
 
   useEffect(() => {
     if (!isAuthenticated || !user) {
@@ -100,6 +101,8 @@ export function CalendarEventsProvider({ children }: { children: React.ReactNode
     cacheHydratedRef.current = true;
 
     const key = buildCacheKey(user.id);
+    const prefix = `calendar-today:${user.id}:`;
+
     AsyncStorage.getItem(key)
       .then((raw) => {
         if (raw) {
@@ -112,6 +115,20 @@ export function CalendarEventsProvider({ children }: { children: React.ReactNode
         }
       })
       .catch(() => {});
+
+    if (!stalePurgedRef.current) {
+      stalePurgedRef.current = true;
+      AsyncStorage.getAllKeys()
+        .then((allKeys) => {
+          const stale = allKeys.filter(
+            (k) => k.startsWith(prefix) && k !== key,
+          );
+          if (stale.length > 0) {
+            AsyncStorage.multiRemove(stale).catch(() => {});
+          }
+        })
+        .catch(() => {});
+    }
   }, [isAuthenticated, user]);
 
   const fetchToday = useCallback(async () => {
