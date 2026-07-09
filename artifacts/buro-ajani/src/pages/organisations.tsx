@@ -373,6 +373,9 @@ export default function OrganisationsPage() {
 
   const handleToggleStatus = async (org: Organisation) => {
     if (org.id === 1) return;
+    if (org.actif) {
+      if (!(await confirmAction({ title: `Suspendre « ${org.name} » ?`, description: "Les utilisateurs de cette organisation perdront l'accès à l'application jusqu'à réactivation.", confirmLabel: "Suspendre", destructive: true }))) return;
+    }
     setTogglingId(org.id);
     try {
       const res = await fetch(`${BASE}api/organisations/${org.id}/toggle-status`, {
@@ -669,6 +672,8 @@ export default function OrganisationsPage() {
   };
 
   const updateInvoiceStatus = async (invoiceId: number, status: string) => {
+    const labels: Record<string, string> = { payee: "marquer cette facture comme payée", retard: "marquer cette facture en retard", annulee: "annuler cette facture" };
+    if (!(await confirmAction({ title: "Confirmer le changement de statut", description: `Voulez-vous ${labels[status] || "modifier le statut de cette facture"} ?`, confirmLabel: "Confirmer", destructive: status === "annulee" }))) return;
     try {
       const res = await fetch(`${BASE}api/billing/invoices/${invoiceId}/status`, {
         method: "PATCH",
@@ -729,7 +734,7 @@ export default function OrganisationsPage() {
           <div className="flex items-center gap-4">
             <Icon3D icon={Building2} variant="amber" size="lg" />
             <div>
-              <h1 className="text-2xl font-bold text-white">Lisans Yonetimi</h1>
+              <h1 className="text-2xl font-bold text-white">Gestion des Organisations</h1>
               <p className="text-white/60 mt-1">Creez et gerez les licences et la facturation de vos clients</p>
             </div>
           </div>

@@ -252,6 +252,9 @@ export default function UsersPage() {
       toast({ title: "Action interdite", description: "Le Super Administrateur ne peut pas etre desactive.", variant: "destructive" });
       return;
     }
+    if (user.actif) {
+      if (!(await confirmAction({ title: `Désactiver ${user.prenom} ${user.nom} ?`, description: "Cette personne perdra immédiatement l'accès à l'application.", confirmLabel: "Désactiver", destructive: true }))) return;
+    }
     setSaving(true);
     try {
       const res = await fetch(`${BASE}api/auth/users/${user.id}`, {
@@ -301,6 +304,9 @@ export default function UsersPage() {
 
   const handleRoleChange = async () => {
     if (!selectedUser) return;
+    if (editRole === "super_admin" && selectedUser.role !== "super_admin") {
+      if (!(await confirmAction({ title: "Promouvoir en Super Administrateur ?", description: `${selectedUser.prenom} ${selectedUser.nom} obtiendra un accès complet et irrévocable à toutes les fonctions de la plateforme.`, confirmLabel: "Promouvoir", destructive: true }))) return;
+    }
     setSaving(true);
     try {
       const res = await fetch(`${BASE}api/auth/users/${selectedUser.id}`, {
