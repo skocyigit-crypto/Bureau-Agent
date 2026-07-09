@@ -528,7 +528,9 @@ function AnalyseTab({ doc, docId, onReloadDoc }: { doc: DocPreview; docId: numbe
       });
       const data = res.ok ? await res.json() : null;
       const aiMsg: ChatMessage = {
-        role: "assistant", content: "", answers: data?.answers ?? [],
+        role: "assistant",
+        content: res.ok ? "" : "Une erreur est survenue lors du traitement de votre question.",
+        answers: data?.answers ?? [],
         timestamp: new Date().toISOString(),
       };
       setChatHistory(h => [...h, aiMsg]);

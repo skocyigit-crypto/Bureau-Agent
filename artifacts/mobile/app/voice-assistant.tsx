@@ -480,11 +480,18 @@ export default function VoiceAssistantScreen() {
         .map((m) => ({ role: m.type as "user" | "assistant", text: m.text }));
       payload.deep = deepRef.current;
     }
+    // Without a timeout, a hung request (dead server, slow network) leaves
+    // voiceState stuck on "processing" forever — the mic button spins with
+    // no way out short of re-tapping it (which stops listening but doesn't
+    // cancel this fetch). 20s is generous for an AI round-trip.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
     try {
       const res = await fetchAuth(`${API_BASE}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Voice-Lang": curLang },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
       if (res.ok) {
         const data = await res.json();
@@ -506,6 +513,8 @@ export default function VoiceAssistantScreen() {
       const msg = tr("err_net", curLang);
       addMessage("assistant", msg);
       speak(msg);
+    } finally {
+      clearTimeout(timeoutId);
     }
   }, [fetchAuth, speak]);
 
