@@ -45,7 +45,11 @@ jobs:
       # if DATABASE_URL is unset - a real ephemeral Postgres is needed even
       # for tests that only touch a handful of tables.
       postgres:
-        image: postgres:16-alpine
+        # Debian-based, not -alpine: the schema-push pipeline's
+        # ensure-search-extensions step needs pg_trgm/unaccent, which are
+        # part of the default postgresql-contrib install on the Debian
+        # image but may not be present on the Alpine one.
+        image: postgres:16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
