@@ -76,79 +76,26 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # push-force split into its constituent steps (normally chained with
-      # && in lib/db/package.json) purely for CI diagnostics: this lets a
-      # failure surface as a specific named step instead of one opaque
-      # "push-force" black box.
-      - name: DB - ensure search extensions
+      - name: Push DB schema to test database
         working-directory: lib/db
-        run: node ./scripts/ensure-search-extensions.mjs
+        # Same chain as the "push-force" script, minus its last step
+        # (verify-schema-sync.mjs): that script asserts user_sessions
+        # exists, but that table is created at runtime by connect-pg-simple
+        # when the Express app boots (drizzle.config.ts excludes it from
+        # the schema on purpose) - on this fresh CI database, where the app
+        # never actually starts, that assertion would always fail. It's a
+        # real production deploy-safety check, just not applicable to
+        # spinning up an empty test database.
+        run: >-
+          node ./scripts/ensure-search-extensions.mjs &&
+          node ./scripts/ensure-unique-constraint-names.mjs &&
+          node ./scripts/ensure-automation-logs-rule-id.mjs &&
+          node ./scripts/ensure-fk-orphans.mjs &&
+          pnpm exec drizzle-kit push --force --config ./drizzle.config.ts &&
+          node ./scripts/ensure-audit-append-only.mjs
 
-      - name: DB - ensure unique constraint names
-        working-directory: lib/db
-        run: node ./scripts/ensure-unique-constraint-names.mjs
-
-      - name: DB - ensure automation_logs rule_id
-        working-directory: lib/db
-        run: node ./scripts/ensure-automation-logs-rule-id.mjs
-
-      - name: DB - ensure FK orphans remediated
-        working-directory: lib/db
-        run: node ./scripts/ensure-fk-orphans.mjs
-
-      - name: DB - drizzle-kit push --force
-        working-directory: lib/db
-        run: pnpm exec drizzle-kit push --force --config ./drizzle.config.ts
-
-      - name: DB - ensure audit append-only
-        working-directory: lib/db
-        run: node ./scripts/ensure-audit-append-only.mjs
-
-      # verify-schema-sync.mjs is intentionally NOT run here: it asserts
-      # user_sessions exists, but that table is created at runtime by
-      # connect-pg-simple when the Express app boots (drizzle.config.ts
-      # excludes it from the schema on purpose) - on this fresh CI database,
-      # where the app never actually starts, that assertion would always
-      # fail. It's a real production deploy-safety check, just not
-      # applicable to spinning up an empty test database.
-
-      # Split into per-package steps (normally pnpm -r --if-present run test)
-      # purely for CI diagnostics: continue-on-error so all four run and
-      # report independently instead of the recursive runner stopping at the
-      # first failure, then a final gate step fails the job if any did.
-      - name: Test - api-server
-        id: test-api-server
-        continue-on-error: true
-        run: pnpm --filter @workspace/api-server run test
-
-      - name: Test - mobile
-        id: test-mobile
-        continue-on-error: true
-        run: pnpm --filter @workspace/mobile run test
-
-      - name: Test - tanitim
-        id: test-tanitim
-        continue-on-error: true
-        run: pnpm --filter @workspace/tanitim run test
-
-      - name: Test - demo-handoff
-        id: test-demo-handoff
-        continue-on-error: true
-        run: pnpm --filter @workspace/demo-handoff run test
-
-      - name: Test suites - gate
-        if: always()
-        run: |
-          echo "api-server: ${{ steps.test-api-server.outcome }}"
-          echo "mobile: ${{ steps.test-mobile.outcome }}"
-          echo "tanitim: ${{ steps.test-tanitim.outcome }}"
-          echo "demo-handoff: ${{ steps.test-demo-handoff.outcome }}"
-          if [ "${{ steps.test-api-server.outcome }}" = "failure" ] || \
-             [ "${{ steps.test-mobile.outcome }}" = "failure" ] || \
-             [ "${{ steps.test-tanitim.outcome }}" = "failure" ] || \
-             [ "${{ steps.test-demo-handoff.outcome }}" = "failure" ]; then
-            exit 1
-          fi
+      - name: Run test suites (api-server, mobile, tanitim, demo-handoff)
+        run: pnpm run test
 
   docker-build-api:
     name: Docker image build (api)
