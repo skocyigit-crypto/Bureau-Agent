@@ -20,6 +20,7 @@ import {
   extractGeminiTokens,
   geminiActualModel,
   GEMINI_FLASH_MODEL,
+  sanitizePromptInput,
 } from "./ai-utils";
 import { logger } from "../lib/logger";
 
@@ -183,7 +184,7 @@ export async function generateDraftInBackground(conversationId: number, orgId: n
     const transcript = recent
       .map((m) => {
         const who = m.direction === "inbound" ? "Client" : "Nous";
-        const text = (m.body ?? "[pièce jointe]").slice(0, DRAFT_MSG_MAX);
+        const text = m.body ? sanitizePromptInput(m.body, DRAFT_MSG_MAX) : "[pièce jointe]";
         return `${who}: ${text}`;
       })
       .join("\n");

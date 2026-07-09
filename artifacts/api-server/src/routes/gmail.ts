@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { logger } from "../lib/logger";
-import { GEMINI_FLASH_MODEL } from "../services/ai-utils";
+import { GEMINI_FLASH_MODEL, sanitizePromptInput } from "../services/ai-utils";
 import { analyzeUrlsBatch } from "../services/url-safety";
 import { applyDomainListToUrl } from "../services/security-lists";
 import { recordSecurityScan } from "../services/security-scans";
@@ -772,11 +772,18 @@ router.post("/gmail/message/:id/scan", async (req: Request, res: Response): Prom
     } else {
       try {
         const { ai } = await import("@workspace/integrations-gemini-ai");
+        // Every field below is fully attacker-controlled (this route's whole
+        // purpose is judging a possibly-malicious email) — sanitize before
+        // it reaches the prompt so a crafted email can't inject instructions
+        // that suppress its own phishing verdict.
+        const safeFromHeader = sanitizePromptInput(fromHeader, 300);
+        const safeSubject = sanitizePromptInput(subject, 300);
+        const safeBody = sanitizePromptInput(bodyText, 3000);
         const prompt = `Tu es un expert en cybersécurité. Analyse cet email pour détecter le phishing, l'ingénierie sociale et les tentatives d'usurpation d'identité.
 
-DE: ${fromHeader}
-OBJET: ${subject}
-CORPS (extrait): ${bodyText.slice(0, 3000)}
+DE: ${safeFromHeader}
+OBJET: ${safeSubject}
+CORPS (extrait): ${safeBody}
 
 URLs détectées: ${rawUrls.slice(0, 10).join(", ")}
 

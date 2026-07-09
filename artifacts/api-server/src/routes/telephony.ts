@@ -16,6 +16,17 @@ import {
 const router: IRouter = Router();
 export const telephonyWebhookRouter: IRouter = Router();
 
+function timingSafeEqualStr(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  try {
+    return crypto.timingSafeEqual(bufA, bufB);
+  } catch {
+    return false;
+  }
+}
+
 function validateTwilioSignature(req: Request, authToken: string): boolean {
   const signature = req.headers["x-twilio-signature"] as string | undefined;
   if (!signature || !authToken) return false;
@@ -71,13 +82,13 @@ async function validateProviderWebhook(provider: string, req: Request): Promise<
     if (provider === "vonage") {
       const expected = process.env.VONAGE_WEBHOOK_SECRET;
       const got = req.headers["x-webhook-secret"];
-      if (expected && got === expected) return { ok: true, orgId: null };
+      if (expected && typeof got === "string" && timingSafeEqualStr(got, expected)) return { ok: true, orgId: null };
       return { ok: false };
     }
     if (provider === "telnyx") {
       const expected = process.env.TELNYX_WEBHOOK_SECRET;
       const got = req.headers["x-webhook-secret"];
-      if (expected && got === expected) return { ok: true, orgId: null };
+      if (expected && typeof got === "string" && timingSafeEqualStr(got, expected)) return { ok: true, orgId: null };
       return { ok: false };
     }
     return { ok: false };
