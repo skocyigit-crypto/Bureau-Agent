@@ -573,6 +573,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                       whileTap={{ scale: 0.95 }}
                       className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-lg shadow-red-500/30 transition-colors"
                       onClick={handleReject}
+                      aria-label="Refuser l'appel"
                     >
                       <PhoneOff className="w-7 h-7 text-white" />
                     </motion.button>
@@ -584,6 +585,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                       transition={{ duration: 1, repeat: Infinity }}
                       className="w-20 h-20 rounded-full bg-white hover:bg-gray-100 flex items-center justify-center shadow-xl shadow-white/30 transition-colors"
                       onClick={handleAnswer}
+                      aria-label="Repondre a l'appel"
                     >
                       <Phone className="w-9 h-9 text-emerald-600" />
                     </motion.button>
@@ -593,6 +595,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                       whileTap={{ scale: 0.95 }}
                       className="w-16 h-16 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center backdrop-blur-sm transition-colors"
                       onClick={() => { setPhase("missed"); saveCall("messagerie"); }}
+                      aria-label="Envoyer vers la messagerie"
                     >
                       <Voicemail className="w-7 h-7 text-white" />
                     </motion.button>
@@ -816,6 +819,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                     whileTap={{ scale: 0.95 }}
                     className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-lg shadow-red-500/30 mx-auto transition-colors"
                     onClick={handleHangup}
+                    aria-label="Raccrocher"
                   >
                     <PhoneOff className="w-7 h-7 text-white" />
                   </motion.button>
@@ -950,6 +954,7 @@ export function IncomingCallOverlay({ isVisible, callData, onClose }: IncomingCa
                     whileTap={{ scale: 0.95 }}
                     onClick={handleAiHangup}
                     className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-lg shadow-red-500/30 transition-colors"
+                    aria-label="Raccrocher"
                   >
                     <PhoneOff className="w-6 h-6 text-white" />
                   </motion.button>

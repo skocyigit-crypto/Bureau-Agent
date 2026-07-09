@@ -196,13 +196,17 @@ export default function SettingsPage() {
           <TabNotifications />
         </TabsContent>
 
-        <TabsContent value="securite" className="space-y-6 mt-6">
-          <TabSecurite />
-        </TabsContent>
+        {isAdmin && (
+          <TabsContent value="securite" className="space-y-6 mt-6">
+            <TabSecurite />
+          </TabsContent>
+        )}
 
-        <TabsContent value="intelligence-artificielle" className="space-y-6 mt-6">
-          <TabIntelligenceArtificielle />
-        </TabsContent>
+        {isAdmin && (
+          <TabsContent value="intelligence-artificielle" className="space-y-6 mt-6">
+            <TabIntelligenceArtificielle />
+          </TabsContent>
+        )}
 
         {isAdmin && (
           <TabsContent value="api-webhooks" className="space-y-6 mt-6">
@@ -222,9 +226,11 @@ export default function SettingsPage() {
           </TabsContent>
         )}
 
-        <TabsContent value="mises-a-jour" className="space-y-6 mt-6">
-          <TabMisesAJour />
-        </TabsContent>
+        {isSuperAdmin && (
+          <TabsContent value="mises-a-jour" className="space-y-6 mt-6">
+            <TabMisesAJour />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

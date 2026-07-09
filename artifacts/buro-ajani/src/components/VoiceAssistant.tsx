@@ -1320,6 +1320,8 @@ export function VoiceAssistant({ onOpenLive }: VoiceAssistantProps = {}) {
                           ? "bg-green-500"
                           : "bg-amber-500 hover:bg-amber-600"
                   }`}
+                  aria-label={stateLabels[state]}
+                  title={stateLabels[state]}
                 >
                   {state === "listening_command" ? (
                     <MicOff className="w-6 h-6 text-white" />

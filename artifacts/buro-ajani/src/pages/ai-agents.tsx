@@ -97,7 +97,7 @@ function AgentCard({ report, onRunAgent }: { report: any; onRunAgent?: (id: stri
           <div className="flex items-center gap-2">
             <AgentScoreRing score={report.score} size={52} />
             {onRunAgent && !report.isSuperReport && (
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onRunAgent(report.agentId)}>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onRunAgent(report.agentId)} aria-label="Relancer l'agent">
                 <RefreshCw className="w-3.5 h-3.5" />
               </Button>
             )}

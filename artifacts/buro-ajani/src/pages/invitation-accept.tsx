@@ -183,22 +183,22 @@ export default function InvitationAcceptPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>Prenom *</Label>
-                <Input placeholder="Votre prenom" value={form.prenom} onChange={(e) => setForm({ ...form, prenom: e.target.value })} autoFocus />
+                <Label htmlFor="inv-prenom">Prenom *</Label>
+                <Input id="inv-prenom" placeholder="Votre prenom" value={form.prenom} onChange={(e) => setForm({ ...form, prenom: e.target.value })} autoFocus />
               </div>
               <div className="space-y-2">
-                <Label>Nom *</Label>
-                <Input placeholder="Votre nom" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} />
+                <Label htmlFor="inv-nom">Nom *</Label>
+                <Input id="inv-nom" placeholder="Votre nom" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} />
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Mot de passe *</Label>
-              <Input type="password" placeholder="Minimum 8 caracteres" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+              <Label htmlFor="inv-password">Mot de passe *</Label>
+              <Input id="inv-password" type="password" placeholder="Minimum 8 caracteres" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
               <p className="text-[11px] text-muted-foreground">Au moins 8 caracteres, une majuscule, une minuscule et un chiffre.</p>
             </div>
             <div className="space-y-2">
-              <Label>Confirmer le mot de passe *</Label>
-              <Input type="password" placeholder="Retapez votre mot de passe" value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} />
+              <Label htmlFor="inv-confirm-password">Confirmer le mot de passe *</Label>
+              <Input id="inv-confirm-password" type="password" placeholder="Retapez votre mot de passe" value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} />
             </div>
 
             {form.password && form.password.length >= 8 && (
