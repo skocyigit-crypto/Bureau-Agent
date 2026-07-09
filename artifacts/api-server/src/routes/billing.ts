@@ -53,7 +53,7 @@ router.post("/billing/generate", async (req: Request, res: Response): Promise<vo
 
   const now = new Date();
   const targetYear = year || now.getFullYear();
-  const targetMonth = month || now.getMonth();
+  const targetMonth = month || now.getMonth() + 1;
 
   if (targetMonth < 1 || targetMonth > 12) {
     res.status(400).json({ error: "Mois invalide (1-12)." });

@@ -255,19 +255,28 @@ router.patch("/calendar/events/:id", async (req: Request, res: Response): Promis
   const id = parseInt(String(req.params.id));
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
-  const updateData: Record<string, any> = {};
+  const rawUpdate: Record<string, any> = {};
   for (const [key, value] of Object.entries(req.body)) {
     if (ALLOWED_UPDATE_FIELDS.has(key) && value !== undefined) {
-      updateData[key] = value;
+      rawUpdate[key] = value;
     }
   }
 
-  if (Object.keys(updateData).length === 0) {
+  if (Object.keys(rawUpdate).length === 0) {
     res.status(400).json({ error: "Aucune modification fournie." });
     return;
   }
 
-  updateData.updatedBy = userId;
+  if (rawUpdate.startDate && typeof rawUpdate.startDate === "string") rawUpdate.startDate = new Date(rawUpdate.startDate);
+  if (rawUpdate.endDate && typeof rawUpdate.endDate === "string") rawUpdate.endDate = new Date(rawUpdate.endDate);
+
+  const parsedUpdate = insertCalendarEventSchema.partial().safeParse(rawUpdate);
+  if (!parsedUpdate.success) {
+    res.status(400).json({ error: "Donnees invalides.", details: parsedUpdate.error.issues });
+    return;
+  }
+
+  const updateData: Record<string, any> = { ...parsedUpdate.data, updatedBy: userId };
 
   // Guard: if the update moves the event to a different day, verify that day
   // is not a closure day (same check as POST /calendar/events).
