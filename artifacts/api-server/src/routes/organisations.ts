@@ -312,9 +312,10 @@ router.post("/organisations/:id/resend-license", async (req: Request, res: Respo
     }
 
     const resetToken = crypto.randomBytes(48).toString("hex");
+    const resetTokenHash = crypto.createHash("sha256").update(resetToken).digest("hex");
     const resetExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await db.update(usersTable).set({
-      resetPasswordToken: resetToken,
+      resetPasswordToken: resetTokenHash,
       resetPasswordExpiry: resetExpiry,
       tentativesEchouees: 0,
       verrouilleJusqua: null,

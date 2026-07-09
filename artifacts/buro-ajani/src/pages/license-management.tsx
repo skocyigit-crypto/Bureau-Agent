@@ -25,10 +25,26 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useWorkspaceUser } from "@/components/workspace-user";
 
 const API = import.meta.env.BASE_URL.replace(/\/$/, "");
 
+function AccessDenied() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center">
+      <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+        <Shield className="w-8 h-8 text-red-500" />
+      </div>
+      <h2 className="text-xl font-bold">Acces restreint</h2>
+      <p className="text-muted-foreground max-w-md">
+        Cette section est reservee aux administrateurs. Contactez votre administrateur pour plus d'informations.
+      </p>
+    </div>
+  );
+}
+
 export default function LicenseManagementPage() {
+  const { isAtLeast } = useWorkspaceUser();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("overview");
@@ -68,6 +84,8 @@ export default function LicenseManagementPage() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  if (!isAtLeast("administrateur")) return <AccessDenied />;
 
   if (loading) return (
     <div className="p-6 space-y-4">

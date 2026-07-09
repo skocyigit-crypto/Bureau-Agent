@@ -550,6 +550,8 @@ router.post("/license-management/create-client-invoice", async (req: Request, re
 
 router.post("/license-management/mark-invoice-paid", async (req: Request, res: Response): Promise<void> => {
   try {
+    const userRole = req.session?.userRole;
+    if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces refuse" }); return; }
     const orgId = getOrgId(req);
     const userId = req.session?.userId;
     const { factureClientId, paymentMethod } = req.body;
@@ -576,15 +578,19 @@ router.post("/license-management/mark-invoice-paid", async (req: Request, res: R
 
 router.post("/license-management/record-payment", async (req: Request, res: Response): Promise<void> => {
   try {
+    const userRole = req.session?.userRole;
+    if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces refuse" }); return; }
     const orgId = getOrgId(req);
     const userId = req.session?.userId;
     const { factureClientId, amount, paymentMethod, notes } = req.body;
     if (!factureClientId || !amount) { res.status(400).json({ error: "factureClientId et amount requis" }); return; }
+    const amountNum = Number(amount);
+    if (!Number.isFinite(amountNum) || amountNum <= 0) { res.status(400).json({ error: "amount doit etre un nombre positif" }); return; }
 
     const [facture] = await db.select().from(facturesClientTable).where(and(eq(facturesClientTable.id, factureClientId), eq(facturesClientTable.organisationId, orgId)));
     if (!facture) { res.status(404).json({ error: "Facture introuvable" }); return; }
 
-    const newPaid = Math.min(Number(facture.paidAmount) + Number(amount), Number(facture.totalAmount));
+    const newPaid = Math.min(Number(facture.paidAmount) + amountNum, Number(facture.totalAmount));
     const isFullyPaid = newPaid >= Number(facture.totalAmount);
 
     await db.update(facturesClientTable).set({
@@ -594,8 +600,8 @@ router.post("/license-management/record-payment", async (req: Request, res: Resp
       paymentMethod: paymentMethod || facture.paymentMethod || null,
     }).where(eq(facturesClientTable.id, facture.id));
 
-    await logAudit(orgId, "payment_recorded", `Paiement de ${Number(amount).toFixed(2)} EUR enregistre pour facture ${facture.reference}${isFullyPaid ? " (soldee)" : ""}`, userId, { factureId: facture.id, amount: Number(amount), isFullyPaid });
-    res.json({ success: true, newPaidAmount: newPaid, isFullyPaid, message: `Paiement de ${Number(amount).toFixed(2)} EUR enregistre${isFullyPaid ? " — facture soldee" : ""}` });
+    await logAudit(orgId, "payment_recorded", `Paiement de ${amountNum.toFixed(2)} EUR enregistre pour facture ${facture.reference}${isFullyPaid ? " (soldee)" : ""}`, userId, { factureId: facture.id, amount: amountNum, isFullyPaid });
+    res.json({ success: true, newPaidAmount: newPaid, isFullyPaid, message: `Paiement de ${amountNum.toFixed(2)} EUR enregistre${isFullyPaid ? " — facture soldee" : ""}` });
   } catch (err: any) {
     logger.error({ err }, "Erreur record payment:");
     res.status(500).json({ error: "Erreur" });
