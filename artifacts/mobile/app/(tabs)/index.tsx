@@ -79,6 +79,10 @@ export default function DashboardScreen() {
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   const { cached: cachedDashboard, isFromCache, updateCache } = useOfflineCache<DashboardData | null>("dashboard_summary", null);
+  const { cached: cachedCalls, isFromCache: callsFromCache, updateCache: updateCallsCache } = useOfflineCache<Call[]>("dashboard_recent_calls", []);
+  const { cached: cachedOverdue, isFromCache: overdueFromCache, updateCache: updateOverdueCache } = useOfflineCache<Task[]>("dashboard_overdue_tasks", []);
+  const { cached: cachedSecurity, isFromCache: securityFromCache, updateCache: updateSecurityCache } = useOfflineCache<SecurityVerdict | null>("dashboard_security", null);
+  const { cached: cachedReuse, isFromCache: reuseFromCache, updateCache: updateReuseCache } = useOfflineCache<ReuseSavings | null>("dashboard_reuse_savings", null);
 
   const fetchDashboard = useCallback(async (silent = false) => {
     try {
@@ -94,33 +98,61 @@ export default function DashboardScreen() {
         updateCache(d);
       }
       if (callsData) {
-        setRecentCalls(callsData.calls?.slice(0, 5) ?? []);
+        const calls = callsData.calls?.slice(0, 5) ?? [];
+        setRecentCalls(calls);
+        updateCallsCache(calls);
       }
       if (tasksData) {
         const now = new Date();
-        setOverdueTasks(
-          tasksData.tasks
-            .filter((t) => t.dueDate && new Date(t.dueDate) < now && t.status !== "termine")
-            .slice(0, 3)
-        );
+        const overdue = tasksData.tasks
+          .filter((t) => t.dueDate && new Date(t.dueDate) < now && t.status !== "termine")
+          .slice(0, 3);
+        setOverdueTasks(overdue);
+        updateOverdueCache(overdue);
       }
       if (securityRes?.ok) {
         const secData = await securityRes.json();
-        setSecurity(secData.byScanVerdict ?? null);
-        setReuseSavings(secData.reuseSavings ?? null);
+        const verdict = secData.byScanVerdict ?? null;
+        const savings = secData.reuseSavings ?? null;
+        setSecurity(verdict);
+        setReuseSavings(savings);
+        updateSecurityCache(verdict);
+        updateReuseCache(savings);
       }
       setLastRefresh(new Date());
     } catch {
-      if (!silent && cachedDashboard && !data) setData(cachedDashboard);
+      if (!silent) {
+        if (cachedDashboard && !data) setData(cachedDashboard);
+        if (callsFromCache && recentCalls.length === 0) setRecentCalls(cachedCalls);
+        if (overdueFromCache && overdueTasks.length === 0) setOverdueTasks(cachedOverdue);
+        if (securityFromCache && !security) setSecurity(cachedSecurity);
+        if (reuseFromCache && !reuseSavings) setReuseSavings(cachedReuse);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [fetchAuth, cachedDashboard, data, updateCache]);
+  }, [fetchAuth, cachedDashboard, data, updateCache, cachedCalls, callsFromCache, recentCalls.length, updateCallsCache, cachedOverdue, overdueFromCache, overdueTasks.length, updateOverdueCache, cachedSecurity, securityFromCache, security, updateSecurityCache, cachedReuse, reuseFromCache, reuseSavings, updateReuseCache]);
 
   useEffect(() => {
     if (isFromCache && cachedDashboard && !data) setData(cachedDashboard);
   }, [isFromCache, cachedDashboard, data]);
+
+  useEffect(() => {
+    if (callsFromCache && cachedCalls.length > 0 && recentCalls.length === 0) setRecentCalls(cachedCalls);
+  }, [callsFromCache, cachedCalls, recentCalls.length]);
+
+  useEffect(() => {
+    if (overdueFromCache && cachedOverdue.length > 0 && overdueTasks.length === 0) setOverdueTasks(cachedOverdue);
+  }, [overdueFromCache, cachedOverdue, overdueTasks.length]);
+
+  useEffect(() => {
+    if (securityFromCache && cachedSecurity && !security) setSecurity(cachedSecurity);
+  }, [securityFromCache, cachedSecurity, security]);
+
+  useEffect(() => {
+    if (reuseFromCache && cachedReuse && !reuseSavings) setReuseSavings(cachedReuse);
+  }, [reuseFromCache, cachedReuse, reuseSavings]);
 
   // Rafraichissement intelligent: au lieu d'un polling fixe toutes les 60 s
   // (qui consomme batterie/data meme quand l'ecran n'est pas regarde), on
