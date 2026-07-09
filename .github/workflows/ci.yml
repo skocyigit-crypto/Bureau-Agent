@@ -63,6 +63,17 @@ jobs:
           --health-retries=10
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/agent_de_bureau_test
+      # lib/integrations-gemini-ai/src/image/client.ts and
+      # lib/integrations-openai-ai-server/src/{image,audio}/client.ts throw
+      # at import time (same pattern as lib/db) if these are unset - several
+      # test files transitively import them and were failing at collection
+      # time, before any assertion ran. Placeholder values only need to
+      # satisfy the guard; nothing in these test files makes a real call
+      # through these clients.
+      AI_INTEGRATIONS_GEMINI_BASE_URL: http://localhost:9/unused
+      AI_INTEGRATIONS_GEMINI_API_KEY: ci-placeholder
+      AI_INTEGRATIONS_OPENAI_BASE_URL: http://localhost:9/unused
+      AI_INTEGRATIONS_OPENAI_API_KEY: ci-placeholder
     steps:
       - uses: actions/checkout@v4
 
