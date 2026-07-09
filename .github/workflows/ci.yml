@@ -76,8 +76,41 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Push DB schema to test database
-        run: pnpm --filter @workspace/db run push-force
+      # push-force split into its constituent steps (normally chained with
+      # && in lib/db/package.json) purely for CI diagnostics: this lets a
+      # failure surface as a specific named step instead of one opaque
+      # "push-force" black box.
+      - name: DB - ensure search extensions
+        working-directory: lib/db
+        run: node ./scripts/ensure-search-extensions.mjs
+
+      - name: DB - ensure unique constraint names
+        working-directory: lib/db
+        run: node ./scripts/ensure-unique-constraint-names.mjs
+
+      - name: DB - ensure automation_logs rule_id
+        working-directory: lib/db
+        run: node ./scripts/ensure-automation-logs-rule-id.mjs
+
+      - name: DB - ensure FK orphans remediated
+        working-directory: lib/db
+        run: node ./scripts/ensure-fk-orphans.mjs
+
+      - name: DB - drizzle-kit push --force
+        working-directory: lib/db
+        run: pnpm exec drizzle-kit push --force --config ./drizzle.config.ts
+
+      - name: DB - ensure audit append-only
+        working-directory: lib/db
+        run: node ./scripts/ensure-audit-append-only.mjs
+
+      # verify-schema-sync.mjs is intentionally NOT run here: it asserts
+      # user_sessions exists, but that table is created at runtime by
+      # connect-pg-simple when the Express app boots (drizzle.config.ts
+      # excludes it from the schema on purpose) - on this fresh CI database,
+      # where the app never actually starts, that assertion would always
+      # fail. It's a real production deploy-safety check, just not
+      # applicable to spinning up an empty test database.
 
       - name: Run test suites (api-server, mobile, tanitim, demo-handoff)
         run: pnpm run test
