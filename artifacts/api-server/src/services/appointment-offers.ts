@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { db, appointmentOffersTable, calendarEventsTable, organisationsTable, contactsTable, organisationClosuresTable } from "@workspace/db";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { sendEmail } from "./email";
 import { sendSms as providerSendSms } from "./telephony-providers";
 import { computeFreeSlots, isSlotFree, isSlotWithinWorkingHours, type TimeSlot } from "./availability";
@@ -25,6 +25,11 @@ import {
  */
 
 const OFFER_TTL_DAYS = 7;
+
+// Advisory-lock namespace for slot-booking serialization (see
+// confirmOfferSelection/rescheduleOffer below) - distinct from
+// call-processor.ts's CALL_LOCK_NAMESPACE (4242).
+const SLOT_BOOKING_LOCK_NAMESPACE = 4243;
 
 export function generateOfferToken(): string {
   return crypto.randomBytes(24).toString("base64url");
@@ -276,50 +281,73 @@ export async function confirmOfferSelection(token: string, slotIndex: number): P
   const start = new Date(slot.start);
   const end = new Date(slot.end);
 
-  // Revalidation de disponibilite (le creneau a pu etre pris depuis l'envoi).
-  const free = await isSlotFree({
-    orgId: offer.organisationId,
-    userId: offer.createdBy ?? undefined,
-    start,
-    end,
-  });
-  if (!free) return { ok: false, code: "conflict", message: "Ce creneau vient d'etre reserve. Merci d'en choisir un autre." };
+  // Revalidation de disponibilite + reservation, sous verrou avisoire par
+  // organisation (pg_advisory_xact_lock, auto-libere a la fin de la
+  // transaction). Sans ce verrou, deux offres DIFFERENTES envoyees a deux
+  // clients differents pour un creneau qui se chevauche pouvaient toutes
+  // les deux passer isSlotFree en concurrence puis toutes les deux inserer
+  // un evenement — la clause WHERE status='envoye' ci-dessous ne protege
+  // que contre la double confirmation de LA MEME offre, pas contre deux
+  // offres distinctes sur des creneaux qui se chevauchent.
+  let conflict: ConfirmResult | null = null;
+  let claimed: { id: number }[] = [];
+  let event: { id: number } | undefined;
 
-  // Reservation atomique de l'offre: seule la transition envoye -> confirme
-  // reussit (la clause WHERE status='envoye' empeche toute double confirmation).
-  const claimed = await db
-    .update(appointmentOffersTable)
-    .set({ status: "confirme", selectedSlotIndex: slotIndex, selectedStart: start, selectedEnd: end, confirmedAt: new Date() })
-    .where(and(eq(appointmentOffersTable.id, offer.id), eq(appointmentOffersTable.status, "envoye")))
-    .returning({ id: appointmentOffersTable.id });
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(${SLOT_BOOKING_LOCK_NAMESPACE}, ${offer.organisationId})`);
+
+    const free = await isSlotFree({
+      orgId: offer.organisationId,
+      userId: offer.createdBy ?? undefined,
+      start,
+      end,
+    });
+    if (!free) {
+      conflict = { ok: false, code: "conflict", message: "Ce creneau vient d'etre reserve. Merci d'en choisir un autre." };
+      return;
+    }
+
+    // Reservation atomique de l'offre: seule la transition envoye -> confirme
+    // reussit (la clause WHERE status='envoye' empeche toute double confirmation).
+    claimed = await tx
+      .update(appointmentOffersTable)
+      .set({ status: "confirme", selectedSlotIndex: slotIndex, selectedStart: start, selectedEnd: end, confirmedAt: new Date() })
+      .where(and(eq(appointmentOffersTable.id, offer.id), eq(appointmentOffersTable.status, "envoye")))
+      .returning({ id: appointmentOffersTable.id });
+    if (claimed.length === 0) return;
+
+    // Ecriture de l'evenement dans l'agenda interne.
+    [event] = await tx
+      .insert(calendarEventsTable)
+      .values({
+        organisationId: offer.organisationId,
+        title: offer.reason || "Rendez-vous",
+        description: "Rendez-vous confirme par le client via lien de selection.",
+        type: "rendez_vous",
+        startDate: start,
+        endDate: end,
+        status: "confirme",
+        relatedContactId: offer.relatedContactId ?? null,
+        contactName: offer.contactName ?? null,
+        contactPhone: offer.contactPhone ?? null,
+        contactEmail: offer.contactEmail ?? null,
+        createdBy: offer.createdBy ?? null,
+      })
+      .returning({ id: calendarEventsTable.id });
+
+    await tx
+      .update(appointmentOffersTable)
+      .set({ calendarEventId: event.id })
+      .where(eq(appointmentOffersTable.id, offer.id));
+  });
+
+  if (conflict) return conflict;
   if (claimed.length === 0) {
     return { ok: false, code: "already", message: "Ce rendez-vous a deja ete confirme." };
   }
-
-  // Ecriture de l'evenement dans l'agenda interne.
-  const [event] = await db
-    .insert(calendarEventsTable)
-    .values({
-      organisationId: offer.organisationId,
-      title: offer.reason || "Rendez-vous",
-      description: "Rendez-vous confirme par le client via lien de selection.",
-      type: "rendez_vous",
-      startDate: start,
-      endDate: end,
-      status: "confirme",
-      relatedContactId: offer.relatedContactId ?? null,
-      contactName: offer.contactName ?? null,
-      contactPhone: offer.contactPhone ?? null,
-      contactEmail: offer.contactEmail ?? null,
-      createdBy: offer.createdBy ?? null,
-    })
-    .returning({ id: calendarEventsTable.id });
-
-  await db
-    .update(appointmentOffersTable)
-    .set({ calendarEventId: event.id })
-    .where(eq(appointmentOffersTable.id, offer.id))
-    .catch(() => {});
+  if (!event) {
+    return { ok: false, code: "conflict", message: "Erreur interne lors de la confirmation." };
+  }
 
   // Miroir Google Agenda (best-effort — n'interrompt jamais le flux local).
   if (offer.createdBy) {
@@ -491,73 +519,87 @@ export async function rescheduleOffer(token: string, slotRef: number | TimeSlot)
     }
   }
 
-  // Revalidation: on ignore l'evenement courant pour ne pas se bloquer soi-meme.
-  const free = await isSlotFree({
-    orgId: offer.organisationId,
-    userId: offer.createdBy ?? undefined,
-    start,
-    end,
-    excludeEventId: offer.calendarEventId ?? undefined,
-  });
-  if (!free) return { ok: false, code: "conflict", message: "Ce creneau vient d'etre reserve. Merci d'en choisir un autre." };
-
-  // Deplacement atomique de l'offre: garde sur status='confirme'.
-  const claimed = await db
-    .update(appointmentOffersTable)
-    .set({ selectedSlotIndex: resolvedIndex, selectedStart: start, selectedEnd: end })
-    .where(and(eq(appointmentOffersTable.id, offer.id), eq(appointmentOffersTable.status, "confirme")))
-    .returning({ id: appointmentOffersTable.id });
-  if (claimed.length === 0) {
-    return { ok: false, code: "already", message: "Ce rendez-vous n'est plus modifiable." };
-  }
-
-  // Deplacement de l'evenement d'agenda (ou recreation s'il a disparu).
+  // Meme verrou avisoire par organisation que confirmOfferSelection — sans
+  // lui, deux reprogrammations (ou une reprogrammation + une nouvelle
+  // confirmation) sur des creneaux qui se chevauchent pouvaient toutes deux
+  // passer isSlotFree en concurrence.
+  let conflict: ConfirmResult | null = null;
+  let claimed: { id: number }[] = [];
   let eventId = offer.calendarEventId ?? null;
   let existingGoogleEventId: string | null = null;
   let isNewEvent = false;
 
-  if (eventId) {
-    // Recupere le googleEventId existant avant le deplacement.
-    const [ev] = await db
-      .select({ googleEventId: calendarEventsTable.googleEventId })
-      .from(calendarEventsTable)
-      .where(and(eq(calendarEventsTable.id, eventId), eq(calendarEventsTable.organisationId, offer.organisationId)))
-      .limit(1)
-      .catch(() => []);
-    existingGoogleEventId = ev?.googleEventId ?? null;
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(${SLOT_BOOKING_LOCK_NAMESPACE}, ${offer.organisationId})`);
 
-    const moved = await db
-      .update(calendarEventsTable)
-      .set({ startDate: start, endDate: end, status: "confirme" })
-      .where(and(eq(calendarEventsTable.id, eventId), eq(calendarEventsTable.organisationId, offer.organisationId)))
-      .returning({ id: calendarEventsTable.id });
-    if (moved.length === 0) eventId = null;
-  }
-  if (!eventId) {
-    isNewEvent = true;
-    const [event] = await db
-      .insert(calendarEventsTable)
-      .values({
-        organisationId: offer.organisationId,
-        title: offer.reason || "Rendez-vous",
-        description: "Rendez-vous reprogramme par le client via lien de selection.",
-        type: "rendez_vous",
-        startDate: start,
-        endDate: end,
-        status: "confirme",
-        relatedContactId: offer.relatedContactId ?? null,
-        contactName: offer.contactName ?? null,
-        contactPhone: offer.contactPhone ?? null,
-        contactEmail: offer.contactEmail ?? null,
-        createdBy: offer.createdBy ?? null,
-      })
-      .returning({ id: calendarEventsTable.id });
-    eventId = event.id;
-    await db
+    const free = await isSlotFree({
+      orgId: offer.organisationId,
+      userId: offer.createdBy ?? undefined,
+      start,
+      end,
+      excludeEventId: offer.calendarEventId ?? undefined,
+    });
+    if (!free) {
+      conflict = { ok: false, code: "conflict", message: "Ce creneau vient d'etre reserve. Merci d'en choisir un autre." };
+      return;
+    }
+
+    // Deplacement atomique de l'offre: garde sur status='confirme'.
+    claimed = await tx
       .update(appointmentOffersTable)
-      .set({ calendarEventId: eventId })
-      .where(eq(appointmentOffersTable.id, offer.id))
-      .catch(() => {});
+      .set({ selectedSlotIndex: resolvedIndex, selectedStart: start, selectedEnd: end })
+      .where(and(eq(appointmentOffersTable.id, offer.id), eq(appointmentOffersTable.status, "confirme")))
+      .returning({ id: appointmentOffersTable.id });
+    if (claimed.length === 0) return;
+
+    // Deplacement de l'evenement d'agenda (ou recreation s'il a disparu).
+    if (eventId) {
+      // Recupere le googleEventId existant avant le deplacement.
+      const [ev] = await tx
+        .select({ googleEventId: calendarEventsTable.googleEventId })
+        .from(calendarEventsTable)
+        .where(and(eq(calendarEventsTable.id, eventId), eq(calendarEventsTable.organisationId, offer.organisationId)))
+        .limit(1)
+        .catch(() => []);
+      existingGoogleEventId = ev?.googleEventId ?? null;
+
+      const moved = await tx
+        .update(calendarEventsTable)
+        .set({ startDate: start, endDate: end, status: "confirme" })
+        .where(and(eq(calendarEventsTable.id, eventId), eq(calendarEventsTable.organisationId, offer.organisationId)))
+        .returning({ id: calendarEventsTable.id });
+      if (moved.length === 0) eventId = null;
+    }
+    if (!eventId) {
+      isNewEvent = true;
+      const [event] = await tx
+        .insert(calendarEventsTable)
+        .values({
+          organisationId: offer.organisationId,
+          title: offer.reason || "Rendez-vous",
+          description: "Rendez-vous reprogramme par le client via lien de selection.",
+          type: "rendez_vous",
+          startDate: start,
+          endDate: end,
+          status: "confirme",
+          relatedContactId: offer.relatedContactId ?? null,
+          contactName: offer.contactName ?? null,
+          contactPhone: offer.contactPhone ?? null,
+          contactEmail: offer.contactEmail ?? null,
+          createdBy: offer.createdBy ?? null,
+        })
+        .returning({ id: calendarEventsTable.id });
+      eventId = event.id;
+      await tx
+        .update(appointmentOffersTable)
+        .set({ calendarEventId: eventId })
+        .where(eq(appointmentOffersTable.id, offer.id));
+    }
+  });
+
+  if (conflict) return conflict;
+  if (claimed.length === 0) {
+    return { ok: false, code: "already", message: "Ce rendez-vous n'est plus modifiable." };
   }
 
   // Miroir Google Agenda (best-effort).
