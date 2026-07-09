@@ -33,7 +33,10 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 async function apiFetch(path: string, opts?: RequestInit) {
   const res = await fetch(`${baseUrl}/api${path}`, { credentials: "include", ...opts });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as any).error || `HTTP ${res.status}`);
+  }
   return res.json();
 }
 

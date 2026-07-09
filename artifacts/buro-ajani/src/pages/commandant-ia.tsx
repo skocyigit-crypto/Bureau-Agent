@@ -1081,6 +1081,7 @@ function RappelsTab() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [sendingId, setSendingId] = useState<number | null>(null);
+  const [reminderTaskId, setReminderTaskId] = useState("");
   const [reminderEmail, setReminderEmail] = useState("");
   const [customMessage, setCustomMessage] = useState("");
   const { toast } = useToast();
@@ -1160,12 +1161,12 @@ function RappelsTab() {
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Send className="h-4 w-4 text-blue-500" />Envoyer un rappel individuel</CardTitle><CardDescription className="text-xs">Envoyez un email de rappel pour une tache specifique</CardDescription></CardHeader>
           <CardContent className="space-y-3">
-            <div><Label className="text-xs">ID de la tache</Label><Input placeholder="Ex: 42" type="number" id="taskIdInput" /></div>
+            <div><Label className="text-xs">ID de la tache</Label><Input placeholder="Ex: 42" type="number" value={reminderTaskId} onChange={e => setReminderTaskId(e.target.value)} /></div>
             <div><Label className="text-xs">Email destinataire</Label><Input value={reminderEmail} onChange={e => setReminderEmail(e.target.value)} placeholder="collaborateur@example.com" /></div>
             <div><Label className="text-xs">Message personnalise (optionnel)</Label><Textarea value={customMessage} onChange={e => setCustomMessage(e.target.value)} placeholder="Merci de finaliser cette tache rapidement..." rows={3} /></div>
             <Button
               onClick={() => {
-                const taskId = parseInt((document.getElementById("taskIdInput") as HTMLInputElement)?.value || "0");
+                const taskId = parseInt(reminderTaskId || "0");
                 if (taskId > 0) sendReminder(taskId);
                 else toast({ title: "ID de tache requis", variant: "destructive" });
               }}
