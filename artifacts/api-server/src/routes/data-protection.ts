@@ -5,7 +5,6 @@ import {
   legalAgreementsTable, LEGAL_DOCUMENTS,
   usersTable, contactsTable, callsTable, tasksTable,
   checkinsTable, prospectsTable, notesInternesTable,
-  projetsTable, auditLogsTable,
 } from "@workspace/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";

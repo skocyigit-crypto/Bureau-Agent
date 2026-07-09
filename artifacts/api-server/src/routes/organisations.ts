@@ -5,7 +5,7 @@ import { db, organisationsTable, subscriptionsTable, usersTable } from "@workspa
 import { PLANS, type PlanKey } from "@workspace/db/schema";
 import crypto from "crypto";
 import { sendLicenseEmail } from "../services/email";
-import { generateLicenseKey } from "../services/license-key";
+import { generateUniqueLicenseKey } from "../services/license-key";
 import { logger } from "../lib/logger";
 import { requireSuperAdmin } from "../middleware/auth";
 
@@ -165,7 +165,7 @@ router.post("/organisations", async (req: Request, res: Response): Promise<void>
   const finalSlug = existingSlug ? `${slug}-${Date.now()}` : slug;
 
   const planConfig = PLANS[planKey];
-  const licenseKey = generateLicenseKey(planKey);
+  const licenseKey = await generateUniqueLicenseKey(planKey);
 
   let generatedPassword: string | null = null;
   if (adminEmail && adminPrenom && adminNom) {

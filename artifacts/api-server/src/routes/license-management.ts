@@ -269,9 +269,9 @@ router.post("/license-management/auto-generate-invoice", async (req: Request, re
     const plan = sub.plan as keyof typeof PLANS;
     const planConfig = PLANS[plan];
 
-    const [userCount] = await db.select({ c: sql<number>`count(*)::int` }).from(sql`users`).where(sql`organisation_id = ${tgtOrg} AND actif = true`);
-    const [contactCount] = await db.select({ c: sql<number>`count(*)::int` }).from(sql`contacts`).where(sql`organisation_id = ${tgtOrg}`);
-    const [callCount] = await db.select({ c: sql<number>`count(*)::int` }).from(sql`calls`).where(sql`organisation_id = ${tgtOrg} AND created_at >= ${periodStart}`);
+    const [userCount] = await db.select({ c: sql<number>`count(*)::int` }).from(usersTable).where(and(eq(usersTable.organisationId, tgtOrg), eq(usersTable.actif, true)));
+    const [contactCount] = await db.select({ c: sql<number>`count(*)::int` }).from(contactsTable).where(eq(contactsTable.organisationId, tgtOrg));
+    const [callCount] = await db.select({ c: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, tgtOrg), gte(callsTable.createdAt, periodStart)));
 
     const extraUsers = Math.max(0, (userCount?.c || 0) - (planConfig?.maxUsers || sub.maxUsers));
     const extraContacts = Math.max(0, (contactCount?.c || 0) - (planConfig?.maxContacts || sub.maxContacts));

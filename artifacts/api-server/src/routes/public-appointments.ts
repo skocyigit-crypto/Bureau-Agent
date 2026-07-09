@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import rateLimit from "express-rate-limit";
 import { getPublicOffer, getPublicAvailableSlots, getPublicClosures, confirmOfferSelection, cancelOffer, rescheduleOffer } from "../services/appointment-offers";
 
 /**
@@ -7,6 +8,18 @@ import { getPublicOffer, getPublicAvailableSlots, getPublicClosures, confirmOffe
  * (24 octets) sert de capability — pas de scope tenant ici.
  */
 const router = Router();
+
+// Ces routes ne dependaient que du rate-limit global (partage avec tout le
+// trafic /api de l'IP) — un lien de rendez-vous fuite/devine pouvait etre
+// martele bien au-dela d'un usage legitime. Limite dediee par IP.
+const publicAppointmentLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  message: { error: "Trop de requetes. Reessayez dans quelques minutes." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+router.use(publicAppointmentLimiter);
 
 router.get("/appointments/offer/:token", async (req: Request, res: Response): Promise<void> => {
   const token = String(req.params.token || "");
