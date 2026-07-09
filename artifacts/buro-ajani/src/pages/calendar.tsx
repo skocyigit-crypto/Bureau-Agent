@@ -1376,24 +1376,19 @@ export default function CalendarPage() {
                           </button>
                         )}
                         {closureInfo && isCurrentMonth && !isAdmin && (
-                          <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/40 border border-red-200 dark:border-red-800/50 rounded px-1 py-0.5 leading-none">
+                          <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/40 border border-red-200 dark:border-red-800/50 rounded px-1 py-0.5 leading-none max-w-[5rem]">
                             <Lock className="w-2 h-2 shrink-0" />
-                            Fermé
+                            <span className="truncate">{closureInfo.label || "Fermé"}</span>
                           </span>
                         )}
                         {closureInfo && isCurrentMonth && isAdmin && (
-                          <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/40 border border-red-200 dark:border-red-800/50 rounded px-1 py-0.5 leading-none group-hover:hidden">
+                          <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/40 border border-red-200 dark:border-red-800/50 rounded px-1 py-0.5 leading-none group-hover:hidden max-w-[5rem]">
                             <Lock className="w-2 h-2 shrink-0" />
-                            Fermé
+                            <span className="truncate">{closureInfo.label || "Fermé"}</span>
                           </span>
                         )}
                       </div>
                       <div className="mt-0.5 space-y-0.5">
-                        {closureInfo && isCurrentMonth && closureInfo.label && (
-                          <div className="text-[9px] text-red-500 dark:text-red-400 truncate font-medium italic px-0.5">
-                            {closureInfo.label}
-                          </div>
-                        )}
                         {events.slice(0, closureInfo ? 2 : 3).map((e: any, j: number) => (
                           <div
                             key={j}
