@@ -3,6 +3,7 @@ import { useRoute } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, XCircle, CalendarClock, Clock, CalendarX2, RefreshCw } from "lucide-react";
+import { confirmAction } from "@/hooks/use-confirm";
 
 const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "") + "/";
 
@@ -203,6 +204,7 @@ export default function RendezVousPublicPage() {
   // Annulation du rendez-vous confirme.
   async function cancelAppointment() {
     if (!token || cancelling) return;
+    if (!(await confirmAction({ title: "Annuler ce rendez-vous ?", description: "Cette action est definitive ; vous devrez reprendre un nouveau rendez-vous si necessaire.", confirmLabel: "Annuler le rendez-vous", destructive: true }))) return;
     setCancelling(true);
     setError("");
     try {
@@ -289,7 +291,7 @@ export default function RendezVousPublicPage() {
               <p className="text-xs text-muted-foreground">Vous recevrez une confirmation. Merci&nbsp;!</p>
 
               {error && (
-                <p className="w-full rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+                <p role="alert" aria-live="polite" className="w-full rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
               )}
 
               <div className="mt-2 flex w-full flex-col gap-2">
@@ -321,7 +323,7 @@ export default function RendezVousPublicPage() {
           {!loading && offer && isConfirmed && view === "reschedule" && (
             <div className="space-y-2">
               {error && (
-                <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+                <p role="alert" aria-live="polite" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
               )}
 
               {loadingSlots && (
@@ -411,7 +413,7 @@ export default function RendezVousPublicPage() {
           {!loading && offer && !isConfirmed && !isExpired && !isCancelled && (
             <div className="space-y-2">
               {error && (
-                <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+                <p role="alert" aria-live="polite" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
               )}
               {offer.slots.map((slot, i) => {
                 const closure = getClosureForSlot(slot, closures, tz);
