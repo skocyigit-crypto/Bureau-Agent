@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, {
   createContext,
   useCallback,
@@ -49,8 +50,20 @@ export function useCalendarEvents(): CalendarEventsContextValue {
 
 const POLL_MS = 5 * 60 * 1000;
 
+function todayDateString(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function buildCacheKey(userId: number | string): string {
+  return `calendar-today:${userId}:${todayDateString()}`;
+}
+
 export function CalendarEventsProvider({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, fetchAuth } = useAuth();
+  const { isAuthenticated, fetchAuth, user } = useAuth();
   const [todayEvents, setTodayEvents] = useState<SharedCalendarEvent[]>([]);
   const [badgeCount, setBadgeCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -61,9 +74,34 @@ export function CalendarEventsProvider({ children }: { children: React.ReactNode
   const lastSeenCountRef = useRef(0);
   /** Mirror of todayEvents.length so clearBadge can read it without stale closures. */
   const currentCountRef = useRef(0);
+  const cacheHydratedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user) {
+      cacheHydratedRef.current = false;
+      return;
+    }
+
+    if (cacheHydratedRef.current) return;
+    cacheHydratedRef.current = true;
+
+    const key = buildCacheKey(user.id);
+    AsyncStorage.getItem(key)
+      .then((raw) => {
+        if (raw) {
+          try {
+            const cached = JSON.parse(raw) as SharedCalendarEvent[];
+            setTodayEvents(cached);
+          } catch {
+            AsyncStorage.removeItem(key).catch(() => {});
+          }
+        }
+      })
+      .catch(() => {});
+  }, [isAuthenticated, user]);
 
   const fetchToday = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !user) return;
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
 
@@ -94,13 +132,16 @@ export function CalendarEventsProvider({ children }: { children: React.ReactNode
         if (all.length > lastSeenCountRef.current) {
           setBadgeCount(all.length);
         }
+
+        const key = buildCacheKey(user.id);
+        AsyncStorage.setItem(key, JSON.stringify(all)).catch(() => {});
       }
     } catch {
     } finally {
       setLoading(false);
       isFetchingRef.current = false;
     }
-  }, [isAuthenticated, fetchAuth]);
+  }, [isAuthenticated, fetchAuth, user]);
 
   const clearBadge = useCallback(() => {
     lastSeenCountRef.current = currentCountRef.current;
