@@ -65,7 +65,7 @@ export default function DashboardScreen() {
   const { user, fetchAuth } = useAuth();
   const { counts: unreadCounts } = useUnreadBadges();
   const rappelsUnread = unreadCounts.rappel;
-  const { todayEvents } = useCalendarEvents();
+  const { todayEvents, clearBadge } = useCalendarEvents();
   const isWeb = Platform.OS === "web";
   const [data, setData] = useState<DashboardData | null>(null);
   const [recentCalls, setRecentCalls] = useState<Call[]>([]);
@@ -133,7 +133,11 @@ export default function DashboardScreen() {
       // rafraichissement silencieux car `loading` est deja false.
       fetchDashboard(hasLoadedRef.current);
       hasLoadedRef.current = true;
-    }, [fetchDashboard]),
+      // Clear the calendar badge: users who view today's events on the home
+      // dashboard should not see the badge persist just because they never
+      // tapped through to the full Calendar screen.
+      clearBadge();
+    }, [fetchDashboard, clearBadge]),
   );
 
   useEffect(() => {
