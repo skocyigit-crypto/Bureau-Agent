@@ -288,6 +288,7 @@ router.patch("/meetings/chantiers/:id/location", async (req, res): Promise<void>
     if (!orgId) { res.status(401).json({ error: "Non authentifie" }); return; }
 
     const id = parseInt(req.params.id);
+    if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
     const { latitude, longitude } = req.body as { latitude?: number; longitude?: number };
 
     if (typeof latitude !== "number" || typeof longitude !== "number") {
@@ -295,10 +296,13 @@ router.patch("/meetings/chantiers/:id/location", async (req, res): Promise<void>
       return;
     }
 
-    await db
+    const updated = await db
       .update(projetsTable)
       .set({ latitude, longitude })
-      .where(and(eq(projetsTable.id, id), eq(projetsTable.organisationId, orgId)));
+      .where(and(eq(projetsTable.id, id), eq(projetsTable.organisationId, orgId)))
+      .returning({ id: projetsTable.id });
+
+    if (updated.length === 0) { res.status(404).json({ error: "Projet introuvable." }); return; }
 
     res.json({ success: true });
   } catch (error: any) {

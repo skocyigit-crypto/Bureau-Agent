@@ -67,8 +67,11 @@ router.delete("/notes-internes/:id", requireRole("agent"), async (req: Request, 
   try {
     const orgId = getOrgId(req);
     const id = parseInt(req.params.id as string);
-    await db.delete(notesInternesTable)
-      .where(and(eq(notesInternesTable.id, id), eq(notesInternesTable.organisationId, orgId)));
+    if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+    const deleted = await db.delete(notesInternesTable)
+      .where(and(eq(notesInternesTable.id, id), eq(notesInternesTable.organisationId, orgId)))
+      .returning({ id: notesInternesTable.id });
+    if (deleted.length === 0) { res.status(404).json({ error: "Note introuvable." }); return; }
     res.json({ success: true });
   } catch (err) {
     req.log.error({ err }, "DELETE /notes-internes/:id");

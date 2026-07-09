@@ -99,7 +99,8 @@ router.get("/calendar/events", async (req: Request, res: Response): Promise<void
       .select()
       .from(calendarEventsTable)
       .where(and(...conditions))
-      .orderBy(calendarEventsTable.startDate);
+      .orderBy(calendarEventsTable.startDate)
+      .limit(1000);
 
     const startDate = start ? new Date(start as string) : null;
     const endDate = end ? new Date(end as string) : null;
@@ -113,7 +114,8 @@ router.get("/calendar/events", async (req: Request, res: Response): Promise<void
     const tasks = await db
       .select()
       .from(tasksTable)
-      .where(taskConditions.length > 1 ? and(...taskConditions) : taskConditions[0]);
+      .where(taskConditions.length > 1 ? and(...taskConditions) : taskConditions[0])
+      .limit(1000);
 
     const taskEvents = tasks
       .filter(t => t.dueDate)
@@ -138,7 +140,8 @@ router.get("/calendar/events", async (req: Request, res: Response): Promise<void
     const projets = await db
       .select({ id: projetsTable.id, title: projetsTable.title, endDate: projetsTable.endDate, status: projetsTable.status, priority: projetsTable.priority, clientName: projetsTable.clientName, progress: projetsTable.progress })
       .from(projetsTable)
-      .where(and(...projetConditions));
+      .where(and(...projetConditions))
+      .limit(1000);
 
     const projetEvents = projets
       .filter(p => p.endDate && p.status !== "annule")
