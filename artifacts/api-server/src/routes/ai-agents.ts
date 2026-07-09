@@ -2883,6 +2883,11 @@ async function runSuperAgentCycle(orgId: number, userId: number) {
 
         for (const msg of messages.slice(0, 10)) {
           try {
+            // The cycle-level assertAiQuota above is checked once, but this
+            // loop can call superAgentAI up to 10 times — re-check (and
+            // reserve) per-email so a single cycle can't blow far past the
+            // quota gate before the usage records from earlier calls land.
+            await assertAiQuota(orgId);
             const detail = await gmail.users.messages.get({ userId: "me", id: msg.id!, format: "full" });
             const headers = (detail.data.payload?.headers ?? []).reduce((acc: any, h: any) => { acc[h.name?.toLowerCase()] = h.value; return acc; }, {} as Record<string, string>);
             const subject = headers["subject"] ?? "(Sans objet)";
@@ -2907,10 +2912,16 @@ async function runSuperAgentCycle(orgId: number, userId: number) {
             const safeSubject = sanitizePromptInput(subject, 300);
             const safeBody = sanitizePromptInput(body, 2000);
 
-            const aiText = await superAgentAI(orgId,
-              `Email reçu:\nDe: ${safeFrom}\nObjet: ${safeSubject}\nContenu: ${safeBody}\n\nAnalyse cet email et extrait les tâches/actions requises en JSON:\n{"tasks":[{"title":"string","priority":"haute|moyenne|basse","dueInDays":3,"description":"string"}],"needsReply":true/false,"urgency":"normale|haute|critique","summary":"string"}`,
-              `Tu es le Super Agent IA d'Agent de Bureau. Tu analyses les emails professionnels et extrais les actions requises. Sois précis et actionnable. Réponds UNIQUEMENT en JSON valide.`
-            );
+            const releaseEmailQuota = reserveAiCall(orgId);
+            let aiText: string;
+            try {
+              aiText = await superAgentAI(orgId,
+                `Email reçu:\nDe: ${safeFrom}\nObjet: ${safeSubject}\nContenu: ${safeBody}\n\nAnalyse cet email et extrait les tâches/actions requises en JSON:\n{"tasks":[{"title":"string","priority":"haute|moyenne|basse","dueInDays":3,"description":"string"}],"needsReply":true/false,"urgency":"normale|haute|critique","summary":"string"}`,
+                `Tu es le Super Agent IA d'Agent de Bureau. Tu analyses les emails professionnels et extrais les actions requises. Sois précis et actionnable. Réponds UNIQUEMENT en JSON valide.`
+              );
+            } finally {
+              releaseEmailQuota();
+            }
 
             let parsed: any = {};
             try { const m = aiText.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : {}; } catch {}
@@ -2920,7 +2931,7 @@ async function runSuperAgentCycle(orgId: number, userId: number) {
                 const dueDate = new Date(Date.now() + (t.dueInDays || 3) * 86400000);
                 try {
                   await db.insert(tasksTable).values({
-                    organisationId: orgId, title: `[Email] ${t.title}`, description: `De: ${from}\nObjet: ${subject}\n\n${t.description || parsed.summary || ""}`, priority: t.priority || "moyenne", status: "en_attente", dueDate,
+                    organisationId: orgId, title: `[Email] ${t.title}`, description: `De: ${safeFrom}\nObjet: ${safeSubject}\n\n${t.description || parsed.summary || ""}`, priority: t.priority || "moyenne", status: "en_attente", dueDate,
                   });
                   emailTasksCreated++;
                   state.stats.tasksCreated++;
@@ -2933,7 +2944,10 @@ async function runSuperAgentCycle(orgId: number, userId: number) {
               saLog(orgId, "info", "email", `Email analysé: "${subject}"`, `Aucune action requise — ${parsed.summary || from}`);
             }
             state.stats.emailsProcessed++;
-          } catch { /* skip this email */ }
+          } catch (err) {
+            if (err instanceof AiQuotaExceededError) break; // quota exhausted mid-cycle — stop, don't keep trying remaining emails
+            /* skip this email */
+          }
         }
 
         if (messages.length === 0) saLog(orgId, "info", "email", "Aucun email non lu dans la boîte");
