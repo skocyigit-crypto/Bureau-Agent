@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, calendarEventsTable, facturesClientTable, compteClientTable, organisationsTable, prospectsTable, notificationsTable, paymentRemindersTable, licenseAuditLogTable, projetsTable, usersTable, checkinsTable, auditLogsTable, commandantConversationsTable, commandantMessagesTable, demoHandoffsTable } from "@workspace/db";
-import { eq, sql, and, desc, gte, lte, lt, ne, isNull, isNotNull, or, ilike, count, asc, type Column, type SQL } from "drizzle-orm";
+import { eq, sql, and, desc, gte, lte, lt, ne, isNull, isNotNull, or, ilike, count, asc, inArray, type Column, type SQL } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
 import { stripAccents, ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { sendEmail } from "../services/email";
@@ -1058,30 +1058,61 @@ router.get("/commandant/employee-stats", async (req: Request, res: Response): Pr
     const monthAgo = new Date(now.getTime() - 30 * 86400000);
 
     const users = await db.execute(sql`SELECT id, prenom, nom, email, role, departement FROM users WHERE organisation_id = ${orgId} AND actif = true`);
+    const userRows: any[] = (users as any).rows || users || [];
 
-    const employeeStats: any[] = [];
-    for (const user of (users as any).rows || users || []) {
-      const userEmail = (user as any).email || "";
-      const [tasksDone] = await db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.assignedTo, userEmail), eq(tasksTable.status, "termine"), gte(tasksTable.updatedAt, monthAgo)));
-      const [tasksOverdue] = await db.select({ c: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.assignedTo, userEmail), ne(tasksTable.status, "termine"), lt(tasksTable.dueDate, now)));
-      const [callsMade] = await db.select({ c: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), eq(callsTable.contactName, `${(user as any).prenom || ""} ${(user as any).nom || ""}`.trim()), gte(callsTable.createdAt, monthAgo)));
-      const [eventsCreated] = await db.select({ c: sql<number>`count(*)::int` }).from(calendarEventsTable).where(and(eq(calendarEventsTable.organisationId, orgId), sql`description ILIKE ${"%" + userEmail + "%"}`, gte(calendarEventsTable.startDate, monthAgo), lte(calendarEventsTable.startDate, now)));
+    // Was 4 SELECTs per employee (up to 4×N queries). Batched into a fixed
+    // number of grouped queries plus one in-memory pass for the ILIKE-based
+    // "events mentioning this email" check, which can't be GROUP BY'd directly.
+    const emails = [...new Set(userRows.map(u => u.email).filter(Boolean))] as string[];
+    const names = [...new Set(userRows.map(u => `${u.prenom || ""} ${u.nom || ""}`.trim()).filter(Boolean))];
 
-      employeeStats.push({
-        id: (user as any).id,
-        name: `${(user as any).prenom || ""} ${(user as any).nom || ""}`.trim(),
-        email: (user as any).email,
-        role: (user as any).role,
-        department: (user as any).departement,
+    const [tasksDoneRows, tasksOverdueRows, callsMadeRows, monthEvents] = await Promise.all([
+      emails.length > 0
+        ? db.select({ assignedTo: tasksTable.assignedTo, c: count() }).from(tasksTable)
+            .where(and(eq(tasksTable.organisationId, orgId), inArray(tasksTable.assignedTo, emails), eq(tasksTable.status, "termine"), gte(tasksTable.updatedAt, monthAgo)))
+            .groupBy(tasksTable.assignedTo)
+        : Promise.resolve([]),
+      emails.length > 0
+        ? db.select({ assignedTo: tasksTable.assignedTo, c: count() }).from(tasksTable)
+            .where(and(eq(tasksTable.organisationId, orgId), inArray(tasksTable.assignedTo, emails), ne(tasksTable.status, "termine"), lt(tasksTable.dueDate, now)))
+            .groupBy(tasksTable.assignedTo)
+        : Promise.resolve([]),
+      names.length > 0
+        ? db.select({ contactName: callsTable.contactName, c: count() }).from(callsTable)
+            .where(and(eq(callsTable.organisationId, orgId), inArray(callsTable.contactName, names), gte(callsTable.createdAt, monthAgo)))
+            .groupBy(callsTable.contactName)
+        : Promise.resolve([]),
+      db.select({ description: calendarEventsTable.description }).from(calendarEventsTable)
+        .where(and(eq(calendarEventsTable.organisationId, orgId), gte(calendarEventsTable.startDate, monthAgo), lte(calendarEventsTable.startDate, now))),
+    ]);
+    const tasksDoneByEmail = new Map(tasksDoneRows.map(r => [r.assignedTo, r.c]));
+    const tasksOverdueByEmail = new Map(tasksOverdueRows.map(r => [r.assignedTo, r.c]));
+    const callsMadeByName = new Map(callsMadeRows.map(r => [r.contactName, r.c]));
+    const monthEventDescriptions = monthEvents.map(e => (e.description || "").toLowerCase());
+
+    const employeeStats = userRows.map(user => {
+      const userEmail = user.email || "";
+      const fullName = `${user.prenom || ""} ${user.nom || ""}`.trim();
+      const tasksDone = tasksDoneByEmail.get(userEmail) ?? 0;
+      const tasksOverdue = tasksOverdueByEmail.get(userEmail) ?? 0;
+      const callsMade = callsMadeByName.get(fullName) ?? 0;
+      const eventsCreated = userEmail ? monthEventDescriptions.filter(d => d.includes(userEmail.toLowerCase())).length : 0;
+
+      return {
+        id: user.id,
+        name: fullName,
+        email: user.email,
+        role: user.role,
+        department: user.departement,
         stats: {
-          tasksCompleted: tasksDone?.c || 0,
-          tasksOverdue: tasksOverdue?.c || 0,
-          callsMade: callsMade?.c || 0,
-          eventsAttended: eventsCreated?.c || 0,
-          productivityScore: Math.min(100, Math.round(((tasksDone?.c || 0) * 10 + (callsMade?.c || 0) * 5 - (tasksOverdue?.c || 0) * 15))),
+          tasksCompleted: tasksDone,
+          tasksOverdue,
+          callsMade,
+          eventsAttended: eventsCreated,
+          productivityScore: Math.min(100, Math.round((tasksDone * 10 + callsMade * 5 - tasksOverdue * 15))),
         },
-      });
-    }
+      };
+    });
 
     const systemPrompt = `Tu es un expert RH et en analyse de performance. Analyse les statistiques des employes et genere un rapport clair avec des recommandations.`;
     const prompt = `Analyse les stats de ${employeeStats.length} employes ce mois:

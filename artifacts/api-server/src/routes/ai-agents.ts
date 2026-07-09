@@ -2604,18 +2604,36 @@ router.post("/ai/agents/auto-fix", requireAdmin, async (req, res): Promise<void>
       .where(and(orgContact, or(isNull(contactsTable.category), eq(contactsTable.category, "autre"))))
       .limit(50);
     let categorizedCount = 0;
-    for (const c of contactsNoCategory) {
-      const [callInfo] = await db.select({ count: count() }).from(callsTable).where(and(orgCall, eq(callsTable.contactId, c.id)));
-      const [taskInfo] = await db.select({ count: count() }).from(tasksTable).where(and(orgTask, eq(tasksTable.relatedContactId, c.id)));
-      const callCount = callInfo?.count ?? 0;
-      const taskCount = taskInfo?.count ?? 0;
-      if (callCount >= 3 || taskCount >= 2) {
-        await db.update(contactsTable).set({ category: "client" }).where(eq(contactsTable.id, c.id));
-        categorizedCount++;
-      } else if (callCount === 1 || taskCount === 1) {
-        await db.update(contactsTable).set({ category: "prospect" }).where(eq(contactsTable.id, c.id));
-        categorizedCount++;
+    if (contactsNoCategory.length > 0) {
+      // Two grouped counts instead of 2 SELECTs per contact (was up to 100
+      // queries for 50 contacts).
+      const contactIds = contactsNoCategory.map(c => c.id);
+      const [callCounts, taskCounts] = await Promise.all([
+        db.select({ contactId: callsTable.contactId, count: count() }).from(callsTable)
+          .where(and(orgCall, inArray(callsTable.contactId, contactIds)))
+          .groupBy(callsTable.contactId),
+        db.select({ contactId: tasksTable.relatedContactId, count: count() }).from(tasksTable)
+          .where(and(orgTask, inArray(tasksTable.relatedContactId, contactIds)))
+          .groupBy(tasksTable.relatedContactId),
+      ]);
+      const callCountById = new Map(callCounts.map(r => [r.contactId, r.count]));
+      const taskCountById = new Map(taskCounts.map(r => [r.contactId, r.count]));
+
+      const clientIds: number[] = [];
+      const prospectIds: number[] = [];
+      for (const c of contactsNoCategory) {
+        const callCount = callCountById.get(c.id) ?? 0;
+        const taskCount = taskCountById.get(c.id) ?? 0;
+        if (callCount >= 3 || taskCount >= 2) clientIds.push(c.id);
+        else if (callCount === 1 || taskCount === 1) prospectIds.push(c.id);
       }
+      if (clientIds.length > 0) {
+        await db.update(contactsTable).set({ category: "client" }).where(inArray(contactsTable.id, clientIds));
+      }
+      if (prospectIds.length > 0) {
+        await db.update(contactsTable).set({ category: "prospect" }).where(inArray(contactsTable.id, prospectIds));
+      }
+      categorizedCount = clientIds.length + prospectIds.length;
     }
     if (categorizedCount > 0) {
       fixes.push({ type: "contacts_auto_categorized", description: "Contacts categorises automatiquement selon activite", count: categorizedCount, details: `${categorizedCount} contacts recategorises (client/prospect) selon leur historique d'appels et taches` });
@@ -2965,20 +2983,31 @@ async function runSuperAgentCycle(orgId: number, userId: number) {
         .from(projetsTable).where(and(eq(projetsTable.organisationId, orgId), ne(projetsTable.status, "termine"), ne(projetsTable.status, "annule"))).limit(20);
 
       let overdueProjects = 0;
+      // One query for all recent task titles instead of one ILIKE lookup per
+      // project (was up to 20 queries/cycle). Snapshotted before the loop, so
+      // two projects with overlapping name snippets in the same cycle could
+      // both insert a follow-up task - an acceptable trade-off, same as the
+      // other batch fixes in this function.
+      const recentTaskTitles = (await db.select({ title: tasksTable.title }).from(tasksTable)
+        .where(and(orgTask, gte(tasksTable.createdAt, weekAgo))))
+        .map(t => t.title.toLowerCase());
+      const newProjectTasks: (typeof tasksTable.$inferInsert)[] = [];
       for (const p of projetsList) {
         const isLate = p.endDate && new Date(p.endDate) < now;
         if (isLate || (p.progress ?? 0) < 20) {
           overdueProjects++;
-          // Create follow-up task if not already one for this project recently
-          const existingTask = await db.select({ id: tasksTable.id }).from(tasksTable)
-            .where(and(orgTask, sql`${tasksTable.title} ILIKE ${"%" + p.title.slice(0, 30) + "%"}`, gte(tasksTable.createdAt, weekAgo))).limit(1);
-          if (existingTask.length === 0) {
-            await db.insert(tasksTable).values({
+          const needle = p.title.slice(0, 30).toLowerCase();
+          const hasExistingTask = recentTaskTitles.some(t => t.includes(needle));
+          if (!hasExistingTask) {
+            newProjectTasks.push({
               organisationId: orgId, title: `[Chantier] Suivi: ${p.title}`, description: `Projet ${isLate ? "en RETARD" : "peu avancé"} (${p.progress ?? 0}%). Action requise.`, priority: isLate ? "haute" : "moyenne", status: "en_attente", dueDate: new Date(Date.now() + 2 * 86400000),
-            }).catch(() => {});
-            state.stats.tasksCreated++;
+            });
           }
         }
+      }
+      if (newProjectTasks.length > 0) {
+        await db.insert(tasksTable).values(newProjectTasks).catch(() => {});
+        state.stats.tasksCreated += newProjectTasks.length;
       }
       if (overdueProjects > 0) saLog(orgId, "warning", "chantier", `${overdueProjects} projet(s) en retard`, "Tâches de suivi créées automatiquement");
       else saLog(orgId, "success", "chantier", `${projetsList.length} projet(s) en cours — tous dans les délais`);
@@ -2993,17 +3022,20 @@ async function runSuperAgentCycle(orgId: number, userId: number) {
         .from(tasksTable).where(and(orgTask, ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"), lt(tasksTable.dueDate, now))).limit(50);
 
       if (overdueTasks.length > 0) {
-        // Auto-escalate priority for tasks overdue > 3 days
-        let escalated = 0;
-        for (const t of overdueTasks) {
-          if (!t.dueDate) continue;
+        // Auto-escalate priority for tasks overdue > 3 days — bulk UPDATE
+        // instead of one per task.
+        const toEscalate = overdueTasks.filter(t => {
+          if (!t.dueDate) return false;
           const daysLate = Math.floor((now.getTime() - new Date(t.dueDate).getTime()) / 86400000);
-          if (daysLate >= 3 && t.priority !== "haute" && t.priority !== "critique") {
-            await db.update(tasksTable).set({ priority: "haute" }).where(eq(tasksTable.id, t.id)).catch(() => {});
-            escalated++;
-            state.stats.tasksFixed++;
-          }
+          return daysLate >= 3 && t.priority !== "haute" && t.priority !== "critique";
+        });
+        if (toEscalate.length > 0) {
+          await db.update(tasksTable).set({ priority: "haute" })
+            .where(and(orgTask, inArray(tasksTable.id, toEscalate.map(t => t.id))))
+            .catch(() => {});
         }
+        const escalated = toEscalate.length;
+        state.stats.tasksFixed += escalated;
         saLog(orgId, overdueTasks.length > 5 ? "warning" : "info", "tache", `${overdueTasks.length} tâche(s) en retard`, escalated > 0 ? `${escalated} tâche(s) escaladée(s) en priorité haute` : "Aucune escalade nécessaire");
       } else {
         saLog(orgId, "success", "tache", "Aucune tâche en retard — excellent !");
@@ -3015,22 +3047,38 @@ async function runSuperAgentCycle(orgId: number, userId: number) {
     // ── 4. APPELS — liaison orphelins ─────────────────────────────────────
     saLog(orgId, "info", "appel", "Liaison des appels sans contact...");
     try {
-      const orphanCalls = await db.select({ id: callsTable.id, phoneNumber: callsTable.phoneNumber })
-        .from(callsTable).where(and(orgCall, isNull(callsTable.contactId), isNotNull(callsTable.phoneNumber))).limit(30);
+      // Single JOIN (both sides normalized the same way: strip spaces, then
+      // +33 -> 0) instead of one contact SELECT per orphan call.
+      const normalizedPhone = (col: any) => sql`regexp_replace(replace(${col}, ' ', ''), '^\\+33', '0')`;
+      const orphanMatches = await db.select({ callId: callsTable.id, contactId: contactsTable.id })
+        .from(callsTable)
+        .innerJoin(contactsTable, and(
+          orgContact,
+          eq(normalizedPhone(contactsTable.phone), normalizedPhone(callsTable.phoneNumber)),
+        ))
+        .where(and(orgCall, isNull(callsTable.contactId), isNotNull(callsTable.phoneNumber)))
+        .limit(30);
 
       let linked = 0;
-      for (const call of orphanCalls) {
-        if (!call.phoneNumber) continue;
-        const clean = call.phoneNumber.replace(/\s+/g, "").replace(/^\+33/, "0");
-        const match = await db.select({ id: contactsTable.id }).from(contactsTable)
-          .where(and(orgContact, or(eq(sql`REPLACE(${contactsTable.phone}, ' ', '')`, clean), eq(sql`REPLACE(${contactsTable.phone}, ' ', '')`, call.phoneNumber)))).limit(1);
-        if (match.length > 0) {
-          await db.update(callsTable).set({ contactId: match[0].id }).where(eq(callsTable.id, call.id)).catch(() => {});
-          linked++;
-          state.stats.fixesApplied++;
-        }
+      if (orphanMatches.length > 0) {
+        const callToContact = new Map<number, number>();
+        for (const m of orphanMatches) if (!callToContact.has(m.callId)) callToContact.set(m.callId, m.contactId);
+        const callIds = [...callToContact.keys()];
+        await db.update(callsTable)
+          .set({
+            contactId: sql`CASE ${callsTable.id} ${sql.join(
+              callIds.map(id => sql`WHEN ${id} THEN ${callToContact.get(id)}`),
+              sql` `,
+            )} ELSE ${callsTable.contactId} END`,
+          })
+          .where(and(orgCall, inArray(callsTable.id, callIds)))
+          .catch(() => {});
+        linked = callIds.length;
+        state.stats.fixesApplied += linked;
       }
-      if (orphanCalls.length > 0) saLog(orphanCalls.length > 0 ? orgId : orgId, linked > 0 ? "success" : "info", "appel", `${orphanCalls.length} appel(s) sans contact`, linked > 0 ? `${linked} appel(s) liés automatiquement` : "Aucune correspondance trouvée");
+      const [{ total: orphanTotal }] = await db.select({ total: count() }).from(callsTable)
+        .where(and(orgCall, isNull(callsTable.contactId), isNotNull(callsTable.phoneNumber)));
+      if (orphanTotal > 0) saLog(orgId, linked > 0 ? "success" : "info", "appel", `${orphanTotal} appel(s) sans contact`, linked > 0 ? `${linked} appel(s) liés automatiquement` : "Aucune correspondance trouvée");
       else saLog(orgId, "success", "appel", "Tous les appels sont liés à un contact");
     } catch (callErr: any) {
       saLog(orgId, "warning", "appel", `Analyse appels échouée: ${callErr.message}`);
