@@ -121,6 +121,17 @@ function BriefingTab() {
   const analyzeAbortRef = useRef<AbortController | null>(null);
   const { toast } = useToast();
 
+  // Switching commandant-ia's tabs unmounts this component (Radix TabsContent
+  // has no forceMount) while a stream started here may still be reading —
+  // abort in-flight streams on unmount so the server stops generating/
+  // billing tokens for a user who navigated away.
+  useEffect(() => {
+    return () => {
+      searchAbortRef.current?.abort();
+      analyzeAbortRef.current?.abort();
+    };
+  }, []);
+
   const loadBriefing = async () => {
     setLoading(true);
     try {
@@ -1766,6 +1777,15 @@ function CommandesTab() {
   const [digestResult, setDigestResult] = useState<any>(null);
   const [digestRunning, setDigestRunning] = useState(false);
   const digestAbortRef = useRef<AbortController | null>(null);
+
+  // See BriefingTab's identical cleanup above: unmounting mid-stream (tab
+  // switch) must not leave the server streaming to an abandoned request.
+  useEffect(() => {
+    return () => {
+      cmdAbortRef.current?.abort();
+      digestAbortRef.current?.abort();
+    };
+  }, []);
 
   function tryParseJson(text: string): any | null {
     if (!text) return null;

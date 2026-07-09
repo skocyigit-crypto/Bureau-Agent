@@ -110,10 +110,13 @@ export default function CallDetail() {
   const updateCall = useUpdateCall();
 
   useEffect(() => {
-    if (call?.notes) {
-      setNotes(call.notes);
-    }
-  }, [call?.notes]);
+    // Keyed on call?.id (not call?.notes): navigating from one call's page to
+    // another's reuses this component instance, and the previous condition
+    // only updated when the new call had non-empty notes — leaving the prior
+    // call's notes in the textarea (and risking them being saved onto the
+    // wrong call) whenever the newly-loaded call's notes were empty.
+    setNotes(call?.notes || "");
+  }, [call?.id]);
 
   const handleNotesSave = () => {
     updateCall.mutate({ id: callId, data: { notes } }, {

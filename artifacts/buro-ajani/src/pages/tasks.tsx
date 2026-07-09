@@ -555,7 +555,7 @@ export default function Tasks() {
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Changer la priorité</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {[{val:"urgente",label:"🔴 Urgente"},{val:"haute",label:"🟠 Haute"},{val:"moyenne",label:"🟡 Moyenne"},{val:"basse",label:"🟢 Basse"}].map(p => (
+                  {[{val:"haute",label:"🟠 Haute"},{val:"moyenne",label:"🟡 Moyenne"},{val:"basse",label:"🟢 Basse"}].map(p => (
                     <DropdownMenuItem key={p.val} onClick={() => handleBulkPriority(p.val)} className="cursor-pointer">{p.label}</DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>

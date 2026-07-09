@@ -104,6 +104,11 @@ export default function ContactDetail() {
 
   const formInitialized = useRef(false);
   useEffect(() => {
+    // Navigating from one contact's page to another's reuses this component
+    // instance (same route, only the :id param changes) — reset the
+    // one-shot init guard so the form/tags effect below re-initializes for
+    // the new contact instead of leaving the previous contact's data shown.
+    formInitialized.current = false;
     if (contactId) { loadProjetsData(); }
   }, [contactId, loadProjetsData]);
 
