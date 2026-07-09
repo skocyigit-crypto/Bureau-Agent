@@ -23,12 +23,42 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Typecheck & build
-        run: pnpm run build
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Build
+        # Excludes two packages whose build scripts are Replit-only and
+        # were never meant to run outside it (both still fully typechecked
+        # above, just not built as deployable artifacts here):
+        #  - @workspace/mobile: packages a static Expo Go deployment, needs
+        #    REPLIT_INTERNAL_APP_DOMAIN/REPLIT_DEV_DOMAIN/EXPO_PUBLIC_DOMAIN.
+        #  - @workspace/mockup-sandbox: the Replit canvas mockup tool
+        #    (MIGRATION.md explicitly excludes it from any migration), needs
+        #    a PORT env var supplied by Replit's runtime.
+        run: pnpm -r --filter "!@workspace/mobile" --filter "!@workspace/mockup-sandbox" --if-present run build
 
   test:
     name: Test
     runs-on: ubuntu-latest
+    services:
+      # Most api-server tests import lib/db, which hard-fails at import time
+      # if DATABASE_URL is unset - a real ephemeral Postgres is needed even
+      # for tests that only touch a handful of tables.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: agent_de_bureau_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/agent_de_bureau_test
     steps:
       - uses: actions/checkout@v4
 
@@ -41,6 +71,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Push DB schema to test database
+        run: pnpm --filter @workspace/db run push-force
 
       - name: Run test suites (api-server, mobile, tanitim, demo-handoff)
         run: pnpm run test
