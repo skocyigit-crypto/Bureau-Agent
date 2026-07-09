@@ -701,7 +701,7 @@ export default function CalendarScreen() {
                 const closureLabel = closure
                   ? (closure.dateEnd > closure.dateStart
                       ? `Fermé du ${formatClosureDate(closure.dateStart)} au ${formatClosureDate(closure.dateEnd)}${closure.label ? ` — ${closure.label}` : ""}`
-                      : (closure.label ? `Fermé — ${closure.label}` : "Fermeture exceptionnelle"))
+                      : (closure.label ? `Fermé — ${closure.label}` : "Fermé"))
                   : "Jour fermé — hors jours d'ouverture";
                 return (
                   <View style={[styles.hoursTimeline, { borderColor: closure ? "#ef4444" : colors.border }]}>
