@@ -112,8 +112,43 @@ jobs:
       # fail. It's a real production deploy-safety check, just not
       # applicable to spinning up an empty test database.
 
-      - name: Run test suites (api-server, mobile, tanitim, demo-handoff)
-        run: pnpm run test
+      # Split into per-package steps (normally pnpm -r --if-present run test)
+      # purely for CI diagnostics: continue-on-error so all four run and
+      # report independently instead of the recursive runner stopping at the
+      # first failure, then a final gate step fails the job if any did.
+      - name: Test - api-server
+        id: test-api-server
+        continue-on-error: true
+        run: pnpm --filter @workspace/api-server run test
+
+      - name: Test - mobile
+        id: test-mobile
+        continue-on-error: true
+        run: pnpm --filter @workspace/mobile run test
+
+      - name: Test - tanitim
+        id: test-tanitim
+        continue-on-error: true
+        run: pnpm --filter @workspace/tanitim run test
+
+      - name: Test - demo-handoff
+        id: test-demo-handoff
+        continue-on-error: true
+        run: pnpm --filter @workspace/demo-handoff run test
+
+      - name: Test suites - gate
+        if: always()
+        run: |
+          echo "api-server: ${{ steps.test-api-server.outcome }}"
+          echo "mobile: ${{ steps.test-mobile.outcome }}"
+          echo "tanitim: ${{ steps.test-tanitim.outcome }}"
+          echo "demo-handoff: ${{ steps.test-demo-handoff.outcome }}"
+          if [ "${{ steps.test-api-server.outcome }}" = "failure" ] || \
+             [ "${{ steps.test-mobile.outcome }}" = "failure" ] || \
+             [ "${{ steps.test-tanitim.outcome }}" = "failure" ] || \
+             [ "${{ steps.test-demo-handoff.outcome }}" = "failure" ]; then
+            exit 1
+          fi
 
   docker-build-api:
     name: Docker image build (api)
