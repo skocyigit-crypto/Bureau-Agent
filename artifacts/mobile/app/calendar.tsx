@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -26,6 +26,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { FAB } from "@/components/FAB";
 import { FormModal } from "@/components/FormModal";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
+import { useCalendarEvents } from "@/contexts/CalendarEventsContext";
 import { useColors } from "@/hooks/useColors";
 
 interface CalendarEvent {
@@ -123,6 +124,7 @@ export default function CalendarScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { fetchAuth, user } = useAuth();
+  const { refresh: refreshSharedCalendar } = useCalendarEvents();
   const isWeb = Platform.OS === "web";
   const params = useLocalSearchParams<{ eventId?: string | string[] }>();
   const eventIdParam = Array.isArray(params.eventId) ? params.eventId[0] : params.eventId;
@@ -419,18 +421,14 @@ export default function CalendarScreen() {
 
   useEffect(() => { setLoading(true); fetchEvents(); fetchClosures(); }, [fetchEvents, fetchClosures]);
 
-  useEffect(() => {
-    const sub = AppState.addEventListener("change", (nextState) => {
-      if (nextState === "active") fetchEvents();
-    });
-    const interval = setInterval(() => {
-      if (AppState.currentState === "active") fetchEvents();
-    }, 5 * 60 * 1000);
-    return () => {
-      sub.remove();
-      clearInterval(interval);
-    };
-  }, [fetchEvents]);
+  // Refresh the shared CalendarEventsContext (today's events) whenever this
+  // screen comes into focus — no separate periodic timer needed here since the
+  // context already owns the 5-minute polling for today's snapshot.
+  useFocusEffect(
+    useCallback(() => {
+      refreshSharedCalendar();
+    }, [refreshSharedCalendar]),
+  );
 
   useEffect(() => {
     if (!focusedEventId) return;
@@ -514,6 +512,7 @@ export default function CalendarScreen() {
         setEditId(null);
         setFormValues({ type: "rendez_vous" });
         fetchEvents();
+        refreshSharedCalendar();
       }
     } catch {} finally { setFormLoading(false); }
   }
@@ -539,6 +538,7 @@ export default function CalendarScreen() {
       await fetchAuth(`${API_BASE}/api/calendar/events/${id}`, { method: "DELETE" });
       setSelected(null);
       fetchEvents();
+      refreshSharedCalendar();
     } catch {}
   }
 

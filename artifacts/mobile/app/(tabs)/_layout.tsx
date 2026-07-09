@@ -9,6 +9,7 @@ import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useUnreadBadges } from "@/contexts/UnreadBadgesContext";
+import { useCalendarEvents } from "@/contexts/CalendarEventsContext";
 import { useColors } from "@/hooks/useColors";
 
 function formatBadge(n: number): string | undefined {
@@ -18,14 +19,17 @@ function formatBadge(n: number): string | undefined {
 
 function NativeTabLayout() {
   const { counts } = useUnreadBadges();
+  const { todayCount } = useCalendarEvents();
   const tasksBadge = formatBadge(counts.task);
   const moreBadge = formatBadge(counts.message);
+  const calendarBadge = formatBadge(todayCount);
 
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: "house", selected: "house.fill" }} />
         <Label>Accueil</Label>
+        {calendarBadge ? <Badge>{calendarBadge}</Badge> : null}
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="calls">
         <Icon sf={{ default: "phone", selected: "phone.fill" }} />
@@ -56,8 +60,10 @@ function ClassicTabLayout() {
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
   const { counts } = useUnreadBadges();
+  const { todayCount } = useCalendarEvents();
   const tasksBadge = formatBadge(counts.task);
   const moreBadge = formatBadge(counts.message);
+  const calendarBadge = formatBadge(todayCount);
 
   return (
     <Tabs
@@ -94,6 +100,7 @@ function ClassicTabLayout() {
         name="index"
         options={{
           title: "Accueil",
+          tabBarBadge: calendarBadge,
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="house" tintColor={color} size={24} />

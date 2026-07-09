@@ -30,18 +30,12 @@ import { EmptyState } from "@/components/EmptyState";
 import { StatCard } from "@/components/StatCard";
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
 import { useUnreadBadges } from "@/contexts/UnreadBadgesContext";
+import { useCalendarEvents } from "@/contexts/CalendarEventsContext";
 import { useOfflineCache } from "@/hooks/useOfflineCache";
 import { useColors } from "@/hooks/useColors";
 
 type DashboardData = DashboardSummary;
 
-interface UpcomingEvent {
-  id: number;
-  title: string;
-  startTime: string;
-  createdAt?: string;
-  type: string;
-}
 
 interface SecurityVerdict {
   safe: number;
@@ -71,10 +65,10 @@ export default function DashboardScreen() {
   const { user, fetchAuth } = useAuth();
   const { counts: unreadCounts } = useUnreadBadges();
   const rappelsUnread = unreadCounts.rappel;
+  const { todayEvents } = useCalendarEvents();
   const isWeb = Platform.OS === "web";
   const [data, setData] = useState<DashboardData | null>(null);
   const [recentCalls, setRecentCalls] = useState<Call[]>([]);
-  const [events, setEvents] = useState<UpcomingEvent[]>([]);
   const [overdueTasks, setOverdueTasks] = useState<Task[]>([]);
   const [security, setSecurity] = useState<SecurityVerdict | null>(null);
   const [reuseSavings, setReuseSavings] = useState<ReuseSavings | null>(null);
@@ -88,10 +82,9 @@ export default function DashboardScreen() {
 
   const fetchDashboard = useCallback(async (silent = false) => {
     try {
-      const [summary, callsData, eventsRes, tasksData, securityRes] = await Promise.all([
+      const [summary, callsData, tasksData, securityRes] = await Promise.all([
         getDashboardSummary(),
         listCalls({ limit: 5, sortOrder: "desc" }).catch(() => null),
-        fetchAuth(`${API_BASE}/api/calendar/events?limit=3`).catch(() => null),
         listTasks({ status: "en_attente", sortOrder: "asc", limit: 5 }).catch(() => null),
         fetchAuth(`${API_BASE}/api/documents/stats/overview`).catch(() => null),
       ]);
@@ -102,10 +95,6 @@ export default function DashboardScreen() {
       }
       if (callsData) {
         setRecentCalls(callsData.calls?.slice(0, 5) ?? []);
-      }
-      if (eventsRes?.ok) {
-        const eventData = await eventsRes.json();
-        setEvents((eventData.events || eventData.data || []).slice(0, 3));
       }
       if (tasksData) {
         const now = new Date();
@@ -376,7 +365,7 @@ export default function DashboardScreen() {
               </View>
             </View>
 
-            {events.length > 0 && (
+            {todayEvents.length > 0 && (
               <>
                 <View style={styles.sectionHeader}>
                   <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>Agenda du jour</Text>
@@ -384,7 +373,7 @@ export default function DashboardScreen() {
                     <Text style={[styles.seeAll, { color: colors.primary }]}>Voir tout</Text>
                   </Pressable>
                 </View>
-                {events.map((evt) => (
+                {todayEvents.slice(0, 3).map((evt) => (
                   <Pressable
                     key={evt.id}
                     onPress={() => quickNav("/calendar")}
@@ -392,7 +381,7 @@ export default function DashboardScreen() {
                   >
                     <View style={[styles.eventTime, { backgroundColor: colors.primary + "15" }]}>
                       <Text style={[styles.eventTimeText, { color: colors.primary }]}>
-                        {formatEventTime(evt.startTime || evt.createdAt || new Date().toISOString())}
+                        {formatEventTime(evt.startDate)}
                       </Text>
                     </View>
                     <View style={{ flex: 1 }}>
@@ -407,7 +396,7 @@ export default function DashboardScreen() {
 
             {recentCalls.length > 0 && (
               <>
-                <View style={[styles.sectionHeader, { marginTop: events.length > 0 ? 8 : 0 }]}>
+                <View style={[styles.sectionHeader, { marginTop: todayEvents.length > 0 ? 8 : 0 }]}>
                   <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>Appels recents</Text>
                   <Pressable onPress={() => quickNav("/(tabs)/calls")}>
                     <Text style={[styles.seeAll, { color: colors.primary }]}>Voir tout</Text>

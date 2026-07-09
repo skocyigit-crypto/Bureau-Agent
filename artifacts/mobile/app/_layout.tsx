@@ -21,6 +21,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { PrivacyProvider } from "@/contexts/PrivacyContext";
 import { NotificationPrefsProvider } from "@/contexts/NotificationPrefsContext";
 import { UnreadBadgesProvider } from "@/contexts/UnreadBadgesContext";
+import { CalendarEventsProvider } from "@/contexts/CalendarEventsContext";
 import { LocationProvider } from "@/contexts/LocationContext";
 import { PrivacyOverlay } from "@/components/PrivacyOverlay";
 import { LocationConsentGate } from "@/components/LocationConsentGate";
@@ -244,6 +245,7 @@ export default function RootLayout() {
                   <AuthProvider>
                     <NotificationPrefsProvider>
                       <UnreadBadgesProvider>
+                        <CalendarEventsProvider>
                         <LocationProvider>
                           <LocationConsentGate>
                             <RootLayoutNav />
@@ -251,6 +253,7 @@ export default function RootLayout() {
                           <PrivacyOverlay />
                           <OfflineBanner />
                         </LocationProvider>
+                        </CalendarEventsProvider>
                       </UnreadBadgesProvider>
                     </NotificationPrefsProvider>
                   </AuthProvider>
