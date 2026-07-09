@@ -26,6 +26,25 @@ jobs:
       - name: Typecheck & build
         run: pnpm run build
 
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Enable corepack (pnpm)
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run test suites (api-server, mobile, tanitim, demo-handoff)
+        run: pnpm run test
+
   docker-build-api:
     name: Docker image build (api)
     runs-on: ubuntu-latest
