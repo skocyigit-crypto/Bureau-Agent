@@ -172,6 +172,16 @@ export default function ContactsScreen() {
   const flatListRef = useRef<FlatList>(null);
 
   const { cached, isFromCache, updateCache } = useOfflineCache<Contact[]>("contacts_list", []);
+  // Read via refs (not as fetchContacts deps) so the callback's identity
+  // doesn't change every time updateCache() runs — cached/contacts.length
+  // used to be direct deps, and since updateCache() (called on every
+  // successful default-filter fetch) creates a new `cached` reference,
+  // that recreated fetchContacts, which retriggered the effect below it,
+  // producing an unbounded refetch loop on the default (no search/filter) view.
+  const cachedRef = useRef(cached);
+  cachedRef.current = cached;
+  const contactsLenRef = useRef(contacts.length);
+  contactsLenRef.current = contacts.length;
 
   const fetchContacts = useCallback(async () => {
     try {
@@ -183,12 +193,12 @@ export default function ContactsScreen() {
       setContacts(list);
       if (!search && filterCat === "all") updateCache(list);
     } catch {
-      if (cached.length > 0 && contacts.length === 0) setContacts(cached);
+      if (cachedRef.current.length > 0 && contactsLenRef.current === 0) setContacts(cachedRef.current);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [search, filterCat, cached, contacts.length, updateCache]);
+  }, [search, filterCat, updateCache]);
 
   useEffect(() => {
     if (isFromCache && cached.length > 0 && contacts.length === 0) setContacts(cached);

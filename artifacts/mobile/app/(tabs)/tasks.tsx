@@ -222,6 +222,14 @@ export default function TasksScreen() {
   const [editId, setEditId] = useState<number | null>(null);
 
   const { cached, isFromCache, updateCache } = useOfflineCache<Task[]>("tasks_list", []);
+  // Read via refs (not as fetchTasks deps) — see contacts.tsx's identical
+  // fix: cached/tasks.length as direct deps recreated fetchTasks every time
+  // updateCache() ran, which retriggered the effect below it, causing an
+  // unbounded refetch loop on the default (no filter/search) view.
+  const cachedRef = useRef(cached);
+  cachedRef.current = cached;
+  const tasksLenRef = useRef(tasks.length);
+  tasksLenRef.current = tasks.length;
 
   const fetchTasks = useCallback(async () => {
     try {
@@ -233,12 +241,12 @@ export default function TasksScreen() {
       setTasks(list);
       if (filter === "all" && !search) updateCache(list);
     } catch {
-      if (cached.length > 0 && tasks.length === 0) setTasks(cached);
+      if (cachedRef.current.length > 0 && tasksLenRef.current === 0) setTasks(cachedRef.current);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [filter, search, cached, tasks.length, updateCache]);
+  }, [filter, search, updateCache]);
 
   useEffect(() => {
     if (isFromCache && cached.length > 0 && tasks.length === 0) setTasks(cached);
