@@ -3,17 +3,9 @@ import { performGoogleDriveBackup, listGoogleDriveBackups, isConnectorAvailable,
 import { db, autoBackupsTable, backupConfigTable } from "@workspace/db";
 import { eq, desc, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { requireSuperAdmin } from "../middleware/auth";
 
 const router = Router();
-
-const requireSuperAdmin = (req: Request, res: Response, next: Function) => {
-  const role = req.session?.userRole;
-  if (role !== "super_admin") {
-    res.status(403).json({ error: "Acces reserve au super administrateur." });
-    return;
-  }
-  next();
-};
 
 // Path-scoped guard: only intercept /google-drive-backup/* requests.
 // Without a path prefix, router.use(mw) would match every request that

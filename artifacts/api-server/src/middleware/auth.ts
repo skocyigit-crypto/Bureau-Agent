@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { extractBearerToken, verifyApiToken } from "../lib/api-token";
 import { authenticateApiKey, looksLikeApiKey } from "../lib/api-key-auth";
+import { logTenantViolation } from "./tenant-guard";
 
 /**
  * Cache court (60s) du plancher d'invalidation par utilisateur. Sans
@@ -153,9 +154,19 @@ function userHasAccess(userRole: string | undefined, requiredRoles: string[]): b
  * de suivi traitera la bascule complete (donnees tenant -> donnees SaaS
  * globales).
  */
-export function requireSuperAdmin(req: Request, res: Response, next: NextFunction): void {
-  const guard = requireRole("super_admin");
-  void guard(req, res, next);
+export async function requireSuperAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
+  await hydrateFromBearer(req);
+  const userId = req.session?.userId;
+  if (!userId) {
+    res.status(401).json({ error: "Non authentifie." });
+    return;
+  }
+  if (req.session?.userRole !== "super_admin") {
+    logTenantViolation(req, "require_super_admin", "Attempt to access super-admin-only route");
+    res.status(403).json({ error: "Acces reserve au super administrateur." });
+    return;
+  }
+  next();
 }
 
 export function requireRole(...roles: string[]) {

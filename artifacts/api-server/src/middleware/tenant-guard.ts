@@ -52,15 +52,13 @@ export function isAdminOrSuperAdmin(req: Request): boolean {
   return ROLE_HIERARCHY[role] >= ROLE_HIERARCHY["administrateur"];
 }
 
-// ── Guard: reject unless super_admin ─────────────────────────────────────────
-export function requireSuperAdmin(req: Request, res: Response, next: NextFunction): void {
-  if (!isSuperAdmin(req)) {
-    logTenantViolation(req, "require_super_admin", "Attempt to access super-admin-only route");
-    res.status(403).json({ error: "Accès réservé au super-administrateur de la plateforme." });
-    return;
-  }
-  next();
-}
+// NOTE: the request-guard version of "require super admin" lives in
+// `middleware/auth.ts` (`requireSuperAdmin`) — it hydrates bearer tokens
+// and is the one mounted in routes/index.ts. This module previously had
+// its own duplicate `requireSuperAdmin` guard that nothing imported; it
+// was removed to keep a single canonical implementation. `isSuperAdmin`
+// above remains the shared boolean check used by the assert* helpers
+// below and by `middleware/auth.ts`.
 
 // ── Guard: reject attempts to assign/escalate to super_admin ─────────────────
 export function assertRoleAllowed(req: Request, res: Response, targetRole: string | undefined): boolean {

@@ -7,6 +7,7 @@ import crypto from "crypto";
 import { sendLicenseEmail } from "../services/email";
 import { generateLicenseKey } from "../services/license-key";
 import { logger } from "../lib/logger";
+import { requireSuperAdmin } from "../middleware/auth";
 
 const SALT_ROUNDS = 12;
 
@@ -37,15 +38,6 @@ function generateSecurePassword(): string {
 }
 
 const router = Router();
-
-function requireSuperAdmin(req: Request, res: Response, next: () => void): void {
-  const userRole = req.session?.userRole;
-  if (userRole !== "super_admin") {
-    res.status(403).json({ error: "Acces reserve au super administrateur." });
-    return;
-  }
-  next();
-}
 
 // Path-scoped guard: only intercept /organisations/* requests. Without a
 // path prefix, router.use(mw) would match every request that reaches this

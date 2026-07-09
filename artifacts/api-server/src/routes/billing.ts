@@ -3,17 +3,9 @@ import { eq, and, desc, sql } from "drizzle-orm";
 import { db, invoicesTable, paymentsTable, organisationsTable } from "@workspace/db";
 import { generateMonthlyInvoices, getOrgBillingSummary } from "../services/billing-engine";
 import { logger } from "../lib/logger";
+import { requireSuperAdmin } from "../middleware/auth";
 
 const router = Router();
-
-function requireSuperAdmin(req: Request, res: Response, next: () => void): void {
-  const userRole = req.session?.userRole;
-  if (userRole !== "super_admin") {
-    res.status(403).json({ error: "Acces reserve au super administrateur." });
-    return;
-  }
-  next();
-}
 
 // Path-scoped guard: only intercept /billing/* requests. Without a path
 // prefix, router.use(mw) would match every request that reaches this

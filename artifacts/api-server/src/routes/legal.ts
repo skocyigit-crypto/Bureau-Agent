@@ -4,17 +4,9 @@ import { legalAgreementsTable, LEGAL_DOCUMENTS, type LegalDocumentCode } from "@
 import { organisationsTable } from "@workspace/db";
 import { eq, sql, and } from "drizzle-orm";
 import { getOrgId } from "../middleware/tenant";
+import { requireSuperAdmin } from "../middleware/auth";
 
 const router = Router();
-
-const requireSuperAdmin = (req: Request, res: Response, next: Function) => {
-  const role = req.session?.userRole;
-  if (role !== "super_admin") {
-    res.status(403).json({ error: "Acces reserve au super administrateur." });
-    return;
-  }
-  next();
-};
 
 // Path-scoped guard: only intercept /legal/* requests. Without a path
 // prefix, router.use(mw) would match every request that reaches this
