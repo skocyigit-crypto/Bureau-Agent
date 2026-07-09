@@ -13,7 +13,7 @@ import {
   OPENAI_MODEL,
   ANTHROPIC_MODEL,
 } from "./ai-utils";
-import { getOrgGeminiClient, getOrgOpenAIClient, getOrgAnthropicClient } from "./ai-providers";
+import { getOrgGeminiClient, getOrgOpenAIClient, getOrgAnthropicClient, callOrgOpenAI, isAiAuthKeyError } from "./ai-providers";
 
 export interface SseStream {
   send: (event: string, data: unknown) => void;
@@ -250,18 +250,24 @@ export async function multiAiGenerateStream(opts: StreamOptions): Promise<Stream
   // ── OpenAI stream ──
   try {
     checkAbort();
-    const openai = await getOrgOpenAIClient(organisationId);
-    const stream: any = await (openai as any).chat.completions.create(
-      {
-        model: openaiModel,
-        stream: true,
-        stream_options: { include_usage: true },
-        messages: [
-          ...(safeSystem ? [{ role: "system" as const, content: safeSystem }] : []),
-          { role: "user" as const, content: safePrompt },
-        ],
-      },
-      { signal },
+    // callOrgOpenAI retries once against the platform key if the org's own
+    // OpenAI key is invalid/revoked — the `create()` call rejects on auth
+    // failure before any chunk is streamed, so a retry here can't duplicate
+    // output (unlike a mid-stream retry, which is why this isn't done for
+    // the Anthropic leg below).
+    const stream: any = await callOrgOpenAI(organisationId, (openai) =>
+      (openai as any).chat.completions.create(
+        {
+          model: openaiModel,
+          stream: true,
+          stream_options: { include_usage: true },
+          messages: [
+            ...(safeSystem ? [{ role: "system" as const, content: safeSystem }] : []),
+            { role: "user" as const, content: safePrompt },
+          ],
+        },
+        { signal },
+      ),
     );
 
     let fullText = "";
@@ -317,32 +323,39 @@ export async function multiAiGenerateStream(opts: StreamOptions): Promise<Stream
   // ── Anthropic stream ──
   try {
     checkAbort();
-    const anthropic = await getOrgAnthropicClient(organisationId);
-    const stream: any = (anthropic as any).messages.stream({
-      model: anthropicModel,
-      max_tokens: maxOutputTokens || 4096,
-      ...(safeSystem ? { system: safeSystem } : {}),
-      messages: [{ role: "user" as const, content: safePrompt }],
-    });
+    let anthropic = await getOrgAnthropicClient(organisationId);
 
     let fullText = "";
     let abortedDuring = false;
+    let anthropicEmittedAny = false;
+    let stream: any;
+    let onAbort: () => void = () => {};
 
-    const onAbort = () => {
-      abortedDuring = true;
-      try { stream.abort?.(); } catch {}
-      try { stream.controller?.abort?.(); } catch {}
+    const startStream = () => {
+      stream = (anthropic as any).messages.stream({
+        model: anthropicModel,
+        max_tokens: maxOutputTokens || 4096,
+        ...(safeSystem ? { system: safeSystem } : {}),
+        messages: [{ role: "user" as const, content: safePrompt }],
+      });
+      onAbort = () => {
+        abortedDuring = true;
+        try { stream.abort?.(); } catch {}
+        try { stream.controller?.abort?.(); } catch {}
+      };
+      if (signal.aborted) onAbort();
+      else signal.addEventListener("abort", onAbort, { once: true });
+
+      stream.on("text", (text: string) => {
+        if (signal.aborted) return;
+        if (text) {
+          anthropicEmittedAny = true;
+          fullText += text;
+          onToken(text);
+        }
+      });
     };
-    if (signal.aborted) onAbort();
-    else signal.addEventListener("abort", onAbort, { once: true });
-
-    stream.on("text", (text: string) => {
-      if (signal.aborted) return;
-      if (text) {
-        fullText += text;
-        onToken(text);
-      }
-    });
+    startStream();
 
     let finalMessage: any = null;
     try {
@@ -350,6 +363,37 @@ export async function multiAiGenerateStream(opts: StreamOptions): Promise<Stream
     } catch (finalErr: any) {
       if (signal.aborted || abortedDuring || finalErr?.name === "APIUserAbortError") {
         abortedDuring = true;
+      } else if (
+        !anthropicEmittedAny &&
+        organisationId != null &&
+        isAiAuthKeyError(finalErr)
+      ) {
+        // Org's own Anthropic key is invalid/revoked and nothing has been
+        // streamed yet (safe to retry without duplicating output) — retry
+        // once against the platform key, mirroring callOrgOpenAI above.
+        // Not routed through callOrgAnthropic because that helper has no
+        // way to guard the retry on "nothing emitted yet" for a stream.
+        signal.removeEventListener("abort", onAbort);
+        const mod = await import("@workspace/integrations-anthropic-ai");
+        if (anthropic !== mod.anthropic) {
+          logger.warn({ organisationId, err: finalErr?.message }, "[ai-stream] cle Anthropic org invalide, repli plateforme");
+          anthropic = mod.anthropic;
+          startStream();
+          try {
+            finalMessage = await stream.finalMessage();
+          } catch (retryErr: any) {
+            if (signal.aborted || abortedDuring || retryErr?.name === "APIUserAbortError") {
+              abortedDuring = true;
+            } else {
+              signal.removeEventListener("abort", onAbort);
+              throw retryErr;
+            }
+          } finally {
+            signal.removeEventListener("abort", onAbort);
+          }
+        } else {
+          throw finalErr;
+        }
       } else {
         signal.removeEventListener("abort", onAbort);
         throw finalErr;

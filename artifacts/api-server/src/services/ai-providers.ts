@@ -279,3 +279,51 @@ export async function callOrgEmbedding<T>(
     throw err;
   }
 }
+
+/**
+ * Execute `fn` avec le client OpenAI de l'org ; si la cle org echoue a
+ * l'authentification, rejoue une fois avec le singleton plateforme.
+ * Miroir de `callOrgGemini` — avant l'ajout de cette fonction, les appels
+ * OpenAI via `getOrgOpenAIClient` echouaient durement sur une cle org
+ * revoquee au lieu de retomber sur la plateforme.
+ */
+export async function callOrgOpenAI<T>(
+  orgId: number | null | undefined,
+  fn: (client: any) => Promise<T>,
+): Promise<T> {
+  const mod = await import("@workspace/integrations-openai-ai-server");
+  const client = await getOrgOpenAIClient(orgId);
+  if (orgId == null || client === mod.openai) return fn(client);
+  try {
+    return await fn(client);
+  } catch (err: any) {
+    if (isAiAuthKeyError(err)) {
+      logger.warn({ orgId, err: err?.message }, "[AiProviders] cle OpenAI org invalide a l'execution, repli plateforme");
+      return fn(mod.openai);
+    }
+    throw err;
+  }
+}
+
+/**
+ * Execute `fn` avec le client Anthropic de l'org ; si la cle org echoue a
+ * l'authentification, rejoue une fois avec le singleton plateforme.
+ * Miroir de `callOrgGemini` (voir `callOrgOpenAI` ci-dessus).
+ */
+export async function callOrgAnthropic<T>(
+  orgId: number | null | undefined,
+  fn: (client: any) => Promise<T>,
+): Promise<T> {
+  const mod = await import("@workspace/integrations-anthropic-ai");
+  const client = await getOrgAnthropicClient(orgId);
+  if (orgId == null || client === mod.anthropic) return fn(client);
+  try {
+    return await fn(client);
+  } catch (err: any) {
+    if (isAiAuthKeyError(err)) {
+      logger.warn({ orgId, err: err?.message }, "[AiProviders] cle Anthropic org invalide a l'execution, repli plateforme");
+      return fn(mod.anthropic);
+    }
+    throw err;
+  }
+}

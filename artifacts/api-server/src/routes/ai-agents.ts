@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable, aiAgentReportsTable, stockArticlesTable, invoicesTable, paymentsTable, subscriptionsTable, usersTable, automationRulesTable, notificationsTable, auditLogsTable, calendarEventsTable, projetsTable, organisationsTable } from "@workspace/db";
-import { sql, eq, gte, lte, and, count, desc, lt, ne, isNull, isNotNull, or, sum, avg } from "drizzle-orm";
+import { sql, eq, gte, lte, and, count, desc, lt, ne, isNull, isNotNull, or, sum, avg, inArray } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache, reserveAiCall } from "../services/ai-quota";
-import { extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL, GEMINI_FLASH_MODEL } from "../services/ai-utils";
+import { extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL, GEMINI_FLASH_MODEL, sanitizePromptInput } from "../services/ai-utils";
+import { callOrgGemini, callOrgOpenAI } from "../services/ai-providers";
 import { withProviderTimeout, buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 import { openSseStream, multiAiGenerateStream, StreamAbortedError } from "../services/ai-stream";
 import { buildLearnedContextBlock } from "../services/ai-learning";
@@ -2130,22 +2131,30 @@ async function runAutopilotCycle(orgId: number) {
 
     if (systemHealth.callsWithoutContact > 0) {
       try {
-        const orphanCalls = await db.select({ id: callsTable.id, phoneNumber: callsTable.phoneNumber })
+        // JOIN unique au lieu d'un SELECT contact par appel orphelin (N+1).
+        const orphanMatches = await db.select({ callId: callsTable.id, contactId: contactsTable.id })
           .from(callsTable)
+          .innerJoin(contactsTable, and(
+            orgContact,
+            sql`replace(${contactsTable.phone}, ' ', '') = replace(${callsTable.phoneNumber}, ' ', '')`,
+          ))
           .where(and(orgCall, isNull(callsTable.contactId), gte(callsTable.createdAt, weekAgo)))
           .limit(20);
 
         let matched = 0;
-        for (const call of orphanCalls) {
-          if (!call.phoneNumber) continue;
-          const cleanPhone = call.phoneNumber.replace(/\s/g, "");
-          const [contact] = await db.select({ id: contactsTable.id }).from(contactsTable)
-            .where(and(orgContact, sql`replace(${contactsTable.phone}, ' ', '') = ${cleanPhone}`))
-            .limit(1);
-          if (contact) {
-            await db.update(callsTable).set({ contactId: contact.id }).where(eq(callsTable.id, call.id));
-            matched++;
-          }
+        if (orphanMatches.length > 0) {
+          const callToContact = new Map<number, number>();
+          for (const m of orphanMatches) if (!callToContact.has(m.callId)) callToContact.set(m.callId, m.contactId);
+          const callIds = [...callToContact.keys()];
+          await db.update(callsTable)
+            .set({
+              contactId: sql`CASE ${callsTable.id} ${sql.join(
+                callIds.map(id => sql`WHEN ${id} THEN ${callToContact.get(id)}`),
+                sql` `,
+              )} ELSE ${callsTable.contactId} END`,
+            })
+            .where(and(orgCall, inArray(callsTable.id, callIds)));
+          matched = callIds.length;
         }
         if (matched > 0) {
           autoFixes.push({ action: "auto_link_calls", description: `${matched} appels associes automatiquement a leurs contacts`, result: "succes" });
@@ -2158,21 +2167,21 @@ async function runAutopilotCycle(orgId: number) {
 
     if (systemHealth.overdueTasks > 0) {
       try {
-        const overdueList = await db.select({ id: tasksTable.id, title: tasksTable.title, priority: tasksTable.priority })
+        const overdueList = await db.select({ id: tasksTable.id, title: tasksTable.title })
           .from(tasksTable)
-          .where(and(orgTask, ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"), sql`${tasksTable.dueDate} < NOW()`))
+          .where(and(
+            orgTask, ne(tasksTable.status, "termine"), ne(tasksTable.status, "annule"),
+            ne(tasksTable.priority, "haute"), ne(tasksTable.priority, "urgente"),
+            sql`${tasksTable.dueDate} < NOW()`,
+          ))
           .limit(10);
 
-        let escalated = 0;
-        for (const task of overdueList) {
-          if (task.priority !== "haute" && task.priority !== "urgente") {
-            await db.update(tasksTable).set({ priority: "haute" }).where(eq(tasksTable.id, task.id));
-            escalated++;
-          }
-        }
-        if (escalated > 0) {
-          autoFixes.push({ action: "escalate_overdue", description: `${escalated} taches en retard escaladees en priorite haute`, result: "succes" });
-          addAutopilotLog(orgId, "fix", `${escalated} taches en retard escaladees`, "system", "info");
+        if (overdueList.length > 0) {
+          // Bulk UPDATE au lieu d'un UPDATE par tache.
+          await db.update(tasksTable).set({ priority: "haute" })
+            .where(and(orgTask, inArray(tasksTable.id, overdueList.map(t => t.id))));
+          autoFixes.push({ action: "escalate_overdue", description: `${overdueList.length} taches en retard escaladees en priorite haute`, result: "succes" });
+          addAutopilotLog(orgId, "fix", `${overdueList.length} taches en retard escaladees`, "system", "info");
         }
       } catch (e: any) {
         addAutopilotLog(orgId, "error", `Echec escalade taches: ${e.message}`, "system", "haute");
@@ -2186,13 +2195,14 @@ async function runAutopilotCycle(orgId: number) {
           .where(and(orgTask, eq(tasksTable.status, "en_cours"), sql`${tasksTable.updatedAt} < NOW() - INTERVAL '7 days'`))
           .limit(10);
 
-        if (stuckList.length > 0) {
-          for (const task of stuckList) {
-            if (task.description && task.description.includes("[Oto-Pilot] Tache bloquee")) continue;
-            await db.update(tasksTable).set({ description: sql`COALESCE(${tasksTable.description}, '') || E'\n[Oto-Pilot] Tache bloquee detectee - necessite attention'` }).where(eq(tasksTable.id, task.id));
-          }
-          autoFixes.push({ action: "flag_stuck_tasks", description: `${stuckList.length} taches bloquees marquees pour attention`, result: "succes" });
-          addAutopilotLog(orgId, "fix", `${stuckList.length} taches bloquees flaggees`, "system", "info");
+        const toFlag = stuckList.filter(task => !task.description || !task.description.includes("[Oto-Pilot] Tache bloquee"));
+        if (toFlag.length > 0) {
+          // Bulk UPDATE au lieu d'un UPDATE par tache.
+          await db.update(tasksTable)
+            .set({ description: sql`COALESCE(${tasksTable.description}, '') || E'\n[Oto-Pilot] Tache bloquee detectee - necessite attention'` })
+            .where(and(orgTask, inArray(tasksTable.id, toFlag.map(t => t.id))));
+          autoFixes.push({ action: "flag_stuck_tasks", description: `${toFlag.length} taches bloquees marquees pour attention`, result: "succes" });
+          addAutopilotLog(orgId, "fix", `${toFlag.length} taches bloquees flaggees`, "system", "info");
         }
       } catch (e: any) {
         addAutopilotLog(orgId, "error", `Echec marquage taches: ${e.message}`, "system", "haute");
@@ -2468,23 +2478,34 @@ router.post("/ai/agents/auto-fix", requireAdmin, async (req, res): Promise<void>
 
     const fixes: { type: string; description: string; count: number; details: string }[] = [];
 
-    const orphanCalls = await db.select({ id: callsTable.id, phoneNumber: callsTable.phoneNumber })
+    // Un seul JOIN au lieu d'un SELECT contact par appel orphelin (etait un
+    // N+1 : jusqu'a 100 SELECT + 100 UPDATE sequentiels sur cette route
+    // synchrone). Le JOIN peut renvoyer plusieurs contacts pour un meme
+    // appel si plusieurs contacts partagent le meme numero ; on garde
+    // arbitrairement le premier, comme le faisait le `.limit(1)` original.
+    const orphanCallMatches = await db.select({ callId: callsTable.id, contactId: contactsTable.id })
       .from(callsTable)
+      .innerJoin(contactsTable, and(
+        orgContact,
+        sql`replace(${contactsTable.phone}, ' ', '') = replace(${callsTable.phoneNumber}, ' ', '')`,
+      ))
       .where(and(orgCall, isNull(callsTable.contactId), isNotNull(callsTable.phoneNumber)))
       .limit(100);
 
     let linkedCount = 0;
-    for (const call of orphanCalls) {
-      if (!call.phoneNumber) continue;
-      const clean = call.phoneNumber.replace(/\s/g, "");
-      const [contact] = await db.select({ id: contactsTable.id })
-        .from(contactsTable)
-        .where(and(orgContact, sql`replace(${contactsTable.phone}, ' ', '') = ${clean}`))
-        .limit(1);
-      if (contact) {
-        await db.update(callsTable).set({ contactId: contact.id }).where(eq(callsTable.id, call.id));
-        linkedCount++;
-      }
+    if (orphanCallMatches.length > 0) {
+      const callToContact = new Map<number, number>();
+      for (const m of orphanCallMatches) if (!callToContact.has(m.callId)) callToContact.set(m.callId, m.contactId);
+      const callIds = [...callToContact.keys()];
+      await db.update(callsTable)
+        .set({
+          contactId: sql`CASE ${callsTable.id} ${sql.join(
+            callIds.map(id => sql`WHEN ${id} THEN ${callToContact.get(id)}`),
+            sql` `,
+          )} ELSE ${callsTable.contactId} END`,
+        })
+        .where(and(orgCall, inArray(callsTable.id, callIds)));
+      linkedCount = callIds.length;
     }
     if (linkedCount > 0) {
       fixes.push({ type: "orphan_calls_linked", description: "Appels orphelins lies a leurs contacts", count: linkedCount, details: `${linkedCount} appels retrouves par numero de telephone` });
@@ -2497,9 +2518,8 @@ router.post("/ai/agents/auto-fix", requireAdmin, async (req, res): Promise<void>
 
     if (overdueTasks.length > 0) {
       const overdueIds = overdueTasks.map(t => t.id);
-      for (const id of overdueIds) {
-        await db.update(tasksTable).set({ priority: "haute" }).where(and(eq(tasksTable.id, id), orgTask));
-      }
+      // Bulk UPDATE ... WHERE id IN (...) au lieu d'un UPDATE par tache.
+      await db.update(tasksTable).set({ priority: "haute" }).where(and(orgTask, inArray(tasksTable.id, overdueIds)));
       fixes.push({ type: "overdue_tasks_escalated", description: "Taches en retard escaladees en haute priorite", count: overdueTasks.length, details: overdueTasks.map(t => t.title).join(", ") });
     }
 
@@ -2509,16 +2529,15 @@ router.post("/ai/agents/auto-fix", requireAdmin, async (req, res): Promise<void>
       .limit(30);
 
     if (stuckTasks.length > 0) {
-      for (const task of stuckTasks) {
-        await db.insert(notificationsTable).values({
-          userId: userId,
-          organisationId: orgId,
-          title: `Tache bloquee: ${task.title}`,
-          message: `Cette tache est en cours depuis plus de 7 jours sans mise a jour.`,
-          type: "alerte",
-          priority: "haute",
-        });
-      }
+      // Bulk INSERT (un seul aller-retour) au lieu d'un INSERT par notification.
+      await db.insert(notificationsTable).values(stuckTasks.map(task => ({
+        userId: userId,
+        organisationId: orgId,
+        title: `Tache bloquee: ${task.title}`,
+        message: `Cette tache est en cours depuis plus de 7 jours sans mise a jour.`,
+        type: "alerte" as const,
+        priority: "haute" as const,
+      })));
       fixes.push({ type: "stuck_tasks_notified", description: "Notifications envoyees pour les taches bloquees", count: stuckTasks.length, details: stuckTasks.map(t => t.title).join(", ") });
     }
 
@@ -2798,15 +2817,24 @@ function saLog(orgId: number, level: SuperAgentLog["level"], source: SuperAgentL
   if (state.logs.length > 500) state.logs = state.logs.slice(-500);
 }
 
+/**
+ * `prompt`/`systemPrompt` may embed content from untrusted external sources
+ * (e.g. inbound email bodies in the Gmail auto-task cycle below) — callers
+ * MUST run any such content through `sanitizePromptInput` before it reaches
+ * here. Uses the org's own BYOK Gemini/OpenAI key when configured, falling
+ * back to the platform key (matches the rest of the AI routes; previously
+ * this always used the platform singleton regardless of org config).
+ */
 async function superAgentAI(orgId: number, prompt: string, systemPrompt: string): Promise<string> {
-  const { ai } = await import("@workspace/integrations-gemini-ai");
   const t0 = Date.now();
   try {
-    const response = await ai.models.generateContent({
-      model: GEMINI_FLASH_MODEL,
-      contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\n${prompt}` }] }],
-      config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
-    });
+    const response = await callOrgGemini(orgId, (ai) =>
+      ai.models.generateContent({
+        model: GEMINI_FLASH_MODEL,
+        contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\n${prompt}` }] }],
+        config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
+      }),
+    );
     const text = response.text ?? "{}";
     const tokens = extractGeminiTokens(response);
     recordAiUsage({ organisationId: orgId, provider: "gemini", model: geminiActualModel(response, GEMINI_FLASH_MODEL), route: "/ai/super-agent", inputTokens: tokens.input, outputTokens: tokens.output, durationMs: Date.now() - t0 }).catch(() => {});
@@ -2815,12 +2843,13 @@ async function superAgentAI(orgId: number, prompt: string, systemPrompt: string)
   } catch (err: any) {
     // fallback to OpenAI
     try {
-      const { openai } = await import("@workspace/integrations-openai-ai-server");
-      const fb = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [{ role: "system", content: systemPrompt }, { role: "user", content: prompt + "\n\nReponds UNIQUEMENT en JSON valide." }],
-        max_tokens: 3000,
-      });
+      const fb = await callOrgOpenAI(orgId, (openai) =>
+        openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [{ role: "system", content: systemPrompt }, { role: "user", content: prompt + "\n\nReponds UNIQUEMENT en JSON valide." }],
+          max_tokens: 3000,
+        }),
+      );
       return fb.choices?.[0]?.message?.content ?? "{}";
     } catch { return "{}"; }
   }
@@ -2871,8 +2900,15 @@ async function runSuperAgentCycle(orgId: number, userId: number) {
             walkParts(detail.data.payload);
             if (!body) body = snippet;
 
+            // Inbound email content is fully attacker-controlled (any external
+            // sender) — it must be sanitized before it reaches the AI prompt,
+            // same as every other user-supplied text fed to the AI routes.
+            const safeFrom = sanitizePromptInput(from, 300);
+            const safeSubject = sanitizePromptInput(subject, 300);
+            const safeBody = sanitizePromptInput(body, 2000);
+
             const aiText = await superAgentAI(orgId,
-              `Email reçu:\nDe: ${from}\nObjet: ${subject}\nContenu: ${body}\n\nAnalyse cet email et extrait les tâches/actions requises en JSON:\n{"tasks":[{"title":"string","priority":"haute|moyenne|basse","dueInDays":3,"description":"string"}],"needsReply":true/false,"urgency":"normale|haute|critique","summary":"string"}`,
+              `Email reçu:\nDe: ${safeFrom}\nObjet: ${safeSubject}\nContenu: ${safeBody}\n\nAnalyse cet email et extrait les tâches/actions requises en JSON:\n{"tasks":[{"title":"string","priority":"haute|moyenne|basse","dueInDays":3,"description":"string"}],"needsReply":true/false,"urgency":"normale|haute|critique","summary":"string"}`,
               `Tu es le Super Agent IA d'Agent de Bureau. Tu analyses les emails professionnels et extrais les actions requises. Sois précis et actionnable. Réponds UNIQUEMENT en JSON valide.`
             );
 
@@ -2882,11 +2918,15 @@ async function runSuperAgentCycle(orgId: number, userId: number) {
             if (parsed.tasks?.length > 0) {
               for (const t of parsed.tasks) {
                 const dueDate = new Date(Date.now() + (t.dueInDays || 3) * 86400000);
-                await db.insert(tasksTable).values({
-                  organisationId: orgId, title: `[Email] ${t.title}`, description: `De: ${from}\nObjet: ${subject}\n\n${t.description || parsed.summary || ""}`, priority: t.priority || "moyenne", status: "en_attente", dueDate,
-                }).catch(() => {});
-                emailTasksCreated++;
-                state.stats.tasksCreated++;
+                try {
+                  await db.insert(tasksTable).values({
+                    organisationId: orgId, title: `[Email] ${t.title}`, description: `De: ${from}\nObjet: ${subject}\n\n${t.description || parsed.summary || ""}`, priority: t.priority || "moyenne", status: "en_attente", dueDate,
+                  });
+                  emailTasksCreated++;
+                  state.stats.tasksCreated++;
+                } catch (err: any) {
+                  logger.warn({ err: err?.message, orgId, title: t?.title }, "[SuperAgent/Email] echec insertion tache extraite par IA");
+                }
               }
               saLog(orgId, "success", "email", `Email traité: "${subject}"`, `${parsed.tasks.length} tâche(s) créée(s) — Urgence: ${parsed.urgency || "normale"}`);
             } else {
@@ -3024,8 +3064,9 @@ router.post("/ai/super-agent/process-report", requireAdmin, async (req, res): Pr
     await assertAiQuota(orgId);
     saLog(orgId, "info", "chantier", `Traitement rapport ${reportType}...`);
 
+    const safeReport = sanitizePromptInput(report, 8000);
     const aiText = await superAgentAI(orgId,
-      `Rapport ${reportType}:\n${report.slice(0, 8000)}\n\nAnalyse ce rapport et extrait TOUTES les actions à faire:\n{"tasks":[{"title":"string","priority":"haute|moyenne|basse","dueInDays":3,"description":"string","assignedTo":"string|null"}],"appointments":[{"title":"string","date":"YYYY-MM-DD","time":"HH:MM","type":"rendez_vous|reunion|visite"}],"issues":[{"description":"string","severity":"haute|moyenne|basse"}],"summary":"string","nextStepUrgency":"normal|eleve|critique"}`,
+      `Rapport ${reportType}:\n${safeReport}\n\nAnalyse ce rapport et extrait TOUTES les actions à faire:\n{"tasks":[{"title":"string","priority":"haute|moyenne|basse","dueInDays":3,"description":"string","assignedTo":"string|null"}],"appointments":[{"title":"string","date":"YYYY-MM-DD","time":"HH:MM","type":"rendez_vous|reunion|visite"}],"issues":[{"description":"string","severity":"haute|moyenne|basse"}],"summary":"string","nextStepUrgency":"normal|eleve|critique"}`,
       `Tu es le Super Agent IA d'Agent de Bureau. Tu analyses des rapports de chantier, de visite ou de réunion professionnels. Tu extrais TOUTES les actions concrètes à réaliser. Sois exhaustif et précis. Réponds UNIQUEMENT en JSON valide.`
     );
 
@@ -3041,7 +3082,9 @@ router.post("/ai/super-agent/process-report", requireAdmin, async (req, res): Pr
         }).returning();
         createdTasks.push(inserted);
         getSuperAgentState(orgId).stats.tasksCreated++;
-      } catch {}
+      } catch (err: any) {
+        logger.warn({ err: err?.message, orgId, title: t?.title }, "[SuperAgent/ProcessReport] echec insertion tache extraite par IA");
+      }
     }
 
     const createdEvents: any[] = [];
@@ -3053,7 +3096,9 @@ router.post("/ai/super-agent/process-report", requireAdmin, async (req, res): Pr
           organisationId: orgId, title: a.title, type: a.type || "rendez_vous", startDate, endDate, status: "confirme", relatedContactId: contactId || null,
         }).returning();
         createdEvents.push(inserted);
-      } catch {}
+      } catch (err: any) {
+        logger.warn({ err: err?.message, orgId, title: a?.title }, "[SuperAgent/ProcessReport] echec insertion RDV extrait par IA");
+      }
     }
 
     getSuperAgentState(orgId).stats.reportsProcessed++;
