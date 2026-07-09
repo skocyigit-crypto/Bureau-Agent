@@ -1325,6 +1325,12 @@ export default function CalendarPage() {
                   const closureTitle = closureInfo
                     ? (closureInfo.label ? closureInfo.label : "Fermeture exceptionnelle")
                     : undefined;
+                  const posInRow = i % 7;
+                  const bandLeft = closureInfo !== null && posInRow > 0
+                    && getClosureForDate(monthDays[i - 1].date)?.id === closureInfo.id;
+                  const bandRight = closureInfo !== null && posInRow < 6
+                    && i + 1 < monthDays.length
+                    && getClosureForDate(monthDays[i + 1].date)?.id === closureInfo.id;
                   return (
                     <button
                       key={i}
@@ -1334,11 +1340,22 @@ export default function CalendarPage() {
                         setView("jour");
                         setCurrentDate(date);
                       }}
-                      className={`group min-h-[80px] p-1.5 text-left transition-colors hover:bg-amber-50/50 dark:hover:bg-amber-950/10
-                        ${!isCurrentMonth ? "opacity-40 bg-card" : closureInfo ? "bg-red-50 dark:bg-red-950/30" : offDay ? "bg-slate-50 dark:bg-slate-800/40" : "bg-card"}
+                      className={`relative group min-h-[80px] p-1.5 text-left transition-colors hover:bg-amber-50/50 dark:hover:bg-amber-950/10
+                        ${!isCurrentMonth ? "opacity-40 bg-card" : closureInfo ? "bg-red-50/70 dark:bg-red-950/20" : offDay ? "bg-slate-50 dark:bg-slate-800/40" : "bg-card"}
                         ${isSelected ? "ring-2 ring-amber-500 ring-inset" : ""}
                       `}
                     >
+                      {closureInfo && isCurrentMonth && (
+                        <div
+                          aria-hidden
+                          className="absolute inset-y-1 bg-red-200/70 dark:bg-red-800/35 pointer-events-none"
+                          style={{
+                            left: bandLeft ? -1 : 4,
+                            right: bandRight ? -1 : 4,
+                            borderRadius: `${bandLeft ? 0 : 6}px ${bandRight ? 0 : 6}px ${bandRight ? 0 : 6}px ${bandLeft ? 0 : 6}px`,
+                          }}
+                        />
+                      )}
                       <div className="flex items-center justify-between">
                         <span className={`text-xs font-medium inline-flex w-6 h-6 items-center justify-center rounded-full
                           ${isToday ? "bg-amber-500 text-white" : closureInfo ? "text-red-600 dark:text-red-400 line-through" : ""}
