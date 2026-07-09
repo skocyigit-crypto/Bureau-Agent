@@ -24,6 +24,7 @@ import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { AiValidationFeedback } from "@/components/ai-validation-feedback";
 import { useAiValidation } from "@/hooks/use-ai-validation";
+import { QueryErrorAlert } from "@/components/safe-component";
 
 const formSchema = z.object({
   firstName: z.string().min(1, "Le prénom est requis"),
@@ -56,7 +57,7 @@ export default function ContactDetail() {
   const aiValidation = useAiValidation("contact");
   const BASE = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
-  const { data: contact, isLoading: isContactLoading } = useGetContact(contactId, {
+  const { data: contact, isLoading: isContactLoading, error: contactError } = useGetContact(contactId, {
     query: { enabled: !!contactId, queryKey: getGetContactQueryKey(contactId) }
   });
 
@@ -184,6 +185,7 @@ export default function ContactDetail() {
     );
   }
 
+  if (contactError) return <QueryErrorAlert error={contactError as Error} title="Impossible de charger ce contact" />;
   if (!contact) return <div>Contact introuvable</div>;
 
   const getCategoryBadge = (category: string) => {

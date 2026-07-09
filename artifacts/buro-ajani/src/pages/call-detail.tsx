@@ -13,6 +13,7 @@ import { GhostTextarea } from "@/components/ghost-textarea";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { QueryErrorAlert } from "@/components/safe-component";
 
 function AiCallInsights({ call, contactName }: { call: any; contactName?: string | null }) {
   const askAi = useAskAiAssistant();
@@ -99,7 +100,7 @@ export default function CallDetail() {
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState("");
 
-  const { data: call, isLoading: isCallLoading } = useGetCall(callId, {
+  const { data: call, isLoading: isCallLoading, error: callError } = useGetCall(callId, {
     query: { enabled: !!callId, queryKey: getGetCallQueryKey(callId) }
   });
 
@@ -168,6 +169,7 @@ export default function CallDetail() {
     );
   }
 
+  if (callError) return <QueryErrorAlert error={callError as Error} title="Impossible de charger cet appel" />;
   if (!call) return <div>Appel introuvable</div>;
 
   const getStatusBadge = (status: string) => {
