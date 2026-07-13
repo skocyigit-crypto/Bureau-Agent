@@ -1,0 +1,66 @@
+# Cloud Build CI/CD pipeline for Agent de Bureau.
+# Triggered on push to `main` (see the Cloud Build trigger config) — builds
+# both container images and deploys both Cloud Run services in sequence, so
+# the web service always points at the api revision from the SAME commit.
+steps:
+  - id: build-api
+    name: 'gcr.io/cloud-builders/docker'
+    env: ['DOCKER_BUILDKIT=1']
+    args: ['build', '-f', 'deploy/Dockerfile.api', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:${SHORT_SHA}', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:latest', '.']
+
+  - id: push-api
+    name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '--all-tags', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api']
+    waitFor: ['build-api']
+
+  - id: deploy-api
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - '${_API_SERVICE}'
+      - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:${SHORT_SHA}'
+      - '--region=${_REGION}'
+      - '--platform=managed'
+    waitFor: ['push-api']
+
+  - id: build-web
+    name: 'gcr.io/cloud-builders/docker'
+    env: ['DOCKER_BUILDKIT=1']
+    args: ['build', '-f', 'deploy/Dockerfile.web.cloudrun', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/web:${SHORT_SHA}', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/web:latest', '.']
+    waitFor: ['-']
+
+  - id: push-web
+    name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '--all-tags', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/web']
+    waitFor: ['build-web']
+
+  - id: deploy-web
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - '${_WEB_SERVICE}'
+      - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/web:${SHORT_SHA}'
+      - '--region=${_REGION}'
+      - '--platform=managed'
+    waitFor: ['push-web', 'deploy-api']
+
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:latest'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/web:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/web:latest'
+
+options:
+  machineType: 'E2_HIGHCPU_8'
+
+substitutions:
+  _REGION: europe-west9
+  _AR_REPO: agent-de-bureau
+  _API_SERVICE: agent-de-bureau-api
+  _WEB_SERVICE: agent-de-bureau-web
+
+timeout: 1800s
