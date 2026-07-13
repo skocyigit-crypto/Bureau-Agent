@@ -1,0 +1,3 @@
+lib/db/src/schema/invoices.ts
+lib/db/src/schema/legal-agreements.ts
+lib/db/src/schema/locations.ts

@@ -1,0 +1,46 @@
+# Caddyfile.cloudrun — Agent de Bureau (Cloud Run variant)
+#
+# Cloud Run runs each service in its own isolated network — there is no
+# shared Docker Compose network to resolve a bare "api:8080" hostname
+# against, so unlike deploy/Caddyfile (docker-compose), this variant
+# reverse-proxies to the API's real Cloud Run HTTPS URL, injected at
+# container start via the API_UPSTREAM env var.
+#
+# Cloud Run also terminates TLS itself in front of the container and
+# always talks to the container over plain HTTP on $PORT, so this Caddyfile
+# never does its own TLS/ACME — it just listens on :{$PORT}.
+
+:{$PORT:8080} {
+        encode zstd gzip
+
+        # `handle` blocks are only mutually exclusive with OTHER `handle`/
+        # `handle_path` blocks in the same scope — a bare `file_server` /
+        # `try_files` left at the top level still runs for every request
+        # regardless of the block above, which silently served index.html
+        # for /api/* instead of proxying. Wrapping the static site in its
+        # own `handle` makes the two routes properly exclusive.
+        handle /api* {
+                # Cloud Run's own edge always terminates TLS in front of the api
+                # service, so the upstream must be dialed over HTTPS (a bare
+                # host:443 defaults to plain HTTP in Caddy, which the target
+                # rejects, breaking the connection with EOF).
+                reverse_proxy https://{$API_UPSTREAM} {
+                        header_up Host {upstream_hostport}
+                }
+        }
+
+        handle {
+                root * /srv
+                @hashed path_regexp \.[a-f0-9]{8,}\.(js|css|woff2?|png|jpe?g|gif|svg|webp|avif)$
+                header @hashed Cache-Control "public, max-age=31536000, immutable"
+                header /index.html Cache-Control "no-cache, no-store, must-revalidate"
+
+                try_files {path} /index.html
+                file_server
+        }
+
+        log {
+                output stdout
+                format console
+        }
+}

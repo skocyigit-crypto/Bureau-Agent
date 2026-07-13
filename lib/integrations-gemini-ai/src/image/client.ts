@@ -1,22 +1,45 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 
-if (!process.env.AI_INTEGRATIONS_GEMINI_BASE_URL) {
-  throw new Error(
-    "AI_INTEGRATIONS_GEMINI_BASE_URL must be set. Did you forget to provision the Gemini AI integration?",
-  );
+// Construction paresseuse (au premier usage reel, pas a l'IMPORT du module) —
+// alignee sur `getGeminiAi()` dans ../client.ts. Avant, ce module jetait de
+// facon synchrone A L'IMPORT si AI_INTEGRATIONS_GEMINI_* (vars specifiques au
+// proxy IA Replit) etaient absentes, ce qui faisait crasher tout le processus
+// au demarrage — meme en dehors de Replit avec GEMINI_API_KEY correctement
+// configure (cf. deploy/.env.example, docker-compose.yml), puisque cette
+// variable directe n'etait jamais consideree ici.
+let _ai: GoogleGenAI | null = null;
+
+function getGeminiImageClient(): GoogleGenAI {
+  if (!_ai) {
+    const proxyBase = process.env.AI_INTEGRATIONS_GEMINI_BASE_URL;
+    const proxyKey = process.env.AI_INTEGRATIONS_GEMINI_API_KEY;
+    const directKey =
+      process.env.GEMINI_API_KEY ||
+      process.env.GOOGLE_API_KEY ||
+      process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    const usingProxy = Boolean(proxyBase && proxyKey);
+    if (!proxyKey && !directKey) {
+      throw new Error(
+        "Gemini API key missing. Set GEMINI_API_KEY (or AI_INTEGRATIONS_GEMINI_API_KEY when using the Replit AI proxy).",
+      );
+    }
+    _ai = new GoogleGenAI(
+      usingProxy
+        ? {
+            apiKey: proxyKey!,
+            httpOptions: { apiVersion: "", baseUrl: proxyBase! },
+          }
+        : {
+            apiKey: (directKey || proxyKey)!,
+          },
+    );
+  }
+  return _ai;
 }
 
-if (!process.env.AI_INTEGRATIONS_GEMINI_API_KEY) {
-  throw new Error(
-    "AI_INTEGRATIONS_GEMINI_API_KEY must be set. Did you forget to provision the Gemini AI integration?",
-  );
-}
-
-export const ai = new GoogleGenAI({
-  apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
-  httpOptions: {
-    apiVersion: "",
-    baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
+export const ai = new Proxy({} as GoogleGenAI, {
+  get(_target, prop) {
+    return (getGeminiImageClient() as any)[prop];
   },
 });
 

@@ -17,15 +17,23 @@
                 reverse_proxy api:8080
         }
 
-        # Static SPA — long cache for hashed assets, no-cache for HTML
-        root * /srv
-        @hashed path_regexp \.[a-f0-9]{8,}\.(js|css|woff2?|png|jpe?g|gif|svg|webp|avif)$
-        header @hashed Cache-Control "public, max-age=31536000, immutable"
-        header /index.html Cache-Control "no-cache, no-store, must-revalidate"
+        # `handle` is only mutually exclusive with OTHER handle/handle_path
+        # blocks — a bare file_server/try_files at the top level still runs
+        # for every request regardless of the block above, which would
+        # silently serve index.html for /api/* instead of proxying it.
+        # Wrapping the static site in its own `handle` makes the two routes
+        # properly exclusive.
+        handle {
+                # Static SPA — long cache for hashed assets, no-cache for HTML
+                root * /srv
+                @hashed path_regexp \.[a-f0-9]{8,}\.(js|css|woff2?|png|jpe?g|gif|svg|webp|avif)$
+                header @hashed Cache-Control "public, max-age=31536000, immutable"
+                header /index.html Cache-Control "no-cache, no-store, must-revalidate"
 
-        # SPA history fallback
-        try_files {path} /index.html
-        file_server
+                # SPA history fallback
+                try_files {path} /index.html
+                file_server
+        }
 
         log {
                 output stdout

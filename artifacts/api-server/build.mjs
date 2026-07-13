@@ -54,6 +54,10 @@ async function buildAll() {
       "knex",
       "typeorm",
       "protobufjs",
+      // Resolves its own table.sql relative to __dirname at runtime — bundling
+      // rewrites that to the wrong location (dist/), breaking session-table
+      // auto-creation with ENOENT.
+      "connect-pg-simple",
       "onnxruntime-node",
       "@tensorflow/*",
       "@prisma/client",
