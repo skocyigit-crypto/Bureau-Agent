@@ -1,0 +1,41 @@
+# syntax=docker/dockerfile:1.7
+# Cloud Run variant of Dockerfile.web — same build stage, but runs
+# Caddyfile.cloudrun (reverse-proxies /api to a real HTTPS upstream URL
+# instead of a docker-compose service name) and listens on Cloud Run's
+# injected $PORT instead of fixed ports 80/443.
+
+# ---------- Build stage ----------
+FROM node:24-bookworm-slim AS builder
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+
+WORKDIR /app
+
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json tsconfig.json ./
+COPY artifacts/buro-ajani/package.json artifacts/buro-ajani/
+COPY lib ./lib
+COPY scripts ./scripts
+
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter @workspace/buro-ajani...
+
+COPY artifacts/buro-ajani ./artifacts/buro-ajani
+COPY attached_assets ./attached_assets
+
+ENV NODE_ENV=production
+ENV BASE_PATH=/
+RUN pnpm --filter @workspace/buro-ajani run build
+
+# ---------- Runtime stage ----------
+FROM caddy:2-alpine AS runner
+
+COPY --from=builder /app/artifacts/buro-ajani/dist/public /srv
+COPY deploy/Caddyfile.cloudrun /etc/caddy/Caddyfile
+
+# Cloud Run injects PORT at runtime (defaults to 8080); API_UPSTREAM must be
+# set at deploy time (--set-env-vars) to the api service's Cloud Run URL,
+# host:port form without scheme, e.g. agent-de-bureau-api-xxxx.a.run.app:443.
+ENV PORT=8080
+EXPOSE 8080
