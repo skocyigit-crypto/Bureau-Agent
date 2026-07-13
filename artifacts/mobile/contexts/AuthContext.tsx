@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { setBaseUrl, setAuthTokenGetter } from "@workspace/api-client-react";
-import { API_BASE } from "@/lib/api-config";
+import { setBaseUrl, setAuthTokenGetter, setDefaultOrigin } from "@workspace/api-client-react";
+import { API_BASE, MOBILE_APP_ORIGIN } from "@/lib/api-config";
 import { loadSessionToken, saveSessionToken, clearSessionToken } from "@/lib/secure-session";
 
 // Configure le client API genere (OpenAPI / @workspace/api-client-react) une
@@ -9,6 +9,10 @@ import { loadSessionToken, saveSessionToken, clearSessionToken } from "@/lib/sec
 // relatif (`/api/...`) et `customFetch` y prefixe API_BASE. Le Bearer token,
 // lui, est fourni dynamiquement via setAuthTokenGetter dans AuthProvider.
 setBaseUrl(API_BASE);
+// Cf. MOBILE_APP_ORIGIN dans lib/api-config.ts : un build natif n'envoie pas
+// d'Origin/Referer automatiquement, ce qui ferait rejeter chaque requete non-
+// GET par la verification CSRF du backend.
+setDefaultOrigin(MOBILE_APP_ORIGIN);
 
 interface User {
   id: number;
@@ -75,6 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchAuth = useCallback(async (url: string, options: RequestInit = {}): Promise<Response> => {
     const headers: Record<string, string> = {
+      Origin: MOBILE_APP_ORIGIN,
       ...(options.headers as Record<string, string> || {}),
     };
     if (apiToken && !headers["Authorization"] && !headers["authorization"]) {
@@ -114,7 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Origin: MOBILE_APP_ORIGIN },
         body: JSON.stringify({ email: email.trim(), password, wantsToken: true }),
       });
 
@@ -159,7 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (apiToken) {
         await fetch(`${API_BASE}/api/auth/logout`, {
           method: "POST",
-          headers: { Authorization: `Bearer ${apiToken}` },
+          headers: { Authorization: `Bearer ${apiToken}`, Origin: MOBILE_APP_ORIGIN },
         });
       }
     } catch (err) {

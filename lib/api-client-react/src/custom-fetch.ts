@@ -17,6 +17,7 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
+let _defaultOrigin: string | null = null;
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -42,6 +43,21 @@ export function setBaseUrl(url: string | null): void {
  */
 export function setAuthTokenGetter(getter: AuthTokenGetter | null): void {
   _authTokenGetter = getter;
+}
+
+/**
+ * Set a fixed `Origin` header applied to non-GET/HEAD requests when the
+ * caller hasn't set one explicitly.
+ *
+ * Browsers manage the `Origin` header themselves and silently ignore any
+ * value set here, so this is a no-op on web. React Native (and other native
+ * runtimes) don't send Origin/Referer automatically the way a browser does —
+ * without this, the backend's CSRF origin check (which requires Origin or
+ * Referer on every non-GET request) rejects every write from a compiled
+ * mobile build. Pass `null` to clear it.
+ */
+export function setDefaultOrigin(origin: string | null): void {
+  _defaultOrigin = origin;
 }
 
 function isRequest(input: RequestInfo | URL): input is Request {
@@ -356,6 +372,10 @@ export async function customFetch<T = unknown>(
     if (token) {
       headers.set("authorization", `Bearer ${token}`);
     }
+  }
+
+  if (_defaultOrigin && method !== "GET" && method !== "HEAD" && !headers.has("origin")) {
+    headers.set("origin", _defaultOrigin);
   }
 
   const requestInfo = { method, url: resolveUrl(input) };

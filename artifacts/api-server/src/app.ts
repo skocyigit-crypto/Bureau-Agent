@@ -10,6 +10,7 @@ import router from "./routes";
 import crypto from "crypto";
 import { logger } from "./lib/logger";
 import { ipProtection, threatDetection, csrfProtection } from "./middleware/security";
+import { hydrateFromBearer } from "./middleware/auth";
 import { guardian } from "./middleware/guardian";
 
 const app: Express = express();
@@ -472,6 +473,16 @@ app.use("/api", (req: Request, _res: Response, next: NextFunction) => {
 
 app.use("/api", threatDetection);
 app.use("/api", csrfProtection);
+
+// Hydrate req.session from a Bearer token (mobile/API clients) before any
+// route handler runs. Previously this only happened inside requireAuth /
+// requireSuperAdmin / requireRole, so routes that check `req.session.userId`
+// directly (auth/me, mfa/*, logout, ...) never saw a Bearer-authenticated
+// user and always answered 401 for mobile clients. No-op when a cookie
+// session already carries a userId or no Bearer token is present.
+app.use("/api", (req: Request, res: Response, next: NextFunction) => {
+  hydrateFromBearer(req).then(() => next()).catch(next);
+});
 
 app.use("/api", router);
 

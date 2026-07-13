@@ -45,6 +45,18 @@ function deriveApiBase(): string {
 export const API_BASE = deriveApiBase();
 
 /**
+ * Origine synthetique envoyee sur les requetes non-GET pour satisfaire la
+ * verification CSRF du backend (Origin/Referer obligatoire, cf.
+ * artifacts/api-server/src/middleware/security.ts). Un build natif compile
+ * (APK/IPA) n'envoie PAS d'Origin/Referer automatiquement (contrairement a un
+ * navigateur) — sans cet en-tete fixe, toute requete POST/PUT/PATCH/DELETE
+ * (login inclus) serait rejetee en 403 "origine manquante" une fois installee
+ * sur un vrai appareil. Doit rester alignee avec l'entree ALLOWED_ORIGINS
+ * ajoutee cote serveur pour ce meme host.
+ */
+export const MOBILE_APP_ORIGIN = "https://agentdebureau.fr";
+
+/**
  * Cle AsyncStorage utilisee pour persister la session entre les
  * redemarrages de l'app. Constante partagee pour eviter les fautes
  * de frappe (`adb_session` vs `adb-session` etc.) qui invalident

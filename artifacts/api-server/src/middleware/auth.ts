@@ -64,7 +64,7 @@ export function clearTokenInvalidationCache(userId: number): void {
  * HMAC est valide. C'est la voie de revocation pour les tokens
  * stateless long-lived.
  */
-async function hydrateFromBearer(req: Request): Promise<void> {
+export async function hydrateFromBearer(req: Request): Promise<void> {
   if (req.session?.userId) return;
   const token = extractBearerToken(req.get("authorization"));
   if (!token) return;
