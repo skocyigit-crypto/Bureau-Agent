@@ -1,0 +1,23 @@
+**/node_modules
+**/dist
+**/.turbo
+**/.cache
+**/.vite
+**/.next
+**/.expo
+**/coverage
+**/.local
+**/.git
+**/.replit
+**/.replit-artifact
+**/replit.nix
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+**/.DS_Store
+# NOTE: do NOT ignore attached_assets — buro-ajani's vite.config.ts uses
+# the @assets alias to import images/files from this folder at build time.
+artifacts/mockup-sandbox
+artifacts/mobile
+artifacts/tanitim

@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/tanitim/"
+title = "Agent de Bureau - Site Vitrine"
+version = "1.0.0"
+id = "artifacts/tanitim"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/tanitim/" ]
+localPort = 18674
+
+[services.development]
+run = "pnpm --filter @workspace/tanitim run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/tanitim", "run", "build" ]
+publicDir = "artifacts/tanitim/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18674"
+BASE_PATH = "/tanitim/"

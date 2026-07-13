@@ -1,0 +1,60 @@
+# syntax=docker/dockerfile:1.7
+# ---------- Build stage ----------
+FROM node:24-bookworm-slim AS builder
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+
+WORKDIR /app
+
+# Copy workspace manifests first for better layer caching
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json tsconfig.json .npmrc ./
+COPY artifacts/api-server/package.json artifacts/api-server/
+COPY lib ./lib
+COPY scripts ./scripts
+
+# Install all dependencies (we'll prune to prod after build)
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter @workspace/api-server... --filter @workspace/db...
+
+# Copy source and build
+COPY artifacts/api-server ./artifacts/api-server
+RUN pnpm --filter @workspace/api-server run build
+
+# ---------- Runtime stage ----------
+FROM node:24-bookworm-slim AS runner
+
+ENV NODE_ENV=production
+ENV PORT=8080
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate \
+ && apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates curl tini \
+ && rm -rf /var/lib/apt/lists/* \
+ && groupadd -r app && useradd -r -g app -d /app -s /sbin/nologin app
+
+WORKDIR /app
+
+# Workspace manifests (needed for pnpm to resolve workspace links)
+COPY --chown=app:app pnpm-workspace.yaml pnpm-lock.yaml package.json .npmrc ./
+COPY --chown=app:app artifacts/api-server/package.json artifacts/api-server/
+COPY --chown=app:app lib ./lib
+
+# Production-only deps
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --prod --filter @workspace/api-server... --filter @workspace/db...
+
+# Built app
+COPY --from=builder --chown=app:app /app/artifacts/api-server/dist ./artifacts/api-server/dist
+
+USER app
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD curl -fsS "http://127.0.0.1:${PORT}/api/healthz" || exit 1
+
+EXPOSE 8080
+ENTRYPOINT ["/usr/bin/tini","--"]
+CMD ["node","--enable-source-maps","artifacts/api-server/dist/index.mjs"]

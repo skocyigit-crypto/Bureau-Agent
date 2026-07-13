@@ -1,0 +1,854 @@
+import type { Request, Response, NextFunction } from "express";
+import crypto from "crypto";
+import { logger } from "../lib/logger";
+import {
+  HEURISTIC_ENGINE,
+  VIRUSTOTAL_ENGINE,
+  lookupFileHash,
+  submitFile,
+  isMalwareSubmissionEnabled,
+  type MalwareVerdictSource,
+  type SubmitFileDiagnostics,
+} from "../services/file-malware";
+
+const MALICIOUS_PATTERNS = [
+  /<script[\s>]/i,
+  /javascript:/i,
+  /on(load|error|click|mouseover|focus|blur|submit|change|input|keydown|keyup|keypress)\s*=/i,
+  /data:\s*text\/html/i,
+  /vbscript:/i,
+  /expression\s*\(/i,
+  /url\s*\(\s*['"]?\s*javascript/i,
+  /eval\s*\(/i,
+  /document\.(cookie|domain|write)/i,
+  /window\.(location|open)/i,
+  /\.constructor\s*\(/i,
+  /fromCharCode/i,
+  /innerHTML/i,
+  /outerHTML/i,
+  /insertAdjacentHTML/i,
+];
+
+const SQL_INJECTION_PATTERNS = [
+  /('\s*(OR|AND)\s+')/i,
+  /(UNION\s+SELECT)/i,
+  /(DROP\s+TABLE)/i,
+  /(INSERT\s+INTO)/i,
+  /(DELETE\s+FROM)/i,
+  /(UPDATE\s+\w+\s+SET)/i,
+  /(;\s*(DROP|DELETE|INSERT|UPDATE|ALTER|CREATE))/i,
+  /(--\s*$)/m,
+  /(\/\*[\s\S]*?\*\/)/,
+  /(\bEXEC\b|\bEXECUTE\b)\s/i,
+  /(xp_cmdshell|sp_executesql)/i,
+];
+
+const PATH_TRAVERSAL_PATTERNS = [
+  /\.\.[\/\\]/,
+  /%2e%2e[%2f%5c]/i,
+  /\.\.%2f/i,
+  /%2e%2e\//i,
+  /\.\.\\/,
+  /\.\.%5c/i,
+];
+
+const COMMAND_INJECTION_PATTERNS = [
+  /[;&|`$](?![\s]*$)/,
+  /\$\(.*\)/,
+  /`[^`]*`/,
+];
+
+function sanitizeValue(value: unknown): unknown {
+  if (typeof value === "string") {
+    return value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#x27;")
+      .replace(/\//g, "&#x2F;");
+  }
+  if (Array.isArray(value)) {
+    return value.map(sanitizeValue);
+  }
+  if (value && typeof value === "object") {
+    return sanitizeObject(value as Record<string, unknown>);
+  }
+  return value;
+}
+
+function sanitizeObject(obj: Record<string, unknown>): Record<string, unknown> {
+  const cleaned: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(obj)) {
+    const cleanKey = key.replace(/[<>"'&]/g, "");
+    cleaned[cleanKey] = sanitizeValue(val);
+  }
+  return cleaned;
+}
+
+function detectThreatInValue(value: unknown, path: string): string | null {
+  if (typeof value === "string") {
+    for (const p of MALICIOUS_PATTERNS) {
+      if (p.test(value)) return `XSS detecte dans ${path}: ${p.source}`;
+    }
+    for (const p of SQL_INJECTION_PATTERNS) {
+      if (p.test(value)) return `Injection SQL detectee dans ${path}: ${p.source}`;
+    }
+    for (const p of PATH_TRAVERSAL_PATTERNS) {
+      if (p.test(value)) return `Traversee de chemin detectee dans ${path}`;
+    }
+    for (const p of COMMAND_INJECTION_PATTERNS) {
+      if (p.test(value)) return `Injection de commande detectee dans ${path}`;
+    }
+  }
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+      const t = detectThreatInValue(value[i], `${path}[${i}]`);
+      if (t) return t;
+    }
+  }
+  if (value && typeof value === "object") {
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      const t = detectThreatInValue(v, `${path}.${k}`);
+      if (t) return t;
+    }
+  }
+  return null;
+}
+
+const ipBlacklist = new Map<string, { count: number; until: number; permanent: boolean }>();
+const ipRequestLog = new Map<string, number[]>();
+
+const THREAT_THRESHOLD = 5;
+const BAN_DURATION_MS = 30 * 60 * 1000;
+const PERMANENT_BAN_THRESHOLD = 15;
+const BURST_WINDOW_MS = 1000;
+const BURST_MAX_REQUESTS = 300;
+
+function getClientIp(req: Request): string {
+  return req.ip || req.socket?.remoteAddress || "unknown";
+}
+
+function isIpBlacklisted(ip: string): boolean {
+  const entry = ipBlacklist.get(ip);
+  if (!entry) return false;
+  if (entry.permanent) return true;
+  if (Date.now() < entry.until) return true;
+  ipBlacklist.delete(ip);
+  return false;
+}
+
+function recordThreat(ip: string, reason: string, req: Request): void {
+  const entry = ipBlacklist.get(ip) || { count: 0, until: 0, permanent: false };
+  entry.count++;
+  if (entry.count >= PERMANENT_BAN_THRESHOLD) {
+    entry.permanent = true;
+    entry.until = Infinity;
+  } else if (entry.count >= THREAT_THRESHOLD) {
+    entry.until = Date.now() + BAN_DURATION_MS * Math.min(entry.count - THREAT_THRESHOLD + 1, 10);
+  }
+  ipBlacklist.set(ip, entry);
+
+  const userId = req.session?.userId || null;
+  const severity = entry.count >= THREAT_THRESHOLD ? "critical" as const : "warning" as const;
+
+  logger.warn({
+    security: true,
+    event: "threat_detected",
+    ip,
+    reason,
+    threatCount: entry.count,
+    banned: entry.count >= THREAT_THRESHOLD,
+    permanent: entry.permanent,
+    method: req.method,
+    url: req.originalUrl,
+    userAgent: req.headers["user-agent"],
+    userId,
+  }, `[SECURITE] Menace detectee: ${reason}`);
+
+  logSecurityEvent(
+    "threat_detected",
+    ip,
+    userId,
+    `${reason} (${req.method} ${req.originalUrl}) [tentative #${entry.count}]`,
+    severity,
+  );
+}
+
+function checkBurstRate(ip: string): boolean {
+  const now = Date.now();
+  const timestamps = ipRequestLog.get(ip) || [];
+  const recent = timestamps.filter(t => now - t < BURST_WINDOW_MS);
+  recent.push(now);
+  ipRequestLog.set(ip, recent.slice(-100));
+  return recent.length > BURST_MAX_REQUESTS;
+}
+
+export function ipProtection(req: Request, res: Response, next: NextFunction): void {
+  const ip = getClientIp(req);
+
+  if (isIpBlacklisted(ip)) {
+    logger.warn({ security: true, ip, event: "blocked_request" },
+      "[SECURITE] Requete bloquee - IP sur liste noire");
+    res.status(403).json({ error: "Acces refuse. Votre adresse IP a ete bloquee pour activite suspecte." });
+    return;
+  }
+
+  if (checkBurstRate(ip)) {
+    res.status(429).json({ error: "Trop de requetes simultanees detectees." });
+    return;
+  }
+
+  next();
+}
+
+export function threatDetection(req: Request, res: Response, next: NextFunction): void {
+  const ip = getClientIp(req);
+
+  // Bypass cible pour les endpoints d'analyse de securite : ils RECOIVENT par
+  // nature des URLs (avec & ; | dans les query strings) et du contenu base64 a
+  // inspecter, ce que les patterns d'injection signaleraient a tort. Ces
+  // handlers ne font qu'analyser ces chaines (jamais d'execution shell). On
+  // limite au POST + chemin exact pour ne pas elargir la surface.
+  // Comparaison sur le chemin EXACT (sans query string) pour ne pas elargir
+  // le bypass a de futures routes partageant le meme prefixe.
+  const exactPath = (req.originalUrl.split("?")[0] || "").replace(/\/+$/, "") || "/";
+  const SCAN_BYPASS_PATHS = new Set([
+    "/security/scan-url",
+    "/api/security/scan-url",
+    "/security/scan-document",
+    "/api/security/scan-document",
+    "/security/scan-text",
+    "/api/security/scan-text",
+    "/web-search",
+    "/api/web-search",
+  ]);
+  if (req.method === "POST" && (SCAN_BYPASS_PATHS.has(req.path) || SCAN_BYPASS_PATHS.has(exactPath))) {
+    return next();
+  }
+
+  // Bypass pour les webhooks vocaux Twilio (secretaire telephonique IA): la
+  // signature Twilio est verifiee dans le handler, et la transcription vocale
+  // (SpeechResult) peut contenir des chaines anodines que les patterns
+  // d'injection signaleraient a tort. Scope au POST + prefixe exact.
+  if (
+    req.method === "POST" &&
+    (req.path.startsWith("/voice/twilio/") || req.originalUrl.startsWith("/api/voice/twilio/"))
+  ) {
+    return next();
+  }
+
+  if (req.body && typeof req.body === "object") {
+    const threat = detectThreatInValue(req.body, "body");
+    if (threat) {
+      recordThreat(ip, threat, req);
+      res.status(400).json({
+        error: "Contenu potentiellement dangereux detecte. La requete a ete bloquee.",
+        code: "THREAT_DETECTED",
+      });
+      return;
+    }
+  }
+
+  if (req.query) {
+    const threat = detectThreatInValue(req.query, "query");
+    if (threat) {
+      recordThreat(ip, threat, req);
+      res.status(400).json({
+        error: "Parametre potentiellement dangereux detecte.",
+        code: "THREAT_DETECTED",
+      });
+      return;
+    }
+  }
+
+  if (req.params) {
+    const threat = detectThreatInValue(req.params, "params");
+    if (threat) {
+      recordThreat(ip, threat, req);
+      res.status(400).json({
+        error: "Parametre de chemin potentiellement dangereux detecte.",
+        code: "THREAT_DETECTED",
+      });
+      return;
+    }
+  }
+
+  const url = req.originalUrl || req.url;
+  for (const p of PATH_TRAVERSAL_PATTERNS) {
+    if (p.test(url)) {
+      recordThreat(ip, "Traversee de chemin dans URL", req);
+      res.status(400).json({ error: "URL invalide detectee." });
+      return;
+    }
+  }
+
+  const urlPath = url.split("?")[0];
+  for (const p of COMMAND_INJECTION_PATTERNS) {
+    if (p.test(urlPath)) {
+      recordThreat(ip, "Injection de commande dans URL", req);
+      res.status(400).json({ error: "URL invalide detectee." });
+      return;
+    }
+  }
+
+  next();
+}
+
+export function csrfProtection(req: Request, res: Response, next: NextFunction): void {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+    return next();
+  }
+
+  // Bypass for telephony webhooks: they are authenticated via signature/HMAC
+  // (Twilio x-twilio-signature, Vonage/Telnyx shared secret) and never include Origin/Referer.
+  if (req.path.startsWith("/telephony/webhook/") || req.originalUrl.startsWith("/api/telephony/webhook/")) {
+    return next();
+  }
+
+  // Bypass pour le webhook WhatsApp (Twilio) : signature Twilio verifiee
+  // dans le handler, pas d'Origin envoye par Twilio. On limite au chemin
+  // exact + methode POST pour ne pas elargir la surface a de futurs sous-
+  // chemins par accident.
+  if (
+    req.method === "POST" &&
+    (req.path === "/whatsapp/twilio/inbound" || req.originalUrl === "/api/whatsapp/twilio/inbound")
+  ) {
+    return next();
+  }
+
+  // Bypass pour les webhooks vocaux Twilio (secretaire telephonique IA):
+  // signature Twilio verifiee dans le handler, pas d'Origin envoye par Twilio.
+  if (
+    req.method === "POST" &&
+    (req.path.startsWith("/voice/twilio/") || req.originalUrl.startsWith("/api/voice/twilio/"))
+  ) {
+    return next();
+  }
+
+  // CSRF bypass for local development. Previously this was a bare
+  // `NODE_ENV !== "production"` check, which silently disabled CSRF on any
+  // preview/staging environment that forgot to set NODE_ENV=production.
+  // Now we require an explicit opt-in flag (DISABLE_CSRF_DEV=1) AND
+  // NODE_ENV !== "production" — fail-closed by default everywhere else.
+  if (process.env.NODE_ENV !== "production" && process.env.DISABLE_CSRF_DEV === "1") {
+    return next();
+  }
+
+  const origin = req.headers.origin;
+  const referer = req.headers.referer;
+  const host = req.headers.host;
+
+  if (!origin && !referer) {
+    const ip = getClientIp(req);
+    logger.warn({
+      security: true,
+      event: "csrf_no_origin",
+      method: req.method,
+      url: req.originalUrl,
+      ip,
+    }, "[SECURITE] Requete sans origin/referer bloquee");
+    logSecurityEvent("csrf_blocked", ip, req.session?.userId || null,
+      `Requete sans origin/referer (${req.method} ${req.originalUrl})`, "warning");
+    res.status(403).json({ error: "Requete non autorisee - origine manquante." });
+    return;
+  }
+
+  // Resolution multi-source identique a app.ts pour rester coherent en
+  // deploiement Replit ou un admin n'aurait configure que REPLIT_DOMAINS
+  // ou PUBLIC_URL (pas de ALLOWED_ORIGINS explicite). Sinon on rejetterait
+  // les requetes legitimes du SPA hebergé sur le meme domaine.
+  const allowedOrigins: string[] = [];
+  if (process.env.ALLOWED_ORIGINS) {
+    process.env.ALLOWED_ORIGINS.split(",").map(o => o.trim()).filter(Boolean).forEach(o => allowedOrigins.push(o));
+  }
+  if (process.env.REPLIT_DOMAINS) {
+    process.env.REPLIT_DOMAINS.split(",").map(d => d.trim()).filter(Boolean).forEach(d => {
+      allowedOrigins.push(d.startsWith("http") ? d : `https://${d}`);
+    });
+  }
+  for (const envName of ["PUBLIC_URL", "APP_URL", "REPLIT_DEPLOYMENT_URL"] as const) {
+    const v = process.env[envName];
+    if (v) {
+      try { allowedOrigins.push(new URL(v).origin); } catch { /* ignore */ }
+    }
+  }
+  // Expo (mobile preview) sert depuis un sous-domaine distinct
+  // (`...expo.spock.replit.dev`). Sans cette entree, le POST /api/auth/login
+  // depuis l'app mobile est bloque par la verif CSRF (403 "non autorise"),
+  // alors que CORS le laisse passer. Doit rester aligne avec la resolution
+  // dans app.ts.
+  const expoDom = process.env.REPLIT_EXPO_DEV_DOMAIN;
+  if (expoDom && expoDom.trim() !== "") {
+    allowedOrigins.push(expoDom.startsWith("http") ? expoDom : `https://${expoDom}`);
+  }
+  if (process.env.REPLIT_DOMAINS) {
+    process.env.REPLIT_DOMAINS.split(",").map(d => d.trim()).filter(Boolean).forEach(d => {
+      const expoVariant = d
+        .replace(/\.spock\.replit\.dev$/, ".expo.spock.replit.dev")
+        .replace(/^([^.]+)\.replit\.dev$/, "$1.expo.replit.dev");
+      if (expoVariant !== d) allowedOrigins.push(`https://${expoVariant}`);
+    });
+  }
+
+  const requestOrigin = origin || (referer ? new URL(referer).origin : "");
+
+  if (host && requestOrigin) {
+    try {
+      const originHost = new URL(requestOrigin).host;
+      if (originHost === host || allowedOrigins.some(ao => {
+        try { return new URL(ao).host === originHost; } catch { return false; }
+      })) {
+        return next();
+      }
+    } catch { /* invalid URL - fall through to reject */ }
+  }
+
+  const ip = getClientIp(req);
+  logger.warn({
+    security: true,
+    event: "csrf_origin_mismatch",
+    origin: requestOrigin,
+    host,
+    method: req.method,
+    url: req.originalUrl,
+    ip,
+  }, "[SECURITE] Origine CSRF non correspondante");
+  logSecurityEvent("csrf_blocked", ip, req.session?.userId || null,
+    `Origine CSRF invalide: ${requestOrigin} (${req.method} ${req.originalUrl})`, "warning");
+  res.status(403).json({ error: "Requete non autorisee - origine invalide." });
+}
+
+const DANGEROUS_FILE_SIGNATURES: Array<{ name: string; magic: Buffer; offset?: number }> = [
+  { name: "EXE/DLL (MZ)", magic: Buffer.from([0x4D, 0x5A]) },
+  { name: "ELF executable", magic: Buffer.from([0x7F, 0x45, 0x4C, 0x46]) },
+  { name: "Java class", magic: Buffer.from([0xCA, 0xFE, 0xBA, 0xBE]) },
+  { name: "Mach-O binary", magic: Buffer.from([0xFE, 0xED, 0xFA, 0xCE]) },
+  { name: "Mach-O 64-bit", magic: Buffer.from([0xFE, 0xED, 0xFA, 0xCF]) },
+  { name: "COM executable", magic: Buffer.from([0xE9]) },
+  { name: "Windows Script", magic: Buffer.from("WScript") },
+  { name: "PowerShell", magic: Buffer.from("powershell") },
+  { name: "Batch script", magic: Buffer.from("@echo") },
+  { name: "Shell script", magic: Buffer.from("#!/") },
+  { name: "VBS script", magic: Buffer.from("CreateObject") },
+  { name: "PHP script", magic: Buffer.from("<?php") },
+  { name: "RAR archive (may contain malware)", magic: Buffer.from([0x52, 0x61, 0x72, 0x21]) },
+];
+
+const DANGEROUS_EXTENSIONS = new Set([
+  ".exe", ".dll", ".bat", ".cmd", ".com", ".scr", ".pif", ".vbs", ".vbe",
+  ".js", ".jse", ".wsf", ".wsh", ".ps1", ".psm1", ".msi", ".msp",
+  ".hta", ".cpl", ".inf", ".reg", ".rgs", ".sct", ".shb", ".sys",
+  ".lnk", ".jar", ".class", ".sh", ".bash", ".php", ".py", ".rb",
+  ".pl", ".cgi", ".asp", ".aspx", ".jsp", ".war", ".ear",
+]);
+
+const EICAR_SIGNATURE = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*";
+
+const MALWARE_TEXT_PATTERNS = [
+  /WScript\.Shell/i,
+  /ActiveXObject/i,
+  /Shell\.Application/i,
+  /Scripting\.FileSystemObject/i,
+  /cmd\.exe/i,
+  /powershell\s*-/i,
+  /\bInvoke-Expression\b/i,
+  /\bInvoke-WebRequest\b/i,
+  /\bDownloadFile\b/i,
+  /\bDownloadString\b/i,
+  /\bStart-Process\b/i,
+  /\bNet\.WebClient\b/i,
+  /base64_decode\s*\(/i,
+  /system\s*\(\s*["']/i,
+  /exec\s*\(\s*["']/i,
+  /passthru\s*\(/i,
+  /shell_exec\s*\(/i,
+  /proc_open\s*\(/i,
+  /popen\s*\(/i,
+  /\bcurl\s+-o\b/i,
+  /\bwget\s+/i,
+  /chmod\s+[0-7]{3,4}\b/i,
+  /\/etc\/passwd/i,
+  /\/etc\/shadow/i,
+  /\brm\s+-rf\b/i,
+  /\bmkfifo\b/i,
+  /\bnc\s+-[elp]/i,
+  /\bnetcat\b/i,
+  /\breverse\s*shell\b/i,
+];
+
+export interface ScanResult {
+  safe: boolean;
+  threats: string[];
+  fileType: string | null;
+  sha256: string;
+  size: number;
+  scannedAt: string;
+  /** Moteur ayant produit le verdict (ex: "Heuristique", "VirusTotal"). */
+  engine?: string;
+  /** Note lisible du moteur antivirus externe, le cas echeant. */
+  engineDetail?: string;
+  /**
+   * Origine d'un verdict VirusTotal: "lookup" (empreinte deja connue, cache de
+   * hash, aucun contenu envoye) vs "upload" (fichier soumis a chaud car
+   * inconnu). Absent si aucun verdict externe.
+   */
+  engineSource?: MalwareVerdictSource;
+  /**
+   * Vrai si une analyse approfondie (soumission a chaud a VirusTotal) a bien
+   * demarre mais n'a pas abouti dans le budget de temps: le verdict final
+   * reste donc heuristique (pas de confirmation cloud fraiche). Permet a l'UI
+   * de le signaler clairement.
+   */
+  deepScanTimedOut?: boolean;
+}
+
+export function scanFileBuffer(buffer: Buffer, filename?: string): ScanResult {
+  const result: ScanResult = {
+    safe: true,
+    threats: [],
+    fileType: null,
+    sha256: crypto.createHash("sha256").update(buffer).digest("hex"),
+    size: buffer.length,
+    scannedAt: new Date().toISOString(),
+  };
+
+  if (buffer.length === 0) {
+    result.threats.push("Fichier vide");
+    result.safe = false;
+    return result;
+  }
+
+  if (buffer.length > 50 * 1024 * 1024) {
+    result.threats.push("Fichier trop volumineux (>50MB)");
+    result.safe = false;
+    return result;
+  }
+
+  if (filename) {
+    const ext = filename.toLowerCase().match(/\.[^.]+$/)?.[0] || "";
+    if (DANGEROUS_EXTENSIONS.has(ext)) {
+      result.threats.push(`Extension de fichier dangereuse: ${ext}`);
+      result.safe = false;
+    }
+  }
+
+  for (const sig of DANGEROUS_FILE_SIGNATURES) {
+    const offset = sig.offset || 0;
+    const slice = buffer.subarray(offset, offset + sig.magic.length);
+    if (slice.equals(sig.magic)) {
+      result.threats.push(`Signature binaire dangereuse detectee: ${sig.name}`);
+      result.fileType = sig.name;
+      result.safe = false;
+    }
+  }
+
+  const textPreview = buffer.subarray(0, Math.min(buffer.length, 8192)).toString("utf-8");
+
+  if (textPreview.includes(EICAR_SIGNATURE)) {
+    result.threats.push("Signature EICAR de test antivirus detectee");
+    result.safe = false;
+  }
+
+  for (const pattern of MALWARE_TEXT_PATTERNS) {
+    if (pattern.test(textPreview)) {
+      result.threats.push(`Motif de code malveillant detecte: ${pattern.source}`);
+      result.safe = false;
+    }
+  }
+
+  const nullBytes = buffer.filter(b => b === 0).length;
+  const nullRatio = nullBytes / buffer.length;
+  if (nullRatio > 0.3 && buffer.length > 100) {
+    const isPdf = buffer.subarray(0, 5).toString() === "%PDF-";
+    const isZip = buffer[0] === 0x50 && buffer[1] === 0x4B;
+    if (!isPdf && !isZip) {
+      result.threats.push("Contenu binaire suspect (ratio d'octets nuls eleve)");
+      result.safe = false;
+    }
+  }
+
+  if (result.safe) {
+    result.fileType = detectSafeFileType(buffer);
+  }
+
+  result.engine = HEURISTIC_ENGINE;
+  return result;
+}
+
+function detectSafeFileType(buffer: Buffer): string {
+  if (buffer[0] === 0xFF && buffer[1] === 0xD8) return "JPEG";
+  if (buffer[0] === 0x89 && buffer.subarray(1, 4).toString() === "PNG") return "PNG";
+  if (buffer.subarray(0, 4).toString() === "%PDF") return "PDF";
+  if (buffer[0] === 0x50 && buffer[1] === 0x4B) return "ZIP/XLSX/DOCX";
+  if (buffer.subarray(0, 4).toString() === "GIF8") return "GIF";
+  if (buffer.subarray(0, 4).toString() === "RIFF") return "WEBP/AVI";
+  return "inconnu";
+}
+
+export function scanBase64Content(base64: string, filename?: string): ScanResult {
+  try {
+    const buffer = Buffer.from(base64, "base64");
+    return scanFileBuffer(buffer, filename);
+  } catch {
+    return {
+      safe: false,
+      threats: ["Encodage base64 invalide"],
+      fileType: null,
+      sha256: "",
+      size: 0,
+      scannedAt: new Date().toISOString(),
+      engine: HEURISTIC_ENGINE,
+    };
+  }
+}
+
+/**
+ * Scan complet d'un fichier: heuristique locale + moteur antivirus reel
+ * (VirusTotal, par empreinte SHA-256) lorsqu'il est configure. Calque le
+ * pattern fail-soft de url-safety.ts: si le moteur externe est absent, en
+ * erreur ou en quota, on degrade gracieusement vers le verdict heuristique.
+ *
+ * Le verdict externe prime: une detection VirusTotal force `safe: false`.
+ * `engine` indique la source ayant determine le verdict final.
+ */
+export interface FullScanOptions {
+  /**
+   * Saute la soumission a chaud (upload) meme si elle est activee. Les flux
+   * ENTRANTS synchrones (webhook WhatsApp) l'utilisent pour repondre vite
+   * (lookup d'empreinte + heuristique uniquement, ~5s) puis relancent la
+   * soumission en arriere-plan. Le lookup d'empreinte reste actif.
+   */
+  skipSubmission?: boolean;
+  /**
+   * Octets max au-dela desquels on n'envoie PAS le contenu a chaud. Le lookup
+   * d'empreinte et l'heuristique restent actifs. Permet aux flux entrants de
+   * borner la taille des fichiers soumis (perf + vie privee).
+   */
+  maxSubmitBytes?: number;
+}
+
+export async function scanBase64ContentFull(
+  base64: string,
+  filename?: string,
+  opts?: FullScanOptions,
+): Promise<ScanResult> {
+  const base = scanBase64Content(base64, filename);
+  // Encodage invalide ou empreinte absente: rien a interroger.
+  if (!base.sha256) return base;
+
+  // 1. Lookup d'empreinte (vie privee: seul le hash est envoye).
+  let verdict = await lookupFileHash(base.sha256);
+  let deepScanTimedOut = false;
+
+  // 2. Si l'empreinte est inconnue de VirusTotal (lookup null) ET que la
+  //    soumission a chaud est activee (opt-in), on envoie le contenu pour
+  //    attraper les menaces zero-day que le hash-lookup rate. Le contenu quitte
+  //    le serveur — d'ou le flag. Reste fail-soft: si la soumission echoue, on
+  //    garde le verdict heuristique.
+  if (!verdict && isMalwareSubmissionEnabled() && !opts?.skipSubmission) {
+    try {
+      const buffer = Buffer.from(base64, "base64");
+      // Garde de taille pour les flux entrants: au-dela du plafond, on ne
+      // bloque pas le traitement avec un gros upload — on garde lookup +
+      // heuristique.
+      if (opts?.maxSubmitBytes !== undefined && buffer.length > opts.maxSubmitBytes) {
+        logger.info(
+          { size: buffer.length, max: opts.maxSubmitBytes },
+          "[security] fichier entrant trop volumineux pour soumission a chaud, lookup + heuristique uniquement",
+        );
+      } else {
+        const diag: SubmitFileDiagnostics = { timedOut: false };
+        verdict = await submitFile(buffer, base.sha256, filename, diag);
+        deepScanTimedOut = diag.timedOut;
+      }
+    } catch {
+      /* fail-soft: le verdict heuristique prime */
+    }
+  }
+
+  // Pas de verdict externe: on garde l'heuristique. Si l'analyse approfondie a
+  // demarre sans aboutir dans le budget, on le signale (verdict heuristique
+  // seul, sans confirmation cloud fraiche).
+  if (!verdict) return deepScanTimedOut ? { ...base, deepScanTimedOut: true } : base;
+
+  if (verdict.verdict === "malicious" || verdict.verdict === "suspicious") {
+    return {
+      ...base,
+      safe: false,
+      threats: base.threats.includes(verdict.detail) ? base.threats : [...base.threats, verdict.detail],
+      engine: VIRUSTOTAL_ENGINE,
+      engineDetail: verdict.detail,
+      engineSource: verdict.source,
+    };
+  }
+
+  // VirusTotal connait l'empreinte (ou vient de l'analyser) et la juge propre.
+  // On conserve le verdict heuristique (qui peut rester dangereux), mais on
+  // attribue la confirmation au moteur externe seulement si l'heuristique ne
+  // signalait rien.
+  return {
+    ...base,
+    engine: base.safe ? VIRUSTOTAL_ENGINE : base.engine,
+    engineDetail: verdict.detail,
+    engineSource: verdict.source,
+  };
+}
+
+/** Verdict d'analyse antivirus persiste sur un enregistrement de document. */
+export interface StoredScanRecord {
+  sha256: string | null;
+  verdict: string | null;
+  engine: string | null;
+  detail: string | null;
+  scannedAt: Date | string | null;
+}
+
+/**
+ * Variante de `scanBase64ContentFull` qui reutilise un verdict deja persiste
+ * pour un fichier inchange (meme empreinte SHA-256, deja juge sain). Evite de
+ * re-interroger le moteur externe (VirusTotal) a chaque relecture du meme
+ * fichier — survit aux redemarrages la ou le cache memoire 30 min ne suffit
+ * pas. On ne reutilise QUE les verdicts surs : tout fichier deja dangereux ou
+ * dont l'empreinte differe est rescanne integralement.
+ */
+export async function scanBase64ContentFullCached(
+  base64: string,
+  filename: string | undefined,
+  stored: StoredScanRecord | null,
+): Promise<{ result: ScanResult; reused: boolean }> {
+  const base = scanBase64Content(base64, filename);
+  if (
+    base.sha256 &&
+    base.safe &&
+    stored &&
+    stored.verdict === "safe" &&
+    stored.sha256 === base.sha256
+  ) {
+    return {
+      result: {
+        ...base,
+        safe: true,
+        engine: stored.engine ?? base.engine,
+        engineDetail: stored.detail ?? undefined,
+        scannedAt: stored.scannedAt
+          ? new Date(stored.scannedAt).toISOString()
+          : base.scannedAt,
+      },
+      reused: true,
+    };
+  }
+  const result = await scanBase64ContentFull(base64, filename);
+  return { result, reused: false };
+}
+
+// Chiffrement au repos des donnees sensibles (secrets d'integration, cles API
+// sortantes, secrets de signature des webhooks). L'implementation canonique et
+// durcie vit dans ./lib/crypto ; reexportee ici pour la compatibilite des
+// imports existants.
+export {
+  encryptSensitiveData,
+  decryptSensitiveData,
+  hashSensitiveData,
+  isEncrypted,
+} from "../lib/crypto";
+
+const securityEvents: Array<{
+  timestamp: string;
+  type: string;
+  ip: string;
+  userId: number | null;
+  details: string;
+  severity: "info" | "warning" | "critical";
+}> = [];
+
+const MAX_SECURITY_EVENTS = 10000;
+
+export function logSecurityEvent(
+  type: string,
+  ip: string,
+  userId: number | null,
+  details: string,
+  severity: "info" | "warning" | "critical" = "warning",
+): void {
+  const event = {
+    timestamp: new Date().toISOString(),
+    type,
+    ip,
+    userId,
+    details,
+    severity,
+  };
+
+  securityEvents.push(event);
+  if (securityEvents.length > MAX_SECURITY_EVENTS) {
+    securityEvents.splice(0, securityEvents.length - MAX_SECURITY_EVENTS);
+  }
+
+  if (severity === "critical") {
+    logger.error({ security: true, ...event }, `[SECURITE CRITIQUE] ${details}`);
+  } else if (severity === "warning") {
+    logger.warn({ security: true, ...event }, `[SECURITE] ${details}`);
+  }
+}
+
+export function getSecurityEvents(limit = 100, severity?: string): typeof securityEvents {
+  let filtered = securityEvents;
+  if (severity) {
+    filtered = filtered.filter(e => e.severity === severity);
+  }
+  return filtered.slice(-limit).reverse();
+}
+
+export function getSecurityStats(): {
+  totalEvents: number;
+  critical: number;
+  warning: number;
+  info: number;
+  blacklistedIps: number;
+  permanentBans: number;
+  last24h: number;
+} {
+  const now = Date.now();
+  const dayAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+  let permanent = 0;
+  ipBlacklist.forEach(v => { if (v.permanent) permanent++; });
+  return {
+    totalEvents: securityEvents.length,
+    critical: securityEvents.filter(e => e.severity === "critical").length,
+    warning: securityEvents.filter(e => e.severity === "warning").length,
+    info: securityEvents.filter(e => e.severity === "info").length,
+    blacklistedIps: ipBlacklist.size,
+    permanentBans: permanent,
+    last24h: securityEvents.filter(e => e.timestamp >= dayAgo).length,
+  };
+}
+
+export function getBlacklistedIps(): Array<{ ip: string; count: number; permanent: boolean; until: string }> {
+  const result: Array<{ ip: string; count: number; permanent: boolean; until: string }> = [];
+  ipBlacklist.forEach((v, ip) => {
+    result.push({
+      ip,
+      count: v.count,
+      permanent: v.permanent,
+      until: v.permanent ? "permanent" : new Date(v.until).toISOString(),
+    });
+  });
+  return result;
+}
+
+export function unblockIp(ip: string): boolean {
+  return ipBlacklist.delete(ip);
+}
+
+setInterval(() => {
+  const now = Date.now();
+  ipRequestLog.forEach((timestamps, ip) => {
+    const recent = timestamps.filter(t => now - t < 60000);
+    if (recent.length === 0) {
+      ipRequestLog.delete(ip);
+    } else {
+      ipRequestLog.set(ip, recent);
+    }
+  });
+}, 60000);

@@ -1,0 +1,619 @@
+import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { router, useFocusEffect } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  AppState,
+  type AppStateStatus,
+  Linking,
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import {
+  getDashboardSummary,
+  listCalls,
+  listTasks,
+  type Call,
+  type DashboardSummary,
+  type Task,
+} from "@workspace/api-client-react";
+
+import { EmptyState } from "@/components/EmptyState";
+import { StatCard } from "@/components/StatCard";
+import { useAuth, API_BASE } from "@/contexts/AuthContext";
+import { useUnreadBadges } from "@/contexts/UnreadBadgesContext";
+import { useCalendarEvents } from "@/contexts/CalendarEventsContext";
+import { useOfflineCache } from "@/hooks/useOfflineCache";
+import { useColors } from "@/hooks/useColors";
+
+type DashboardData = DashboardSummary;
+
+
+interface SecurityVerdict {
+  safe: number;
+  dangerous: number;
+  unscanned: number;
+}
+
+interface ReuseSavings { reusedScanCount: number; reusedScanSavedMs: number; }
+
+// Traduit un total de millisecondes economisees en libelle lisible (minutes au
+// dela de 60 s, sinon secondes). Aligne sur le helper homonyme de l'ecran
+// documents (artifacts/mobile/app/documents.tsx).
+function formatCumulativeSaved(savedMs: number): string {
+  const totalSeconds = savedMs / 1000;
+  if (totalSeconds >= 60) {
+    const minutes = totalSeconds / 60;
+    const rounded = minutes < 10 ? Math.round(minutes * 10) / 10 : Math.round(minutes);
+    return `${rounded.toLocaleString("fr-FR")} min`;
+  }
+  const rounded = totalSeconds < 10 ? Math.round(totalSeconds * 10) / 10 : Math.round(totalSeconds);
+  return `${rounded.toLocaleString("fr-FR")} s`;
+}
+
+export default function DashboardScreen() {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const { user, fetchAuth } = useAuth();
+  const { counts: unreadCounts } = useUnreadBadges();
+  const rappelsUnread = unreadCounts.rappel;
+  const { todayEvents, clearBadge } = useCalendarEvents();
+  const isWeb = Platform.OS === "web";
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [recentCalls, setRecentCalls] = useState<Call[]>([]);
+  const [overdueTasks, setOverdueTasks] = useState<Task[]>([]);
+  const [security, setSecurity] = useState<SecurityVerdict | null>(null);
+  const [reuseSavings, setReuseSavings] = useState<ReuseSavings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const hasLoadedRef = useRef(false);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+
+  const { cached: cachedDashboard, isFromCache, updateCache } = useOfflineCache<DashboardData | null>("dashboard_summary", null);
+  const { cached: cachedCalls, isFromCache: callsFromCache, updateCache: updateCallsCache } = useOfflineCache<Call[]>("dashboard_recent_calls", []);
+  const { cached: cachedOverdue, isFromCache: overdueFromCache, updateCache: updateOverdueCache } = useOfflineCache<Task[]>("dashboard_overdue_tasks", []);
+  const { cached: cachedSecurity, isFromCache: securityFromCache, updateCache: updateSecurityCache } = useOfflineCache<SecurityVerdict | null>("dashboard_security", null);
+  const { cached: cachedReuse, isFromCache: reuseFromCache, updateCache: updateReuseCache } = useOfflineCache<ReuseSavings | null>("dashboard_reuse_savings", null);
+  const { cached: cachedTasksList } = useOfflineCache<Task[]>("tasks_list", []);
+
+  const filterStaleOverdue = useCallback((overdue: Task[], tasksList: Task[]): Task[] => {
+    if (tasksList.length === 0) return overdue;
+    const doneIds = new Set(
+      tasksList
+        .filter((t) => t.status === "termine" || t.status === "annule")
+        .map((t) => t.id),
+    );
+    if (doneIds.size === 0) return overdue;
+    return overdue.filter((t) => !doneIds.has(t.id));
+  }, []);
+
+  const fetchDashboard = useCallback(async (silent = false) => {
+    try {
+      const [summary, callsData, tasksData, securityRes] = await Promise.all([
+        getDashboardSummary(),
+        listCalls({ limit: 5, sortOrder: "desc" }).catch(() => null),
+        listTasks({ status: "en_attente", sortOrder: "asc", limit: 5 }).catch(() => null),
+        fetchAuth(`${API_BASE}/api/documents/stats/overview`).catch(() => null),
+      ]);
+      {
+        const d: DashboardData = summary;
+        setData(d);
+        updateCache(d);
+      }
+      if (callsData) {
+        const calls = callsData.calls?.slice(0, 5) ?? [];
+        setRecentCalls(calls);
+        updateCallsCache(calls);
+      }
+      if (tasksData) {
+        const now = new Date();
+        const overdue = tasksData.tasks
+          .filter((t) => t.dueDate && new Date(t.dueDate) < now && t.status !== "termine")
+          .slice(0, 3);
+        setOverdueTasks(overdue);
+        updateOverdueCache(overdue);
+      }
+      if (securityRes?.ok) {
+        const secData = await securityRes.json();
+        const verdict = secData.byScanVerdict ?? null;
+        const savings = secData.reuseSavings ?? null;
+        setSecurity(verdict);
+        setReuseSavings(savings);
+        updateSecurityCache(verdict);
+        updateReuseCache(savings);
+      }
+      setLastRefresh(new Date());
+    } catch {
+      if (!silent) {
+        if (cachedDashboard && !data) setData(cachedDashboard);
+        if (callsFromCache && recentCalls.length === 0) setRecentCalls(cachedCalls);
+        if (overdueFromCache && overdueTasks.length === 0) setOverdueTasks(filterStaleOverdue(cachedOverdue, cachedTasksList));
+        if (securityFromCache && !security) setSecurity(cachedSecurity);
+        if (reuseFromCache && !reuseSavings) setReuseSavings(cachedReuse);
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [fetchAuth, cachedDashboard, data, updateCache, cachedCalls, callsFromCache, recentCalls.length, updateCallsCache, cachedOverdue, overdueFromCache, overdueTasks.length, updateOverdueCache, cachedSecurity, securityFromCache, security, updateSecurityCache, cachedReuse, reuseFromCache, reuseSavings, updateReuseCache, cachedTasksList, filterStaleOverdue]);
+
+  useEffect(() => {
+    if (isFromCache && cachedDashboard && !data) setData(cachedDashboard);
+  }, [isFromCache, cachedDashboard, data]);
+
+  useEffect(() => {
+    if (callsFromCache && cachedCalls.length > 0 && recentCalls.length === 0) setRecentCalls(cachedCalls);
+  }, [callsFromCache, cachedCalls, recentCalls.length]);
+
+  useEffect(() => {
+    if (overdueFromCache && cachedOverdue.length > 0 && overdueTasks.length === 0) {
+      setOverdueTasks(filterStaleOverdue(cachedOverdue, cachedTasksList));
+    }
+  }, [overdueFromCache, cachedOverdue, overdueTasks.length, cachedTasksList, filterStaleOverdue]);
+
+  useEffect(() => {
+    if (securityFromCache && cachedSecurity && !security) setSecurity(cachedSecurity);
+  }, [securityFromCache, cachedSecurity, security]);
+
+  useEffect(() => {
+    if (reuseFromCache && cachedReuse && !reuseSavings) setReuseSavings(cachedReuse);
+  }, [reuseFromCache, cachedReuse, reuseSavings]);
+
+  // Rafraichissement intelligent: au lieu d'un polling fixe toutes les 60 s
+  // (qui consomme batterie/data meme quand l'ecran n'est pas regarde), on
+  // recharge uniquement quand l'ecran reprend le focus (changement d'onglet)
+  // et quand l'app revient au premier plan (AppState 'active'). Le pull-to-
+  // refresh manuel reste disponible.
+  useFocusEffect(
+    useCallback(() => {
+      // Premier focus: chargement initial (avec spinner). Focus suivants:
+      // rafraichissement silencieux car `loading` est deja false.
+      fetchDashboard(hasLoadedRef.current);
+      hasLoadedRef.current = true;
+      // Clear the calendar badge: users who view today's events on the home
+      // dashboard should not see the badge persist just because they never
+      // tapped through to the full Calendar screen.
+      clearBadge();
+    }, [fetchDashboard, clearBadge]),
+  );
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (next: AppStateStatus) => {
+      const prev = appStateRef.current;
+      appStateRef.current = next;
+      if (next === "active" && (prev === "background" || prev === "inactive")) {
+        fetchDashboard(true);
+      }
+    });
+    const interval = setInterval(() => {
+      if (AppState.currentState === "active") fetchDashboard(true);
+    }, 5 * 60 * 1000);
+    return () => {
+      sub.remove();
+      clearInterval(interval);
+    };
+  }, [fetchDashboard]);
+
+  function onRefresh() { setRefreshing(true); fetchDashboard(); }
+
+  function quickNav(route: string) {
+    if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push(route as any);
+  }
+
+  function formatTime(dateStr: string) {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - d.getTime();
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}min`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
+    return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  }
+
+  function formatEventTime(dateStr: string) {
+    return new Date(dateStr).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function formatLastRefresh() {
+    if (!lastRefresh) return "";
+    const diff = Date.now() - lastRefresh.getTime();
+    if (diff < 60000) return "maintenant";
+    return `${Math.floor(diff / 60000)} min`;
+  }
+
+  const STATUS_COLORS: Record<string, string> = {
+    answered: "#22c55e", missed: "#ef4444", voicemail: "#f59e0b", outgoing: "#3b82f6",
+  };
+
+  const now = new Date();
+  const dayName = now.toLocaleDateString("fr-FR", { weekday: "long" });
+  const dateStr = now.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+  const greeting = user ? `Bonjour, ${user.prenom}` : "Tableau de bord";
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { backgroundColor: colors.secondary, paddingTop: (isWeb ? 67 : insets.top) + 12 }]}>
+        <View style={styles.headerRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.greeting}>{greeting}</Text>
+            <View style={styles.subtitleRow}>
+              <Text style={styles.headerSubtitle}>
+                {dayName.charAt(0).toUpperCase() + dayName.slice(1)}, {dateStr}
+              </Text>
+              {lastRefresh && !isFromCache && (
+                <View style={styles.refreshBadge}>
+                  <View style={styles.refreshDot} />
+                  <Text style={styles.refreshText}>{formatLastRefresh()}</Text>
+                </View>
+              )}
+              {isFromCache && (
+                <View style={[styles.refreshBadge, { backgroundColor: "rgba(255,255,255,0.08)" }]}>
+                  <Feather name="wifi-off" size={8} color="rgba(255,255,255,0.4)" />
+                  <Text style={[styles.refreshText, { color: "rgba(255,255,255,0.4)" }]}>Cache</Text>
+                </View>
+              )}
+            </View>
+          </View>
+          <Pressable onPress={() => quickNav("/notifications")} hitSlop={8} style={[styles.notifBtn, { backgroundColor: "rgba(255,255,255,0.12)" }]}>
+            <Feather name="bell" size={18} color="#fff" />
+            {(data?.unreadMessages || 0) > 0 && (
+              <View style={[styles.notifDot, { backgroundColor: colors.destructive }]}>
+                <Text style={styles.notifDotText}>{data!.unreadMessages > 9 ? "9+" : data!.unreadMessages}</Text>
+              </View>
+            )}
+          </Pressable>
+          <Pressable onPress={() => router.push("/settings" as any)} hitSlop={8} style={[styles.avatarCircle, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.avatarText, { color: colors.primaryForeground }]}>
+              {user ? (user.prenom[0] + user.nom[0]).toUpperCase() : "AB"}
+            </Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.quickCreateRow}>
+          {[
+            { icon: "phone-call" as const, label: "Appel", route: "/(tabs)/calls", color: "#3b82f6" },
+            { icon: "user-plus" as const, label: "Contact", route: "/(tabs)/contacts", color: "#22c55e" },
+            { icon: "plus-square" as const, label: "Tache", route: "/(tabs)/tasks", color: "#f59e0b" },
+            { icon: "search" as const, label: "Recherche", route: "/recherche", color: "#64748b" },
+          ].map((a) => (
+            <Pressable
+              key={a.label}
+              onPress={() => quickNav(a.route)}
+              hitSlop={6}
+              style={({ pressed }) => [styles.quickCreateBtn, { backgroundColor: a.color + "25", opacity: pressed ? 0.7 : 1 }]}
+            >
+              <Feather name={a.icon} size={16} color={a.color} />
+              <Text style={[styles.quickCreateLabel, { color: "#fff" }]}>{a.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: isWeb ? 118 : 100 }]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+        showsVerticalScrollIndicator={false}
+      >
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : !data ? (
+          <EmptyState icon="bar-chart-2" title="Donnees indisponibles" subtitle="Impossible de charger les statistiques" />
+        ) : (
+          <>
+            {overdueTasks.length > 0 && (
+              <Pressable onPress={() => quickNav("/(tabs)/tasks")} style={[styles.urgentBanner, { backgroundColor: "#ef444415", borderColor: "#ef4444" }]}>
+                <Feather name="alert-triangle" size={18} color="#ef4444" />
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Text style={[styles.urgentTitle, { color: "#ef4444" }]}>
+                      {overdueTasks.length} tache{overdueTasks.length > 1 ? "s" : ""} en retard
+                    </Text>
+                    {overdueFromCache && (
+                      <Feather name="wifi-off" size={10} color="#ef444480" />
+                    )}
+                  </View>
+                  <Text style={[styles.urgentSub, { color: colors.mutedForeground }]} numberOfLines={1}>
+                    {overdueTasks.map((t) => t.title).join(", ")}
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={16} color="#ef4444" />
+              </Pressable>
+            )}
+
+            <View style={styles.statsRow}>
+              <StatCard title="Appels" value={data.totalCalls} icon="phone" color={colors.info ?? "#3b82f6"} badge={unreadCounts.call} />
+              <StatCard title="Manques" value={data.missedCalls} icon="phone-missed" color={colors.destructive} badge={unreadCounts.call} />
+            </View>
+            <View style={styles.statsRow}>
+              <StatCard title="Contacts" value={data.totalContacts} icon="users" color={colors.success ?? "#22c55e"} />
+              <StatCard title="Taches" value={data.pendingTasks} icon="check-square" color={colors.warning ?? "#f59e0b"} subtitle="En attente" badge={unreadCounts.task} />
+            </View>
+            <Pressable style={[styles.statsRow, { flex: undefined }]} onPress={() => quickNav("/(tabs)/tasks")}>
+              <StatCard title="Aujourd'hui" value={data.todayTasks} icon="calendar" color="#0ea5e9" subtitle="Echeance du jour" />
+            </Pressable>
+            <Pressable style={[styles.statsRow, { flex: undefined }]} onPress={() => quickNav("/projets")}>
+              <StatCard title="Projets" value={data.projetsActifs} icon="folder" color="#6366f1" subtitle="En cours" />
+              <StatCard title="En retard" value={data.projetsEnRetard} icon="alert-circle" color={data.projetsEnRetard > 0 ? colors.destructive : colors.mutedForeground} subtitle="Projets" />
+            </Pressable>
+
+            {reuseSavings && reuseSavings.reusedScanCount > 0 && (
+              <View style={[styles.reuseBanner, { backgroundColor: colors.card, borderColor: "#0ea5e940" }]}>
+                <Feather name="zap" size={15} color="#0ea5e9" />
+                <Text style={[styles.reuseBannerText, { color: colors.foreground }]}>
+                  Vous avez gagné ~<Text style={styles.reuseBannerStrong}>{formatCumulativeSaved(reuseSavings.reusedScanSavedMs)}</Text>{" "}
+                  grâce à {reuseSavings.reusedScanCount} analyse{reuseSavings.reusedScanCount > 1 ? "s" : ""} réutilisée{reuseSavings.reusedScanCount > 1 ? "s" : ""}.
+                </Text>
+              </View>
+            )}
+
+            {security && (security.safe + security.dangerous + security.unscanned) > 0 && (
+              <View
+                style={[
+                  styles.securityCard,
+                  { backgroundColor: colors.card, borderColor: security.dangerous > 0 ? "#ef4444" : colors.border },
+                ]}
+              >
+                <View style={styles.securityHeader}>
+                  <View style={styles.securityTitleRow}>
+                    <Feather name="shield" size={16} color={security.dangerous > 0 ? "#ef4444" : colors.mutedForeground} />
+                    <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>Securite des documents</Text>
+                  </View>
+                  <Pressable onPress={() => quickNav("/documents")}>
+                    <Text style={[styles.seeAll, { color: colors.primary }]}>Voir</Text>
+                  </Pressable>
+                </View>
+                <View style={styles.securityRow}>
+                  {([
+                    { key: "safe", label: "Verifies", count: security.safe, icon: "shield" as const, color: "#10b981" },
+                    { key: "dangerous", label: "Menaces", count: security.dangerous, icon: "alert-triangle" as const, color: "#ef4444" },
+                    { key: "none", label: "Non analyses", count: security.unscanned, icon: "help-circle" as const, color: "#64748b" },
+                  ]).map((item) => (
+                    <Pressable
+                      key={item.key}
+                      onPress={() => quickNav(`/documents?scan=${item.key}`)}
+                      style={({ pressed }) => [
+                        styles.securityItem,
+                        { backgroundColor: colors.background, borderColor: colors.border },
+                        pressed && { opacity: 0.7, transform: [{ scale: 0.96 }] },
+                      ]}
+                    >
+                      <Feather name={item.icon} size={16} color={item.color} />
+                      <Text style={[styles.securityCount, { color: item.color }]}>{item.count}</Text>
+                      <Text style={[styles.securityLabel, { color: colors.mutedForeground }]}>{item.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            <View style={[styles.performanceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Performance</Text>
+              <View style={styles.perfRow}>
+                <View style={styles.perfItem}>
+                  <Text style={[styles.perfValue, { color: colors.primary }]}>{data.answeredRate}%</Text>
+                  <Text style={[styles.perfLabel, { color: colors.mutedForeground }]}>Taux reponse</Text>
+                </View>
+                <View style={[styles.perfDivider, { backgroundColor: colors.border }]} />
+                <View style={styles.perfItem}>
+                  <Text style={[styles.perfValue, { color: colors.primary }]}>
+                    {Math.floor(data.avgCallDuration / 60)}m {data.avgCallDuration % 60}s
+                  </Text>
+                  <Text style={[styles.perfLabel, { color: colors.mutedForeground }]}>Duree moy.</Text>
+                </View>
+                <View style={[styles.perfDivider, { backgroundColor: colors.border }]} />
+                <View style={styles.perfItem}>
+                  <Text style={[styles.perfValue, { color: colors.primary }]}>{data.todayCalls}</Text>
+                  <Text style={[styles.perfLabel, { color: colors.mutedForeground }]}>Appels/jour</Text>
+                </View>
+              </View>
+            </View>
+
+            {todayEvents.length > 0 && (
+              <>
+                <View style={styles.sectionHeader}>
+                  <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>Agenda du jour</Text>
+                  <Pressable onPress={() => quickNav("/calendar")}>
+                    <Text style={[styles.seeAll, { color: colors.primary }]}>Voir tout</Text>
+                  </Pressable>
+                </View>
+                {todayEvents.slice(0, 3).map((evt) => (
+                  <Pressable
+                    key={evt.id}
+                    onPress={() => quickNav("/calendar")}
+                    style={[styles.eventItem, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  >
+                    <View style={[styles.eventTime, { backgroundColor: colors.primary + "15" }]}>
+                      <Text style={[styles.eventTimeText, { color: colors.primary }]}>
+                        {formatEventTime(evt.startDate)}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.eventTitle, { color: colors.foreground }]} numberOfLines={1}>{evt.title}</Text>
+                      <Text style={[styles.eventType, { color: colors.mutedForeground }]}>{evt.type || "Evenement"}</Text>
+                    </View>
+                    <Feather name="chevron-right" size={14} color={colors.mutedForeground} />
+                  </Pressable>
+                ))}
+              </>
+            )}
+
+            {recentCalls.length > 0 && (
+              <>
+                <View style={[styles.sectionHeader, { marginTop: todayEvents.length > 0 ? 8 : 0 }]}>
+                  <Text style={[styles.sectionTitle, { color: colors.foreground, marginBottom: 0 }]}>Appels recents</Text>
+                  <Pressable onPress={() => quickNav("/(tabs)/calls")}>
+                    <Text style={[styles.seeAll, { color: colors.primary }]}>Voir tout</Text>
+                  </Pressable>
+                </View>
+                {recentCalls.map((call) => (
+                  <View key={call.id} style={[styles.recentItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <View style={[styles.recentIcon, { backgroundColor: (STATUS_COLORS[call.status] || "#64748b") + "18" }]}>
+                      <Feather
+                        name={call.status === "manque" ? "phone-missed" : call.direction === "sortant" ? "phone-outgoing" : "phone-incoming"}
+                        size={16}
+                        color={STATUS_COLORS[call.status] || "#64748b"}
+                      />
+                    </View>
+                    <Pressable onPress={() => quickNav("/(tabs)/calls")} style={styles.recentContent}>
+                      <Text style={[styles.recentName, { color: colors.foreground }]} numberOfLines={1}>
+                        {call.contactName || call.phoneNumber}
+                      </Text>
+                      <Text style={[styles.recentSub, { color: colors.mutedForeground }]}>
+                        {call.direction === "entrant" ? "Entrant" : "Sortant"}
+                      </Text>
+                    </Pressable>
+                    {call.status === "manque" && call.phoneNumber && (
+                      <Pressable
+                        onPress={() => {
+                          if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                          Linking.openURL(`tel:${call.phoneNumber}`);
+                        }}
+                        hitSlop={10}
+                        style={[styles.callbackBtn, { backgroundColor: "#22c55e20" }]}
+                      >
+                        <Feather name="phone-call" size={16} color="#15803d" />
+                      </Pressable>
+                    )}
+                    <Text style={[styles.recentTime, { color: colors.mutedForeground }]}>{formatTime(call.createdAt)}</Text>
+                  </View>
+                ))}
+              </>
+            )}
+
+            <Text style={[styles.sectionTitle, { color: colors.foreground, marginTop: 8 }]}>Acces rapide</Text>
+            <View style={styles.quickGrid}>
+              {[
+                { icon: "camera" as const, label: "Capture IA", route: "/smart-capture", color: "#0d9488" },
+                { icon: "message-square" as const, label: "Messages", route: "/messages", color: "#8b5cf6", badge: unreadCounts.message },
+                { icon: "bell" as const, label: "Rappels", route: "/rappels", color: "#ef4444", badge: rappelsUnread },
+                { icon: "calendar" as const, label: "Calendrier", route: "/calendar", color: "#ec4899" },
+                { icon: "bar-chart-2" as const, label: "Analytique", route: "/analytics", color: "#f59e0b" },
+                { icon: "clock" as const, label: "Pointage", route: "/checkins", color: "#14b8a6" },
+                { icon: "users" as const, label: "Reunion IA", route: "/meetings", color: "#8b5cf6" },
+                { icon: "cpu" as const, label: "Agents IA", route: "/ai-agents", color: "#6366f1" },
+              ].map((qa) => (
+                <Pressable
+                  key={qa.label}
+                  onPress={() => quickNav(qa.route)}
+                  style={({ pressed }) => [
+                    styles.quickCard,
+                    { backgroundColor: colors.card, borderColor: colors.border },
+                    pressed && { opacity: 0.7, transform: [{ scale: 0.96 }] },
+                  ]}
+                >
+                  <View style={[styles.quickIcon, { backgroundColor: qa.color + "18" }]}>
+                    <Feather name={qa.icon} size={20} color={qa.color} />
+                  </View>
+                  {qa.badge && qa.badge > 0 ? (
+                    <View style={[styles.quickBadge, { backgroundColor: colors.destructive }]}>
+                      <Text style={styles.quickBadgeText}>{qa.badge > 99 ? "99+" : qa.badge}</Text>
+                    </View>
+                  ) : null}
+                  <Text style={[styles.quickLabel, { color: colors.foreground }]}>{qa.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Pressable onPress={() => quickNav("/ai-chat")} style={[styles.infoCard, { backgroundColor: colors.secondary }]}>
+              <Feather name="message-circle" size={20} color={colors.primary} />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoTitle}>Assistant IA</Text>
+                <Text style={styles.infoSubtitle}>Chat intelligent pour votre activite</Text>
+              </View>
+              <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.5)" />
+            </Pressable>
+
+            <Pressable onPress={() => quickNav("/meetings")} style={[styles.infoCard, { backgroundColor: "#8b5cf615", borderWidth: 1, borderColor: "#8b5cf630", marginTop: 8 }]}>
+              <Feather name="video" size={20} color="#8b5cf6" />
+              <View style={styles.infoContent}>
+                <Text style={[styles.infoTitle, { color: "#8b5cf6" }]}>Reunion IA</Text>
+                <Text style={[styles.infoSubtitle, { color: "rgba(139,92,246,0.7)" }]}>Compiler · GPS chantier · Taches auto</Text>
+              </View>
+              <Feather name="chevron-right" size={16} color="#8b5cf6" />
+            </Pressable>
+          </>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  header: { paddingHorizontal: 20, paddingBottom: 16 },
+  headerRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  greeting: { fontSize: 20, fontFamily: "Inter_700Bold", color: "#ffffff" },
+  subtitleRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 2 },
+  headerSubtitle: { fontSize: 13, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.6)" },
+  refreshBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(34,197,94,0.15)", paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8 },
+  refreshDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: "#22c55e" },
+  refreshText: { fontSize: 10, fontFamily: "Inter_500Medium", color: "#22c55e" },
+  notifBtn: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", position: "relative" },
+  notifDot: { position: "absolute", top: 2, right: 2, minWidth: 16, height: 16, borderRadius: 8, alignItems: "center", justifyContent: "center", paddingHorizontal: 3 },
+  notifDotText: { color: "#fff", fontSize: 9, fontFamily: "Inter_700Bold" },
+  avatarCircle: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center" },
+  avatarText: { fontSize: 13, fontFamily: "Inter_700Bold" },
+  quickCreateRow: { flexDirection: "row", gap: 8, marginTop: 14 },
+  quickCreateBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: 10 },
+  quickCreateLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  scrollView: { flex: 1 },
+  scrollContent: { padding: 16 },
+  loadingContainer: { paddingVertical: 60, alignItems: "center" },
+  urgentBanner: { flexDirection: "row", alignItems: "center", padding: 14, borderRadius: 12, borderWidth: 1, marginBottom: 14 },
+  urgentTitle: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  urgentSub: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
+  statsRow: { flexDirection: "row", gap: 12, marginBottom: 12 },
+  performanceCard: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 16 },
+  reuseBanner: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1, marginBottom: 16 },
+  reuseBannerText: { flex: 1, fontSize: 12, fontFamily: "Inter_400Regular", lineHeight: 17 },
+  reuseBannerStrong: { fontFamily: "Inter_700Bold" },
+  securityCard: { padding: 16, borderRadius: 12, borderWidth: 1, marginBottom: 16 },
+  securityHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  securityTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  securityRow: { flexDirection: "row", gap: 10 },
+  securityItem: { flex: 1, alignItems: "center", gap: 4, paddingVertical: 12, borderRadius: 10, borderWidth: 1 },
+  securityCount: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  securityLabel: { fontSize: 10, fontFamily: "Inter_400Regular", textAlign: "center" },
+  sectionTitle: { fontSize: 15, fontFamily: "Inter_600SemiBold", marginBottom: 10 },
+  perfRow: { flexDirection: "row", alignItems: "center" },
+  perfItem: { flex: 1, alignItems: "center" },
+  perfValue: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  perfLabel: { fontSize: 10, fontFamily: "Inter_400Regular", marginTop: 4, textAlign: "center" },
+  perfDivider: { width: 1, height: 36 },
+  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
+  seeAll: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  eventItem: { flexDirection: "row", alignItems: "center", padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 6, gap: 10 },
+  eventTime: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  eventTimeText: { fontSize: 12, fontFamily: "Inter_700Bold" },
+  eventTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  eventType: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
+  recentItem: { flexDirection: "row", alignItems: "center", padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 6 },
+  recentIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center", marginRight: 10 },
+  recentContent: { flex: 1 },
+  recentName: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  recentSub: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 1 },
+  recentTime: { fontSize: 12, fontFamily: "Inter_400Regular", marginLeft: 8 },
+  callbackBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  quickGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16 },
+  quickCard: { width: "30.5%", paddingVertical: 14, borderRadius: 12, borderWidth: 1, alignItems: "center", position: "relative" },
+  quickIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", marginBottom: 8 },
+  quickLabel: { fontSize: 11, fontFamily: "Inter_500Medium", textAlign: "center" },
+  quickBadge: { position: "absolute", top: 8, right: 8, minWidth: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center", paddingHorizontal: 5 },
+  quickBadgeText: { color: "#fff", fontSize: 10, fontFamily: "Inter_700Bold" },
+  infoCard: { flexDirection: "row", alignItems: "center", padding: 16, borderRadius: 12, gap: 12, marginTop: 4 },
+  infoContent: { flex: 1 },
+  infoTitle: { fontSize: 14, fontFamily: "Inter_600SemiBold", color: "#ffffff" },
+  infoSubtitle: { fontSize: 12, fontFamily: "Inter_400Regular", color: "rgba(255,255,255,0.6)", marginTop: 2 },
+});

@@ -1,0 +1,3 @@
+lib/db/src/schema/stock.ts
+lib/db/src/schema/stripe-webhook-events.ts
+lib/db/src/schema/subscriptions.ts

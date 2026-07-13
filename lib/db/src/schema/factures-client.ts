@@ -1,0 +1,59 @@
+import { pgTable, serial, integer, text, timestamp, numeric, jsonb, boolean, index } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { organisationsTable } from "./organisations";
+import { contactsTable } from "./contacts";
+import { devisTable } from "./devis";
+
+export const facturesClientTable = pgTable("factures_client", {
+  id: serial("id").primaryKey(),
+  organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
+  contactId: integer("contact_id").references(() => contactsTable.id, { onDelete: "set null" }),
+  devisId: integer("devis_id").references(() => devisTable.id, { onDelete: "set null" }),
+  reference: text("reference").notNull(),
+  title: text("title").notNull(),
+  clientName: text("client_name").notNull(),
+  clientEmail: text("client_email"),
+  clientPhone: text("client_phone"),
+  clientAddress: text("client_address"),
+  clientCompany: text("client_company"),
+  items: jsonb("items").$type<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    taxRate: number;
+    total: number;
+  }[]>().default([]),
+  subtotal: numeric("subtotal", { precision: 12, scale: 2 }).notNull().default("0"),
+  taxAmount: numeric("tax_amount", { precision: 12, scale: 2 }).notNull().default("0"),
+  totalAmount: numeric("total_amount", { precision: 12, scale: 2 }).notNull().default("0"),
+  paidAmount: numeric("paid_amount", { precision: 12, scale: 2 }).notNull().default("0"),
+  currency: text("currency").notNull().default("EUR"),
+  // Autoliquidation de TVA (sous-traitance BTP) : si vrai, la trésorerie
+  // encaisse le HT (subtotal) et non le TTC (totalAmount). Pilier risque.
+  isAutoliquidation: boolean("is_autoliquidation").notNull().default(false),
+  status: text("status").notNull().default("brouillon"),
+  dueDate: timestamp("due_date", { withTimezone: true }),
+  paidAt: timestamp("paid_at", { withTimezone: true }),
+  paymentMethod: text("payment_method"),
+  notes: text("notes"),
+  conditions: text("conditions"),
+  reminderCount: integer("reminder_count").notNull().default(0),
+  lastReminderAt: timestamp("last_reminder_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+}, (table) => [
+  index("factures_client_org_id_idx").on(table.organisationId),
+  index("factures_client_status_idx").on(table.status),
+  index("factures_client_contact_id_idx").on(table.contactId),
+  // Accent-insensitive trigram search index used by the Commandant chat
+  // retriever and smart search. Requires `pg_trgm` + `unaccent` and the
+  // IMMUTABLE `f_unaccent()` wrapper (see lib/db/scripts/ensure-search-extensions.sql).
+  index("factures_client_search_trgm_idx").using(
+    "gin",
+    sql`f_unaccent(${table.reference}) gin_trgm_ops`,
+    sql`f_unaccent(${table.clientName}) gin_trgm_ops`,
+  ),
+]);
+
+export type FactureClient = typeof facturesClientTable.$inferSelect;
+export type InsertFactureClient = typeof facturesClientTable.$inferInsert;

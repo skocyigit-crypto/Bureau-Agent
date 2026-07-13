@@ -1,0 +1,55 @@
+/**
+ * BTP Operasyonel Risk ve Maliyet İstihbarat Motoru
+ * Bu fonksiyon, şantiyedeki gidişatı analiz eder ve kar topu etkisini engeller.
+ */
+function analyzeChantierRisk(chantier, tasks, factures, vehicule) {
+    const alerts = [];
+    
+    // 1. Kârlılık ve Bütçe Tüketim Hızı Analizi (Vitesse de Consommation)
+    const budgetBurnRate = chantier.budget_consumed / chantier.budget_allocated;
+    const workProgress = chantier.progress_percentage / 100;
+    
+    if (budgetBurnRate > workProgress) {
+        const deviation = ((budgetBurnRate - workProgress) * 100).toFixed(1);
+        alerts.push({
+            type: "CRITICAL_BUDGET_OVERRUN",
+            message: `Risk! Bütçe tüketimi ilerleme hızını geçti. Sapma: %${deviation}. Önlem alın.`
+        });
+    }
+
+    // 2. İşçilik ve Zaman Hırsızlığı Analizi (Rentabilité Main d'Œuvre)
+    tasks.forEach(task => {
+        if (task.status === 'En cours' && task.actual_hours > task.estimated_hours) {
+            const lossHours = task.actual_hours - task.estimated_hours;
+            alerts.push({
+                type: "LABOR_EFFICIENCY_ALERT",
+                message: `Görev [${task.title}] tahmin edilen süreyi ${lossHours} saat aştı. Saha verimliliği düşüyor.`
+            });
+        }
+    });
+
+    // 3. Filo Erken Uyarı Entegrasyonu (Mercedes Atego / Sprinter)
+    if (vehicule && vehicule.current_mileage >= (vehicule.next_service_mileage - 500)) {
+        alerts.push({
+            type: "MAINTENANCE_REQUIRED",
+            message: `Araç [${vehicule.plate_number} - ${vehicule.model}] bakıma 500 km'den az kaldı. Şantiye lojistiği aksamaması için servis randevusu açın.`
+        });
+    }
+
+    // 4. Fransa Finansal Tahsilat Riski (Trésorerie)
+    const bugun = new Date();
+    factures.forEach(facture => {
+        if (facture.status !== 'Payé' && new Date(facture.due_date) < bugun) {
+            alerts.push({
+                type: "CASH_FLOW_DELAY",
+                message: `Fatura [${facture.invoice_number}] vadesi geçti! Nakit akışı (Trésorerie) riski. Chorus Pro durumunu kontrol edin.`
+            });
+        }
+    });
+
+    return {
+        chantierId: chantier.id,
+        status: alerts.length > 0 ? "⚠️ Dikkat Gerekli" : "✅ Sorunsuz",
+        generatedAlerts: alerts
+    };
+}

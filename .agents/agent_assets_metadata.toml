@@ -1,0 +1,121 @@
+uploads = []
+
+[[generated]]
+id = "rpsa-m4fCggFZjJRoLqO2"
+uri = "file://artifacts/tanitim/src/assets/images/hero-dashboard.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "YGYd1gg8S_U08ojCoo1PA"
+uri = "file://artifacts/tanitim/src/assets/images/feature-calls.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "njPotCOI7jPp4WqdzqRj4"
+uri = "file://artifacts/tanitim/src/assets/images/feature-dashboard.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "jevQ8obYJxzJIp8GTzOVR"
+uri = "file://artifacts/tanitim/src/assets/images/office-manager.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "tcpT5VGVLIMYan89vet08"
+uri = "file://artifacts/tanitim/src/assets/images/testimonial-1.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "CYqhGZ_Ur5ZJ2ma8sCa5_"
+uri = "file://artifacts/tanitim/src/assets/images/testimonial-2.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Dnxtrj0eKthihDXLl-3Xz"
+uri = "file://artifacts/tanitim/src/assets/images/testimonial-3.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "tOigPsQXGz_z-O2o2VgiU"
+uri = "file://artifacts/buro-ajani/src/assets/images/office-team.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "GkQlCeDDSsv3avtUwtVbR"
+uri = "file://artifacts/buro-ajani/src/assets/images/reception-desk.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "ThcvtKAY6FvsaFZ1dKa4x"
+uri = "file://artifacts/buro-ajani/src/assets/images/analytics-work.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "cXVhj1XF6SjoCfM-QIlYx"
+uri = "file://artifacts/buro-ajani/src/assets/images/call-center.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "kqm36MoALXQz18qcSF7dO"
+uri = "file://artifacts/buro-ajani/src/assets/images/security-server.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "ZGEVp4__0Dwe1fwmBuCt9"
+uri = "file://artifacts/buro-ajani/src/assets/images/task-management.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "skmkZB37lWNlEq1g30cdv"
+uri = "file://artifacts/buro-ajani/src/assets/images/messaging-center.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "0qedU6WNcvpYn-x40jptZ"
+uri = "file://artifacts/buro-ajani/src/assets/images/stock-warehouse.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "C5sS1HFL5PiQt7YU53Mas"
+uri = "file://artifacts/buro-ajani/src/assets/images/ai-technology.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "mQfu3fUEtzh6As-K3_x3i"
+uri = "file://artifacts/mobile/assets/images/icon.png"
+type = "image"
+title = "generated_image"
+
+[[outputs]]
+id = "q4voXhallPfh5No4ZeSq9"
+uri = "file://KULLANIM_KILAVUZU.md"
+type = "text"
+title = "Agent de Bureau - Kullanım Kılavuzu"
+
+[[outputs]]
+id = "pQ6nnaV8vj0SCW2xFcMBm"
+uri = "file://Agent_de_Bureau_Kullanma_Kilavuzu.md"
+type = "text"
+title = "Agent de Bureau - Kullanma Kılavuzu"
+
+[[outputs]]
+id = "jODqFRUNeHvHuzGGqIxqP"
+uri = "file://guides/Connexion-Google-Workspace.pdf"
+type = "pdf"
+title = "Guide PDF — Connexion Google Workspace (Gmail, Agenda, Drive)"

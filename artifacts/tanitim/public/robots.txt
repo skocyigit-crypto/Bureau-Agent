@@ -1,0 +1,30 @@
+# Agent de Bureau — site vitrine public
+# Tous les bots autorises sur le contenu marketing.
+
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# IA scrapers de masse: opt-out par defaut (consent commercial requis).
+User-agent: GPTBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: PerplexityBot
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+Sitemap: https://agentdebureau.fr/sitemap.xml

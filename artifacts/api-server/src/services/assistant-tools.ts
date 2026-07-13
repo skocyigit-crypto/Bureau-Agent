@@ -1,0 +1,1678 @@
+import { db } from "@workspace/db";
+import {
+  contactsTable, tasksTable, prospectsTable, calendarEventsTable,
+  callsTable, messagesTable, facturesClientTable, projetsTable,
+} from "@workspace/db/schema";
+import { eq, and, desc, gte, lte, sql, ilike, or } from "drizzle-orm";
+import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
+import { prepareQuery, rankByRelevance } from "../helpers/relevance";
+import { scoreContact, scoreTask, scoreEvent, scoreCall, scoreProject } from "../helpers/tool-scorers";
+import { sendEmail } from "./email";
+import { sendSms as providerSendSms } from "./telephony-providers";
+import { generateImage } from "@workspace/integrations-gemini-ai/image";
+import { buildExcelBase64, buildWordBase64, buildPdfBase64, buildPptxBase64 } from "./document-export";
+import { ingestDocument } from "./document-ingest";
+import { searchKnowledge } from "./knowledge-base";
+import { computeFreeSlots } from "./availability";
+import { createOffer, sendOfferMessage, resolveContactForOffer, offerLink } from "./appointment-offers";
+import { logAudit } from "../routes/audit";
+import { logger } from "../lib/logger";
+
+export interface ToolContext {
+  orgId: number;
+  userId: number;
+}
+
+export type FieldSpec =
+  | { kind: "string"; required?: boolean; min?: number; max?: number; enum?: readonly string[]; email?: boolean }
+  | { kind: "number"; required?: boolean; min?: number; max?: number; integer?: boolean }
+  | { kind: "boolean"; required?: boolean }
+  | { kind: "iso-date"; required?: boolean };
+
+export interface ToolDef<TArgs = Record<string, unknown>> {
+  name: string;
+  description: string;
+  parameters: {
+    type: "object";
+    properties: Record<string, { type: string; description?: string }>;
+    required?: string[];
+  };
+  /** Field-by-field validation spec used at execution time. */
+  fields: Record<string, FieldSpec>;
+  /** If true, the engine MUST NOT call execute() directly — it must emit a
+   *  pending_action event and wait for an explicit user approve/reject. */
+  requiresConfirmation?: boolean;
+  /** Short human-readable summary of what running this tool will do. */
+  summarize?: (args: TArgs) => string;
+  execute: (args: TArgs, ctx: ToolContext) => Promise<unknown>;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/;
+
+export function validateArgs(
+  fields: Record<string, FieldSpec>,
+  raw: unknown,
+): { ok: true; data: Record<string, unknown> } | { ok: false; error: string } {
+  if (raw == null || typeof raw !== "object") return { ok: false, error: "arguments doivent etre un objet" };
+  const input = raw as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const [key, spec] of Object.entries(fields)) {
+    const v = input[key];
+    if (v == null || v === "") {
+      if (spec.required) return { ok: false, error: `${key} est obligatoire` };
+      continue;
+    }
+    if (spec.kind === "string") {
+      if (typeof v !== "string") return { ok: false, error: `${key} doit etre une chaine` };
+      if (spec.min != null && v.length < spec.min) return { ok: false, error: `${key} trop court (min ${spec.min})` };
+      if (spec.max != null && v.length > spec.max) return { ok: false, error: `${key} trop long (max ${spec.max})` };
+      if (spec.email && !EMAIL_RE.test(v)) return { ok: false, error: `${key} doit etre un e-mail valide` };
+      if (spec.enum && !spec.enum.includes(v)) return { ok: false, error: `${key} doit etre l'une de: ${spec.enum.join(", ")}` };
+      out[key] = v;
+    } else if (spec.kind === "number") {
+      const n = typeof v === "number" ? v : Number(v);
+      if (!Number.isFinite(n)) return { ok: false, error: `${key} doit etre un nombre` };
+      if (spec.integer && !Number.isInteger(n)) return { ok: false, error: `${key} doit etre un entier` };
+      if (spec.min != null && n < spec.min) return { ok: false, error: `${key} doit etre >= ${spec.min}` };
+      if (spec.max != null && n > spec.max) return { ok: false, error: `${key} doit etre <= ${spec.max}` };
+      out[key] = n;
+    } else if (spec.kind === "boolean") {
+      if (typeof v === "boolean") out[key] = v;
+      else if (v === "true") out[key] = true;
+      else if (v === "false") out[key] = false;
+      else return { ok: false, error: `${key} doit etre un booleen` };
+    } else if (spec.kind === "iso-date") {
+      if (typeof v !== "string" || !ISO_DATE_RE.test(v)) return { ok: false, error: `${key} doit etre une date ISO 8601` };
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return { ok: false, error: `${key} date invalide` };
+      out[key] = v;
+    }
+  }
+  return { ok: true, data: out };
+}
+
+const trim = (s: unknown, n = 200): string => {
+  const v = String(s ?? "");
+  return v.length > n ? v.slice(0, n) + "…" : v;
+};
+
+// Field specs (one per tool, defined inline below)
+const F_QUERY_LIMIT: Record<string, FieldSpec> = {
+  query: { kind: "string", max: 200 },
+  limit: { kind: "number", integer: true, min: 1, max: 50 },
+};
+const F_STATUS_LIMIT: Record<string, FieldSpec> = {
+  status: { kind: "string", max: 50 },
+  limit: { kind: "number", integer: true, min: 1, max: 50 },
+};
+const F_STAGE_LIMIT: Record<string, FieldSpec> = {
+  stage: { kind: "string", max: 50 },
+  limit: { kind: "number", integer: true, min: 1, max: 50 },
+};
+const F_LIMIT_ONLY: Record<string, FieldSpec> = {
+  limit: { kind: "number", integer: true, min: 1, max: 50 },
+};
+const F_DATE_RANGE: Record<string, FieldSpec> = {
+  start: { kind: "iso-date" },
+  end: { kind: "iso-date" },
+};
+
+// Tool registry — strongly typed
+const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
+  {
+    name: "get_current_datetime",
+    description: "Retourne la date et l'heure actuelles (Europe/Paris).",
+    parameters: { type: "object", properties: {} },
+    fields: {},
+    execute: async () => ({
+      iso: new Date().toISOString(),
+      humanFr: new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" }),
+    }),
+  },
+  {
+    name: "get_dashboard_summary",
+    description: "Resume rapide de l'activite (nb contacts, taches, prospects, factures impayees, appels du jour).",
+    parameters: { type: "object", properties: {} },
+    fields: {},
+    execute: async (_a, { orgId }) => {
+      const [c, t, p, f, calls] = await Promise.all([
+        db.select({ n: sql<number>`count(*)::int` }).from(contactsTable).where(eq(contactsTable.organisationId, orgId)),
+        db.select({ n: sql<number>`count(*)::int` }).from(tasksTable).where(and(eq(tasksTable.organisationId, orgId), eq(tasksTable.status, "en_attente"))),
+        db.select({ n: sql<number>`count(*)::int` }).from(prospectsTable).where(eq(prospectsTable.organisationId, orgId)),
+        db.select({ n: sql<number>`count(*)::int` }).from(facturesClientTable).where(and(eq(facturesClientTable.organisationId, orgId), or(eq(facturesClientTable.status, "envoyee"), eq(facturesClientTable.status, "en_attente"), eq(facturesClientTable.status, "en_retard"))!)),
+        db.select({ n: sql<number>`count(*)::int` }).from(callsTable).where(and(eq(callsTable.organisationId, orgId), gte(callsTable.createdAt, new Date(Date.now() - 24 * 60 * 60 * 1000)))),
+      ]);
+      return {
+        contacts: c[0]?.n ?? 0,
+        tachesEnAttente: t[0]?.n ?? 0,
+        prospects: p[0]?.n ?? 0,
+        facturesImpayees: f[0]?.n ?? 0,
+        appels24h: calls[0]?.n ?? 0,
+      };
+    },
+  },
+  {
+    name: "get_financial_summary",
+    description: "Resume FINANCIER en montants (EUR): total restant a encaisser (factures impayees), montant en retard (echeance depassee), et chiffre encaisse ce mois-ci. Utilise-le quand on demande 'combien on me doit', 'combien en retard', 'le CA/chiffre d'affaires du mois', les impayes en argent (pas seulement le nombre).",
+    parameters: { type: "object", properties: {} },
+    fields: {},
+    execute: async (_a, { orgId }) => {
+      const now = new Date();
+      const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+      const [row] = await db.select({
+        restantAEncaisser: sql<number>`coalesce(sum(${facturesClientTable.totalAmount} - ${facturesClientTable.paidAmount}) filter (where ${facturesClientTable.status} in ('envoyee','en_attente','en_retard')), 0)::float8`,
+        facturesImpayees: sql<number>`count(*) filter (where ${facturesClientTable.status} in ('envoyee','en_attente','en_retard'))::int`,
+        montantEnRetard: sql<number>`coalesce(sum(${facturesClientTable.totalAmount} - ${facturesClientTable.paidAmount}) filter (where ${facturesClientTable.status} in ('envoyee','en_attente','en_retard') and ${facturesClientTable.dueDate} is not null and ${facturesClientTable.dueDate} < now()), 0)::float8`,
+        facturesEnRetard: sql<number>`count(*) filter (where ${facturesClientTable.status} in ('envoyee','en_attente','en_retard') and ${facturesClientTable.dueDate} is not null and ${facturesClientTable.dueDate} < now())::int`,
+        encaisseCeMois: sql<number>`coalesce(sum(${facturesClientTable.paidAmount}) filter (where ${facturesClientTable.paidAt} >= ${monthStart}), 0)::float8`,
+        facturesPayeesCeMois: sql<number>`count(*) filter (where ${facturesClientTable.paidAt} >= ${monthStart})::int`,
+      }).from(facturesClientTable).where(eq(facturesClientTable.organisationId, orgId));
+      const round2 = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
+      return {
+        devise: "EUR",
+        restantAEncaisser: round2(row?.restantAEncaisser ?? 0),
+        facturesImpayees: row?.facturesImpayees ?? 0,
+        montantEnRetard: round2(row?.montantEnRetard ?? 0),
+        facturesEnRetard: row?.facturesEnRetard ?? 0,
+        encaisseCeMois: round2(row?.encaisseCeMois ?? 0),
+        facturesPayeesCeMois: row?.facturesPayeesCeMois ?? 0,
+      };
+    },
+  },
+  // ---------- CONTACTS ----------
+  {
+    name: "list_contacts",
+    description: "Liste les contacts. Optionnellement filtrer par recherche (nom, prenom, entreprise, email, telephone).",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Texte a rechercher (optionnel)" },
+        limit: { type: "integer", description: "Max 50, defaut 20" },
+      },
+    },
+    fields: F_QUERY_LIMIT,
+    execute: async (a, { orgId }) => {
+      const limit = a.limit ?? 20;
+      const conds = [eq(contactsTable.organisationId, orgId)];
+      if (a.query) {
+        const q = `%${a.query}%`;
+        const useUnaccent = await ensureUnaccentExtension();
+        conds.push(or(
+          accentInsensitiveIlike(contactsTable.firstName, q, useUnaccent),
+          accentInsensitiveIlike(contactsTable.lastName, q, useUnaccent),
+          accentInsensitiveIlike(contactsTable.company, q, useUnaccent),
+          accentInsensitiveIlike(contactsTable.email, q, useUnaccent),
+          accentInsensitiveIlike(contactsTable.phone, q, useUnaccent),
+        )!);
+      }
+      const rows = await db.select({
+        id: contactsTable.id,
+        firstName: contactsTable.firstName,
+        lastName: contactsTable.lastName,
+        company: contactsTable.company,
+        email: contactsTable.email,
+        phone: contactsTable.phone,
+      }).from(contactsTable).where(and(...conds)).orderBy(desc(contactsTable.createdAt)).limit(limit);
+      return { count: rows.length, contacts: rows };
+    },
+  },
+  {
+    name: "find_contact",
+    description:
+      "Recherche un contact par nom, prenom, entreprise, e-mail ou telephone et retourne une liste " +
+      "classee des meilleures correspondances avec leur id. Lecture seule. A utiliser pour resoudre " +
+      "le nom prononce par l'utilisateur (ex: « le numero d'Ali Yilmaz ») en id avant d'appeler update_contact. " +
+      "Retourne plusieurs candidats si ambigu — demande confirmation a l'utilisateur avant de modifier.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Nom, prenom, entreprise, e-mail ou telephone a rechercher" },
+        limit: { type: "integer", description: "Nombre max de correspondances (1-20, defaut 5)" },
+      },
+      required: ["query"],
+    },
+    fields: {
+      query: { kind: "string", required: true, min: 1, max: 200 },
+      limit: { kind: "number", integer: true, min: 1, max: 20 },
+    },
+    execute: async (a, { orgId }) => {
+      const query = String(a.query).trim();
+      const limit = Math.min((a.limit as number) ?? 5, 20);
+      const useUnaccent = await ensureUnaccentExtension();
+      const like = `%${query}%`;
+      const rows = await db.select({
+        id: contactsTable.id,
+        firstName: contactsTable.firstName,
+        lastName: contactsTable.lastName,
+        company: contactsTable.company,
+        email: contactsTable.email,
+        phone: contactsTable.phone,
+        createdAt: contactsTable.createdAt,
+      }).from(contactsTable).where(and(
+        eq(contactsTable.organisationId, orgId),
+        or(
+          accentInsensitiveIlike(contactsTable.firstName, like, useUnaccent),
+          accentInsensitiveIlike(contactsTable.lastName, like, useUnaccent),
+          accentInsensitiveIlike(contactsTable.company, like, useUnaccent),
+          accentInsensitiveIlike(contactsTable.email, like, useUnaccent),
+          accentInsensitiveIlike(contactsTable.phone, like, useUnaccent),
+        )!,
+      )).limit(100);
+      const q = prepareQuery(query);
+      const ranked = rankByRelevance(rows, (r) => scoreContact(r, q), { limit }).map(({ row: r, score }) => ({
+        id: r.id,
+        firstName: r.firstName,
+        lastName: r.lastName,
+        company: r.company,
+        email: r.email,
+        phone: r.phone,
+        pertinence: score,
+      }));
+      return { count: ranked.length, contacts: ranked };
+    },
+  },
+  {
+    name: "create_contact",
+    description: "Cree un nouveau contact. firstName/lastName/phone obligatoires.",
+    parameters: {
+      type: "object",
+      properties: {
+        firstName: { type: "string" },
+        lastName: { type: "string" },
+        phone: { type: "string", description: "Format international si possible (+33...)" },
+        email: { type: "string" },
+        company: { type: "string" },
+        category: { type: "string", description: "ex: client, prospect, fournisseur, autre" },
+        notes: { type: "string" },
+      },
+      required: ["firstName", "lastName", "phone"],
+    },
+    fields: {
+      firstName: { kind: "string", required: true, min: 1, max: 120 },
+      lastName: { kind: "string", required: true, min: 1, max: 120 },
+      phone: { kind: "string", required: true, min: 3, max: 40 },
+      email: { kind: "string", email: true, max: 200 },
+      company: { kind: "string", max: 200 },
+      category: { kind: "string", max: 50 },
+      notes: { kind: "string", max: 2000 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Creer le contact ${a.firstName} ${a.lastName} (${a.phone})`,
+    execute: async (a, { orgId, userId }) => {
+      const [row] = await db.insert(contactsTable).values({
+        organisationId: orgId,
+        firstName: a.firstName,
+        lastName: a.lastName,
+        phone: a.phone,
+        email: a.email ?? null,
+        company: a.company ?? null,
+        category: a.category ?? "autre",
+        notes: a.notes ?? null,
+        createdBy: userId,
+      }).returning({ id: contactsTable.id });
+      return { success: true, id: row.id, url: `/contacts/${row.id}` };
+    },
+  },
+  {
+    name: "update_contact",
+    description:
+      "Met a jour un contact existant: prenom, nom, telephone, e-mail, entreprise, categorie ou notes. " +
+      "Fournir l'id du contact et au moins un champ a modifier. Les champs non fournis restent inchanges. " +
+      "Categorie valide: client, prospect, fournisseur, partenaire, autre. NECESSITE UNE CONFIRMATION EXPLICITE.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "integer", description: "ID du contact a modifier" },
+        firstName: { type: "string" },
+        lastName: { type: "string" },
+        phone: { type: "string", description: "Format international si possible (+33...)" },
+        email: { type: "string" },
+        company: { type: "string" },
+        category: { type: "string", description: "client, prospect, fournisseur, partenaire, autre" },
+        notes: { type: "string" },
+      },
+      required: ["id"],
+    },
+    fields: {
+      id: { kind: "number", required: true, integer: true, min: 1 },
+      firstName: { kind: "string", min: 1, max: 120 },
+      lastName: { kind: "string", min: 1, max: 120 },
+      phone: { kind: "string", min: 3, max: 40 },
+      email: { kind: "string", email: true, max: 200 },
+      company: { kind: "string", max: 200 },
+      category: { kind: "string", enum: ["client", "prospect", "fournisseur", "partenaire", "autre"] as const },
+      notes: { kind: "string", max: 2000 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => {
+      const parts: string[] = [];
+      if (a.firstName != null || a.lastName != null) parts.push(`nom → ${[a.firstName, a.lastName].filter(Boolean).join(" ")}`);
+      if (a.phone != null) parts.push(`telephone → ${a.phone}`);
+      if (a.email != null) parts.push(`e-mail → ${a.email}`);
+      if (a.company != null) parts.push(`entreprise → ${trim(a.company, 60)}`);
+      if (a.category != null) parts.push(`categorie → ${a.category}`);
+      if (a.notes != null) parts.push("notes mises a jour");
+      return `Mettre a jour le contact #${a.id}${parts.length ? ` (${parts.join(", ")})` : ""}`;
+    },
+    execute: async (a, { orgId, userId }) => {
+      const updates: Record<string, unknown> = { updatedBy: userId };
+      if (a.firstName != null) updates.firstName = a.firstName;
+      if (a.lastName != null) updates.lastName = a.lastName;
+      if (a.phone != null) updates.phone = a.phone;
+      if (a.email != null) updates.email = a.email;
+      if (a.company != null) updates.company = a.company;
+      if (a.category != null) updates.category = a.category;
+      if (a.notes != null) updates.notes = a.notes;
+      if (Object.keys(updates).length <= 1) {
+        return { success: false, error: "Aucune modification fournie (prenom, nom, telephone, e-mail, entreprise, categorie ou notes)." };
+      }
+      const [row] = await db.update(contactsTable).set(updates)
+        .where(and(eq(contactsTable.id, a.id), eq(contactsTable.organisationId, orgId)))
+        .returning({ id: contactsTable.id, firstName: contactsTable.firstName, lastName: contactsTable.lastName });
+      if (!row) return { success: false, error: "Contact introuvable dans votre organisation." };
+      return { success: true, id: row.id, firstName: row.firstName, lastName: row.lastName, url: `/contacts/${row.id}` };
+    },
+  },
+  // ---------- TASKS ----------
+  {
+    name: "list_tasks",
+    description: "Liste les taches, optionnellement filtrees par statut (en_attente, en_cours, termine, annule).",
+    parameters: {
+      type: "object",
+      properties: {
+        status: { type: "string" },
+        limit: { type: "integer" },
+      },
+    },
+    fields: F_STATUS_LIMIT,
+    execute: async (a, { orgId }) => {
+      const limit = a.limit ?? 20;
+      const conds = [eq(tasksTable.organisationId, orgId)];
+      if (a.status) conds.push(eq(tasksTable.status, a.status));
+      const rows = await db.select({
+        id: tasksTable.id, title: tasksTable.title, status: tasksTable.status,
+        priority: tasksTable.priority, dueDate: tasksTable.dueDate,
+      }).from(tasksTable).where(and(...conds)).orderBy(desc(tasksTable.createdAt)).limit(limit);
+      return { count: rows.length, tasks: rows };
+    },
+  },
+  {
+    name: "find_task",
+    description:
+      "Recherche une tache par titre ou description et retourne une liste classee des meilleures " +
+      "correspondances avec leur id. Lecture seule. A utiliser pour resoudre le nom prononce par " +
+      "l'utilisateur (ex: « marque comme terminee la tache de relance de la facture ») en id avant " +
+      "d'appeler update_task. Retourne plusieurs candidats si ambigu — demande confirmation a " +
+      "l'utilisateur avant de modifier.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Mots du titre ou de la description a rechercher" },
+        status: { type: "string", description: "Filtre optionnel: en_attente, en_cours, termine, annule" },
+        limit: { type: "integer", description: "Nombre max de correspondances (1-20, defaut 5)" },
+      },
+      required: ["query"],
+    },
+    fields: {
+      query: { kind: "string", required: true, min: 1, max: 200 },
+      status: { kind: "string", enum: ["en_attente", "en_cours", "termine", "annule"] as const },
+      limit: { kind: "number", integer: true, min: 1, max: 20 },
+    },
+    execute: async (a, { orgId }) => {
+      const query = String(a.query).trim();
+      const limit = Math.min((a.limit as number) ?? 5, 20);
+      const useUnaccent = await ensureUnaccentExtension();
+      const like = `%${query}%`;
+      const conds = [
+        eq(tasksTable.organisationId, orgId),
+        or(
+          accentInsensitiveIlike(tasksTable.title, like, useUnaccent),
+          accentInsensitiveIlike(tasksTable.description, like, useUnaccent),
+        )!,
+      ];
+      if (a.status) conds.push(eq(tasksTable.status, a.status as string));
+      const rows = await db.select({
+        id: tasksTable.id, title: tasksTable.title, description: tasksTable.description,
+        status: tasksTable.status, priority: tasksTable.priority, dueDate: tasksTable.dueDate,
+        createdAt: tasksTable.createdAt,
+      }).from(tasksTable).where(and(...conds)).limit(100);
+      const q = prepareQuery(query);
+      const ranked = rankByRelevance(rows, (r) => scoreTask(r, q), { limit }).map(({ row: r, score }) => ({
+        id: r.id,
+        title: r.title,
+        status: r.status,
+        priority: r.priority,
+        dueDate: r.dueDate,
+        pertinence: score,
+      }));
+      return { count: ranked.length, tasks: ranked };
+    },
+  },
+  {
+    name: "create_task",
+    description: "Cree une nouvelle tache.",
+    parameters: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        description: { type: "string" },
+        dueDate: { type: "string", description: "ISO 8601, optionnel" },
+        priority: { type: "string", description: "basse, moyenne, haute" },
+      },
+      required: ["title"],
+    },
+    fields: {
+      title: { kind: "string", required: true, min: 1, max: 300 },
+      description: { kind: "string", max: 4000 },
+      dueDate: { kind: "iso-date" },
+      priority: { kind: "string", enum: ["basse", "moyenne", "haute"] as const },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Creer la tache "${a.title}"${a.dueDate ? ` (echeance ${a.dueDate})` : ""}`,
+    execute: async (a, { orgId, userId }) => {
+      const due = a.dueDate ? new Date(a.dueDate) : null;
+      if (due && Number.isNaN(due.getTime())) {
+        return { success: false, error: "dueDate invalide (utilisez ISO 8601)." };
+      }
+      const [row] = await db.insert(tasksTable).values({
+        organisationId: orgId,
+        title: a.title,
+        description: a.description ?? null,
+        priority: a.priority ?? "moyenne",
+        dueDate: due,
+        createdBy: userId,
+      }).returning({ id: tasksTable.id });
+      return { success: true, id: row.id, url: `/taches` };
+    },
+  },
+  {
+    name: "update_task",
+    description:
+      "Met a jour une tache existante: statut, priorite, titre, description ou echeance. " +
+      "Statut valide: en_attente, en_cours, termine, annule. Priorite: basse, moyenne, haute. " +
+      "Fournir l'id de la tache et au moins un champ a modifier. NECESSITE UNE CONFIRMATION EXPLICITE.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "integer", description: "ID de la tache a modifier" },
+        status: { type: "string", description: "en_attente, en_cours, termine, annule" },
+        priority: { type: "string", description: "basse, moyenne, haute" },
+        title: { type: "string" },
+        description: { type: "string" },
+        dueDate: { type: "string", description: "ISO 8601, optionnel" },
+      },
+      required: ["id"],
+    },
+    fields: {
+      id: { kind: "number", required: true, integer: true, min: 1 },
+      status: { kind: "string", enum: ["en_attente", "en_cours", "termine", "annule"] as const },
+      priority: { kind: "string", enum: ["basse", "moyenne", "haute"] as const },
+      title: { kind: "string", min: 1, max: 300 },
+      description: { kind: "string", max: 4000 },
+      dueDate: { kind: "iso-date" },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => {
+      const parts: string[] = [];
+      if (a.status) parts.push(`statut → ${a.status}`);
+      if (a.priority) parts.push(`priorite → ${a.priority}`);
+      if (a.title) parts.push(`titre → « ${trim(a.title, 60)} »`);
+      if (a.dueDate) parts.push(`echeance → ${a.dueDate}`);
+      if (a.description != null) parts.push("description mise a jour");
+      return `Mettre a jour la tache #${a.id}${parts.length ? ` (${parts.join(", ")})` : ""}`;
+    },
+    execute: async (a, { orgId, userId }) => {
+      const updates: Record<string, unknown> = { updatedBy: userId };
+      if (a.status != null) updates.status = a.status;
+      if (a.priority != null) updates.priority = a.priority;
+      if (a.title != null) updates.title = a.title;
+      if (a.description != null) updates.description = a.description;
+      if (a.dueDate != null) {
+        const due = new Date(a.dueDate);
+        if (Number.isNaN(due.getTime())) {
+          return { success: false, error: "dueDate invalide (utilisez ISO 8601)." };
+        }
+        updates.dueDate = due;
+      }
+      if (Object.keys(updates).length <= 1) {
+        return { success: false, error: "Aucune modification fournie (statut, priorite, titre, description ou echeance)." };
+      }
+      const [row] = await db.update(tasksTable).set(updates)
+        .where(and(eq(tasksTable.id, a.id), eq(tasksTable.organisationId, orgId)))
+        .returning({ id: tasksTable.id, status: tasksTable.status });
+      if (!row) return { success: false, error: "Tache introuvable dans votre organisation." };
+      return { success: true, id: row.id, status: row.status, url: "/taches" };
+    },
+  },
+  // ---------- PROJETS / CHANTIERS ----------
+  {
+    name: "find_project",
+    description:
+      "Recherche un projet ou chantier par titre, description, nom du client, societe du client ou " +
+      "adresse, et retourne une liste classee des meilleures correspondances avec leur id. Lecture seule. " +
+      "A utiliser pour resoudre le nom prononce par l'utilisateur (ex: « mets a jour le chantier cuisine " +
+      "Dupont ») en id avant d'appeler update_project. Retourne plusieurs candidats si ambigu — demande " +
+      "confirmation a l'utilisateur avant de modifier.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Mots du titre, description, client ou adresse a rechercher" },
+        status: { type: "string", description: "Filtre optionnel: planifie, en_cours, en_pause, termine, annule" },
+        limit: { type: "integer", description: "Nombre max de correspondances (1-20, defaut 5)" },
+      },
+      required: ["query"],
+    },
+    fields: {
+      query: { kind: "string", required: true, min: 1, max: 200 },
+      status: { kind: "string", enum: ["planifie", "en_cours", "en_pause", "termine", "annule"] as const },
+      limit: { kind: "number", integer: true, min: 1, max: 20 },
+    },
+    execute: async (a, { orgId }) => {
+      const query = String(a.query).trim();
+      const limit = Math.min((a.limit as number) ?? 5, 20);
+      const useUnaccent = await ensureUnaccentExtension();
+      const like = `%${query}%`;
+      const conds = [
+        eq(projetsTable.organisationId, orgId),
+        or(
+          accentInsensitiveIlike(projetsTable.title, like, useUnaccent),
+          accentInsensitiveIlike(projetsTable.description, like, useUnaccent),
+          accentInsensitiveIlike(projetsTable.clientName, like, useUnaccent),
+          accentInsensitiveIlike(projetsTable.clientCompany, like, useUnaccent),
+          accentInsensitiveIlike(projetsTable.address, like, useUnaccent),
+        )!,
+      ];
+      if (a.status) conds.push(eq(projetsTable.status, a.status as string));
+      const rows = await db.select({
+        id: projetsTable.id, title: projetsTable.title, description: projetsTable.description,
+        clientName: projetsTable.clientName, clientCompany: projetsTable.clientCompany,
+        address: projetsTable.address, status: projetsTable.status, priority: projetsTable.priority,
+        progress: projetsTable.progress, createdAt: projetsTable.createdAt,
+      }).from(projetsTable).where(and(...conds)).limit(100);
+      const q = prepareQuery(query);
+      const ranked = rankByRelevance(rows, (r) => scoreProject(r, q), { limit }).map(({ row: r, score }) => ({
+        id: r.id,
+        title: r.title,
+        clientName: r.clientName,
+        clientCompany: r.clientCompany,
+        address: r.address,
+        status: r.status,
+        priority: r.priority,
+        progress: r.progress,
+        pertinence: score,
+      }));
+      return { count: ranked.length, projects: ranked };
+    },
+  },
+  {
+    name: "update_project",
+    description:
+      "Met a jour un projet ou chantier existant: statut, priorite, progression, dates ou notes. " +
+      "Statut valide: planifie, en_cours, en_pause, termine, annule. Priorite: basse, moyenne, haute. " +
+      "Progression: entier 0-100. Fournir l'id du projet et au moins un champ a modifier. " +
+      "NECESSITE UNE CONFIRMATION EXPLICITE.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "integer", description: "ID du projet a modifier" },
+        status: { type: "string", description: "planifie, en_cours, en_pause, termine, annule" },
+        priority: { type: "string", description: "basse, moyenne, haute" },
+        progress: { type: "integer", description: "Progression 0-100" },
+        startDate: { type: "string", description: "Date de debut, ISO 8601 (optionnel)" },
+        endDate: { type: "string", description: "Date de fin prevue, ISO 8601 (optionnel)" },
+        notes: { type: "string", description: "Notes du projet (optionnel)" },
+      },
+      required: ["id"],
+    },
+    fields: {
+      id: { kind: "number", required: true, integer: true, min: 1 },
+      status: { kind: "string", enum: ["planifie", "en_cours", "en_pause", "termine", "annule"] as const },
+      priority: { kind: "string", enum: ["basse", "moyenne", "haute"] as const },
+      progress: { kind: "number", integer: true, min: 0, max: 100 },
+      startDate: { kind: "iso-date" },
+      endDate: { kind: "iso-date" },
+      notes: { kind: "string", max: 4000 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => {
+      const parts: string[] = [];
+      if (a.status) parts.push(`statut → ${a.status}`);
+      if (a.priority) parts.push(`priorite → ${a.priority}`);
+      if (a.progress != null) parts.push(`progression → ${a.progress}%`);
+      if (a.startDate) parts.push(`debut → ${a.startDate}`);
+      if (a.endDate) parts.push(`fin → ${a.endDate}`);
+      if (a.notes != null) parts.push("notes mises a jour");
+      return `Mettre a jour le projet #${a.id}${parts.length ? ` (${parts.join(", ")})` : ""}`;
+    },
+    execute: async (a, { orgId }) => {
+      const updates: Record<string, unknown> = { updatedAt: new Date() };
+      if (a.status != null) {
+        updates.status = a.status;
+        if (a.status === "termine") updates.actualEndDate = new Date();
+      }
+      if (a.priority != null) updates.priority = a.priority;
+      if (a.progress != null) updates.progress = Math.min(100, Math.max(0, Number(a.progress)));
+      if (a.notes != null) updates.notes = a.notes;
+      if (a.startDate != null) {
+        const d = new Date(a.startDate);
+        if (Number.isNaN(d.getTime())) return { success: false, error: "startDate invalide (utilisez ISO 8601)." };
+        updates.startDate = d;
+      }
+      if (a.endDate != null) {
+        const d = new Date(a.endDate);
+        if (Number.isNaN(d.getTime())) return { success: false, error: "endDate invalide (utilisez ISO 8601)." };
+        updates.endDate = d;
+      }
+      if (Object.keys(updates).length <= 1) {
+        return { success: false, error: "Aucune modification fournie (statut, priorite, progression, dates ou notes)." };
+      }
+      const [row] = await db.update(projetsTable).set(updates)
+        .where(and(eq(projetsTable.id, a.id), eq(projetsTable.organisationId, orgId)))
+        .returning({ id: projetsTable.id, status: projetsTable.status, progress: projetsTable.progress });
+      if (!row) return { success: false, error: "Projet introuvable dans votre organisation." };
+      return { success: true, id: row.id, status: row.status, progress: row.progress, url: "/projets" };
+    },
+  },
+  // ---------- PROSPECTS ----------
+  {
+    name: "list_prospects",
+    description: "Liste les prospects, optionnellement filtres par etape (nouveau, contact, qualification, proposition, negociation, gagne, perdu).",
+    parameters: {
+      type: "object",
+      properties: { stage: { type: "string" }, limit: { type: "integer" } },
+    },
+    fields: F_STAGE_LIMIT,
+    execute: async (a, { orgId }) => {
+      const limit = a.limit ?? 20;
+      const conds = [eq(prospectsTable.organisationId, orgId)];
+      if (a.stage) conds.push(eq(prospectsTable.stage, a.stage));
+      const rows = await db.select({
+        id: prospectsTable.id, title: prospectsTable.title, company: prospectsTable.company,
+        stage: prospectsTable.stage, value: prospectsTable.value,
+      }).from(prospectsTable).where(and(...conds)).orderBy(desc(prospectsTable.createdAt)).limit(limit);
+      return { count: rows.length, prospects: rows };
+    },
+  },
+  {
+    name: "create_prospect",
+    description: "Cree un nouveau prospect.",
+    parameters: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        company: { type: "string" },
+        contactName: { type: "string" },
+        phone: { type: "string" },
+        email: { type: "string" },
+        value: { type: "number", description: "Montant estime en EUR" },
+        stage: { type: "string", description: "nouveau, contact, qualification, proposition, negociation, gagne, perdu" },
+        notes: { type: "string" },
+      },
+      required: ["title"],
+    },
+    fields: {
+      title: { kind: "string", required: true, min: 1, max: 300 },
+      company: { kind: "string", max: 200 },
+      contactName: { kind: "string", max: 200 },
+      phone: { kind: "string", max: 40 },
+      email: { kind: "string", email: true, max: 200 },
+      value: { kind: "number", min: 0 },
+      stage: { kind: "string", enum: ["nouveau", "contact", "qualification", "proposition", "negociation", "gagne", "perdu"] as const },
+      notes: { kind: "string", max: 4000 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Creer le prospect "${a.title}"${a.company ? ` chez ${a.company}` : ""}${a.value ? ` (${a.value} EUR)` : ""}`,
+    execute: async (a, { orgId }) => {
+      const [row] = await db.insert(prospectsTable).values({
+        organisationId: orgId,
+        title: a.title,
+        company: a.company ?? null,
+        contactName: a.contactName ?? null,
+        phone: a.phone ?? null,
+        email: a.email ?? null,
+        stage: a.stage ?? "nouveau",
+        value: a.value != null ? String(a.value) : null,
+        notes: a.notes ?? null,
+      }).returning({ id: prospectsTable.id });
+      return { success: true, id: row.id, url: "/prospects" };
+    },
+  },
+  {
+    name: "advance_prospect",
+    description:
+      "Fait progresser un prospect existant vers une nouvelle etape du pipeline. " +
+      "Etapes valides (ordre): nouveau, contact, qualification, proposition, negociation, gagne, perdu. " +
+      "Fournir l'id du prospect et l'etape cible. NECESSITE UNE CONFIRMATION EXPLICITE.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "integer", description: "ID du prospect" },
+        stage: { type: "string", description: "nouveau, contact, qualification, proposition, negociation, gagne, perdu" },
+        lostReason: { type: "string", description: "Raison de la perte (si stage = perdu)" },
+      },
+      required: ["id", "stage"],
+    },
+    fields: {
+      id: { kind: "number", required: true, integer: true, min: 1 },
+      stage: { kind: "string", required: true, enum: ["nouveau", "contact", "qualification", "proposition", "negociation", "gagne", "perdu"] as const },
+      lostReason: { kind: "string", max: 1000 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Faire passer le prospect #${a.id} a l'etape « ${a.stage} »${a.stage === "perdu" && a.lostReason ? ` (raison: ${trim(a.lostReason, 60)})` : ""}`,
+    execute: async (a, { orgId }) => {
+      const updates: Record<string, unknown> = { stage: a.stage, updatedAt: new Date() };
+      if (a.stage === "gagne") updates.wonAt = new Date();
+      if (a.stage === "perdu") {
+        updates.lostAt = new Date();
+        if (a.lostReason != null) updates.lostReason = a.lostReason;
+      }
+      const [row] = await db.update(prospectsTable).set(updates)
+        .where(and(eq(prospectsTable.id, a.id), eq(prospectsTable.organisationId, orgId)))
+        .returning({ id: prospectsTable.id, stage: prospectsTable.stage });
+      if (!row) return { success: false, error: "Prospect introuvable dans votre organisation." };
+      return { success: true, id: row.id, stage: row.stage, url: "/prospects" };
+    },
+  },
+  // ---------- CALENDAR ----------
+  {
+    name: "list_calendar_events",
+    description: "Liste les evenements de l'agenda dans une fenetre. start/end en ISO. Defaut: 7 prochains jours.",
+    parameters: {
+      type: "object",
+      properties: { start: { type: "string" }, end: { type: "string" } },
+    },
+    fields: F_DATE_RANGE,
+    execute: async (a, { orgId }) => {
+      const start = a.start ? new Date(a.start) : new Date();
+      const end = a.end ? new Date(a.end) : new Date(Date.now() + 7 * 86400_000);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        return { error: "Dates invalides (utilisez ISO 8601)." };
+      }
+      const rows = await db.select({
+        id: calendarEventsTable.id, title: calendarEventsTable.title,
+        startDate: calendarEventsTable.startDate, endDate: calendarEventsTable.endDate,
+        location: calendarEventsTable.location, type: calendarEventsTable.type,
+      }).from(calendarEventsTable).where(and(
+        eq(calendarEventsTable.organisationId, orgId),
+        gte(calendarEventsTable.startDate, start),
+        lte(calendarEventsTable.startDate, end),
+      )).orderBy(calendarEventsTable.startDate).limit(50);
+      return { count: rows.length, events: rows };
+    },
+  },
+  {
+    name: "find_event",
+    description:
+      "Recherche un evenement de l'agenda (rendez-vous, reunion) par titre, description ou lieu et " +
+      "retourne une liste classee des meilleures correspondances avec leur id. Lecture seule. A utiliser " +
+      "pour resoudre le nom prononce par l'utilisateur (ex: « reporte la reunion de chantier cuisine ») " +
+      "en id avant d'appeler reschedule_calendar_event. Par defaut ne retourne que les evenements a venir " +
+      "(mettre includePast a true pour inclure le passe). Retourne plusieurs candidats si ambigu — demande " +
+      "confirmation a l'utilisateur avant de modifier.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Mots du titre, de la description ou du lieu a rechercher" },
+        includePast: { type: "boolean", description: "Inclure les evenements deja passes (defaut false)" },
+        limit: { type: "integer", description: "Nombre max de correspondances (1-20, defaut 5)" },
+      },
+      required: ["query"],
+    },
+    fields: {
+      query: { kind: "string", required: true, min: 1, max: 200 },
+      includePast: { kind: "boolean" },
+      limit: { kind: "number", integer: true, min: 1, max: 20 },
+    },
+    execute: async (a, { orgId }) => {
+      const query = String(a.query).trim();
+      const limit = Math.min((a.limit as number) ?? 5, 20);
+      const includePast = a.includePast === true;
+      const useUnaccent = await ensureUnaccentExtension();
+      const like = `%${query}%`;
+      const conds = [
+        eq(calendarEventsTable.organisationId, orgId),
+        or(
+          accentInsensitiveIlike(calendarEventsTable.title, like, useUnaccent),
+          accentInsensitiveIlike(calendarEventsTable.description, like, useUnaccent),
+          accentInsensitiveIlike(calendarEventsTable.location, like, useUnaccent),
+        )!,
+      ];
+      if (!includePast) conds.push(gte(calendarEventsTable.startDate, new Date()));
+      const rows = await db.select({
+        id: calendarEventsTable.id, title: calendarEventsTable.title,
+        description: calendarEventsTable.description, location: calendarEventsTable.location,
+        type: calendarEventsTable.type, startDate: calendarEventsTable.startDate,
+        endDate: calendarEventsTable.endDate,
+      }).from(calendarEventsTable).where(and(...conds)).limit(100);
+      const q = prepareQuery(query);
+      const now = Date.now();
+      const ranked = rankByRelevance(rows, (r) => scoreEvent(r, q), {
+        limit,
+        // Soonest upcoming first (smallest absolute distance to now).
+        tiebreak: (a, b) => Math.abs(a.startDate.getTime() - now) - Math.abs(b.startDate.getTime() - now),
+      }).map(({ row: r, score }) => ({
+        id: r.id,
+        title: r.title,
+        location: r.location,
+        type: r.type,
+        startDate: r.startDate,
+        endDate: r.endDate,
+        pertinence: score,
+      }));
+      return { count: ranked.length, events: ranked };
+    },
+  },
+  {
+    name: "create_calendar_event",
+    description: "Cree un evenement dans l'agenda.",
+    parameters: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        startDate: { type: "string", description: "ISO 8601" },
+        endDate: { type: "string", description: "ISO 8601" },
+        description: { type: "string" },
+        location: { type: "string" },
+        type: { type: "string", description: "rendez_vous, reunion, appel, autre" },
+      },
+      required: ["title", "startDate", "endDate"],
+    },
+    fields: {
+      title: { kind: "string", required: true, min: 1, max: 300 },
+      startDate: { kind: "iso-date", required: true },
+      endDate: { kind: "iso-date", required: true },
+      description: { kind: "string", max: 4000 },
+      location: { kind: "string", max: 300 },
+      type: { kind: "string", max: 50 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Creer l'evenement "${a.title}" du ${a.startDate} au ${a.endDate}${a.location ? ` a ${a.location}` : ""}`,
+    execute: async (a, { orgId, userId }) => {
+      const start = new Date(a.startDate);
+      const end = new Date(a.endDate);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        return { success: false, error: "Dates invalides (utilisez ISO 8601)." };
+      }
+      if (end < start) {
+        return { success: false, error: "endDate doit etre apres startDate." };
+      }
+      const [row] = await db.insert(calendarEventsTable).values({
+        organisationId: orgId,
+        title: a.title,
+        description: a.description ?? null,
+        type: a.type ?? "rendez_vous",
+        startDate: start,
+        endDate: end,
+        location: a.location ?? null,
+        createdBy: userId,
+      }).returning({ id: calendarEventsTable.id });
+      return { success: true, id: row.id, url: "/calendrier" };
+    },
+  },
+  {
+    name: "reschedule_calendar_event",
+    description:
+      "Reporte (deplace) un evenement existant de l'agenda a une nouvelle date/heure. " +
+      "Fournir 'startDate' (ISO 8601). 'endDate' est optionnel: si absent, la duree initiale de l'evenement est conservee. " +
+      "NECESSITE UNE CONFIRMATION EXPLICITE.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "integer", description: "ID de l'evenement a deplacer" },
+        startDate: { type: "string", description: "Nouvelle date/heure de debut, ISO 8601" },
+        endDate: { type: "string", description: "Nouvelle date/heure de fin, ISO 8601 (optionnel)" },
+      },
+      required: ["id", "startDate"],
+    },
+    fields: {
+      id: { kind: "number", required: true, integer: true, min: 1 },
+      startDate: { kind: "iso-date", required: true },
+      endDate: { kind: "iso-date" },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Reporter l'evenement #${a.id} au ${a.startDate}${a.endDate ? ` (fin ${a.endDate})` : ""}`,
+    execute: async (a, { orgId, userId }) => {
+      const start = new Date(a.startDate);
+      if (Number.isNaN(start.getTime())) {
+        return { success: false, error: "startDate invalide (utilisez ISO 8601)." };
+      }
+      const [existing] = await db.select({
+        id: calendarEventsTable.id,
+        startDate: calendarEventsTable.startDate,
+        endDate: calendarEventsTable.endDate,
+      }).from(calendarEventsTable)
+        .where(and(eq(calendarEventsTable.id, a.id), eq(calendarEventsTable.organisationId, orgId)));
+      if (!existing) return { success: false, error: "Evenement introuvable dans votre organisation." };
+      let end: Date;
+      if (a.endDate != null) {
+        end = new Date(a.endDate);
+        if (Number.isNaN(end.getTime())) {
+          return { success: false, error: "endDate invalide (utilisez ISO 8601)." };
+        }
+      } else {
+        const origStart = new Date(existing.startDate).getTime();
+        const origEnd = new Date(existing.endDate).getTime();
+        const duration = Number.isFinite(origStart) && Number.isFinite(origEnd) ? Math.max(0, origEnd - origStart) : 0;
+        end = new Date(start.getTime() + duration);
+      }
+      if (end < start) {
+        return { success: false, error: "endDate doit etre apres startDate." };
+      }
+      const [row] = await db.update(calendarEventsTable)
+        .set({ startDate: start, endDate: end, updatedBy: userId })
+        .where(and(eq(calendarEventsTable.id, a.id), eq(calendarEventsTable.organisationId, orgId)))
+        .returning({ id: calendarEventsTable.id, startDate: calendarEventsTable.startDate, endDate: calendarEventsTable.endDate });
+      if (!row) return { success: false, error: "Evenement introuvable dans votre organisation." };
+      return { success: true, id: row.id, startDate: row.startDate, endDate: row.endDate, url: "/calendrier" };
+    },
+  },
+  {
+    name: "propose_appointment_slots",
+    description:
+      "Propose au client 2 a 3 creneaux de rendez-vous REELLEMENT LIBRES (calcules a partir des horaires d'ouverture et de l'agenda) " +
+      "et lui envoie un message (email ou SMS) avec un lien de selection. Le client choisit, le RDV est alors ecrit dans l'agenda. " +
+      "Fournir soit 'contactId' (le client en fiche), soit les coordonnees ('contactName' + 'contactEmail' ou 'contactPhone'). " +
+      "NECESSITE UNE CONFIRMATION EXPLICITE avant envoi.",
+    parameters: {
+      type: "object",
+      properties: {
+        contactId: { type: "integer", description: "ID du contact en fiche (recommande). Pre-remplit nom/email/telephone." },
+        contactName: { type: "string", description: "Nom du client (si pas de contactId)." },
+        contactEmail: { type: "string", description: "Email du client (requis si channel=email et pas de contactId)." },
+        contactPhone: { type: "string", description: "Telephone E.164 du client (requis si channel=sms et pas de contactId)." },
+        reason: { type: "string", description: "Motif du rendez-vous (devient le titre de l'evenement)." },
+        durationMinutes: { type: "integer", description: "Duree du RDV en minutes (defaut: duree par defaut de l'org)." },
+        fromDate: { type: "string", description: "Debut de la fenetre de recherche, ISO 8601 (defaut: maintenant)." },
+        toDate: { type: "string", description: "Fin de la fenetre de recherche, ISO 8601 (defaut: +14 jours)." },
+        channel: { type: "string", description: "Canal d'envoi: email | sms (defaut: email)." },
+        count: { type: "integer", description: "Nombre de creneaux a proposer (2-3, defaut 3)." },
+      },
+      required: [],
+    },
+    fields: {
+      contactId: { kind: "number", integer: true, min: 1 },
+      contactName: { kind: "string", max: 200 },
+      contactEmail: { kind: "string", email: true, max: 255 },
+      contactPhone: { kind: "string", max: 30 },
+      reason: { kind: "string", max: 300 },
+      durationMinutes: { kind: "number", integer: true, min: 5, max: 480 },
+      fromDate: { kind: "iso-date" },
+      toDate: { kind: "iso-date" },
+      channel: { kind: "string", enum: ["email", "sms"] as const },
+      count: { kind: "number", integer: true, min: 1, max: 3 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) =>
+      `Proposer ${a.count ?? 3} creneaux de RDV${a.reason ? ` (${a.reason})` : ""} a ${a.contactName ?? a.contactEmail ?? a.contactPhone ?? `contact #${a.contactId}`} par ${a.channel ?? "email"}`,
+    execute: async (a, { orgId, userId }) => {
+      const channel: "email" | "sms" = a.channel === "sms" ? "sms" : "email";
+      let contactName = a.contactName ?? null;
+      let contactEmail = a.contactEmail ?? null;
+      let contactPhone = a.contactPhone ?? null;
+      let relatedContactId: number | null = null;
+
+      if (a.contactId != null) {
+        const c = await resolveContactForOffer(orgId, a.contactId);
+        if (!c) return { success: false, error: "Contact introuvable dans votre organisation." };
+        relatedContactId = c.id;
+        contactName = contactName || c.name;
+        contactEmail = contactEmail || c.email;
+        contactPhone = contactPhone || c.phone;
+      }
+
+      if (channel === "email" && !contactEmail) {
+        return { success: false, error: "Aucune adresse email pour ce client (requis pour le canal email)." };
+      }
+      if (channel === "sms" && !contactPhone) {
+        return { success: false, error: "Aucun numero de telephone pour ce client (requis pour le canal SMS)." };
+      }
+
+      const now = new Date();
+      let from = a.fromDate ? new Date(a.fromDate) : now;
+      if (Number.isNaN(from.getTime())) from = now;
+      let to = a.toDate ? new Date(a.toDate) : new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+      if (Number.isNaN(to.getTime())) to = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+
+      const count = a.count && a.count >= 1 && a.count <= 3 ? a.count : 3;
+      const slots = await computeFreeSlots({
+        orgId,
+        userId,
+        from,
+        to,
+        durationMinutes: a.durationMinutes,
+        limit: count,
+      });
+      if (slots.length === 0) {
+        return { success: false, error: "Aucun creneau libre trouve dans la periode demandee. Elargissez la fenetre ou ajustez les horaires d'ouverture." };
+      }
+
+      const durationMinutes = a.durationMinutes && a.durationMinutes > 0
+        ? a.durationMinutes
+        : Math.round((new Date(slots[0].end).getTime() - new Date(slots[0].start).getTime()) / 60000);
+
+      const offer = await createOffer({
+        orgId,
+        createdBy: userId,
+        relatedContactId,
+        contactName,
+        contactEmail,
+        contactPhone,
+        reason: a.reason ?? null,
+        durationMinutes,
+        slots,
+        channel,
+      });
+
+      const sent = await sendOfferMessage(offer);
+      if (!sent.success) {
+        return { success: false, error: `Offre creee mais envoi ${channel} echoue: ${sent.error ?? "raison inconnue"}`, offerId: offer.id };
+      }
+
+      return {
+        success: true,
+        offerId: offer.id,
+        proposed: slots.length,
+        channel,
+        link: offerLink(offer.token),
+      };
+    },
+  },
+  // ---------- COMMS (CONFIRMATION REQUIRED) ----------
+  {
+    name: "send_email",
+    description: "Envoie un e-mail. NECESSITE UNE CONFIRMATION EXPLICITE de l'utilisateur avant execution.",
+    parameters: {
+      type: "object",
+      properties: {
+        to: { type: "string", description: "Adresse e-mail destinataire" },
+        subject: { type: "string" },
+        body: { type: "string", description: "Corps du message (texte ou HTML simple)" },
+      },
+      required: ["to", "subject", "body"],
+    },
+    fields: {
+      to: { kind: "string", required: true, email: true, max: 200 },
+      subject: { kind: "string", required: true, min: 1, max: 300 },
+      body: { kind: "string", required: true, min: 1, max: 20000 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Envoyer un e-mail à ${a.to} — sujet: « ${trim(a.subject, 80)} »`,
+    execute: async (a, { orgId }) => {
+      const html = /<\w+/.test(a.body) ? a.body : `<div style="font-family:system-ui">${a.body.replace(/\n/g, "<br>")}</div>`;
+      const text = a.body.replace(/<[^>]+>/g, "");
+      const r = await sendEmail(a.to, a.subject, html, text, { orgId });
+      return r;
+    },
+  },
+  {
+    name: "send_sms",
+    description: "Envoie un SMS via Twilio. NECESSITE UNE CONFIRMATION EXPLICITE de l'utilisateur avant execution.",
+    parameters: {
+      type: "object",
+      properties: {
+        to: { type: "string", description: "Numero international (+33...)" },
+        message: { type: "string" },
+      },
+      required: ["to", "message"],
+    },
+    fields: {
+      to: { kind: "string", required: true, min: 3, max: 40 },
+      message: { kind: "string", required: true, min: 1, max: 1600 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Envoyer un SMS à ${a.to} : « ${trim(a.message, 80)} »`,
+    execute: async (a) => {
+      const sid = process.env.TWILIO_ACCOUNT_SID;
+      const token = process.env.TWILIO_AUTH_TOKEN;
+      const from = process.env.TWILIO_PHONE_NUMBER;
+      if (!sid || !token || !from) return { success: false, error: "Twilio non configure (TWILIO_*)" };
+      const r = await providerSendSms("twilio", { accountSid: sid, authToken: token, fromNumber: from }, { to: a.to, body: a.message });
+      return r;
+    },
+  },
+  // ---------- AI MEDIA ----------
+  {
+    name: "generate_image",
+    description: "Genere une image a partir d'une description (logo, illustration, visuel marketing). Retourne une URL data: pour affichage immediat.",
+    parameters: {
+      type: "object",
+      properties: { prompt: { type: "string" } },
+      required: ["prompt"],
+    },
+    fields: {
+      prompt: { kind: "string", required: true, min: 3, max: 1000 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Generer une image: "${trim(a.prompt, 120)}"`,
+    execute: async (a) => {
+      try {
+        const img = await generateImage(a.prompt);
+        return { success: true, dataUrl: `data:${img.mimeType};base64,${img.b64_json}` };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return { success: false, error: trim(msg) };
+      }
+    },
+  },
+  // ---------- BUREAUTIQUE (Excel / Word) ----------
+  {
+    name: "create_excel_document",
+    description:
+      "Cree un fichier Excel (.xlsx) et l'enregistre dans la bibliotheque de documents (telechargeable). " +
+      "Utilise pour produire tableaux, rapports, listes, suivis. Le parametre dataJson est une chaine JSON. " +
+      "Format simple (une feuille): {\"columns\":[\"Nom\",\"Montant\"],\"rows\":[[\"Ali\",100],[\"Veli\",200]]}. " +
+      "Format multi-feuilles: {\"sheets\":[{\"name\":\"Janvier\",\"columns\":[...],\"rows\":[[...]]}]}.",
+    parameters: {
+      type: "object",
+      properties: {
+        fileName: { type: "string", description: "Nom du fichier (ex: 'rapport-ventes'). L'extension .xlsx est ajoutee si absente." },
+        dataJson: { type: "string", description: "Chaine JSON decrivant colonnes/lignes (voir description)." },
+      },
+      required: ["fileName", "dataJson"],
+    },
+    fields: {
+      fileName: { kind: "string", required: true, min: 1, max: 200 },
+      dataJson: { kind: "string", required: true, min: 2, max: 200000 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Creer un fichier Excel: « ${trim(a.fileName, 80)} »`,
+    execute: async (a, { orgId, userId }) => {
+      let spec: any;
+      try {
+        spec = JSON.parse(a.dataJson);
+      } catch {
+        return { success: false, error: "dataJson n'est pas un JSON valide." };
+      }
+      let built;
+      try {
+        built = await buildExcelBase64(spec, a.fileName);
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : "Specification Excel invalide." };
+      }
+      const ingest = await ingestDocument({
+        orgId, userId: userId ?? null,
+        fileContent: built.base64, fileName: built.fileName, mimeType: built.mimeType,
+        category: "general", source: "assistant",
+      });
+      if (ingest.status !== "created") {
+        return { success: false, error: ingest.status === "blocked" ? "Fichier bloque (securite)." : ingest.error };
+      }
+      return {
+        success: true, documentId: ingest.doc.id, fileName: built.fileName,
+        downloadPath: `/api/documents/${ingest.doc.id}/download`,
+      };
+    },
+  },
+  {
+    name: "create_word_document",
+    description:
+      "Cree un document Word (.docx) et l'enregistre dans la bibliotheque de documents (telechargeable). " +
+      "Utilise pour lettres, comptes-rendus, devis, rapports. Le parametre dataJson est une chaine JSON " +
+      "avec un titre optionnel et une liste de blocs: " +
+      "{\"title\":\"Rapport\",\"blocks\":[{\"type\":\"heading\",\"text\":\"Introduction\",\"level\":1}," +
+      "{\"type\":\"paragraph\",\"text\":\"Texte...\"},{\"type\":\"table\",\"columns\":[\"A\",\"B\"],\"rows\":[[\"1\",\"2\"]]}]}.",
+    parameters: {
+      type: "object",
+      properties: {
+        fileName: { type: "string", description: "Nom du fichier (ex: 'lettre-client'). L'extension .docx est ajoutee si absente." },
+        dataJson: { type: "string", description: "Chaine JSON avec 'title' optionnel et 'blocks' (voir description)." },
+      },
+      required: ["fileName", "dataJson"],
+    },
+    fields: {
+      fileName: { kind: "string", required: true, min: 1, max: 200 },
+      dataJson: { kind: "string", required: true, min: 2, max: 200000 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Creer un document Word: « ${trim(a.fileName, 80)} »`,
+    execute: async (a, { orgId, userId }) => {
+      let spec: any;
+      try {
+        spec = JSON.parse(a.dataJson);
+      } catch {
+        return { success: false, error: "dataJson n'est pas un JSON valide." };
+      }
+      let built;
+      try {
+        built = await buildWordBase64(spec, a.fileName);
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : "Specification Word invalide." };
+      }
+      const ingest = await ingestDocument({
+        orgId, userId: userId ?? null,
+        fileContent: built.base64, fileName: built.fileName, mimeType: built.mimeType,
+        category: "general", source: "assistant",
+      });
+      if (ingest.status !== "created") {
+        return { success: false, error: ingest.status === "blocked" ? "Fichier bloque (securite)." : ingest.error };
+      }
+      return {
+        success: true, documentId: ingest.doc.id, fileName: built.fileName,
+        downloadPath: `/api/documents/${ingest.doc.id}/download`,
+      };
+    },
+  },
+  {
+    name: "create_pdf_document",
+    description:
+      "Cree un document PDF (.pdf) et l'enregistre dans la bibliotheque de documents (telechargeable). " +
+      "Ideal pour rapports, lettres, devis et factures prets a envoyer. Le parametre dataJson est une chaine JSON " +
+      "avec un titre optionnel et une liste de blocs (meme format que Word): " +
+      "{\"title\":\"Facture\",\"blocks\":[{\"type\":\"heading\",\"text\":\"Detail\",\"level\":1}," +
+      "{\"type\":\"paragraph\",\"text\":\"Texte...\"},{\"type\":\"table\",\"columns\":[\"Article\",\"Prix\"],\"rows\":[[\"Stylo\",\"5\"]]}]}.",
+    parameters: {
+      type: "object",
+      properties: {
+        fileName: { type: "string", description: "Nom du fichier (ex: 'facture-001'). L'extension .pdf est ajoutee si absente." },
+        dataJson: { type: "string", description: "Chaine JSON avec 'title' optionnel et 'blocks' (voir description)." },
+      },
+      required: ["fileName", "dataJson"],
+    },
+    fields: {
+      fileName: { kind: "string", required: true, min: 1, max: 200 },
+      dataJson: { kind: "string", required: true, min: 2, max: 200000 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Creer un document PDF: « ${trim(a.fileName, 80)} »`,
+    execute: async (a, { orgId, userId }) => {
+      let spec: any;
+      try {
+        spec = JSON.parse(a.dataJson);
+      } catch {
+        return { success: false, error: "dataJson n'est pas un JSON valide." };
+      }
+      let built;
+      try {
+        built = await buildPdfBase64(spec, a.fileName);
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : "Specification PDF invalide." };
+      }
+      const ingest = await ingestDocument({
+        orgId, userId: userId ?? null,
+        fileContent: built.base64, fileName: built.fileName, mimeType: built.mimeType,
+        category: "general", source: "assistant",
+      });
+      if (ingest.status !== "created") {
+        return { success: false, error: ingest.status === "blocked" ? "Fichier bloque (securite)." : ingest.error };
+      }
+      return {
+        success: true, documentId: ingest.doc.id, fileName: built.fileName,
+        downloadPath: `/api/documents/${ingest.doc.id}/download`,
+      };
+    },
+  },
+  {
+    name: "create_powerpoint_document",
+    description:
+      "Cree une presentation PowerPoint (.pptx) et l'enregistre dans la bibliotheque de documents (telechargeable). " +
+      "Ideal pour presentations commerciales, comptes-rendus de reunion, supports de formation. Le parametre dataJson " +
+      "est une chaine JSON avec un titre optionnel et une liste de diapositives. Chaque diapositive a un 'title' " +
+      "et au choix 'bullets' (liste a puces), 'paragraphs' (texte) ou 'table' {columns, rows}. Exemple: " +
+      "{\"title\":\"Offre 2026\",\"subtitle\":\"Agent de Bureau\",\"slides\":[" +
+      "{\"title\":\"Avantages\",\"bullets\":[\"Gain de temps\",\"Moins d'erreurs\"]}," +
+      "{\"title\":\"Tarifs\",\"table\":{\"columns\":[\"Offre\",\"Prix\"],\"rows\":[[\"Starter\",\"29€\"]]}}]}.",
+    parameters: {
+      type: "object",
+      properties: {
+        fileName: { type: "string", description: "Nom du fichier (ex: 'presentation-offre'). L'extension .pptx est ajoutee si absente." },
+        dataJson: { type: "string", description: "Chaine JSON avec 'title'/'subtitle' optionnels et 'slides' (voir description)." },
+      },
+      required: ["fileName", "dataJson"],
+    },
+    fields: {
+      fileName: { kind: "string", required: true, min: 1, max: 200 },
+      dataJson: { kind: "string", required: true, min: 2, max: 200000 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Creer une presentation PowerPoint: « ${trim(a.fileName, 80)} »`,
+    execute: async (a, { orgId, userId }) => {
+      let spec: any;
+      try {
+        spec = JSON.parse(a.dataJson);
+      } catch {
+        return { success: false, error: "dataJson n'est pas un JSON valide." };
+      }
+      let built;
+      try {
+        built = await buildPptxBase64(spec, a.fileName);
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : "Specification PowerPoint invalide." };
+      }
+      const ingest = await ingestDocument({
+        orgId, userId: userId ?? null,
+        fileContent: built.base64, fileName: built.fileName, mimeType: built.mimeType,
+        category: "general", source: "assistant",
+      });
+      if (ingest.status !== "created") {
+        return { success: false, error: ingest.status === "blocked" ? "Fichier bloque (securite)." : ingest.error };
+      }
+      return {
+        success: true, documentId: ingest.doc.id, fileName: built.fileName,
+        downloadPath: `/api/documents/${ingest.doc.id}/download`,
+      };
+    },
+  },
+  // ---------- INFO LOOKUP ----------
+  {
+    name: "list_recent_calls",
+    description: "Liste les derniers appels (entrants / sortants).",
+    parameters: { type: "object", properties: { limit: { type: "integer" } } },
+    fields: F_LIMIT_ONLY,
+    execute: async (a, { orgId }) => {
+      const limit = a.limit ?? 10;
+      const rows = await db.select({
+        id: callsTable.id, direction: callsTable.direction, phoneNumber: callsTable.phoneNumber,
+        contactName: callsTable.contactName, status: callsTable.status, duration: callsTable.duration,
+        createdAt: callsTable.createdAt,
+      }).from(callsTable).where(eq(callsTable.organisationId, orgId)).orderBy(desc(callsTable.createdAt)).limit(limit);
+      return { count: rows.length, calls: rows };
+    },
+  },
+  {
+    name: "find_recent_call",
+    description:
+      "Trouve des appels recents par nom de contact ou numero de telephone et retourne une liste " +
+      "classee des meilleures correspondances (pertinence du nom/numero d'abord, recence en cas " +
+      "d'egalite) avec leur id. Lecture seule. A utiliser pour resoudre « mon dernier appel " +
+      "avec le plombier » en id avant d'appeler log_call. Retourne plusieurs candidats si ambigu.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Nom du contact ou numero de telephone a rechercher" },
+        limit: { type: "integer", description: "Nombre max d'appels (1-20, defaut 5)" },
+      },
+      required: ["query"],
+    },
+    fields: {
+      query: { kind: "string", required: true, min: 1, max: 200 },
+      limit: { kind: "number", integer: true, min: 1, max: 20 },
+    },
+    execute: async (a, { orgId }) => {
+      const query = String(a.query).trim();
+      const limit = Math.min((a.limit as number) ?? 5, 20);
+      const like = `%${query}%`;
+      const useUnaccent = await ensureUnaccentExtension();
+      const rows = await db.select({
+        id: callsTable.id, direction: callsTable.direction, phoneNumber: callsTable.phoneNumber,
+        contactName: callsTable.contactName, status: callsTable.status, duration: callsTable.duration,
+        createdAt: callsTable.createdAt,
+      }).from(callsTable).where(and(
+        eq(callsTable.organisationId, orgId),
+        or(
+          accentInsensitiveIlike(callsTable.contactName, like, useUnaccent),
+          accentInsensitiveIlike(callsTable.phoneNumber, like, useUnaccent),
+        )!,
+      )).limit(100);
+      const q = prepareQuery(query);
+      const ranked = rankByRelevance(rows, (r) => scoreCall(r, q), { limit }).map(({ row: r, score }) => ({
+        id: r.id,
+        direction: r.direction,
+        phoneNumber: r.phoneNumber,
+        contactName: r.contactName,
+        status: r.status,
+        duration: r.duration,
+        createdAt: r.createdAt,
+        pertinence: score,
+      }));
+      return { count: ranked.length, calls: ranked };
+    },
+  },
+  {
+    name: "log_call",
+    description:
+      "Enregistre le resultat d'un appel existant: met a jour son statut et/ou ajoute des notes. " +
+      "Statut valide: repondu (l'appel a abouti), manque (appel manque), messagerie (laisse sur la messagerie vocale). " +
+      "Les notes fournies sont ajoutees a la suite des notes existantes (elles ne les remplacent pas). " +
+      "Fournir l'id de l'appel et au moins un champ (status ou notes). NECESSITE UNE CONFIRMATION EXPLICITE.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "integer", description: "ID de l'appel a mettre a jour" },
+        status: { type: "string", description: "repondu, manque, messagerie" },
+        notes: { type: "string", description: "Notes a ajouter au compte-rendu de l'appel" },
+      },
+      required: ["id"],
+    },
+    fields: {
+      id: { kind: "number", required: true, integer: true, min: 1 },
+      status: { kind: "string", enum: ["repondu", "manque", "messagerie"] as const },
+      notes: { kind: "string", max: 4000 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => {
+      const parts: string[] = [];
+      if (a.status) parts.push(`statut → ${a.status}`);
+      if (a.notes != null) parts.push(`note ajoutee: « ${trim(a.notes, 60)} »`);
+      return `Enregistrer le resultat de l'appel #${a.id}${parts.length ? ` (${parts.join(", ")})` : ""}`;
+    },
+    execute: async (a, { orgId, userId }) => {
+      if (a.status == null && a.notes == null) {
+        return { success: false, error: "Aucune modification fournie (statut ou notes)." };
+      }
+      const [existing] = await db.select({ id: callsTable.id, notes: callsTable.notes })
+        .from(callsTable)
+        .where(and(eq(callsTable.id, a.id), eq(callsTable.organisationId, orgId)));
+      if (!existing) return { success: false, error: "Appel introuvable dans votre organisation." };
+      const updates: Record<string, unknown> = { updatedBy: userId };
+      if (a.status != null) updates.status = a.status;
+      if (a.notes != null) {
+        const prev = (existing.notes ?? "").trim();
+        updates.notes = prev ? `${prev}\n${a.notes}` : a.notes;
+      }
+      const [row] = await db.update(callsTable).set(updates)
+        .where(and(eq(callsTable.id, a.id), eq(callsTable.organisationId, orgId)))
+        .returning({ id: callsTable.id, status: callsTable.status });
+      if (!row) return { success: false, error: "Appel introuvable dans votre organisation." };
+      return { success: true, id: row.id, status: row.status, url: `/appels/${row.id}` };
+    },
+  },
+  {
+    name: "create_call",
+    description:
+      "Enregistre un nouvel appel qui n'existait pas encore dans le systeme (ex: « note que j'ai appele +33... et ils n'ont pas repondu »). " +
+      "phoneNumber est obligatoire. direction valide: entrant (l'appel a ete recu), sortant (l'appel a ete passe). " +
+      "status valide: repondu (l'appel a abouti), manque (appel manque), messagerie (laisse sur la messagerie vocale). " +
+      "Optionnel: contactId (lier a un contact existant), contactName, duration (en secondes), notes. " +
+      "NECESSITE UNE CONFIRMATION EXPLICITE.",
+    parameters: {
+      type: "object",
+      properties: {
+        phoneNumber: { type: "string", description: "Numero de telephone (format international si possible, +33...)" },
+        direction: { type: "string", description: "entrant, sortant" },
+        status: { type: "string", description: "repondu, manque, messagerie" },
+        contactId: { type: "integer", description: "ID d'un contact existant a lier (optionnel)" },
+        contactName: { type: "string", description: "Nom du contact (optionnel)" },
+        duration: { type: "integer", description: "Duree de l'appel en secondes (optionnel)" },
+        notes: { type: "string", description: "Compte-rendu / notes de l'appel (optionnel)" },
+      },
+      required: ["phoneNumber", "direction", "status"],
+    },
+    fields: {
+      phoneNumber: { kind: "string", required: true, min: 3, max: 40 },
+      direction: { kind: "string", required: true, enum: ["entrant", "sortant"] as const },
+      status: { kind: "string", required: true, enum: ["repondu", "manque", "messagerie"] as const },
+      contactId: { kind: "number", integer: true, min: 1 },
+      contactName: { kind: "string", max: 200 },
+      duration: { kind: "number", integer: true, min: 0 },
+      notes: { kind: "string", max: 4000 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => {
+      const dir = a.direction === "entrant" ? "entrant" : "sortant";
+      const who = a.contactName ? `${a.contactName} (${a.phoneNumber})` : a.phoneNumber;
+      return `Enregistrer un nouvel appel ${dir} avec ${who} — statut ${a.status}${a.notes != null ? ` (note: « ${trim(a.notes, 60)} »)` : ""}`;
+    },
+    execute: async (a, { orgId, userId }) => {
+      if (a.contactId != null) {
+        const [contact] = await db.select({ id: contactsTable.id })
+          .from(contactsTable)
+          .where(and(eq(contactsTable.id, a.contactId), eq(contactsTable.organisationId, orgId)));
+        if (!contact) return { success: false, error: "Contact introuvable dans votre organisation." };
+      }
+      const [row] = await db.insert(callsTable).values({
+        organisationId: orgId,
+        phoneNumber: a.phoneNumber,
+        direction: a.direction,
+        status: a.status,
+        contactId: a.contactId ?? null,
+        contactName: a.contactName ?? null,
+        duration: a.duration ?? 0,
+        notes: a.notes ?? null,
+        createdBy: userId,
+        updatedBy: userId,
+      }).returning({ id: callsTable.id });
+      if (a.contactId != null) {
+        await db.update(contactsTable)
+          .set({ totalCalls: sql`${contactsTable.totalCalls} + 1`, lastCallAt: new Date() })
+          .where(and(eq(contactsTable.id, a.contactId), eq(contactsTable.organisationId, orgId)));
+      }
+      return { success: true, id: row.id, url: `/appels/${row.id}` };
+    },
+  },
+  {
+    name: "delete_call",
+    description:
+      "Supprime definitivement un appel enregistre par erreur. " +
+      "Fournir l'id de l'appel. L'appel doit appartenir a l'organisation. " +
+      "Les taches liees a cet appel sont aussi supprimees, et si l'appel est rattache a un contact, son compteur d'appels est decremente. " +
+      "NECESSITE UNE CONFIRMATION EXPLICITE.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "integer", description: "ID de l'appel a supprimer" },
+      },
+      required: ["id"],
+    },
+    fields: {
+      id: { kind: "number", required: true, integer: true, min: 1 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Supprimer definitivement l'appel #${a.id}`,
+    execute: async (a, { orgId, userId }) => {
+      const [existing] = await db.select({ id: callsTable.id, contactId: callsTable.contactId, phoneNumber: callsTable.phoneNumber, direction: callsTable.direction })
+        .from(callsTable)
+        .where(and(eq(callsTable.id, a.id), eq(callsTable.organisationId, orgId)));
+      if (!existing) return { success: false, error: "Appel introuvable dans votre organisation." };
+
+      const [deleted] = await db.delete(callsTable)
+        .where(and(eq(callsTable.id, a.id), eq(callsTable.organisationId, orgId)))
+        .returning({ id: callsTable.id });
+      if (!deleted) return { success: false, error: "Appel introuvable dans votre organisation." };
+
+      await db.delete(tasksTable).where(and(eq(tasksTable.relatedCallId, a.id), eq(tasksTable.organisationId, orgId)));
+
+      if (existing.contactId != null) {
+        await db.update(contactsTable)
+          .set({ totalCalls: sql`GREATEST(${contactsTable.totalCalls} - 1, 0)` })
+          .where(and(eq(contactsTable.id, existing.contactId), eq(contactsTable.organisationId, orgId)));
+      }
+
+      await logAudit(userId, undefined, "delete", "call", String(existing.id), { phoneNumber: existing.phoneNumber, direction: existing.direction }, undefined, undefined, orgId);
+
+      return { success: true, id: existing.id };
+    },
+  },
+  {
+    name: "search_knowledge_base",
+    description: "Recherche dans la base de connaissances (documents importes de l'organisation) les passages pertinents pour repondre a une question. Utilise-le quand l'utilisateur pose une question dont la reponse pourrait se trouver dans ses documents.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "La question ou les mots-cles a rechercher dans les documents" },
+        limit: { type: "integer", description: "Nombre max d'extraits (1-10, defaut 6)" },
+      },
+      required: ["query"],
+    },
+    fields: {
+      query: { kind: "string", required: true, min: 2, max: 500 },
+      limit: { kind: "number", integer: true, min: 1, max: 10 },
+    },
+    execute: async (a, { orgId, userId }) => {
+      const hits = await searchKnowledge(orgId, a.query as string, {
+        topK: (a.limit as number) ?? 6,
+        userId,
+      });
+      return {
+        count: hits.length,
+        extraits: hits.map((h) => ({
+          document: h.fileName,
+          documentId: h.documentId,
+          pertinence: Number(h.score.toFixed(3)),
+          contenu: trim(h.content, 600),
+        })),
+      };
+    },
+  },
+  {
+    name: "list_recent_messages",
+    description: "Liste les derniers messages (notes, SMS, e-mails enregistres).",
+    parameters: { type: "object", properties: { limit: { type: "integer" } } },
+    fields: F_LIMIT_ONLY,
+    execute: async (a, { orgId }) => {
+      const limit = a.limit ?? 10;
+      const rows = await db.select({
+        id: messagesTable.id, type: messagesTable.type, phoneNumber: messagesTable.phoneNumber,
+        contactName: messagesTable.contactName, content: messagesTable.content,
+        createdAt: messagesTable.createdAt,
+      }).from(messagesTable).where(eq(messagesTable.organisationId, orgId)).orderBy(desc(messagesTable.createdAt)).limit(limit);
+      return { count: rows.length, messages: rows.map(r => ({ ...r, content: trim(r.content, 200) })) };
+    },
+  },
+];
+
+const TOOL_MAP = new Map(ALL_TOOLS.map(t => [t.name, t] as const));
+
+export function getAllTools(): ReadonlyArray<ToolDef<any>> { return ALL_TOOLS; }
+export function getTool(name: string): ToolDef<unknown> | undefined { return TOOL_MAP.get(name); }
+
+export interface ToolExecutionResult {
+  ok: boolean;
+  result?: unknown;
+  error?: string;
+  /** When the tool requires confirmation, no execution happens; engine
+   *  must emit pending_action and wait for user approval. */
+  pending?: { summary: string };
+}
+
+export async function executeTool(
+  name: string,
+  rawArgs: unknown,
+  ctx: ToolContext,
+  opts: { skipConfirmation?: boolean } = {},
+): Promise<ToolExecutionResult> {
+  const tool = TOOL_MAP.get(name);
+  if (!tool) return { ok: false, error: `Outil inconnu: ${name}` };
+
+  // Validate args against the tool's field spec
+  const parsed = validateArgs(tool.fields, rawArgs ?? {});
+  if (!parsed.ok) {
+    return { ok: false, error: `Argument invalide pour ${name}: ${parsed.error}` };
+  }
+  const args = parsed.data;
+
+  // Confirmation gate for high-impact tools (server-enforced, NOT prompt-only)
+  if (tool.requiresConfirmation && !opts.skipConfirmation) {
+    const summary = tool.summarize ? tool.summarize(args) : `Confirmer l'execution de ${name}`;
+    return { ok: false, pending: { summary } };
+  }
+
+  try {
+    const result = await tool.execute(args, ctx);
+    return { ok: true, result };
+  } catch (err) {
+    logger.error({ err, tool: name }, "[assistant] tool execution failed");
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: trim(msg, 500) };
+  }
+}
+
+export function getGeminiToolDeclarations(): { functionDeclarations: Array<{ name: string; description: string; parameters: ToolDef["parameters"] }> } {
+  return {
+    functionDeclarations: ALL_TOOLS.map(t => ({
+      name: t.name,
+      description: t.description,
+      parameters: t.parameters,
+    })),
+  };
+}

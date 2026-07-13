@@ -1,0 +1,5108 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Bureau Agent API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: calls
+    description: Call management
+  - name: contacts
+    description: Contact management
+  - name: tasks
+    description: Task management
+  - name: messages
+    description: Voicemail and message management
+  - name: dashboard
+    description: Dashboard analytics
+  - name: ai
+    description: AI-powered intelligence
+  - name: workspace
+    description: Google Workspace integration
+  - name: checkins
+    description: Check-in / attendance tracking (pointage)
+  - name: stock
+    description: Stock and inventory management
+  - name: whatsapp
+    description: WhatsApp customer inbox (draft and approve)
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  # === CALLS ===
+  /calls:
+    get:
+      operationId: listCalls
+      tags: [calls]
+      summary: List all calls
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [answered, missed, voicemail, outgoing, all]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [createdAt, duration, status, contactName]
+            default: createdAt
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [entrant, sortant, all]
+      responses:
+        "200":
+          description: List of calls
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  calls:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Call"
+                  total:
+                    type: integer
+                required: [calls, total]
+    post:
+      operationId: createCall
+      tags: [calls]
+      summary: Create a new call record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCallBody"
+      responses:
+        "201":
+          description: Call created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Call"
+
+  /calls/{id}:
+    get:
+      operationId: getCall
+      tags: [calls]
+      summary: Get a single call
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Call details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Call"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateCall
+      tags: [calls]
+      summary: Update a call record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCallBody"
+      responses:
+        "200":
+          description: Updated call
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Call"
+    delete:
+      operationId: deleteCall
+      tags: [calls]
+      summary: Delete a call record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # === CONTACTS ===
+  /contacts:
+    get:
+      operationId: listContacts
+      tags: [contacts]
+      summary: List contacts
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [client, prospect, fournisseur, partenaire, autre, all]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [createdAt, firstName, lastName, company, totalCalls]
+            default: createdAt
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        "200":
+          description: List of contacts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contacts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Contact"
+                  total:
+                    type: integer
+                required: [contacts, total]
+    post:
+      operationId: createContact
+      tags: [contacts]
+      summary: Create a contact
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateContactBody"
+      responses:
+        "201":
+          description: Contact created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contact"
+
+  /contacts/{id}:
+    get:
+      operationId: getContact
+      tags: [contacts]
+      summary: Get a single contact
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Contact details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contact"
+    patch:
+      operationId: updateContact
+      tags: [contacts]
+      summary: Update a contact
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateContactBody"
+      responses:
+        "200":
+          description: Updated contact
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contact"
+    delete:
+      operationId: deleteContact
+      tags: [contacts]
+      summary: Delete a contact
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # === TASKS ===
+  /tasks:
+    get:
+      operationId: listTasks
+      tags: [tasks]
+      summary: List tasks
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [en_attente, en_cours, termine, annule, all]
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [haute, moyenne, basse, all]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [createdAt, dueDate, priority, status, title]
+            default: createdAt
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        "200":
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Task"
+                  total:
+                    type: integer
+                required: [tasks, total]
+    post:
+      operationId: createTask
+      tags: [tasks]
+      summary: Create a task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskBody"
+      responses:
+        "201":
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+
+  /tasks/{id}:
+    get:
+      operationId: getTask
+      tags: [tasks]
+      summary: Get a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Task detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+    patch:
+      operationId: updateTask
+      tags: [tasks]
+      summary: Update a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaskBody"
+      responses:
+        "200":
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+    delete:
+      operationId: deleteTask
+      tags: [tasks]
+      summary: Delete a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # === MESSAGES ===
+  /messages:
+    get:
+      operationId: listMessages
+      tags: [messages]
+      summary: List voicemail/messages
+      parameters:
+        - name: read
+          in: query
+          schema:
+            type: boolean
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [messagerie_vocale, note, rappel, all]
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [haute, moyenne, basse, all]
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [createdAt, priority, type]
+            default: createdAt
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        "200":
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Message"
+                  total:
+                    type: integer
+                required: [messages, total]
+    post:
+      operationId: createMessage
+      tags: [messages]
+      summary: Create a message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMessageBody"
+      responses:
+        "201":
+          description: Message created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+
+  /messages/{id}:
+    get:
+      operationId: getMessage
+      tags: [messages]
+      summary: Get a message
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Message detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+    patch:
+      operationId: updateMessage
+      tags: [messages]
+      summary: Update a message (mark as read, etc.)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMessageBody"
+      responses:
+        "200":
+          description: Updated message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+    delete:
+      operationId: deleteMessage
+      tags: [messages]
+      summary: Delete a message
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # === CONTACT DETAILS ===
+  /contacts/{id}/calls:
+    get:
+      operationId: getContactCalls
+      tags: [contacts]
+      summary: Get call history for a contact
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Contact call history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  calls:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Call"
+                  total:
+                    type: integer
+                required: [calls, total]
+
+  /contacts/{id}/tasks:
+    get:
+      operationId: getContactTasks
+      tags: [contacts]
+      summary: Get tasks related to a contact
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Contact related tasks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Task"
+                required: [tasks]
+
+  # === DASHBOARD / ANALYTICS ===
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Dashboard summary stats
+      responses:
+        "200":
+          description: Summary stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/call-analytics:
+    get:
+      operationId: getCallAnalytics
+      tags: [dashboard]
+      summary: Call analytics over time
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [today, week, month, year]
+            default: week
+      responses:
+        "200":
+          description: Call analytics data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallAnalytics"
+
+  /dashboard/recent-activity:
+    get:
+      operationId: getRecentActivity
+      tags: [dashboard]
+      summary: Recent activity feed
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Recent activity items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  activities:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ActivityItem"
+                required: [activities]
+
+  /dashboard/call-distribution:
+    get:
+      operationId: getCallDistribution
+      tags: [dashboard]
+      summary: Call distribution by status
+      responses:
+        "200":
+          description: Call distribution data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CallDistribution"
+
+  /dashboard/top-contacts:
+    get:
+      operationId: getTopContacts
+      tags: [dashboard]
+      summary: Most active contacts
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 5
+      responses:
+        "200":
+          description: Top contacts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contacts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TopContact"
+                required: [contacts]
+
+  /dashboard/hourly-performance:
+    get:
+      operationId: getHourlyPerformance
+      tags: [dashboard]
+      summary: Call volume by hour of day
+      responses:
+        "200":
+          description: Hourly call performance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hours:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        hour:
+                          type: integer
+                        total:
+                          type: integer
+                        answered:
+                          type: integer
+                        missed:
+                          type: integer
+                      required: [hour, total, answered, missed]
+                required: [hours]
+
+  /dashboard/task-stats:
+    get:
+      operationId: getTaskStats
+      tags: [dashboard]
+      summary: Task completion statistics
+      responses:
+        "200":
+          description: Task stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskStats"
+
+  /dashboard/weekly-report:
+    get:
+      operationId: getWeeklyReport
+      tags: [dashboard]
+      summary: Weekly performance report
+      responses:
+        "200":
+          description: Weekly report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeeklyReport"
+
+  /dashboard/notifications:
+    get:
+      operationId: getNotifications
+      tags: [dashboard]
+      summary: Get system notifications
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Notification"
+                  unreadCount:
+                    type: integer
+                required: [notifications, unreadCount]
+
+  # === AI ===
+  /ai/status:
+    get:
+      operationId: getAiStatus
+      tags: [ai]
+      summary: Check AI availability
+      responses:
+        "200":
+          description: AI status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiStatus"
+
+  /ai/analyze:
+    post:
+      operationId: requestAiAnalysis
+      tags: [ai]
+      summary: Request comprehensive AI analysis
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: AI analysis result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiAnalysisResult"
+
+  /ai/suggest:
+    post:
+      operationId: requestAiSuggestions
+      tags: [ai]
+      summary: Get AI suggestions for a specific page
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                page:
+                  type: string
+                  enum: [dashboard, calls, contacts, tasks, messages, rapports, logiciels, pointage, utilisateurs, projets]
+              required: [page]
+      responses:
+        "200":
+          description: AI suggestions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiSuggestionsResult"
+
+  /ai/validate:
+    post:
+      operationId: requestAiValidation
+      tags: [ai]
+      summary: AI-powered form validation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                entityType:
+                  type: string
+                  enum: [call, contact, task, message]
+                data:
+                  type: object
+              required: [entityType, data]
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiValidationResult"
+
+  /ai/recognize:
+    post:
+      operationId: requestAiRecognition
+      tags: [ai]
+      summary: AI-powered comprehensive pattern recognition and detection
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Recognition detections and health score
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiRecognitionResult"
+
+  /ai/assistant:
+    post:
+      operationId: askAiAssistant
+      tags: [ai]
+      summary: Ask the AI assistant a question
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                question:
+                  type: string
+                currentPage:
+                  type: string
+              required: [question]
+      responses:
+        "200":
+          description: AI assistant response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiAssistantResponse"
+
+  /ai/draft-email:
+    post:
+      operationId: draftAiEmail
+      tags: [ai]
+      summary: AI-powered email drafting with context
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                contactId:
+                  type: string
+                  nullable: true
+                contactName:
+                  type: string
+                  nullable: true
+                contactEmail:
+                  type: string
+                  nullable: true
+                company:
+                  type: string
+                  nullable: true
+                category:
+                  type: string
+                  nullable: true
+                purpose:
+                  type: string
+                  enum: [suivi_appel, relance_prospect, confirmation_rdv, remerciement, rappel_paiement, information, presentation, excuses, bienvenue, personnalise]
+                tone:
+                  type: string
+                  enum: [formel, cordial, direct, empathique]
+                language:
+                  type: string
+                additionalContext:
+                  type: string
+                  nullable: true
+              required: [purpose]
+      responses:
+        "200":
+          description: AI-generated email draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiEmailDraft"
+
+  /me/preferences:
+    get:
+      operationId: getMyPreferences
+      tags: [ai]
+      summary: Get the current user's preferences (AI assistance, etc.)
+      responses:
+        "200":
+          description: Current user preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPreferences"
+    patch:
+      operationId: updateMyPreferences
+      tags: [ai]
+      summary: Update the current user's preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserPreferences"
+      responses:
+        "200":
+          description: Updated user preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPreferences"
+
+  /ai/inline-suggest:
+    post:
+      operationId: requestAiInlineSuggest
+      tags: [ai]
+      summary: Suggest the next short continuation for inline ghost-text editing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fieldType:
+                  type: string
+                  enum: [note, prospect_note, email_body, call_note, task_description, message_content, project_description, project_note, quote_comment, invoice_comment]
+                  description: Field type providing context for the suggestion
+                text:
+                  type: string
+                  description: Current text content the user has typed in the field
+                title:
+                  type: string
+                  nullable: true
+                  description: Note title or email subject for context
+                contactName:
+                  type: string
+                  nullable: true
+                  description: Optional contact name for context
+                language:
+                  type: string
+                  nullable: true
+                  description: Preferred suggestion language (e.g. "francais", "english"). Pass "auto" to let the server detect the language from the submitted text.
+                fallbackLanguage:
+                  type: string
+                  nullable: true
+                  description: Language to use when `language` is "auto" and detection is uncertain. Defaults to "francais".
+              required: [fieldType, text]
+      responses:
+        "200":
+          description: AI-generated short continuation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  suggestion:
+                    type: string
+                    description: Short continuation to display as ghost text. Empty string when no suggestion is appropriate.
+                  language:
+                    type: string
+                    description: Language actually used to generate the suggestion (e.g. "francais", "english"). Useful to display a detected-language hint when the client requested "auto".
+                  detected:
+                    type: boolean
+                    description: True when the language was auto-detected from the text (client requested "auto"); false when an explicit language was honoured.
+                required: [suggestion]
+
+  /ai/inline-suggest/event:
+    post:
+      operationId: recordAiInlineSuggestEvent
+      tags: [ai]
+      summary: Record a ghost-text suggestion event (shown / accepted / dismissed / edited)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fieldType:
+                  type: string
+                  enum: [note, prospect_note, email_body, call_note, task_description, message_content, project_description, project_note, quote_comment, invoice_comment]
+                event:
+                  type: string
+                  enum: [shown, accepted, dismissed, edited]
+                  description: >-
+                    "edited" is reported after an "accepted" event when the user
+                    subsequently rewrote most of the inserted text — a quality
+                    signal that the suggestion was not actually useful. `length`
+                    then carries the number of accepted characters that survived.
+                length:
+                  type: integer
+                  minimum: 0
+                  description: Length (in characters) of the suggestion involved in this event
+              required: [fieldType, event]
+      responses:
+        "204":
+          description: Event recorded
+
+  /ai/inline-suggest/metrics:
+    get:
+      operationId: getAiInlineSuggestMetrics
+      tags: [ai]
+      summary: Aggregated counters for ghost-text suggestion acceptance per field type
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 90
+            default: 30
+      responses:
+        "200":
+          description: Acceptance metrics per field type for the requested window
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  period:
+                    type: object
+                    properties:
+                      days:
+                        type: integer
+                      since:
+                        type: string
+                        format: date-time
+                    required: [days, since]
+                  totals:
+                    type: object
+                    properties:
+                      shown:
+                        type: integer
+                      accepted:
+                        type: integer
+                      dismissed:
+                        type: integer
+                      edited:
+                        type: integer
+                        description: accepted suggestions the user later rewrote
+                      acceptanceRate:
+                        type: number
+                        description: accepted / shown (0..1), 0 when shown = 0
+                      editRate:
+                        type: number
+                        description: edited / accepted (0..1), 0 when accepted = 0
+                    required: [shown, accepted, dismissed, edited, acceptanceRate, editRate]
+                  byField:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        fieldType:
+                          type: string
+                        shown:
+                          type: integer
+                        accepted:
+                          type: integer
+                        dismissed:
+                          type: integer
+                        edited:
+                          type: integer
+                        acceptanceRate:
+                          type: number
+                        editRate:
+                          type: number
+                        avgAcceptedLength:
+                          type: number
+                      required: [fieldType, shown, accepted, dismissed, edited, acceptanceRate, editRate, avgAcceptedLength]
+                  daily:
+                    type: array
+                    description: Per-day counters across the requested window (gaps filled with zeros), oldest first
+                    items:
+                      type: object
+                      properties:
+                        date:
+                          type: string
+                          description: Day in YYYY-MM-DD (UTC)
+                        shown:
+                          type: integer
+                        accepted:
+                          type: integer
+                        dismissed:
+                          type: integer
+                        acceptanceRate:
+                          type: number
+                          description: accepted / shown (0..1), 0 when shown = 0
+                      required: [date, shown, accepted, dismissed, acceptanceRate]
+                required: [period, totals, byField, daily]
+
+  /ai/agents/run:
+    post:
+      operationId: runAllAiAgents
+      tags: [ai-agents]
+      summary: Run all AI agents and generate reports with Super AI synthesis
+      responses:
+        "200":
+          description: All agent reports and super report
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  superReport:
+                    $ref: "#/components/schemas/AiAgentReport"
+                  agentReports:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AiAgentReport"
+                  totalExecutionTimeMs:
+                    type: integer
+
+  /ai/agents/run/{agentId}:
+    post:
+      operationId: runSingleAiAgent
+      tags: [ai-agents]
+      summary: Run a single AI agent
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Agent report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiAgentReport"
+
+  /ai/agents/super:
+    post:
+      operationId: runSuperAiAgent
+      tags: [ai-agents]
+      summary: Run Super AI agent to synthesize today reports
+      responses:
+        "200":
+          description: Super agent report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiAgentReport"
+
+  /ai/agents/reports:
+    get:
+      operationId: getAiAgentReports
+      tags: [ai-agents]
+      summary: Get AI agent reports with optional filters
+      parameters:
+        - name: date
+          in: query
+          schema:
+            type: string
+        - name: agentId
+          in: query
+          schema:
+            type: string
+        - name: superOnly
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of agent reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AiAgentReport"
+
+  /ai/agents/reports/{id}:
+    get:
+      operationId: getAiAgentReport
+      tags: [ai-agents]
+      summary: Get a specific AI agent report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Agent report detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiAgentReport"
+
+  /ai/agents/latest:
+    get:
+      operationId: getLatestAiAgentReports
+      tags: [ai-agents]
+      summary: Get latest report for each agent
+      responses:
+        "200":
+          description: Latest reports by agent
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: "#/components/schemas/AiAgentReport"
+
+  /ai/agents/config:
+    get:
+      operationId: getAiAgentsConfig
+      tags: [ai-agents]
+      summary: Get AI agents configuration
+      responses:
+        "200":
+          description: Agents config
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agents:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        icon:
+                          type: string
+                        domain:
+                          type: string
+                  autoRunEnabled:
+                    type: boolean
+                  autoRunIntervalMinutes:
+                    type: integer
+
+  /ai/agents/auto-start:
+    post:
+      operationId: startAiAgentsAutoRun
+      tags: [ai-agents]
+      summary: Start automatic AI agents execution every 2 hours
+      responses:
+        "200":
+          description: Auto-run started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  status:
+                    type: string
+
+  /ai/agents/auto-stop:
+    post:
+      operationId: stopAiAgentsAutoRun
+      tags: [ai-agents]
+      summary: Stop automatic AI agents execution
+      responses:
+        "200":
+          description: Auto-run stopped
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  status:
+                    type: string
+
+  /workspace/status:
+    get:
+      operationId: getWorkspaceStatus
+      tags: [workspace]
+      summary: Get Google Workspace connection status
+      responses:
+        "200":
+          description: Workspace status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceStatus"
+
+  /workspace/connect/{serviceId}:
+    post:
+      operationId: connectWorkspaceService
+      tags: [workspace]
+      summary: Initiate Google service connection
+      parameters:
+        - name: serviceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Connection initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  authUrl:
+                    type: string
+                  service:
+                    type: string
+
+  /workspace/disconnect/{serviceId}:
+    post:
+      operationId: disconnectWorkspaceService
+      tags: [workspace]
+      summary: Disconnect a Google service
+      parameters:
+        - name: serviceId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Service disconnected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+
+  /workspace/sync:
+    post:
+      operationId: syncWorkspace
+      tags: [workspace]
+      summary: Trigger workspace synchronization
+      responses:
+        "200":
+          description: Sync initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  startedAt:
+                    type: string
+
+  /workspace/calendar/events:
+    get:
+      operationId: getCalendarEvents
+      tags: [workspace]
+      summary: List Google Calendar events
+      responses:
+        "200":
+          description: Calendar events
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    items:
+                      type: object
+                  message:
+                    type: string
+                  connected:
+                    type: boolean
+
+  /workspace/gmail/messages:
+    get:
+      operationId: getGmailMessages
+      tags: [workspace]
+      summary: List Gmail messages
+      responses:
+        "200":
+          description: Gmail messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      type: object
+                  message:
+                    type: string
+                  connected:
+                    type: boolean
+
+  /workspace/drive/files:
+    get:
+      operationId: getDriveFiles
+      tags: [workspace]
+      summary: List Google Drive files
+      responses:
+        "200":
+          description: Drive files
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  files:
+                    type: array
+                    items:
+                      type: object
+                  message:
+                    type: string
+                  connected:
+                    type: boolean
+
+  /workspace/daily-report:
+    post:
+      operationId: generateDailyReport
+      tags: [workspace]
+      summary: Generate AI daily report for a specific date
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DailyReportRequest"
+      responses:
+        "200":
+          description: Generated daily report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyReportResponse"
+
+  /workspace/daily-reports:
+    get:
+      operationId: listDailyReports
+      tags: [workspace]
+      summary: List all daily reports
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 30
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of daily reports
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyReportsList"
+
+  /workspace/daily-reports/{id}:
+    get:
+      operationId: getDailyReport
+      tags: [workspace]
+      summary: Get a specific daily report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Daily report detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyReport"
+        "404":
+          description: Report not found
+    delete:
+      operationId: deleteDailyReport
+      tags: [workspace]
+      summary: Delete a daily report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Report deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+
+  /workspace/activity-summary:
+    get:
+      operationId: getActivitySummary
+      tags: [workspace]
+      summary: Get workspace activity summary with today's data and weekly trends
+      responses:
+        "200":
+          description: Activity summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivitySummary"
+
+  # === STOCK ===
+  /stock:
+    get:
+      operationId: listStockArticles
+      tags: [stock]
+      summary: List stock articles
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            default: createdAt
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        "200":
+          description: Stock articles list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockListResponse"
+    post:
+      operationId: createStockArticle
+      tags: [stock]
+      summary: Create a stock article
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStockArticleBody"
+      responses:
+        "201":
+          description: Article created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockArticle"
+
+  /stock/{id}:
+    get:
+      operationId: getStockArticle
+      tags: [stock]
+      summary: Get a stock article
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Article details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockArticle"
+    put:
+      operationId: updateStockArticle
+      tags: [stock]
+      summary: Update a stock article
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStockArticleBody"
+      responses:
+        "200":
+          description: Article updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockArticle"
+    delete:
+      operationId: deleteStockArticle
+      tags: [stock]
+      summary: Delete a stock article
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Article deleted
+
+  /stock/scan/{barcode}:
+    get:
+      operationId: scanStockBarcode
+      tags: [stock]
+      summary: Find article by barcode/QR code
+      parameters:
+        - name: barcode
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Article found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockArticle"
+        "404":
+          description: Article not found
+
+  /stock/import/pdf:
+    post:
+      operationId: importStockPdf
+      tags: [stock]
+      summary: Import stock articles from PDF using AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pdfContent:
+                  type: string
+                  description: Base64-encoded PDF content
+              required: [pdfContent]
+      responses:
+        "200":
+          description: Import results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockPdfImportResponse"
+
+  /stock/stats:
+    get:
+      operationId: getStockStats
+      tags: [stock]
+      summary: Get stock statistics
+      responses:
+        "200":
+          description: Stock statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalArticles:
+                    type: integer
+                  totalValue:
+                    type: number
+                  lowStockCount:
+                    type: integer
+                  outOfStockCount:
+                    type: integer
+                  categoryCounts:
+                    type: object
+                    additionalProperties:
+                      type: integer
+
+  # === CHECKINS (POINTAGE) ===
+  /checkins:
+    get:
+      operationId: listCheckins
+      tags: [checkins]
+      summary: List check-in records
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [present, en_pause, termine, absent]
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [bureau, distance, terrain]
+        - name: employeeName
+          in: query
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [checkInAt, employeeName, type, status, totalMinutes]
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        "200":
+          description: List of check-in records
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  checkins:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Checkin"
+                  total:
+                    type: integer
+                required: [checkins, total]
+    post:
+      operationId: createCheckin
+      tags: [checkins]
+      summary: Create a new check-in record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCheckinBody"
+      responses:
+        "201":
+          description: Created check-in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Checkin"
+
+  /checkins/stats:
+    get:
+      operationId: getCheckinStats
+      tags: [checkins]
+      summary: Get check-in statistics
+      parameters:
+        - name: employeeName
+          in: query
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Check-in statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckinStats"
+
+  /checkins/current:
+    get:
+      operationId: getCurrentCheckins
+      tags: [checkins]
+      summary: Get currently active check-ins
+      parameters:
+        - name: employeeName
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Active check-ins
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  active:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Checkin"
+                  paused:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Checkin"
+                required: [active, paused]
+
+  /checkins/{id}:
+    get:
+      operationId: getCheckin
+      tags: [checkins]
+      summary: Get a check-in by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Check-in details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Checkin"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateCheckin
+      tags: [checkins]
+      summary: Update a check-in record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCheckinBody"
+      responses:
+        "200":
+          description: Updated check-in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Checkin"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteCheckin
+      tags: [checkins]
+      summary: Delete a check-in record
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  /integrations/catalog:
+    get:
+      operationId: getIntegrationsCatalog
+      tags: [integrations]
+      summary: Get software integrations catalog
+      responses:
+        "200":
+          description: Integrations catalog
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntegrationsCatalog"
+
+  /integrations/{integrationId}/connect:
+    post:
+      operationId: connectIntegration
+      tags: [integrations]
+      summary: Connect a software integration
+      parameters:
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+      responses:
+        "200":
+          description: Connection result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  integrationId:
+                    type: string
+                  integrationName:
+                    type: string
+
+  /integrations/{integrationId}/disconnect:
+    post:
+      operationId: disconnectIntegration
+      tags: [integrations]
+      summary: Disconnect a software integration
+      parameters:
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Disconnection result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  integrationId:
+                    type: string
+
+  /integrations/{integrationId}/test:
+    post:
+      operationId: testIntegration
+      tags: [integrations]
+      summary: Test a software integration connection
+      parameters:
+        - name: integrationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Test result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  latency:
+                    type: integer
+
+  /whatsapp/conversations:
+    get:
+      operationId: listWhatsappConversations
+      tags: [whatsapp]
+      summary: List WhatsApp customer conversations
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [open, closed, all]
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappConversationList"
+
+  /whatsapp/conversations/{id}:
+    get:
+      operationId: getWhatsappConversation
+      tags: [whatsapp]
+      summary: Get one conversation with its full message thread (marks it read)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Conversation detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappConversationDetail"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateWhatsappConversation
+      tags: [whatsapp]
+      summary: Update a conversation (open/closed status)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WhatsappConversationUpdate"
+      responses:
+        "200":
+          description: Updated conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappConversation"
+        "404":
+          description: Not found
+
+  /whatsapp/conversations/{id}/send:
+    post:
+      operationId: sendWhatsappMessage
+      tags: [whatsapp]
+      summary: Approve and send an outbound WhatsApp reply to the customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WhatsappSendInput"
+      responses:
+        "201":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappMessage"
+        "400":
+          description: Bad request or provider error
+        "404":
+          description: Not found
+
+  /whatsapp/conversations/{id}/draft:
+    post:
+      operationId: generateWhatsappDraft
+      tags: [whatsapp]
+      summary: Ask the AI to prepare a suggested reply for this conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "202":
+          description: Draft generation started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhatsappConversation"
+        "404":
+          description: Not found
+
+  /webhooks:
+    get:
+      operationId: listWebhooks
+      summary: Lister les endpoints webhook sortants de l'organisation
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WebhookEndpoint"
+    post:
+      operationId: createWebhook
+      summary: Créer un endpoint webhook (le secret de signature n'est révélé qu'une fois)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookInput"
+      responses:
+        "201":
+          description: Créé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookCreated"
+        "400":
+          description: Requête invalide
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /webhooks/{id}:
+    patch:
+      operationId: updateWebhook
+      summary: Mettre à jour un endpoint webhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookUpdate"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookEndpoint"
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteWebhook
+      summary: Supprimer un endpoint webhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Supprimé
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /webhooks/{id}/rotate-secret:
+    post:
+      operationId: rotateWebhookSecret
+      summary: Régénérer le secret de signature (révélé une seule fois)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookCreated"
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /webhooks/{id}/deliveries:
+    get:
+      operationId: listWebhookDeliveries
+      summary: Historique des livraisons d'un endpoint webhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WebhookDelivery"
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /webhooks/{id}/deliveries/{deliveryId}/retry:
+    post:
+      operationId: retryWebhookDelivery
+      summary: Rejouer immédiatement une livraison webhook (nouvelle tentative)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: deliveryId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Nouvelle tentative lancée
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookDelivery"
+        "400":
+          description: Requête invalide (ex. endpoint désactivé)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api-keys:
+    get:
+      operationId: listApiKeys
+      summary: Lister les clés API de l'organisation (jamais la clé complète)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ApiKeySummary"
+    post:
+      operationId: createApiKey
+      summary: Créer une clé API (la clé complète n'est renvoyée qu'à la création)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApiKeyInput"
+      responses:
+        "201":
+          description: Créé
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiKeyCreated"
+        "400":
+          description: Requête invalide
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api-keys/{id}/reveal:
+    post:
+      operationId: revealApiKey
+      summary: Révéler la clé complète (déchiffrée au repos)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiKeyRevealed"
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /api-keys/{id}:
+    delete:
+      operationId: revokeApiKey
+      summary: Révoquer (désactiver) une clé API
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Révoquée
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # === PROJETS ===
+  /projets:
+    get:
+      operationId: listProjets
+      tags: [projets]
+      summary: List projects
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [planifie, en_cours, en_pause, termine, annule, all]
+        - name: priority
+          in: query
+          schema:
+            type: string
+        - name: assignedTo
+          in: query
+          schema:
+            type: string
+        - name: contactId
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [createdAt, updatedAt, title, endDate, priority, progress, budget]
+            default: createdAt
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        "200":
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projets:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Projet"
+                  total:
+                    type: integer
+                required: [projets, total]
+    post:
+      operationId: createProjet
+      tags: [projets]
+      summary: Create a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjetBody"
+      responses:
+        "201":
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Projet"
+        "400":
+          description: Requête invalide
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /projets/stats:
+    get:
+      operationId: getProjetStats
+      tags: [projets]
+      summary: Project statistics
+      responses:
+        "200":
+          description: Project statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjetStats"
+
+  /projets/{id}:
+    get:
+      operationId: getProjet
+      tags: [projets]
+      summary: Get a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Project detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Projet"
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateProjet
+      tags: [projets]
+      summary: Update a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProjetBody"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Projet"
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteProjet
+      tags: [projets]
+      summary: Delete a project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # === DOCUMENTS ===
+  /documents/by-source:
+    get:
+      operationId: listDocumentsBySource
+      tags: [documents]
+      summary: List documents grouped by source entity
+      parameters:
+        - name: entityType
+          in: query
+          schema:
+            type: string
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: scanVerdict
+          in: query
+          schema:
+            type: string
+            enum: [safe, dangerous, none, all]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 60
+      responses:
+        "200":
+          description: Documents with per-source and per-scan counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentsBySource"
+
+  /documents/stats/overview:
+    get:
+      operationId: getDocumentStatsOverview
+      tags: [documents]
+      summary: Document statistics overview
+      responses:
+        "200":
+          description: Document statistics overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentStatsOverview"
+
+  /documents/{id}:
+    get:
+      operationId: getDocument
+      tags: [documents]
+      summary: Get a document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Document detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentDetail"
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteDocument
+      tags: [documents]
+      summary: Delete a document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    WebhookEndpoint:
+      type: object
+      required: [id, url, events, active, failureCount, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        url:
+          type: string
+        description:
+          type: ["string", "null"]
+        events:
+          type: array
+          items:
+            type: string
+        active:
+          type: boolean
+        failureCount:
+          type: integer
+        lastDeliveryAt:
+          type: ["string", "null"]
+          format: date-time
+        lastStatus:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    WebhookInput:
+      type: object
+      required: [url, events]
+      properties:
+        url:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        events:
+          type: array
+          items:
+            type: string
+        active:
+          type: boolean
+    WebhookUpdate:
+      type: object
+      properties:
+        url:
+          type: string
+          minLength: 1
+        description:
+          type: ["string", "null"]
+        events:
+          type: array
+          items:
+            type: string
+        active:
+          type: boolean
+    WebhookCreated:
+      type: object
+      required: [id, url, events, active, failureCount, createdAt, updatedAt, secret]
+      properties:
+        id:
+          type: integer
+        url:
+          type: string
+        description:
+          type: ["string", "null"]
+        events:
+          type: array
+          items:
+            type: string
+        active:
+          type: boolean
+        failureCount:
+          type: integer
+        lastDeliveryAt:
+          type: ["string", "null"]
+          format: date-time
+        lastStatus:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        secret:
+          type: string
+          description: Secret de signature HMAC en clair — affiché une seule fois.
+    WebhookDelivery:
+      type: object
+      required: [id, endpointId, eventType, status, attempts, maxAttempts, createdAt]
+      properties:
+        id:
+          type: integer
+        endpointId:
+          type: integer
+        eventType:
+          type: string
+        eventId:
+          type: ["string", "null"]
+        status:
+          type: string
+        attempts:
+          type: integer
+        maxAttempts:
+          type: integer
+        responseStatus:
+          type: ["integer", "null"]
+        error:
+          type: ["string", "null"]
+        durationMs:
+          type: ["integer", "null"]
+        nextRetryAt:
+          type: ["string", "null"]
+          format: date-time
+        deliveredAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    ApiKeySummary:
+      type: object
+      required: [id, name, keyPrefix, scopes, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        keyPrefix:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        lastUsedAt:
+          type: ["string", "null"]
+          format: date-time
+        expiresAt:
+          type: ["string", "null"]
+          format: date-time
+        revokedAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    ApiKeyInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        scopes:
+          type: array
+          items:
+            type: string
+        expiresAt:
+          type: string
+          format: date-time
+    ApiKeyCreated:
+      type: object
+      required: [id, name, keyPrefix, scopes, createdAt, key]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        keyPrefix:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        lastUsedAt:
+          type: ["string", "null"]
+          format: date-time
+        expiresAt:
+          type: ["string", "null"]
+          format: date-time
+        revokedAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        key:
+          type: string
+          description: Clé API complète en clair — affichée une seule fois à la création.
+    ApiKeyRevealed:
+      type: object
+      required: [id, key]
+      properties:
+        id:
+          type: integer
+        key:
+          type: string
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    UserPreferences:
+      type: object
+      properties:
+        inlineSuggestEnabled:
+          type: boolean
+          description: Master switch for inline ghost-text AI suggestions. When true, suggestions are shown while typing in any field type covered by `inlineSuggestFields` (notes, prospect notes, email bodies, call notes, task descriptions, message bodies, project descriptions, project notes, quote and invoice comments).
+        inlineSuggestLanguage:
+          type: string
+          description: Language hint passed to the inline-suggest AI prompt (e.g. "francais", "english", "deutsch"). Defaults to "francais" when unset.
+        inlineSuggestFields:
+          $ref: "#/components/schemas/InlineSuggestFieldFlags"
+        whatsappNotifications:
+          $ref: "#/components/schemas/WhatsAppNotificationFlags"
+        quietHours:
+          $ref: "#/components/schemas/QuietHoursPrefs"
+        mutedBadges:
+          $ref: "#/components/schemas/BadgeMuteFlags"
+
+    BadgeMuteFlags:
+      type: object
+      description: Per-section mute for sidebar "new-item" badges. When a flag is true, that section's badge is hidden while live counters for the other sections keep working. Independent per section; defaults to false (not muted).
+      properties:
+        rappel:
+          type: boolean
+          description: Mute the "Rappels" badge.
+        call:
+          type: boolean
+          description: Mute the "Appels" badge.
+        message:
+          type: boolean
+          description: Mute the "Messages" badge.
+        prospect:
+          type: boolean
+          description: Mute the "Prospects" badge (super-admin only).
+        task:
+          type: boolean
+          description: Mute the "Tâches" badge.
+        note:
+          type: boolean
+          description: Mute the "Notes internes" badge.
+        agentQueue:
+          type: boolean
+          description: Mute the "File d'approbation" badge.
+
+    QuietHoursPrefs:
+      type: object
+      description: Quiet hours ("heures silencieuses"). During this window, outbound push notifications (WhatsApp) are suppressed for the user. Other channels (in-app, email) are unaffected.
+      properties:
+        enabled:
+          type: boolean
+          description: Master switch. When false (default), quiet hours are not applied.
+        start:
+          type: string
+          description: Window start time in 24h "HH:MM" format (user's timezone). If start > end, the window spans midnight (e.g. "22:00" -> "07:00") and is attached to the start day.
+          example: "22:00"
+        end:
+          type: string
+          description: Window end time in 24h "HH:MM" format (exclusive).
+          example: "07:00"
+        days:
+          type: array
+          description: Weekdays the window applies to (0=Sunday ... 6=Saturday). Empty or omitted means every day. For overnight windows the day refers to the start day.
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+        timezone:
+          type: string
+          description: IANA timezone used to evaluate the window. Defaults to "Europe/Paris".
+          example: "Europe/Paris"
+
+    WhatsAppNotificationFlags:
+      type: object
+      description: Per-category opt-in for WhatsApp push notifications. Each flag is independent. When omitted or false, the user does not receive WhatsApp notifications of that category. Requires the user's `telephone` to be set and the org to have an active Twilio provider configured.
+      properties:
+        task:
+          type: boolean
+          description: New task assigned to this user.
+        call:
+          type: boolean
+          description: New inbound phone call received by the organisation.
+        appointment:
+          type: boolean
+          description: New calendar appointment created in the organisation.
+        message:
+          type: boolean
+          description: New internal message created in the organisation.
+
+    InlineSuggestFieldFlags:
+      type: object
+      description: Per-field opt-in for inline AI suggestions. Each flag is independent and combined with `inlineSuggestEnabled` (master switch). When omitted, defaults to true.
+      properties:
+        note:
+          type: boolean
+          description: Suggestions in internal notes (notes internes).
+        prospect_note:
+          type: boolean
+          description: Suggestions in prospect notes (notes de prospect).
+        email_body:
+          type: boolean
+          description: Suggestions in email bodies (corps des e-mails).
+        call_note:
+          type: boolean
+          description: Suggestions in call notes (notes d'appel).
+        task_description:
+          type: boolean
+          description: Suggestions in task descriptions (descriptions de tâches).
+        message_content:
+          type: boolean
+          description: Suggestions in message bodies (corps des messages).
+        project_description:
+          type: boolean
+          description: Suggestions in project descriptions (descriptions de projets).
+        project_note:
+          type: boolean
+          description: Suggestions in project notes (notes de projet).
+        quote_comment:
+          type: boolean
+          description: Suggestions in quote comments (commentaires de devis).
+        invoice_comment:
+          type: boolean
+          description: Suggestions in invoice comments (commentaires de facture).
+
+    WhatsappConversation:
+      type: object
+      required: [id, organisationId, customerPhone, status, unreadCount, lastMessageAt, draftStatus]
+      properties:
+        id:
+          type: integer
+        organisationId:
+          type: integer
+        providerId:
+          type: integer
+          nullable: true
+        contactId:
+          type: integer
+          nullable: true
+        customerPhone:
+          type: string
+        customerName:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [open, closed]
+        unreadCount:
+          type: integer
+        lastMessageAt:
+          type: string
+          format: date-time
+        lastMessagePreview:
+          type: string
+          nullable: true
+        lastDirection:
+          type: string
+          nullable: true
+        draftReply:
+          type: string
+          nullable: true
+        draftStatus:
+          type: string
+          enum: [none, generating, ready, failed]
+        draftError:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    WhatsappMessage:
+      type: object
+      required: [id, organisationId, conversationId, direction, mediaUrls, status, createdAt]
+      properties:
+        id:
+          type: integer
+        organisationId:
+          type: integer
+        conversationId:
+          type: integer
+        direction:
+          type: string
+          enum: [inbound, outbound]
+        body:
+          type: string
+          nullable: true
+        mediaUrls:
+          type: array
+          items:
+            type: string
+        providerMessageSid:
+          type: string
+          nullable: true
+        status:
+          type: string
+        sentBy:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    WhatsappConversationList:
+      type: object
+      required: [conversations, total]
+      properties:
+        conversations:
+          type: array
+          items:
+            $ref: "#/components/schemas/WhatsappConversation"
+        total:
+          type: integer
+
+    WhatsappConversationDetail:
+      type: object
+      required: [conversation, messages]
+      properties:
+        conversation:
+          $ref: "#/components/schemas/WhatsappConversation"
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/WhatsappMessage"
+
+    WhatsappSendInput:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 4000
+
+    WhatsappConversationUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [open, closed]
+
+    Call:
+      type: object
+      properties:
+        id:
+          type: integer
+        contactId:
+          type: integer
+          nullable: true
+        contactName:
+          type: string
+          nullable: true
+        phoneNumber:
+          type: string
+        direction:
+          type: string
+          enum: [entrant, sortant]
+        status:
+          type: string
+          enum: [repondu, manque, messagerie, en_cours]
+        duration:
+          type: integer
+          description: Duration in seconds
+        notes:
+          type: string
+          nullable: true
+        sentiment:
+          type: string
+          enum: [tres_positif, positif, neutre, negatif, tres_negatif]
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, phoneNumber, direction, status, duration, tags, createdAt, updatedAt]
+
+    CreateCallBody:
+      type: object
+      properties:
+        contactId:
+          type: integer
+          nullable: true
+        phoneNumber:
+          type: string
+        direction:
+          type: string
+          enum: [entrant, sortant]
+        status:
+          type: string
+          enum: [repondu, manque, messagerie, en_cours]
+        duration:
+          type: integer
+        notes:
+          type: string
+          nullable: true
+        sentiment:
+          type: string
+          enum: [tres_positif, positif, neutre, negatif, tres_negatif]
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+      required: [phoneNumber, direction, status, duration]
+
+    UpdateCallBody:
+      type: object
+      properties:
+        contactId:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          enum: [repondu, manque, messagerie, en_cours]
+        duration:
+          type: integer
+        notes:
+          type: string
+          nullable: true
+        sentiment:
+          type: string
+          enum: [tres_positif, positif, neutre, negatif, tres_negatif]
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+
+    Contact:
+      type: object
+      properties:
+        id:
+          type: integer
+        firstName:
+          type: string
+        lastName:
+          type: string
+        company:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        phone:
+          type: string
+        mobile:
+          type: string
+          nullable: true
+        category:
+          type: string
+          enum: [client, prospect, fournisseur, partenaire, autre]
+        address:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        totalCalls:
+          type: integer
+        lastCallAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, firstName, lastName, phone, category, totalCalls, createdAt, updatedAt]
+
+    CreateContactBody:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        company:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        phone:
+          type: string
+        mobile:
+          type: string
+          nullable: true
+        category:
+          type: string
+          enum: [client, prospect, fournisseur, partenaire, autre]
+        address:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+      required: [firstName, lastName, phone, category]
+
+    UpdateContactBody:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        company:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        phone:
+          type: string
+        mobile:
+          type: string
+          nullable: true
+        category:
+          type: string
+          enum: [client, prospect, fournisseur, partenaire, autre]
+        address:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [en_attente, en_cours, termine, annule]
+        priority:
+          type: string
+          enum: [haute, moyenne, basse]
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+        assignedTo:
+          type: string
+          nullable: true
+        relatedContactId:
+          type: integer
+          nullable: true
+        relatedCallId:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, title, status, priority, createdAt, updatedAt]
+
+    CreateTaskBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [en_attente, en_cours, termine, annule]
+        priority:
+          type: string
+          enum: [haute, moyenne, basse]
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+        assignedTo:
+          type: string
+          nullable: true
+        relatedContactId:
+          type: integer
+          nullable: true
+        relatedCallId:
+          type: integer
+          nullable: true
+      required: [title, status, priority]
+
+    UpdateTaskBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [en_attente, en_cours, termine, annule]
+        priority:
+          type: string
+          enum: [haute, moyenne, basse]
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
+        assignedTo:
+          type: string
+          nullable: true
+        relatedContactId:
+          type: integer
+          nullable: true
+        relatedCallId:
+          type: integer
+          nullable: true
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+        contactId:
+          type: integer
+          nullable: true
+        contactName:
+          type: string
+          nullable: true
+        phoneNumber:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [messagerie_vocale, note, rappel]
+        isRead:
+          type: boolean
+        priority:
+          type: string
+          enum: [haute, moyenne, basse]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, phoneNumber, content, type, isRead, priority, createdAt, updatedAt]
+
+    CreateMessageBody:
+      type: object
+      properties:
+        contactId:
+          type: integer
+          nullable: true
+        contactName:
+          type: string
+          nullable: true
+        phoneNumber:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [messagerie_vocale, note, rappel]
+        priority:
+          type: string
+          enum: [haute, moyenne, basse]
+      required: [phoneNumber, content, type, priority]
+
+    UpdateMessageBody:
+      type: object
+      properties:
+        isRead:
+          type: boolean
+        content:
+          type: string
+        priority:
+          type: string
+          enum: [haute, moyenne, basse]
+
+    DashboardSummary:
+      type: object
+      properties:
+        totalCallsToday:
+          type: integer
+        answeredCallsToday:
+          type: integer
+        missedCallsToday:
+          type: integer
+        avgCallDuration:
+          type: number
+          description: Average duration in seconds
+        totalContacts:
+          type: integer
+        pendingTasks:
+          type: integer
+        unreadMessages:
+          type: integer
+        callsThisWeek:
+          type: integer
+        callsTrend:
+          type: number
+          description: Percentage change from previous period
+        projetsActifs:
+          type: integer
+          description: Number of projects with status en_cours
+        projetsEnRetard:
+          type: integer
+          description: Number of projects past their end date and not finished/cancelled
+        totalCalls:
+          type: integer
+          description: All-time total number of calls
+        missedCalls:
+          type: integer
+          description: All-time number of missed calls
+        answeredRate:
+          type: number
+          description: All-time answered call rate as a percentage
+        todayCalls:
+          type: integer
+          description: Number of calls today (alias of totalCallsToday)
+        todayTasks:
+          type: integer
+          description: Number of tasks due today that are not finished/cancelled
+      required: [totalCallsToday, answeredCallsToday, missedCallsToday, avgCallDuration, totalContacts, pendingTasks, unreadMessages, callsThisWeek, callsTrend, projetsActifs, projetsEnRetard, totalCalls, missedCalls, answeredRate, todayCalls, todayTasks]
+
+    CallAnalytics:
+      type: object
+      properties:
+        period:
+          type: string
+        dataPoints:
+          type: array
+          items:
+            type: object
+            properties:
+              label:
+                type: string
+              answered:
+                type: integer
+              missed:
+                type: integer
+              voicemail:
+                type: integer
+              avgDuration:
+                type: number
+            required: [label, answered, missed, voicemail, avgDuration]
+        totalAnswered:
+          type: integer
+        totalMissed:
+          type: integer
+        totalVoicemail:
+          type: integer
+        answerRate:
+          type: number
+      required: [period, dataPoints, totalAnswered, totalMissed, totalVoicemail, answerRate]
+
+    ActivityItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [appel, contact, tache, message]
+        description:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties: true
+      required: [id, type, description, timestamp]
+
+    CallDistribution:
+      type: object
+      properties:
+        byStatus:
+          type: array
+          items:
+            type: object
+            properties:
+              status:
+                type: string
+              count:
+                type: integer
+              percentage:
+                type: number
+            required: [status, count, percentage]
+        byDirection:
+          type: array
+          items:
+            type: object
+            properties:
+              direction:
+                type: string
+              count:
+                type: integer
+              percentage:
+                type: number
+            required: [direction, count, percentage]
+        bySentiment:
+          type: array
+          items:
+            type: object
+            properties:
+              sentiment:
+                type: string
+              count:
+                type: integer
+              percentage:
+                type: number
+            required: [sentiment, count, percentage]
+      required: [byStatus, byDirection, bySentiment]
+
+    TopContact:
+      type: object
+      properties:
+        id:
+          type: integer
+        firstName:
+          type: string
+        lastName:
+          type: string
+        company:
+          type: string
+          nullable: true
+        totalCalls:
+          type: integer
+        lastCallAt:
+          type: string
+          format: date-time
+          nullable: true
+      required: [id, firstName, lastName, totalCalls]
+
+    TaskStats:
+      type: object
+      properties:
+        totalTasks:
+          type: integer
+        completedTasks:
+          type: integer
+        inProgressTasks:
+          type: integer
+        pendingTasks:
+          type: integer
+        cancelledTasks:
+          type: integer
+        completionRate:
+          type: number
+        overdueTasks:
+          type: integer
+        highPriorityPending:
+          type: integer
+        byPriority:
+          type: array
+          items:
+            type: object
+            properties:
+              priority:
+                type: string
+              count:
+                type: integer
+            required: [priority, count]
+      required: [totalTasks, completedTasks, inProgressTasks, pendingTasks, cancelledTasks, completionRate, overdueTasks, highPriorityPending, byPriority]
+
+    WeeklyReport:
+      type: object
+      properties:
+        weekLabel:
+          type: string
+        totalCalls:
+          type: integer
+        answeredCalls:
+          type: integer
+        missedCalls:
+          type: integer
+        answerRate:
+          type: number
+        avgDuration:
+          type: number
+        newContacts:
+          type: integer
+        completedTasks:
+          type: integer
+        messagesReceived:
+          type: integer
+        peakHour:
+          type: integer
+        peakDay:
+          type: string
+        comparisonPrevWeek:
+          type: object
+          properties:
+            callsDiff:
+              type: number
+            answerRateDiff:
+              type: number
+            durationDiff:
+              type: number
+          required: [callsDiff, answerRateDiff, durationDiff]
+      required: [weekLabel, totalCalls, answeredCalls, missedCalls, answerRate, avgDuration, newContacts, completedTasks, messagesReceived, peakHour, peakDay, comparisonPrevWeek]
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [appel_manque, message_non_lu, tache_urgente, tache_echeance, rappel]
+        title:
+          type: string
+        description:
+          type: string
+        isRead:
+          type: boolean
+        relatedId:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, type, title, description, isRead, createdAt]
+
+    AiStatus:
+      type: object
+      properties:
+        available:
+          type: boolean
+      required: [available]
+
+    AiAnalysisResult:
+      type: object
+      properties:
+        resumeExecutif:
+          type: string
+        pointsForts:
+          type: array
+          items:
+            type: object
+            properties:
+              titre:
+                type: string
+              detail:
+                type: string
+            required: [titre, detail]
+        pointsAttention:
+          type: array
+          items:
+            type: object
+            properties:
+              titre:
+                type: string
+              detail:
+                type: string
+              recommandation:
+                type: string
+            required: [titre, detail, recommandation]
+        tendances:
+          type: array
+          items:
+            type: object
+            properties:
+              titre:
+                type: string
+              detail:
+                type: string
+            required: [titre, detail]
+        recommandations:
+          type: array
+          items:
+            type: object
+            properties:
+              priorite:
+                type: string
+                enum: [haute, moyenne, basse]
+              action:
+                type: string
+              impact:
+                type: string
+            required: [priorite, action, impact]
+        scoreGlobal:
+          type: number
+      required: [resumeExecutif, pointsForts, pointsAttention, tendances, recommandations, scoreGlobal]
+
+    AiSuggestion:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [urgence, amelioration, information, action]
+        titre:
+          type: string
+        description:
+          type: string
+        priorite:
+          type: string
+          enum: [haute, moyenne, basse]
+        actionLabel:
+          type: string
+      required: [type, titre, description, priorite, actionLabel]
+
+    AiSuggestionsResult:
+      type: object
+      properties:
+        suggestions:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiSuggestion"
+        resumeCourt:
+          type: string
+      required: [suggestions, resumeCourt]
+
+    AiValidationResult:
+      type: object
+      properties:
+        isValid:
+          type: boolean
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              champ:
+                type: string
+              message:
+                type: string
+            required: [champ, message]
+        warnings:
+          type: array
+          items:
+            type: object
+            properties:
+              champ:
+                type: string
+              message:
+                type: string
+            required: [champ, message]
+        suggestions:
+          type: array
+          items:
+            type: object
+            properties:
+              champ:
+                type: string
+              suggestion:
+                type: string
+            required: [champ, suggestion]
+      required: [isValid, errors, warnings, suggestions]
+
+    AiDetection:
+      type: object
+      properties:
+        id:
+          type: string
+        categorie:
+          type: string
+          enum: [appels, contacts, taches, messages, performance, reconnaissance]
+        type:
+          type: string
+        severite:
+          type: string
+          enum: [critique, alerte, attention, info, positif]
+        titre:
+          type: string
+        description:
+          type: string
+        valeur:
+          type: string
+        icone:
+          type: string
+        lien:
+          type: string
+      required: [id, categorie, type, severite, titre, description, valeur, icone]
+
+    AiRecognitionResume:
+      type: object
+      properties:
+        scoreGlobal:
+          type: integer
+        niveauSante:
+          type: string
+          enum: [excellent, bon, moyen, critique]
+        totalDetections:
+          type: integer
+        critiques:
+          type: integer
+        alertes:
+          type: integer
+        positifs:
+          type: integer
+      required: [scoreGlobal, niveauSante, totalDetections, critiques, alertes, positifs]
+
+    AiRecognitionResult:
+      type: object
+      properties:
+        resume:
+          $ref: "#/components/schemas/AiRecognitionResume"
+        detections:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiDetection"
+      required: [resume, detections]
+
+    AiAssistantResponse:
+      type: object
+      properties:
+        reponse:
+          type: string
+        donnees:
+          type: array
+          items:
+            type: object
+            properties:
+              label:
+                type: string
+              valeur:
+                type: string
+            required: [label, valeur]
+        actions:
+          type: array
+          items:
+            type: object
+            properties:
+              label:
+                type: string
+              description:
+                type: string
+            required: [label, description]
+      required: [reponse, donnees, actions]
+
+    WorkspaceStatus:
+      type: object
+      properties:
+        connected:
+          type: boolean
+        services:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkspaceService"
+        syncEnabled:
+          type: boolean
+        lastGlobalSync:
+          type: string
+          nullable: true
+      required: [connected, services, syncEnabled]
+
+    WorkspaceService:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+          enum: [connecte, deconnecte, en_attente]
+        lastSync:
+          type: string
+          nullable: true
+        scope:
+          type: string
+      required: [id, name, status]
+
+    AiEmailDraft:
+      type: object
+      properties:
+        objet:
+          type: string
+        corps:
+          type: string
+        destinataire:
+          type: string
+        tonUtilise:
+          type: string
+        resumeIA:
+          type: string
+        suggestionsAlternatives:
+          type: array
+          items:
+            type: object
+            properties:
+              label:
+                type: string
+              objet:
+                type: string
+              corps:
+                type: string
+            required: [label, objet, corps]
+      required: [objet, corps, destinataire, tonUtilise, resumeIA, suggestionsAlternatives]
+
+    AiAgentReport:
+      type: object
+      properties:
+        id:
+          type: integer
+        agentId:
+          type: string
+        agentName:
+          type: string
+        agentIcon:
+          type: string
+        reportDate:
+          type: string
+        status:
+          type: string
+        score:
+          type: integer
+        errorsFound:
+          type: integer
+        warningsFound:
+          type: integer
+        suggestionsCount:
+          type: integer
+        summary:
+          type: string
+        details:
+          type: object
+        errors:
+          type: array
+          items:
+            type: object
+        warnings:
+          type: array
+          items:
+            type: object
+        suggestions:
+          type: array
+          items:
+            type: object
+        corrections:
+          type: array
+          items:
+            type: object
+        isSuperReport:
+          type: boolean
+        childReportIds:
+          type: array
+          items:
+            type: integer
+        executionTimeMs:
+          type: integer
+        createdAt:
+          type: string
+      required: [id, agentId, agentName, reportDate, status, score, summary]
+
+    DailyReportRequest:
+      type: object
+      properties:
+        date:
+          type: string
+          description: Date au format AAAA-MM-JJ. Par defaut aujourd'hui.
+
+    DailyReport:
+      type: object
+      properties:
+        id:
+          type: integer
+        reportDate:
+          type: string
+        summary:
+          type: string
+        highlights:
+          type: array
+          items:
+            type: string
+        metrics:
+          type: object
+        aiInsights:
+          type: string
+        aiRecommendations:
+          type: array
+          items:
+            type: object
+            properties:
+              titre:
+                type: string
+              description:
+                type: string
+              priorite:
+                type: string
+                enum: [haute, moyenne, basse]
+              categorie:
+                type: string
+                enum: [appels, taches, messages, contacts, general]
+            required: [titre, description, priorite, categorie]
+        callsCount:
+          type: integer
+        tasksCompleted:
+          type: integer
+        tasksCreated:
+          type: integer
+        messagesCount:
+          type: integer
+        contactsAdded:
+          type: integer
+        avgCallDuration:
+          type: integer
+        answerRate:
+          type: integer
+        score:
+          type: integer
+        status:
+          type: string
+        createdAt:
+          type: string
+      required: [id, reportDate, summary, score, status]
+
+    DailyReportResponse:
+      type: object
+      properties:
+        report:
+          $ref: "#/components/schemas/DailyReport"
+        aiAnalysis:
+          type: object
+          properties:
+            resume:
+              type: string
+            pointsForts:
+              type: array
+              items:
+                type: string
+            pointsAttention:
+              type: array
+              items:
+                type: string
+            recommandations:
+              type: array
+              items:
+                type: object
+                properties:
+                  titre:
+                    type: string
+                  description:
+                    type: string
+                  priorite:
+                    type: string
+                  categorie:
+                    type: string
+                required: [titre, description, priorite, categorie]
+            activites:
+              type: array
+              items:
+                type: object
+                properties:
+                  heure:
+                    type: string
+                  description:
+                    type: string
+                  categorie:
+                    type: string
+                required: [heure, description, categorie]
+            scorePerformance:
+              type: integer
+            tendance:
+              type: string
+              enum: [hausse, stable, baisse]
+            prochainePriorite:
+              type: string
+          required: [resume, scorePerformance, tendance]
+        rawData:
+          type: object
+      required: [report, aiAnalysis]
+
+    DailyReportsList:
+      type: object
+      properties:
+        reports:
+          type: array
+          items:
+            $ref: "#/components/schemas/DailyReport"
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+      required: [reports, total]
+
+    ActivitySummary:
+      type: object
+      properties:
+        today:
+          type: object
+        weekReports:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              date:
+                type: string
+              score:
+                type: integer
+              callsCount:
+                type: integer
+              tasksCompleted:
+                type: integer
+              messagesCount:
+                type: integer
+              summary:
+                type: string
+            required: [id, date, score]
+        weekStats:
+          type: object
+          properties:
+            avgScore:
+              type: integer
+            totalReports:
+              type: integer
+          required: [avgScore, totalReports]
+      required: [today, weekReports, weekStats]
+
+    IntegrationConfigField:
+      type: object
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        type:
+          type: string
+          enum: [text, password, url]
+        required:
+          type: boolean
+      required: [key, label, type, required]
+
+    SoftwareIntegration:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [connecte, deconnecte, en_attente]
+        version:
+          type: string
+          nullable: true
+        lastSync:
+          type: string
+          nullable: true
+        features:
+          type: array
+          items:
+            type: string
+        configFields:
+          type: array
+          items:
+            $ref: "#/components/schemas/IntegrationConfigField"
+      required: [id, name, category, description, status, features, configFields]
+
+    IntegrationsCatalog:
+      type: object
+      properties:
+        integrations:
+          type: array
+          items:
+            $ref: "#/components/schemas/SoftwareIntegration"
+        categories:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              label:
+                type: string
+            required: [id, label]
+        totalAvailable:
+          type: integer
+        totalConnected:
+          type: integer
+      required: [integrations, categories, totalAvailable, totalConnected]
+
+    Checkin:
+      type: object
+      properties:
+        id:
+          type: integer
+        employeeName:
+          type: string
+        employeeRole:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [bureau, distance, terrain]
+        status:
+          type: string
+          enum: [present, en_pause, termine, absent]
+        location:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        ipAddress:
+          type: string
+          nullable: true
+        checkInAt:
+          type: string
+          format: date-time
+        checkOutAt:
+          type: string
+          format: date-time
+          nullable: true
+        breakMinutes:
+          type: integer
+        totalMinutes:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, employeeName, type, status, checkInAt, breakMinutes, createdAt, updatedAt]
+
+    CreateCheckinBody:
+      type: object
+      properties:
+        employeeName:
+          type: string
+        employeeRole:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [bureau, distance, terrain]
+        status:
+          type: string
+          enum: [present, en_pause, termine, absent]
+        location:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        checkInAt:
+          type: string
+          format: date-time
+        checkOutAt:
+          type: string
+          format: date-time
+          nullable: true
+        breakMinutes:
+          type: integer
+          default: 0
+        totalMinutes:
+          type: integer
+          nullable: true
+      required: [employeeName, type, status]
+
+    UpdateCheckinBody:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [present, en_pause, termine, absent]
+        checkOutAt:
+          type: string
+          format: date-time
+          nullable: true
+        checkInAt:
+          type: string
+          format: date-time
+        breakMinutes:
+          type: integer
+        totalMinutes:
+          type: integer
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        location:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [bureau, distance, terrain]
+
+    CheckinStats:
+      type: object
+      properties:
+        totalSessions:
+          type: integer
+        totalMinutes:
+          type: integer
+        totalBreakMinutes:
+          type: integer
+        avgSessionMinutes:
+          type: integer
+        bureauCount:
+          type: integer
+        distanceCount:
+          type: integer
+        terrainCount:
+          type: integer
+        presentCount:
+          type: integer
+        enPauseCount:
+          type: integer
+        terminatedCount:
+          type: integer
+      required: [totalSessions, totalMinutes, totalBreakMinutes, avgSessionMinutes, bureauCount, distanceCount, terrainCount, presentCount, enPauseCount, terminatedCount]
+
+    StockArticle:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        reference:
+          type: string
+        barcode:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        category:
+          type: string
+          enum: [general, fourniture, informatique, mobilier, consommable, papeterie, hygiene, alimentaire, autre]
+        quantity:
+          type: integer
+        minQuantity:
+          type: integer
+        unitPrice:
+          type: string
+          nullable: true
+        supplier:
+          type: string
+          nullable: true
+        location:
+          type: string
+          nullable: true
+        unit:
+          type: string
+          enum: [piece, boite, carton, paquet, litre, kg, lot]
+        status:
+          type: string
+          enum: [en_stock, stock_faible, rupture, commande]
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, name, reference, category, quantity, minQuantity, unit, status]
+
+    CreateStockArticleBody:
+      type: object
+      properties:
+        name:
+          type: string
+        reference:
+          type: string
+        barcode:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+          enum: [general, fourniture, informatique, mobilier, consommable, papeterie, hygiene, alimentaire, autre]
+        quantity:
+          type: integer
+        minQuantity:
+          type: integer
+        unitPrice:
+          type: string
+        supplier:
+          type: string
+        location:
+          type: string
+        unit:
+          type: string
+          enum: [piece, boite, carton, paquet, litre, kg, lot]
+        status:
+          type: string
+          enum: [en_stock, stock_faible, rupture, commande]
+        notes:
+          type: string
+      required: [name, reference]
+
+    UpdateStockArticleBody:
+      type: object
+      properties:
+        name:
+          type: string
+        reference:
+          type: string
+        barcode:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        quantity:
+          type: integer
+        minQuantity:
+          type: integer
+        unitPrice:
+          type: string
+        supplier:
+          type: string
+        location:
+          type: string
+        unit:
+          type: string
+        status:
+          type: string
+        notes:
+          type: string
+
+    StockListResponse:
+      type: object
+      properties:
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockArticle"
+        total:
+          type: integer
+      required: [articles, total]
+
+    StockPdfImportResponse:
+      type: object
+      properties:
+        imported:
+          type: integer
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/StockArticle"
+        errors:
+          type: array
+          items:
+            type: string
+      required: [imported, articles, errors]
+
+
+    Milestone:
+      type: object
+      properties:
+        title:
+          type: string
+        dueDate:
+          type: string
+          nullable: true
+        completed:
+          type: boolean
+      required: [title, completed]
+
+    Projet:
+      type: object
+      properties:
+        id:
+          type: integer
+        organisationId:
+          type: integer
+        contactId:
+          type: integer
+          nullable: true
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [planifie, en_cours, en_pause, termine, annule]
+        priority:
+          type: string
+        clientName:
+          type: string
+          nullable: true
+        clientCompany:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        latitude:
+          type: number
+          nullable: true
+        longitude:
+          type: number
+          nullable: true
+        budget:
+          type: string
+          nullable: true
+        spent:
+          type: string
+          nullable: true
+        currency:
+          type: string
+        progress:
+          type: integer
+        startDate:
+          type: string
+          format: date-time
+          nullable: true
+        endDate:
+          type: string
+          format: date-time
+          nullable: true
+        actualEndDate:
+          type: string
+          format: date-time
+          nullable: true
+        assignedTo:
+          type: string
+          nullable: true
+        teamMembers:
+          type: array
+          items:
+            type: string
+          nullable: true
+        milestones:
+          type: array
+          items:
+            $ref: "#/components/schemas/Milestone"
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, organisationId, title, status, priority, currency, progress, createdAt, updatedAt]
+
+    ProjetStatusCount:
+      type: object
+      properties:
+        status:
+          type: string
+        count:
+          type: integer
+      required: [status, count]
+
+    ProjetStats:
+      type: object
+      properties:
+        byStatus:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjetStatusCount"
+        total:
+          type: integer
+        active:
+          type: integer
+        termine:
+          type: integer
+        overdue:
+          type: integer
+        avgProgress:
+          type: integer
+        highPriority:
+          type: integer
+        totalBudget:
+          type: string
+        totalSpent:
+          type: string
+        overBudget:
+          type: integer
+      required: [byStatus, total, active, termine, overdue, avgProgress, highPriority, totalBudget, totalSpent, overBudget]
+
+    CreateProjetBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [planifie, en_cours, en_pause, termine, annule]
+        priority:
+          type: string
+        clientName:
+          type: string
+          nullable: true
+        clientCompany:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        budget:
+          type: string
+          nullable: true
+        currency:
+          type: string
+        progress:
+          type: integer
+        startDate:
+          type: string
+          format: date-time
+          nullable: true
+        endDate:
+          type: string
+          format: date-time
+          nullable: true
+        assignedTo:
+          type: string
+          nullable: true
+        teamMembers:
+          type: array
+          items:
+            type: string
+        milestones:
+          type: array
+          items:
+            $ref: "#/components/schemas/Milestone"
+        tags:
+          type: array
+          items:
+            type: string
+        notes:
+          type: string
+          nullable: true
+        contactId:
+          type: integer
+          nullable: true
+      required: [title]
+
+    UpdateProjetBody:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [planifie, en_cours, en_pause, termine, annule]
+        priority:
+          type: string
+        clientName:
+          type: string
+          nullable: true
+        clientCompany:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        budget:
+          type: string
+          nullable: true
+        spent:
+          type: string
+          nullable: true
+        currency:
+          type: string
+        progress:
+          type: integer
+        startDate:
+          type: string
+          format: date-time
+          nullable: true
+        endDate:
+          type: string
+          format: date-time
+          nullable: true
+        actualEndDate:
+          type: string
+          format: date-time
+          nullable: true
+        assignedTo:
+          type: string
+          nullable: true
+        teamMembers:
+          type: array
+          items:
+            type: string
+        milestones:
+          type: array
+          items:
+            $ref: "#/components/schemas/Milestone"
+        tags:
+          type: array
+          items:
+            type: string
+        notes:
+          type: string
+          nullable: true
+        contactId:
+          type: integer
+          nullable: true
+
+    Document:
+      type: object
+      properties:
+        id:
+          type: integer
+        fileName:
+          type: string
+        mimeType:
+          type: string
+        fileSize:
+          type: integer
+        fileSizeFormatted:
+          type: string
+        entityType:
+          type: string
+          nullable: true
+        entityId:
+          type: integer
+          nullable: true
+        category:
+          type: string
+        description:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+          nullable: true
+        aiProcessed:
+          type: boolean
+        hasText:
+          type: boolean
+        status:
+          type: string
+          nullable: true
+        scanVerdict:
+          type: string
+          nullable: true
+        scanEngine:
+          type: string
+          nullable: true
+        scannedAt:
+          type: string
+          format: date-time
+          nullable: true
+        uploadedBy:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, fileName, mimeType, fileSize, fileSizeFormatted, category, aiProcessed, hasText, createdAt]
+
+    DocumentSourceCount:
+      type: object
+      properties:
+        entity_type:
+          type: string
+        count:
+          type: integer
+      required: [entity_type, count]
+
+    DocumentScanCounts:
+      type: object
+      properties:
+        safe:
+          type: integer
+        dangerous:
+          type: integer
+        unscanned:
+          type: integer
+      required: [safe, dangerous, unscanned]
+
+    DocumentsBySource:
+      type: object
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: "#/components/schemas/Document"
+        total:
+          type: integer
+        bySource:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentSourceCount"
+        byScan:
+          $ref: "#/components/schemas/DocumentScanCounts"
+      required: [documents, total, bySource, byScan]
+
+    DocumentCategoryCount:
+      type: object
+      properties:
+        category:
+          type: string
+        count:
+          type: integer
+      required: [category, count]
+
+    DocumentReuseSavings:
+      type: object
+      properties:
+        reusedScanCount:
+          type: integer
+        reusedScanSavedMs:
+          type: number
+      required: [reusedScanCount, reusedScanSavedMs]
+
+    DocumentStatsOverview:
+      type: object
+      properties:
+        totalDocuments:
+          type: integer
+        totalSize:
+          type: string
+        totalSizeBytes:
+          type: number
+        byEntityType:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentSourceCount"
+        byCategory:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentCategoryCount"
+        byScanVerdict:
+          $ref: "#/components/schemas/DocumentScanCounts"
+        reuseSavings:
+          $ref: "#/components/schemas/DocumentReuseSavings"
+      required: [totalDocuments, totalSize, totalSizeBytes, byEntityType, byCategory, byScanVerdict, reuseSavings]
+
+    DocumentDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        fileName:
+          type: string
+        mimeType:
+          type: string
+        fileSize:
+          type: integer
+        entityType:
+          type: string
+          nullable: true
+        entityId:
+          type: integer
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+          nullable: true
+        aiProcessed:
+          type: boolean
+          nullable: true
+        aiAnalysis:
+          type: object
+          additionalProperties: true
+          nullable: true
+        extractedText:
+          type: string
+          nullable: true
+        extractedData:
+          type: object
+          additionalProperties: true
+          nullable: true
+        imageBase64:
+          type: string
+          nullable: true
+          description: Data URI of the file content for images, so the reader can display them inline.
+        rawText:
+          type: string
+          nullable: true
+          description: Decoded text content for plain-text files, so the reader can render them.
+        status:
+          type: string
+          nullable: true
+        scanVerdict:
+          type: string
+          nullable: true
+        scanEngine:
+          type: string
+          nullable: true
+        scanDetail:
+          type: string
+          nullable: true
+        scanSha256:
+          type: string
+          nullable: true
+        scannedAt:
+          type: string
+          format: date-time
+          nullable: true
+        uploadedBy:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, fileName, mimeType, fileSize, createdAt, updatedAt]

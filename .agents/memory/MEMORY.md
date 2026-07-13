@@ -1,0 +1,63 @@
+# Memory Index
+
+- [At-rest secret encryption](at-rest-encryption.md) — all persisted secrets use ONE canonical lib/crypto AES-256-GCM helper; require DATA_ENCRYPTION_KEY in prod (no SESSION_SECRET fallback).
+- [User terminology](user-terminology.md) — owner's word "Canvas" = the live talking AI avatar (@workspace/ai-avatar), NOT the design board or the assistant chat button.
+- [Retiring a proactive detector](detector-retirement.md) — drop type from DETECTOR_TYPES AND add to RETIRED_DETECTOR_TYPES so old pending rows self-resolve everywhere (no manual SQL).
+- [Gemini model-retirement fallback](gemini-model-fallback.md) — boot-time singleton patch of ai.models retries model-retired errors with env-overridable *-latest fallback; covers all call sites.
+- [Security middleware stack](security-middleware-stack.md) — /api threatDetection blocks URLs/base64 (bypass per-route); global express.json is 1mb (mount higher limit before it).
+- [Per-org AI BYOK](ai-byok.md) — tenant AI keys need TWO fallbacks: acquisition + runtime auth-error replay (callOrgGemini/callOrgEmbedding); quota/network errors must NOT fall back.
+- [Google connection model](google-connection-model.md) — all Google surfaces use per-user OAuth (google_oauth_tokens); never the shared Replit connector, never hardcoded status.
+- [Google OAuth centralized](google-oauth-centralized.md) — ONE global env OAuth client for all tenants (envOnly), per-user token isolation, no credential UI; BYOC reverted.
+- [Google OAuth redirect URI](google-oauth-redirect-uri.md) — prod callback must derive from REPLIT_DOMAINS (not REPLIT_DEV_DOMAIN) + be registered in Google Cloud Console, else redirect_uri_mismatch.
+- [Cron daily guards](cron-daily-guard.md) — row-derived "ran today" guards silently re-run on zero-output ticks; pair with in-memory attempted marker; self-generate dedup keys (don't trust LLM).
+- [DB pool fan-out + retry](db-pool-fanout-retry.md) — per-org count fan-out under concurrent crons exhausts the pool; use count(*) FILTER + withDbRetry on idempotent reads; don't bump pool first.
+- [Talking AI avatar](talking-avatar.md) — DOM-only `@workspace/ai-avatar` lib for web; Expo duplicates viseme core + RN SVG; TTS must use on-device (local) voices only, fail closed.
+- [Voice receptionist enrichment](voice-receptionist-enrichment.md) — anonymous Twilio caller: every prompt enrichment (KB/availability) must be latency-bounded (withTimeout) AND disclosure-guarded (busy slots internal-only, no doc dumps); no phone_public allowlist yet.
+- [Postgres composite-key purge](postgres-composite-key-purge.md) — purge stale rows via sql-concat notInArray; separator must NOT be U+0000 (Postgres rejects NUL, fails only at runtime).
+- [Global super-admin guard](global-super-admin-guard.md) — never `router.use(requireSuperAdmin, xRouter)` (leaks to ALL routes, 403s clients); path-scope it. Recheck after backoffice merges.
+- [Cron cadence durability](cron-cadence-durability.md) — "once per period" crons must persist last-run marker in DB, not in-memory (resets on restart → dup sends).
+- [Security scan engines](security-scan-engines.md) — file/URL scanning engine setup and fallbacks.
+- [executeSql error surfacing](executesql-error-surfacing.md) — sandbox executeSql returns SQL errors in `.output`, does NOT throw; assert via row counts, not try/catch.
+- [Proactive autonomy engine](proactive-autonomy-engine.md) — deterministic no-AI detectors → proactive_suggestions; DB partial-unique dedupe on pending; opt-in cron per org.
+- [Message-SLA & quiet-customer detectors](proactive-message-quiet-detectors.md) — inbound msg = createdBy NULL (no direction col); SLA partitioned from urgent_message by priority; quiet_customer window [21,60) disjoint from inactive_contact.
+- [Document threat alerts](document-threat-alerts.md) — stored docs go "dangerous" only via re-scan endpoints; event-driven proactive suggestion alerts owners regardless of cron opt-in.
+- [Prod schema & rename trap](prod-schema-publish-flow.md) — prod schema only via Publish diff, never direct DDL; legacy user_sessions makes push-force rename-destroy new tables — pre-create additively.
+- [Dev DB drift + scan cancel e2e](dev-db-drift-and-scan-e2e.md) — drizzle push offers a DESTRUCTIVE user_sessions→agent_proposals rename (never accept); org delete blocked by append-only audit.
+- [AI council anchor pattern](ai-council-anchor.md) — OpenAI/Anthropic ~45s-timeout via proxy; use Gemini Flash anchor + short grace + abort stragglers; never block on slow providers (auto-run in-memory).
+- [Web search via Gemini grounding + SSRF](web-search-grounding-ssrf.md) — Gemini googleSearch grounding (no search API); resolve redirects on allowlisted Google hosts only, never fetch destinations.
+- [Web-search enrichment sources](web-search-enrichment-sources.md) — Brave managed billing is image-only AND agent-time-only (not runtime); real images/videos/maps/shopping need SerpAPI key; calculator/unit/currency (frankfurter, no key, TRY incl.) ship free.
+- [AI Council + agent learning](ai-council-and-agent-learning.md) — consult Gemini+GPT+Claude in parallel (non-stream only); cache key MUST include learned-context fingerprint or learning breaks.
+- [AI cache org isolation](ai-cache-org-isolation.md) — buildAiCacheKey must NEVER fall back to a shared "noorg" bucket; missing org → per-call random token, else cross-tenant cache leak (demo/test ↔ client).
+- [Webhook session<->tenant binding](webhook-session-tenant-binding.md) — signature alone won't stop cross-tenant leaks; re-assert session.orgId===tenant.orgId each turn; set fulfilled only post DB write.
+- [Tenant org NOT NULL hardening](tenant-org-not-null.md) — "0 nulls now" ≠ null invalid; some org_id inserts are legit null (payments/google_oauth_tokens/license_audit_log); typecheck api-server after.
+- [Live API e2e from scripts](live-api-e2e-from-scripts.md) — non-browser POSTs need Origin header (else CSRF 403); use login wantsToken bearer; logged-in users can't be hard-deleted (audit) → anonymize.
+- [auto-broadcast path matching](auto-broadcast-baseurl-bug.md) — router mounted at /api means req.path lacks the prefix; match `${req.baseUrl}${req.path}` or SSE/notif/webhook fan-out dies silently.
+- [API key management ownership](api-key-mgmt-ownership.md) — api-key auth impersonates its creator; list/reveal/revoke must be owner-or-admin scoped + audited, not just requireAuth+requireTenant.
+- [Outbound webhook delivery](outbound-webhook-delivery.md) — tenant-URL delivery: SSRF-check (DNS-resolve) every attempt, sign with per-attempt timestamp, atomic SQL failure-count/breaker.
+- [Drizzle composite-FK ordering trap](drizzle-composite-fk-ordering.md) — composite FK needs unique() not uniqueIndex; incremental push adds FK before UNIQUE & push-force swallows the error; drop+recreate to fix.
+- [Replit Stripe connector shape](stripe-connector-shape.md) — secret under settings.secret (not secret_key), NO webhook_secret, managed acct starts TEST; billing is env-first, connector fallback, all async.
+- [vitest singleFork env leak](vitest-singlefork-env.md) — api-server runs all test files in one process; process.env mutations leak across files; gate opt-in tests against dummy sentinels.
+- [Google tokens at rest](google-token-at-rest.md) — google_oauth_tokens access/refresh encrypted via lib/crypto; legacy plaintext migrates lazily on read (refresh never rewrites refresh_token).
+- [Multi-tenant FK convention](tenant-fk-convention.md) — cross-entity FKs point at global PK (not composite); isolation is app-level (getOrgId at write), so validate referenced row's org first.
+- [BTP / CREPI-OS scope](btp-crepios-scope.md) — red lines: autonomous SEPA, physical lock, OS/VLM kernel. Buildable = human-approved suggestions in proactive-engine; only `vehicules` is new.
+- [Treasury cash-crunch risk brain](treasury-risk-brain.md) — cash-crunch MC must be path-based (cross-zero over horizon), not terminal-balance; MC-backed detectors need hysteresis or they flap auto-resolve.
+- [Voice pending-action confirm](voice-pending-action-confirm.md) — confirm `accept` indices key into the READY subset only (not full list); "mark complete" must re-guard `status IN open` at confirm.
+- [PDF generation with pdfkit](pdf-generation-pdfkit.md) — bufferPages+footers-after-content (never pageAdded → stack overflow); resolve non-hoisted pdfkit via createRequire; Helvetica = French not Turkish.
+- [Assistant write-tools confirmation gate](assistant-write-tools-confirmation.md) — new persisting assistant tools must set requiresConfirmation + local try/catch; pass nested input as a JSON-string param.
+- [Proactive feedback suppression](proactive-feedback-suppression.md) — votes must reach BOTH AI prompts AND the deterministic proactive engine; suppress strongly-downvoted suggestion types but never `urgent`.
+- [Per-user AI learning layer](ai-user-learning-layer.md) — agent learns per-employee (ai_user_profile_facts) not just per-org; buildLearnedContextBlock cache keyed `org:user`, invalidation MUST prefix-purge `org:*`.
+- [Webhook manual retry single-executor](webhook-manual-retry.md) — "replay" must re-queue for the single bg worker, never also send from HTTP; resetting failed→pending trips the stale-pending net → dup delivery.
+- [load() self-dep refetch loop](effect-load-refetch-loop.md) — a fetch useCallback in useEffect(...,[load]) must not dep on state it mutates; use refs + reqGen, else silent continuous refetch.
+- [Detail-page route-id fetch race](detail-page-fetch-race.md) — raw fetch-by-route-id in useEffect needs a captured-vs-current id guard before each setState; React Query hooks are id-keyed/race-free.
+- [Assistant tool enum descriptions](assistant-tool-enum-descriptions.md) — enum values in LLM-tool descriptions feed eq() filters/inserts; keep canonical or model silently matches 0 rows; enum-validate create_*.
+- [Domain status enums (tasks/calls)](task-status-enum.md) — tasks=en_attente/en_cours/termine/annule, calls=repondu/manque/messagerie (French); wrong/English literals fail silently; English only in API mapping.
+- [RAG knowledge base dual-mode](rag-knowledge-base.md) — embeddings unavailable in env; KB search falls back to lexical BM25, auto-upgrades to semantic cosine if a valid key appears; no pgvector dep.
+- [Document-AI execute-action contract](document-ai-execute-contract.md) — capture screens must POST the FULL SuggestedAction obj + extractedFields; legacy document-ai.tsx sends wrong shape (always 400); creer_tache maps echeance→due_date + org-checked contact link.
+- [Time-series day bucketing UTC](time-bucketing-utc.md) — SQL date_trunc on timestamptz uses session TZ; force `at time zone 'UTC'` to match JS UTC gap-fill keys or boundary days shift.
+- [Stripe webhook idempotency & invoice dedupe](stripe-webhook-idempotency.md) — one payment fires invoice.paid+invoice.payment_succeeded (dedupe on invoice id, not event id); webhook must mark processed ONLY after handler success (else retries lost).
+- [Assistant engine tool-loop](assistant-engine-tool-loop.md) — reads run parallel + turn-scoped cache + one-shot self-correction hint; first confirm tool bounds the hop, never cache writes, event contract frozen.
+- [Assistant validateArgs strips undeclared args](assistant-validateargs-strips-unknown.md) — tool params must be in BOTH `parameters` AND `fields` or they're dropped pre-execute; booleans need `kind:"boolean"`.
+- [Large CSV/data export streaming](large-export-streaming.md) — bulk exports must keyset-paginate + res.write chunks; set headers/header-row only after 1st batch so failures branch on res.headersSent (clean 500 vs res.end).
+- [Expense auto-capture flow](expense-capture-flow.md) — uploads+Gmail fire bg Document-AI per eligible file (org-toggle gated, idempotent by documentId); dup detection warns-not-blocks; approved a_payer feed treasury MC as deterministic outflows.
+- [Payment-reminder proactive type](payment-reminder-type.md) — collection-critical type, locally-managed lifecycle (not in DETECTOR_TYPES), NEVER suppressed; spacing not suppression controls spam; only the send route sends.
+- [buro-ajani public routes](buro-ajani-public-routes.md) — anonymous pages need a pathname-regex branch in App.tsx before auth-state (like isInvitationPath); plain <Route> never reached logged-out; backend mounts token route before requireAuth.

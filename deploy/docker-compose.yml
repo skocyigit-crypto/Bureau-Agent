@@ -1,0 +1,101 @@
+# Agent de Bureau — production stack (portable, runs anywhere Docker runs)
+#
+# Quick start:
+#   1. cp deploy/.env.example deploy/.env  &&  edit deploy/.env
+#   2. docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d --build
+#   3. docker compose -f deploy/docker-compose.yml --env-file deploy/.env exec api \
+#         pnpm --filter @workspace/db exec drizzle-kit push
+#   4. Open http://localhost  (or your domain when DOMAIN is set in .env)
+
+name: agent-de-bureau
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agent_de_bureau}
+      POSTGRES_USER: ${POSTGRES_USER:-agent}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-agent} -d $${POSTGRES_DB:-agent_de_bureau}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Only expose the port if you really need external access; default is internal-only.
+    # ports:
+    #   - "127.0.0.1:5432:5432"
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: "8080"
+      DATABASE_URL: postgres://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-agent_de_bureau}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required (>= 32 random chars)}
+      JWT_SECRET: ${JWT_SECRET:-${SESSION_SECRET}}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@agentdebureau.fr}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+      # AI providers — direct keys (preferred outside Replit)
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Email
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      # Twilio (telephony)
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER:-}
+      # Google OAuth
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-}
+      # Public URL (used in email links, OAuth callbacks)
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost}
+      APP_BASE_PATH: ${APP_BASE_PATH:-/buro-ajani}
+      MOBILE_APP_URL: ${MOBILE_APP_URL:-}
+      # Ek güvenlik anahtarları (boşsa SESSION_SECRET'a düşer)
+      DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:-}
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      # SMTP fallback (Gmail/Resend yoksa)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-noreply@agentdebureau.fr}
+      # Stripe (SaaS abonelik)
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PRICE_STARTER: ${STRIPE_PRICE_STARTER:-}
+      STRIPE_PRICE_PROFESSIONNEL: ${STRIPE_PRICE_PROFESSIONNEL:-}
+      STRIPE_PRICE_ENTREPRISE: ${STRIPE_PRICE_ENTREPRISE:-}
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      DOMAIN: ${DOMAIN:-:80}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  db_data:
+  caddy_data:
+  caddy_config:

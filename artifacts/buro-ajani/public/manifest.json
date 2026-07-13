@@ -1,0 +1,101 @@
+{
+  "name": "Agent de Bureau",
+  "short_name": "Agent Bureau",
+  "description": "Solution professionnelle de gestion de bureau et centre d'appels",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f1729",
+  "theme_color": "#1a2744",
+  "orientation": "any",
+  "categories": ["business", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Nouveau appel",
+      "short_name": "Appel",
+      "description": "Enregistrer un appel rapidement",
+      "url": "/appels?new=1",
+      "icons": [{ "src": "/icons/icon-96.svg", "sizes": "96x96" }]
+    },
+    {
+      "name": "Nouvelle tâche",
+      "short_name": "Tâche",
+      "description": "Créer une tâche rapidement",
+      "url": "/taches?new=1",
+      "icons": [{ "src": "/icons/icon-96.svg", "sizes": "96x96" }]
+    },
+    {
+      "name": "Tableau de bord",
+      "short_name": "Dashboard",
+      "description": "Vue d'ensemble",
+      "url": "/",
+      "icons": [{ "src": "/icons/icon-96.svg", "sizes": "96x96" }]
+    }
+  ],
+  "lang": "fr",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/icons/icon-72.svg",
+      "sizes": "72x72",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-96.svg",
+      "sizes": "96x96",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-128.svg",
+      "sizes": "128x128",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-144.svg",
+      "sizes": "144x144",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-152.svg",
+      "sizes": "152x152",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-384.svg",
+      "sizes": "384x384",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/opengraph.jpg",
+      "sizes": "1200x630",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Tableau de bord Agent de Bureau"
+    }
+  ]
+}

@@ -1,0 +1,446 @@
+import { Router, type Request, type Response } from "express";
+import { db } from "@workspace/db";
+import { calendarEventsTable, insertCalendarEventSchema, tasksTable, projetsTable, organisationClosuresTable } from "@workspace/db/schema";
+import { eq, and, gte, lte, or, type Column, type SQL } from "drizzle-orm";
+import { logAudit } from "./audit";
+import { getOrgId } from "../middleware/tenant";
+import { resolveUserNames, enrichWithUserNames } from "../helpers/user-tracking";
+import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
+import { notifyOrgUsers } from "../services/whatsapp-notify";
+import { computeFreeSlots, getWorkingHoursConfig } from "../services/availability";
+
+const router = Router();
+
+/**
+ * Creneaux LIBRES calcules a partir des horaires d'ouverture de l'org et des
+ * evenements existants (agenda local + agenda Google de l'utilisateur). Sert a
+ * la creation de RDV depuis l'UI calendrier et a la proposition de creneaux.
+ */
+router.get("/calendar/availability", async (req: Request, res: Response): Promise<void> => {
+  const userId = req.session?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  const orgId = getOrgId(req);
+
+  const { from, to, duration, limit, step } = req.query;
+  const now = new Date();
+  let fromDate = typeof from === "string" ? new Date(from) : now;
+  if (isNaN(fromDate.getTime())) fromDate = now;
+  let toDate = typeof to === "string" ? new Date(to) : new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+  if (isNaN(toDate.getTime())) toDate = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+
+  const durationMinutes = typeof duration === "string" && Number(duration) > 0 ? Number(duration) : undefined;
+  const slotLimit = typeof limit === "string" && Number(limit) > 0 ? Math.min(Number(limit), 50) : 20;
+  const stepMinutes = typeof step === "string" && Number(step) > 0 ? Number(step) : undefined;
+
+  try {
+    const slots = await computeFreeSlots({
+      orgId,
+      userId,
+      from: fromDate,
+      to: toDate,
+      durationMinutes,
+      stepMinutes,
+      limit: slotLimit,
+    });
+    res.json({ slots });
+  } catch (err) {
+    req.log.error({ err }, "Erreur calcul des disponibilites");
+    res.status(500).json({ error: "Erreur lors du calcul des disponibilites." });
+  }
+});
+
+const ALLOWED_UPDATE_FIELDS = new Set([
+  "title", "description", "type", "startDate", "endDate", "allDay",
+  "location", "color", "relatedContactId", "relatedTaskId", "reminder", "recurrence",
+  "contactName", "contactPhone", "contactEmail", "contactCompany", "contactNotes",
+  "status", "priority",
+]);
+
+router.get("/calendar/events", async (req: Request, res: Response): Promise<void> => {
+  const userId = req.session?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+
+  const orgId = getOrgId(req);
+  const { start, end, type, search, q } = req.query;
+
+  let conditions: any[] = [eq(calendarEventsTable.organisationId, orgId)];
+  // Chevauchement (et non inclusion totale) : un evenement appartient a la
+  // fenetre [start, end] s'il se termine APRES le debut de la fenetre ET
+  // commence AVANT sa fin. L'ancienne logique (startDate >= start &&
+  // endDate <= end) excluait a tort les evenements qui debordent les bornes
+  // (ex. reunion de nuit, evenement multi-jours, RDV commence juste avant le
+  // debut de la semaine affichee), qui disparaissaient de la vue calendrier.
+  if (start && typeof start === "string") {
+    const d = new Date(start);
+    if (!isNaN(d.getTime())) conditions.push(gte(calendarEventsTable.endDate, d));
+  }
+  if (end && typeof end === "string") {
+    const d = new Date(end);
+    if (!isNaN(d.getTime())) conditions.push(lte(calendarEventsTable.startDate, d));
+  }
+  if (type && type !== "tous" && typeof type === "string") conditions.push(eq(calendarEventsTable.type, type));
+
+  const searchTerm = (typeof search === "string" && search.trim()) || (typeof q === "string" && q.trim()) || "";
+  if (searchTerm) {
+    const useUnaccent = await ensureUnaccentExtension();
+    const pattern = `%${searchTerm.replace(/[%_\\]/g, "\\$&")}%`;
+    const il = (col: Column): SQL => accentInsensitiveIlike(col, pattern, useUnaccent);
+    conditions.push(or(
+      il(calendarEventsTable.title),
+      il(calendarEventsTable.description),
+      il(calendarEventsTable.location),
+      il(calendarEventsTable.contactName),
+      il(calendarEventsTable.contactCompany),
+    )!);
+  }
+
+  try {
+    const events = await db
+      .select()
+      .from(calendarEventsTable)
+      .where(and(...conditions))
+      .orderBy(calendarEventsTable.startDate)
+      .limit(1000);
+
+    const startDate = start ? new Date(start as string) : null;
+    const endDate = end ? new Date(end as string) : null;
+    const validStart = startDate && !isNaN(startDate.getTime()) ? startDate : null;
+    const validEnd = endDate && !isNaN(endDate.getTime()) ? endDate : null;
+
+    const taskConditions: any[] = [eq(tasksTable.organisationId, orgId)];
+    if (validStart) taskConditions.push(gte(tasksTable.dueDate, validStart));
+    if (validEnd) taskConditions.push(lte(tasksTable.dueDate, validEnd));
+
+    const tasks = await db
+      .select()
+      .from(tasksTable)
+      .where(taskConditions.length > 1 ? and(...taskConditions) : taskConditions[0])
+      .limit(1000);
+
+    const taskEvents = tasks
+      .filter(t => t.dueDate)
+      .map(t => ({
+        id: `task-${t.id}`,
+        title: t.title,
+        description: t.description,
+        type: "tache",
+        startDate: t.dueDate,
+        endDate: t.dueDate,
+        allDay: true,
+        color: t.priority === "haute" ? "#ef4444" : t.priority === "moyenne" ? "#f59e0b" : "#22c55e",
+        relatedTaskId: t.id,
+        status: t.status,
+      }));
+
+    const projetConditions: any[] = [
+      eq(projetsTable.organisationId, orgId),
+    ];
+    if (validStart) projetConditions.push(gte(projetsTable.endDate, validStart));
+    if (validEnd) projetConditions.push(lte(projetsTable.endDate, validEnd));
+    const projets = await db
+      .select({ id: projetsTable.id, title: projetsTable.title, endDate: projetsTable.endDate, status: projetsTable.status, priority: projetsTable.priority, clientName: projetsTable.clientName, progress: projetsTable.progress })
+      .from(projetsTable)
+      .where(and(...projetConditions))
+      .limit(1000);
+
+    const projetEvents = projets
+      .filter(p => p.endDate && p.status !== "annule")
+      .map(p => ({
+        id: `projet-${p.id}`,
+        title: `📁 ${p.title}${p.clientName ? ` — ${p.clientName}` : ""}`,
+        description: `Projet · ${p.progress ?? 0}% avancé`,
+        type: "projet",
+        startDate: p.endDate,
+        endDate: p.endDate,
+        allDay: true,
+        color: p.status === "termine" ? "#22c55e" : p.priority === "haute" ? "#ef4444" : "#6366f1",
+        status: p.status,
+      }));
+
+    const userIds = events.flatMap((e: any) => [e.createdBy, e.updatedBy]);
+    const userMap = await resolveUserNames(userIds);
+    res.json({ events: enrichWithUserNames(events, userMap), taskEvents, projetEvents });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur liste evenements agenda");
+    res.status(500).json({ error: "Erreur lors de la recuperation des evenements." });
+  }
+});
+
+router.post("/calendar/events", async (req: Request, res: Response): Promise<void> => {
+  const userId = req.session?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+
+  const orgId = getOrgId(req);
+  const body = { ...req.body };
+  if (body.startDate && typeof body.startDate === "string") body.startDate = new Date(body.startDate);
+  if (body.endDate && typeof body.endDate === "string") body.endDate = new Date(body.endDate);
+
+  const parsed = insertCalendarEventSchema.safeParse(body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Donnees invalides.", details: parsed.error.issues });
+    return;
+  }
+
+  // Verifier que la date de debut ne tombe pas sur un jour de fermeture.
+  // La date est interpretee dans le fuseau de l'organisation (meme logique que
+  // computeFreeSlots / isSlotFree) pour eviter les faux positifs/negatifs en
+  // bordure de jour UTC pour les tenants non-UTC.
+  const eventStart = parsed.data.startDate instanceof Date ? parsed.data.startDate : new Date(parsed.data.startDate);
+  const { timezone: orgTz } = await getWorkingHoursConfig(orgId);
+  const eventDateStr = new Intl.DateTimeFormat("en-CA", {
+    timeZone: orgTz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(eventStart); // en-CA renders YYYY-MM-DD natively
+
+  const closureHit = await db
+    .select({ id: organisationClosuresTable.id, label: organisationClosuresTable.label })
+    .from(organisationClosuresTable)
+    .where(
+      and(
+        eq(organisationClosuresTable.organisationId, orgId),
+        lte(organisationClosuresTable.dateStart, eventDateStr),
+        gte(organisationClosuresTable.dateEnd, eventDateStr),
+      ),
+    )
+    .limit(1);
+
+  if (closureHit.length > 0) {
+    const label = closureHit[0].label;
+    const reason = label ? ` (${label})` : "";
+    res.status(409).json({
+      error: `Impossible de créer un rendez-vous le ${eventDateStr} : l'organisation est fermée ce jour${reason}.`,
+    });
+    return;
+  }
+
+  try {
+    const [event] = await db.insert(calendarEventsTable).values({
+      ...parsed.data,
+      organisationId: orgId,
+      createdBy: userId,
+      updatedBy: userId,
+    }).returning();
+
+    logAudit(userId, req.session?.userEmail, "create", "calendar_event", String(event.id), { title: event.title }, req.ip, req.get("user-agent"), req.session?.organisationId);
+
+    // Notification WhatsApp aux membres opt-in (kind="appointment"). On
+    // exclut le createur (il vient de le creer, pas besoin de se notifier
+    // soi-meme). Fail-soft.
+    try {
+      const when = event.startDate instanceof Date ? event.startDate : new Date(event.startDate);
+      const whenStr = isNaN(when.getTime())
+        ? ""
+        : ` (${when.toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })})`;
+      void notifyOrgUsers(
+        orgId,
+        `Bureau IA - Nouveau rendez-vous : ${event.title}${whenStr}.`,
+        "appointment",
+        userId,
+      ).catch((err) => req.log.warn({ err }, "[calendar] notifyOrgUsers rejection"));
+    } catch (notifyErr) {
+      req.log.warn({ err: notifyErr }, "[calendar] notify appointment failed");
+    }
+
+    res.status(201).json(event);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur creation evenement agenda");
+    res.status(500).json({ error: "Erreur lors de la creation de l'evenement." });
+  }
+});
+
+router.patch("/calendar/events/:id", async (req: Request, res: Response): Promise<void> => {
+  const userId = req.session?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+
+  const orgId = getOrgId(req);
+  const id = parseInt(String(req.params.id));
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+
+  const rawUpdate: Record<string, any> = {};
+  for (const [key, value] of Object.entries(req.body)) {
+    if (ALLOWED_UPDATE_FIELDS.has(key) && value !== undefined) {
+      rawUpdate[key] = value;
+    }
+  }
+
+  if (Object.keys(rawUpdate).length === 0) {
+    res.status(400).json({ error: "Aucune modification fournie." });
+    return;
+  }
+
+  if (rawUpdate.startDate && typeof rawUpdate.startDate === "string") rawUpdate.startDate = new Date(rawUpdate.startDate);
+  if (rawUpdate.endDate && typeof rawUpdate.endDate === "string") rawUpdate.endDate = new Date(rawUpdate.endDate);
+
+  const parsedUpdate = insertCalendarEventSchema.partial().safeParse(rawUpdate);
+  if (!parsedUpdate.success) {
+    res.status(400).json({ error: "Donnees invalides.", details: parsedUpdate.error.issues });
+    return;
+  }
+
+  const updateData: Record<string, any> = { ...parsedUpdate.data, updatedBy: userId };
+
+  // Guard: if the update moves the event to a different day, verify that day
+  // is not a closure day (same check as POST /calendar/events).
+  // The day string is derived in the org's timezone — same logic as POST — to
+  // avoid false positives/negatives for non-UTC tenants near midnight UTC.
+  if (updateData.startDate !== undefined) {
+    const newStart = new Date(updateData.startDate as string);
+    if (!isNaN(newStart.getTime())) {
+      const { timezone: orgTz } = await getWorkingHoursConfig(orgId);
+      const newDateStr = new Intl.DateTimeFormat("en-CA", {
+        timeZone: orgTz,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(newStart); // en-CA renders YYYY-MM-DD natively
+
+      const closureHit = await db
+        .select({ label: organisationClosuresTable.label })
+        .from(organisationClosuresTable)
+        .where(
+          and(
+            eq(organisationClosuresTable.organisationId, orgId),
+            lte(organisationClosuresTable.dateStart, newDateStr),
+            gte(organisationClosuresTable.dateEnd, newDateStr),
+          ),
+        )
+        .limit(1);
+
+      if (closureHit.length > 0) {
+        const label = closureHit[0].label;
+        const reason = label ? ` (${label})` : "";
+        res.status(409).json({
+          error: `Impossible de déplacer le rendez-vous au ${newDateStr} : l'organisation est fermée ce jour${reason}.`,
+        });
+        return;
+      }
+    }
+  }
+
+  try {
+    const [updated] = await db
+      .update(calendarEventsTable)
+      .set(updateData)
+      .where(and(eq(calendarEventsTable.id, id), eq(calendarEventsTable.organisationId, orgId)))
+      .returning();
+
+    if (!updated) { res.status(404).json({ error: "Evenement non trouve." }); return; }
+    logAudit(userId, req.session?.userEmail, "update", "calendar_event", String(id), updateData, req.ip, req.get("user-agent"), req.session?.organisationId);
+    res.json(updated);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur mise a jour evenement agenda");
+    res.status(500).json({ error: "Erreur lors de la mise a jour de l'evenement." });
+  }
+});
+
+router.post("/calendar/events/:id/duplicate", async (req: Request, res: Response): Promise<void> => {
+  const userId = req.session?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+  const orgId = getOrgId(req);
+  const id = parseInt(String(req.params.id));
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+  try {
+    const [original] = await db.select().from(calendarEventsTable).where(and(eq(calendarEventsTable.id, id), eq(calendarEventsTable.organisationId, orgId)));
+    if (!original) { res.status(404).json({ error: "Evenement non trouve." }); return; }
+    const startDate = new Date(original.startDate);
+    const endDate = new Date(original.endDate);
+    startDate.setDate(startDate.getDate() + 7);
+    endDate.setDate(endDate.getDate() + 7);
+    const [copy] = await db.insert(calendarEventsTable).values({
+      organisationId: orgId,
+      title: `${original.title} (copie)`,
+      description: original.description,
+      type: original.type,
+      startDate,
+      endDate,
+      allDay: original.allDay,
+      location: original.location,
+      color: original.color,
+      relatedContactId: original.relatedContactId,
+      contactName: original.contactName,
+      contactPhone: original.contactPhone,
+      contactEmail: original.contactEmail,
+      contactCompany: original.contactCompany,
+      reminder: original.reminder,
+      status: "confirme",
+      priority: original.priority,
+      createdBy: userId,
+      updatedBy: userId,
+    }).returning();
+    res.status(201).json(copy);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur duplication evenement agenda");
+    res.status(500).json({ error: "Erreur lors de la duplication." });
+  }
+});
+
+router.delete("/calendar/events/:id", async (req: Request, res: Response): Promise<void> => {
+  const userId = req.session?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+
+  const orgId = getOrgId(req);
+  const id = parseInt(String(req.params.id));
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+
+  try {
+    await db.delete(calendarEventsTable).where(and(eq(calendarEventsTable.id, id), eq(calendarEventsTable.organisationId, orgId)));
+    logAudit(userId, req.session?.userEmail, "delete", "calendar_event", String(id), undefined, req.ip, req.get("user-agent"), req.session?.organisationId);
+    res.json({ success: true });
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur suppression evenement agenda");
+    res.status(500).json({ error: "Erreur lors de la suppression de l'evenement." });
+  }
+});
+
+router.get("/calendar/events/export/csv", async (req: Request, res: Response): Promise<void> => {
+  const orgId = getOrgId(req);
+  try {
+    const rows = await db.select().from(calendarEventsTable).where(eq(calendarEventsTable.organisationId, orgId)).limit(5000);
+    const headers = ["Titre", "Type", "Statut", "Début", "Fin", "Lieu", "Contact", "Priorité", "Créé le"];
+    const escape = (v: any) => {
+      if (v == null) return "";
+      const s = String(v).replace(/"/g, '""');
+      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s}"` : s;
+    };
+    const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString("fr-FR") : "";
+    const lines = [headers.join(","), ...rows.map(r => [
+      escape(r.title), escape(r.type), escape(r.status),
+      escape(fmtDate(r.startDate)), escape(fmtDate(r.endDate)), escape(r.location),
+      escape(r.contactName), escape(r.priority), escape(fmtDate(r.createdAt)),
+    ].join(","))];
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="evenements_${Date.now()}.csv"`);
+    res.send("\uFEFF" + lines.join("\n"));
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur export calendar CSV");
+    res.status(500).json({ error: "Erreur lors de l'export." });
+  }
+});
+
+router.get("/calendar/events/:id", async (req: Request, res: Response): Promise<void> => {
+  const userId = req.session?.userId;
+  if (!userId) { res.status(401).json({ error: "Non authentifie." }); return; }
+
+  const orgId = getOrgId(req);
+  const id = parseInt(String(req.params.id));
+  if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
+
+  try {
+    const [event] = await db
+      .select()
+      .from(calendarEventsTable)
+      .where(and(eq(calendarEventsTable.id, id), eq(calendarEventsTable.organisationId, orgId)));
+    if (!event) { res.status(404).json({ error: "Evenement introuvable." }); return; }
+
+    const userMap = await resolveUserNames([event.createdBy, event.updatedBy].filter(Boolean) as any);
+    const [enriched] = enrichWithUserNames([event], userMap);
+    res.json(enriched);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur recuperation evenement agenda");
+    res.status(500).json({ error: "Erreur lors de la recuperation de l'evenement." });
+  }
+});
+
+export default router;

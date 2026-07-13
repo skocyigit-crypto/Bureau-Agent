@@ -1,0 +1,46 @@
+import { pgTable, serial, integer, text, timestamp, index, varchar } from "drizzle-orm/pg-core";
+// @ts-ignore - postgres text array
+import { sql } from "drizzle-orm";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod/v4";
+import { organisationsTable } from "./organisations";
+import { usersTable } from "./users";
+
+export const contactsTable = pgTable("contacts", {
+  id: serial("id").primaryKey(),
+  organisationId: integer("organisation_id").notNull().references(() => organisationsTable.id, { onDelete: "cascade" }),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  company: text("company"),
+  email: text("email"),
+  phone: text("phone").notNull(),
+  mobile: text("mobile"),
+  category: text("category").notNull().default("autre"),
+  address: text("address"),
+  notes: text("notes"),
+  totalCalls: integer("total_calls").notNull().default(0),
+  lastCallAt: timestamp("last_call_at", { withTimezone: true }),
+  createdBy: integer("created_by").references(() => usersTable.id, { onDelete: "set null" }),
+  updatedBy: integer("updated_by").references(() => usersTable.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+}, (table) => [
+  index("contacts_category_idx").on(table.category),
+  index("contacts_created_at_idx").on(table.createdAt),
+  index("contacts_org_id_idx").on(table.organisationId),
+  // Accent-insensitive trigram search index used by the Commandant chat
+  // retriever and smart search. Requires the `pg_trgm` + `unaccent` extensions
+  // and the IMMUTABLE `f_unaccent()` wrapper (see lib/db/scripts/ensure-search-extensions.sql).
+  index("contacts_search_trgm_idx").using(
+    "gin",
+    sql`f_unaccent(${table.firstName}) gin_trgm_ops`,
+    sql`f_unaccent(${table.lastName}) gin_trgm_ops`,
+    sql`f_unaccent(coalesce(${table.company}, '')) gin_trgm_ops`,
+    sql`f_unaccent(coalesce(${table.email}, '')) gin_trgm_ops`,
+    sql`f_unaccent(${table.phone}) gin_trgm_ops`,
+  ),
+]);
+
+export const insertContactSchema = createInsertSchema(contactsTable).omit({ id: true, createdAt: true, updatedAt: true, createdBy: true, updatedBy: true });
+export type InsertContact = z.infer<typeof insertContactSchema>;
+export type Contact = typeof contactsTable.$inferSelect;

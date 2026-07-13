@@ -1,0 +1,160 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  typecheck-and-build:
+    name: Typecheck & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Enable corepack (pnpm)
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Build
+        # Excludes two packages whose build scripts are Replit-only and
+        # were never meant to run outside it (both still fully typechecked
+        # above, just not built as deployable artifacts here):
+        #  - @workspace/mobile: packages a static Expo Go deployment, needs
+        #    REPLIT_INTERNAL_APP_DOMAIN/REPLIT_DEV_DOMAIN/EXPO_PUBLIC_DOMAIN.
+        #  - @workspace/mockup-sandbox: the Replit canvas mockup tool
+        #    (MIGRATION.md explicitly excludes it from any migration), needs
+        #    a PORT env var supplied by Replit's runtime.
+        run: pnpm -r --filter "!@workspace/mobile" --filter "!@workspace/mockup-sandbox" --if-present run build
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    services:
+      # Most api-server tests import lib/db, which hard-fails at import time
+      # if DATABASE_URL is unset - a real ephemeral Postgres is needed even
+      # for tests that only touch a handful of tables.
+      postgres:
+        # Debian-based, not -alpine: the schema-push pipeline's
+        # ensure-search-extensions step needs pg_trgm/unaccent, which are
+        # part of the default postgresql-contrib install on the Debian
+        # image but may not be present on the Alpine one.
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: agent_de_bureau_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/agent_de_bureau_test
+      # lib/integrations-gemini-ai/src/image/client.ts and
+      # lib/integrations-openai-ai-server/src/{image,audio}/client.ts throw
+      # at import time (same pattern as lib/db) if these are unset - several
+      # test files transitively import them and were failing at collection
+      # time, before any assertion ran. Placeholder values only need to
+      # satisfy the guard; nothing in these test files makes a real call
+      # through these clients.
+      AI_INTEGRATIONS_GEMINI_BASE_URL: http://localhost:9/unused
+      AI_INTEGRATIONS_GEMINI_API_KEY: ci-placeholder
+      AI_INTEGRATIONS_OPENAI_BASE_URL: http://localhost:9/unused
+      AI_INTEGRATIONS_OPENAI_API_KEY: ci-placeholder
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Enable corepack (pnpm)
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Push DB schema to test database
+        working-directory: lib/db
+        # Same chain as the "push-force" script, minus its last step
+        # (verify-schema-sync.mjs): that script asserts user_sessions
+        # exists, but that table is created at runtime by connect-pg-simple
+        # when the Express app boots (drizzle.config.ts excludes it from
+        # the schema on purpose) - on this fresh CI database, where the app
+        # never actually starts, that assertion would always fail. It's a
+        # real production deploy-safety check, just not applicable to
+        # spinning up an empty test database.
+        run: >-
+          node ./scripts/ensure-search-extensions.mjs &&
+          node ./scripts/ensure-unique-constraint-names.mjs &&
+          node ./scripts/ensure-automation-logs-rule-id.mjs &&
+          node ./scripts/ensure-fk-orphans.mjs &&
+          pnpm exec drizzle-kit push --force --config ./drizzle.config.ts &&
+          node ./scripts/ensure-audit-append-only.mjs
+
+      # Run per-package rather than the combined "pnpm run test": these four
+      # steps are individually confirmed passing, but the combined
+      # "pnpm -r --if-present run test" (even with --workspace-concurrency=1)
+      # failed at this same point for reasons that weren't identifiable
+      # without authenticated log access - running them as separate steps
+      # sidesteps whatever pnpm -r does differently.
+      - name: Test - api-server
+        id: test-api-server
+        continue-on-error: true
+        run: pnpm --filter @workspace/api-server run test
+
+      - name: Test - mobile
+        id: test-mobile
+        continue-on-error: true
+        run: pnpm --filter @workspace/mobile run test
+
+      - name: Test - tanitim
+        id: test-tanitim
+        continue-on-error: true
+        run: pnpm --filter @workspace/tanitim run test
+
+      - name: Test - demo-handoff
+        id: test-demo-handoff
+        continue-on-error: true
+        run: pnpm --filter @workspace/demo-handoff run test
+
+      - name: Test suites - gate
+        if: always()
+        run: |
+          echo "api-server: ${{ steps.test-api-server.outcome }}"
+          echo "mobile: ${{ steps.test-mobile.outcome }}"
+          echo "tanitim: ${{ steps.test-tanitim.outcome }}"
+          echo "demo-handoff: ${{ steps.test-demo-handoff.outcome }}"
+          if [ "${{ steps.test-api-server.outcome }}" = "failure" ] || [ "${{ steps.test-mobile.outcome }}" = "failure" ] || [ "${{ steps.test-tanitim.outcome }}" = "failure" ] || [ "${{ steps.test-demo-handoff.outcome }}" = "failure" ]; then
+            echo "One or more test suites failed."
+            exit 1
+          fi
+
+  docker-build-api:
+    name: Docker image build (api)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build api image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile.api
+          push: false
