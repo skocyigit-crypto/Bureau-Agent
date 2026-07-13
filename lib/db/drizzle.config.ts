@@ -6,7 +6,12 @@ if (!process.env.DATABASE_URL) {
 }
 
 export default defineConfig({
-  schema: path.join(__dirname, "./src/schema/index.ts"),
+  // drizzle-kit resolves `schema` through an internal glob matcher that treats
+  // backslashes as escape characters, so `path.join()`'s native Windows
+  // separators (e.g. `C:\Users\...\schema\index.ts`) get silently corrupted
+  // (backslash-letter pairs eaten) and "no schema files found" results.
+  // Normalize to forward slashes, which glob (and Windows' own APIs) accept.
+  schema: path.join(__dirname, "./src/schema/index.ts").split(path.sep).join("/"),
   dialect: "postgresql",
   dbCredentials: {
     url: process.env.DATABASE_URL,
