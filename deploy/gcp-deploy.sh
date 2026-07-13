@@ -34,11 +34,19 @@ IMAGE_WEB="${REGION}-docker.pkg.dev/${PROJECT}/${AR_REPO}/web:latest"
 echo "== Project: ${PROJECT} | Region: ${REGION} =="
 
 # ---------------------------------------------------------------------------
-# 0. Load GEMINI_API_KEY from deploy/.env if not already exported.
+# 0. Load GEMINI_API_KEY / ADMIN_EMAIL / ADMIN_PASSWORD from deploy/.env if
+#    not already exported.
 # ---------------------------------------------------------------------------
-if [ -z "${GEMINI_API_KEY:-}" ] && [ -f deploy/.env ]; then
-  GEMINI_API_KEY="$(grep -m1 '^GEMINI_API_KEY=' deploy/.env | cut -d= -f2-)"
-fi
+load_from_env_file() {
+  local var="$1"
+  if [ -z "${!var:-}" ] && [ -f deploy/.env ]; then
+    grep -m1 "^${var}=" deploy/.env | cut -d= -f2-
+  fi
+}
+[ -z "${GEMINI_API_KEY:-}" ] && GEMINI_API_KEY="$(load_from_env_file GEMINI_API_KEY)"
+[ -z "${ADMIN_EMAIL:-}" ] && ADMIN_EMAIL="$(load_from_env_file ADMIN_EMAIL)"
+[ -z "${ADMIN_PASSWORD:-}" ] && ADMIN_PASSWORD="$(load_from_env_file ADMIN_PASSWORD)"
+ADMIN_EMAIL="${ADMIN_EMAIL:-admin@agentdebureau.fr}"
 if [ -z "${GEMINI_API_KEY:-}" ]; then
   echo "GEMINI_API_KEY not set (env var or deploy/.env) — AI features will be unavailable until configured later." >&2
 fi
@@ -105,7 +113,7 @@ create_or_reuse_secret() {
 }
 create_or_reuse_secret session-secret "$(openssl rand -hex 32)"
 create_or_reuse_secret data-encryption-key "$(openssl rand -hex 32)"
-create_or_reuse_secret admin-password "$(openssl rand -base64 18)Aa1!"
+create_or_reuse_secret admin-password "${ADMIN_PASSWORD:-$(openssl rand -base64 18)Aa1!}"
 if [ -n "${GEMINI_API_KEY:-}" ]; then
   create_or_reuse_secret gemini-api-key "${GEMINI_API_KEY}"
 fi
@@ -141,7 +149,7 @@ gcloud run deploy "${API_SERVICE}" \
   --platform=managed \
   --allow-unauthenticated \
   --add-cloudsql-instances="${SQL_CONNECTION_NAME}" \
-  --set-env-vars="NODE_ENV=production,ADMIN_EMAIL=admin@agentdebureau.fr,DATABASE_URL_TEMPLATE=${DATABASE_URL}" \
+  --set-env-vars="NODE_ENV=production,ADMIN_EMAIL=${ADMIN_EMAIL},DATABASE_URL_TEMPLATE=${DATABASE_URL}" \
   --set-secrets="${SECRET_REFS}" \
   --min-instances=0 --max-instances=3 --memory=512Mi --cpu=1 \
   --port=8080
