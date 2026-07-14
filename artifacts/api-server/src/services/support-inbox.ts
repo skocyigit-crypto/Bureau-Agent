@@ -24,7 +24,11 @@ import { logger } from "../lib/logger";
 
 const SUPER_ADMIN_ORG_SLUG = "agent-de-bureau-sas";
 const BODY_MAX = 6000;
-const DRAFT_MAX_OUTPUT = 700;
+// 700 s'est revele trop court en pratique: le JSON (summary + draftReply +
+// structure) depasse regulierement cette limite et se fait tronquer en plein
+// milieu, ce qui casse JSON.parse (contrairement au brouillon WhatsApp en
+// texte libre, ici TOUT le contenu utile est a l'interieur du JSON).
+const DRAFT_MAX_OUTPUT = 1400;
 const CATEGORIES = ["demande_demo", "support", "facturation", "reclamation", "autre", "spam"] as const;
 const PRIORITIES = ["haute", "moyenne", "basse"] as const;
 
