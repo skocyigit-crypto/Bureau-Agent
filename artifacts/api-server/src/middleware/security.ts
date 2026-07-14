@@ -326,6 +326,17 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
     return next();
   }
 
+  // Bypass pour le webhook de la boite de reception support (Cloudflare
+  // Email Worker) : authentifie par secret partage verifie dans le handler
+  // (isValidWebhookSecret, comparaison temps constant), pas d'Origin envoye
+  // par un Worker server-side.
+  if (
+    req.method === "POST" &&
+    (req.path === "/support-inbox/incoming" || req.originalUrl === "/api/support-inbox/incoming")
+  ) {
+    return next();
+  }
+
   // CSRF bypass for local development. Previously this was a bare
   // `NODE_ENV !== "production"` check, which silently disabled CSRF on any
   // preview/staging environment that forgot to set NODE_ENV=production.
