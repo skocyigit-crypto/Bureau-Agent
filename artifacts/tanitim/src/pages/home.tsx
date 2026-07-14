@@ -84,6 +84,65 @@ const staggerContainer = {
   }
 };
 
+// Source unique pour la section FAQ ET son balisage structure FAQPage
+// (schema.org) — genere depuis le meme tableau plus bas pour garantir que
+// les donnees structurees ne divergent jamais du contenu reellement affiche
+// (Google penalise/ignore les schemas qui ne correspondent pas a la page).
+const FAQ_ITEMS: { q: string; a: string }[] = [
+  {
+    q: "Combien de temps prend la mise en place?",
+    a: "L'inscription et la configuration initiale prennent moins de 5 minutes. Importez vos contacts, configurez votre pipeline commercial et commencez a creer des devis immediatement. L'importation de vos lignes existantes (portabilite) peut prendre de 3 a 7 jours ouvres."
+  },
+  {
+    q: "Comment fonctionne la periode d'essai?",
+    a: "Vous disposez de 14 jours d'essai gratuit sur le plan Professionnel, avec toutes les fonctionnalites debloquees : IA, devis, facturation, sauvegarde cloud, conformite juridique. Aucune carte bancaire n'est requise pour commencer."
+  },
+  {
+    q: "Mes donnees sont-elles securisees?",
+    a: "La securite est notre priorite absolue. Sauvegardes automatiques chiffrees quotidiennes avec recuperation a un instant precis (point-in-time recovery) sur une infrastructure cloud europeenne dediee — vos donnees ne transitent jamais par un compte tiers externe. Monitoring continu de la protection des donnees, verification d'integrite et restauration rapide. Conforme RGPD avec gestion complete des documents juridiques (CGU, CGV, DPA, SLA)."
+  },
+  {
+    q: "Que peut faire l'assistant IA?",
+    a: "L'assistant Sophie combine 7 agents IA specialises : analyse sentimentale des appels, previsions d'activite, scoring clients, evaluation de performance, detection automatique de calculs mathematiques (15 types) et recommandations proactives. Il apprend de vos donnees pour proposer des actions concretes."
+  },
+  {
+    q: "Comment fonctionne la facturation?",
+    a: "Creez des devis professionnels, convertissez-les en factures d'un clic, gerez la TVA et les remises, suivez les paiements et les relances. Le systeme de facturation par usage calcule automatiquement les depassements de forfait avec rapprochement bancaire integre."
+  },
+  {
+    q: "Quelles integrations sont disponibles?",
+    a: "Agent de Bureau propose 58 integrations natives : Google Workspace (26 services avec Hub integre), Microsoft 365 (19 services) et Apple/iCloud (13 services). Plus Salesforce, HubSpot, Slack, Notion, Zapier et bien d'autres. API ouverte pour connecter vos propres outils."
+  },
+  {
+    q: "Proposez-vous une application mobile?",
+    a: "Oui, une application mobile Expo React Native est disponible avec toutes les fonctionnalites essentielles : gestion des appels, contacts, taches, notifications push en temps reel et acces au tableau de bord depuis votre telephone."
+  },
+  {
+    q: "Puis-je restaurer mes donnees?",
+    a: "Absolument. Chaque sauvegarde peut etre verifiee (integrite, checksum), simulee (dry-run) et restauree en un clic. Vous pouvez aussi exporter l'integralite de vos donnees en JSON a tout moment. Le systeme alerte automatiquement les administrateurs si la protection des donnees est insuffisante."
+  }
+];
+
+function FaqJsonLd() {
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: FAQ_ITEMS.map((faq) => ({
+      "@type": "Question",
+      name: faq.q,
+      acceptedAnswer: { "@type": "Answer", text: faq.a },
+    })),
+  };
+  // JSON.stringify of a fixed, developer-authored array — not user input, so
+  // dangerouslySetInnerHTML is safe here (same pattern as any static <script> tag).
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
 function Counter({ end, suffix = "", duration = 2 }: { end: number, suffix?: string, duration?: number }) {
   const [count, setCount] = useState(0);
   const ref = useRef(null);
@@ -953,40 +1012,7 @@ export default function Home() {
             </div>
             
             <Accordion type="single" collapsible className="w-full space-y-4">
-              {[
-                {
-                  q: "Combien de temps prend la mise en place?",
-                  a: "L'inscription et la configuration initiale prennent moins de 5 minutes. Importez vos contacts, configurez votre pipeline commercial et commencez a creer des devis immediatement. L'importation de vos lignes existantes (portabilite) peut prendre de 3 a 7 jours ouvres."
-                },
-                {
-                  q: "Comment fonctionne la periode d'essai?",
-                  a: "Vous disposez de 14 jours d'essai gratuit sur le plan Professionnel, avec toutes les fonctionnalites debloquees : IA, devis, facturation, sauvegarde cloud, conformite juridique. Aucune carte bancaire n'est requise pour commencer."
-                },
-                {
-                  q: "Mes donnees sont-elles securisees?",
-                  a: "La securite est notre priorite absolue. Sauvegardes automatiques chiffrees AES-256 sur Google Drive toutes les 6 heures, monitoring continu de la protection des donnees, verification d'integrite et restauration en un clic. Conforme RGPD avec gestion complete des documents juridiques (CGU, CGV, DPA, SLA)."
-                },
-                {
-                  q: "Que peut faire l'assistant IA?",
-                  a: "L'assistant Sophie combine 7 agents IA specialises : analyse sentimentale des appels, previsions d'activite, scoring clients, evaluation de performance, detection automatique de calculs mathematiques (15 types) et recommandations proactives. Il apprend de vos donnees pour proposer des actions concretes."
-                },
-                {
-                  q: "Comment fonctionne la facturation?",
-                  a: "Creez des devis professionnels, convertissez-les en factures d'un clic, gerez la TVA et les remises, suivez les paiements et les relances. Le systeme de facturation par usage calcule automatiquement les depassements de forfait avec rapprochement bancaire integre."
-                },
-                {
-                  q: "Quelles integrations sont disponibles?",
-                  a: "Agent de Bureau propose 58 integrations natives : Google Workspace (26 services avec Hub integre), Microsoft 365 (19 services) et Apple/iCloud (13 services). Plus Salesforce, HubSpot, Slack, Notion, Zapier et bien d'autres. API ouverte pour connecter vos propres outils."
-                },
-                {
-                  q: "Proposez-vous une application mobile?",
-                  a: "Oui, une application mobile Expo React Native est disponible avec toutes les fonctionnalites essentielles : gestion des appels, contacts, taches, notifications push en temps reel et acces au tableau de bord depuis votre telephone."
-                },
-                {
-                  q: "Puis-je restaurer mes donnees?",
-                  a: "Absolument. Chaque sauvegarde peut etre verifiee (integrite, checksum), simulee (dry-run) et restauree en un clic. Vous pouvez aussi exporter l'integralite de vos donnees en JSON a tout moment. Le systeme alerte automatiquement les administrateurs si la protection des donnees est insuffisante."
-                }
-              ].map((faq, i) => (
+              {FAQ_ITEMS.map((faq, i) => (
                 <AccordionItem key={i} value={`item-${i}`} className="bg-card border border-border rounded-xl px-6 data-[state=open]:shadow-md transition-all">
                   <AccordionTrigger className="text-lg font-bold hover:no-underline hover:text-primary text-left py-6">
                     {faq.q}
@@ -997,6 +1023,7 @@ export default function Home() {
                 </AccordionItem>
               ))}
             </Accordion>
+            <FaqJsonLd />
           </div>
         </section>
 

@@ -48,6 +48,72 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       />
     </noscript>
+
+    <!-- Structured data (schema.org): helps Google understand this is a real
+         SaaS product from a real company, and is a prerequisite for rich
+         results (star ratings, pricing, FAQ dropdowns) in search listings.
+         Kept in static index.html (not injected by React) so it's present
+         even for crawlers that don't execute JavaScript. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "SK GROUP",
+      "url": "https://agentdebureau.fr/",
+      "logo": "https://agentdebureau.fr/favicon.svg",
+      "email": "contact@agentdebureau.fr",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "17 rue Saint-Exupéry",
+        "postalCode": "67500",
+        "addressLocality": "Haguenau",
+        "addressCountry": "FR"
+      }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Agent de Bureau",
+      "applicationCategory": "BusinessApplication",
+      "applicationSubCategory": "CRM, standardiste IA et gestion de bureau",
+      "operatingSystem": "Web, iOS, Android",
+      "url": "https://agentdebureau.fr/",
+      "description": "Plateforme SaaS française qui centralise et automatise la gestion de bureau : standardiste IA, CRM, appels, agenda, devis, facturation, stock et agents IA multi-tâches.",
+      "inLanguage": "fr-FR",
+      "publisher": {
+        "@type": "Organization",
+        "name": "SK GROUP"
+      },
+      "offers": [
+        {
+          "@type": "Offer",
+          "name": "Starter",
+          "price": "29",
+          "priceCurrency": "EUR",
+          "priceValidUntil": "2027-12-31",
+          "description": "Jusqu'à 5 utilisateurs, essai gratuit 14 jours sans carte bancaire."
+        },
+        {
+          "@type": "Offer",
+          "name": "Professionnel",
+          "price": "79",
+          "priceCurrency": "EUR",
+          "priceValidUntil": "2027-12-31",
+          "description": "Jusqu'à 15 utilisateurs, toutes les fonctionnalités IA débloquées."
+        },
+        {
+          "@type": "Offer",
+          "name": "Entreprise",
+          "price": "199",
+          "priceCurrency": "EUR",
+          "priceValidUntil": "2027-12-31",
+          "description": "Jusqu'à 100 utilisateurs."
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>
