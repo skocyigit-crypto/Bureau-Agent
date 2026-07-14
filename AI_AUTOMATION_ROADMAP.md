@@ -118,20 +118,33 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
   tekrar göndermiyor) özeti üretip Resend ile e-posta olarak gönderiyor.
 - **Dosyalar**: `routes/daily-digest.ts`, `services/daily-digest-cron.ts`, `index.ts`
 
-### 6. [ORTA] Telefon sağlayıcı kimlik bilgileri şifrelenmemiş duruyor
+### 6. [TAMAMLANDI] Telefon sağlayıcı kimlik bilgileri artık şifreli (2026-07-14)
 
 - **Sorun**: `telephony_providers.config` (JSONB) — Twilio/Vonage/Telnyx vb. `authToken`,
-  `accountSid` gibi alanlar veritabanında düz metin olarak saklanıyor. Diğer hassas
-  alanlar (`api_keys`, `webhook_endpoints`, `google_oauth_tokens`) `enc:v1:` AES-256-GCM
-  ile şifreli tutulurken bu tablo unutulmuş görünüyor.
-  Madde 2 (Twilio BYOK) çalışır hale geldikçe artık gerçek müşteri sırları bu tabloda
-  birikecek — önemi arttı.
-- **Yapılacak**: `lib/crypto.ts`'deki mevcut şifreleme yardımcılarını kullanarak
-  kayıt/güncelleme noktalarında şifrele, okuma noktalarında çöz. Mevcut düz metin
-  kayıtlar için tek seferlik bir migration script'i gerekir.
-- **Dosyalar**: `lib/db/src/schema/telephony.ts`, `routes/telephony.ts`,
-  `services/telephony-providers.ts`
-- **Durum**: Tespit edildi (2026-07-14), henüz düzeltilmedi — istenirse yapılabilir.
+  `apiSecret` gibi alanlar veritabanında düz metin olarak saklanıyordu.
+- **Yapıldı**: `encryptProviderConfig()`/`decryptProviderConfig()` eklendi
+  (`services/telephony-providers.ts`), sadece her sağlayıcının `configFields`
+  tanımında `secret: true` işaretli alanları (authToken, apiSecret, apiToken —
+  accountSid/fromNumber gibi sır olmayanlar düz kalıyor) `enc:v1:` ile şifreliyor.
+  9 dosyada her yazma (POST/PATCH) ve her gerçek kullanım noktasına (Twilio API
+  çağrıları, webhook imza doğrulama, SMS/WhatsApp gönderimi) bağlandı.
+  Mevcut düz metin kayıtlar `decryptSensitiveData()`'nın geriye dönük toleransı
+  sayesinde çalışmaya devam ediyor, bir sonraki güncellemede otomatik şifrelenir
+  — ayrı bir migration script'ine gerek kalmadı.
+- **Dosyalar**: `services/telephony-providers.ts`, `routes/telephony.ts`,
+  `routes/twilio-voice.ts`, `routes/voice-receptionist.ts`, `routes/whatsapp.ts`,
+  `routes/whatsapp-inbox.ts`, `services/automation-engine.ts`,
+  `services/phone-reputation.ts`, `services/whatsapp-notify.ts`
+
+### 7. [DÜŞÜK] Aynı düz-metin deseni AI/e-posta sağlayıcı BYOK anahtarlarında da olabilir
+
+- **Şüphe**: `routes/ai-providers.ts` ve `routes/email-providers.ts`, telephony ile
+  birebir aynı `config`/`maskAiConfig`/`maskEmailConfig` desenini kullanıyor
+  (madde 6'daki düzeltmeden önceki telephony.ts ile aynı yapı). Muhtemelen aynı
+  şifreleme eksikliği burada da var — doğrulanmadı, sadece madde 6'yı düzeltirken
+  fark edildi.
+- **Durum**: Doğrulanmadı/düzeltilmedi — istenirse kontrol edip aynı deseni
+  (`encryptProviderConfig`/`decryptProviderConfig` benzeri) uygularım.
 
 ---
 
@@ -144,6 +157,8 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
 - ✅ Cloud SQL native otomatik yedekleme aktif edildi (2026-07-14)
 - ✅ Google Drive otomatik yedekleme kapatıldı (istenmeyen veri akışı) (2026-07-14)
 - ✅ E-posta altyapısı (Resend) bağlandı (2026-07-14)
+- ✅ Telefon sağlayıcı kimlik bilgileri (Twilio/Vonage/vb.) artık şifreli
+  saklanıyor (2026-07-14)
 - ✅ Yasal kimlik düzeltmesi (SK GROUP, gerçek SIRET/TVA) (2026-07-14)
 - ✅ Custom domain (agentdebureau.fr) Cloudflare'e taşıma — **devam ediyor** (DNS
   yayılması bekleniyor)
