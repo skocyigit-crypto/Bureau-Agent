@@ -240,26 +240,15 @@ async function gatherDailyData(userId: number, orgId: number) {
   };
 }
 
-// ── Endpoint ──────────────────────────────────────────────────────────────────
-
-router.get("/daily-digest", async (req, res): Promise<void> => {
-  const userId = req.session?.userId as number | undefined;
-  const orgId = req.session?.organisationId as number | undefined;
-  const prenom: string = req.session?.prenom ?? "Utilisateur";
-
-  if (!userId || !orgId) {
-    res.status(401).json({ error: "Non authentifie." });
-    return;
-  }
-
-  let data: Awaited<ReturnType<typeof gatherDailyData>>;
-  try {
-    data = await gatherDailyData(userId, orgId);
-  } catch (err) {
-    req.log?.error({ err }, "[daily-digest] data gather failed");
-    res.status(500).json({ error: "Erreur lors de la collecte des donnees." });
-    return;
-  }
+// ── Génération partagée (route + cron quotidien) ────────────────────────────
+//
+// Extrait de l'ancien handler de route pour être réutilisable par
+// daily-digest-cron.ts, qui l'appelle une fois par jour et par utilisateur
+// actif pour envoyer un vrai digest par email — auparavant ce digest n'était
+// généré qu'à la demande (ouverture de l'écran mobile), donc "quotidien"
+// était trompeur : rien ne l'envoyait proactivement.
+export async function buildDailyDigest(userId: number, orgId: number, prenom: string) {
+  const data = await gatherDailyData(userId, orgId);
 
   const today = new Date().toLocaleDateString("fr-FR", {
     weekday: "long", year: "numeric", month: "long", day: "numeric",
@@ -343,13 +332,34 @@ Regles: 3-5 suggestions max, toutes en francais. Alertes si appels manques ou ta
     }
   }
 
-  res.json({
+  return {
     date: today,
     prenom,
     stats: data,
     ai: aiResult,
     generatedAt: new Date().toISOString(),
-  });
+  };
+}
+
+// ── Endpoint ──────────────────────────────────────────────────────────────────
+
+router.get("/daily-digest", async (req, res): Promise<void> => {
+  const userId = req.session?.userId as number | undefined;
+  const orgId = req.session?.organisationId as number | undefined;
+  const prenom: string = req.session?.prenom ?? "Utilisateur";
+
+  if (!userId || !orgId) {
+    res.status(401).json({ error: "Non authentifie." });
+    return;
+  }
+
+  try {
+    const digest = await buildDailyDigest(userId, orgId, prenom);
+    res.json(digest);
+  } catch (err) {
+    req.log?.error({ err }, "[daily-digest] generation failed");
+    res.status(500).json({ error: "Erreur lors de la collecte des donnees." });
+  }
 });
 
 export default router;
