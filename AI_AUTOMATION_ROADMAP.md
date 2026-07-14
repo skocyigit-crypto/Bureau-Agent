@@ -4,8 +4,9 @@
 > hale gelmesi için yapılan denetimlerin ve kalan işlerin **kalıcı** kaydıdır. Her
 > oturumda güncellenir, silinmez — yeni bulgu/tamamlanan iş oldukça buraya eklenir.
 >
-> Son güncelleme: 2026-07-14 ("maximum ne gerekiyorsa yap" — fatura hatırlatmaları gerçek
-> cron'a bağlandı; sıradaki iş AI destekli müşteri desteği e-posta triyajı)
+> Son güncelleme: 2026-07-14 ("maximum ne gerekiyorsa yap" tamamlandı: fatura hatırlatmaları
+> gerçek cron'a bağlandı VE AI destekli müşteri desteği e-posta triyajı uçtan uca canlıda
+> doğrulandı — kalan tek adım kullanıcının Cloudflare Worker'ı kurması)
 
 ## ⚠️ 2026-07-14 — Kritik altyapı incidenti (çözüldü)
 
@@ -206,21 +207,44 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
   `deploy/Caddyfile.tanitim.cloudrun` (yeni), `artifacts/tanitim/index.html`,
   `artifacts/tanitim/src/pages/home.tsx`
 
-### 8. [YÜKSEK] AI destekli müşteri desteği e-posta triyajı (BAŞLANMADI)
+### 8. [TAMAMLANDI — kullanıcı adımı bekliyor] AI destekli müşteri desteği e-posta triyajı (2026-07-14)
 
 - **Neden önemli**: "maximum ne gerekiyorsa yap" talebinin ikinci yarısı — kullanıcı
   demo/destek e-postalarının okunup derlenmesini ve gerekli cevabın AI ile verilmesini
-  istedi. Şu an bu tamamen manuel.
-- **Planlanan yaklaşım** (henüz uygulanmadı, sadece tasarlandı):
-  1. Gmail OAuth onay gecikmesinden kaçınmak için Cloudflare Email Routing + bir
-     Cloudflare Email Worker ile gelen destek e-postalarını yakala (kullanıcının
-     Cloudflare hesabına erişimim yok — bu adım kullanıcıyla birlikte yapılmalı).
-  2. Worker, e-posta içeriğini yeni bir API endpoint'ine iletir.
-  3. Gemini ile taslak cevap üretilir.
-  4. Karar gerekiyor: taslak, mevcut `agent_proposals` (insan onay kuyruğu) sistemine mi
-     düşsün, yoksa (düşük riskli/yüksek güvenli durumlarda) Resend ile otomatik mi
-     gönderilsin?
-- **Durum**: Tasarım aşamasında, kod yazılmadı. Sıradaki iş bu.
+  istedi. Öncesinde bu tamamen manueldi.
+- **Yapıldı**: Gmail OAuth onay gecikmesinden kaçınmak için Cloudflare Email Routing +
+  bağımlılıksız (npm paketsiz, build gerektirmeyen) bir Cloudflare Email Worker
+  (`deploy/cloudflare-email-worker/worker.js`) yazıldı — e-postayı ayrıştırıp (başlıklar,
+  multipart/quoted-printable/base64, HTML→metin) yeni `POST /api/support-inbox/incoming`
+  endpoint'ine gönderiyor, ayrıca kayıp olmaması için gerçek bir yedek adrese de
+  (`BACKUP_FORWARD_TO`) her zaman iletiyor. Endpoint sabit-zamanlı karşılaştırmalı paylaşılan
+  secret ile korunuyor (`SUPPORT_INBOX_WEBHOOK_SECRET`, Secret Manager'da oluşturuldu ve
+  Cloud Run'a bağlandı), arka planda Gemini ile sınıflandırıp (`demande_demo/support/
+  facturation/reclamation/autre/spam`) taslak cevap üretiyor, ve mevcut `agent_proposals`
+  insan onay kuyruğuna (super-admin org'a bağlı, contact-request.ts/demo-request.ts'deki
+  ayn aynı "platform genişliğinde lead" deseni) `toolName: "send_email"` olarak düşüyor —
+  **hiçbir otomatik gönderim yok**, her zaman bir insan onaylar (send_email zaten
+  `requiresConfirmation: true`).
+- **Canlıda uçtan uca doğrulandı** (üç gerçek test e-postası ile): 202 kabul, arka planda
+  AI sınıflandırma, `agent_proposals` tablosuna doğru şekilde düşme — "File d'approbation"
+  ekranında görünür.
+- **Test sırasında bulunan ve düzeltilen 2 ayrı gerçek hata** (bu özelliğin ötesinde
+  platform geneli etkisi var):
+  1. `isModelRetiredError()` (ai-utils.ts) Google'ın yeni retirement mesaj formatını
+     ("...is no longer available to new users...") tanımıyordu — otomatik model-repli
+     güvenlik ağı SESSİZCE devre dışıydı, `gemini-2.5-flash` her çağrıldığında (bu özellik
+     dahil TÜM Gemini Flash çağrı noktalarında) düz 404 ile patlıyordu. Regex'e yeni bir
+     desen eklendi, doğrulandı (loglar artık repli'nin gerçekten tetiklendiğini gösteriyor).
+  2. `DRAFT_MAX_OUTPUT` (support-inbox.ts) 700 token çok düşüktü — JSON çıktısı (özet +
+     taslak + yapı) düzenli olarak yarıda kesiliyor, `JSON.parse` başarısız oluyordu.
+     1400'e çıkarıldı.
+- **Kalan (kullanıcı adımı, ben yapamam — Cloudflare hesabına erişimim yok)**:
+  `deploy/cloudflare-email-worker/README.md`'deki 5 adımı takip ederek Worker'ı Cloudflare
+  panelinden oluşturmak, `support@agentdebureau.fr`'i ona yönlendirmek, ve
+  `SUPPORT_INBOX_WEBHOOK_SECRET` değerini Worker'a girmek gerekiyor.
+- **Dosyalar**: `routes/support-inbox.ts`, `services/support-inbox.ts`,
+  `middleware/security.ts` (CSRF bypass), `routes/index.ts`, `services/ai-utils.ts`,
+  `deploy/cloudflare-email-worker/` (worker.js + README.md)
 
 ### 7. [DÜŞÜK] Aynı düz-metin deseni AI/e-posta sağlayıcı BYOK anahtarlarında da olabilir
 
@@ -259,6 +283,9 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
 - ✅ Tanıtım sitesi (`agent-de-bureau-tanitim`) deploy edildi + SEO yapılandırılmış veri
   (Organization/SoftwareApplication/FAQPage JSON-LD) eklendi (2026-07-14)
 - ✅ Fatura hatırlatmaları gerçek günlük cron'a bağlandı, deploy doğrulandı (2026-07-14)
+- ✅ AI destekli müşteri desteği e-posta triyajı — Cloudflare Email Worker + AI
+  sınıflandırma/taslak + onay kuyruğu, canlıda uçtan uca doğrulandı; ayrıca yol boyunca
+  platform geneli bir Gemini model-repli algılama hatası bulunup düzeltildi (2026-07-14)
 
 ---
 
