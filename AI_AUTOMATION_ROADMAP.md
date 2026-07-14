@@ -4,8 +4,8 @@
 > hale gelmesi için yapılan denetimlerin ve kalan işlerin **kalıcı** kaydıdır. Her
 > oturumda güncellenir, silinmez — yeni bulgu/tamamlanan iş oldukça buraya eklenir.
 >
-> Son güncelleme: 2026-07-14 (kritik altyapı incidenti: Guardian/rate-limit paylaşılan IP
-> sorunu + deploy pipeline'ı kıran xlsx CDN engeli — ikisi de bulunup düzeltildi)
+> Son güncelleme: 2026-07-14 ("maximum ne gerekiyorsa yap" — fatura hatırlatmaları gerçek
+> cron'a bağlandı; sıradaki iş AI destekli müşteri desteği e-posta triyajı)
 
 ## ⚠️ 2026-07-14 — Kritik altyapı incidenti (çözüldü)
 
@@ -57,6 +57,7 @@ devre dışı kal" mantığıyla korunuyor — yani sistem çökmüyor, sadece o
 - Anlık cevap (hesap makinesi, birim, döviz, IBAN)
 - Agent Queue / Autonomous Secretary (saatlik cron, onay kuyruğu)
 - Günlük özet (artık gerçekten günlük — Resend ile her sabah otomatik e-posta gidiyor)
+- Fatura hatırlatmaları (artık gerçekten günlük — her organizasyon için otomatik cron)
 
 **Şu an canlıda ÇALIŞMAYAN / erişilemez olanlar** (eksik yapılandırma yüzünden):
 - Autonomous Inbox taraması (Gmail OAuth yok — her org için "bağlı Gmail yok" dönüyor)
@@ -168,6 +169,59 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
   `routes/whatsapp-inbox.ts`, `services/automation-engine.ts`,
   `services/phone-reputation.ts`, `services/whatsapp-notify.ts`
 
+### 7A. [TAMAMLANDI] Fatura hatırlatmalarını gerçek cron'a bağla (2026-07-14)
+
+- **Sorun**: `POST /license-management/auto-reminders` sadece super_admin/administrateur
+  panelindeki "Lancer les rappels" butonuna tıklanınca çalışıyordu — adı "auto" olsa da
+  hiçbir cron onu çağırmıyordu, kimse tıklamazsa vadesi geçen faturalara asla otomatik
+  hatırlatma gitmiyordu.
+- **Yapıldı**: Fonksiyonun gövdesi `routes/license-management.ts` içinde dışa aktarılan
+  `runAutoRemindersForOrg(orgId, triggeredByUserId?)` haline getirildi (route artık ince bir
+  sarmalayıcı — aynı rol kontrolü ve HTTP sözleşmesi korunuyor). Yeni
+  `services/invoice-reminder-cron.ts`, `daily-digest-cron.ts`/`autonomous-secretary-cron.ts`
+  ile aynı kalıcı "günde bir kez" deseniyle (bellekte değil, `license_audit_log`'daki
+  `auto_reminders_run` satırından türetilen guard) her saat kontrol edip her organizasyon
+  için günde bir kez çalışıyor. `index.ts`'e `startInvoiceReminderCron()` eklendi.
+- **Doğrulandı**: Cloud Build `592be01d` (commit `bb414fc`) başarıyla deploy edildi,
+  canlı Cloud Run loglarında `[InvoiceReminderCron] Rappels de paiement automatiques
+  démarrés` görüldü (revizyon `agent-de-bureau-api-00039-5gm`).
+- **Dosyalar**: `routes/license-management.ts`, `services/invoice-reminder-cron.ts` (yeni),
+  `index.ts`
+
+### 7B. [TAMAMLANDI] Tanıtım sitesi deploy edildi + SEO yapılandırılmış veri (2026-07-14)
+
+- **Sorun**: `tanitim` sitesinin SEO temelleri (robots.txt/sitemap/OG/canonical) zaten
+  iyiydi ama site HİÇBİR YERDE deploy edilmemişti — şirket hakkında hiçbir şey web
+  aramasıyla bulunamıyordu.
+- **Yapıldı**: Yeni üçüncü Cloud Run servisi `agent-de-bureau-tanitim` (CI/CD'ye tam
+  entegre, `cloudbuild.yaml`'a yeni build/push/deploy adımları eklendi). `index.html`'e
+  `Organization` + `SoftwareApplication` (gerçek fiyatlandırmayla) JSON-LD; `home.tsx`'e
+  görünen SSS içeriğinden otomatik türetilen `FAQPage` JSON-LD eklendi (tek doğruluk
+  kaynağı `FAQ_ITEMS` — yapılandırılmış veri asla görünen içerikten sapamaz). Ayrıca
+  eski/yanlış bir pazarlama iddiası (Google Drive yedekleme) gerçek mimariyle
+  uyuşacak şekilde düzeltildi.
+- **Kalan (kullanıcı adımı)**: Google Search Console doğrulaması — doğrulama HTML
+  dosyasının kullanıcı tarafından Search Console'dan alınıp paylaşılması bekleniyor.
+- **Dosyalar**: `deploy/cloudbuild.yaml`, `deploy/Dockerfile.tanitim.cloudrun` (yeni),
+  `deploy/Caddyfile.tanitim.cloudrun` (yeni), `artifacts/tanitim/index.html`,
+  `artifacts/tanitim/src/pages/home.tsx`
+
+### 8. [YÜKSEK] AI destekli müşteri desteği e-posta triyajı (BAŞLANMADI)
+
+- **Neden önemli**: "maximum ne gerekiyorsa yap" talebinin ikinci yarısı — kullanıcı
+  demo/destek e-postalarının okunup derlenmesini ve gerekli cevabın AI ile verilmesini
+  istedi. Şu an bu tamamen manuel.
+- **Planlanan yaklaşım** (henüz uygulanmadı, sadece tasarlandı):
+  1. Gmail OAuth onay gecikmesinden kaçınmak için Cloudflare Email Routing + bir
+     Cloudflare Email Worker ile gelen destek e-postalarını yakala (kullanıcının
+     Cloudflare hesabına erişimim yok — bu adım kullanıcıyla birlikte yapılmalı).
+  2. Worker, e-posta içeriğini yeni bir API endpoint'ine iletir.
+  3. Gemini ile taslak cevap üretilir.
+  4. Karar gerekiyor: taslak, mevcut `agent_proposals` (insan onay kuyruğu) sistemine mi
+     düşsün, yoksa (düşük riskli/yüksek güvenli durumlarda) Resend ile otomatik mi
+     gönderilsin?
+- **Durum**: Tasarım aşamasında, kod yazılmadı. Sıradaki iş bu.
+
 ### 7. [DÜŞÜK] Aynı düz-metin deseni AI/e-posta sağlayıcı BYOK anahtarlarında da olabilir
 
 - **Şüphe**: `routes/ai-providers.ts` ve `routes/email-providers.ts`, telephony ile
@@ -202,6 +256,9 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
 - ✅ OpenAI bağlandı ve doğrulandı (2026-07-14)
 - ✅ Twilio BYOK düzeltildi: webhook doğrulama + otomasyon SMS aksiyonu artık her
   müşterinin kendi sağlayıcısını kullanıyor (2026-07-14)
+- ✅ Tanıtım sitesi (`agent-de-bureau-tanitim`) deploy edildi + SEO yapılandırılmış veri
+  (Organization/SoftwareApplication/FAQPage JSON-LD) eklendi (2026-07-14)
+- ✅ Fatura hatırlatmaları gerçek günlük cron'a bağlandı, deploy doğrulandı (2026-07-14)
 
 ---
 
