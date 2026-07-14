@@ -1,0 +1,49 @@
+# Caddyfile.tanitim.cloudrun — Agent de Bureau, public marketing site
+#
+# Same structure as Caddyfile.cloudrun (used by the app/web service): proxies
+# /api/* (contact form, demo chat) to the api service's real Cloud Run URL,
+# serves the built Vite SPA for everything else. Unlike the app service, this
+# site is MEANT to be crawled/indexed (robots.txt/sitemap.xml are already
+# public-friendly in artifacts/tanitim/public/).
+
+:{$PORT:8080} {
+        encode zstd gzip
+
+        header {
+                Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+                X-Content-Type-Options "nosniff"
+                X-Frame-Options "DENY"
+                Referrer-Policy "strict-origin-when-cross-origin"
+        }
+
+        handle /api* {
+                # Cloud Run's own edge always terminates TLS in front of the api
+                # service, so the upstream must be dialed over HTTPS (a bare
+                # host:443 defaults to plain HTTP in Caddy, which the target
+                # rejects, breaking the connection with EOF).
+                reverse_proxy https://{$API_UPSTREAM} {
+                        header_up Host {upstream_hostport}
+                        # See Caddyfile.cloudrun for why this is needed (2026-07-14
+                        # incident, AI_AUTOMATION_ROADMAP.md): without it every visitor
+                        # of this site would collapse into one shared identity for the
+                        # api service's Guardian/rate-limit checks on the contact and
+                        # demo-chat forms.
+                        header_up X-Real-Client-IP {http.request.header.X-Forwarded-For}
+                }
+        }
+
+        handle {
+                root * /srv
+                @hashed path_regexp \.[a-f0-9]{8,}\.(js|css|woff2?|png|jpe?g|gif|svg|webp|avif)$
+                header @hashed Cache-Control "public, max-age=31536000, immutable"
+                header /index.html Cache-Control "no-cache, no-store, must-revalidate"
+
+                try_files {path} /index.html
+                file_server
+        }
+
+        log {
+                output stdout
+                format console
+        }
+}

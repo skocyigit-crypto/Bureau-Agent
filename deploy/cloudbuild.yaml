@@ -48,11 +48,37 @@ steps:
       - '--platform=managed'
     waitFor: ['push-web', 'deploy-api']
 
+  - id: build-tanitim
+    name: 'gcr.io/cloud-builders/docker'
+    env: ['DOCKER_BUILDKIT=1']
+    args: ['build', '-f', 'deploy/Dockerfile.tanitim.cloudrun', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/tanitim:${SHORT_SHA}', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/tanitim:latest', '.']
+    waitFor: ['-']
+
+  - id: push-tanitim
+    name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '--all-tags', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/tanitim']
+    waitFor: ['build-tanitim']
+
+  - id: deploy-tanitim
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - '${_TANITIM_SERVICE}'
+      - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/tanitim:${SHORT_SHA}'
+      - '--region=${_REGION}'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+    waitFor: ['push-tanitim', 'deploy-api']
+
 images:
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:${SHORT_SHA}'
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/api:latest'
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/web:${SHORT_SHA}'
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/web:latest'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/tanitim:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/tanitim:latest'
 
 options:
   machineType: 'E2_HIGHCPU_8'
@@ -63,5 +89,6 @@ substitutions:
   _AR_REPO: agent-de-bureau
   _API_SERVICE: agent-de-bureau-api
   _WEB_SERVICE: agent-de-bureau-web
+  _TANITIM_SERVICE: agent-de-bureau-tanitim
 
 timeout: 1800s

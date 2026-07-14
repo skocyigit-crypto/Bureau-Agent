@@ -1,0 +1,44 @@
+# syntax=docker/dockerfile:1.7
+# Cloud Run variant for the public marketing site (artifacts/tanitim).
+# Same pattern as Dockerfile.web.cloudrun: build the Vite SPA, serve it with
+# Caddy, reverse-proxy /api/* to the api service's real Cloud Run URL.
+
+# ---------- Build stage ----------
+FROM node:24-bookworm-slim AS builder
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+
+WORKDIR /app
+
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json tsconfig.json .npmrc ./
+COPY artifacts/tanitim/package.json artifacts/tanitim/
+COPY lib ./lib
+COPY scripts ./scripts
+
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter @workspace/tanitim...
+
+COPY artifacts/tanitim ./artifacts/tanitim
+
+ENV NODE_ENV=production
+RUN pnpm --filter @workspace/tanitim run build
+
+# ---------- Runtime stage ----------
+FROM caddy:2-alpine AS runner
+
+COPY --from=builder /app/artifacts/tanitim/dist/public /srv
+COPY deploy/Caddyfile.tanitim.cloudrun /etc/caddy/Caddyfile
+
+# Cloud Run injects PORT at runtime (defaults to 8080); API_UPSTREAM must be
+# set at deploy time (--set-env-vars) to the api service's Cloud Run URL,
+# host:port form without scheme, e.g. agent-de-bureau-api-xxxx.a.run.app:443.
+ENV PORT=8080
+EXPOSE 8080
+
+# Same non-root hardening as Dockerfile.web.cloudrun.
+RUN adduser -D -u 1000 caddyrun \
+    && mkdir -p /data/caddy /config/caddy \
+    && chown -R caddyrun:caddyrun /data /config /srv /etc/caddy
+USER caddyrun
