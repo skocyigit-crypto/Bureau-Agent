@@ -4,7 +4,7 @@
 > hale gelmesi için yapılan denetimlerin ve kalan işlerin **kalıcı** kaydıdır. Her
 > oturumda güncellenir, silinmez — yeni bulgu/tamamlanan iş oldukça buraya eklenir.
 >
-> Son denetim: 2026-07-14
+> Son güncelleme: 2026-07-14 (Vertex AI Claude entegrasyonu + günlük özet cron eklendi)
 
 ## Genel durum özeti
 
@@ -24,7 +24,7 @@ devre dışı kal" mantığıyla korunuyor — yani sistem çökmüyor, sadece o
 - AI öğrenme (deterministik, ücretsiz)
 - Anlık cevap (hesap makinesi, birim, döviz, IBAN)
 - Agent Queue / Autonomous Secretary (saatlik cron, onay kuyruğu)
-- Günlük özet (ama sadece ekran açılınca — "günlük" değil "istek üzerine")
+- Günlük özet (artık gerçekten günlük — Resend ile her sabah otomatik e-posta gidiyor)
 
 **Şu an canlıda ÇALIŞMAYAN / erişilemez olanlar** (eksik yapılandırma yüzünden):
 - AI Telefon Santrali (Twilio yoksa sabit kodla 403 veriyor — bir org kendi Twilio'sunu
@@ -66,28 +66,45 @@ devre dışı kal" mantığıyla korunuyor — yani sistem çökmüyor, sadece o
   ücretli).
 
 ### 3. [ORTA] OpenAI / Anthropic platform-seviyesi yedek anahtarı ekle
+
 - **Neden önemli**: Şu an "hedged council" (Gemini/OpenAI/Anthropic yarışı) sadece
   Gemini ile çalışıyor — tek nokta bağımlılığı. Gemini kota/kesinti yaşarsa hiçbir
   yedek yok.
-- **Ne gerekiyor**: `OPENAI_API_KEY` ve/veya `ANTHROPIC_API_KEY` Secret Manager'a
-  eklenip Cloud Run'a bağlanmalı.
-- **Dosyalar**: `services/ai-providers.ts:223-329`
-- **Durum**: Bekliyor — kullanıcı kararı gerekiyor (isteğe bağlı, maliyet artışı).
+- **Anthropic/Claude — KOD HAZIR (2026-07-14)**: `lib/integrations-anthropic-ai/src/client.ts`
+  artık `ANTHROPIC_VERTEX_PROJECT_ID` tanımlıysa Vertex AI üzerinden Claude'a bağlanıyor
+  (ayrı Anthropic hesabı/API key gerekmez, mevcut GCP faturasına eklenir). Model isim
+  çevirisi (`claude-sonnet-4-6` → `claude-sonnet-4.6`) otomatik. Cloud Run servis hesabına
+  `roles/aiplatform.user` izni verildi.
+  **Kalan tek adım (otomatikleştirilemez)**: Kullanıcının Vertex AI Model Garden'da
+  ("console.cloud.google.com/vertex-ai/model-garden" → "Claude" ara → Enable) Anthropic'in
+  kullanım şartlarını kabul etmesi gerekiyor — bu bir EULA onayı, API ile yapılamıyor.
+  Onaylandıktan sonra `ANTHROPIC_VERTEX_PROJECT_ID=gwmme-1771577941260` env değişkenini
+  Cloud Run'a eklemek yeterli.
+- **OpenAI**: Ayrı hesap şart (Google'da alternatifi yok). Kullanıcı yeni bir API key
+  oluşturup verecek, `OPENAI_API_KEY` olarak Secret Manager'a eklenecek.
+- **Dosyalar**: `lib/integrations-anthropic-ai/src/client.ts`, `services/ai-providers.ts:223-329`
+- **Durum**: Kod tamamlandı — Model Garden onayı + OpenAI key'i bekliyor (kullanıcı).
 
 ### 4. [ORTA] Super Agent durumunu kalıcı hale getir
+
 - **Sorun**: `ai-agents.ts:2819` — `superAgentStates = new Map()` bellekte tutuluyor,
   her redeploy/restart'ta kayboluyor. Ayrıca sadece manuel tetiklemeyle çalışıyor
   (`POST /ai/super-agent/run`), zamanlanmış bir cron yok.
 - **Yapılacak**: Durumu bir DB tablosuna taşı, `autonomous-secretary-cron.ts` gibi
   zamanlanmış bir cron ekle.
-- **Durum**: Kod değişikliği gerektirir — istenirse ben yapabilirim.
+- **Durum**: Ertelendi — bu ~37 kullanım noktasını dokunan riskli bir refactor, ve
+  zaten Gmail'e bağlı olan e-posta ayağı Google OAuth (madde 1) olmadan çalışmıyor.
+  OAuth kurulduktan sonra tekrar değerlendirilecek.
 
-### 5. [DÜŞÜK] Günlük özeti gerçekten "günlük" yap
-- **Sorun**: `daily-digest.ts` sadece ekran açılınca (pull) çalışıyor, proaktif
-  push/e-posta/zamanlama yok — "daily" adı yanıltıcı.
-- **Yapılacak**: `automation-engine.ts` veya `proactive-engine.ts` tarzı bir zamanlanmış
-  iş ekleyip her sabah otomatik push bildirimi + e-posta gönder.
-- **Durum**: Kod değişikliği gerektirir — istenirse ben yapabilirim.
+### 5. [TAMAMLANDI] Günlük özeti gerçekten "günlük" yap (2026-07-14)
+
+- **Sorun**: `daily-digest.ts` sadece ekran açılınca (pull) çalışıyordu, proaktif
+  push/e-posta/zamanlama yoktu.
+- **Yapıldı**: `buildDailyDigest()` fonksiyonu route'tan ayrıştırılıp yeniden kullanılabilir
+  hale getirildi. Yeni `services/daily-digest-cron.ts` her saat kontrol ediyor, her
+  kullanıcı için günde bir kez (audit_logs'ta kalıcı guard — bellekte değil, restart'ta
+  tekrar göndermiyor) özeti üretip Resend ile e-posta olarak gönderiyor.
+- **Dosyalar**: `routes/daily-digest.ts`, `services/daily-digest-cron.ts`, `index.ts`
 
 ---
 
@@ -103,6 +120,11 @@ devre dışı kal" mantığıyla korunuyor — yani sistem çökmüyor, sadece o
 - ✅ Yasal kimlik düzeltmesi (SK GROUP, gerçek SIRET/TVA) (2026-07-14)
 - ✅ Custom domain (agentdebureau.fr) Cloudflare'e taşıma — **devam ediyor** (DNS
   yayılması bekleniyor)
+- ✅ Google Drive otomatik yedekleme kalıcı olarak kapatıldı, Cloud SQL native yedekleme
+  aktif (2026-07-14)
+- ✅ Günlük özet artık gerçekten otomatik e-posta gönderiyor (2026-07-14)
+- ✅ Vertex AI üzerinden Claude entegrasyonu (kod tamam, Model Garden onayı bekleniyor)
+  (2026-07-14)
 
 ---
 
