@@ -13,6 +13,17 @@
 :{$PORT:8080} {
         encode zstd gzip
 
+        # Applies to every response in this site block (static + proxied /api).
+        # The api-server sets its own security headers on its JSON responses
+        # already (helmet), but the static SPA served directly by Caddy had
+        # none of these.
+        header {
+                Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+                X-Content-Type-Options "nosniff"
+                X-Frame-Options "DENY"
+                Referrer-Policy "strict-origin-when-cross-origin"
+        }
+
         # `handle` blocks are only mutually exclusive with OTHER `handle`/
         # `handle_path` blocks in the same scope — a bare `file_server` /
         # `try_files` left at the top level still runs for every request

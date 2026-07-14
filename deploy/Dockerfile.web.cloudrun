@@ -39,3 +39,12 @@ COPY deploy/Caddyfile.cloudrun /etc/caddy/Caddyfile
 # host:port form without scheme, e.g. agent-de-bureau-api-xxxx.a.run.app:443.
 ENV PORT=8080
 EXPOSE 8080
+
+# The base caddy:2-alpine image runs as root by default. Cloud Run only
+# needs the unprivileged $PORT (>=1024), so drop to a non-root user — Caddy
+# still needs write access to its config/data dirs (autosave state) even
+# though this deployment doesn't use on-disk TLS certs.
+RUN adduser -D -u 1000 caddyrun \
+    && mkdir -p /data/caddy /config/caddy \
+    && chown -R caddyrun:caddyrun /data /config /srv /etc/caddy
+USER caddyrun

@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth, API_BASE } from "@/contexts/AuthContext";
+import { MOBILE_APP_ORIGIN } from "@/lib/api-config";
 import { useColors } from "@/hooks/useColors";
 import {
   enableBiometric,
@@ -120,7 +121,7 @@ export default function LoginScreen() {
     try {
       await fetch(`${API_BASE}/api/auth/forgot-password`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Origin: MOBILE_APP_ORIGIN },
         body: JSON.stringify({ email: email.trim() }),
       });
       setMode("forgot_done");

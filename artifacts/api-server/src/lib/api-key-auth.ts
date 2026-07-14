@@ -54,9 +54,27 @@ export interface ApiKeyAuthContext {
   nom: string;
 }
 
-/** Vrai si le token ressemble à une clé API de cette application. */
+// `adb_live_` + base64url(32 octets aléatoires) sans padding = 43 caractères
+// exactement (Math.ceil(32*8/6)). Une plage large (20-128) tolère une future
+// rotation de longueur de clé sans casser cette validation.
+const API_KEY_SUFFIX_PATTERN = /^[A-Za-z0-9_-]{20,128}$/;
+
+/**
+ * Vrai si le token a la FORME d'une clé API de cette application (préfixe +
+ * charset/longueur plausibles).
+ *
+ * Cette validation est deliberement bon marche (regex, pas de DB) car
+ * `hydrateFromBearer` (middleware/auth.ts) l'appelle desormais sur CHAQUE
+ * requete `/api/*`, y compris les routes publiques non authentifiees. Sans
+ * ce filtre, n'importe quel `Authorization: Bearer adb_live_<junk>` forcerait
+ * un SELECT Postgres par requete meme sur un endpoint public — un vecteur
+ * d'amplification DB bon marche pour un attaquant. Le filtre ne remplace pas
+ * la verification cryptographique (hash SHA-256 en base) dans
+ * `authenticateApiKey`, il evite juste de l'atteindre pour du bruit evident.
+ */
 export function looksLikeApiKey(token: string): boolean {
-  return token.startsWith(API_KEY_PREFIX);
+  if (!token.startsWith(API_KEY_PREFIX)) return false;
+  return API_KEY_SUFFIX_PATTERN.test(token.slice(API_KEY_PREFIX.length));
 }
 
 /**

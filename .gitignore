@@ -56,6 +56,9 @@ Thumbs.db
 deploy/.env
 deploy/.env.local
 deploy/.env.production
+*.pem
+*.key
+google-play-service-account.json
 
 # OS / editor
 .DS_Store

@@ -15,6 +15,12 @@
       "distribution": "internal",
       "ios": {
         "simulator": false
+      },
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://agent-de-bureau-api-qwnwibwdnq-od.a.run.app"
       }
     },
     "production": {
@@ -24,6 +30,9 @@
       },
       "android": {
         "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://agent-de-bureau-api-qwnwibwdnq-od.a.run.app"
       }
     }
   },

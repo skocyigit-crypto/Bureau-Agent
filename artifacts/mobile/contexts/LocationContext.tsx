@@ -23,6 +23,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 import * as TaskManager from "expo-task-manager";
+import { loadSessionToken } from "@/lib/secure-session";
 import React, {
   createContext,
   useCallback,
@@ -32,7 +33,7 @@ import React, {
   useState,
 } from "react";
 import { Platform } from "react-native";
-import { API_BASE, SESSION_STORAGE_KEY } from "@/lib/api-config";
+import { API_BASE, MOBILE_APP_ORIGIN } from "@/lib/api-config";
 import { useAuth } from "@/contexts/AuthContext";
 
 const KVKK_ACK_KEY = "location:kvkk-acknowledged-v1";
@@ -84,19 +85,14 @@ if (Platform.OS !== "web") {
       const locations = (data as { locations?: Location.LocationObject[] })?.locations ?? [];
       if (locations.length === 0) return;
 
-      // Auth token'ı AsyncStorage'dan oku (JS context yeniden kurulmuş
-      // olabilir, useAuth burada kullanılamaz).
+      // Auth token'ı guvenli coften oku (JS context yeniden kurulmuş
+      // olabilir, useAuth burada kullanılamaz). loadSessionToken() ayni
+      // zamanda eski duz-metin AsyncStorage slotunu da migrate eder, o
+      // yuzden dogrudan AsyncStorage okumak yerine bunu kullanmak gerekir —
+      // aksi halde secure-session.ts'nin yazdigi token hic gorulmez.
       let token: string | null = null;
       try {
-        const stored = await AsyncStorage.getItem(SESSION_STORAGE_KEY);
-        if (stored) {
-          try {
-            const parsed = JSON.parse(stored);
-            token = typeof parsed?.token === "string" ? parsed.token : null;
-          } catch {
-            token = stored;
-          }
-        }
+        token = await loadSessionToken();
       } catch {
         return; // storage yoksa ping yollayamayız
       }
@@ -112,6 +108,7 @@ if (Platform.OS !== "web") {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
+            Origin: MOBILE_APP_ORIGIN,
           },
           body: JSON.stringify({
             lat: last.coords.latitude,

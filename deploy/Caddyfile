@@ -10,6 +10,17 @@
 {$DOMAIN:":80"} {
         encode zstd gzip
 
+        # Applies to every response in this site block (static + proxied /api).
+        # Browsers ignore Strict-Transport-Security on plain-HTTP responses, so
+        # this is a safe no-op for local/dev DOMAIN=:80 setups and only takes
+        # effect once DOMAIN is a real HTTPS domain.
+        header {
+                Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+                X-Content-Type-Options "nosniff"
+                X-Frame-Options "DENY"
+                Referrer-Policy "strict-origin-when-cross-origin"
+        }
+
         # Forward API calls to the Node backend.
         # IMPORTANT: do NOT use handle_path here — Express mounts routes under /api
         # and expects the /api prefix to be preserved. `handle` keeps the URL intact.
