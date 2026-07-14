@@ -65,7 +65,7 @@ export function Footer() {
         </div>
         
         <div className="pt-8 border-t border-primary-foreground/10 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-primary-foreground/50 font-medium">
-          <p>© {new Date().getFullYear()} Agent de Bureau SAS. Tous droits réservés.</p>
+          <p>© {new Date().getFullYear()} SK GROUP. Tous droits réservés.</p>
           <div className="flex items-center gap-4">
             <Link href="/mentions-legales" className="hover:text-white transition-colors">Mentions légales</Link>
             <Link href="/cgu" className="hover:text-white transition-colors">CGU</Link>

@@ -22,7 +22,7 @@ function generateEmailWrapper(title: string, body: string): string {
 </div>
 <div style="padding:32px;">${body}</div>
 <div style="background:#f8fafc;padding:20px 32px;text-align:center;border-top:1px solid #e2e8f0;">
-<p style="color:#94a3b8;font-size:12px;margin:0 0 4px;">Agent de Bureau SAS - <a href="mailto:support@agentdebureau.fr" style="color:#f59e0b;">support@agentdebureau.fr</a></p>
+<p style="color:#94a3b8;font-size:12px;margin:0 0 4px;">SK GROUP - <a href="mailto:support@agentdebureau.fr" style="color:#f59e0b;">support@agentdebureau.fr</a></p>
 <p style="color:#94a3b8;font-size:11px;margin:0;">&copy; ${new Date().getFullYear()} Tous droits reserves</p>
 </div></div></body></html>`;
 }

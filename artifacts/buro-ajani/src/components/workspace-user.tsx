@@ -160,7 +160,7 @@ function buildWorkspaceUser(apiUser: any): WorkspaceUser {
     avatar: apiUser.avatar || `${apiUser.prenom[0]}${apiUser.nom[0]}`.toUpperCase(),
     role,
     departement: apiUser.departement || "General",
-    organisation: apiUser.organisation || "Agent de Bureau SAS",
+    organisation: apiUser.organisation || "SK GROUP",
     domaine: apiUser.email.split("@")[1] || "agentdebureau.fr",
     dernierAcces: now.toLocaleString("fr-FR", {
       day: "2-digit", month: "2-digit", year: "numeric",

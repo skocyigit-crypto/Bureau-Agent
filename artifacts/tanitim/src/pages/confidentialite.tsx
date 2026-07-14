@@ -17,7 +17,7 @@ export default function Confidentialite() {
         <section className="space-y-8 text-sm leading-relaxed text-foreground/80">
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-3">1. Responsable du traitement</h2>
-            <p>Agent de Bureau SAS, dont le siège est à Paris (France), est responsable du traitement de vos données personnelles collectées via la plateforme agentdebureau.fr.</p>
+            <p>SK GROUP (SASU), dont le siège est à Haguenau (France), est responsable du traitement de vos données personnelles collectées via la plateforme agentdebureau.fr.</p>
           </div>
 
           <div>

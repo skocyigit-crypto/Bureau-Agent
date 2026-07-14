@@ -17,20 +17,20 @@ export default function MentionsLegales() {
         <section className="space-y-8 text-sm leading-relaxed text-foreground/80">
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-3">1. Éditeur du site</h2>
-            <p>Le site <strong>agentdebureau.fr</strong> est édité par :</p>
+            <p>Le site <strong>agentdebureau.fr</strong> et la marque commerciale « Agent de Bureau » sont édités par :</p>
             <ul className="mt-2 space-y-1 pl-4 list-disc">
-              <li><strong>Agent de Bureau SAS</strong></li>
-              <li>Capital social : 10 000 €</li>
-              <li>Siège social : Paris, France</li>
-              <li>SIRET : en cours d'immatriculation</li>
-              <li>N° TVA intracommunautaire : en cours d'immatriculation</li>
+              <li><strong>SK GROUP</strong> (SASU)</li>
+              <li>Siège social : 17 rue Saint-Exupéry, 67500 Haguenau, France</li>
+              <li>SIRET : 890 977 648 00017</li>
+              <li>N° TVA intracommunautaire : FR83 890977648</li>
+              <li>Président : Serkan Kocyigit</li>
               <li>Email : contact@agentdebureau.fr</li>
             </ul>
           </div>
 
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-3">2. Directeur de la publication</h2>
-            <p>Le directeur de la publication est le représentant légal d'Agent de Bureau SAS.</p>
+            <p>Le directeur de la publication est le représentant légal de SK GROUP.</p>
           </div>
 
           <div>
@@ -46,14 +46,14 @@ export default function MentionsLegales() {
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-3">4. Propriété intellectuelle</h2>
             <p>
-              L'ensemble des éléments constituant le site Agent de Bureau (textes, graphismes, logiciels, photographies, images, sons, plans, noms, logos, marques, créations et œuvres protégeables diverses) sont la propriété exclusive d'Agent de Bureau SAS ou de ses partenaires. Toute reproduction, représentation, modification, publication, adaptation de tout ou partie des éléments du site est interdite, sauf autorisation écrite préalable.
+              L'ensemble des éléments constituant le site Agent de Bureau (textes, graphismes, logiciels, photographies, images, sons, plans, noms, logos, marques, créations et œuvres protégeables diverses) sont la propriété exclusive de SK GROUP ou de ses partenaires. Toute reproduction, représentation, modification, publication, adaptation de tout ou partie des éléments du site est interdite, sauf autorisation écrite préalable.
             </p>
           </div>
 
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-3">5. Limitation de responsabilité</h2>
             <p>
-              Agent de Bureau SAS s'efforce d'assurer au mieux de ses possibilités l'exactitude et la mise à jour des informations diffusées sur ce site. Cependant, Agent de Bureau SAS ne peut garantir l'exactitude, la précision ou l'exhaustivité des informations mises à disposition. Agent de Bureau SAS décline toute responsabilité pour toute imprécision, inexactitude ou omission portant sur les informations disponibles sur ce site.
+              SK GROUP s'efforce d'assurer au mieux de ses possibilités l'exactitude et la mise à jour des informations diffusées sur ce site. Cependant, SK GROUP ne peut garantir l'exactitude, la précision ou l'exhaustivité des informations mises à disposition. SK GROUP décline toute responsabilité pour toute imprécision, inexactitude ou omission portant sur les informations disponibles sur ce site.
             </p>
           </div>
 

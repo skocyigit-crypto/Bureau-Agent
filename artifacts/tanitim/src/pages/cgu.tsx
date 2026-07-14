@@ -17,7 +17,7 @@ export default function CGU() {
         <section className="space-y-8 text-sm leading-relaxed text-foreground/80">
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-3">1. Objet</h2>
-            <p>Les présentes Conditions Générales d'Utilisation (CGU) régissent l'accès et l'utilisation de la plateforme SaaS <strong>Agent de Bureau</strong> éditée par Agent de Bureau SAS. En créant un compte, l'utilisateur accepte sans réserve les présentes CGU.</p>
+            <p>Les présentes Conditions Générales d'Utilisation (CGU) régissent l'accès et l'utilisation de la plateforme SaaS <strong>Agent de Bureau</strong> éditée par SK GROUP (SASU). En créant un compte, l'utilisateur accepte sans réserve les présentes CGU.</p>
           </div>
 
           <div>
@@ -53,7 +53,7 @@ export default function CGU() {
 
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-3">7. Données et confidentialité</h2>
-            <p>Agent de Bureau SAS s'engage à protéger les données de ses clients conformément au RGPD. L'utilisateur reste propriétaire de ses données. Voir notre <a href="/confidentialite" className="text-primary underline">Politique de confidentialité</a> pour les détails.</p>
+            <p>SK GROUP s'engage à protéger les données de ses clients conformément au RGPD. L'utilisateur reste propriétaire de ses données. Voir notre <a href="/confidentialite" className="text-primary underline">Politique de confidentialité</a> pour les détails.</p>
           </div>
 
           <div>
@@ -63,7 +63,7 @@ export default function CGU() {
 
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-3">9. Responsabilités</h2>
-            <p>Agent de Bureau SAS est soumis à une obligation de moyens. Sa responsabilité ne saurait être engagée en cas de perte de données résultant d'une faute de l'utilisateur, d'une attaque informatique externe ou d'un cas de force majeure. La responsabilité d'Agent de Bureau est limitée au montant des abonnements versés au cours des 3 derniers mois.</p>
+            <p>SK GROUP est soumis à une obligation de moyens. Sa responsabilité ne saurait être engagée en cas de perte de données résultant d'une faute de l'utilisateur, d'une attaque informatique externe ou d'un cas de force majeure. La responsabilité d'Agent de Bureau est limitée au montant des abonnements versés au cours des 3 derniers mois.</p>
           </div>
 
           <div>

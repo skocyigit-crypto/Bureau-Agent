@@ -27,7 +27,7 @@ class User(Base, TimestampMixin):
     prenom: Mapped[str] = mapped_column(String(100), nullable=False)
     role: Mapped[str] = mapped_column(String(30), nullable=False, default="agent", server_default="agent")
     departement: Mapped[str | None] = mapped_column(String(100))
-    organisation: Mapped[str | None] = mapped_column(String(200), default="Agent de Bureau SAS")
+    organisation: Mapped[str | None] = mapped_column(String(200), default="SK GROUP")
     organisation_id: Mapped[int | None] = mapped_column(
         ForeignKey("organisations.id", ondelete="SET NULL")
     )

@@ -259,7 +259,7 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
                 </div>
               )}
               <div className="mt-4 text-center">
-                <p className="text-xs text-muted-foreground">Agent de Bureau SAS - Solution professionnelle</p>
+                <p className="text-xs text-muted-foreground">SK GROUP - Solution professionnelle</p>
               </div>
             </>
           )}

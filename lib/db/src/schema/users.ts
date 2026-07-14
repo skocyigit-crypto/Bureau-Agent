@@ -70,7 +70,7 @@ export const usersTable = pgTable("users", {
   prenom: varchar("prenom", { length: 100 }).notNull(),
   role: varchar("role", { length: 30 }).notNull().default("agent"),
   departement: varchar("departement", { length: 100 }),
-  organisation: varchar("organisation", { length: 200 }).default("Agent de Bureau SAS"),
+  organisation: varchar("organisation", { length: 200 }).default("SK GROUP"),
   organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "set null" }),
   telephone: varchar("telephone", { length: 30 }),
   avatar: varchar("avatar", { length: 10 }),

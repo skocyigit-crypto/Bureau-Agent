@@ -165,7 +165,7 @@ router.post("/public/demo-request", demoLimiter, async (req: Request, res: Respo
           </a>
         </div>
         <p style="color: #9ca3af; font-size: 13px; border-top: 1px solid #e5e7eb; padding-top: 16px; margin-top: 24px;">
-          Agent de Bureau SAS • La plateforme de référence pour les bureaux français
+          SK GROUP • La plateforme de référence pour les bureaux français
         </p>
       </div>
     `;

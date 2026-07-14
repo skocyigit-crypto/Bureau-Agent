@@ -73,7 +73,7 @@ router.get("/data-protection/summary", async (req, res): Promise<void> => {
       dpo: {
         email: "dpo@agentdebureau.fr",
         name: "Délégué à la Protection des Données",
-        address: "Agent de Bureau SAS, 75001 Paris, France",
+        address: "SK GROUP, 17 rue Saint-Exupéry, 67500 Haguenau, France",
         supervisoryAuthority: { name: "CNIL", url: "https://www.cnil.fr", phone: "+33 1 53 73 22 22" },
       },
     });

@@ -220,14 +220,14 @@ router.post("/invitations", async (req: Request, res: Response): Promise<void> =
         </div>
       </div>
       <div style="background:#f8fafc;padding:20px 32px;text-align:center;border-top:1px solid #e2e8f0;">
-        <p style="color:#94a3b8;font-size:11px;margin:0;">Agent de Bureau SAS &mdash; Solution professionnelle de gestion de bureau</p>
+        <p style="color:#94a3b8;font-size:11px;margin:0;">SK GROUP &mdash; Solution professionnelle de gestion de bureau</p>
       </div>
     </div>
   </div>
 </body>
 </html>`;
 
-  const text = `Vous etes invite a rejoindre ${orgName} sur Agent de Bureau !\n\n${inviterName} vous invite en tant que ${roleLabels[assignedRole] || assignedRole}.\n\nAcceptez l'invitation : ${acceptUrl}\n\nCette invitation expire dans ${INVITATION_EXPIRY_HOURS} heures.\n\nAgent de Bureau SAS`;
+  const text = `Vous etes invite a rejoindre ${orgName} sur Agent de Bureau !\n\n${inviterName} vous invite en tant que ${roleLabels[assignedRole] || assignedRole}.\n\nAcceptez l'invitation : ${acceptUrl}\n\nCette invitation expire dans ${INVITATION_EXPIRY_HOURS} heures.\n\nSK GROUP`;
 
   const emailResult = await sendEmail(emailClean, `Invitation a rejoindre ${orgName} — Agent de Bureau`, html, text);
 

@@ -17,7 +17,7 @@ export default function Gizlilik() {
         <section className="space-y-8 text-sm leading-relaxed text-foreground/80">
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-3">1. Veri sorumlusu</h2>
-            <p>Merkezi Paris (Fransa) olan Agent de Bureau SAS, agentdebureau.fr platformu ve Büro Ajanı mobil uygulaması aracılığıyla toplanan kişisel verilerinizin veri sorumlusudur.</p>
+            <p>Merkezi Haguenau (Fransa) olan SK GROUP (SASU), agentdebureau.fr platformu ve Büro Ajanı mobil uygulaması aracılığıyla toplanan kişisel verilerinizin veri sorumlusudur.</p>
           </div>
 
           <div>

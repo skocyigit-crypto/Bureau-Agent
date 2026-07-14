@@ -476,7 +476,7 @@ export async function sendWelcomeEmail(params: {
         Besoin d'aide ? Contactez-nous : <a href="mailto:support@agentdebureau.fr" style="color:#f59e0b;">support@agentdebureau.fr</a>
       </p>
       <p style="color:#94a3b8;font-size:11px;margin:0;">
-        &copy; ${new Date().getFullYear()} Agent de Bureau SAS - Tous droits reserves
+        &copy; ${new Date().getFullYear()} SK GROUP - Tous droits reserves
       </p>
     </div>
   </div>
@@ -509,7 +509,7 @@ POUR COMMENCER:
 Conservez cet email - il contient votre licence et informations d'acces.
 
 Support: support@agentdebureau.fr
-Agent de Bureau SAS`;
+SK GROUP`;
 
   return sendEmail(to, `Bienvenue sur Agent de Bureau - ${orgName}`, html, text);
 }
@@ -601,7 +601,7 @@ export async function sendCredentialsEmail(params: {
         Besoin d'aide ? Contactez-nous : <a href="mailto:support@agentdebureau.fr" style="color:#f59e0b;">support@agentdebureau.fr</a>
       </p>
       <p style="color:#94a3b8;font-size:11px;margin:0;">
-        &copy; ${new Date().getFullYear()} Agent de Bureau SAS - Tous droits reserves
+        &copy; ${new Date().getFullYear()} SK GROUP - Tous droits reserves
       </p>
     </div>
   </div>
@@ -625,7 +625,7 @@ ACCES:
 IMPORTANT: Changez votre mot de passe des votre premiere connexion.
 
 Support: support@agentdebureau.fr
-Agent de Bureau SAS`;
+SK GROUP`;
 
   return sendEmail(to, `Code de connexion temporaire - Agent de Bureau (${orgName})`, html, text);
 }
@@ -764,7 +764,7 @@ export async function sendLicenseEmail(params: {
         Besoin d'aide ? Contactez-nous : <a href="mailto:support@agentdebureau.fr" style="color:#f59e0b;">support@agentdebureau.fr</a>
       </p>
       <p style="color:#94a3b8;font-size:11px;margin:0;">
-        &copy; ${new Date().getFullYear()} Agent de Bureau SAS - Tous droits reserves
+        &copy; ${new Date().getFullYear()} SK GROUP - Tous droits reserves
       </p>
     </div>
   </div>
@@ -774,7 +774,7 @@ export async function sendLicenseEmail(params: {
   const resetText = (adminEmail && resetLink) ? `\nDEFINISSEZ VOTRE MOT DE PASSE:\n- Administrateur: ${adminName || adminEmail}\n- Email: ${adminEmail}\n- Lien securise (valide 24h, usage unique): ${resetLink}\n` : "";
   const credText = (adminEmail && adminPassword) ? `\nCODE DE CONNEXION TEMPORAIRE:\n- Administrateur: ${adminName || adminEmail}\n- Email: ${adminEmail}\n- Code temporaire: ${adminPassword}\n- ATTENTION: Ce code est temporaire. Changez votre mot de passe des votre premiere connexion.\n` : "";
 
-  const text = `Bienvenue${adminName ? ` ${adminName}` : ` ${orgName}`} !\n\nVotre compte Agent de Bureau pour ${orgName} (plan ${plan}) a ete cree.\n${resetText}${credText}\nAccedez a l'application: ${APP_URL}\n\nPOUR COMMENCER:\n1. Connectez-vous avec votre code temporaire\n2. Changez votre mot de passe\n3. Ajoutez vos premiers contacts\n4. Invitez vos collaborateurs\n\nSupport: support@agentdebureau.fr\nAgent de Bureau SAS`;
+  const text = `Bienvenue${adminName ? ` ${adminName}` : ` ${orgName}`} !\n\nVotre compte Agent de Bureau pour ${orgName} (plan ${plan}) a ete cree.\n${resetText}${credText}\nAccedez a l'application: ${APP_URL}\n\nPOUR COMMENCER:\n1. Connectez-vous avec votre code temporaire\n2. Changez votre mot de passe\n3. Ajoutez vos premiers contacts\n4. Invitez vos collaborateurs\n\nSupport: support@agentdebureau.fr\nSK GROUP`;
 
   return sendEmail(to, `Bienvenue sur Agent de Bureau - ${orgName}`, html, text);
 }

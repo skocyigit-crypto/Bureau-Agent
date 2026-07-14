@@ -11,7 +11,7 @@ async function ensureDefaultOrganisation(): Promise<number> {
   if (existing) return existing.id;
 
   const [org] = await db.insert(organisationsTable).values({
-    name: "Agent de Bureau SAS",
+    name: "SK GROUP",
     slug: "agent-de-bureau-sas",
     email: SUPER_ADMIN_EMAIL,
     maxUsers: 3,
@@ -74,7 +74,7 @@ async function seedSuperAdmin() {
     prenom: "Super",
     role: "super_admin",
     departement: "Direction",
-    organisation: "Agent de Bureau SAS",
+    organisation: "SK GROUP",
     organisationId: orgId,
     avatar: "SA",
     mfaActif: false,
