@@ -107,7 +107,11 @@ const FAQ_ITEMS: { q: string; a: string }[] = [
   },
   {
     q: "Comment fonctionne la facturation?",
-    a: "Creez des devis professionnels, convertissez-les en factures d'un clic, gerez la TVA et les remises, suivez les paiements et les relances. Le systeme de facturation par usage calcule automatiquement les depassements de forfait avec rapprochement bancaire integre."
+    a: "Creez des devis professionnels, convertissez-les en factures d'un clic, gerez la TVA et les remises. Les relances de paiement partent automatiquement chaque jour pour chaque facture en retard, sans action manuelle. Le systeme de facturation par usage calcule automatiquement les depassements de forfait avec rapprochement bancaire integre."
+  },
+  {
+    q: "Comment sont traites les e-mails de support?",
+    a: "Chaque e-mail recu sur notre adresse de support est analyse par IA (categorie, priorite, brouillon de reponse redige automatiquement), puis relu et valide par un membre de notre equipe avant tout envoi — l'IA accelere la reponse, un humain garde toujours la main."
   },
   {
     q: "Quelles integrations sont disponibles?",
@@ -430,7 +434,7 @@ export default function Home() {
                 {
                   icon: <Receipt className="w-7 h-7" />,
                   title: "Devis & Facturation",
-                  desc: "Creation de devis, conversion en factures, suivi des paiements et relances automatiques. TVA, remises et multi-devises."
+                  desc: "Creation de devis, conversion en factures, suivi des paiements et relances de retard envoyees automatiquement chaque jour. TVA, remises et multi-devises."
                 },
                 {
                   icon: <FolderKanban className="w-7 h-7" />,
@@ -490,7 +494,7 @@ export default function Home() {
                 {
                   icon: <Workflow className="w-7 h-7" />,
                   title: "Automatisations",
-                  desc: "Regles personnalisees, alertes proactives, rappels de taches, pointage auto depuis Google Calendar."
+                  desc: "Regles personnalisees, alertes proactives, rappels de taches, relances de facturation quotidiennes, tri IA des e-mails de support, pointage auto depuis Google Calendar."
                 },
                 {
                   icon: <Globe className="w-7 h-7" />,
