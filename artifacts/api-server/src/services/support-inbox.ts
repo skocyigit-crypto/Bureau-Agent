@@ -107,7 +107,10 @@ RÈGLES STRICTES pour draftReply:
   }).catch(() => {});
   invalidateQuotaCache(orgId);
 
-  const raw = (response.text ?? "").trim();
+  // Le modele de repli (utilise quand gemini-2.5-flash est retire) respecte
+  // moins strictement responseMimeType et enrobe parfois le JSON dans des
+  // barrières de code markdown (```json ... ```) — on les retire avant de parser.
+  const raw = (response.text ?? "").trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
   let parsed: any;
   try {
     parsed = JSON.parse(raw);
