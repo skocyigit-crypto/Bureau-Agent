@@ -54,24 +54,20 @@ export function getAnthropic(): AnthropicLike {
   return _anthropic;
 }
 
-// L'API Anthropic directe utilise des identifiants comme "claude-sonnet-4-6"
-// ou des alias "-latest" ; Vertex AI Model Garden expose les memes modeles
-// sous des identifiants a POINT ("claude-sonnet-4.6") et n'accepte pas les
-// alias "-latest". Sans cette table, passer directement le meme `model:`
-// aux deux modes echouerait silencieusement en mode Vertex (modele
-// introuvable). Appeler avec le nom canonique (dash) utilise partout dans
-// le code ; ne fait rien en mode API directe.
+// Verifie via la fiche modele reelle dans Vertex AI Model Garden (console,
+// 2026-07-14): l'ID de modele Vertex utilise le MEME format a tirets que
+// l'API Anthropic directe (ex: "claude-opus-4-8", pas "claude-opus-4.8" —
+// une hypothese initiale basee sur une recherche web s'est averee fausse).
+// Donc pas de conversion de format necessaire. Seul cas reel a corriger:
+// les alias "-latest" (ex: "claude-3-5-haiku-latest"), que Vertex n'accepte
+// pas — il faut un identifiant de version explicite.
 const VERTEX_MODEL_MAP: Record<string, string> = {
-  "claude-sonnet-4-6": "claude-sonnet-4.6",
-  "claude-opus-4-7": "claude-opus-4.7",
-  "claude-3-5-haiku-latest": "claude-haiku-4.5",
+  "claude-3-5-haiku-latest": "claude-haiku-4-5",
 };
 
 export function resolveClaudeModelId(model: string): string {
   if (!isVertexConfigured()) return model;
-  if (VERTEX_MODEL_MAP[model]) return VERTEX_MODEL_MAP[model];
-  // Repli generique: convertit un suffixe de version "-N-M" en "-N.M".
-  return model.replace(/-(\d+)-(\d+)$/, "-$1.$2");
+  return VERTEX_MODEL_MAP[model] ?? model;
 }
 
 export const anthropic = new Proxy({} as Anthropic, {
