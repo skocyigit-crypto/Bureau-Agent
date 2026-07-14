@@ -50,6 +50,11 @@ const MODEL_RETIRED_PATTERNS = [
   /not found for API version/i,
   /models\/[^\s]+ is not found/i,
   /model[^\n]{0,80}(?:not found|does not exist|is not available|is not supported|deprecated|retired)/i,
+  // Formulation observee depuis 2026-07 pour les modeles retires aux nouveaux
+  // utilisateurs/projets ("This model models/gemini-2.5-flash is no longer
+  // available to new users...") — ne correspondait a aucun des motifs
+  // ci-dessus, ce qui desactivait silencieusement le repli automatique.
+  /model[^\n]{0,80}no longer available/i,
 ];
 
 /** Detecte une erreur de retrait/inexistence de modele Gemini. */
