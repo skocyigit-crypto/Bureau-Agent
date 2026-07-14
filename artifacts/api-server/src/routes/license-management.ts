@@ -422,12 +422,12 @@ router.post("/license-management/send-invoice-email", async (req: Request, res: 
   }
 });
 
-router.post("/license-management/auto-reminders", async (req: Request, res: Response): Promise<void> => {
-  try {
-    const orgId = getOrgId(req);
-    const userRole = req.session?.userRole;
-    if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces refuse" }); return; }
-
+// Extrait pour etre appelable a la fois par la route (bouton "Lancer les
+// rappels") ET par services/invoice-reminder-cron.ts (execution quotidienne
+// automatique, toutes organisations). Auparavant "auto-reminders" ne
+// s'executait QUE sur clic humain malgre son nom — aucun cron ne
+// l'appelait.
+export async function runAutoRemindersForOrg(orgId: number, triggeredByUserId?: number): Promise<{ total: number; sent: number; skipped: number }> {
     const now = new Date();
     const overdueInvoices = await db.select().from(facturesClientTable).where(and(
       eq(facturesClientTable.organisationId, orgId),
@@ -484,9 +484,19 @@ router.post("/license-management/auto-reminders", async (req: Request, res: Resp
       if (emailSent) sent++;
     }
 
-    await logAudit(orgId, "auto_reminders_run", `${sent} rappels envoyes, ${skipped} ignores sur ${overdueInvoices.length} factures en retard`, req.session?.userId);
+    await logAudit(orgId, "auto_reminders_run", `${sent} rappels envoyes, ${skipped} ignores sur ${overdueInvoices.length} factures en retard`, triggeredByUserId);
 
-    res.json({ success: true, total: overdueInvoices.length, sent, skipped });
+    return { total: overdueInvoices.length, sent, skipped };
+}
+
+router.post("/license-management/auto-reminders", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const userRole = req.session?.userRole;
+    if (userRole !== "super_admin" && userRole !== "administrateur") { res.status(403).json({ error: "Acces refuse" }); return; }
+
+    const result = await runAutoRemindersForOrg(orgId, req.session?.userId);
+    res.json({ success: true, ...result });
   } catch (err: any) {
     logger.error({ err: err }, "Erreur auto-reminders:");
     res.status(500).json({ error: "Erreur" });
