@@ -23,7 +23,7 @@ export default function MentionsLegales() {
               <li>Capital social : 10 000 €</li>
               <li>Siège social : Paris, France</li>
               <li>SIRET : en cours d'immatriculation</li>
-              <li>N° TVA intracommunautaire : FR XX XXXXXXXXX</li>
+              <li>N° TVA intracommunautaire : en cours d'immatriculation</li>
               <li>Email : contact@agentdebureau.fr</li>
             </ul>
           </div>
@@ -37,8 +37,9 @@ export default function MentionsLegales() {
             <h2 className="text-lg font-semibold text-foreground mb-3">3. Hébergement</h2>
             <p>Le site et la plateforme SaaS sont hébergés par :</p>
             <ul className="mt-2 space-y-1 pl-4 list-disc">
-              <li><strong>Replit Inc.</strong></li>
-              <li>650 Castro Street, Suite 120, Mountain View, CA 94041, États-Unis</li>
+              <li><strong>Google Cloud EMEA Limited</strong> (Google Cloud Platform)</li>
+              <li>70 Sir John Rogerson's Quay, Dublin 2, Irlande</li>
+              <li>Données hébergées dans la région europe-west9 (Paris, France)</li>
             </ul>
           </div>
 
