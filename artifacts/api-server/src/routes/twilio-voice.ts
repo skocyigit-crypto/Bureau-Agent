@@ -102,15 +102,27 @@ function sendTwiml(res: Response, ...parts: string[]): void {
 // ---------------------------------------------------------------------------
 // Twilio webhook signature validation
 // ---------------------------------------------------------------------------
+// Each tenant can bring their own Twilio account (config saved via
+// POST /telephony/providers), signed with THEIR OWN auth token — not the
+// platform's. Validating every webhook against a single platform-wide
+// TWILIO_AUTH_TOKEN meant a tenant's own Twilio number never worked (403
+// on every inbound call/SMS) unless the platform itself also had Twilio
+// configured. Resolve the auth token per-request from the "To" number
+// (same lookup as findSessionForNumber), falling back to the platform env
+// var only when no tenant claims that number.
+//
 // Centralised webhook auth guard. Returns true if the request was rejected
 // (caller should return immediately). All Twilio webhook routes use this so
-// behaviour stays consistent: fail closed in production whenever the signing
-// token is missing or the signature fails to verify.
-function rejectIfBadTwilioRequest(req: Request, res: Response, route: string): boolean {
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
+// behaviour stays consistent: fail closed in production whenever no signing
+// token (tenant or platform) is available or the signature fails to verify.
+async function rejectIfBadTwilioRequest(req: Request, res: Response, route: string): Promise<boolean> {
+  const toNumber = (req.body as Record<string, string> | undefined)?.To || "";
+  const tenantAuthToken = await resolveTenantTwilioAuthToken(toNumber);
+  const authToken = tenantAuthToken || process.env.TWILIO_AUTH_TOKEN;
+
   if (!authToken) {
     if (process.env.NODE_ENV === "production") {
-      logger.error({ route }, "[TwilioVoice] TWILIO_AUTH_TOKEN missing — refusing webhook in production");
+      logger.error({ route }, "[TwilioVoice] No Twilio auth token (tenant or platform) — refusing webhook in production");
       res.status(403).send("Forbidden");
       return true;
     }
@@ -176,27 +188,45 @@ function validateTwilioSignature(req: Request, authToken: string): boolean {
 // ---------------------------------------------------------------------------
 // Identify organisation from Twilio "To" number
 // ---------------------------------------------------------------------------
+
+// Shared by the signature guard and session lookup below — both need to
+// answer "which tenant's Twilio provider owns this number?".
+async function findTwilioProviderForNumber(toNumber: string) {
+  const providers = await db.select().from(telephonyProvidersTable)
+    .where(eq(telephonyProvidersTable.provider, "twilio"));
+
+  if (providers.length === 0) return null;
+
+  let matched = providers.find(p => {
+    const cfg = p.config as Record<string, string>;
+    return cfg?.fromNumber === toNumber || cfg?.phoneNumber === toNumber;
+  });
+
+  // Fallback: single Twilio provider
+  if (!matched && providers.length === 1) matched = providers[0];
+
+  // Fallback: env phone number
+  if (!matched) {
+    const envNum = process.env.TWILIO_PHONE_NUMBER;
+    if (envNum && (toNumber === envNum || !toNumber)) matched = providers[0];
+  }
+
+  return matched ?? null;
+}
+
+async function resolveTenantTwilioAuthToken(toNumber: string): Promise<string | null> {
+  try {
+    const matched = await findTwilioProviderForNumber(toNumber);
+    const cfg = matched?.config as Record<string, string> | undefined;
+    return cfg?.authToken || null;
+  } catch {
+    return null;
+  }
+}
+
 async function findSessionForNumber(toNumber: string, fromNumber: string): Promise<VoiceSession | null> {
   try {
-    const providers = await db.select().from(telephonyProvidersTable)
-      .where(eq(telephonyProvidersTable.provider, "twilio"));
-
-    if (providers.length === 0) return null;
-
-    let matched = providers.find(p => {
-      const cfg = p.config as Record<string, string>;
-      return cfg?.fromNumber === toNumber || cfg?.phoneNumber === toNumber;
-    });
-
-    // Fallback: single Twilio provider
-    if (!matched && providers.length === 1) matched = providers[0];
-
-    // Fallback: env phone number
-    if (!matched) {
-      const envNum = process.env.TWILIO_PHONE_NUMBER;
-      if (envNum && (toNumber === envNum || !toNumber)) matched = providers[0];
-    }
-
+    const matched = await findTwilioProviderForNumber(toNumber);
     if (!matched) return null;
 
     const orgId = matched.organisationId!;
@@ -697,7 +727,7 @@ twilioVoiceRouter.post("/telephony/twilio/voice", async (req: Request, res: Resp
     callStatus: _twBody.CallStatus,
   }, "[TwilioVoice] Incoming call");
 
-  if (rejectIfBadTwilioRequest(req, res, "/voice")) return;
+  if (await rejectIfBadTwilioRequest(req, res, "/voice")) return;
 
   const callSid: string = (req.body as Record<string, string>).CallSid || "";
   const toNumber: string = (req.body as Record<string, string>).To || "";
@@ -905,7 +935,7 @@ twilioVoiceRouter.post("/telephony/twilio/voice", async (req: Request, res: Resp
 // POST /telephony/twilio/gather
 // ---------------------------------------------------------------------------
 twilioVoiceRouter.post("/telephony/twilio/gather", async (req: Request, res: Response): Promise<void> => {
-  if (rejectIfBadTwilioRequest(req, res, "/gather")) return;
+  if (await rejectIfBadTwilioRequest(req, res, "/gather")) return;
 
   const body = req.body as Record<string, string>;
   const querySid = (req.query as Record<string, string>).callSid || "";
@@ -987,7 +1017,7 @@ twilioVoiceRouter.post("/telephony/twilio/status", async (req: Request, res: Res
   // /status triggers DB writes, missed-call SMS, AI processing and recap
   // emails — it MUST be authenticated. Fail closed in production when the
   // signing token is unavailable.
-  if (rejectIfBadTwilioRequest(req, res, "/status")) return;
+  if (await rejectIfBadTwilioRequest(req, res, "/status")) return;
 
   const body = req.body as Record<string, string>;
   const callSid: string = body.CallSid || "";
@@ -1220,7 +1250,7 @@ twilioVoiceRouter.post("/telephony/twilio/status", async (req: Request, res: Res
 // POST /telephony/twilio/dial-complete
 // ---------------------------------------------------------------------------
 twilioVoiceRouter.post("/telephony/twilio/dial-complete", async (req: Request, res: Response): Promise<void> => {
-  if (rejectIfBadTwilioRequest(req, res, "/dial-complete")) return;
+  if (await rejectIfBadTwilioRequest(req, res, "/dial-complete")) return;
   const body = req.body as Record<string, string>;
   const querySid = (req.query as Record<string, string>).callSid || "";
   const callSid = body.CallSid || querySid;
@@ -1250,7 +1280,7 @@ twilioVoiceRouter.post("/telephony/twilio/dial-complete", async (req: Request, r
 // POST /telephony/twilio/recording-complete
 // ---------------------------------------------------------------------------
 twilioVoiceRouter.post("/telephony/twilio/recording-complete", async (req: Request, res: Response): Promise<void> => {
-  if (rejectIfBadTwilioRequest(req, res, "/recording-complete")) return;
+  if (await rejectIfBadTwilioRequest(req, res, "/recording-complete")) return;
 
   const body = req.body as Record<string, string>;
   const querySid = (req.query as Record<string, string>).callSid || "";

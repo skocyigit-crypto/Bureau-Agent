@@ -232,14 +232,15 @@ router.get("/ai/status", (_req, res) => {
 
   const anthropicProxy = !!(process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL && process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY);
   const anthropicDirect = !!process.env.ANTHROPIC_API_KEY;
-  const hasAnthropic = anthropicProxy || anthropicDirect;
+  const anthropicVertex = !!process.env.ANTHROPIC_VERTEX_PROJECT_ID;
+  const hasAnthropic = anthropicProxy || anthropicDirect || anthropicVertex;
 
   res.json({
     available: hasGemini || hasOpenAI || hasAnthropic,
     providers: {
       gemini: { available: hasGemini, model: GEMINI_PRO_MODEL, role: "Analyse principale", source: geminiProxy ? "proxy" : geminiDirect ? "direct" : null },
       openai: { available: hasOpenAI, model: "gpt-5.2", role: "Verification et synthese", source: openaiProxy ? "proxy" : openaiDirect ? "direct" : null },
-      anthropic: { available: hasAnthropic, model: "claude-sonnet-4-6", role: "Raisonnement avance", source: anthropicProxy ? "proxy" : anthropicDirect ? "direct" : null },
+      anthropic: { available: hasAnthropic, model: "claude-sonnet-4-6", role: "Raisonnement avance", source: anthropicProxy ? "proxy" : anthropicVertex ? "vertex" : anthropicDirect ? "direct" : null },
     },
   });
 });

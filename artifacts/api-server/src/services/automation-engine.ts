@@ -9,12 +9,14 @@ import {
   contactsTable,
   messagesTable,
   projetsTable,
+  telephonyProvidersTable,
 } from "@workspace/db/schema";
 import { eq, lte, and, gte, lt, sql, desc, isNull, isNotNull, or } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
 import { sendEmail } from "./email";
 import { broadcaster } from "./broadcaster";
+import { sendSms } from "./telephony-providers";
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 
@@ -547,29 +549,40 @@ async function executeAction(
     }
 
     case "send_sms": {
-      const sid = process.env.TWILIO_ACCOUNT_SID;
-      const token = process.env.TWILIO_AUTH_TOKEN;
-      const from = process.env.TWILIO_PHONE_NUMBER;
       const to: string = p.to ?? context.phoneNumber ?? context.phone ?? "";
       const body: string = interpolate(p.message ?? `Automatisation: ${ruleName}`, context);
 
-      if (!sid || !token || !from || !to) {
-        logger.warn({ to, hasSid: !!sid }, "[Automation] send_sms: config Twilio manquante ou numero cible absent");
+      if (!orgId || !to) {
+        logger.warn({ to, orgId }, "[Automation] send_sms: organisation ou numero cible absent");
         break;
       }
 
-      const formBody = new URLSearchParams({ From: from, To: to, Body: body }).toString();
-      const resp = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: formBody,
-      });
-      if (!resp.ok) {
-        const err = await resp.text().catch(() => "");
-        logger.warn({ status: resp.status, err: err.slice(0, 200) }, "[Automation] send_sms: echec Twilio");
+      // BYOK: chaque tenant a son propre fournisseur SMS (config saisie via
+      // POST /telephony/providers), pas un compte Twilio plateforme partage.
+      // Avant, cette action lisait TWILIO_ACCOUNT_SID/AUTH_TOKEN/PHONE_NUMBER
+      // directement depuis l'env — absent en prod, l'action ne faisait jamais
+      // rien pour AUCUN tenant, meme ceux ayant configure leur propre Twilio.
+      const [provider] = await withDbRetry(
+        () => db.select().from(telephonyProvidersTable).where(and(
+          eq(telephonyProvidersTable.organisationId, orgId),
+          eq(telephonyProvidersTable.isDefault, true),
+          eq(telephonyProvidersTable.isActive, true),
+        )),
+        { label: "automation-engine:send_sms-provider" },
+      );
+
+      if (!provider) {
+        logger.warn({ orgId, to }, "[Automation] send_sms: aucun fournisseur SMS configure pour cette organisation");
+        break;
+      }
+
+      try {
+        const result = await sendSms(provider.provider, provider.config as Record<string, any>, { to, body });
+        if (!result.success) {
+          logger.warn({ orgId, error: result.error }, "[Automation] send_sms: echec fournisseur");
+        }
+      } catch (err) {
+        logger.warn({ orgId, err }, "[Automation] send_sms: exception fournisseur");
       }
       break;
     }
