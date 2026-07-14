@@ -15,7 +15,7 @@ import { and, eq, gte } from "drizzle-orm";
 import { db, usersTable, auditLogsTable } from "@workspace/db";
 import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
-import { buildDailyDigest } from "../routes/daily-digest";
+import { buildDailyDigest, type DailyDigest } from "../routes/daily-digest";
 import { sendEmail } from "./email";
 
 const TICK_MS = 60 * 60 * 1000; // 1h — verifie a chaque heure si c'est l'heure d'envoi
@@ -31,7 +31,7 @@ function todayStart(): Date {
   return d;
 }
 
-function digestEmailHtml(digest: Awaited<ReturnType<typeof buildDailyDigest>>): string {
+function digestEmailHtml(digest: DailyDigest): string {
   const suggestions = (digest.ai?.suggestions ?? [])
     .map((s) => `<li style="margin-bottom:8px;"><strong>${s.priorite === "haute" ? "🔴" : s.priorite === "moyenne" ? "🟡" : "🟢"}</strong> ${s.texte}</li>`)
     .join("");

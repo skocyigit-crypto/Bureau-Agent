@@ -247,7 +247,24 @@ async function gatherDailyData(userId: number, orgId: number) {
 // actif pour envoyer un vrai digest par email — auparavant ce digest n'était
 // généré qu'à la demande (ouverture de l'écran mobile), donc "quotidien"
 // était trompeur : rien ne l'envoyait proactivement.
-export async function buildDailyDigest(userId: number, orgId: number, prenom: string) {
+interface DailyDigestAiResult {
+  resume: string;
+  humeur: string;
+  score: number;
+  points_forts: string[];
+  suggestions: { type: string; texte: string; priorite: string }[];
+  demain: { message: string; priorites: string[] };
+}
+
+export interface DailyDigest {
+  date: string;
+  prenom: string;
+  stats: Awaited<ReturnType<typeof gatherDailyData>>;
+  ai: DailyDigestAiResult | null;
+  generatedAt: string;
+}
+
+export async function buildDailyDigest(userId: number, orgId: number, prenom: string): Promise<DailyDigest> {
   const data = await gatherDailyData(userId, orgId);
 
   const today = new Date().toLocaleDateString("fr-FR", {
@@ -290,14 +307,7 @@ Genere un bilan personnalise en JSON (sans markdown, juste JSON brut):
 }
 Regles: 3-5 suggestions max, toutes en francais. Alertes si appels manques ou taches en retard.`;
 
-  let aiResult: {
-    resume: string;
-    humeur: string;
-    score: number;
-    points_forts: string[];
-    suggestions: { type: string; texte: string; priorite: string }[];
-    demain: { message: string; priorites: string[] };
-  } | null = null;
+  let aiResult: DailyDigestAiResult | null = null;
 
   const learnedBlock = await buildLearnedContextBlock(orgId);
   const digestKey = buildAiCacheKey({
