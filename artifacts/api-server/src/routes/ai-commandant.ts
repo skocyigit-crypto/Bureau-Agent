@@ -39,6 +39,11 @@ async function getAnthropic() {
   return anthropic;
 }
 
+async function resolveClaudeModel(model: string): Promise<string> {
+  const { resolveClaudeModelId } = await import("@workspace/integrations-anthropic-ai");
+  return resolveClaudeModelId(model);
+}
+
 // Hedging du conseil IA: au lieu d'essayer Gemini -> OpenAI -> Anthropic en
 // SERIE (jusqu'a ~75s d'attente quand les premiers echouent/trainent), on lance
 // Gemini d'abord puis, s'il n'a pas repondu sous COUNCIL_HEDGE_MS, on demarre le
@@ -190,7 +195,7 @@ async function multiAiGenerate(prompt: string, systemPrompt?: string, orgId?: nu
       run: async (signal) => {
         const anthropic = await getAnthropic();
         const r = await anthropic.messages.create({
-          model: ANTHROPIC_MODEL,
+          model: await resolveClaudeModel(ANTHROPIC_MODEL),
           max_tokens: 4096,
           ...(safeSystem ? { system: safeSystem } : {}),
           messages: [{ role: "user", content: safePrompt }],

@@ -785,9 +785,9 @@ async function callOpenAIAgent(agentId: string, orgId: number, prompt: string, s
 }
 
 async function callAnthropicAgent(agentId: string, orgId: number, prompt: string, signal: AbortSignal | undefined, t0: number): Promise<CouncilMember> {
-  const { anthropic } = await import("@workspace/integrations-anthropic-ai");
+  const { anthropic, resolveClaudeModelId } = await import("@workspace/integrations-anthropic-ai");
   const resp: any = await withProviderTimeout(() => (anthropic.messages.create as any)({
-    model: "claude-sonnet-4-6",
+    model: resolveClaudeModelId("claude-sonnet-4-6"),
     max_tokens: 8192,
     messages: [{ role: "user", content: prompt + "\n\nReponds UNIQUEMENT en JSON valide." }],
   }, signal ? { signal } : undefined), { timeoutMs: 45_000, label: `agent-${agentId}-anthropic` });
@@ -1217,9 +1217,9 @@ async function getOpenAIReview(reportsSummary: any[]): Promise<any> {
 
 async function getAnthropicStrategy(reportsSummary: any[]): Promise<any> {
   try {
-    const { anthropic } = await import("@workspace/integrations-anthropic-ai");
+    const { anthropic, resolveClaudeModelId } = await import("@workspace/integrations-anthropic-ai");
     const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: resolveClaudeModelId("claude-sonnet-4-6"),
       max_tokens: 8192,
       messages: [
         {
@@ -2249,9 +2249,9 @@ Etat du systeme:\n${JSON.stringify({ ...systemHealth, issuesCount: issues.length
           return JSON.parse(r.choices[0]?.message?.content ?? "{}");
         })(),
         (async () => {
-          const { anthropic } = await import("@workspace/integrations-anthropic-ai");
+          const { anthropic, resolveClaudeModelId } = await import("@workspace/integrations-anthropic-ai");
           const m = await anthropic.messages.create({
-            model: "claude-sonnet-4-6",
+            model: resolveClaudeModelId("claude-sonnet-4-6"),
             max_tokens: 2048,
             messages: [
               { role: "user", content: diagPrompt + "\n\nFocus: risques strategiques et recommandations de securite" },
