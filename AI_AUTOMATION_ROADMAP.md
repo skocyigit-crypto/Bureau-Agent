@@ -4,7 +4,39 @@
 > hale gelmesi için yapılan denetimlerin ve kalan işlerin **kalıcı** kaydıdır. Her
 > oturumda güncellenir, silinmez — yeni bulgu/tamamlanan iş oldukça buraya eklenir.
 >
-> Son güncelleme: 2026-07-14 (Vertex AI Claude entegrasyonu + günlük özet cron eklendi)
+> Son güncelleme: 2026-07-14 (kritik altyapı incidenti: Guardian/rate-limit paylaşılan IP
+> sorunu + deploy pipeline'ı kıran xlsx CDN engeli — ikisi de bulunup düzeltildi)
+
+## ⚠️ 2026-07-14 — Kritik altyapı incidenti (çözüldü)
+
+"Cep uygulaması ve internet sitesini baştan aşağı kontrol et" talebi sırasında Playwright
+ile gerçek tarayıcı testi yapılırken üç ciddi, birbirinden bağımsız sorun bulundu ve
+düzeltildi:
+
+1. **Guardian tüm siteyi ~5 dakika kilitledi**: Cloud Run'da web servisi (Caddy) ile api
+   servisi arasındaki hop'ta gerçek ziyaretçi IP'si kayboluyor, TÜM web sitesi kullanıcıları
+   Guardian'a aynı paylaşılan iç adresten (`169.254.169.126`) geliyormuş gibi görünüyordu.
+   Bir trafik patlaması (test trafiğim) bu adresi banladı → siteye kimse giremedi. 6. tekrarda
+   KALICI ban'a dönüşecekti. → `middleware/guardian.ts`'e iç IP muafiyeti + kalıcı çözüm
+   (madde 3'e bak) ile düzeltildi.
+2. **Deploy pipeline'ı tamamen kırılmıştı**: `xlsx` kütüphanesinin tek kaynağı olan
+   `cdn.sheetjs.com`, pnpm/Cloud Build gibi otomasyon araçlarının User-Agent'ını
+   engellemeye başlamış (403) — her yeni push'ta build başarısız oluyordu. →
+   `artifacts/api-server/vendor/xlsx-0.20.3.tgz` olarak repoya gömüldü, dış bağımlılık
+   kaldırıldı.
+3. **Rate limiter (express-rate-limit) aynı paylaşılan-IP sorununu yaşıyordu**: Bir
+   ziyaretçinin normal gezinmesi bile ortak kotayı tüketip TÜM kullanıcıları 429'a
+   düşürebiliyordu. → Kalıcı, doğru çözüm: `deploy/Caddyfile.cloudrun` artık gerçek
+   ziyaretçi IP'sini (`X-Forwarded-For`'dan, Caddy'nin proxy'ye göndermeden hemen önce)
+   ayrı bir `X-Real-Client-IP` header'ına kopyalıyor; yeni `lib/request-ip.ts` bunu
+   önceliklendiriyor. Guardian + 15'in üzerinde rate limiter (app.ts ve 7 route dosyası)
+   buna bağlandı. **Canlıda debug endpoint'iyle doğrulandı**: web proxy üzerinden gelen
+   ham `X-Forwarded-For` tamamen iç/Google adreslerinden oluşuyor (`169.254.169.126,
+   2600:1900:...`), ama `X-Real-Client-IP` gerçek ziyaretçi IP'sini doğru taşıyor.
+
+**Neden önemliydi**: Bu üçü de kod incelemesiyle bulunamayacak, sadece gerçek tarayıcı/
+trafik testiyle ortaya çıkan, "sessizce herkesi etkileyen" türden sorunlardı — ilk ikisi
+olmasaydı site zaten kullanılamaz haldeydi (sırasıyla erişilemez ve deploy edilemez).
 
 ## Genel durum özeti
 
