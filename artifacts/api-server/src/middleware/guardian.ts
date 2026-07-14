@@ -197,7 +197,19 @@ function pushEvent(event: GuardianEvent): void {
 }
 
 // ── Dahili / loopback IP'ler (Guardian'dan muaf) ────────────────────────────
-const LOOPBACK_PREFIXES = ["127.", "::1", "::ffff:127.", "10.", "172.16.", "172.17.", "172.18.", "172.19.", "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.", "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31.", "192.168."];
+// "169.254." (RFC 3927 link-local) ekli: Cloud Run mimarimizde web servisi
+// (Caddy) ile api servisi ayrı container'lar ve web->api cagrilari HTTPS
+// uzerinden Cloud Run'in genel ucuna gidiyor. O hop'ta Cloud Run'in kendi
+// ic altyapisi X-Forwarded-For'u TUM proxy'li trafik icin AYNI paylasilan
+// 169.254.169.x adresine indirgeyebiliyor — yani gercek ziyaretcinin IP'si
+// degil, Cloud Run'in kendi dahili adresi. Bunu Guardian'dan muaf tutmazsak,
+// (site uzerinden) herhangi bir trafik patlamasi bu tek adresi banliyor ve
+// TUM kullanicilari (web sitesindeki HERKESI) 5dk-kalici araliginda kilitliyor
+// — 2026-07-14'te canli ortamda tam da bu yasandi (bkz. AI_AUTOMATION_ROADMAP.md).
+// Bilinen tavizde: bu hop icin Guardian'in IP-bazli bot/anomali tespiti artik
+// calismiyor (butun proxy'li trafik bu tek adresten geliyormus gibi
+// gorunuyor). Kabul edilebilir — "herkesi kilitleme" riski cok daha kotu.
+const LOOPBACK_PREFIXES = ["127.", "::1", "::ffff:127.", "10.", "172.16.", "172.17.", "172.18.", "172.19.", "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.", "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31.", "192.168.", "169.254."];
 
 function isInternalIp(ip: string): boolean {
   return LOOPBACK_PREFIXES.some(p => ip.startsWith(p)) || ip === "::1" || ip === "unknown";
