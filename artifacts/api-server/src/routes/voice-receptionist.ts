@@ -42,7 +42,7 @@ import {
 } from "@workspace/db";
 import { ai } from "@workspace/integrations-gemini-ai";
 import { callOrgGemini } from "../services/ai-providers";
-import { sendSms, type TelephonyProviderConfig } from "../services/telephony-providers";
+import { sendSms, decryptProviderConfig, type TelephonyProviderConfig } from "../services/telephony-providers";
 import {
   GEMINI_FLASH_MODEL,
   geminiActualModel,
@@ -258,7 +258,7 @@ async function resolveTenants(accountSid: string): Promise<TenantMatch[]> {
     .orderBy(desc(telephonyProvidersTable.id));
   return rows
     .map((r) => {
-      const config = (r.config as Record<string, unknown>) ?? {};
+      const config = decryptProviderConfig("twilio", (r.config as Record<string, any>) ?? {});
       return {
         orgId: r.orgId as number,
         providerId: r.id,

@@ -11,6 +11,8 @@ import {
   makeCall,
   sendSms,
   maskConfig,
+  encryptProviderConfig,
+  decryptProviderConfig,
 } from "../services/telephony-providers";
 
 const router: IRouter = Router();
@@ -65,7 +67,7 @@ async function validateProviderWebhook(provider: string, req: Request): Promise<
         ));
 
       for (const m of matches) {
-        const tok = (m.config as any)?.authToken;
+        const tok = decryptProviderConfig("twilio", (m.config as Record<string, any>) ?? {}).authToken;
         if (tok && validateTwilioSignature(req, tok)) return { ok: true, orgId: m.orgId };
       }
       // Dev/no-DB fallback: only accept env token if AccountSid also matches env
@@ -367,7 +369,7 @@ router.post("/telephony/providers", async (req, res): Promise<void> => {
       organisationId: orgId,
       provider,
       label: label || info.displayName,
-      config,
+      config: encryptProviderConfig(provider, config),
       phoneNumbers: phoneNumbers || (config.fromNumber ? [config.fromNumber] : []),
       capabilities: info.capabilities,
       isDefault: isFirst,
@@ -405,7 +407,7 @@ router.patch("/telephony/providers/:id", async (req, res): Promise<void> => {
         res.status(400).json({ error: "Configuration invalide", details: validation.errors });
         return;
       }
-      updates.config = config;
+      updates.config = encryptProviderConfig(existing.provider, config);
     }
     if (isActive !== undefined) updates.isActive = isActive;
     if (phoneNumbers !== undefined) updates.phoneNumbers = phoneNumbers;
@@ -469,7 +471,7 @@ router.post("/telephony/providers/:id/test", async (req, res): Promise<void> => 
       return;
     }
 
-    const config = provider.config as Record<string, any>;
+    const config = decryptProviderConfig(provider.provider, provider.config as Record<string, any>);
     const info = getProviderInfo(provider.provider);
     const hasVoice = info?.capabilities.includes("voice");
     const hasSms = info?.capabilities.includes("sms");
@@ -515,7 +517,7 @@ router.post("/telephony/call", async (req, res): Promise<void> => {
       return;
     }
 
-    const config = provider.config as Record<string, any>;
+    const config = decryptProviderConfig(provider.provider, provider.config as Record<string, any>);
     const result = await makeCall(provider.provider, config, { to, record: record === true });
 
     const [log] = await db.insert(telephonyCallLogsTable).values({
@@ -585,7 +587,7 @@ router.post("/telephony/sms", async (req, res): Promise<void> => {
       return;
     }
 
-    const config = provider.config as Record<string, any>;
+    const config = decryptProviderConfig(provider.provider, provider.config as Record<string, any>);
     const result = await sendSms(provider.provider, config, { to, body: msgBody });
 
     await db.insert(telephonySmsLogsTable).values({

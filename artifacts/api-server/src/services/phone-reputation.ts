@@ -15,6 +15,7 @@
 import { and, eq } from "drizzle-orm";
 import { db, telephonyProvidersTable } from "@workspace/db";
 import { logger } from "../lib/logger";
+import { decryptProviderConfig } from "./telephony-providers";
 
 export type PhoneRisk = "low" | "medium" | "high" | "unknown";
 
@@ -48,7 +49,7 @@ async function loadTwilioCreds(orgId: number): Promise<TwilioCreds | null> {
     )
     .limit(1);
   if (!p) return null;
-  const cfg = (p.config as TwilioCreds) ?? null;
+  const cfg = decryptProviderConfig("twilio", (p.config as Record<string, any>) ?? {}) as TwilioCreds;
   if (!cfg?.accountSid || !cfg?.authToken) return null;
   return cfg;
 }

@@ -16,7 +16,7 @@ import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
 import { sendEmail } from "./email";
 import { broadcaster } from "./broadcaster";
-import { sendSms } from "./telephony-providers";
+import { sendSms, decryptProviderConfig } from "./telephony-providers";
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 
@@ -577,7 +577,8 @@ async function executeAction(
       }
 
       try {
-        const result = await sendSms(provider.provider, provider.config as Record<string, any>, { to, body });
+        const cfg = decryptProviderConfig(provider.provider, provider.config as Record<string, any>);
+        const result = await sendSms(provider.provider, cfg, { to, body });
         if (!result.success) {
           logger.warn({ orgId, error: result.error }, "[Automation] send_sms: echec fournisseur");
         }

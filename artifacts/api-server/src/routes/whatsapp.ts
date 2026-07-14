@@ -20,6 +20,7 @@ import {
   whatsappProcessedMessagesTable,
 } from "@workspace/db";
 import { runAssistantTurn, type StreamEvent } from "../services/assistant-engine";
+import { decryptProviderConfig } from "../services/telephony-providers";
 import { logger } from "../lib/logger";
 import { analyzeUrlsBatch, extractUrls, type UrlScanResult } from "../services/url-safety";
 import { scanBase64ContentFull } from "../middleware/security";
@@ -170,7 +171,7 @@ async function resolveTenantFromAccountSid(accountSid: string): Promise<
     .map((m) => ({
       orgId: m.orgId as number,
       providerId: m.providerId as number,
-      authToken: ((m.config as { authToken?: string } | null)?.authToken) ?? "",
+      authToken: decryptProviderConfig("twilio", (m.config as Record<string, any>) ?? {}).authToken ?? "",
     }))
     .filter((m) => m.authToken.length > 0);
 }

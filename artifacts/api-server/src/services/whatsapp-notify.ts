@@ -14,6 +14,7 @@ import { and, eq } from "drizzle-orm";
 import { db, telephonyProvidersTable, usersTable } from "@workspace/db";
 import { logger } from "../lib/logger";
 import { isWithinQuietHours } from "./quiet-hours";
+import { decryptProviderConfig } from "./telephony-providers";
 
 interface TwilioConfig {
   accountSid?: string;
@@ -58,7 +59,7 @@ async function loadTwilioConfigForOrg(orgId: number): Promise<TwilioConfig | nul
     )
     .limit(1);
   if (!p) return null;
-  return (p.config as TwilioConfig) ?? null;
+  return decryptProviderConfig("twilio", (p.config as Record<string, any>) ?? {}) as TwilioConfig;
 }
 
 /**

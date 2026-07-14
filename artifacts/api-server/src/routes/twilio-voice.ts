@@ -5,7 +5,7 @@ import { db, telephonyProvidersTable, organisationsTable, callsTable, contactsTa
 import { logger } from "../lib/logger";
 import { assertAiQuota } from "../services/ai-quota";
 import { recordAiUsage, geminiActualModel, sanitizePromptInput, GEMINI_PRO_MODEL } from "../services/ai-utils";
-import { sendSms, type TelephonyProviderConfig } from "../services/telephony-providers";
+import { sendSms, decryptProviderConfig, type TelephonyProviderConfig } from "../services/telephony-providers";
 import { sendEmail } from "../services/email";
 import { broadcaster } from "../services/broadcaster";
 import { notifyOrgUsers, maskPhone } from "../services/whatsapp-notify";
@@ -217,7 +217,8 @@ async function findTwilioProviderForNumber(toNumber: string) {
 async function resolveTenantTwilioAuthToken(toNumber: string): Promise<string | null> {
   try {
     const matched = await findTwilioProviderForNumber(toNumber);
-    const cfg = matched?.config as Record<string, string> | undefined;
+    if (!matched) return null;
+    const cfg = decryptProviderConfig("twilio", (matched.config as Record<string, any>) ?? {});
     return cfg?.authToken || null;
   } catch {
     return null;
@@ -458,7 +459,8 @@ async function getDefaultTwilioProviderForOrg(orgId: number): Promise<{ id: numb
       .orderBy(sql`${telephonyProvidersTable.isDefault} DESC, ${telephonyProvidersTable.id} ASC`)
       .limit(1);
     if (!p) return null;
-    return { id: p.id, config: (p.config as TwilioProviderConfigShape) || {}, phoneNumbers: p.phoneNumbers || [] };
+    const cfg = decryptProviderConfig("twilio", (p.config as TwilioProviderConfigShape) || {});
+    return { id: p.id, config: cfg, phoneNumbers: p.phoneNumbers || [] };
   } catch (err) {
     logger.warn({ err, orgId }, "[TwilioVoice] getDefaultTwilioProviderForOrg error");
     return null;

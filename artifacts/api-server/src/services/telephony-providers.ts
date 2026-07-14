@@ -1,3 +1,5 @@
+import { encryptSensitiveData, decryptSensitiveData, isEncrypted } from "../lib/crypto";
+
 export interface TelephonyProviderConfig {
   accountSid?: string;
   authToken?: string;
@@ -135,6 +137,57 @@ export function getProviderInfo(name: string): ProviderInfo | null {
   return SUPPORTED_PROVIDERS[name] || null;
 }
 
+// ---------------------------------------------------------------------------
+// Chiffrement au repos des champs secrets (authToken, apiSecret, apiToken...).
+// AVANT: telephony_providers.config etait stocke en clair — contrairement a
+// api_keys/webhook_endpoints/google_oauth_tokens qui utilisent tous
+// enc:v1: (lib/crypto.ts). Desormais un client BYOK (Twilio, Vonage...) qui
+// entre son propre secret voit CE secret chiffre au repos. Seuls les champs
+// marques `secret: true` dans configFields sont chiffres — accountSid,
+// fromNumber etc. restent en clair (pas des secrets, utiles a lire/filtrer
+// sans dechiffrement).
+// ---------------------------------------------------------------------------
+
+export function encryptProviderConfig(provider: string, config: Record<string, any>): Record<string, any> {
+  const info = SUPPORTED_PROVIDERS[provider];
+  if (!info) return config;
+  const out = { ...config };
+  for (const field of info.configFields) {
+    if (!field.secret) continue;
+    const val = out[field.key];
+    if (typeof val === "string" && val && !isEncrypted(val)) {
+      out[field.key] = encryptSensitiveData(val);
+    }
+  }
+  return out;
+}
+
+/**
+ * Dechiffre les champs secrets pour un usage reel (appel API sortant vers
+ * Twilio/Vonage/etc., validation de signature de webhook). Tolerant aux
+ * valeurs encore en clair (migration progressive, cf. decryptSensitiveData) —
+ * ne casse jamais les configs deja enregistrees avant ce changement.
+ */
+export function decryptProviderConfig<T extends Record<string, any>>(provider: string, config: T): T {
+  const info = SUPPORTED_PROVIDERS[provider];
+  if (!info || !config) return config;
+  const out = { ...config } as Record<string, any>;
+  for (const field of info.configFields) {
+    if (!field.secret) continue;
+    const val = out[field.key];
+    if (typeof val === "string" && val) {
+      try {
+        out[field.key] = decryptSensitiveData(val);
+      } catch {
+        // Cle de chiffrement changee ou donnees corrompues — laisser tel
+        // quel plutot que de faire planter l'appelant ; l'appel Twilio/etc.
+        // echouera proprement plus loin avec une erreur d'auth explicite.
+      }
+    }
+  }
+  return out as T;
+}
+
 export function validateProviderConfig(provider: string, config: Record<string, any>): { valid: boolean; errors: string[] } {
   const info = SUPPORTED_PROVIDERS[provider];
   if (!info) return { valid: false, errors: [`Fournisseur inconnu: ${provider}`] };
@@ -151,9 +204,12 @@ export function validateProviderConfig(provider: string, config: Record<string, 
 function maskConfig(config: Record<string, any>, provider: string): Record<string, any> {
   const info = SUPPORTED_PROVIDERS[provider];
   if (!info) return {};
+  // Dechiffrer avant de masquer : sinon le "***xxxx" affiche les 4 derniers
+  // caracteres du blob chiffre (base64 illisible) au lieu du vrai secret.
+  const decrypted = decryptProviderConfig(provider, config);
   const masked: Record<string, any> = {};
   for (const field of info.configFields) {
-    const val = config[field.key];
+    const val = decrypted[field.key];
     if (val) {
       masked[field.key] = field.secret ? `***${String(val).slice(-4)}` : val;
     }

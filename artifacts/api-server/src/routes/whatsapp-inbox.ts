@@ -24,7 +24,7 @@ import {
 import { getOrgId } from "../middleware/tenant";
 import { broadcaster } from "../services/broadcaster";
 import { generateDraftInBackground } from "../services/whatsapp-inbox";
-import { sendWhatsApp, type TelephonyProviderConfig } from "../services/telephony-providers";
+import { sendWhatsApp, decryptProviderConfig, type TelephonyProviderConfig } from "../services/telephony-providers";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -242,7 +242,7 @@ router.post("/whatsapp/conversations/:id/send", async (req, res) => {
 
   const result = await sendWhatsApp(
     provider.provider,
-    provider.config as TelephonyProviderConfig,
+    decryptProviderConfig(provider.provider, provider.config as TelephonyProviderConfig),
     { to: conv.customerPhone, body: text },
   );
   if (!result.success) {
