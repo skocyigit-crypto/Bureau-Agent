@@ -37,6 +37,18 @@
                 # rejects, breaking the connection with EOF).
                 reverse_proxy https://{$API_UPSTREAM} {
                         header_up Host {upstream_hostport}
+                        # Cloud Run's edge sets X-Forwarded-For correctly on THIS hop
+                        # (client -> web service), but the NEXT hop (this reverse_proxy
+                        # call -> api service's own Cloud Run edge) collapses it to a
+                        # shared internal address (Cloud Run's own link-local proxy IP),
+                        # not the real visitor — every web-app user then looks like the
+                        # same "client" to the api service, which let one visitor's
+                        # traffic burst rate-limit/ban everyone (2026-07-14 incident,
+                        # see AI_AUTOMATION_ROADMAP.md). Snapshot the real value into a
+                        # dedicated header before that hop; Cloud Run has no special
+                        # handling for it, so it survives untouched. Backend prefers
+                        # this over X-Forwarded-For (lib/request-ip.ts).
+                        header_up X-Real-Client-IP {http.request.header.X-Forwarded-For}
                 }
         }
 

@@ -14,6 +14,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { logger } from "../lib/logger";
 import { logSecurityEvent } from "./security";
+import { resolveClientIp } from "../lib/request-ip";
 
 // ── Bilinen saldırı aracı User-Agent kalıpları ────────────────────────────────
 const ATTACK_TOOL_PATTERNS: RegExp[] = [
@@ -216,11 +217,7 @@ function isInternalIp(ip: string): boolean {
 }
 
 // ── Yardımcı: IP adresi al ───────────────────────────────────────────────────
-function getIp(req: Request): string {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (typeof forwarded === "string") return forwarded.split(",")[0].trim();
-  return req.ip || req.socket?.remoteAddress || "unknown";
-}
+const getIp = resolveClientIp;
 
 // ── Guardian ban (kendi blok listesine ekle + paylaşılan olay log'a yaz) ─────
 function banIp(ip: string, reason: string, req: Request): void {

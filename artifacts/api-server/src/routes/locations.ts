@@ -13,6 +13,7 @@
 // peut lire les positions. Les employes ne voient pas leurs collegues.
 
 import { Router, type IRouter, type Request, type Response } from "express";
+import { resolveClientIp } from "../lib/request-ip";
 import { and, eq, desc, gte, lte, inArray } from "drizzle-orm";
 import { z } from "zod";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
@@ -42,7 +43,7 @@ const pingLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => {
     const uid = req.session?.userId;
-    return uid ? `u:${uid}` : `ip:${ipKeyGenerator(req.ip || "unknown")}`;
+    return uid ? `u:${uid}` : `ip:${ipKeyGenerator(resolveClientIp(req))}`;
   },
   message: { error: "Trop de pings de position. Reessayez dans une minute." },
 });

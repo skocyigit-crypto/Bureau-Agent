@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { resolveClientIp } from "../lib/request-ip";
 import rateLimit from "express-rate-limit";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { db, organisationsTable, prospectsTable } from "@workspace/db";
@@ -86,6 +87,7 @@ async function createProspectFromDemoRequest(payload: {
 const router = Router();
 
 const demoLimiter = rateLimit({
+  keyGenerator: resolveClientIp,
   windowMs: 60 * 60 * 1000,
   max: 10,
   message: { error: "Trop de demandes. Reessayez dans une heure." },

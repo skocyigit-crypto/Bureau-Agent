@@ -12,6 +12,7 @@ import { logger } from "./lib/logger";
 import { ipProtection, threatDetection, csrfProtection } from "./middleware/security";
 import { hydrateFromBearer } from "./middleware/auth";
 import { guardian } from "./middleware/guardian";
+import { resolveClientIp } from "./lib/request-ip";
 
 const app: Express = express();
 
@@ -260,6 +261,7 @@ app.use(cors({
 }));
 
 const generalLimiter = rateLimit({
+  keyGenerator: resolveClientIp,
   windowMs: 15 * 60 * 1000,
   max: 1000,
   standardHeaders: true,
@@ -269,6 +271,7 @@ const generalLimiter = rateLimit({
 });
 
 const aiLimiter = rateLimit({
+  keyGenerator: resolveClientIp,
   windowMs: 60 * 1000,
   max: 15,
   standardHeaders: true,
@@ -278,6 +281,7 @@ const aiLimiter = rateLimit({
 });
 
 const strictLimiter = rateLimit({
+  keyGenerator: resolveClientIp,
   windowMs: 15 * 60 * 1000,
   max: 200,
   standardHeaders: true,
@@ -305,6 +309,7 @@ const strictLimiter = rateLimit({
 // legitime agrege sur ses IPs sortantes partagees, tout en stoppant une
 // inondation depuis une IP unique (y compris du trafic non signe / invalide).
 const webhookIpFloodGuard = rateLimit({
+  keyGenerator: resolveClientIp,
   windowMs: 60 * 1000,
   max: 600,
   standardHeaders: true,
@@ -327,7 +332,7 @@ const webhookLimiter = rateLimit({
       (typeof b.WaId === "string" && b.WaId) ||
       "";
     if (sid || from) return `twilio:${sid}:${from}`;
-    return req.ip ?? "unknown";
+    return resolveClientIp(req);
   },
   validate: { xForwardedForHeader: false, ip: false, keyGeneratorIpFallback: false },
 });

@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
+import { resolveClientIp } from "../lib/request-ip";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import rateLimit from "express-rate-limit";
@@ -76,6 +77,7 @@ function checkForgotRateByEmail(email: string): boolean {
 }
 
 const loginLimiter = rateLimit({
+  keyGenerator: resolveClientIp,
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
@@ -90,6 +92,7 @@ const loginLimiter = rateLimit({
 // reputation harvesting). 30 envois / 15 min par IP est largement suffisant
 // pour l'usage legitime d'onboarding d'equipe.
 const adminEmailLimiter = rateLimit({
+  keyGenerator: resolveClientIp,
   windowMs: 15 * 60 * 1000,
   max: 30,
   standardHeaders: true,
@@ -98,6 +101,7 @@ const adminEmailLimiter = rateLimit({
 });
 
 const resetLimiter = rateLimit({
+  keyGenerator: resolveClientIp,
   windowMs: 60 * 60 * 1000,
   max: 5,
   standardHeaders: true,
@@ -109,6 +113,7 @@ const resetLimiter = rateLimit({
 // (6 chiffres = ~1M combinaisons). On ne compte que les echecs pour ne pas
 // penaliser un utilisateur legitime apres une saisie correcte.
 const mfaVerifyLimiter = rateLimit({
+  keyGenerator: resolveClientIp,
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
@@ -120,6 +125,7 @@ const mfaVerifyLimiter = rateLimit({
 // Limiteur dedie a /mfa/setup: empeche le spam de generation de secrets/QR
 // (chaque appel reussi ecrase le secret stocke). On compte TOUS les appels.
 const mfaSetupLimiter = rateLimit({
+  keyGenerator: resolveClientIp,
   windowMs: 15 * 60 * 1000,
   max: 5,
   standardHeaders: true,
@@ -130,6 +136,7 @@ const mfaSetupLimiter = rateLimit({
 // Limiteur de changement de mot de passe: bloque le brute force sur l'ancien
 // mot de passe par un attaquant ayant pris le controle d'une session.
 const changePasswordLimiter = rateLimit({
+  keyGenerator: resolveClientIp,
   windowMs: 15 * 60 * 1000,
   max: 5,
   standardHeaders: true,
