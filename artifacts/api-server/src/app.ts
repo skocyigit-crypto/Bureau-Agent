@@ -462,17 +462,6 @@ app.use("/api/calls", (req: Request, res: Response, next: NextFunction) => {
 // avant le limiteur generique base sur l'IP, dont ces chemins sont ensuite
 // exclus.
 app.use("/api/whatsapp/twilio/inbound", webhookIpFloodGuard, webhookLimiter);
-// TEMPORARY debug route — verifies X-Real-Client-IP propagation end-to-end
-// (2026-07-14 incident investigation). Remove after confirming.
-app.get("/api/_debug_ip", (req: Request, res: Response) => {
-  res.json({
-    resolved: resolveClientIp(req),
-    xRealClientIp: req.headers["x-real-client-ip"] ?? null,
-    xForwardedFor: req.headers["x-forwarded-for"] ?? null,
-    reqIp: req.ip,
-  });
-});
-
 app.use("/api/voice/twilio", webhookIpFloodGuard, webhookLimiter);
 app.use("/api", (req: Request, _res: Response, next: NextFunction) => {
   // Les webhooks Twilio sont deja limites par expediteur (webhookLimiter).
