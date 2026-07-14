@@ -11,6 +11,10 @@ WORKDIR /app
 # Copy workspace manifests first for better layer caching
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json tsconfig.json .npmrc ./
 COPY artifacts/api-server/package.json artifacts/api-server/
+# Vendored xlsx tarball (see artifacts/api-server/vendor/README.md) — must be
+# present before `pnpm install` since package.json references it via a local
+# file: path, not a registry version.
+COPY artifacts/api-server/vendor artifacts/api-server/vendor
 COPY lib ./lib
 COPY scripts ./scripts
 
@@ -41,6 +45,7 @@ WORKDIR /app
 # Workspace manifests (needed for pnpm to resolve workspace links)
 COPY --chown=app:app pnpm-workspace.yaml pnpm-lock.yaml package.json .npmrc ./
 COPY --chown=app:app artifacts/api-server/package.json artifacts/api-server/
+COPY --chown=app:app artifacts/api-server/vendor artifacts/api-server/vendor
 COPY --chown=app:app lib ./lib
 
 # Production-only deps
