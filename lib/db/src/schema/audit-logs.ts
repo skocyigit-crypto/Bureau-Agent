@@ -1,9 +1,18 @@
 import { pgTable, serial, integer, text, timestamp, jsonb, index } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
+import { organisationsTable } from "./organisations";
 
 export const auditLogsTable = pgTable("audit_logs", {
   id: serial("id").primaryKey(),
-  organisationId: integer("organisation_id"),
+  // Reste nullable INTENTIONNELLEMENT : certains evenements de securite
+  // legitimes (ex. logTenantViolation dans tenant-guard.ts) journalisent un
+  // userId connu mais sans organisationId de session garanti, via un fallback
+  // explicite `organisationId ?? null`. Forcer NOT NULL ferait echouer ces
+  // inserts silencieusement (logAudit avale ses erreurs) et perdrait
+  // exactement les evenements qu'une table d'audit est censee capturer. La
+  // FK ci-dessous garantit seulement qu'une valeur PRESENTE pointe vers une
+  // organisation reelle (pas orpheline / supprimee).
+  organisationId: integer("organisation_id").references(() => organisationsTable.id, { onDelete: "set null" }),
   userId: integer("user_id").references(() => usersTable.id, { onDelete: "set null" }),
   userEmail: text("user_email"),
   action: text("action").notNull(),

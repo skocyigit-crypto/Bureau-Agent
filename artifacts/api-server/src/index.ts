@@ -5,7 +5,6 @@ import { startAutomationEngine } from "./services/automation-engine";
 import { ensureSuperAdmin } from "./services/ensure-admin";
 import { ensureAuditAppendOnly } from "./services/ensure-audit-append-only";
 import { startGoogleAutoPointage } from "./services/google-auto-pointage";
-import { startGoogleDriveBackupScheduler } from "./services/google-drive-backup";
 import { startDataProtectionMonitor } from "./services/data-protection-monitor";
 import { startAiUsagePurgeJob, installGeminiModelFallback, onGeminiModelFallback } from "./services/ai-utils";
 import { startAiCachePurgeJob } from "./services/ai-cache";
@@ -120,7 +119,9 @@ async function startServer(): Promise<void> {
     startAutoBackup();
     startAutomationEngine();
     startGoogleAutoPointage();
-    startGoogleDriveBackupScheduler().catch(err => logger.error({ err }, "[GoogleDriveBackup] Init error"));
+    // Sauvegarde automatique vers Google Drive desactivee explicitement (choix
+    // client) : les donnees plateforme ne doivent pas transiter par un compte
+    // Google externe. Ne pas reactiver sans consigne explicite du client.
     startDataProtectionMonitor();
     startAiUsagePurgeJob();
     startAiCachePurgeJob();
