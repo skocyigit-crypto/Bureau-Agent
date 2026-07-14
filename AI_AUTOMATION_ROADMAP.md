@@ -27,13 +27,17 @@ devre dışı kal" mantığıyla korunuyor — yani sistem çökmüyor, sadece o
 - Günlük özet (artık gerçekten günlük — Resend ile her sabah otomatik e-posta gidiyor)
 
 **Şu an canlıda ÇALIŞMAYAN / erişilemez olanlar** (eksik yapılandırma yüzünden):
-- AI Telefon Santrali (Twilio yoksa sabit kodla 403 veriyor — bir org kendi Twilio'sunu
-  bağlasa bile devreye girmiyor)
-- Otomasyon motorunun SMS aksiyonu (Twilio env yok, sessizce no-op)
 - Autonomous Inbox taraması (Gmail OAuth yok — her org için "bağlı Gmail yok" dönüyor)
 - Super Agent'ın e-posta ayağı (aynı Gmail OAuth eksikliği)
-- OpenAI/Anthropic'e platform-seviyesi yedek anahtar yok (bir org kendi anahtarını
-  girmezse sessizce Gemini'ye düşüyor — çalışıyor ama "konsey" tek sağlayıcıya iniyor)
+- Anthropic/Claude (Vertex AI) — erişim onaylandı ama kullanım kotası hâlâ sıfır, kota
+  artırım talebi bekleniyor (bkz. madde 3)
+
+**2026-07-14'te düzeltilen iki gerçek Twilio BYOK hatası** (müşteri kendi Twilio'sunu
+girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamlanmış işler"):
+- AI Telefon Santrali webhook doğrulaması artık her müşterinin kendi Twilio anahtarını
+  kullanıyor (platform geneli tek anahtar yerine).
+- Otomasyon motorunun SMS aksiyonu artık her organizasyonun kendi kayıtlı sağlayıcısını
+  kullanıyor.
 
 ---
 
@@ -53,17 +57,20 @@ devre dışı kal" mantığıyla korunuyor — yani sistem çökmüyor, sadece o
 - **Durum**: Bekliyor — kullanıcı kararı gerekiyor (Google Cloud Console'da proje sahibi
   olarak kendisinin oluşturması lazım, ben oluşturamam).
 
-### 2. [YÜKSEK] Twilio hesabı bağla (AI telefon santrali için)
-- **Neden önemli**: `twilio-voice.ts:110-116` — `TWILIO_AUTH_TOKEN` yoksa prod'da HER
-  webhook 403 ile reddediliyor, bir org kendi Twilio kimlik bilgisini uygulama içinden
-  girse bile devreye girmiyor. Bu, "sesli AI resepsiyonist" özelliğinin tamamen kapalı
-  olduğu anlamına geliyor.
-- **Ne gerekiyor**: Twilio hesabı (twilio.com), bir telefon numarası, `TWILIO_ACCOUNT_SID`
-  / `TWILIO_AUTH_TOKEN` / `TWILIO_PHONE_NUMBER` Secret Manager'a eklenmeli. Ayrıca
-  otomasyon motorundaki SMS aksiyonu (`automation-engine.ts:550-559`) de aynı anahtarla
-  aktifleşir.
-- **Durum**: Bekliyor — kullanıcı kararı gerekiyor (Twilio hesabı + numara satın alma,
-  ücretli).
+### 2. [TAMAMLANDI] Twilio BYOK (her müşteri kendi hesabını girer) (2026-07-14)
+
+- **Sorun**: Hem `twilio-voice.ts` (webhook imza doğrulama) hem de
+  `automation-engine.ts` (SMS aksiyonu) sadece platformun kendi (var olmayan)
+  `TWILIO_*` ortam değişkenlerine bakıyordu — bir müşteri kendi Twilio hesabını
+  uygulama içinden (Telefon Sistemi → Fournisseurler) girse bile hiçbir şey
+  çalışmıyordu.
+- **Yapıldı**: İkisi de artık "To" numarasına göre doğru müşteriyi bulup ONUN kayıtlı
+  Twilio (veya diğer sağlayıcı) kimlik bilgisini kullanıyor. Platform kendi Twilio
+  hesabını bağlamak ISTERSE hâlâ yedek olarak devreye girer, ama artık şart değil.
+- **Dosyalar**: `routes/twilio-voice.ts`, `services/automation-engine.ts`
+- **Kalan**: Platform kendi Twilio hesabını da bağlamak isterse (opsiyonel — sadece
+  hiç müşteri kendi hesabını girmediğinde devreye girecek bir yedek), hesap+numara
+  satın alması gerekir. Zorunlu değil.
 
 ### 3. [ORTA] OpenAI / Anthropic platform-seviyesi yedek anahtarı ekle
 
@@ -80,10 +87,15 @@ devre dışı kal" mantığıyla korunuyor — yani sistem çökmüyor, sadece o
   kullanım şartlarını kabul etmesi gerekiyor — bu bir EULA onayı, API ile yapılamıyor.
   Onaylandıktan sonra `ANTHROPIC_VERTEX_PROJECT_ID=gwmme-1771577941260` env değişkenini
   Cloud Run'a eklemek yeterli.
-- **OpenAI**: Ayrı hesap şart (Google'da alternatifi yok). Kullanıcı yeni bir API key
-  oluşturup verecek, `OPENAI_API_KEY` olarak Secret Manager'a eklenecek.
+- **OpenAI — TAMAMLANDI (2026-07-14)**: Bağlandı, Secret Manager üzerinden, `/api/ai/status`
+  ile doğrulandı (`available: true`).
+- **Anthropic/Claude — erişim onaylandı, kota bekleniyor**: Vertex AI Model Garden'da
+  Claude Opus 4.8 için erişim talebi Anthropic tarafından onaylandı (artık 404 yok),
+  ama varsayılan kullanım kotası sıfır (429 "Quota exceeded"). Kullanıcının Cloud
+  Console → IAM & Admin → Quotas'tan `online_prediction_input_tokens_per_minute_per_base_model`
+  (model: anthropic-claude-opus-4-8) için artırım talebi göndermesi gerekiyor.
 - **Dosyalar**: `lib/integrations-anthropic-ai/src/client.ts`, `services/ai-providers.ts:223-329`
-- **Durum**: Kod tamamlandı — Model Garden onayı + OpenAI key'i bekliyor (kullanıcı).
+- **Durum**: OpenAI tamam. Anthropic: kota artırım talebi bekleniyor (kullanıcı).
 
 ### 4. [ORTA] Super Agent durumunu kalıcı hale getir
 
@@ -106,6 +118,21 @@ devre dışı kal" mantığıyla korunuyor — yani sistem çökmüyor, sadece o
   tekrar göndermiyor) özeti üretip Resend ile e-posta olarak gönderiyor.
 - **Dosyalar**: `routes/daily-digest.ts`, `services/daily-digest-cron.ts`, `index.ts`
 
+### 6. [ORTA] Telefon sağlayıcı kimlik bilgileri şifrelenmemiş duruyor
+
+- **Sorun**: `telephony_providers.config` (JSONB) — Twilio/Vonage/Telnyx vb. `authToken`,
+  `accountSid` gibi alanlar veritabanında düz metin olarak saklanıyor. Diğer hassas
+  alanlar (`api_keys`, `webhook_endpoints`, `google_oauth_tokens`) `enc:v1:` AES-256-GCM
+  ile şifreli tutulurken bu tablo unutulmuş görünüyor.
+  Madde 2 (Twilio BYOK) çalışır hale geldikçe artık gerçek müşteri sırları bu tabloda
+  birikecek — önemi arttı.
+- **Yapılacak**: `lib/crypto.ts`'deki mevcut şifreleme yardımcılarını kullanarak
+  kayıt/güncelleme noktalarında şifrele, okuma noktalarında çöz. Mevcut düz metin
+  kayıtlar için tek seferlik bir migration script'i gerekir.
+- **Dosyalar**: `lib/db/src/schema/telephony.ts`, `routes/telephony.ts`,
+  `services/telephony-providers.ts`
+- **Durum**: Tespit edildi (2026-07-14), henüz düzeltilmedi — istenirse yapılabilir.
+
 ---
 
 ## Tamamlanmış işler (referans için)
@@ -123,8 +150,11 @@ devre dışı kal" mantığıyla korunuyor — yani sistem çökmüyor, sadece o
 - ✅ Google Drive otomatik yedekleme kalıcı olarak kapatıldı, Cloud SQL native yedekleme
   aktif (2026-07-14)
 - ✅ Günlük özet artık gerçekten otomatik e-posta gönderiyor (2026-07-14)
-- ✅ Vertex AI üzerinden Claude entegrasyonu (kod tamam, Model Garden onayı bekleniyor)
-  (2026-07-14)
+- ✅ Vertex AI üzerinden Claude entegrasyonu — kod tamam, Anthropic erişimi onaylandı,
+  kota artırımı bekleniyor (2026-07-14)
+- ✅ OpenAI bağlandı ve doğrulandı (2026-07-14)
+- ✅ Twilio BYOK düzeltildi: webhook doğrulama + otomasyon SMS aksiyonu artık her
+  müşterinin kendi sağlayıcısını kullanıyor (2026-07-14)
 
 ---
 
