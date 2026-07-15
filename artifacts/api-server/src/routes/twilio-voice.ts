@@ -53,8 +53,12 @@ function xmlEscape(text: string): string {
     .replace(/'/g, "&apos;");
 }
 
+// Polly.Lea (voix neurale Amazon, francaise) au lieu de "alice" (voix
+// robotique/heritee de Twilio) — voice-receptionist.ts utilise deja
+// Polly.Lea, cette route (le flux reellement expose aux locataires via
+// settings/tab-appels.tsx) etait restee sur l'ancienne voix.
 function twimlSay(text: string): string {
-  return `<Say voice="alice" language="fr-FR">${xmlEscape(text)}</Say>`;
+  return `<Say voice="Polly.Lea" language="fr-FR">${xmlEscape(text)}</Say>`;
 }
 
 function twimlGather(actionUrl: string, prompt: string): string {
