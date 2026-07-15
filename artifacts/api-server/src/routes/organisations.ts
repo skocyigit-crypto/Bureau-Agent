@@ -474,7 +474,19 @@ router.delete("/organisations/:id", async (req: Request, res: Response): Promise
   }
 
   try {
-    const [deleted] = await db.delete(organisationsTable).where(eq(organisationsTable.id, id)).returning();
+    // users.organisationId est en onDelete:"set null" (pas cascade) — voulu
+    // pour la plupart des cas (un utilisateur ne doit pas disparaitre en
+    // silence), mais une suppression d'organisation depuis ce panel est une
+    // suppression complete et deliberee. Sans ceci, les comptes admin de
+    // l'organisation restent orphelins (organisation_id = null) et leur
+    // email reste bloque par la contrainte unique users.email pour toujours
+    // — empechant de recreer une organisation de test avec le meme email
+    // ("un utilisateur avec cet email existe deja").
+    const deleted = await db.transaction(async (tx) => {
+      await tx.delete(usersTable).where(eq(usersTable.organisationId, id));
+      const [org] = await tx.delete(organisationsTable).where(eq(organisationsTable.id, id)).returning();
+      return org;
+    });
     if (!deleted) { res.status(404).json({ error: "Organisation non trouvee." }); return; }
 
     res.json({ message: `Organisation "${deleted.name}" supprimee.` });

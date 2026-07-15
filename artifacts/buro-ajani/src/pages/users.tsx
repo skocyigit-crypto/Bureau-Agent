@@ -56,7 +56,7 @@ const ROLE_CONFIG: Record<UserRole, { label: string; couleur: string; icon: Reac
 };
 
 export default function UsersPage() {
-  const { user: workspaceUser, hasPermission } = useWorkspaceUser();
+  const { user: workspaceUser, hasPermission, isSuperAdmin } = useWorkspaceUser();
   const canManageUsers = hasPermission("gererUtilisateurs");
   const { toast } = useToast();
 
@@ -1027,7 +1027,12 @@ export default function UsersPage() {
             <Select value={editRole} onValueChange={(v) => setEditRole(v as UserRole)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="super_admin">Super Admin</SelectItem>
+                {/* Le serveur (middleware/tenant-guard.ts: assertRoleAllowed)
+                    refuse deja toute promotion vers super_admin par un
+                    non-super-admin — cache l'option cote UI plutot que de
+                    laisser un administrateur la choisir puis se faire
+                    rejeter apres confirmation. */}
+                {isSuperAdmin() && <SelectItem value="super_admin">Super Admin</SelectItem>}
                 <SelectItem value="administrateur">Administrateur</SelectItem>
                 <SelectItem value="agent">Agent</SelectItem>
                 <SelectItem value="lecture_seule">Lecture seule</SelectItem>
