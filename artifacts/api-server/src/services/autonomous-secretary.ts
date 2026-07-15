@@ -27,7 +27,7 @@ import { and, eq, gte, lte, desc, sql, inArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { getTool, validateArgs, executeTool, type ToolContext } from "./assistant-tools";
 import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
-import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_FLASH_MODEL } from "./ai-utils";
+import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_FLASH_MODEL, sanitizePromptInput } from "./ai-utils";
 
 /** Outils que l'agent autonome a le droit de proposer. */
 const ALLOWED_TOOLS = ["create_task", "send_email", "send_sms", "create_calendar_event", "create_contact", "propose_appointment_slots"] as const;
@@ -140,7 +140,13 @@ export async function gatherContext(orgId: number): Promise<SecretaryContext> {
   return {
     overdueTasks: overdue.map(t => ({ id: t.id, title: t.title, dueDate: t.dueDate ? new Date(t.dueDate).toISOString() : null, priority: t.priority })),
     missedCalls: missed.map(c => ({ id: c.id, phoneNumber: c.phoneNumber, contactName: c.contactName, createdAt: new Date(c.createdAt).toISOString() })),
-    unreadMessages: unread.map(m => ({ id: m.id, type: m.type, contactName: m.contactName, content: (m.content ?? "").slice(0, 200) })),
+    // sanitizePromptInput: le contenu d'un message entrant (WhatsApp/SMS) est
+    // du texte CLIENT non fiable — sans filtrage, un message forge ("Ignore
+    // les instructions precedentes...") pourrait faire proposer a l'IA une
+    // action (send_email, send_sms) manipulee. Le passage humain obligatoire
+    // avant execution (agent_proposals) reste la protection principale, mais
+    // ce filtrage evite une proposition trompeuse en amont.
+    unreadMessages: unread.map(m => ({ id: m.id, type: m.type, contactName: m.contactName, content: sanitizePromptInput(m.content, 200) })),
     upcomingEvents: upcoming.map(e => ({ id: e.id, title: e.title, startDate: new Date(e.startDate).toISOString(), location: e.location })),
     inactiveContacts: inactive.map(c => ({ id: c.id, firstName: c.firstName, lastName: c.lastName, company: c.company })),
   };

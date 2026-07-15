@@ -15,6 +15,7 @@ import { and, eq, gte } from "drizzle-orm";
 import { db, usersTable, auditLogsTable } from "@workspace/db";
 import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
+import { withCronLock, CRON_LOCK_NAMESPACE } from "../lib/cron-lock";
 import { buildDailyDigest, type DailyDigest } from "../routes/daily-digest";
 import { sendEmail } from "./email";
 
@@ -63,40 +64,48 @@ function digestEmailHtml(digest: DailyDigest): string {
 }
 
 async function sendDigestForUser(user: { id: number; organisationId: number | null; prenom: string; email: string }): Promise<void> {
-  if (!user.organisationId) return;
+  const orgId = user.organisationId;
+  if (!orgId) return;
 
-  const already = await withDbRetry(
-    () => db.select({ id: auditLogsTable.id })
-      .from(auditLogsTable)
-      .where(and(
-        eq(auditLogsTable.userId, user.id),
-        eq(auditLogsTable.action, "daily_digest_sent"),
-        gte(auditLogsTable.createdAt, todayStart()),
-      ))
-      .limit(1),
-    { label: "daily-digest-cron:already-sent" },
-  );
-  if (already.length > 0) return;
+  // Verrou consultatif Postgres: le check-puis-insert ci-dessous n'est pas
+  // atomique (SELECT puis INSERT en deux etapes) — sans ce verrou, deux
+  // instances Cloud Run (maxScale=3) qui tiquent au meme moment pourraient
+  // toutes deux passer le check avant que l'une n'ecrive sa marque, et donc
+  // envoyer le digest en double au meme utilisateur.
+  await withCronLock(CRON_LOCK_NAMESPACE.dailyDigest, user.id, async () => {
+    const already = await withDbRetry(
+      () => db.select({ id: auditLogsTable.id })
+        .from(auditLogsTable)
+        .where(and(
+          eq(auditLogsTable.userId, user.id),
+          eq(auditLogsTable.action, "daily_digest_sent"),
+          gte(auditLogsTable.createdAt, todayStart()),
+        ))
+        .limit(1),
+      { label: "daily-digest-cron:already-sent" },
+    );
+    if (already.length > 0) return;
 
-  const digest = await buildDailyDigest(user.id, user.organisationId, user.prenom);
-  const result = await sendEmail(
-    user.email,
-    `Votre bilan du ${digest.date}`,
-    digestEmailHtml(digest),
-    digest.ai?.resume ?? `Bonjour ${user.prenom}, votre bilan du jour est disponible sur Agent de Bureau.`,
-    { orgId: user.organisationId },
-  );
+    const digest = await buildDailyDigest(user.id, orgId, user.prenom);
+    const result = await sendEmail(
+      user.email,
+      `Votre bilan du ${digest.date}`,
+      digestEmailHtml(digest),
+      digest.ai?.resume ?? `Bonjour ${user.prenom}, votre bilan du jour est disponible sur Agent de Bureau.`,
+      { orgId },
+    );
 
-  // On journalise meme un echec d'envoi (avec le meme runId-du-jour) pour ne
-  // pas re-tenter en boucle chaque heure si le provider email est en panne —
-  // le prochain jour reessaiera normalement.
-  await db.insert(auditLogsTable).values({
-    organisationId: user.organisationId,
-    userId: user.id,
-    userEmail: user.email,
-    action: "daily_digest_sent",
-    resource: "daily_digest",
-    details: { emailSuccess: result.success, error: result.error },
+    // On journalise meme un echec d'envoi (avec le meme runId-du-jour) pour ne
+    // pas re-tenter en boucle chaque heure si le provider email est en panne —
+    // le prochain jour reessaiera normalement.
+    await db.insert(auditLogsTable).values({
+      organisationId: orgId,
+      userId: user.id,
+      userEmail: user.email,
+      action: "daily_digest_sent",
+      resource: "daily_digest",
+      details: { emailSuccess: result.success, error: result.error },
+    });
   });
 }
 

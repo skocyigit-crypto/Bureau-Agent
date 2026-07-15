@@ -17,6 +17,7 @@ import { db } from "@workspace/db";
 import { organisationsTable, licenseAuditLogTable } from "@workspace/db/schema";
 import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
+import { withCronLock, CRON_LOCK_NAMESPACE } from "../lib/cron-lock";
 import { runAutoRemindersForOrg } from "../routes/license-management";
 
 const TICK_MS = 60 * 60 * 1000; // 1h — verifie a chaque heure si c'est l'heure d'envoi
@@ -45,21 +46,28 @@ async function tick(): Promise<void> {
 
     for (const org of orgs) {
       try {
-        const already = await withDbRetry(
-          () => db.select({ id: licenseAuditLogTable.id })
-            .from(licenseAuditLogTable)
-            .where(and(
-              eq(licenseAuditLogTable.organisationId, org.id),
-              eq(licenseAuditLogTable.action, "auto_reminders_run"),
-              gte(licenseAuditLogTable.createdAt, todayStart()),
-            ))
-            .limit(1),
-          { label: "invoice-reminder-cron:already-run" },
-        );
-        if (already.length > 0) continue;
+        // Verrou consultatif Postgres: le check-puis-execution ci-dessous
+        // n'est pas atomique — sans ce verrou, deux instances Cloud Run
+        // (maxScale=3) qui tiquent au meme moment pourraient toutes deux
+        // passer le check avant que l'une n'ecrive sa marque, et donc
+        // envoyer les rappels en double pour la meme organisation.
+        await withCronLock(CRON_LOCK_NAMESPACE.invoiceReminder, org.id, async () => {
+          const already = await withDbRetry(
+            () => db.select({ id: licenseAuditLogTable.id })
+              .from(licenseAuditLogTable)
+              .where(and(
+                eq(licenseAuditLogTable.organisationId, org.id),
+                eq(licenseAuditLogTable.action, "auto_reminders_run"),
+                gte(licenseAuditLogTable.createdAt, todayStart()),
+              ))
+              .limit(1),
+            { label: "invoice-reminder-cron:already-run" },
+          );
+          if (already.length > 0) return;
 
-        const result = await runAutoRemindersForOrg(org.id);
-        logger.info({ orgId: org.id, ...result }, "[InvoiceReminderCron] Rappels envoyes pour une organisation");
+          const result = await runAutoRemindersForOrg(org.id);
+          logger.info({ orgId: org.id, ...result }, "[InvoiceReminderCron] Rappels envoyes pour une organisation");
+        });
       } catch (err) {
         logger.warn({ err, orgId: org.id }, "[InvoiceReminderCron] Échec pour une organisation");
       }

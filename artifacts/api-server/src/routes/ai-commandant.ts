@@ -112,7 +112,13 @@ async function hedgedCouncil(attempts: CouncilAttempt[]): Promise<string> {
           errors.push(`${attempt.provider}: vide`);
           if (hedgeTimer) { clearTimeout(hedgeTimer); hedgeTimer = null; }
           launchNext();
-          if (settled >= attempts.length && !done) { done = true; cleanup(); resolve(`[AI indisponible] ${errors.join("; ")}`); }
+          // Echec total (tous les fournisseurs epuises): REJETER, pas resoudre.
+          // Avant, cette chaine ("[AI indisponible] gemini: ...; openai: ...")
+          // etait renvoyee comme si c'etait une VRAIE reponse IA — les appelants
+          // qui font ensuite un JSON.parse echouent silencieusement et stockent
+          // ce texte d'erreur brut (noms de fournisseurs, details internes)
+          // comme s'il s'agissait du contenu genere (ex: resume d'appel).
+          if (settled >= attempts.length && !done) { done = true; cleanup(); reject(new Error(`Tous les fournisseurs IA ont echoue: ${errors.join("; ")}`)); }
         })
         .catch((err) => {
           clearTimeout(to);
@@ -122,7 +128,7 @@ async function hedgedCouncil(attempts: CouncilAttempt[]): Promise<string> {
           errors.push(`${attempt.provider}: ${(err as any)?.message ?? err}`);
           if (hedgeTimer) { clearTimeout(hedgeTimer); hedgeTimer = null; }
           launchNext();
-          if (settled >= attempts.length && !done) { done = true; cleanup(); resolve(`[AI indisponible] ${errors.join("; ")}`); }
+          if (settled >= attempts.length && !done) { done = true; cleanup(); reject(new Error(`Tous les fournisseurs IA ont echoue: ${errors.join("; ")}`)); }
         });
 
       // Programme le demarrage hedge du fournisseur suivant si celui-ci traine.

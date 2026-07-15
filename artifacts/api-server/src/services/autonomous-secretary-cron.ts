@@ -15,6 +15,7 @@ import { organisationsTable, agentProposalsTable } from "@workspace/db/schema";
 import { and, eq, gte } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
+import { withCronLock, CRON_LOCK_NAMESPACE } from "../lib/cron-lock";
 import { proposeActionsForOrg } from "./autonomous-secretary";
 
 const TICK_MS = 60 * 60 * 1000; // 1h
@@ -41,21 +42,28 @@ async function tick(): Promise<void> {
 
     for (const org of orgs) {
       try {
-        // Garde "une fois par jour" persistant: déjà généré aujourd'hui ?
-        const existing = await withDbRetry(
-          () => db.select({ id: agentProposalsTable.id })
-            .from(agentProposalsTable)
-            .where(and(
-              eq(agentProposalsTable.organisationId, org.id),
-              eq(agentProposalsTable.runId, runId),
-              gte(agentProposalsTable.createdAt, todayStart),
-            ))
-            .limit(1),
-          { label: "autonomous-secretary:existing-proposal" },
-        );
-        if (existing.length > 0) continue;
+        // Verrou consultatif Postgres: le check-puis-generation ci-dessous
+        // n'est pas atomique — sans ce verrou, deux instances Cloud Run
+        // (maxScale=3) qui tiquent au meme moment pourraient toutes deux
+        // passer le check avant que l'une n'ecrive sa proposition, et donc
+        // generer deux salves de propositions pour la meme organisation.
+        await withCronLock(CRON_LOCK_NAMESPACE.autonomousSecretary, org.id, async () => {
+          // Garde "une fois par jour" persistant: déjà généré aujourd'hui ?
+          const existing = await withDbRetry(
+            () => db.select({ id: agentProposalsTable.id })
+              .from(agentProposalsTable)
+              .where(and(
+                eq(agentProposalsTable.organisationId, org.id),
+                eq(agentProposalsTable.runId, runId),
+                gte(agentProposalsTable.createdAt, todayStart),
+              ))
+              .limit(1),
+            { label: "autonomous-secretary:existing-proposal" },
+          );
+          if (existing.length > 0) return;
 
-        await proposeActionsForOrg(org.id, runId);
+          await proposeActionsForOrg(org.id, runId);
+        });
       } catch (err) {
         logger.warn({ err, orgId: org.id }, "[SecretaryCron] Échec pour une organisation");
       }
