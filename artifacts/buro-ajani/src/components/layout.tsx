@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useRef, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { Phone, Users, CheckSquare, MessageSquare, MessageCircle, BarChart, LayoutDashboard, Settings, FileText, Puzzle, UserCog, Clock, Brain, Calendar, Shield, ShieldCheck, Zap, BarChart3, KeyRound, Globe, Target, Sparkles, PhoneCall, Download, Plus, PhoneIncoming, Wifi, WifiOff, Smartphone, Monitor, Tablet, Rocket, Mail, StickyNote, Activity, ClipboardList, Plug, CreditCard, Trophy, ScanSearch, MapPin, Bell, Inbox, Search, HardHat, Wallet, BookOpen, ReceiptText } from "lucide-react";
+import { Phone, Users, CheckSquare, MessageSquare, MessageCircle, BarChart, LayoutDashboard, Settings, FileText, Puzzle, UserCog, Clock, Brain, Calendar, Shield, ShieldCheck, Zap, BarChart3, KeyRound, Globe, Target, Sparkles, PhoneCall, Download, Plus, PhoneIncoming, Wifi, WifiOff, Smartphone, Monitor, Tablet, Rocket, Mail, StickyNote, Activity, ClipboardList, Plug, CreditCard, Trophy, ScanSearch, MapPin, Bell, Inbox, Search, HardHat, Wallet, BookOpen, ReceiptText, GraduationCap, Bot, Radar, Crown, ClipboardCheck, Building2 } from "lucide-react";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { SidebarIcon3D, Icon3D } from "@/components/icon-3d";
 import { AiAssistantButton } from "@/components/ai-assistant";
@@ -275,8 +275,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         label: "Aujourd'hui",
         items: [
           { name: "Tableau de bord", href: "/", icon: LayoutDashboard },
-          ...(canUseAi ? [{ name: "Assistant proactif", href: "/assistant-proactif", icon: Sparkles }] : []),
-          ...(canUseAi ? [{ name: "Ce que l'IA a appris", href: "/ia-apprentissage", icon: Brain }] : []),
+          ...(canUseAi ? [{ name: "Assistant proactif", href: "/assistant-proactif", icon: Radar }] : []),
+          ...(canUseAi ? [{ name: "Ce que l'IA a appris", href: "/ia-apprentissage", icon: GraduationCap }] : []),
           { name: "Calendrier", href: "/calendrier", icon: Calendar },
           { name: "Rappels", href: "/notifications", icon: Bell, badge: mutedBadges.rappel ? 0 : badges.rappel },
           { name: "Activité récente", href: "/activite-recente", icon: Activity },
@@ -332,11 +332,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
             label: "Assistants IA",
             items: [
               { name: "Équipe IA", href: "/equipe-ia", icon: Brain },
-              { name: "Commandant IA", href: "/commandant-ia", icon: Sparkles },
+              { name: "Commandant IA", href: "/commandant-ia", icon: Crown },
               { name: "File d'approbation", href: "/file-approbation", icon: Inbox, badge: mutedBadges.agentQueue ? 0 : agentQueueCount },
-              ...(isAdmin ? [{ name: "Auto-audit", href: "/auto-audit", icon: ScanSearch }] : []),
+              ...(isAdmin ? [{ name: "Auto-audit", href: "/auto-audit", icon: ClipboardCheck }] : []),
               { name: "Assistant Universel", href: "/asistan", icon: Sparkles },
-              { name: "Agents IA", href: "/agents-ia", icon: Brain },
+              { name: "Agents IA", href: "/agents-ia", icon: Bot },
               ...(isAdmin ? [{ name: "Automatisations", href: "/automatisations", icon: Zap }] : []),
             ],
           }]
@@ -374,7 +374,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         ? [{
             label: "Backoffice SaaS",
             items: [
-              { name: "Admin", href: "/admin", icon: Shield },
+              { name: "Admin", href: "/admin", icon: Building2 },
             ],
           }]
         : []),
