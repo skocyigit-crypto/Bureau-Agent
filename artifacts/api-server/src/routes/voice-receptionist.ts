@@ -39,12 +39,15 @@ import {
   notificationsTable,
   contactsTable,
   tasksTable,
+  organisationsTable,
+  usersTable,
 } from "@workspace/db";
 import { ai } from "@workspace/integrations-gemini-ai";
 import { callOrgGemini } from "../services/ai-providers";
 import { sendSms, decryptProviderConfig, type TelephonyProviderConfig } from "../services/telephony-providers";
 import {
   GEMINI_FLASH_MODEL,
+  GEMINI_PRO_MODEL,
   geminiActualModel,
   extractGeminiTokens,
   recordAiUsage,
@@ -54,6 +57,12 @@ import {
 import { assertAiQuota, invalidateQuotaCache } from "../services/ai-quota";
 import { searchKnowledge } from "../services/knowledge-base";
 import { isSlotFree, computeFreeSlots } from "../services/availability";
+import { sendEmail } from "../services/email";
+import { evaluatePhoneReputation } from "../services/phone-reputation";
+import { recordSecurityScan } from "../services/security-scans";
+import { emitSecurityAlert } from "../services/security-alerts";
+import { checkPhoneList } from "../services/security-lists";
+import { maskPhone } from "../services/whatsapp-notify";
 import { logger } from "../lib/logger";
 
 export const voiceReceptionistRouter: IRouter = Router();
@@ -148,6 +157,8 @@ interface CallSession {
   sentiment: string;
   /** L'appelant a signale une urgence. */
   urgent: boolean;
+  /** Issue enregistree (pour l'e-mail recapitulatif de fin d'appel). */
+  lastOutcome: "appointment" | "message" | "cancel" | null;
 }
 
 const SESSION_TTL_MS = 30 * 60 * 1000;
@@ -268,6 +279,243 @@ async function resolveTenants(accountSid: string): Promise<TenantMatch[]> {
       };
     })
     .filter((r) => r.authToken.length > 0 && r.orgId != null);
+}
+
+// --- Filtrage anti-fraude, horaires d'ouverture, messagerie vocale --------
+//
+// Portees depuis l'ancien routes/twilio-voice.ts (route webhook historique,
+// /telephony/twilio/*) lors de sa consolidation dans ce fichier — c'etait le
+// seul flux expose aux locataires (settings/tab-appels.tsx), mais il n'avait
+// pas les capacites (base de connaissances, prise de RDV reelle, reconnaissance
+// de l'appelant, escalade sentiment) de ce fichier-ci. Les deux flux tournaient
+// en parallele sans jamais se rejoindre.
+
+interface ReceptionistExtraConfig {
+  autoSmsOnMissed?: boolean;          // defaut true
+  autoSmsTemplate?: string;           // defaut gabarit FR, supporte {name} {time}
+  emailRecapEnabled?: boolean;        // defaut true
+  businessHours?: {
+    tz?: string;
+    days?: Partial<Record<"mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun", [number, number]>>;
+  };
+  // "off" (defaut, historique) | "voicemail" | "reject"
+  fraudAction?: "off" | "voicemail" | "reject";
+}
+
+const DAY_KEYS: Array<"sun" | "mon" | "tue" | "wed" | "thu" | "fri" | "sat"> =
+  ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+/** Pure: vrai si aucun horaire configure (toujours disponible) ou si `now` tombe dedans. */
+function isWithinBusinessHours(hours: ReceptionistExtraConfig["businessHours"], now: Date): boolean {
+  if (!hours || !hours.days || Object.keys(hours.days).length === 0) return true;
+  const tz = hours.tz || "Europe/Paris";
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: tz, hour12: false, weekday: "short", hour: "2-digit", minute: "2-digit",
+    }).formatToParts(now);
+  } catch {
+    return true; // tz mal configure -> fail open, ne jamais bloquer un appelant legitime
+  }
+  const wd = (parts.find((p) => p.type === "weekday")?.value || "").toLowerCase().slice(0, 3);
+  const hr = parseInt(parts.find((p) => p.type === "hour")?.value || "0", 10);
+  const dayKey = DAY_KEYS.find((k) => k === wd);
+  if (!dayKey) return true;
+  const window = hours.days[dayKey as keyof typeof hours.days];
+  if (!window) return false;
+  const [open, close] = window;
+  return hr >= open && hr < close;
+}
+
+interface InboundFraudDecision {
+  fraud: boolean;
+  reason: string;
+}
+
+/** Allow-list court-circuite toute analyse; sinon block-list => fraude immediate;
+ *  puis reputation (high) => fraude. Fail-soft: en cas d'erreur, jamais de blocage. */
+async function evaluateInboundFraud(orgId: number, phone: string): Promise<InboundFraudDecision> {
+  if (!phone) return { fraud: false, reason: "" };
+  try {
+    const listed = await checkPhoneList(orgId, phone);
+    if (listed === "allow") return { fraud: false, reason: "" };
+    if (listed === "block") return { fraud: true, reason: "Numero present dans votre liste de blocage" };
+    const rep = await evaluatePhoneReputation(orgId, phone);
+    if (rep.risk === "high") return { fraud: true, reason: rep.reasons[0] ?? "Reputation a risque eleve" };
+  } catch (err) {
+    logger.warn({ err, orgId }, "[voice] evaluateInboundFraud a echoue (fail-open)");
+  }
+  return { fraud: false, reason: "" };
+}
+
+function twimlReject(): string {
+  return `<?xml version="1.0" encoding="UTF-8"?><Response><Reject reason="rejected"/></Response>`;
+}
+
+function twimlRecord(actionUrl: string, say: string, lang: RecLang, voice: string): string {
+  const speechLang = SPEECH_LANG[lang];
+  return (
+    `<?xml version="1.0" encoding="UTF-8"?><Response>` +
+    `<Say voice="${escapeXml(voice)}" language="${speechLang}">${escapeXml(say)}</Say>` +
+    `<Record action="${escapeXml(actionUrl)}" method="POST" maxLength="120" timeout="5" ` +
+    `finishOnKey="#" playBeep="true" transcribe="false" trim="trim-silence"/>` +
+    `</Response>`
+  );
+}
+
+// N'autorise que les domaines media officiels de Twilio — defense en profondeur
+// (le webhook est protege par signature, mais une RecordingUrl forgee ne doit
+// jamais pouvoir piloter cette requete sortante vers une cible interne).
+function isAllowedTwilioRecordingUrl(rawUrl: string): boolean {
+  try {
+    const u = new URL(rawUrl);
+    if (u.protocol !== "https:") return false;
+    const host = u.hostname.toLowerCase();
+    return (
+      host === "api.twilio.com" ||
+      /^api\.[a-z0-9-]+\.twilio\.com$/.test(host) ||
+      host === "media.twiliocdn.com"
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Transcrit un enregistrement Twilio via Gemini multimodal. Fail-open: renvoie null. */
+async function transcribeVoicemail(recordingUrl: string, accountSid: string, authToken: string): Promise<string | null> {
+  try {
+    if (!isAllowedTwilioRecordingUrl(recordingUrl)) {
+      logger.warn({ recordingUrl }, "[voice] RecordingUrl hors domaines Twilio autorises — rejetee");
+      return null;
+    }
+    const url = recordingUrl.endsWith(".mp3") ? recordingUrl : `${recordingUrl}.mp3`;
+    const audioResp = await fetch(url, {
+      redirect: "manual",
+      headers: { Authorization: "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64") },
+    });
+    if (!audioResp.ok) return null;
+    const arr = await audioResp.arrayBuffer();
+    const b64 = Buffer.from(arr).toString("base64");
+    if (b64.length === 0) return null;
+
+    const t0 = Date.now();
+    const r = await ai.models.generateContent({
+      model: GEMINI_PRO_MODEL,
+      contents: [{
+        role: "user",
+        parts: [
+          { text: "Transcris ce message vocal en francais. Retourne uniquement le texte parle, sans preambule ni guillemets. Si le message est vide ou inaudible, reponds exactement: VIDE." },
+          { inlineData: { mimeType: "audio/mpeg", data: b64 } },
+        ],
+      }],
+      config: { temperature: 0.1, maxOutputTokens: 800 },
+    });
+    const transcript = (r.text || "").trim();
+    if (!transcript || transcript === "VIDE") return null;
+    logger.info({ ms: Date.now() - t0, len: transcript.length }, "[voice] Message vocal transcrit");
+    return transcript;
+  } catch (err) {
+    logger.warn({ err: (err as any)?.message || err }, "[voice] Transcription du message vocal echouee");
+    return null;
+  }
+}
+
+/** SMS auto a un appelant renvoye vers la messagerie (fraude ou hors horaires). Best-effort. */
+async function sendMissedCallSms(args: {
+  orgId: number;
+  providerId: number;
+  config: Record<string, any>;
+  callerNumber: string;
+  callSid: string;
+}): Promise<void> {
+  try {
+    if (!args.callerNumber || !args.callerNumber.startsWith("+")) return; // pas de numero masque/anonyme
+    const cfg = args.config as ReceptionistExtraConfig & TelephonyProviderConfig;
+    if (cfg.autoSmsOnMissed === false) return;
+    const fromNumber = cfg.fromNumber || cfg.phoneNumber || "";
+    if (!fromNumber) return;
+
+    const tz = cfg.businessHours?.tz || "Europe/Paris";
+    let timeStr = "";
+    try {
+      timeStr = new Intl.DateTimeFormat("fr-FR", { timeZone: tz, hour: "2-digit", minute: "2-digit" }).format(new Date());
+    } catch { timeStr = new Date().toISOString().slice(11, 16); }
+
+    const tpl = cfg.autoSmsTemplate || "Bonjour, nous avons manque votre appel a {time}. Nous vous rappelons rapidement. — Agent de Bureau";
+    const body = tpl.replace("{name}", "").replace("{name_comma}", "").replace("{time}", timeStr);
+
+    const result = await sendSms("twilio", cfg, { to: args.callerNumber, from: fromNumber, body });
+    await db.insert(telephonySmsLogsTable).values({
+      organisationId: args.orgId,
+      providerId: args.providerId,
+      providerMessageSid: result.messageSid || null,
+      direction: "outbound",
+      fromNumber,
+      toNumber: args.callerNumber,
+      body,
+      status: result.success ? (result.status || "sent") : "failed",
+      metadata: { callSid: args.callSid, reason: "missed-call-auto-sms", error: result.error || null },
+    }).catch(() => {});
+  } catch (err) {
+    logger.warn({ err, orgId: args.orgId, callSid: args.callSid }, "[voice] SMS d'appel manque echoue");
+  }
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+/** E-mail recapitulatif post-appel a tous les utilisateurs actifs de l'org. Best-effort. */
+async function sendCallRecapEmail(args: {
+  orgId: number;
+  config: Record<string, any>;
+  callerNumber: string;
+  callerName: string | null;
+  summary?: string | null;
+  sentiment?: string | null;
+  urgent?: boolean;
+  outcome?: "appointment" | "message" | "cancel" | null;
+  voicemailTranscript?: string | null;
+}): Promise<void> {
+  try {
+    const cfg = args.config as ReceptionistExtraConfig;
+    if (cfg.emailRecapEnabled === false) return;
+
+    const recipients = await db.select({ email: usersTable.email }).from(usersTable)
+      .where(eq(usersTable.organisationId, args.orgId)).limit(20);
+    const emails = recipients.map((r) => r.email).filter((e): e is string => !!e);
+    if (emails.length === 0) return;
+
+    const [org] = await db.select({ name: organisationsTable.name }).from(organisationsTable)
+      .where(eq(organisationsTable.id, args.orgId)).limit(1);
+    const orgName = org?.name || "Agent de Bureau";
+    const who = args.callerName || args.callerNumber || "Inconnu";
+    const subject = `Resume d'appel — ${who} — ${new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short" }).format(new Date())}`;
+
+    const lines: string[] = [];
+    lines.push(`<h2 style="margin:0 0 12px 0;font-family:system-ui,sans-serif;">Appel recu</h2>`);
+    lines.push(`<p style="font-family:system-ui,sans-serif;color:#374151;">De: <strong>${escapeHtml(who)}</strong> (${escapeHtml(args.callerNumber || "—")})</p>`);
+    if (args.summary) lines.push(`<p><strong>Resume:</strong><br>${escapeHtml(args.summary)}</p>`);
+    if (args.sentiment) lines.push(`<p style="color:#6b7280;">Sentiment: ${escapeHtml(args.sentiment)}${args.urgent ? " · URGENT" : ""}</p>`);
+    if (args.outcome === "appointment") lines.push(`<p>&#10003; Rendez-vous ajoute a l'agenda (a confirmer).</p>`);
+    if (args.outcome === "message") lines.push(`<p>&#10003; Message transmis a l'equipe.</p>`);
+    if (args.voicemailTranscript) lines.push(`<p><strong>Message vocal:</strong><br><em>"${escapeHtml(args.voicemailTranscript)}"</em></p>`);
+    lines.push(`<p style="margin-top:16px;color:#9ca3af;font-size:12px;">— ${escapeHtml(orgName)} via Agent de Bureau</p>`);
+    const html = `<div style="max-width:560px;margin:0 auto;padding:16px;">${lines.join("")}</div>`;
+
+    const text = [
+      `Appel de ${who} (${args.callerNumber || "-"})`,
+      args.summary ? `Resume: ${args.summary}` : "",
+      args.sentiment ? `Sentiment: ${args.sentiment}${args.urgent ? " (URGENT)" : ""}` : "",
+      args.voicemailTranscript ? `Message vocal: "${args.voicemailTranscript}"` : "",
+    ].filter(Boolean).join("\n");
+
+    for (const to of emails) {
+      sendEmail(to, subject, html, text, { orgId: args.orgId }).catch(() => {});
+    }
+  } catch (err) {
+    logger.warn({ err, orgId: args.orgId }, "[voice] E-mail recapitulatif echoue");
+  }
 }
 
 // --- Reconnaissance de l'appelant -----------------------------------------
@@ -946,6 +1194,7 @@ async function persistOutcome(session: CallSession, result: ReceptionistResult):
           })
           .returning({ id: calendarEventsTable.id });
         session.fulfilled = true;
+        session.lastOutcome = "appointment";
 
         await db.insert(notificationsTable).values({
           organisationId: session.orgId,
@@ -1000,6 +1249,7 @@ async function persistOutcome(session: CallSession, result: ReceptionistResult):
         priority: "haute",
       });
       session.fulfilled = true;
+      session.lastOutcome = "message";
       await db.insert(notificationsTable).values({
         organisationId: session.orgId,
         type: "info",
@@ -1027,6 +1277,7 @@ async function persistOutcome(session: CallSession, result: ReceptionistResult):
         priority: "moyenne",
       });
       session.fulfilled = true;
+      session.lastOutcome = "message";
       await db.insert(notificationsTable).values({
         organisationId: session.orgId,
         type: "info",
@@ -1064,6 +1315,7 @@ async function persistOutcome(session: CallSession, result: ReceptionistResult):
         ))
         .returning({ id: calendarEventsTable.id });
       session.fulfilled = true;
+      session.lastOutcome = "cancel";
       if (cancelled.length > 0) {
         await db.insert(notificationsTable).values({
           organisationId: session.orgId,
@@ -1174,6 +1426,19 @@ async function finalizeCall(callSid: string, session: CallSession): Promise<void
     logger.error({ err, orgId: session.orgId }, "[voice] echec insertion telephonyCallLogsTable");
   }
 
+  // E-mail recapitulatif a l'equipe (opt-out via cfg.emailRecapEnabled).
+  // Best-effort, ne bloque jamais la finalisation de l'appel.
+  sendCallRecapEmail({
+    orgId: session.orgId,
+    config: session.providerConfig,
+    callerNumber: caller,
+    callerName: session.callerName,
+    summary,
+    sentiment: session.sentiment,
+    urgent: session.urgent,
+    outcome: session.lastOutcome,
+  }).catch(() => {});
+
   sessions.delete(callSid);
 }
 
@@ -1203,6 +1468,44 @@ voiceReceptionistRouter.post("/voice/twilio/incoming", async (req: Request, res:
     return;
   }
 
+  const extraCfg = tenant.config as ReceptionistExtraConfig & TelephonyProviderConfig;
+
+  // Protection anti-fraude (opt-in, "off" par defaut): s'applique avant tout,
+  // qu'importe l'etat de la secretaire IA — un appelant bloque/a risque ne
+  // doit jamais atteindre l'IA ni la messagerie normale.
+  const fraudAction = extraCfg.fraudAction ?? "off";
+  if (fraudAction !== "off") {
+    const decision = await evaluateInboundFraud(tenant.orgId, body.From ?? "");
+    if (decision.fraud) {
+      const masked = maskPhone(body.From ?? "");
+      logger.warn({ orgId: tenant.orgId, callSid, fraudAction }, "[voice] Appel frauduleux detecte");
+      recordSecurityScan({
+        orgId: tenant.orgId, userId: null, kind: "call", target: masked,
+        verdict: "dangerous", details: decision.reason,
+      });
+      emitSecurityAlert({
+        orgId: tenant.orgId, kind: "call", verdict: "dangerous", target: masked,
+        detail: `${decision.reason} (${fraudAction === "reject" ? "appel rejete" : "redirige vers messagerie"})`,
+        notifyWhatsApp: true,
+      });
+      if (fraudAction === "reject") {
+        res.status(200).send(twimlReject());
+        return;
+      }
+      const fLang = normalizeLang((tenant.config.aiReceptionist as Record<string, unknown> | undefined)?.language);
+      const fVoice = sanitizeVoice((tenant.config.aiReceptionist as Record<string, unknown> | undefined)?.voice) ?? DEFAULT_VOICE[fLang];
+      const proto = (req.headers["x-forwarded-proto"] as string) || "https";
+      const host = (req.headers["x-forwarded-host"] as string) || (req.headers.host as string) || "";
+      const recordUrl = `${proto}://${host}/api/voice/twilio/voicemail-complete?callSid=${encodeURIComponent(callSid)}`;
+      res.status(200).send(twimlRecord(
+        recordUrl,
+        "Bonjour. Pour des raisons de securite, votre appel ne peut aboutir directement. Laissez un message apres le bip, nous vous rappellerons si necessaire. Appuyez sur diese pour terminer.",
+        fLang, fVoice,
+      ));
+      return;
+    }
+  }
+
   const cfg = (tenant.config.aiReceptionist as Record<string, unknown> | undefined) ?? {};
   const lang = normalizeLang(cfg.language);
   const voice = sanitizeVoice(cfg.voice) ?? DEFAULT_VOICE[lang];
@@ -1211,6 +1514,22 @@ voiceReceptionistRouter.post("/voice/twilio/incoming", async (req: Request, res:
 
   if (cfg.enabled !== true) {
     res.status(200).send(hangupTwiml(DISABLED_MSG[lang], lang, voice));
+    return;
+  }
+
+  // Horaires d'ouverture (opt-in, toujours disponible par defaut): hors
+  // horaires configures, on bascule sur la messagerie vocale plutot que
+  // l'IA conversationnelle.
+  if (!isWithinBusinessHours(extraCfg.businessHours, new Date())) {
+    const proto = (req.headers["x-forwarded-proto"] as string) || "https";
+    const host = (req.headers["x-forwarded-host"] as string) || (req.headers.host as string) || "";
+    const recordUrl = `${proto}://${host}/api/voice/twilio/voicemail-complete?callSid=${encodeURIComponent(callSid)}`;
+    const closedMsg = lang === "tr"
+      ? "Merhaba. Su anda mesai saatleri disindayiz. Lutfen bip sesinden sonra mesajinizi birakin."
+      : lang === "en"
+        ? "Hello. We are currently closed. Please leave a message after the beep."
+        : "Bonjour. Nous sommes actuellement fermes. Merci de laisser votre message apres le bip.";
+    res.status(200).send(twimlRecord(recordUrl, closedMsg, lang, voice));
     return;
   }
 
@@ -1261,6 +1580,7 @@ voiceReceptionistRouter.post("/voice/twilio/incoming", async (req: Request, res:
     summary: "",
     sentiment: "neutre",
     urgent: false,
+    lastOutcome: null,
   });
 
   res.status(200).send(gatherTwiml(greeting, lang, voice));
@@ -1366,5 +1686,83 @@ voiceReceptionistRouter.post("/voice/twilio/status", async (req: Request, res: R
       await finalizeCall(callSid, session);
     }
   }
+  res.status(200).send(emptyTwiml());
+});
+
+// Appel dirige vers la messagerie vocale (fraude ou hors horaires — voir
+// /voice/twilio/incoming). Twilio POST ici une fois l'enregistrement termine
+// (parametre de requete callSid, RecordingUrl dans le corps).
+voiceReceptionistRouter.post("/voice/twilio/voicemail-complete", async (req: Request, res: Response): Promise<void> => {
+  res.type("text/xml");
+  const body = (req.body ?? {}) as Record<string, string>;
+  const accountSid = body.AccountSid;
+  const callSid = String(req.query.callSid || body.CallSid || "");
+  const recordingUrl = body.RecordingUrl;
+
+  const tenants = await resolveTenants(accountSid);
+  const tenant = tenants.find((t) => validateTwilioSignature(req, t.authToken));
+  if (!tenant) {
+    res.status(403).send(emptyTwiml());
+    return;
+  }
+
+  const callerNumber = body.From ?? "";
+  let transcript: string | null = null;
+  if (recordingUrl) {
+    transcript = await transcribeVoicemail(recordingUrl, accountSid, tenant.authToken);
+  }
+
+  try {
+    await db.insert(messagesTable).values({
+      organisationId: tenant.orgId,
+      phoneNumber: callerNumber,
+      contactName: null,
+      content: transcript || "(message vocal non transcrit — voir l'enregistrement)",
+      type: "appel",
+      priority: "moyenne",
+    });
+    await db.insert(notificationsTable).values({
+      organisationId: tenant.orgId,
+      type: "info",
+      title: "Nouveau message vocal (repondeur)",
+      message: transcript ? transcript.slice(0, 140) : `Appel de ${callerNumber || "numero masque"} — enregistrement non transcrit.`,
+      priority: "normale",
+      actionUrl: "/messages",
+      sourceType: "ai_receptionist_voicemail",
+      sourceId: null,
+    });
+    await db.insert(telephonyCallLogsTable).values({
+      organisationId: tenant.orgId,
+      providerId: tenant.providerId,
+      providerCallSid: callSid,
+      direction: "inbound",
+      fromNumber: callerNumber || "unknown",
+      toNumber: body.To || "",
+      status: "completed",
+      duration: parseInt(body.RecordingDuration || "0", 10) || 0,
+      transcription: transcript,
+      metadata: { aiReceptionist: true, voicemail: true },
+      startedAt: new Date(),
+      endedAt: new Date(),
+    });
+  } catch (err) {
+    logger.error({ err, orgId: tenant.orgId }, "[voice] echec persistance message vocal");
+  }
+
+  await sendMissedCallSms({
+    orgId: tenant.orgId,
+    providerId: tenant.providerId,
+    config: tenant.config,
+    callerNumber,
+    callSid,
+  });
+  await sendCallRecapEmail({
+    orgId: tenant.orgId,
+    config: tenant.config,
+    callerNumber,
+    callerName: null,
+    voicemailTranscript: transcript,
+  });
+
   res.status(200).send(emptyTwiml());
 });

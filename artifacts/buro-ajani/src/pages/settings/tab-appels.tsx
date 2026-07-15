@@ -251,12 +251,12 @@ export function TabAppels() {
         <CardContent className="space-y-4">
           <WebhookUrlRow
             label="Voice URL (A Call Comes In → Webhook → HTTP POST)"
-            url={`${baseUrl}/telephony/twilio/voice`}
+            url={`${baseUrl}/voice/twilio/incoming`}
           />
           <Separator />
           <WebhookUrlRow
             label="Status Callback URL (Call Status Changes)"
-            url={`${baseUrl}/telephony/twilio/status`}
+            url={`${baseUrl}/voice/twilio/status`}
           />
           <Separator />
           <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-800 dark:text-blue-300 space-y-1">
