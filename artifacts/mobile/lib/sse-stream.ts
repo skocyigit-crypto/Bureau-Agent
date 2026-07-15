@@ -1,4 +1,5 @@
 import { fetch as expoFetch } from "expo/fetch";
+import { MOBILE_APP_ORIGIN } from "@/lib/api-config";
 
 export interface SseHandlers {
   onEvent: (event: string, data: any) => void;
@@ -11,11 +12,16 @@ export async function streamSse(
   body: any,
   handlers: SseHandlers,
 ): Promise<void> {
+  // Origin est injecte ici (pas seulement par l'appelant) car les builds
+  // natifs ne l'envoient jamais eux-memes — son absence fait 403 cote
+  // serveur. Defense structurelle: un futur appel a streamSse() ne peut
+  // plus oublier cet en-tete.
   const res = await expoFetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Accept: "text/event-stream",
+      Origin: MOBILE_APP_ORIGIN,
       ...(handlers.headers ?? {}),
     },
     body: JSON.stringify(body ?? {}),

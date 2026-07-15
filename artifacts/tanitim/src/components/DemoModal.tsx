@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { motion, AnimatePresence } from "framer-motion";
+import { REGISTER_URL } from "@/lib/app-url";
 
 interface DemoModalProps {
   open: boolean;
@@ -98,7 +99,7 @@ export function DemoModal({ open, onClose, source }: DemoModalProps) {
                 </div>
                 <p className="text-sm text-muted-foreground">Un email de confirmation a été envoyé à <strong>{form.email}</strong>.</p>
                 <div className="flex flex-col sm:flex-row gap-3 w-full pt-2">
-                  <a href="/register" className="flex-1">
+                  <a href={REGISTER_URL} className="flex-1">
                     <Button className="w-full h-12 bg-primary text-primary-foreground font-bold text-base">
                       Démarrer l'essai gratuit
                       <ArrowRight className="ml-2 w-4 h-4" />

@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { confirmAction } from "@/hooks/use-confirm";
 
@@ -25,6 +28,7 @@ interface Proposal {
   sourceType: string;
   status: string;
   result: unknown;
+  args: Record<string, unknown>;
   createdAt: string;
   decidedAt: string | null;
 }
@@ -102,8 +106,19 @@ export default function FileApprobationPage() {
     onError: (e: Error) => toast({ title: "Échec de l'analyse", description: e.message, variant: "destructive" }),
   });
 
+  const [drafts, setDrafts] = useState<Record<number, { to: string; subject: string; body: string }>>({});
+
   const approve = useMutation({
-    mutationFn: (id: number) => api<{ ok: boolean; status: string; error?: string }>(`/agent-queue/${id}/approve`, { method: "POST" }),
+    mutationFn: async (p: Proposal) => {
+      const edited = drafts[p.id];
+      if (p.toolName === "send_email" && edited) {
+        await api(`/agent-queue/${p.id}/args`, {
+          method: "PATCH",
+          body: JSON.stringify({ args: { to: edited.to, subject: edited.subject, body: edited.body } }),
+        });
+      }
+      return api<{ ok: boolean; status: string; error?: string }>(`/agent-queue/${p.id}/approve`, { method: "POST" });
+    },
     onSuccess: (r) => {
       if (r.ok) toast({ title: "Action exécutée", description: "La proposition a été approuvée et exécutée." });
       else toast({ title: "Exécution échouée", description: r.error || "L'action n'a pas pu être exécutée.", variant: "destructive" });
@@ -122,16 +137,20 @@ export default function FileApprobationPage() {
   });
 
   const handleApprove = async (p: Proposal) => {
+    const draft = drafts[p.id];
+    const description = p.toolName === "send_email"
+      ? `À : ${draft?.to ?? String(p.args?.to ?? "")}\nSujet : ${draft?.subject ?? String(p.args?.subject ?? "")}\n\n${draft?.body ?? String(p.args?.body ?? "")}`
+      : `${p.summary}\n\nL'action sera exécutée immédiatement.`;
     const ok = await confirmAction({
-      title: "Approuver cette action ?",
-      description: `${p.summary}\n\nL'action sera exécutée immédiatement.`,
-      confirmLabel: "Approuver et exécuter",
+      title: p.toolName === "send_email" ? "Envoyer cet e-mail ?" : "Approuver cette action ?",
+      description,
+      confirmLabel: p.toolName === "send_email" ? "Envoyer" : "Approuver et exécuter",
     });
-    if (ok) approve.mutate(p.id);
+    if (ok) approve.mutate(p);
   };
 
   const pendingCount = proposals.length;
-  const busyId = approve.isPending ? approve.variables : reject.isPending ? reject.variables : null;
+  const busyId = approve.isPending ? approve.variables?.id : reject.isPending ? reject.variables : null;
 
   return (
     <div className="space-y-6">
@@ -242,6 +261,14 @@ export default function FileApprobationPage() {
                         <p className="text-xs text-muted-foreground/80 mt-2 italic">Pourquoi : {p.reason}</p>
                       )}
 
+                      {!isHistory && p.toolName === "send_email" && (
+                        <EmailDraftPreview
+                          proposal={p}
+                          value={drafts[p.id]}
+                          onChange={(v) => setDrafts((d) => ({ ...d, [p.id]: v }))}
+                        />
+                      )}
+
                       {!isHistory && (
                         <div className="flex items-center gap-2 mt-4">
                           <Button
@@ -290,6 +317,58 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
     >
       {children}
     </button>
+  );
+}
+
+// Auparavant, une proposition "send_email" (ex: brouillon genere par le tri
+// IA des e-mails de support, services/support-inbox.ts) n'affichait que
+// summary/reason — le brouillon reel (args.body) que "Approuver" envoyait
+// verbatim au client n'etait JAMAIS visible avant l'envoi. Ce composant
+// affiche et rend modifiable ce brouillon avant approbation.
+function EmailDraftPreview({
+  proposal,
+  value,
+  onChange,
+}: {
+  proposal: Proposal;
+  value: { to: string; subject: string; body: string } | undefined;
+  onChange: (v: { to: string; subject: string; body: string }) => void;
+}) {
+  const args = proposal.args as { to?: string; subject?: string; body?: string } | undefined;
+  const current = value ?? {
+    to: String(args?.to ?? ""),
+    subject: String(args?.subject ?? ""),
+    body: String(args?.body ?? ""),
+  };
+
+  return (
+    <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+      <div className="grid sm:grid-cols-[80px_1fr] items-center gap-2">
+        <Label className="text-xs text-muted-foreground">À</Label>
+        <Input
+          value={current.to}
+          onChange={(e) => onChange({ ...current, to: e.target.value })}
+          className="h-8 text-sm"
+        />
+      </div>
+      <div className="grid sm:grid-cols-[80px_1fr] items-center gap-2">
+        <Label className="text-xs text-muted-foreground">Sujet</Label>
+        <Input
+          value={current.subject}
+          onChange={(e) => onChange({ ...current, subject: e.target.value })}
+          className="h-8 text-sm"
+        />
+      </div>
+      <div className="grid sm:grid-cols-[80px_1fr] gap-2">
+        <Label className="text-xs text-muted-foreground pt-2">Message</Label>
+        <Textarea
+          value={current.body}
+          onChange={(e) => onChange({ ...current, body: e.target.value })}
+          rows={5}
+          className="text-sm"
+        />
+      </div>
+    </div>
   );
 }
 

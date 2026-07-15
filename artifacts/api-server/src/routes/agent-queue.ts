@@ -16,6 +16,7 @@ import {
   rejectProposal,
 } from "../services/autonomous-secretary";
 import { bumpProposalPreference } from "../services/ai-learning";
+import { getTool, validateArgs } from "../services/assistant-tools";
 
 const router: IRouter = Router();
 
@@ -93,6 +94,41 @@ router.post("/agent-queue/run-now", requireAdmin, async (req: Request, res: Resp
   } catch (err) {
     req.log.error({ err }, "Erreur génération propositions");
     res.status(500).json({ error: "Erreur lors de la génération des propositions" });
+  }
+});
+
+/**
+ * Modifie les arguments d'une proposition EN ATTENTE avant approbation —
+ * permet a un humain de corriger le brouillon (ex: le texte d'un e-mail
+ * genere par l'IA, cf. services/support-inbox.ts) avant qu'il ne soit
+ * envoye. Revalide via le meme validateArgs que l'execution reelle pour ne
+ * jamais stocker des arguments que l'outil rejetterait de toute facon.
+ */
+router.patch("/agent-queue/:id/args", requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orgId = getOrgId(req);
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) { res.status(400).json({ error: "id invalide" }); return; }
+
+    const [proposal] = await db.select().from(agentProposalsTable)
+      .where(and(eq(agentProposalsTable.id, id), eq(agentProposalsTable.organisationId, orgId)));
+    if (!proposal) { res.status(404).json({ error: "Proposition introuvable" }); return; }
+    if (proposal.status !== "en_attente") { res.status(409).json({ error: "Cette proposition a deja ete traitee" }); return; }
+
+    const tool = getTool(proposal.toolName);
+    if (!tool) { res.status(400).json({ error: "Outil inconnu" }); return; }
+
+    const parsed = validateArgs(tool.fields, req.body?.args);
+    if (!parsed.ok) { res.status(400).json({ error: parsed.error }); return; }
+
+    await db.update(agentProposalsTable)
+      .set({ args: parsed.data })
+      .where(and(eq(agentProposalsTable.id, id), eq(agentProposalsTable.organisationId, orgId)));
+
+    res.json({ ok: true, args: parsed.data });
+  } catch (err) {
+    req.log.error({ err }, "Erreur modification arguments proposition");
+    res.status(500).json({ error: "Erreur lors de la modification" });
   }
 });
 

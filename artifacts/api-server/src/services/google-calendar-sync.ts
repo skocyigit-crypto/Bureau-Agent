@@ -188,6 +188,7 @@ export async function syncGoogleCalendarToCheckins(params: {
   }
 
   await db.insert(platformSyncLogsTable).values({
+    organisationId,
     platform: "google",
     serviceId: "calendar",
     action: "sync_pointage",

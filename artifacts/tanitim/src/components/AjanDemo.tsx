@@ -4,6 +4,7 @@ import { Sparkles, Send, Mic, MicOff, ArrowRight, Search, Zap, Bot, User, Loader
 import { Button } from "@/components/ui/button";
 import { TalkingAvatar, type SpeechLang, type TalkingAvatarHandle } from "@workspace/ai-avatar";
 import { encodeHandoff, persistHandoff, slimHistory } from "@workspace/demo-handoff";
+import { APP_URL, REGISTER_URL } from "@/lib/app-url";
 
 const API_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 // In dev the API server runs on the same proxy host; in prod the marketing site
@@ -213,14 +214,17 @@ export function AjanDemo() {
 
   // Fallback href (no JS / right-click "open in new tab"): the instant base64
   // route. The onClick handler upgrades this to also carry a server token.
+  // The app (buro-ajani) is served on its own subdomain (app.agentdebureau.fr,
+  // separate from this marketing site) — cross-app navigation must therefore
+  // use an absolute URL, not a same-origin relative path.
   const handoffUrl = (() => {
     const encoded = encodeHandoff(history);
     // Point straight at the in-app assistant (commandant-ia) which consumes the
     // handoff. When logged out, buro-ajani renders login/register in-place at the
     // same URL, so the ?demo= param survives sign-up.
     return encoded
-      ? `/buro-ajani/commandant-ia?demo=${encodeURIComponent(encoded)}`
-      : "/register";
+      ? `${APP_URL}/commandant-ia?demo=${encodeURIComponent(encoded)}`
+      : REGISTER_URL;
   })();
 
   const goToApp = useCallback(async (e: React.MouseEvent) => {
@@ -234,8 +238,8 @@ export function AjanDemo() {
     if (encoded) params.set("demo", encoded);
     if (token) params.set("demo_token", token);
     const url = params.toString()
-      ? `/buro-ajani/commandant-ia?${params.toString()}`
-      : "/register";
+      ? `${APP_URL}/commandant-ia?${params.toString()}`
+      : REGISTER_URL;
     window.location.href = url;
   }, [history]);
 
@@ -636,7 +640,7 @@ export function AjanDemo() {
             </div>
 
             <a
-              href="/register"
+              href={REGISTER_URL}
               className="block text-center px-6 py-4 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-900 font-bold shadow-lg shadow-amber-500/30 hover:shadow-amber-500/50 hover:scale-[1.02] transition-all"
             >
               Créer mon compte gratuit (14 j)

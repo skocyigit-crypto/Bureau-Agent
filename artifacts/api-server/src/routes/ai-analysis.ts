@@ -1104,7 +1104,7 @@ router.post("/ai/discovery", async (req, res): Promise<void> => {
       userCheckins,
       allUsers,
     ] = await Promise.all([
-      db.select().from(platformConnectionsTable).where(eq(platformConnectionsTable.status, "connecte")),
+      db.select().from(platformConnectionsTable).where(and(eq(platformConnectionsTable.organisationId, userOrgId), eq(platformConnectionsTable.status, "connecte"))),
       db.select({
         total: count(),
         answered: sql<number>`SUM(CASE WHEN status = 'repondu' THEN 1 ELSE 0 END)`,

@@ -214,6 +214,7 @@ router.get("/callback", async (req, res): Promise<void> => {
 
       const existingConn = await db.select().from(platformConnectionsTable)
         .where(and(
+          eq(platformConnectionsTable.organisationId, orgId as number),
           eq(platformConnectionsTable.platform, "google"),
           eq(platformConnectionsTable.serviceId, svcId)
         ));
@@ -222,12 +223,14 @@ router.get("/callback", async (req, res): Promise<void> => {
         await db.update(platformConnectionsTable)
           .set({ status: "connecte", connectedAt: now, lastSync: now, updatedAt: now })
           .where(and(
+            eq(platformConnectionsTable.organisationId, orgId as number),
             eq(platformConnectionsTable.platform, "google"),
             eq(platformConnectionsTable.serviceId, svcId)
           ));
       } else {
         const svcName = Object.entries(GOOGLE_SCOPES_MAP).find(([k]) => k === svcId)?.[0] || svcId;
         await db.insert(platformConnectionsTable).values({
+          organisationId: orgId,
           platform: "google",
           serviceId: svcId,
           serviceName: svcName.charAt(0).toUpperCase() + svcName.slice(1),
@@ -239,6 +242,7 @@ router.get("/callback", async (req, res): Promise<void> => {
     }
 
     await db.insert(platformSyncLogsTable).values({
+      organisationId: orgId,
       platform: "google",
       serviceId: "oauth",
       action: "authentification_oauth",
@@ -286,9 +290,10 @@ router.post("/disconnect", async (req, res): Promise<void> => {
 
     await db.update(platformConnectionsTable)
       .set({ status: "deconnecte", updatedAt: new Date() })
-      .where(eq(platformConnectionsTable.platform, "google"));
+      .where(and(eq(platformConnectionsTable.organisationId, orgId as number), eq(platformConnectionsTable.platform, "google")));
 
     await db.insert(platformSyncLogsTable).values({
+      organisationId: orgId,
       platform: "google",
       serviceId: "oauth",
       action: "deconnexion_oauth",

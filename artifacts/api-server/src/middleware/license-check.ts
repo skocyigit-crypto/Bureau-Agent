@@ -55,7 +55,7 @@ export function licenseCheck(req: Request, res: Response, next: NextFunction): v
     });
 }
 
-async function checkLicense(orgId: number, method: string, path: string): Promise<{ allowed: boolean; reason?: string; message?: string }> {
+export async function checkLicense(orgId: number, method: string, path: string): Promise<{ allowed: boolean; reason?: string; message?: string }> {
   const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId));
   if (!org || !org.actif) {
     return { allowed: false, reason: "org_inactive", message: "Votre organisation est inactive. Contactez l'administrateur." };

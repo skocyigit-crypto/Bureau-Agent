@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { db, organisationsTable, subscriptionsTable, usersTable, contactsTable, callsTable, invoicesTable } from "@workspace/db";
 import { PLANS, type PlanKey } from "@workspace/db/schema";
+import { checkLicense } from "../middleware/license-check";
 
 const router = Router();
 
@@ -163,23 +164,14 @@ router.get("/my-subscription/check-access", async (req: Request, res: Response):
   if (!orgId) { res.json({ allowed: false, reason: "no_org" }); return; }
 
   try {
-    const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId));
-    if (!org || !org.actif) { res.json({ allowed: false, reason: "org_inactive" }); return; }
-
-    const [sub] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.organisationId, orgId));
-    if (!sub) { res.json({ allowed: true, reason: "no_subscription" }); return; }
-
-    if (sub.status === "cancelled") {
-      res.json({ allowed: false, reason: "cancelled" }); return;
-    }
-
-    if (sub.trialEndsAt && new Date(sub.trialEndsAt) < new Date()) {
-      if (sub.plan === "essai") {
-        res.json({ allowed: false, reason: "trial_expired", trialEndsAt: sub.trialEndsAt }); return;
-      }
-    }
-
-    res.json({ allowed: true, reason: "active" });
+    // Simule une ecriture generique (POST sur un chemin non exempte/non "lecture
+    // seule tolere") pour renvoyer EXACTEMENT ce que licenseCheck deciderait sur
+    // la prochaine vraie mutation — auparavant cette route avait sa propre copie
+    // de la logique de statut (ne connaissait pas "suspended"/"past_due" et
+    // utilisait "cancelled" au lieu de "annulee"), pouvant repondre "acces
+    // autorise" alors que licenseCheck bloquait deja en production.
+    const result = await checkLicense(orgId, "POST", "/api/check-access-probe");
+    res.json(result);
   } catch (err: any) {
     req.log.error({ err }, "Erreur verification acces abonnement");
     res.status(500).json({ error: "Erreur lors de la verification de l'acces." });

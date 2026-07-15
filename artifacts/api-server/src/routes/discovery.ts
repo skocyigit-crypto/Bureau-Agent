@@ -77,6 +77,7 @@ async function scanEnvironment(orgId: number, userId: number): Promise<Discovere
     const conns = await db.select({ status: platformConnectionsTable.status })
       .from(platformConnectionsTable)
       .where(and(
+        eq(platformConnectionsTable.organisationId, orgId),
         eq(platformConnectionsTable.platform, "google"),
         eq(platformConnectionsTable.serviceId, "calendar"),
       ));
@@ -103,6 +104,7 @@ async function scanEnvironment(orgId: number, userId: number): Promise<Discovere
     const conns = await db.select({ status: platformConnectionsTable.status })
       .from(platformConnectionsTable)
       .where(and(
+        eq(platformConnectionsTable.organisationId, orgId),
         eq(platformConnectionsTable.platform, "google"),
         eq(platformConnectionsTable.serviceId, "gmail"),
       ));
@@ -129,6 +131,7 @@ async function scanEnvironment(orgId: number, userId: number): Promise<Discovere
     const conns = await db.select({ status: platformConnectionsTable.status })
       .from(platformConnectionsTable)
       .where(and(
+        eq(platformConnectionsTable.organisationId, orgId),
         eq(platformConnectionsTable.platform, "google"),
         eq(platformConnectionsTable.serviceId, "drive"),
       ));

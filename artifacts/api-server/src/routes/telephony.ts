@@ -78,19 +78,35 @@ async function validateProviderWebhook(provider: string, req: Request): Promise<
       }
       return { ok: false };
     }
-    const providers = await db.select({ orgId: telephonyProvidersTable.organisationId, config: telephonyProvidersTable.config })
-      .from(telephonyProvidersTable)
-      .where(and(eq(telephonyProvidersTable.provider, provider), eq(telephonyProvidersTable.isActive, true)));
-    if (provider === "vonage") {
-      const expected = process.env.VONAGE_WEBHOOK_SECRET;
+    // Vonage/Telnyx/Plivo/Sinch/Bandwidth n'ont pas de signature HMAC native
+    // comparable a Twilio dans ce flux — on verifie donc un secret webhook
+    // que CHAQUE tenant definit lui-meme (champ optionnel "webhookSecret" de
+    // son fournisseur, voir services/telephony-providers.ts), envoye par le
+    // tenant en en-tete X-Webhook-Secret cote fournisseur. Ceci remplace
+    // l'ancien controle base uniquement sur une variable d'env plateforme
+    // (jamais definie en production, donc TOUJOURS rejetee pour tout tenant).
+    if (["vonage", "telnyx", "plivo", "sinch", "bandwidth"].includes(provider)) {
+      const providers = await db.select({ orgId: telephonyProvidersTable.organisationId, config: telephonyProvidersTable.config })
+        .from(telephonyProvidersTable)
+        .where(and(eq(telephonyProvidersTable.provider, provider), eq(telephonyProvidersTable.isActive, true)));
+
       const got = req.headers["x-webhook-secret"];
-      if (expected && typeof got === "string" && timingSafeEqualStr(got, expected)) return { ok: true, orgId: null };
-      return { ok: false };
-    }
-    if (provider === "telnyx") {
-      const expected = process.env.TELNYX_WEBHOOK_SECRET;
-      const got = req.headers["x-webhook-secret"];
-      if (expected && typeof got === "string" && timingSafeEqualStr(got, expected)) return { ok: true, orgId: null };
+      if (typeof got === "string" && got) {
+        for (const p of providers) {
+          const cfg = decryptProviderConfig(provider, (p.config as Record<string, any>) ?? {});
+          const secret = cfg.webhookSecret;
+          if (secret && timingSafeEqualStr(got, secret)) return { ok: true, orgId: p.orgId };
+        }
+      }
+
+      // Repli dev/no-DB: variable d'env plateforme, uniquement pour vonage/telnyx
+      // (comportement historique conserve pour ne pas casser un environnement
+      // de test existant qui s'appuierait dessus).
+      const envVar = provider === "vonage" ? process.env.VONAGE_WEBHOOK_SECRET
+        : provider === "telnyx" ? process.env.TELNYX_WEBHOOK_SECRET
+        : undefined;
+      if (envVar && typeof got === "string" && timingSafeEqualStr(got, envVar)) return { ok: true, orgId: null };
+
       return { ok: false };
     }
     return { ok: false };

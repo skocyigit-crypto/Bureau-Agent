@@ -88,9 +88,13 @@ const PLATFORM_NAMES: Record<string, string> = {
   apple: "Apple / iCloud",
 };
 
-router.get("/platforms", async (_req, res) => {
+router.get("/platforms", async (req, res) => {
   try {
-    const connections = await db.select().from(platformConnectionsTable);
+    const orgId = req.session?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+
+    const connections = await db.select().from(platformConnectionsTable)
+      .where(eq(platformConnectionsTable.organisationId, orgId));
     const connLookup = new Map(connections.map(c => [`${c.platform}:${c.serviceId}`, c]));
 
     const platforms = Object.entries(ALL_PLATFORM_SERVICES).map(([platformId, services]) => {
@@ -133,9 +137,13 @@ router.get("/platforms", async (_req, res) => {
   }
 });
 
-router.get("/status", async (_req, res) => {
+router.get("/status", async (req, res) => {
   try {
-    const connections = await db.select().from(platformConnectionsTable).where(eq(platformConnectionsTable.platform, "google"));
+    const orgId = req.session?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+
+    const connections = await db.select().from(platformConnectionsTable)
+      .where(and(eq(platformConnectionsTable.organisationId, orgId), eq(platformConnectionsTable.platform, "google")));
     const connLookup = new Map(connections.map(c => [c.serviceId, c]));
     const services = GOOGLE_SERVICES.map(svc => {
       const conn = connLookup.get(svc.id);
@@ -151,6 +159,8 @@ router.get("/status", async (_req, res) => {
 
 router.post("/connect/:platform/:serviceId", requireRole("administrateur", "super_admin"), async (req, res): Promise<void> => {
   try {
+    const orgId = req.session?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const platform = String(req.params.platform);
     const serviceId = String(req.params.serviceId);
     const platformServices = ALL_PLATFORM_SERVICES[platform];
@@ -160,6 +170,7 @@ router.post("/connect/:platform/:serviceId", requireRole("administrateur", "supe
 
     const now = new Date();
     await db.insert(platformConnectionsTable).values({
+      organisationId: orgId,
       platform,
       serviceId,
       serviceName: service.name,
@@ -167,11 +178,12 @@ router.post("/connect/:platform/:serviceId", requireRole("administrateur", "supe
       connectedAt: now,
       lastSync: now,
     }).onConflictDoUpdate({
-      target: [platformConnectionsTable.platform, platformConnectionsTable.serviceId],
+      target: [platformConnectionsTable.organisationId, platformConnectionsTable.platform, platformConnectionsTable.serviceId],
       set: { status: "connecte", connectedAt: now, lastSync: now, updatedAt: now },
     });
 
     await db.insert(platformSyncLogsTable).values({
+      organisationId: orgId,
       platform,
       serviceId,
       action: "connexion",
@@ -193,6 +205,8 @@ router.post("/connect/:platform/:serviceId", requireRole("administrateur", "supe
 
 router.post("/disconnect/:platform/:serviceId", requireRole("administrateur", "super_admin"), async (req, res): Promise<void> => {
   try {
+    const orgId = req.session?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const platform = String(req.params.platform);
     const serviceId = String(req.params.serviceId);
     const platformServices = ALL_PLATFORM_SERVICES[platform];
@@ -202,9 +216,10 @@ router.post("/disconnect/:platform/:serviceId", requireRole("administrateur", "s
 
     await db.update(platformConnectionsTable)
       .set({ status: "deconnecte", updatedAt: new Date() })
-      .where(and(eq(platformConnectionsTable.platform, platform), eq(platformConnectionsTable.serviceId, serviceId)));
+      .where(and(eq(platformConnectionsTable.organisationId, orgId), eq(platformConnectionsTable.platform, platform), eq(platformConnectionsTable.serviceId, serviceId)));
 
     await db.insert(platformSyncLogsTable).values({
+      organisationId: orgId,
       platform,
       serviceId,
       action: "deconnexion",
@@ -221,6 +236,8 @@ router.post("/disconnect/:platform/:serviceId", requireRole("administrateur", "s
 
 router.post("/connect-all/:platform", requireRole("administrateur", "super_admin"), async (req, res): Promise<void> => {
   try {
+    const orgId = req.session?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const platform = String(req.params.platform);
     const platformServices = ALL_PLATFORM_SERVICES[platform];
     if (!platformServices) { res.status(404).json({ error: "Plateforme inconnue." }); return; }
@@ -228,15 +245,17 @@ router.post("/connect-all/:platform", requireRole("administrateur", "super_admin
     const now = new Date();
     for (const svc of platformServices) {
       await db.insert(platformConnectionsTable).values({
+        organisationId: orgId,
         platform, serviceId: svc.id, serviceName: svc.name,
         status: "connecte", connectedAt: now, lastSync: now,
       }).onConflictDoUpdate({
-        target: [platformConnectionsTable.platform, platformConnectionsTable.serviceId],
+        target: [platformConnectionsTable.organisationId, platformConnectionsTable.platform, platformConnectionsTable.serviceId],
         set: { status: "connecte", connectedAt: now, lastSync: now, updatedAt: now },
       });
     }
 
     await db.insert(platformSyncLogsTable).values({
+      organisationId: orgId,
       platform, serviceId: "all", action: "connexion_globale", status: "succes",
       details: `${platformServices.length} services connectes pour ${PLATFORM_NAMES[platform]}.`,
       itemsProcessed: String(platformServices.length),
@@ -251,14 +270,17 @@ router.post("/connect-all/:platform", requireRole("administrateur", "super_admin
 
 router.post("/disconnect-all/:platform", requireRole("administrateur", "super_admin"), async (req, res): Promise<void> => {
   try {
+    const orgId = req.session?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const platform = String(req.params.platform);
     if (!ALL_PLATFORM_SERVICES[platform]) { res.status(404).json({ error: "Plateforme inconnue." }); return; }
 
     await db.update(platformConnectionsTable)
       .set({ status: "deconnecte", updatedAt: new Date() })
-      .where(eq(platformConnectionsTable.platform, platform));
+      .where(and(eq(platformConnectionsTable.organisationId, orgId), eq(platformConnectionsTable.platform, platform)));
 
     await db.insert(platformSyncLogsTable).values({
+      organisationId: orgId,
       platform, serviceId: "all", action: "deconnexion_globale", status: "succes",
       details: `Tous les services ${PLATFORM_NAMES[platform]} ont ete deconnectes.`,
     });
@@ -272,12 +294,14 @@ router.post("/disconnect-all/:platform", requireRole("administrateur", "super_ad
 
 router.post("/sync/:platform", requireRole("administrateur", "super_admin"), async (req, res): Promise<void> => {
   try {
+    const orgId = req.session?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const platform = String(req.params.platform);
     if (!ALL_PLATFORM_SERVICES[platform]) { res.status(404).json({ error: "Plateforme inconnue." }); return; }
 
     const now = new Date();
     const connected = await db.select().from(platformConnectionsTable)
-      .where(and(eq(platformConnectionsTable.platform, platform), eq(platformConnectionsTable.status, "connecte")));
+      .where(and(eq(platformConnectionsTable.organisationId, orgId), eq(platformConnectionsTable.platform, platform), eq(platformConnectionsTable.status, "connecte")));
 
     if (connected.length === 0) {
       res.json({ status: "aucune_connexion", message: "Aucun service connecte a synchroniser." });
@@ -286,7 +310,7 @@ router.post("/sync/:platform", requireRole("administrateur", "super_admin"), asy
 
     await db.update(platformConnectionsTable)
       .set({ lastSync: now, updatedAt: now })
-      .where(and(eq(platformConnectionsTable.platform, platform), eq(platformConnectionsTable.status, "connecte")));
+      .where(and(eq(platformConnectionsTable.organisationId, orgId), eq(platformConnectionsTable.platform, platform), eq(platformConnectionsTable.status, "connecte")));
 
     const itemCounts: Record<string, number> = {};
     for (const conn of connected) {
@@ -294,6 +318,7 @@ router.post("/sync/:platform", requireRole("administrateur", "super_admin"), asy
     }
 
     await db.insert(platformSyncLogsTable).values({
+      organisationId: orgId,
       platform, serviceId: "all", action: "synchronisation", status: "succes",
       details: `${connected.length} services synchronises pour ${PLATFORM_NAMES[platform]}.`,
       itemsProcessed: String(Object.values(itemCounts).reduce((a, b) => a + b, 0)),
@@ -314,14 +339,18 @@ router.post("/sync/:platform", requireRole("administrateur", "super_admin"), asy
 
 router.get("/sync-logs", async (req, res): Promise<void> => {
   try {
+    const orgId = req.session?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const { platform, limit: limitParam } = req.query;
     const limitVal = Math.min(Math.max(parseInt(String(limitParam || "50"), 10) || 50, 1), 200);
 
-    let query = db.select().from(platformSyncLogsTable).orderBy(desc(platformSyncLogsTable.createdAt)).limit(limitVal);
+    const conds = [eq(platformSyncLogsTable.organisationId, orgId)];
+    if (platform) conds.push(eq(platformSyncLogsTable.platform, String(platform)));
 
-    const logs = platform
-      ? await db.select().from(platformSyncLogsTable).where(eq(platformSyncLogsTable.platform, String(platform))).orderBy(desc(platformSyncLogsTable.createdAt)).limit(limitVal)
-      : await query;
+    const logs = await db.select().from(platformSyncLogsTable)
+      .where(and(...conds))
+      .orderBy(desc(platformSyncLogsTable.createdAt))
+      .limit(limitVal);
 
     res.json({ logs });
   } catch (error: any) {
@@ -332,9 +361,11 @@ router.get("/sync-logs", async (req, res): Promise<void> => {
 
 router.get("/sync-logs/:platform", async (req, res): Promise<void> => {
   try {
+    const orgId = req.session?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
     const { platform } = req.params;
     const logs = await db.select().from(platformSyncLogsTable)
-      .where(eq(platformSyncLogsTable.platform, platform))
+      .where(and(eq(platformSyncLogsTable.organisationId, orgId), eq(platformSyncLogsTable.platform, platform)))
       .orderBy(desc(platformSyncLogsTable.createdAt))
       .limit(30);
     res.json({ logs });
@@ -649,12 +680,17 @@ router.get("/daily-reports", async (req, res): Promise<void> => {
     const limitVal = Math.min(Math.max(parseInt(String(limitParam || "30"), 10) || 30, 1), 100);
     const offsetVal = Math.max(parseInt(String(offsetParam || "0"), 10) || 0, 0);
 
+    const orgId = req.session?.organisationId;
+    if (!orgId) { res.status(403).json({ error: "Organisation non identifiee." }); return; }
+
     const reports = await db.select().from(dailyReportsTable)
+      .where(eq(dailyReportsTable.organisationId, orgId))
       .orderBy(desc(dailyReportsTable.createdAt))
       .limit(limitVal)
       .offset(offsetVal);
 
-    const totalResult = await db.select({ count: count() }).from(dailyReportsTable);
+    const totalResult = await db.select({ count: count() }).from(dailyReportsTable)
+      .where(eq(dailyReportsTable.organisationId, orgId));
     const total = Number(totalResult[0]?.count ?? 0);
 
     res.json({
@@ -731,7 +767,7 @@ router.get("/activity-summary", async (req, res): Promise<void> => {
     const dailyData = await gatherDailyData(todayStr, orgId);
 
     const weekReports = await db.select().from(dailyReportsTable)
-      .where(gte(dailyReportsTable.createdAt, weekAgo))
+      .where(and(eq(dailyReportsTable.organisationId, orgId), gte(dailyReportsTable.createdAt, weekAgo)))
       .orderBy(desc(dailyReportsTable.createdAt));
 
     const weekScores = weekReports.map(r => r.score);

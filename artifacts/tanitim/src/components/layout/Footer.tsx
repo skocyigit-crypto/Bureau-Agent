@@ -1,5 +1,6 @@
 import { Link } from "wouter";
-import { PhoneCall, Twitter, Linkedin, Facebook, Instagram, Github } from "lucide-react";
+import { PhoneCall } from "lucide-react";
+import { APP_URL, REGISTER_URL } from "@/lib/app-url";
 
 export function Footer() {
   return (
@@ -18,17 +19,6 @@ export function Footer() {
             <p className="text-primary-foreground/70 max-w-md text-base leading-relaxed">
               La plateforme SaaS complete pour les bureaux francais : CRM, centre d'appels, devis, facturation, gestion de projets, stock, IA multi-agents et protection des donnees. 16 modules integres.
             </p>
-            <div className="flex items-center gap-4 pt-4">
-              <a href="#" className="w-10 h-10 rounded-full bg-primary-foreground/10 flex items-center justify-center hover:bg-accent hover:text-accent-foreground transition-colors text-primary-foreground/70">
-                <Twitter className="w-5 h-5" />
-              </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-primary-foreground/10 flex items-center justify-center hover:bg-accent hover:text-accent-foreground transition-colors text-primary-foreground/70">
-                <Linkedin className="w-5 h-5" />
-              </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-primary-foreground/10 flex items-center justify-center hover:bg-accent hover:text-accent-foreground transition-colors text-primary-foreground/70">
-                <Github className="w-5 h-5" />
-              </a>
-            </div>
           </div>
           
           <div>
@@ -46,16 +36,16 @@ export function Footer() {
             <h4 className="font-bold mb-6 text-accent uppercase tracking-wider text-sm">Ressources</h4>
             <ul className="space-y-4 text-primary-foreground/70 font-medium">
               <li><a href="#faq" className="hover:text-white transition-colors">FAQ</a></li>
-              <li><a href="mailto:support@agent-de-bureau.fr" className="hover:text-white transition-colors">Centre d'aide</a></li>
-              <li><a href="/register" className="hover:text-white transition-colors">Essai gratuit 14 jours</a></li>
-              <li><a href="/" className="hover:text-white transition-colors">Connexion</a></li>
+              <li><a href="mailto:support@agentdebureau.fr" className="hover:text-white transition-colors">Centre d'aide</a></li>
+              <li><a href={REGISTER_URL} className="hover:text-white transition-colors">Essai gratuit 14 jours</a></li>
+              <li><a href={APP_URL} className="hover:text-white transition-colors">Connexion</a></li>
             </ul>
           </div>
 
           <div>
             <h4 className="font-bold mb-6 text-accent uppercase tracking-wider text-sm">Légal & Entreprise</h4>
             <ul className="space-y-4 text-primary-foreground/70 font-medium">
-              <li><a href="mailto:contact@agent-de-bureau.fr" className="hover:text-white transition-colors">Contact</a></li>
+              <li><a href="mailto:contact@agentdebureau.fr" className="hover:text-white transition-colors">Contact</a></li>
               <li><Link href="/mentions-legales" className="hover:text-white transition-colors">Mentions légales</Link></li>
               <li><Link href="/cgu" className="hover:text-white transition-colors">CGU</Link></li>
               <li><Link href="/confidentialite" className="hover:text-white transition-colors">Politique de confidentialité</Link></li>

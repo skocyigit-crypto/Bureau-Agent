@@ -176,8 +176,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Doit toujours inclure Origin, comme fetchAuth() ci-dessus — cet en-tete
+  // n'est jamais envoye automatiquement par les builds natifs, et son absence
+  // fait 403 (origine invalide) cote serveur. Plusieurs ecrans utilisaient ce
+  // helper directement pour des SSE POST / uploads natifs sans Origin,
+  // reproduisant le meme bug deja corrige ailleurs (LocationContext, login) —
+  // corrige ici a la source plutot que par appelant.
   const authHeaders = useCallback((): Record<string, string> => {
-    return apiToken ? { Authorization: `Bearer ${apiToken}` } : {};
+    const headers: Record<string, string> = { Origin: MOBILE_APP_ORIGIN };
+    if (apiToken) headers["Authorization"] = `Bearer ${apiToken}`;
+    return headers;
   }, [apiToken]);
 
   return (

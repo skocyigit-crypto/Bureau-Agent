@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { AjanDemo } from "@/components/AjanDemo";
+import { REGISTER_URL } from "@/lib/app-url";
 
 // DemoModal n'est rendu que sur clic — chargement paresseux pour
 // retirer ses 215 lignes (+ framer-motion deja en cache + lucide
@@ -250,7 +251,7 @@ export default function Home() {
                 </motion.p>
                 
                 <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                  <a href="/register">
+                  <a href={REGISTER_URL}>
                     <Button size="lg" className="h-16 px-10 text-lg bg-[#f59e0b] text-[#1a2744] hover:bg-[#f59e0b]/90 rounded-full w-full sm:w-auto font-bold shadow-[0_0_40px_-10px_rgba(245,158,11,0.5)] transition-all hover:scale-105">
                       Démarrer l'essai gratuit
                       <ArrowRight className="ml-2 w-5 h-5" />
@@ -464,7 +465,7 @@ export default function Home() {
                 {
                   icon: <CloudUpload className="w-7 h-7" />,
                   title: "Sauvegarde Cloud",
-                  desc: "Sauvegarde chiffree sur Google Drive, verification d'integrite, restauration et export JSON en un clic."
+                  desc: "Sauvegarde chiffree quotidienne sur infrastructure cloud europeenne dediee, verification d'integrite, restauration et export JSON en un clic."
                 },
                 {
                   icon: <Package className="w-7 h-7" />,
@@ -562,7 +563,7 @@ export default function Home() {
                   ))}
                 </div>
                 <div className="pt-6">
-                  <a href="/register">
+                  <a href={REGISTER_URL}>
                     <Button className="group h-14 px-8 text-lg rounded-full bg-primary text-primary-foreground hover:bg-primary/90 font-bold shadow-xl hover:shadow-primary/25 transition-all">
                       Démarrer gratuitement
                       <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -647,7 +648,7 @@ export default function Home() {
                   ))}
                 </div>
                 <div className="pt-6">
-                  <a href="/register">
+                  <a href={REGISTER_URL}>
                     <Button className="group h-14 px-8 text-lg rounded-full bg-white text-primary hover:bg-white/90 font-bold shadow-xl transition-all">
                       Voir le tableau de bord
                       <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -772,7 +773,7 @@ export default function Home() {
                   <span className="text-5xl font-extrabold text-primary">29€</span>
                   <span className="text-muted-foreground font-medium">/mois</span>
                 </div>
-                <a href="/register" className="block w-full mb-8">
+                <a href={REGISTER_URL} className="block w-full mb-8">
                   <Button variant="outline" className="w-full h-14 rounded-xl text-lg font-bold border-2 hover:bg-primary/5">
                     Essai gratuit 14 jours
                   </Button>
@@ -814,7 +815,7 @@ export default function Home() {
                   <span className="text-5xl font-extrabold text-white">79€</span>
                   <span className="text-blue-200/80 font-medium">/mois</span>
                 </div>
-                <a href="/register" className="block w-full mb-8">
+                <a href={REGISTER_URL} className="block w-full mb-8">
                   <Button className="w-full h-14 rounded-xl text-lg font-bold bg-accent text-accent-foreground hover:bg-accent/90 shadow-xl">
                     Essai gratuit 14 jours
                   </Button>
@@ -1043,7 +1044,7 @@ export default function Home() {
                 { icon: <ShieldCheck className="w-7 h-7" />, label: "Conforme RGPD" },
                 { icon: <Lock className="w-7 h-7" />, label: "Chiffrement AES-256" },
                 { icon: <Server className="w-7 h-7" />, label: "Hebergement France" },
-                { icon: <CloudUpload className="w-7 h-7" />, label: "Sauvegarde auto 6h" },
+                { icon: <CloudUpload className="w-7 h-7" />, label: "Sauvegarde auto quotidienne" },
                 { icon: <Shield className="w-7 h-7" />, label: "Monitoring continu" },
                 { icon: <Scale className="w-7 h-7" />, label: "CGU/CGV/DPA/SLA" },
               ].map((item, i) => (
@@ -1078,7 +1079,7 @@ export default function Home() {
               </p>
               
               <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-16">
-                <a href="/register">
+                <a href={REGISTER_URL}>
                   <Button size="lg" className="h-16 px-12 text-xl bg-accent text-accent-foreground hover:bg-accent/90 rounded-full w-full sm:w-auto font-bold shadow-[0_0_40px_-10px_rgba(245,158,11,0.6)] hover:scale-105 transition-all">
                     Commencer gratuitement
                   </Button>

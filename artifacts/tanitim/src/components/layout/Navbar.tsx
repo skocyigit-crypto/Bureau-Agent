@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { PhoneCall, Menu, X } from "lucide-react";
+import { APP_URL, REGISTER_URL } from "@/lib/app-url";
 
 interface NavbarProps {
   onDemoClick?: () => void;
@@ -45,7 +46,7 @@ export function Navbar({ onDemoClick }: NavbarProps) {
         </div>
 
         <div className="hidden sm:flex items-center gap-3">
-          <a href="/">
+          <a href={APP_URL}>
             <Button variant="ghost" className="text-muted-foreground hover:text-foreground font-semibold">
               Connexion
             </Button>
@@ -55,7 +56,7 @@ export function Navbar({ onDemoClick }: NavbarProps) {
               Planifier une démo
             </Button>
           )}
-          <a href="/register">
+          <a href={REGISTER_URL}>
             <Button className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-xl transition-all font-bold">
               Essai gratuit
             </Button>
@@ -84,13 +85,13 @@ export function Navbar({ onDemoClick }: NavbarProps) {
             </a>
           ))}
           <div className="flex flex-col gap-3 pt-4">
-            <a href="/"><Button variant="outline" className="w-full font-semibold">Connexion</Button></a>
+            <a href={APP_URL}><Button variant="outline" className="w-full font-semibold">Connexion</Button></a>
             {onDemoClick && (
               <Button variant="outline" className="w-full font-semibold" onClick={() => { setMobileOpen(false); onDemoClick(); }}>
                 Planifier une démo
               </Button>
             )}
-            <a href="/register">
+            <a href={REGISTER_URL}>
               <Button className="w-full bg-primary text-primary-foreground font-bold">Essai gratuit — 14 jours</Button>
             </a>
           </div>

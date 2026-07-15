@@ -287,6 +287,7 @@ async function createCallRecord(
   callSid: string,
   callerNumber: string,
   providerId: number | null,
+  calledNumber: string,
 ): Promise<number | null> {
   try {
     // Try to match caller to a contact by phone number, scoped to the
@@ -321,7 +322,7 @@ async function createCallRecord(
         providerCallSid: callSid,
         direction: "inbound" as const,
         fromNumber: callerNumber || "unknown",
-        toNumber: process.env.TWILIO_PHONE_NUMBER || "",
+        toNumber: calledNumber || "unknown",
         status: "in-progress",
         duration: 0,
         startedAt: new Date(),
@@ -812,7 +813,7 @@ twilioVoiceRouter.post("/telephony/twilio/voice", async (req: Request, res: Resp
     .catch(() => []);
 
   // Create DB record
-  session.callDbId = await createCallRecord(session.orgId, callSid, fromNumber, callProvider?.id ?? null);
+  session.callDbId = await createCallRecord(session.orgId, callSid, fromNumber, callProvider?.id ?? null, toNumber);
 
   // Notification WhatsApp aux membres opt-in (kind="call"). Fail-soft :
   // toute erreur (pas de provider, pas d'utilisateur opt-in, etc.) est
