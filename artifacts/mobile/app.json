@@ -23,7 +23,8 @@
         ],
         "NSLocationWhenInUseUsageDescription": "Agent de Bureau utilise votre position pour signaler votre presence a votre employeur (zones definies).",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Agent de Bureau a besoin d'acceder a votre position en permanence, y compris en arriere-plan, pour suivre votre presence sur les sites de travail (zones definies). Conserve 30 jours.",
-        "NSLocationAlwaysUsageDescription": "Agent de Bureau a besoin d'acceder a votre position en permanence, y compris en arriere-plan, pour suivre votre presence sur les sites de travail (zones definies). Conserve 30 jours."
+        "NSLocationAlwaysUsageDescription": "Agent de Bureau a besoin d'acceder a votre position en permanence, y compris en arriere-plan, pour suivre votre presence sur les sites de travail (zones definies). Conserve 30 jours.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
