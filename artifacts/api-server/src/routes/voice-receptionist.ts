@@ -129,6 +129,11 @@ interface CallSession {
   orgName: string;
   turns: Turn[];
   fulfilled: boolean;
+  /** Vrai pendant l'execution de persistOutcome() — ferme la fenetre de
+   *  course ou un retry webhook Twilio (meme CallSid, meme instance) declenche
+   *  un second appel concurrent avant que `fulfilled` ne soit mis a true par
+   *  le premier (qui n'arrive qu'APRES l'ecriture DB, cf. persistOutcome). */
+  persisting: boolean;
   startedAt: number;
   emptyCount: number;
   /** Nom du contact connu correspondant au numero appelant (null si inconnu). */
@@ -164,20 +169,33 @@ interface CallSession {
 const SESSION_TTL_MS = 30 * 60 * 1000;
 const sessions = new Map<string, CallSession>();
 const finalizedCalls = new Map<string, number>();
+// Dedup des retries webhook Twilio sur /voice/twilio/voicemail-complete (pas
+// de verrou DB ici — un seul process traite un CallSid donne a la fois côté
+// Twilio, donc une Map en memoire suffit; contrairement a finalizedCalls, un
+// meme CallSid ne passe jamais par les deux chemins).
+const processedVoicemails = new Map<string, number>();
 
+// Avant: le nettoyage n'etait declenche que depuis /voice/twilio/incoming (un
+// nouvel appel entrant) ET seulement au-dela d'un seuil de taille (2000/5000
+// entrees) — un appelant qui raccroche avant le premier Gather (faux numeros,
+// robocalls, tres frequent) ne declenche plus aucune requete pour ce CallSid,
+// donc sa session restait en memoire indefiniment tant que le seuil n'etait
+// pas atteint. Le balayage periodique ci-dessous est inconditionnel (base
+// uniquement sur l'age), independant du volume d'appels ou de la taille des Map.
 function purgeStale(): void {
   const now = Date.now();
-  if (sessions.size > 2000) {
-    for (const [sid, s] of sessions) {
-      if (now - s.startedAt > SESSION_TTL_MS) sessions.delete(sid);
-    }
+  for (const [sid, s] of sessions) {
+    if (now - s.startedAt > SESSION_TTL_MS) sessions.delete(sid);
   }
-  if (finalizedCalls.size > 5000) {
-    for (const [sid, ts] of finalizedCalls) {
-      if (now - ts > SESSION_TTL_MS) finalizedCalls.delete(sid);
-    }
+  for (const [sid, ts] of finalizedCalls) {
+    if (now - ts > SESSION_TTL_MS) finalizedCalls.delete(sid);
+  }
+  for (const [sid, ts] of processedVoicemails) {
+    if (now - ts > SESSION_TTL_MS) processedVoicemails.delete(sid);
   }
 }
+
+setInterval(purgeStale, 5 * 60 * 1000).unref?.();
 
 // --- Helpers Twilio -------------------------------------------------------
 
@@ -392,6 +410,7 @@ async function transcribeVoicemail(recordingUrl: string, accountSid: string, aut
     const audioResp = await fetch(url, {
       redirect: "manual",
       headers: { Authorization: "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64") },
+      signal: AbortSignal.timeout(15_000),
     });
     if (!audioResp.ok) return null;
     const arr = await audioResp.arrayBuffer();
@@ -1139,7 +1158,11 @@ function smsConfirmText(
 }
 
 async function persistOutcome(session: CallSession, result: ReceptionistResult): Promise<void> {
-  if (session.fulfilled || !result.outcome) return;
+  if (session.fulfilled || session.persisting || !result.outcome) return;
+  // Pose synchrone AVANT tout `await`: en JS single-thread, aucun autre appel
+  // concurrent a persistOutcome() ne peut s'intercaler entre ce check et cette
+  // affectation — ferme la fenetre de course sur un retry webhook Twilio.
+  session.persisting = true;
   const caller = session.callerNumber || "inconnu";
   const smsEnabled = session.cfg.smsConfirmation !== false; // defaut ON
 
@@ -1335,6 +1358,8 @@ async function persistOutcome(session: CallSession, result: ReceptionistResult):
     }
   } catch (err) {
     logger.error({ err, orgId: session.orgId }, "[voice] echec persistance outcome");
+  } finally {
+    session.persisting = false;
   }
 }
 
@@ -1567,6 +1592,7 @@ voiceReceptionistRouter.post("/voice/twilio/incoming", async (req: Request, res:
     orgName,
     turns: [{ role: "assistant", text: greeting }],
     fulfilled: false,
+    persisting: false,
     startedAt: Date.now(),
     emptyCount: 0,
     callerName: caller.name,
@@ -1705,6 +1731,17 @@ voiceReceptionistRouter.post("/voice/twilio/voicemail-complete", async (req: Req
     res.status(403).send(emptyTwiml());
     return;
   }
+
+  // Twilio peut re-livrer ce webhook (timeout depasse cote Twilio pendant la
+  // transcription Gemini synchrone ci-dessous) — sans garde, chaque retry
+  // re-inserterait message/notification/log d'appel et renverrait SMS + email
+  // recap en double. Voir aussi le nettoyage periodique de processedVoicemails
+  // dans purgeStale().
+  if (!callSid || processedVoicemails.has(callSid)) {
+    res.status(200).send(emptyTwiml());
+    return;
+  }
+  processedVoicemails.set(callSid, Date.now());
 
   const callerNumber = body.From ?? "";
   let transcript: string | null = null;

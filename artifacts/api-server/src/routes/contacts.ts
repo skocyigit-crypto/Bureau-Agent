@@ -312,14 +312,17 @@ router.delete("/contacts/:id", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
 
   try {
-    const [contact] = await db.delete(contactsTable).where(and(eq(contactsTable.id, params.data.id), eq(contactsTable.organisationId, orgId))).returning();
+    const contact = await db.transaction(async (tx) => {
+      const [deleted] = await tx.delete(contactsTable).where(and(eq(contactsTable.id, params.data.id), eq(contactsTable.organisationId, orgId))).returning();
+      if (!deleted) return null;
+      await tx.update(tasksTable).set({ relatedContactId: null }).where(and(eq(tasksTable.relatedContactId, params.data.id), eq(tasksTable.organisationId, orgId)));
+      await tx.update(calendarEventsTable).set({ relatedContactId: null }).where(and(eq(calendarEventsTable.relatedContactId, params.data.id), eq(calendarEventsTable.organisationId, orgId)));
+      return deleted;
+    });
     if (!contact) {
       res.status(404).json({ error: "Contact not found" });
       return;
     }
-
-    await db.update(tasksTable).set({ relatedContactId: null }).where(and(eq(tasksTable.relatedContactId, params.data.id), eq(tasksTable.organisationId, orgId)));
-    await db.update(calendarEventsTable).set({ relatedContactId: null }).where(and(eq(calendarEventsTable.relatedContactId, params.data.id), eq(calendarEventsTable.organisationId, orgId)));
 
     res.sendStatus(204);
   } catch (err: any) {

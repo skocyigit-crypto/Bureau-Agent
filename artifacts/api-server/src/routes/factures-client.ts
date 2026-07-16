@@ -3,6 +3,7 @@ import { eq, desc, ilike, or, sql, and, type Column, type SQL } from "drizzle-or
 import { db, facturesClientTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { sendInvoiceReminderEmail } from "../services/email";
+import { generateUniqueReference } from "../lib/unique-reference";
 
 const router: IRouter = Router();
 
@@ -84,7 +85,21 @@ router.post("/factures-client", async (req: Request, res: Response): Promise<voi
     return;
   }
   try {
-    const ref = (reference && String(reference).trim()) || `FAC-${Date.now()}`;
+    const checkExists = async (candidate: string): Promise<boolean> => {
+      const [existing] = await db.select({ id: facturesClientTable.id }).from(facturesClientTable)
+        .where(and(eq(facturesClientTable.organisationId, targetOrg), eq(facturesClientTable.reference, candidate)));
+      return !!existing;
+    };
+    let ref: string;
+    if (reference && String(reference).trim()) {
+      ref = String(reference).trim();
+      if (await checkExists(ref)) {
+        res.status(409).json({ error: `La reference "${ref}" existe deja pour cette organisation.` });
+        return;
+      }
+    } else {
+      ref = await generateUniqueReference("FAC", checkExists);
+    }
     const [row] = await db.insert(facturesClientTable).values({
       organisationId: targetOrg,
       reference: ref,

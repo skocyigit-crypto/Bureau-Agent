@@ -7,6 +7,7 @@ import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../se
 import { buildLearnedContextBlock, fingerprintLearned } from "../services/ai-learning";
 import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL, sanitizePromptInput } from "../services/ai-utils";
 import { buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
+import { generateUniqueReference } from "../lib/unique-reference";
 
 const router = Router();
 
@@ -2582,7 +2583,11 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         });
         const taxAmountCalc = subtotalCalc * (tvaRate / 100);
         const totalAmountCalc = subtotalCalc + taxAmountCalc;
-        const invoiceRef = `FAC-${Date.now().toString(36).toUpperCase()}`;
+        const invoiceRef = await generateUniqueReference("FAC", async (candidate) => {
+          const [existing] = await db.select({ id: facturesClientTable.id }).from(facturesClientTable)
+            .where(and(eq(facturesClientTable.organisationId, orgId), eq(facturesClientTable.reference, candidate)));
+          return !!existing;
+        });
         const [invoice] = await db.insert(facturesClientTable).values({
           organisationId: orgId,
           reference: invoiceRef,

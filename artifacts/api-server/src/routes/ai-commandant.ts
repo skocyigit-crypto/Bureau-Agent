@@ -5,7 +5,7 @@ import { getOrgId } from "../middleware/tenant";
 import { stripAccents, ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { sendEmail } from "../services/email";
 import { getContextForContact, getLatestAgentInsights, buildCommandantContextPrompt } from "./agent-collaboration";
-import { safeJsonParse, extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, geminiActualModel, sanitizePromptInput, aiCallWithRetry, GEMINI_PRO_MODEL, OPENAI_MODEL, ANTHROPIC_MODEL } from "../services/ai-utils";
+import { safeJsonParse, extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, geminiActualModel, sanitizePromptInput, aiCallWithRetry, sanitizeAiErrorMessage, GEMINI_PRO_MODEL, OPENAI_MODEL, ANTHROPIC_MODEL } from "../services/ai-utils";
 import { assertAiQuota, invalidateQuotaCache, AiQuotaExceededError } from "../services/ai-quota";
 import { buildLearnedContextBlock, fingerprintLearned } from "../services/ai-learning";
 import { getOrCompute, buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
@@ -1552,7 +1552,7 @@ Resume:`;
       stream.send("error", { error: err.message, quotaExceeded: true });
     } else {
       logger.error({ err }, "[Commandant/SmartSearch/stream]");
-      stream.send("error", { error: err?.message || "Erreur lors de la recherche" });
+      stream.send("error", { error: sanitizeAiErrorMessage(err?.message) || "Erreur lors de la recherche" });
     }
     stream.end();
   }
@@ -1668,7 +1668,7 @@ router.post("/commandant/analyze-text/stream", async (req: Request, res: Respons
       stream.send("error", { error: err.message, quotaExceeded: true });
     } else {
       logger.error({ err }, "[Commandant/AnalyzeText/stream]");
-      stream.send("error", { error: err?.message || "Erreur lors de l'analyse" });
+      stream.send("error", { error: sanitizeAiErrorMessage(err?.message) || "Erreur lors de l'analyse" });
     }
     stream.end();
   }
@@ -1864,7 +1864,7 @@ Reponds en JSON:
       stream.send("error", { error: err.message, quotaExceeded: true });
     } else {
       logger.error({ err }, "[Commandant/ExecuteCommand/stream]");
-      stream.send("error", { error: err?.message || "Erreur lors de l'execution" });
+      stream.send("error", { error: sanitizeAiErrorMessage(err?.message) || "Erreur lors de l'execution" });
     }
     stream.end();
   }
@@ -2104,7 +2104,7 @@ JSON attendu:
       stream.send("error", { error: err.message, quotaExceeded: true });
     } else {
       logger.error({ err }, "[Commandant/WeeklyDigest/stream]");
-      stream.send("error", { error: err?.message || "Erreur lors de la generation du digest" });
+      stream.send("error", { error: sanitizeAiErrorMessage(err?.message) || "Erreur lors de la generation du digest" });
     }
     stream.end();
   }
@@ -2379,32 +2379,59 @@ router.get("/commandant/employee-quality", async (req: Request, res: Response): 
     }).from(usersTable).where(and(eq(usersTable.actif, true), eq(usersTable.organisationId, orgId)));
 
     const employees: any[] = [];
+    const userIds = users.map(u => u.id);
+
+    // Avant: 10 requetes SEQUENTIELLES par employe (tasks x4, checkins x1,
+    // auditLogs x5) — ~1000 requetes pour 100 employes. On recupere ici en 3
+    // requetes org-wide un surensemble des lignes necessaires, puis on filtre/
+    // agrege en memoire par employe (meme semantique de matching qu'avant,
+    // notamment le ILIKE '%nom complet%' sur assignedTo/employeeName).
+    const [orgTasks, orgCheckins, orgAuditLogs] = users.length === 0 ? [[], [], []] : await Promise.all([
+      db.select({
+        assignedTo: tasksTable.assignedTo, status: tasksTable.status, priority: tasksTable.priority,
+        createdAt: tasksTable.createdAt, updatedAt: tasksTable.updatedAt, dueDate: tasksTable.dueDate,
+      }).from(tasksTable).where(and(
+        eq(tasksTable.organisationId, orgId),
+        or(gte(tasksTable.createdAt, dateDebut), gte(tasksTable.updatedAt, dateDebut), lt(tasksTable.dueDate, now)),
+      )),
+      db.select({
+        employeeName: checkinsTable.employeeName, totalMinutes: checkinsTable.totalMinutes,
+        breakMinutes: checkinsTable.breakMinutes, checkInAt: checkinsTable.checkInAt,
+      }).from(checkinsTable).where(and(eq(checkinsTable.organisationId, orgId), gte(checkinsTable.checkInAt, dateDebut))),
+      db.select({
+        userId: auditLogsTable.userId, action: auditLogsTable.action, resource: auditLogsTable.resource,
+      }).from(auditLogsTable).where(and(inArray(auditLogsTable.userId, userIds), gte(auditLogsTable.createdAt, dateDebut))),
+    ]);
+
+    const auditByUser = new Map<number, { total: number; login: number; msg: number; call: number; contact: number }>();
+    for (const log of orgAuditLogs) {
+      if (log.userId == null) continue;
+      const agg = auditByUser.get(log.userId) ?? { total: 0, login: 0, msg: 0, call: 0, contact: 0 };
+      agg.total++;
+      if (log.action === "login") agg.login++;
+      if (log.action === "create" && log.resource === "message") agg.msg++;
+      if (log.action === "create" && log.resource === "call") agg.call++;
+      if (log.action === "create" && log.resource === "contact") agg.contact++;
+      auditByUser.set(log.userId, agg);
+    }
+
+    const isDoneStatus = (s: string | null) => s === "termine" || s === "terminee";
 
     for (const user of users) {
       const fullName = `${user.prenom ?? ""} ${user.nom ?? ""}`.trim();
       const email = user.email ?? "";
+      const nameLower = fullName.toLowerCase();
+      const matchesName = (val: string | null | undefined) => (val ?? "").toLowerCase().includes(nameLower);
 
       // ── TÂCHES ────────────────────────────────────────────────
-      const [tasksAssigned] = await db.select({ c: sql<number>`count(*)::int` }).from(tasksTable)
-        .where(and(eq(tasksTable.organisationId, orgId), sql`${tasksTable.assignedTo} ILIKE ${"%" + fullName + "%"}`, gte(tasksTable.createdAt, dateDebut)));
-
-      const [tasksCompleted] = await db.select({ c: sql<number>`count(*)::int` }).from(tasksTable)
-        .where(and(eq(tasksTable.organisationId, orgId), sql`${tasksTable.assignedTo} ILIKE ${"%" + fullName + "%"}`, or(eq(tasksTable.status, "termine"), eq(tasksTable.status, "terminee")), gte(tasksTable.updatedAt, dateDebut)));
-
-      const [tasksOverdue] = await db.select({ c: sql<number>`count(*)::int` }).from(tasksTable)
-        .where(and(eq(tasksTable.organisationId, orgId), sql`${tasksTable.assignedTo} ILIKE ${"%" + fullName + "%"}`, ne(tasksTable.status, "termine"), ne(tasksTable.status, "terminee"), ne(tasksTable.status, "annule"), lt(tasksTable.dueDate, now)));
-
-      const [tasksPriHaute] = await db.select({ c: sql<number>`count(*)::int` }).from(tasksTable)
-        .where(and(eq(tasksTable.organisationId, orgId), sql`${tasksTable.assignedTo} ILIKE ${"%" + fullName + "%"}`, eq(tasksTable.priority, "haute"), or(eq(tasksTable.status, "termine"), eq(tasksTable.status, "terminee")), gte(tasksTable.updatedAt, dateDebut)));
+      const myTasks = orgTasks.filter(t => matchesName(t.assignedTo));
+      const ta = myTasks.filter(t => t.createdAt && new Date(t.createdAt) >= dateDebut).length;
+      const tc = myTasks.filter(t => isDoneStatus(t.status) && t.updatedAt && new Date(t.updatedAt) >= dateDebut).length;
+      const to = myTasks.filter(t => !isDoneStatus(t.status) && t.status !== "annule" && t.dueDate && new Date(t.dueDate) < now).length;
+      const tasksPriHauteCount = myTasks.filter(t => t.priority === "haute" && isDoneStatus(t.status) && t.updatedAt && new Date(t.updatedAt) >= dateDebut).length;
 
       // ── POINTAGES ─────────────────────────────────────────────
-      const pointagesData = await db.select({
-        totalMinutes: checkinsTable.totalMinutes, breakMinutes: checkinsTable.breakMinutes, checkInAt: checkinsTable.checkInAt,
-      }).from(checkinsTable).where(and(
-        eq(checkinsTable.organisationId, orgId),
-        sql`${checkinsTable.employeeName} ILIKE ${"%" + fullName + "%"}`,
-        gte(checkinsTable.checkInAt, dateDebut),
-      ));
+      const pointagesData = orgCheckins.filter(c => matchesName(c.employeeName));
 
       const heuresTravaillees = Math.round(pointagesData.reduce((s, p) => s + (p.totalMinutes ?? 0), 0) / 60 * 10) / 10;
       const pausesMinutes = pointagesData.reduce((s, p) => s + (p.breakMinutes ?? 0), 0);
@@ -2418,25 +2445,14 @@ router.get("/commandant/employee-quality", async (req: Request, res: Response): 
       }
 
       // ── ACTIONS / CONNEXIONS ────────────────────────────────
-      const [actionsTotal] = await db.select({ c: sql<number>`count(*)::int` }).from(auditLogsTable)
-        .where(and(eq(auditLogsTable.userId, user.id), gte(auditLogsTable.createdAt, dateDebut)));
-
-      const [connexions] = await db.select({ c: sql<number>`count(*)::int` }).from(auditLogsTable)
-        .where(and(eq(auditLogsTable.userId, user.id), eq(auditLogsTable.action, "login"), gte(auditLogsTable.createdAt, dateDebut)));
-
-      const [messagesEnvoyes] = await db.select({ c: sql<number>`count(*)::int` }).from(auditLogsTable)
-        .where(and(eq(auditLogsTable.userId, user.id), eq(auditLogsTable.action, "create"), eq(auditLogsTable.resource, "message"), gte(auditLogsTable.createdAt, dateDebut)));
-
-      const [appelsTraites] = await db.select({ c: sql<number>`count(*)::int` }).from(auditLogsTable)
-        .where(and(eq(auditLogsTable.userId, user.id), eq(auditLogsTable.action, "create"), eq(auditLogsTable.resource, "call"), gte(auditLogsTable.createdAt, dateDebut)));
-
-      const [contactsCrees] = await db.select({ c: sql<number>`count(*)::int` }).from(auditLogsTable)
-        .where(and(eq(auditLogsTable.userId, user.id), eq(auditLogsTable.action, "create"), eq(auditLogsTable.resource, "contact"), gte(auditLogsTable.createdAt, dateDebut)));
+      const auditAgg = auditByUser.get(user.id) ?? { total: 0, login: 0, msg: 0, call: 0, contact: 0 };
+      const actionsTotalCount = auditAgg.total;
+      const connexionsCount = auditAgg.login;
+      const messagesEnvoyesCount = auditAgg.msg;
+      const appelsTraitesCount = auditAgg.call;
+      const contactsCreesCount = auditAgg.contact;
 
       // ── SCORES ─────────────────────────────────────────────────
-      const ta = tasksAssigned?.c ?? 0;
-      const tc = tasksCompleted?.c ?? 0;
-      const to = tasksOverdue?.c ?? 0;
 
       // Completion rate: tasks completed / tasks assigned (min 0, max 100)
       const completionRate = ta > 0 ? Math.min(100, Math.round((tc / ta) * 100)) : (tc > 0 ? 100 : 50);
@@ -2454,12 +2470,12 @@ router.get("/commandant/employee-quality", async (req: Request, res: Response): 
 
       // Activity score: actions per working day
       const workingDays = Math.max(1, Math.round((now.getTime() - dateDebut.getTime()) / 86400000 * 5 / 7));
-      const actionsPerDay = (actionsTotal?.c ?? 0) / workingDays;
+      const actionsPerDay = actionsTotalCount / workingDays;
       const activityScore = Math.min(100, Math.round(actionsPerDay * 2.5));
 
       // Engagement score: connexions regularity
       const expectedConnexions = Math.max(1, Math.round(workingDays * 0.8));
-      const engagementScore = Math.min(100, Math.round(((connexions?.c ?? 0) / expectedConnexions) * 100));
+      const engagementScore = Math.min(100, Math.round((connexionsCount / expectedConnexions) * 100));
 
       // Quality score = completion(40%) + punctuality(25%) + engagement(20%) - overdue(15%)
       const qualityScore = Math.min(100, Math.max(0, Math.round(
@@ -2467,7 +2483,7 @@ router.get("/commandant/employee-quality", async (req: Request, res: Response): 
       )));
 
       // Efficiency score = output per hour
-      const totalOutput = tc * 10 + (appelsTraites?.c ?? 0) * 5 + (messagesEnvoyes?.c ?? 0) * 2 + (contactsCrees?.c ?? 0) * 8;
+      const totalOutput = tc * 10 + appelsTraitesCount * 5 + messagesEnvoyesCount * 2 + contactsCreesCount * 8;
       const efficiencyScore = heuresTravaillees > 0
         ? Math.min(100, Math.round(totalOutput / heuresTravaillees * 2))
         : Math.min(100, Math.round(totalOutput / 10));
@@ -2482,12 +2498,12 @@ router.get("/commandant/employee-quality", async (req: Request, res: Response): 
         qualityScore, efficiencyScore, overallScore, grade, risk,
         metrics: {
           tasksAssigned: ta, tasksCompleted: tc, tasksOverdue: to,
-          tasksPrioriteHaute: tasksPriHaute?.c ?? 0,
+          tasksPrioriteHaute: tasksPriHauteCount,
           completionRate, overduePenalty, punctualityScore, activityScore, engagementScore,
           heuresTravaillees, pausesMinutes, sessionCount,
-          avgCheckinHour, actionsTotal: actionsTotal?.c ?? 0,
-          connexions: connexions?.c ?? 0, messagesEnvoyes: messagesEnvoyes?.c ?? 0,
-          appelsTraites: appelsTraites?.c ?? 0, contactsCrees: contactsCrees?.c ?? 0,
+          avgCheckinHour, actionsTotal: actionsTotalCount,
+          connexions: connexionsCount, messagesEnvoyes: messagesEnvoyesCount,
+          appelsTraites: appelsTraitesCount, contactsCrees: contactsCreesCount,
         },
       });
     }

@@ -3,7 +3,7 @@ import { db, callsTable, contactsTable, tasksTable, messagesTable, checkinsTable
 import { sql, eq, gte, lte, and, count, desc, lt, ne, isNull, isNotNull, or, sum, avg, inArray } from "drizzle-orm";
 import { requireRole } from "../middleware/auth";
 import { assertAiQuota, AiQuotaExceededError, invalidateQuotaCache, reserveAiCall } from "../services/ai-quota";
-import { extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL, GEMINI_FLASH_MODEL, sanitizePromptInput } from "../services/ai-utils";
+import { extractGeminiTokens, extractOpenAITokens, extractAnthropicTokens, recordAiUsage, geminiActualModel, GEMINI_PRO_MODEL, GEMINI_FLASH_MODEL, sanitizePromptInput, sanitizeAiErrorMessage } from "../services/ai-utils";
 import { callOrgGemini, callOrgOpenAI } from "../services/ai-providers";
 import { withProviderTimeout, buildAiCacheKey, getCached, setCached, AI_CACHE_TTL } from "../services/ai-cache";
 import { openSseStream, multiAiGenerateStream, StreamAbortedError } from "../services/ai-stream";
@@ -1795,6 +1795,7 @@ router.post("/ai/agents/run/:agentId/stream", requireAdmin, async (req, res) => 
     logger.error({ err: error, agentId }, "AI Agent stream run error");
     try {
       const executionTimeMs = Date.now() - startTime;
+      const safeMessage = sanitizeAiErrorMessage(error?.message) || "erreur inconnue";
       const [report] = await db.insert(aiAgentReportsTable).values({
         agentId: agent.id,
         agentName: agent.name,
@@ -1804,9 +1805,9 @@ router.post("/ai/agents/run/:agentId/stream", requireAdmin, async (req, res) => 
         status: "erreur",
         score: 0,
         errorsFound: 1,
-        summary: `Erreur lors de l'execution: ${error.message}`,
+        summary: `Erreur lors de l'execution: ${safeMessage}`,
         details: {},
-        errors: [{ titre: "Erreur d'execution", description: error.message, severity: "critique", action: "Verifier la configuration IA" }],
+        errors: [{ titre: "Erreur d'execution", description: safeMessage, severity: "critique", action: "Verifier la configuration IA" }],
         warnings: [],
         suggestions: [],
         corrections: [],
@@ -1814,7 +1815,7 @@ router.post("/ai/agents/run/:agentId/stream", requireAdmin, async (req, res) => 
       }).returning();
       stream.send("report", { report });
     } catch {}
-    stream.send("error", { error: error?.message || "Erreur lors de l'execution de l'agent" });
+    stream.send("error", { error: sanitizeAiErrorMessage(error?.message) || "Erreur lors de l'execution de l'agent" });
     stream.end();
   }
 });
@@ -3006,8 +3007,10 @@ async function runSuperAgentCycle(orgId: number, userId: number) {
         }
       }
       if (newProjectTasks.length > 0) {
-        await db.insert(tasksTable).values(newProjectTasks).catch(() => {});
-        state.stats.tasksCreated += newProjectTasks.length;
+        const insertOk = await db.insert(tasksTable).values(newProjectTasks)
+          .then(() => true)
+          .catch((err) => { saLog(orgId, "warning", "chantier", "Échec de création des tâches de suivi", err?.message); return false; });
+        if (insertOk) state.stats.tasksCreated += newProjectTasks.length;
       }
       if (overdueProjects > 0) saLog(orgId, "warning", "chantier", `${overdueProjects} projet(s) en retard`, "Tâches de suivi créées automatiquement");
       else saLog(orgId, "success", "chantier", `${projetsList.length} projet(s) en cours — tous dans les délais`);
@@ -3029,12 +3032,14 @@ async function runSuperAgentCycle(orgId: number, userId: number) {
           const daysLate = Math.floor((now.getTime() - new Date(t.dueDate).getTime()) / 86400000);
           return daysLate >= 3 && t.priority !== "haute" && t.priority !== "critique";
         });
+        let escalated = 0;
         if (toEscalate.length > 0) {
-          await db.update(tasksTable).set({ priority: "haute" })
+          const updateOk = await db.update(tasksTable).set({ priority: "haute" })
             .where(and(orgTask, inArray(tasksTable.id, toEscalate.map(t => t.id))))
-            .catch(() => {});
+            .then(() => true)
+            .catch((err) => { saLog(orgId, "warning", "tache", "Échec d'escalade de priorité", err?.message); return false; });
+          if (updateOk) escalated = toEscalate.length;
         }
-        const escalated = toEscalate.length;
         state.stats.tasksFixed += escalated;
         saLog(orgId, overdueTasks.length > 5 ? "warning" : "info", "tache", `${overdueTasks.length} tâche(s) en retard`, escalated > 0 ? `${escalated} tâche(s) escaladée(s) en priorité haute` : "Aucune escalade nécessaire");
       } else {
@@ -3064,7 +3069,7 @@ async function runSuperAgentCycle(orgId: number, userId: number) {
         const callToContact = new Map<number, number>();
         for (const m of orphanMatches) if (!callToContact.has(m.callId)) callToContact.set(m.callId, m.contactId);
         const callIds = [...callToContact.keys()];
-        await db.update(callsTable)
+        const updateOk = await db.update(callsTable)
           .set({
             contactId: sql`CASE ${callsTable.id} ${sql.join(
               callIds.map(id => sql`WHEN ${id} THEN ${callToContact.get(id)}`),
@@ -3072,9 +3077,12 @@ async function runSuperAgentCycle(orgId: number, userId: number) {
             )} ELSE ${callsTable.contactId} END`,
           })
           .where(and(orgCall, inArray(callsTable.id, callIds)))
-          .catch(() => {});
-        linked = callIds.length;
-        state.stats.fixesApplied += linked;
+          .then(() => true)
+          .catch((err) => { saLog(orgId, "warning", "appel", "Échec de liaison des appels", err?.message); return false; });
+        if (updateOk) {
+          linked = callIds.length;
+          state.stats.fixesApplied += linked;
+        }
       }
       const [{ total: orphanTotal }] = await db.select({ total: count() }).from(callsTable)
         .where(and(orgCall, isNull(callsTable.contactId), isNotNull(callsTable.phoneNumber)));

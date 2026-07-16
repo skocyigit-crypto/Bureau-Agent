@@ -439,6 +439,12 @@ export async function runAutoRemindersForOrg(orgId: number, triggeredByUserId?: 
     let sent = 0;
     let skipped = 0;
 
+    // orgId ne change pas d'une iteration a l'autre — un seul lookup pour
+    // toutes les factures en retard de cette organisation (avant: refait a
+    // l'identique a chaque tour de boucle, potentiellement des centaines
+    // de fois pour un gros portefeuille de factures).
+    const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId));
+
     for (const facture of overdueInvoices) {
       if (!facture.clientEmail) { skipped++; continue; }
 
@@ -456,7 +462,6 @@ export async function runAutoRemindersForOrg(orgId: number, triggeredByUserId?: 
       const remaining = Number(facture.totalAmount) - Number(facture.paidAmount);
       const daysOverdue = Math.ceil((now.getTime() - new Date(facture.dueDate!).getTime()) / 86400000);
 
-      const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId));
       const levelLabels: Record<number, string> = { 1: "Rappel de paiement", 2: "Deuxieme rappel", 3: "Dernier rappel" };
       const subject = `${levelLabels[Math.min(level, 3)] || `Rappel n°${level}`} - Facture ${facture.reference} en retard de ${daysOverdue} jours`;
 

@@ -1481,7 +1481,7 @@ router.delete("/documents/:id", requireMinAgent, async (req: Request, res: Respo
 
     if (!doc) { res.status(404).json({ error: "Document introuvable" }); return; }
 
-    await db.delete(documentsTable).where(eq(documentsTable.id, docId));
+    await db.delete(documentsTable).where(and(eq(documentsTable.id, docId), eq(documentsTable.organisationId, orgId)));
     res.json({ success: true, message: "Document supprime" });
   } catch (err: any) {
     logger.error({ err }, "Document delete error");
@@ -1507,7 +1507,7 @@ router.put("/documents/:id", requireMinAgent, async (req: Request, res: Response
     if (req.body.description !== undefined) updates.description = req.body.description;
     if (req.body.tags !== undefined) updates.tags = req.body.tags;
 
-    const [updated] = await db.update(documentsTable).set(updates).where(eq(documentsTable.id, docId)).returning();
+    const [updated] = await db.update(documentsTable).set(updates).where(and(eq(documentsTable.id, docId), eq(documentsTable.organisationId, orgId))).returning();
     res.json({ success: true, document: { id: updated.id, fileName: updated.originalName, entityType: updated.entityType, entityId: updated.entityId, category: updated.category } });
   } catch (err: any) {
     logger.error({ err }, "Document update error");

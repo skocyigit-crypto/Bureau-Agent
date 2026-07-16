@@ -12,6 +12,26 @@ const router: IRouter = Router();
 const SALT_ROUNDS = 12;
 const INVITATION_EXPIRY_HOURS = 72;
 
+// Verrou consultatif Postgres dedie (namespace 4401 — distinct de
+// CALL_LOCK_NAMESPACE=4242 et CRON_LOCK_NAMESPACE=4301-4303): le check
+// "userCount + pendingCount >= maxUsers" puis l'insert de l'invitation ne
+// sont pas atomiques. Sans ce verrou, deux invitations concurrentes (Cloud
+// Run maxScale=3) peuvent toutes deux lire un compte sous la limite et
+// toutes deux inserer, depassant le quota de sieges de l'abonnement.
+const INVITATION_LOCK_NAMESPACE = 4401;
+const LOCK_BUSY = Symbol("invitation-lock-busy");
+
+async function withOrgInvitationLock<T>(organisationId: number, fn: () => Promise<T>): Promise<T | typeof LOCK_BUSY> {
+  const lockResult = await db.execute(sql`SELECT pg_try_advisory_lock(${INVITATION_LOCK_NAMESPACE}, ${organisationId}) AS acquired`);
+  const acquired = (lockResult as any).rows?.[0]?.acquired ?? (lockResult as any)[0]?.acquired;
+  if (!acquired) return LOCK_BUSY;
+  try {
+    return await fn();
+  } finally {
+    await db.execute(sql`SELECT pg_advisory_unlock(${INVITATION_LOCK_NAMESPACE}, ${organisationId})`);
+  }
+}
+
 function generateSecureToken(): string {
   return crypto.randomBytes(32).toString("hex");
 }
@@ -100,64 +120,75 @@ router.post("/invitations", async (req: Request, res: Response): Promise<void> =
     return;
   }
 
-  const [sub] = await db.select().from(subscriptionsTable)
-    .where(eq(subscriptionsTable.organisationId, organisationId));
+  const rawToken = generateSecureToken();
 
-  if (sub) {
-    const currentUsers = await db.select({ count: sql<number>`count(*)::int` }).from(usersTable)
-      .where(eq(usersTable.organisationId, organisationId));
-    const userCount = currentUsers[0]?.count || 0;
+  const lockOutcome = await withOrgInvitationLock(organisationId, async () => {
+    const [sub] = await db.select().from(subscriptionsTable)
+      .where(eq(subscriptionsTable.organisationId, organisationId));
 
-    const pendingInvites = await db.select({ count: sql<number>`count(*)::int` }).from(invitationsTable)
+    if (sub) {
+      const currentUsers = await db.select({ count: sql<number>`count(*)::int` }).from(usersTable)
+        .where(eq(usersTable.organisationId, organisationId));
+      const userCount = currentUsers[0]?.count || 0;
+
+      const pendingInvites = await db.select({ count: sql<number>`count(*)::int` }).from(invitationsTable)
+        .where(and(
+          eq(invitationsTable.organisationId, organisationId),
+          eq(invitationsTable.status, "pending"),
+          sql`${invitationsTable.expiresAt} > NOW()`
+        ));
+      const pendingCount = pendingInvites[0]?.count || 0;
+
+      if (userCount + pendingCount >= sub.maxUsers) {
+        return { ok: false as const, status: 403, error: `Limite d'utilisateurs atteinte (${sub.maxUsers} max pour votre plan). Passez a un plan superieur pour inviter plus de collaborateurs.` };
+      }
+    }
+
+    const existingPending = await db.select().from(invitationsTable)
       .where(and(
         eq(invitationsTable.organisationId, organisationId),
+        eq(invitationsTable.email, emailClean),
         eq(invitationsTable.status, "pending"),
         sql`${invitationsTable.expiresAt} > NOW()`
       ));
-    const pendingCount = pendingInvites[0]?.count || 0;
 
-    if (userCount + pendingCount >= sub.maxUsers) {
-      res.status(403).json({
-        error: `Limite d'utilisateurs atteinte (${sub.maxUsers} max pour votre plan). Passez a un plan superieur pour inviter plus de collaborateurs.`,
-      });
-      return;
+    if (existingPending.length > 0) {
+      return { ok: false as const, status: 409, error: "Une invitation en attente existe deja pour cet email." };
     }
-  }
 
-  const existingPending = await db.select().from(invitationsTable)
-    .where(and(
-      eq(invitationsTable.organisationId, organisationId),
-      eq(invitationsTable.email, emailClean),
-      eq(invitationsTable.status, "pending"),
-      sql`${invitationsTable.expiresAt} > NOW()`
-    ));
+    const [inviter] = await db.select({ nom: usersTable.nom, prenom: usersTable.prenom })
+      .from(usersTable).where(eq(usersTable.id, userId));
+    const inviterName = inviter ? `${inviter.prenom} ${inviter.nom}` : "Administrateur";
 
-  if (existingPending.length > 0) {
-    res.status(409).json({ error: "Une invitation en attente existe deja pour cet email." });
+    const [org] = await db.select({ name: organisationsTable.name })
+      .from(organisationsTable).where(eq(organisationsTable.id, organisationId));
+    const orgName = org?.name || "Agent de Bureau";
+
+    const tokenHash = hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + INVITATION_EXPIRY_HOURS * 60 * 60 * 1000);
+
+    const [invitation] = await db.insert(invitationsTable).values({
+      organisationId,
+      email: emailClean,
+      role: assignedRole,
+      token: tokenHash, // sha256 stocke; le token brut n'est envoye que par email
+      invitedBy: userId,
+      invitedByName: inviterName,
+      expiresAt,
+    }).returning();
+
+    return { ok: true as const, invitation, inviterName, orgName };
+  });
+
+  if (lockOutcome === LOCK_BUSY) {
+    res.status(409).json({ error: "Une autre invitation est en cours de traitement pour votre organisation, reessayez." });
     return;
   }
-
-  const [inviter] = await db.select({ nom: usersTable.nom, prenom: usersTable.prenom })
-    .from(usersTable).where(eq(usersTable.id, userId));
-  const inviterName = inviter ? `${inviter.prenom} ${inviter.nom}` : "Administrateur";
-
-  const [org] = await db.select({ name: organisationsTable.name })
-    .from(organisationsTable).where(eq(organisationsTable.id, organisationId));
-  const orgName = org?.name || "Agent de Bureau";
-
-  const rawToken = generateSecureToken();
-  const tokenHash = hashToken(rawToken);
-  const expiresAt = new Date(Date.now() + INVITATION_EXPIRY_HOURS * 60 * 60 * 1000);
-
-  const [invitation] = await db.insert(invitationsTable).values({
-    organisationId,
-    email: emailClean,
-    role: assignedRole,
-    token: tokenHash, // sha256 stocke; le token brut n'est envoye que par email
-    invitedBy: userId,
-    invitedByName: inviterName,
-    expiresAt,
-  }).returning();
+  if (!lockOutcome.ok) {
+    res.status(lockOutcome.status).json({ error: lockOutcome.error });
+    return;
+  }
+  const { invitation, inviterName, orgName } = lockOutcome;
 
   const appUrl = getAppUrl();
   const acceptUrl = `${appUrl}/invitation/${rawToken}`;

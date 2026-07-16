@@ -1,5 +1,12 @@
 import { encryptSensitiveData, decryptSensitiveData, isEncrypted } from "../lib/crypto";
 
+// Node fetch() n'a pas de timeout par defaut — un fournisseur qui ne repond
+// plus (panne, TCP bloque) sinon bloquerait la requete indefiniment. Sous
+// Cloud Run (autoscaling.knative.dev/maxScale=3), quelques appels bloques
+// suffisent a saturer la concurrence de l'instance et degrader les autres
+// tenants. Chaque appel sortant ci-dessous a son propre AbortSignal.timeout.
+const PROVIDER_FETCH_TIMEOUT_MS = 15_000;
+
 export interface TelephonyProviderConfig {
   accountSid?: string;
   authToken?: string;
@@ -243,6 +250,7 @@ async function callTwilio(config: TelephonyProviderConfig, params: MakeCallParam
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: urlEncodedBody.toString(),
+      signal: AbortSignal.timeout(PROVIDER_FETCH_TIMEOUT_MS),
     });
     const data = await resp.json() as any;
     if (!resp.ok) return { success: false, error: data.message || `Twilio error ${resp.status}` };
@@ -270,6 +278,7 @@ async function smsTwilio(config: TelephonyProviderConfig, params: SendSmsParams)
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: urlEncodedBody.toString(),
+      signal: AbortSignal.timeout(PROVIDER_FETCH_TIMEOUT_MS),
     });
     const data = await resp.json() as any;
     if (!resp.ok) return { success: false, error: data.message || `Twilio SMS error ${resp.status}` };
@@ -295,6 +304,7 @@ async function callVonage(config: TelephonyProviderConfig, params: MakeCallParam
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(PROVIDER_FETCH_TIMEOUT_MS),
     });
     const data = await resp.json() as any;
     if (!resp.ok) return { success: false, error: data.title || data.detail || `Vonage error ${resp.status}` };
@@ -317,6 +327,7 @@ async function smsVonage(config: TelephonyProviderConfig, params: SendSmsParams)
         from: from.replace(/\+/g, ""),
         text: params.body,
       }),
+      signal: AbortSignal.timeout(PROVIDER_FETCH_TIMEOUT_MS),
     });
     const data = await resp.json() as any;
     const msg = data.messages?.[0];
@@ -344,6 +355,7 @@ async function callTelnyx(config: TelephonyProviderConfig, params: MakeCallParam
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(PROVIDER_FETCH_TIMEOUT_MS),
     });
     const data = await resp.json() as any;
     if (!resp.ok) return { success: false, error: data.errors?.[0]?.detail || `Telnyx error ${resp.status}` };
@@ -363,6 +375,7 @@ async function smsTelnyx(config: TelephonyProviderConfig, params: SendSmsParams)
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ to: params.to, from: from, text: params.body }),
+      signal: AbortSignal.timeout(PROVIDER_FETCH_TIMEOUT_MS),
     });
     const data = await resp.json() as any;
     if (!resp.ok) return { success: false, error: data.errors?.[0]?.detail || `Telnyx SMS error ${resp.status}` };
@@ -387,6 +400,7 @@ async function callPlivo(config: TelephonyProviderConfig, params: MakeCallParams
         answer_url: params.callbackUrl || "https://s3.amazonaws.com/plivocloud/Phlo/b]_]]_testing.xml",
         ...(params.record ? { record: true } : {}),
       }),
+      signal: AbortSignal.timeout(PROVIDER_FETCH_TIMEOUT_MS),
     });
     const data = await resp.json() as any;
     if (!resp.ok) return { success: false, error: data.error || `Plivo error ${resp.status}` };
@@ -410,6 +424,7 @@ async function smsPlivo(config: TelephonyProviderConfig, params: SendSmsParams):
         src: from.replace(/\+/g, ""),
         text: params.body,
       }),
+      signal: AbortSignal.timeout(PROVIDER_FETCH_TIMEOUT_MS),
     });
     const data = await resp.json() as any;
     if (!resp.ok) return { success: false, error: data.error || `Plivo SMS error ${resp.status}` };
@@ -436,6 +451,7 @@ async function callSinch(config: TelephonyProviderConfig, params: MakeCallParams
           text: "Appel en cours de connexion.",
         },
       }),
+      signal: AbortSignal.timeout(PROVIDER_FETCH_TIMEOUT_MS),
     });
     const data = await resp.json() as any;
     if (!resp.ok) return { success: false, error: data.message || `Sinch error ${resp.status}` };
@@ -459,6 +475,7 @@ async function smsSinch(config: TelephonyProviderConfig, params: SendSmsParams):
         from: from,
         body: params.body,
       }),
+      signal: AbortSignal.timeout(PROVIDER_FETCH_TIMEOUT_MS),
     });
     const data = await resp.json() as any;
     if (!resp.ok) return { success: false, error: data.text || `Sinch SMS error ${resp.status}` };
@@ -483,6 +500,7 @@ async function callBandwidth(config: TelephonyProviderConfig, params: MakeCallPa
         applicationId: config.applicationId,
         answerUrl: params.callbackUrl || "https://www.bandwidth.com/docs",
       }),
+      signal: AbortSignal.timeout(PROVIDER_FETCH_TIMEOUT_MS),
     });
     const data = await resp.json() as any;
     if (!resp.ok) return { success: false, error: data.description || `Bandwidth error ${resp.status}` };
@@ -507,6 +525,7 @@ async function smsBandwidth(config: TelephonyProviderConfig, params: SendSmsPara
         text: params.body,
         applicationId: config.applicationId,
       }),
+      signal: AbortSignal.timeout(PROVIDER_FETCH_TIMEOUT_MS),
     });
     const data = await resp.json() as any;
     if (!resp.ok) return { success: false, error: data.description || `Bandwidth SMS error ${resp.status}` };
@@ -588,6 +607,7 @@ async function whatsAppTwilio(config: TelephonyProviderConfig, params: SendWhats
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: urlEncodedBody.toString(),
+      signal: AbortSignal.timeout(PROVIDER_FETCH_TIMEOUT_MS),
     });
     const data = await resp.json() as any;
     if (!resp.ok) return { success: false, error: data.message || `Twilio WhatsApp error ${resp.status}` };

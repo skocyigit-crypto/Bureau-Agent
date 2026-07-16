@@ -540,15 +540,23 @@ router.delete("/calls/:id", async (req, res): Promise<void> => {
   }
 
   const orgId = getOrgId(req);
-  const [call] = await db.delete(callsTable).where(and(eq(callsTable.id, params.data.id), eq(callsTable.organisationId, orgId))).returning();
-  if (!call) {
-    res.status(404).json({ error: "Call not found" });
-    return;
+  try {
+    const call = await db.transaction(async (tx) => {
+      const [deleted] = await tx.delete(callsTable).where(and(eq(callsTable.id, params.data.id), eq(callsTable.organisationId, orgId))).returning();
+      if (!deleted) return null;
+      await tx.delete(tasksTable).where(and(eq(tasksTable.relatedCallId, params.data.id), eq(tasksTable.organisationId, orgId)));
+      return deleted;
+    });
+    if (!call) {
+      res.status(404).json({ error: "Call not found" });
+      return;
+    }
+
+    res.sendStatus(204);
+  } catch (err: any) {
+    req.log.error({ err }, "Erreur suppression appel");
+    res.status(500).json({ error: "Erreur lors de la suppression de l'appel." });
   }
-
-  await db.delete(tasksTable).where(and(eq(tasksTable.relatedCallId, params.data.id), eq(tasksTable.organisationId, orgId)));
-
-  res.sendStatus(204);
 });
 
 router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {

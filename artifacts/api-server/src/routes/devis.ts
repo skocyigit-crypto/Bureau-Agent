@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { eq, desc, ilike, or, sql, and, type Column, type SQL } from "drizzle-orm";
 import { db, devisTable } from "@workspace/db";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
+import { generateUniqueReference } from "../lib/unique-reference";
 
 const router: IRouter = Router();
 
@@ -80,7 +81,21 @@ router.post("/devis", async (req: Request, res: Response): Promise<void> => {
     return;
   }
   try {
-    const ref = (reference && String(reference).trim()) || `DEV-${Date.now()}`;
+    const checkExists = async (candidate: string): Promise<boolean> => {
+      const [existing] = await db.select({ id: devisTable.id }).from(devisTable)
+        .where(and(eq(devisTable.organisationId, targetOrg), eq(devisTable.reference, candidate)));
+      return !!existing;
+    };
+    let ref: string;
+    if (reference && String(reference).trim()) {
+      ref = String(reference).trim();
+      if (await checkExists(ref)) {
+        res.status(409).json({ error: `La reference "${ref}" existe deja pour cette organisation.` });
+        return;
+      }
+    } else {
+      ref = await generateUniqueReference("DEV", checkExists);
+    }
     const [row] = await db.insert(devisTable).values({
       organisationId: targetOrg,
       reference: ref,

@@ -549,13 +549,18 @@ router.post("/telephony/call", async (req, res): Promise<void> => {
 
     if (result.success) {
       let contactName = "";
+      let verifiedContactId: number | null = null;
       if (contactId) {
-        const [contact] = await db.select().from(contactsTable).where(eq(contactsTable.id, contactId));
-        if (contact) contactName = `${contact.firstName} ${contact.lastName}`;
+        const [contact] = await db.select().from(contactsTable)
+          .where(and(eq(contactsTable.id, contactId), eq(contactsTable.organisationId, orgId)));
+        if (contact) {
+          contactName = `${contact.firstName} ${contact.lastName}`;
+          verifiedContactId = contact.id;
+        }
       }
       await db.insert(callsTable).values({
         organisationId: orgId,
-        contactId: contactId || null,
+        contactId: verifiedContactId,
         contactName: contactName || "",
         phoneNumber: to,
         direction: "sortant",
@@ -698,8 +703,23 @@ router.get("/telephony/stats", async (req, res): Promise<void> => {
   }
 });
 
+// En memoire uniquement (pas de table dediee) — n'etait jamais purge: une
+// entree ne disparaissait que via un DELETE explicite. Un appel programme
+// dont l'heure est deja passee depuis longtemps n'a plus d'utilite; on la
+// laisse expirer automatiquement plutot que de la garder indefiniment.
+const SCHEDULED_CALL_RETENTION_MS = 7 * 24 * 60 * 60 * 1000; // 7 jours apres l'heure prevue
 const scheduledCallsStore: Map<number, { id: number; orgId: number; toNumber: string; scheduledAt: string; note: string; status: string; createdBy: number; createdAt: string }[]> = new Map();
 let scheduleIdCounter = 1;
+
+function pruneScheduledCalls(): void {
+  const now = Date.now();
+  for (const [orgId, list] of scheduledCallsStore) {
+    const kept = list.filter(s => now - new Date(s.scheduledAt).getTime() < SCHEDULED_CALL_RETENTION_MS);
+    if (kept.length === 0) scheduledCallsStore.delete(orgId);
+    else if (kept.length !== list.length) scheduledCallsStore.set(orgId, kept);
+  }
+}
+setInterval(pruneScheduledCalls, 60 * 60 * 1000).unref?.();
 
 router.get("/telephony/schedule", async (req, res): Promise<void> => {
   const orgId = getOrgId(req);
