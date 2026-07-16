@@ -473,10 +473,21 @@ Twilio, Vonage, Telnyx, Plivo, Sinch, Bandwidth
 - Istatistik paneli
 
 ### Saglayici Ekleme
-1. **Telephonie** sayfasina gidin
-2. **Providers** sekmesinde yeni saglayici ekleyin
-3. API anahtarlarinizi girin
-4. Test aramasiyla dogrulayin
+
+1. **Telephonie** sayfasinda **Providers** sekmesine gidin, **Ajouter un fournisseur** butonuna tiklayin
+2. Listeden bir saglayici secin
+3. Saglayiciya gore istenen bilgileri girin:
+   - **Twilio:** Account SID, Auth Token, Expediteur numarasi
+   - **Vonage:** API Key, API Secret, Expediteur numarasi
+   - **Telnyx:** API Key, Connection ID, Expediteur numarasi
+   - **Plivo:** Auth ID, Auth Token, Expediteur numarasi
+   - **Sinch:** Project ID, API Token, Service Plan ID, Expediteur numarasi
+   - **Bandwidth:** Account ID, Username, Password, Application ID, Expediteur numarasi
+4. **Configurer** ile kaydedin, ardindan **Test** butonuyla baglantiyi dogrulayin
+
+### Webhook Entegrasyonu
+
+Saglayicilar arama durumu guncellemelerini otomatik olarak webhook uzerinden bildirir. Webhook adresi: `/api/telephony/webhook/{saglayici_adi}`
 
 ---
 

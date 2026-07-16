@@ -1,5 +1,13 @@
 # Ajant Bureau
 
+> **Note (2026-07-16):** this file describes the Replit *development*
+> environment and workflow. Production now runs on Google Cloud Run
+> (see `deploy/cloudbuild.yaml` and `deploy/gcp-deploy.sh`) — schema/code
+> changes reach production via `git push origin main` triggering Cloud
+> Build, not via Replit's Publish flow. The Replit-specific sections below
+> (schema-sync pipeline, Publish flow) still apply to local/dev work on
+> Replit, but no longer describe how production is actually updated.
+
 A TypeScript monorepo for a French-language office agent application that centralizes and manages phone calls, contacts, tasks, and messages for businesses using advanced AI.
 
 ## Run & Operate

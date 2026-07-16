@@ -1,5 +1,11 @@
 # 🚚 Replit'ten Dışarı Taşıma Rehberi
 
+> **Not (2026-07-16):** bu rehber Replit'ten kendi sunucunuza (Docker/VPS)
+> geçiş içindir ve tamamlanmış/referans bir belgedir. Şu an gerçek
+> production altyapısı Google Cloud Run üzerinde çalışıyor (bkz.
+> `deploy/cloudbuild.yaml`, `deploy/gcp-deploy.sh`) — Cloud Run'a geçmek
+> isterseniz bu rehber yerine doğrudan o dosyalara bakın.
+
 Bu rehber Ajant Bureau uygulamasını Replit'ten alıp **kendi sunucunuzda** (Hetzner, DigitalOcean, AWS EC2, OVH, kendi makinanız — Docker'ın çalıştığı her yer) çalıştırmanıza yarar.
 
 > **Tahmini süre:** 30–60 dakika (DNS yayılma süresi hariç).

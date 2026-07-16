@@ -1,5 +1,10 @@
 # Replit -> GitHub -> IONOS deploy rehberi
 
+> **Not (2026-07-16):** gercek production su an bu rehberdeki IONOS VPS'te
+> degil, Google Cloud Run'da calisiyor (bkz. `deploy/cloudbuild.yaml`,
+> `deploy/gcp-deploy.sh`) — bu dosya IONOS'a alternatif bir self-hosted
+> kurulum istersen referans olarak duruyor.
+>
 > **Hedef:** Ajant Bureau'yu IONOS'ta satin aldigin VPS'te (orn. Server L XL)
 > kendi domain'inle (`https://app.agentdebureau.fr`) musterilere actigin
 > production sunucusu olarak calistirmak.

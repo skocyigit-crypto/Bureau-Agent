@@ -1,5 +1,10 @@
 # Replit -> GitHub -> Production deploy rehberi
 
+> **Not (2026-07-16):** gercek production su an Railway/Scaleway'de degil,
+> Google Cloud Run'da calisiyor (bkz. `deploy/cloudbuild.yaml`,
+> `deploy/gcp-deploy.sh`) — bu dosya alternatif bir platform tercih edersen
+> referans olarak duruyor.
+
 Bu rehber projeyi profesyonel canli ortama tasimak icin **tek seferlik kurulumu**
 ve sonraki **gunluk akisi** anlatir.
 
