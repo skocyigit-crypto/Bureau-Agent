@@ -16,6 +16,7 @@ import { and, eq } from "drizzle-orm";
 import { db, telephonyProvidersTable } from "@workspace/db";
 import { logger } from "../lib/logger";
 import { decryptProviderConfig } from "./telephony-providers";
+import { normalizePhone } from "./security-lists";
 
 export type PhoneRisk = "low" | "medium" | "high" | "unknown";
 
@@ -54,14 +55,6 @@ async function loadTwilioCreds(orgId: number): Promise<TwilioCreds | null> {
   return cfg;
 }
 
-function toE164(raw: string): string {
-  const cleaned = raw.replace(/[^0-9+]/g, "");
-  if (!cleaned) return raw;
-  if (cleaned.startsWith("+")) return cleaned;
-  if (cleaned.startsWith("0") && cleaned.length === 10) return "+33" + cleaned.slice(1);
-  return "+" + cleaned;
-}
-
 interface LookupV2Response {
   valid?: boolean;
   line_type_intelligence?: { type?: string; error_code?: number | null } | null;
@@ -80,7 +73,7 @@ export async function evaluatePhoneReputation(
   orgId: number,
   rawNumber: string,
 ): Promise<PhoneReputationResult> {
-  const phoneNumber = toE164(rawNumber);
+  const phoneNumber = normalizePhone(rawNumber);
   const fallback: PhoneReputationResult = {
     phoneNumber,
     valid: false,
