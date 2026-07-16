@@ -1,6 +1,6 @@
 # Tam Yapay Zeka Otomasyonu — Yol Haritası
 
-> Bu dosya, "Agent de Bureau" uygulamasının tam yapay zeka destekli / tam otomasyonlu
+> Bu dosya, "Ajant Bureau" uygulamasının tam yapay zeka destekli / tam otomasyonlu
 > hale gelmesi için yapılan denetimlerin ve kalan işlerin **kalıcı** kaydıdır. Her
 > oturumda güncellenir, silinmez — yeni bulgu/tamamlanan iş oldukça buraya eklenir.
 >

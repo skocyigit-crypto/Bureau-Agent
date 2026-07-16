@@ -219,7 +219,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       pausesUpdatesAutomatically: false,
       showsBackgroundLocationIndicator: true,
       foregroundService: {
-        notificationTitle: "Agent de Bureau",
+        notificationTitle: "Ajant Bureau",
         notificationBody: "Suivi de presence actif (geofences uniquement).",
         notificationColor: "#0f1729",
       },

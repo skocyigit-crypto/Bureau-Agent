@@ -6,7 +6,7 @@ import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
 import { getOrgGoogleCredentials, getGoogleRedirectUri, decryptToken, ensureTokenRowEncrypted } from "../lib/google-auth";
 
-const DRIVE_FOLDER_NAME = "Agent de Bureau - Sauvegardes";
+const DRIVE_FOLDER_NAME = "Ajant Bureau - Sauvegardes";
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 let isRunning = false;
 
@@ -237,7 +237,7 @@ async function collectFullBackupData(): Promise<object> {
     exportedAt: new Date().toISOString(),
     version: "3.0",
     encryption: "AES-256-GCM",
-    platform: "Agent de Bureau SaaS",
+    platform: "Ajant Bureau SaaS",
     tables: tables.length,
     tableNames: tables,
     totalRecords: Object.values(snapshot).reduce((sum: number, t: any) => sum + (t?.count || 0), 0),
@@ -267,7 +267,7 @@ async function findOrCreateDriveFolder(accessToken: string): Promise<string> {
     body: JSON.stringify({
       name: DRIVE_FOLDER_NAME,
       mimeType: "application/vnd.google-apps.folder",
-      description: "Sauvegardes securisees de la plateforme Agent de Bureau. Chiffrement AES-256-GCM.",
+      description: "Sauvegardes securisees de la plateforme Ajant Bureau. Chiffrement AES-256-GCM.",
     }),
   });
 
@@ -398,7 +398,7 @@ export async function performGoogleDriveBackup(): Promise<{
       },
       metadata: {
         createdAt: new Date().toISOString(),
-        platform: "Agent de Bureau SaaS",
+        platform: "Ajant Bureau SaaS",
       },
       data: encrypted.toString("base64"),
     });
@@ -411,7 +411,7 @@ export async function performGoogleDriveBackup(): Promise<{
     const now = new Date();
     const fileName = `backup_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}.adb.enc`;
 
-    const description = `Sauvegarde chiffree Agent de Bureau - ${now.toLocaleDateString("fr-FR")} ${now.toLocaleTimeString("fr-FR")} | AES-256-GCM | SHA-256: ${checksumOriginal.substring(0, 16)}`;
+    const description = `Sauvegarde chiffree Ajant Bureau - ${now.toLocaleDateString("fr-FR")} ${now.toLocaleTimeString("fr-FR")} | AES-256-GCM | SHA-256: ${checksumOriginal.substring(0, 16)}`;
 
     logger.info("[GoogleDriveBackup] Upload vers Google Drive...");
     const uploadRes = await uploadFileToDrive(accessToken, folderId, fileName, envelope, description);

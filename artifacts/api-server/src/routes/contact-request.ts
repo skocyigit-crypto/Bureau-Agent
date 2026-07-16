@@ -41,10 +41,10 @@ const KIND_META: Record<ContactKind, {
     priority: "haute",
     emoji: "📞",
     adminSubject: (p) => `[Rappel] ${p.company} — ${p.firstName} ${p.lastName}`,
-    confirmSubject: "Votre demande de rappel — Agent de Bureau",
+    confirmSubject: "Votre demande de rappel — Ajant Bureau",
     confirmTitle: "Nous vous rappelons très bientôt !",
     confirmBody: (firstName, company) =>
-      `Bonjour <strong>${firstName}</strong>,<br/><br/>Merci pour votre intérêt pour Agent de Bureau. Nous avons bien reçu votre demande de rappel pour <strong>${company}</strong>. Notre équipe vous contactera par téléphone dans les <strong>2 heures ouvrées</strong>.`,
+      `Bonjour <strong>${firstName}</strong>,<br/><br/>Merci pour votre intérêt pour Ajant Bureau. Nous avons bien reçu votre demande de rappel pour <strong>${company}</strong>. Notre équipe vous contactera par téléphone dans les <strong>2 heures ouvrées</strong>.`,
     prospectTitle: (company) => `Rappel téléphonique — ${company}`,
   },
   devis: {
@@ -53,10 +53,10 @@ const KIND_META: Record<ContactKind, {
     priority: "moyenne",
     emoji: "📄",
     adminSubject: (p) => `[Devis] ${p.company} — ${p.firstName} ${p.lastName}`,
-    confirmSubject: "Votre demande de devis — Agent de Bureau",
+    confirmSubject: "Votre demande de devis — Ajant Bureau",
     confirmTitle: "Demande de devis bien reçue !",
     confirmBody: (firstName, company) =>
-      `Bonjour <strong>${firstName}</strong>,<br/><br/>Merci pour votre intérêt pour Agent de Bureau. Nous avons bien reçu votre demande de devis sur mesure pour <strong>${company}</strong>. Notre équipe commerciale vous enverra une proposition personnalisée sous <strong>24 heures ouvrées</strong>.`,
+      `Bonjour <strong>${firstName}</strong>,<br/><br/>Merci pour votre intérêt pour Ajant Bureau. Nous avons bien reçu votre demande de devis sur mesure pour <strong>${company}</strong>. Notre équipe commerciale vous enverra une proposition personnalisée sous <strong>24 heures ouvrées</strong>.`,
     prospectTitle: (company) => `Devis sur mesure — ${company}`,
   },
 };
@@ -147,8 +147,8 @@ async function sendAdminSmsAlert(payload: ContactPayload): Promise<void> {
   const fullName = `${payload.firstName} ${payload.lastName}`.trim();
   const phonePart = payload.phone ? ` Tel: ${payload.phone}` : "";
   const body = payload.kind === "rappel"
-    ? `[Agent de Bureau] Rappel URGENT - ${fullName} (${payload.company}).${phonePart} A rappeler sous 2h.`
-    : `[Agent de Bureau] ${meta.label} - ${fullName} (${payload.company}).${phonePart}`;
+    ? `[Ajant Bureau] Rappel URGENT - ${fullName} (${payload.company}).${phonePart} A rappeler sous 2h.`
+    : `[Ajant Bureau] ${meta.label} - ${fullName} (${payload.company}).${phonePart}`;
 
   const result = await sendSms(
     "twilio",

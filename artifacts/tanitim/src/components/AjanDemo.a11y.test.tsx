@@ -58,7 +58,7 @@ describe("AjanDemo — keyboard accessibility", () => {
     render(<AjanDemo />);
 
     const input = screen.getByLabelText(
-      "Posez votre question à l'Agent de Bureau",
+      "Posez votre question à l'Ajant Bureau",
     ) as HTMLInputElement;
 
     // Move focus elsewhere first so a real focus-return is observable.
@@ -74,7 +74,7 @@ describe("AjanDemo — keyboard accessibility", () => {
     // guarantee). Re-query because React may remount the node across renders.
     await waitFor(() =>
       expect(document.activeElement).toBe(
-        screen.getByLabelText("Posez votre question à l'Agent de Bureau"),
+        screen.getByLabelText("Posez votre question à l'Ajant Bureau"),
       ),
     );
   });

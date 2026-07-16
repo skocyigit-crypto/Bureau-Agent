@@ -24,7 +24,7 @@ export const LEGAL_DOCUMENTS = {
   cgu: {
     code: "cgu",
     title: "Conditions Generales d'Utilisation",
-    description: "Regles d'utilisation de la plateforme Agent de Bureau. Couvre les droits et obligations de l'utilisateur, les limites d'utilisation, les comportements interdits et les conditions de resiliation.",
+    description: "Regles d'utilisation de la plateforme Ajant Bureau. Couvre les droits et obligations de l'utilisateur, les limites d'utilisation, les comportements interdits et les conditions de resiliation.",
     version: "1.0",
     mandatory: true,
     category: "usage",
@@ -48,7 +48,7 @@ export const LEGAL_DOCUMENTS = {
   dpa: {
     code: "dpa",
     title: "Accord de Traitement des Donnees (DPA)",
-    description: "Contrat entre le responsable du traitement (client) et le sous-traitant (Agent de Bureau) definissant les mesures de securite, la localisation des donnees et les procedures en cas de violation.",
+    description: "Contrat entre le responsable du traitement (client) et le sous-traitant (Ajant Bureau) definissant les mesures de securite, la localisation des donnees et les procedures en cas de violation.",
     version: "1.0",
     mandatory: true,
     category: "privacy",

@@ -1,6 +1,6 @@
 /**
  * Cloudflare Email Worker — capte les e-mails entrants sur support@ / contact@
- * agentdebureau.fr et les transmet a l'API Agent de Bureau pour triage IA
+ * agentdebureau.fr et les transmet a l'API Ajant Bureau pour triage IA
  * (classification + brouillon de reponse depose en file d'approbation).
  *
  * Aucune dependance npm (pas de build/bundler requis) — ce fichier peut etre

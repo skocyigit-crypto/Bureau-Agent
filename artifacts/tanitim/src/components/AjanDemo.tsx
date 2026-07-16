@@ -361,7 +361,7 @@ export function AjanDemo() {
                     <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 border-2 border-slate-900 rounded-full animate-pulse" />
                   </div>
                   <div>
-                    <p className="font-bold text-white text-sm">Agent de Bureau</p>
+                    <p className="font-bold text-white text-sm">Ajant Bureau</p>
                     <p className="text-xs text-emerald-400 flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                       En ligne · Demo
@@ -414,7 +414,7 @@ export function AjanDemo() {
               )}
 
               {/* Messages */}
-              <div ref={scrollRef} role="log" aria-live="polite" aria-label="Conversation avec l'Agent de Bureau" className="h-[400px] md:h-[440px] overflow-y-auto px-5 py-6 space-y-4 scroll-smooth">
+              <div ref={scrollRef} role="log" aria-live="polite" aria-label="Conversation avec l'Ajant Bureau" className="h-[400px] md:h-[440px] overflow-y-auto px-5 py-6 space-y-4 scroll-smooth">
                 {history.length === 0 && (
                   <div className="flex flex-col items-center justify-center h-full text-center px-4">
                     <div className="relative w-20 h-20 mb-4">
@@ -509,7 +509,7 @@ export function AjanDemo() {
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}
                     placeholder={recording ? "Ecoute en cours…" : "Posez votre question en français…"}
-                    aria-label="Posez votre question à l'Agent de Bureau"
+                    aria-label="Posez votre question à l'Ajant Bureau"
                     disabled={sending}
                     className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-amber-400/70 focus:border-amber-400/60 focus:bg-white/10 transition disabled:opacity-50"
                   />
@@ -600,7 +600,7 @@ export function AjanDemo() {
                   <div className="w-7 h-7 rounded bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
                     <Bot className="w-4 h-4 text-slate-900" />
                   </div>
-                  <span className="text-sm font-semibold text-white">Agent de Bureau</span>
+                  <span className="text-sm font-semibold text-white">Ajant Bureau</span>
                   <span className="ml-auto text-[10px] text-amber-300 flex items-center gap-1">
                     <Zap className="w-3 h-3" /> Action directe
                   </span>

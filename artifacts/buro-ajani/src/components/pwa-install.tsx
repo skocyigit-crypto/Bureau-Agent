@@ -60,7 +60,7 @@ export function PwaInstallButton() {
           <div className="flex-1 min-w-0">
             <h3 className="text-white font-semibold text-sm">Installer l'application</h3>
             <p className="text-white/60 text-xs mt-1 leading-relaxed">
-              Accedez a Agent de Bureau directement depuis votre ecran d'accueil, comme une application native.
+              Accedez a Ajant Bureau directement depuis votre ecran d'accueil, comme une application native.
             </p>
             <div className="flex items-center gap-2 mt-3">
               <Button

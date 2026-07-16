@@ -158,7 +158,7 @@ export function TabClesIa() {
         <ShieldCheck className="h-4 w-4 text-indigo-600" />
         <AlertTitle>Vos propres clés d'intelligence artificielle</AlertTitle>
         <AlertDescription className="text-sm text-muted-foreground">
-          Par défaut, Agent de Bureau utilise les clés IA de la plateforme (Gemini, OpenAI, Anthropic)
+          Par défaut, Ajant Bureau utilise les clés IA de la plateforme (Gemini, OpenAI, Anthropic)
           pour l'assistant, le standard téléphonique et l'analyse de documents. En connectant
           <strong> vos propres clés</strong>, les appels IA de votre organisation passent par
           <strong> votre compte fournisseur</strong> et la consommation vous est facturée directement.

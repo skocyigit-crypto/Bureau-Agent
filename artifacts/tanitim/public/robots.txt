@@ -1,4 +1,4 @@
-# Agent de Bureau — site vitrine public
+# Ajant Bureau — site vitrine public
 # Tous les bots autorises sur le contenu marketing.
 
 User-agent: *

@@ -1,4 +1,4 @@
-# Agent de Bureau - Kullanma Kilavuzu
+# Ajant Bureau - Kullanma Kilavuzu
 
 ## Icindekiler
 
@@ -32,7 +32,7 @@
 
 ## 1. Giris
 
-**Agent de Bureau**, Fransizca konusan pazarlar icin gelistirilmis, yapay zeka destekli kapsamli bir ofis yonetim platformudur. Tek bir yerden aramalari, kisileri, gorevleri, faturalari, projeleri, stoku ve daha fazlasini yonetmenizi saglar.
+**Ajant Bureau**, Fransizca konusan pazarlar icin gelistirilmis, yapay zeka destekli kapsamli bir ofis yonetim platformudur. Tek bir yerden aramalari, kisileri, gorevleri, faturalari, projeleri, stoku ve daha fazlasini yonetmenizi saglar.
 
 ### Platform Ozellikleri
 - Web uygulamasi (tum tarayicilar)
@@ -360,7 +360,7 @@ Yapay zeka destekli tahminler:
 
 ## 14. Yapay Zeka Ozellikleri
 
-Agent de Bureau, birden fazla yapay zeka motoru kullanir (Gemini, OpenAI, Anthropic).
+Ajant Bureau, birden fazla yapay zeka motoru kullanir (Gemini, OpenAI, Anthropic).
 
 ### Yapay Zeka Asistani (AI SUPREME)
 **Erisim:** Web'de sag altta mor buton / Mobilde **Assistant IA**
@@ -690,9 +690,9 @@ Super Admin rolune sahipseniz, **Organisations** sayfasindan birden fazla organi
 - Chrome DevTools > Network sekmesinden yavas istekleri teshis edebilirsiniz
 
 ### Destek icin kime ulasirim?
-Sistem yoneticinize veya Agent de Bureau SAS destek ekibine ulasin.
+Sistem yoneticinize veya Ajant Bureau SAS destek ekibine ulasin.
 
 ---
 
-*Agent de Bureau SAS - Solution professionnelle de gestion*
-*Bu kilavuz Agent de Bureau v1.0 icin hazirlanmistir.*
+*Ajant Bureau SAS - Solution professionnelle de gestion*
+*Bu kilavuz Ajant Bureau v1.0 icin hazirlanmistir.*

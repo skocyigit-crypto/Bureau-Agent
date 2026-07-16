@@ -29,8 +29,8 @@ const doc = new PDFDocument({
   bufferPages: true,
   margins: { top: 56, bottom: 64, left: 56, right: 56 },
   info: {
-    Title: "Connexion Google Workspace — Agent de Bureau",
-    Author: "Agent de Bureau",
+    Title: "Connexion Google Workspace — Ajant Bureau",
+    Author: "Ajant Bureau",
     Subject: "Guide pas à pas : connecter Gmail, Agenda et Drive",
   },
 });
@@ -127,7 +127,7 @@ function codeLine(txt) {
 
 // ---------- Cover header ----------
 doc.save().rect(0, 0, PAGE_W, 150).fill(BLUE).restore();
-doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(13).text("AGENT DE BUREAU", M, 40);
+doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(13).text("AJANT BUREAU", M, 40);
 doc.fillColor("#dbeafe").font("Helvetica").fontSize(10).text("Votre secrétariat augmenté par l'IA", M, 60);
 doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(22).text("Connexion à Google Workspace", M, 90, { width: CONTENT_W });
 doc.fillColor("#dbeafe").font("Helvetica").fontSize(11).text("Gmail · Agenda · Drive — guide pas à pas", M, 120, { width: CONTENT_W });
@@ -135,7 +135,7 @@ doc.y = 172;
 doc.x = M;
 
 para(
-  "Ce guide explique comment connecter votre compte Google (Gmail, Agenda et Drive) à Agent de Bureau. " +
+  "Ce guide explique comment connecter votre compte Google (Gmail, Agenda et Drive) à Ajant Bureau. " +
     "Il comporte deux parties : la connexion au quotidien pour chaque utilisateur, puis une configuration " +
     "unique réservée à l'administrateur (à faire une seule fois pour toute l'entreprise)."
 );
@@ -150,7 +150,7 @@ step(4, "Autorisez les accès", "Acceptez les 3 autorisations demandées — Gma
 step(5, "C'est connecté", "De retour dans l'application, vos derniers emails, événements et fichiers s'affichent automatiquement. L'Agent Mail IA est alors disponible.");
 callout(
   "Bon à savoir",
-  "Agent de Bureau ne demande par défaut que 3 accès (Gmail, Agenda, Drive) pour une connexion simple et rapide. " +
+  "Ajant Bureau ne demande par défaut que 3 accès (Gmail, Agenda, Drive) pour une connexion simple et rapide. " +
     "Les autres services Google (Docs, Sheets, Contacts, Tâches) peuvent être ajoutés plus tard, à la demande.",
   { bg: "#dbeafe", tc: "#1e3a8a" }
 );
@@ -218,7 +218,7 @@ for (let i = range.start; i < range.start + range.count; i++) {
     .font("Helvetica")
     .fontSize(8)
     .fillColor(LIGHT)
-    .text("Agent de Bureau — Guide de connexion Google Workspace", M, y, {
+    .text("Ajant Bureau — Guide de connexion Google Workspace", M, y, {
       width: CONTENT_W,
       align: "left",
       lineBreak: false,

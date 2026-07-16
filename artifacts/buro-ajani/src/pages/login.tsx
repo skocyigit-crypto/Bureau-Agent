@@ -115,7 +115,7 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
             </div>
           </div>
           <CardTitle className="text-2xl font-bold">
-            {mode === "login" && "Agent de Bureau"}
+            {mode === "login" && "Ajant Bureau"}
             {mode === "forgot" && "Mot de passe oublié"}
             {mode === "forgot_done" && "Email envoyé"}
             {mode === "reset" && "Nouveau mot de passe"}

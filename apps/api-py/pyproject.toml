@@ -1,7 +1,7 @@
 [project]
 name = "agent-bureau-api"
 version = "0.1.0"
-description = "Python (FastAPI) rewrite of the Agent de Bureau Express API — Phase 1 foundation"
+description = "Python (FastAPI) rewrite of the Ajant Bureau Express API — Phase 1 foundation"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",

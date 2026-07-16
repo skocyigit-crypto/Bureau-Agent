@@ -38,7 +38,7 @@ const demoChatLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const DEMO_SYSTEM_PROMPT = `Tu es l'Agent de Bureau, un assistant IA professionnel pour entreprises francaises.
+const DEMO_SYSTEM_PROMPT = `Tu es l'Ajant Bureau, un assistant IA professionnel pour entreprises francaises.
 Cette session est une DEMO PUBLIQUE sur le site vitrine. Tu n'as pas acces aux vraies donnees du visiteur.
 Tu disposes du jeu de donnees fictif suivant pour ton entreprise de demo "Bureau Demo SARL" :
 

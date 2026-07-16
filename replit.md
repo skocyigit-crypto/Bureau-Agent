@@ -1,4 +1,4 @@
-# Agent de Bureau
+# Ajant Bureau
 
 A TypeScript monorepo for a French-language office agent application that centralizes and manages phone calls, contacts, tasks, and messages for businesses using advanced AI.
 
@@ -66,7 +66,7 @@ Key commands:
 
 ## Product
 
-Agent de Bureau offers comprehensive office management with AI-powered features:
+Ajant Bureau offers comprehensive office management with AI-powered features:
 
 - Centralized management for phone calls, contacts, tasks, and messages.
 - Advanced AI for analytics, contextual suggestions, form validation, Q&A, email drafting, and a multi-agent system ("Intelligence Centrale").

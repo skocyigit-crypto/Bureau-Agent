@@ -1,4 +1,4 @@
-# Caddyfile.cloudrun — Agent de Bureau (Cloud Run variant)
+# Caddyfile.cloudrun — Ajant Bureau (Cloud Run variant)
 #
 # Cloud Run runs each service in its own isolated network — there is no
 # shared Docker Compose network to resolve a bare "api:8080" hostname

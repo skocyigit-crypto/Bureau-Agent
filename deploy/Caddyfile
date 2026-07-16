@@ -1,4 +1,4 @@
-# Caddyfile — Agent de Bureau (Docker Compose)
+# Caddyfile — Ajant Bureau (Docker Compose)
 #
 # DOMAIN env var controls TLS. Examples:
 #   DOMAIN=:80                     → HTTP only (local dev / behind another proxy)

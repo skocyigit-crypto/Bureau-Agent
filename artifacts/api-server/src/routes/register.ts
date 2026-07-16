@@ -187,7 +187,7 @@ router.post("/auth/register", registerLimiter, async (req: Request, res: Respons
       requiresEmailVerification: requireVerification,
       message: requireVerification
         ? `Votre compte a ete cree. Verifiez votre email pour activer la connexion.`
-        : `Votre compte a ete cree avec succes ! Bienvenue sur Agent de Bureau.`,
+        : `Votre compte a ete cree avec succes ! Bienvenue sur Ajant Bureau.`,
       user: result.user,
       organisation: {
         id: result.organisation.id,

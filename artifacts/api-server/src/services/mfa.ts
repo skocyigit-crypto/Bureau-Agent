@@ -5,7 +5,7 @@ export function generateMfaSecret(): string {
   return generateSecret();
 }
 
-export function buildMfaOtpAuthUrl(email: string, secret: string, issuer = "Agent de Bureau"): string {
+export function buildMfaOtpAuthUrl(email: string, secret: string, issuer = "Ajant Bureau"): string {
   return generateURI({ issuer, label: email, secret });
 }
 

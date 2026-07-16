@@ -1,4 +1,4 @@
-# Agent de Bureau - Kullanim Kilavuzu
+# Ajant Bureau - Kullanim Kilavuzu
 
 ## Icindekiler
 
@@ -14,8 +14,8 @@
 
 ## 1. Giris ve Baslangic
 
-### Agent de Bureau Nedir?
-Agent de Bureau, ofis yonetimi icin gelistirilmis kapsamli bir SaaS (hizmet olarak yazilim) platformudur. CRM, cagri merkezi, gorev yonetimi, stok takibi, faturalama, proje yonetimi ve yapay zeka destekli is zekasi ozelliklerini tek bir catida birlestiren multi-tenant bir sistemdir.
+### Ajant Bureau Nedir?
+Ajant Bureau, ofis yonetimi icin gelistirilmis kapsamli bir SaaS (hizmet olarak yazilim) platformudur. CRM, cagri merkezi, gorev yonetimi, stok takibi, faturalama, proje yonetimi ve yapay zeka destekli is zekasi ozelliklerini tek bir catida birlestiren multi-tenant bir sistemdir.
 
 ### Platformlar
 - **Web Uygulamasi (Buro Ajani):** Tarayicidan erisilen tam ozellikli yonetim paneli
@@ -608,5 +608,5 @@ C: Mobil uygulamada Plus > Reconnaissance faciale'e gidin. Kamera izni verin. Sc
 
 ---
 
-*Agent de Bureau v1.0 - Profesyonel Ofis Yonetim Sistemi*
+*Ajant Bureau v1.0 - Profesyonel Ofis Yonetim Sistemi*
 *Son guncelleme: Nisan 2026*

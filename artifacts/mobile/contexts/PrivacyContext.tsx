@@ -248,7 +248,7 @@ export function PrivacyProvider({ children }: { children: React.ReactNode }) {
     if (Platform.OS === "web" || !biometricAvailable) return false;
     try {
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: "Déverrouillez Agent de Bureau",
+        promptMessage: "Déverrouillez Ajant Bureau",
         cancelLabel: "Annuler",
         disableDeviceFallback: false,
         fallbackLabel: "Utiliser le code PIN",

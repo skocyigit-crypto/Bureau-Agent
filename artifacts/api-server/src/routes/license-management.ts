@@ -17,7 +17,7 @@ function generateEmailWrapper(title: string, body: string): string {
 <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
 <div style="background:linear-gradient(135deg,#0f1729 0%,#1a2744 100%);padding:40px 32px;text-align:center;">
 <div style="width:64px;height:64px;background:#f59e0b;border-radius:16px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;"><span style="font-size:28px;color:#0f1729;">&#9742;</span></div>
-<h1 style="color:#fff;font-size:24px;margin:0;">Agent de Bureau</h1>
+<h1 style="color:#fff;font-size:24px;margin:0;">Ajant Bureau</h1>
 <p style="color:rgba(255,255,255,0.6);font-size:14px;margin:8px 0 0;">${escapeHtml(title)}</p>
 </div>
 <div style="padding:32px;">${body}</div>
@@ -213,7 +213,7 @@ router.post("/license-management/send-payment-reminder", async (req: Request, re
         Si vous avez deja effectue le paiement, veuillez ne pas tenir compte de ce message.
         Pour toute question, n'hesitez pas a nous contacter.
       </p>
-      <p style="color:#64748b;font-size:13px;">Cordialement,<br><strong>${escapeHtml(org?.name || "Agent de Bureau")}</strong></p>`;
+      <p style="color:#64748b;font-size:13px;">Cordialement,<br><strong>${escapeHtml(org?.name || "Ajant Bureau")}</strong></p>`;
 
     const html = generateEmailWrapper("Rappel de paiement", body);
     const sent = await sendEmailViaResend(facture.clientEmail, subject, html);
@@ -305,7 +305,7 @@ router.post("/license-management/auto-generate-invoice", async (req: Request, re
       const invoiceBody = `
         <h2 style="color:#0f1729;font-size:20px;margin:0 0 8px;">Facture mensuelle - ${monthLabel}</h2>
         <p style="color:#64748b;font-size:15px;">Bonjour,</p>
-        <p style="color:#64748b;font-size:14px;">Votre facture Agent de Bureau pour la periode du ${periodStart.toLocaleDateString("fr-FR")} au ${periodEnd.toLocaleDateString("fr-FR")} a ete generee.</p>
+        <p style="color:#64748b;font-size:14px;">Votre facture Ajant Bureau pour la periode du ${periodStart.toLocaleDateString("fr-FR")} au ${periodEnd.toLocaleDateString("fr-FR")} a ete generee.</p>
         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:24px;margin:24px 0;">
           <table style="width:100%;border-collapse:collapse;">
             <tr><td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #e2e8f0;">Plan ${escapeHtml(sub.plan)}</td><td style="padding:10px 0;text-align:right;font-weight:600;border-bottom:1px solid #e2e8f0;">${baseAmount.toFixed(2)} EUR</td></tr>
@@ -326,11 +326,11 @@ router.post("/license-management/auto-generate-invoice", async (req: Request, re
           </table>
         </div>` : ""}
         <div style="text-align:center;margin:24px 0;">
-          <a href="${APP_URL}" style="display:inline-block;background:#0f1729;color:#fff;text-decoration:none;padding:14px 48px;border-radius:10px;font-size:15px;font-weight:600;">Voir dans Agent de Bureau</a>
+          <a href="${APP_URL}" style="display:inline-block;background:#0f1729;color:#fff;text-decoration:none;padding:14px 48px;border-radius:10px;font-size:15px;font-weight:600;">Voir dans Ajant Bureau</a>
         </div>`;
 
       const html = generateEmailWrapper(`Facture ${monthLabel}`, invoiceBody);
-      await sendEmailViaResend(org.email, `Facture Agent de Bureau - ${monthLabel} - ${totalAmount.toFixed(2)} EUR`, html);
+      await sendEmailViaResend(org.email, `Facture Ajant Bureau - ${monthLabel} - ${totalAmount.toFixed(2)} EUR`, html);
     }
 
     await logAudit(orgId, "invoice_generated", `Facture ${monthLabel} generee: ${totalAmount.toFixed(2)} EUR`, userId, { invoiceId: invoice.id, amount: totalAmount });
@@ -407,7 +407,7 @@ router.post("/license-management/send-invoice-email", async (req: Request, res: 
       ${org?.invoiceFooter ? `<p style="color:#94a3b8;font-size:10px;margin-top:16px;line-height:1.4;">${escapeHtml(org.invoiceFooter)}</p>` : ""}`;
 
     const html = generateEmailWrapper(`Facture ${facture.reference}`, body);
-    const sent = await sendEmailViaResend(facture.clientEmail, `Facture ${facture.reference} - ${Number(facture.totalAmount).toFixed(2)} EUR - ${org?.name || "Agent de Bureau"}`, html);
+    const sent = await sendEmailViaResend(facture.clientEmail, `Facture ${facture.reference} - ${Number(facture.totalAmount).toFixed(2)} EUR - ${org?.name || "Ajant Bureau"}`, html);
 
     if (sent && facture.status === "brouillon") {
       await db.update(facturesClientTable).set({ status: "envoyee" }).where(eq(facturesClientTable.id, facture.id));
@@ -474,7 +474,7 @@ export async function runAutoRemindersForOrg(orgId: number, triggeredByUserId?: 
           <div style="font-size:12px;color:#dc2626;margin-top:4px;">a regler dans les meilleurs delais</div>
         </div>
         ${org?.bankIban ? `<p style="color:#64748b;font-size:13px;">Virement : IBAN <strong>${escapeHtml(org.bankIban)}</strong> - Reference: <strong>${escapeHtml(facture.reference)}</strong></p>` : ""}
-        <p style="color:#64748b;font-size:13px;">Cordialement,<br><strong>${escapeHtml(org?.name || "Agent de Bureau")}</strong></p>`;
+        <p style="color:#64748b;font-size:13px;">Cordialement,<br><strong>${escapeHtml(org?.name || "Ajant Bureau")}</strong></p>`;
 
       const html = generateEmailWrapper("Rappel automatique", body);
       const emailSent = await sendEmailViaResend(facture.clientEmail, subject, html);

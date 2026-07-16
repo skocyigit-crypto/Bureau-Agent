@@ -1,4 +1,4 @@
-# Cloud Build CI/CD pipeline for Agent de Bureau.
+# Cloud Build CI/CD pipeline for Ajant Bureau.
 # Triggered on push to `main` (see the Cloud Build trigger config) — builds
 # both container images and deploys both Cloud Run services in sequence, so
 # the web service always points at the api revision from the SAME commit.

@@ -254,7 +254,7 @@ function ScriptTab({ phone, name, direction }: { phone: string; name: string; di
     standard: {
       title: "Appel standard professionnel",
       steps: [
-        { phase: "Ouverture", text: `Bonjour, je suis [Votre nom] d'Agent de Bureau${name ? `, je m'adresse bien à ${name}` : ""}. Comment puis-je vous aider aujourd'hui ?`, tips: "Parlez clairement et avec le sourire." },
+        { phase: "Ouverture", text: `Bonjour, je suis [Votre nom] d'Ajant Bureau${name ? `, je m'adresse bien à ${name}` : ""}. Comment puis-je vous aider aujourd'hui ?`, tips: "Parlez clairement et avec le sourire." },
         { phase: "Écoute active", text: "Je vous écoute attentivement. Pouvez-vous me donner plus de détails sur votre demande ?", tips: "Prenez des notes. Reformulez pour confirmer la compréhension." },
         { phase: "Réponse/Solution", text: "Parfaitement, voici ce que je peux vous proposer : [votre solution]. Est-ce que cela correspond à vos besoins ?", tips: "Soyez concis et direct." },
         { phase: "Confirmation", text: "Pour résumer, nous avons convenu de [résumé]. Je vous envoie une confirmation par email. Avez-vous d'autres questions ?", tips: "Récapitulez les actions prises." },
@@ -294,7 +294,7 @@ function ScriptTab({ phone, name, direction }: { phone: string; name: string; di
     support: {
       title: "Support technique / assistance",
       steps: [
-        { phase: "Identification du problème", text: "Bonjour, service support Agent de Bureau. Pouvez-vous me décrire précisément le problème que vous rencontrez ?", tips: "Posez des questions fermées pour diagnostiquer rapidement." },
+        { phase: "Identification du problème", text: "Bonjour, service support Ajant Bureau. Pouvez-vous me décrire précisément le problème que vous rencontrez ?", tips: "Posez des questions fermées pour diagnostiquer rapidement." },
         { phase: "Reproduction", text: "Depuis quand rencontrez-vous ce problème ? Sur quel appareil ou navigateur ? Avez-vous remarqué un message d'erreur particulier ?", tips: "Collectez le maximum d'informations avant d'agir." },
         { phase: "Résolution guidée", text: "Voici la procédure à suivre étape par étape : [étapes]. Êtes-vous prêt à essayer ? Je reste avec vous.", tips: "Guidez pas à pas. Attendez confirmation à chaque étape." },
         { phase: "Validation", text: "Avez-vous pu résoudre le problème ? L'application fonctionne-t-elle correctement maintenant ?", tips: "Ne clôturez jamais sans confirmation." },
@@ -304,7 +304,7 @@ function ScriptTab({ phone, name, direction }: { phone: string; name: string; di
     nouveau: {
       title: "Accueil nouveau client",
       steps: [
-        { phase: "Accueil chaleureux", text: "Bonjour et bienvenue chez Agent de Bureau ! Je suis [nom], votre responsable de compte. Je suis ravi(e) de vous compter parmi nous.", tips: "La première impression dure. Soyez enthousiaste et sincère." },
+        { phase: "Accueil chaleureux", text: "Bonjour et bienvenue chez Ajant Bureau ! Je suis [nom], votre responsable de compte. Je suis ravi(e) de vous compter parmi nous.", tips: "La première impression dure. Soyez enthousiaste et sincère." },
         { phase: "Présentation rapide", text: "En quelques mots, je vais vous présenter comment nous allons travailler ensemble et les prochaines étapes.", tips: "Rassurez immédiatement sur ce qui va se passer." },
         { phase: "Recueil des attentes", text: "Pour personnaliser au mieux notre accompagnement, qu'est-ce qui vous a décidé à nous rejoindre ? Quels sont vos objectifs principaux ?", tips: "Notez mot pour mot les attentes exprimées." },
         { phase: "Onboarding", text: "Voici ce que je vous propose pour démarrer : [plan d'onboarding]. La prochaine étape sera [action] que je m'engage à faire avant [date].", tips: "Engagez-vous sur des actions concrètes et datées." },

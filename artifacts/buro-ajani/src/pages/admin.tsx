@@ -89,7 +89,7 @@ export default function AdminBackofficePage() {
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Gestion commerciale d'Agent de Bureau — séparée de l'application client.
+            Gestion commerciale d'Ajant Bureau — séparée de l'application client.
           </p>
         </div>
       </div>

@@ -50,16 +50,16 @@ async function checkOrganisation(orgId: number, orgEmail: string | null, orgName
 
   const html = `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f4f6f9;padding:24px;">
     <div style="max-width:560px;margin:auto;background:#fff;border-radius:12px;padding:32px;">
-      <h2 style="color:#0f1729;">Alerte quota — Agent de Bureau</h2>
+      <h2 style="color:#0f1729;">Alerte quota — Ajant Bureau</h2>
       <p>Bonjour <strong>${orgName}</strong>,</p>
       <p>Votre organisation a atteint <strong>80% ou plus</strong> de la limite de votre plan <strong>${sub.plan}</strong> sur les ressources suivantes :</p>
       <ul>${breached.map(b => `<li>${b}</li>`).join("")}</ul>
       <p>Pour eviter toute interruption de service, envisagez de passer a un plan superieur depuis votre portail de facturation.</p>
-      <p style="color:#94a3b8;font-size:12px;">Vous recevez cet email parce que votre organisation est administree via Agent de Bureau.</p>
+      <p style="color:#94a3b8;font-size:12px;">Vous recevez cet email parce que votre organisation est administree via Ajant Bureau.</p>
     </div></body></html>`;
-  const text = `Alerte quota Agent de Bureau\n\nVotre organisation ${orgName} a atteint 80%+ de la limite du plan ${sub.plan}:\n${breached.map(b => `- ${b}`).join("\n")}\n\nEnvisagez de passer a un plan superieur.`;
+  const text = `Alerte quota Ajant Bureau\n\nVotre organisation ${orgName} a atteint 80%+ de la limite du plan ${sub.plan}:\n${breached.map(b => `- ${b}`).join("\n")}\n\nEnvisagez de passer a un plan superieur.`;
 
-  const result = await sendEmail(orgEmail, `[Agent de Bureau] Alerte quota 80% - ${orgName}`, html, text);
+  const result = await sendEmail(orgEmail, `[Ajant Bureau] Alerte quota 80% - ${orgName}`, html, text);
   if (result.success) {
     lastWarnedAt.set(orgId, Date.now());
     logger.info({ orgId, breached }, "[quota-warning] alerte envoyee");

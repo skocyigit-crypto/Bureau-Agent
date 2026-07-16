@@ -86,7 +86,7 @@ async function _processCallInternal(callId: number): Promise<{
 
   const { ai } = await import("@workspace/integrations-gemini-ai");
 
-  const prompt = `Tu es l'analyste IA d'elite du bureau professionnel "Agent de Bureau" en France.
+  const prompt = `Tu es l'analyste IA d'elite du bureau professionnel "Ajant Bureau" en France.
 Tu possedes une expertise avancee en analyse conversationnelle, detection de patterns et intelligence d'affaires.
 
 APPEL A ANALYSER EN PROFONDEUR:

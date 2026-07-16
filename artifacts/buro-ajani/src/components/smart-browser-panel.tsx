@@ -219,8 +219,8 @@ function SmartQuickActions() {
 
   const handleShare = async () => {
     const success = await share({
-      title: "Agent de Bureau",
-      text: "Decouvrez Agent de Bureau - Solution de gestion de bureau intelligente",
+      title: "Ajant Bureau",
+      text: "Decouvrez Ajant Bureau - Solution de gestion de bureau intelligente",
       url: window.location.href,
     });
     if (success) toast({ title: "Partage reussi" });

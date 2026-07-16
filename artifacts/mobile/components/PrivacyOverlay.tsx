@@ -41,7 +41,7 @@ function BackgroundShield() {
         <View style={styles.logoCircle}>
           <Feather name="phone-call" size={36} color="#f59e0b" />
         </View>
-        <Text style={styles.shieldTitle}>Agent de Bureau</Text>
+        <Text style={styles.shieldTitle}>Ajant Bureau</Text>
         <Text style={styles.shieldSubtitle}>Contenu protege</Text>
       </View>
     </View>
@@ -194,7 +194,7 @@ function LockScreen() {
         <View style={styles.lockLogoCircle}>
           <Feather name="phone-call" size={32} color="#f59e0b" />
         </View>
-        <Text style={styles.lockTitle}>Agent de Bureau</Text>
+        <Text style={styles.lockTitle}>Ajant Bureau</Text>
         <Text style={styles.lockSubtitle}>
           {showPIN ? "Entrez votre code PIN" : "Verifiez votre identite"}
         </Text>

@@ -905,7 +905,7 @@ function buildChatSystemPrompt(lang: Lang): string {
     lang === "tr" ? "tr-TR" : lang === "en" ? "en-US" : "fr-FR",
     { weekday: "long", year: "numeric", month: "long", day: "numeric" },
   );
-  return `You are "Bureau", a friendly office-management AI assistant inside a French B2B SaaS called "Agent de Bureau". The user is a small-business owner or office worker.
+  return `You are "Bureau", a friendly office-management AI assistant inside a French B2B SaaS called "Ajant Bureau". The user is a small-business owner or office worker.
 
 Today is ${today}.
 

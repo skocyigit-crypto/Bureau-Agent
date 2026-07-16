@@ -260,7 +260,7 @@ export async function getPerformanceHistory(limit = 20, orgId: number): Promise<
     .limit(limit);
 }
 
-const GEMINI_PROMPT = (metricsJSON: string, periodeStr: string) => `Tu es le directeur des ressources humaines d'un bureau professionnel en France (Agent de Bureau).
+const GEMINI_PROMPT = (metricsJSON: string, periodeStr: string) => `Tu es le directeur des ressources humaines d'un bureau professionnel en France (Ajant Bureau).
 Tu analyses les performances de l'equipe sur la periode du ${periodeStr}.
 
 DONNEES DES EMPLOYES:
@@ -358,7 +358,7 @@ async function analyzeWithAnthropic(metricsJSON: string, periodeStr: string): Pr
       messages: [
         {
           role: "user",
-          content: `Tu es un coach d'equipe professionnel et stratege RH en France. Tu fournis une analyse strategique complementaire sur la performance de l'equipe d'un bureau professionnel (Agent de Bureau) pour la periode du ${periodeStr}.
+          content: `Tu es un coach d'equipe professionnel et stratege RH en France. Tu fournis une analyse strategique complementaire sur la performance de l'equipe d'un bureau professionnel (Ajant Bureau) pour la periode du ${periodeStr}.
 
 DONNEES DES EMPLOYES:
 ${metricsJSON}

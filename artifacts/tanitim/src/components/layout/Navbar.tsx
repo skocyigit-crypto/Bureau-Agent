@@ -33,7 +33,7 @@ export function Navbar({ onDemoClick }: NavbarProps) {
             <PhoneCall className="w-5 h-5" />
           </div>
           <span className="font-bold text-xl tracking-tight text-foreground">
-            Agent de Bureau
+            Ajant Bureau
           </span>
         </a>
 

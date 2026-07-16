@@ -112,7 +112,7 @@ export async function getBiometricCredentials(): Promise<{ email: string; passwo
   if (!(await isBiometricEnabled())) return null;
   try {
     const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: "Déverrouillez Agent de Bureau",
+      promptMessage: "Déverrouillez Ajant Bureau",
       cancelLabel: "Annuler",
       disableDeviceFallback: false,
     });

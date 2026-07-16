@@ -54,7 +54,7 @@ const BRAND_AMBER = "#f59e0b";
 const GREETINGS = [
   "Bonjour ! Je suis votre agent de bureau. Je gère vos appels, vos emails et vos rendez-vous pendant que vous travaillez.",
   "Enchanté ! Confiez-moi votre accueil téléphonique, vos relances et votre agenda. Je m'occupe de tout, en français.",
-  "Bienvenue chez Agent de Bureau. Je centralise vos appels, vos contacts et vos tâches grâce à l'intelligence artificielle.",
+  "Bienvenue chez Ajant Bureau. Je centralise vos appels, vos contacts et vos tâches grâce à l'intelligence artificielle.",
 ];
 
 interface AvatarHeadProps {

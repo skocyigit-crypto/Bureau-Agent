@@ -1,4 +1,4 @@
-# Agent de Bureau — application admin / espace client
+# Ajant Bureau — application admin / espace client
 # AUCUN bot autorise. Ce panneau ne contient que des donnees clients.
 # Aucune URL ici n'a vocation a etre indexee ni crawlee.
 

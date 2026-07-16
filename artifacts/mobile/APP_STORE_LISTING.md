@@ -1,4 +1,4 @@
-# App Store Listing — Agent de Bureau / Buro Ajani
+# App Store Listing — Ajant Bureau / Buro Ajani
 
 > Textes prets a copier-coller dans App Store Connect lors de la creation
 > de la fiche de l'app. Trois langues : FR (principale), TR, EN.
@@ -54,11 +54,11 @@ secretary,ai,calls,crm,sme,calendar,tasks,contacts,invoice,quote,office,assistan
 
 ### FR
 
-Agent de Bureau est votre secretaire intelligente au quotidien. Concue
+Ajant Bureau est votre secretaire intelligente au quotidien. Concue
 pour les PME et les TPE, l'application centralise tout ce qui circule
 dans un bureau et l'intelligence artificielle s'occupe du reste.
 
-POURQUOI AGENT DE BUREAU ?
+POURQUOI AJANT BUREAU ?
 
 - Vous recevez 30 a 60 appels par jour et vous perdez du temps a noter
   qui a appele et pourquoi.
@@ -154,11 +154,11 @@ DESTEK
 
 ### EN
 
-Agent de Bureau is your intelligent secretary for everyday work.
+Ajant Bureau is your intelligent secretary for everyday work.
 Designed for SMEs and small businesses, the app centralises everything
 flowing through your office and lets the AI handle the rest.
 
-WHY AGENT DE BUREAU ?
+WHY AJANT BUREAU ?
 
 - You take 30-60 calls a day and waste time noting who called and why.
 - Your appointments are in Google Calendar, your clients in an Excel

@@ -106,13 +106,13 @@ title = "generated_image"
 id = "q4voXhallPfh5No4ZeSq9"
 uri = "file://KULLANIM_KILAVUZU.md"
 type = "text"
-title = "Agent de Bureau - Kullanım Kılavuzu"
+title = "Ajant Bureau - Kullanım Kılavuzu"
 
 [[outputs]]
 id = "pQ6nnaV8vj0SCW2xFcMBm"
 uri = "file://Agent_de_Bureau_Kullanma_Kilavuzu.md"
 type = "text"
-title = "Agent de Bureau - Kullanma Kılavuzu"
+title = "Ajant Bureau - Kullanma Kılavuzu"
 
 [[outputs]]
 id = "jODqFRUNeHvHuzGGqIxqP"

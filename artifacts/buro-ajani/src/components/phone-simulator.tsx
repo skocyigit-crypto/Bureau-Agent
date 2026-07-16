@@ -371,7 +371,7 @@ export function PhoneSimulator({ className, defaultScreen = "accueil", expanded 
   const [isExpanded, setIsExpanded] = useState(expanded);
 
   const screenTitles: Record<MobileScreen, string> = {
-    accueil: "Agent de Bureau",
+    accueil: "Ajant Bureau",
     appels: "Appels",
     contacts: "Contacts",
     taches: "Taches",

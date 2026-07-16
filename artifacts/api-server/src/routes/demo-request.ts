@@ -154,7 +154,7 @@ router.post("/public/demo-request", demoLimiter, async (req: Request, res: Respo
         </div>
         <p style="color: #374151; font-size: 16px; line-height: 1.6;">Bonjour <strong>${fnSafe}</strong>,</p>
         <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-          Merci pour votre intérêt pour Agent de Bureau. Nous avons bien reçu votre demande de démonstration pour <strong>${companySafe}</strong>.
+          Merci pour votre intérêt pour Ajant Bureau. Nous avons bien reçu votre demande de démonstration pour <strong>${companySafe}</strong>.
         </p>
         <p style="color: #374151; font-size: 16px; line-height: 1.6;">
           Notre équipe vous contactera dans les <strong>24 heures ouvrées</strong> pour planifier une session personnalisée selon vos besoins.
@@ -173,7 +173,7 @@ router.post("/public/demo-request", demoLimiter, async (req: Request, res: Respo
     `;
 
     await sendEmail(adminEmail, `[Demo] Nouvelle demande — ${company} (${firstName} ${lastName})`, adminHtml, `Demande demo de ${firstName} ${lastName} <${email}> pour ${company}`);
-    await sendEmail(email, "Votre demande de démonstration — Agent de Bureau", confirmHtml, `Bonjour ${firstName}, nous avons bien reçu votre demande de demo. Notre equipe vous contacte sous 24h.`);
+    await sendEmail(email, "Votre demande de démonstration — Ajant Bureau", confirmHtml, `Bonjour ${firstName}, nous avons bien reçu votre demande de demo. Notre equipe vous contacte sous 24h.`);
 
     try {
       await createProspectFromDemoRequest({ firstName, lastName, email, phone, company, employeeCount, message });

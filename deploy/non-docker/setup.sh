@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 ##############################################################################
-# Agent de Bureau — Self-Hosted Server Setup Script
+# Ajant Bureau — Self-Hosted Server Setup Script
 #
 # Tested on Ubuntu 22.04 / Debian 12.
 # Run as root (or with sudo) on a fresh VPS.
@@ -141,7 +141,7 @@ pm2 set pm2-logrotate:retain 7 || true
 # ---------------------------------------------------------------------------
 echo ""
 echo -e "${GREEN}============================================================${NC}"
-echo -e "${GREEN} Agent de Bureau — Server Setup Complete!${NC}"
+echo -e "${GREEN} Ajant Bureau — Server Setup Complete!${NC}"
 echo -e "${GREEN}============================================================${NC}"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"

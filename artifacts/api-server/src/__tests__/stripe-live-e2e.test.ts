@@ -53,9 +53,9 @@ const isTestKey = secret.startsWith("sk_test_") && !secret.includes("dummy");
 const stripe = isTestKey ? await getStripeClient() : null;
 
 const PLAN_DEFS = [
-  { plan: "starter", name: "Agent de Bureau — Starter", amount: 2900 },
-  { plan: "professionnel", name: "Agent de Bureau — Professionnel", amount: 7900 },
-  { plan: "entreprise", name: "Agent de Bureau — Entreprise", amount: 19900 },
+  { plan: "starter", name: "Ajant Bureau — Starter", amount: 2900 },
+  { plan: "professionnel", name: "Ajant Bureau — Professionnel", amount: 7900 },
+  { plan: "entreprise", name: "Ajant Bureau — Entreprise", amount: 19900 },
 ] as const;
 
 const stamp = Date.now();

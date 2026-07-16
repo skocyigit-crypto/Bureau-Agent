@@ -1,4 +1,4 @@
-# Agent de Bureau — production stack (portable, runs anywhere Docker runs)
+# Ajant Bureau — production stack (portable, runs anywhere Docker runs)
 #
 # Quick start:
 #   1. cp deploy/.env.example deploy/.env  &&  edit deploy/.env

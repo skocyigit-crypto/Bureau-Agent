@@ -1,6 +1,6 @@
 # Replit -> GitHub -> IONOS deploy rehberi
 
-> **Hedef:** Agent de Bureau'yu IONOS'ta satin aldigin VPS'te (orn. Server L XL)
+> **Hedef:** Ajant Bureau'yu IONOS'ta satin aldigin VPS'te (orn. Server L XL)
 > kendi domain'inle (`https://app.agentdebureau.fr`) musterilere actigin
 > production sunucusu olarak calistirmak.
 >

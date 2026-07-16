@@ -486,7 +486,7 @@ export function TabPlateformes() {
                 <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/20 p-2">
                   <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                   <p className="text-[10px] leading-relaxed text-amber-800 dark:text-amber-300">
-                    Si Google affiche « Cette application n'est pas validée » ou « Accès bloqué », c'est normal pendant la phase de test : cliquez sur <strong>Paramètres avancés</strong> puis <strong>Accéder à Agent de Bureau (non sécurisé)</strong> pour continuer. Votre adresse Google doit être ajoutée comme <strong>utilisateur de test</strong> par l'administrateur (ou l'application doit être publiée).
+                    Si Google affiche « Cette application n'est pas validée » ou « Accès bloqué », c'est normal pendant la phase de test : cliquez sur <strong>Paramètres avancés</strong> puis <strong>Accéder à Ajant Bureau (non sécurisé)</strong> pour continuer. Votre adresse Google doit être ajoutée comme <strong>utilisateur de test</strong> par l'administrateur (ou l'application doit être publiée).
                   </p>
                 </div>
                 {isSuperAdmin && (

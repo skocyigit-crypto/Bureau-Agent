@@ -1,5 +1,5 @@
 /**
- * PM2 Ecosystem Configuration — Agent de Bureau
+ * PM2 Ecosystem Configuration — Ajant Bureau
  * Usage:
  *   pm2 start deploy/ecosystem.config.js
  *   pm2 save && pm2 startup  (auto-start on server reboot)

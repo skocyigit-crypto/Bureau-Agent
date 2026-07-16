@@ -42,19 +42,19 @@ function pickResendFrom(rawFromEmail: string | null | undefined): { from: string
   if (envOverride) return { from: envOverride, usedFallback: false };
 
   if (!rawFromEmail || !rawFromEmail.includes("@")) {
-    return { from: "Agent de Bureau <onboarding@resend.dev>", usedFallback: true, reason: "no_from_email_set" };
+    return { from: "Ajant Bureau <onboarding@resend.dev>", usedFallback: true, reason: "no_from_email_set" };
   }
   const domain = rawFromEmail.split("@")[1].toLowerCase().trim();
   if (FREE_EMAIL_DOMAINS.has(domain)) {
     return {
-      from: "Agent de Bureau <onboarding@resend.dev>",
+      from: "Ajant Bureau <onboarding@resend.dev>",
       usedFallback: true,
       reason: `from_domain_not_verifiable:${domain}`,
     };
   }
   // Domaine corporate -> on suppose qu'il est verifie cote Resend. Si non
   // verifie, Resend renverra une erreur explicite que l'on remonte au front.
-  return { from: `Agent de Bureau <${rawFromEmail}>`, usedFallback: false };
+  return { from: `Ajant Bureau <${rawFromEmail}>`, usedFallback: false };
 }
 
 async function getResendClient(): Promise<{ client: Resend; from: string; usedFallback: boolean } | null> {
@@ -185,7 +185,7 @@ async function sendViaResend(
       logger.error({ err: result.error, from, to: mail.to }, `[Email/Resend:${tag}] Erreur envoi a ${mail.to}`);
       if (!usedFallback && /domain|verif|forbidden|not allowed/i.test(errMsg)) {
         try {
-          const retry = await client.emails.send({ from: "Agent de Bureau <onboarding@resend.dev>", to: [mail.to], subject: mail.subject, html: mail.html, text: mail.text });
+          const retry = await client.emails.send({ from: "Ajant Bureau <onboarding@resend.dev>", to: [mail.to], subject: mail.subject, html: mail.html, text: mail.text });
           if (!retry.error) {
             logger.info(`[Email/Resend:${tag}] Envoye via fallback onboarding@resend.dev a ${mail.to}: ${retry.data?.id}`);
             return { success: true, provider: `resend-${tag}-fallback` };
@@ -215,7 +215,7 @@ export async function sendTestEmailWithKey(apiKey: string, fromEmail: string | n
   const client = new Resend(apiKey);
   const r = await sendViaResend(client, picked.from, picked.usedFallback, {
     to,
-    subject: "Test d'envoi — Agent de Bureau",
+    subject: "Test d'envoi — Ajant Bureau",
     html: "<p>Votre clé d'envoi d'emails fonctionne. Cet email a été envoyé avec la clé de votre organisation.</p>",
     text: "Votre cle d'envoi d'emails fonctionne (cle de votre organisation).",
   }, "test");
@@ -268,7 +268,7 @@ export async function sendEmail(to: string, subject: string, html: string, text:
         if (!resend.usedFallback && /domain|verif|forbidden|not allowed/i.test(errMsg)) {
           try {
             const retry = await resend.client.emails.send({
-              from: "Agent de Bureau <onboarding@resend.dev>",
+              from: "Ajant Bureau <onboarding@resend.dev>",
               to: [to],
               subject,
               html,
@@ -277,7 +277,7 @@ export async function sendEmail(to: string, subject: string, html: string, text:
             if (!retry.error) {
               logger.info(`[Email/Resend] Envoye via fallback onboarding@resend.dev a ${to}: ${retry.data?.id}`);
               // On force le cache a utiliser le fallback pour les prochains envois.
-              resendCache = resend ? { client: resend.client, from: "Agent de Bureau <onboarding@resend.dev>", fetchedAt: Date.now() } : null;
+              resendCache = resend ? { client: resend.client, from: "Ajant Bureau <onboarding@resend.dev>", fetchedAt: Date.now() } : null;
               return { success: true, provider: "resend-fallback" };
             }
             lastError = `Resend retry: ${(retry.error as any)?.message || JSON.stringify(retry.error)}`;
@@ -299,8 +299,8 @@ export async function sendEmail(to: string, subject: string, html: string, text:
   if (gmail) {
     try {
       const fromHeader = gmail.fromEmail
-        ? `=?UTF-8?B?${Buffer.from("Agent de Bureau").toString("base64")}?= <${gmail.fromEmail}>`
-        : `=?UTF-8?B?${Buffer.from("Agent de Bureau").toString("base64")}?= <me>`;
+        ? `=?UTF-8?B?${Buffer.from("Ajant Bureau").toString("base64")}?= <${gmail.fromEmail}>`
+        : `=?UTF-8?B?${Buffer.from("Ajant Bureau").toString("base64")}?= <me>`;
       const rawLines = [
         `From: ${fromHeader}`,
         `To: ${to}`,
@@ -330,7 +330,7 @@ export async function sendEmail(to: string, subject: string, html: string, text:
   if (transport) {
     try {
       const info = await transport.sendMail({
-        from: `"Agent de Bureau" <${SMTP_FROM}>`,
+        from: `"Ajant Bureau" <${SMTP_FROM}>`,
         to,
         subject,
         text,
@@ -398,14 +398,14 @@ export async function sendWelcomeEmail(params: {
       <div style="width:64px;height:64px;background:#f59e0b;border-radius:16px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;">
         <span style="font-size:28px;color:#0f1729;">&#9742;</span>
       </div>
-      <h1 style="color:#ffffff;font-size:24px;margin:0;">Agent de Bureau</h1>
+      <h1 style="color:#ffffff;font-size:24px;margin:0;">Ajant Bureau</h1>
       <p style="color:rgba(255,255,255,0.6);font-size:14px;margin:8px 0 0;">Solution professionnelle de gestion</p>
     </div>
 
     <div style="padding:32px;">
       <h2 style="color:#0f1729;font-size:20px;margin:0 0 8px;">Bienvenue, ${escapeHtml(adminName)} !</h2>
       <p style="color:#64748b;font-size:15px;line-height:1.6;">
-        Votre compte <strong>Agent de Bureau</strong> pour <strong>${escapeHtml(orgName)}</strong> a ete cree avec succes. 
+        Votre compte <strong>Ajant Bureau</strong> pour <strong>${escapeHtml(orgName)}</strong> a ete cree avec succes. 
         Voici toutes les informations pour commencer :
       </p>
 
@@ -485,7 +485,7 @@ export async function sendWelcomeEmail(params: {
 
   const text = `Bienvenue ${adminName} !
 
-Votre compte Agent de Bureau pour ${orgName} a ete cree.
+Votre compte Ajant Bureau pour ${orgName} a ete cree.
 
 IDENTIFIANT DE CONNEXION:
 - Email: ${loginEmail}
@@ -511,7 +511,7 @@ Conservez cet email - il contient votre licence et informations d'acces.
 Support: support@agentdebureau.fr
 SK GROUP`;
 
-  return sendEmail(to, `Bienvenue sur Agent de Bureau - ${orgName}`, html, text);
+  return sendEmail(to, `Bienvenue sur Ajant Bureau - ${orgName}`, html, text);
 }
 
 export async function sendCredentialsEmail(params: {
@@ -542,14 +542,14 @@ export async function sendCredentialsEmail(params: {
       <div style="width:64px;height:64px;background:#f59e0b;border-radius:16px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;">
         <span style="font-size:28px;color:#0f1729;">&#9742;</span>
       </div>
-      <h1 style="color:#ffffff;font-size:24px;margin:0;">Agent de Bureau</h1>
+      <h1 style="color:#ffffff;font-size:24px;margin:0;">Ajant Bureau</h1>
       <p style="color:rgba(255,255,255,0.6);font-size:14px;margin:8px 0 0;">Code de connexion temporaire</p>
     </div>
 
     <div style="padding:32px;">
       <h2 style="color:#0f1729;font-size:20px;margin:0 0 8px;">Bonjour ${escapeHtml(prenom)} ${escapeHtml(nom)},</h2>
       <p style="color:#64748b;font-size:15px;line-height:1.6;">
-        Un code de connexion temporaire a ete genere pour votre compte <strong>Agent de Bureau</strong> 
+        Un code de connexion temporaire a ete genere pour votre compte <strong>Ajant Bureau</strong> 
         dans l'organisation <strong>${escapeHtml(orgName)}</strong>.
       </p>
 
@@ -610,7 +610,7 @@ export async function sendCredentialsEmail(params: {
 
   const text = `Bonjour ${prenom} ${nom},
 
-Un code de connexion temporaire a ete genere pour votre compte Agent de Bureau (${orgName}).
+Un code de connexion temporaire a ete genere pour votre compte Ajant Bureau (${orgName}).
 
 CODE DE CONNEXION TEMPORAIRE:
 - Email: ${to}
@@ -627,7 +627,7 @@ IMPORTANT: Changez votre mot de passe des votre premiere connexion.
 Support: support@agentdebureau.fr
 SK GROUP`;
 
-  return sendEmail(to, `Code de connexion temporaire - Agent de Bureau (${orgName})`, html, text);
+  return sendEmail(to, `Code de connexion temporaire - Ajant Bureau (${orgName})`, html, text);
 }
 
 export async function sendLicenseEmail(params: {
@@ -702,14 +702,14 @@ export async function sendLicenseEmail(params: {
       <div style="width:64px;height:64px;background:#f59e0b;border-radius:16px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;">
         <span style="font-size:28px;color:#0f1729;">&#9742;</span>
       </div>
-      <h1 style="color:#ffffff;font-size:24px;margin:0;">Agent de Bureau</h1>
+      <h1 style="color:#ffffff;font-size:24px;margin:0;">Ajant Bureau</h1>
       <p style="color:rgba(255,255,255,0.6);font-size:14px;margin:8px 0 0;">Solution professionnelle de gestion</p>
     </div>
 
     <div style="padding:32px;">
       <h2 style="color:#0f1729;font-size:20px;margin:0 0 8px;">Bienvenue${adminName ? `, ${escapeHtml(adminName)}` : `, ${escapeHtml(orgName)}`} !</h2>
       <p style="color:#64748b;font-size:15px;line-height:1.6;">
-        Votre compte <strong>Agent de Bureau</strong> pour <strong>${escapeHtml(orgName)}</strong> (plan <strong>${escapeHtml(plan)}</strong>) a ete cree avec succes.
+        Votre compte <strong>Ajant Bureau</strong> pour <strong>${escapeHtml(orgName)}</strong> (plan <strong>${escapeHtml(plan)}</strong>) a ete cree avec succes.
       </p>
 
       ${trialInfo}
@@ -774,9 +774,9 @@ export async function sendLicenseEmail(params: {
   const resetText = (adminEmail && resetLink) ? `\nDEFINISSEZ VOTRE MOT DE PASSE:\n- Administrateur: ${adminName || adminEmail}\n- Email: ${adminEmail}\n- Lien securise (valide 24h, usage unique): ${resetLink}\n` : "";
   const credText = (adminEmail && adminPassword) ? `\nCODE DE CONNEXION TEMPORAIRE:\n- Administrateur: ${adminName || adminEmail}\n- Email: ${adminEmail}\n- Code temporaire: ${adminPassword}\n- ATTENTION: Ce code est temporaire. Changez votre mot de passe des votre premiere connexion.\n` : "";
 
-  const text = `Bienvenue${adminName ? ` ${adminName}` : ` ${orgName}`} !\n\nVotre compte Agent de Bureau pour ${orgName} (plan ${plan}) a ete cree.\n${resetText}${credText}\nAccedez a l'application: ${APP_URL}\n\nPOUR COMMENCER:\n1. Connectez-vous avec votre code temporaire\n2. Changez votre mot de passe\n3. Ajoutez vos premiers contacts\n4. Invitez vos collaborateurs\n\nSupport: support@agentdebureau.fr\nSK GROUP`;
+  const text = `Bienvenue${adminName ? ` ${adminName}` : ` ${orgName}`} !\n\nVotre compte Ajant Bureau pour ${orgName} (plan ${plan}) a ete cree.\n${resetText}${credText}\nAccedez a l'application: ${APP_URL}\n\nPOUR COMMENCER:\n1. Connectez-vous avec votre code temporaire\n2. Changez votre mot de passe\n3. Ajoutez vos premiers contacts\n4. Invitez vos collaborateurs\n\nSupport: support@agentdebureau.fr\nSK GROUP`;
 
-  return sendEmail(to, `Bienvenue sur Agent de Bureau - ${orgName}`, html, text);
+  return sendEmail(to, `Bienvenue sur Ajant Bureau - ${orgName}`, html, text);
 }
 
 export async function sendSubscriptionSuspendedEmail(params: {
@@ -792,7 +792,7 @@ export async function sendSubscriptionSuspendedEmail(params: {
 <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
 <div style="background:linear-gradient(135deg,#7f1d1d 0%,#991b1b 100%);padding:32px;text-align:center;">
 <h1 style="color:#fff;font-size:22px;margin:0;">Abonnement suspendu</h1>
-<p style="color:rgba(255,255,255,0.7);font-size:13px;margin:8px 0 0;">Action requise — Agent de Bureau</p>
+<p style="color:rgba(255,255,255,0.7);font-size:13px;margin:8px 0 0;">Action requise — Ajant Bureau</p>
 </div>
 <div style="padding:32px;">
 <p style="color:#0f1729;font-size:15px;line-height:1.6;">Bonjour,</p>
@@ -808,8 +808,8 @@ export async function sendSubscriptionSuspendedEmail(params: {
 <div style="background:#f8fafc;padding:20px 32px;text-align:center;border-top:1px solid #e2e8f0;">
 <p style="color:#94a3b8;font-size:11px;margin:0;">Support: <a href="mailto:support@agentdebureau.fr" style="color:#f59e0b;">support@agentdebureau.fr</a></p>
 </div></div></body></html>`;
-  const text = `Abonnement suspendu - Agent de Bureau\n\nL'abonnement ${plan} de ${orgName} a ete suspendu apres ${failedAttempts} echecs consecutifs de paiement.\n\nL'acces en ecriture est bloque. Les donnees sont conservees.\n\nMettez a jour votre moyen de paiement: ${portalUrl}\n\nSupport: support@agentdebureau.fr`;
-  return sendEmail(to, `[Agent de Bureau] Abonnement suspendu - ${orgName}`, html, text);
+  const text = `Abonnement suspendu - Ajant Bureau\n\nL'abonnement ${plan} de ${orgName} a ete suspendu apres ${failedAttempts} echecs consecutifs de paiement.\n\nL'acces en ecriture est bloque. Les donnees sont conservees.\n\nMettez a jour votre moyen de paiement: ${portalUrl}\n\nSupport: support@agentdebureau.fr`;
+  return sendEmail(to, `[Ajant Bureau] Abonnement suspendu - ${orgName}`, html, text);
 }
 
 export async function sendSubscriptionRecoveredEmail(params: {
@@ -837,8 +837,8 @@ export async function sendSubscriptionRecoveredEmail(params: {
 <div style="background:#f8fafc;padding:20px 32px;text-align:center;border-top:1px solid #e2e8f0;">
 <p style="color:#94a3b8;font-size:11px;margin:0;">Support: <a href="mailto:support@agentdebureau.fr" style="color:#f59e0b;">support@agentdebureau.fr</a></p>
 </div></div></body></html>`;
-  const text = `Paiement recu - Agent de Bureau\n\nL'abonnement ${plan} de ${orgName} est de nouveau actif.\n\nMerci de votre confiance.\n\n${APP_URL}`;
-  return sendEmail(to, `[Agent de Bureau] Abonnement reactive - ${orgName}`, html, text);
+  const text = `Paiement recu - Ajant Bureau\n\nL'abonnement ${plan} de ${orgName} est de nouveau actif.\n\nMerci de votre confiance.\n\n${APP_URL}`;
+  return sendEmail(to, `[Ajant Bureau] Abonnement reactive - ${orgName}`, html, text);
 }
 
 export async function sendTrialEndingEmail(params: {
@@ -858,7 +858,7 @@ export async function sendTrialEndingEmail(params: {
       ? "Votre essai se termine demain"
       : `Plus que ${daysLeft} jours d'essai`;
   const intro = expired
-    ? `La periode d'essai gratuit de <strong>${escapeHtml(orgName)}</strong> est <strong style="color:#991b1b;">terminee</strong>. Choisissez un plan pour continuer a utiliser Agent de Bureau.`
+    ? `La periode d'essai gratuit de <strong>${escapeHtml(orgName)}</strong> est <strong style="color:#991b1b;">terminee</strong>. Choisissez un plan pour continuer a utiliser Ajant Bureau.`
     : `Il vous reste <strong>${daysLeft} jour${daysLeft > 1 ? "s" : ""}</strong> avant la fin de votre periode d'essai gratuit (${endStr}).`;
 
   const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"></head>
@@ -880,8 +880,8 @@ export async function sendTrialEndingEmail(params: {
 <div style="background:#f8fafc;padding:20px 32px;text-align:center;border-top:1px solid #e2e8f0;">
 <p style="color:#94a3b8;font-size:11px;margin:0;">Support: <a href="mailto:support@agentdebureau.fr" style="color:#f59e0b;">support@agentdebureau.fr</a></p>
 </div></div></body></html>`;
-  const text = `${title} - Agent de Bureau\n\n${expired ? `La periode d'essai gratuit de ${orgName} est terminee.` : `Il vous reste ${daysLeft} jour(s) avant la fin de votre essai gratuit (${endStr}).`}\n\nVoir les plans: ${portalUrl}\n\nSupport: support@agentdebureau.fr`;
-  return sendEmail(to, `[Agent de Bureau] ${title} - ${orgName}`, html, text);
+  const text = `${title} - Ajant Bureau\n\n${expired ? `La periode d'essai gratuit de ${orgName} est terminee.` : `Il vous reste ${daysLeft} jour(s) avant la fin de votre essai gratuit (${endStr}).`}\n\nVoir les plans: ${portalUrl}\n\nSupport: support@agentdebureau.fr`;
+  return sendEmail(to, `[Ajant Bureau] ${title} - ${orgName}`, html, text);
 }
 
 // ---------------------------------------------------------------------------
@@ -925,12 +925,12 @@ export async function sendInvoiceReminderEmail(params: {
 </table>
 </div>
 <p style="color:#0f1729;font-size:15px;line-height:1.6;">Si le reglement a deja ete effectue, merci de ne pas tenir compte de ce message. Pour toute question, n'hesitez pas a nous repondre directement.</p>
-<p style="color:#0f1729;font-size:15px;line-height:1.6;">Avec nos remerciements,<br/>L'equipe Agent de Bureau</p>
+<p style="color:#0f1729;font-size:15px;line-height:1.6;">Avec nos remerciements,<br/>L'equipe Ajant Bureau</p>
 </div>
 <div style="background:#f8fafc;padding:20px 32px;text-align:center;border-top:1px solid #e2e8f0;">
 <p style="color:#94a3b8;font-size:11px;margin:0;">Support: <a href="mailto:support@agentdebureau.fr" style="color:#f59e0b;">support@agentdebureau.fr</a></p>
 </div></div></body></html>`;
-  const text = `${heading} - Agent de Bureau\n\nBonjour ${clientName},\n\nSauf erreur de notre part, nous n'avons pas encore recu le reglement de la facture ${reference} (${title}).\nMontant: ${amountLabel}${dueDateLabel ? `\nEcheance: ${dueDateLabel}` : ""}\n\nSi le reglement a deja ete effectue, merci de ne pas tenir compte de ce message.\n\nL'equipe Agent de Bureau\nSupport: support@agentdebureau.fr`;
+  const text = `${heading} - Ajant Bureau\n\nBonjour ${clientName},\n\nSauf erreur de notre part, nous n'avons pas encore recu le reglement de la facture ${reference} (${title}).\nMontant: ${amountLabel}${dueDateLabel ? `\nEcheance: ${dueDateLabel}` : ""}\n\nSi le reglement a deja ete effectue, merci de ne pas tenir compte de ce message.\n\nL'equipe Ajant Bureau\nSupport: support@agentdebureau.fr`;
   const subjectPrefix = reminderNumber > 1 ? `Relance ${reminderNumber}` : "Rappel";
-  return sendEmail(to, `[Agent de Bureau] ${subjectPrefix} - Facture ${reference}`, html, text);
+  return sendEmail(to, `[Ajant Bureau] ${subjectPrefix} - Facture ${reference}`, html, text);
 }

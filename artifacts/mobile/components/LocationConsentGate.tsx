@@ -65,7 +65,7 @@ function KvkkScreen({ onAccept }: { onAccept: () => Promise<void> }) {
     <View style={styles.card}>
       <Text style={styles.title}>Suivi de presence — Information KVKK / RGPD</Text>
       <Text style={styles.paragraph}>
-        Pour fonctionner, l&apos;application Agent de Bureau collecte en
+        Pour fonctionner, l&apos;application Ajant Bureau collecte en
         permanence votre position approximative pendant que vous etes
         connecte(e), y compris en arriere-plan.
       </Text>
@@ -132,7 +132,7 @@ function PermissionScreen({
         <>
           <Text style={[styles.paragraph, styles.warning]}>
             L&apos;autorisation a ete refusee. Ouvrez les Reglages systeme,
-            choisissez Agent de Bureau, puis Localisation -&gt;
+            choisissez Ajant Bureau, puis Localisation -&gt;
             &quot;Toujours&quot;.
           </Text>
           <TouchableOpacity

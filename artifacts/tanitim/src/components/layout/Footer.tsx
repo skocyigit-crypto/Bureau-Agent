@@ -13,7 +13,7 @@ export function Footer() {
                 <PhoneCall className="w-6 h-6" />
               </div>
               <span className="font-bold text-2xl tracking-tight text-white">
-                Agent de Bureau
+                Ajant Bureau
               </span>
             </Link>
             <p className="text-primary-foreground/70 max-w-md text-base leading-relaxed">

@@ -141,7 +141,7 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
                   <Rocket className="w-10 h-10 text-amber-400" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold mb-2">Bienvenue sur Agent de Bureau !</h2>
+                  <h2 className="text-2xl font-bold mb-2">Bienvenue sur Ajant Bureau !</h2>
                   <p className="text-white/60 text-sm leading-relaxed max-w-md mx-auto">
                     Configurons votre espace de travail en quelques etapes. 
                     Nous allons vous aider a installer l'application et connecter vos outils préférés.
@@ -169,7 +169,7 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
                 <div className="text-center">
                   <h2 className="text-xl font-bold mb-2">Installer l'application</h2>
                   <p className="text-white/60 text-sm">
-                    Installez Agent de Bureau sur vos appareils pour un accès rapide.
+                    Installez Ajant Bureau sur vos appareils pour un accès rapide.
                   </p>
                 </div>
 
@@ -233,7 +233,7 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
                       <div className="flex-1">
                         <h3 className="font-semibold text-sm">Acces Web</h3>
                         <p className="text-white/50 text-xs mt-1">
-                          Utilisez Agent de Bureau depuis n'importe quel navigateur, n'importe ou.
+                          Utilisez Ajant Bureau depuis n'importe quel navigateur, n'importe ou.
                         </p>
                       </div>
                       <div className="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center">
@@ -312,7 +312,7 @@ export default function OnboardingPage({ onComplete }: { onComplete?: () => void
                 <div>
                   <h2 className="text-2xl font-bold mb-2">Tout est prêt !</h2>
                   <p className="text-white/60 text-sm leading-relaxed max-w-md mx-auto">
-                    Votre espace Agent de Bureau est configure. Vous pouvez commencer a 
+                    Votre espace Ajant Bureau est configure. Vous pouvez commencer a 
                     gerer vos appels, contacts et taches dès maintenant.
                   </p>
                 </div>

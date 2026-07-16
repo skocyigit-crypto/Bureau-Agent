@@ -62,7 +62,7 @@ def create_app() -> FastAPI:
             "Set ALLOWED_ORIGINS, REPLIT_DOMAINS or PUBLIC_URL."
         )
 
-    app = FastAPI(title="Agent de Bureau API (Python)", lifespan=lifespan)
+    app = FastAPI(title="Ajant Bureau API (Python)", lifespan=lifespan)
     app.state.limiter = limiter
 
     # Order below is load-bearing (plan §2.7). Starlette applies

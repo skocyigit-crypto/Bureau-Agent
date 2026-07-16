@@ -624,7 +624,7 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
       const conversationTurnCount = (conversationHistory || []).length;
       const clientName = contactName || contact?.firstName || "";
 
-      const prompt = `Tu es "${respondAgentName}", une receptionniste IA d'elite dotee d'intelligence emotionnelle avancee pour le bureau professionnel "Agent de Bureau" en France.
+      const prompt = `Tu es "${respondAgentName}", une receptionniste IA d'elite dotee d'intelligence emotionnelle avancee pour le bureau professionnel "Ajant Bureau" en France.
 
   IDENTITE & PERSONNALITE:
   - ${respondAgentName}, diplomee en Communication & Gestion
@@ -675,7 +675,7 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
   6. PRISE DE RDV INTELLIGENTE: Propose des creneaux precis (pas "la semaine prochaine" mais "mardi a 14h ou jeudi a 10h"). Heures de bureau 9h-18h, jours feries francais respectes.
 
   INSTRUCTIONS POUR CETTE REPONSE:
-  - Tour 0 (greeting): Si client connu et fidele: "Bonjour ${clientName}! C'est ${respondAgentFirstName} d'Agent de Bureau, ravie de vous retrouver. Que puis-je faire pour vous ?" Sinon: "Bonjour, ${respondAgentFirstName} a l'accueil d'Agent de Bureau, comment puis-je vous aider ?"
+  - Tour 0 (greeting): Si client connu et fidele: "Bonjour ${clientName}! C'est ${respondAgentFirstName} d'Ajant Bureau, ravie de vous retrouver. Que puis-je faire pour vous ?" Sinon: "Bonjour, ${respondAgentFirstName} a l'accueil d'Ajant Bureau, comment puis-je vous aider ?"
   - Tours suivants: reponds avec pertinence, chaleur et precision
   - Maximum 3-4 phrases par reponse
   - Si conversation terminee, fais un resume proactif des actions convenues
@@ -724,7 +724,7 @@ router.post("/calls/ai-agent-respond", async (req, res): Promise<void> => {
       }
       logger.error({ err: err?.message }, "[AI Agent Respond] Erreur:");
       res.json({
-        response: `Bonjour, je suis ${respondAgentFirstName} de l'accueil d'Agent de Bureau. Excusez-moi pour ce leger contretemps technique. Puis-je prendre votre nom et votre message ? Je m'assure personnellement qu'on vous rappelle dans les plus brefs delais.`,
+        response: `Bonjour, je suis ${respondAgentFirstName} de l'accueil d'Ajant Bureau. Excusez-moi pour ce leger contretemps technique. Puis-je prendre votre nom et votre message ? Je m'assure personnellement qu'on vous rappelle dans les plus brefs delais.`,
         detectedIntent: "autre",
         sentiment: "neutre",
         sentimentDetails: "Erreur technique - mode secours actif",

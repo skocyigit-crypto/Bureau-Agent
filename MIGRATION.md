@@ -1,6 +1,6 @@
 # 🚚 Replit'ten Dışarı Taşıma Rehberi
 
-Bu rehber Agent de Bureau uygulamasını Replit'ten alıp **kendi sunucunuzda** (Hetzner, DigitalOcean, AWS EC2, OVH, kendi makinanız — Docker'ın çalıştığı her yer) çalıştırmanıza yarar.
+Bu rehber Ajant Bureau uygulamasını Replit'ten alıp **kendi sunucunuzda** (Hetzner, DigitalOcean, AWS EC2, OVH, kendi makinanız — Docker'ın çalıştığı her yer) çalıştırmanıza yarar.
 
 > **Tahmini süre:** 30–60 dakika (DNS yayılma süresi hariç).
 

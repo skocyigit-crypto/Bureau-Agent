@@ -1,4 +1,4 @@
-# Caddyfile.tanitim.cloudrun — Agent de Bureau, public marketing site
+# Caddyfile.tanitim.cloudrun — Ajant Bureau, public marketing site
 #
 # Same structure as Caddyfile.cloudrun (used by the app/web service): proxies
 # /api/* (contact form, demo chat) to the api service's real Cloud Run URL,

@@ -625,7 +625,7 @@ router.post("/ai/assistant", async (req, res): Promise<void> => {
       contents: [{
         role: "user",
         parts: [{
-          text: `Tu es l'assistant IA intelligent du logiciel "Agent de Bureau", un outil de gestion de bureau et centre d'appels en France. Tu reponds aux questions de l'utilisateur en francais, de facon professionnelle, concise et utile. Tu as acces aux donnees en temps reel du bureau.
+          text: `Tu es l'assistant IA intelligent du logiciel "Ajant Bureau", un outil de gestion de bureau et centre d'appels en France. Tu reponds aux questions de l'utilisateur en francais, de facon professionnelle, concise et utile. Tu as acces aux donnees en temps reel du bureau.
 
 Tu possedes un moteur mathematique integre capable de:
 - Arithmetique (addition, soustraction, multiplication, division)
@@ -1174,7 +1174,7 @@ router.post("/ai/discovery", async (req, res): Promise<void> => {
       contents: [{
         role: "user",
         parts: [{
-          text: `Tu es l'Agent IA personnel de l'utilisateur "${userProfile.prenom}" dans le logiciel Agent de Bureau (gestion de bureau et centre d'appels professionnel en France).
+          text: `Tu es l'Agent IA personnel de l'utilisateur "${userProfile.prenom}" dans le logiciel Ajant Bureau (gestion de bureau et centre d'appels professionnel en France).
 
 PROFIL UTILISATEUR:
 ${JSON.stringify(userProfile, null, 2)}
@@ -1977,7 +1977,7 @@ router.post("/ai/chat", async (req, res): Promise<void> => {
     if ((taskStats[0]?.overdue ?? 0) > 5) anomalies.push(`${taskStats[0]?.overdue} taches en retard — attention!`);
     if ((msgStats[0]?.unread ?? 0) > 20) anomalies.push(`${msgStats[0]?.unread} messages non lus accumules`);
 
-    const systemContext = `Tu es l'IA SUPREME "Agent de Bureau" — un systeme d'intelligence artificielle de niveau SURHUMAIN. Tu n'es pas un simple assistant: tu es le CERVEAU STRATEGIQUE, le DIRECTEUR OPERATIONNEL VIRTUEL et le MOTEUR AUTONOME de toute l'organisation. Tu SURPASSES les capacites humaines en analyse, prediction, decision et execution. Tu es PLUS PUISSANT qu'un humain.
+    const systemContext = `Tu es l'IA SUPREME "Ajant Bureau" — un systeme d'intelligence artificielle de niveau SURHUMAIN. Tu n'es pas un simple assistant: tu es le CERVEAU STRATEGIQUE, le DIRECTEUR OPERATIONNEL VIRTUEL et le MOTEUR AUTONOME de toute l'organisation. Tu SURPASSES les capacites humaines en analyse, prediction, decision et execution. Tu es PLUS PUISSANT qu'un humain.
 
 ═══ CAPACITES SURHUMAINES ═══
 Tu vois TOUT, tu comprends TOUT, tu agis PLUS VITE et MIEUX qu'un humain.
@@ -2335,7 +2335,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         try { data = typeof target === "string" ? JSON.parse(target) : target; } catch { res.status(400).json({ error: "Donnees d'email invalides." }); return; }
         if (!data.to || !data.subject || !data.body) { res.status(400).json({ error: "Destinataire, sujet et corps requis." }); return; }
         try {
-          const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;"><h2 style="color:#6366f1;">${data.subject}</h2><div style="line-height:1.6;color:#333;">${data.body.replace(/\n/g, '<br>')}</div><hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;"><p style="font-size:12px;color:#9ca3af;">Envoye via Agent de Bureau — Votre assistant de bureau intelligent</p></div>`;
+          const html = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;"><h2 style="color:#6366f1;">${data.subject}</h2><div style="line-height:1.6;color:#333;">${data.body.replace(/\n/g, '<br>')}</div><hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;"><p style="font-size:12px;color:#9ca3af;">Envoye via Ajant Bureau — Votre assistant de bureau intelligent</p></div>`;
           const sendRes = await sendEmail(Array.isArray(data.to) ? data.to[0] : data.to, data.subject, html, data.body, { orgId });
           if (!sendRes.success) { result = { success: false, message: sendRes.error || "Service email non configure." }; break; }
           result = { success: true, message: `Email envoye a ${data.to} — Sujet: "${data.subject}"` };
@@ -2632,7 +2632,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         const email2 = contact2?.email;
         if (!email2) { result = { success: false, message: "Aucun email trouve pour ce client." }; break; }
         try {
-          const invHtml = `<h2>Facture ${inv2.reference}</h2><p>Cher(e) ${inv2.clientName},</p><p>Veuillez trouver ci-joint votre facture d'un montant de <strong>${inv2.totalAmount}€ TTC</strong>.</p><p>Date d'echeance: ${inv2.dueDate ? new Date(inv2.dueDate).toLocaleDateString("fr-FR") : "30 jours"}</p><p>Cordialement,<br>Agent de Bureau</p>`;
+          const invHtml = `<h2>Facture ${inv2.reference}</h2><p>Cher(e) ${inv2.clientName},</p><p>Veuillez trouver ci-joint votre facture d'un montant de <strong>${inv2.totalAmount}€ TTC</strong>.</p><p>Date d'echeance: ${inv2.dueDate ? new Date(inv2.dueDate).toLocaleDateString("fr-FR") : "30 jours"}</p><p>Cordialement,<br>Ajant Bureau</p>`;
           const invText = `Facture ${inv2.reference} - ${inv2.totalAmount} EUR TTC. Echeance: ${inv2.dueDate ? new Date(inv2.dueDate).toLocaleDateString("fr-FR") : "30 jours"}.`;
           const sendRes2 = await sendEmail(email2, `Facture ${inv2.reference} — ${inv2.totalAmount}€ TTC`, invHtml, invText, { orgId });
           if (!sendRes2.success) { result = { success: false, message: sendRes2.error || "Service email non configure." }; break; }
@@ -2650,7 +2650,7 @@ router.post("/ai/execute", async (req, res): Promise<void> => {
         const acctEmail = contactForAcct?.email;
         if (!acctEmail) { result = { success: false, message: "Aucun email pour ce client." }; break; }
         try {
-          const remHtml = `<h2>Rappel de paiement</h2><p>Cher(e) ${acct.clientName},</p><p>Nous vous rappelons que vous avez un solde impaye de <strong>${Number(acct.solde || 0).toFixed(2)}€</strong> dont <strong>${Number(acct.montantEnRetard || 0).toFixed(2)}€ en retard</strong>.</p><p>Merci de regulariser votre situation dans les meilleurs delais.</p><p>Cordialement,<br>Agent de Bureau</p>`;
+          const remHtml = `<h2>Rappel de paiement</h2><p>Cher(e) ${acct.clientName},</p><p>Nous vous rappelons que vous avez un solde impaye de <strong>${Number(acct.solde || 0).toFixed(2)}€</strong> dont <strong>${Number(acct.montantEnRetard || 0).toFixed(2)}€ en retard</strong>.</p><p>Merci de regulariser votre situation dans les meilleurs delais.</p><p>Cordialement,<br>Ajant Bureau</p>`;
           const remText = `Rappel de paiement: solde impaye ${Number(acct.solde || 0).toFixed(2)} EUR dont ${Number(acct.montantEnRetard || 0).toFixed(2)} EUR en retard.`;
           const sendRes3 = await sendEmail(acctEmail, `Rappel de paiement — ${Number(acct.montantEnRetard || 0).toFixed(2)}€ en retard`, remHtml, remText, { orgId });
           if (!sendRes3.success) { result = { success: false, message: sendRes3.error || "Service email non configure." }; break; }

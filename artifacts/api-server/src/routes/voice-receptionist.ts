@@ -460,7 +460,7 @@ async function sendMissedCallSms(args: {
       timeStr = new Intl.DateTimeFormat("fr-FR", { timeZone: tz, hour: "2-digit", minute: "2-digit" }).format(new Date());
     } catch { timeStr = new Date().toISOString().slice(11, 16); }
 
-    const tpl = cfg.autoSmsTemplate || "Bonjour, nous avons manque votre appel a {time}. Nous vous rappelons rapidement. — Agent de Bureau";
+    const tpl = cfg.autoSmsTemplate || "Bonjour, nous avons manque votre appel a {time}. Nous vous rappelons rapidement. — Ajant Bureau";
     const body = tpl.replace("{name}", "").replace("{name_comma}", "").replace("{time}", timeStr);
 
     const result = await sendSms("twilio", cfg, { to: args.callerNumber, from: fromNumber, body });
@@ -507,7 +507,7 @@ async function sendCallRecapEmail(args: {
 
     const [org] = await db.select({ name: organisationsTable.name }).from(organisationsTable)
       .where(eq(organisationsTable.id, args.orgId)).limit(1);
-    const orgName = org?.name || "Agent de Bureau";
+    const orgName = org?.name || "Ajant Bureau";
     const who = args.callerName || args.callerNumber || "Inconnu";
     const subject = `Resume d'appel — ${who} — ${new Intl.DateTimeFormat("fr-FR", { dateStyle: "short", timeStyle: "short" }).format(new Date())}`;
 
@@ -519,7 +519,7 @@ async function sendCallRecapEmail(args: {
     if (args.outcome === "appointment") lines.push(`<p>&#10003; Rendez-vous ajoute a l'agenda (a confirmer).</p>`);
     if (args.outcome === "message") lines.push(`<p>&#10003; Message transmis a l'equipe.</p>`);
     if (args.voicemailTranscript) lines.push(`<p><strong>Message vocal:</strong><br><em>"${escapeHtml(args.voicemailTranscript)}"</em></p>`);
-    lines.push(`<p style="margin-top:16px;color:#9ca3af;font-size:12px;">— ${escapeHtml(orgName)} via Agent de Bureau</p>`);
+    lines.push(`<p style="margin-top:16px;color:#9ca3af;font-size:12px;">— ${escapeHtml(orgName)} via Ajant Bureau</p>`);
     const html = `<div style="max-width:560px;margin:0 auto;padding:16px;">${lines.join("")}</div>`;
 
     const text = [
@@ -1419,7 +1419,7 @@ async function finalizeCall(callSid: string, session: CallSession): Promise<void
         await sendVoiceSms(
           session,
           ownerNumber,
-          `[Agent de Bureau] Appel ${reason} de ${session.callerName || caller}. ${summary || ""}`.trim(),
+          `[Ajant Bureau] Appel ${reason} de ${session.callerName || caller}. ${summary || ""}`.trim(),
           "owner-alert",
         );
       }

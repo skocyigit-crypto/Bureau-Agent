@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/tanitim/"
-title = "Agent de Bureau - Site Vitrine"
+title = "Ajant Bureau - Site Vitrine"
 version = "1.0.0"
 id = "artifacts/tanitim"
 router = "path"

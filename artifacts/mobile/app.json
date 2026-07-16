@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Agent de Bureau",
+    "name": "Ajant Bureau",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -21,9 +21,9 @@
           "location",
           "fetch"
         ],
-        "NSLocationWhenInUseUsageDescription": "Agent de Bureau utilise votre position pour signaler votre presence a votre employeur (zones definies).",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Agent de Bureau a besoin d'acceder a votre position en permanence, y compris en arriere-plan, pour suivre votre presence sur les sites de travail (zones definies). Conserve 30 jours.",
-        "NSLocationAlwaysUsageDescription": "Agent de Bureau a besoin d'acceder a votre position en permanence, y compris en arriere-plan, pour suivre votre presence sur les sites de travail (zones definies). Conserve 30 jours.",
+        "NSLocationWhenInUseUsageDescription": "Ajant Bureau utilise votre position pour signaler votre presence a votre employeur (zones definies).",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Ajant Bureau a besoin d'acceder a votre position en permanence, y compris en arriere-plan, pour suivre votre presence sur les sites de travail (zones definies). Conserve 30 jours.",
+        "NSLocationAlwaysUsageDescription": "Ajant Bureau a besoin d'acceder a votre position en permanence, y compris en arriere-plan, pour suivre votre presence sur les sites de travail (zones definies). Conserve 30 jours.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -61,15 +61,15 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Agent de Bureau a besoin d'acceder a votre camera pour la reconnaissance faciale."
+          "cameraPermission": "Ajant Bureau a besoin d'acceder a votre camera pour la reconnaissance faciale."
         }
       ],
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Agent de Bureau utilise votre position en permanence (y compris en arriere-plan) pour signaler votre presence a votre employeur sur les zones definies. Donnees conservees 30 jours.",
-          "locationAlwaysPermission": "Agent de Bureau utilise votre position en permanence (y compris en arriere-plan) pour signaler votre presence a votre employeur sur les zones definies.",
-          "locationWhenInUsePermission": "Agent de Bureau utilise votre position pour signaler votre presence a votre employeur.",
+          "locationAlwaysAndWhenInUsePermission": "Ajant Bureau utilise votre position en permanence (y compris en arriere-plan) pour signaler votre presence a votre employeur sur les zones definies. Donnees conservees 30 jours.",
+          "locationAlwaysPermission": "Ajant Bureau utilise votre position en permanence (y compris en arriere-plan) pour signaler votre presence a votre employeur sur les zones definies.",
+          "locationWhenInUsePermission": "Ajant Bureau utilise votre position pour signaler votre presence a votre employeur.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true

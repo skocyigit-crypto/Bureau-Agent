@@ -162,7 +162,7 @@ router.post("/invitations", async (req: Request, res: Response): Promise<void> =
 
     const [org] = await db.select({ name: organisationsTable.name })
       .from(organisationsTable).where(eq(organisationsTable.id, organisationId));
-    const orgName = org?.name || "Agent de Bureau";
+    const orgName = org?.name || "Ajant Bureau";
 
     const tokenHash = hashToken(rawToken);
     const expiresAt = new Date(Date.now() + INVITATION_EXPIRY_HOURS * 60 * 60 * 1000);
@@ -211,13 +211,13 @@ router.post("/invitations", async (req: Request, res: Response): Promise<void> =
           <span style="font-size:28px;">&#128588;</span>
         </div>
         <h1 style="color:#ffffff;font-size:24px;font-weight:700;margin:0 0 8px;">Vous etes invite !</h1>
-        <p style="color:#94a3b8;font-size:14px;margin:0;">Rejoignez l'equipe sur Agent de Bureau</p>
+        <p style="color:#94a3b8;font-size:14px;margin:0;">Rejoignez l'equipe sur Ajant Bureau</p>
       </div>
       <div style="padding:32px;">
         <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 20px;">
           Bonjour,<br><br>
           <strong style="color:#0f1729;">${escapeHtml(inviterName)}</strong> vous invite a rejoindre
-          <strong style="color:#f59e0b;">${escapeHtml(orgName)}</strong> sur Agent de Bureau.
+          <strong style="color:#f59e0b;">${escapeHtml(orgName)}</strong> sur Ajant Bureau.
         </p>
         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin:0 0 24px;">
           <table style="width:100%;border-collapse:collapse;">
@@ -258,9 +258,9 @@ router.post("/invitations", async (req: Request, res: Response): Promise<void> =
 </body>
 </html>`;
 
-  const text = `Vous etes invite a rejoindre ${orgName} sur Agent de Bureau !\n\n${inviterName} vous invite en tant que ${roleLabels[assignedRole] || assignedRole}.\n\nAcceptez l'invitation : ${acceptUrl}\n\nCette invitation expire dans ${INVITATION_EXPIRY_HOURS} heures.\n\nSK GROUP`;
+  const text = `Vous etes invite a rejoindre ${orgName} sur Ajant Bureau !\n\n${inviterName} vous invite en tant que ${roleLabels[assignedRole] || assignedRole}.\n\nAcceptez l'invitation : ${acceptUrl}\n\nCette invitation expire dans ${INVITATION_EXPIRY_HOURS} heures.\n\nSK GROUP`;
 
-  const emailResult = await sendEmail(emailClean, `Invitation a rejoindre ${orgName} — Agent de Bureau`, html, text);
+  const emailResult = await sendEmail(emailClean, `Invitation a rejoindre ${orgName} — Ajant Bureau`, html, text);
 
   logAudit(userId, "", "invitation_sent", "invitation", String(invitation.id), { email: emailClean, role: assignedRole }, req.ip, req.get("user-agent"), organisationId);
 
@@ -313,7 +313,7 @@ router.post("/invitations/:id/resend", async (req: Request, res: Response): Prom
 
   const [org] = await db.select({ name: organisationsTable.name })
     .from(organisationsTable).where(eq(organisationsTable.id, organisationId));
-  const orgName = org?.name || "Agent de Bureau";
+  const orgName = org?.name || "Ajant Bureau";
 
   const appUrl = getAppUrl();
   const acceptUrl = `${appUrl}/invitation/${newRawToken}`;
@@ -327,7 +327,7 @@ router.post("/invitations/:id/resend", async (req: Request, res: Response): Prom
     <div style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
       <div style="background:linear-gradient(135deg,#0f1729 0%,#1e293b 100%);padding:32px;text-align:center;">
         <h1 style="color:#ffffff;font-size:22px;margin:0;">Rappel d'invitation</h1>
-        <p style="color:#94a3b8;font-size:14px;margin:8px 0 0;">Rejoignez ${escapeHtml(orgName)} sur Agent de Bureau</p>
+        <p style="color:#94a3b8;font-size:14px;margin:8px 0 0;">Rejoignez ${escapeHtml(orgName)} sur Ajant Bureau</p>
       </div>
       <div style="padding:32px;text-align:center;">
         <p style="color:#334155;font-size:15px;line-height:1.7;">Votre invitation est toujours valable ! Cliquez ci-dessous pour creer votre compte.</p>
@@ -418,7 +418,7 @@ router.get("/invitations/verify/:token", async (req: Request, res: Response): Pr
       valid: true,
       email: invitation.email,
       role: invitation.role,
-      organisationName: org?.name || "Agent de Bureau",
+      organisationName: org?.name || "Ajant Bureau",
       invitedBy: invitation.invitedByName,
     });
   } catch (err: any) {
@@ -480,7 +480,7 @@ router.post("/invitations/accept/:token", async (req: Request, res: Response): P
       nom,
       prenom,
       role: invitation.role,
-      organisation: org?.name || "Agent de Bureau",
+      organisation: org?.name || "Ajant Bureau",
       organisationId: invitation.organisationId,
       avatar,
     }).returning({

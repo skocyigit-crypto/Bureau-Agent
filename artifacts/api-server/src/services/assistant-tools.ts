@@ -1309,7 +1309,7 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
       "Ideal pour presentations commerciales, comptes-rendus de reunion, supports de formation. Le parametre dataJson " +
       "est une chaine JSON avec un titre optionnel et une liste de diapositives. Chaque diapositive a un 'title' " +
       "et au choix 'bullets' (liste a puces), 'paragraphs' (texte) ou 'table' {columns, rows}. Exemple: " +
-      "{\"title\":\"Offre 2026\",\"subtitle\":\"Agent de Bureau\",\"slides\":[" +
+      "{\"title\":\"Offre 2026\",\"subtitle\":\"Ajant Bureau\",\"slides\":[" +
       "{\"title\":\"Avantages\",\"bullets\":[\"Gain de temps\",\"Moins d'erreurs\"]}," +
       "{\"title\":\"Tarifs\",\"table\":{\"columns\":[\"Offre\",\"Prix\"],\"rows\":[[\"Starter\",\"29€\"]]}}]}.",
     parameters: {

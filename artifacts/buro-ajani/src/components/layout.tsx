@@ -411,7 +411,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               )}
               <div className="min-w-0">
                 <h1 className="text-sidebar-foreground font-semibold text-base leading-none truncate">
-                  {orgName || "Agent de Bureau"}
+                  {orgName || "Ajant Bureau"}
                 </h1>
                 <p className="text-sidebar-foreground/60 text-xs mt-1 truncate">{user.organisation || "Bureau"}</p>
               </div>

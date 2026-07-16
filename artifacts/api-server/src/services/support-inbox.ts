@@ -72,7 +72,7 @@ async function classifyAndDraft(orgId: number, email: IncomingSupportEmail): Pro
   await assertAiQuota(orgId);
 
   const body = sanitizePromptInput(email.text, BODY_MAX);
-  const prompt = `Tu es l'assistant support d'"Agent de Bureau" (logiciel SaaS français de gestion de bureau: standardiste IA, CRM, agenda, facturation). Un e-mail est arrivé sur l'adresse support/contact publique.
+  const prompt = `Tu es l'assistant support d'"Ajant Bureau" (logiciel SaaS français de gestion de bureau: standardiste IA, CRM, agenda, facturation). Un e-mail est arrivé sur l'adresse support/contact publique.
 
 E-MAIL REÇU:
 De: ${email.from}${email.fromName ? ` (${email.fromName})` : ""}

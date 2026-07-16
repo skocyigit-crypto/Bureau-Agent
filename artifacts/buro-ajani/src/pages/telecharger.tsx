@@ -49,7 +49,7 @@ export default function TelechargerPage() {
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === "accepted") {
         setIsInstalled(true);
-        toast({ title: "Installation réussie !", description: "Agent de Bureau a été installé sur votre appareil." });
+        toast({ title: "Installation réussie !", description: "Ajant Bureau a été installé sur votre appareil." });
       }
       setDeferredPrompt(null);
     } else {
@@ -74,7 +74,7 @@ export default function TelechargerPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Telecharger l'application</h1>
           <p className="text-muted-foreground mt-1">
-            Installez Agent de Bureau sur votre ordinateur ou telephone.
+            Installez Ajant Bureau sur votre ordinateur ou telephone.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -147,7 +147,7 @@ export default function TelechargerPage() {
                   <div className="p-4 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl border border-emerald-200 dark:border-emerald-800 text-center">
                     <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
                     <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">Application deja installee !</p>
-                    <p className="text-xs text-emerald-600/70 dark:text-emerald-400/60 mt-1">Vous utilisez Agent de Bureau en mode application.</p>
+                    <p className="text-xs text-emerald-600/70 dark:text-emerald-400/60 mt-1">Vous utilisez Ajant Bureau en mode application.</p>
                   </div>
                 ) : deferredPrompt ? (
                   <Button
@@ -240,7 +240,7 @@ export default function TelechargerPage() {
                 <Smartphone className="w-10 h-10 text-white" />
               </div>
               <div className="text-center lg:text-left flex-1">
-                <h2 className="text-xl font-bold">Agent de Bureau Mobile</h2>
+                <h2 className="text-xl font-bold">Ajant Bureau Mobile</h2>
                 <p className="text-muted-foreground text-sm mt-1">
                   Gerez vos appels, contacts, taches et messages depuis votre telephone.
                 </p>
@@ -270,7 +270,7 @@ export default function TelechargerPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Ajoutez Agent de Bureau a votre ecran d'accueil en quelques secondes, sans passer par un store.
+                  Ajoutez Ajant Bureau a votre ecran d'accueil en quelques secondes, sans passer par un store.
                 </p>
 
                 {isInstalled ? (
@@ -394,7 +394,7 @@ export default function TelechargerPage() {
                   Installer sur votre telephone
                 </CardTitle>
                 <CardDescription>
-                  Scannez ce QR code avec votre telephone pour ouvrir Agent de Bureau et l'installer en PWA.
+                  Scannez ce QR code avec votre telephone pour ouvrir Ajant Bureau et l'installer en PWA.
                 </CardDescription>
               </CardHeader>
               <CardContent>

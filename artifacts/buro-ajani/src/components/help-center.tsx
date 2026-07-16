@@ -55,7 +55,7 @@ const TOPICS: HelpTopic[] = [
     id: "premiers-pas",
     category: "Démarrage",
     icon: Sparkles,
-    title: "Premiers pas avec Agent de Bureau",
+    title: "Premiers pas avec Ajant Bureau",
     keywords: ["debut", "commencer", "start", "nouveau", "decouvrir"],
     href: "/onboarding",
     steps: [

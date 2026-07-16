@@ -224,7 +224,7 @@ function ProtectionStatusCard({ status, loading, onRefresh }: {
               <ShieldCheck className="w-5 h-5 text-emerald-600" />
               Votre protection
             </CardTitle>
-            <CardDescription>Couches de sécurité actives sur votre compte Agent de Bureau.</CardDescription>
+            <CardDescription>Couches de sécurité actives sur votre compte Ajant Bureau.</CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={onRefresh} disabled={loading}>
             <RefreshCw className={`w-3 h-3 mr-1 ${loading ? "animate-spin" : ""}`} />

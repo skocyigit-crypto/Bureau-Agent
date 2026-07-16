@@ -901,7 +901,7 @@ function PaymentsTab({ data, onRefresh }: { data: any; onRefresh: () => void }) 
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm flex items-center gap-2"><CreditCard className="h-4 w-4 text-green-500" />Paiements d'abonnement recus</CardTitle>
           </div>
-          <CardDescription className="text-xs">Historique des virements bancaires pour votre abonnement Agent de Bureau</CardDescription>
+          <CardDescription className="text-xs">Historique des virements bancaires pour votre abonnement Ajant Bureau</CardDescription>
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-72">

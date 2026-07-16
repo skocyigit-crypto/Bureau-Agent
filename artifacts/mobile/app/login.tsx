@@ -149,7 +149,7 @@ export default function LoginScreen() {
         <View style={[styles.logoCircle, { backgroundColor: colors.primary }]}>
           <Feather name="headphones" size={32} color={colors.secondary} />
         </View>
-        <Text style={styles.brandTitle}>Agent de Bureau</Text>
+        <Text style={styles.brandTitle}>Ajant Bureau</Text>
         <Text style={styles.brandSubtitle}>Solution professionnelle de gestion</Text>
       </View>
 

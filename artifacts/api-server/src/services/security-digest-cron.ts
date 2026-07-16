@@ -99,7 +99,7 @@ Vous pouvez desactiver cette synthese dans Securite > Reglages.`;
 
   const result = await sendEmail(
     orgEmail,
-    `[Agent de Bureau] Synthese securite — score ${score.score}/100`,
+    `[Ajant Bureau] Synthese securite — score ${score.score}/100`,
     html,
     text,
   );

@@ -59,7 +59,7 @@ export function PwaInstallPrompt() {
             <Smartphone className="h-5 w-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm">Installer Agent de Bureau</p>
+            <p className="font-semibold text-sm">Installer Ajant Bureau</p>
             <p className="text-xs text-muted-foreground mt-0.5">
               Accès rapide depuis votre écran d'accueil, fonctionne sans navigateur.
             </p>

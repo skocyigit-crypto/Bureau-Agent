@@ -34,7 +34,7 @@
 2. Menu "Mes Apps" → "+" → "Nouvelle App"
 3. Remplir :
    - Plateforme : **iOS**
-   - Nom : **Agent de Bureau** (ou "Buro Ajani" selon votre choix)
+   - Nom : **Ajant Bureau** (ou "Buro Ajani" selon votre choix)
    - Langue principale : **Francais** (ou Turc)
    - Bundle ID : selectionner `fr.agentdebureau.mobile` (sera cree
      automatiquement par EAS au premier build, ou le creer maintenant

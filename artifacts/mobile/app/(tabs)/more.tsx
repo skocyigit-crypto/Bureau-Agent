@@ -242,7 +242,7 @@ export default function MoreScreen() {
         </View>
 
         <Text style={[styles.version, { color: colors.mutedForeground }]}>
-          Agent de Bureau v1.0.0
+          Ajant Bureau v1.0.0
         </Text>
       </ScrollView>
     </View>

@@ -25,7 +25,7 @@ export function TabInstallation() {
                 Installation sur Mac
               </CardTitle>
               <CardDescription className="mt-1">
-                Installez Agent de Bureau et Google Workspace sur votre Mac pour une experience native.
+                Installez Ajant Bureau et Google Workspace sur votre Mac pour une experience native.
                 Toutes les fonctionnalites, la sécurité et les intégrations sont preservees.
               </CardDescription>
             </div>
@@ -121,7 +121,7 @@ export function TabInstallation() {
             <h4 className="text-sm font-medium">Processus de migration</h4>
             {[
               { step: 1, title: "Exporter la configuration", desc: "Générer un fichier de configuration chiffre contenant tous vos paramètres Workspace.", btn: "Exporter (.enc)", icon: Download, action: "Generation du fichier agent-bureau-config.enc en cours..." },
-              { step: 2, title: "Installer sur Mac", desc: "Telecharger et installer l'application Agent de Bureau sur votre Mac.", multiBtn: true },
+              { step: 2, title: "Installer sur Mac", desc: "Telecharger et installer l'application Ajant Bureau sur votre Mac.", multiBtn: true },
               { step: 3, title: "Importer la configuration", desc: "Ouvrez l'application sur Mac et importez le fichier de configuration chiffre. Vos identifiants Google seront automatiquement restaures.", btn: "Importer (.enc)", icon: Upload, action: "Selectionnez le fichier .enc exporte a l'etape 1 pour restaurer votre configuration." },
               { step: 4, title: "Vérification et synchronisation", desc: "L'application verifie la connexion Google Workspace, restaure les services et synchronisé les données. Le processus est entierement automatique.", btn: "Vérifier la migration", icon: RefreshCcw, action: "Test de connexion et synchronisation avec Google Workspace...", highlight: true },
             ].map((s) => (
@@ -159,7 +159,7 @@ export function TabInstallation() {
             <Smartphone className="w-5 h-5" />
             Compatibilite des appareils
           </CardTitle>
-          <CardDescription>Agent de Bureau est disponible sur toutes les plateformes. Google Workspace suit l'utilisateur.</CardDescription>
+          <CardDescription>Ajant Bureau est disponible sur toutes les plateformes. Google Workspace suit l'utilisateur.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -224,7 +224,7 @@ export function TabInstallation() {
                 <Smartphone className="w-5 h-5 text-amber-600" />
                 Application mobile - Apercu interactif
               </CardTitle>
-              <CardDescription className="mt-1">Decouvrez l'experience Agent de Bureau sur mobile. Naviguez entre les ecrans pour voir toutes les fonctionnalites.</CardDescription>
+              <CardDescription className="mt-1">Decouvrez l'experience Ajant Bureau sur mobile. Naviguez entre les ecrans pour voir toutes les fonctionnalites.</CardDescription>
             </div>
             <Badge className="bg-amber-100 text-amber-700 border-0 text-[10px] gap-1">
               <Smartphone className="w-3 h-3" /> iOS / Android

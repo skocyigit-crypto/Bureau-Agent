@@ -451,9 +451,9 @@ export function TabSauvegardes() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {[
               { platform: "local", name: "Serveur local", icon: Server, color: "text-slate-600", bg: "bg-slate-100 dark:bg-slate-900/30", path: "/secure/backups/local", desc: "Stockage chiffre AES-256 sur serveur principal" },
-              { platform: "google", name: "Google Drive", icon: Cloud, color: "text-blue-600", bg: "bg-blue-100 dark:bg-blue-900/30", path: "Google Drive > Agent de Bureau > Sauvegardes", desc: "Synchronisation automatique avec Google Workspace" },
-              { platform: "microsoft", name: "Microsoft OneDrive", icon: HardDrive, color: "text-[#0078D4]", bg: "bg-blue-50 dark:bg-blue-900/20", path: "OneDrive > Agent de Bureau > Backups", desc: "Sauvegarde vers Microsoft 365 OneDrive" },
-              { platform: "apple", name: "iCloud Drive", icon: Cloud, color: "text-gray-700", bg: "bg-gray-100 dark:bg-gray-900/30", path: "iCloud Drive > Agent de Bureau > Sauvegardes", desc: "Synchronisation avec l'ecosysteme Apple" },
+              { platform: "google", name: "Google Drive", icon: Cloud, color: "text-blue-600", bg: "bg-blue-100 dark:bg-blue-900/30", path: "Google Drive > Ajant Bureau > Sauvegardes", desc: "Synchronisation automatique avec Google Workspace" },
+              { platform: "microsoft", name: "Microsoft OneDrive", icon: HardDrive, color: "text-[#0078D4]", bg: "bg-blue-50 dark:bg-blue-900/20", path: "OneDrive > Ajant Bureau > Backups", desc: "Sauvegarde vers Microsoft 365 OneDrive" },
+              { platform: "apple", name: "iCloud Drive", icon: Cloud, color: "text-gray-700", bg: "bg-gray-100 dark:bg-gray-900/30", path: "iCloud Drive > Ajant Bureau > Sauvegardes", desc: "Synchronisation avec l'ecosysteme Apple" },
             ].map((dest) => {
               const config = backupConfigs.find((c: any) => c.platform === dest.platform);
               const platformStat = backupStats?.platforms?.find((p: any) => p.platform === dest.platform);

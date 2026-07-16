@@ -106,7 +106,7 @@ router.get("/google-drive-backup/config", async (req: Request, res: Response): P
         intervalMinutes: 360,
         retentionDays: 90,
         encryptionEnabled: "true",
-        storagePath: "Google Drive > Agent de Bureau - Sauvegardes",
+        storagePath: "Google Drive > Ajant Bureau - Sauvegardes",
       });
       const newConfig = await db.select().from(backupConfigTable).where(eq(backupConfigTable.platform, "google"));
       res.json(newConfig[0]);

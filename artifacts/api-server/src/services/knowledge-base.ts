@@ -634,7 +634,7 @@ export async function answerFromKnowledge(
   }
 
   const prompt = [
-    "Tu es l'assistant documentaire d'Agent de Bureau. Réponds à la QUESTION de",
+    "Tu es l'assistant documentaire d'Ajant Bureau. Réponds à la QUESTION de",
     "l'utilisateur en t'appuyant EXCLUSIVEMENT sur les EXTRAITS fournis ci-dessous.",
     "",
     "Règles strictes:",

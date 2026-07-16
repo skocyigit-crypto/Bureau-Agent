@@ -1,6 +1,6 @@
 # Integration WhatsApp (Twilio)
 
-Cette integration permet a chaque utilisateur d'Agent de Bureau de
+Cette integration permet a chaque utilisateur d'Ajant Bureau de
 discuter avec l'assistant IA via WhatsApp. L'assistant est le meme que
 celui de l'app web/mobile : il peut creer des contacts, taches, devis,
 envoyer des emails, repondre aux questions, etc.
@@ -44,7 +44,7 @@ Pour tester immediatement sans demarche commerciale :
    WhatsApp message**.
 2. Envoyez `join <code-sandbox>` au numero indique (+1 415 523 8886)
    depuis le WhatsApp d'un utilisateur dont le numero est dans son
-   profil Agent de Bureau.
+   profil Ajant Bureau.
 3. Console Twilio -> sandbox settings : reglez le webhook
    **"When a message comes in"** sur :
    ```
@@ -62,7 +62,7 @@ Pour un numero WhatsApp officiel :
    ```
    https://<votre-domaine>/api/whatsapp/twilio/inbound
    ```
-3. Cote Agent de Bureau (table `telephony_providers`), l'organisation
+3. Cote Ajant Bureau (table `telephony_providers`), l'organisation
    doit avoir un fournisseur Twilio actif avec le bon `accountSid` et
    `authToken` (deja le cas si l'org utilise deja la telephonie
    vocale Twilio).

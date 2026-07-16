@@ -117,7 +117,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
             </div>
             <CardTitle className="text-2xl font-bold text-emerald-600">Compte cree avec succes !</CardTitle>
             <CardDescription>
-              Bienvenue sur Agent de Bureau, {result.user?.prenom} !
+              Bienvenue sur Ajant Bureau, {result.user?.prenom} !
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -178,7 +178,7 @@ export default function RegisterPage({ onLogin, onBack }: RegisterPageProps) {
               onClick={handleContinue}
             >
               <Sparkles className="w-4 h-4 mr-2" />
-              Commencer a utiliser Agent de Bureau
+              Commencer a utiliser Ajant Bureau
             </Button>
 
             <p className="text-xs text-center text-muted-foreground">

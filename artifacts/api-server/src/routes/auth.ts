@@ -638,7 +638,7 @@ router.post("/auth/users", adminEmailLimiter, async (req: Request, res: Response
       createdAt: usersTable.createdAt,
     });
 
-    let orgName = organisation || "Agent de Bureau";
+    let orgName = organisation || "Ajant Bureau";
     if (organisationId) {
       const [org] = await db.select({ name: organisationsTable.name }).from(organisationsTable).where(eq(organisationsTable.id, organisationId));
       if (org) orgName = org.name;
@@ -862,7 +862,7 @@ router.post("/auth/users/:id/send-credentials", adminEmailLimiter, async (req: R
       updatedAt: new Date(),
     }).where(eq(usersTable.id, id));
 
-    let orgName = user.organisation || "Agent de Bureau";
+    let orgName = user.organisation || "Ajant Bureau";
     if (user.organisationId) {
       const [org] = await db.select({ name: organisationsTable.name }).from(organisationsTable).where(eq(organisationsTable.id, user.organisationId));
       if (org) orgName = org.name;
@@ -969,7 +969,7 @@ router.post("/auth/users/create-and-send", adminEmailLimiter, async (req: Reques
       createdAt: usersTable.createdAt,
     });
 
-    let orgName = organisation || "Agent de Bureau";
+    let orgName = organisation || "Ajant Bureau";
     if (organisationId) {
       const [org] = await db.select({ name: organisationsTable.name }).from(organisationsTable).where(eq(organisationsTable.id, organisationId));
       if (org) orgName = org.name;
@@ -1154,14 +1154,14 @@ router.post("/auth/forgot-password", resetLimiter, async (req: Request, res: Res
         </div>
         <p style="color:#666;font-size:13px">Ce lien est valable pendant <strong>1 heure</strong>. Si vous n'avez pas fait cette demande, ignorez cet email.</p>
         <hr style="border:none;border-top:1px solid #eee;margin:24px 0">
-        <p style="color:#999;font-size:11px">Agent de Bureau &mdash; ${appUrl}</p>
+        <p style="color:#999;font-size:11px">Ajant Bureau &mdash; ${appUrl}</p>
       </div>`;
 
     // Envoi email en BACKGROUND (fire-and-forget) — sinon la latence varie
     // selon que le provider Resend/Gmail/SMTP repond vite ou non. Avec
     // background send, le client recoit toujours la meme reponse en
     // ~MIN_LATENCY_MS, qu'il y ait un user ou non.
-    void sendEmail(emailClean, "Reinitialisation de votre mot de passe - Agent de Bureau", html,
+    void sendEmail(emailClean, "Reinitialisation de votre mot de passe - Ajant Bureau", html,
       `Bonjour ${user.prenom}, reinitialiser votre mot de passe: ${resetLink} (valide 1h)`)
       .catch(err => req.log.error({ err, to: emailClean }, "forgot-password: envoi email echoue"));
 
@@ -1292,13 +1292,13 @@ export async function issueAndSendEmailVerification(userId: number, email: strin
   const html = `<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px">
     <h2 style="color:#1a2744">Verifiez votre adresse email</h2>
     <p>Bonjour ${escapeHtml(prenom)},</p>
-    <p>Pour activer votre compte Agent de Bureau, cliquez sur le bouton ci-dessous :</p>
+    <p>Pour activer votre compte Ajant Bureau, cliquez sur le bouton ci-dessous :</p>
     <div style="text-align:center;margin:32px 0">
       <a href="${link}" style="background:#1a2744;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block">Verifier mon email</a>
     </div>
     <p style="color:#666;font-size:13px">Ce lien est valable pendant <strong>24 heures</strong>. Si vous n'avez pas cree de compte, ignorez cet email.</p>
   </div>`;
-  await sendEmail(email, "Verifiez votre email - Agent de Bureau", html, `Verifiez votre email: ${link} (valide 24h)`);
+  await sendEmail(email, "Verifiez votre email - Ajant Bureau", html, `Verifiez votre email: ${link} (valide 24h)`);
   return rawToken;
 }
 
@@ -1312,7 +1312,7 @@ async function sendPasswordChangedEmail(email: string, prenom: string, ip: strin
   const html = `<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px">
     <h2 style="color:#1a2744">Votre mot de passe a ete modifie</h2>
     <p>Bonjour ${escapeHtml(prenom)},</p>
-    <p>Le mot de passe de votre compte Agent de Bureau a ete reinitialise le <strong>${escapeHtml(when)}</strong>${ip ? ` depuis l'IP <strong>${escapeHtml(ip)}</strong>` : ""}.</p>
+    <p>Le mot de passe de votre compte Ajant Bureau a ete reinitialise le <strong>${escapeHtml(when)}</strong>${ip ? ` depuis l'IP <strong>${escapeHtml(ip)}</strong>` : ""}.</p>
     <p>Toutes vos sessions actives ont ete deconnectees par securite.</p>
     <p style="background:#fff7ed;border-left:4px solid #f59e0b;padding:12px;margin:16px 0">
       <strong>Vous n'etes pas a l'origine de cette action ?</strong> Contactez immediatement support@agentdebureau.fr.
@@ -1339,7 +1339,7 @@ async function sendLoginNotificationIfNew(user: any, ip: string | undefined, ua:
   const html = `<div style="font-family:sans-serif;max-width:520px;margin:auto;padding:24px">
     <h2 style="color:#1a2744">Nouvelle connexion detectee</h2>
     <p>Bonjour ${escapeHtml(user.prenom || "")},</p>
-    <p>Une connexion a votre compte Agent de Bureau a ete detectee depuis un nouvel appareil :</p>
+    <p>Une connexion a votre compte Ajant Bureau a ete detectee depuis un nouvel appareil :</p>
     <ul><li>Date : <strong>${escapeHtml(when)}</strong></li><li>IP : <strong>${escapeHtml(ip)}</strong></li>${ua ? `<li>Navigateur : ${escapeHtml(String(ua).slice(0, 200))}</li>` : ""}</ul>
     <p style="background:#fff7ed;border-left:4px solid #f59e0b;padding:12px;margin:16px 0">
       <strong>Ce n'est pas vous ?</strong> Changez immediatement votre mot de passe et contactez support@agentdebureau.fr.

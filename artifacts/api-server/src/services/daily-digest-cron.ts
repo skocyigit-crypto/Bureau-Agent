@@ -55,7 +55,7 @@ function digestEmailHtml(digest: DailyDigest): string {
           </tr>
         </table>
         ${suggestions ? `<ul style="padding-left:18px;font-size:13px;color:#334155;">${suggestions}</ul>` : ""}
-        <a href="${APP_URL}" style="display:inline-block;margin-top:16px;background:#f59e0b;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:14px;">Ouvrir Agent de Bureau</a>
+        <a href="${APP_URL}" style="display:inline-block;margin-top:16px;background:#f59e0b;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-size:14px;">Ouvrir Ajant Bureau</a>
       </div>
       <div style="background:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0;">
         <p style="color:#94a3b8;font-size:11px;margin:0;">&copy; ${new Date().getFullYear()} SK GROUP - Tous droits reserves</p>
@@ -91,7 +91,7 @@ async function sendDigestForUser(user: { id: number; organisationId: number | nu
       user.email,
       `Votre bilan du ${digest.date}`,
       digestEmailHtml(digest),
-      digest.ai?.resume ?? `Bonjour ${user.prenom}, votre bilan du jour est disponible sur Agent de Bureau.`,
+      digest.ai?.resume ?? `Bonjour ${user.prenom}, votre bilan du jour est disponible sur Ajant Bureau.`,
       { orgId },
     );
 

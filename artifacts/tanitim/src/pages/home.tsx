@@ -116,7 +116,7 @@ const FAQ_ITEMS: { q: string; a: string }[] = [
   },
   {
     q: "Quelles integrations sont disponibles?",
-    a: "Agent de Bureau propose 58 integrations natives : Google Workspace (26 services avec Hub integre), Microsoft 365 (19 services) et Apple/iCloud (13 services). Plus Salesforce, HubSpot, Slack, Notion, Zapier et bien d'autres. API ouverte pour connecter vos propres outils."
+    a: "Ajant Bureau propose 58 integrations natives : Google Workspace (26 services avec Hub integre), Microsoft 365 (19 services) et Apple/iCloud (13 services). Plus Salesforce, HubSpot, Slack, Notion, Zapier et bien d'autres. API ouverte pour connecter vos propres outils."
   },
   {
     q: "Proposez-vous une application mobile?",
@@ -897,7 +897,7 @@ export default function Home() {
             <div className="text-center max-w-3xl mx-auto mb-20">
               <h2 className="text-4xl md:text-5xl font-extrabold text-primary mb-6">Ils ont transformé leur accueil.</h2>
               <p className="text-xl text-muted-foreground font-medium">
-                Découvrez pourquoi les meilleurs professionnels de l'administration choisissent Agent de Bureau.
+                Découvrez pourquoi les meilleurs professionnels de l'administration choisissent Ajant Bureau.
               </p>
             </div>
 
@@ -908,14 +908,14 @@ export default function Home() {
                   role: "Office Manager",
                   company: "Volantera Solutions",
                   image: testimonial1Path,
-                  quote: "Agent de Bureau a complètement transformé notre façon de travailler. Fini les pertes d'informations entre la réception et les collaborateurs. L'interface est belle, rapide et surtout, pensée pour notre métier."
+                  quote: "Ajant Bureau a complètement transformé notre façon de travailler. Fini les pertes d'informations entre la réception et les collaborateurs. L'interface est belle, rapide et surtout, pensée pour notre métier."
                 },
                 {
                   name: "R. Blanchard",
                   role: "Directeur Général",
                   company: "Zephira Tech",
                   image: testimonial2Path,
-                  quote: "La qualité de l'accueil téléphonique est la première image de notre entreprise. Avec les analytiques d'Agent de Bureau, nous avons réduit notre temps de réponse moyen de 40% en un mois."
+                  quote: "La qualité de l'accueil téléphonique est la première image de notre entreprise. Avec les analytiques d'Ajant Bureau, nous avons réduit notre temps de réponse moyen de 40% en un mois."
                 },
                 {
                   name: "L. Duvernet",
@@ -1075,7 +1075,7 @@ export default function Home() {
                 Prêt à moderniser votre <span className="text-accent">accueil</span> ?
               </h2>
               <p className="text-xl md:text-2xl mb-12 text-blue-100/90 font-medium leading-relaxed">
-                Rejoignez les entreprises françaises qui ont fait le choix de l'excellence opérationnelle avec Agent de Bureau.
+                Rejoignez les entreprises françaises qui ont fait le choix de l'excellence opérationnelle avec Ajant Bureau.
               </p>
               
               <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-16">

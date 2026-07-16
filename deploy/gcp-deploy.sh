@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gcp-deploy.sh — Deploy Agent de Bureau (api + web) to Cloud Run, with a
+# gcp-deploy.sh — Deploy Ajant Bureau (api + web) to Cloud Run, with a
 # dedicated Cloud SQL Postgres instance, on the currently active gcloud
 # project/account. Run from the repo root:
 #
@@ -70,7 +70,7 @@ echo "-- Artifact Registry repo --"
 if ! gcloud artifacts repositories describe "${AR_REPO}" --location="${REGION}" --project "${PROJECT}" >/dev/null 2>&1; then
   gcloud artifacts repositories create "${AR_REPO}" \
     --repository-format=docker --location="${REGION}" \
-    --description="Agent de Bureau container images" --project "${PROJECT}"
+    --description="Ajant Bureau container images" --project "${PROJECT}"
 else
   echo "   already exists, skipping"
 fi

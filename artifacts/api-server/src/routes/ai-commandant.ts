@@ -437,12 +437,12 @@ function emailWrap(title: string, body: string): string {
 <body style="margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-serif;">
 <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
 <div style="background:linear-gradient(135deg,#0f1729 0%,#1a2744 100%);padding:32px;text-align:center;">
-<h1 style="color:#fff;font-size:22px;margin:0;">Agent de Bureau</h1>
+<h1 style="color:#fff;font-size:22px;margin:0;">Ajant Bureau</h1>
 <p style="color:#f59e0b;font-size:13px;margin:8px 0 0;">AI Commandant - ${escapeHtml(title)}</p>
 </div>
 <div style="padding:28px;">${body}</div>
 <div style="background:#f8fafc;padding:16px;text-align:center;border-top:1px solid #e2e8f0;">
-<p style="color:#94a3b8;font-size:11px;margin:0;">&copy; ${new Date().getFullYear()} Agent de Bureau - AI Commandant</p>
+<p style="color:#94a3b8;font-size:11px;margin:0;">&copy; ${new Date().getFullYear()} Ajant Bureau - AI Commandant</p>
 </div></div></body></html>`;
 }
 
@@ -499,7 +499,7 @@ router.post("/commandant/call-smart-response", async (req: Request, res: Respons
     const contactProjets = contactContext.contactActivity?.projets || [];
     const learnedBlock = await buildLearnedContextBlock(orgId);
 
-    const systemPrompt = `Tu es un assistant telephonique IA d'elite pour "Agent de Bureau", un logiciel de gestion de bureau francais.
+    const systemPrompt = `Tu es un assistant telephonique IA d'elite pour "Ajant Bureau", un logiciel de gestion de bureau francais.
 Tu dois generer la MEILLEURE reponse possible pour un appel ${callDirection === "entrant" ? "entrant" : "sortant"}.
 Tu es extremement professionnel, empathique et intelligent. Tu connais l'historique complet du contact.
 Tu as acces aux rapports des agents IA specialises (telephonie, CRM, productivite, finance) pour enrichir ta reponse.
@@ -742,7 +742,7 @@ router.post("/commandant/email-smart-reply", async (req: Request, res: Response)
     const [org] = await db.select().from(organisationsTable).where(eq(organisationsTable.id, orgId));
     const learnedBlock = await buildLearnedContextBlock(orgId);
 
-    const systemPrompt = `Tu es un expert en communication d'entreprise pour "${org?.name || "Agent de Bureau"}". Tu rediges des reponses email professionnelles, pertinentes et efficaces en francais. Tu t'adaptes au ton demande et tu personnalises selon le contexte du contact.
+    const systemPrompt = `Tu es un expert en communication d'entreprise pour "${org?.name || "Ajant Bureau"}". Tu rediges des reponses email professionnelles, pertinentes et efficaces en francais. Tu t'adaptes au ton demande et tu personnalises selon le contexte du contact.
 Tu as acces aux rapports des agents IA specialises pour enrichir ta reponse avec du contexte pertinent.
 
 ${collaborationPrompt}${learnedBlock}`;
@@ -1224,7 +1224,7 @@ router.post("/commandant/drive-send-file", async (req: Request, res: Response): 
       <p style="color:#64748b;font-size:14px;">Bonjour ${escapeHtml(recipientName || "")},</p>
       <p style="color:#64748b;font-size:14px;">${escapeHtml(message || "Veuillez trouver ci-joint le document demande.")}</p>
       ${fileName ? `<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:16px;margin:20px 0;"><p style="margin:0;font-size:13px;color:#0369a1;">📎 Fichier joint: <strong>${escapeHtml(fileName)}</strong></p></div>` : ""}
-      <p style="color:#64748b;font-size:13px;">Cordialement,<br><strong>Agent de Bureau</strong></p>`;
+      <p style="color:#64748b;font-size:13px;">Cordialement,<br><strong>Ajant Bureau</strong></p>`;
 
     const html = emailWrap("Envoi de document", body);
     const sent = await sendEmailViaResend(recipientEmail, subject, html, orgId);
@@ -1284,7 +1284,7 @@ router.get("/commandant/daily-briefing", async (req: Request, res: Response): Pr
     const crossIssues = (await import("./agent-collaboration")).detectCrossAgentIssues(orgId);
     const crossIssuesList = await crossIssues;
 
-    const systemPrompt = `Tu es le Commandant IA d'Agent de Bureau — un assistant executif surpuissant qui aide les dirigeants a gerer leur journee. Tu utilises toutes les donnees disponibles ET les rapports des agents IA specialises pour fournir le briefing matinal le plus complet et actionnable possible. Sois concis, clair et strategique. Francais uniquement.
+    const systemPrompt = `Tu es le Commandant IA d'Ajant Bureau — un assistant executif surpuissant qui aide les dirigeants a gerer leur journee. Tu utilises toutes les donnees disponibles ET les rapports des agents IA specialises pour fournir le briefing matinal le plus complet et actionnable possible. Sois concis, clair et strategique. Francais uniquement.
 
 ${collaborationPrompt}`;
 
@@ -1700,7 +1700,7 @@ router.post("/commandant/execute-command", async (req: Request, res: Response): 
     const agentSummary = Object.entries(agentInsights).map(([id, i]) => `${id}: score ${i.score}/100`).join(", ");
     const learnedBlock = await buildLearnedContextBlock(orgId);
 
-    const systemPrompt = `Tu es le Commandant IA d'Agent de Bureau. Tu recois des commandes en langage naturel et tu dois les interpreter pour fournir une reponse actionnable.
+    const systemPrompt = `Tu es le Commandant IA d'Ajant Bureau. Tu recois des commandes en langage naturel et tu dois les interpreter pour fournir une reponse actionnable.
 
 CONTEXTE ACTUEL DU BUREAU:
 - Taches ouvertes: ${taskCount} (${overdueCount} en retard)
@@ -1786,7 +1786,7 @@ router.post("/commandant/execute-command/stream", async (req: Request, res: Resp
     const agentSummary = Object.entries(agentInsights).map(([id, i]) => `${id}: score ${i.score}/100`).join(", ");
     const learnedBlock = await buildLearnedContextBlock(orgId);
 
-    const systemPrompt = `Tu es le Commandant IA d'Agent de Bureau. Tu recois des commandes en langage naturel et tu dois les interpreter pour fournir une reponse actionnable.
+    const systemPrompt = `Tu es le Commandant IA d'Ajant Bureau. Tu recois des commandes en langage naturel et tu dois les interpreter pour fournir une reponse actionnable.
 
 CONTEXTE ACTUEL DU BUREAU:
 - Taches ouvertes: ${taskCount} (${overdueCount} en retard)
@@ -1920,7 +1920,7 @@ router.get("/commandant/weekly-digest", async (req: Request, res: Response): Pro
     };
 
     const learnedBlock = await buildLearnedContextBlock(orgId);
-    const systemPrompt = `Tu es le Commandant IA d'Agent de Bureau. Genere un digest hebdomadaire complet pour le dirigeant. Sois strategique, concret et utilise les chiffres. Francais uniquement.${learnedBlock}`;
+    const systemPrompt = `Tu es le Commandant IA d'Ajant Bureau. Genere un digest hebdomadaire complet pour le dirigeant. Sois strategique, concret et utilise les chiffres. Francais uniquement.${learnedBlock}`;
     const prompt = `Genere le digest hebdomadaire (${weekAgo.toLocaleDateString("fr-FR")} au ${now.toLocaleDateString("fr-FR")}):
 
 DONNEES DE LA SEMAINE:
@@ -2047,7 +2047,7 @@ router.post("/commandant/weekly-digest/stream", async (req: Request, res: Respon
       return;
     }
 
-    const systemPrompt = `Tu es le Commandant IA d'Agent de Bureau. Genere un digest hebdomadaire complet pour le dirigeant. Sois strategique, concret et utilise les chiffres. Francais uniquement.${learnedBlock}`;
+    const systemPrompt = `Tu es le Commandant IA d'Ajant Bureau. Genere un digest hebdomadaire complet pour le dirigeant. Sois strategique, concret et utilise les chiffres. Francais uniquement.${learnedBlock}`;
     const prompt = `Genere le digest hebdomadaire (${weekAgo.toLocaleDateString("fr-FR")} au ${now.toLocaleDateString("fr-FR")}):
 
 DONNEES DE LA SEMAINE:
@@ -2215,7 +2215,7 @@ router.post("/commandant/gmail-triage", async (req: Request, res: Response): Pro
 
     const collabPrompt = buildCommandantContextPrompt(agentInsights, {});
 
-    const systemPrompt = `Tu es un assistant IA expert en gestion de messagerie pour "${org[0]?.name || "Agent de Bureau"}". Tu analyses les emails et fournis un triage intelligent et actionnable. Tu connais le contexte metier grace aux rapports des agents IA specialises.
+    const systemPrompt = `Tu es un assistant IA expert en gestion de messagerie pour "${org[0]?.name || "Ajant Bureau"}". Tu analyses les emails et fournis un triage intelligent et actionnable. Tu connais le contexte metier grace aux rapports des agents IA specialises.
 
 ${collabPrompt}
 
@@ -2306,7 +2306,7 @@ router.post("/commandant/gmail-draft-reply", async (req: Request, res: Response)
       }
     }
 
-    const systemPrompt = `Tu es l'assistant email IA de "${org[0]?.name || "Agent de Bureau"}". Tu rediges des reponses email professionnelles, precises et efficaces. Tu utilises le contexte CRM et les rapports des agents pour personnaliser chaque reponse.
+    const systemPrompt = `Tu es l'assistant email IA de "${org[0]?.name || "Ajant Bureau"}". Tu rediges des reponses email professionnelles, precises et efficaces. Tu utilises le contexte CRM et les rapports des agents pour personnaliser chaque reponse.
 
 Regles:
 - Redige en francais sauf si l'email original est dans une autre langue
@@ -2836,7 +2836,7 @@ router.post("/commandant/conversations/:id/messages", async (req: Request, res: 
     const retrieved = await retrieveRelevantDataForChat(orgId, userMessage);
     const retrievedDataSection = retrieved.context;
 
-    const systemPrompt = `Tu es le Commandant IA d'Agent de Bureau, un assistant conversationnel pour un dirigeant francais.
+    const systemPrompt = `Tu es le Commandant IA d'Ajant Bureau, un assistant conversationnel pour un dirigeant francais.
 Tu reponds de maniere claire, concise et actionnable, TOUJOURS en francais.
 Tu te souviens de la conversation precedente et tu fais reference aux echanges anterieurs quand c'est pertinent.
 Quand des DONNEES PERTINENTES sont fournies, appuie-toi dessus et cite des references concretes (noms, numeros de facture, dates) plutot que d'inventer.

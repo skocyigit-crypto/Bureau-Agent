@@ -112,7 +112,7 @@ PUBLIC_URL                  -> https://<canli-domain>
 ### 3b. Sifre yoneticisi
 
 Tum degerleri **1Password / Bitwarden / KeePass** gibi bir sifre yoneticisinde
-"Agent de Bureau — production" baslikli secure note olarak sakla. **Slack/email/
+"Ajant Bureau — production" baslikli secure note olarak sakla. **Slack/email/
 git'e ASLA yapistirma.**
 
 ### 3c. Platforma yukle

@@ -135,7 +135,7 @@ router.post("/tasks", async (req, res): Promise<void> => {
       if (assigneeId && assigneeId !== userId) {
         const title = task.title ?? "(sans titre)";
         const echeance = task.dueDate ? ` (echeance ${task.dueDate.toISOString().slice(0, 10)})` : "";
-        const body = `[Agent de Bureau] Nouvelle tache assignee : ${title}${echeance}`;
+        const body = `[Ajant Bureau] Nouvelle tache assignee : ${title}${echeance}`;
         sendWhatsAppNotification(orgId, assigneeId, body, "task").catch(() => {});
       }
     }

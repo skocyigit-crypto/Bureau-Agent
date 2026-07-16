@@ -17,12 +17,12 @@ export default function CGU() {
         <section className="space-y-8 text-sm leading-relaxed text-foreground/80">
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-3">1. Objet</h2>
-            <p>Les présentes Conditions Générales d'Utilisation (CGU) régissent l'accès et l'utilisation de la plateforme SaaS <strong>Agent de Bureau</strong> éditée par SK GROUP (SASU). En créant un compte, l'utilisateur accepte sans réserve les présentes CGU.</p>
+            <p>Les présentes Conditions Générales d'Utilisation (CGU) régissent l'accès et l'utilisation de la plateforme SaaS <strong>Ajant Bureau</strong> éditée par SK GROUP (SASU). En créant un compte, l'utilisateur accepte sans réserve les présentes CGU.</p>
           </div>
 
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-3">2. Description du service</h2>
-            <p>Agent de Bureau est une solution de gestion professionnelle accessible par abonnement, comprenant notamment : CRM, centre d'appels, devis, facturation, gestion de stock, agents IA, messagerie et agenda. Le service est accessible depuis tout navigateur web et via l'application mobile.</p>
+            <p>Ajant Bureau est une solution de gestion professionnelle accessible par abonnement, comprenant notamment : CRM, centre d'appels, devis, facturation, gestion de stock, agents IA, messagerie et agenda. Le service est accessible depuis tout navigateur web et via l'application mobile.</p>
           </div>
 
           <div>
@@ -58,12 +58,12 @@ export default function CGU() {
 
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-3">8. Disponibilité du service (SLA)</h2>
-            <p>Agent de Bureau s'engage à maintenir une disponibilité du service de <strong>99,5 % mensuelle</strong>. Les maintenances planifiées sont annoncées 48h à l'avance. En cas de défaillance majeure, un crédit de service peut être accordé sur demande.</p>
+            <p>Ajant Bureau s'engage à maintenir une disponibilité du service de <strong>99,5 % mensuelle</strong>. Les maintenances planifiées sont annoncées 48h à l'avance. En cas de défaillance majeure, un crédit de service peut être accordé sur demande.</p>
           </div>
 
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-3">9. Responsabilités</h2>
-            <p>SK GROUP est soumis à une obligation de moyens. Sa responsabilité ne saurait être engagée en cas de perte de données résultant d'une faute de l'utilisateur, d'une attaque informatique externe ou d'un cas de force majeure. La responsabilité d'Agent de Bureau est limitée au montant des abonnements versés au cours des 3 derniers mois.</p>
+            <p>SK GROUP est soumis à une obligation de moyens. Sa responsabilité ne saurait être engagée en cas de perte de données résultant d'une faute de l'utilisateur, d'une attaque informatique externe ou d'un cas de force majeure. La responsabilité d'Ajant Bureau est limitée au montant des abonnements versés au cours des 3 derniers mois.</p>
           </div>
 
           <div>

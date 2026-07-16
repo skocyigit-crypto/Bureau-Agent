@@ -1,5 +1,5 @@
 {
-  "name": "Agent de Bureau",
+  "name": "Ajant Bureau",
   "short_name": "Agent Bureau",
   "description": "Solution professionnelle de gestion de bureau et centre d'appels",
   "start_url": "/",
@@ -95,7 +95,7 @@
       "sizes": "1200x630",
       "type": "image/jpeg",
       "form_factor": "wide",
-      "label": "Tableau de bord Agent de Bureau"
+      "label": "Tableau de bord Ajant Bureau"
     }
   ]
 }

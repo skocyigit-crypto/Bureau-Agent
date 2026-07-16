@@ -17,7 +17,7 @@ export default function MentionsLegales() {
         <section className="space-y-8 text-sm leading-relaxed text-foreground/80">
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-3">1. Éditeur du site</h2>
-            <p>Le site <strong>agentdebureau.fr</strong> et la marque commerciale « Agent de Bureau » sont édités par :</p>
+            <p>Le site <strong>agentdebureau.fr</strong> et la marque commerciale « Ajant Bureau » sont édités par :</p>
             <ul className="mt-2 space-y-1 pl-4 list-disc">
               <li><strong>SK GROUP</strong> (SASU)</li>
               <li>Siège social : 17 rue Saint-Exupéry, 67500 Haguenau, France</li>
@@ -46,7 +46,7 @@ export default function MentionsLegales() {
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-3">4. Propriété intellectuelle</h2>
             <p>
-              L'ensemble des éléments constituant le site Agent de Bureau (textes, graphismes, logiciels, photographies, images, sons, plans, noms, logos, marques, créations et œuvres protégeables diverses) sont la propriété exclusive de SK GROUP ou de ses partenaires. Toute reproduction, représentation, modification, publication, adaptation de tout ou partie des éléments du site est interdite, sauf autorisation écrite préalable.
+              L'ensemble des éléments constituant le site Ajant Bureau (textes, graphismes, logiciels, photographies, images, sons, plans, noms, logos, marques, créations et œuvres protégeables diverses) sont la propriété exclusive de SK GROUP ou de ses partenaires. Toute reproduction, représentation, modification, publication, adaptation de tout ou partie des éléments du site est interdite, sauf autorisation écrite préalable.
             </p>
           </div>
 

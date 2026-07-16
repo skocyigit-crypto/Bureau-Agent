@@ -213,7 +213,7 @@ export default function FaceRecognitionScreen() {
       const d = await apiPost("/recognize", {
         photoBase64,
         location: "Bureau - Application mobile",
-        deviceInfo: `${Platform.OS} - Agent de Bureau`,
+        deviceInfo: `${Platform.OS} - Ajant Bureau`,
       });
       if (d.success) { setResult(d); animateResult(); loadStats(); }
       else Alert.alert("Erreur", d.error || "Reconnaissance echouee");

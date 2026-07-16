@@ -63,9 +63,9 @@ router.get("/backups/config", async (_req, res) => {
     if (configs.length === 0) {
       const defaults = [
         { platform: "local", enabled: "true", intervalMinutes: 2, retentionDays: 90, encryptionEnabled: "true", storagePath: "/secure/backups/local" },
-        { platform: "google", enabled: "true", intervalMinutes: 2, retentionDays: 90, encryptionEnabled: "true", storagePath: "Google Drive > Agent de Bureau > Sauvegardes" },
-        { platform: "microsoft", enabled: "true", intervalMinutes: 2, retentionDays: 90, encryptionEnabled: "true", storagePath: "OneDrive > Agent de Bureau > Backups" },
-        { platform: "apple", enabled: "true", intervalMinutes: 2, retentionDays: 90, encryptionEnabled: "true", storagePath: "iCloud Drive > Agent de Bureau > Sauvegardes" },
+        { platform: "google", enabled: "true", intervalMinutes: 2, retentionDays: 90, encryptionEnabled: "true", storagePath: "Google Drive > Ajant Bureau > Sauvegardes" },
+        { platform: "microsoft", enabled: "true", intervalMinutes: 2, retentionDays: 90, encryptionEnabled: "true", storagePath: "OneDrive > Ajant Bureau > Backups" },
+        { platform: "apple", enabled: "true", intervalMinutes: 2, retentionDays: 90, encryptionEnabled: "true", storagePath: "iCloud Drive > Ajant Bureau > Sauvegardes" },
       ];
       for (const d of defaults) {
         const existing = await db.select().from(backupConfigTable).where(eq(backupConfigTable.platform, d.platform));

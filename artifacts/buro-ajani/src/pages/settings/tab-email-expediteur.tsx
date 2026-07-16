@@ -168,7 +168,7 @@ export function TabEmailExpediteur() {
         <ShieldCheck className="h-4 w-4 text-indigo-600" />
         <AlertTitle>Votre propre service d'envoi d'emails</AlertTitle>
         <AlertDescription className="text-sm text-muted-foreground">
-          Par défaut, Agent de Bureau envoie vos emails (factures, rappels, messages de l'assistant)
+          Par défaut, Ajant Bureau envoie vos emails (factures, rappels, messages de l'assistant)
           via le service d'envoi de la plateforme. En connectant <strong>votre propre clé Resend</strong>,
           vos emails partent depuis <strong>votre domaine</strong> et les coûts d'envoi vous sont
           directement facturés par Resend. Si votre clé échoue, la plateforme prend le relais

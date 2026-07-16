@@ -2936,7 +2936,7 @@ async function runSuperAgentCycle(orgId: number, userId: number) {
             try {
               aiText = await superAgentAI(orgId,
                 `Email reçu:\nDe: ${safeFrom}\nObjet: ${safeSubject}\nContenu: ${safeBody}\n\nAnalyse cet email et extrait les tâches/actions requises en JSON:\n{"tasks":[{"title":"string","priority":"haute|moyenne|basse","dueInDays":3,"description":"string"}],"needsReply":true/false,"urgency":"normale|haute|critique","summary":"string"}`,
-                `Tu es le Super Agent IA d'Agent de Bureau. Tu analyses les emails professionnels et extrais les actions requises. Sois précis et actionnable. Réponds UNIQUEMENT en JSON valide.`
+                `Tu es le Super Agent IA d'Ajant Bureau. Tu analyses les emails professionnels et extrais les actions requises. Sois précis et actionnable. Réponds UNIQUEMENT en JSON valide.`
               );
             } finally {
               releaseEmailQuota();
@@ -3137,7 +3137,7 @@ router.post("/ai/super-agent/process-report", requireAdmin, async (req, res): Pr
     const safeReport = sanitizePromptInput(report, 8000);
     const aiText = await superAgentAI(orgId,
       `Rapport ${reportType}:\n${safeReport}\n\nAnalyse ce rapport et extrait TOUTES les actions à faire:\n{"tasks":[{"title":"string","priority":"haute|moyenne|basse","dueInDays":3,"description":"string","assignedTo":"string|null"}],"appointments":[{"title":"string","date":"YYYY-MM-DD","time":"HH:MM","type":"rendez_vous|reunion|visite"}],"issues":[{"description":"string","severity":"haute|moyenne|basse"}],"summary":"string","nextStepUrgency":"normal|eleve|critique"}`,
-      `Tu es le Super Agent IA d'Agent de Bureau. Tu analyses des rapports de chantier, de visite ou de réunion professionnels. Tu extrais TOUTES les actions concrètes à réaliser. Sois exhaustif et précis. Réponds UNIQUEMENT en JSON valide.`
+      `Tu es le Super Agent IA d'Ajant Bureau. Tu analyses des rapports de chantier, de visite ou de réunion professionnels. Tu extrais TOUTES les actions concrètes à réaliser. Sois exhaustif et précis. Réponds UNIQUEMENT en JSON valide.`
     );
 
     let parsed: any = {};
