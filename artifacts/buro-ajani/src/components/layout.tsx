@@ -309,7 +309,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           ...(canUseAi ? [{ name: "Saisie vocale chantier", href: "/saisie-chantier", icon: HardHat }] : []),
           { name: "Notes internes", href: "/notes-internes", icon: StickyNote, badge: mutedBadges.note ? 0 : badges.note },
           { name: "Pointage", href: "/pointage", icon: Clock },
-          ...(isAdmin ? [{ name: "Localisation equipe", href: "/equipe/localisation", icon: MapPin }] : []),
         ],
       },
       {
@@ -319,7 +318,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           ...(canUseAi ? [{ name: "Base de connaissances", href: "/base-connaissances", icon: BookOpen }] : []),
           ...(canUseAi ? [{ name: "Document IA", href: "/document-ia", icon: ScanSearch }] : []),
           { name: "Rapports", href: "/rapports", icon: ClipboardList },
-          ...(isAdmin ? [{ name: "Rapport exécutif", href: "/rapport-executif", icon: BarChart3 }] : []),
         ],
       },
       ...(canUseAi
@@ -329,10 +327,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
               { name: "Équipe IA", href: "/equipe-ia", icon: Brain },
               { name: "Commandant IA", href: "/commandant-ia", icon: Crown },
               { name: "File d'approbation", href: "/file-approbation", icon: Inbox, badge: mutedBadges.agentQueue ? 0 : agentQueueCount },
-              ...(isAdmin ? [{ name: "Auto-audit", href: "/auto-audit", icon: ClipboardCheck }] : []),
               { name: "Assistant Universel", href: "/asistan", icon: Sparkles },
               { name: "Agents IA", href: "/agents-ia", icon: Bot },
-              ...(isAdmin ? [{ name: "Automatisations", href: "/automatisations", icon: Zap }] : []),
             ],
           }]
         : []),
@@ -340,7 +336,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         label: "Analyse",
         items: [
           { name: "Statistiques", href: "/analyse", icon: BarChart },
-          ...(isAdmin ? [{ name: "Performance équipe", href: "/performance", icon: Trophy }] : []),
         ],
       },
       {
@@ -351,6 +346,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
           { name: "Connecteurs", href: "/logiciels", icon: Plug },
         ],
       },
+      // Tout ce qui est reserve a l'administrateur (super-admin ou
+      // administrateur d'organisation) regroupe dans un seul onglet, meme
+      // logique que "Super Admin" ci-dessous — plutot qu'eparpille parmi
+      // les groupes thematiques (Organisation du travail, Rapports,
+      // Assistants IA, Analyse).
       ...(isAdmin
         ? [{
             label: "Administration",
@@ -358,6 +358,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
               { name: "Utilisateurs", href: "/utilisateurs", icon: UserCog },
               { name: "Licence & Facturation", href: "/gestion-licence", icon: CreditCard },
               { name: "Protection des données", href: "/protection-donnees", icon: Shield },
+              { name: "Localisation equipe", href: "/equipe/localisation", icon: MapPin },
+              { name: "Rapport exécutif", href: "/rapport-executif", icon: BarChart3 },
+              { name: "Performance équipe", href: "/performance", icon: Trophy },
+              ...(canUseAi ? [{ name: "Auto-audit", href: "/auto-audit", icon: ClipboardCheck }] : []),
+              ...(canUseAi ? [{ name: "Automatisations", href: "/automatisations", icon: Zap }] : []),
             ],
           }]
         : []),
