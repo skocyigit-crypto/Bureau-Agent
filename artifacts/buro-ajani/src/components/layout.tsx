@@ -297,11 +297,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         label: "Carnet d'adresses",
         items: [
           { name: "Contacts", href: "/contacts", icon: Users },
-          // Prospects est desormais un module backoffice (super-admin uniquement).
-          // Voir le panneau /admin pour la gestion commerciale (leads, devis,
-          // factures B2B, stock de licences). Refactor "Admin Backoffice +
-          // Müşteri Sadeleştirme" — Tâche #52.
-          ...(isSuperAdmin ? [{ name: "Prospects", href: "/prospects", icon: Target, badge: mutedBadges.prospect ? 0 : badges.prospect }] : []),
         ],
       },
       {
@@ -363,18 +358,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
               { name: "Utilisateurs", href: "/utilisateurs", icon: UserCog },
               { name: "Licence & Facturation", href: "/gestion-licence", icon: CreditCard },
               { name: "Protection des données", href: "/protection-donnees", icon: Shield },
-              ...(isSuperAdmin ? [{ name: "Organisations", href: "/organisations", icon: KeyRound }] : []),
             ],
           }]
         : []),
-      // Backoffice SaaS — visible uniquement pour le super-admin (proprietaire SaaS).
-      // Centralise la gestion commerciale: prospects (leads), devis kurumsal,
-      // factures B2B, stock de licences, dashboard MRR/churn.
+      // Tout ce qui est reserve au super-admin (proprietaire SaaS) regroupe
+      // dans un seul onglet, plutot qu'eparpille entre plusieurs groupes
+      // (Carnet d'adresses, Administration, Backoffice SaaS separes).
       ...(isSuperAdmin
         ? [{
-            label: "Backoffice SaaS",
+            label: "Super Admin",
             items: [
-              { name: "Admin", href: "/admin", icon: Building2 },
+              { name: "Backoffice SaaS", href: "/admin", icon: Building2 },
+              { name: "Organisations", href: "/organisations", icon: KeyRound },
+              { name: "Prospects", href: "/prospects", icon: Target, badge: mutedBadges.prospect ? 0 : badges.prospect },
             ],
           }]
         : []),
