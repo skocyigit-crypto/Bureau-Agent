@@ -15,7 +15,19 @@ SQL_USER="agent"
 LOCAL_PORT=15432
 
 SQL_CONNECTION_NAME="$(gcloud sql instances describe "${SQL_INSTANCE}" --project "${PROJECT}" --format='value(connectionName)')"
-DB_PASSWORD="$(gcloud secrets versions access latest --secret=db-password --project "${PROJECT}")"
+
+# Mot de passe: on le derive du secret `database-url`, celui que Cloud Run
+# monte reellement, et NON du secret `db-password`. Les deux ont diverge (le
+# second n'a pas ete mis a jour lors d'une rotation), si bien que ce script
+# echouait sur "password authentication failed for user agent" alors que
+# l'application, elle, se connectait sans probleme. Prendre la meme source que
+# le service qui tourne evite que les deux redivergent en silence.
+DB_URL_SECRET="$(gcloud secrets versions access latest --secret=database-url --project "${PROJECT}")"
+DB_PASSWORD="$(printf '%s' "${DB_URL_SECRET}" | sed -e 's|^[^:]*://[^:]*:||' -e 's|@.*$||')"
+if [ -z "${DB_PASSWORD}" ]; then
+  echo "ERREUR: impossible d'extraire le mot de passe du secret database-url." >&2
+  exit 1
+fi
 
 # Download the Cloud SQL Auth Proxy if not already present.
 PROXY_BIN="./cloud-sql-proxy"
