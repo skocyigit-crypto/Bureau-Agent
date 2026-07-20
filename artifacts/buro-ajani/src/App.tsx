@@ -63,6 +63,7 @@ import ProspectDetail from "@/pages/prospect-detail";
 import AdminBackofficePage from "@/pages/admin";
 import AdminDashboardPage from "@/pages/admin-dashboard";
 import AdminDevisPage from "@/pages/admin-devis";
+import AdminAuditPage from "@/pages/admin-audit";
 import AdminFacturesB2BPage from "@/pages/admin-factures-b2b";
 import AdminFacturesClientPage from "@/pages/admin-factures-client";
 import NotesInternesPage from "@/pages/notes-internes";
@@ -189,6 +190,7 @@ function AppRoutes() {
         <Route path="/admin/devis" component={AdminDevisPage} />
         <Route path="/admin/factures-b2b" component={AdminFacturesB2BPage} />
         <Route path="/admin/factures-client" component={AdminFacturesClientPage} />
+        <Route path="/admin/audit" component={AdminAuditPage} />
         <Route path="/notes-internes" component={withLicenseGate(NotesInternesPage)} />
         <Route path="/protection-donnees" component={withLicenseGate(DataProtectionPage)} />
         <Route path="/contacts/import" component={withLicenseGate(ContactsImportPage)} />

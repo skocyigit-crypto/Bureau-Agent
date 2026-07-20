@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireRole } from "../middleware/auth";
+import { requireRole, requireSuperAdmin } from "../middleware/auth";
 import {
   getSecurityEvents,
   getSecurityStats,
@@ -326,31 +326,35 @@ router.delete("/security/lists/:id", async (req, res) => {
 });
 
 // ── Mevcut güvenlik API'leri ──────────────────────────────────────────────────
-router.get("/security/dashboard", requireAdmin, (_req, res) => {
+// requireSuperAdmin: meme raison que Guardian ci-dessous — getSecurityStats/
+// getSecurityEvents/getBlacklistedIps n'ont aucune dimension organisationId,
+// ce sont des donnees globales a la plateforme (legacy, en parallele de
+// Guardian). Aucun frontend web/mobile ne consomme ces routes actuellement.
+router.get("/security/dashboard", requireSuperAdmin, (_req, res) => {
   const stats = getSecurityStats();
   const recentEvents = getSecurityEvents(20);
   const blacklisted = getBlacklistedIps();
   res.json({ stats, recentEvents, blacklistedIps: blacklisted });
 });
 
-router.get("/security/events", requireAdmin, (req, res) => {
+router.get("/security/events", requireSuperAdmin, (req, res) => {
   const limit = Math.min(parseInt(req.query.limit as string) || 50, 500);
   const severity = req.query.severity as string | undefined;
   const events = getSecurityEvents(limit, severity);
   res.json({ events, total: events.length });
 });
 
-router.get("/security/stats", requireAdmin, (_req, res) => {
+router.get("/security/stats", requireSuperAdmin, (_req, res) => {
   const stats = getSecurityStats();
   res.json(stats);
 });
 
-router.get("/security/blacklist", requireAdmin, (_req, res) => {
+router.get("/security/blacklist", requireSuperAdmin, (_req, res) => {
   const ips = getBlacklistedIps();
   res.json({ blacklistedIps: ips, total: ips.length });
 });
 
-router.delete("/security/blacklist/:ip", requireAdmin, (req, res) => {
+router.delete("/security/blacklist/:ip", requireSuperAdmin, (req, res) => {
   const ip = String(req.params.ip);
   const userId = req.session?.userId;
   if (unblockIp(ip)) {
@@ -381,7 +385,7 @@ router.post("/security/scan", requireAdmin, (req, res) => {
   res.json(result);
 });
 
-router.get("/security/health", requireAdmin, (_req, res) => {
+router.get("/security/health", requireSuperAdmin, (_req, res) => {
   const stats = getSecurityStats();
   const gStats = getGuardianStats();
   const threatLevel =
@@ -401,12 +405,19 @@ router.get("/security/health", requireAdmin, (_req, res) => {
 });
 
 // ── Guardian WAF API'leri ─────────────────────────────────────────────────────
+// requireSuperAdmin (pas requireAdmin/administrateur): les donnees Guardian
+// sont GLOBALES a la plateforme (IP bannies, evenements, profils de menace —
+// aucune dimension organisationId dans ce modele, cf. middleware/guardian.ts).
+// Avec requireAdmin, n'importe quel administrateur d'organisation cliente
+// pouvait voir la liste complete des IP bannies de TOUS les tenants et lever
+// le bannissement d'une IP attaquant activement un autre client — une fuite
+// de donnees cross-tenant et un contournement de securite plateforme.
 
-router.get("/security/guardian/stats", requireAdmin, (_req, res) => {
+router.get("/security/guardian/stats", requireSuperAdmin, (_req, res) => {
   res.json(getGuardianStats());
 });
 
-router.get("/security/guardian/events", requireAdmin, (req, res) => {
+router.get("/security/guardian/events", requireSuperAdmin, (req, res) => {
   const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
   const type = req.query.type as string | undefined;
   let events = getGuardianEvents(200);
@@ -414,15 +425,15 @@ router.get("/security/guardian/events", requireAdmin, (req, res) => {
   res.json({ events: events.slice(0, limit), total: events.length });
 });
 
-router.get("/security/guardian/banned", requireAdmin, (_req, res) => {
+router.get("/security/guardian/banned", requireSuperAdmin, (_req, res) => {
   res.json({ bannedIps: getGuardianBannedIps() });
 });
 
-router.get("/security/guardian/profiles", requireAdmin, (_req, res) => {
+router.get("/security/guardian/profiles", requireSuperAdmin, (_req, res) => {
   res.json({ profiles: getGuardianThreatProfiles(30) });
 });
 
-router.delete("/security/guardian/banned/:ip", requireAdmin, (req, res) => {
+router.delete("/security/guardian/banned/:ip", requireSuperAdmin, (req, res) => {
   const ip = String(req.params.ip);
   const userId = req.session?.userId;
   if (unbanGuardianIp(ip)) {
@@ -434,7 +445,11 @@ router.delete("/security/guardian/banned/:ip", requireAdmin, (req, res) => {
 });
 
 // ── Birleşik özet endpoint (dashboard için) ──────────────────────────────────
-router.get("/security/overview", requireAdmin, (_req, res) => {
+// requireSuperAdmin: comme /security/guardian/*, ce recapitulatif melange des
+// donnees globales a la plateforme (legacy blacklist/stats compris, aucune
+// n'est scopee par organisationId — cf. middleware/security.ts) — aucune
+// pertinence pour un admin d'organisation cliente, meme raison que ci-dessus.
+router.get("/security/overview", requireSuperAdmin, (_req, res) => {
   const legacyStats = getSecurityStats();
   const guardianData = getGuardianStats();
   const recentEvents = getGuardianEvents(30);

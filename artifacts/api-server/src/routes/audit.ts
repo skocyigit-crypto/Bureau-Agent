@@ -21,11 +21,17 @@ function requireAdmin(req: Request, res: Response): boolean {
   return true;
 }
 
-// Tenant scoping: super_admin voit tout; administrateur ne voit que son organisation.
+// Tenant scoping: super_admin voit tout (avec un ?organisationId= optionnel
+// pour filtrer sur une organisation precise depuis la vue globale — meme
+// convention que devis.ts/factures-client.ts); administrateur ne voit que
+// son organisation, sans pouvoir passer outre via le query param.
 function tenantCondition(req: Request) {
   const role = req.session?.userRole;
   const orgId = req.session?.organisationId;
-  if (role === "super_admin") return undefined;
+  if (role === "super_admin") {
+    const filterOrgId = safeInt(req.query.organisationId, 0, 1, Number.MAX_SAFE_INTEGER);
+    return filterOrgId > 0 ? eq(auditLogsTable.organisationId, filterOrgId) : undefined;
+  }
   if (!orgId) return eq(auditLogsTable.organisationId, -1); // verrou par defaut
   return eq(auditLogsTable.organisationId, orgId);
 }

@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { Shield, Target, FileText, Receipt, Package, LayoutDashboard, ArrowRight } from "lucide-react";
+import { Shield, Target, FileText, Receipt, Package, LayoutDashboard, ArrowRight, ClipboardList } from "lucide-react";
 import { useWorkspaceUser } from "@/components/workspace-user";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -64,6 +64,14 @@ export default function AdminBackofficePage() {
       description: "Factures émises aux clients + relances — vue globale toutes organisations",
       icon: Receipt,
       href: "/admin/factures-client",
+      status: "Actif",
+      enabled: true,
+    },
+    {
+      label: "Journal d'audit global",
+      description: "Activite de toutes les organisations, filtrable par organisation — export CSV",
+      icon: ClipboardList,
+      href: "/admin/audit",
       status: "Actif",
       enabled: true,
     },

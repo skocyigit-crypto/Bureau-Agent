@@ -3,7 +3,6 @@ import { db } from "@workspace/db";
 import { legalAgreementsTable, LEGAL_DOCUMENTS, type LegalDocumentCode } from "@workspace/db";
 import { organisationsTable } from "@workspace/db";
 import { eq, sql, and } from "drizzle-orm";
-import { getOrgId } from "../middleware/tenant";
 import { requireSuperAdmin } from "../middleware/auth";
 
 const router = Router();
@@ -220,11 +219,16 @@ router.post("/legal/accept-all", async (req: Request, res: Response): Promise<vo
 });
 
 router.post("/legal/revoke", async (req: Request, res: Response): Promise<void> => {
-  // IDOR fix: previously the SELECT and UPDATE used eq(id, agreementId) only,
-  // letting any authenticated user revoke ANY organisation's legal agreement
-  // by guessing/iterating numeric ids. Scope every query to the caller's
-  // organisation; cross-tenant ids return 404 (info-disclosure-safe).
-  const orgId = getOrgId(req);
+  // Ce routeur entier est monte derriere requireSuperAdmin (ligne 14) — tout
+  // appelant ici est deja un super-admin gerant potentiellement N'IMPORTE
+  // QUELLE organisation depuis le panneau Organisations (pas seulement la
+  // sienne). Le precedent filtre `eq(organisationId, getOrgId(req))` (destine
+  // a corriger un IDOR pour un cas "administrateur gere son propre org" qui
+  // n'existe pas sur ce routeur) resolvait a la PROPRE organisation du
+  // super-admin (ou levait une exception si aucune) — cassant l'action pour
+  // toute organisation autre que la sienne. L'id de l'agreement suffit donc
+  // seul a identifier la ligne cible; pas d'IDOR possible ici puisque seul un
+  // super-admin authentifie atteint ce handler.
   const { agreementId, reason } = req.body;
   const agreementIdNum = Number(agreementId);
 
@@ -234,8 +238,8 @@ router.post("/legal/revoke", async (req: Request, res: Response): Promise<void> 
   }
 
   try {
-    const [agreement] = await db.select().from(legalAgreementsTable)
-      .where(and(eq(legalAgreementsTable.id, agreementIdNum), eq(legalAgreementsTable.organisationId, orgId)));
+    const scope = eq(legalAgreementsTable.id, agreementIdNum);
+    const [agreement] = await db.select().from(legalAgreementsTable).where(scope);
     if (!agreement) {
       res.status(404).json({ error: "Accord introuvable." });
       return;
@@ -250,7 +254,7 @@ router.post("/legal/revoke", async (req: Request, res: Response): Promise<void> 
       revoked: true,
       revokedAt: new Date(),
       revokedReason: reason || "Revocation par l'administrateur",
-    }).where(and(eq(legalAgreementsTable.id, agreementIdNum), eq(legalAgreementsTable.organisationId, orgId)));
+    }).where(scope);
 
     res.json({ message: "Accord revoque avec succes." });
   } catch (err: any) {

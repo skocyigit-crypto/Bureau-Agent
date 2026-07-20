@@ -376,6 +376,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               { name: "Backoffice SaaS", href: "/admin", icon: Building2 },
               { name: "Organisations", href: "/organisations", icon: KeyRound },
               { name: "Prospects", href: "/prospects", icon: Target, badge: mutedBadges.prospect ? 0 : badges.prospect },
+              { name: "Journal d'audit global", href: "/admin/audit", icon: ClipboardList },
             ],
           }]
         : []),
