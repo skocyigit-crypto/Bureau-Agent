@@ -122,22 +122,34 @@ fi
 # 5. Build + push the api image via Cloud Build (context = repo root).
 # ---------------------------------------------------------------------------
 echo "-- Building api image via Cloud Build --"
-gcloud builds submit . --config /dev/stdin --project "${PROJECT}" <<EOF
+# Config ecrite dans un fichier temporaire plutot que passee via /dev/stdin:
+# sous Git Bash (Windows), /proc/self/fd/0 n'existe pas et gcloud echoue avec
+# "Unable to read file [/proc/self/fd/0]".
+# DOCKER_BUILDKIT=1 est requis: le Dockerfile utilise --mount=type=cache, que
+# le builder docker de Cloud Build refuse sans BuildKit.
+BUILD_CFG="$(mktemp)"
+cat > "${BUILD_CFG}" <<EOF
 steps:
   - name: 'gcr.io/cloud-builders/docker'
+    env: ['DOCKER_BUILDKIT=1']
     args: ['build', '-f', 'deploy/Dockerfile.api', '-t', '${IMAGE_API}', '.']
 images: ['${IMAGE_API}']
-timeout: 1200s
+timeout: 1800s
 options:
   machineType: 'E2_HIGHCPU_8'
 EOF
+gcloud builds submit . --config "${BUILD_CFG}" --project "${PROJECT}"
+rm -f "${BUILD_CFG}"
 
 # ---------------------------------------------------------------------------
 # 6. Deploy the api Cloud Run service.
 # ---------------------------------------------------------------------------
 echo "-- Deploying ${API_SERVICE} --"
 DATABASE_URL="postgresql://${SQL_USER}@/${SQL_DB}?host=/cloudsql/${SQL_CONNECTION_NAME}"
-SECRET_REFS="SESSION_SECRET=session-secret:latest,DATA_ENCRYPTION_KEY=data-encryption-key:latest,ADMIN_PASSWORD=admin-password:latest,DB_PASSWORD=db-password:latest"
+# DB_PASSWORD n'est monte nulle part: aucun code ne le lit (lib/db/src/index.ts
+# se connecte via DATABASE_URL uniquement). Le monter laissait croire qu'il
+# servait a quelque chose, alors que sa valeur avait divergé de la vraie.
+SECRET_REFS="SESSION_SECRET=session-secret:latest,DATA_ENCRYPTION_KEY=data-encryption-key:latest,ADMIN_PASSWORD=admin-password:latest"
 if gcloud secrets describe gemini-api-key --project "${PROJECT}" >/dev/null 2>&1; then
   SECRET_REFS="${SECRET_REFS},GEMINI_API_KEY=gemini-api-key:latest"
 fi
@@ -149,21 +161,27 @@ gcloud run deploy "${API_SERVICE}" \
   --platform=managed \
   --allow-unauthenticated \
   --add-cloudsql-instances="${SQL_CONNECTION_NAME}" \
-  --set-env-vars="NODE_ENV=production,ADMIN_EMAIL=${ADMIN_EMAIL},DATABASE_URL_TEMPLATE=${DATABASE_URL}" \
-  --set-secrets="${SECRET_REFS}" \
+  --update-env-vars="NODE_ENV=production,ADMIN_EMAIL=${ADMIN_EMAIL}" \
+  --update-secrets="${SECRET_REFS}" \
   --min-instances=0 --max-instances=3 --memory=512Mi --cpu=1 \
   --port=8080
 
 API_URL="$(gcloud run services describe "${API_SERVICE}" --region="${REGION}" --project "${PROJECT}" --format='value(status.url)')"
 echo "   api deployed at: ${API_URL}"
 
-# NOTE: DATABASE_URL still needs the DB_PASSWORD interpolated in — Cloud Run
-# --set-env-vars can't reference another secret inline, so this is patched
-# as a second update once the password secret's value is resolvable here:
-DB_PASSWORD_VALUE="$(gcloud secrets versions access latest --secret=db-password --project "${PROJECT}")"
-gcloud run services update "${API_SERVICE}" \
-  --region="${REGION}" --project="${PROJECT}" \
-  --update-env-vars="DATABASE_URL=postgresql://${SQL_USER}:${DB_PASSWORD_VALUE}@/${SQL_DB}?host=/cloudsql/${SQL_CONNECTION_NAME}"
+# DATABASE_URL: on ne le reecrit QUE s'il est absent. Le service qui tourne le
+# tient du secret `database-url`, dont le mot de passe a diverge de celui du
+# secret `db-password` — reconstruire l'URL a partir de ce dernier a chaque
+# deploiement coupait la connexion Postgres en production.
+if gcloud run services describe "${API_SERVICE}" --region="${REGION}" --project "${PROJECT}" \
+     --format='value(spec.template.spec.containers[0].env)' | grep -q "DATABASE_URL"; then
+  echo "   DATABASE_URL deja configure — laisse tel quel"
+else
+  echo "   DATABASE_URL absent — initialisation depuis le secret database-url"
+  gcloud run services update "${API_SERVICE}" \
+    --region="${REGION}" --project="${PROJECT}" \
+    --update-secrets="DATABASE_URL=database-url:latest"
+fi
 
 # ---------------------------------------------------------------------------
 # 7. Push the Drizzle schema to the new database (via Cloud SQL Auth Proxy).
@@ -178,13 +196,19 @@ echo "    if this step is skipped here, or once the proxy binary is available.)"
 # ---------------------------------------------------------------------------
 echo "-- Building web image via Cloud Build --"
 API_HOST="$(echo "${API_URL}" | sed -e 's|https://||' -e 's|http://||')"
-gcloud builds submit . --config /dev/stdin --project "${PROJECT}" <<EOF
+BUILD_CFG_WEB="$(mktemp)"
+cat > "${BUILD_CFG_WEB}" <<EOF
 steps:
   - name: 'gcr.io/cloud-builders/docker'
+    env: ['DOCKER_BUILDKIT=1']
     args: ['build', '-f', 'deploy/Dockerfile.web.cloudrun', '-t', '${IMAGE_WEB}', '.']
 images: ['${IMAGE_WEB}']
-timeout: 900s
+timeout: 1800s
+options:
+  machineType: 'E2_HIGHCPU_8'
 EOF
+gcloud builds submit . --config "${BUILD_CFG_WEB}" --project "${PROJECT}"
+rm -f "${BUILD_CFG_WEB}"
 
 echo "-- Deploying ${WEB_SERVICE} --"
 gcloud run deploy "${WEB_SERVICE}" \
@@ -193,7 +217,7 @@ gcloud run deploy "${WEB_SERVICE}" \
   --project="${PROJECT}" \
   --platform=managed \
   --allow-unauthenticated \
-  --set-env-vars="API_UPSTREAM=${API_HOST}:443" \
+  --update-env-vars="API_UPSTREAM=${API_HOST}:443" \
   --min-instances=0 --max-instances=3 --memory=256Mi --cpu=1 \
   --port=8080
 
