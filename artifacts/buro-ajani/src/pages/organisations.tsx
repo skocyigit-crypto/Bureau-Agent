@@ -487,8 +487,22 @@ export default function OrganisationsPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        const adminMsg = data.adminUser ? ` Identifiants envoyes a ${data.adminUser.email}.` : "";
-        toast({ title: "Organisation creee", description: `${formName} avec le plan ${data.subscription?.plan || formPlan}.${adminMsg}` });
+        // L'organisation est creee meme si l'e-mail echoue: on ferme donc la
+        // boite de dialogue (re-soumettre creerait un doublon), mais on ne
+        // pretend PAS que la licence est partie. Avant, ce message affichait
+        // "Identifiants envoyes" sans jamais regarder data.emailSent — un envoi
+        // en echec ressemblait a un succes et la fenetre se fermait toute seule.
+        if (data.emailSent) {
+          const adminMsg = data.adminUser ? ` Identifiants envoyes a ${data.adminUser.email}.` : "";
+          toast({ title: "Organisation creee", description: `${formName} avec le plan ${data.subscription?.plan || formPlan}.${adminMsg}` });
+        } else {
+          toast({
+            title: "Organisation creee — e-mail NON envoye",
+            description: `${data.emailNote || "L'envoi a echoue."} La licence n'est pas perdue : utilisez le bouton « Renvoyer la licence » sur la fiche de ${formName}.`,
+            variant: "destructive",
+            duration: 15000,
+          });
+        }
         setShowCreate(false);
         loadOrganisations();
       } else {

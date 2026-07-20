@@ -346,7 +346,16 @@ router.post("/organisations", async (req: Request, res: Response): Promise<void>
       ...result,
       licenseKey,
       emailSent: emailResult ? emailResult.success : false,
-      emailNote: !sendTo ? "Aucun email fourni." : emailResult?.preview || (emailResult?.success ? "Email envoye avec licence et identifiants." : "Erreur lors de l'envoi de l'email."),
+      emailTo: sendTo || null,
+      // Remonter la VRAIE cause de l'echec (domaine non verifie chez Resend,
+      // cle absente...) au lieu d'un "Erreur lors de l'envoi" generique:
+      // l'organisation est deja creee a ce stade, l'operateur doit savoir quoi
+      // corriger avant de renvoyer la licence.
+      emailNote: !sendTo
+        ? "Aucun email fourni."
+        : emailResult?.success
+          ? (emailResult.preview || "Email envoye avec licence et identifiants.")
+          : (emailResult?.error || "Erreur lors de l'envoi de l'email."),
     });
   } catch (err: any) {
     logger.error({ err }, "Erreur creation organisation");
@@ -447,7 +456,12 @@ router.post("/organisations/:id/resend-license", async (req: Request, res: Respo
       });
     } else {
       logger.warn({ err: result.error }, "Envoi licence email echoue");
-      res.status(500).json({ error: "Lien de reinitialisation cree mais erreur lors de l'envoi de l'email." });
+      // La cause reelle (domaine non verifie, cle API absente...) doit remonter
+      // a l'operateur: sans elle, il ne peut que re-cliquer indefiniment sur un
+      // bouton qui echouera de la meme facon.
+      res.status(500).json({
+        error: `Lien de reinitialisation cree, mais l'e-mail n'a pas pu etre envoye : ${result.error || "cause inconnue"}`,
+      });
     }
   } catch (err: any) {
     req.log.error({ err }, "Erreur renvoi licence");
