@@ -21,7 +21,14 @@ const publicAppointmentLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-router.use(publicAppointmentLimiter);
+// IMPORTANT: limiter monte sur le CHEMIN de ces routes, pas sur le router nu.
+// Ce router est monte sans prefixe dans routes/index.ts (les URLs publiques
+// sont /api/appointments/offer/...), donc un `router.use(limiter)` sans chemin
+// s'appliquait a TOUT le trafic /api: 60 requetes / 15 min pour l'application
+// entiere. Un simple parcours du tableau de bord epuisait le quota, puis toute
+// action (renvoi de licence, analyse IA...) repondait 429 sans jamais atteindre
+// le handler.
+router.use("/appointments/offer", publicAppointmentLimiter);
 
 router.get("/appointments/offer/:token", async (req: Request, res: Response): Promise<void> => {
   const token = String(req.params.token || "");
