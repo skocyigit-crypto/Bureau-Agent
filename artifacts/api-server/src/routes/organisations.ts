@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
-import { eq, sql, desc } from "drizzle-orm";
+import { eq, sql, desc, and, inArray } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { db, organisationsTable, subscriptionsTable, usersTable } from "@workspace/db";
+import { db, organisationsTable, subscriptionsTable, usersTable, invoicesTable } from "@workspace/db";
 import { PLANS, type PlanKey } from "@workspace/db/schema";
 import crypto from "crypto";
 import { sendLicenseEmail } from "../services/email";
@@ -74,6 +74,70 @@ router.get("/organisations/search-entreprise", async (req: Request, res: Respons
   } catch (err) {
     logger.warn({ err, q }, "[organisations] Recherche entreprise indisponible");
     res.json({ results: [] });
+  }
+});
+
+/**
+ * Factures mensuelles en attente de validation humaine.
+ *
+ * Le cron de facturation les cree desormais en `brouillon` plutot que de les
+ * finaliser tout seul (cf. services/billing-engine.ts): ce sont des documents
+ * comptables adresses a des clients payants. Elles n'entrent dans aucun calcul
+ * d'impaye tant qu'elles ne sont pas validees ici.
+ */
+router.get("/organisations/invoice-drafts", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const rows = await db.select({
+      id: invoicesTable.id,
+      organisationId: invoicesTable.organisationId,
+      organisationName: organisationsTable.name,
+      periodLabel: invoicesTable.periodLabel,
+      plan: invoicesTable.plan,
+      baseAmount: invoicesTable.baseAmount,
+      overageAmount: invoicesTable.overageAmount,
+      totalAmount: invoicesTable.totalAmount,
+      currency: invoicesTable.currency,
+      usageSnapshot: invoicesTable.usageSnapshot,
+      createdAt: invoicesTable.createdAt,
+    })
+      .from(invoicesTable)
+      .leftJoin(organisationsTable, eq(invoicesTable.organisationId, organisationsTable.id))
+      .where(eq(invoicesTable.status, "brouillon"))
+      .orderBy(desc(invoicesTable.createdAt));
+    res.json({ drafts: rows });
+  } catch (err) {
+    req.log.error({ err }, "[organisations] Erreur chargement brouillons de factures");
+    res.status(500).json({ error: "Erreur lors du chargement des brouillons" });
+  }
+});
+
+/**
+ * Valide des brouillons de factures (les passe en `en_attente`, donc dues).
+ * `ids` limite la validation a une selection; sans `ids`, valide tous les
+ * brouillons — c'est le geste "j'ai relu le lot du mois, envoie".
+ */
+router.post("/organisations/invoice-drafts/validate", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const rawIds = Array.isArray(req.body?.ids) ? req.body.ids : null;
+    const ids = rawIds?.map(Number).filter((n: number) => Number.isInteger(n) && n > 0) ?? null;
+    if (rawIds && (!ids || ids.length === 0)) {
+      res.status(400).json({ error: "ids invalides" });
+      return;
+    }
+
+    const conds = [eq(invoicesTable.status, "brouillon")];
+    if (ids) conds.push(inArray(invoicesTable.id, ids));
+
+    const validated = await db.update(invoicesTable)
+      .set({ status: "en_attente" })
+      .where(and(...conds))
+      .returning({ id: invoicesTable.id });
+
+    req.log.info({ count: validated.length }, "[organisations] Brouillons de factures valides");
+    res.json({ ok: true, validated: validated.length });
+  } catch (err) {
+    req.log.error({ err }, "[organisations] Erreur validation brouillons");
+    res.status(500).json({ error: "Erreur lors de la validation" });
   }
 });
 

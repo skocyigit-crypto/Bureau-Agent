@@ -2,7 +2,26 @@ import { db, invoicesTable, subscriptionsTable, organisationsTable, usersTable, 
 import { eq, and, gte, lt, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 
-export async function generateMonthlyInvoices(periodYear: number, periodMonth: number): Promise<{ generated: number; skipped: number; errors: number }> {
+/**
+ * Genere les factures mensuelles de la plateforme.
+ *
+ * `mode` (defaut "brouillon"): les factures sont creees avec le statut
+ * `brouillon` et n'entrent dans aucun calcul d'impaye tant qu'un super-admin
+ * ne les a pas validees (POST /license-management/invoices/validate-drafts).
+ * Ce sont des documents comptables envoyes a des clients payants — ils ne
+ * doivent pas se finaliser tout seuls dans le dos d'un humain. Passer "direct"
+ * retablit l'ancien comportement (finalisation immediate) pour l'organisation
+ * qui l'a explicitement choisi via `billingRequiresApproval = false`.
+ *
+ * Note: ces factures ne peuvent PAS passer par la file d'approbation
+ * (agent_proposals), qui est scopee a une organisation — le locataire y
+ * approuverait sa propre facture. La validation est donc cote super-admin.
+ */
+export async function generateMonthlyInvoices(
+  periodYear: number,
+  periodMonth: number,
+  mode: "brouillon" | "direct" = "brouillon",
+): Promise<{ generated: number; skipped: number; errors: number }> {
   const result = { generated: 0, skipped: 0, errors: 0 };
 
   const periodStart = new Date(Date.UTC(periodYear, periodMonth - 1, 1, 0, 0, 0));
@@ -100,7 +119,9 @@ export async function generateMonthlyInvoices(periodYear: number, periodMonth: n
         overageAmount: String(overageAmount),
         totalAmount: String(totalAmount),
         currency: sub.currency || "EUR",
-        status: "en_attente",
+        // Une org peut opter pour la finalisation directe; sinon la facture
+        // reste un brouillon jusqu'a validation humaine.
+        status: mode === "direct" || !org.billingRequiresApproval ? "en_attente" : "brouillon",
         usageSnapshot,
       });
 

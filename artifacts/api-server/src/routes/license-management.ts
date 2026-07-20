@@ -8,6 +8,7 @@ import { logger } from "../lib/logger";
 const router = Router();
 
 import { escapeHtml } from "../lib/html-escape";
+import { enqueueProposal } from "../services/proposal-queue";
 
 const APP_URL = process.env.PUBLIC_URL || process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "agentdebureau.fr"}`;
 
@@ -427,7 +428,16 @@ router.post("/license-management/send-invoice-email", async (req: Request, res: 
 // automatique, toutes organisations). Auparavant "auto-reminders" ne
 // s'executait QUE sur clic humain malgre son nom — aucun cron ne
 // l'appelait.
-export async function runAutoRemindersForOrg(orgId: number, triggeredByUserId?: number): Promise<{ total: number; sent: number; skipped: number }> {
+export async function runAutoRemindersForOrg(
+  orgId: number,
+  triggeredByUserId?: number,
+  opts?: { mode?: "send" | "propose" },
+): Promise<{ total: number; sent: number; skipped: number; proposed: number }> {
+    // "propose": prepare la relance et la depose en file d'approbation au lieu
+    // de l'envoyer. C'est le mode du cron quotidien — un e-mail de relance part
+    // vers le client final de l'organisation, il ne doit pas quitter le systeme
+    // sans qu'un humain ait lu ce qui allait etre dit et a qui.
+    const mode = opts?.mode ?? "send";
     const now = new Date();
     const overdueInvoices = await db.select().from(facturesClientTable).where(and(
       eq(facturesClientTable.organisationId, orgId),
@@ -438,6 +448,7 @@ export async function runAutoRemindersForOrg(orgId: number, triggeredByUserId?: 
 
     let sent = 0;
     let skipped = 0;
+    let proposed = 0;
 
     // orgId ne change pas d'une iteration a l'autre — un seul lookup pour
     // toutes les factures en retard de cette organisation (avant: refait a
@@ -477,6 +488,29 @@ export async function runAutoRemindersForOrg(orgId: number, triggeredByUserId?: 
         <p style="color:#64748b;font-size:13px;">Cordialement,<br><strong>${escapeHtml(org?.name || "Ajant Bureau")}</strong></p>`;
 
       const html = generateEmailWrapper("Rappel automatique", body);
+
+      if (mode === "propose") {
+        // Aucune ligne payment_reminders n'est ecrite ici: la relance n'a pas
+        // eu lieu. Elle sera enregistree a l'execution, quand la proposition
+        // sera approuvee et que send_email aura reellement envoye. Le garde
+        // "pas deux relances en 7 jours" ci-dessus reste donc correct, et la
+        // dedup sur sourceRef empeche d'empiler la meme relance chaque matin.
+        const res = await enqueueProposal({
+          orgId,
+          toolName: "send_email",
+          title: `Relance ${facture.reference} — ${facture.clientName}`,
+          summary: `Envoyer une relance de paiement a ${facture.clientName} (${facture.clientEmail}) pour ${remaining.toFixed(2)} EUR, en retard de ${daysOverdue} jour${daysOverdue > 1 ? "s" : ""}.`,
+          reason: `Facture ${facture.reference} echue depuis ${daysOverdue} jour${daysOverdue > 1 ? "s" : ""}. Niveau de relance: ${level}.`,
+          args: { to: facture.clientEmail, subject, body: html },
+          category: "relance",
+          priority: level >= 3 ? "haute" : "moyenne",
+          sourceType: "invoice_reminder",
+          sourceRef: `relance:${facture.id}:${level}`,
+        });
+        if (res.ok && !res.duplicate) proposed++; else skipped++;
+        continue;
+      }
+
       const emailSent = await sendEmailViaResend(facture.clientEmail, subject, html);
 
       await db.insert(paymentRemindersTable).values({
@@ -489,9 +523,12 @@ export async function runAutoRemindersForOrg(orgId: number, triggeredByUserId?: 
       if (emailSent) sent++;
     }
 
-    await logAudit(orgId, "auto_reminders_run", `${sent} rappels envoyes, ${skipped} ignores sur ${overdueInvoices.length} factures en retard`, triggeredByUserId);
+    const auditDetail = mode === "propose"
+      ? `${proposed} relances proposees, ${skipped} ignorees sur ${overdueInvoices.length} factures en retard`
+      : `${sent} rappels envoyes, ${skipped} ignores sur ${overdueInvoices.length} factures en retard`;
+    await logAudit(orgId, "auto_reminders_run", auditDetail, triggeredByUserId);
 
-    return { total: overdueInvoices.length, sent, skipped };
+    return { total: overdueInvoices.length, sent, skipped, proposed };
 }
 
 router.post("/license-management/auto-reminders", async (req: Request, res: Response): Promise<void> => {

@@ -6,6 +6,11 @@
  * malgre son nom "auto" — aucun cron ne l'appelait. Ce service l'execute une
  * fois par jour pour chaque organisation.
  *
+ * Deux garde-fous ajoutes depuis: l'organisation peut couper les relances
+ * (`autoRemindersEnabled`), et par defaut (`billingRequiresApproval`) le cron
+ * ne fait que PROPOSER les relances dans la file d'approbation — c'est un
+ * e-mail vers le client final de l'organisation, un humain doit l'avoir lu.
+ *
  * Durabilite (meme pattern que autonomous-secretary-cron.ts /
  * daily-digest-cron.ts): le garde "une fois par jour" n'est PAS en memoire —
  * il est derive des lignes license_audit_log deja ecrites aujourd'hui
@@ -39,8 +44,14 @@ async function tick(): Promise<void> {
   running = true;
 
   try {
+    // Filtre explicite: une organisation peut couper entierement les relances
+    // (autoRemindersEnabled). Avant, le cron passait sur TOUTES les
+    // organisations sans condition — il n'existait aucun moyen de s'en
+    // desinscrire alors que ces e-mails partent vers leurs propres clients.
     const orgs = await withDbRetry(
-      () => db.select({ id: organisationsTable.id }).from(organisationsTable),
+      () => db.select({ id: organisationsTable.id, requiresApproval: organisationsTable.billingRequiresApproval })
+        .from(organisationsTable)
+        .where(eq(organisationsTable.autoRemindersEnabled, true)),
       { label: "invoice-reminder-cron:orgs" },
     );
 
@@ -65,8 +76,13 @@ async function tick(): Promise<void> {
           );
           if (already.length > 0) return;
 
-          const result = await runAutoRemindersForOrg(org.id);
-          logger.info({ orgId: org.id, ...result }, "[InvoiceReminderCron] Rappels envoyes pour une organisation");
+          const result = await runAutoRemindersForOrg(org.id, undefined, {
+            mode: org.requiresApproval ? "propose" : "send",
+          });
+          logger.info(
+            { orgId: org.id, mode: org.requiresApproval ? "propose" : "send", ...result },
+            "[InvoiceReminderCron] Cycle de relances termine pour une organisation",
+          );
         });
       } catch (err) {
         logger.warn({ err, orgId: org.id }, "[InvoiceReminderCron] Échec pour une organisation");

@@ -32,6 +32,16 @@ export const organisationsTable = pgTable("organisations", {
   // valeurs historiques codées en dur (8 h / 21 j). Voir proactive-engine.ts.
   messageSlaHours: integer("message_sla_hours").notNull().default(8),
   quietCustomerAfterDays: integer("quiet_customer_after_days").notNull().default(21),
+  // Relances de paiement automatiques (services/invoice-reminder-cron.ts).
+  // Ces e-mails partent vers les CLIENTS de l'organisation: elle doit pouvoir
+  // les couper entierement (avant: aucun moyen de le faire, le cron passait
+  // sur toutes les organisations sans condition).
+  autoRemindersEnabled: boolean("auto_reminders_enabled").notNull().default(true),
+  // Quand true (defaut), les relances de paiement et les factures mensuelles
+  // generees automatiquement passent par la file d'approbation au lieu d'etre
+  // envoyees/finalisees directement. Ce sont des actions visibles par le
+  // client final et difficiles a rattraper: un humain doit les voir d'abord.
+  billingRequiresApproval: boolean("billing_requires_approval").notNull().default(true),
   agentAutoRunEnabled: boolean("agent_auto_run_enabled").notNull().default(false),
   agentAutoRunLastRunAt: timestamp("agent_auto_run_last_run_at", { withTimezone: true }),
   // Horaires d'ouverture utilises par le service de disponibilites (creneaux
