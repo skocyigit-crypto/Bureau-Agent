@@ -26,6 +26,7 @@ import {
 import { and, eq, gte, lte, desc, sql, inArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { getTool, validateArgs, executeTool, type ToolContext } from "./assistant-tools";
+import { enqueueProposals } from "./proposal-queue";
 import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
 import { extractGeminiTokens, recordAiUsage, geminiActualModel, GEMINI_FLASH_MODEL, sanitizePromptInput } from "./ai-utils";
 
@@ -250,25 +251,11 @@ export async function proposeActionsForOrg(orgId: number, runId?: string): Promi
     return { runId: finalRunId, generated: 0, inserted: 0, skippedDuplicates: 0 };
   }
 
-  // Déduplication: ne pas re-proposer une action déjà en attente pour la même source.
-  const refs = actions.map(a => a.sourceRef).filter(Boolean);
-  const existing = refs.length > 0
-    ? await db.select({ sourceRef: agentProposalsTable.sourceRef })
-        .from(agentProposalsTable)
-        .where(and(
-          eq(agentProposalsTable.organisationId, orgId),
-          eq(agentProposalsTable.status, "en_attente"),
-          inArray(agentProposalsTable.sourceRef, refs),
-        ))
-    : [];
-  const existingRefs = new Set(existing.map(e => e.sourceRef));
-
-  let inserted = 0;
-  let skipped = 0;
-  for (const a of actions) {
-    if (a.sourceRef && existingRefs.has(a.sourceRef)) { skipped++; continue; }
-    await db.insert(agentProposalsTable).values({
-      organisationId: orgId,
+  // Mise en file via le point d'entrée unique: déduplication sur sourceRef et
+  // validation des arguments y sont centralisées (cf. services/proposal-queue).
+  const { inserted, duplicates, failed } = await enqueueProposals(
+    actions.map(a => ({
+      orgId,
       runId: finalRunId,
       toolName: a.toolName,
       title: a.title,
@@ -280,14 +267,11 @@ export async function proposeActionsForOrg(orgId: number, runId?: string): Promi
       confidence: a.confidence,
       sourceType: a.sourceType,
       sourceRef: a.sourceRef,
-      status: "en_attente",
-    });
-    inserted++;
-    if (a.sourceRef) existingRefs.add(a.sourceRef);
-  }
+    })),
+  );
 
-  logger.info({ orgId, runId: finalRunId, generated: actions.length, inserted, skipped }, "[Secretary] Propositions générées");
-  return { runId: finalRunId, generated: actions.length, inserted, skippedDuplicates: skipped };
+  logger.info({ orgId, runId: finalRunId, generated: actions.length, inserted, duplicates, failed }, "[Secretary] Propositions générées");
+  return { runId: finalRunId, generated: actions.length, inserted, skippedDuplicates: duplicates };
 }
 
 // ── Exécution d'une proposition approuvée ────────────────────────────────────

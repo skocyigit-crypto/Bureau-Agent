@@ -3,7 +3,7 @@ import {
   contactsTable, tasksTable, prospectsTable, calendarEventsTable,
   callsTable, messagesTable, facturesClientTable, projetsTable,
 } from "@workspace/db/schema";
-import { eq, and, desc, gte, lte, sql, ilike, or } from "drizzle-orm";
+import { eq, and, desc, gte, lte, sql, ilike, or, inArray } from "drizzle-orm";
 import { ensureUnaccentExtension, accentInsensitiveIlike } from "../helpers/accent-search";
 import { prepareQuery, rankByRelevance } from "../helpers/relevance";
 import { scoreContact, scoreTask, scoreEvent, scoreCall, scoreProject } from "../helpers/tool-scorers";
@@ -965,6 +965,41 @@ const ALL_TOOLS: ReadonlyArray<ToolDef<any>> = [
         .returning({ id: calendarEventsTable.id, startDate: calendarEventsTable.startDate, endDate: calendarEventsTable.endDate });
       if (!row) return { success: false, error: "Evenement introuvable dans votre organisation." };
       return { success: true, id: row.id, startDate: row.startDate, endDate: row.endDate, url: "/calendrier" };
+    },
+  },
+  {
+    name: "cancel_calendar_event",
+    description:
+      "Annule un rendez-vous existant (passe son statut a 'annule'). Action DESTRUCTIVE et visible par le client: " +
+      "NECESSITE UNE CONFIRMATION EXPLICITE. Utilise notamment quand un client demande une annulation par telephone — " +
+      "la demande est alors mise en file d'approbation, jamais appliquee directement.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "integer", description: "ID de l'evenement a annuler" },
+        motif: { type: "string", description: "Motif de l'annulation (qui l'a demandee et comment)" },
+      },
+      required: ["id"],
+    },
+    fields: {
+      id: { kind: "number", required: true, integer: true, min: 1 },
+      motif: { kind: "string", max: 500 },
+    },
+    requiresConfirmation: true,
+    summarize: (a) => `Annuler le rendez-vous #${a.id}${a.motif ? ` (${a.motif})` : ""}`,
+    execute: async (a, { orgId, userId }) => {
+      const [row] = await db.update(calendarEventsTable)
+        .set({ status: "annule", updatedBy: userId })
+        .where(and(
+          eq(calendarEventsTable.id, a.id),
+          eq(calendarEventsTable.organisationId, orgId),
+          // Un RDV deja annule ne doit pas etre "re-annule" silencieusement:
+          // renvoyer une erreur explicite est plus honnete pour l'appelant.
+          inArray(calendarEventsTable.status, ["a_confirmer", "confirme", "planifie"]),
+        ))
+        .returning({ id: calendarEventsTable.id, title: calendarEventsTable.title });
+      if (!row) return { success: false, error: "Rendez-vous introuvable, deja annule, ou hors de votre organisation." };
+      return { success: true, id: row.id, title: row.title, url: "/calendrier" };
     },
   },
   {

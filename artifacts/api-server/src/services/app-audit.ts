@@ -27,6 +27,7 @@ import { and, eq, sql, inArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
 import { getTool, validateArgs } from "./assistant-tools";
+import { enqueueProposal } from "./proposal-queue";
 import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
 import { extractGeminiTokens, recordAiUsage, geminiActualModel } from "./ai-utils";
 
@@ -311,36 +312,21 @@ export async function runAuditForOrg(orgId: number, runId?: string): Promise<Aud
 
     let linkedProposalId: number | null = null;
     if (f.actionable && f.toolName && f.args) {
-      const proposalRef = `audit:${f.sourceRef || f.title.slice(0, 40)}`;
-      const dup = await db.select({ id: agentProposalsTable.id })
-        .from(agentProposalsTable)
-        .where(and(
-          eq(agentProposalsTable.organisationId, orgId),
-          eq(agentProposalsTable.status, "en_attente"),
-          eq(agentProposalsTable.sourceRef, proposalRef),
-        ))
-        .limit(1);
-      if (dup.length === 0) {
-        const [prop] = await db.insert(agentProposalsTable).values({
-          organisationId: orgId,
-          runId: finalRunId,
-          toolName: f.toolName,
-          title: f.title,
-          summary: f.suggestion || f.detail,
-          reason: `Constat d'audit (${f.area}): ${f.detail}`.slice(0, 1000),
-          args: f.args,
-          category: "autre",
-          priority: f.severity === "critique" || f.severity === "haute" ? "haute" : "moyenne",
-          confidence: 0,
-          sourceType: "app_audit",
-          sourceRef: proposalRef,
-          status: "en_attente",
-        }).returning({ id: agentProposalsTable.id });
-        linkedProposalId = prop?.id ?? null;
-        if (linkedProposalId) proposalsCreated++;
-      } else {
-        linkedProposalId = dup[0].id;
-      }
+      // Point d'entrée unique: la déduplication sur sourceRef est faite là-bas.
+      const res = await enqueueProposal({
+        orgId,
+        runId: finalRunId,
+        toolName: f.toolName,
+        title: f.title,
+        summary: f.suggestion || f.detail,
+        reason: `Constat d'audit (${f.area}): ${f.detail}`.slice(0, 1000),
+        args: f.args,
+        priority: f.severity === "critique" || f.severity === "haute" ? "haute" : "moyenne",
+        sourceType: "app_audit",
+        sourceRef: `audit:${f.sourceRef || f.title.slice(0, 40)}`,
+      });
+      linkedProposalId = res.id ?? null;
+      if (res.ok && !res.duplicate && linkedProposalId) proposalsCreated++;
     }
 
     await db.insert(appAuditFindingsTable).values({

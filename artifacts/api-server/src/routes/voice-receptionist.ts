@@ -63,6 +63,7 @@ import { recordSecurityScan } from "../services/security-scans";
 import { emitSecurityAlert } from "../services/security-alerts";
 import { checkPhoneList } from "../services/security-lists";
 import { maskPhone } from "../services/whatsapp-notify";
+import { enqueueProposal } from "../services/proposal-queue";
 import { logger } from "../lib/logger";
 
 export const voiceReceptionistRouter: IRouter = Router();
@@ -929,7 +930,7 @@ function buildSystemInstruction(
       ? `- TRANSFERER vers un humain: si l'appelant demande explicitement a parler a une personne / un conseiller, ou si la demande depasse ton role, mets "transfer": true (et dis poliment que tu le mets en relation). N'abuse pas du transfert: privilegie d'abord de repondre ou prendre un message.\n`
       : "") +
     (opts?.allowCancellation && caller?.name
-      ? `- ANNULER un rendez-vous: si CET appelant connu demande d'annuler SON rendez-vous (celui indique dans son contexte personnel), confirme oralement et mets outcome="cancel". N'annule jamais le rendez-vous d'une autre personne.\n`
+      ? `- ANNULER un rendez-vous: si CET appelant connu demande d'annuler SON rendez-vous (celui indique dans son contexte personnel), mets outcome="cancel". IMPORTANT: tu ne peux PAS annuler toi-meme — la demande est transmise pour validation. Dis donc "je transmets votre demande d'annulation, vous recevrez une confirmation rapidement", et JAMAIS "c'est annule". Ne traite jamais la demande d'une autre personne.\n`
       : "") +
     `Tu ne dois JAMAIS inventer d'informations confidentielles ni garantir une disponibilite definitive: ` +
     `pour un rendez-vous, precise qu'il reste "a confirmer" par l'equipe.\n\n` +
@@ -951,7 +952,7 @@ function buildSystemInstruction(
     `- Quand tu as TOUTES les infos d'un rendez-vous, mets outcome="appointment" et remplis "appointment".\n` +
     `- Quand tu as TOUTES les infos d'un message, mets outcome="message" et remplis "message".\n` +
     (opts?.allowCancellation
-      ? `- Pour annuler le rendez-vous de l'appelant connu, mets outcome="cancel".\n`
+      ? `- Pour transmettre une demande d'annulation de l'appelant connu, mets outcome="cancel" (la demande part en validation, elle n'est pas appliquee tout de suite).\n`
       : "") +
     `- startIso doit etre une date/heure ISO 8601 si tu peux la determiner a partir de la demande et de la date du jour, sinon null.\n` +
     `- "urgent": mets true UNIQUEMENT si l'appelant exprime une urgence reelle (incident, panne, delai critique, mecontentement grave).\n` +
@@ -1153,7 +1154,9 @@ function smsConfirmText(
   }
   if (kind === "appointment")
     return `Votre demande de rendez-vous${whenText ? ` (${whenText})` : ""} est bien enregistree, a confirmer par notre equipe. — ${org}`;
-  if (kind === "cancel") return `Votre rendez-vous a bien ete annule. — ${org}`;
+  // Ne jamais annoncer une annulation effective: elle attend encore la
+  // validation d'un humain (cf. mise en file dans persistOutcome).
+  if (kind === "cancel") return `Votre demande d'annulation a bien ete enregistree. Nous vous confirmons rapidement. — ${org}`;
   return `Votre message a bien ete transmis a notre equipe. Nous revenons vers vous rapidement. — ${org}`;
 }
 
@@ -1317,42 +1320,71 @@ async function persistOutcome(session: CallSession, result: ReceptionistResult):
       return;
     }
 
-    // Annulation par telephone (opt-in + appelant CONNU uniquement). On
-    // n'annule QUE ses propres RDV a venir, lies par contactId (repli numero
-    // seulement sur les lignes sans contact): jamais le RDV d'un tiers.
+    // Demande d'annulation par telephone. L'IA ne l'applique JAMAIS elle-meme:
+    // l'identite de l'appelant ne repose ici que sur un nom enonce a l'oral et
+    // un numero presente (tous deux usurpables), alors qu'une annulation est
+    // destructive et irreversible du point de vue du client. On se contente
+    // donc d'IDENTIFIER le rendez-vous concerne et de deposer une proposition
+    // dans la file d'approbation; un humain tranche.
     if (result.outcome === "cancel") {
       const digits = (session.callerNumber || "").replace(/\D/g, "");
       if (!session.callerName || digits.length < 6) return; // garde-fou
       const like = `%${digits.slice(-9)}`;
-      const cancelled = await db
-        .update(calendarEventsTable)
-        .set({ status: "annule" })
+      // Meme scoping strict qu'avant: uniquement SES propres RDV a venir,
+      // liaison forte par contactId, repli numero seulement sur les lignes
+      // sans contact rattache (jamais le RDV d'un tiers dont le suffixe de
+      // numero coinciderait).
+      const candidates = await db
+        .select({
+          id: calendarEventsTable.id,
+          title: calendarEventsTable.title,
+          startDate: calendarEventsTable.startDate,
+        })
+        .from(calendarEventsTable)
         .where(and(
           eq(calendarEventsTable.organisationId, session.orgId),
           gte(calendarEventsTable.startDate, new Date()),
           inArray(calendarEventsTable.status, ["a_confirmer", "confirme", "planifie"]),
-          // Uniquement SES propres RDV: liaison forte par contactId, repli
-          // numero seulement sur les lignes sans contact rattache (jamais le
-          // RDV d'un tiers dont le suffixe de numero coinciderait).
           ownAppointmentMatch(session.callerContactId, like, true),
         ))
-        .returning({ id: calendarEventsTable.id });
+        .orderBy(calendarEventsTable.startDate);
+
       session.fulfilled = true;
       session.lastOutcome = "cancel";
-      if (cancelled.length > 0) {
-        await db.insert(notificationsTable).values({
-          organisationId: session.orgId,
-          type: "alerte",
-          title: "Rendez-vous annule par telephone (secretaire IA)",
-          message: `${session.callerName} (${caller}) a annule son rendez-vous par telephone.`,
+      if (candidates.length === 0) return;
+
+      for (const ev of candidates) {
+        const quand = new Date(ev.startDate).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" });
+        await enqueueProposal({
+          orgId: session.orgId,
+          toolName: "cancel_calendar_event",
+          title: `Annulation demandee par telephone — ${ev.title}`,
+          summary: `Annuler le rendez-vous "${ev.title}" du ${quand}.`,
+          reason:
+            `${session.callerName} (${caller}) a demande l'annulation lors d'un appel traite par la secretaire IA. ` +
+            `L'identite n'est pas verifiee (nom enonce + numero presente): a confirmer avant d'annuler.`,
+          args: { id: ev.id, motif: `Demande telephonique de ${session.callerName} (${caller})` },
+          category: "rappel",
           priority: "haute",
-          actionUrl: "/calendrier",
           sourceType: "ai_receptionist_cancel",
-          sourceId: cancelled[0] ? String(cancelled[0].id) : null,
+          // Une meme demande re-signalee pendant un second appel ne doit pas
+          // creer un doublon dans la file.
+          sourceRef: `voice-cancel:${ev.id}`,
         });
-        if (smsEnabled) {
-          await sendVoiceSms(session, caller, smsConfirmText("cancel", session), "cancel-confirm");
-        }
+      }
+
+      await db.insert(notificationsTable).values({
+        organisationId: session.orgId,
+        type: "alerte",
+        title: "Demande d'annulation par telephone (a valider)",
+        message: `${session.callerName} (${caller}) demande l'annulation de son rendez-vous. En attente de votre validation.`,
+        priority: "haute",
+        actionUrl: "/file-approbation",
+        sourceType: "ai_receptionist_cancel",
+        sourceId: String(candidates[0].id),
+      });
+      if (smsEnabled) {
+        await sendVoiceSms(session, caller, smsConfirmText("cancel", session), "cancel-confirm");
       }
       return;
     }
