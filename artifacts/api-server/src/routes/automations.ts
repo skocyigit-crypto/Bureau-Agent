@@ -259,12 +259,17 @@ router.patch("/automations/:id", async (req: Request, res: Response): Promise<vo
   const id = parseInt(String(req.params.id));
   if (isNaN(id) || id < 1) { res.status(400).json({ error: "ID invalide." }); return; }
 
-  const { enabled, name, description, schedule } = req.body;
+  const { enabled, name, description, schedule, requiresApproval } = req.body;
   const updateData: Record<string, any> = {};
   if (typeof enabled === "boolean") updateData.enabled = enabled;
   if (typeof name === "string") updateData.name = name;
   if (typeof description === "string") updateData.description = description;
   if (typeof schedule === "string") updateData.schedule = schedule;
+  // null est une valeur SIGNIFIANTE ici (= politique par defaut: les actions
+  // sortantes passent par la file, les internes non), pas une absence.
+  if (typeof requiresApproval === "boolean" || requiresApproval === null) {
+    updateData.requiresApproval = requiresApproval;
+  }
 
   if (Object.keys(updateData).length === 0) {
     res.status(400).json({ error: "Aucune modification fournie." });

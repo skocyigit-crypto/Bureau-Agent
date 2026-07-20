@@ -17,6 +17,7 @@ import { withDbRetry } from "../lib/db-retry";
 import { sendEmail } from "./email";
 import { broadcaster } from "./broadcaster";
 import { sendSms, decryptProviderConfig } from "./telephony-providers";
+import { enqueueProposal } from "./proposal-queue";
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 
@@ -511,13 +512,35 @@ async function getTriggerItems(rule: any): Promise<any[]> {
   }
 }
 
+/** Actions dont l'effet sort de l'organisation et atteint un tiers. */
+const OUTBOUND_ACTIONS = new Set(["send_sms", "send_email"]);
+
+/**
+ * Une action doit-elle etre proposee plutot qu'executee ?
+ * Par defaut oui pour les actions sortantes: la regle a beau avoir ete ecrite
+ * par un humain, chacun de ses declenchements envoie un message reel a un
+ * client sans que personne ne l'ait relu. Les actions internes (notification,
+ * tache) restent automatiques — elles ne quittent pas l'organisation.
+ */
+function needsApproval(actionType: string, requiresApproval: boolean | null): boolean {
+  if (requiresApproval === false) return false;
+  if (requiresApproval === true) return true;
+  return OUTBOUND_ACTIONS.has(actionType);
+}
+
 async function executeAction(
   orgId: number | null,
   action: { type: string; params?: Record<string, any> },
   context: Record<string, any>,
   ruleName: string,
+  requiresApproval: boolean | null = null,
 ): Promise<void> {
   const p = action.params ?? {};
+
+  if (orgId && needsApproval(action.type, requiresApproval)) {
+    await proposeAction(orgId, action, context, ruleName);
+    return;
+  }
 
   switch (action.type) {
     case "send_notification": {
@@ -609,6 +632,95 @@ async function executeAction(
   }
 }
 
+/**
+ * Depose l'action en file d'approbation au lieu de l'executer. Les valeurs
+ * sont interpolees ICI pour que l'humain lise le message final (avec le nom du
+ * client, la date, etc.) et non le gabarit avec ses {{jetons}}.
+ */
+async function proposeAction(
+  orgId: number,
+  action: { type: string; params?: Record<string, any> },
+  context: Record<string, any>,
+  ruleName: string,
+): Promise<void> {
+  const p = action.params ?? {};
+
+  if (action.type === "send_sms") {
+    const to: string = p.to ?? context.phoneNumber ?? context.phone ?? "";
+    if (!to) return;
+    const message = interpolate(p.message ?? `Automatisation: ${ruleName}`, context);
+    await enqueueProposal({
+      orgId,
+      toolName: "send_sms",
+      title: `SMS automatique — ${ruleName}`,
+      summary: `Envoyer un SMS a ${to}.`,
+      reason: `Declenche par la regle d'automatisation "${ruleName}".`,
+      args: { to, message },
+      category: "sms",
+      sourceType: "automation_rule",
+      // Meme destinataire + meme regle + meme texte = meme proposition: la
+      // regle re-tourne toutes les 5 minutes, sans cela la file se remplirait.
+      sourceRef: `auto:${ruleName}:sms:${to}:${hashText(message)}`,
+    });
+    return;
+  }
+
+  if (action.type === "send_email") {
+    const to: string = p.to ?? context.email ?? "";
+    if (!to) return;
+    const subject = interpolate(p.subject ?? ruleName, context);
+    const bodyText = interpolate(p.body ?? `Automatisation: ${ruleName}`, context);
+    await enqueueProposal({
+      orgId,
+      toolName: "send_email",
+      title: `E-mail automatique — ${ruleName}`,
+      summary: `Envoyer un e-mail a ${to} — sujet: « ${subject} »`,
+      reason: `Declenche par la regle d'automatisation "${ruleName}".`,
+      args: { to, subject, body: bodyText },
+      category: "email",
+      sourceType: "automation_rule",
+      sourceRef: `auto:${ruleName}:email:${to}:${hashText(subject + bodyText)}`,
+    });
+    return;
+  }
+
+  if (action.type === "create_task") {
+    const dueDays: number = p.dueDays ?? 1;
+    const title = interpolate(p.title ?? `Tâche automatique: ${ruleName}`, context);
+    await enqueueProposal({
+      orgId,
+      toolName: "create_task",
+      title: `Tâche automatique — ${ruleName}`,
+      summary: `Créer la tâche « ${title} ».`,
+      reason: `Declenche par la regle d'automatisation "${ruleName}".`,
+      args: {
+        title,
+        description: p.description ? interpolate(p.description, context) : undefined,
+        // L'outil create_task n'accepte que ces trois valeurs; une regle peut
+        // en contenir d'autres et ferait rejeter la proposition entiere.
+        priority: ["basse", "moyenne", "haute"].includes(p.priority) ? p.priority : "moyenne",
+        dueDate: new Date(Date.now() + dueDays * 24 * 60 * 60 * 1000).toISOString(),
+      },
+      category: "tache",
+      sourceType: "automation_rule",
+      sourceRef: `auto:${ruleName}:task:${hashText(title)}`,
+    });
+    return;
+  }
+
+  // send_notification et types inconnus: purement internes, rien a proposer.
+  logger.warn({ actionType: action.type, ruleName }, "[Automation] Action non proposable, ignoree");
+}
+
+/** Empreinte courte et stable d'un texte, pour les cles de deduplication. */
+function hashText(text: string): string {
+  let h = 0;
+  for (let i = 0; i < text.length; i++) {
+    h = (h * 31 + text.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h).toString(36);
+}
+
 /** Replace {{key}} tokens in a string with context values */
 function interpolate(template: string, ctx: Record<string, any>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => String(ctx[key] ?? ""));
@@ -646,7 +758,7 @@ async function executeRule(rule: any) {
     for (const item of items) {
       for (const action of actions) {
         try {
-          await executeAction(orgId, action, item, rule.name);
+          await executeAction(orgId, action, item, rule.name, rule.requiresApproval ?? null);
           itemsProcessed++;
         } catch (actionErr: any) {
           logger.warn({ err: actionErr?.message, action: action.type, rule: rule.name }, "[Automation] Echec action");

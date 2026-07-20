@@ -14,6 +14,18 @@ export const automationRulesTable = pgTable("automation_rules", {
   conditions: jsonb("conditions"),
   actions: jsonb("actions").notNull(),
   enabled: boolean("enabled").notNull().default(true),
+  /**
+   * Politique d'approbation de la regle:
+   *   null  = defaut — les actions SORTANTES (send_email, send_sms) passent par
+   *           la file d'approbation, les actions internes (notification, tache)
+   *           restent automatiques.
+   *   true  = tout passe par la file, y compris les actions internes.
+   *   false = tout s'execute directement (comportement historique).
+   * Une regle est ecrite une fois par un humain mais se declenche ensuite
+   * seule toutes les 5 minutes: l'humain a approuve la politique, pas chaque
+   * message envoye a un client.
+   */
+  requiresApproval: boolean("requires_approval"),
   schedule: text("schedule"),
   lastRun: timestamp("last_run", { withTimezone: true }),
   nextRun: timestamp("next_run", { withTimezone: true }),

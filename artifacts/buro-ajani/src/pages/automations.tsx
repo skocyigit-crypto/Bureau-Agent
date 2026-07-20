@@ -5,7 +5,7 @@ import {
   Zap, PlayCircle, PauseCircle, Clock, CheckCircle, AlertTriangle, Activity,
   BarChart3, RefreshCw, Settings2, Bot, CalendarClock, Mail, Phone, Users,
   FileText, TrendingUp, Loader2, Plus, Trash2, Bell, MessageSquare, ClipboardList, Copy, Pencil, Download, Printer,
-  CheckSquare, Square, X, FolderKanban,
+  CheckSquare, Square, X, FolderKanban, ShieldCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -76,6 +76,19 @@ const ACTION_ICONS: Record<string, any> = {
   create_task: ClipboardList,
   send_sms: MessageSquare,
 };
+
+/**
+ * Libelles de la politique d'approbation d'une regle. `null` est le defaut et
+ * le cas courant: une regle se declenche seule toutes les 5 minutes, donc ce
+ * qui sort vers un client (e-mail, SMS) est propose en file d'approbation
+ * tandis que ce qui reste interne (notification, tache) s'execute directement.
+ */
+const APPROVAL_META = (v: boolean | null) =>
+  v === true
+    ? { label: "Tout à valider", cls: "bg-amber-500/10 text-amber-600 border-amber-500/30", toast: "Toutes les actions passeront par la file d'approbation" }
+    : v === false
+      ? { label: "Tout automatique", cls: "bg-red-500/10 text-red-600 border-red-500/30", toast: "Cette règle s'exécutera sans validation" }
+      : { label: "Envois à valider", cls: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30", toast: "Les envois clients passeront par la file d'approbation" };
 
 interface RuleAction {
   type: string;
@@ -503,6 +516,28 @@ export default function AutomationsPage() {
     }
   }
 
+  /**
+   * Fait tourner la politique d'approbation de la regle:
+   *   null (defaut: sortant valide, interne automatique) → true (tout valide)
+   *   → false (tout automatique) → null
+   */
+  async function cycleApproval(id: number, current: boolean | null) {
+    const next = current === null ? true : current === true ? false : null;
+    try {
+      const res = await fetch(`${baseUrl}/api/automations/${id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requiresApproval: next }),
+      });
+      if (!res.ok) throw new Error("Erreur serveur");
+      toast({ title: APPROVAL_META(next).toast });
+      fetchData();
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de modifier la validation", variant: "destructive" });
+    }
+  }
+
   useEffect(() => { fetchData(); }, []);
 
   const toggleSelectMode = () => { setSelectMode(v => !v); setSelectedIds(new Set()); };
@@ -758,6 +793,15 @@ export default function AutomationsPage() {
                           {Array.isArray(rule.actions) && (
                             <span className="text-[10px] text-muted-foreground">{rule.actions.length} action(s)</span>
                           )}
+                          <button
+                            onClick={() => cycleApproval(rule.id, rule.requiresApproval ?? null)}
+                            title="Changer la politique de validation"
+                          >
+                            <Badge variant="outline" className={`text-[10px] cursor-pointer ${APPROVAL_META(rule.requiresApproval ?? null).cls}`}>
+                              <ShieldCheck className="w-2.5 h-2.5 mr-0.5" />
+                              {APPROVAL_META(rule.requiresApproval ?? null).label}
+                            </Badge>
+                          </button>
                         </div>
                       </div>
                     </div>
