@@ -9,6 +9,11 @@
  * jour" n'est PAS en mémoire — il est dérivé des lignes agent_proposals déjà
  * écrites aujourd'hui (runId `auto-AAAA-MM-JJ`). Un redémarrage du serveur ne
  * provoque donc jamais de double génération.
+ *
+ * Le même cycle purge aussi les propositions restées en attente trop longtemps
+ * (statut `expiree`): sans cela une proposition jamais tranchée gonflait le
+ * badge indéfiniment, alors qu'une action suggérée il y a des semaines n'est
+ * de toute façon plus pertinente — elle sera re-proposée avec un contexte à jour.
  */
 import { db } from "@workspace/db";
 import { organisationsTable, agentProposalsTable } from "@workspace/db/schema";
@@ -17,6 +22,7 @@ import { logger } from "../lib/logger";
 import { withDbRetry } from "../lib/db-retry";
 import { withCronLock, CRON_LOCK_NAMESPACE } from "../lib/cron-lock";
 import { proposeActionsForOrg } from "./autonomous-secretary";
+import { expireStaleProposals } from "./proposal-queue";
 
 const TICK_MS = 60 * 60 * 1000; // 1h
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
@@ -35,6 +41,12 @@ async function tick(): Promise<void> {
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
 
   try {
+    // Purge des propositions jamais traitees, toutes organisations confondues.
+    // Pas de verrou ni de garde "une fois par jour": c'est un UPDATE ... WHERE
+    // idempotent — deux instances qui le lancent en meme temps aboutissent au
+    // meme etat, et un second passage ne trouve plus rien a expirer.
+    await expireStaleProposals();
+
     const orgs = await withDbRetry(
       () => db.select({ id: organisationsTable.id }).from(organisationsTable),
       { label: "autonomous-secretary:orgs" },
