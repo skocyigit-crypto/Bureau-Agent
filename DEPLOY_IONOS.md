@@ -194,7 +194,7 @@ echo "BACKUP_ENCRYPTION_KEY=$(openssl rand -hex 32)"
 | `TWILIO_PHONE_NUMBER` | Replit Secrets'tan |
 | `GOOGLE_CLIENT_ID` | Replit Secrets'tan |
 | `GOOGLE_CLIENT_SECRET` | Replit Secrets'tan |
-| `GOOGLE_REDIRECT_URI` | `https://app.agentdebureau.fr/api/auth/google/callback` |
+| `GOOGLE_REDIRECT_URI` | `https://app.agentdebureau.fr/api/google-oauth/callback` |
 | `DOMAIN` | `app.agentdebureau.fr` (Caddy Let's Encrypt icin sart) |
 | `PUBLIC_URL` | `https://app.agentdebureau.fr` |
 | `ALLOWED_ORIGINS` | `https://app.agentdebureau.fr` |
@@ -259,7 +259,7 @@ ile giris yap.
 
 https://console.cloud.google.com/apis/credentials -> OAuth Client'ini ac:
 - **Authorized redirect URIs** -> "+ Add URI":
-  `https://app.agentdebureau.fr/api/auth/google/callback`
+  `https://app.agentdebureau.fr/api/google-oauth/callback`
 - Save
 
 (Replit zamanindaki eski URI'yi silebilirsin.)

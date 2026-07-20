@@ -83,9 +83,15 @@ girse bile hiçbir şey çalışmıyordu — artık çalışıyor, bkz. "Tamamla
   entegrasyonu (Drive/Calendar) de aynı şekilde etkileniyor.
 - **Ne gerekiyor**: Google Cloud Console'da bir OAuth istemci ID'si oluşturulmalı
   (console.cloud.google.com/apis/credentials), yetkilendirilmiş redirect URI olarak
-  `https://agent-de-bureau-api-.../api/google-oauth/callback` eklenmeli, sonra
-  `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` Secret Manager'a eklenip Cloud Run'a
-  bağlanmalı.
+  `https://app.agentdebureau.fr/api/google-oauth/callback` eklenmeli, sonra
+  `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_REDIRECT_URI` Secret Manager'a
+  eklenip Cloud Run'a bağlanmalı.
+- **DİKKAT — redirect URI API adresi OLMAMALI**: callback başarıdan sonra göreli
+  olarak `/parametres`'e yönlendiriyor (`routes/google-oauth.ts:144`, `baseUrl = "/"`).
+  API servisi o yolu servis etmediği için, redirect URI olarak API adresi yazılırsa
+  kullanıcı bağlantıyı tamamladıktan sonra 404 görür. Web servisi `/api*` isteklerini
+  zaten API'ye proxy'liyor (`deploy/Caddyfile.cloudrun:33`), dolayısıyla WEB adresi
+  hem callback'i çalıştırır hem de sonrasında uygulamaya geri döndürür.
 - **Dosyalar**: `lib/google-auth.ts:160-192`, `routes/autonomous-inbox.ts:308`,
   `routes/ai-agents.ts:2895`
 - **Durum**: Bekliyor — kullanıcı kararı gerekiyor (Google Cloud Console'da proje sahibi

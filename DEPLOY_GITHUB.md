@@ -97,7 +97,7 @@ TWILIO_AUTH_TOKEN
 TWILIO_PHONE_NUMBER
 GOOGLE_CLIENT_ID
 GOOGLE_CLIENT_SECRET
-GOOGLE_REDIRECT_URI         -> https://<canli-domain>/api/auth/google/callback
+GOOGLE_REDIRECT_URI         -> https://<canli-domain>/api/google-oauth/callback
 STRIPE_SECRET_KEY           (live mode'a gecince sk_live_)
 STRIPE_WEBHOOK_SECRET       (production webhook icin yeniden uretilecek)
 STRIPE_PRICE_STARTER

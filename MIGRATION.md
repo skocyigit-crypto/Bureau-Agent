@@ -211,7 +211,7 @@ Doldurmanız gereken **kritik** alanlar:
 | `GEMINI_API_KEY` (veya OpenAI/Anthropic) | https://aistudio.google.com/apikey |
 | `RESEND_API_KEY` | E-posta için (Replit'ten getirin) |
 | `GOOGLE_CLIENT_ID` / `_SECRET` | Replit'ten getirin |
-| `GOOGLE_REDIRECT_URI` | `https://<alanadınız>/api/auth/google/callback` |
+| `GOOGLE_REDIRECT_URI` | `https://<alanadınız>/api/google-oauth/callback` |
 | `TWILIO_*` | Telefon için (Replit'ten getirin) |
 | `DOMAIN` | HTTPS için: `app.sirketim.fr`. Sadece HTTP ile test için: `:80` |
 | `PUBLIC_URL` | `https://app.sirketim.fr` (DOMAIN HTTPS ise) |
@@ -273,7 +273,7 @@ Bu **kritik** ama tek seferlik bir Google Console ayarıdır (kod değişikliği
 1. https://console.cloud.google.com/apis/credentials adresine gidin
 2. Replit zamanından kalma OAuth Client'ı açın
 3. **Authorized redirect URIs** listesine ekleyin:
-   - `https://app.sirketim.fr/api/auth/google/callback`
+   - `https://app.sirketim.fr/api/google-oauth/callback`
 4. Eski Replit URL'ini istiyorsanız listeden silebilirsiniz
 5. **Save**
 
