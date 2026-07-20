@@ -146,6 +146,7 @@ export default function MoreScreen() {
 
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>COMMUNICATION</Text>
+          <MenuItem icon="inbox" label="File d'approbation" sublabel="Actions préparées par l'IA · à valider avant exécution" color="#059669" onPress={() => nav("/file-approbation")} />
           <MenuItem icon="zap" label="Assistant proactif" sublabel="Suggestions automatiques : tâches, appels, agenda" color="#f59e0b" onPress={() => nav("/assistant-proactif")} />
           <MenuItem icon="cpu" label="Ce que l'IA a appris" sublabel="Préférences et habitudes mémorisées par l'IA" color="#8b5cf6" onPress={() => nav("/ia-apprentissage")} />
           <MenuItem icon="message-square" label="Messages" sublabel="Messagerie vocale et notes" color="#3b82f6" badge={counts.message} onPress={() => nav("/messages")} />
