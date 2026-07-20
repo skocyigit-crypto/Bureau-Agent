@@ -4,29 +4,30 @@
 
 1. [Giris](#1-giris)
 2. [Hesap Islemleri](#2-hesap-islemleri)
-3. [Kontrol Paneli (Dashboard)](#3-kontrol-paneli)
+3. [Kontrol Paneli](#3-kontrol-paneli)
 4. [Arama Yonetimi](#4-arama-yonetimi)
 5. [Kisi Yonetimi (CRM)](#5-kisi-yonetimi-crm)
 6. [Gorev Yonetimi](#6-gorev-yonetimi)
 7. [Mesajlar](#7-mesajlar)
-8. [Musteri Adaylari (Prospects / CRM Pipeline)](#8-musteri-adaylari)
+8. [Musteri Adaylari (Prospects / CRM Pipeline)](#8-musteri-adaylari-prospects-crm-pipeline)
 9. [Faturalama](#9-faturalama)
 10. [Proje Yonetimi](#10-proje-yonetimi)
 11. [Stok Yonetimi](#11-stok-yonetimi)
 12. [Takvim](#12-takvim)
 13. [Analiz ve Raporlar](#13-analiz-ve-raporlar)
 14. [Yapay Zeka Ozellikleri](#14-yapay-zeka-ozellikleri)
-15. [Sesli Asistan ("Hey Bureau")](#15-sesli-asistan)
-16. [Telefon Sistemi](#16-telefon-sistemi)
-17. [Otomasyon](#17-otomasyon)
-18. [Google Workspace Entegrasyonu](#18-google-workspace)
-19. [Belge Yapay Zekasi](#19-belge-yapay-zekasi)
-20. [Yuz Tanima](#20-yuz-tanima)
-21. [Personel Takibi (Puantaj)](#21-personel-takibi)
-22. [Yonetim Paneli](#22-yonetim-paneli)
-23. [Ayarlar](#23-ayarlar)
-24. [Mobil Uygulama](#24-mobil-uygulama)
-25. [Sik Sorulan Sorular](#25-sik-sorulan-sorular)
+15. [Onay Kuyrugu (File d'approbation)](#15-onay-kuyrugu-file-dapprobation)
+16. [Sesli Asistan ("Hey Bureau")](#16-sesli-asistan-hey-bureau)
+17. [Telefon Sistemi](#17-telefon-sistemi)
+18. [Otomasyon](#18-otomasyon)
+19. [Google Workspace Entegrasyonu](#19-google-workspace-entegrasyonu)
+20. [Belge Yapay Zekasi](#20-belge-yapay-zekasi)
+21. [Yuz Tanima](#21-yuz-tanima)
+22. [Personel Takibi (Puantaj)](#22-personel-takibi-puantaj)
+23. [Yonetim Paneli](#23-yonetim-paneli)
+24. [Ayarlar](#24-ayarlar)
+25. [Mobil Uygulama](#25-mobil-uygulama)
+26. [Sik Sorulan Sorular](#26-sik-sorulan-sorular)
 
 ---
 
@@ -243,7 +244,11 @@ Yapay zeka her musteri adayina otomatik puan verir (0-100):
 ### Fatura Ozellikleri
 - **Coklu para birimi**: EUR, USD, GBP, CHF, TRY, CAD, MAD, XOF
 - **Gecikme faizi**: Fransiz yasalarina gore otomatik hesaplama (%10 yillik + 40 EUR sabit tazminat)
-- **Otomatik odeme hatirlatma**: E-posta ile hatirlatma gonderer
+- **Otomatik odeme hatirlatma**: Vadesi gecen faturalar icin her sabah
+  hatirlatma **hazirlanir** ve **File d'approbation** ekranina duser (bkz. bolum
+  15). Metni okuyup gerekirse duzelttikten sonra onaylayin — musteriye ancak o
+  zaman gider. Ayni fatura icin 7 gun icinde ikinci bir hatirlatma cikmaz.
+  Bu ozelligi organizasyon bazinda tamamen kapatabilirsiniz.
 - **PDF olusturma**: Profesyonel fatura PDF'i
 
 ### Musteri Hesap Sagligi
@@ -407,7 +412,70 @@ Yapay zeka otomatik olarak:
 
 ---
 
-## 15. Sesli Asistan ("Hey Bureau")
+## 15. Onay Kuyrugu (File d'approbation)
+
+**Erisim:** Sol menuden **File d'approbation** · Mobilde **Plus > File d'approbation**
+
+Bu ekran, uygulamanin **temel guvenlik kuralinin** karsiligidir:
+
+> Yapay zeka bir isi hazirlar, size gosterir, siz onaylayana kadar **uygulamaz**.
+
+Yapay zeka bir musteriye e-posta veya SMS gonderecsekse, bir randevuyu iptal
+edecekse ya da bir borc hatirlatmasi cikaracaksa, once buraya bir **oneri**
+birakir. Onaylamadiginiz hicbir sey disari cikmaz.
+
+### Bir oneride ne gorursunuz
+
+- **Baslik ve ozet** — ne yapilacagi
+- **"Pourquoi"** — yapay zekanin bunu neden onerdigi (tetikleyen olay)
+- **Gercek icerik** — musteriye gidecek metnin tamami. E-posta gövdesi, SMS
+  metni, randevu bilgisi... Ozet degil, birebir gidecek hali.
+
+### Onaylamadan once duzeltebilirsiniz
+
+Metin alanlari **degistirilebilir**. Yapay zekanin yazdigi e-postayi begenmediyseniz
+duzeltin, sonra onaylayin — gonderilecek olan sizin son halinizdir. Onay
+penceresi de son degerleri gosterir, yani gonder demeden once tam olarak ne
+gidecegini gorursunuz.
+
+### Butonlar
+
+| Buton | Ne yapar |
+|---|---|
+| **Approuver** | Eylemi hemen uygular (e-postayi gonderir, randevuyu iptal eder...) |
+| **Rejeter** | Oneriyi siler, hicbir sey yapilmaz |
+| **Lancer l'analyse** | Yapay zekadan hemen yeni oneriler uretmesini ister |
+
+Kirmizi uyari cikan oneriler **geri alinamaz** islemlerdir (ornegin randevu
+iptali) — onaylamadan once iki kez okuyun.
+
+### Sekmeler
+
+- **En attente**: karar bekleyenler. Sol menudeki rakam bunlari sayar.
+- **Historique**: onayladiklariniz, reddettikleriniz ve sonuclari.
+
+> 14 gunden eski, hic el degmemis oneriler otomatik olarak "expiree" olur ve
+> listeden duser. Ilgili durum devam ediyorsa yapay zeka guncel bilgiyle
+> yeniden onerir.
+
+### Buraya ne duser, ne dusmez
+
+**Onay ister** (disari cikan, geri alinmasi zor isler):
+- Musteriye e-posta ve SMS
+- Telefonda istenen randevu iptali
+- Odeme/borc hatirlatmalari
+- Otomasyon kurallarinin musteriye gonderdigi mesajlar
+
+**Onay istemez** (kurum ici, zararsiz isler):
+- Uygulama ici bildirimler
+- Gorev olusturma
+- Kayit guncellemeleri
+
+Bu ayrimi otomasyon kurallari icin degistirebilirsiniz — bkz. bolum 18.
+
+---
+
+## 16. Sesli Asistan ("Hey Bureau")
 
 ### Web Uygulamasinda
 Giris yaptiktan sonra ekranin **sol alt kosesinde** yuvarlak bir mikrofon butonu gorursunuz.
@@ -459,7 +527,7 @@ Panel acikken sag ustteki **?** simgesine tiklayarak tum komutlarin listesini go
 
 ---
 
-## 16. Telefon Sistemi
+## 17. Telefon Sistemi
 
 **Erisim:** Sol menuden **Telephonie** veya Mobilde **Telephonie**
 
@@ -485,13 +553,32 @@ Twilio, Vonage, Telnyx, Plivo, Sinch, Bandwidth
    - **Bandwidth:** Account ID, Username, Password, Application ID, Expediteur numarasi
 4. **Configurer** ile kaydedin, ardindan **Test** butonuyla baglantiyi dogrulayin
 
+> **Test butonu hakkinda:** Bu test saglayiciya baglanmaz — sadece girdiginiz
+> alanlarin eksiksiz oldugunu dogrular. Yanlis bir Auth Token da "basarili"
+> gorunur. Gercek dogrulama, ilk arama veya SMS denemesinde ortaya cikar.
+
 ### Webhook Entegrasyonu
 
 Saglayicilar arama durumu guncellemelerini otomatik olarak webhook uzerinden bildirir. Webhook adresi: `/api/telephony/webhook/{saglayici_adi}`
 
+### Sesli Sekreter ve Randevu Iptali
+
+Yapay zeka sekreter gelen aramalari karsilar, randevu alir ve mesaj kaydeder.
+
+**Arayan bir randevuyu iptal etmek isterse**, sekreter iptali kendisi
+gerceklestirmez. Talebi **File d'approbation** ekranina birakir ve arayana
+"talebinizi ilettim, kisa surede teyit edecegiz" der. Randevu ancak siz
+onayladiktan sonra iptal olur.
+
+**Neden boyle:** Telefondaki kisinin kimligi yalnizca soyledigi isim ve arayan
+numaradan ibarettir; ikisi de taklit edilebilir. Randevu iptali ise geri
+alinamaz ve musteriyi dogrudan etkiler. Bu yuzden karar insana birakilir.
+
+Iptal talepleri onay kuyrugunda **kirmizi uyari** ile gorunur. Bkz. bolum 15.
+
 ---
 
-## 17. Otomasyon
+## 18. Otomasyon
 
 **Erisim:** Sol menuden **Automatisations** veya Mobilde **Automations**
 
@@ -500,9 +587,29 @@ Tekrarlayan islemleri otomatiklestirmek icin kurallar olusturun:
 - Kosullari belirleyin
 - Eylemi tanimlayin (orn: bildirim gonder, gorev olustur)
 
+### Onay politikasi
+
+Her kuralin kartinda bir rozet vardir. **Uzerine tiklayarak** politikayi
+degistirebilirsiniz — uc secenek sirayla doner:
+
+| Rozet | Anlami |
+|---|---|
+| **Envois a valider** (varsayilan) | Musteriye giden e-posta/SMS onay kuyruguna duser; bildirim ve gorev olusturma otomatik calisir |
+| **Tout a valider** | Ic islemler dahil her sey onay bekler |
+| **Tout automatique** | Hicbir sey onay beklemez, kural dogrudan uygular |
+
+**Neden varsayilan boyle:** Bir kurali bir kez siz yazarsiniz, ama o kural
+sonrasinda **5 dakikada bir kendi basina** calisir. Musteriye giden her mesaji
+kimse okumamis olur. Varsayilan ayar, kurumun disina cikan seyleri insan
+gozunden gecirir; ic islemleri yavaslatmaz.
+
+Onay bekleyen kural eylemleri **File d'approbation** ekraninda, gonderilecek
+metnin son hali (musteri adi, tarih vb. doldurulmus olarak) ile gorunur —
+sablon degil, birebir gidecek hali. Bkz. bolum 15.
+
 ---
 
-## 18. Google Workspace Entegrasyonu
+## 19. Google Workspace Entegrasyonu
 
 **Erisim:** Sol menuden **Google Workspace**
 
@@ -520,7 +627,7 @@ Tekrarlayan islemleri otomatiklestirmek icin kurallar olusturun:
 
 ---
 
-## 19. Belge Yapay Zekasi
+## 20. Belge Yapay Zekasi
 
 **Erisim:** Sol menuden **Document IA**
 
@@ -533,7 +640,7 @@ Akilli belge analiz sistemi:
 
 ---
 
-## 20. Yuz Tanima
+## 21. Yuz Tanima
 
 **Erisim:** Mobilde **Reconnaissance faciale**
 
@@ -545,7 +652,7 @@ Akilli belge analiz sistemi:
 
 ---
 
-## 21. Personel Takibi (Puantaj)
+## 22. Personel Takibi (Puantaj)
 
 **Erisim:** Sol menuden **Pointage** veya Mobilde **Pointage**
 
@@ -556,13 +663,45 @@ Akilli belge analiz sistemi:
 
 ---
 
-## 22. Yonetim Paneli
+## 23. Yonetim Paneli
 
 ### Organizasyonlar (Sadece Super Admin)
 **Erisim:** Sol menuden **Organisations**
 - Organizasyon ekleme, duzenleme, silme
 - Lisans anahtari olusturma
 - Abonelik yonetimi
+
+#### Yeni organizasyon olusturma
+
+**Nom de l'organisation** alanina firma adini yazmaya baslayin (en az 2 harf).
+Uygulama Fransiz resmi sirket sicilinde arar ve bir liste acar. Listeden
+sectiginizde **resmi unvan, adres ve SIRET** otomatik dolar.
+
+Sicil erisilemezse liste bos gelir — elle yazmaya devam edebilirsiniz, hicbir
+sey engellenmez.
+
+Formu **Creer et envoyer** ile tamamladiginizda organizasyon olusturulur ve
+lisans anahtari + yonetici giris bilgileri e-posta ile gonderilir.
+
+#### E-posta gitmezse
+
+Organizasyon olusur ama **kirmizi bir uyari** cikar ve **gercek hatayi** yazar
+(ornegin gonderen alan adi dogrulanmamis, API anahtari eksik). Pencere kapanir
+— cunku organizasyon zaten olusmustur, formu tekrar gondermek kopya yaratir.
+
+Lisans kaybolmaz: listede ilgili organizasyonun satirindaki **Renvoyer la
+licence** butonuyla, sorunu duzelttikten sonra yeniden gonderebilirsiniz.
+
+#### Aylik faturalar (taslak onayi)
+
+Platform faturalari her ay otomatik uretilir ama **taslak** olarak bekler;
+hicbir borc/gecikme hesabina girmez. Super admin gozden gecirip onayladiktan
+sonra kesinlesir. Mali belgelerin insan gormeden musteriye ulasmamasi icin
+boyle tasarlanmistir.
+
+> Not: Fatura taslaklari onay kuyrugunda (bolum 15) gorunmez — o kuyruk
+> organizasyona ozeldir ve kiraci kendi faturasini onaylamis olurdu. Taslak
+> onayi super admin tarafindadir.
 
 ### Lisans Yonetimi (Sadece Admin)
 **Erisim:** Sol menuden **Gestion Licence**
@@ -584,7 +723,7 @@ Akilli belge analiz sistemi:
 
 ---
 
-## 23. Ayarlar
+## 24. Ayarlar
 
 **Erisim:** Sol menuden **Parametres**
 
@@ -609,7 +748,7 @@ Uygulamayi masaustune yuksek performansli bir uygulama olarak kurabilirsiniz:
 
 ---
 
-## 24. Mobil Uygulama
+## 25. Mobil Uygulama
 
 ### Ana Sekmeler (Alt Menude)
 | Sekme | Islem |
@@ -638,6 +777,10 @@ Uygulamayi masaustune yuksek performansli bir uygulama olarak kurabilirsiniz:
 - **Pointage**: Personel takibi
 
 #### Yapay Zeka (Intelligence Artificielle)
+- **File d'approbation**: Yapay zekanin hazirladigi, onayinizi bekleyen
+  islemler. Yanindaki rakam bekleyen sayisini gosterir. Telefondan da
+  onaylayabilir, metni duzeltebilir veya reddedebilirsiniz — masaustunun
+  tamamen ayni islevi (bkz. bolum 15).
 - **Assistant IA**: Sohbet tabanli yapay zeka
 - **Assistant Vocal**: Sesli komut sistemi
 - **Agents IA**: Uzman yapay zeka ajanlari
@@ -664,10 +807,32 @@ Uygulamayi masaustune yuksek performansli bir uygulama olarak kurabilirsiniz:
 
 ---
 
-## 25. Sik Sorulan Sorular
+## 26. Sik Sorulan Sorular
 
 ### Sifrem unutuldu, ne yapmaliyim?
 Giris ekraninda sistem yoneticinizle iletisime gecin. Super Admin sifrenizi sifirlayabilir.
+
+### Yapay zeka musteriye kendi basina e-posta veya SMS gonderir mi?
+Hayir. Kurum disina cikan hicbir sey siz onaylamadan gonderilmez. Yapay zeka
+metni hazirlar ve **File d'approbation** ekranina birakir; siz okur, gerekirse
+duzeltir, sonra onaylarsiniz (bkz. bolum 15). Ayni kural telefonda istenen
+randevu iptalleri ve odeme hatirlatmalari icin de gecerlidir.
+
+Uygulama ici bildirimler ve gorev olusturma gibi **kurum ici** islemler onay
+beklemez — bunlar disariya ulasmaz. Isterseniz otomasyon kurallarini
+"Tout a valider" yaparak onlari da onaya baglayabilirsiniz (bolum 18).
+
+### Onay kuyrugunda bekleyen isler var ama fark etmiyorum?
+Sol menude **File d'approbation** yaninda bekleyen sayisi yazar; mobilde
+**Plus** menusunde ayni rakam gorunur. 14 gun boyunca el degmeyen oneriler
+otomatik olarak duser — durum devam ediyorsa yapay zeka guncel bilgiyle
+yeniden onerir.
+
+### Lisans e-postasi gitmedi, ne yapmaliyim?
+Organizasyon olustuktan sonra kirmizi bir uyari ciktiysa, o uyaridaki metin
+**gercek sebebi** yazar (cogunlukla gonderen alan adinin dogrulanmamis olmasi
+veya eksik API anahtari). Sebebi giderdikten sonra organizasyon satirindaki
+**Renvoyer la licence** butonuyla tekrar gonderin — lisans kaybolmaz.
 
 ### Sesli komutlar calismiyorsa?
 - Chrome tarayicisi kullandiginizdan emin olun
