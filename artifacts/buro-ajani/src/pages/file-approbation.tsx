@@ -106,15 +106,18 @@ export default function FileApprobationPage() {
     onError: (e: Error) => toast({ title: "Échec de l'analyse", description: e.message, variant: "destructive" }),
   });
 
-  const [drafts, setDrafts] = useState<Record<number, { to: string; subject: string; body: string }>>({});
+  const [drafts, setDrafts] = useState<Record<number, Record<string, string>>>({});
 
   const approve = useMutation({
     mutationFn: async (p: Proposal) => {
       const edited = drafts[p.id];
-      if (p.toolName === "send_email" && edited) {
+      if (edited && Object.keys(edited).length > 0) {
+        // Fusion avec les args d'origine: l'apercu n'expose qu'une partie des
+        // champs (et uniquement en texte), les autres — dont les identifiants
+        // numeriques — doivent repartir intacts, sinon validateArgs rejette.
         await api(`/agent-queue/${p.id}/args`, {
           method: "PATCH",
-          body: JSON.stringify({ args: { to: edited.to, subject: edited.subject, body: edited.body } }),
+          body: JSON.stringify({ args: { ...(p.args as Record<string, unknown>), ...edited } }),
         });
       }
       return api<{ ok: boolean; status: string; error?: string }>(`/agent-queue/${p.id}/approve`, { method: "POST" });
@@ -137,10 +140,21 @@ export default function FileApprobationPage() {
   });
 
   const handleApprove = async (p: Proposal) => {
+    // La confirmation reprend les valeurs FINALES (edition comprise), pour que
+    // le dernier ecran avant execution montre exactement ce qui partira.
     const draft = drafts[p.id];
-    const description = p.toolName === "send_email"
-      ? `À : ${draft?.to ?? String(p.args?.to ?? "")}\nSujet : ${draft?.subject ?? String(p.args?.subject ?? "")}\n\n${draft?.body ?? String(p.args?.body ?? "")}`
-      : `${p.summary}\n\nL'action sera exécutée immédiatement.`;
+    const args = (p.args ?? {}) as Record<string, unknown>;
+    const { danger, fields } = previewFieldsFor(p);
+    const recap = fields
+      .map((f) => {
+        const v = draft?.[f.key] ?? String(args[f.key] ?? "");
+        return v ? `${f.label} : ${v}` : null;
+      })
+      .filter(Boolean)
+      .join("\n");
+    const description = [danger, recap || p.summary, "L'action sera exécutée immédiatement."]
+      .filter(Boolean)
+      .join("\n\n");
     const ok = await confirmAction({
       title: p.toolName === "send_email" ? "Envoyer cet e-mail ?" : "Approuver cette action ?",
       description,
@@ -261,8 +275,8 @@ export default function FileApprobationPage() {
                         <p className="text-xs text-muted-foreground/80 mt-2 italic">Pourquoi : {p.reason}</p>
                       )}
 
-                      {!isHistory && p.toolName === "send_email" && (
-                        <EmailDraftPreview
+                      {!isHistory && (
+                        <ActionPreview
                           proposal={p}
                           value={drafts[p.id]}
                           onChange={(v) => setDrafts((d) => ({ ...d, [p.id]: v }))}
@@ -320,54 +334,147 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
   );
 }
 
-// Auparavant, une proposition "send_email" (ex: brouillon genere par le tri
-// IA des e-mails de support, services/support-inbox.ts) n'affichait que
-// summary/reason — le brouillon reel (args.body) que "Approuver" envoyait
-// verbatim au client n'etait JAMAIS visible avant l'envoi. Ce composant
-// affiche et rend modifiable ce brouillon avant approbation.
-function EmailDraftPreview({
+/**
+ * Apercu de ce qu'une proposition fera REELLEMENT si on l'approuve.
+ *
+ * Auparavant seul "send_email" avait un apercu: toutes les autres propositions
+ * (SMS, creation de RDV, annulation, tache...) n'affichaient que title/summary,
+ * donc le contenu exact envoye ou la ligne modifiee n'etait jamais visible
+ * avant le clic. Ce composant couvre tous les outils: chaque champ declare
+ * ci-dessous est affiche et modifiable, et tout champ non declare est rendu en
+ * lecture seule par le repli generique — une nouvelle proposition d'un outil
+ * inconnu reste donc lisible au lieu d'etre invisible.
+ */
+type FieldKind = "text" | "textarea" | "readonly";
+interface PreviewField { key: string; label: string; kind: FieldKind }
+
+const TOOL_PREVIEW: Record<string, { danger?: string; fields: PreviewField[] }> = {
+  send_email: {
+    fields: [
+      { key: "to", label: "À", kind: "text" },
+      { key: "subject", label: "Sujet", kind: "text" },
+      { key: "body", label: "Message", kind: "textarea" },
+    ],
+  },
+  send_sms: {
+    fields: [
+      { key: "to", label: "Numéro", kind: "text" },
+      { key: "message", label: "Message", kind: "textarea" },
+    ],
+  },
+  create_task: {
+    fields: [
+      { key: "title", label: "Titre", kind: "text" },
+      { key: "description", label: "Description", kind: "textarea" },
+      { key: "dueDate", label: "Échéance", kind: "text" },
+      { key: "priority", label: "Priorité", kind: "text" },
+    ],
+  },
+  create_calendar_event: {
+    fields: [
+      { key: "title", label: "Titre", kind: "text" },
+      { key: "startDate", label: "Début", kind: "text" },
+      { key: "endDate", label: "Fin", kind: "text" },
+      { key: "location", label: "Lieu", kind: "text" },
+      { key: "description", label: "Description", kind: "textarea" },
+    ],
+  },
+  cancel_calendar_event: {
+    // Action destructive et visible par le client: on n'ouvre pas l'edition,
+    // on met en garde. Le motif reste modifiable car il est journalise.
+    danger: "Cette action annulera définitivement le rendez-vous. Le client peut en être informé.",
+    fields: [
+      { key: "id", label: "Rendez-vous n°", kind: "readonly" },
+      { key: "motif", label: "Motif", kind: "text" },
+    ],
+  },
+  reschedule_calendar_event: {
+    danger: "Cette action déplacera un rendez-vous existant.",
+    fields: [
+      { key: "id", label: "Rendez-vous n°", kind: "readonly" },
+      { key: "startDate", label: "Nouveau début", kind: "text" },
+      { key: "endDate", label: "Nouvelle fin", kind: "text" },
+    ],
+  },
+  create_contact: {
+    fields: [
+      { key: "nom", label: "Nom", kind: "text" },
+      { key: "email", label: "E-mail", kind: "text" },
+      { key: "telephone", label: "Téléphone", kind: "text" },
+    ],
+  },
+};
+
+/** Champs affichables pour un outil, avec repli generique sur les args bruts. */
+function previewFieldsFor(proposal: Proposal): { danger?: string; fields: PreviewField[] } {
+  const known = TOOL_PREVIEW[proposal.toolName];
+  if (known) return known;
+  const args = (proposal.args ?? {}) as Record<string, unknown>;
+  return {
+    fields: Object.keys(args).map((key) => ({
+      key,
+      label: key,
+      // Un outil inconnu ne doit pas etre modifiable a l'aveugle: on montre,
+      // on ne laisse pas editer sans savoir ce que le champ represente.
+      kind: String(args[key] ?? "").length > 120 ? "readonly" : "readonly",
+    })),
+  };
+}
+
+function ActionPreview({
   proposal,
   value,
   onChange,
 }: {
   proposal: Proposal;
-  value: { to: string; subject: string; body: string } | undefined;
-  onChange: (v: { to: string; subject: string; body: string }) => void;
+  value: Record<string, string> | undefined;
+  onChange: (v: Record<string, string>) => void;
 }) {
-  const args = proposal.args as { to?: string; subject?: string; body?: string } | undefined;
-  const current = value ?? {
-    to: String(args?.to ?? ""),
-    subject: String(args?.subject ?? ""),
-    body: String(args?.body ?? ""),
+  const { danger, fields } = previewFieldsFor(proposal);
+  const args = (proposal.args ?? {}) as Record<string, unknown>;
+  if (fields.length === 0) return null;
+
+  const valueOf = (key: string) => value?.[key] ?? String(args[key] ?? "");
+  const set = (key: string, v: string) => {
+    const base: Record<string, string> = {};
+    for (const f of fields) base[f.key] = valueOf(f.key);
+    onChange({ ...base, [key]: v });
   };
 
   return (
     <div className="mt-3 rounded-lg border border-border bg-muted/30 p-3 space-y-2">
-      <div className="grid sm:grid-cols-[80px_1fr] items-center gap-2">
-        <Label className="text-xs text-muted-foreground">À</Label>
-        <Input
-          value={current.to}
-          onChange={(e) => onChange({ ...current, to: e.target.value })}
-          className="h-8 text-sm"
-        />
-      </div>
-      <div className="grid sm:grid-cols-[80px_1fr] items-center gap-2">
-        <Label className="text-xs text-muted-foreground">Sujet</Label>
-        <Input
-          value={current.subject}
-          onChange={(e) => onChange({ ...current, subject: e.target.value })}
-          className="h-8 text-sm"
-        />
-      </div>
-      <div className="grid sm:grid-cols-[80px_1fr] gap-2">
-        <Label className="text-xs text-muted-foreground pt-2">Message</Label>
-        <Textarea
-          value={current.body}
-          onChange={(e) => onChange({ ...current, body: e.target.value })}
-          rows={5}
-          className="text-sm"
-        />
-      </div>
+      {danger && (
+        <p className="text-xs text-amber-700 dark:text-amber-400 flex items-start gap-1.5">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+          {danger}
+        </p>
+      )}
+      {fields.map((f) => {
+        const v = valueOf(f.key);
+        if (f.kind === "readonly") {
+          if (!v) return null;
+          return (
+            <div key={f.key} className="grid sm:grid-cols-[80px_1fr] gap-2">
+              <Label className="text-xs text-muted-foreground">{f.label}</Label>
+              <p className="text-sm whitespace-pre-wrap break-words">{v}</p>
+            </div>
+          );
+        }
+        if (f.kind === "textarea") {
+          return (
+            <div key={f.key} className="grid sm:grid-cols-[80px_1fr] gap-2">
+              <Label className="text-xs text-muted-foreground pt-2">{f.label}</Label>
+              <Textarea value={v} onChange={(e) => set(f.key, e.target.value)} rows={5} className="text-sm" />
+            </div>
+          );
+        }
+        return (
+          <div key={f.key} className="grid sm:grid-cols-[80px_1fr] items-center gap-2">
+            <Label className="text-xs text-muted-foreground">{f.label}</Label>
+            <Input value={v} onChange={(e) => set(f.key, e.target.value)} className="h-8 text-sm" />
+          </div>
+        );
+      })}
     </div>
   );
 }
