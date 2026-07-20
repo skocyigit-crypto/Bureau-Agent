@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { confirmAction } from "@/hooks/use-confirm";
 import {
   Building2, Plus, Edit, Trash2, Crown, Users, Phone, Mail,
@@ -193,11 +193,51 @@ export default function OrganisationsPage() {
   const [formEmail, setFormEmail] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formAddress, setFormAddress] = useState("");
+  const [formSiret, setFormSiret] = useState("");
   const [formPlan, setFormPlan] = useState("essai");
   const [formActif, setFormActif] = useState(true);
   const [formAdminPrenom, setFormAdminPrenom] = useState("");
   const [formAdminNom, setFormAdminNom] = useState("");
   const [formAdminEmail, setFormAdminEmail] = useState("");
+
+  // Auto-completion "Nom de l'organisation" -> recherche-entreprises.api.gouv.fr
+  // (proxifiee cote serveur, voir GET /organisations/search-entreprise).
+  // Debounce 350ms pour ne pas spammer l'API a chaque frappe. Selectionner un
+  // resultat remplit nom/adresse/SIRET — l'utilisateur peut toujours saisir
+  // manuellement si l'entreprise n'apparait pas (pas de blocage).
+  const [companyResults, setCompanyResults] = useState<{ nom: string; siret: string; adresse: string }[]>([]);
+  const [companySearchOpen, setCompanySearchOpen] = useState(false);
+  const [companySearching, setCompanySearching] = useState(false);
+  const companySearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const companySearchIgnore = useRef(false);
+
+  const handleFormNameChange = (value: string) => {
+    setFormName(value);
+    if (companySearchIgnore.current) { companySearchIgnore.current = false; return; }
+    if (companySearchTimer.current) clearTimeout(companySearchTimer.current);
+    if (value.trim().length < 2) { setCompanyResults([]); setCompanySearchOpen(false); return; }
+    companySearchTimer.current = setTimeout(async () => {
+      setCompanySearching(true);
+      try {
+        const res = await fetch(`${BASE}api/organisations/search-entreprise?q=${encodeURIComponent(value.trim())}`, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          setCompanyResults(data.results || []);
+          setCompanySearchOpen((data.results || []).length > 0);
+        }
+      } catch { /* recherche best-effort, la saisie manuelle reste possible */ }
+      finally { setCompanySearching(false); }
+    }, 350);
+  };
+
+  const selectCompanyResult = (c: { nom: string; siret: string; adresse: string }) => {
+    companySearchIgnore.current = true;
+    setFormName(c.nom);
+    if (c.adresse) setFormAddress(c.adresse);
+    if (c.siret) setFormSiret(c.siret);
+    setCompanySearchOpen(false);
+    setCompanyResults([]);
+  };
 
   const [billingSummary, setBillingSummary] = useState<BillingSummary | null>(null);
   const [showBilling, setShowBilling] = useState(false);
@@ -400,8 +440,9 @@ export default function OrganisationsPage() {
   useEffect(() => { loadOrganisations(); loadBillingSummary(); loadLegalCompliance(); loadSaasMetrics(); }, [loadBillingSummary, loadLegalCompliance, loadSaasMetrics]);
 
   const resetForm = () => {
-    setFormName(""); setFormEmail(""); setFormPhone(""); setFormAddress(""); setFormPlan("essai"); setFormActif(true);
+    setFormName(""); setFormEmail(""); setFormPhone(""); setFormAddress(""); setFormSiret(""); setFormPlan("essai"); setFormActif(true);
     setFormAdminPrenom(""); setFormAdminNom(""); setFormAdminEmail("");
+    setCompanyResults([]); setCompanySearchOpen(false);
   };
 
   const openCreate = () => { resetForm(); setShowCreate(true); };
@@ -451,7 +492,7 @@ export default function OrganisationsPage() {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          name: formName, email: formEmail, phone: formPhone, address: formAddress, plan: formPlan,
+          name: formName, email: formEmail, phone: formPhone, address: formAddress, siret: formSiret || undefined, plan: formPlan,
           adminPrenom: formAdminPrenom || undefined,
           adminNom: formAdminNom || undefined,
           adminEmail: formAdminEmail || undefined,
@@ -1768,9 +1809,38 @@ export default function OrganisationsPage() {
           <div className="space-y-4">
             <div className="space-y-3">
               <h4 className="text-sm font-semibold flex items-center gap-2 text-muted-foreground"><Building2 className="w-4 h-4" /> Organisation</h4>
-              <div>
+              <div className="relative">
                 <Label>Nom de l'organisation *</Label>
-                <Input value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Ex: Societe ABC" />
+                <div className="relative">
+                  <Input
+                    value={formName}
+                    onChange={(e) => handleFormNameChange(e.target.value)}
+                    onFocus={() => { if (companyResults.length > 0) setCompanySearchOpen(true); }}
+                    onBlur={() => setTimeout(() => setCompanySearchOpen(false), 150)}
+                    placeholder="Ex: Societe ABC"
+                    autoComplete="off"
+                  />
+                  {companySearching && (
+                    <Loader2 className="w-4 h-4 animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  )}
+                </div>
+                {companySearchOpen && companyResults.length > 0 && (
+                  <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md max-h-56 overflow-y-auto">
+                    {companyResults.map((c, i) => (
+                      <button
+                        key={`${c.siret}-${i}`}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => selectCompanyResult(c)}
+                        className="w-full text-left px-3 py-2 hover:bg-accent text-sm flex flex-col gap-0.5 border-b last:border-b-0"
+                      >
+                        <span className="font-medium">{c.nom}</span>
+                        {c.adresse && <span className="text-xs text-muted-foreground">{c.adresse}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[11px] text-muted-foreground mt-1">Tapez le nom pour rechercher l'entreprise (SIRENE) et remplir automatiquement l'adresse et le SIRET.</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -1785,6 +1855,10 @@ export default function OrganisationsPage() {
               <div>
                 <Label>Adresse</Label>
                 <Input value={formAddress} onChange={(e) => setFormAddress(e.target.value)} placeholder="123 rue de Paris, 75001 Paris" />
+              </div>
+              <div>
+                <Label>SIRET</Label>
+                <Input value={formSiret} onChange={(e) => setFormSiret(e.target.value)} placeholder="Rempli automatiquement si trouve" />
               </div>
               <div>
                 <Label>Plan de licence</Label>

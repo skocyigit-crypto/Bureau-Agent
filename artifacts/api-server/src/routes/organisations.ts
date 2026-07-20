@@ -44,6 +44,39 @@ const router = Router();
 // sub-router and block downstream sub-routers in the parent chain.
 router.use("/organisations", requireSuperAdmin);
 
+// Recherche d'entreprises françaises (API publique gouv.fr, sans clé) pour
+// l'auto-complétion "Nom de l'organisation" dans le formulaire de création
+// (Super Admin). Proxifiée côté serveur plutôt qu'appelée directement depuis
+// le navigateur pour rester cohérent avec le reste de l'app (pas de dépendance
+// a la disponibilité CORS d'un tiers depuis le client) et pour pouvoir
+// fail-open silencieusement si l'API est indisponible — la création manuelle
+// reste toujours possible, cette recherche n'est qu'un raccourci de saisie.
+router.get("/organisations/search-entreprise", async (req: Request, res: Response): Promise<void> => {
+  const q = String(req.query.q ?? "").trim();
+  if (q.length < 2) { res.json({ results: [] }); return; }
+  try {
+    const url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(q)}&limit=5`;
+    const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!resp.ok) { res.json({ results: [] }); return; }
+    const data = await resp.json() as { results?: any[] };
+    const results = (data.results ?? []).map((r) => {
+      const siege = r.siege ?? {};
+      const adresse = siege.adresse
+        || [siege.numero_voie, siege.type_voie, siege.libelle_voie].filter(Boolean).join(" ")
+          + (siege.code_postal || siege.libelle_commune ? `, ${[siege.code_postal, siege.libelle_commune].filter(Boolean).join(" ")}` : "");
+      return {
+        nom: r.nom_complet || r.nom_raison_sociale || "",
+        siret: siege.siret || r.siren || "",
+        adresse: adresse.trim(),
+      };
+    }).filter((r) => r.nom);
+    res.json({ results });
+  } catch (err) {
+    logger.warn({ err, q }, "[organisations] Recherche entreprise indisponible");
+    res.json({ results: [] });
+  }
+});
+
 router.get("/organisations", async (req: Request, res: Response): Promise<void> => {
   const { contactsTable, callsTable } = await import("@workspace/db");
   const { gte, and } = await import("drizzle-orm");
@@ -132,7 +165,7 @@ router.get("/organisations/:id", async (req: Request, res: Response): Promise<vo
 });
 
 router.post("/organisations", async (req: Request, res: Response): Promise<void> => {
-  const { name, email, phone, address, plan, maxUsers, adminPrenom, adminNom, adminEmail } = req.body;
+  const { name, email, phone, address, siret, plan, maxUsers, adminPrenom, adminNom, adminEmail } = req.body;
 
   if (!name || name.trim().length < 2) {
     res.status(400).json({ error: "Le nom de l'organisation est requis (min 2 caracteres)." });
@@ -180,6 +213,7 @@ router.post("/organisations", async (req: Request, res: Response): Promise<void>
         email: contactEmail || null,
         phone: phone || null,
         address: address || null,
+        siret: siret || null,
         maxUsers: maxUsers || planConfig.maxUsers,
         actif: true,
       }).returning();
