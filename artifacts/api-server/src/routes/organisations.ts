@@ -55,19 +55,33 @@ router.get("/organisations/search-entreprise", async (req: Request, res: Respons
   const q = String(req.query.q ?? "").trim();
   if (q.length < 2) { res.json({ results: [] }); return; }
   try {
-    const url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(q)}&limit=5`;
+    // L'API cherche sur la denomination LEGALE (et SIREN/SIRET), pas sur un nom
+    // commercial ou une marque: "crepistyle" ne renvoie rien alors que la
+    // raison sociale reelle (ex: "SK GROUP") en renvoie. On remonte donc plus
+    // de resultats (15) et on inclut le code postal + la ville dans l'adresse,
+    // pour que l'utilisateur distingue les 40+ homonymes possibles.
+    const digitsOnly = q.replace(/\s/g, "");
+    const isSirenSiret = /^\d{9}(\d{5})?$/.test(digitsOnly);
+    const term = isSirenSiret ? digitsOnly : q;
+    const url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(term)}&limite_matching_etablissements=1&per_page=15`;
     const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (!resp.ok) { res.json({ results: [] }); return; }
     const data = await resp.json() as { results?: any[] };
     const results = (data.results ?? []).map((r) => {
       const siege = r.siege ?? {};
-      const adresse = siege.adresse
-        || [siege.numero_voie, siege.type_voie, siege.libelle_voie].filter(Boolean).join(" ")
-          + (siege.code_postal || siege.libelle_commune ? `, ${[siege.code_postal, siege.libelle_commune].filter(Boolean).join(" ")}` : "");
+      const cpVille = [siege.code_postal, siege.libelle_commune].filter(Boolean).join(" ");
+      const rue = siege.adresse
+        || [siege.numero_voie, siege.type_voie, siege.libelle_voie].filter(Boolean).join(" ");
+      const adresse = [rue, cpVille].filter(Boolean).join(", ");
       return {
         nom: r.nom_complet || r.nom_raison_sociale || "",
         siret: siege.siret || r.siren || "",
         adresse: adresse.trim(),
+        // Champs d'appoint affiches dans la liste pour trancher entre homonymes.
+        ville: cpVille,
+        dirigeant: Array.isArray(r.dirigeants) && r.dirigeants[0]
+          ? [r.dirigeants[0].prenoms, r.dirigeants[0].nom].filter(Boolean).join(" ").trim()
+          : "",
       };
     }).filter((r) => r.nom);
     res.json({ results });

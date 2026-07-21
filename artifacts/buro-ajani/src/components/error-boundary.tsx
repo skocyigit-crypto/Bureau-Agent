@@ -23,6 +23,20 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error("[ErrorBoundary]", error, info.componentStack);
+
+    // Apres un deploiement, les noms de fichiers JS changent (hash de contenu).
+    // Un onglet ouvert AVANT le deploiement reference des chunks qui n'existent
+    // plus: le chargement paresseux d'une route echoue et tombe ici. C'est
+    // exactement le symptome "la page se ferme et demande de recharger". On
+    // recharge alors automatiquement UNE fois (garde sessionStorage pour ne pas
+    // boucler si le vrai probleme est autre chose) afin de recuperer la version
+    // a jour sans que l'utilisateur ait a le faire manuellement.
+    const msg = error?.message || "";
+    const isChunkError = /chunk|dynamically imported|Failed to fetch|Importing a module script failed|error loading/i.test(msg);
+    if (isChunkError && !sessionStorage.getItem("chunk-reload-done")) {
+      sessionStorage.setItem("chunk-reload-done", "1");
+      window.location.reload();
+    }
   }
 
   handleReload = () => {
@@ -48,6 +62,15 @@ export class ErrorBoundary extends Component<Props, State> {
               <p className="text-white/60 text-sm">
                 L'application a rencontre un probleme. Vous pouvez reessayer ou recharger la page.
               </p>
+              {this.state.error?.message && (
+                // Le message reel est affiche (et non seulement journalise en
+                // console) pour qu'un utilisateur non technique puisse le
+                // signaler par capture d'ecran. Sans lui, chaque incident
+                // ressemble a "l'appli plante" sans cause identifiable.
+                <p className="mt-3 text-[11px] text-red-300/80 font-mono break-words bg-red-500/10 rounded-md px-3 py-2 border border-red-500/20">
+                  {this.state.error.message}
+                </p>
+              )}
             </div>
             <div className="flex gap-3 justify-center">
               <Button variant="outline" onClick={this.handleRetry} className="border-white/20 text-white hover:bg-white/10">

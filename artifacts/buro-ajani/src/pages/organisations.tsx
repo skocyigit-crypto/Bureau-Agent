@@ -192,7 +192,7 @@ export default function OrganisationsPage() {
   // Debounce 350ms pour ne pas spammer l'API a chaque frappe. Selectionner un
   // resultat remplit nom/adresse/SIRET — l'utilisateur peut toujours saisir
   // manuellement si l'entreprise n'apparait pas (pas de blocage).
-  const [companyResults, setCompanyResults] = useState<{ nom: string; siret: string; adresse: string }[]>([]);
+  const [companyResults, setCompanyResults] = useState<{ nom: string; siret: string; adresse: string; ville?: string; dirigeant?: string }[]>([]);
   const [companySearchOpen, setCompanySearchOpen] = useState(false);
   const [companySearching, setCompanySearching] = useState(false);
   const companySearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -217,7 +217,7 @@ export default function OrganisationsPage() {
     }, 350);
   };
 
-  const selectCompanyResult = (c: { nom: string; siret: string; adresse: string }) => {
+  const selectCompanyResult = (c: { nom: string; siret: string; adresse: string; ville?: string; dirigeant?: string }) => {
     companySearchIgnore.current = true;
     setFormName(c.nom);
     if (c.adresse) setFormAddress(c.adresse);
@@ -1837,11 +1837,12 @@ export default function OrganisationsPage() {
                       >
                         <span className="font-medium">{c.nom}</span>
                         {c.adresse && <span className="text-xs text-muted-foreground">{c.adresse}</span>}
+                        {c.dirigeant && <span className="text-[11px] text-muted-foreground/80">Dirigeant : {c.dirigeant}</span>}
                       </button>
                     ))}
                   </div>
                 )}
-                <p className="text-[11px] text-muted-foreground mt-1">Tapez le nom pour rechercher l'entreprise (SIRENE) et remplir automatiquement l'adresse et le SIRET.</p>
+                <p className="text-[11px] text-muted-foreground mt-1">Tapez le nom LEGAL de l'entreprise, son SIREN (9 chiffres) ou SIRET (14 chiffres). La recherche porte sur le registre officiel (SIRENE), pas sur un nom commercial ou une marque : si le nom commercial ne donne rien, essayez la raison sociale ou le SIREN. La ville et le dirigeant affiches aident a distinguer les homonymes.</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
