@@ -21,8 +21,12 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
+  private domRetries = 0;
+
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error("[ErrorBoundary]", error, info.componentStack);
+
+    const msg = error?.message || "";
 
     // Apres un deploiement, les noms de fichiers JS changent (hash de contenu).
     // Un onglet ouvert AVANT le deploiement reference des chunks qui n'existent
@@ -31,11 +35,25 @@ export class ErrorBoundary extends Component<Props, State> {
     // recharge alors automatiquement UNE fois (garde sessionStorage pour ne pas
     // boucler si le vrai probleme est autre chose) afin de recuperer la version
     // a jour sans que l'utilisateur ait a le faire manuellement.
-    const msg = error?.message || "";
     const isChunkError = /chunk|dynamically imported|Failed to fetch|Importing a module script failed|error loading/i.test(msg);
     if (isChunkError && !sessionStorage.getItem("chunk-reload-done")) {
       sessionStorage.setItem("chunk-reload-done", "1");
       window.location.reload();
+      return;
+    }
+
+    // Erreurs DOM transitoires (removeChild/insertBefore "not a child of this
+    // node"): typiquement provoquees par une extension qui reecrit le DOM
+    // pendant que React le gere — la traduction automatique du navigateur
+    // (Google Translate) est la cause la plus frequente. Elle survient au
+    // demontage d'un menu/Select. Ce n'est PAS une vraie panne applicative:
+    // on se retablit tout seul (retry silencieux, jusqu'a 3 fois) au lieu
+    // d'afficher l'ecran d'erreur plein page pour un incident cosmetique.
+    const isTransientDomError =
+      /removeChild|insertBefore|not a child of this node|NotFoundError/i.test(msg);
+    if (isTransientDomError && this.domRetries < 3) {
+      this.domRetries++;
+      this.setState({ hasError: false, error: null });
     }
   }
 

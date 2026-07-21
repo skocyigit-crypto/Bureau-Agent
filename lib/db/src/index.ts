@@ -27,9 +27,17 @@ const STATEMENT_TIMEOUT_MS = parseInt(process.env.DB_STATEMENT_TIMEOUT_MS || "30
 const LOCK_TIMEOUT_MS = parseInt(process.env.DB_LOCK_TIMEOUT_MS || "5000", 10);
 const IDLE_TX_TIMEOUT_MS = parseInt(process.env.DB_IDLE_IN_TX_TIMEOUT_MS || "60000", 10);
 
+// Taille du pool PAR INSTANCE. Cloud Run peut lancer plusieurs instances
+// (maxScale) et, pendant un deploiement, les anciennes et nouvelles coexistent
+// quelques secondes. Avec un Postgres db-f1-micro (~25 connexions au total),
+// un pool de 20 x plusieurs instances epuisait instantanement les slots et
+// TOUTES les requetes repondaient 500 ("remaining connection slots are
+// reserved..."). 8 par instance laisse de la marge meme pendant un rollout.
+const POOL_MAX = parseInt(process.env.DB_POOL_MAX || "8", 10);
+
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  max: 20,
+  max: POOL_MAX,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,
   allowExitOnIdle: false,
