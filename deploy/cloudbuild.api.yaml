@@ -1,0 +1,10 @@
+# Build de l'image API. DOCKER_BUILDKIT=1 requis (le Dockerfile utilise
+# --mount=type=cache). Utilise par gcloud builds submit --config.
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    env: ['DOCKER_BUILDKIT=1']
+    args: ['build', '-f', 'deploy/Dockerfile.api', '-t', 'europe-west9-docker.pkg.dev/gwmme-1771577941260/agent-de-bureau/api:latest', '.']
+images: ['europe-west9-docker.pkg.dev/gwmme-1771577941260/agent-de-bureau/api:latest']
+timeout: 1800s
+options:
+  machineType: 'E2_HIGHCPU_8'

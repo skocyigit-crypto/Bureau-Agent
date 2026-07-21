@@ -1,0 +1,9 @@
+# Build de l'image web (buro-ajani). DOCKER_BUILDKIT=1 requis.
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    env: ['DOCKER_BUILDKIT=1']
+    args: ['build', '-f', 'deploy/Dockerfile.web.cloudrun', '-t', 'europe-west9-docker.pkg.dev/gwmme-1771577941260/agent-de-bureau/web:latest', '.']
+images: ['europe-west9-docker.pkg.dev/gwmme-1771577941260/agent-de-bureau/web:latest']
+timeout: 1800s
+options:
+  machineType: 'E2_HIGHCPU_8'
