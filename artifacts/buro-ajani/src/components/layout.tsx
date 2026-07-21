@@ -383,6 +383,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {
         label: "Système",
         items: [
+          { name: "Guide d'utilisation", href: "/guide", icon: BookOpen },
           { name: "Paramètres", href: "/parametres", icon: Settings },
           { name: "Import intelligent", href: "/import", icon: Download },
           { name: "Configuration initiale", href: "/onboarding", icon: Rocket },
@@ -490,12 +491,30 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <SmartBrowserToolbar />
               <AgentRunChip />
               <div className="w-px h-4 bg-border" />
+              {/* Guide d'utilisation — icone permanente, presente sur chaque
+                  page via l'en-tete colle. Un clic ouvre le guide complet. */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="icon"
+                    className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                    aria-label="Guide d'utilisation"
+                  >
+                    <Link href="/guide">
+                      <BookOpen className="w-5 h-5" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Guide d'utilisation</TooltipContent>
+              </Tooltip>
               <ThemeToggle />
               <ExportMenu />
               <AiHealthBadge />
               <NotificationBell />
-              
-              
+
+
               <UserProfileButton />
             </div>
           </header>
