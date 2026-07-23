@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { resolveClientIp } from "../lib/request-ip";
+import { resolveClientIp, rateLimitKey } from "../lib/request-ip";
 import rateLimit from "express-rate-limit";
 import { getPublicOffer, getPublicAvailableSlots, getPublicClosures, confirmOfferSelection, cancelOffer, rescheduleOffer } from "../services/appointment-offers";
 
@@ -14,7 +14,7 @@ const router = Router();
 // trafic /api de l'IP) — un lien de rendez-vous fuite/devine pouvait etre
 // martele bien au-dela d'un usage legitime. Limite dediee par IP.
 const publicAppointmentLimiter = rateLimit({
-  keyGenerator: resolveClientIp,
+  keyGenerator: rateLimitKey,
   windowMs: 15 * 60 * 1000,
   max: 60,
   message: { error: "Trop de requetes. Reessayez dans quelques minutes." },

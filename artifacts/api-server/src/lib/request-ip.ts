@@ -1,4 +1,5 @@
 import type { Request } from "express";
+import { ipKeyGenerator } from "express-rate-limit";
 
 /**
  * Resout l'IP reelle du visiteur, en tenant compte du hop Caddy -> Cloud Run
@@ -28,4 +29,22 @@ export function resolveClientIp(req: Request): string {
     return forwarded.split(",")[0].trim();
   }
   return req.ip || req.socket?.remoteAddress || "unknown";
+}
+
+/**
+ * Cle de limitation de debit derivee de l'IP du visiteur.
+ *
+ * A utiliser comme `keyGenerator` de TOUS les rate limiters, plutot que
+ * `resolveClientIp` directement. La difference porte sur IPv6: un abonne se
+ * voit couramment attribuer un prefixe entier (/64, soit des milliards
+ * d'adresses). Compter par adresse exacte laisserait donc un utilisateur IPv6
+ * contourner n'importe quelle limite en changeant d'adresse a chaque requete,
+ * alors qu'un utilisateur IPv4 serait, lui, bien limite.
+ *
+ * `ipKeyGenerator` regroupe les adresses IPv6 par prefixe et laisse les
+ * adresses IPv4 inchangees. C'est aussi ce que reclame express-rate-limit, qui
+ * emettait sinon une ValidationError a chaque construction de limiteur.
+ */
+export function rateLimitKey(req: Request): string {
+  return ipKeyGenerator(resolveClientIp(req));
 }

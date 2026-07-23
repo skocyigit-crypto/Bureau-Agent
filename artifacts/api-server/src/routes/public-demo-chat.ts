@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { resolveClientIp } from "../lib/request-ip";
+import { resolveClientIp, rateLimitKey } from "../lib/request-ip";
 import crypto from "crypto";
 import rateLimit from "express-rate-limit";
 import { db, demoHandoffsTable } from "@workspace/db";
@@ -18,7 +18,7 @@ const HANDOFF_RETENTION_DAYS = 14;
 // Separate, generous limiter so persisting a handoff is never blocked by the
 // stricter 20/hr demo-chat budget (a prospect chatting then clicking "continue").
 const demoHandoffLimiter = rateLimit({
-  keyGenerator: resolveClientIp,
+  keyGenerator: rateLimitKey,
   windowMs: 60 * 60 * 1000,
   max: 30,
   message: { error: "Trop de requetes. Reessayez plus tard." },
@@ -30,7 +30,7 @@ const demoHandoffLimiter = rateLimit({
 // curated synthetic dataset baked into the system prompt so the live demo
 // always feels impressive without leaking customer data.
 const demoChatLimiter = rateLimit({
-  keyGenerator: resolveClientIp,
+  keyGenerator: rateLimitKey,
   windowMs: 60 * 60 * 1000,
   max: 20,
   message: { reply: "Limite de demo atteinte. Reessayez dans une heure ou creez un compte gratuit pour acces complet.", limited: true },

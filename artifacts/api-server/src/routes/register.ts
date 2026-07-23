@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { resolveClientIp } from "../lib/request-ip";
+import { resolveClientIp, rateLimitKey } from "../lib/request-ip";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import rateLimit from "express-rate-limit";
@@ -16,7 +16,7 @@ const router = Router();
 const SALT_ROUNDS = 12;
 
 const registerLimiter = rateLimit({
-  keyGenerator: resolveClientIp,
+  keyGenerator: rateLimitKey,
   windowMs: 60 * 60 * 1000,
   max: 5,
   message: { error: "Trop de tentatives d'inscription. Reessayez dans une heure." },

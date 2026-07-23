@@ -12,7 +12,7 @@ import { logger } from "./lib/logger";
 import { ipProtection, threatDetection, csrfProtection } from "./middleware/security";
 import { hydrateFromBearer } from "./middleware/auth";
 import { guardian } from "./middleware/guardian";
-import { resolveClientIp } from "./lib/request-ip";
+import { rateLimitKey } from "./lib/request-ip";
 import { recordHttpStatus } from "./services/health-agents-external";
 
 const app: Express = express();
@@ -274,7 +274,7 @@ app.use(cors({
 }));
 
 const generalLimiter = rateLimit({
-  keyGenerator: resolveClientIp,
+  keyGenerator: rateLimitKey,
   windowMs: 15 * 60 * 1000,
   max: 1000,
   standardHeaders: true,
@@ -284,7 +284,7 @@ const generalLimiter = rateLimit({
 });
 
 const aiLimiter = rateLimit({
-  keyGenerator: resolveClientIp,
+  keyGenerator: rateLimitKey,
   windowMs: 60 * 1000,
   max: 15,
   standardHeaders: true,
@@ -294,7 +294,7 @@ const aiLimiter = rateLimit({
 });
 
 const strictLimiter = rateLimit({
-  keyGenerator: resolveClientIp,
+  keyGenerator: rateLimitKey,
   windowMs: 15 * 60 * 1000,
   max: 200,
   standardHeaders: true,
@@ -322,7 +322,7 @@ const strictLimiter = rateLimit({
 // legitime agrege sur ses IPs sortantes partagees, tout en stoppant une
 // inondation depuis une IP unique (y compris du trafic non signe / invalide).
 const webhookIpFloodGuard = rateLimit({
-  keyGenerator: resolveClientIp,
+  keyGenerator: rateLimitKey,
   windowMs: 60 * 1000,
   max: 600,
   standardHeaders: true,
@@ -345,7 +345,10 @@ const webhookLimiter = rateLimit({
       (typeof b.WaId === "string" && b.WaId) ||
       "";
     if (sid || from) return `twilio:${sid}:${from}`;
-    return resolveClientIp(req);
+    // Repli sur l'IP quand le corps n'est pas exploitable: passer par
+    // rateLimitKey pour que l'IPv6 soit regroupee par prefixe, sinon ce repli
+    // serait contournable en changeant d'adresse a chaque requete.
+    return rateLimitKey(req);
   },
   validate: { xForwardedForHeader: false, ip: false, keyGeneratorIpFallback: false },
 });

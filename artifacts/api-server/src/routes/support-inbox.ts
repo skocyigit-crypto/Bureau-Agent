@@ -15,7 +15,7 @@
 import { Router, type Request, type Response } from "express";
 import rateLimit from "express-rate-limit";
 import crypto from "crypto";
-import { resolveClientIp } from "../lib/request-ip";
+import { resolveClientIp, rateLimitKey } from "../lib/request-ip";
 import { logger } from "../lib/logger";
 import { processIncomingSupportEmail } from "../services/support-inbox";
 
@@ -39,7 +39,7 @@ function isValidWebhookSecret(req: Request): boolean {
 }
 
 const incomingLimiter = rateLimit({
-  keyGenerator: resolveClientIp,
+  keyGenerator: rateLimitKey,
   windowMs: 60 * 60 * 1000,
   max: 120,
   standardHeaders: true,
