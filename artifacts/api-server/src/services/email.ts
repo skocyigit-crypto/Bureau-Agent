@@ -1,4 +1,3 @@
-import { google } from "googleapis";
 import nodemailer from "nodemailer";
 import { Resend } from "resend";
 import { logger } from "../lib/logger";
@@ -73,89 +72,14 @@ async function getResendClient(): Promise<{ client: Resend; from: string; usedFa
     return { client, from: picked.from, usedFallback: picked.usedFallback };
   }
 
-  try {
-    const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-    if (!hostname) return null;
-    const xReplitToken = process.env.REPL_IDENTITY
-      ? "repl " + process.env.REPL_IDENTITY
-      : process.env.WEB_REPL_RENEWAL
-        ? "depl " + process.env.WEB_REPL_RENEWAL
-        : null;
-    if (!xReplitToken) return null;
-
-    const response = await fetch(
-      "https://" + hostname + "/api/v2/connection?include_secrets=true&connector_names=resend",
-      { headers: { "Accept": "application/json", "X-Replit-Token": xReplitToken } }
-    );
-    const data = await response.json() as any;
-    const conn = data.items?.[0];
-    const apiKey = conn?.settings?.api_key;
-    const fromEmail = conn?.settings?.from_email;
-    if (!apiKey) return null;
-
-    const picked = pickResendFrom(fromEmail);
-    const client = new Resend(apiKey);
-    resendCache = { client, from: picked.from, fetchedAt: Date.now() };
-    if (picked.usedFallback) {
-      logger.warn({ reason: picked.reason, raw: fromEmail }, `[Email/Resend] connecteur from_email non verifiable, fallback onboarding@resend.dev`);
-    }
-    return { client, from: picked.from, usedFallback: picked.usedFallback };
-  } catch (err: any) {
-    logger.error({ err: err.message }, "[Email/Resend] Erreur recuperation connecteur:");
-    return null;
-  }
-}
-
-let gmailConnectionSettings: any = null;
-
-async function getGmailClient() {
-  try {
-    const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-    if (!hostname) return null;
-
-    const xReplitToken = process.env.REPL_IDENTITY
-      ? "repl " + process.env.REPL_IDENTITY
-      : process.env.WEB_REPL_RENEWAL
-        ? "depl " + process.env.WEB_REPL_RENEWAL
-        : null;
-
-    if (!xReplitToken) return null;
-
-    const needsRefresh = !gmailConnectionSettings
-      || !gmailConnectionSettings.settings?.expires_at
-      || new Date(gmailConnectionSettings.settings.expires_at).getTime() <= Date.now();
-
-    if (needsRefresh) {
-      const response = await fetch(
-        "https://" + hostname + "/api/v2/connection?include_secrets=true&connector_names=google-mail",
-        {
-          headers: {
-            "Accept": "application/json",
-            "X-Replit-Token": xReplitToken,
-          },
-        }
-      );
-      const data = await response.json() as any;
-      gmailConnectionSettings = data.items?.[0];
-    }
-
-    const accessToken = gmailConnectionSettings?.settings?.access_token
-      || gmailConnectionSettings?.settings?.oauth?.credentials?.access_token;
-
-    if (!accessToken) return null;
-
-    const oauth2Client = new google.auth.OAuth2();
-    oauth2Client.setCredentials({ access_token: accessToken });
-
-    const fromEmail = gmailConnectionSettings?.settings?.from_email
-      || gmailConnectionSettings?.settings?.email_address
-      || gmailConnectionSettings?.settings?.oauth?.credentials?.email
-      || null;
-
-    return { client: google.gmail({ version: "v1", auth: oauth2Client }), fromEmail };
-  } catch {
-    return null;
-  }
+  // Pas de cle: aucun envoi possible via Resend.
+  //
+  // Un second chemin existait ici, via le connecteur Replit
+  // (REPLIT_CONNECTORS_HOSTNAME + REPL_IDENTITY). L'application tourne sur
+  // Cloud Run ou ces variables n'existent pas: il renvoyait toujours null.
+  // Supprime pour que la configuration d'envoi tienne en une seule regle —
+  // RESEND_API_KEY, sinon SMTP.
+  return null;
 }
 
 function createSmtpTransport() {
@@ -295,36 +219,13 @@ export async function sendEmail(to: string, subject: string, html: string, text:
     }
   }
 
-  const gmail = await getGmailClient();
-  if (gmail) {
-    try {
-      const fromHeader = gmail.fromEmail
-        ? `=?UTF-8?B?${Buffer.from("Ajant Bureau").toString("base64")}?= <${gmail.fromEmail}>`
-        : `=?UTF-8?B?${Buffer.from("Ajant Bureau").toString("base64")}?= <me>`;
-      const rawLines = [
-        `From: ${fromHeader}`,
-        `To: ${to}`,
-        `Subject: =?UTF-8?B?${Buffer.from(subject).toString("base64")}?=`,
-        `MIME-Version: 1.0`,
-        `Content-Type: text/html; charset=UTF-8`,
-        ``,
-        html,
-      ];
-      const raw = rawLines.join("\r\n");
-      const encodedMessage = Buffer.from(raw).toString("base64url");
-
-      const result = await gmail.client.users.messages.send({
-        userId: "me",
-        requestBody: { raw: encodedMessage },
-      });
-
-      logger.info(`[Email/Gmail] Envoye a ${to}: ${result.data.id}`);
-      return { success: true, provider: "gmail" };
-    } catch (err: any) {
-      logger.error({ err: err.message }, `[Email/Gmail] Erreur envoi a ${to}:`);
-      lastError = `Gmail: ${err.message}`;
-    }
-  }
+  // NOTE: un envoi via l'API Gmail existait ici, alimente par le connecteur
+  // Replit (REPLIT_CONNECTORS_HOSTNAME + REPL_IDENTITY). L'application tourne
+  // desormais sur Cloud Run ou ces variables n'existent pas: le client Gmail
+  // renvoyait donc toujours null et cette branche etait injoignable. Supprimee
+  // plutot que laissee en place a suggerer un mode d'envoi disponible.
+  // Les envois passent par Resend (cle plateforme ou par organisation) puis
+  // SMTP en repli.
 
   const transport = createSmtpTransport();
   if (transport) {

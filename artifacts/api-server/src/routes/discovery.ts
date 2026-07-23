@@ -71,7 +71,7 @@ async function scanEnvironment(orgId: number, userId: number): Promise<Discovere
     connectedCount: googleTokenCount,
   });
 
-  // --- 3. GOOGLE CALENDAR (Replit connector) ---
+  // --- 3. GOOGLE CALENDAR (OAuth Google, cf. routes/google-oauth.ts) ---
   let googleCalendarOk = false;
   try {
     const conns = await db.select({ status: platformConnectionsTable.status })
@@ -98,7 +98,7 @@ async function scanEnvironment(orgId: number, userId: number): Promise<Discovere
     envConfigured: hasGoogleOAuth,
   });
 
-  // --- 4. GMAIL (Replit connector) ---
+  // --- 4. GMAIL (OAuth Google, cf. routes/google-oauth.ts) ---
   let gmailOk = false;
   try {
     const conns = await db.select({ status: platformConnectionsTable.status })
@@ -224,7 +224,10 @@ async function scanEnvironment(orgId: number, userId: number): Promise<Discovere
     category: "email",
     icon: "✉️",
     status: hasResend ? "connecte" : "disponible",
-    statusLabel: hasResend ? "Actif via connecteur Replit" : "Connecteur Replit disponible",
+    // Ne plus mentionner Replit: l'application tourne sur Cloud Run et l'envoi
+    // repose sur RESEND_API_KEY (ou une cle par organisation). Le libelle
+    // designait une infrastructure qui n'existe plus ici.
+    statusLabel: hasResend ? "Actif" : "Cle API requise",
     actionLabel: hasResend ? "Voir les notifications" : "Activer Resend",
     actionPath: "/parametres?tab=notifications",
     priority: 10,

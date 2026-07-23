@@ -3,78 +3,29 @@ import { logger } from "../lib/logger";
 
 type StripeCredentials = { secretKey: string; webhookSecret?: string };
 
-// Credentials come from one of two sources, in this order of precedence:
-//   1. Environment variables (STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET) — explicit
-//      config always wins. This keeps the app portable (self-hosting / Docker / PM2)
-//      and lets tests inject deterministic dummy keys without any network call.
-//   2. The Replit-managed Stripe connection (credential proxy) — used automatically
-//      when no env key is set, so "connect Stripe via Replit" works with zero manual
-//      secret entry.
-// The resolved Stripe *secret key* is a stable Stripe API key (it does not rotate per
-// request — only the Replit identity token used to FETCH it does, and that is read
-// fresh from process.env each time), so we cache the resolved credentials for a short
-// TTL to avoid hitting the connector proxy on every billing call / status poll.
-const CRED_TTL_MS = 5 * 60_000;
-let credCache: { creds: StripeCredentials; at: number } | null = null;
+// Credentials come from the environment only: STRIPE_SECRET_KEY and
+// STRIPE_WEBHOOK_SECRET. This keeps the app portable (Cloud Run, Docker,
+// self-hosting) and lets tests inject dummy keys without any network call.
+//
+// The Stripe client itself is cached and rebuilt only when the key changes, so
+// rotating the key takes effect on the next call without a restart.
 let cachedClient: { stripe: Stripe; key: string } | null = null;
 
-async function fetchConnectorCredentials(): Promise<StripeCredentials | null> {
-  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-  const xReplitToken = process.env.REPL_IDENTITY
-    ? "repl " + process.env.REPL_IDENTITY
-    : process.env.WEB_REPL_RENEWAL
-      ? "depl " + process.env.WEB_REPL_RENEWAL
-      : null;
-  if (!hostname || !xReplitToken) return null;
-  try {
-    const resp = await fetch(
-      `https://${hostname}/api/v2/connection?include_secrets=true&connector_names=stripe`,
-      {
-        headers: { Accept: "application/json", X_REPLIT_TOKEN: xReplitToken },
-        signal: AbortSignal.timeout(10_000),
-      },
-    );
-    if (!resp.ok) {
-      logger.warn({ status: resp.status }, "[stripe] connector credential fetch failed");
-      return null;
-    }
-    const data = (await resp.json()) as {
-      items?: Array<{
-        settings?: { secret?: string; secret_key?: string; webhook_secret?: string };
-      }>;
-    };
-    const settings = data.items?.[0]?.settings;
-    // The Replit-managed Stripe connection exposes the API secret key under
-    // `secret` (older templates used `secret_key`); accept either. It does NOT
-    // provide a webhook signing secret — that comes from env or is provisioned
-    // separately (see getStripeWebhookSecret / STRIPE_WEBHOOK_SECRET).
-    const secretKey = settings?.secret ?? settings?.secret_key;
-    if (!secretKey) return null;
-    return { secretKey, webhookSecret: settings?.webhook_secret };
-  } catch (err) {
-    logger.warn({ err }, "[stripe] connector credential fetch error");
-    return null;
-  }
-}
-
+/**
+ * Stripe credentials come from the environment, and only from there.
+ *
+ * A second source existed: a Replit-managed connection fetched over
+ * REPLIT_CONNECTORS_HOSTNAME. It could never work here — the app runs on Cloud
+ * Run, where those variables are unset — and it was broken regardless: the auth
+ * header was sent as `X_REPLIT_TOKEN` instead of `X-Replit-Token`, so even on
+ * Replit the request would have been rejected. Removed along with its cache.
+ */
 async function resolveCredentials(): Promise<StripeCredentials | null> {
-  // 1. Explicit env config wins — checked on EVERY call (env reads are free), so
-  //    setting/rotating/removing env vars takes effect immediately and is never
-  //    masked by a previously-cached connector credential.
+  // Read on EVERY call (env reads are free), so rotating or removing the key
+  // takes effect immediately rather than being masked by a cached value.
   const envKey = process.env.STRIPE_SECRET_KEY;
-  if (envKey) {
-    return { secretKey: envKey, webhookSecret: process.env.STRIPE_WEBHOOK_SECRET };
-  }
-  // 2. Replit-managed Stripe connection — only the connector fetch is cached
-  //    (short TTL) to avoid hitting the proxy on every billing call / status poll.
-  if (credCache && Date.now() - credCache.at < CRED_TTL_MS) return credCache.creds;
-  const fromConnector = await fetchConnectorCredentials();
-  if (fromConnector) {
-    credCache = { creds: fromConnector, at: Date.now() };
-    return fromConnector;
-  }
-  // Don't cache "not configured" — a transient proxy error shouldn't pin us to 503.
-  return null;
+  if (!envKey) return null;
+  return { secretKey: envKey, webhookSecret: process.env.STRIPE_WEBHOOK_SECRET };
 }
 
 export async function isStripeConfigured(): Promise<boolean> {
