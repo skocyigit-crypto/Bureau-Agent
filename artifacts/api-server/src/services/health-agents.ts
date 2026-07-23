@@ -273,6 +273,25 @@ export async function recordCronHeartbeat(
 }
 
 /**
+ * Declare une tache planifiee au demarrage, sans compter d'execution.
+ *
+ * Distinct de recordCronHeartbeat, qui incremente runCount: le montage d'un
+ * cron n'est pas un passage. On pose seulement `lastRunAt` a l'instant du
+ * montage pour que la tache ne soit pas immediatement jugee "en retard" —
+ * elle vient d'etre armee, son premier tick n'a pas encore eu lieu.
+ * `onConflictDoNothing` preserve l'historique d'un cron deja connu.
+ */
+async function registerCron(name: string, expectedIntervalSec: number): Promise<void> {
+  try {
+    await db.insert(cronHeartbeatsTable)
+      .values({ name, expectedIntervalSec, lastRunAt: new Date(), runCount: 0, errorCount: 0 })
+      .onConflictDoNothing({ target: cronHeartbeatsTable.name });
+  } catch (err) {
+    logger.warn({ err, name }, "[Health] Echec inscription du cron");
+  }
+}
+
+/**
  * Enveloppe le `tick` d'une tache planifiee pour qu'elle signale son passage.
  *
  * A preferer a un appel manuel a recordCronHeartbeat en fin de tick: place ici,
@@ -287,6 +306,13 @@ export function withHeartbeat(
   tick: () => Promise<void>,
 ): () => void {
   const intervalSec = Math.round(intervalMs / 1000);
+
+  // Inscription immediate, au montage du cron (cet appel a lieu pendant
+  // startXCron). Sans elle, une tache qui n'a JAMAIS tourne serait absente de
+  // la table et donc invisible pour l'agent scheduler — precisement le cas
+  // qu'on veut detecter.
+  void registerCron(name, intervalSec);
+
   return () => {
     void (async () => {
       try {
