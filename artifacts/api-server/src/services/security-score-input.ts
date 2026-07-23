@@ -8,7 +8,7 @@
 import { db, telephonyProvidersTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { listSecurityEntries } from "./security-lists";
-import { getRecentSecurityScans } from "./security-scans";
+import { getRecentSecurityScans, type ScanVerdict } from "./security-scans";
 import { isSafeBrowsingConfigured } from "./url-safety";
 import type { SecurityScoreInput, FraudProtectionState, CustomListsState } from "./security-score";
 
@@ -56,10 +56,18 @@ export async function loadSecurityScoreInput(
     log?.warn({ err, orgId }, "Score securite: lecture listes echouee (non-bloquant)");
   }
 
-  const recentScans = getRecentSecurityScans(orgId, 200).map((s) => ({
-    verdict: s.verdict,
-    at: s.at,
-  }));
+  // Lecture en base depuis que le journal est persiste (services/security-scans.ts).
+  // Fail-soft comme les autres signaux de ce calcul: un journal illisible ne
+  // doit pas empecher le calcul du score.
+  let recentScans: Array<{ verdict: ScanVerdict; at: string }> = [];
+  try {
+    recentScans = (await getRecentSecurityScans(orgId, 200)).map((s) => ({
+      verdict: s.verdict,
+      at: s.at,
+    }));
+  } catch (err: any) {
+    log?.warn({ err, orgId }, "Score securite: lecture journal scans echouee (non-bloquant)");
+  }
 
   return {
     safeBrowsingConfigured: isSafeBrowsingConfigured(),

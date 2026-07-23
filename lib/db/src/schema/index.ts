@@ -63,3 +63,4 @@ export * from "./knowledge-base";
 export * from "./depenses";
 export * from "./organisation-closures";
 export * from "./health-checks";
+export * from "./security-scans";

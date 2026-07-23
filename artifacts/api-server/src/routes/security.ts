@@ -182,10 +182,13 @@ router.post("/security/scan-text", (req, res) => {
 });
 
 /** Etat de la protection (couches actives + compteurs) pour l'organisation. */
-router.get("/security/protection-status", (req, res) => {
+router.get("/security/protection-status", async (req, res) => {
   const orgId = req.session?.organisationId;
-  const summary = orgId ? getOrgScanSummary(orgId) : { total: 0, dangerous: 0, suspicious: 0, last24h: 0 };
-  const recent = orgId ? getRecentSecurityScans(orgId, 20) : [];
+  // Le journal est desormais lu en base (cf. services/security-scans.ts): les
+  // deux appels sont asynchrones, et paralleles puisqu'independants.
+  const [summary, recent] = orgId
+    ? await Promise.all([getOrgScanSummary(orgId), getRecentSecurityScans(orgId, 20)])
+    : [{ total: 0, dangerous: 0, suspicious: 0, last24h: 0 }, []];
   res.json({
     layers: {
       fileAntivirus: { active: true, label: "Antivirus fichiers (signatures + heuristique)" },
