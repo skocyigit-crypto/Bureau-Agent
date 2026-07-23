@@ -51,6 +51,15 @@ export interface HealthAgent {
   run: () => Promise<CheckResult[]>;
 }
 
+/**
+ * Etat du pool releve juste avant le lancement des agents.
+ *
+ * Sans cela l'observation fausse la mesure: les agents tournent en parallele
+ * et consomment eux-memes des connexions, le pool paraissait donc sature a
+ * chaque cycle. On fige l'etat "au repos" et l'agent base de donnees le lit.
+ */
+let poolSnapshot: { total: number; idle: number; waiting: number } | null = null;
+
 /** Enveloppe une sonde pour qu'une exception devienne un constat, jamais un crash. */
 async function safeCheck(
   check: string,
@@ -80,10 +89,19 @@ const databaseAgent: HealthAgent = {
 
     // Saturation du pool. C'est LA panne vecue: max=20 par instance x plusieurs
     // instances contre un Postgres qui n'accepte que ~25 connexions.
+    //
+    // La mesure est celle prise AVANT le lancement des agents (poolSnapshot),
+    // pas l'etat courant: les agents s'executent en parallele et interrogent
+    // tous la base, ils saturaient donc eux-memes le pool qu'ils mesurent.
+    // Le premier cycle rapportait ainsi "8/8 occupees" alors que la charge
+    // venait uniquement de l'observation.
     results.push(await safeCheck("pool_saturation", async () => {
-      const total = pool.totalCount;
-      const idle = pool.idleCount;
-      const waiting = pool.waitingCount;
+      const snap = poolSnapshot ?? {
+        total: pool.totalCount, idle: pool.idleCount, waiting: pool.waitingCount,
+      };
+      const total = snap.total;
+      const idle = snap.idle;
+      const waiting = snap.waiting;
       const max = (pool.options as { max?: number }).max ?? 0;
       const usage = max > 0 ? (total - idle) / max : 0;
       // Des clients en attente signifient que le pool est deja insuffisant:
@@ -331,6 +349,13 @@ export async function runHealthAgents(runId?: string): Promise<HealthRunSummary>
   const startedAt = new Date();
   const finalRunId = runId ?? `auto-${startedAt.toISOString()}`;
   const t0 = Date.now();
+
+  // Photo du pool AVANT toute requete des agents (cf. poolSnapshot).
+  poolSnapshot = {
+    total: pool.totalCount,
+    idle: pool.idleCount,
+    waiting: pool.waitingCount,
+  };
 
   const perAgent = await Promise.all(
     HEALTH_AGENTS.map(async (agent) => {

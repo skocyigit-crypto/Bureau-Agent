@@ -16,6 +16,15 @@ import { sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import type { HealthAgent, CheckResult, CheckStatus, CheckSeverity } from "./health-agents";
 
+/**
+ * Delai maximal des sondes externes. 15 s et non 6: depuis Cloud Run, un
+ * premier appel sortant paie l'etablissement TLS a froid et certains
+ * fournisseurs repondent en plusieurs secondes. Un seuil trop court faisait
+ * remonter "injoignable" des services parfaitement fonctionnels — et une
+ * alerte fausse finit par rendre tout le tableau de bord suspect.
+ */
+const EXTERNAL_TIMEOUT_MS = 15000;
+
 /** Sonde reseau avec delai maximal: une dependance lente equivaut a une panne. */
 async function probe(
   url: string,
@@ -26,7 +35,7 @@ async function probe(
     const res = await fetch(url, {
       method: opts.method ?? "GET",
       headers: opts.headers,
-      signal: AbortSignal.timeout(opts.timeoutMs ?? 6000),
+      signal: AbortSignal.timeout(opts.timeoutMs ?? EXTERNAL_TIMEOUT_MS),
     });
     return { ok: res.ok, status: res.status, ms: Date.now() - t0 };
   } catch (err) {
@@ -63,23 +72,27 @@ export const dependenciesAgent: HealthAgent = {
         remediation: "Definir RESEND_API_KEY sur le service Cloud Run.",
       });
     } else {
-      const r = await probe("https://api.resend.com/domains", {
-        headers: { Authorization: `Bearer ${resendKey}` },
-      });
+      // Un SEUL appel: la reponse de /domains sert a la fois de test de
+      // joignabilite et de verification du domaine expediteur. La sonder deux
+      // fois doublait la latence et le risque d'expiration inutilement.
+      const t0 = Date.now();
+      let reachable = false;
+      let httpStatus = 0;
+      let netError = "";
       let domainsNote = "";
       let verifiedOk = true;
-      if (r.ok) {
-        // On verifie que le domaine expediteur configure est bien VERIFIE:
-        // sans cela Resend refuse l'envoi vers des tiers.
-        try {
+      try {
+        const res = await fetch("https://api.resend.com/domains", {
+          headers: { Authorization: `Bearer ${resendKey}` },
+          signal: AbortSignal.timeout(EXTERNAL_TIMEOUT_MS),
+        });
+        httpStatus = res.status;
+        reachable = res.ok;
+        if (res.ok) {
+          const data = await res.json() as { data?: Array<{ name: string; status: string }> };
           const from = process.env.RESEND_FROM_EMAIL || "";
           const domain = (from.match(/@([^>\s]+)/)?.[1] || "").toLowerCase();
           if (domain) {
-            const res = await fetch("https://api.resend.com/domains", {
-              headers: { Authorization: `Bearer ${resendKey}` },
-              signal: AbortSignal.timeout(6000),
-            });
-            const data = await res.json() as { data?: Array<{ name: string; status: string }> };
             const found = (data.data ?? []).find((d) => d.name?.toLowerCase() === domain);
             if (!found) {
               verifiedOk = false;
@@ -91,22 +104,32 @@ export const dependenciesAgent: HealthAgent = {
               domainsNote = `Domaine expediteur "${domain}" verifie.`;
             }
           }
-        } catch {
-          domainsNote = "Statut des domaines non verifiable.";
         }
+      } catch (err) {
+        netError = err instanceof Error ? err.message : "erreur reseau";
       }
-      const status: CheckStatus = !r.ok ? "echec" : verifiedOk ? "ok" : "degrade";
+      const ms = Date.now() - t0;
+      // Une expiration de delai n'est PAS la meme chose qu'une cle refusee:
+      // le service peut simplement etre lent depuis Cloud Run. On le signale
+      // en "degrade" (a surveiller) et non en "echec" (panne averee), sans
+      // quoi un envoi qui fonctionne parfaitement serait rapporte en panne.
+      const timedOut = !reachable && httpStatus === 0;
+      const status: CheckStatus = timedOut ? "degrade" : !reachable ? "echec" : verifiedOk ? "ok" : "degrade";
       results.push({
         check: "resend",
         status,
-        severity: !r.ok ? "critique" : verifiedOk ? "basse" : "haute",
-        summary: !r.ok
-          ? `Resend injoignable ou cle refusee (HTTP ${r.status}${r.error ? `, ${r.error}` : ""}).`
-          : `Resend joignable en ${r.ms} ms. ${domainsNote}`,
-        remediation: !r.ok
-          ? "Verifier RESEND_API_KEY (revoquee ?) et l'etat du service Resend."
-          : verifiedOk ? "" : "Verifier le domaine sur resend.com/domains, sinon les envois vers des tiers seront refuses.",
-        metrics: { httpStatus: r.status, latencyMs: r.ms },
+        severity: timedOut ? "moyenne" : !reachable ? "critique" : verifiedOk ? "basse" : "haute",
+        summary: timedOut
+          ? `Resend n'a pas repondu en ${EXTERNAL_TIMEOUT_MS} ms (${netError}). Les envois peuvent tout de meme fonctionner.`
+          : !reachable
+            ? `Resend a refuse la cle (HTTP ${httpStatus}).`
+            : `Resend joignable en ${ms} ms. ${domainsNote}`,
+        remediation: timedOut
+          ? "Si le constat se repete a chaque cycle, verifier l'etat de Resend et la sortie reseau."
+          : !reachable
+            ? "Verifier RESEND_API_KEY (revoquee ?)."
+            : verifiedOk ? "" : "Verifier le domaine sur resend.com/domains, sinon les envois vers des tiers seront refuses.",
+        metrics: { httpStatus, latencyMs: ms },
       });
     }
 
