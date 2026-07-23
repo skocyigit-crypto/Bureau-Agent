@@ -144,6 +144,15 @@ rm -f "${BUILD_CFG}"
 # ---------------------------------------------------------------------------
 # 6. Deploy the api Cloud Run service.
 # ---------------------------------------------------------------------------
+# min-instances=1 et --no-cpu-throttling ne sont PAS des reglages de confort:
+# toutes les taches planifiees (relances de paiement, digest quotidien, agents
+# IA, sauvegardes, agents de sante) reposent sur setInterval dans le processus.
+# Avec min-instances=0 l'instance s'arrete faute de trafic et le temps ne
+# s'ecoule plus: ces taches ne tournaient donc QUE si quelqu'un utilisait
+# l'application au meme moment. Et avec le throttling CPU par defaut, le peu
+# qui s'executait en arriere-plan n'obtenait presque pas de CPU (latences
+# mesurees a 11 s sur un simple SELECT 1). Les repasser a 0/throttled remettrait
+# silencieusement les automatisations en panne.
 echo "-- Deploying ${API_SERVICE} --"
 DATABASE_URL="postgresql://${SQL_USER}@/${SQL_DB}?host=/cloudsql/${SQL_CONNECTION_NAME}"
 # DB_PASSWORD n'est monte nulle part: aucun code ne le lit (lib/db/src/index.ts
@@ -163,7 +172,7 @@ gcloud run deploy "${API_SERVICE}" \
   --add-cloudsql-instances="${SQL_CONNECTION_NAME}" \
   --update-env-vars="NODE_ENV=production,ADMIN_EMAIL=${ADMIN_EMAIL}" \
   --update-secrets="${SECRET_REFS}" \
-  --min-instances=0 --max-instances=3 --memory=1Gi --cpu=1 \
+  --min-instances=1 --max-instances=3 --memory=1Gi --cpu=1 --no-cpu-throttling \
   --port=8080
 
 API_URL="$(gcloud run services describe "${API_SERVICE}" --region="${REGION}" --project "${PROJECT}" --format='value(status.url)')"
