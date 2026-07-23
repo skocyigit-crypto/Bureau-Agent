@@ -32,7 +32,6 @@ import {
   ArrowRight,
   ShieldCheck,
   Zap,
-  MessageSquare,
   Building2,
   CalendarCheck,
   CheckCircle2,
@@ -64,13 +63,9 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Input } from "@/components/ui/input";
 
 import featureCallsPath from "@/assets/images/feature-calls.webp";
 import featureDashboardPath from "@/assets/images/feature-dashboard.webp";
-import testimonial1Path from "@/assets/images/testimonial-1.webp";
-import testimonial2Path from "@/assets/images/testimonial-2.webp";
-import testimonial3Path from "@/assets/images/testimonial-3.webp";
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 40 },
@@ -196,8 +191,6 @@ export default function Home() {
   const [demoSource, setDemoSource] = useState<string | undefined>(undefined);
   const [contactKind, setContactKind] = useState<ContactKind | null>(null);
   const [contactSource, setContactSource] = useState<string | undefined>(undefined);
-  const [newsletterEmail, setNewsletterEmail] = useState("");
-  const [newsletterDone, setNewsletterDone] = useState(false);
 
   const openDemo = (source?: string) => { setDemoSource(source); setDemoOpen(true); };
   const openContact = (kind: ContactKind, source?: string) => { setContactSource(source); setContactKind(kind); };
@@ -263,7 +256,7 @@ export default function Home() {
                 </motion.div>
                 
                 <motion.p variants={fadeInUp} className="mt-8 text-sm text-white/50 font-medium">
-                  Plus de 2 500 bureaux gérés en France • Aucune carte bancaire requise
+                  Essai gratuit 14 jours • Aucune carte bancaire requise
                 </motion.p>
               </motion.div>
             </div>
@@ -344,41 +337,24 @@ export default function Home() {
         {/* 2.5 AJAN DEMO — public Gemini-powered live demo */}
         <AjanDemo />
 
-        {/* 3. LOGOS / TRUST SECTION */}
-        <section className="py-12 bg-background overflow-hidden border-b border-border/40">
-          <div className="container mx-auto px-4 text-center mb-8">
-            <p className="text-sm font-bold text-muted-foreground uppercase tracking-[0.2em]">
-              LA CONFIANCE DES MEILLEURS SECRÉTARIATS EN FRANCE
-            </p>
-          </div>
-          
-          <div className="relative flex overflow-x-hidden group">
-            <div className="animate-marquee whitespace-nowrap flex items-center gap-16 md:gap-32 py-4">
-              {Array.from({ length: 2 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-16 md:gap-32 opacity-40 grayscale group-hover:grayscale-0 group-hover:opacity-80 transition-all duration-500">
-                  <div className="text-2xl font-bold font-serif">Volantera</div>
-                  <div className="text-2xl font-bold tracking-tighter">ORBICORP</div>
-                  <div className="flex items-center gap-2 text-2xl font-extrabold italic"><Zap className="w-6 h-6 text-accent"/> Zephira</div>
-                  <div className="text-2xl font-bold">NOVAXIS</div>
-                  <div className="text-2xl font-bold uppercase tracking-widest border-2 border-current px-2 py-1">Lumara</div>
-                  <div className="text-2xl font-medium tracking-wide">Calyx<span className="font-bold">Hub</span></div>
-                  <div className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-foreground to-muted-foreground">PRISMEO</div>
-                </div>
-              ))}
-            </div>
-            <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-background to-transparent pointer-events-none"></div>
-            <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-background to-transparent pointer-events-none"></div>
-          </div>
-        </section>
+        {/* Section "logos clients" retiree: elle affichait des marques
+            inventees (Volantera, Zephira, Orbicorp...) sous un titre affirmant
+            la confiance de vrais secretariats. Aucune de ces entreprises n'est
+            cliente — social proof fabrique, retire jusqu'a disposer de vrais
+            clients ayant donne leur accord. */}
 
         {/* 4. STATISTICS COUNTER SECTION */}
         <section className="py-24 bg-primary/5">
           <div className="container mx-auto px-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
+              {/* Metriques VERIFIABLES du produit, pas de statistiques clients
+                  inventees. Les anciens compteurs "2500 bureaux geres" et
+                  "1,2M appels traites" etaient fabriques et presentes comme des
+                  chiffres reels — retires (pratique commerciale trompeuse). */}
               {[
-                { label: "Bureaux geres", value: 2500, suffix: "+" },
-                { label: "Appels traites", display: "1,2M+", value: 120, suffix: "" },
-                { label: "Fonctionnalites", value: 16, suffix: " modules" },
+                { label: "Modules integres", value: 16, suffix: "" },
+                { label: "Devises supportees", value: 8, suffix: "" },
+                { label: "Essai gratuit", value: 14, suffix: " jours" },
                 { label: "Disponibilite", value: 24, suffix: "/7" }
               ].map((stat, i) => (
                 <motion.div 
@@ -887,80 +863,10 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 10. TESTIMONIALS SECTION */}
-        <section id="temoignages" className="py-32 bg-background relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-32 text-accent opacity-5 pointer-events-none transform translate-x-1/4 -translate-y-1/4">
-            <MessageSquare className="w-96 h-96" />
-          </div>
-          
-          <div className="container mx-auto px-4 relative z-10">
-            <div className="text-center max-w-3xl mx-auto mb-20">
-              <h2 className="text-4xl md:text-5xl font-extrabold text-primary mb-6">Ils ont transformé leur accueil.</h2>
-              <p className="text-xl text-muted-foreground font-medium">
-                Découvrez pourquoi les meilleurs professionnels de l'administration choisissent Ajant Bureau.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {[
-                {
-                  name: "A. Morel",
-                  role: "Office Manager",
-                  company: "Volantera Solutions",
-                  image: testimonial1Path,
-                  quote: "Ajant Bureau a complètement transformé notre façon de travailler. Fini les pertes d'informations entre la réception et les collaborateurs. L'interface est belle, rapide et surtout, pensée pour notre métier."
-                },
-                {
-                  name: "R. Blanchard",
-                  role: "Directeur Général",
-                  company: "Zephira Tech",
-                  image: testimonial2Path,
-                  quote: "La qualité de l'accueil téléphonique est la première image de notre entreprise. Avec les analytiques d'Ajant Bureau, nous avons réduit notre temps de réponse moyen de 40% en un mois."
-                },
-                {
-                  name: "L. Duvernet",
-                  role: "Responsable Réception",
-                  company: "Orbispace",
-                  image: testimonial3Path,
-                  quote: "Gérer 50 lignes différentes était un cauchemar quotidien. Le routage intelligent fait le travail à notre place. C'est de loin le meilleur investissement logiciel que nous ayons fait cette année."
-                }
-              ].map((testimonial, i) => (
-                <motion.div 
-                  key={i}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.15 }}
-                  className="bg-card rounded-[2rem] p-8 border border-border shadow-lg flex flex-col h-full"
-                >
-                  <div className="flex gap-1 text-accent mb-6">
-                    {[1,2,3,4,5].map(star => (
-                      <span key={star} className="text-xl">★</span>
-                    ))}
-                  </div>
-                  <blockquote className="text-lg font-medium text-foreground leading-relaxed mb-8 flex-grow">
-                    "{testimonial.quote}"
-                  </blockquote>
-                  <div className="flex items-center gap-4 mt-auto">
-                    <img
-                      src={testimonial.image}
-                      alt={testimonial.name}
-                      width={56}
-                      height={56}
-                      loading="lazy"
-                      decoding="async"
-                      className="w-14 h-14 rounded-full object-cover border-2 border-primary/10"
-                    />
-                    <div>
-                      <div className="font-bold text-primary">{testimonial.name}</div>
-                      <div className="text-sm text-muted-foreground">{testimonial.role}, {testimonial.company}</div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
+        {/* Section "temoignages" retiree: elle presentait trois avis clients
+            entierement inventes (personnes, entreprises et citations fictives)
+            comme de vrais temoignages. A reintroduire uniquement avec de vrais
+            clients ayant donne leur accord. */}
 
         {/* 11. INTEGRATIONS SECTION */}
         <section id="integrations" className="py-24 bg-muted/30 border-y border-border">
@@ -1089,28 +995,10 @@ export default function Home() {
                 </Button>
               </div>
 
-              <div className="max-w-md mx-auto bg-white/5 p-6 rounded-3xl border border-white/10 backdrop-blur-md">
-                <h4 className="text-sm font-bold uppercase tracking-widest text-white/80 mb-4">Restez informé</h4>
-                {newsletterDone ? (
-                  <p className="text-center text-accent font-bold py-2">✓ Inscription confirmée. Merci !</p>
-                ) : (
-                  <div className="flex gap-2">
-                    <Input
-                      type="email"
-                      placeholder="votre@email.fr"
-                      value={newsletterEmail}
-                      onChange={(e) => setNewsletterEmail(e.target.value)}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/50 h-12 rounded-xl focus-visible:ring-accent"
-                    />
-                    <Button
-                      className="h-12 bg-white text-primary hover:bg-white/90 rounded-xl font-bold px-6 shrink-0"
-                      onClick={() => { if (newsletterEmail.includes("@")) setNewsletterDone(true); }}
-                    >
-                      S'inscrire
-                    </Button>
-                  </div>
-                )}
-              </div>
+              {/* Formulaire newsletter retire: il affichait "Inscription
+                  confirmee" sans envoyer l'e-mail nulle part (aucune requete
+                  reseau, aucune liste de diffusion). A remettre seulement avec
+                  une vraie integration d'emailing (Brevo, Mailchimp...). */}
             </motion.div>
           </div>
         </section>

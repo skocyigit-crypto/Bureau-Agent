@@ -21,7 +21,6 @@ export function Navbar({ onDemoClick }: NavbarProps) {
     { label: "Fonctionnalités", href: "#fonctionnalites" },
     { label: "Analytique", href: "#analytique" },
     { label: "Tarifs", href: "#tarifs" },
-    { label: "Témoignages", href: "#temoignages" },
     { label: "FAQ", href: "#faq" },
   ];
 
