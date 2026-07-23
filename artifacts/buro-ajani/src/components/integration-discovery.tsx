@@ -289,7 +289,11 @@ export function IntegrationDiscovery() {
 }
 
 function ServiceCard({ service, onAction }: { service: Service; onAction: () => void }) {
-  const cfg = STATUS_CONFIG[service.status];
+  // Repli si le backend renvoie un statut inconnu (nouvelle valeur, null...):
+  // sans lui, `cfg.icon` levait une exception EN RENDU et faisait planter tout
+  // le panneau (ecran blanc via l'ErrorBoundary). Tous les autres acces
+  // indexes de l'app ont deja ce repli; celui-ci avait ete oublie.
+  const cfg = STATUS_CONFIG[service.status] ?? STATUS_CONFIG.non_configure;
   const StatusIcon = cfg.icon;
 
   return (

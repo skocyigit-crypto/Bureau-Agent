@@ -953,10 +953,10 @@ export default function Dashboard() {
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-white/60">Quota IA ce mois</p>
-                {aiQuota ? (
+                {aiQuota?.used ? (
                   <>
                     <p className={`font-semibold text-sm ${aiQuota.percentCost >= 95 || aiQuota.percentCalls >= 95 ? "text-red-300" : aiQuota.percentCost >= 80 || aiQuota.percentCalls >= 80 ? "text-orange-300" : "text-amber-300"}`}>
-                      {aiQuota.used.costUsd.toFixed(2)} USD · {aiQuota.used.calls.toLocaleString("fr-FR")} appels
+                      {(aiQuota.used.costUsd ?? 0).toFixed(2)} USD · {(aiQuota.used.calls ?? 0).toLocaleString("fr-FR")} appels
                     </p>
                     <p className="text-xs text-white/50">
                       {Math.max(aiQuota.percentCost, aiQuota.percentCalls).toFixed(0)}% du plafond mensuel

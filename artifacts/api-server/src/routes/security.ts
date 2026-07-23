@@ -281,7 +281,12 @@ router.get("/security/lists", async (req, res) => {
   res.json({ entries: await listSecurityEntries(orgId) });
 });
 
-router.post("/security/lists", async (req, res) => {
+// requireAdmin comme la mutation soeur /security/settings (ligne 256): sans ce
+// garde, un membre `agent` ou `lecture_seule` pouvait ajouter/retirer des
+// entrees des listes blanche/noire de l'organisation — autoriser un expediteur
+// malveillant ou bloquer un contact legitime. Le controle etait plus faible
+// que celui de son voisin immediat, signe classique d'un oubli.
+router.post("/security/lists", requireAdmin, async (req, res) => {
   const orgId = req.session?.organisationId;
   const userId = req.session?.userId;
   if (!orgId) {
@@ -316,7 +321,7 @@ router.post("/security/lists", async (req, res) => {
   }
 });
 
-router.delete("/security/lists/:id", async (req, res) => {
+router.delete("/security/lists/:id", requireAdmin, async (req, res) => {
   const orgId = req.session?.organisationId;
   const id = parseInt(String(req.params.id), 10);
   if (!orgId || !Number.isFinite(id)) {

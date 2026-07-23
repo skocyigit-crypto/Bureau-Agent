@@ -171,7 +171,7 @@ router.post("/calls", async (req, res): Promise<void> => {
     logAudit(req.session?.userId, req.session?.userEmail, "create", "call", String(call.id), { contactName: call.contactName, direction: call.direction }, req.ip, req.get("user-agent"), req.session?.organisationId);
 
     if (call.status === "repondu" && call.notes && call.notes.trim().length > 5) {
-      processCallWithAI(call.id).catch(async (err) => {
+      processCallWithAI(call.id, orgId).catch(async (err) => {
         const msg = err?.message || String(err);
         logger.error({ err: msg }, `[AI] Erreur traitement appel #${call.id}:`);
         try {
@@ -207,7 +207,11 @@ router.post("/calls/:id/process", async (req, res): Promise<void> => {
   if (isNaN(id)) { res.status(400).json({ error: "ID invalide." }); return; }
 
   try {
-    const result = await processCallWithAI(id);
+    // orgId de la SESSION: garantit qu'on ne traite qu'un appel de sa propre
+    // organisation (cf. filtre dans call-processor). Sans lui, l'endpoint
+    // laissait traiter l'appel d'un autre tenant et en exposait l'analyse IA.
+    const orgId = getOrgId(req);
+    const result = await processCallWithAI(id, orgId);
     res.json({
       analysis: result.analysis,
       tasksCreated: result.createdTasks.length,

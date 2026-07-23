@@ -1,5 +1,5 @@
 import { db, callsTable, tasksTable, calendarEventsTable, notificationsTable } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { logAudit } from "../routes/audit";
 import { safeJsonParse, aiCallWithRetry, sanitizePromptInput, recordAiUsage, extractGeminiTokens, geminiActualModel, GEMINI_PRO_MODEL } from "./ai-utils";
 import { assertAiQuota, invalidateQuotaCache } from "./ai-quota";
@@ -36,7 +36,7 @@ interface CallAnalysis {
 
 const processingCalls = new Set<number>();
 
-export async function processCallWithAI(callId: number): Promise<{
+export async function processCallWithAI(callId: number, orgId: number): Promise<{
   analysis: CallAnalysis;
   createdTasks: any[];
   createdAppointment: any | null;
@@ -55,7 +55,7 @@ export async function processCallWithAI(callId: number): Promise<{
 
   processingCalls.add(callId);
   try {
-    return await _processCallInternal(callId);
+    return await _processCallInternal(callId, orgId);
   } finally {
     processingCalls.delete(callId);
     try {
@@ -66,12 +66,18 @@ export async function processCallWithAI(callId: number): Promise<{
   }
 }
 
-async function _processCallInternal(callId: number): Promise<{
+async function _processCallInternal(callId: number, orgId: number): Promise<{
   analysis: CallAnalysis;
   createdTasks: any[];
   createdAppointment: any | null;
 }> {
-  const [call] = await db.select().from(callsTable).where(eq(callsTable.id, callId));
+  // Filtre par organisation OBLIGATOIRE: sans lui, un utilisateur pouvait
+  // enumerer les ids d'appels et declencher le traitement d'un appel d'une
+  // AUTRE organisation — la reponse renvoyait alors le resume IA (contenu de
+  // l'appel) d'un autre client, creait des taches chez lui et consommait son
+  // quota IA. Fuite inter-tenant classique (OWASP A01).
+  const [call] = await db.select().from(callsTable)
+    .where(and(eq(callsTable.id, callId), eq(callsTable.organisationId, orgId)));
   if (!call) throw new Error("Appel non trouve");
 
   if (call.sentiment && call.sentiment !== "neutre") {
